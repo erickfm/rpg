@@ -2,9 +2,10 @@
 // the scene graph cannot separate them (one parent for the whole church).
 //   booth : tall, roughly 1-3 m footprint, standing near a side wall
 //   pew   : long and low, seat height
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const rm=await p.evaluate(()=>window.__ct.roomDims().find(r=>r.id==='church'));

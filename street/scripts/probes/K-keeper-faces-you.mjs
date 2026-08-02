@@ -30,11 +30,12 @@
 //     three people have now disagreed about.
 //
 // Usage: SHOT_URL=http://localhost:4292/ node scripts/K-keeper-faces-you.mjs
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4292/';
+const URL = aim('http://localhost:4292/');
 const OUT = 'shots/K-keeper';
 mkdirSync(OUT, { recursive: true });
 

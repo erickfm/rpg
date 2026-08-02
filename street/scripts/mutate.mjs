@@ -11,10 +11,11 @@
 // and re-running the same arithmetic. Nothing under src/ is touched — the plant
 // is an extra entry in the array the probe reads, which is exactly what a real
 // obstruction would look like to it.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

@@ -30,6 +30,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/mods-dim.mjs [mod...]
 //        --selftest   force a material to hold its daylight value
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installMats } from './lib/materials.mjs';
@@ -39,7 +40,7 @@ const { selftest: SELFTEST, rest } = flags(['--selftest']);
 // Both of my modules by default; the walk-up contributes only its OUTDOOR
 // faces, since everything inside it is excluded above.
 const MODS = rest.length ? rest : ['lot', 'walkup'];
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 // The bar is deliberately low. Anything the night touches at all falls by tens
 // of per cent; the bunting fell 1.3%. 20% separates "graded" from "not graded"
 // with a wide margin either side, and does not pretend to judge how much a

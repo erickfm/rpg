@@ -6,11 +6,12 @@
 //
 // Warmed first, so this measures the steady-state behaviour rather than the
 // first-warp-after-load case already understood.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p);
 await p.evaluate(() => window.__ct.clock(13, 0));

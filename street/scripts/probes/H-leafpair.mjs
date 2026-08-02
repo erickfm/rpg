@@ -2,8 +2,9 @@
 // room on the door's own x, 4.2 m back, facing the doors — both pulls must
 // flank the MEETING LINE with daylight between them, not sit out at the jambs".
 // BOTH rooms, because the row is about a mirrored pair (GOTCHAS §27).
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

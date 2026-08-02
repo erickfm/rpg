@@ -6,3 +6,17 @@ dist/
 BRIEF*.md
 node_modules/
 node_modules
+
+# THE LIVE QUEUE IS COORDINATION STATE, NOT SOURCE — see scripts/claim.sh.
+# Tracked, it was clobbered by ordinary git: the desk stashed it around a merge
+# and a builder's DONE row, written inside that window, was restored away. The
+# builder caught it by chance. Untracked, no checkout/stash/merge can touch it,
+# and it is still shared by every worktree because the scripts resolve it via
+# `git rev-parse --git-common-dir`. Completed rows are archived to
+# notes/archive/QUEUE-done-*.md, which IS tracked — that is where the history
+# lives.
+street/notes/QUEUE.md
+
+# Staging copy of the packed artifact, taken out of dist/ so it survives a
+# worktree cleanup long enough to publish. A build product, not source.
+street/artifact/

@@ -1,10 +1,11 @@
 // "the church interior is reversed ... the entrance/exit is at the altar [end]"
 // G's test: walk in and hold forward - 0.51 m before, 11.71 m after.
 // Measure it as the player actually is: a disc of radius 0.36 down the aisle.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const R=0.36;
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 console.log(await p.evaluate(([R])=>{

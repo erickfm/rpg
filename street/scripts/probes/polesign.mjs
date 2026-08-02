@@ -1,10 +1,11 @@
 // "pole sign panel too small / skewed" — I says: verify legibility FROM THE FAR
 // KERB, which is what it was enlarged for, and that it stays lit after dark
 // while the printed sheets around it correctly do not.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1500);
 // find it: a raised panel out by the lot, well above head height

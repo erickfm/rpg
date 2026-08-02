@@ -24,11 +24,12 @@
 // pairs below can be put side by side.
 //
 // Usage: SHOT_URL=http://localhost:4186/ node scripts/G-vice-shots.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
 const look = (x, z, tx, tz) => Math.atan2(tx - x, -(tz - z));
-const URL = process.env.SHOT_URL ?? 'http://localhost:4186/';
+const URL = aim('http://localhost:4186/');
 
 // name, x, z, aim-x, aim-z, pitch
 const VIEWS = [

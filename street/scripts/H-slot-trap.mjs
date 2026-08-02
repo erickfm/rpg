@@ -1,7 +1,8 @@
 // H: seated at a slot, E shows "[E] stand up" but does not stand you up.
 // What DOES it do? Hypothesis: it opens the slot machine panel instead.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

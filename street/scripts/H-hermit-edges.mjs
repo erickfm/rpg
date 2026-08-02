@@ -3,8 +3,9 @@
 // many visible->invisible edges it actually observed, so a run that saw NONE
 // reads identically to a run that saw many and judged them all legal
 // (GOTCHAS §34). This counts them.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

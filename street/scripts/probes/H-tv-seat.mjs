@@ -1,8 +1,9 @@
 // H (verifier): C's TV row, at C's own published station.
 // "stand in 301 at (198.30, -16.30), press E, and you are sitting on the bed
 // facing the set."
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const S = [198.30, -16.30];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });

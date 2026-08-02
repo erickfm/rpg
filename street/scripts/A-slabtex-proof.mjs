@@ -9,10 +9,11 @@
 // Edge density is the measure that matters here: B's diagnosis is that a flat
 // quad "has no grain for the eye to attach to and no joints to give it scale".
 // A flat fill has zero internal edges by definition; a material has many.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 620 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

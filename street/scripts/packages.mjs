@@ -10,9 +10,10 @@
 // rather than eyeballing one landing.
 //
 // The world publishes `scene.userData.packages`; nothing here infers state.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const PKG_D = 0.34, ST = 2.7;
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 720 } });

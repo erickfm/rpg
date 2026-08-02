@@ -22,9 +22,10 @@
 // link the tufts into clumps, then check that a good share of those clumps
 // have a clear metre beside them, that the clumps vary in size, and that the
 // tufts vary in scale.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage();
 await page.goto(URL, { waitUntil: 'networkidle' });

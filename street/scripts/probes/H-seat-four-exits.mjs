@@ -1,8 +1,9 @@
 // H (verifier): C's station names FOUR exits - "try E, Escape, movement and
 // jump". I have covered E (12 of 12 facings) and Escape (3 of 3 fresh pages).
 // This tests all four at the bed, each from a fresh sitting.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 760, height: 470 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

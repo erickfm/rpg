@@ -1,7 +1,8 @@
 // H: WHICH ROOMS hold the coincident sit/stand seats? Resolved against
 // roomDims() live, because the room a coordinate names is not stable.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

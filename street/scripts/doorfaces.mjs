@@ -11,9 +11,10 @@
 // and wrong from inside: the numbered material is stamped `userData.plate`,
 // and the check computes which way that face's normal points at the SHUT
 // angle and compares it with the side the hall is actually on.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const HALL_X0 = 200, HALL_X1 = 202.4;                 // the landing, in world x
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 660 } });

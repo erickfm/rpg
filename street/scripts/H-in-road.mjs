@@ -7,8 +7,9 @@
 // Corridors are derived from the node definitions in ct/crowd-net.ts, not
 // hand-placed: WEST_X/EAST_X = -+(ROAD_HALF + IN) = -+6, NORTH_Z -97 and
 // SOUTH_Z -109 are the side street's kerb lines, and CROSS_HALF is 1.3.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const SECS = +(process.env.SECS ?? 45);
 const ROAD_HALF = 5.0, CROSS_HALF = 1.3, PAD = 0.6;
 const SIDE_Z0 = -108, SIDE_Z1 = -98;            // the side street's asphalt

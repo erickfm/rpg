@@ -6,14 +6,15 @@
 // Nothing here is a remembered coordinate: the lot is found as the reachable
 // region east of the shopfront line that contains cars, and the cars are found
 // by shape.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 780 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(800);
 

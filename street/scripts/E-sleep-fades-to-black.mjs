@@ -25,11 +25,12 @@
 //
 // Exits 3 — "cannot answer" — if the press never lands, because a fade I could
 // not trigger is not a fade I have shown to be broken (GOTCHAS §32).
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const OUT = 'shots/E-sleepfade';
 mkdirSync(OUT, { recursive: true });
 

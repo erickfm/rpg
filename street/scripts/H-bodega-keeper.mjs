@@ -1,7 +1,8 @@
 // H (verifier): B's published station for the bodega keeper.
 // (441.50, 0.40) facing the counter - "if you can see his face, this is fixed".
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

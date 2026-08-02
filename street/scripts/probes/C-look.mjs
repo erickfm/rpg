@@ -12,13 +12,14 @@
 // an unread screenshot is not an observation.
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/C-look.mjs [outdir]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from '../lib/clock.mjs';
 import { mkdirSync } from 'node:fs';
 import { reportWorld } from '../lib/which-world.mjs';
 const OUT = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'shots/look';
 mkdirSync(OUT, { recursive: true });
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const at = (dx, dz) => Math.atan2(dx, -dz);
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });

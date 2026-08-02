@@ -1,11 +1,12 @@
 // LOOK at the jail's back wall, its yard and the screen-wall end caps — the
 // three places item 6's seam disagreements actually live. Tag on argv[2].
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 
 const TAG = process.argv[2] ?? 'now';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4194/';
+const URL = aim('http://localhost:4194/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 800 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

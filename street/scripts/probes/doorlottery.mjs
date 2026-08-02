@@ -2,13 +2,14 @@
 // glob cycle, so which one resolves undefined is decided by evaluation order.
 // If it varies between loads it is a lottery and any room can vanish; if it is
 // stable, it is deterministic per build and only the casino is affected today.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const seen = [];
 for (let i = 0; i < 6; i++) {
   const p = await b.newPage();
-  await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+  await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
   if (i === 0) await reportWorld(p);
   await p.waitForTimeout(700);

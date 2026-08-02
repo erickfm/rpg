@@ -1,8 +1,9 @@
 // H: the east-end closure, tested the way it matters — can a walker still get
 // from the south walk's east end to the north walk's east end, and does the
 // route now go the LONG way round instead of straight up the carriageway?
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

@@ -28,12 +28,13 @@
 //     geometry is not a reading (GOTCHAS §23).
 //
 // Usage: SHOT_URL=http://localhost:4292/ node scripts/K-tyre-has-arch.mjs [--selftest]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4292/';
+const URL = aim('http://localhost:4292/');
 const ARGS = flags(['--selftest']);
 const SELFTEST = ARGS.selftest;
 const OUT = 'shots/K-arch';

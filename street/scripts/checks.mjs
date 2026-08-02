@@ -28,13 +28,14 @@
 // changes; this only alters what you are told when there was nothing to
 // measure. "Could not measure" and "measured, and it is wrong" are different
 // sentences and the second one is the expensive one to get wrong.
+import { aim } from './lib/aim.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { distSha, localHead } from './lib/which-world.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const SLOW = process.argv.includes('--slow');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 
 // Is anything actually there? One request, before thirty browsers start.
 // Kept (not folded into the probe below) so a dead port still gets its own
@@ -388,6 +389,36 @@ const CHECKS = [
   // tiny bit stronger" — a feel request, which is the kind most easily undone by
   // an unrelated edit to fp.ts because nothing about it looks like a constant.
   ['jump-walk',        'does the jump still clear what it was tuned to clear?', false],
+  // THE FIFTH FACING BUG, and the first thing to guard the class rather than one
+  // instance of it. Five have shipped from a typed or mirrored yaw — the burger
+  // barn guy, the librarian, the casino sitter, the park benches, the tax office
+  // waiting row — and each was fixed one at a time by somebody looking at it.
+  // This one went red on 105 seats the day it was written: 96 casino slot stools
+  // sat you with your back 0.37 m from the machines you had just pressed [E] to
+  // play, next to NPCs already facing the right way.
+  //
+  // IT WAS A ONE-OFF NO SUITE RAN. That is the whole reason for this row: the
+  // sixth would have shipped exactly like the first five. It reads `__ct.seats()`
+  // rather than a list, so a seat registered by a builder who has not been
+  // written yet is covered the day it lands.
+  //
+  // Fast tier, measured not guessed: 4.4 s against an idle dev server, against
+  // the 36 s that moved lotwalk to slow. It measures and does not walk — I-facing
+  // makes the same claim for the lot alone and sits in the fast tier too.
+  //
+  // TWO CASES, because the check has two rules and they fail apart (the
+  // `footprint` precedent above): `seat-facing` mirrors the casino stools back to
+  // the historical bug verbatim — rule B, turned away from your own furniture,
+  // which is the class a wall test structurally cannot see because a backwards
+  // stool in a big room faces open floor — and `seat-facing-wall` turns the tax
+  // office waiting row into the plaster 0.58 m behind it, which is rule A. One
+  // case would have left the other silently unproven.
+  //
+  // NO --selftest, and that is deliberate rather than missing: both mutations
+  // have to move the WORLD's yaws, and the only handle a harness has on
+  // `__ct.seats()` would break the check's view while leaving the world intact,
+  // which GOTCHAS 34 says proves nothing. Source mutations are the honest form.
+  ['seat-facing',      'does every seat look at something, or at a wall?',   ['seat-facing', 'seat-facing-wall']],
   // RED ON ARRIVAL, and correctly so — it is reporting three real scripts.
   //
   // Eight scripts here dispatch on a mode word. Hand one a mode it does not
@@ -406,6 +437,24 @@ const CHECKS = [
   // Discovery is a source grep, not a list: a new script with a mode word is
   // covered the day it is written, by an author who never read this comment.
   ['no-silent-pass',   'can any check pass by doing nothing?',             false],
+  // The sibling of no-silent-pass, one axis over: that one asks whether a check
+  // can pass without running, this asks whether it can run against the WRONG
+  // WORLD without saying so. 648 scripts here fell back to a hardcoded port, on
+  // 21 different ports, and on a machine with nine builders every one of those
+  // ports belongs to somebody else — measured 2026-08-02, all twenty of
+  // 4180-4199 listening, `jump-walk`'s default of 4185 serving another builder's
+  // tree all session.
+  //
+  // Registered because the 649th is the problem, not the 648. That line is the
+  // obvious one to type, it is in every neighbouring file's history, and it
+  // fails silently by construction — a wrong-port run looks exactly like a right
+  // one. canfail.mjs's header spends thirty lines on two rounds lost to it.
+  //
+  // Costs no browser and no build. Its --selftest plants all four spellings of
+  // the bare form and requires each to be caught, plus three shapes of the FIX
+  // that must not be — the detector is one regex, which is the part of it most
+  // likely to stop matching quietly.
+  ['aimed',            'can any instrument measure a default port in silence?', true],
   // ALSO RED ON ARRIVAL, for a defect nobody planted: 164 of the 610 commit
   // hashes cited in this repo cannot be resolved from mainline. 158 have a
   // landed twin carrying the same subject, so they are rebase-rewritten hashes

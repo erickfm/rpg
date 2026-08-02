@@ -12,12 +12,13 @@
 // z, and that is the row the user is complaining about.
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/I-rowshots.mjs [--night]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { flags } from '../lib/args.mjs';
 
 const ARGS = flags(['--night']);
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 750 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

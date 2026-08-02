@@ -16,6 +16,7 @@
 // SUBSET of the short-window one, so dropping ghosts can only ever make a passage
 // wider. A ghost can therefore only manufacture a falsely NARROW finding, never a
 // falsely clear one.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
@@ -23,7 +24,7 @@ import { writeFileSync } from 'node:fs';
 const LONG_MS = Number(process.env.LONG_MS ?? 22000);
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p);
 await p.waitForTimeout(800);

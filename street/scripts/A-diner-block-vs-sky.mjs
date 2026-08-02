@@ -18,10 +18,11 @@
 // REGISTERED in scripts/checks.mjs; its mutation is `diner-block-glare` in
 // scripts/canfail.mjs, which restores #b9c4c2 — the lightbox the user was
 // looking at — and takes this check red at 51 brighter than the sky.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

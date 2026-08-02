@@ -3,10 +3,11 @@
 // land badly? Radius kept small so both samples stay well inside the room, and
 // the landing tolerance is 0.25 m rather than 0.6 -- a slide smaller than the
 // old tolerance is exactly what a wall-adjacent sample does.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from '../lib/frames.mjs';
 import { reportWorld } from '../lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const ROOM = process.env.ROOM ?? 'bodega';
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(URL,{waitUntil:'networkidle'});

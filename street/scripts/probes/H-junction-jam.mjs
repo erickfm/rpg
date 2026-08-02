@@ -7,8 +7,9 @@
 //
 // This is the BEFORE for moving the graph's crossing arms onto B's junction
 // paint. Same probe re-run after will be the evidence for both rows.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const SECS = +(process.env.SECS ?? 180);
 // the bodega-corner junction: both existing crossing arms and the kerbs either side
 const BOX = { x0: -9, x1: 13, z0: -111, z1: -94 };

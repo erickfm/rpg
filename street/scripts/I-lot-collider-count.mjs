@@ -1,10 +1,11 @@
 // Ad-hoc: count car groups vs registered colliders in the used-car lot, to
 // measure the gap the debug overlay found (bay 1's hood-up car has no box).
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4198/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4198/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct?.scene !== undefined, { timeout: 10000 });
 
 const out = await page.evaluate(() => {

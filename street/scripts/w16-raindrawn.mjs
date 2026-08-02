@@ -13,10 +13,11 @@
 //
 // Fails loudly: any heading where the rain is not drawn is a heading with no
 // weather in it.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
+const URL = aim('http://localhost:4195/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 640 } });
 const errs = [];

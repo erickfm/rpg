@@ -2,8 +2,9 @@
 // "stand at (197.05, -17.20) in room 301, press E, and watch the SCREEN rather
 // than the clock." K found it by sweeping because C's TV seat wins the pick
 // from about half the squares around the bed.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const S = [197.05, -17.20];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 640, height: 400 } });

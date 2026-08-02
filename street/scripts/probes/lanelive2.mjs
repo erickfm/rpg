@@ -4,11 +4,12 @@
 // The suspect is my band. I scanned x 4.6…7.4 — 2.8 m, which reaches below the
 // kerb (5.0) and past the facade collider (6.7). Re-run with the band clipped
 // to the actual pavement and compare.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p);
 await p.waitForTimeout(800);

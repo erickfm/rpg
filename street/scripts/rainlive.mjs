@@ -11,11 +11,12 @@
 //     exactly like the reported bug. Warp OUTSIDE first.
 //   · rainLevel LERPS toward its target at dt*0.6, so one frame after the clock
 //     moves it is still ~0. Wait for it to settle, do not sample once.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 620 } });
 await goto(p, URL);

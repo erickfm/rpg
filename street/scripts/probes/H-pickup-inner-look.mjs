@@ -1,8 +1,9 @@
 // H: the user says the tyres clip inward on the pickup. That is a VISUAL claim -
 // you can see tyre where body should be - and a bounding-box test cannot answer
 // it, because a wheel is meant to sit inside the body's footprint. So look.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

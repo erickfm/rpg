@@ -2,10 +2,11 @@
 // test used gy 50, which is far above the building - if the floor picker snaps
 // to the nearest floor below and holds it by hysteresis, an extreme value could
 // be creating the fault rather than revealing it.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:900,height:600}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1500);
 const pos=()=>p.evaluate(()=>window.__ct.pos().map(v=>+v.toFixed(2)));

@@ -28,6 +28,7 @@
 // around it, and refuses to write if the row count changes. Given this file has
 // lost eight rows today to bulk edits, a tool that touches it has to prove it
 // took nothing away.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -59,7 +60,7 @@ if (BAD.length) {
   process.exit(2);
 }
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

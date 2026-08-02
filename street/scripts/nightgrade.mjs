@@ -30,15 +30,16 @@
 // was graded. Nothing rewrites those, so the claim sticks, and it is then
 // exactly the shape this check exists to find: offered to the dimmer, not
 // excused by any stamp, and unchanged between noon and 23:00.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 const SELFTEST = process.argv.includes('--selftest');
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4190/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4190/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4190/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4190/'));   // GOTCHAS 26: prove it, do not just name it
 const A = process.argv.slice(2).map(Number);
 const BOX = A.length === 4 ? A : [-1e9, 1e9, -1e9, 1e9];
 const probe = async (h) => {

@@ -5,9 +5,10 @@
 // Population per F: tyres carry a MAP, props carry a flat colour - which is what
 // separates 83 tyres from the diner bar stools that polluted both our earlier
 // counts (my 86, F's radius-only 328).
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

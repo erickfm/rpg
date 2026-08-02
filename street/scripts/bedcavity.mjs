@@ -2,9 +2,10 @@
 // the silhouette of tyre and body?  Both are questions in the VEHICLE's own
 // frame, so every box below is rotated back out of world into group-local.
 // The pickup needs no new tag: wheelZ 1.65 is unique, so wheelbase 3.30 is it.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

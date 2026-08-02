@@ -14,9 +14,10 @@
 // compare frames. Same authored facing gives the same frame; a different frame
 // means a different facing. This is the fix's own test ("stand where a player
 // stands and ask whether it is looking at you") made external.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(URL,{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});

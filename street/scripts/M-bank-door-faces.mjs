@@ -1,11 +1,12 @@
 // BOTH FACES OF THE BANK DOOR, SIDE BY SIDE — the actual test for
 // "door of the bank doesnt match the inner door of the bank": stand outside,
 // screenshot it; walk through; turn round; screenshot it again.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
+const URL = aim('http://localhost:4195/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 700 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

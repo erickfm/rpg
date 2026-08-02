@@ -2,9 +2,10 @@
 // bars running the FULL tile height, which tiling repeats into ~7 stripes.
 // Claim: 0 full-height bars now, 2 columns at 3 below median (both perp joints).
 // Read the texture and count full-height dark columns directly.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 console.log(await p.evaluate(()=>{

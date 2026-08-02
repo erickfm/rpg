@@ -10,6 +10,7 @@
 //   6. the parked cars are not traffic and never move
 //
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/corner-traffic.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const browser = await chromium.launch();
@@ -25,9 +26,9 @@ const errs = [];
 const HMR_NOISE = /WebSocket closed without opened/;
 const noise = (m) => process.env.SHOT_WORLD === 'integration' && HMR_NOISE.test(m);
 page.on('pageerror', (e) => { const m = String(e.message); if (!noise(m)) errs.push(m); });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4177/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(400);
 await page.evaluate(() => window.__ct.clock(13, 0));
 

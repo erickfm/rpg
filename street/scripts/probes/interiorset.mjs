@@ -1,8 +1,9 @@
 // Walk every interior and audit it AS A SET. Each builder can only see their
 // own room; the failure mode is that the ten do not agree with each other.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(3000);
 const r=await p.evaluate(()=>{

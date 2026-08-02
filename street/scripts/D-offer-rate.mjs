@@ -22,10 +22,11 @@
 //                 has only made the world quieter, not more precise.
 //
 // It prints; it does not assert. Tuning wants a number, not a verdict.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 const AIMED = 15 * Math.PI / 180;      // what "actually looking at it" means here
 
 const b = await chromium.launch();

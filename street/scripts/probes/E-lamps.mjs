@@ -9,9 +9,10 @@
 //
 // I gave B those coordinates. If any of them are wrong now, that is mine to
 // report and B's to fix — so this measures rather than guesses.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage();
 await page.goto(URL, { waitUntil: 'networkidle' });

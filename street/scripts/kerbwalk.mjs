@@ -12,11 +12,12 @@
 //      vertex by vertex and report the largest gap between consecutive spans.
 //
 // It prints. It does not assert — an investigation, not a guard.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await goto(p, URL);

@@ -9,10 +9,11 @@
 // fighting per GOTCHAS 6), then screenshots for LOOKING (never for proving —
 // GOTCHAS 1) from edge-on and from below, the two angles the item said read
 // as paper.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 
-const URL = process.env.SHOT_URL || 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

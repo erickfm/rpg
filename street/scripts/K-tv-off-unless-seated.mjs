@@ -15,12 +15,13 @@
 // the set forced on while standing, every verdict here must go red.
 //
 // Usage: SHOT_URL=http://localhost:4292/ node scripts/K-tv-off-unless-seated.mjs [--selftest]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4292/';
+const URL = aim('http://localhost:4292/');
 const ARGS = flags(['--selftest']);
 const SELFTEST = ARGS.selftest;
 const OUT = 'shots/K-tv';
@@ -128,9 +129,29 @@ if (SELFTEST) {
   // DERIVED from being seated; if anything below still passes with it stuck
   // true, this check is agreeing with a toggle rather than testing a state
   // machine — which is the exact thing the user asked twice to have fixed.
+  //
+  // PIN THE SLOT, NOT THE OBJECT IN IT. This used to redefine `on` on the
+  // object it read out of `userData.tv`, and it never bit: apartment.ts
+  // REPLACES that object wholesale on every frame
+  //   `ctx.onFrame(() => { scene.userData.tv = { ..., on: tvLit, ... } })`
+  // so the pinned property was thrown away within ~16 ms and every assertion
+  // below went on reading the real, honest state. The control reported
+  // "NOT CAUGHT — this check is decoration" against a world that was fine,
+  // which is the worst way for a positive control to fail: it accuses the
+  // check instead of itself.
+  //
+  // So intercept the SLOT on `userData` with an accessor. The module's
+  // per-frame assignment now lands in the setter, and the getter hands back
+  // that same fresh state with `on` forced true — a pin that survives exactly
+  // as long as the check does.
   await page.evaluate(() => {
-    const tv = window.__ct.scene().userData.tv;
-    Object.defineProperty(tv, 'on', { get: () => true, configurable: true });
+    const ud = window.__ct.scene().userData;
+    let held = ud.tv;
+    Object.defineProperty(ud, 'tv', {
+      configurable: true,
+      get: () => ({ ...held, on: true }),
+      set: (v) => { held = v; },
+    });
   });
   console.log('      --selftest: scene.userData.tv.on pinned true');
 }

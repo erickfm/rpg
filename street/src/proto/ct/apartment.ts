@@ -35,6 +35,14 @@ import { screenFade } from './hud';
 // height you were at last frame. Everything outside that needs to move the
 // player between floors (the warp hook, the street's own groundY, the door
 // jumps) goes through setGy so there is exactly one writer of record.
+//
+// ONE WRITER OF RECORD IS TRUE OF THE FUNCTION AND NOT OF THE CALLERS, which
+// is the gap that produces the kerb-edge disagreement — see the note on `gy()`
+// where this object is returned. `setGy` is indeed the only thing that assigns
+// `lastGy`, but its caller `groundPick` is invoked per-frame with coordinates
+// that are NOT the player's, so the single writer faithfully records the wrong
+// position. A sole writer guarantees no races; it does not guarantee the value
+// is about you.
 
 // A 4×5 texel numeral, stamped rather than typed. Canvas text antialiases —
 // at the sizes this world paints at, 'bold 8px monospace' lands half a texel
@@ -2552,7 +2560,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // therefore means one thing only. `__ct.seated()` exists but it is a test
     // affordance on the entry point, not something a module can reach; a real
     // `ctx.seated()` would be better and is worth asking F for.
-    const TV_SEAT_X = AX(-2.10), TV_SEAT_Z = AZI(4.42);
+    //
+    // THIS PAIR IS THE SEAT. `ctx.seat` below is registered from these two
+    // constants rather than from a second copy of the numbers, because the
+    // last time there were two copies the feature died silently: the seat was
+    // moved to the foot of the bed (4d5729246, the user's *"sitting on the bed
+    // should have a perspective more from the foot of the bed"*) from
+    // AX(-2.10) to AX(TV_X) = AX(-1.56), and this test was left behind on the
+    // old x. `rig.sit` puts the player exactly on the seat pose, so the frame
+    // loop was measuring 0.54 m against a 0.20 m tolerance — the set could
+    // never come on again, and nothing errored. One declaration, read twice,
+    // is the only version of this that cannot drift (BUILDER-BRIEF §8).
+    const TV_SEAT_X = AX(TV_X), TV_SEAT_Z = AZI(4.42);
     let tvLit = false, tvWarm = 0;
     // A DEAD SCREEN IS NOT BLACK. Pure black reads as a hole cut in the wall;
     // a switched-off CRT is dark grey-green with the room faintly in it.
@@ -2660,8 +2679,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // `bedcavity.mjs` measuring a truck that no longer existed and
     // `doorside2.mjs` failing a door that was fine (GOTCHAS 58). Move the
     // television and the seat follows it.
+    //
+    // AND IT IS REGISTERED FROM `TV_SEAT_X/TV_SEAT_Z` — the pair the frame
+    // loop above tests to decide whether the set is lit — rather than from a
+    // second `AX(TV_X)`. Those were two independent copies of one coordinate
+    // until now, and moving the seat here broke the television silently.
     ctx.seat({
-      x: AX(TV_X), z: AZI(4.42), yaw: 0, h: 0.45, r: 0.70,
+      x: TV_SEAT_X, z: TV_SEAT_Z, yaw: 0, h: 0.45, r: 0.70,
       approach: { x: AX(TV_X + 0.40), z: AZI(3.70) },
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: 'sit on the bed and watch TV',
@@ -3280,6 +3304,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   return {
     colliders: sevColliders,
     ground: aptGround,
+    // READ THIS BEFORE TRUSTING gy() OUTDOORS. At the kerb edge it reports 0.00
+    // while the ground there is 0.14, and the camera — which is right — sits at
+    // 1.76. The drift is NOT in this module: `setGy` stores exactly what it is
+    // handed, and `groundPick` (crosstown.ts:780) routes every one of its
+    // returns through it, so the two can never disagree about one coordinate.
+    //
+    // What disagrees is WHICH coordinate wrote last. `groundPick` is a query
+    // with a side effect, and it has three callers (crosstown.ts:766, 984,
+    // 1125). Only the first passes the PLAYER's position. `canSee` at
+    // crosstown.ts:1125 calls it once per candidate [E] spot, every frame, at
+    // the SPOT's coordinates — so `lastGy` ends each frame describing the last
+    // spot the prompt-aimer probed, not the ground under the player. On the
+    // pavement the last spot probed happens to be at 0.14 and it looks fine; at
+    // the kerb edge it is a road-level spot at 0.00 and it does not.
+    //
+    // Measured, `scripts/probes/w25-kerb-gy.mjs`: standing still on the
+    // pavement at gy 0.140, a single `groundAt(-2, -20)` call moves gy to 0.000
+    // WITHIN THE SAME TICK, and the next frame puts it back — which is why
+    // sampling it across two frames hides the fault entirely.
+    //
+    // Consequences are real but small today: `gy()` gates the No. 227 entry
+    // spot (`lastGy < 1`) and the respawn band, both of which tolerate 0.14.
+    // The fix belongs in crosstown.ts, not here — give `canSee` and the
+    // `groundAt` test affordance a PURE ground query and leave the writing
+    // side effect on the one call that passes the player's position.
     gy: () => lastGy,
     setGy: (v) => (lastGy = v),
     forceHermit: (v) => { hermitForce = v === null ? -1 : v ? 1 : 0; },

@@ -1,11 +1,12 @@
 // The roster lists BODEGA at frontage centre z 13.43, but doorsweep -- which
 // walks -- fires "[E] into the BODEGA" at z -96.0..-94.75, about 109 m away.
 // One of those is not the bodega. Look at both.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 700 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p);
 await p.evaluate(() => window.__ct.clock(13, 0));

@@ -1,6 +1,7 @@
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL || 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

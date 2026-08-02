@@ -1,9 +1,10 @@
 // "put this librarian behind the desk" - OPEN, rejected twice by me: once she
 // stood 0.39 m in FRONT of the desk, once she was not rendered at all.
 // Measure her against the desk, then look from the customer side.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const d=await p.evaluate(()=>window.__ct.roomDims().find(r=>r.id==='library'));

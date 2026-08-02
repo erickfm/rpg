@@ -10,8 +10,9 @@
 // stool and its NEIGHBOUR's sit spot is fine (they are 0.64 m apart by design)
 // while 0.00 m between a seat and its OWN sit spot is the trap. The two are
 // distinguishable only by which room and which label, so a human reads the table.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4186/';
+const URL = aim('http://localhost:4186/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

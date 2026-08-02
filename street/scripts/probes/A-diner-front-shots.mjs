@@ -9,10 +9,11 @@
 // Every camera position is DERIVED from `__frontages` (GOTCHAS 20 — aim from
 // the source, not from memory). The only hand-typed number is how far out of
 // the facade the pavement is, and that comes from ROAD_HALF.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 760 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

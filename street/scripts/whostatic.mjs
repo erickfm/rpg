@@ -1,9 +1,10 @@
 // walkers() returns 6, but the world has many more citizen billboards. If the
 // extra ones stand near the junction they read as a pile-up without anyone
 // being stuck - a different fault with a different fix.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(3000);
 const r=await p.evaluate(()=>{

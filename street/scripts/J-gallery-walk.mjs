@@ -31,6 +31,7 @@
 // sampling the room's own floor picker, so moving the gallery moves the check
 // with it. GOTCHAS §20: `doorsweep.mjs` finds things by walking and has never
 // been wrong; every hand-typed coordinate on this project has been wrong once.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { modes } from './lib/modes.mjs';
@@ -38,7 +39,7 @@ import { modes } from './lib/modes.mjs';
 const mode = modes('J-gallery-walk', ['walk', 'all']);
 void mode;
 const SELFTEST = process.argv.includes('--selftest');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4192/';
+const URL = aim('http://localhost:4192/');
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });

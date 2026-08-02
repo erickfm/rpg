@@ -1,3 +1,4 @@
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const look=(x,z,tx,tz)=>Math.atan2(tx-x,-(tz-z));
@@ -32,9 +33,9 @@ const S=[
 ];
 const b=await chromium.launch();
 const p=await b.newPage({viewport:{width:1200,height:800}});
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'), { waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26
 await p.evaluate(()=>window.__ct.clock(13,0)); await p.waitForTimeout(800);
 for(const [l,x,z,yaw,gy,pitch,hm] of S){
   // gy from the world, not a literal 0: every station passed 0 and the pavement

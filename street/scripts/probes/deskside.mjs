@@ -1,8 +1,9 @@
 // Is the librarian behind the desk or in front of it? Compare her z against the
 // desk's own z extent. "Behind" means on the far side from the room she serves.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 console.log(await p.evaluate(()=>{

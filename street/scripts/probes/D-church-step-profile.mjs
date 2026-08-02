@@ -5,10 +5,11 @@
 // 0.51". Those disagree, so this prints the ground PROFILE along the approach
 // rather than a verdict — a pass/fail cannot tell a strict threshold from a
 // cliff. An investigation: it prints, it does not assert.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

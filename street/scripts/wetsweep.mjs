@@ -15,10 +15,11 @@
 // It reports candidates, not defects. Plenty of things are entitled to stay dry
 // — anything indoors, under cover, or self-lit. Deciding which is the owner's
 // call; the point of this script is that nobody has to go looking first.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 // ASK, DO NOT COPY. props.ts publishes rainAt on scene.userData precisely so
 // nothing has to mirror it, after e0c68e46 found the old formula wrong and two
 // hand-copies of it stale in scripts/. Mine was the third, and it silently

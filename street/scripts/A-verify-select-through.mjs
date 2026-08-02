@@ -37,7 +37,25 @@ const URL = process.env.SHOT_URL
   ?? (ARG && /^\d+$/.test(ARG) ? `http://localhost:${ARG}/` : ARG)
   ?? 'http://localhost:4188/';
 
-const REACH = 0.6;                 // D's stated reach margin, over the spot radius
+// THIS IS A COPY, AND IT IS THE ONLY REAL ONE IN THE "DEEP/REACH" ROW.
+//
+// It duplicates `src/proto/fp.ts:486  export const REACH_MARGIN = 0.6`, which
+// is exported and is the world's own value. It cannot be imported from here:
+// this is plain-node .mjs and that is TypeScript, and `crosstown.ts:27` imports
+// REACH_MARGIN but does not republish it on `__ct`, so there is no runtime path
+// to it either.
+//
+// So it is cited rather than silently retyped, which is what BUILDER-BRIEF §8
+// asks for when an import is impossible. THE FIX IS ONE LINE in crosstown.ts's
+// `__ct` surface — `reachMargin: () => REACH_MARGIN` — beside `camY` and `yaw`;
+// then this reads it off the world like every other derived number and the copy
+// goes away. That file is outside this row, so it is queued, not taken.
+//
+// NOTE the name collision that made this row look bigger than it is: the
+// `REACH = 0.80` in scripts/seat-facing.mjs is a DIFFERENT quantity (how close
+// furniture must be to count as furniture you are sitting at), not a copy of
+// this one.
+const REACH = 0.6;                 // = fp.ts:486 REACH_MARGIN — spot reach, over the spot radius
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 620 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

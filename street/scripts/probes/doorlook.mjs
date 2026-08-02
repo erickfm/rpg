@@ -5,11 +5,12 @@
 // They must disagree. If the DINER pair disagree and the TAX pair agree, my
 // mapping is right and TAX is a real finding. If both pairs behave the same,
 // my mapping is inverted and the finding dissolves.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 700 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p);
 await p.evaluate(() => window.__ct.clock(13, 0));

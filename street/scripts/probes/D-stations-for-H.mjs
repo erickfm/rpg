@@ -10,11 +10,12 @@
 //
 // This prints both, measured rather than guessed, so they can be walked
 // straight from the output. An investigation: it prints, it does not assert.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { installSee } from '../lib/D-see.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 const b = await chromium.launch();
 const page = await b.newPage();
 await page.goto(URL, { waitUntil: 'networkidle' });

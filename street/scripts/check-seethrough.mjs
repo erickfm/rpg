@@ -33,6 +33,7 @@
 // a steep angle or through a sliver at a corner will not show. Treat green as
 // "the obvious version of this bug is not present", which is exactly the
 // question that has been asked three times.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 import { reportWorld } from './lib/which-world.mjs';
@@ -44,7 +45,7 @@ const KEEP = process.argv.includes('-v');
 // goes red. Without it this file would be one silently-inert script criticising
 // another, which is the failure mode it exists to avoid.
 const SELFTEST = process.argv.includes('--selftest');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 640, height: 420 } });

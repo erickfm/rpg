@@ -3,10 +3,11 @@
 // interior stair runs in z, and I nearly filed that as a cliff. So: stand on a
 // GRID and look for a path from the 0.14 pavement to the 0.99 landing whose
 // every step is <= 0.6 m.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:600,height:400}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1000);
 const X0=-11.4, X1=-7.6, Z0=-18.0, Z1=-8.0, S=0.5;

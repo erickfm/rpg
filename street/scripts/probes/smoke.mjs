@@ -1,10 +1,11 @@
 // Crosstown small-world smoke: boot, spawn shot, walk the block, check the
 // dead end holds, look back up the street. Fails on any page error.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const outDir = process.argv[2] ?? 'shots';
 mkdirSync(outDir, { recursive: true });
 

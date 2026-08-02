@@ -1,12 +1,13 @@
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const errs=[]; page.on('pageerror', e => errs.push(e.message));
 page.on('console', m => { if (m.type()==='error') errs.push('console: '+m.text()); });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4177/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(500);
 const shot = async (name, fn, wait=500) => { await page.evaluate(fn); await page.waitForTimeout(wait); await page.screenshot({ path: `shots/ck-${name}.png` }); };
 // dry street for reference

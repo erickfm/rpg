@@ -1,6 +1,7 @@
 // H (verifier): K's three interface rows, looked at rather than only asserted.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

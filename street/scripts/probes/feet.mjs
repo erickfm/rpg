@@ -14,6 +14,7 @@
 // side, standing (frame 0) on the top row and walking (frame 1) below.
 //
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/feet.mjs [personIndex]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
@@ -33,9 +34,9 @@ if (process.argv[2] !== undefined && !Number.isFinite(Number(process.argv[2]))) 
 const who = Number(process.argv[2] ?? 0);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4177/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout
   ? await page.waitForTimeout(500) : null;
 await page.evaluate(() => window.__ct.clock(13, 0));

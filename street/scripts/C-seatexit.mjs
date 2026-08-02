@@ -16,9 +16,10 @@
 // under the conditions that used to decide it: whatever he is looking at,
 // wherever the nearest spot is, and on a seat whose own sit spot is
 // co-located with its stand spot.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

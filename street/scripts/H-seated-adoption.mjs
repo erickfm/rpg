@@ -4,8 +4,9 @@
 //
 // Detected positionally: a citizen-sized plane standing at a registered seat's
 // own pose is a sitter. Resolved against roomDims() live, never by coordinate.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

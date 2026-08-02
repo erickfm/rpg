@@ -21,10 +21,11 @@
 // Exit 1 = FAIL. Exit 2 = INCONCLUSIVE (nothing found to measure) — never a pass.
 // Exit 3 = the server is not serving this checkout (reportWorld, ec7aae0d): the
 // run never happened, which is neither of the above.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const browser = await chromium.launch();
 
 // Every car in the world, identified by what it carries itself rather than by

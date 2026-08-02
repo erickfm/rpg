@@ -45,6 +45,7 @@
 // oversight — but it is a real gap in coverage and nothing else fills it.
 //
 //   SHOT_URL=http://localhost:PORT/ node scripts/builtlane.mjs [--selftest]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld, integrationNoise } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
@@ -61,7 +62,7 @@ for (const a of process.argv.slice(2)) {
   }
 }
 const SELFTEST = process.argv.includes('--selftest');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 // ct/gap.ts: PASSABLE = 0.95, "0.72 m of capsule plus room to turn". Taken from
 // the project rather than invented, so this agrees with every other judgement
 // about what a body fits through.

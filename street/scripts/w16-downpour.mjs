@@ -16,11 +16,12 @@
 //     one streak — because the rain object was being frustum-culled outright.
 // For "is the rain actually drawn", use scripts/w16-raindrawn.mjs, which reads
 // onBeforeRender and is exact. This script is for LOOKING.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
+const URL = aim('http://localhost:4195/');
 const TAG = process.argv[2] ?? 'now';
 const OUT = `shots/w16-rain-${TAG}`;
 mkdirSync(OUT, { recursive: true });

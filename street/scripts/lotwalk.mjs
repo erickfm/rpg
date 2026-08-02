@@ -21,10 +21,11 @@
 // mid" reachable in all four fills.
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lotwalk.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 // --selftest: wall the mouth shut in the LIVE collider list and require this
 // to go red. The mutation is a push onto __ct.colliders(), which is the same
 // array the movement code tests, so it is the real thing being broken.

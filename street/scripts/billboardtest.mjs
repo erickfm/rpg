@@ -1,9 +1,10 @@
 // Are the interior figures BILLBOARDS? If their yaw follows the camera, then
 // mesh rotation says nothing about which way a keeper is authored to face.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 const read = () => p.evaluate(() => {
   const out=[];

@@ -3,10 +3,11 @@
 // overlay swallowing input, or merely my harness losing canvas focus? I made
 // exactly that mistake on the jail door and nearly filed it against a new
 // builder.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1000,height:640}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'domcontentloaded'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'domcontentloaded'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:20000});
 await afterFrames(p,10); await p.waitForTimeout(1200);
 const pos=()=>p.evaluate(()=>window.__ct.pos().map(v=>+v.toFixed(2)));

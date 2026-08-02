@@ -1,9 +1,10 @@
 // WALK the east-end crossing, both ways, because floors and steps must be
 // walked and not warped (CLAUDE.md). Does the 0.14 m kerb stop you, and does
 // it feel like a ramp or a step?
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:800,height:500}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2000);
 const pos=()=>p.evaluate(()=>window.__ct.pos().map(v=>+v.toFixed(3)));

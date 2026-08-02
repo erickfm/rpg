@@ -21,6 +21,7 @@
 // still unsupported at 5 cm is a real one.
 //
 //   SHOT_URL=http://localhost:4184/ node scripts/support.mjs
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
@@ -31,9 +32,9 @@ const BIG = 8;         // a mesh with a face this big (m²) can carry something
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.waitForTimeout(1200);
 

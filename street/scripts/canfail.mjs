@@ -37,6 +37,8 @@ const ALLEY = 'src/proto/ct/alley.ts';      // D's, split out of street.ts by 23
 const CAT = 'src/proto/ct/cat.ts';          // D's
 const CORNER = 'src/proto/ct/bodega-corner.ts';  // D's, split out of street.ts
 const BANK = 'src/proto/ct/bank.ts';        // D's, split out of street.ts
+const CASINO = 'src/proto/ct/int-casino.ts';  // the 96 slot stools
+const TAX = 'src/proto/ct/int-tax.ts';        // the waiting row the user reported
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
 //
@@ -396,17 +398,29 @@ const CASES = [
     'basin(-ROAD_HALF, -105, 1);    // selftest: built inside out',
     'basin.mjs', [], 'the west basin mirrored into its own kerb'],
 
-  // RE-AIMED 2026-08-02 (w22): the needle read `const RAIN_N = 500;` and the
-  // source has said 2600 since the storm was made heavier. It matched 0 bytes,
-  // so `rain.mjs` had never once been shown a broken world — and the run before
-  // this one is the first time anybody ran the harness end to end and saw it.
-  // A static audit had just declared 35/35 needles true; this was one of them.
+  // NEEDLE RE-QUOTED, not redesigned — the sixth stale needle this month, and
+  // the only one that had a second-order cost (see `applied` at the foot of this
+  // file). `2bb64f49f` took the drop count from 500 to 2600 because rain "was
+  // never heavy", and this quotation went on saying 500, so the case patched
+  // ZERO BYTES from that commit until now.
   //
-  // 6 is not arbitrary and must stay under 100: `rain.mjs` finds the storm with
-  // `c.isPoints && position.count > 100`, so a buffer of 6 makes the particle
-  // system undiscoverable and the "is it raining" leg goes red. Move that
-  // threshold and this case stops proving anything — which is the same coupling
-  // that let the needle rot, one level up.
+  // NOT `fc332c5c5`, which is the commit the report of this arrived citing.
+  // That one is the sibling piece of the same rain work — its own message says
+  // "5x the drops is 5x the posts", so RAIN_N was ALREADY 2600 when it was
+  // written — and `git show fc332c5c5 -- src/proto/ct/props.ts` contains no
+  // RAIN_N line at all. The two are parallel branches, neither an ancestor of
+  // the other, both merged into mainline three minutes apart. Recorded because
+  // this is the twin-hash trap `hashes-resolve` was written for, and it caught
+  // a reader who was looking straight at it.
+  //
+  // The property under test is untouched: a storm with six drops in it.
+  //
+  // AND 6 MUST STAY UNDER 100 (w22, from the first end-to-end run of this
+  // harness). `rain.mjs` locates the storm with `c.isPoints &&
+  // position.count > 100`, so a buffer of 6 makes the particle system
+  // undiscoverable and the "is it raining" leg goes red. Raise that threshold
+  // and this case silently stops proving anything — the same coupling that let
+  // the needle rot, one level up.
   ['rain', PROPS,
     'const RAIN_N = 2600;',
     'const RAIN_N = 6;',
@@ -646,6 +660,47 @@ const CASES = [
     'if (true) continue;   // stop sealing enclosed pockets',
     'A-tree-canopy-opaque.mjs', [], 'holes punched clean through a tree crown'],
 
+  // ── SEAT FACING: two cases, because the check has two rules and they fail
+  // apart. `scripts/seat-facing.mjs` is the first guard on the FACING CLASS
+  // rather than on one instance of it — five backwards-yaw bugs have shipped
+  // here one at a time, and it went red on 105 seats the day it was written.
+  //
+  // Both mutations are in SOURCE and both restore a bug that actually shipped.
+  // There is no runtime alternative: the only handle a harness has on
+  // `__ct.seats()` would break the check's VIEW while leaving the world intact,
+  // which GOTCHAS 34 says proves nothing. (w19)
+  //
+  // RULE B — turned away from your own furniture. The 96 casino slot stools,
+  // mirrored back to the historical bug verbatim: the bank of machines sits at
+  // `bz` and each stool at `bz + face * 1.02`, so the cabinets are always in the
+  // −face direction; writing the ternary the other way round sat every player
+  // with their back 0.37 m from the machine they had just pressed [E] to play.
+  //
+  // This is the clause a wall test structurally CANNOT reach — the casino floor
+  // is 11 m across, so a backwards stool is looking at open floor and every
+  // nose-to-the-wall predicate in this repo passes it. Chosen for that reason
+  // rather than because it is the biggest number.
+  ['seat-facing', CASINO,
+    'x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? 0 : Math.PI, h: STOOL_TOP,',
+    'x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? Math.PI : 0, h: STOOL_TOP,   // the mirrored ternary that shipped',
+    'seat-facing.mjs', [], '96 slot stools with their backs to the machines'],
+
+  // RULE A — nose to the wall. The tax office waiting row, turned round into the
+  // plaster it is bolted to. The seat sits at `WAIT_Z + 0.04` = `hd − 0.58`, so
+  // `yaw: Math.PI` leaves 0.58 m of nothing and then the room's own front wall —
+  // inside the check's 1.20 m WALL_MIN with margin to spare.
+  //
+  // NOT the same defect the user reported in this room, deliberately. His
+  // *"seats in the tax office are reversed"* turned out to be the BACKREST MESH
+  // on the wrong side of a correct `yaw: 0` (int-tax.ts:450-456 records the
+  // measurement), and an AABB check cannot see a backrest. This mutates the yaw
+  // that was wrongly blamed, because that is the thing seat-facing is able to
+  // decide — a case must break what the check claims to catch, not what the
+  // ticket said. (w19)
+  ['seat-facing-wall', TAX,
+    'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: 0, h: 0.47,',
+    'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: Math.PI, h: 0.47,   // selftest: the row turned into the wall',
+    'seat-facing.mjs', [], 'the waiting row facing plaster 0.58 m away'],
 
 ];
 
@@ -812,6 +867,10 @@ const digest = (t) => (t === null ? null : createHash('sha1').update(t).digest('
 const only = process.argv.slice(2).filter((a) => a !== PORT_ARG);
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
 const results = [];
+// EVERY CASE WHOSE FILE WE ACTUALLY WROTE TO. The restore check at the foot of
+// this file is about putting back what we took; a case that never matched was
+// never taken, and conflating the two produced a false alarm — see there.
+const applied = [];
 
 // the bundle with NOTHING mutated, to tell an inert mutation from a real one
 sh('npm run build');
@@ -858,6 +917,7 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
   const src = readFileSync(file, 'utf8');
   const n = src.split(needle).length - 1;
   if (n !== 1) { results.push([name, 'NEEDLE', `matched ${n}x, not 1 — mutation not applied`]); continue; }
+  applied.push([name, file, needle]);   // we are about to WRITE this file — see the restore check
   try {
     backupPath = `.canfail-backup-${file.split('/').pop()}`;   // per FILE, never shared
     writeFileSync(backupPath, src);   // the exact bytes back, whatever state they were in
@@ -922,36 +982,90 @@ for (const [name, verdict, note] of results) {
   console.log(`  ${mark} ${name.padEnd(11)} ${verdict.padEnd(7)} ${note}`);
 }
 const bad = results.filter((r) => r[1] !== 'CAUGHT');
-const unprovable = results.filter((r) => ['INERT', 'NOT-RUN'].includes(r[1]));
+// NEEDLE JOINS THIS LIST, and it belongs here for the same reason the other two
+// do: the case was not scored, and that is not the same news as a guard asleep.
+//
+// It is here now because of what the restore check above used to do by accident.
+// The `density` case's own comment records it — *"canfail said so plainly
+// (RESTORE FAILED ... does not hold its original text), which is the only reason
+// it surfaced"* — so for five stale needles running, the way anyone found out
+// was a message about a corrupted source tree, which was not true and did not
+// name the case. Repairing that (see the restore check) removes an accidental
+// reporter, so the honest one has to get louder rather than quieter: a stale
+// needle is now called out by name, in its own block, with the count.
+//
+// `bad` still contains it, so the exit code is unchanged and non-zero. This adds
+// a sentence; it does not forgive anything.
+const unprovable = results.filter((r) => ['INERT', 'NOT-RUN', 'NEEDLE'].includes(r[1]));
 if (unprovable.length) {
   console.log(`\n${unprovable.length} case(s) could not be scored — NOT sleeping guards:`);
   for (const [n, v, why] of unprovable) console.log(`  ${v.padEnd(8)} ${n} — ${why}`);
 }
 console.log(`\n${results.length - bad.length}/${results.length} checks caught their mutation`);
 // Not "is the tree clean" — it may legitimately be dirty and that is the point
-// now. The question is whether the file came back byte-for-byte as it was, and
-// that is a comparison against the bytes taken before the run, NOT against the
-// needles: a stale needle is a fault in this file and must not be reported as a
-// corrupted tree. See ORIGINAL.
+// now. The question is whether the file came back byte-for-byte as it was.
+//
+// ONLY THE CASES WE ACTUALLY WROTE, and that is a bug fix, not a relaxation.
+//
+// This used to ask a different question: for every case in `CASES` sharing a
+// FILE with anything in this run, is that case's needle present? A stale needle
+// answers no — not because a restore failed, but because the text was never
+// there. Measured on this tree, with `rain` quoting a `RAIN_N` that `2bb64f49f`
+// had changed:
+//
+//     node scripts/canfail.mjs footprint
+//     OK   footprint   CAUGHT  litter allowed to straddle the kerb
+//     1/1 checks caught their mutation
+//     RESTORE FAILED — src/proto/ct/props.ts does not hold its original text.
+//
+// Nothing was wrong. `footprint` ran, caught its mutation and restored cleanly,
+// and the tree was untouched — `git status` clean. But ONE stale needle in
+// props.ts made every run touching props.ts (footprint, trash, glow, wetness,
+// bus, rain, rain-memory, crowd-lane…) announce a corrupted source tree and
+// exit 3, which by the house convention (GOTCHAS §32) means "aborted, nothing
+// measured" — so `checks.mjs --selftest` scored eight healthy guards as failed.
+//
+// That is the expensive direction of this file's own warning: a false RED sends
+// somebody to fix a check that works, and "your source tree did not come back"
+// sends them somewhere much worse than that. A stale needle already has an
+// honest verdict of its own (`NEEDLE`, scored not-CAUGHT, non-zero exit); it
+// does not also need to masquerade as data loss.
+//
+// So the population is `applied` — the cases we opened the file for. If we did
+// not write it, we cannot have failed to put it back.
+//
+// AND THE TEST IS THE BYTES, not the needle (w22, merging the same fix arrived
+// at independently). Restricting the population to `applied` removes the false
+// alarm, which was the expensive half; but "the needle is present again" is
+// still a weaker claim than "the file is as I found it". A restore that wrote
+// back a DIFFERENT file containing the same needle passes a needle test and
+// fails this one, and this one is the question the header promises to answer —
+// "it restores from a BYTE COPY … so uncommitted work survives a run untouched".
+// `ORIGINAL` holds a digest of each file taken before anything was written;
+// `applied` still names which case last held the pen, because "which one" is
+// the first thing you want to know.
 const stillWrong = Object.keys(ORIGINAL)
   .filter((f) => digest(readFileSync(f, 'utf8')) !== ORIGINAL[f]);
 if (stillWrong.length) {
-  console.error(`\nRESTORE FAILED — ${stillWrong[0]} does not hold its original bytes.`);
-  console.error(`  Your copy is at .canfail-backup-${stillWrong[0].split('/').pop()} if the run died mid-case.`);
+  const f = stillWrong[0];
+  const by = applied.filter(([, file]) => file === f).pop();
+  console.error(`\nRESTORE FAILED — ${f} does not hold its original bytes.`);
+  console.error(`  ${by ? `Last written by case '${by[0]}'. ` : ''}`
+    + `Its backup is .canfail-backup-${f.split('/').pop()}.`);
   process.exit(3);
 }
 console.log('every mutated file restored byte-for-byte');
-// A needle that matches nothing is a case that proved NOTHING, and it is easy
-// to skim past a `????` row among forty greens. Say it in words, at the end,
-// where the summary is read.
+// …and for a stale needle, THE TEXT THAT NO LONGER MATCHES. The block above
+// says which cases could not be scored; this says what to do about it, which is
+// the part that costs time otherwise — re-aiming means diffing a quotation
+// against somebody else's source, and the quotation is right here.
 const stale = results.filter((r) => r[1] === 'NEEDLE');
 if (stale.length) {
-  console.error(`\n${stale.length} case(s) NEVER RAN — the needle no longer matches the source:`);
+  console.error(`\nthe stale quotations, verbatim — these guards are UNPROVEN, not passing:`);
   for (const [n] of stale) {
     const c = CASES.find((x) => x[0] === n);
     console.error(`  ${n} — ${c[1]} no longer contains: ${JSON.stringify(c[2])}`);
   }
-  console.error('  Those guards are UNPROVEN, not passing. Re-aim the needle at current source.');
 }
 
 // A STAMP, so a sleeping guard is discoverable without running this again.

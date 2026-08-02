@@ -2,8 +2,9 @@
 // Is the ATM read intermittent, or does it break after an interior visit?
 // M reads it ONCE per call; D documented that a citizen crossing the sightline
 // makes a single read a coin toss.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

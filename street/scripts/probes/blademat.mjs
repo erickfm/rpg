@@ -1,13 +1,14 @@
 // The one step left on the blade question: what ARE those faces made of?
 // They pass every handedness filter except having a texture map. If the
 // lettering is geometry, "is the UV mirrored" does not apply to them.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 600 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
 const r = await p.evaluate(() => {

@@ -1,10 +1,11 @@
 // Two corrections. The door leaf is ~0.99 m, not the 1.11 m opening I matched.
 // And the neighbour must be found by TOGGLING, not by presence: my box counts
 // static residents who never leave, so "100% of afternoons" measured nothing.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from '../lib/clock.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2000); await setClock(p,13);
 const q=await p.evaluate(()=>window.__ct.pos());

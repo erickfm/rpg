@@ -1,9 +1,10 @@
 // The east-end crossing: is there a RAMP at the kerb, or a step? A ramp and a
 // step do not look alike in a ground profile, and the contrast is the proof —
 // same method that settled the driveway apron.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2000);
 const prof=async(label,x0,z0,x1,z1,n=60)=>{

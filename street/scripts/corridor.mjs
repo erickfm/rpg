@@ -6,12 +6,13 @@
 // place the player's actual passage drops below 1.00 m, with what forms it.
 //
 // Movers dropped by double-sampling, so this is the BUILT corridor.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p);
 await p.waitForTimeout(800);

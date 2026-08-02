@@ -16,7 +16,7 @@ import { ROAD_HALF, WALK, FACE, PARK_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng'
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
 import { buildGround, JUNCTION_CROSSINGS } from './ct/tex-ground';
-import { type CarKind, makeCar, PICKUP_BED } from './ct/cars';
+import { type CarKind, makeCar, PICKUP_BED, PICKUP_CAB, PICKUP_COWL_Z, HOOD_TOP } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
 import { nudgeClear, corridor, ENTERABLE, PASSABLE } from './ct/gap';
@@ -675,25 +675,76 @@ export function makeCrosstown(): Proto {
     }
   }
 
-  // ── item 1, stage 3: make ONE object standable, and prove it ────────────
+  // ── item 29: A ROUTE ONTO THE ROOF, NOT A ROOF NOBODY CAN REACH ─────────
   //
-  // The pickup's bed floor (`PICKUP_BED.floorY`, 0.50 m) is the one flat
-  // surface on the whole fleet under the jump's own apex (~0.57 m from flat
-  // ground) — see PICKUP_BED's own comment in ct/cars.ts for the doors,
-  // hoods and roofs (0.84-1.8 m) that are real but are NOT reachable with the
-  // jump as currently tuned. Splits the truck's one collision box into a cab
-  // (unchanged: full height, always a wall) and a bed (the new part: a wall
-  // below `maxY`, standable at or above it).
+  // *"i want the collision to be a bit more accurate to the objects. the cars
+  // for instance. we should be able to jump on the cars."*
+  //
+  // Item 1 (notes/w13-collider-volume.md) made the pickup's bed floor
+  // standable and stopped there, because 0.50 m is the ONLY flat surface on
+  // the whole fleet a standing jump can gain. A roof at 1.50 m was left alone
+  // — correctly, because a collider nothing can reach is a collider nobody
+  // meets.
+  //
+  // HOW HIGH A HOP ACTUALLY IS, because it is the number every height below
+  // is chosen against and the obvious source for it is WRONG. fp.ts:446's
+  // comment says 0.571 m; that is the apex of the CONTINUOUS system, and the
+  // world never reaches it. `fp.ts:455-456` steps semi-implicit Euler — `vy`
+  // is decremented before the position update — which costs v0·dt/2 of height
+  // every frame, and `main.ts:107` clamps dt at 0.05. So the apex runs from
+  // **0.471 m at the clamp (the worst frame the engine can ever take) to
+  // 0.558 m at 144 fps**, and `standTop` adds `TOP_EPS` (0.08 m) on top of
+  // whichever you get. **Worst-case reach is 0.551 m, not 0.651.** Measured,
+  // not derived: scripts/probes/w21-apex.mjs samples it per animation frame
+  // under CDP CPU throttling and gets 0.475 m at every throttle, which is the
+  // dt clamp holding.
+  //
+  // The answer is not a bigger jump (that is fp.ts, the 2 m lane, and every
+  // tuned spot in scripts/jump-walk.mjs). It is that a pickup ALREADY has a
+  // staircase, and it was one box pretending to be a wall:
+  //
+  //                        rise   worst-case margin
+  //     pavement  0.14 ─┐
+  //     bed floor 0.50  │  0.36        +0.191   PICKUP_BED.floorY  (item 1's)
+  //     bed rail  0.97  │  0.47        +0.081   PICKUP_BED.railY   ← the missing step
+  //     cab roof  1.50  │  0.53        +0.021   PICKUP_CAB.roofY   ← what was asked for
+  //     hood      0.94  │  (down)               HOOD_TOP           ← and the way back
+  //
+  // THE ROOF HOP CLEARS BY 21 mm on the engine's worst possible frame, and by
+  // ~88 mm for a 60 fps player. It is the tightest thing in this file and the
+  // first thing that breaks if anyone retunes `vy`, gravity or `TOP_EPS` —
+  // scripts/w21-roof-climb.mjs is what will catch that. There is no
+  // intermediate surface between the rail and the roof to spend the slack on;
+  // the truck simply has nothing there.
+  //
+  // Every gap in that column is under the 0.551 m worst case, so every step
+  // is a real jump
+  // from a real surface. Nothing here changes movement: the tops are opt-in
+  // `maxY` values on boxes that already existed, and the union of their
+  // FOOTPRINTS is exactly the footprint the truck had before — so the lane
+  // you walk past a parked truck in is untouched, at ground level, to the
+  // millimetre.
+  //
+  // WHY NO TAILGATE COLLIDER, when the tailgate is right there in the mesh:
+  // the bed is entered over it. Adding a wall at railY across the tail would
+  // put the bed floor behind a 0.97 m step reachable only from 0.32 m up, and
+  // the one thing that already worked would stop working. The side rails are
+  // added and the tail is left open, so entry is exactly as item 1 proved it
+  // and the rails are what you climb. Same for the headboard: it lies wholly
+  // inside the cab box's own RADIUS padding, so no player can ever stand on
+  // it, and a collider nobody can meet is the thing this item forbids.
   //
   // Placed HERE, after settleParking, and mutates `p.cb` rather than
   // registering the split from the start, because settleParking's own gap
   // check (`others = colliders.filter(b => b !== p.cb)`, a few lines up)
-  // excludes the truck's box by REFERENCE — a bed box registered before that
-  // loop ran would not be excluded, and the truck would read as trapped
-  // against its own tailgate. Every other car is untouched.
+  // excludes the truck's box by REFERENCE — a second box registered before
+  // that loop ran would not be excluded, and the truck would read as trapped
+  // against its own tailgate. Every other car is untouched, and that is
+  // deliberate: see notes/w21-car-roof-climb.md for the measured reason a
+  // sedan, hatch and van still have no first step, and what one would cost.
   const truck = parkedFleet.find((p) => p.kind === 'pickup');
   if (truck) {
-    const tz = truck.car.position.z;
+    const tz = truck.car.position.z, tx = truck.car.position.x;
     // Every OTHER car collider in this file ignores rotation entirely —
     // `box()` above is a fixed ±1.05 x ±carHalf box at any yaw — so this
     // matches that convention rather than inventing real oriented-box math
@@ -704,19 +755,87 @@ export function makeCrosstown(): Proto {
     const dir = Math.cos(truck.car.rotation.y) >= 0 ? 1 : -1;
     const localZ = (a: number, b: number): [number, number] =>
       dir === 1 ? [tz + a, tz + b] : [tz - b, tz - a];
-    const [cabMinZ, cabMaxZ] = localZ(-carHalf.pickup, PICKUP_BED.z0);
-    const [bedMinZ, bedMaxZ] = localZ(PICKUP_BED.z0, carHalf.pickup);
-    truck.cb.minZ = cabMinZ; truck.cb.maxZ = cabMaxZ;   // cab: same box, shorter
-    const bed: AABB = {
-      minX: truck.cb.minX, maxX: truck.cb.maxX,
-      minZ: bedMinZ, maxZ: bedMaxZ,
-      maxY: PICKUP_BED.floorY,
+    // The collider's own half-width, READ BACK off the box the parking pass
+    // built rather than retyped as 1.05. Every top below uses it, so all four
+    // tiers are exactly as wide as the box they replace and none of them can
+    // drift from `box()` above if that ±1.05 ever changes.
+    const halfW = truck.cb.maxX - tx;
+    /** A standable top, carrying the name of the surface it is. `tag` is not
+     *  read by fp.ts — `AABB` has no such field and that file is not this
+     *  item's to change — but `__ct.colliders()` serialises it, which is how
+     *  scripts/w21-roof-climb.mjs asserts against THE ROOF rather than
+     *  against "the first collider that happens to have a maxY". Five boxes
+     *  now carry a `maxY`; `find(c => c.maxY !== undefined)` used to be
+     *  unambiguous and is not any more. */
+    type Top = AABB & { tag: string };
+    const tops: Top[] = [];
+    const top = (tag: string, minX: number, maxX: number,
+      z: [number, number], maxY: number): Top => {
+      const t: Top = { tag, minX, maxX, minZ: z[0], maxZ: z[1], maxY };
+      tops.push(t);
+      return t;
     };
+
+    // ── tier 1: the hood, and the cab it stops short of ───────────────────
+    //
+    // The truck's front box becomes the HOOD, standing at `HOOD_TOP`, and it
+    // runs from the nose back to `PICKUP_COWL_Z` — the point where the
+    // windscreen rises past the hood's own top. Stopping there is the whole
+    // reason that constant is derived in ct/cars.ts rather than eyeballed: a
+    // hood tier that ran to the roof plate's front edge would put a standable
+    // shelf at 0.94 m INSIDE the cab, under the glass.
+    const [hoodMinZ, hoodMaxZ] = localZ(-carHalf.pickup, PICKUP_COWL_Z);
+    truck.cb.minZ = hoodMinZ; truck.cb.maxZ = hoodMaxZ;
+    truck.cb.maxY = HOOD_TOP;
+    (truck.cb as Top).tag = 'pickup-hood';
+    tops.push(truck.cb as Top);
+
+    // ── tier 2: the cab, whose top IS the roof ────────────────────────────
+    //
+    // One box over the greenhouse, standing at the roof plate's own height.
+    // A box over a sloped screen always overfills it: this one floats up to
+    // 0.47 m above the glass at the windscreen's foot, and reaches 0.31 m
+    // wider than the roof plate on each side (the plate is ±0.74, the box is
+    // the body's ±1.05). Both are the price of an axis-aligned box on a
+    // welded loft, and both are the SAME 0.15 m collision skin the bed floor
+    // has shipped with since item 1 — widened only because the roof plate is
+    // inset from the body it sits on. A tighter roof would need either the
+    // oriented-collider type queued in notes/w13-collider-volume.md, or a
+    // narrower box, and a narrower box cannot be done safely here: it would
+    // notch the truck's ground footprint, and the trap-band rule above
+    // (`nudgeClear`) was already run against the wide one.
+    top('pickup-cab-roof', truck.cb.minX, truck.cb.maxX,
+      localZ(PICKUP_COWL_Z, PICKUP_BED.z0), PICKUP_CAB.roofY);
+
+    // ── tier 3: the bed floor, exactly as item 1 shipped it ───────────────
+    top('pickup-bed-floor', truck.cb.minX, truck.cb.maxX,
+      localZ(PICKUP_BED.z0, carHalf.pickup), PICKUP_BED.floorY);
+
+    // ── tier 4: the two bed rails — the step from the bed to the roof ─────
+    //
+    // The wall itself is `PICKUP_BED.wallT` (0.16 m) thick, which is a hard
+    // landing to hit at walking speed. The box runs from the wall's INNER
+    // face out to the collider's own side instead, so the standable band is
+    // 0.31 m: the extra 0.15 m is the skin the box already claimed at bed-
+    // floor height, so this adds no reach the truck did not already have and
+    // removes the sliver where overshooting the rail used to drop you onto
+    // the bed box while standing outside the truck's body.
+    const railZ = localZ(PICKUP_BED.z0, PICKUP_BED.half);
+    const railIn = PICKUP_BED.halfW - PICKUP_BED.wallT;
+    for (const s of [-1, 1]) {
+      const a = tx + s * railIn, b = tx + s * halfW;
+      top(s < 0 ? 'pickup-rail-left' : 'pickup-rail-right',
+        Math.min(a, b), Math.max(a, b), railZ, PICKUP_BED.railY);
+    }
+
     // `colliders`/`citAvoid` are pushed to directly, not `carColliders` —
     // `colliders` was already spread from `carColliders` above, so pushing
     // there instead would not reach FPRig, colliderDebug or ctx.colliders().
-    colliders.push(bed);
-    citAvoid.push(bed);
+    // `truck.cb` is already in both, by reference, so it is skipped here.
+    for (const t of tops) {
+      if (t === (truck.cb as Top)) continue;
+      colliders.push(t); citAvoid.push(t);
+    }
   }
 
   props.dimWorld(scene);
@@ -964,6 +1083,20 @@ export function makeCrosstown(): Proto {
       widthM: d.width ?? null,
     })),
     spots: () => SPOTS.map((sp) => ({ x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok() })),
+    // REACH IS NOT RADIUS, and a script cannot work that out from `spots()`
+    // alone: a spot publishes its `r`, but whether you are standing AT it is
+    // `d < r + REACH_MARGIN`, and that margin lives in fp.ts. Two scripts had
+    // therefore hand-typed `const REACH_MARGIN = 0.6` to reconstruct the
+    // predicate — BUILDER-BRIEF §8's "a second hand-typed copy of a number is
+    // the single most expensive habit in this codebase", and the reason
+    // `bedcavity.mjs` spent a week measuring a truck that no longer existed.
+    //
+    // Published rather than folded into `spots()` as a `reach` field: the
+    // margin is ONE global (fp.ts:486), not a property of each spot, and giving
+    // every row its own copy would put 200 duplicates in the payload where the
+    // duplication is exactly what this exists to remove. It is imported from
+    // fp.ts at the top of this file, so there is no copy here either.
+    reachMargin: () => REACH_MARGIN,
     // The acceptance test for the selection highlight, asked of the WORLD rather
     // than of a copy of it: every registered [E], whether it names an object,
     // and therefore whether its outline is the real contour or the generic

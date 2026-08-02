@@ -36,6 +36,27 @@ nothing like the cause. (GOTCHAS 54, 13.)
    claim and marks it for the desk to verify.
 4. Repeat. When `claim.sh` says the queue is empty, say so and stop.
 
+**BEFORE EACH CLAIM, PULL MAINLINE IN — YOUR WORKTREE IS A SNAPSHOT.**
+
+```sh
+git stash list >/dev/null; git merge --no-edit add-stick-and-city98   # tree must be clean first
+```
+
+Your worktree was cut when you started and **does not move**. Other builders
+land work the whole time you are running, and by your third item mainline can be
+hours ahead of what you are standing in.
+
+This is not hypothetical. One builder reported two items **BLOCKED** because
+"`fp.ts:9` defines `AABB` as `{minX, maxX, minZ, maxZ}` — colliders have no
+height, so there is nothing to stand on." It proved it properly, by standing on
+six cars rather than by grepping, and it was **right about its own checkout and
+wrong about the world**: collider height had landed hours earlier. It refused to
+run the 20+ "clean" roof-exit runs the item asked for, on the grounds they would
+have passed by measuring nothing — which was exactly the right instinct, spent
+on a problem that did not exist.
+
+Do it **between** items, with a clean tree — never mid-item.
+
 **If your item runs long, run `./scripts/claim.sh --touch <your-name>` after each
 commit.** Claiming now reaps any item held for 150 minutes without a touch —
 twice today an item froze because the agent holding it had died, for 85 and 136
@@ -73,7 +94,19 @@ asynchronous. (GOTCHAS 55.)
 Instruments default to port **4177**, where somebody else's server is usually
 running. **Always pass `SHOT_URL=http://localhost:<your port>/`.**
 
-Pick your own port from the queue's ports column, or any free port in 4180–4199.
+**A PORT THE DESK ASSIGNED YOU IS A SUGGESTION, NOT A FACT — PROVE IT IS FREE.**
+Three builders in a row were handed a port already serving another builder's
+world. It answers HTTP 200, so nothing looks wrong: you measure someone else's
+street and report confidently about it. One builder lost 20 minutes to this
+tonight, and it is the same failure as GOTCHAS 48 wearing a different hat.
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:<port>/   # 000 = free
+```
+
+Anything other than `000` means **take a different port** — any free one in
+4180–4199 — and **say which one you used** in your handoff. The desk has been
+assigning these blind and cannot tell from here.
 
 > An instrument aimed at the wrong world reports a catastrophe it cannot see —
 > or a clean bill of health it did not earn. (GOTCHAS 48.)

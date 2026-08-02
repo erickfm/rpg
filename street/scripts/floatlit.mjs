@@ -9,10 +9,11 @@
 // than jump it (a jumped night baseline is 3.4x too bright), drop movers by
 // double-sampling, and compare each small ground-level object against the
 // BROAD SHEET UNDER IT rather than against a global average.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const NIGHT = Number(process.env.NIGHT_H ?? 23);
 const JSON_OUT = process.env.JSON_OUT === '1';
 // GOTCHAS 32: exit 3 means the check never ran. Everything below is gated on a
