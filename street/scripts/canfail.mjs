@@ -38,6 +38,7 @@ const CAT = 'src/proto/ct/cat.ts';          // D's
 const CORNER = 'src/proto/ct/bodega-corner.ts';  // D's, split out of street.ts
 const BANK = 'src/proto/ct/bank.ts';        // D's, split out of street.ts
 const CASINO = 'src/proto/ct/int-casino.ts';  // the 96 slot stools
+const FP = 'src/proto/fp.ts';                 // the player rig — eye height, reach
 const TAX = 'src/proto/ct/int-tax.ts';        // the waiting row the user reported
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
@@ -225,6 +226,32 @@ const CASES = [
     '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;',
     '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.90;  // selftest: pre-ruling',
     'D-rulings-hold.mjs', [], 'the fascia bottom back where the ruling moved it from'],
+
+  // ── item 72: fast-tier checks that had NO declared failing path ────────────
+  //
+  // Each of these ran on every suite and had never once been watched go red.
+  // A dead port already makes all of them exit non-zero, so the "cannot measure"
+  // path was covered — what was untested is the path that matters: the world is
+  // MEASURED and it is WRONG. That is what these cases exercise.
+
+  // A-eye-height-holds. THE MUTATION HAS TO BREAK THE SYMPTOM, NOT THE
+  // DIAGNOSIS, and my first attempt got that wrong in a way worth recording: I
+  // raised the player's own eye in `fp.ts` (1.62 -> 2.90), which moves the error
+  // column this script PRINTS but not the thing it ASSERTS on. The script says so
+  // in as many words — "the assertion is the symptom, not the arithmetic above",
+  // because failing on the eye gap would leave it red forever once the gate was
+  // fixed. So it stayed green, correctly, and canfail reported SLEPT. A check
+  // that does not move under the wrong mutation is not a sleeping check, and
+  // filing it as one is how this repo has twice reported working guards as dead.
+  //
+  // The real mutation is the ORIGINAL BUG: the gate built its ray from a bare
+  // 1.6 instead of the floor the player is standing on, so in 301 (gy 5.4) the
+  // ray started 5.4 m below the floor, was stopped by the slab, and every [E]
+  // in the room went unselectable.
+  ['eye-gate-flat', TOWN,
+    '      const eye = new THREE.Vector3(px, apt.gy() + 1.6, pz);',
+    '      const eye = new THREE.Vector3(px, 1.6, pz);   // selftest: the pre-fix flat eye',
+    'A-eye-height-holds.mjs', [], 'every [E] in the spawn room unselectable again'],
 
   ['alleydish', ALLEY,
     '    a.ground((x: number, z: number) => (dishAt(x, z) < 0 ? dishAt(x, z) : null));',

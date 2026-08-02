@@ -54,7 +54,9 @@ const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
   'jump-walk', 'w21-roof-climb', 'gaps', 'feet-check', 'side-night', 'I-seat-exit',
   'unstick-walk', 'integration-doors', 'corner-traffic', 'crowd-net', 'side-walk',
-  'jitter', 'A-eye-height-holds', 'K-seat-lets-you-up', 'O-jail-door-agree',
+  // 'A-eye-height-holds' — CLEARED by w35, item 72: canfail case `eye-gate-flat`,
+  // proven CAUGHT behaviourally rather than declared.
+  'jitter', 'K-seat-lets-you-up', 'O-jail-door-agree',
   'L-slots-inworld', 'L-every-stool-seats-you', 'L-blackjack-inworld',
 ];
 
