@@ -2057,3 +2057,28 @@ tonight the answer to a real problem was something already written down.
 
 **Every "no X was found" verdict needs a minimum-sample floor, and the floor
 should be derived from the registry** (219 seats published) **rather than typed.**
+
+## 72.
+
+**A red without a green is half a measurement, and `canfail` cannot tell the
+difference.** `canfail` scores CAUGHT on *any* non-zero exit (GOTCHAS 32), so a
+case registered against a check that is **already failing on unmutated mainline**
+self-certifies: the mutation is irrelevant, the score is green, and the guard
+proves nothing forever after.
+
+A builder nearly shipped exactly this, caught it, and withdrew its own landed
+work. It had watched the mutated run go red and committed on that alone; the
+baseline took 11m15s and came back **exit 1 on clean mainline** — a real trap at
+(8.50, −94.50) that had nothing to do with the mutation.
+
+**So: watch the red AND the green.** Both runs, both statuses, before a case is
+registered. If the baseline is slow, that is a reason to wait, not a reason to
+skip it — the builder's own words are the rule worth keeping: *"I registered a
+case on the strength of a red I had watched and a green I had not."*
+
+Related, from the same session: **a mutation that depends on a knife-edge stops
+proving anything the moment the margin moves.** A 100-nanometre roof mutation
+was real when it was written, on a world sitting exactly on a frame boundary;
+a day later there was a whole spare frame and the same mutation **passed** —
+indistinguishable from a check that failed to notice. Mutate by a margin the
+world cannot absorb.
