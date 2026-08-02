@@ -153,3 +153,72 @@ describe('turned boxes are measured in their own frame', () => {
     expect(trapAgainst(T1, [T1, near, skew])).toBeCloseTo(want, 10);
   });
 });
+
+// ── the property, checked against geometry rather than against my arithmetic ──
+//
+// EVERY CASE ABOVE IS ONE I CHOSE, and cases I choose share my blind spots.
+// I had `orientedCorridor` taking the NARROWEST qualifying separation instead
+// of the widest — a real error, reasoned out and wrong — and all sixteen of the
+// hand-written cases above passed with it, because in each of them only one
+// axis ever qualifies and widest and narrowest are the same number.
+//
+// So this asks the question directly instead: over a few thousand random
+// pairs, whenever `corridor` reports a slot, is that number the actual
+// distance between the two rectangles? The right-hand side is exact
+// polygon-polygon distance, computed from the corners with no reference to
+// anything in gap.ts. It disagrees with narrowest on ~4% of pairs.
+
+/** the four corners of a box, in world coordinates */
+function corners(c: AABB): [number, number][] {
+  const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+  const hx = (c.maxX - c.minX) / 2, hz = (c.maxZ - c.minZ) / 2;
+  const s = c.rot ? Math.sin(c.rot) : 0, k = c.rot ? Math.cos(c.rot) : 1;
+  const ax = { x: k, z: -s }, az = { x: s, z: k };
+  const out: [number, number][] = [];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    out.push([cx + sx * hx * ax.x + sz * hz * az.x, cz + sx * hx * ax.z + sz * hz * az.z]);
+  }
+  return [out[0], out[1], out[3], out[2]];      // wind them into a ring
+}
+
+/** distance from point p to segment ab */
+function ptSeg(p: [number, number], a: [number, number], b: [number, number]): number {
+  const vx = b[0] - a[0], vz = b[1] - a[1];
+  const len2 = vx * vx + vz * vz;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vz) / len2));
+  const dx = p[0] - (a[0] + t * vx), dz = p[1] - (a[1] + t * vz);
+  return Math.hypot(dx, dz);
+}
+
+/** exact distance between two disjoint convex polygons */
+function polyDist(A: [number, number][], B: [number, number][]): number {
+  let best = Infinity;
+  for (const [P, Q] of [[A, B], [B, A]] as [typeof A, typeof B][]) {
+    for (let i = 0; i < P.length; i++) {
+      const a = P[i], b = P[(i + 1) % P.length];
+      for (const q of Q) best = Math.min(best, ptSeg(q, a, b));
+    }
+  }
+  return best;
+}
+
+describe('the reported corridor IS the distance between the boxes', () => {
+  it('agrees with exact polygon geometry on thousands of random turned pairs', () => {
+    let rng = 20260802;                                    // fixed seed: a failure is reproducible
+    const rnd = () => ((rng = (rng * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const rndBox = () => box((rnd() - 0.5) * 8, (rnd() - 0.5) * 8,
+      0.15 + rnd() * 1.5, 0.15 + rnd() * 1.5, rnd() * Math.PI);
+
+    let checked = 0, worst = 0;
+    for (let i = 0; i < 4000; i++) {
+      const a = rndBox(), b = rndBox();
+      const w = corridor(a, b);
+      if (w === null) continue;
+      const truth = polyDist(corners(a), corners(b));
+      worst = Math.max(worst, Math.abs(w - truth));
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(500);                  // the loop must not be vacuous
+    expect(worst).toBeLessThan(1e-9);
+  });
+});

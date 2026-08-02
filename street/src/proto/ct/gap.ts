@@ -111,6 +111,54 @@ function worldBox(c: AABB): AABB | null {
   return { minX: x0, maxX: x1, minZ: z0, maxZ: z1 };
 }
 
+/** The box's four corners, wound into a ring. */
+function corners(c: AABB): [number, number][] {
+  const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+  const hx = (c.maxX - c.minX) / 2, hz = (c.maxZ - c.minZ) / 2;
+  const [ax, az] = axesOf(c);
+  const at = (sx: number, sz: number): [number, number] =>
+    [cx + sx * hx * ax.x + sz * hz * az.x, cz + sx * hx * ax.z + sz * hz * az.z];
+  return [at(-1, -1), at(-1, 1), at(1, 1), at(1, -1)];
+}
+
+/** distance from point `p` to segment `a`–`b` */
+function ptSeg(p: [number, number], a: [number, number], b: [number, number]): number {
+  const vx = b[0] - a[0], vz = b[1] - a[1];
+  const len2 = vx * vx + vz * vz;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vz) / len2));
+  return Math.hypot(p[0] - (a[0] + t * vx), p[1] - (a[1] + t * vz));
+}
+
+/**
+ * The true clearance between two disjoint boxes — the smallest distance
+ * between any point of one and any point of the other.
+ *
+ * WHY THIS EXISTS AND THE SEPARATING AXIS DOES NOT SUFFICE. A separation
+ * measured along an axis is only the real clearance when the two boxes meet
+ * face to face along it. Where a turned box presents a CORNER to a flat face,
+ * the axis separation is the shadow of a diagonal and is too small — I shipped
+ * that for one commit, and a property test over 4000 random pairs put the
+ * worst case at 0.634 m of understatement. Understating is the safe direction
+ * (a wide gap reads as a trap, never the reverse) but it is still a phantom,
+ * and phantom red on a wall is the exact bug this item exists to prevent.
+ *
+ * For two convex polygons the closest pair is always vertex-to-edge, so
+ * checking every vertex of each against every edge of the other is exact. That
+ * is 32 point-segment distances for a pair of rectangles, on a path only taken
+ * when a box is actually turned.
+ */
+function clearance(a: AABB, b: AABB): number {
+  const A = corners(a), B = corners(b);
+  let best = Infinity;
+  for (let i = 0; i < 4; i++) {
+    const a0 = A[i], a1 = A[(i + 1) % 4], b0 = B[i], b1 = B[(i + 1) % 4];
+    for (let j = 0; j < 4; j++) {
+      best = Math.min(best, ptSeg(B[j], a0, a1), ptSeg(A[j], b0, b1));
+    }
+  }
+  return best;
+}
+
 /**
  * The corridor between two boxes when at least one is turned: the slot they
  * face each other across, and the frame it runs in.
@@ -121,25 +169,24 @@ function worldBox(c: AABB): AABB | null {
  * or Z. Both axes of both boxes are tried, which is the standard separating-
  * axis candidate set for two rectangles in 2-D.
  *
- * THE WIDEST qualifying separation wins, and getting this backwards is the
- * trap in the trap-finder. My first cut took the narrowest, reasoning that the
- * tightest slot is the one a body wedges in. It is not, because a separation
- * along a badly-chosen axis is not a slot at all. Two parallel bars turned 45°,
- * 2 m apart along world X, are 1.214 m apart in reality — but their world-X
- * separation is 0.444 m, squarely in the trap band, measured between two
- * corners that are 1.6 m from each other. Taking the narrowest reports that
- * phantom; taking the widest reports 1.214 and passes it. (gap.test.ts pins
- * both halves of that.)
+ * THE AXES DECIDE WHETHER THERE IS A CORRIDOR; `clearance` says HOW WIDE.
+ * Those are two different questions and answering both with the separation
+ * along one axis is what made my first two attempts wrong:
  *
- * That is not a heuristic. For two convex rectangles the separation along any
- * axis is a LOWER BOUND on the true distance, so the greatest of them is the
- * tightest bound available — and it is EXACT whenever the boxes face each
- * other across a face, which is what requiring overlap on `m` already demands.
- * A corridor is by definition that configuration.
+ * · Taking the NARROWEST qualifying separation reports a phantom. Two bars
+ *   turned 45°, 2 m apart along world X, are 1.214 m apart in reality while
+ *   their world-X separation is 0.444 m — inside the trap band, and measured
+ *   between two corners 1.6 m from each other.
+ * · Taking the widest is better but still not the clearance: where a turned
+ *   box presents a CORNER to a flat face, every axis understates it. Worst
+ *   case over 4000 random pairs, 0.634 m.
  *
- * For an axis-aligned pair at most one axis can ever qualify — separated on X
- * forbids overlapping on X — so widest, narrowest and today's answer are the
- * same number, and the reduction is exact.
+ * So the axis test is kept for what it is good at — deciding that the two
+ * boxes FACE each other rather than sitting diagonally, and naming the frame
+ * the slot runs in, which `orientedFilled` needs — and the width comes from
+ * the geometry. For an axis-aligned pair at most one axis can ever qualify
+ * (separated on X forbids overlapping on X) and the clearance along it is the
+ * separation, so the reduction to today's answer is exact.
  */
 function orientedCorridor(a: AABB, b: AABB): { w: number; n: Vec; m: Vec } | null {
   let best: { w: number; n: Vec; m: Vec } | null = null;
@@ -154,7 +201,7 @@ function orientedCorridor(a: AABB, b: AABB): { w: number; n: Vec; m: Vec } | nul
       if (!best || sep > best.w) best = { w: sep, n, m };
     }
   }
-  return best;
+  return best && { w: clearance(a, b), n: best.n, m: best.m };
 }
 
 /** Is the oriented corridor between `a` and `b` already solid? The interval
