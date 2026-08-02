@@ -12,6 +12,17 @@
 # it succeeds for exactly one caller.
 #
 # Usage:  ./scripts/claim.sh <your-name>
+#         ./scripts/claim.sh --stale [threshold-minutes]     report DOING rows by age
+#         ./scripts/claim.sh --release <item-id> [your-name] force a stuck item back to TODO
+#
+# A STALE CLAIM IS INDISTINGUISHABLE FROM ACTIVE WORK, AND THAT IS ITEM 9d.
+# Item 9 sat `DOING w1` after the desk stopped w1 — nothing could take it and
+# nothing SAID so, because claim.sh only ever reported the queue empty, never
+# WHY. Same class of bug as the lettered-rank fix above: the dispatcher could
+# not see its own state. Two commands, not one, because they answer different
+# questions — `--stale` is read-only (is anything stuck?), `--release` acts
+# (un-stick it) — and conflating them would mean a report accidentally
+# mutates the very state it is reporting on.
 set -u
 cd "$(dirname "$0")/.." || exit 1
 # THE QUEUE IS SHARED, AND IT MUST NOT LIVE IN GIT.
@@ -32,10 +43,11 @@ Q="$SHARED/QUEUE.md"
 LOCK="$SHARED/.queue.lock"
 [ -f "$Q" ] || { echo "no queue at $Q"; exit 1; }
 
-who=${1:-}
-[ -z "$who" ] && { echo "usage: claim.sh <your-name>"; exit 2; }
+mode=${1:-}
+[ -z "$mode" ] && { echo "usage: claim.sh <your-name>  |  claim.sh --stale [minutes]  |  claim.sh --release <item-id> [your-name]"; exit 2; }
 
 # ── take the lock, and never leave it behind ──────────────────────────────
+# All three modes below read or rewrite the shared file, so all three need it.
 tries=0
 until mkdir "$LOCK" 2>/dev/null; do
   tries=$((tries + 1))
@@ -48,6 +60,81 @@ until mkdir "$LOCK" 2>/dev/null; do
   sleep 1
 done
 trap 'rm -rf "$LOCK"' EXIT INT TERM
+
+# ── --stale: report every DOING row and its age, flag anything over the ────
+# threshold (default 90 minutes — BUILDER-BRIEF's own items run smaller than
+# that; GOTCHAS 18 flags a single TURN past 25 minutes with nothing
+# committed, and a whole ITEM is coarser than a turn). Read-only: never
+# rewrites the queue, so running it cannot itself create a stale claim.
+#
+# THE STAMP IS HH:MM, NO DATE (`date '+%H:%M'` at claim time) — a pre-existing
+# format this does not change, only read. Minutes-since-midnight plus a
+# same-day assumption is exactly right for how this fleet actually runs
+# (items finish in minutes to a few hours, not days), and is wrong the moment
+# a claim is genuinely more than 24h old — at which point it is obviously
+# stale regardless, so the failure mode is "under-reports the age", never
+# "reports fresh as stale".
+if [ "$mode" = "--stale" ]; then
+  threshold=${2:-90}
+  # SAME CLOCK AS THE STAMP, on purpose — `date '+%s'` is UTC-based epoch
+  # seconds and mixing it with the stamp's LOCAL `date '+%H:%M'` produced an
+  # hours-wide phantom age on the very first sandbox run of this (a "5
+  # minutes ago" claim read as 425 minutes stale). Reading now the same way
+  # the stamp was written removes the timezone entirely instead of getting it
+  # right once and hoping nobody moves the clock.
+  now_hh=$(date '+%H'); now_mm=$(date '+%M')
+  now_hh=${now_hh#0}; now_mm=${now_mm#0}
+  now_min=$((now_hh * 60 + now_mm))
+  rows=$(grep -n '^| *[0-9]*[a-z]* *| *DOING' "$Q")
+  if [ -z "$rows" ]; then echo "no DOING rows — nothing held."; exit 0; fi
+  echo "$rows" | while IFS= read -r r; do
+    who_stamp=$(printf '%s' "$r" | sed 's/^[0-9]*:| *[0-9a-z]* *| *DOING \([^ ]*\) \([0-9][0-9]\):\([0-9][0-9]\).*/\1 \2 \3/')
+    holder=$(printf '%s' "$who_stamp" | cut -d' ' -f1)
+    hh=$(printf '%s' "$who_stamp" | cut -d' ' -f2)
+    mm=$(printf '%s' "$who_stamp" | cut -d' ' -f3)
+    item=$(printf '%s' "$r" | sed 's/^[0-9]*:| *\([0-9a-z]*\) *|.*/\1/')
+    if [ -z "$holder" ] || [ -z "$hh" ] || [ -z "$mm" ]; then
+      echo "item $item — DOING row did not match the stamp format, cannot age it: $r"
+      continue
+    fi
+    # strip a leading zero — POSIX arithmetic reads a leading 0 as octal, and
+    # "08"/"09" are not valid octal digits, so $((08)) is a hard error in
+    # dash. ${v#0} is plain POSIX parameter expansion, portable everywhere.
+    hh=${hh#0}; mm=${mm#0}
+    claim_min=$((hh * 60 + mm))
+    age=$((now_min - claim_min))
+    [ "$age" -lt 0 ] && age=$((age + 1440))   # rolled past midnight
+    flag=""
+    if [ "$age" -ge "$threshold" ]; then flag=" — STALE (>= ${threshold}m)"; fi
+    printf 'item %-4s held by %-8s for %4dm%s\n' "$item" "$holder" "$age" "$flag"
+  done
+  exit 0
+fi
+
+# ── --release: force a specific item back to TODO, whoever holds it ────────
+# The direct fix for item 9d's own repro: the desk stopped w1 mid-item, item
+# 9 stayed DOING w1 forever, and nothing else could take it or say why.
+# Unlike done.sh (which only releases the item ITS OWN caller holds, by
+# design — a builder cannot confirm its own work OR release someone else's
+# by accident) this is explicitly for the case the holder cannot release it
+# itself, so it takes an item id, not a name-matched row.
+if [ "$mode" = "--release" ]; then
+  item=${2:-}
+  releaser=${3:-desk}
+  [ -z "$item" ] && { echo "usage: claim.sh --release <item-id> [your-name]"; exit 2; }
+  row=$(grep -n "^| *$item *| *DOING" "$Q" | head -1)
+  if [ -z "$row" ]; then
+    echo "item $item is not DOING — nothing to release (check ./scripts/claim.sh --stale for what IS held)"
+    exit 1
+  fi
+  ln=${row%%:*}
+  old=$(printf '%s' "$row" | sed 's/^[0-9]*:| *[0-9a-z]* *| *\(DOING [^|]*\) *|.*/\1/')
+  sed -i "${ln}s/| *DOING [^|]* *|/| TODO |/" "$Q" || exit 1
+  echo "item $item released by $releaser — was \"$old\", now TODO again"
+  exit 0
+fi
+
+who=$mode
 
 # ── the top TODO row, if any ──────────────────────────────────────────────
 # `[0-9]*` MISSED EVERY LETTERED RANK. The desk inserts urgent items as 0a, 5b,

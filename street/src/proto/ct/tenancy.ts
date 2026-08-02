@@ -699,11 +699,17 @@ function drawLetter(g: CanvasRenderingContext2D, w: number, h: number): void {
 
 function buildPanel(): void {
   if (PANEL) return;
+  // FRAMELESS. `drawLetter` already paints a complete sheet of paper — fold
+  // creases, sender line and all — filling the canvas edge to edge. The old
+  // `chrome: 'cloth'` wrapped that paper in the framework's own cloth
+  // background, a second surface behind a surface. Item 5i (the same fix as
+  // item 0c, just not named by it): *"i never want there to be menus popping
+  // up unless they are embedded to look as if they are in the actual
+  // game."* No title stamped either way — the sender printed at the top of
+  // the paper already said what this is, which is exactly why `title` was
+  // never set here.
   PANEL = makePanel({
-    id: 'ct-letter', w: SHEET.w, h: SHEET.h, chrome: 'cloth',
-    // No title stamped in the bezel: the sender is printed at the top of the
-    // paper, where a letter puts it, and a second name above the sheet would
-    // be the building labelling your post for you.
+    id: 'ct-letter', w: SHEET.w, h: SHEET.h, chrome: 'none',
     hint: () => (reading.length > 1
       ? `${page + 1} of ${reading.length}   scroll to turn`
       : 'the only one today'),

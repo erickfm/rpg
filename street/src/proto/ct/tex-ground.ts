@@ -1320,6 +1320,26 @@ export function mouthGrain(scene: THREE.Scene, cx: number, cz: number,
   scene.add(m);
 }
 
+/**
+ * WHERE THE TWO JUNCTION CROSSINGS LAND — hoisted out of `buildGround`'s own
+ * closure so nothing that needs this geometry has to copy it.
+ *
+ * `crosstown.ts` needed exactly these four numbers to stop its centre line
+ * painting through both crossings and, with this file read-only to that
+ * item, copied them WITH A CITATION rather than duplicating them silently —
+ * `ct/tex-ground.ts:1351-1352` (as of `705b78b74`) — and queued this export
+ * as the follow-up rather than leaving a hand-typed copy to drift (GOTCHAS
+ * §56: a copied constant rots the moment either side changes and nothing
+ * says so). Same four numbers `buildGround` already used locally; only the
+ * declaration moved, so this is a pure hoist and changes no geometry.
+ */
+export const JUNCTION_CROSSINGS = {
+  /** across the MAIN street, walked E-W — z centre, half-width */
+  main: { z: -90.2, hw: 1.3 },
+  /** across the SIDE street, walked N-S — x centre, half-width */
+  side: { x: 10.6, hw: 1.3 },
+};
+
 export function buildGround(o: GroundOpts): Ground {
   const { scene, flat, wet, KERB_H } = o;
   // THE WET REGISTRATION, REACHABLE BY ANYONE HOLDING `scene`, and published
@@ -1341,15 +1361,20 @@ export function buildGround(o: GroundOpts): Ground {
   scene.userData.registerWet = wet;
   const mark = scene.children.length;   // see ct/props.ts — stamped at the end
 
-  // ── where the junction crossings land, declared BEFORE the kerb is built ──
+  // ── where the junction crossings land, READ before the kerb is built ──
   //
   // Order matters and it is not obvious: `buildPath` samples `driveReveal` for
   // every vertex it emits, so a ramp registered after it exists in the list and
   // in nothing you can see. The paint is laid further down from these same four
   // numbers, so the dropped kerb and the stripes cannot drift apart — which is
   // the whole of "aligned with the kerb ramps, or put ramps where they land".
-  const XA_Z = -90.2, XA_HW = 1.3;         // across the MAIN street, walked E-W
-  const XB_X = 10.6, XB_HW = 1.3;          // across the SIDE street, walked N-S
+  //
+  // Numbers themselves live in the module-level `JUNCTION_CROSSINGS` export
+  // now, not here — this is a READ, not a declaration, so anything else that
+  // needs the same geometry (`crosstown.ts`'s centre line) can import it
+  // instead of copying it.
+  const { z: XA_Z, hw: XA_HW } = JUNCTION_CROSSINGS.main;   // across the MAIN street, walked E-W
+  const { x: XB_X, hw: XB_HW } = JUNCTION_CROSSINGS.side;   // across the SIDE street, walked N-S
   pedCut(-ROAD_HALF, XA_Z, XA_HW, 'z');    // west kerb of the main street
   pedCut(ROAD_HALF, XA_Z, XA_HW, 'z');     // east kerb
   pedCut(XB_X, o.SIDE_Z0, XB_HW, 'x');     // north kerb of the side street
