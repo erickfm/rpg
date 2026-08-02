@@ -339,17 +339,19 @@ export function buildChurch(ctx: CtxBuild) {
   // ── the altar end ──
   //
   // Raised one step, which is the only level change inside and the reason the
-  // far end reads as somewhere rather than as the back wall.
-  // slabTex, not a flat MeshBasicMaterial: the nave floor around it is
-  // grained flagstone (`flagT` above), and a flat-colour box standing 0.18 m
-  // proud of it read as a tint-over-paving patch rather than a step — the
-  // same defect ct/paint.ts's slabTex doc-comment names, item 0a's census.
-  const stoneTop = slabTex({ wMeters: 6.4, dMeters: 2.6, base: '#9a9488', joint: 0.8, ppm: 24 });
-  const dais = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.18, 2.6),
-    [new THREE.MeshBasicMaterial({ color: 0x9a9488 }), new THREE.MeshBasicMaterial({ color: 0x9a9488 }),
-     ctx.flat(stoneTop), new THREE.MeshBasicMaterial({ color: 0x9a9488 }),
-     new THREE.MeshBasicMaterial({ color: 0x9a9488 }), new THREE.MeshBasicMaterial({ color: 0x9a9488 })]);
-  put(dais, 0, 0.09, hd - 2.2);
+  // far end reads as somewhere rather than as the back wall — built below as
+  // the nave-width platform from -hd to CHANCEL_Z, textured with its own
+  // slabTex (see "Altar and chancel step" further down, item 0a's census).
+  //
+  // THIS USED TO BE WHERE A SECOND, DEAD RAISED BOX STOOD: a leftover
+  // `dais` mesh from an earlier wrong-end chancel attempt, placed at
+  // `hd - 2.2` — the DOOR end, 19.4 m from the altar below at `-hd + 2.4` —
+  // stranded there when the altar-end convention got corrected (see the
+  // altar's own placement comment just below) and never removed. Flagged by
+  // w5 (`notes/w5-church-chancel.md`) rather than fixed there because it was
+  // outside that item. Confirmed unreferenced beyond its own declaration and
+  // deleted here: no `solid()` collider depended on it, no other mesh reads
+  // `dais` or the `stoneTop` texture it alone used.
   const altar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.95, 0.75),
     new THREE.MeshBasicMaterial({ color: 0xb0a894 }));
   // -hd + 2.4, NOT hd - 2.4. The kit cuts the door into the front wall at local
