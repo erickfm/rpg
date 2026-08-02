@@ -44,6 +44,57 @@ const deck = byTag['sedan-trailer-deck'];
 const boot = byTag['sedan-boot-lid'];
 const body = byTag['sedan-body'];
 
+// ── THE TIERS MUST MATCH THE CAR, NOT MERELY MATCH THEMSELVES ────────────
+//
+// The first version of this file asserted `feet === boot.maxY`, reading what
+// it expected out of the very collider under test. That is a tautology and it
+// SLEPT: flattening the boot-lid tier from 0.93 to 0.50 left the world wrong
+// and the check still green, because the check simply expected 0.50 instead.
+// (BUILDER-BRIEF §7 — a check that cannot fail is worse than one that is
+// wrong. This project has a documented family of guards that did this.)
+//
+// So the heights are pinned against an INDEPENDENT source: a freshly built
+// sedan, measured off its own drawn panels. `__ct.carVariant` builds one
+// through the same makeCar the street uses but touches none of the collider
+// code in crosstown.ts, so it cannot agree with a mutation there.
+const panel = await p.evaluate(() => {
+  const g = window.__ct.carVariant('sedan', {}, 400, 0, 400);
+  const belt = g.userData.belt;
+  const lids = [];
+  for (const c of g.children) {
+    if (!c.geometry) continue;
+    c.updateMatrix(); c.geometry.computeBoundingBox();
+    const bb = c.geometry.boundingBox.clone().applyMatrix4(c.matrix);
+    if (bb.max.y > belt + 0.02 && bb.max.y < belt + 0.20) lids.push({ y: bb.max.y, z: bb.min.z });
+  }
+  g.parent.remove(g);
+  lids.sort((a, b) => a.z - b.z);
+  return { belt, count: lids.length, bootY: lids.length ? lids[lids.length - 1].y : null };
+});
+console.log(`\nfrom a freshly built sedan: belt ${panel.belt}, ${panel.count} lids, boot lid top ${panel.bootY}`);
+if (panel.count !== 2 || Math.abs(boot.maxY - panel.bootY) > 1e-6) {
+  console.log(`FAIL: boot-lid tier is at ${boot.maxY}, but the car's own boot lid is at ${panel.bootY}`);
+  process.exit(1);
+}
+
+// ── AND EVERY RISE MUST BE ONE THE ENGINE CAN ACTUALLY MAKE ──────────────
+//
+// Height alone does not decide a hop: you must also cross RADIUS (0.36 m)
+// horizontally while above `maxY - TOP_EPS`. At main.ts:107's dt clamp every
+// frame is 0.05 s and a walk covers 0.165 m, so a rise of 0.52 leaves 3 frames
+// (0.495 m, clears) and 0.53 leaves 2 (0.330 m, does not). Pinning the budget
+// here rather than the heights means this still fails correctly if someone
+// retunes the jump, gravity, TOP_EPS or RADIUS — which is the whole point.
+const RISE_MAX = 0.52;
+const rises = [['road -> deck', deck.maxY - 0], ['deck -> boot lid', boot.maxY - deck.maxY]];
+let budgetOk = true;
+for (const [name, r] of rises) {
+  const ok = r > 0.01 && r <= RISE_MAX + 1e-9;
+  if (!ok) budgetOk = false;
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'} rise ${name.padEnd(18)} ${r.toFixed(3)} m (budget ${RISE_MAX})`);
+}
+if (!budgetOk) { console.log('FAIL: a hop on this route is outside the engine\'s reach at the dt clamp'); process.exit(1); }
+
 // THE GREENHOUSE MUST NOT BE STANDABLE. A boot-lid -> roof hop is a 0.53 m
 // rise, which clears the height threshold by 21 mm and still lands you back on
 // the boot: at the dt clamp only two frames are above the threshold, and two
