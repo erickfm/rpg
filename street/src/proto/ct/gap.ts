@@ -30,6 +30,48 @@ export const ENTERABLE = 0.40;
 export const isTrap = (w: number) => w > ENTERABLE && w < PASSABLE;
 
 /**
+ * A collider's footprint in WORLD axes — which for a turned box (`AABB.rot`,
+ * fp.ts) is not the box.
+ *
+ * EVERY FUNCTION BELOW READS min/max AS WORLD COORDINATES, and for a box with
+ * a `rot` they are not: they are its extents in its OWN frame. Handed one of
+ * those raw, the corridor tests do not approximate the answer, they compute a
+ * different box's answer — and they did. The bodega's chamfer, turned 45°, has
+ * local `maxX` 9.914 while its real east corner reaches x = 10.0; against the
+ * wing shopfront's face at 10.4 that is the difference between a 0.486 m
+ * corridor and a 0.4 m one, and the first is inside the trap band while the
+ * second is not. The overlay painted a wall red for a slot made of brick.
+ *
+ * So a turned box is measured by the smallest world-axis rectangle that
+ * CONTAINS it. Two properties, and the second is the price:
+ *
+ * · An UNROTATED box is returned unchanged — the same object, not a copy of
+ *   it — so every existing collider takes exactly the arithmetic it always
+ *   did, down to object identity. That is what keeps `nudgeClear`'s parked-car
+ *   decisions, and therefore the drawn world, bit-for-bit where they were.
+ * · A turned box is measured LARGER than it is, so gaps against it measure
+ *   SMALLER than they are. That direction is safe for a false alarm — a
+ *   passable gap may read as a trap — but it can also push a real trap under
+ *   `ENTERABLE` and hide it, and for a 45° box the inflation is not small.
+ *   Exact oriented-corridor geometry is the honest fix and it is NOT done here:
+ *   the corridor width would generalise (a separating-axis test over both
+ *   boxes' axes reduces to this one for axis-aligned pairs), but
+ *   `corridorFilled` below would not — clearing a turned corridor needs 2-D
+ *   coverage, not an interval union along one axis, and half a generalisation
+ *   that reports MORE false red than today would be worse than none. There is
+ *   one turned collider in the world; when there is a second, this is the
+ *   thing to fix, and it is written up in notes/w24-collider-rotation.md.
+ */
+function footprint(c: AABB): AABB {
+  if (!c.rot) return c;
+  const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+  const hx = (c.maxX - c.minX) / 2, hz = (c.maxZ - c.minZ) / 2;
+  const s = Math.abs(Math.sin(c.rot)), k = Math.abs(Math.cos(c.rot));
+  const ex = hx * k + hz * s, ez = hx * s + hz * k;
+  return { minX: cx - ex, maxX: cx + ex, minZ: cz - ez, maxZ: cz + ez };
+}
+
+/**
  * The corridor between two boxes, or null if they do not form one.
  *
  * A corridor only exists where the boxes' spans OVERLAP on one axis: then the
@@ -38,7 +80,8 @@ export const isTrap = (w: number) => w > ENTERABLE && w < PASSABLE;
  * came in — and counting those produces a flood of false positives that buries
  * the real ones.
  */
-export function corridor(a: AABB, b: AABB): number | null {
+export function corridor(ra: AABB, rb: AABB): number | null {
+  const a = footprint(ra), b = footprint(rb);
   const overlapX = a.minX < b.maxX && b.minX < a.maxX;
   const overlapZ = a.minZ < b.maxZ && b.minZ < a.maxZ;
   const sx = Math.max(b.minX - a.maxX, a.minX - b.maxX);
@@ -58,7 +101,8 @@ export function corridor(a: AABB, b: AABB): number | null {
  *  test as `corridor()`; kept separate rather than folded in because most
  *  callers (the parked-car draw) only ever want the width, and every one of
  *  them already existed before this was added — BUILDER-BRIEF §9. */
-function corridorRect(a: AABB, b: AABB): { rect: AABB; axis: 'x' | 'z' } | null {
+function corridorRect(ra: AABB, rb: AABB): { rect: AABB; axis: 'x' | 'z' } | null {
+  const a = footprint(ra), b = footprint(rb);
   const overlapX = a.minX < b.maxX && b.minX < a.maxX;
   const overlapZ = a.minZ < b.maxZ && b.minZ < a.maxZ;
   if (overlapZ) {
@@ -118,8 +162,12 @@ function corridorRect(a: AABB, b: AABB): { rect: AABB; axis: 'x' | 'z' } | null 
 function corridorFilled(rect: AABB, axis: 'x' | 'z', a: AABB, b: AABB, others: AABB[]): boolean {
   const alongX = axis === 'x';
   const segs: [number, number][] = [];
-  for (const o of others) {
-    if (o === a || o === b) continue;
+  for (const raw of others) {
+    // identity on the ORIGINAL, geometry from the footprint: `footprint()`
+    // hands back a fresh object for a turned box, so `raw === a` is the only
+    // comparison that still means "this is one of the two boxes in question".
+    if (raw === a || raw === b) continue;
+    const o = footprint(raw);
     if (alongX) {
       // must reach exactly across rect's Z span to count
       if (o.minZ > rect.minZ + 1e-6 || o.maxZ < rect.maxZ - 1e-6) continue;
