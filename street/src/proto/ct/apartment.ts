@@ -1590,6 +1590,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       id: 'apt301',
       w: R301_W - WALL_T, d: R301_D - WALL_T,
       cx: AX(R301_CX), cz: AZI(R301_CZ),
+      // FLOOR 3, the same `2 * ST` the flat's own floor and ceiling are drawn
+      // at. It is the only room in the registry that is not at y 0, and a
+      // harness that warps here must hand it to `warp`'s `gy` — see RoomDims.y.
+      y: 2 * ST,
       door: { x: R301_X1 - R301_CX, z: R301_DOOR_Z - R301_CZ, nx: -1, nz: 0 },
     });
     // ── 301, furnished ───────────────────────────────────────────────────

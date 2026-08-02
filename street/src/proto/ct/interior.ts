@@ -138,6 +138,22 @@ export function interiorRoomIds(): string[] { return SLABS.map((s) => s.id); }
  *  inward normal. */
 export interface RoomDims {
   id: string; w: number; d: number; cx: number; cz: number;
+  /**
+   * THE HEIGHT OF THE ROOM'S FLOOR. Zero for every room in the belt, which is
+   * why nothing published it until a room off the belt joined the registry.
+   *
+   * `__ct.warp(x, z, yaw, gy, pitch)` needs it: `gy` is the floor the walk-up's
+   * multi-storey picker is told it is on, and a harness that passes 0 — as
+   * `scripts/bugsweep.mjs` does for all twelve belt rooms, correctly — puts the
+   * camera at street level under a flat three storeys up. Measured: the three
+   * `bug-apt301-*` stations land on the right x and z, pass `verifyLanded`,
+   * which only checks x and z, and photograph the outside of the building.
+   *
+   * So the registry states it and a caller uses `r.y` instead of a literal. It
+   * is the same argument as `w`/`d`/`door`: the room knows, nobody else should
+   * have to remember.
+   */
+  y: number;
   door: { x: number; z: number; nx: number; nz: number };
 }
 
@@ -180,7 +196,9 @@ export function declareRoom(r: RoomDims): void {
  *  keep their own copy of it going stale. Kit rooms (see `Slab`) plus the ones
  *  that declared themselves (see `DECLARED`). */
 export function interiorRooms(): RoomDims[] {
-  return [...SLABS.map((s) => ({ id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz, door: s.door })),
+  // y is 0 for the whole belt: a slab's floor sits on the world plane and any
+  // level change inside it is `spec.floor`, which is the room's own business.
+  return [...SLABS.map((s) => ({ id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz, y: 0, door: s.door })),
           ...DECLARED];
 }
 
