@@ -242,6 +242,112 @@ export function tube(
   hardLayer(g, core, (h) => { setup(h); h.fillStyle = core; h.fillText(s, x, y); });
 }
 
+/**
+ * ── TEXT THAT CANNOT OVERFLOW ITS SIGN, AND THROWS WHEN IT WOULD ──────────
+ *
+ * `SEVENS` on the facade read `EVEN`, and that is the user's THIRD complaint
+ * about this frontage. The cause is one line: the cap height was taken from the
+ * panel's HEIGHT — `H * 0.30` on a 92 x 103 canvas — and the panel is TALLER
+ * THAN IT IS WIDE. Measured, bold monospace inks 0.602 px of advance per
+ * character plus 0.62 px for the last glyph, so six letters at 31 px ink 112
+ * texels into a 92-texel canvas: 10 texels fall off each end, and at that size
+ * ten texels is very nearly a whole letter. The building's own name was
+ * unreadable and nothing in the code said so.
+ *
+ * Tightening the tracking does NOT rescue it, and that was worth measuring
+ * before designing around it: the INK of a bold monospace glyph is 0.62 px
+ * against an advance of 0.602 px (scripts/probes/w46-glyph-ink.mjs), so the
+ * letters already touch and there is no slack to take out. On a sign this wide
+ * the size has to come from the width the sign actually has.
+ *
+ * So the size is DERIVED, never chosen. Measure the whole string once at a
+ * reference size, scale linearly to the width available, and the string fits by
+ * construction — at any length, including whatever copy somebody writes next.
+ *
+ * `tube` STROKES before it fills, at `lineWidth = 0.30 * px`, which puts
+ * 0.15 * px of casing OUTSIDE the ink at each end. That is in the arithmetic,
+ * because leaving it out is how a "fitted" string still loses its casing.
+ *
+ * AND IT THROWS RATHER THAN SHRINKING FOREVER. The second half of this item was
+ * the marquee's `$2 BLACKJACK  24 HRS`, filed as clipped and MEASURED NOT TO BE
+ * — 72.2 texels inside a 96-texel canvas, 12 texels of margin each side. It is
+ * not clipped, it is under-resolved: twenty characters at 6 px cap height gives
+ * a 3.6-texel glyph, and `hardLayer`'s alpha>=128 snap then keeps or drops each
+ * 1-texel stem more or less at random. Illegible and clipped look identical
+ * from the street, and a fitter that silently shrinks would have turned defect 1
+ * into defect 2. `minPx` is the floor below which a string is mush; crossing it
+ * means the copy is too long for the sign, which is a thing a person must fix,
+ * so it is an error and not a smaller number.
+ */
+const FIT_REF = 100;         // metrics are linear in font size; measure once, scale
+
+/** the largest bold-monospace size at which `s` inks inside `targetW` texels */
+export function fitPx(
+  g: CanvasRenderingContext2D, s: string, targetW: number, strokeFrac = 0.30,
+): number {
+  const prev = g.font;
+  g.font = `bold ${FIT_REF}px monospace`;
+  const m = g.measureText(s);
+  const ink = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+  g.font = prev;
+  return Math.floor((targetW * FIT_REF) / (ink + strokeFrac * FIT_REF));
+}
+
+/** `tube`, sized to fill `targetW` exactly. Throws if that would be illegible. */
+export function fitTube(
+  g: CanvasRenderingContext2D, s: string, cx: number, cy: number, targetW: number,
+  col: string, core?: string, casing?: string, minPx = 8, maxPx = 999,
+): number {
+  const px = Math.min(maxPx, fitPx(g, s, targetW, 0.30));
+  if (px < minPx) {
+    throw new Error(`ct/vice.ts: "${s}" (${s.length} chars) fits ${targetW} texels only at `
+      + `${px} px, under the ${minPx} px this world can still read. Shorten the copy or `
+      + `give the sign more width — do not draw it small.`);
+  }
+  tube(g, s, cx, cy, px, col, core, casing);
+  return px;
+}
+
+/** flat changeable copy — plastic letters on a marquee, not neon. Same rule. */
+export function fitFlat(
+  g: CanvasRenderingContext2D, s: string, cx: number, cy: number, targetW: number,
+  col: string, minPx = 8, maxPx = 999,
+): number {
+  const px = Math.min(maxPx, fitPx(g, s, targetW, 0));
+  if (px < minPx) {
+    throw new Error(`ct/vice.ts: marquee copy "${s}" fits ${targetW} texels only at ${px} px, `
+      + `under the ${minPx} px this world can still read. Shorten it.`);
+  }
+  hardLayer(g, col, (h) => {
+    h.font = `bold ${px}px monospace`;
+    h.textAlign = 'center'; h.textBaseline = 'middle'; h.fillStyle = col;
+    h.fillText(s, cx, cy);
+  });
+  return px;
+}
+
+/**
+ * WIDE-TRACKED CAPS, drawn one letter at a time.
+ *
+ * A category line — CASINO over SEVENS — is short, and a short word set solid
+ * leaves a sign looking half-used. Real signs letterspace it across the full
+ * width instead of growing it, because the eye reads the CATEGORY as subordinate
+ * to the NAME however wide it is set. Per-character placement is the only way
+ * to get it: canvas has no letter-spacing that survives `hardLayer`.
+ */
+export function track(
+  g: CanvasRenderingContext2D, s: string, cx: number, cy: number,
+  span: number, px: number, col: string,
+) {
+  const n = s.length;
+  const pitch = n > 1 ? span / (n - 1) : 0;
+  hardLayer(g, col, (h) => {
+    h.font = `bold ${px}px monospace`;
+    h.textAlign = 'center'; h.textBaseline = 'middle'; h.fillStyle = col;
+    for (let i = 0; i < n; i++) h.fillText(s[i], cx + (i - (n - 1) / 2) * pitch, cy);
+  });
+}
+
 export function buildVice(o: {
   scene: THREE.Scene;
   flat: (m: THREE.Texture) => THREE.MeshBasicMaterial;
