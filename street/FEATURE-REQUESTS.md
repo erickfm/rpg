@@ -1934,3 +1934,39 @@ built in parallel and meet in the middle, with no shared file between them.
 The room already earns it — he asked for *"computers in the library"* and got
 three handsome beige boxes with nothing behind the glass. This is the same
 shape as the slots and blackjack: the cabinet exists, the software does not.
+
+
+## You cannot open your own front door from the hall
+
+> *"i can't open the door from the outside of my apt?"*
+
+**Real, reproduced, and the existing check could never have caught it.**
+
+`scripts/A-verify-301-door.mjs` passes — *"MEASURED FINE — the door closes and
+opens again from the same spot"* — but it only ever tests **one** spot,
+`(199.3, −17.45)`. The hall runs **x 200.0 … 202.4**, so that spot is
+**inside the flat**. The check proves the door works from the side the player
+is already standing on when he spawns.
+
+Measured from the landing, on build `acbe749e2`:
+
+| where | prompt |
+|---|---|
+| inside the flat | (the flat's own spots) |
+| **hall, just outside the door** | **none** |
+| **hall, a step back** | **none** |
+| **hall, mid-corridor** | **none** |
+
+The `open/close the door` spot sits at **x 199.36**, radius 0.95 — so its reach
+stops at x 200.31, barely short of the hall floor, and the closed leaf is solid,
+so you cannot walk to it from outside either. **Shut your door behind you and it
+cannot be opened again from the landing.**
+
+Same family as the trap bugs this project keeps hitting — the TV seat, the jail
+site — a state you can enter and not reverse. Worse here because it is the
+player's own home and the one door he uses every day.
+
+**And it is the third check this week that passed by measuring one side of a
+two-sided thing** — after `doorside2.mjs` (which measured door *position* while
+the user was complaining about door *appearance*) and `bedcavity.mjs` (which
+measured a truck that no longer existed).
