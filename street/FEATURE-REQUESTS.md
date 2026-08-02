@@ -2687,3 +2687,12 @@ to one side.
   answered his complaint about zoom *reach* while making the *effort* worse — range and
   step are coupled and only one was changed. Recorded in the source so the pair stays
   together next time.
+
+- **"[screenshot] casino sign still a lil janky. maybe we get rid of the one on the side
+  here? add more flair to the bulbs themselves instead?"** (2026-08-02)
+  → **routed as queue item 132.** Follow-up to item 97, which he can now read: SEVENS and
+  the marquee are legible. The remaining object is the **vertical blade** ("SEVENS" set
+  vertically). Note the interaction: item 97 gave that blade a lit leading edge (it was
+  the "black bar"), and **item 121 is queued to give HOTEL ORPHEUS the same treatment** —
+  if the SEVENS blade goes, 121 needs re-deciding rather than cancelling, since ORPHEUS
+  is a different building and he has not commented on it.
