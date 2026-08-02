@@ -2152,3 +2152,32 @@ away.
 **Fourth time the benches have come back** — *"benches are clipping and tilted"*,
 *"benches still tilted and clipping trash"*, *"park bench looks bad and clips the
 drinking fountain"*. Each earlier fix was correct about the thing it fixed.
+
+
+## The jail has open gaps around it — a regression the desk approved
+
+> *"the jail has empty gaps around it. it needs to be fixed. this is game
+> breaking"*
+
+**This is mine.** This morning the jail site was found two-thirds unwalkable, and
+the fix set the building back 4 m into a forecourt **and cut its depth from 12 m
+to 4 m** (`d8987737e`; `JAIL.DEPTH` is now `4.0` at `ct/jail.ts:108`). The site
+runs x 57–75, so the building occupies 61–65 and **ten metres of it are now
+open** where twelve metres of building used to stand.
+
+**I checked that change and I checked it wrong.** I photographed the jail from
+the middle of the side street, head-on, decided it *"still reads as a substantial
+four-storey civic building"*, and wrote on the row that *"the depth change is not
+perceptible from the street"*. Head-on is the **one** angle where the building's
+own face hides its flanks. From any oblique angle you see straight past it into
+nothing, which is what his screenshot shows.
+
+That is the same error I have flagged in three instruments this week — a check
+that passes because it only looks at one side of a two-sided thing — committed by
+me, on the one occasion the guard mattered most, and against a change I had
+already identified as risky because the user has said *"all buildings need to be
+much deeper other wise it loks like a fake building"*.
+
+**The fix must keep the walkable forecourt and yard that change bought** — the
+site really was two-thirds solid before — while closing the flanks. Restoring
+depth alone re-creates the original bug.
