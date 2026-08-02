@@ -24,6 +24,11 @@ const views = [
   ['endcap',   72,  -99, 74.6, -109.9, 3.0],
   // the sally port recess, where the lintel and jamb boxes are
   ['port',     59, -103, 61, -103, 1.7],
+  // the whole street elevation: the string course, the window sills and the
+  // stone-to-brick junction all in one frame
+  ['facade',   45, -103, 61, -103, 1.7],
+  // along the south screen wall, from inside the yard toward its free end
+  ['screen',   67,  -105, 74.6, -109.9, 1.7],
 ];
 for (const [name, x, z, tx, tz, eye] of views) {
   await p.evaluate(([x, z, yaw, eye]) => window.__ct.warp(x, z, yaw, eye, 0),

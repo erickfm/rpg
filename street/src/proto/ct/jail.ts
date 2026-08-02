@@ -323,7 +323,13 @@ export function register(ctx: CtxBuild): void {
   const dressed = (wM: number, hM: number) => {
     const W = Math.max(3, Math.round(wM * DRESS_PPM));
     const H = Math.max(3, Math.round(hM * DRESS_PPM));
-    const arris = Math.max(1, Math.round(H * 0.14));
+    // The arris is a PHYSICAL EDGE, so it is sized in metres and not as a
+    // fraction of the piece: a fraction gave the 3.75 m portal jamb half a
+    // metre of highlight down its top, which reads as a pale panel rather than
+    // as a chamfered edge, while giving the 0.08 m sill the same one texel it
+    // gets here anyway. One texel at the wall's own density is what a 20 mm
+    // chamfer is worth at 16 px/m.
+    const arris = Math.max(1, Math.round(0.04 * DRESS_PPM));
     return declareSurface(pixTex(W, H, (g) => {
       g.fillStyle = STONE; g.fillRect(0, 0, W, H);
       // quarried grain: the same per-block drift the ashlar has, without the
