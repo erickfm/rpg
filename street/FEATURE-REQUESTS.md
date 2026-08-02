@@ -2524,3 +2524,11 @@ to one side.
   and `L-games-in-artifact.mjs`, so removal is not just deleting a table. Roulette
   already has five walkable approaches (w15's work) — 102 builds the game on top of
   that, and should use the diegetic framework from item 86 rather than a DOM panel.
+
+- **"[screenshot] front door of jail graphics are messed up"** (2026-08-02)
+  → **routed as queue item 104.** Diagonal hatching across the door panels that does not
+  match the panelling, and the two leaves do not align. Note `d3770c506` re-sized every
+  jail MASONRY face's texture to the face it sits on last night (a texture painted for
+  4 m had been stretched over a 14 m wall) — the door is a different system (`ct/doors.ts`
+  declaration + the shared kit leaf) and may simply not have been reached by that fix.
+  The frame is also very dark, which is item 95 (lighting), not this.
