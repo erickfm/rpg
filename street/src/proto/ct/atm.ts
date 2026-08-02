@@ -210,6 +210,36 @@ const BTN_Y = [56, 92, 128, 164], BTN_H = 15, BTN_W = 26;
 /** the three horizontal bands every screen lays out on */
 const HEAD = 39, BODY = 115, SUB = 141;
 
+// ── the PIN pad, which exists because of the MOUSE ────────────────────────
+//
+// *"the screen on the literal atm be the overlay that i can use my mouse to
+// click through"* — CLICK THROUGH, all of it. Every other screen this machine
+// has is worked with the eight soft keys down the sides, which a pointer can
+// reach; the PIN screen was digits-only, so a player using the mouse got two
+// steps in and hit a wall he could only pass by putting his hand back on the
+// keyboard.
+//
+// The machine has a real twelve-key pad in 3-D right below the tube and clicking
+// THAT would be the prettier answer. It is a different mesh with a different
+// texture, and its key layout is a set of literals inside a closure in
+// `ct/bank.ts` — so hit-testing it would mean a second hand-typed copy of
+// somebody else's geometry, which is BUILDER-BRIEF §8 and the single most
+// expensive habit in this codebase. Queued as a follow-up instead; see the
+// handoff note.
+//
+// ONE SOURCE FOR THE CELLS, used by both the painting and the hit-test, so a
+// key can never be drawn somewhere the click does not land.
+const PAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLR', '0', 'ENT'];
+const PAD = { w: 40, h: 24, gx: 5, gy: 5, x: 52, y: 72 };
+/** cell `i` of the pad, in CANVAS pixels — the same space clicks arrive in */
+function padCell(i: number): { x: number; y: number; w: number; h: number } {
+  return {
+    x: CRT.x + PAD.x + (i % 3) * (PAD.w + PAD.gx),
+    y: CRT.y + PAD.y + Math.floor(i / 3) * (PAD.h + PAD.gy),
+    w: PAD.w, h: PAD.h,
+  };
+}
+
 function drawScreen(g: CanvasRenderingContext2D): void {
   const p = PURSE!;
   const r = rows(p);
@@ -269,9 +299,24 @@ function drawScreen(g: CanvasRenderingContext2D): void {
     line(p.card === false ? 'NO CARD' : 'WELCOME', BODY, CAB_TEXT_LIT, 15);
     line(p.card === false ? 'SEE YOUR BRANCH FOR A NEW ONE' : 'PLEASE INSERT YOUR CARD', SUB, CAB_TEXT_LIT, 8);
   } else if (screen === 'pin') {
-    line('ENTER YOUR PIN', HEAD, CAB_TEXT_LIT, 10);
-    line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), BODY, CAB_TEXT_LIT, 18);
-    line('THEN PRESS ENTER', SUB, CAB_TEXT_DIM, 7);
+    line('ENTER YOUR PIN', 32, CAB_TEXT_LIT, 10);
+    line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), 60, CAB_TEXT_LIT, 18);
+    // the pad. Drawn in CANVAS space, so it steps outside the CRT translation
+    // the rest of this block works in — and back in again afterwards.
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    for (let i = 0; i < PAD_KEYS.length; i++) {
+      const c = padCell(i);
+      const k = PAD_KEYS[i];
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(c.x, c.y, c.w, c.h);
+      g.strokeStyle = CAB_TEXT_DIM; g.lineWidth = 1;
+      g.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
+      g.fillStyle = CAB_TEXT_LIT;
+      g.font = UI.font(k.length > 1 ? 8 : 11, true);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(k, c.x + c.w / 2, c.y + c.h / 2);
+    }
+    g.restore();
   } else if (screen === 'menu') {
     line('SELECT A SERVICE', HEAD, CAB_TEXT_LIT, 10);
   } else if (screen === 'balance') {
@@ -353,6 +398,73 @@ function onKey(k: string): void {
   const r = rows(p);
   if (i < 4) r[i]?.act?.();
   else r[i - 4]?.actR?.();
+}
+
+// ── the mouse ─────────────────────────────────────────────────────────────
+//
+// The framework raycasts the pointer onto this machine's screen mesh and hands
+// back the hit in THIS canvas's own pixels — the same coordinates everything
+// above is drawn in — so the machine hit-tests its own layout and the framework
+// never has to be told where anything is.
+//
+// The pressable area of a soft key is the NUB PLUS ITS LABEL. The nub is 26 px
+// wide on a 300 px fascia; on screen that is a target about 8 mm across, and
+// the thing the player is actually reading and aiming at is the `◀ WITHDRAW`
+// beside it. So each row claims its whole end of the fascia out to
+// `LABEL_REACH` into the tube. The two ends cannot meet: the CRT is 236 wide
+// and they reach 100 each.
+const LABEL_REACH = 100;
+const L_EDGE = CRT.x + LABEL_REACH;                  // 132
+const R_EDGE = CRT.x + CRT.w - LABEL_REACH;          // 168
+
+function buttonAt(x: number, y: number): { i: number; right: boolean } | null {
+  for (let i = 0; i < 4; i++) {
+    if (y < BTN_Y[i] - 5 || y > BTN_Y[i] + BTN_H + 5) continue;
+    if (x <= L_EDGE) return { i, right: false };
+    if (x >= R_EDGE) return { i, right: true };
+    return null;
+  }
+  return null;
+}
+
+function padAt(x: number, y: number): string | null {
+  if (screen !== 'pin') return null;
+  for (let i = 0; i < PAD_KEYS.length; i++) {
+    const c = padCell(i);
+    if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) return PAD_KEYS[i];
+  }
+  return null;
+}
+
+/** is there something PRESSABLE here? Drives the hand cursor, so it must be
+ *  true only where a click actually does something — a hand over a dead key is
+ *  a machine lying about what it will do. */
+function hotAt(x: number, y: number): boolean {
+  if (!PURSE) return false;
+  // THANK YOU is dismissed by any key, so it is dismissed by any click too —
+  // the keyboard path has always ended that way and a mouse user reaching the
+  // last screen of the session must not be the one person who has to hunt for
+  // the way out of it.
+  if (screen === 'thanks') return true;
+  if (padAt(x, y)) return true;
+  const b = buttonAt(x, y);
+  if (!b) return false;
+  const r = rows(PURSE);
+  return b.right ? !!r[b.i]?.right : !!r[b.i]?.left;
+}
+
+/** ROUTED THROUGH `onKey`, not through a second copy of the dispatch. A click
+ *  on `3` and a press of `3` are the same event as far as this machine is
+ *  concerned, and the one thing worse than two input paths is two input paths
+ *  that disagree about what button 3 does. */
+function clickAt(x: number, y: number): void {
+  if (!PURSE) return;
+  if (screen === 'thanks') { onKey('1'); return; }        // any key ends it
+  const k = padAt(x, y);
+  if (k) { onKey(k === 'CLR' ? 'backspace' : k === 'ENT' ? 'enter' : k); return; }
+  const b = buttonAt(x, y);
+  if (!b) return;
+  onKey(String(b.right ? b.i + 5 : b.i + 1));
 }
 
 // ── the way in ────────────────────────────────────────────────────────────
@@ -448,8 +560,11 @@ export function register(ctx: CtxBuild): void {
     // it, which is most of what makes the thing read as an object. Backing off
     // 0.20 m puts the cabinet back in its wall and still leaves the tube at
     // roughly 44% of frame width, ~1.9 screen pixels per texel.
-    surface: { mesh: screenMesh, standoff: 0.75, fov: 58 },
-    hint: () => (screen === 'pin' ? 'digits, then ENTER' : 'press the numbered buttons'),
+    surface: { mesh: screenMesh, standoff: 0.75, fov: 58, hot: hotAt, click: clickAt },
+    // The mouse is the way in now, so it is what the caption offers; the keys
+    // still work and still get a mention, because a player who learned this
+    // machine on the keyboard must not be told it stopped listening.
+    hint: () => (screen === 'pin' ? 'click the pad, or type it' : 'click a button, or press its number'),
     draw: (g) => drawScreen(g),
     key: (k) => onKey(k),
     onClose: () => {
@@ -471,6 +586,10 @@ export function register(ctx: CtxBuild): void {
   (window as unknown as { __atm: unknown }).__atm = {
     open: () => openAtm(),
     screen: () => screen,
+    /** how many digits are in, so a harness can tell "the pad did nothing" from
+     *  "the pad worked and ENTER did nothing" — two failures that look identical
+     *  from outside and cost a debugging round to tell apart */
+    pin: () => pin.length,
     account: () => ctx.purse.account,
     cash: () => ctx.purse.cash,
     pending: () => pending,

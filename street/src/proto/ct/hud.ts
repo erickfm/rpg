@@ -165,7 +165,19 @@ export function hudNote(text: string, ms?: number): void { LIVE?.note(text, ms);
 // it" is the same requirement in both and two implementations of it would drift.
 const HELD_KEYS = ['w', 'a', 's', 'd', 'c', 'e', 'shift', ' ',
   'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
-const BLOCKED = ['keydown', 'mousedown', 'mousemove', 'wheel'];
+// `click` IS IN THIS LIST AND IT HAS TO BE. `main.ts:30` re-takes pointer lock
+// on the CANVAS'S CLICK EVENT, not on mousedown — so swallowing mousedown, as
+// this list did, blocked the button press and let the click sail past to grab
+// the pointer anyway. On a screen-space panel that costs nothing and hid the
+// bug for months; on a diegetic one it is fatal, because a locked pointer stops
+// reporting clientX/clientY, so the first click on a machine froze the cursor
+// and every click after it missed. One click worked, then the surface went
+// dead — measured, not guessed, by watching `document.pointerLockElement` flip
+// on exactly the click that broke it.
+//
+// The gate's contract is that the world behind a panel hears NOTHING, and a
+// click reaching the world to seize the mouse is the world hearing something.
+const BLOCKED = ['keydown', 'mousedown', 'click', 'mousemove', 'wheel'];
 // `wheel` on `window` is PASSIVE BY DEFAULT — the browser assumes a root-level
 // wheel listener is a scroll observer and refuses its `preventDefault`, with a
 // console warning per event. So every registration here is explicit about it.
@@ -440,6 +452,49 @@ let backdrop: HTMLDivElement | null = null;
 // existence. The ATM opened, drew perfectly, and answered no key at all,
 // including ESC: a cabinet you could not use and could not leave. The gate
 // swallows exactly what `blockInput` does, so the freeze is already in here.
+// ── the pointer, while a screen is up ─────────────────────────────────────
+//
+// The world plays under pointer lock: there is no cursor, and the mouse turns
+// your head. A screen you are meant to click needs the exact opposite, so the
+// lock is dropped on the way in and the arrow comes back. `main.ts` re-takes it
+// on `mousedown`, which never reaches it — the gate swallows mousedown in the
+// capture phase — so this needs no cooperation from that file and no flag it
+// could get out of step with.
+let cursorShape: string | null = null;
+function cursorAs(shape: string): void {
+  if (shape === cursorShape) return;
+  cursorShape = shape;
+  document.body.style.cursor = shape;
+}
+/** hovering something pressable, or not */
+function cursorHand(over: boolean): void { cursorAs(over ? 'pointer' : 'default'); }
+/** give the page its own cursor back */
+function cursorRelease(): void { cursorShape = null; document.body.style.cursor = ''; }
+
+/**
+ * Where on the live diegetic screen is this pointer, in the caller's OWN canvas
+ * pixels? `null` when there is no such screen or the ray misses it.
+ *
+ * Canvas pixels rather than UV on purpose: a machine hit-tests against the
+ * layout it drew, and it drew in canvas pixels. Handing it a 0…1 pair would
+ * make every caller multiply by its own width to get back to the coordinates it
+ * already had — and the slots machine's `BET ONE`/`MAX BET`/`SPIN` are laid out
+ * exactly the same way the ATM's soft keys are, so this seam is what lets the
+ * next machine answer for its own buttons instead of registering rectangles
+ * with the framework.
+ *
+ * UV's origin is bottom-left and a canvas's is top-left, hence the flip on v.
+ * Verified against the real mesh rather than assumed: on the ATM screen, u runs
+ * 0→1 as world z runs +0.31→−0.31, which with the face looking down +x is left
+ * to right from the player's eye, and v = 1 is the top edge.
+ */
+function surfaceHit(e: MouseEvent): { x: number; y: number } | null {
+  const p = livePanel;
+  if (!p?.spec.surface || !FOCUS) return null;
+  const uv = FOCUS.pick(e.clientX, e.clientY);
+  return uv ? { x: uv.u * p.spec.w, y: (1 - uv.v) * p.spec.h } : null;
+}
+
 function gate(e: Event): void {
   const p = livePanel;
   // A DESYNCED GATE IS A TRAP. If the gate is somehow installed with no panel
@@ -460,6 +515,15 @@ function gate(e: Event): void {
     else p.spec.key?.(k, e as KeyboardEvent);
   } else if (e.type === 'wheel') {
     p.spec.wheel?.((e as WheelEvent).deltaY > 0 ? 1 : -1);
+  } else if (e.type === 'mousemove') {
+    // THE POINTER IS A POINTER AGAIN while a screen is up. These events are
+    // still swallowed below, so the world neither turns its head nor takes
+    // pointer lock back — they are read on the way past and go no further.
+    const h = surfaceHit(e as MouseEvent);
+    cursorHand(!!h && !!p.spec.surface?.hot?.(h.x, h.y));
+  } else if (e.type === 'mousedown') {
+    const h = surfaceHit(e as MouseEvent);
+    if (h) p.spec.surface?.click?.(h.x, h.y);
   }
   swallow(e);
 }
@@ -772,6 +836,10 @@ export function makePanel(spec: PanelSpec): Panel {
         wrap!.style.bottom = '7%';
         wrap!.style.transform = 'translate(-50%,0)';
         wrap!.style.opacity = '1';
+        // GIVE THE MOUSE BACK. You cannot click a screen with a pointer the
+        // browser has hidden and pinned to the middle of the canvas.
+        try { document.exitPointerLock?.(); } catch { /* never locked */ }
+        cursorHand(false);
         // THE WAY OUT, handed to the controller at the moment the way in
         // happens. If it ever loses the lock without being asked to, it closes
         // this panel rather than leaving a locked camera over an open one.
@@ -805,6 +873,7 @@ export function makePanel(spec: PanelSpec): Panel {
         // the half that traps somebody.
         const mesh = onMesh;
         onMesh = null;
+        cursorRelease();
         try {
           const mat = (mesh as THREE.Mesh).material as THREE.MeshBasicMaterial;
           mat.map = savedMap;
