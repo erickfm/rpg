@@ -56,7 +56,7 @@ import { setClock } from './lib/clock.mjs';
 // ── args ──────────────────────────────────────────────────────────────────
 // GOTCHAS 34: refuse a flag we do not understand rather than run the normal
 // sweep while the caller believes they ran something else.
-let only = null, plot = false, selftest = false;
+let only = null, plot = false, selftest = false, dump = null;
 let offsets = [0, 0.5, 1.0, -0.5, -1.0];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
@@ -64,6 +64,12 @@ for (let i = 0; i < argv.length; i++) {
   if (a === '--only') { only = argv[++i]; continue; }
   if (a === '--plot') { plot = true; continue; }
   if (a === '--selftest') { selftest = true; continue; }
+  // --dump writes the RAW per-frame trace — position, yaw and the exact prompt
+  // string — so another script can replay a candidate predicate over the real
+  // trajectory instead of over an idealised straight line. The player does not
+  // walk a perfect line (kerbs, the facade cushion, citizens), and a model fed
+  // the intended path rather than the walked one is testing its own arithmetic.
+  if (a === '--dump') { dump = argv[++i]; continue; }
   if (a === '--offsets') {
     offsets = argv[++i].split(',').map(Number);
     if (offsets.some((n) => !Number.isFinite(n))) { console.error('--offsets wants numbers'); process.exit(2); }
@@ -283,6 +289,7 @@ console.log(`start ${START_D} m out, walking in, sampling EVERY RENDERED FRAME\n
 
 let fails = 0, legs = 0, framesTotal = 0;
 const findings = [];
+const dumped = [];
 
 for (const a of approaches) {
   if (a.skip) { console.log(`  SKIP  ${a.name}: ${a.skip}`); continue; }
@@ -290,6 +297,7 @@ for (const a of approaches) {
   for (const lat of offsets) {
     const { rows, reason } = await walkApproach(a.tx, a.tz, a.nx, a.nz, lat);
     legs++; framesTotal += rows.length;
+    if (dump) dumped.push({ door: a.name, label: a.label, tx: a.tx, tz: a.tz, r: a.r, lat, reason, rows });
     const b = band(rows, a.tx, a.tz, a.label);
     const tag = `lat ${lat >= 0 ? '+' : ''}${lat.toFixed(1)} m`;
     if (!rows.length) { console.log(`    ${tag}: NO FRAMES (${reason})`); fails++; continue; }
@@ -344,6 +352,12 @@ if (selftest) {
     ['trailing OFF frames are not a gap', band(mk([1, 1, 1, 0, 0]), 0, 0, 'into SEVENS').gaps.length === 0],
   ];
   for (const [n, okd] of t) { console.log(`  ${okd ? 'PASS' : 'FAIL'}  ${n}`); if (!okd) fails++; }
+}
+
+if (dump) {
+  const { writeFileSync } = await import('node:fs');
+  writeFileSync(dump, JSON.stringify({ url: URL, spots: world.spots, legs: dumped }));
+  console.log(`\nraw trace written to ${dump} (${dumped.length} legs)`);
 }
 
 console.log(`\n${legs} legs walked, ${framesTotal} frames sampled, ${fails} failing`);
