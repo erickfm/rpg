@@ -2532,3 +2532,14 @@ to one side.
   4 m had been stretched over a 14 m wall) — the door is a different system (`ct/doors.ts`
   declaration + the shared kit leaf) and may simply not have been reached by that fix.
   The frame is also very dark, which is item 95 (lighting), not this.
+
+- **"[screenshot] jail interior front door also looks bad and doesnt match outside"**
+  (2026-08-02) → **routed as queue item 105.** THIRD building with this exact complaint:
+  *"door of the bank doesnt match the inner door of the bank"* and *"inner door of the
+  church does not match outer doors"* both preceded it. There is a `doormatch12.mjs` and
+  a CONFIRMED ledger row claiming exteriors match interiors 12 of 12 — **so the check
+  says match while the user keeps seeing mismatches.** That is the more valuable half.
+
+- **"[screenshot] bench texture is off and sitting looks nonsensical"** (2026-08-02,
+  jail interior bench) → **sitting folded into item 93 (now its THIRD sighting: church
+  pew, casino stool, jail bench); the bench TEXTURE queued as item 106.**
