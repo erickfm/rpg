@@ -1853,3 +1853,24 @@ it covers `__ct.seats()`, so it sees seats registered by modules that did not
 exist when it was written. It does **not** cover outdoor benches or seated NPCs
 (the NPC keeps its facing in a closure and never publishes it), so on those the
 convention clash is still unguarded and you are checking by eye.
+
+## 63.
+
+**`npm run build` WIPES `dist/`, so packing the artifact and then rebuilding
+destroys the artifact.** Two hygiene rules point in opposite directions and
+neither said so:
+
+- `pack-artifact.mjs` writes `dist/artifact.html`, the only thing the user
+  actually plays.
+- `checks.mjs` exits 2 on a `dist`-vs-HEAD mismatch, which aborts the next
+  person's entire suite — so a builder who has just built at some other commit
+  is right to want `dist/` rebuilt at HEAD before leaving.
+
+Do the second and you silently delete the first. `dist/` is gitignored, so no
+commit preserves it and nothing warns you. A builder hit this exactly once and
+reported the artifact delivered, in good faith, while the file no longer existed.
+
+**Pack the artifact LAST, publish or copy it out of `dist/` immediately, and do
+not run another build in that tree.** If you need `dist` to match HEAD as well,
+copy `artifact.html` somewhere outside `dist/` first — the ordering is the whole
+fix.
