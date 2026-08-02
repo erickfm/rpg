@@ -1159,10 +1159,16 @@ export function buildVice(o: {
           // rays from the middle of the mark: at 8 px/m every ray inside the
           // 777's own ink is invisible, the vertical ones run out of band before
           // they clear it, and what survived was four gold specks that read as
-          // damage rather than as light. The chevron is the motif this file
-          // already owns — `bladeArt` runs the same one down the blade — so it
-          // is the same hand by construction rather than by resemblance, and an
-          // arrow is a shape 8 px/m can actually hold.
+          // damage rather than as light. The chevron is a shape 8 px/m can
+          // actually hold, which a ray is not.
+          //
+          // It was chosen because `bladeArt` ran the same chevron down the
+          // blade, so the two marks were the same hand by construction rather
+          // than by resemblance. THE BLADE IS GONE (item 132) and `bladeArt`
+          // with it, so that argument no longer holds — but the chevron does,
+          // on its own merits, and it is now the only place this motif lives.
+          // Recorded rather than quietly dropped: the reason a thing was drawn
+          // outliving the thing it referred to is how a comment starts lying.
           {
             const scy = 85;
             for (const wcx of [Math.round(W * 0.11), Math.round(W * 0.89)]) {
