@@ -122,14 +122,66 @@ export function interiorMaxZ(): number {
  * this module claiming ground it does not own, and the answer would be wrong
  * the day a room sits on a raised floor next to it.
  */
-/** The id of every room that actually got built, in slab order. The wiring
- *  check reads this — see `scripts/interiors-wired.mjs`. */
+/** The id of every room that actually got built **by this kit**, in slab order.
+ *
+ *  SLAB-ONLY, DELIBERATELY, and it is not the same question as `interiorRooms`
+ *  below. This one answers *"did `int-<id>.ts` build its room?"* — it is what
+ *  `scripts/interiors-wired.mjs` and `scripts/world-wired.mjs` check the
+ *  `int-*.ts` glob against, and what `ct/civic-doors.ts` matches a door's
+ *  building name to. A room that has no `int-*.ts` file has nothing to be
+ *  wired to, so listing it here would be answering a question nobody asked
+ *  with a name that cannot be checked. */
 export function interiorRoomIds(): string[] { return SLABS.map((s) => s.id); }
+
+/** a room's resolved geometry as the world publishes it: clear size wall face
+ *  to wall face, world centre, and the doorway in ROOM-LOCAL metres with its
+ *  inward normal. */
+export interface RoomDims {
+  id: string; w: number; d: number; cx: number; cz: number;
+  door: { x: number; z: number; nx: number; nz: number };
+}
+
+/**
+ * ROOMS THAT WERE NOT BUILT BY THIS KIT, but are rooms all the same.
+ *
+ * The addressing note at the top of this file records that the walk-up (x
+ * 100–230) predates `buildRoom` and keeps its own address — it is a
+ * four-storey building with a stair shaft, not a slab, so it cannot become one
+ * without rewriting `ct/apartment.ts` around a kit that has no concept of
+ * storeys. That was fine while `interiorRooms()` was only ever asked "where
+ * are the shops". It stopped being fine the moment instruments started using
+ * it as *the* room registry:
+ *
+ *   `scripts/seat-facing.mjs` keys entirely off `roomDims()`. Rule A needs the
+ *   room's w/d/cx/cz to find the wall a seat's nose is pointed at, and rule B
+ *   is skipped outright for a seat whose `roomOf()` comes back null. So the
+ *   bed in flat 301 — the seat the player uses most, in the room he spawns in
+ *   — was classified `outdoor` and neither rule has ever run on it, on a check
+ *   that had just caught 105 backwards seats everywhere else.
+ *
+ * A room declares itself here and `interiorRooms()` returns it alongside the
+ * slabs. What it does NOT get is a slab: `interiorGround`, `interiorMaxX` and
+ * `interiorMaxZ` stay slab-only, because those three are about the belt out at
+ * x >= 400 — the walk-up owns its own multi-storey floor picker (`aptGround`)
+ * and sits 200 m west of the belt's first slab. Pushing it into `SLABS` to get
+ * it into the registry would hand its ground to a one-height `gy` and shove
+ * the world's east bound 80 m further out.
+ */
+const DECLARED: RoomDims[] = [];
+export function declareRoom(r: RoomDims): void {
+  if (DECLARED.some((d) => d.id === r.id) || SLABS.some((s) => s.id === r.id)) {
+    console.warn(`[interior] a room called '${r.id}' is already registered — ignored`);
+    return;
+  }
+  DECLARED.push(r);
+}
+
 /** every built room's resolved geometry, for harnesses that would otherwise
- *  keep their own copy of it going stale. See `Slab`. */
-export function interiorRooms(): { id: string; w: number; d: number; cx: number; cz: number;
-  door: { x: number; z: number; nx: number; nz: number } }[] {
-  return SLABS.map((s) => ({ id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz, door: s.door }));
+ *  keep their own copy of it going stale. Kit rooms (see `Slab`) plus the ones
+ *  that declared themselves (see `DECLARED`). */
+export function interiorRooms(): RoomDims[] {
+  return [...SLABS.map((s) => ({ id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz, door: s.door })),
+          ...DECLARED];
 }
 
 /**
