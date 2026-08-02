@@ -290,6 +290,7 @@ console.log(`start ${START_D} m out, walking in, sampling EVERY RENDERED FRAME\n
 let fails = 0, legs = 0, framesTotal = 0;
 const findings = [];
 const dumped = [];
+const incompleteLegs = [];
 
 for (const a of approaches) {
   if (a.skip) { console.log(`  SKIP  ${a.name}: ${a.skip}`); continue; }
@@ -301,12 +302,61 @@ for (const a of approaches) {
     const b = band(rows, a.tx, a.tz, a.label);
     const tag = `lat ${lat >= 0 ? '+' : ''}${lat.toFixed(1)} m`;
     if (!rows.length) { console.log(`    ${tag}: NO FRAMES (${reason})`); fails++; continue; }
+    // WHERE THE WALK ACTUALLY ENDED — and WHETHER THAT IS THE WORLD'S FAULT OR
+    // MINE. This distinction cost a revision of this file and is the whole of
+    // BUILDER-BRIEF §7 ("half of all defects here are the instrument").
+    //
+    // The first version failed 9 legs as BLOCKED. Then I named the blockers
+    // from the collider registry (scripts/probes/w47-what-blocks.mjs):
+    //
+    //   HOTEL ORPHEUS — a 4.1 x 2.1 m box with userData `tyre, wheelbase,
+    //   steer, hoodTop`. A PARKED CAR, at groundAt 0, i.e. ON THE ROAD.
+    //   ST BRIGID — a 0.40 x 0.40 m box with userData `lampPart`. A lamp post
+    //   at the kerb.
+    //
+    // Every leg starts 8 m out along the door's own normal, and 8 m out from a
+    // side-street door IS THE ROADWAY. So those legs were walking across the
+    // street and into legitimately-parked scenery. That is the world being
+    // right and the approach being unrealistic — a player walks the pavement.
+    //
+    // I then tried to rescue the verdict by classifying the blocker as pavement
+    // or roadway from `groundAt`, and that was wrong too: ST BRIGID's blocker is
+    // a KERBSIDE LAMP POST straddling the kerb line (x 5.15–5.55 against a kerb
+    // edge at ~5.2), so a probe just past the stopping point lands on the kerb
+    // top and reads "pavement". It is ordinary street furniture and the 3 m
+    // pavement behind it is clear.
+    //
+    // SO A TRUNCATED LEG CARRIES NO VERDICT AT ALL, and saying otherwise twice
+    // running is the point. This instrument approaches head-on down the door's
+    // normal because that is the geometry that exposes the band; it is NOT a
+    // model of how a player reaches a door, and it cannot tell a trap on the
+    // walking lane from scenery correctly placed at the kerb. Establishing THAT
+    // needs an approach that follows the pavement, which this does not yet do —
+    // recorded as the instrument's main known gap.
+    //
+    // The band verdict is unaffected: it is judged over whatever part of the
+    // approach was actually walked, and 10 of the 12 doors walk it in full.
+    const endX = rows[rows.length - 1][0], endZ = rows[rows.length - 1][1];
+    const endD = Math.hypot(endX - a.tx, endZ - a.tz);
+    let short = null;
+    if (reason === 'stopped by the world' && endD > a.r + 1.0) {
+      // probe just BEYOND where we stopped — that is where the blocker is, not
+      // where the player is standing
+      const bx = endX + (a.tx - endX) / endD * 0.6, bz = endZ + (a.tz - endZ) / endD * 0.6;
+      const gy = await page.evaluate(([x, z]) => window.__ct.groundAt(x, z), [bx, bz]);
+      short = { endD, onPavement: gy > 0.05, gy };
+    }
+    if (short) {
+      console.log(`    ${tag}: INCOMPLETE — stopped ${short.endD.toFixed(2)} m short of the spot (obstruction at groundAt ${short.gy.toFixed(2)})`);
+      incompleteLegs.push({ door: a.name, lat, ...short });
+      if (!b.ever) continue;
+    }
     if (!b.ever) {
       // never offered at all on this lane. Not automatically a defect — a lane
       // 1 m off a 1.05 m door may simply never be an approach to it — but it is
       // reported, because "never offered" and "offered in three pieces" are
       // different answers and only one of them is fine.
-      console.log(`    ${tag}: never offered  (${rows.length} frames, ended: ${reason})`);
+      console.log(`    ${tag}: never offered  (${rows.length} frames, ended: ${reason}, ${endD.toFixed(2)} m from the spot)`);
       continue;
     }
     const bad = b.gaps.length > 0;
@@ -326,6 +376,18 @@ for (const a of approaches) {
 // "there's like a distance far away i can enter (i dont like this)". The band
 // being contiguous is necessary and not sufficient; a contiguous band that
 // starts 7 m from the door is still wrong to him.
+if (incompleteLegs.length) {
+  console.log(`INCOMPLETE — ${incompleteLegs.length} leg(s) did not reach the door. NO VERDICT, either way.`);
+  console.log(`  The approach starts ${START_D} m out along the door's own normal, and for a side-street`);
+  console.log(`  door that is the ROADWAY — so these legs walk across the street into scenery that`);
+  console.log(`  is correctly placed. Named from the collider registry: HOTEL ORPHEUS is a parked`);
+  console.log(`  car (userData tyre/wheelbase/steer), ST BRIGID a kerbside lamp post (lampPart).`);
+  console.log(`  Telling a real trap from street furniture needs a pavement-following approach,`);
+  console.log(`  which this instrument does not have yet. That is its main known gap.`);
+  for (const b of incompleteLegs) console.log(`  ${b.door.padEnd(16)} lat ${b.lat >= 0 ? '+' : ''}${b.lat.toFixed(1)} m — stopped ${b.endD.toFixed(2)} m short`);
+  console.log('');
+}
+
 const firsts = findings.filter((f) => f.firstD != null).map((f) => f.firstD);
 if (firsts.length) {
   firsts.sort((x, y) => y - x);
