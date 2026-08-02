@@ -242,6 +242,112 @@ export function tube(
   hardLayer(g, core, (h) => { setup(h); h.fillStyle = core; h.fillText(s, x, y); });
 }
 
+/**
+ * ── TEXT THAT CANNOT OVERFLOW ITS SIGN, AND THROWS WHEN IT WOULD ──────────
+ *
+ * `SEVENS` on the facade read `EVEN`, and that is the user's THIRD complaint
+ * about this frontage. The cause is one line: the cap height was taken from the
+ * panel's HEIGHT — `H * 0.30` on a 92 x 103 canvas — and the panel is TALLER
+ * THAN IT IS WIDE. Measured, bold monospace inks 0.602 px of advance per
+ * character plus 0.62 px for the last glyph, so six letters at 31 px ink 112
+ * texels into a 92-texel canvas: 10 texels fall off each end, and at that size
+ * ten texels is very nearly a whole letter. The building's own name was
+ * unreadable and nothing in the code said so.
+ *
+ * Tightening the tracking does NOT rescue it, and that was worth measuring
+ * before designing around it: the INK of a bold monospace glyph is 0.62 px
+ * against an advance of 0.602 px (scripts/probes/w46-glyph-ink.mjs), so the
+ * letters already touch and there is no slack to take out. On a sign this wide
+ * the size has to come from the width the sign actually has.
+ *
+ * So the size is DERIVED, never chosen. Measure the whole string once at a
+ * reference size, scale linearly to the width available, and the string fits by
+ * construction — at any length, including whatever copy somebody writes next.
+ *
+ * `tube` STROKES before it fills, at `lineWidth = 0.30 * px`, which puts
+ * 0.15 * px of casing OUTSIDE the ink at each end. That is in the arithmetic,
+ * because leaving it out is how a "fitted" string still loses its casing.
+ *
+ * AND IT THROWS RATHER THAN SHRINKING FOREVER. The second half of this item was
+ * the marquee's `$2 BLACKJACK  24 HRS`, filed as clipped and MEASURED NOT TO BE
+ * — 72.2 texels inside a 96-texel canvas, 12 texels of margin each side. It is
+ * not clipped, it is under-resolved: twenty characters at 6 px cap height gives
+ * a 3.6-texel glyph, and `hardLayer`'s alpha>=128 snap then keeps or drops each
+ * 1-texel stem more or less at random. Illegible and clipped look identical
+ * from the street, and a fitter that silently shrinks would have turned defect 1
+ * into defect 2. `minPx` is the floor below which a string is mush; crossing it
+ * means the copy is too long for the sign, which is a thing a person must fix,
+ * so it is an error and not a smaller number.
+ */
+const FIT_REF = 100;         // metrics are linear in font size; measure once, scale
+
+/** the largest bold-monospace size at which `s` inks inside `targetW` texels */
+export function fitPx(
+  g: CanvasRenderingContext2D, s: string, targetW: number, strokeFrac = 0.30,
+): number {
+  const prev = g.font;
+  g.font = `bold ${FIT_REF}px monospace`;
+  const m = g.measureText(s);
+  const ink = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+  g.font = prev;
+  return Math.floor((targetW * FIT_REF) / (ink + strokeFrac * FIT_REF));
+}
+
+/** `tube`, sized to fill `targetW` exactly. Throws if that would be illegible. */
+export function fitTube(
+  g: CanvasRenderingContext2D, s: string, cx: number, cy: number, targetW: number,
+  col: string, core?: string, casing?: string, minPx = 8, maxPx = 999,
+): number {
+  const px = Math.min(maxPx, fitPx(g, s, targetW, 0.30));
+  if (px < minPx) {
+    throw new Error(`ct/vice.ts: "${s}" (${s.length} chars) fits ${targetW} texels only at `
+      + `${px} px, under the ${minPx} px this world can still read. Shorten the copy or `
+      + `give the sign more width — do not draw it small.`);
+  }
+  tube(g, s, cx, cy, px, col, core, casing);
+  return px;
+}
+
+/** flat changeable copy — plastic letters on a marquee, not neon. Same rule. */
+export function fitFlat(
+  g: CanvasRenderingContext2D, s: string, cx: number, cy: number, targetW: number,
+  col: string, minPx = 8, maxPx = 999,
+): number {
+  const px = Math.min(maxPx, fitPx(g, s, targetW, 0));
+  if (px < minPx) {
+    throw new Error(`ct/vice.ts: marquee copy "${s}" fits ${targetW} texels only at ${px} px, `
+      + `under the ${minPx} px this world can still read. Shorten it.`);
+  }
+  hardLayer(g, col, (h) => {
+    h.font = `bold ${px}px monospace`;
+    h.textAlign = 'center'; h.textBaseline = 'middle'; h.fillStyle = col;
+    h.fillText(s, cx, cy);
+  });
+  return px;
+}
+
+/**
+ * WIDE-TRACKED CAPS, drawn one letter at a time.
+ *
+ * A category line — CASINO over SEVENS — is short, and a short word set solid
+ * leaves a sign looking half-used. Real signs letterspace it across the full
+ * width instead of growing it, because the eye reads the CATEGORY as subordinate
+ * to the NAME however wide it is set. Per-character placement is the only way
+ * to get it: canvas has no letter-spacing that survives `hardLayer`.
+ */
+export function track(
+  g: CanvasRenderingContext2D, s: string, cx: number, cy: number,
+  span: number, px: number, col: string,
+) {
+  const n = s.length;
+  const pitch = n > 1 ? span / (n - 1) : 0;
+  hardLayer(g, col, (h) => {
+    h.font = `bold ${px}px monospace`;
+    h.textAlign = 'center'; h.textBaseline = 'middle'; h.fillStyle = col;
+    for (let i = 0; i < n; i++) h.fillText(s[i], cx + (i - (n - 1) / 2) * pitch, cy);
+  });
+}
+
 export function buildVice(o: {
   scene: THREE.Scene;
   flat: (m: THREE.Texture) => THREE.MeshBasicMaterial;
@@ -670,14 +776,20 @@ export function buildVice(o: {
       t.wrapT = THREE.RepeatWrapping;
       return t;
     };
-    const riser = (x: number, y0: number, y1: number, col: string) => {
+    // `z` and `w` default to the facade, which is every caller but one: the
+    // blade's leading edge stands 1.35 m proud of the wall and is 0.34 m across,
+    // and it needs the same tube rather than one that merely resembles it —
+    // same reason `tube` and `leafPair` are shared. Defaulted, so the three
+    // facade calls read exactly as they did before this parameter existed.
+    const riser = (x: number, y0: number, y1: number, col: string,
+      z = FACE_Z0 - 0.07, w = 0.22) => {
       const t = tubeTex(col);
-      t.repeat.set(1, Math.round((y1 - y0) / 1.2));
+      t.repeat.set(1, Math.max(1, Math.round((y1 - y0) / 1.2)));
       const m = new THREE.MeshBasicMaterial({
         map: t, transparent: true, opacity: 0.4, fog: false, side: THREE.FrontSide });
-      const q = new THREE.Mesh(new THREE.PlaneGeometry(0.22, y1 - y0), m);
+      const q = new THREE.Mesh(new THREE.PlaneGeometry(w, y1 - y0), m);
       q.rotation.y = Math.PI;                  // face the road, not the brick
-      q.position.set(x, (y0 + y1) / 2, FACE_Z0 - 0.07);
+      q.position.set(x, (y0 + y1) / 2, z);
       scene.add(q);
       ticks.push((n) => { m.opacity = 0.34 + 0.66 * n; });
     };
@@ -690,6 +802,23 @@ export function buildVice(o: {
       const cxm = (casino[0] + casino[1]) / 2;
       const DOOR_X = 51.29;                      // == ct/int-casino.ts's [E] spot
 
+      // ── the skinned elevation, and the ONE place its extent is written ──
+      //
+      // 4.35 and 17.2 were typed out twice in this function — once by the skin
+      // painter and once by the crown/party bulb runs — and this change needs a
+      // third reader, so they are hoisted instead. Two authorings of one fact is
+      // the class of coupling that is silent when it breaks; see the VICE_DOOR_X
+      // note at the top of this file for the last time it cost something here.
+      const SKIN_Y0 = 4.35, SKIN_Y1 = 17.2;      // top of the shop band, roofline
+      // Where the name board sits on that skin, as FRACTIONS of the canvas —
+      // because the painter works in texels and the tubes work in metres, and a
+      // fraction is the only form both can read. The riser tubes break around
+      // this band: running a neon stripe straight down through the middle of the
+      // building's name is what the centre riser was doing, and it read as a
+      // scratch across the sign rather than as light on a wall.
+      const NAME_T = 0.30, NAME_B = 0.69;
+      const skinY = (f: number) => SKIN_Y1 - f * (SKIN_Y1 - SKIN_Y0);
+
       // ── the marquee ──────────────────────────────────────────────────
       //
       // 6 m wide, projecting 1.7 m over the pavement, its soffit at 3.7 m so
@@ -700,17 +829,41 @@ export function buildVice(o: {
       const mqCz = (FACE_Z + MQ_Z1) / 2, mqD = FACE_Z - MQ_Z1;
 
       // the fascia artwork: changeable copy, the way a real marquee carries it
-      const fasciaT = pixTex(96, 26, (g) => {
-        g.fillStyle = '#1a1620'; g.fillRect(0, 0, 96, 26);
-        g.fillStyle = GOLD_D; g.fillRect(0, 0, 96, 3); g.fillRect(0, 23, 96, 3);
-        g.fillStyle = GOLD; g.fillRect(0, 1, 96, 1); g.fillRect(0, 24, 96, 1);
-        tubeText(g, 'LOOSEST SLOTS', 48, 10, 8, '#f2b83a');
-        hardLayer(g, '#e8e0c8', (h) => {
-          h.fillStyle = '#e8e0c8'; h.font = 'bold 6px monospace';
-          h.textAlign = 'center'; h.textBaseline = 'middle';
-          h.fillText('$2 BLACKJACK  24 HRS', 48, 19);
-        });
-        grime(g, 96, 3, 6, 14);
+      //
+      // ── WHY THIS CANVAS DOUBLED, AND WHY THAT IS NOT THE SOFT DIRECTION ──
+      //
+      // The second line was filed as clipped — `$1 BLACKJA`. Measured, it is
+      // not: 72.2 texels of advance inside a 96-texel canvas, 12 texels of
+      // clear margin at each end (scripts/probes/w46-does-the-copy-fit.mjs).
+      // The whole string is on the sign. You cannot READ it, which from the
+      // pavement is indistinguishable from a truncation and is what the user
+      // actually saw.
+      //
+      // The cause is density, not width. 96 texels over 6.0 m is 16 px/m, so
+      // twenty characters at 6 px cap height gave a 3.6-texel glyph whose stems
+      // are one texel — and `hardLayer` snapping alpha at 128 then keeps or
+      // drops each of those stems depending on where the anti-aliaser happened
+      // to land it. Half a letterform survives. That is the mush in his frame.
+      //
+      // Doubled to 192 x 52, EXACTLY 2x in both axes, which puts this at 32 px/m
+      // — the family the rest of the signage on this pair already lives in
+      // (the blade art is 35 px/m, the rooftop board 27). The name panel stays
+      // at the block's 8 px/m because `masonry` owns that canvas.
+      //
+      // Doubling a canvas is normally the SOFT direction and it is not here:
+      // every glyph still goes through `hardLayer`, so a letter edge is still a
+      // texel edge — there are simply twice as many texels to put the edge on.
+      // The line went from a 3.6-texel glyph to a 7-texel one.
+      const FW = 192, FH = 52;
+      const fasciaT = pixTex(FW, FH, (g) => {
+        g.fillStyle = '#1a1620'; g.fillRect(0, 0, FW, FH);
+        g.fillStyle = GOLD_D; g.fillRect(0, 0, FW, 6); g.fillRect(0, FH - 6, FW, 6);
+        g.fillStyle = GOLD; g.fillRect(0, 2, FW, 2); g.fillRect(0, FH - 4, FW, 2);
+        // the headline in neon, the small print in plastic — a real marquee is
+        // exactly this pair, and drawing both in tube would flatten the hierarchy
+        fitTube(g, 'LOOSEST SLOTS', FW / 2, 19, FW - 20, '#f2b83a');
+        fitFlat(g, '$2 BLACKJACK  24 HRS', FW / 2, 39, FW - 20, '#e8e0c8');
+        grime(g, FW, 6, 12, 28);
       });
       const fasciaM = neon(fasciaT);
       const mqBody = new THREE.MeshBasicMaterial({ color: 0x2a2028 });
@@ -863,6 +1016,41 @@ export function buildVice(o: {
         scene.add(face);
       }
 
+      // ═══ THE LEADING EDGE — AND THE "BLACK VERTICAL BAR" ═══════════════
+      //
+      // The user: *"a black vertical bar floats over the left edge"*, unattached
+      // to anything. It is THIS CABINET, and the diagnosis is geometric rather
+      // than a matter of taste.
+      //
+      // A blade projects from the wall, so all of its artwork is on the two +/-x
+      // faces — that is the whole point of a blade, it is read from along the
+      // street. But the user is standing in the ROAD, looking at the facade
+      // straight on, and from there those two faces are edge-on and project to
+      // nothing. What faces him is the box's own front: 0.34 m wide, 15.8 m
+      // tall, flat unlit `boardM` #24222a, hanging from 5.6 m to 21.4 m. Sixteen
+      // metres of black stripe laid over the brightest wall in the world, with
+      // 2.5 m of clear air between its bottom and the marquee. Nothing about the
+      // sign's own artwork can be seen from that angle, so no amount of neon on
+      // the sides was ever going to answer it.
+      //
+      // Both of the earlier fixes on this facade moved the blade — first for
+      // occlusion against the hotel's blade, then to the far end of its own
+      // frontage — and neither could have helped, because the bar is not WHERE
+      // the blade is, it is WHICH FACE OF IT you are looking at. That is why
+      // this is the third complaint.
+      //
+      // A real blade answers it the same way: the leading edge is exactly where
+      // the chase bulbs go, because it is the edge everyone sees. So the dead
+      // face gets the chase and a tube behind it, and the tallest black thing on
+      // the frontage becomes the brightest vertical on it — running downward,
+      // which points at the door.
+      {
+        const edge: [number, number, number][] = sockets(BL_Y0 + 0.35, BL_Y1 - 0.35, 0.5)
+          .map((by) => [BL_X, by, BL_Z1 - 0.11]);
+        bulbRun(edge, 31);                       // one dud, same 1984 ladder
+        riser(BL_X, BL_Y0 + 0.2, BL_Y1 - 0.2, '#ff5a4a', BL_Z1 - 0.03, 0.30);
+      }
+
       // ── the blank wall the 1984 refit made ───────────────────────────
       //
       // SEVENS had four storeys of ordinary sash windows above its
@@ -878,7 +1066,7 @@ export function buildVice(o: {
       // is the detail that makes this read as a building that was CHANGED
       // rather than as a building that was drawn flat.
       {
-        const y0 = 4.35, y1 = 17.2;
+        const y0 = SKIN_Y0, y1 = SKIN_Y1;
         const sk = masonry(casino[1] - casino[0], y1 - y0, y0, 1);
         const { W, H } = sk;
         const skin = sk.paint((g) => {
@@ -900,24 +1088,120 @@ export function buildVice(o: {
               g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(gx, gy + gh - 1, gw, 1);
             }
           }
-          // AND THE NAME ACROSS IT — RE-SET, NOT SUBSTITUTED.
+          // ═══ AND THE SIGN ACROSS IT — A COMPOSITION, NOT A CAPTION ═══════
           //
-          // This was two stacked lines, GOLDEN at 0.13 H over ACES at 0.17 H,
-          // because the old name needed two. SEVENS is one word, so the whole
-          // height that was spent on two lines and the gap between them goes into
-          // ONE line of letters at 0.30 H — nearly double the old cap height.
-          // That is also the answer to "casino text is a bit too blurry": the
-          // letters were small for the canvas, and the cheapest legibility there
-          // has ever been is fewer, bigger letters rather than a bigger texture.
-          tubeText(g, 'SEVENS', Math.round(W / 2), Math.round(H * 0.38), Math.round(H * 0.30), '#e8b93a', '#f7e6b0', '#3a1016');
-          // The house's mark under the name. This was a spade first and it came
-          // out looking like a bird — a suit symbol needs curves and there are
-          // not enough texels here to spend on them. Three sevens need none:
-          // they are letterforms, they survive any resolution, and nothing else
-          // in the world says SLOT MACHINE that fast. Drawn in the red tube
-          // rather than the gold so it reads as a separate sign bolted on
-          // afterwards, which is what it would have been.
-          tubeText(g, '777', Math.round(W / 2), Math.round(H * 0.72), Math.round(H * 0.13), '#ff4a3a', '#ffd8c0', '#3a1016');
+          // The user, third time on this facade: "sevens casino front looks so
+          // messed up. take influence from vegas thanks."
+          //
+          // TWO SEPARATE THINGS WERE WRONG AND ONLY ONE OF THEM IS TASTE.
+          //
+          // The defect: the name read `EVEN`. `H * 0.30` is a cap height taken
+          // from the panel's HEIGHT, and this panel is 11.55 m wide by 12.85 m
+          // tall — taller than it is wide. Six letters at 31 px ink 112 texels
+          // into a 92-texel canvas and ten texels fell off each end, which at
+          // that size is very nearly a whole letter at each end. The note above
+          // this line was RIGHT that fewer, bigger letters beat a bigger texture,
+          // and it is kept; it simply never checked the resulting width against
+          // the panel. `fitTube` now derives the size from the width the sign
+          // has, so the word fills the frontage instead of overrunning it, and
+          // it is 21 px rather than 31 — smaller letters, and four more of them.
+          // You could read four before. You can read six now.
+          //
+          // The taste: everything else here was one caption and one small mark
+          // floating in eight metres of empty maroon, which is what he means by
+          // "so messed up" and by "vegas". A Vegas front is DENSITY and
+          // HIERARCHY — a dominant name, a category over it, a mark under it,
+          // rules and bulb runs holding the whole elevation, and no dead wall.
+          // So the field is divided top to bottom and every band does a job:
+          //
+          //   texel   0..4    cornice rule, under the real crown bulbs at 17.38 m
+          //           6..12   a painted socket run across the full frontage
+          //          14..25   CASINO, letterspaced wide — what the building IS
+          //          27..29   the double rule that separates it from the name
+          //          31..70   THE NAME BOARD: an inset lit panel, gold framed,
+          //                   sockets top and bottom, SEVENS filling it
+          //          72..74   rule
+          //          76..94   777 in a starburst — the mark, now big enough to be one
+          //
+          // Below texel 95 the marquee stands in front of the middle 6 m of this
+          // panel (measured: marquee top 5.35 m maps to texel 95.0), so nothing
+          // that has to be read is put down there.
+          //
+          // It is all texel work in the hand this file already uses — tube for
+          // anything that lights, flat hardLayer for anything that does not,
+          // every rule and socket on a whole-texel boundary. No new geometry
+          // carries any of it.
+          const rule = (ry: number, h = 3) => {
+            g.fillStyle = GOLD_D; g.fillRect(0, ry, W, h);
+            g.fillStyle = GOLD; g.fillRect(0, ry + 1, W, 1);
+          };
+          /** painted sockets — the density a real bulb run gives, at no draw calls */
+          const socketRow = (sy: number, x0s: number, x1s: number, pitch: number) => {
+            for (let x = x0s; x <= x1s; x += pitch) {
+              const rx = Math.round(x);
+              g.fillStyle = '#4e3f22'; g.fillRect(rx - 1, sy - 1, 3, 3);
+              g.fillStyle = '#f6e2a2'; g.fillRect(rx, sy, 1, 1);
+            }
+          };
+
+          rule(1);
+          socketRow(9, 4, W - 4, 5.4);
+          track(g, 'CASINO', W / 2, 19, Math.round(W * 0.66), 10, '#e0b84e');
+          rule(27);
+
+          // the name board: the name stops being paint on a wall and becomes a
+          // sign bolted to one, which is the single biggest change in the read
+          {
+            const by = Math.round(H * NAME_T), bh = Math.round(H * NAME_B) - by;
+            g.fillStyle = '#2c0c12'; g.fillRect(0, by, W, bh);
+            g.fillStyle = GOLD_D; g.fillRect(0, by, W, 2); g.fillRect(0, by + bh - 2, W, 2);
+            g.fillStyle = '#12060a'; g.fillRect(2, by + 4, W - 4, bh - 8);
+            socketRow(by + 3, 4, W - 4, 5.4);
+            socketRow(by + bh - 3, 4, W - 4, 5.4);
+            // W - 8 leaves the sockets clear at both ends; the fitter puts the
+            // casing inside that, so the S at each end keeps its glass
+            fitTube(g, 'SEVENS', Math.round(W / 2), by + Math.round(bh / 2) + 1, W - 8,
+              '#e8b93a', '#f7e6b0', '#3a1016');
+          }
+          rule(72);
+
+          // The house's mark. This was a spade first and it came out looking
+          // like a bird — a suit symbol needs curves and there are not enough
+          // texels here to spend on them. Three sevens need none: they are
+          // letterforms, they survive any resolution, and nothing else in the
+          // world says SLOT MACHINE that fast. Drawn in the red tube rather than
+          // the gold so it reads as a separate sign bolted on afterwards.
+          //
+          // It was at 0.13 H and the item is right that it "sits small and lost".
+          // It is now fitted to 0.52 W — four times the area — and the wings
+          // either side of it carry the blade's chevron, because a mark alone in
+          // the middle of a wall is a sticker and a mark with furniture around
+          // it is a sign.
+          //
+          // A STARBURST WAS TRIED HERE FIRST AND IS NOT WHAT SHIPPED. Twenty
+          // rays from the middle of the mark: at 8 px/m every ray inside the
+          // 777's own ink is invisible, the vertical ones run out of band before
+          // they clear it, and what survived was four gold specks that read as
+          // damage rather than as light. The chevron is the motif this file
+          // already owns — `bladeArt` runs the same one down the blade — so it
+          // is the same hand by construction rather than by resemblance, and an
+          // arrow is a shape 8 px/m can actually hold.
+          {
+            const scy = 85;
+            for (const wcx of [Math.round(W * 0.11), Math.round(W * 0.89)]) {
+              for (let k = 0; k < 3; k++) {
+                const cy = 72 + k * 9;
+                g.fillStyle = k % 2 ? '#f2b83a' : '#f6e2a2';
+                for (let j = 0; j < 8; j++) {
+                  g.fillRect(wcx - j, cy + j, 2, 2);
+                  g.fillRect(wcx + j - 1, cy + j, 2, 2);
+                }
+              }
+            }
+            fitTube(g, '777', Math.round(W / 2), scy, Math.round(W * 0.52),
+              '#ff4a3a', '#ffd8c0', '#3a1016');
+          }
+
           grime(g, W, Math.round(H * 0.02), Math.round(H * 0.4), 90);
           dither(g, W, H, 700);
         });
@@ -939,7 +1223,7 @@ export function buildVice(o: {
       // pixel world is good at — one bulb is a dot, ninety bulbs on a rhythm is
       // a casino.
       {
-        const CROWN = 17.2, BASE = 4.35;                 // roofline, top of band
+        const CROWN = SKIN_Y1, BASE = SKIN_Y0;           // roofline, top of band
         const x0 = casino[0] + 0.28, x1 = casino[1] - 0.28;
         const crown: [number, number, number][] = [];
         for (const bx of sockets(x0, x1, 0.42)) crown.push([bx, CROWN + 0.18, FACE_Z0 - 0.16]);
@@ -947,9 +1231,37 @@ export function buildVice(o: {
           for (const by of sockets(BASE, CROWN, 0.52)) crown.push([bx, by, FACE_Z0 - 0.16]);
         }
         bulbRun(crown, 23);                              // roughly one dud in every 23
-        riser(cxm, BASE, CROWN, '#ff4a3a');
-        riser(x0 + 2.6, BASE, CROWN, '#f2b83a');
-        riser(x1 - 2.6, BASE, CROWN, '#f2b83a');
+
+        // ── THE TUBES BREAK AROUND THE NAME, AND THEY MOVED TO THE EDGES ──
+        //
+        // They were at `cxm`, `x0 + 2.6` and `x1 - 2.6`, which is the middle of
+        // the elevation — i.e. straight down the middle of SEVENS and through
+        // the 777. On a wall with nothing on it that is a rhythm; on a wall
+        // carrying the building's name it is a scratch. Both readings were true
+        // at different times: the tubes were authored when this was a blank
+        // maroon slab, and the sign has since grown into the space they used.
+        //
+        // So they do the two things a real installation does. They PAIR at the
+        // party edges — gold outside, red inside, over the bulb column that is
+        // already there — which turns each corner into one lit vertical instead
+        // of three separate ones. And they BREAK at the name board, running the
+        // parapet above it and the base below it, so the sign sits on a lit wall
+        // rather than behind a set of bars.
+        //
+        // The east pair is set 1.35/2.05 m in rather than 0.55/1.25 because the
+        // blade cabinet stands at `casino[1] - 0.95` and would eat anything
+        // closer to that corner — measured, its 0.34 m box spans x 55.88..56.22
+        // and it sits 1.3 m proud of the wall, so it occludes rather than
+        // overlaps. That asymmetry is the building having a blade on one end.
+        const TOP = skinY(NAME_T), BOT = skinY(NAME_B);
+        const pairs: [number, string][] = [
+          [x0 + 0.55, '#f2b83a'], [x0 + 1.25, '#ff4a3a'],
+          [x1 - 2.05, '#ff4a3a'], [x1 - 1.35, '#f2b83a'],
+        ];
+        for (const [rx, col] of pairs) {
+          riser(rx, TOP, CROWN, col);                    // the parapet, above the sign
+          riser(rx, BASE, BOT, col);                     // the base, below it
+        }
       }
 
       // ── the entrance, in three dimensions ────────────────────────────
@@ -1305,6 +1617,38 @@ export function buildVice(o: {
       const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6.6, 7.2), boardM);
       frame.position.set(cxm, BOT + 3.3, -94.3);
       scene.add(frame);
+      // THE SAME DEAD LEADING EDGE AS THE BLADE, AND THE SAME ANSWER.
+      //
+      // Measured, this board is 0.5 x 6.6 x 7.2 m with its art on the two +/-x
+      // faces, so from the road you get a 0.5 m wide, 6.6 m tall strip of unlit
+      // #24222a standing in the sky over the middle of the frontage — the second
+      // black bar in the user's frame, and the thinner one. It is one object
+      // with one cause, so it takes one fix, here rather than in a second idiom.
+      // The dud rate is left off: this board was refit last and its lamps still
+      // all work, which is the reading that makes the marquee's dud mean
+      // something.
+      {
+        const fz = -94.3 - 3.6;                  // the -z face of that 7.2 m box
+        const edge: [number, number, number][] = sockets(BOT + 0.5, BOT + 6.1, 0.5)
+          .map((by) => [cxm, by, fz - 0.11]);
+        bulbRun(edge);
+        riser(cxm, BOT + 0.35, BOT + 6.25, '#e8c25a', fz - 0.03, 0.42);
+        // AND THE SOFFIT, which is the OTHER face you can see from the street.
+        // Lighting the front edge alone left a second dark slab: this board is
+        // 7.2 m deep and stands at 19.4 m, so from the pavement you are looking
+        // steeply UP at its underside — 0.5 x 7.2 m of the same unlit boardM,
+        // receding away from the lit edge and reading as a black shaft hanging
+        // off it. Caught in the after-frame, not reasoned about; a leading edge
+        // is obvious and a soffit only shows from below.
+        //
+        // A rooftop sign this size is outlined in bulbs on every edge it has,
+        // so the underside gets the two long ones and the slab becomes the gap
+        // between two running lines.
+        for (const sx of [-0.19, 0.19]) {
+          bulbRun(sockets(fz + 0.35, -94.3 + 3.25, 0.62)
+            .map((bz) => [cxm + sx, BOT + 0.06, bz]));
+        }
+      }
       // THE BLADE, RE-SET FOR A SHORTER NAME AND SHARPENED.
       //
       // Two faults, and the rename is the chance to close the second:
