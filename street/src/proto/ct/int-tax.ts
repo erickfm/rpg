@@ -437,11 +437,28 @@ export function buildTax(ctx: CtxBuild): void {
     // Linked chairs on a common rail is the one piece of furniture that cannot
     // be "strewn about" — it is bolted into a line. Clear of the way-out spot at
     // (-4.2, 3.7): the nearest chair is at x 0.6, 4.8 m away.
+    //
+    // *"seats in the tax office are reversed."* MEASURED, not the row's own
+    // hand-me-down diagnosis: the seat's `yaw: 0` below was NOT the bug. This
+    // room's front wall is at local z = +hd (interior.ts:850-851 draws it
+    // there, door and all) and the camera's forward vector is
+    // `(sin yaw, -cos yaw)` (fp.ts:299-304/361-366), so `yaw: 0` already faces
+    // -z — INTO the room, at the desks, exactly what this comment always
+    // asked for. Sat on it live (scripts/w9-tax-seat-repro.mjs): the camera
+    // lands facing (0, -1), squarely at the preparer's desk.
+    //
+    // The bug was the CHAIR MESH, not the interaction: "the back" panel sat
+    // on the ROOM side of the seat pad (`WAIT_Z - 0.20`) — in front of a
+    // person facing -z, not behind them — so from anywhere in the room you
+    // saw three backrests staring back at you, which reads as "these face
+    // the wall" even though sitting in one turns you the right way.  The
+    // desk's own `chair()` two dozen lines up gets this right for the client
+    // seat (back offset +0.2 for a -z facing) — mirrored here to match.
     const WAIT_Z = hd - 0.62;
-    bx(2.62, 0.06, 0.08, steelM, 1.25, 0.10, WAIT_Z - 0.18);           // the rail
+    bx(2.62, 0.06, 0.08, steelM, 1.25, 0.10, WAIT_Z - 0.18);           // the rail, in front (room side)
     for (const cx of [0.6, 1.25, 1.9]) {
       bx(0.52, 0.10, 0.46, chairM, cx, 0.42, WAIT_Z);                  // the seat
-      bx(0.52, 0.42, 0.07, chairM, cx, 0.68, WAIT_Z - 0.20);           // the back
+      bx(0.52, 0.42, 0.07, chairM, cx, 0.68, WAIT_Z + 0.20);           // the back — WALL side, behind a -z facing
       for (const sx of [-0.2, 0.2]) bx(0.04, 0.38, 0.04, steelM, cx + sx, 0.19, WAIT_Z + 0.16);
       // every seat sittable, which is the standing rule for anything you can sit
       // on — "for every seat in the game i want to be able to sit down"
