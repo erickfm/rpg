@@ -2373,3 +2373,28 @@ The cure is `slabTex`/`plazaTex`/`apronTex`, already proven at several sites.
 
 **So this is not a hunt. It is a census with a known fix:** find every unmapped
 ground-facing mesh and give it a texture. He has now reported it four times.
+
+
+## Sit at the foot of the bed, not the middle
+
+> *"sitting on the bed should have a perspective more from the foot of the bed.
+> please change"*
+
+**Done at the desk** — one number in `ct/apartment.ts`, small enough that a brief
+would have cost more than the edit.
+
+The bed itself says which end is which: the dented pillow sits at x −2.86 and the
+frame spans −3.05 … −1.15, so the **head is −x and the foot is +x**. The seat was
+at x −2.10 — the frame's own centre, level with your pillow — and, more to the
+point, **off to one side of the television**, whose cabinet stands at x −1.56.
+So the old view watched the set at an angle across the mattress.
+
+The seat now reads **`TV_X`**, the set's own centre line as declared where the
+cabinet is built, rather than a copy of it. Move the television and the seat
+follows. (A hand-typed second number is what left `bedcavity.mjs` measuring a
+truck that no longer existed and `doorside2.mjs` failing a door that was fine —
+GOTCHAS 56.)
+
+Measured: the spot moved x 198.30 → 198.84. Looked at it from the seat — the TV
+is now square in the middle of the view with the poster above it, instead of off
+to one side.

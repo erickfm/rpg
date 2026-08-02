@@ -2596,9 +2596,26 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // The seat is the near edge of the bed, the yaw faces the TV (yaw 0 is -z
     // and the set is at z 2.34 against a bed at 4.86), and `h` is the mattress
     // top rather than the frame.
+    // ── SIT AT THE FOOT, NOT THE MIDDLE ───────────────────────────────────
+    //
+    // The user: *"sitting on the bed should have a perspective more from the
+    // foot of the bed."* He is right, and the bed itself says which end that
+    // is: the dented pillow sits at x −2.86 and the frame spans −3.05 … −1.15,
+    // so the HEAD is −x and the FOOT is +x.
+    //
+    // The seat was at x −2.10, the frame's own centre — mid-mattress, level
+    // with your own pillow, and **off to one side of the television**, whose
+    // cabinet stands at x ≈ −1.56 (its rabbit ears are pinned at −1.68 and
+    // −1.44). So the old view watched the set at an angle across the bed.
+    //
+    // It reads `TV_X`, the set's OWN centre line declared where the cabinet is
+    // built — not a copy of it. A hand-typed second number is what left
+    // `bedcavity.mjs` measuring a truck that no longer existed and
+    // `doorside2.mjs` failing a door that was fine (GOTCHAS 56). Move the
+    // television and the seat follows it.
     ctx.seat({
-      x: AX(-2.10), z: AZI(4.42), yaw: 0, h: 0.45, r: 0.70,
-      approach: { x: AX(-1.70), z: AZI(3.70) },
+      x: AX(TV_X), z: AZI(4.42), yaw: 0, h: 0.45, r: 0.70,
+      approach: { x: AX(TV_X + 0.40), z: AZI(3.70) },
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: 'sit on the bed and watch TV',
       standLabel: 'stop watching TV',
