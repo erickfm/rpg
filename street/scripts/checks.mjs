@@ -142,7 +142,13 @@ if (process.env.SHOT_WORLD !== 'integration' && servingBundle) {
 // what each one answers, in the order a reader would want it
 const CHECKS = [
   ['check-wiring',     'is every module that was written actually built?', true],
-  ['health',           'does the world initialise at all?',                false],
+  // WAS `false` — no selftest — and that is how it went months as the only one
+  // of these 122 that could not go red at all. It printed `WORLD BROKEN` and
+  // exited 0, so this row rendered `ok` for a dead world. The exit code is fixed
+  // in scripts/health.mjs; the `health-dead` case in scripts/canfail.mjs is what
+  // stops it silently reverting, by withholding `(window as any).__ct` in
+  // src/proto/crosstown.ts and requiring this row to go red.
+  ['health',           'does the world initialise at all?',                ['health-dead']],
   ['check-seethrough', 'can you see the pavement through a shopfront?',    true],
   ['density',          'is every masonry face at the density it declares?', ['density']],
   ['nightgrade',       'does everything the dimmer touched actually dim?',  true],

@@ -530,11 +530,27 @@ export function makeCrosstown(): Proto {
   // below and the accessor is only ever CALLED at runtime, so the lazy closure
   // is safe (same pattern as `rig`).
   let crowd!: Crowd;
+  /** Every collider that is a MOVING ACTOR — a citizen or a vehicle — held by
+   *  object identity rather than by shape.
+   *
+   *  These are real colliders: they stop the player, and `fp.ts` is right to be
+   *  blocked by them. What they are NOT is geometry, and `ct/gap.ts`'s
+   *  `trapAgainst` only means something about geometry — a corridor is narrow
+   *  or it is not, and a pedestrian standing in one is a pedestrian, not a
+   *  trap. Scoring them painted the V overlay red down the whole east walk and
+   *  cost a queue item, when a red-dump read a moving box out of `colliders`
+   *  and reported it as a static prop.
+   *
+   *  Identity, not shape: a citizen's box is 0.5 x 0.5 and so is plenty of real
+   *  furniture, so any size test would have excused the furniture too. There
+   *  are exactly two places an actor box enters `colliders`, and both are the
+   *  registration hooks right here, so the set cannot drift from the world. */
+  const actorBoxes = new Set<AABB>();
   const vehicleBoxes: AABB[] = [];   // one per vehicle in the pool, parked at 999 while idle
   const traffic = buildTraffic(ctx, {
     SIDE_Z0, SIDE_X1,
     lit: props.lit,
-    vehicleBox: (b) => { vehicleBoxes.push(b); citAvoid.push(b); return b; },
+    vehicleBox: (b) => { vehicleBoxes.push(b); citAvoid.push(b); actorBoxes.add(b); return b; },
     peopleAt: () => crowd.walkers(),
   });
 
@@ -545,7 +561,10 @@ export function makeCrosstown(): Proto {
   // Math.random stream — moving the call re-grains every texture after it.
   crowd = buildCrowd(ctx, {
     citAvoid,
-    solid: (b) => { propColliders.push(b); },
+    // The crowd's own hook, and the ONLY way a citizen box reaches `colliders`
+    // (via the `...propColliders` spread below, which copies the reference —
+    // so the box keeps moving inside `colliders` as the walker walks).
+    solid: (b) => { propColliders.push(b); actorBoxes.add(b); },
     lit: props.lit,
     SIDE_Z0, SIDE_Z1, SIDE_X1,
   });
@@ -1345,6 +1364,21 @@ export function makeCrosstown(): Proto {
     // bodega was un-enterable — and it was previously only answerable by
     // bisecting the walk with the player. Read-only view of the live list.
     colliders: () => colliders,
+    /** The moving actors inside `colliders()` — citizens and vehicles.
+     *
+     *  A SEPARATE accessor rather than a flag on `colliders()`, deliberately.
+     *  `colliders()` returns the live array BY REFERENCE and at least one check
+     *  relies on that: `scripts/interiors-walk.mjs --selftest` walls every door
+     *  shut by pushing onto it. Returning a mapped copy would leave that
+     *  selftest silently mutating a throwaway array and passing having tested
+     *  nothing — the exact family of sleeping guard this project keeps paying
+     *  for. So the array is left alone and the extra information is published
+     *  beside it.
+     *
+     *  Identity does not survive the serialisation boundary, so an instrument
+     *  matches these against `colliders()` BY VALUE, the same way the red-dump
+     *  probes already key a box on its four extents plus `rot`. */
+    actorColliders: () => [...actorBoxes],
     // test affordance: WHAT GROUND HAS BEEN PUBLISHED, and where? Same argument
     // as colliders() and groundAt() — a module that asks `ctx.site('jail')` and
     // gets null must build nothing and say so, and until now there was no way
@@ -1637,7 +1671,7 @@ export function makeCrosstown(): Proto {
       // it draws over a settled world; costs nothing when debugCollision is
       // false (the ColliderDebug instance builds no geometry until the first
       // `on: true` call, and tears it down again the moment it goes false).
-      colliderDebug.update(scene, colliders, apt.gy(), { x: px, z: pz, radius: RADIUS }, debugCollision);
+      colliderDebug.update(scene, colliders, apt.gy(), { x: px, z: pz, radius: RADIUS }, debugCollision, actorBoxes);
     },
     dispose() {
       // the zoom listener is added once per `makeCrosstown()` call; `main.ts`

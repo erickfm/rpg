@@ -1,9 +1,39 @@
 // Compare two scene fingerprints as multisets, so we learn WHICH elements
 // are unstable rather than just that some hash moved.
-// Usage: node scripts/fpdiff.mjs shots/fp-base-a.json shots/fp-base-b.json
-import { readFileSync } from 'node:fs';
+//
+// Usage: node scripts/fpdiff.mjs [before.json] [after.json]
+//        npm run fpdiff                       — the documented recipe, below
+//
+// THE DOCUMENTED RECIPE CRASHED. `CLAUDE.md`, `BUILDER-BRIEF` §10 and every
+// worker brief say the same four words — `npm run fp before` → change → `npm run
+// fp after` → `npm run fpdiff` — and `package.json` passes this script **no
+// arguments at all**, so the last step died on `A._structure` of `undefined`.
+// The proof recipe this project mandates for "did my change move the world"
+// had not worked, and builders reported fingerprints as identical because they
+// had each quietly invoked it by hand with two paths instead.
+//
+// So the no-argument form now means exactly what the recipe implies: compare
+// the two labels the recipe just wrote. Explicit paths still work unchanged.
+import { readFileSync, existsSync } from 'node:fs';
 
-const [A, B] = process.argv.slice(2).map((p) => JSON.parse(readFileSync(p, 'utf8')));
+const args = process.argv.slice(2);
+const paths = args.length ? args : ['shots/before.json', 'shots/after.json'];
+if (paths.length !== 2) {
+  console.error('fpdiff needs exactly two fingerprints, got ' + paths.length + '.');
+  console.error('  npm run fpdiff                          (compares shots/before.json and shots/after.json)');
+  console.error('  node scripts/fpdiff.mjs <a.json> <b.json>');
+  process.exit(2);
+}
+// A missing file is "could not measure", not "measured, and they differ" — the
+// distinction this repo has now paid for five times (GOTCHAS 65). Exit 3, which
+// checks.mjs already reads as unmeasured, rather than a stack trace.
+const missing = paths.filter((p) => !existsSync(p));
+if (missing.length) {
+  console.error('fpdiff: no fingerprint at ' + missing.join(' or ') + '.');
+  console.error('Take them first:  npm run fp before   …change…   npm run fp after');
+  process.exit(3);
+}
+const [A, B] = paths.map((p) => JSON.parse(readFileSync(p, 'utf8')));
 const cmp = (key) => {
   const a = A['_' + key], b = B['_' + key];
   const cnt = (xs) => { const m = new Map(); for (const x of xs) m.set(x, (m.get(x) ?? 0) + 1); return m; };

@@ -58,6 +58,7 @@ const BOX_H = 2.4;
 let unitGeo: THREE.EdgesGeometry | null = null;
 let okMat: THREE.LineBasicMaterial | null = null;
 let trapMat: THREE.LineBasicMaterial | null = null;
+let actorMat: THREE.LineBasicMaterial | null = null;
 let playerMat: THREE.LineBasicMaterial | null = null;
 
 /** Built on the FIRST call, ever, across every ColliderDebug instance — see
@@ -67,9 +68,15 @@ function shared() {
     unitGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
     okMat = new THREE.LineBasicMaterial({ color: 0x39ff6a, transparent: true, opacity: 0.85, depthTest: false });
     trapMat = new THREE.LineBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.95, depthTest: false });
+    // A MOVING ACTOR — a citizen or a vehicle. Amber, so it reads as "solid,
+    // but it is a person and it will walk on", distinct from both the green of
+    // static geometry and the red of a trap. It is deliberately NOT hidden:
+    // these boxes really do stop the player, and an overlay that drew only
+    // some of what blocks you would be lying in the other direction.
+    actorMat = new THREE.LineBasicMaterial({ color: 0xffb020, transparent: true, opacity: 0.9, depthTest: false });
     playerMat = new THREE.LineBasicMaterial({ color: 0x40c4ff, transparent: true, opacity: 0.95, depthTest: false });
   }
-  return { unitGeo: unitGeo!, okMat: okMat!, trapMat: trapMat!, playerMat: playerMat! };
+  return { unitGeo: unitGeo!, okMat: okMat!, trapMat: trapMat!, actorMat: actorMat!, playerMat: playerMat! };
 }
 
 export class ColliderDebug {
@@ -126,10 +133,33 @@ export class ColliderDebug {
    * the floor the player is already standing on.
    */
   update(scene: THREE.Scene, colliders: AABB[], floorY: number,
-    player: { x: number; z: number; radius: number }, on: boolean): void {
+    player: { x: number; z: number; radius: number }, on: boolean,
+    actors?: ReadonlySet<AABB>): void {
     if (!on) { if (this.group) this.teardown(scene); return; }
     if (this.builtFor !== colliders.length) this.build(scene, colliders.length);
-    const { okMat, trapMat } = shared();
+    const { okMat, trapMat, actorMat } = shared();
+    // A PEDESTRIAN IS NOT A TRAP, AND THE OVERLAY USED TO SAY IT WAS.
+    //
+    // `ct/crowd.ts:168` puts every citizen's box into the same array through
+    // `ctx.solid`, and traffic does the same for vehicles, so `trapAgainst`
+    // was measuring corridors against things that walk away. On the east walk
+    // that painted standing red the whole length of the lane — the citizen
+    // lane is x 6.00 +/- 0.25 (`ct/crowd-net.ts:87`) and the block faces are at
+    // 6.70/6.88, which is 0.45-0.63 m and well under the 0.95 m that reads red.
+    //
+    // It cost a real queue item: a builder's red-dump read one of those moving
+    // boxes out of the array and wrote it down as a static prop, and the desk
+    // queued a trap that does not exist. The overlay is the user's own tool for
+    // finding bugs, so red has to mean something he can act on.
+    //
+    // So actors are drawn (they DO stop you) but never scored: they are neither
+    // a trap candidate nor a wall that can form one. The filter is by object
+    // IDENTITY against the set the entry point builds at the two registration
+    // hooks — not a guess from a box's size, which would have caught real
+    // 0.5 x 0.5 furniture too.
+    const statics = actors && actors.size
+      ? colliders.filter((c) => !actors.has(c))
+      : colliders;
     for (let i = 0; i < colliders.length; i++) {
       const c = colliders[i];
       const sx = Math.max(0.05, c.maxX - c.minX);
@@ -150,7 +180,8 @@ export class ColliderDebug {
       b.position.set((c.minX + c.maxX) / 2, floorY + h / 2, (c.minZ + c.maxZ) / 2);
       b.rotation.y = c.rot ?? 0;
       b.scale.set(sx, h, sz);
-      b.material = trapAgainst(c, colliders) ? trapMat : okMat;
+      b.material = actors?.has(c) ? actorMat
+        : trapAgainst(c, statics) ? trapMat : okMat;
     }
     // the player's own capsule. blocked() (fp.ts) expands every collider by
     // RADIUS on X and Z independently — a SQUARE Minkowski sum, not a circle
