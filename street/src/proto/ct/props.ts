@@ -78,9 +78,35 @@ export function buildProps(ctx: CtxBuild): Props {
   const rainGeo = new THREE.BufferGeometry();
   rainGeo.setAttribute('position', new THREE.Float32BufferAttribute(rainPos, 3));
   const rainT = declareSurface(pixTex(8, 16, (g) => {
-    // one texel wide, not two — a 2 px streak reads as a thick dash at this
-    // point size and the rain looked like falling grit rather than water
-    g.fillStyle = 'rgba(214,222,232,0.75)'; g.fillRect(4, 1, 1, 14);
+    // ── A PALE DROP ON A PALE SKY IS AN INVISIBLE DROP ────────────────────
+    //
+    // The user: *"how come i face some directions and it's not raining and then
+    // i face a different direction and it is raining?"* — reported twice.
+    //
+    // It was never the rain. Counting drops inside the view frustum from one
+    // spot, facing three ways: 142 down the street, 129 up it, 126 across at a
+    // wall. The volume is even in every direction, so RAIN_BOX and the wrap are
+    // NOT the bug and must not be touched.
+    //
+    // It is CONTRAST. This streak was `rgba(214,222,232)` — pale blue-white —
+    // against a scene fog of `0x8a97a2`, pale blue-grey. Face along the street
+    // and the top half of the view is sky and fog, near enough the same colour
+    // that at a drizzle's ~0.16 opacity the drops dissolve into it. Face across
+    // at dark brick and the identical drops read fine.
+    //
+    // So the drop needs to carry its own contrast rather than borrow it from
+    // whatever is behind: a DARK SHEATH either side of a bright core. Against
+    // sky the sheath reads; against brick the core does. One of the two always
+    // has something to bite on, whatever it is falling in front of.
+    //
+    // The core stays ONE texel, which the previous note is right about — a
+    // 2 px core reads as a thick dash at this point size and turns the rain to
+    // falling grit. The sheath is the neighbouring columns at low alpha, so the
+    // streak still measures one texel of bright and does not fatten.
+    g.fillStyle = 'rgba(38,46,58,0.38)';                  // sheath, for pale skies
+    g.fillRect(3, 1, 1, 14); g.fillRect(5, 1, 1, 14);
+    g.fillStyle = 'rgba(226,234,244,0.82)';               // core, for dark walls
+    g.fillRect(4, 1, 1, 14);
   }), 'detail');
   const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.36, transparent: true, opacity: 0, depthWrite: false });
   const rain = new THREE.Points(rainGeo, rainM);
