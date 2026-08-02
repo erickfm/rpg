@@ -304,7 +304,22 @@ export function register(ctx: CtxBuild): void {
   // seam tool must not compare it to one. That is a change in what is drawn,
   // not a relabelling of what was there: the ashlar joints are gone from the
   // trim, which is why the sills read as one stone now.
-  const DRESS_PPM = 32;
+  //
+  // AND THE DECLARATION MUST NOT BE WHAT MAKES THIS PASS. Dropping the masonry
+  // stamp takes trim out of the seam tool's like-for-like question, so on its
+  // own that would be exactly the "loosen the check until it goes green" move
+  // BUILDER-BRIEF §7 forbids. So the density is DERIVED from the wall the trim
+  // sits against — the same `masonry(…, 2)` call `stoneTex` makes, so the trim
+  // draws at the ashlar's own 16 px/m and cannot be a visible mismatch beside
+  // it whatever it is labelled. Measured after: 15.71–16.36 px/m on the jambs,
+  // the door head and the string course.
+  //
+  // The two window-sill sizes are the exception and the reason 'detail' is the
+  // honest label rather than a convenience: a lit arris, a face and a shadowed
+  // underside is three texels at minimum, and three texels over an 0.08 m sill
+  // is 37 px/m however it is declared. A sill that thin cannot carry a course
+  // and must not be compared to one.
+  const DRESS_PPM = masonry(1, 1, 0, 2).ppm;
   const dressed = (wM: number, hM: number) => {
     const W = Math.max(3, Math.round(wM * DRESS_PPM));
     const H = Math.max(3, Math.round(hM * DRESS_PPM));

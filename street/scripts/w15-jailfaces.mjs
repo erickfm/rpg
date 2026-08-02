@@ -19,10 +19,11 @@ const rows = await p.evaluate(() => {
     mats.forEach((m, mi) => {
       if (!m || !m.map) return;
       const ms = m.map.userData && m.map.userData.masonry;
-      if (!ms) return;
+      const kind = m.map.userData && m.map.userData.surface;
+      if (!ms && kind !== 'detail') return;
       const { fw, fh } = window.__faceLib.dims(o, mi);
       const img = m.map.image;
-      out.push({ name:o.name||'(anon)', mi, decl: ms.ppm,
+      out.push({ name:o.name||'(anon)', mi, decl: ms ? ms.ppm : 16, stamped: !!ms,
         u:+((img.width*Math.abs(m.map.repeat.x))/fw).toFixed(2),
         v:+((img.height*Math.abs(m.map.repeat.y))/fh).toFixed(2),
         fw:+fw.toFixed(2), fh:+fh.toFixed(2),
@@ -35,6 +36,6 @@ const rows = await p.evaluate(() => {
 });
 for (const r of rows) {
   const bad = Math.abs(r.u - r.decl)/r.decl > 0.15 || Math.abs(r.v - r.decl)/r.decl > 0.15;
-  console.log((bad?'BAD ':'ok  ') + `mi${r.mi} decl${r.decl}  u${String(r.u).padStart(8)} v${String(r.v).padStart(8)}  face ${r.fw}x${r.fh}m  canvas ${r.canvas}  box ${JSON.stringify(r.params)}  at ${r.at.join(',')}`);
+  console.log((bad?'BAD ':'ok  ') + (r.stamped?'brick ':'trim  ') + `mi${r.mi} decl${r.decl}  u${String(r.u).padStart(8)} v${String(r.v).padStart(8)}  face ${r.fw}x${r.fh}m  canvas ${r.canvas}  box ${JSON.stringify(r.params)}  at ${r.at.join(',')}`);
 }
 await b.close();
