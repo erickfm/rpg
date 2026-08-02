@@ -40,6 +40,15 @@ export interface Hud {
   setNight: (v: number) => void;
   /** look down → the watch slides up. Only repaints when the minute turns. */
   watch: (want: boolean, mins: number) => void;
+  /** The frame-rate readout, toggled with F. `null` hides it.
+   *
+   *  The user: *"i get awful performance drops in my room not sure why. can we
+   *  also get an fps counter?"* — so it reports the WORST frame in the window
+   *  as well as the mean, because a mean hides a drop, which is the whole
+   *  subject. Off by default and toggled rather than pinned to a corner: he had
+   *  the standing HUD text removed, and a number nailed to the screen forever
+   *  is that same complaint in a new coat. */
+  setFps: (text: string | null) => void;
   /** right-click: flip the wallet out / away */
   toggleWallet: () => void;
   /** put the wallet away. `ct/inventory.ts` calls this when the POCKETS open:
@@ -1021,6 +1030,9 @@ export function screenFading(): boolean { return LIVE ? LIVE.fading() : false; }
 export function makeHud(purse: Purse): Hud {
   let watchShown = -1;
   let walletOpen = false;
+  /** The F readout's own element, created on first use so a world that never
+   *  toggles it adds nothing to the DOM at all. */
+  let fpsDiv: HTMLDivElement | null = null;
   const SKY_STOPS: [number, string][] = [
     [0, '#0d1018'], [5, '#0d1018'], [6.5, '#4a5464'], [8, '#7d8894'], [10, '#8a97a2'],
     [16.5, '#8a97a2'], [18.5, '#8f7f74'], [20, '#3a3f52'], [21.5, '#0d1018'], [24, '#0d1018'],
@@ -1296,6 +1308,23 @@ export function makeHud(purse: Purse): Hud {
         ? 'translateX(-50%) translateY(0) rotate(-5deg)'
         : 'translateX(-50%) translateY(140%) rotate(-5deg)';
       if (want && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
+    },
+    setFps: (text: string | null) => {
+      if (text === null) { if (fpsDiv) fpsDiv.style.display = 'none'; return; }
+      if (!fpsDiv) {
+        fpsDiv = document.createElement('div');
+        // Top-LEFT, deliberately. The watch is bottom-centre, the wallet
+        // bottom-centre, the prompt bottom-centre and the caption under the
+        // panel glass — the top-left corner is the one place nothing else in
+        // this world ever draws, so the readout cannot cover something the
+        // player is trying to read while diagnosing a stutter.
+        fpsDiv.style.cssText = 'position:fixed;left:10px;top:8px;z-index:20;pointer-events:none;'
+          + 'font:11px ui-monospace,monospace;color:#9cab8b;background:rgba(10,14,12,0.55);'
+          + 'padding:3px 7px;border-radius:3px;letter-spacing:.5px;white-space:pre;';
+        document.body.appendChild(fpsDiv);
+      }
+      fpsDiv.style.display = 'block';
+      fpsDiv.textContent = text;
     },
     toggleWallet: () => {
       walletOpen = !walletOpen;

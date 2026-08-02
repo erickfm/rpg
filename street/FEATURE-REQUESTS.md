@@ -2661,3 +2661,29 @@ to one side.
   bezel was itself a user request — `ct/apartment.ts:2494` records *"give the tv a
   bezel"* and `:2507` a follow-up on its colour — so this is a third pass on it and the
   file already warns *"the bezel must frame the glow, not swallow it"*.
+
+- **"its fine if the diner seat isnt reachable from one side. just make sure geometries
+  allow for access"** (2026-08-02) → **a RULING on the item-85 trade-off, written into
+  item 126.** He accepts the new look-preference behaviour; the acceptance becomes
+  *reachable from somewhere*, not *reachable from everywhere*. Consequence the desk
+  flagged into the row: `seats-walk` stations the player at **yaw 0**, one fixed pose per
+  seat, so under this ruling it is asking the wrong question — some of the 12 lost seats
+  may be the check measuring something he has just said he does not care about. Suspect
+  the check before the world.
+
+- **"i get awful performance drops in my room not sure why. can we also get an fps
+  counter?"** (2026-08-02) → **FPS counter done by the desk directly (press F); the
+  performance drop queued as item 128.** The counter is toggled, not pinned — he had the
+  standing HUD text removed, so a number nailed to a corner forever is that complaint in
+  a new coat. It reports the **worst frame in the window** alongside the mean, because
+  his report is about *drops* and a mean hides those. Lead for 128: the TV in 301
+  repaints its whole canvas and re-uploads the texture **9 times a second**
+  (`ct/apartment.ts:2683`, `tvRedraw = 0.11`).
+
+- **"scroll wheel needs to be more effective? i need to scroll way too much to get zoom
+  moving. i want it to be much more sensitive"** (2026-08-02) → **done by the desk
+  directly.** `FOV_STEP` 3 → 7, so the full 36° range is about five notches instead of
+  twelve. **Partly the desk's own doing:** widening `FOV_MIN` 64 → 52 one message earlier
+  answered his complaint about zoom *reach* while making the *effort* worse — range and
+  step are coupled and only one was changed. Recorded in the source so the pair stays
+  together next time.

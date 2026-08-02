@@ -19,6 +19,7 @@
 //
 // `alphaTest`, never `transparent`. A cut-out discards the fragment rather
 // than blending it, so tufts do not sort against each other or against the
+// STALE UNTIL 2026-08-02 — `dimWorld` no longer skips `transparent`. `props.ts:414` is now `isGlass = m.blending === AdditiveBlending`, so ONLY additive is excluded and an ordinary translucent material IS graded. This comment's old claim misrouted a queue item onto the wrong mechanism; the reasoning around it may still be sound, the RULE is not. 
 // fence behind them — and `transparent: true` would put them on `dimWorld`'s
 // skip list and leave them at full daylight brightness after dark, which is
 // the fault the lot's bunting had for weeks.
