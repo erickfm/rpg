@@ -44,6 +44,13 @@ export const RADIUS = 0.36;   // was 0.42
 // rather than a second hand-typed number that could drift from it. Bounded
 // desk exception for this feature; nothing else in this file changed.)
 
+// How far above/below a collider's `maxY` still counts as "at" it, for the
+// stand-on-top mechanic. Has to absorb one frame of `lastWorldY` lag (see its
+// own comment) plus ordinary floating-point slop without flickering the
+// player on and off the surface; 0.08 m is comfortably more than either and
+// still tight enough that you cannot stand on a roof from a metre below it.
+const TOP_EPS = 0.08;
+
 /** How far your eye sits above the seat pan. Standing eye is 1.62; on a
  *  0.45 m bench this puts you at 1.17, on a 0.71 m stool at 1.43. */
 export const SIT_EYE = 0.72;
@@ -73,6 +80,16 @@ export class FPRig {
   private groundY?: (x: number, z: number) => number;
   private airY = 0;   // height above the ground while jumping
   private vy = 0;
+  // The floor height PLUS airY, as of the end of last frame's update() — i.e.
+  // roughly where your feet actually are right now. Read at the TOP of this
+  // frame, before anything moves, so every collision test this frame uses one
+  // consistent, already-settled number rather than a value still changing
+  // under it. One frame of lag (≤16 ms) is not observable; recomputing it
+  // mid-frame, after `groundY` and `airY` have already changed for THIS
+  // frame, would be circular — the floor pick below needs to know whether you
+  // are already above a collider's top, which is exactly the question
+  // blocked() is asking a few lines earlier in the same frame.
+  private lastWorldY = 0;
   private jumpHeld = false; // holding the key doesn't re-jump; release first
   private crouchT = 0; // 0 standing, 1 crouched — eased so the camera dips smoothly
   private bobT = 0;
@@ -126,6 +143,7 @@ export class FPRig {
     this.groundY = o.groundY;
     this.pos = new THREE.Vector3(spawn.x, this.height, spawn.z);
     this.lastGood = { x: spawn.x, z: spawn.z };
+    this.lastWorldY = this.groundY ? this.groundY(spawn.x, spawn.z) : 0;
     cam.position.copy(this.pos);
   }
 
@@ -199,11 +217,46 @@ export class FPRig {
     this.standFrom = null;
   }
 
-  private blocked(x: number, z: number): boolean {
+  /**
+   * `atY`, WHEN GIVEN, is where your feet actually are right now (see
+   * `lastWorldY`). A collider with a real `maxY` stops blocking once you are
+   * at or above it — you are standing ON it, not walking INTO it — but ONLY
+   * for a caller that supplies `atY`. Every caller that omits it (`stand()`,
+   * both call sites below) gets EXACTLY the old behaviour: every collider is
+   * a wall at every height, which is the only safe default for "can I get up
+   * here" — standing up should never plant you on a car roof.
+   *
+   * A collider with no `maxY` at all is unaffected either way: the `c.maxY
+   * !== undefined` guard means it blocks at every height, exactly as every
+   * collider in the world always has.
+   */
+  private blocked(x: number, z: number, atY?: number): boolean {
     for (const c of this.colliders) {
-      if (x > c.minX - RADIUS && x < c.maxX + RADIUS && z > c.minZ - RADIUS && z < c.maxZ + RADIUS) return true;
+      if (x > c.minX - RADIUS && x < c.maxX + RADIUS && z > c.minZ - RADIUS && z < c.maxZ + RADIUS) {
+        if (c.maxY !== undefined && atY !== undefined && atY >= c.maxY - TOP_EPS) continue;
+        return true;
+      }
     }
     return false;
+  }
+
+  /** The highest standable collider top under (x, z) that you are ALREADY at
+   *  or above — never a jump-cut ceiling teleport. `atY` is `lastWorldY` (see
+   *  its own comment): you only ever get credit for height you already had
+   *  a moment ago, which is what makes this "land on it" rather than "walk up
+   *  to it and pop on top". No RADIUS padding here, unlike `blocked()` — that
+   *  padding stops your BODY colliding with the box's sides, but a roof does
+   *  not extend past its own edges, so padding it would let you stand on thin
+   *  air past the corner. */
+  private standTop(x: number, z: number, atY: number): number | null {
+    let best: number | null = null;
+    for (const c of this.colliders) {
+      if (c.maxY === undefined) continue;
+      if (x < c.minX || x > c.maxX || z < c.minZ || z > c.maxZ) continue;
+      if (atY < c.maxY - TOP_EPS) continue;
+      if (best === null || c.maxY > best) best = c.maxY;
+    }
+    return best;
   }
 
   // ── getting unstuck ───────────────────────────────────────────────────────
@@ -223,8 +276,12 @@ export class FPRig {
   // test starts passing again.
 
   /** How far, and which way, to push a point out of one box. Smallest of the
-   *  four axis escapes, which for an AABB is the minimum translation. */
-  private escapeFrom(c: AABB, x: number, z: number): { dx: number; dz: number; d: number } | null {
+   *  four axis escapes, which for an AABB is the minimum translation.
+   *  `atY`, when given, exempts a collider you are already standing on top of
+   *  — otherwise every frame spent on a car roof would read as "wedged" and
+   *  `unstick` would shove you back off the edge you just landed on. */
+  private escapeFrom(c: AABB, x: number, z: number, atY?: number): { dx: number; dz: number; d: number } | null {
+    if (c.maxY !== undefined && atY !== undefined && atY >= c.maxY - TOP_EPS) return null;
     const left = x - (c.minX - RADIUS);     // push -x by this
     const right = (c.maxX + RADIUS) - x;    // push +x
     const back = z - (c.minZ - RADIUS);     // push -z
@@ -247,7 +304,7 @@ export class FPRig {
    * And if it still cannot find air, it falls back to the last place the
    * player stood legally — being moved a metre is bad, being stuck is worse.
    */
-  private unstick(dt: number): void {
+  private unstick(dt: number, atY?: number): void {
     const UNSTICK_SPEED = 3.0;              // m/s, comparable to walking
     const PASSES = 4;                       // ample for a corner of two boxes
     const PATIENCE = 0.45;                  // s of getting nowhere before we give up and jump
@@ -263,7 +320,7 @@ export class FPRig {
       // right-hand box and right into the left-hand one, for ever.
       let sx = 0, sz = 0, any = false;
       for (const c of this.colliders) {
-        const e = this.escapeFrom(c, x, z);
+        const e = this.escapeFrom(c, x, z, atY);
         if (e) { sx += e.dx; sz += e.dz; any = true; }
       }
       if (!any) break;
@@ -272,7 +329,7 @@ export class FPRig {
       pushX += sx; pushZ += sz;
     }
 
-    const needed = this.blocked(this.pos.x, this.pos.z);
+    const needed = this.blocked(this.pos.x, this.pos.z, atY);
     if (!needed) {
       // legal: remember it, and forget any accumulated frustration
       this.lastGood.x = this.pos.x; this.lastGood.z = this.pos.z;
@@ -331,6 +388,7 @@ export class FPRig {
       if (input.keys.has('escape') || this.forceUp) { this.forceUp = false; this.stand(); return; }
       this.crouchT += (0 - this.crouchT) * Math.min(1, dt * 9);
       const sgy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
+      this.lastWorldY = sgy;   // keep it live while seated, or standing up stale-reads it
       const sy = sgy + this.seat.h + SIT_EYE;
       this.cam.position.set(this.pos.x, sy, this.pos.z);
       this.look.set(
@@ -342,11 +400,18 @@ export class FPRig {
       return;
     }
 
+    // Where your feet actually are, as of the moment the LAST frame ended —
+    // see `lastWorldY`'s own comment for why this is one frame stale rather
+    // than recomputed live, and why that is fine. Read once and reused for
+    // every collision test this frame, including the floor pick at the
+    // bottom, so they all agree on the same "am I up there" answer.
+    const atY = this.lastWorldY;
+
     // Before anything else: if we are inside something, get out. Runs ahead
     // of movement so the step that follows starts from a legal position, and
     // after the seated return above — a seat deliberately puts you inside your
     // own chair, and shoving you off it would be the cure killing the patient.
-    this.unstick(dt);
+    this.unstick(dt, atY);
 
     this.fwd.set(Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     this.right.set(Math.cos(this.yaw), 0, Math.sin(this.yaw));
@@ -362,9 +427,9 @@ export class FPRig {
       const sp = (input.keys.has('shift') ? this.run : this.speed) * (1 - 0.55 * this.crouchT);
       mv.normalize().multiplyScalar(sp * dt);
       const nx = THREE.MathUtils.clamp(this.pos.x + mv.x, this.bounds.minX, this.bounds.maxX);
-      if (!this.blocked(nx, this.pos.z)) this.pos.x = nx;
+      if (!this.blocked(nx, this.pos.z, atY)) this.pos.x = nx;
       const nz = THREE.MathUtils.clamp(this.pos.z + mv.z, this.bounds.minZ, this.bounds.maxZ);
-      if (!this.blocked(this.pos.x, nz)) this.pos.z = nz;
+      if (!this.blocked(this.pos.x, nz, atY)) this.pos.z = nz;
       this.bobT += dt * (input.keys.has('shift') ? 11 : 7.5);
     }
     // a modest hop
@@ -391,7 +456,14 @@ export class FPRig {
       this.airY = Math.max(0, this.airY + this.vy * dt);
       if (this.airY === 0 && this.vy < 0) this.vy = 0;
     }
-    const gy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
+    let gy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
+    // Stand on a collider's top when you are already up there — see
+    // `standTop`'s own comment. Only raises the floor, never lowers it: a
+    // standable top under the terrain (there is no such case today, but
+    // nothing here assumes there cannot be) must not sink you into the
+    // ground.
+    const top = this.standTop(this.pos.x, this.pos.z, atY);
+    if (top !== null && top > gy) gy = top;
     const grounded = this.airY === 0;
     const y = this.height - this.crouchT * 0.68 + gy + this.airY + (moving && grounded ? Math.sin(this.bobT) * this.bob : 0);
     this.cam.position.set(this.pos.x, y, this.pos.z);
@@ -401,6 +473,11 @@ export class FPRig {
       -Math.cos(this.yaw) * Math.cos(this.pitch),
     );
     this.cam.lookAt(this.cam.position.x + this.look.x, y + this.look.y, this.cam.position.z + this.look.z);
+    // Settle what "where your feet are" means for NEXT frame — see
+    // `lastWorldY`'s own comment. gy already includes any collider top just
+    // picked above, so standing still on a roof keeps reading atY >= maxY
+    // and the surface holds you, frame after frame.
+    this.lastWorldY = gy + this.airY;
   }
 }
 
