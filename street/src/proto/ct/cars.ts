@@ -338,12 +338,13 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     // The width was fixed last time: 0.38 m half-width against a 0.34 m tyre
     // hugs the wheel, and no longer takes its extent from the panel. But the
     // height was 0.27 m, so the arch topped out at y = 0.34 + 0.27 = 0.61 while
-    // THE TYRE'S TOP IS AT 0.68. The tyre poked out above the arch — and since it
+    // THE TYRE'S TOP IS AT 0.663 (see `g.userData.tyre` below for why it is the
+    // apothem and not 0.68). The tyre poked out above the arch — and since it
     // stands 0.04 m proud of the flank, the disc then covered the arch behind it.
     // What was left to see was a disc on a flat panel above a straight rocker
     // line: "discs against a straight sill", which is the report.
     //
-    // 0.38 m of height clears the tyre's top by 4 cm, so a dark rim of arch shows
+    // 0.38 m of height clears the tyre's top by 6 cm, so a dark rim of arch shows
     // above and around the wheel — the air between the tyre and the arch line.
     // In world terms that is an arch 0.76 m across and 0.38 m tall for a 0.68 m
     // tyre: wide and shallow, which is what a wheel arch is. It looks tall in
@@ -1042,9 +1043,9 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // the tyre from the load space, and a top that closes it."
     //
     // Exactly right, and the arithmetic agrees. The bed's side wall spans x
-    // 0.74…0.90. The rear tyre spans 0.70…0.94 and tops out at 0.68 against a
+    // 0.74…0.90. The rear tyre spans 0.70…0.94 and tops out at 0.663 against a
     // bed floor at 0.50. So the tyre passes clean through the wall, pokes 4 cm
-    // into the cavity and stands 18 cm proud of the floor. On a sedan that is
+    // into the cavity and stands 16 cm proud of the floor. On a sedan that is
     // hidden inside a closed body; on an open bed it is in plain sight.
     //
     // Inner wall plus lid, per rear wheel. The lid's top face at 0.76 IS the
@@ -1162,6 +1163,25 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   g.userData.rocker = ROCKER;
   g.userData.belt = BELT;
   g.userData.hoodTop = HOOD_TOP;         // the hood slab sits ON the belt, HOOD_T thick
+  /** The wheel's RADIUS. **Its top face is NOT at `2 · 0.34 = 0.68`, it is at
+   *  0.6634**, and four comments in this file said 0.68 before w28 measured it.
+   *
+   *  The reason is that `CylinderGeometry(0.34, 0.34, 0.24, 10)` at line 1141 is
+   *  a DECAGON, not a circle, and laid on its side as a wheel it stands on one
+   *  of its flats — so the highest point is the apothem above the hub, not the
+   *  radius:  `0.34 + 0.34·cos(π/10) = 0.6634`. Across the car's axis you do get
+   *  the full `2r = 0.68`, because two vertices land on that diameter, which is
+   *  why "a tyre 0.68 m across" elsewhere in this file is right and "the tyre's
+   *  top is at 0.68" was wrong.
+   *
+   *  It matters by more than 17 mm of pedantry: the tyre is **the only candidate
+   *  first step in the whole fleet** for a sedan/hatch/van climb route
+   *  (`notes/w21-car-roof-climb.md`, `notes/w28-car-climb-route.md`), it clears
+   *  the 0.14 m pavement by **28 mm** at 0.6634 against a guaranteed reach of
+   *  0.551, and it would clear by 45 mm if 0.68 were real. Half the margin, from
+   *  a number nobody had measured. Measured by
+   *  `scripts/probes/w28-tyre-top.mjs`, which prints the prediction and the
+   *  world side by side and agrees to four decimal places on all four kinds. */
   g.userData.tyre = 0.34;
   g.userData.wheelbase = spec.wheelZ * 2;
   g.userData.steer = (a: number) => { for (const w of front) w.rotation.y = a; };
