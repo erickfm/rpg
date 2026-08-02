@@ -15,7 +15,14 @@ await p.goto(process.env.SHOT_URL ?? 'http://localhost:4198/', { waitUntil: 'net
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 
 const colliders = await p.evaluate(() => window.__ct.colliders());
-const bed = colliders.find((c) => c.maxY !== undefined);
+// `find(c => c.maxY !== undefined)` was unambiguous while the bed floor was
+// the ONLY standable collider in the world. Item 29 gave the same truck a
+// hood, a cab roof and two bed rails, and this predicate then picked the hood
+// and failed a bed that was working perfectly — an instrument fault, not a
+// world fault. Ask for the surface BY NAME; the fallback keeps the old
+// behaviour on any world built before those tags existed.
+const bed = colliders.find((c) => c.tag === 'pickup-bed-floor')
+  ?? colliders.find((c) => c.maxY !== undefined);
 console.log('bed collider:', JSON.stringify(bed));
 if (!bed) { console.log('FAIL: no standable collider found'); process.exit(1); }
 

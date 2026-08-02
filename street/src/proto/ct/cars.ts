@@ -29,21 +29,83 @@ export const CAR_SPEC: Record<CarKind, { len: number; wheelZ: number }> = {
  *  `FLOOR_T` in the pickup branch of `makeCar`, which now READ these fields
  *  rather than restate them; `half` mirrors `CAR_SPEC.pickup.len / 2`.
  *
- *  `floorY` (0.50 m) is the one flat surface on the whole fleet UNDER the
- *  jump's own apex (~0.57 m from flat ground — `fp.ts`'s `vy = 4.0` against
- *  14 m/s² of gravity). Every other flat top in the fleet is taller: the
- *  door line (BELT 0.84), the hoods (0.94), the roofs (1.4-1.8). That is why
- *  the bed floor, not the hood or the roof, is the one surface this project
- *  made standable first — the others are real but are not reachable with the
- *  jump as currently tuned, and re-tuning the jump is a separate change this
- *  item does not make (see notes/w13-collider-volume.md). */
+ *  `floorY` (0.50 m) is the one flat surface on the whole fleet a standing
+ *  jump can gain from the street. Every other flat top is taller: the door
+ *  line (BELT 0.84), the hoods (0.94), the roofs (1.4-1.8). That is why the
+ *  bed floor is the surface this project made standable first
+ *  (notes/w13-collider-volume.md).
+ *
+ *  ITEM 1 SAID "UNDER THE JUMP'S OWN APEX (~0.57 m)" HERE, AND THAT IS NOT
+ *  WHY IT WORKS. 0.571 m is the apex of the CONTINUOUS system; measured, the
+ *  world gives 0.471 m at `main.ts`'s dt clamp and 0.538 m at 60 fps
+ *  (scripts/probes/w21-apex.mjs). **0.50 m is ABOVE the worst-case apex**, and
+ *  the hop off the road only lands because `standTop` credits a surface from
+ *  `TOP_EPS` (0.08 m) below it — a 51 mm margin off flat road, 191 mm off the
+ *  kerb. The conclusion survived; the reason did not. Anything picked against
+ *  "0.571" from here on is picked against a number this engine never reaches.
+ *  (w21, item 29.) */
 export const PICKUP_BED = {
   half: CAR_SPEC.pickup.len / 2,   // 2.45 — the mesh's own half-length
   z0: 0.55,                        // BED_Z0 — bed front, behind the cab
   gateT: 0.10,                     // GATE_T — tailgate thickness
   halfW: 0.9,                      // HW — the tub's inner half-width
   floorY: 0.50,                    // FLOOR_T — the floor's top surface
+  railY: 0.97,                     // RAIL_T — the bed WALL's top face
+  wallT: 0.16,                     // WALL_T — how thick that wall is
 };
+
+/** The body's own vertical extent, shared by all four kinds — rocker to
+ *  beltline — plus the hood slab that sits ON the belt. Hoisted to module
+ *  scope (they were locals in `makeCar`) so `HOOD_TOP` below is the SAME
+ *  number the hood mesh is positioned from, and so a collider built from it
+ *  cannot drift from the panel it describes. */
+const ROCKER = 0.34, BELT = 0.84;
+/** The hood/boot slab's thickness. It sits ON the belt, so its centre is
+ *  `BELT + HOOD_T / 2` and its top face is `HOOD_TOP`. */
+const HOOD_T = 0.10;
+/** The top face of the hood — the flat panel over the engine, on every kind.
+ *  0.94 m: too high to reach from the pavement. A hop gains 0.471-0.558 m
+ *  depending on frame time (fp.ts:446's "0.571" is the continuous apex and is
+ *  never reached — see crosstown.ts's item-29 block and
+ *  scripts/probes/w21-apex.mjs) and `standTop` credits a top from 0.08 m
+ *  below it, so 0.14 + 0.551 = 0.69 m is a standing player's guaranteed reach
+ *  off the kerb. Which is why on the pickup this is only ever met on the way
+ *  DOWN off the cab roof. */
+export const HOOD_TOP = BELT + HOOD_T;
+
+/** The pickup's CAB, in the vehicle's own LOCAL frame (front is -z). Same
+ *  contract as `PICKUP_BED`: the `loftCabin` call in `makeCar`'s pickup branch
+ *  READS these fields rather than restating the numbers, so the collider the
+ *  world builds from them cannot drift from the glass it describes
+ *  (BUILDER-BRIEF §8: derive, never retype).
+ *
+ *  `roofY` (1.50 m) is the surface item 29 exists to make reachable. It is a
+ *  metre above the bed floor — two jumps, not one — which is why the bed WALL
+ *  (`PICKUP_BED.railY`, 0.97) is the step between them. */
+export const PICKUP_CAB = {
+  baseY: BELT,        // y0 — the greenhouse's foot, on the beltline
+  roofY: 1.50,        // y1 — the roof plate's top face
+  baseZ0: -1.0,       // zbf — the windscreen's foot
+  baseZ1: 0.45,       // zbr — the rear window's foot
+  roofZ0: -0.45,      // zrf — the roof plate, front edge
+  roofZ1: 0.32,       // zrr — the roof plate, rear edge
+  baseHalfW: 0.85,    // wBase
+  roofHalfW: 0.74,    // wRoof
+};
+
+/** Where, along the pickup's own axis, the windscreen rises past the hood's
+ *  top — i.e. the last z at which a box standing at `HOOD_TOP` is still
+ *  OUTSIDE the glass rather than inside the cab. Derived from the loft's own
+ *  two endpoints, not measured off a screenshot: the screen runs from
+ *  (`baseZ0`, `baseY`) to (`roofZ0`, `roofY`), so this is the linear crossing.
+ *
+ *  It is the seam between the pickup's two collision tiers — hood below,
+ *  cab above — and it is derived rather than typed because moving the
+ *  beltline (an open request, notes/BLOCKED-H.md) would otherwise leave the
+ *  seam behind and put a standable shelf inside the cab. */
+export const PICKUP_COWL_Z = PICKUP_CAB.baseZ0
+  + (HOOD_TOP - PICKUP_CAB.baseY) / (PICKUP_CAB.roofY - PICKUP_CAB.baseY)
+  * (PICKUP_CAB.roofZ0 - PICKUP_CAB.baseZ0);
 
 // ── DOORS ────────────────────────────────────────────────────────────────
 //
@@ -759,7 +821,8 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   // on every vehicle. Found by actually trying BELT = 0.94 and noticing the hood
   // apex did not move, which is also the blind spot scripts/carstate.mjs had.
   const BED_Z0 = PICKUP_BED.z0;                         // bed front, behind the cab
-  const ROCKER = 0.34, BELT = 0.84;                     // the slab's own extent
+  // ROCKER/BELT/HOOD_T/HOOD_TOP are module-scope now, so the world's collider
+  // builder can read the SAME numbers this mesh is positioned from.
   const slabLen = kind === 'pickup' ? half + BED_Z0 : spec.len;
   const slabZ = kind === 'pickup' ? (BED_Z0 - half) / 2 : 0;
   const plan = doorPlan(kind, half);
@@ -799,11 +862,15 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // no trunk: the rear glass slopes all the way to the tail
     g.add(loftCabin(0.81, 0.72, BELT, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofOf(1.44, half - 0.7), flatT(cabinSideTex(plan.glass, -0.85, half - 0.15))));
   } else if (kind === 'pickup') {
-    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 1.5), hoodM(40 / 48, 1.7, 1.5));
-    hood.position.set(0, BELT + 0.05, -half + 0.85);
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, HOOD_T, 1.5), hoodM(40 / 48, 1.7, 1.5));
+    hood.position.set(0, HOOD_TOP - HOOD_T / 2, -half + 0.85);
     hoodPanel = hood; g.add(hood);
-    // short cab, near-vertical rear window
-    g.add(loftCabin(0.85, 0.74, BELT, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofOf(1.48, 0.77), flatT(cabinSideTex(plan.glass, -1.0, 0.45))));
+    // short cab, near-vertical rear window. Every number here is READ from
+    // PICKUP_CAB rather than typed twice — the world builds the cab's
+    // standable collider from that same object (crosstown.ts, item 29).
+    const K = PICKUP_CAB;
+    g.add(loftCabin(K.baseHalfW, K.roofHalfW, K.baseY, K.roofY, K.baseZ0, K.baseZ1, K.roofZ0, K.roofZ1,
+      glassM, roofOf(1.48, 0.77), flatT(cabinSideTex(plan.glass, K.baseZ0, K.baseZ1))));
     // ── THE BED: a real open tub, floor BELOW the beltline ────────────────
     //
     // Rebuilt rather than nudged, because the bed has now been asked about
@@ -820,9 +887,9 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     //                     half-ton bed, and lands just above the axle line
     //   skin       0.34 … 0.97 — the outer wall now spans rocker to rail, so
     //                     it carries the body side art the slab used to
-    const RAIL_T = 0.97;
+    const RAIL_T = PICKUP_BED.railY;
     const FLOOR_T = PICKUP_BED.floorY;  // the floor's TOP surface
-    const WALL_T = 0.16, GATE_T = PICKUP_BED.gateT;
+    const WALL_T = PICKUP_BED.wallT, GATE_T = PICKUP_BED.gateT;
     const HW = PICKUP_BED.halfW;        // body half-width — the slab is 1.8 wide
     const SKIN_H = RAIL_T - ROCKER;     // 0.63 m of outer wall
     const wallLen = (half - GATE_T) - BED_Z0;
@@ -1094,7 +1161,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   // harness was carrying a stale width".
   g.userData.rocker = ROCKER;
   g.userData.belt = BELT;
-  g.userData.hoodTop = BELT + 0.10;      // the hood slab sits ON the belt, 0.1 thick
+  g.userData.hoodTop = HOOD_TOP;         // the hood slab sits ON the belt, HOOD_T thick
   g.userData.tyre = 0.34;
   g.userData.wheelbase = spec.wheelZ * 2;
   g.userData.steer = (a: number) => { for (const w of front) w.rotation.y = a; };
