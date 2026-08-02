@@ -14,9 +14,13 @@ Read these; everything else is history or reference.
 1. **`street/START-HERE.md`** — orientation, which agent you are, how to run things
 2. **`street/notes/GOTCHAS.md`** — landmines. Read before your first change
 3. **`street/notes/OWNERSHIP.md`** — which files are yours
-4. **`street/notes/queues/<agent>.md`** — your actual tasks. **Unticked boxes do
-   NOT mean open work** — most queues were never ticked off. The ledger says
-   whether; the queue only says how
+4. **`street/notes/QUEUE.md`** — **the one ranked list of work.** Builders take
+   the top item with `./scripts/claim.sh <name>`, finish it, run
+   `./scripts/done.sh <name> "..."`, and claim again — nobody waits to be told
+   what is next. Rules for *how* live in **`street/notes/BUILDER-BRIEF.md`**,
+   read once per session
+5. `street/notes/queues/<agent>.md` — **DEAD, kept only as history.** The old
+   per-agent files were never ticked off and have not been true for weeks
 
 Reference, for looking things up rather than reading: `street/PARALLEL-WORKFLOW.md`
 (the multi-agent process) and `street/FEATURE-REQUESTS.md` (every request in the
@@ -29,9 +33,15 @@ Log every user request to `street/FEATURE-REQUESTS.md`, and **say which agent it
 was routed to** when you reply — the user cannot reprioritise a queue he cannot
 see.
 
-Builders take tasks from `street/notes/queues/<agent>.md`. The desk writes those
-files; builders only read them, and report completion in a handoff note under
-`street/notes/`.
+**Builders are self-serving: they take the top item from `street/notes/QUEUE.md`,
+finish it, release it, and take the next.** The desk ranks the queue and verifies
+what comes back; it does not hand out work item by item. A builder that runs out
+of queue says so and stops — it does not invent work.
+
+`claim.sh` and `done.sh` lock the file, so two builders can never hold the same
+item. **A builder never confirms its own work**: `done.sh` marks DONE, and the
+desk checks it against the source before the LEDGER row moves. Every agent this
+week has made at least one claim that did not survive that check.
 
 **At most 5 agents run at once — normally 3 builders + 1 auditor.** A
 sixteen-agent run exhausted the account's usage on 2026-07-30 and took the whole

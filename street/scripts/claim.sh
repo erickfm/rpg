@@ -1,0 +1,60 @@
+#!/bin/sh
+# Claim the top unclaimed item in notes/QUEUE.md, atomically.
+#
+# The user: *"as a builder finishes one task they pick up another."* This is the
+# whole mechanism. A builder runs it, gets one item, does it, runs done.sh, runs
+# this again. Nobody waits to be told.
+#
+# WHY A LOCK. Builders run concurrently. Read-modify-write on a shared file
+# without one gives two builders the same item, and this project has already
+# paid for two agents in one file: a corrupted worktree and a broken live world
+# (PARALLEL-WORKFLOW §11). `mkdir` is the atomic primitive available in sh —
+# it succeeds for exactly one caller.
+#
+# Usage:  ./scripts/claim.sh <your-name>
+set -u
+cd "$(dirname "$0")/.." || exit 1
+Q=notes/QUEUE.md
+LOCK=notes/.queue.lock
+
+who=${1:-}
+[ -z "$who" ] && { echo "usage: claim.sh <your-name>"; exit 2; }
+
+# ── take the lock, and never leave it behind ──────────────────────────────
+tries=0
+until mkdir "$LOCK" 2>/dev/null; do
+  tries=$((tries + 1))
+  if [ "$tries" -gt 60 ]; then
+    # A dead builder's lock must not stop the queue forever.
+    echo "queue locked for 60s — assuming a dead holder and taking it"
+    rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || exit 1
+    break
+  fi
+  sleep 1
+done
+trap 'rm -rf "$LOCK"' EXIT INT TERM
+
+# ── the top TODO row, if any ──────────────────────────────────────────────
+row=$(grep -n '^| *[0-9]* *| *TODO *|' "$Q" | head -1)
+if [ -z "$row" ]; then
+  held=$(grep -c '^| *[0-9]* *| *DOING' "$Q" 2>/dev/null); held=${held:-0}
+  echo "QUEUE EMPTY — nothing unclaimed."
+  [ "$held" -gt 0 ] && echo "($held item(s) still held by other builders.)"
+  echo "Say so and stop. Do not invent work."
+  exit 3
+fi
+
+ln=${row%%:*}
+num=$(printf '%s' "$row" | sed 's/^[0-9]*:| *\([0-9]*\) *|.*/\1/')
+
+# mark it DOING, stamped with who and when — one sed, inside the lock
+stamp="DOING $who $(date '+%H:%M')"
+sed -i "${ln}s/| *TODO *|/| $stamp |/" "$Q" || exit 1
+
+echo "=== claimed item $num ==="
+sed -n "${ln}p" "$Q" | sed 's/^| *[0-9]* *| *[^|]* *|/  file(s):/' | sed 's/ *| */\n  /'
+echo
+echo "  Rules for HOW: notes/BUILDER-BRIEF.md (read it once)"
+echo "  Your port:     pick a free one in 4180-4199, and always pass SHOT_URL"
+echo "  When finished: ./scripts/done.sh $who \"<one line on what you did>\""
+echo "  Then claim again. Commit as you go — killed agents keep only commits."

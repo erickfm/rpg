@@ -11,7 +11,8 @@ project. This page gets you productive; everything else is linked from it.
 | **START-HERE.md** | you are here | orientation + how to run things |
 | **notes/GOTCHAS.md** | 120 lines | landmines. read before your first change |
 | **notes/OWNERSHIP.md** | 53 lines | which files are yours |
-| **notes/queues/\<you\>.md** | short | your actual tasks — but **unticked boxes ≠ open work**, most queues were never ticked off. The ledger says whether, the queue says how |
+| **notes/QUEUE.md** | one list | **the work.** `./scripts/claim.sh <you>` takes the top item, `./scripts/done.sh <you> "..."` releases it, then claim again |
+| **notes/BUILDER-BRIEF.md** | read once | every standing rule — worktree check, ports, ownership, how to prove it |
 | **notes/CITIZEN-STYLE.md** | read before drawing ANY person | the 8-angle atlas, with examples |
 
 Two more exist as **reference**, not reading: `PARALLEL-WORKFLOW.md` (the
@@ -45,9 +46,12 @@ not own is what causes almost every merge conflict here.
 - **The desk** — the session the user talks to. Triages every request, routes
   it, owns the merge queue, does small changes itself, and keeps the live world
   healthy. If nobody told you otherwise, you are probably a builder.
-- **A builder** — you work in a git worktree (`../rpg-<topic>`) on your own
-  branch. Your tasks are in `notes/queues/<you>.md`. The desk writes that file;
-  **you only read it.**
+- **A builder** — you work in a git worktree on your own branch. **You take work
+  yourself**: `./scripts/claim.sh <you>` gives you the top item of
+  `notes/QUEUE.md`, `./scripts/done.sh <you> "..."` releases it, then you claim
+  again. You do not wait to be told what is next, and when the queue is empty you
+  say so and stop rather than inventing work. Read `notes/BUILDER-BRIEF.md` once
+  for the standing rules.
 - **An auditor** — read-only. You produce a report, you do not edit `src/`.
 
 ---
@@ -57,14 +61,15 @@ not own is what causes almost every merge conflict here.
 ```bash
 cd street
 npm run build                 # tsc --noEmit && vite build — must be clean
-cat notes/queues/<you>.md     # your queue: take the top item under ## Now
+cat notes/BUILDER-BRIEF.md    # the standing rules — read once
+./scripts/claim.sh <you>      # takes the top item of notes/QUEUE.md
 ./scripts/ownership.sh <you>  # are you inside your boundaries?
 ```
 
 Then read, in this order:
 
 1. **`notes/GOTCHAS.md`** — landmines that have each cost hours. Not optional.
-2. **`notes/queues/<you>.md`** — your tasks, with links to the user's screenshots.
+2. **`notes/BUILDER-BRIEF.md`** — the standing rules, then claim your first item.
 
 That is enough to start. Reach for `PARALLEL-WORKFLOW.md` when you need the
 process (§12 how feedback is given, §15 what we would fix next), and
