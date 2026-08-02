@@ -2719,3 +2719,13 @@ to one side.
   *"work back from there"* means he expects to tune it by feel and that must be one
   number, not a re-implementation. Flagged the stairs as the risk: a staircase is a
   sequence of small drops and could become a bouncing descent.
+
+- **"its weird it feels like my mouse doesnt work right in my room??"** (2026-08-02)
+  → **routed as queue item 134, TOP — a live regression from today's diegetic ATM work.**
+  Desk diagnosis: `ct/hud.ts:931` calls `document.exitPointerLock()` when a diegetic
+  panel opens (correct — a locked pointer reports no `clientX/clientY`, which is the bug
+  that made the first ATM click freeze the cursor). But **the ONLY `requestPointerLock`
+  in the codebase is `main.ts:32`, on click** — nothing restores the lock when the panel
+  closes. So after using the ATM the player is left unlocked, mouse-look degrades to the
+  drag-to-look fallback, and it persists until he happens to click. Not room-specific;
+  the room is just where he ended up.
