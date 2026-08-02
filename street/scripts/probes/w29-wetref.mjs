@@ -75,4 +75,30 @@ for (let i = 0; i < 7; i++) {
     `${(ds >= 0 ? '+' : '') + ds.toFixed(4)}   ${r.wetness?.toFixed(4)}`);
 }
 console.log('\n"darker than dry" > 0 means the street is still visibly wet.');
+
+// ── THE SLEEP, DEMONSTRATED ON REAL READINGS ─────────────────────────────
+//
+// The failing scenario is not "it never rained" — both predicates catch that,
+// because the storm sample is then dry too. It is "it rained and then dried
+// COMPLETELY", which is what w22 observed. Simulating that live would mean
+// waiting out `48 * (1 + soak * 1.5)` seconds of drying, so instead both
+// predicates are applied to readings that were all MEASURED above: the storm
+// sample, and the genuine bone-dry sample taken before it.
+//
+// Nothing here is invented — `dry` is a real reading of a real dry street and
+// `wet` is a real reading of a real storm. The only thing being supposed is
+// that the street reached `dry` again, which is exactly what drying does.
+const oldVerdict = dry.broad !== wet.broad || dry.strip !== wet.strip;
+const newVerdict = dry.wetness > 0.004 &&
+  (lum(dry.broad) - lum(dry.broad)) > 0.02 && (lum(dry.strip) - lum(dry.strip)) > 0.02;
+console.log('\nif the street dried COMPLETELY and each predicate were asked "is it still wet":');
+console.log(`  OLD  last.broad !== wet.broad          -> ${oldVerdict ? 'PASS  <-- SLEPT' : 'FAIL'}` +
+  `   (${dry.broad} !== ${wet.broad} is ${dry.broad !== wet.broad})`);
+console.log(`  NEW  darker than dry, on both surfaces -> ${newVerdict ? 'PASS' : 'FAIL  <-- correctly red'}` +
+  `   (0.0000 darker, wetness ${dry.wetness})`);
+if (!oldVerdict || newVerdict) {
+  console.error('\n  UNEXPECTED: the old predicate did not sleep, or the new one does. Re-measure.');
+  process.exit(1);
+}
+console.log('\nso the old verdict was satisfied BY drying, which is the thing it was meant to detect.');
 await b.close();
