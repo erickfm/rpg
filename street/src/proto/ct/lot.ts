@@ -1937,6 +1937,25 @@ function buildLot(o: {
       const { x, z, yaw } = BAY[b];
       const it = STOCK[n];
       n++;
+      // EVERY CAR GETS A COLLIDER, registered here before a single line of
+      // per-bay dressing runs. This used to sit at the foot of the loop,
+      // after the switch on `it.treat` — which is exactly where the
+      // hood-up car's early `continue` (below) skipped past it. A car with
+      // its bonnet up carried no collider at all: the debug overlay drew a
+      // box on every neighbour and left bay 1 bare, and a player could walk
+      // straight through the one car in the lot most likely to be stood
+      // next to. `jack` and `blocks` never took that shortcut, so they were
+      // never actually broken, but they were one future dressing branch away
+      // from the same fault — any bay-specific path that returns early still
+      // reaches this line first, because it is now above every branch rather
+      // than after all of them.
+      //
+      // A 1.8 x 4.6 car at 0.55 rad has a 3.9 x 4.9 bounding box, which from
+      // NORTH_Z would reach 0.5 m past the aisle edge, so this is
+      // deliberately tighter than the true footprint: you can brush a wing,
+      // and in exchange the 6.8 m you can see down stays 6.8 m you can walk
+      // down.
+      solid({ minX: x - 1.4, maxX: x + 1.4, minZ: z - 2.0, maxZ: z + 2.0 });
       const g0 = new THREE.Group();
       g0.add(makeCar(it.kind, it.col, false, NOT_PARKED.get(b)));
       buyersGuide(g0);                                  // every car, by law
@@ -1979,36 +1998,36 @@ function buildLot(o: {
         g0.add(tyreOff);
       }
       const state = NOT_PARKED.get(b);
-      if (state?.hood) { g0.position.set(x, Y, z); g0.rotation.y = yaw; scene.add(g0); continue; }
-      switch (it.treat) {
-        case 'soap':
-          onGlass(g0, soapT(it.price!), 1.05, 0.34, 0.62);
-          break;
-        case 'burst':
-          onGlass(g0, burstT(it.price!), 0.44, 0.44, 0.60);
-          if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.13, 0.07);
-          break;
-        case 'card':
-          onGlass(g0, soapT(it.price!), 0.92, 0.30, 0.64);
-          if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.13);
-          break;
-        case 'slip':
-          onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.46, 0.42);
-          break;
-        case 'sold':
-          onGlass(g0, soldT(), 0.86, 0.20, 0.55, 0.22);
-          break;
-        case 'bare': break;
+      // A CAR WITH ITS BONNET UP IS NOT BEING SOLD TODAY, so it carries no
+      // windscreen price — the switch below is simply skipped for it, rather
+      // than the whole loop body returning early the way it used to. The
+      // collider above no longer lives inside this branch, so skipping the
+      // switch cannot skip it too.
+      if (!state?.hood) {
+        switch (it.treat) {
+          case 'soap':
+            onGlass(g0, soapT(it.price!), 1.05, 0.34, 0.62);
+            break;
+          case 'burst':
+            onGlass(g0, burstT(it.price!), 0.44, 0.44, 0.60);
+            if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.13, 0.07);
+            break;
+          case 'card':
+            onGlass(g0, soapT(it.price!), 0.92, 0.30, 0.64);
+            if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.13);
+            break;
+          case 'slip':
+            onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.46, 0.42);
+            break;
+          case 'sold':
+            onGlass(g0, soldT(), 0.86, 0.20, 0.55, 0.22);
+            break;
+          case 'bare': break;
+        }
       }
       g0.position.set(x, Y, z);
       g0.rotation.y = yaw;
       scene.add(g0);
-      // The box has to stay OUT of the aisle or the aisle is not an aisle.
-      // A 1.8 x 4.6 car at 0.55 rad has a 3.9 x 4.9 bounding box, which from
-      // NORTH_Z would reach 0.5 m past the aisle edge, so this is deliberately
-      // tighter than the true footprint: you can brush a wing, and in exchange
-      // the 6.8 m you can see down stays 6.8 m you can walk down.
-      solid({ minX: x - 1.4, maxX: x + 1.4, minZ: z - 2.0, maxZ: z + 2.0 });
     }
 
     // ── the yard ─────────────────────────────────────────────────────────
