@@ -1911,3 +1911,26 @@ screens on the facade stay as they are; **the interface panel gets redrawn in
 their palette** instead of its current beige-and-amber. Consistent with his
 earlier *"i like the atm, maybe add another on the left"* — the facade machines
 were always the design he liked.
+
+
+## The library's terminals are computers, and they should boot
+
+> *"change this to being computer not terminal. and lets have windows style pc
+> we can actually use"*
+
+Two halves, deliberately split so two agents never touch one file:
+
+1. **The word.** `int-library.ts:1261` reads `label: 'sit at the terminal'`.
+   *Terminal* is a dumb glass teletype; what is drawn on that desk is plainly a
+   beige mid-90s **PC**. Forwarded to the library agent already in that file.
+2. **The machine.** A **new module** that opens a Windows-style desktop when you
+   sit at one — a real interface, not a prop.
+
+**They join by SEAT LABEL, which is how this codebase already wires panels to
+furniture**: `slots.ts` waits for `'sit at the slot'` and `blackjack.ts` for
+`'sit at the blackjack table'`. So the label rename and the new panel can be
+built in parallel and meet in the middle, with no shared file between them.
+
+The room already earns it — he asked for *"computers in the library"* and got
+three handsome beige boxes with nothing behind the glass. This is the same
+shape as the slots and blackjack: the cabinet exists, the software does not.
