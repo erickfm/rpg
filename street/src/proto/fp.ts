@@ -141,8 +141,31 @@ export class FPRig {
    * here because "you got up inside the table" is the failure mode this
    * mechanic will be judged on, and a seat registered with a bad approach by
    * some future builder would otherwise strand the player with no way out.
+   *
+   * `forceUp` IS CLEARED HERE, UNCONDITIONALLY, EVEN WHEN ALREADY STANDING.
+   * This is the fix for "you cannot sit at blackjack after standing up from
+   * the slots" (queue item 0f). Escape has TWO independent ways to end up
+   * here: `ct/hud.ts`'s panel `close()` calls `__ct.stand()` synchronously
+   * the moment a seat-opened panel shuts, and — same keydown, capture phase,
+   * registered on the same `window` — this class's OWN Escape listener
+   * (line ~99) sets `forceUp`, a flag meant to be consumed by the `if
+   * (this.seat)` branch of `update()` on the NEXT frame as a fallback in case
+   * the panel path fails. When the panel path succeeds FIRST (it does, every
+   * time — capture listeners run in registration order and hud.ts's `gate`
+   * fires after this class's own, since the rig is constructed before any
+   * panel ever opens), `this.seat` is already `null` by the time `update()`
+   * runs, so the `if (this.seat)` branch that resets `forceUp` never
+   * executes — `forceUp` is stranded at `true`. It sits there inert until
+   * the player next sits down ANYWHERE, at which point `update()`'s very
+   * first seated frame reads the stale flag and calls `stand()` again,
+   * un-seating them one frame after they sat — invisible to the player
+   * (`seated` reads false a moment later either way) but indistinguishable
+   * from the seat simply not working. Clearing the flag on every `stand()`,
+   * not only the one `update()` performs for itself, means whichever of the
+   * two paths gets there first also cleans up after the other.
    */
   stand(): void {
+    this.forceUp = false;
     if (!this.seat) return;
     const seat = this.seat;
     let to = this.standFrom;
