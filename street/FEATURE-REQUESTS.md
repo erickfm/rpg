@@ -1733,3 +1733,31 @@ screenshot shows.
 
 So this is not only a placement nudge; the snug limit itself is drawn tighter
 than the eye accepts.
+
+**Answered:** back **along the street**, not off the kerb. Moved `-13` → `-11`,
+two metres against a ~4.8 m car — a reverse into the space behind it. Measured:
+the sedan's collider went from z −13.97 to −11.97, the other two parked cars
+unmoved.
+
+I got the direction wrong on the first attempt and moved it two metres *forward*
+before catching it. The east kerb parks facing **south**, and south is −z, so
+reversing is +z. Written into the code comment rather than just fixed, because
+this is the same sign trap `GOTCHAS` already records for `atan2(nx,nz)`.
+
+The 2 cm kerb clearance noted above is still unaddressed — it was not what he
+was asking about, and it is filed rather than folded in.
+
+
+## A debug mode that shows collision
+
+> *"can we implement a debug mode where i press a toggle to view collision?"*
+
+Routed to a builder. This is the natural companion to the earlier
+*"get rid of outline unless debug is true, we'll probably want that for debug"* —
+the same debug surface, so it should be one flag and one key, not two schemes.
+
+Worth more than it looks: **the last week's most expensive bugs were all
+invisible collision.** Two thirds of the jail site was solid and nobody could
+see it; the thrift keeper stood 5 cm inside a wall; a parked-car gap once
+trapped the user with *"im literally stuck here"*. Every one of those would have
+been obvious at a glance with collider volumes drawn.

@@ -362,7 +362,20 @@ export function makeCrosstown(): Proto {
   const truckZ0 = AZ0 + ALLEY_SIGHT + carHalf.pickup + PARK_SPREAD / 2;
   // kind, colour, which kerb, roughly where
   const parked: [CarKind, number, number, number][] = [
-    ['sedan', 1, 1, -13],
+    // -13 -> -11: the user, looking at it broadside from the walk by the lamp
+    // post, asked to "move this car back just a bit", and confirmed he meant
+    // back ALONG the street rather than off the kerb.
+    //
+    // WHICH WAY IS BACK — I got this wrong first time and it is worth writing
+    // down. The east kerb parks facing SOUTH (`ct/sidestreet.ts`: "the same
+    // rule the main street's east kerb follows by facing south"), and south is
+    // -z here: `bugsweep`'s own station `warp(-1, -20, 0)` is labelled "looking
+    // back north", so yaw 0 is +z is north. A car facing -z reverses towards
+    // +z. My first edit moved it to -15, which was two metres FORWARD.
+    //
+    // This is the same sign trap GOTCHAS records for atan2(nx,nz) — the
+    // direction is only ever obvious after you find the sentence that fixes it.
+    ['sedan', 1, 1, -11],
     ['pickup', 3, -1, truckZ0],
     ['hatch', 5, 1, -49],
   ];
