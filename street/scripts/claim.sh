@@ -50,9 +50,14 @@ done
 trap 'rm -rf "$LOCK"' EXIT INT TERM
 
 # ── the top TODO row, if any ──────────────────────────────────────────────
-row=$(grep -n '^| *[0-9]* *| *TODO *|' "$Q" | head -1)
+# `[0-9]*` MISSED EVERY LETTERED RANK. The desk inserts urgent items as 0a, 5b,
+# 6b … so a new item can jump the queue without renumbering rows other builders
+# are holding. That is a good scheme and this pattern could not see any of them:
+# eleven TODO items, all lettered, and claim.sh reported the queue EMPTY. Four
+# builders were spawned onto nothing. Match a digit-run with an optional letter.
+row=$(grep -n '^| *[0-9]*[a-z]* *| *TODO *|' "$Q" | head -1)
 if [ -z "$row" ]; then
-  held=$(grep -c '^| *[0-9]* *| *DOING' "$Q" 2>/dev/null); held=${held:-0}
+  held=$(grep -c '^| *[0-9]*[a-z]* *| *DOING' "$Q" 2>/dev/null); held=${held:-0}
   echo "QUEUE EMPTY — nothing unclaimed."
   [ "$held" -gt 0 ] && echo "($held item(s) still held by other builders.)"
   echo "Say so and stop. Do not invent work."
@@ -60,14 +65,14 @@ if [ -z "$row" ]; then
 fi
 
 ln=${row%%:*}
-num=$(printf '%s' "$row" | sed 's/^[0-9]*:| *\([0-9]*\) *|.*/\1/')
+num=$(printf '%s' "$row" | sed 's/^[0-9]*:| *\([0-9a-z]*\) *|.*/\1/')
 
 # mark it DOING, stamped with who and when — one sed, inside the lock
 stamp="DOING $who $(date '+%H:%M')"
 sed -i "${ln}s/| *TODO *|/| $stamp |/" "$Q" || exit 1
 
 echo "=== claimed item $num ==="
-sed -n "${ln}p" "$Q" | sed 's/^| *[0-9]* *| *[^|]* *|/  file(s):/' | sed 's/ *| */\n  /'
+sed -n "${ln}p" "$Q" | sed 's/^| *[0-9a-z]* *| *[^|]* *|/  file(s):/' | sed 's/ *| */\n  /'
 echo
 echo "  Rules for HOW: notes/BUILDER-BRIEF.md (read it once)"
 echo "  Your port:     pick a free one in 4180-4199, and always pass SHOT_URL"

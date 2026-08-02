@@ -41,11 +41,11 @@ until mkdir "$LOCK" 2>/dev/null; do
 done
 trap 'rm -rf "$LOCK"' EXIT INT TERM
 
-row=$(grep -n "^| *[0-9]* *| *DOING $who " "$Q" | head -1)
+row=$(grep -n "^| *[0-9]*[a-z]* *| *DOING $who " "$Q" | head -1)
 [ -z "$row" ] && { echo "you ($who) do not hold anything — claim.sh first"; exit 3; }
 
 ln=${row%%:*}
-num=$(printf '%s' "$row" | sed 's/^[0-9]*:| *\([0-9]*\) *|.*/\1/')
+num=$(printf '%s' "$row" | sed 's/^[0-9]*:| *\([0-9a-z]*\) *|.*/\1/')
 esc=$(printf '%s' "$note" | sed 's/[&|/\]/\\&/g')
 sed -i "${ln}s/| *DOING $who [^|]*|/| DONE $who — $esc |/" "$Q" || exit 1
 

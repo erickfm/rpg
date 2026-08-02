@@ -1703,3 +1703,36 @@ which is the same trap as GOTCHAS 48 (instrument aimed at the wrong world) and
 
 **Cost when it happened:** two agents' work on one bug, a merge conflict, and the
 desk discarding one of two correct fixes.
+
+## 58. The queue's own claim pattern could not see most of the queue
+
+`claim.sh` matched rows with `'^| *[0-9]* *| *TODO *|'`. The desk inserts urgent
+work with **lettered ranks** — `0a`, `5b`, `6b` — so a new item can jump ahead
+without renumbering rows other builders are already holding. That scheme is
+sound. The pattern could not see a single one of them: `[0-9]*` matches the `5`,
+then demands a space or a pipe, and finds `b`.
+
+**Eleven TODO items, every one lettered, and `claim.sh` reported the queue
+EMPTY.** Four builders were spawned onto nothing; two burned ~46k tokens each
+doing exactly what they were told — reading the brief, resetting, checking,
+finding nothing, and stopping. Their behaviour was correct throughout. The
+instrument was wrong.
+
+**This is the fourth member of the same family and the most embarrassing,
+because it is the tool that hands out the work:**
+
+- §48 — an instrument aimed at the wrong world (port 4177)
+- §54 — an instrument walking the wrong direction (`room.east` undefined)
+- §57 — a builder measuring its own stale snapshot
+- §58 — **the dispatcher blind to most of its own list**
+
+**The rule that would have caught it, and now must be run after any queue edit:**
+
+```sh
+[ "$(grep -c '^| *[0-9]*[a-z]* *| *TODO *|' notes/QUEUE.md)" = "$(grep -c '| TODO |' notes/QUEUE.md)" ] \
+  || echo 'CLAIM PATTERN CANNOT SEE EVERY TODO ROW'
+```
+
+**"The queue is empty" is a claim about the queue AND about the reader.** When a
+worker reports empty and you believe there is work, check the reader before you
+believe the report.
