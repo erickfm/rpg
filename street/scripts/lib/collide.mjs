@@ -107,6 +107,42 @@ const PAGE_SRC = `(() => {
   return { inFrame, insideOne, blockedAt, worldAabb };
 })()`;
 
+/** Prove `__ct.staticColliders()` is really there, and say what it separated.
+ *
+ *  WHY A GUARD AND NOT A FALLBACK. The obvious defensive line is
+ *  `(__ct.staticColliders ?? __ct.colliders)()`, and it is exactly wrong here:
+ *  against a world too old to publish the accessor it would silently go on
+ *  measuring geometry against things that walk, which is the bug the migration
+ *  exists to remove — and the instrument would report a confident number with
+ *  nothing saying it had fallen back. Same failure as GOTCHAS 48, one level
+ *  down. So it throws instead, and the caller dies with a message that names
+ *  the cause.
+ *
+ *  It also refuses a world where NOTHING was separated. `statics.length ===
+ *  colliders.length` means either the crowd has not spawned yet or the actor
+ *  set is broken; in both cases the caller is about to "prove" a stability that
+ *  is really an empty sample (GOTCHAS 71).
+ *
+ *  Returns the three counts so the caller can print them — an instrument that
+ *  filtered should say how much it filtered. */
+export async function assertStaticColliders(page) {
+  const n = await page.evaluate(() => (typeof window.__ct?.staticColliders === 'function'
+    ? { all: window.__ct.colliders().length, statics: window.__ct.staticColliders().length,
+      actors: window.__ct.actorColliders?.().length ?? null }
+    : null));
+  if (!n) {
+    throw new Error('__ct.staticColliders() is not published by this world — it landed with item 81 '
+      + '(src/proto/crosstown.ts). Refusing to fall back to colliders(): that would measure geometry '
+      + 'against citizens and vehicles, which is the whole defect this instrument was migrated to avoid.');
+  }
+  if (n.statics === n.all) {
+    throw new Error(`__ct.staticColliders() separated nothing: ${n.all} colliders, ${n.statics} static, `
+      + `${n.actors} actors. Either the crowd has not spawned yet or actorBoxes is empty — either way this `
+      + 'run would prove stability over a sample with nothing moving in it.');
+  }
+  return n;
+}
+
 /** Install the predicates into the page as `window.__probeCollide`, then prove
  *  they arrived. Call once, after the world is up; every `page.evaluate`
  *  callback afterwards can use them.

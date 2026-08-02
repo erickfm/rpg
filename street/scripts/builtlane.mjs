@@ -21,8 +21,9 @@
 // notes/D-the-post-is-a-person.md. So the disagreement is not a hole here; it is
 // two different questions, and this one is "what did the BUILDERS leave".
 //
-// STATIC ONLY, on purpose. Two collider snapshots 1.5 s apart; anything whose
-// bounds moved is a citizen or a car and is dropped. That makes this
+// STATIC ONLY, on purpose, and asked of the world rather than inferred:
+// `__ct.staticColliders()` is the collider array minus the boxes the citizen
+// and vehicle registration hooks declared, BY OBJECT IDENTITY. That makes this
 // deterministic and about GEOMETRY, and it leaves the moving case to
 // crowd-walk, which now owns it properly.
 //
@@ -47,6 +48,7 @@
 //   SHOT_URL=http://localhost:PORT/ node scripts/builtlane.mjs [--selftest]
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
+import { assertStaticColliders } from './lib/collide.mjs';
 import { reportWorld, integrationNoise } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 
@@ -82,15 +84,24 @@ await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, URL);
 await setClock(page, 13, 0);
 
-const snap = () => page.evaluate(() => window.__ct.colliders()
+// ── the boxes that do not walk ────────────────────────────────────────────
+//
+// This measured the widest free run across each pavement, which is a question
+// about GEOMETRY: is the lane the world was drawn with wide enough? A citizen
+// standing in it narrows the run for a second and then leaves, and scoring that
+// is how a lane check reports a pinch nobody built.
+//
+// IT USED TO SAMPLE TWICE, 1.5 s APART, AND KEEP WHAT LOOKED THE SAME. Two
+// separate faults in one line, both invisible at the call site: a citizen who
+// merely PAUSED (and they pause constantly — see crowd-walk.mjs) was scored as
+// masonry, and the comparison was `set.has(key)` over FOOTPRINTS, so any box
+// whose 4-tuple matched any other box's kept it alive regardless of which
+// object it was. `__ct.staticColliders()` asks by object identity against the
+// registration hooks (crosstown.ts:1411) and has neither failure mode.
+const counts = await assertStaticColliders(page);
+const stat = await page.evaluate(() => window.__ct.staticColliders()
   .filter((c) => c && isFinite(c.minX) && Math.abs(c.minX) < 500)
   .map((c) => [+c.minX.toFixed(3), +c.maxX.toFixed(3), +c.minZ.toFixed(3), +c.maxZ.toFixed(3)]));
-const a1 = await snap();
-await page.waitForTimeout(1500);
-const a2 = await snap();
-const key = (c) => c.join('|');
-const moving = new Set(a2.map(key));
-const stat = a1.filter((c) => moving.has(key(c)));
 
 const scan = await page.evaluate((boxes) => {
   const RAD = 0.36, S = 0.05;
@@ -136,81 +147,41 @@ const sealed = scan.filter((s) => s.clear < CAPSULE);
 const tight = scan.filter((s) => s.clear < PASSABLE);
 const where = (s) => `${s.clear} m at z ${s.z} on the ${s.side} walk`;
 
-console.log(`  ${a1.length} colliders, ${stat.length} static `
-  + `(${a1.length - stat.length} moving — citizens and traffic, dropped)`);
+console.log(`  ${counts.all} colliders, ${counts.statics} static `
+  + `(${counts.actors} moving — citizens and traffic, dropped by __ct.staticColliders())`);
 console.log(`  ${scan.length} cross-sections sampled every 0.5 m\n`);
 
-// ── did the mover window fool us? ─────────────────────────────────────────
+// ── the mover window is GONE, and so is the guard that watched it ─────────
 //
-// 19e1e9f9: the two-snapshot idiom classifies by MOTION, so a citizen standing
-// still across the whole window is byte-identical in both snapshots and is
-// counted as furniture. That is exactly the mistake that produced 3f7b2623 —
-// a stopped citizen read as a mid-pavement post — and this check adopted the
-// same idiom, so it does not get to assume its way out.
+// What stood here: a third snapshot 8 s later, a "ghost" list of boxes that had
+// held still through the 1.5 s window and moved afterwards, a full re-scan
+// without them, and an assertion that the two scans agreed. Roughly seventy
+// lines, all of it compensating for the two-snapshot idiom above — which
+// classified by MOTION, so a citizen standing still across the whole window was
+// byte-identical in both snapshots and counted as furniture. That is the
+// mistake that produced 3f7b2623, a stopped citizen read as a mid-pavement post.
 //
-// A third snapshot after a longer gap catches anything the short window
-// misjudged, and the scan is redone without those. It is validated per run
-// rather than trusted, because a citizen pausing for an errand is intermittent
-// and one clean observation is not a property of the idiom.
+// ITS OWN CLOSING PARAGRAPH ASKED FOR THIS, and named the shape exactly:
 //
-// MEASURED AT HEAD: 0 ghosts, 1.12 m with either window, across five separate
-// observations. So the figure is safe here — but read that as "no citizen
-// happened to be standing still on either pavement in any of those windows",
-// not as "the idiom is sound".
+//     "The better fix is not mine: 19e1e9f9 suggests the collider list carry
+//      the userData.mod tag that lot, walkup and vice already use, so 'is this
+//      a mover' becomes a DECLARATION instead of an inference from two frames.
+//      That is ct/props.ts's call, and it would retire this whole section."
 //
-// AND THIS ASSERTION IS NOT WATCHED FAILING, which is the honest status. To see
-// it fire I need a collider that holds still through the short window and moves
-// later, and I could not manufacture one: shortening the window to 0 ms does
-// NOT do it, because `snap()` is a round-trip and frames advance between the
-// two calls anyway — 6 movers still classified correctly. Four further
-// observations caught no natural errand stop either. So it is a guard whose
-// logic is right by construction and unproven by experiment; when someone finds
-// a way to hold a citizen still on demand, that is the test.
+// The declaration landed with item 81 — `actorBoxes`, populated at the two
+// registration hooks and published as `__ct.staticColliders()` — so the
+// inference is gone and there is nothing left for the guard to catch. It also
+// recorded honestly that it "IS NOT WATCHED FAILING": nobody could manufacture
+// a citizen that held still through the short window and moved later, so it was
+// seventy lines and an 8 s wait that had never once fired. Deleting a guard is
+// normally the wrong move; deleting the guard along with the defect it guarded
+// is the point of the migration.
 //
-// WHICH DIRECTION THE ERROR RUNS, and a552bc40 is right that it matters more
-// than the residual risk. A ghost is an ADDED collider, so it can only shrink a
-// free run. Demonstrated by injecting a synthetic stopped citizen (0.5 x 0.5,
-// mid-pavement) into the static set and reading its own station:
-//
-//     clean 2.27 m  ->  with the ghost 1.12 m
-//
-// The global figure did not move, because the ghost's effect happened to equal
-// the existing minimum — which is why this is measured AT the injected station
-// rather than off the headline number, and why my first attempt at it proved
-// nothing twice over.
-//
-// So the failure mode is a FALSE ALARM, never a silent pass. This check cannot
-// be fooled into saying the lane is clear when it is not; it can only be fooled
-// into saying it is blocked when a citizen is standing there, and the ghost
-// assertion above exists to name exactly that case when it happens.
-//
-// The better fix is not mine: 19e1e9f9 suggests the collider list carry the
-// userData.mod tag that lot, walkup and vice already use, so "is this a mover"
-// becomes a DECLARATION instead of an inference from two frames. That is
-// ct/props.ts's call, and it would retire this whole section.
-await page.waitForTimeout(8000);
-const a3 = new Set((await snap()).map(key));
-const ghosts = stat.filter((c) => !a3.has(key(c)));
-const rescan = ghosts.length
-  ? await page.evaluate(([boxes, walks]) => {
-      const RAD = 0.36, S = 0.05;
-      const free = (x, z) => !boxes.some((c) =>
-        x > c[0] - RAD && x < c[1] + RAD && z > c[2] - RAD && z < c[3] + RAD);
-      let worst = 99;
-      for (const W of walks) {
-        for (let v = W.from; v >= W.to; v -= 0.5) {
-          let best = 0, run = 0;
-          for (let c = W.lo; c <= W.hi; c += S) {
-            run = free(c, v) ? run + S : 0;
-            if (run > best) best = run;
-          }
-          worst = Math.min(worst, best + 2 * RAD);
-        }
-      }
-      return +worst.toFixed(2);
-    }, [stat.filter((c) => a3.has(key(c))),
-        [{ lo: -7.0, hi: -5.0, from: 12, to: -104 }, { lo: 5.0, hi: 7.0, from: 12, to: -94 }]])
-  : null;
+// The direction-of-error note it left behind is still true and still worth
+// having: a misclassified mover is an ADDED collider, so it can only SHRINK a
+// free run. This check could never be fooled into calling a blocked lane clear
+// — only into calling a clear lane blocked. That was the residual risk, and it
+// is now zero rather than small.
 
 // IS THE WALK STILL WHERE THIS CHECK THINKS IT IS? The bands above are literal
 // -7.0..-5.0 and 5.0..7.0, taken from ct/rng.ts's ROAD_HALF 5.0 and FACE 7.0.
@@ -249,7 +220,7 @@ say(scan.length > 300, 'the walk was actually sampled', `${scan.length} cross-se
 // has no geometry on the walk — the free band is 2.0 m of centre-span, so a
 // narrowest of 2.72 m means nothing bounded it anywhere along 446 sections.
 say(stat.length > 50, 'the world actually has colliders to measure',
-  `${stat.length} static of ${a1.length}`);
+  `${stat.length} static of ${counts.all}`);
 say(worst.clear < 2.6, 'and the walk is bounded by geometry, not by the band',
   `narrowest ${worst.clear} m against a ${(2.0 + 0.72).toFixed(2)} m unbounded band`);
 // The load-bearing one. Static geometry that a body cannot pass is a wall
@@ -263,12 +234,15 @@ say(sealed.length === 0, 'no static geometry seals the walk',
 say(tight.length === 0, 'and none of it is a trap to squeeze through',
   tight.length ? `${tight.length} sections under ${PASSABLE} m: `
     + tight.slice(0, 3).map(where).join(', ') : `all at or above ${PASSABLE} m`);
-say(ghosts.length === 0 || rescan === worst.clear,
-  'no stopped citizen was counted as furniture',
-  ghosts.length
-    ? `${ghosts.length} boxes held still through the 1.5 s window and moved later; `
-      + `narrowest ${worst.clear} m with them, ${rescan} m without`
-    : 'nothing held still through the window and moved afterwards');
+// What used to be here — "no stopped citizen was counted as furniture" — was an
+// assertion about the SNAPSHOT IDIOM, not about the world. The idiom is gone;
+// the property it was defending is now structural, and it is worth stating as
+// one: every box this scanned came from the static set, so no citizen, standing
+// still or otherwise, could be in it. That is asserted where it can actually
+// fail, in assertStaticColliders() above, which refuses a world that separated
+// nothing rather than reporting a stability it never tested.
+say(counts.statics < counts.all, 'the actors really were separated from the geometry',
+  `${counts.actors} of ${counts.all} colliders walk, and none of them reached this scan`);
 say(errors.length === 0, 'no page errors', errors.length ? errors[0] : 'none');
 
 if (SELFTEST) {

@@ -12,6 +12,7 @@
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/gaps.mjs [--all]
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
+import { assertStaticColliders } from './lib/collide.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto } from './lib/reachable.mjs';
 
@@ -34,6 +35,10 @@ await goto(page, aim('http://localhost:4177/'));
 await page.waitForFunction(() => window.__ct?.colliders !== undefined, { timeout: 10000 });
 await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(300);
+// Throws rather than falling back — see the helper. Also refuses a world where
+// nothing was separated, which would make every "stable" claim below vacuous.
+const counts = await assertStaticColliders(page);
+console.log(`  colliders ${counts.all} = ${counts.statics} static + ${counts.actors} that walk`);
 
 // Ask the world for the RULE and the predicate rather than reimplementing them.
 // This probe used to carry its own copy of `corridor()` and the two drifted:
@@ -45,26 +50,33 @@ ENTERABLE = rule.ENTERABLE; PASSABLE = rule.PASSABLE;
 // The whole pairwise scan runs INSIDE the page, calling ct/gap.ts's own
 // corridor() for every pair. Doing it out here would be 9,000 round trips, and
 // re-implementing the predicate is what caused the drift this replaces.
-const traps = await page.evaluate(async ([lo, hi]) => {
+const traps = await page.evaluate(([lo, hi]) => {
   // ── only STATIC boxes ────────────────────────────────────────────────────
   //
-  // Six of the colliders in this world MOVE: the citizens, whose footprints are
-  // 0.5 x 0.5 and walk the pavements. A pedestrian passing a parked car forms a
-  // 0.78 m corridor for about a second and then walks out of it, and this probe
-  // used to report that as a parking defect — which is why the build-time
-  // constraint kept reporting success while the probe kept failing. They were
-  // both right; they were looking at different moments.
+  // Twelve of the colliders in this world MOVE: the citizens, whose footprints
+  // are 0.5 x 0.5 and walk the pavements, and the traffic. A pedestrian passing
+  // a parked car forms a 0.78 m corridor for about a second and then walks out
+  // of it, and this probe used to report that as a parking defect — which is
+  // why the build-time constraint kept reporting success while the probe kept
+  // failing. They were both right; they were looking at different moments.
   //
   // You cannot constrain a draw against something that moves, and a person
-  // standing near a car is not a trap: they leave. So sample twice and keep only
-  // the boxes that stayed put. (The traffic vehicles park their boxes at 999
-  // while idle, which the range filter already drops.)
-  const key = (q) => `${q.minX.toFixed(3)},${q.minZ.toFixed(3)},${q.maxX.toFixed(3)},${q.maxZ.toFixed(3)}`;
-  const first = window.__ct.colliders().map(key);
-  await new Promise((r) => setTimeout(r, 1200));
-  const now = window.__ct.colliders();
-  const solid = now.filter((q, i) => key(q) === first[i]
-    && Math.abs(q.minX) < 400 && Math.abs(q.minZ) < 400);
+  // standing near a car is not a trap: they leave.
+  //
+  // THIS USED TO SAMPLE TWICE AND KEEP THE BOXES THAT STAYED PUT, which is a
+  // guess dressed as a measurement: it scores a citizen who merely PAUSED as
+  // geometry, and citizens pause constantly — `crowd-walk.mjs` exists because
+  // they stop for errands, and it finds 40+ stopped samples in 25 s. It also
+  // compared the two snapshots INDEX BY INDEX, so it silently assumed the array
+  // never reorders. `__ct.staticColliders()` answers the question properly, by
+  // OBJECT IDENTITY against the set the two registration hooks build
+  // (`crosstown.ts:1411`), so a citizen standing perfectly still is still a
+  // citizen. Losing the 1.2 s wait is a bonus, not the point.
+  const solid = window.__ct.staticColliders()
+    // (the traffic vehicles park their boxes at 999 while idle; the range
+    // filter dropped those before the accessor existed and still does, which
+    // costs nothing and covers anything the actor set might miss)
+    .filter((q) => Math.abs(q.minX) < 400 && Math.abs(q.minZ) < 400);
   const out = [];
   const dims = (q) => `${(q.maxX - q.minX).toFixed(2)}x${(q.maxZ - q.minZ).toFixed(2)}`;
   for (let i = 0; i < solid.length; i++) {
@@ -85,9 +97,12 @@ const traps = await page.evaluate(async ([lo, hi]) => {
   }
   return out;
 }, [ENTERABLE, PASSABLE]);
-const solid = await page.evaluate(() => window.__ct.colliders()
+// The vacuity floor below must count THE SAME SET the scan ran over, or it
+// guards a sample that was never taken.
+const solid = await page.evaluate(() => window.__ct.staticColliders()
   .filter((q) => Math.abs(q.minX) < 400 && Math.abs(q.minZ) < 400).length);
-console.log('  (moving boxes — the six citizens — are excluded; a person beside a car is not a trap)');
+console.log(`  (${counts.actors} moving boxes — the citizens and the traffic — are excluded by`
+  + ` __ct.staticColliders(); a person beside a car is not a trap)`);
 traps.sort((p, q) => p.w - q.w);
 
 // A CHECK THAT CAN RETURN ZERO MUST PROVE IT CAN RETURN NON-ZERO. With no
@@ -147,7 +162,11 @@ console.log(carTraps.length === 0
 const doorbells = await page.evaluate(() => {
   const RAD = 0.36;                                  // the player capsule
   const spots = window.__ct.spots().map((sp) => ({ label: sp.label, x: sp.x, z: sp.z, r: sp.r }));
-  const boxes = window.__ct.colliders().map((c) => ({
+  // Static only, for the same reason as the corridor scan above: a citizen who
+  // happens to be standing on a doorbell when this samples has not eaten the
+  // trigger, they are just in the way for a second. The trigger is eaten when
+  // there is nowhere to STAND, which is a fact about geometry.
+  const boxes = window.__ct.staticColliders().map((c) => ({
     minX: c.minX, maxX: c.maxX, minZ: c.minZ, maxZ: c.maxZ,
     w: c.maxX - c.minX, d: c.maxZ - c.minZ,
   }));

@@ -35,10 +35,19 @@
 // `scripts/lib/collide.mjs`, which is `fp.ts`'s own arithmetic in one place
 // rather than a fourth hand copy of it.
 //
+// AND A COLLIDER THAT WALKS IS NOT A TRAP. Every question below is about
+// GEOMETRY — is there a slot in this world a body can enter and not leave —
+// and twelve of the boxes in `colliders()` are citizens and traffic. A
+// pedestrian passing a parked car forms a 0.78 m corridor for about a second
+// and then walks out of it; scoring that as a trap is GOTCHAS 73, the single
+// cause behind four separate false defects. So the trap list and both verdicts
+// read `__ct.staticColliders()`, which separates them BY OBJECT IDENTITY
+// against the registration hooks rather than by shape or by holding still.
+//
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/unstick-walk.mjs
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-import { installCollide } from './lib/collide.mjs';
+import { assertStaticColliders, installCollide } from './lib/collide.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
 const RADIUS = 0.36, PLAYER = RADIUS * 2;
@@ -51,13 +60,16 @@ await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct?.colliders !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await installCollide(p);   // window.__probeCollide — fp.ts's blocked(), frame-aware. Throws if it did not arrive.
+const counts = await assertStaticColliders(p);   // throws rather than falling back to colliders()
+console.log(`colliders ${counts.all} = ${counts.statics} static + ${counts.actors} that walk;`
+  + ' every verdict below is against the static set');
 await p.waitForTimeout(300);
 
 const pos = () => p.evaluate(() => window.__ct.pos());
 const warp = (x, z, gy) => p.evaluate(([x, z, gy]) => window.__ct.warp(x, z, 0, gy, 0), [x, z, gy]);
 const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(60); };
 const isBlocked = (x, z) => p.evaluate(([x, z, R]) =>
-  window.__probeCollide.blockedAt(window.__ct.colliders(), x, z, R), [x, z, RADIUS]);
+  window.__probeCollide.blockedAt(window.__ct.staticColliders(), x, z, R), [x, z, RADIUS]);
 
 // Every trap the world offers, found rather than listed.
 const traps = await p.evaluate(([RADIUS, PLAYER]) => {
@@ -73,7 +85,7 @@ const traps = await p.evaluate(([RADIUS, PLAYER]) => {
   // The CENTRE is unaffected by either reading — `rot` turns a box about its
   // own centre — so the "dead centre inside each solid thing" case below picks
   // exactly the same points it always did.
-  const cols = window.__ct.colliders()
+  const cols = window.__ct.staticColliders()
     .map((c) => window.__probeCollide.worldAabb(c))
     .filter((c) =>
       // the street and its interiors, not the giant boundary walls: a "gap"
@@ -151,9 +163,18 @@ const FRAME_BUDGET = 240;      // ~4 s at 60 fps; a terminator, never the path
  *  round trip instead of five. */
 const probeTrap = (x, z) => p.evaluate(([x, z, R, stillNeed, budget]) => new Promise((resolve) => {
   // fp.ts's own test, frame and all — see scripts/lib/collide.mjs. Read fresh
-  // each frame on purpose: the array is live, and a citizen who walks off is
-  // supposed to stop blocking you.
-  const blockedAt = (px, pz) => window.__probeCollide.blockedAt(window.__ct.colliders(), px, pz, R);
+  // each frame on purpose: the array is live, and geometry can be registered
+  // while the world runs.
+  //
+  // STATIC, and this is the load-bearing half of the verdict rather than a
+  // tidy-up. `anyWayOut` below asks whether ANY of eight directions is open; a
+  // citizen who wanders within 0.61 m of the resting player closes one of them
+  // for a second, and with the unfiltered array that is scored as "came free
+  // but every direction is still blocked" — a trap report caused by a passer-by
+  // who has already walked on by the time anyone reads it. The player is not
+  // trapped by a person: they leave. Whether the WORLD has a slot you cannot
+  // get out of is the question this file was written to answer.
+  const blockedAt = (px, pz) => window.__probeCollide.blockedAt(window.__ct.staticColliders(), px, pz, R);
   // …and having come free, you are genuinely not trapped: there is SOME
   // direction you can move in. Asked of the collider predicate rather than by
   // driving the rig in a couple of arbitrary directions — the thrift's aisles
