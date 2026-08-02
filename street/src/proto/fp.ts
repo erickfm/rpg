@@ -6,7 +6,21 @@ import type { Input } from './types';
 // of math/env helpers. Everything VISUAL lives per-world; nothing here decides
 // how a world looks.
 
-export type AABB = { minX: number; maxX: number; minZ: number; maxZ: number };
+// `minY`/`maxY` are OPT-IN, and that is what makes this safe to add. Every
+// collider in the world today is registered through `ctx.obstacle`/`solid` as
+// a plain `{minX,maxX,minZ,maxZ}` with no height at all, and `blocked()`
+// below preserves that: a collider with `maxY` undefined is still a wall
+// extruded to infinite height, exactly as it always was, whatever height the
+// player is at. Only a collider that explicitly sets `maxY` gets the new
+// behaviour — the floor picker may stand you on `maxY` when you are already
+// above it, and horizontal movement stops treating it as a wall once you are.
+// `minY` is reserved for the mirror case (an overhang you can walk under) and
+// is not consumed anywhere yet — nothing needs headroom today, so nothing
+// implements it; a real user report is worth more than a guessed mechanism.
+export type AABB = {
+  minX: number; maxX: number; minZ: number; maxZ: number;
+  minY?: number; maxY?: number;
+};
 
 export interface FPOpts {
   height?: number;
