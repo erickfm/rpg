@@ -658,6 +658,29 @@ export function buildCasino(ctx: CtxBuild): void {
   // the games beyond them, and he has already sent this room back once for being
   // cramped. The floor keeps its 3.2 m centres and its depth.
   const BANK_Z = [12.4, 9.2, 6.0, 2.8];
+  /**
+   * THE PIT TABLES' FOOTPRINTS, declared once and read by both the tables
+   * themselves (their `solid()` calls, far below) and the slot banks.
+   *
+   * The banks need them because the last row, at BANK_Z 2.8, hangs over the
+   * pit: its −z stools were placed at z 1.78 with their [E] approach points at
+   * z 1.03, which is INSIDE the craps and roulette tables. Two of them had
+   * nowhere legal to stand at all — a seat that registers fine and can never be
+   * used, which is the failure `ctx.ts` warns about in `Seat`'s own doc and the
+   * one that made the bodega un-enterable (GOTCHAS §8).
+   *
+   * Written here rather than as three skipped indices so that a fourth table,
+   * or a moved one, takes its stools with it.
+   */
+  const PIT = [
+    { x: -3.1, z: 0.2, w: 2.3, d: 2.3 },      // roulette
+    { x: 3.0, z: 0.2, w: 1.8, d: 3.0 },       // craps
+    { x: -3.0, z: -3.6, w: 2.5, d: 2.5 },     // poker
+  ];
+  const PLAYER_R = 0.36;
+  /** is this point inside a game table, as far as a player's body is concerned? */
+  const inPit = (x: number, z: number) => PIT.some((t) =>
+    Math.abs(x - t.x) < t.w / 2 + PLAYER_R && Math.abs(z - t.z) < t.d / 2 + PLAYER_R);
   let rowN = 0;
   for (const bz of BANK_Z) {
     for (const sx of [-1, 1]) {
@@ -698,6 +721,13 @@ export function buildCasino(ctx: CtxBuild): void {
       // stool is, and why it does not look like a chair.
       for (const face of [1, -1]) for (let i = 0; i < SLOT_N; i++) {
         const sx2 = x0 + i * SLOT_PITCH, sz2 = bz + face * 1.02;
+        // NO STOOL WHERE THE PIT IS. The last bank's −z face overhangs the
+        // roulette and craps tables: these stools stood 0.08 m off the felt and
+        // you reached them by standing INSIDE the table. See `PIT`. The machines
+        // stay — the bank is one mesh run and one collider — but a stool nobody
+        // can walk up to is worse than no stool, because it offers a prompt it
+        // cannot honour.
+        if (inPit(sx2, sz2) || inPit(sx2, sz2 + face * 0.75)) continue;
         // THE SEAT IS THE TOP FACE, NOT THE CENTRE OF THE CUSHION. See STOOL_TOP.
         put(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, STOOL_T, 10), stoolTopM),
           sx2, STOOL_TOP - STOOL_T / 2, sz2);
@@ -1050,7 +1080,8 @@ export function buildCasino(ctx: CtxBuild): void {
 
     // ROULETTE — round, and the only round thing on the floor
     {
-      const RX = -3.1, RZ = 0.2;
+      const [ROU] = PIT;                      // one declaration, see `PIT`
+      const RX = ROU.x, RZ = ROU.z;
       put(new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.12, 16), feltG), RX, 0.86, RZ);
       put(new THREE.Mesh(new THREE.CylinderGeometry(1.10, 1.10, 0.10, 16), rail), RX, 0.78, RZ);
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.10, 12), wood), RX, 0.97, RZ - 0.42);
@@ -1059,12 +1090,13 @@ export function buildCasino(ctx: CtxBuild): void {
       for (const lz of [-0.7, 0.7]) for (const lx of [-0.7, 0.7]) {
         put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.78, 0.10), wood), RX + lx, 0.39, RZ + lz);
       }
-      solid(RX, RZ, 2.3, 2.3);
+      solid(RX, RZ, ROU.w, ROU.d);
     }
 
     // CRAPS — long, and high-sided, which is its whole silhouette
     {
-      const CX2 = 3.0, CZ2 = 0.2;
+      const CRP = PIT[1];
+      const CX2 = CRP.x, CZ2 = CRP.z;
       put(new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 2.8), feltG), CX2, 0.88, CZ2);
       for (const sx of [-1, 1]) {
         put(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.46, 2.8), rail), CX2 + sx * 0.75, 1.12, CZ2);
@@ -1075,12 +1107,13 @@ export function buildCasino(ctx: CtxBuild): void {
       for (const lz of [-1.2, 1.2]) for (const lx of [-0.6, 0.6]) {
         put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.82, 0.10), wood), CX2 + lx, 0.41, CZ2 + lz);
       }
-      solid(CX2, CZ2, 1.8, 3.0);
+      solid(CX2, CZ2, CRP.w, CRP.d);
     }
 
     // POKER — oval-ish, red felt, and lower than the rest
     {
-      const PX2 = -3.0, PZ2 = -3.6;
+      const POK = PIT[2];
+      const PX2 = POK.x, PZ2 = POK.z;
       put(new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.11, 12), feltR), PX2, 0.80, PZ2);
       put(new THREE.Mesh(new THREE.TorusGeometry(1.16, 0.06, 4, 14), rail), PX2, 0.86, PZ2)
         .rotation.x = Math.PI / 2;
@@ -1088,7 +1121,7 @@ export function buildCasino(ctx: CtxBuild): void {
         put(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.72, 0.09), wood),
           PX2 + Math.cos(a) * 0.7, 0.36, PZ2 + Math.sin(a) * 0.7);
       }
-      solid(PX2, PZ2, 2.5, 2.5);
+      solid(PX2, PZ2, POK.w, POK.d);
     }
 
     // VIDEO POKER — a low run against the east wall, deliberately NOT a reel
@@ -1123,6 +1156,9 @@ export function buildCasino(ctx: CtxBuild): void {
     // with a dealer standing at it) passes the blackjack label; roulette,
     // craps and poker keep the shared 'sit at the table' they always had.
     const gameStool = (gx: number, gz: number, yaw: number, label = 'sit at the table') => {
+      // A stride BEHIND the seat, which is the opposite of facing: facing is
+      // (sin yaw, -cos yaw), so back is (-sin, +cos).
+      const back = { x: gx - Math.sin(yaw) * 0.8, z: gz + Math.cos(yaw) * 0.8 };
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, GSTOOL_T, 10), stoolTopM),
         gx, GSTOOL_TOP - GSTOOL_T / 2, gz);
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.68, 8), stoolPoleM), gx, 0.34, gz);
@@ -1135,7 +1171,7 @@ export function buildCasino(ctx: CtxBuild): void {
         // facing is (sin yaw, −cos yaw), so a stride back is (−sin, +cos).
         // The x term read `+Math.sin`, the same mirror as the yaws below, and
         // it put the craps approach points inside the craps table.
-        approach: { x: room.wx(gx - Math.sin(yaw) * 0.8), z: room.wz(gz + Math.cos(yaw) * 0.8) },
+        approach: { x: room.wx(back.x), z: room.wz(back.z) },
         label, ok: () => room.inside(),
       });
     };
@@ -1156,7 +1192,7 @@ export function buildCasino(ctx: CtxBuild): void {
     const faceAt = (gx: number, gz: number, tx: number, tz: number) =>
       Math.atan2(tx - gx, -(tz - gz));
     // roulette: five round its open side
-    const ROU_X = -3.1, ROU_Z = 0.2;
+    const ROU_X = PIT[0].x, ROU_Z = PIT[0].z;
     for (let i = 0; i < 5; i++) {
       const a = -1.15 + i * 0.575;
       const gx = ROU_X + Math.sin(a) * 1.55, gz = ROU_Z + Math.cos(a) * 1.55;
@@ -1165,13 +1201,13 @@ export function buildCasino(ctx: CtxBuild): void {
     // craps: three a side down the long table. Square ACROSS it, not at its
     // centre — the far end of a craps table is not what you look at — so the
     // aim point shares the stool's own z.
-    const CRP_X = 3.0;
+    const CRP_X = PIT[1].x;
     for (const sx of [-1, 1]) for (const dz of [-0.85, 0, 0.85]) {
       const gx = CRP_X + sx * 1.35, gz = 0.2 + dz;
       gameStool(gx, gz, faceAt(gx, gz, CRP_X, gz));
     }
     // poker: six round it, which is what a poker table seats
-    const POK_X = -3.0, POK_Z = -3.6;
+    const POK_X = PIT[2].x, POK_Z = PIT[2].z;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
       const gx = POK_X + Math.sin(a) * 1.65, gz = POK_Z + Math.cos(a) * 1.65;
