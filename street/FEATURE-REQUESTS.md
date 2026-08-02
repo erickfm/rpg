@@ -2027,3 +2027,31 @@ volume to cover the sightline without following the head.
 
 I could not reproduce the asymmetry from a screenshot in the time available, so
 this is a lead, not a diagnosis. **Reproduce it first.**
+
+
+## The used-car pole sign has no thickness
+
+> *"used car sign is completely flat"* (screenshot, looking up at it at night)
+
+**Confirmed in source.** `ct/lot.ts:1109` builds the sign as **two
+`PlaneGeometry(SIGN_W, SIGN_H)` faces**, one rotated to each side, offset ±0.03 m
+from the mast. There is nothing between them: from below, or anywhere near
+edge-on, it is a sheet of paper on a pole.
+
+**Why it is built that way, which the fix must respect.** GOTCHAS 10: a
+`DoubleSide` plane renders **mirrored** from behind, and a `HOTEL` blade sign
+once shipped mirrored because only the E and L gave it away. Back-to-back
+single-sided planes are the standing cure for that. **They cure the mirroring and
+they do not give the object any depth** — that is the gap the user is seeing.
+
+**Third time this sign has come back**, and the history matters:
+
+1. *"the pole sign looks off — the panel is tiny against an enormous pole and the
+   two faces read as skewed rather than flat or back-to-back"*
+2. *"carrying FOUR messages stacked … SIMPLIFY TO ONE MESSAGE … CROSSTOWN AUTO,
+   big, legible, and stop"* — fixed, the cabinet went landscape
+3. now: it has no thickness
+
+A real pole sign is a **cabinet** — a box with returns down its edges, deep
+enough to house the lamps that light it. That is the shape to build, keeping the
+two artwork faces exactly as they are so nothing mirrors.
