@@ -144,8 +144,14 @@ const settleAndRest = () => p.evaluate(() => new Promise((resolve, reject) => {
 // throws rather than returning a partial peak if the hop never started or never
 // landed.
 const APEX_SETTLE_FRAMES = 6;
-const APEX_FRAME_BUDGET = 3000;          // frames, not ms — ~50 s at 60 fps, and
-                                         // still 3000 frames at 1 fps
+// Frames, not ms — the whole point. Sized against the longest hop the physics
+// can produce, not against a clock: 0.571 s of hang at a 1/60 s step is ~35
+// frames, plus the 6-frame settle, so 300 is a 7x margin and still terminates.
+// It was 3000 for one revision and a deliberately-missed keypress under x40
+// throttle sat there for twenty minutes: a budget generous in FRAMES is
+// unbounded in wall clock exactly when frames are slow, which is when this
+// check matters. Matches settleAndRest's budget above.
+const APEX_FRAME_BUDGET = 300;
 
 /** Peak camera height over the whole hop, sampled every rendered frame in-page.
  *  `rest` is the settled ground-level camera height this hop starts from. */
