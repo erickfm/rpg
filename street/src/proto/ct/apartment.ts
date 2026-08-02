@@ -36,13 +36,15 @@ import { screenFade } from './hud';
 // player between floors (the warp hook, the street's own groundY, the door
 // jumps) goes through setGy so there is exactly one writer of record.
 //
-// ONE WRITER OF RECORD IS TRUE OF THE FUNCTION AND NOT OF THE CALLERS, which
-// is the gap that produces the kerb-edge disagreement — see the note on `gy()`
-// where this object is returned. `setGy` is indeed the only thing that assigns
-// `lastGy`, but its caller `groundPick` is invoked per-frame with coordinates
-// that are NOT the player's, so the single writer faithfully records the wrong
-// position. A sole writer guarantees no races; it does not guarantee the value
-// is about you.
+// ONE WRITER OF RECORD IS TRUE OF THE FUNCTION AND NOT OF THE CALLERS, and
+// that gap produced the kerb-edge disagreement — see the note on `gy()` where
+// this object is returned. `setGy` was indeed the only thing that assigned
+// `lastGy`, but its caller `groundPick` was invoked per-frame with coordinates
+// that are NOT the player's, so the single writer faithfully recorded the
+// wrong position. A sole writer guarantees no races; it does not guarantee the
+// value is about you. The guarantee now comes from the CALL, not the function:
+// asking where the floor is is a pure read, and only a call that commits moves
+// the storey.
 
 // A 4×5 texel numeral, stamped rather than typed. Canvas text antialiases —
 // at the sizes this world paints at, 'bold 8px monospace' lands half a texel
@@ -132,8 +134,14 @@ export interface Apartment {
   /** hall/stair/room walls, plus the floor-aware caps kept up to date inside
    *  this module's own per-frame hook */
   colliders: AABB[];
-  /** the floor picker: world x/z → ground height, with hysteresis */
-  ground: (wx: number, wz: number) => number;
+  /** The floor picker: world x/z → ground height, with hysteresis.
+   *
+   *  **A PURE READ unless you pass `commit`.** The hysteresis reads the
+   *  storey the player is on and, when committing, replaces it — so asking
+   *  about somewhere the player is NOT standing must not commit, or the
+   *  question becomes a move. Only the rig's per-frame ground callback, which
+   *  passes the player's own position, may pass true. */
+  ground: (wx: number, wz: number, commit?: boolean) => number;
   /** current floor height */
   gy: () => number;
   /** set it and hand it back, so callers can `return setGy(…)` */
@@ -2993,7 +3001,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   }
   // multi-floor ground: pick the floor candidate nearest the last height —
   // that one closure is what makes stacked floors work with a 2D walker
-  const aptGround = (wx: number, wz: number): number => {
+  //
+  // `commit` IS THE WHOLE DIFFERENCE BETWEEN A QUESTION AND A MOVE. Asking
+  // "how high is the floor at (wx,wz)?" must not change which storey the
+  // player is recorded as being on; only the per-frame call that passes the
+  // PLAYER's own position may do that. This used to write `lastGy` on every
+  // call, which made `groundPick`'s three callers — one of them `canSee`,
+  // probing every candidate [E] spot every frame — into silent writers of the
+  // player's storey. See the note on `gy()` where this object is returned.
+  const aptGround = (wx: number, wz: number, commit = false): number => {
     // THE ROOF BUG LIVES HERE, and this is the only place that can see it.
     // `consider()` below refuses to step UP more than 0.6 m and puts no limit
     // at all on stepping DOWN, so a player 5 m above the building is silently
@@ -3006,7 +3022,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // statement, and the respawn hook reads it. Fixing it in the hook instead
     // is impossible: the hook is handed `gy` after this function has already
     // laundered it.
-    if (lastGy > 3 * ST + 1.0) lostAbove = true;
+    // Raised only on a committing call: it is a fact about where the PLAYER
+    // is, and a question asked about some other coordinate is not evidence
+    // about that.
+    if (commit && lastGy > 3 * ST + 1.0) lostAbove = true;
     const lx = wx - APT_X, lz = wz - APT_Z;
     let rel = 0;
     if (lx >= 0 && lz > STAIR_Z0) {
@@ -3035,7 +3054,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // rather than special-cased, so the hysteresis still arbitrates: walking
     // DOWN the east flight never sees it, because it is west-half only.
     if (lx >= 0 && lx < 1.2 && lz > STAIR_Z0 && lz <= NIB_Z1) consider(TOP_Y);
-    lastGy = best;
+    if (commit) lastGy = best;
     return best;
   };
 
@@ -3304,31 +3323,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   return {
     colliders: sevColliders,
     ground: aptGround,
-    // READ THIS BEFORE TRUSTING gy() OUTDOORS. At the kerb edge it reports 0.00
-    // while the ground there is 0.14, and the camera — which is right — sits at
-    // 1.76. The drift is NOT in this module: `setGy` stores exactly what it is
-    // handed, and `groundPick` (crosstown.ts:780) routes every one of its
-    // returns through it, so the two can never disagree about one coordinate.
+    // WHY gy() ONCE LIED AT THE KERB EDGE, and what now stops it. It reported
+    // 0.00 while the ground there was 0.14 and the camera — which was right —
+    // sat at 1.76. The drift was never in this module: `setGy` stores exactly
+    // what it is handed, and `groundPick` (crosstown.ts) routed every one of
+    // its returns through it, so the two could not disagree about ONE
+    // coordinate.
     //
-    // What disagrees is WHICH coordinate wrote last. `groundPick` is a query
-    // with a side effect, and it has three callers (crosstown.ts:766, 984,
-    // 1125). Only the first passes the PLAYER's position. `canSee` at
-    // crosstown.ts:1125 calls it once per candidate [E] spot, every frame, at
-    // the SPOT's coordinates — so `lastGy` ends each frame describing the last
-    // spot the prompt-aimer probed, not the ground under the player. On the
-    // pavement the last spot probed happens to be at 0.14 and it looks fine; at
-    // the kerb edge it is a road-level spot at 0.00 and it does not.
+    // What disagreed was WHICH coordinate wrote last. `groundPick` was a query
+    // with a side effect and it has three callers; only the FPRig's `groundY`
+    // passes the PLAYER's position. `canSee` calls it once per candidate [E]
+    // spot, every frame, at the SPOT's coordinates — so `lastGy` ended each
+    // frame describing the last spot the prompt-aimer probed, not the ground
+    // under the player. On the pavement the last spot probed happened to be at
+    // 0.14 and it looked fine; at the kerb edge it was a road-level spot at
+    // 0.00 and it did not. Measured in `scripts/probes/w25-kerb-gy.mjs`:
+    // standing still at gy 0.140, one `groundAt(-2, -20)` moved gy to 0.000
+    // WITHIN THE SAME TICK and the next frame put it back — which is why
+    // sampling across two frames hid the fault entirely.
     //
-    // Measured, `scripts/probes/w25-kerb-gy.mjs`: standing still on the
-    // pavement at gy 0.140, a single `groundAt(-2, -20)` call moves gy to 0.000
-    // WITHIN THE SAME TICK, and the next frame puts it back — which is why
-    // sampling it across two frames hides the fault entirely.
-    //
-    // Consequences are real but small today: `gy()` gates the No. 227 entry
-    // spot (`lastGy < 1`) and the respawn band, both of which tolerate 0.14.
-    // The fix belongs in crosstown.ts, not here — give `canSee` and the
-    // `groundAt` test affordance a PURE ground query and leave the writing
-    // side effect on the one call that passes the player's position.
+    // FIXED by making the question and the move different calls, in both
+    // files: `aptGround` above takes `commit`, `groundPick` takes `commit`,
+    // and exactly one call site — the rig's per-frame `groundY(player.x,
+    // player.z)` — passes true. `canSee` and the `groundAt` test affordance
+    // are pure reads. Anything else that wants to MOVE the player between
+    // storeys still says so out loud, through `setGy`.
     gy: () => lastGy,
     setGy: (v) => (lastGy = v),
     forceHermit: (v) => { hermitForce = v === null ? -1 : v ? 1 : 0; },

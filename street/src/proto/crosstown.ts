@@ -882,7 +882,11 @@ export function makeCrosstown(): Proto {
     bounds: { minX: westBound(), maxX: interiorMaxX(), minZ: -110.6,
       maxZ: Math.max(13, interiorMaxZ()) },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
-    groundY: (x, z) => groundPick(x, z),
+    // THE ONE COMMITTING CALL. FPRig asks this only at `this.pos.x/z` (fp.ts
+    // 146, 390, 495) — it is the player's own position, every frame — so this
+    // is the single call entitled to move the storey the player is recorded
+    // on. Every other caller of `groundPick` gets a pure read.
+    groundY: (x, z) => groundPick(x, z, true),
   });
 
   /** How far west the world goes: past the deepest open site, or past the
@@ -896,41 +900,73 @@ export function makeCrosstown(): Proto {
     return deepest - 1.2;
   }
 
-  function groundPick(x: number, z: number): number {
+  /**
+   * How high is the floor at (x, z)?
+   *
+   * **A QUERY THAT MUTATED SHARED STATE WAS THE BUG.** Every return here used
+   * to go through `apt.setGy`, which is the walk-up's storey picker — so
+   * *asking* about a coordinate silently rewrote which storey the player was
+   * recorded as standing on. Three call sites ask; only one of them is the
+   * player. `canSee` (below) asks once per candidate `[E]` spot, every single
+   * frame, at the SPOT's coordinates, so `lastGy` ended each frame describing
+   * the last thing the prompt-aimer looked at. On the pavement the last spot
+   * probed happened to sit at 0.14 and nothing looked wrong; at the kerb edge
+   * it was a road-level spot at 0.00, and `apt.gy()` read 0.00 under a player
+   * standing on 0.14. It survived because the next frame's rig update repaired
+   * it — the damage and the repair are one frame apart, so any test that
+   * sampled across two frames saw a clean world. `scripts/probes/w25-kerb-gy.mjs`
+   * samples inside a single `evaluate` and is the guard.
+   *
+   * So the question and the move are now different calls. **Default is PURE.**
+   * `commit` is passed by exactly one caller: the rig's per-frame `groundY`,
+   * which is the only one that passes the player's own position — see the
+   * `groundY` line above, and `aptGround` in ct/apartment.ts, which takes the
+   * same flag for the same reason (the walk-up's picker has hysteresis and
+   * writes `lastGy` itself). Anything else that means to MOVE the player
+   * between storeys still says so out loud through `apt.setGy` — `jumpTo` and
+   * `warp` below both do.
+   */
+  function groundPick(x: number, z: number, commit = false): number {
+    // The one place the side effect lives. Every `return put(...)` below is a
+    // pure read unless the caller asked to commit.
+    const put = (y: number) => (commit ? apt.setGy(y) : y);
     {
       // whoever registered themselves, in declared order
       for (const g of GROUNDS) {
         const y = g.fn(x, z);
-        if (y !== null) return apt.setGy(y);
+        if (y !== null) return put(y);
       }
       // the interior belt owns its own floors — each room answers for its
       // slab, so a builder can put a step or a mezzanine in a shop without
       // this file knowing anything about it
       const ig = interiorGround(x, z);
-      if (ig !== null) return apt.setGy(ig);
-      if (x > 100) return apt.ground(x, z);
+      if (ig !== null) return put(ig);
+      // NOT wrapped in put(): the walk-up's picker is stateful and does its
+      // own committing, because the value it writes is chosen by hysteresis
+      // against the value already there.
+      if (x > 100) return apt.ground(x, z, commit);
       // the kerb returns are curved and the corner one ramps — the ground
       // module owns those patches and answers null everywhere else
       const k = ground.gy(x, z);
-      if (k !== null) return apt.setGy(k);
+      if (k !== null) return put(k);
       if (z < SIDE_Z0 + 2) { // the corner and the side street
-        if (z > SIDE_Z0) return apt.setGy(Math.abs(x) > ROAD_HALF ? KERB_H : 0);
-        if (z < SIDE_Z1) return apt.setGy(KERB_H);
-        return apt.setGy(x > SIDE_X1 || x < -ROAD_HALF ? KERB_H : 0);
+        if (z > SIDE_Z0) return put(Math.abs(x) > ROAD_HALF ? KERB_H : 0);
+        if (z < SIDE_Z1) return put(KERB_H);
+        return put(x > SIDE_X1 || x < -ROAD_HALF ? KERB_H : 0);
       }
       // The open sites — the park and the car lot — are paved at KERB_H and
       // reach 7-8 m back, past where the rule below stops answering. Same
       // problem as the courtyard, same answer: the module that owns the ground
       // says how high it is and this reads it off one value per site.
       for (const st of [street.park, street.lot]) {
-        if (x >= st.minX && x <= st.maxX && z >= st.minZ && z <= st.maxZ) return apt.setGy(st.y);
+        if (x >= st.minX && x <= st.maxX && z >= st.minZ && z <= st.maxZ) return put(st.y);
       }
       // The library courtyard is paved at KERB_H and reaches back well past
       // FACE + 0.3, where the rule below stops answering — walk into it and
       // the floor drops away. ct/civic.ts publishes its extents and its paving
       // level for exactly this, so the notch and the floor come off ONE import
       // instead of being restated here.
-      return apt.setGy(Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0);
+      return put(Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0);
     }
   }
 
@@ -1114,6 +1150,10 @@ export function makeCrosstown(): Proto {
     camY: () => cam.position.y,
     yaw: () => rig.yaw,
     // test affordance: read the floor picker directly, without moving anybody
+    // — and "without moving anybody" is now literally true. This used to
+    // commit the answer as the player's storey, so a probe asking about the
+    // road while standing on the pavement moved the player's own bookkeeping
+    // to road level for one frame.
     groundAt: (x: number, z: number) => groundPick(x, z),
     seated: () => (rig.seated ? rig.seatedOn : null),
     stand: () => rig.stand(),
@@ -1255,6 +1295,10 @@ export function makeCrosstown(): Proto {
       const canSee = (s: Spot) => {
         if (landing) return false;                    // just arrived here; take a step first
 
+        // A PURE READ, and it has to be: this runs once per candidate spot,
+        // every frame, at coordinates that are not the player's. While it
+        // committed, `apt.gy()` ended each frame describing the last spot the
+        // aimer looked at rather than the ground under the player's feet.
         aim.set(s.x, groundPick(s.x, s.z) + 1.1, s.z);
         const dir = aim.clone().sub(eye);
         const dist = dir.length();
