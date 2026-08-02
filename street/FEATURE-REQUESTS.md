@@ -2453,3 +2453,12 @@ to one side.
   centre" — in the frame it is visibly off the crucifix's axis, so one of the two is
   wrong. Fifth report of this sitting; the desk is at its 5-agent cap, so this is
   queued rather than spawned.
+
+- **"[screenshot] this guy is sat in the pew but is clipping the pew geometry.
+  additionally if you sit in his pew you sit where he sits and that just breaks
+  immersion."** (2026-08-02) → **routed as queue items 93 (the clip) and 94 (seat
+  occupancy, a framework gap).** Split because the second is not a church bug: the desk
+  grepped the whole world and **no seat anywhere knows whether it is occupied** — there
+  is no `occupied`/`taken`/`reserved` concept at all. The casino stools carry seated
+  NPCs on the same terms, so the collision is waiting there too. Sixth report this
+  sitting; queued rather than spawned, fleet at its 5-agent cap.
