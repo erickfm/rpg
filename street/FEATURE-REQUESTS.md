@@ -1905,3 +1905,9 @@ which was placed against a shelf that has since moved.
 `int-library.ts`.** Two agents in one file is how a worktree got corrupted and
 the live world broke once already (PARALLEL-WORKFLOW §11); the spacing pass and
 this fix are the same file and the same walk.
+
+**Answered: the CABINETS are the keeper.** The charcoal bodies with green
+screens on the facade stay as they are; **the interface panel gets redrawn in
+their palette** instead of its current beige-and-amber. Consistent with his
+earlier *"i like the atm, maybe add another on the left"* — the facade machines
+were always the design he liked.
