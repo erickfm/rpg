@@ -7,8 +7,9 @@
 //
 // Measured in each car's OWN frame: lateral = local x, so a car's yaw does not
 // smear the number (the mistake that made me report the lot as square once).
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

@@ -1,6 +1,7 @@
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { goto } from './lib/reachable.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const TX = parseFloat(process.env.TX), TZ = parseFloat(process.env.TZ);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 500 } });

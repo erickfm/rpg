@@ -1,9 +1,10 @@
 // The payphone in its new home. B moved it to the alley mouth precisely so it
 // could have real depth without taking any of the 1.94 m walk.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1200);
 await p.evaluate(()=>window.__ct.clock(13,0)); await afterFrames(p,5);

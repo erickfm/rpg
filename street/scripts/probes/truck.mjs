@@ -1,6 +1,7 @@
 // The parked pickup: its tailgate, and where it stands.
 //
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/truck.mjs [shots|fleet]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
@@ -24,9 +25,9 @@ if (!MODES.includes(mode)) {
 const tag = process.env.TAG ?? 'now';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4177/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(500);
 await page.evaluate(() => window.__ct.clock(13, 0));
 

@@ -12,10 +12,11 @@
 // This script isolates part (b): standing right at the door's own stand
 // spot (d ~ 0, well inside touch range), but FACING the bed across the room
 // — does the door still win, or does the bed (which is aimed-at) steal it?
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 
 const b = await chromium.launch();
 const page = await b.newPage();

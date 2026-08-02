@@ -37,10 +37,11 @@
 // fix that only moved it.
 //
 // Usage: SHOT_URL=http://localhost:4292/ node scripts/K-seat-lets-you-up.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4292/';
+const URL = aim('http://localhost:4292/');
 /** measured, not remembered: the world has 225 seats */
 const MIN_SEATS = 50;
 

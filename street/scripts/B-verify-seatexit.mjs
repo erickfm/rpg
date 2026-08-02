@@ -19,11 +19,12 @@
 //
 // Then the census, independently: "of 225 seats, 149 have a non-stand spot
 // inside the 0.5 m stand radius, and 12+ have one at EXACTLY 0.00 m."
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 620 } });
 await goto(p, URL);

@@ -40,11 +40,12 @@
 // Every station is occlusion-checked with the shared oracle at the moment the
 // prompt is read (lib/D-see.mjs). Without that, "not offered at 8 m" is equally
 // well explained by a wall, and the reach cap would be credited for a hedge.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installSee } from './lib/D-see.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 const ISOLATION = 8.0;       // no other spot this close, per H
 // THE FLAT PROXIMITY BONUS, read from the world rather than retyped. It was
 // `const REACH_MARGIN = 0.6;   // fp.ts` — a comment naming the owner, which is

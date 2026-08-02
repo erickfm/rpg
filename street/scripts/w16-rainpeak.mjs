@@ -12,9 +12,10 @@
 // value and how long it took. Traps guarded (both documented in rainlive.mjs):
 //   · spawn is INDOORS at x ~198 and updateRain cuts rain above x 100
 //   · rainLevel LERPS — one sample after a clock jump is meaningless
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
+const URL = aim('http://localhost:4195/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 640 } });
 const errs = [];

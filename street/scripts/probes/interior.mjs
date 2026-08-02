@@ -9,11 +9,12 @@
 // point dx east / dz north of you is yaw = atan2(dx, -dz).
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/interior.mjs [outdir]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const outDir = process.argv[2] ?? 'shots/interior';
 mkdirSync(outDir, { recursive: true });
 

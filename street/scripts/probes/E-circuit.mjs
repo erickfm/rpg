@@ -17,9 +17,10 @@
 // -z. The park's meshes use the other one, (sin yaw, cos yaw), and confusing
 // the two is the bug this script tripped over on its first run: leg 1 passed
 // because its cos term is zero and leg 2 walked away from its target.
+import { aim as aimURL } from '../lib/aim.mjs';   // aliased: this file has its own 'aim' (a bearing helper)
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aimURL('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 900, height: 600 } });
 page.on('pageerror', (e) => console.error('PAGEERR', e.message));

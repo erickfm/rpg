@@ -1,3 +1,4 @@
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 // diner: cx=440, cz=0, W=8.6 D=7.0 -> hd=3.5, T=0.18, door at local x=-2.6 w=1.15
@@ -5,9 +6,9 @@ import { reportWorld } from './lib/which-world.mjs';
 // outside blocker spans z = hd+T .. hd+T+0.18 = 3.68 .. 3.86
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(1000);
 const r = await p.evaluate(async () => {

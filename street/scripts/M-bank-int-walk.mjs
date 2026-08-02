@@ -16,11 +16,12 @@
 //   1  measured, and it is WRONG
 //   2  usage, or a --selftest that was not caught
 //   3  ABORTED — wrong world, or nothing to measure (GOTCHAS 32)
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4204/';
+const URL = aim('http://localhost:4204/');
 const SELFTEST = flags(['--selftest']).selftest;
 
 const b = await chromium.launch();

@@ -3,9 +3,10 @@
 // boundary — the two things you actually see while walking it. Plus a page-error
 // listener, because a fault you can see is not the only kind worth catching on
 // a lap.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1000, height: 600 } });
 const errs = [];

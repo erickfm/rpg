@@ -1,10 +1,11 @@
 // "im literally stuck here ... we need some sort of stuck protection"
 // F added fp.ts:191 unstick(). Test it the only way that matters: put the player
 // INSIDE solid geometry and see whether the world gets them out.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(-6.2,-40,0,0.14,0)); await afterFrames(p,10); await p.waitForTimeout(1500);
 // pick real collider centres on the street and drop the player inside each

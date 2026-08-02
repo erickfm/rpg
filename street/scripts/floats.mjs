@@ -17,6 +17,7 @@
 // that is exactly what the flood-fill answers.
 //
 // Output: shots/float-report.json + a ranked summary on stdout.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
@@ -28,9 +29,9 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.message)));
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.waitForTimeout(1200);
 

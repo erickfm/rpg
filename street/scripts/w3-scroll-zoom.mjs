@@ -1,10 +1,11 @@
 // Verifies scroll-to-zoom: resting FOV, clamped pull-in, spring-back to rest,
 // and — the requirement most likely to silently break — no zoom while a
 // panel (ATM/slots/blackjack/pockets) is open.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 640 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

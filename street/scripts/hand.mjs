@@ -8,9 +8,10 @@
 //
 // `side` is street.ts:548's -1|1, the side of the street the building sits on,
 // which for a z-axis frontage is the sign of facePos.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

@@ -1,8 +1,9 @@
 // H: control for the slot-exit test. Does E get you off the stool when nothing
 // touches the player between sitting and standing? My previous run warped the
 // camera WHILE SEATED to change facing, which may itself be the fault.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

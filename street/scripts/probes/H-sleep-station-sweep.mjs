@@ -1,7 +1,8 @@
 // H: at K's published sleep station, which spot wins - and does any facing give
 // the sleep prompt? D's selector weighs screen centre, so yaw matters.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 640, height: 400 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

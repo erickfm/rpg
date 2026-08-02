@@ -3,10 +3,11 @@
 // sidewalk and a gap number does not tell you WHAT is sunk.
 //   node scripts/whofig.mjs                 # the -9.2,-13 cluster
 //   BOX=x,z,r node scripts/whofig.mjs
+import { aim } from '../lib/aim.mjs';
 import {chromium} from 'playwright';
 const [cx,cz,r]=(process.env.BOX??'-9.2,-13,2.5').split(',').map(Number);
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL??'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction('!!window.__ct',{timeout:60000}); await p.waitForTimeout(2500);
 const r2=await p.evaluate(([cx,cz,r])=>{ const out=[];
  window.__ct.scene().traverse(o=>{ if(!o.isMesh) return;

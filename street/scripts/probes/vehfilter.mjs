@@ -1,9 +1,10 @@
 // "textures on back of truck are janky" - mipmaps on a vehicle crawl into a
 // checkerboard at grazing angles. H: 69 car + 14 bus textures, ZERO mipmapped.
 // THREE: NearestFilter 1003, NearestMipmapNearest 1004, LinearMipmapLinear 1008.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

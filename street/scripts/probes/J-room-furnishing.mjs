@@ -22,13 +22,14 @@
 //
 // GOTCHAS §29: this is the EMPTY world. Citizens and the player are excluded,
 // and a room's keeper is one sprite either way.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { modes } from './lib/modes.mjs';
 
 const mode = modes('J-room-furnishing', ['probe', 'all']);
 void mode;
-const URL = process.env.SHOT_URL ?? 'http://localhost:4192/';
+const URL = aim('http://localhost:4192/');
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 700, height: 440 } });

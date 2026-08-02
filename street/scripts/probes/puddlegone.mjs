@@ -1,10 +1,11 @@
 // DESK RULING: standing puddles removed, everything else in the weather system
 // kept. Verify BOTH - the water is gone AND the wet look still outlasts the rain,
 // because removing a feature is only safe if what it was entangled with survives.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(0,-50,0,0,0));
 await p.waitForTimeout(2000);

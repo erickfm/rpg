@@ -25,12 +25,13 @@
 //
 // Usage: SHOT_URL=http://127.0.0.1:4191/ node scripts/I-flatground.mjs
 //        --selftest   strip a texture off a painted ground surface, require red
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
 const ARGS = flags(['--selftest']);
-const URL = process.env.SHOT_URL ?? 'http://127.0.0.1:4191/';
+const URL = aim('http://127.0.0.1:4191/');
 const MOD = process.env.I_MOD ?? 'lot';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });

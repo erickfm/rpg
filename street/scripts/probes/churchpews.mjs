@@ -1,9 +1,10 @@
 // "pews in the church clip into the confession booths". A NAMED PAIR, which is
 // the only overlap question a box test answers well - my global censuses were
 // unusable because assemblies legitimately interpenetrate.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const rm=await p.evaluate(()=>window.__ct.roomDims().find(r=>r.id==='church'));

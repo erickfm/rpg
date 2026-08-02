@@ -5,11 +5,12 @@
 // radius and measure the narrowest continuous corridor. If the two agree, the
 // 0.89 -> 1.15 m result rests on two independent measurements; if they disagree
 // I have a frame or threshold problem in one of them.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p);
 await p.waitForTimeout(800);

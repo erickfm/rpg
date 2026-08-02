@@ -2,9 +2,10 @@
 // H: 411 colliders, 215 pairs within 1.6 m, 64 gaps in the 0.40-0.95 trap band,
 // NONE involving a kerbside parked car. Check that, and check WHERE they are -
 // a gap off the map cannot trap anybody.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

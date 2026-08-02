@@ -1,5 +1,6 @@
 // The computed schedule, checked against the BUILT WORLD hour by hour.
 // Arithmetic that agrees with the source proves the source, not the build.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const HERMIT_GAP=6;
@@ -9,7 +10,7 @@ const raw=(h)=>{ const d=((h%24)+24)%24;
 const isIn=(h)=>{ if(!raw(h)) return false;
   for(let k=1;k<=HERMIT_GAP;k++) if(raw(h-k)) return false; return true; };
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:900,height:600}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1500);
 await p.evaluate(()=>window.__ct.hermit(null));            // no forcing: read the schedule

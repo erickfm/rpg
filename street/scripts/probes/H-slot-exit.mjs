@@ -2,8 +2,9 @@
 // 0.5 m stand radius. L claims "you cannot be trapped at a machine". This tests
 // the exit against those rivals, at EVERY FACING - because the K lesson is that
 // the facing decides which spot wins the pick.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

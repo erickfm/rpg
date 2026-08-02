@@ -7,9 +7,10 @@
 // looks), so this uses real world bounding boxes, and it only reports pairs
 // that overlap in ALL THREE axes: two things at the same x/z but different
 // heights are a bin under a sign, which is fine.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage();
 await page.goto(URL, { waitUntil: 'networkidle' });

@@ -26,6 +26,7 @@
 // off that file's own texel arithmetic (40x48 texels over BAY_W 5.0 m x BAY_H
 // 6.0 m = 8 px/m). If E repaints the entrance, this check goes on passing.
 // It guards the interior against drifting, not the pair against being changed.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { modes } from './lib/modes.mjs';
@@ -33,7 +34,7 @@ import { modes } from './lib/modes.mjs';
 const mode = modes('J-library-door', ['probe', 'all']);
 void mode;
 const SELFTEST = process.argv.includes('--selftest');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4192/';
+const URL = aim('http://localhost:4192/');
 
 // measured off ct/civic.ts's `doorT`, at its own 8 px/m:
 //   leaves  fillRect(10, 16, 20, 32)  ->  2.50 m wide, 4.00 m tall

@@ -2,9 +2,10 @@
 // weeds.ts:101 builds every tuft the same way: a Group of exactly TWO
 // PlaneGeometry quads, 0.30 x 0.35 * scale, each at position.y = height/2.
 // That signature comes from the source, not from eyeballing a shape.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

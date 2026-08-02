@@ -7,6 +7,7 @@
 //   places    — sorted rounded positions (dynamic props make this a bit noisy)
 //
 // Usage: node scripts/scenedump.mjs <label>   -> shots/<label>.json
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 import { reportWorld } from './lib/which-world.mjs';
@@ -26,9 +27,9 @@ await page.addInitScript(() => {
 });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.message)));
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4177/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct?.scene !== undefined, { timeout: 10000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 // PIN THE CLOCK BEFORE DUMPING, or `structure` is not a fingerprint.
 //
 // Nothing here stopped the world's own time, so a material whose colour depends

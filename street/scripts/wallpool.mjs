@@ -19,11 +19,12 @@
 //      (one material carries one tint, so a 12 m wall cannot hold a gradient),
 //      and if the wall is one of those then "no falloff on the wall" is the
 //      rule working, not the fix failing.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1034, height: 757 } });
 await goto(p, URL);

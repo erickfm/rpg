@@ -1,11 +1,12 @@
 // Two rows: detail extended down the side street, and pedestrians going out that
 // way. Both make measurable claims - gaps that GROW with x, and every walker
 // visiting several distinct stretches.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const SECS=Number(process.env.SECS||150), HZ=2;
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(20,-100,0,0,0)); await afterFrames(p,10); await p.waitForTimeout(1500);
 // 1. trees and parked cars along the side street

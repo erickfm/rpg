@@ -1,6 +1,7 @@
 // H (verifier): I's own published stations for the cards and the jack.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 960, height: 600 } });
 page.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

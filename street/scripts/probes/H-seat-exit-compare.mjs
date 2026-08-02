@@ -1,8 +1,9 @@
 // H: the SAME harness against two seats - the bed (known good, I stood up off it
 // earlier) and a casino slot stool. If one works and the other does not, the
 // harness is not the variable.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

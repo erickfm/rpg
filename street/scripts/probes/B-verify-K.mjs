@@ -13,11 +13,12 @@
 // The held-key promise is the one I most want to test, because it is the kind
 // of thing that works when you press the key during the fade and fails when the
 // key was already down — and nobody tests the second case by hand.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 620 } });
 await goto(p, URL);

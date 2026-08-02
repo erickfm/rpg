@@ -1,7 +1,8 @@
 // H: ONE clean test of the disputed claim - "cannot leave by any key, reloading
 // is the only exit". Fresh page, sit once, press Escape once, read the state.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 for (const run of [1, 2, 3]) {
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 700, height: 440 } });

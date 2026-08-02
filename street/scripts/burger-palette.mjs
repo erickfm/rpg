@@ -29,11 +29,12 @@
 //
 //   node scripts/burger-palette.mjs
 //   node scripts/burger-palette.mjs --selftest
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

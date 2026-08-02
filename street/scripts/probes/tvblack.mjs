@@ -2,10 +2,11 @@
 // materials, which means my coordinates were wrong, not that the set is
 // colourless. Locate it from the published tv state if possible, else from the
 // screen mesh, then read the casing around it.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1200);
 console.log('userData.tv keys:', await p.evaluate(()=>{const t=window.__ct.scene().userData.tv; return t?Object.keys(t).join(' '):'(none)';}));

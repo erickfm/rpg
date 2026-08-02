@@ -16,11 +16,12 @@
 // And the headline number gets an independent arithmetic check: "RTP 92.834%,
 // the EXACT enumeration of all 22^3 = 10,648 stop combinations". `__slots.rtp()`
 // recomputes it; if it disagrees with the row, the row is stale.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1034, height: 757 } });
 await goto(p, URL);

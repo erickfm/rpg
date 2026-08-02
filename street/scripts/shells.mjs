@@ -27,6 +27,7 @@
 // exceptions.
 //
 //   SHOT_URL=http://localhost:PORT/ node scripts/shells.mjs [--selftest]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld, integrationNoise } from './lib/which-world.mjs';
 import { installMats } from './lib/materials.mjs';
@@ -43,7 +44,7 @@ for (const a of process.argv.slice(2)) {
   }
 }
 const SELFTEST = process.argv.includes('--selftest');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4231/';
+const URL = aim('http://localhost:4231/');
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });

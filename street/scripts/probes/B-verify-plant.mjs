@@ -15,11 +15,12 @@
 // — that pot and foliage are two objects that can drift apart. One plane cannot
 // drift; two can. That is worth confirming independently because the whole
 // diagnosis rests on it.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1034, height: 757 } });
 await goto(p, URL);

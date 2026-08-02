@@ -23,11 +23,12 @@
 // NOT a pass/fail on the world. An uncovered spot is a gap in the HARNESS, so
 // this reports the label and the owning module's absence and exits non-zero,
 // because a gap nobody is told about is how the last five got in.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4185/';
+const URL = aim('http://localhost:4185/');
 // Unknown flags are REFUSED, not ignored — a mistyped `--selftest` would
 // otherwise run the ordinary suite and exit 0, reporting a selftest pass for
 // a selftest that never ran (GOTCHAS 34 shape one).

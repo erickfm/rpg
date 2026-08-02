@@ -10,11 +10,12 @@
 //   local 6.50 (the doorway)  -> z -79.50
 //   local 11.20 (north lancet)-> z -74.80
 // Buttress centre lines land at z -85.54, -82.86, -76.14, -73.46.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const OUT = process.env.OUT ?? 'shots/E-church';
 mkdirSync(OUT, { recursive: true });
 

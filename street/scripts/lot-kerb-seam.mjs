@@ -32,11 +32,12 @@
 // live collider list.
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lot-kerb-seam.mjs [--selftest]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently ignored
 const SELFTEST = ARGS.selftest;
 

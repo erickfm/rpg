@@ -7,9 +7,10 @@
 // and nothing in the world would complain — you would simply find yourself in
 // the dead ground behind the park one day. The relief is far from the boundary
 // by design; this is the check that says so rather than the reasoning.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage();
 await page.goto(URL, { waitUntil: 'networkidle' });

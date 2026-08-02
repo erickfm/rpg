@@ -7,11 +7,12 @@
 // Every station is found by ASKING the world where the room is — `roomDims()`
 // publishes the resolved centre and size — so it cannot be aimed at a stale
 // offset the way five hand-typed room coordinates in this project have been.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4204/';
+const URL = aim('http://localhost:4204/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 760 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

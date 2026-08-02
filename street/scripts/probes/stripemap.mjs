@@ -1,10 +1,11 @@
 // WHERE do the stripes read? Stand at points across the park, look down at the
 // grass as a player does, and measure the light/dark amplitude at each.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(-20,-80,0,0.18,0)); await afterFrames(p,10); await p.waitForTimeout(2500);
 await setClock(p,13);

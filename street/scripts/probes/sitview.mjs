@@ -2,9 +2,10 @@
 // the SITTER faced the wall. My dot-to-centre test was ambiguous for a bench near
 // the middle, so test what a sitter SEES: cast along the seat's own facing and
 // measure how far before something blocks it. A wall is close; the park is not.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 console.log(await p.evaluate(()=>{

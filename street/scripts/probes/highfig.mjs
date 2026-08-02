@@ -1,10 +1,11 @@
 // The one citizen-frame figure whose foot is at 5.4 with street ground beneath.
 // Is it a neighbour in an upstairs window (right) or a citizen in mid-air (wrong)?
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(2000); await setClock(p,13);
 for(const [n,x,z,pi] of [['up',195.0,-16.5,0.52],['ang',196.5,-22.0,0.42]]){

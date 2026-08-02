@@ -22,10 +22,11 @@
 // scripts/canfail.mjs, which removes the seal and brings the 303 enclosed
 // texels straight back. That is the mutation that matters most here, because
 // rim-constrained notches LOOK sufficient and measurably are not.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

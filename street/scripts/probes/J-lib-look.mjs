@@ -2,13 +2,14 @@
 // Named per GOTCHAS §24: owner-prefixed, and "-look" so nobody mistakes it for
 // a check. It walks in the way a player does and stands where the user's three
 // 2026-07-25 22:0x screenshots were taken from.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { modes } from './lib/modes.mjs';
 
 const mode = modes('J-lib-look', ['shots', 'all']);
 void mode;
-const URL = process.env.SHOT_URL ?? 'http://localhost:4192/';
+const URL = aim('http://localhost:4192/');
 const OUT = process.argv[3] ?? 'shots/J-lib';
 
 const b = await chromium.launch();

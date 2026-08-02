@@ -26,6 +26,7 @@
 // then walks the room until something stops it.
 //
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/interiors-walk.mjs [id]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { flags } from './lib/flags.mjs';
 import { approachHeading } from './lib/viewof.mjs';
@@ -245,9 +246,9 @@ const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
 p.on('console', (m) => { if (m.type() === 'warning' && /\[interior:/.test(m.text())) errs.push('KIT WARNING: ' + m.text()); });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
 
 for (const r of ROOMS) {

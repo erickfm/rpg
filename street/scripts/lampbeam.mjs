@@ -2,11 +2,12 @@
 //  i want to be able to see stars sometimes"
 // Measure the beam as the player receives it: ground brightness looking down,
 // stepped along the street, so pools and the gaps between them both show.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(-6.2,-40,0,0.14,0)); await afterFrames(p,10); await p.waitForTimeout(2000);
 await setClock(p,22);

@@ -4,10 +4,11 @@
 //      having turned it on and off again (the "truly off" contract)
 //   3. screenshots with it ON at: the jail site, a parked-car stretch, and
 //      standing inside an apartment room
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import fs from 'fs';
 
-const URL = process.env.SHOT_URL || 'http://localhost:4194/';
+const URL = aim('http://localhost:4194/');
 fs.mkdirSync('shots/debug-collision', { recursive: true });
 
 const b = await chromium.launch();

@@ -5,8 +5,9 @@
 // fault turned on: the deleted edge was unflagged AND in the road.
 //
 // Pavement reads groundAt 0.14, carriageway 0.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const PAVE = 0.10;
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });

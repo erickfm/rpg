@@ -1,9 +1,10 @@
 // I sent this row back to OPEN with: range 0.365 m, median 0.140, 85.2% flat at
 // 0.14, "felt underfoot, not seen". Re-measure the same way so the numbers are
 // comparable to my own rejection.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 console.log(await p.evaluate(()=>{

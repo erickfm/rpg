@@ -22,6 +22,7 @@
 // on a proxy for it.
 //
 // Usage: SHOT_URL=http://localhost:4192/ node scripts/J-library-room.mjs walk
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { modes } from './lib/modes.mjs';
@@ -29,7 +30,7 @@ import { modes } from './lib/modes.mjs';
 const mode = modes('J-library-room', ['walk', 'all']);
 void mode;
 const SELFTEST = process.argv.includes('--selftest');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4192/';
+const URL = aim('http://localhost:4192/');
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });

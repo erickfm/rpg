@@ -5,10 +5,11 @@
 // and that groundAt reads 0 at each. Measure it rather than believe it.
 //
 //   SHOT_URL=http://localhost:4184/ node scripts/probes/w19-walkup-storeys.mjs
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

@@ -1,7 +1,8 @@
 // H (verifier): the row's SECOND clause - "what is this poster on the wall?"
 // E confirmed the door half and said plainly the poster was never looked at.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 900, height: 560 } });
 page.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

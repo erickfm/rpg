@@ -1,13 +1,14 @@
 // WHAT forms each tight stretch? For every pinch lane3.mjs reports, name the two
 // bodies that bound it. The question is whether the tight spots are independent
 // mistakes or one placement constant applied many times — those need different fixes.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(600);
 
 // [label, walk axis, fixed coord, sample coord] from lane3's output

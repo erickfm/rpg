@@ -8,10 +8,11 @@
 // This locates them and attributes them by `userData.mod`, so the desk can
 // route owners rather than guess. An investigation — it prints, it does not
 // assert.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? "http://localhost:4181/";
+const URL = aim('http://localhost:4181/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

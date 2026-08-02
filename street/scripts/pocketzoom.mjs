@@ -1,9 +1,10 @@
 // A 0.4 m grid can close a real gate. Re-test each pocket locally at 0.1 m
 // before claiming anyone is trapped.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const R=0.36;
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const spots=[[8.6,-73.6],[8.6,-83.0],[-38.2,-81.4],[57.6,-114.2]];

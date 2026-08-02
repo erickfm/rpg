@@ -7,14 +7,15 @@
 // ground change state at all, and does the gutter strip hold water longer than
 // the broad road sheet (props.ts gives strips exponent 0.55 and broad sheets
 // 1.7, so the strips should lag).
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.warp(0, -40, 0, 0.14, 0));
 await p.waitForTimeout(400);
 const probe = async () => await p.evaluate(() => {

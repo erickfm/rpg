@@ -1,9 +1,10 @@
 // LOOK at the tax office waiting row, from a fixed spot, before/after the fix.
 // For LOOKING only (per BUILDER-BRIEF §10) — not a diff, not proof by itself.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const label = process.argv[2] ?? 'w9-tax';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 680 } });

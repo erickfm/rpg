@@ -2,11 +2,12 @@
 // last time. The light well is at x 201.20-202.40, z -11.60..-9.42, so the
 // opening is in the wall at x ~201.2 around z -10.5. Stand inside the room and
 // look at it, rather than measuring it from outside.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(2000); await setClock(p,13);
 const EAST=Math.PI/2;                                   // look toward +x

@@ -2,9 +2,10 @@
 // and one line is how I nearly filed the library stair as a sheer cliff — it
 // runs in the other axis. So scan the whole corner region and report WHERE the
 // intermediate heights are, rather than asking one line.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2000);
 const [X0,X1,Z0,Z1]=(process.env.BOX??'49,59,-112,-94').split(',').map(Number);

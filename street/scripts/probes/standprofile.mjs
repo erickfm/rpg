@@ -2,10 +2,11 @@
 // pos()[3], the ground the rig actually resolved. groundAt(x,z) probed from
 // elsewhere is context-dependent (notes/groundat-context.md) and gave me 0.14
 // for a point that resolves to 0.99 when you stand on it.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:600,height:400}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1000);
 const [x0,x1,z]=(process.env.LINE??'-4,-12,-13').split(',').map(Number);

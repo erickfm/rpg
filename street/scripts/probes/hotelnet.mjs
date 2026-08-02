@@ -1,9 +1,10 @@
 // Two rows: (1) does the hotel INTERIOR use the exterior's own constants
 // (#8e1f2a, #5a1520, #8a6a22) rather than lookalikes; (2) is the side street's
 // east-end edge now flagged as a crossing.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

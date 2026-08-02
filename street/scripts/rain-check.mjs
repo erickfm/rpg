@@ -5,6 +5,7 @@
 // world-locked the drop either hasn't moved horizontally at all, or has
 // wrapped by an exact multiple of RAIN_BOX (30 m) — a full period, which is
 // invisible because the distribution is uniform.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const browser = await chromium.launch();
@@ -12,7 +13,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 await page.goto(URL, { waitUntil: 'networkidle' });
 await reportWorld(page, URL);   // GOTCHAS 26 — before the try/catch below judges the world
 try {

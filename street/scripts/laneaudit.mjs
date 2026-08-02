@@ -7,6 +7,7 @@
 //   PEOPLE   — crowd.ts:153 boxes, deliberately +-0.25 so the player can pass.
 //              They move, so a pinch is transient.
 // Player capsule 0.72 m across (RADIUS 0.36). GOTCHAS 9: the 2 m lane is sacred.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 const STEP=0.25;
@@ -17,7 +18,7 @@ const LANES=[
  {id:'side st south',  axis:'x', x0:-110.25,x1:-108.25,a0:-6,  a1:56},
 ];
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const res=await p.evaluate(([LANES,STEP])=>{

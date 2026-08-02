@@ -16,12 +16,13 @@
 // contained a flagpole instead of the pole sign it was captioned as.
 //
 // Usage: SHOT_URL=http://127.0.0.1:4191/ node scripts/I-walk.mjs [--night]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
 const ARGS = flags(['--night']);
-const URL = process.env.SHOT_URL ?? 'http://127.0.0.1:4191/';
+const URL = aim('http://127.0.0.1:4191/');
 const TAG = ARGS.night ? 'n' : 'd';
 const HOUR = ARGS.night ? 21 : 13;
 

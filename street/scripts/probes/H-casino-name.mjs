@@ -1,8 +1,9 @@
 // H (verifier): "instead of calling the casino golden aces call it SEVENS".
 // The predicate is self-evident and needs no station: the old name must be
 // gone from what the player can read, and the new one present.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

@@ -2,9 +2,10 @@
 // rad. An AABB test is the wrong instrument here and I have the lesson written
 // down already: an angled car's axis-aligned extent overlaps its neighbour's
 // even when the two cars do not touch. So: oriented boxes, separated by SAT.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 // CARS FOUND BY THEIR TYRES. Scene-graph grouping cannot separate them - every

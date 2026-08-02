@@ -1,10 +1,11 @@
 // M's bank: "14 x 12 m at 3.6 m, the tallest interior in the world", a 10.8 m
 // teller line with three windows (window 3 closed), and a vault you can walk
 // into with a 0.30 m door standing open at 100 degrees.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1100,height:700}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1200);
 await p.evaluate(()=>window.__ct.clock(13,0)); await afterFrames(p,5);

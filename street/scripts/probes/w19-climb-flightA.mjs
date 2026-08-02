@@ -2,10 +2,11 @@
 // storey picker follow you? Sample gy every few frames while holding W.
 //
 //   SHOT_URL=http://localhost:4184/ node scripts/probes/w19-climb-flightA.mjs
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

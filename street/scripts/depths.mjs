@@ -1,9 +1,10 @@
 // "all buildings need to be much deeper otherwise it looks like a fake building"
 // The row names two shells that went 3.4 -> 14 m. But the request says ALL, so
 // measure every building mass in the world and report the SHALLOWEST.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

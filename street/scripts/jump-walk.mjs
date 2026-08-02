@@ -26,10 +26,11 @@
 // warped onto proves the warp works. The ramp position in particular cannot be
 // written down at all — it is wherever the climb had got to — which is exactly
 // the property that makes it a real test of the picker.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4185/';
+const URL = aim('http://localhost:4185/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));

@@ -9,10 +9,11 @@
 // Grouped by room via roomDims() so the output reads "one shot per keeper
 // per room" rather than one shot per mesh (a room with three tellers would
 // otherwise get three near-identical frames).
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 750 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

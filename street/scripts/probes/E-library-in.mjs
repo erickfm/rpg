@@ -2,9 +2,10 @@
 // nine others; nine were built and this one was not. So the test is the user's
 // test: can you get in, is there something in there, can you sit down, and can
 // you get back out without being sucked straight back in?
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1000, height: 620 } });
 const errs = [];

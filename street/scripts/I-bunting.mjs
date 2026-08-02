@@ -24,12 +24,13 @@
 //
 // Usage: SHOT_URL=http://127.0.0.1:4191/ node scripts/I-bunting.mjs
 //        --selftest   lift one segment 0.4 m, require both clauses to notice
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
 const ARGS = flags(['--selftest']);
-const URL = process.env.SHOT_URL ?? 'http://127.0.0.1:4191/';
+const URL = aim('http://127.0.0.1:4191/');
 const JOIN = 0.02;          // 2 cm: segments of one polyline share a point exactly
 const ANCHOR = 0.45;        // an end this close to a post top is tied to it
 

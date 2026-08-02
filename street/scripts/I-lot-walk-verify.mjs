@@ -1,9 +1,10 @@
 // Walk into each of the lot's three "not just parked" cars (hood-up, jacked,
 // on blocks) and confirm the player is physically stopped by each — a
 // collision fix must be proven by walking, not by reading the collider list.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4198/';
+const URL = aim('http://localhost:4198/');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 await page.goto(URL, { waitUntil: 'networkidle' });

@@ -26,12 +26,13 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/I-rows.mjs
 //        --selftest   turn the left row around, require this to go red
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
 const ARGS = flags(['--selftest']);       // unknown flags exit 2, not ignored
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

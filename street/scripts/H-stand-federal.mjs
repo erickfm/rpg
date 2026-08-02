@@ -1,8 +1,9 @@
 // H (verifier): stand at FIRST FEDERAL by hand. Not D's protocol - a player
 // walking up, stopping, looking, and turning away.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { installSee } from './lib/D-see.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 900, height: 560 } });
 page.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

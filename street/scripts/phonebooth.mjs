@@ -5,11 +5,12 @@
 //   1. does its collider touch the 2 m walk? (x -7.00 … -5.06)
 //   2. do the crowd's walkers ever come within reach of it?
 //   3. is the header held bright after dark while the enamel grades down?
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1034, height: 757 } });
 await goto(p, URL);

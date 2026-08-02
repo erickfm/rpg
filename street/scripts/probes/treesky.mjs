@@ -2,11 +2,12 @@
 // tree, look straight up, and measure how much of the view is sky. B claims the
 // worst went 100% -> 37%. The open-sky control is what makes the number mean
 // something: if a clear patch does not read ~100%, the classifier is wrong.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 import fs from 'fs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:800,height:600}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1500);
 await p.evaluate(()=>window.__ct.clock(13,0)); await afterFrames(p,6);

@@ -1,11 +1,12 @@
 // The user's park graphics review: walk the full depth and the loop, in
 // daylight, at night, and in rain, and SHOOT what a player sees.
 // Not a harness — the frames are the deliverable and I read every one.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 import { afterFrames } from './lib/frames.mjs';
-const U=process.env.SHOT_URL ?? 'http://localhost:4184/';
+const U=aim('http://localhost:4184/');
 const b=await chromium.launch();
 const p=await b.newPage({viewport:{width:1280,height:720}});
 await p.goto(U,{waitUntil:'networkidle'});

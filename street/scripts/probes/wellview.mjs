@@ -1,10 +1,11 @@
 // Room 301's window is in the WEST wall (x 196.73-196.87), opening z -16.9..-15.6,
 // y 6.25-7.55. Shoot the VIEW THROUGH IT: straight on for the brick, angled for
 // the side returns, down for the floor 4.25 m below.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(2000);
 const W=-Math.PI/2;

@@ -1,7 +1,8 @@
 // H: does ANYBODY walk the east end? "0 on the new frontage leg" is worthless
 // if no walker goes east of the midblock at all (GOTCHAS §34).
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const SECS = +(process.env.SECS ?? 150);
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });

@@ -26,6 +26,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/doors-declared.mjs
 //        --selftest   pretend a declaration is missing, require this to fail
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { readdirSync, readFileSync } from 'node:fs';
 import { reportWorld } from './lib/which-world.mjs';
@@ -33,7 +34,7 @@ import { flags } from './lib/args.mjs';
 
 const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently ignored
 const SELFTEST = ARGS.selftest;
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const DIR = 'src/proto/ct';
 
 // ── the source end ────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@
 //     standing near the kerb reads as a 0.75 m pinch that is not there a second
 //     later. So the list is sampled TWICE, a second apart, and anything whose
 //     bounds moved is dropped — what is left is furniture.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
@@ -27,9 +28,9 @@ const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 // Port: 4184 is ANOTHER WORKTREE (/home/erick/projects/rpg-audit). Left as the
 // default so this keeps behaving as before, but SHOT_URL now wins, because a
 // lane number measured in a checkout that is not yours is not about your work.
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
 const snap = async () => p.evaluate(() => window.__ct.colliders()

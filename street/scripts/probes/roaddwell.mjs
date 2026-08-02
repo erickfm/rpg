@@ -2,11 +2,12 @@
 // My earlier crossing confirmation counted roadway samples as PROOF crossings
 // were happening. That reading is only safe if nobody is stranded there. So:
 // per walker, how long in the carriageway, and were they MOVING while in it?
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const SECS=Number(process.env.SECS||240), HZ=4;
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(6.0,-40,0,0.14,0)); await afterFrames(p,10); await p.waitForTimeout(1500);
 await p.evaluate(([SECS,HZ])=>{ window.__rd={pos:[]};

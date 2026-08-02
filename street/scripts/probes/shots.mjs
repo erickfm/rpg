@@ -2,11 +2,12 @@
 // cycles through window.__lab.list(), lets each animate for a beat, and captures.
 // Usage: npm run build && npx vite preview --port 4177 &  then
 //   node scripts/shots.mjs [outDir]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const outDir = process.argv[2] ?? 'shots';
 mkdirSync(outDir, { recursive: true });
 

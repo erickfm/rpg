@@ -1,9 +1,10 @@
 // The FEET of the casino figures. cas-a showed the figure cut off at the waist
 // by the slot cabinet, which is no evidence either way about a 0.165 m float.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(2000);
 for(const [n,sx,sz,tx,tz,pi] of [

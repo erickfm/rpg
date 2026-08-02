@@ -6,14 +6,15 @@
 // park was seven metres deep. A site you can see into and not walk into is
 // worse than no site, and nothing caught it because the bound and the site
 // depth live in different files.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 const pos = () => p.evaluate(() => window.__ct.pos());
 
 const fails = [];

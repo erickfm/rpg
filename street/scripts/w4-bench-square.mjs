@@ -15,10 +15,11 @@
 // AT the midpoint of a leg, but drifted away from everywhere else. Checking
 // every bench, not just one, is the point (GOTCHAS 41: verify every instance,
 // not the one that happens to be right).
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 900, height: 520 } });
 await page.goto(URL, { waitUntil: 'networkidle' });

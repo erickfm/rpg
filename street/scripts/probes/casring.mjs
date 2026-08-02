@@ -1,10 +1,11 @@
 // Four stations around the casino figure, so at least one has a clear line to
 // its feet. Guessing one angle and reading whatever it shows is how you end up
 // certain about a cabinet.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(2000);
 const [TX,TZ]=(process.env.AT??'602.44,13.42').split(',').map(Number), R=2.5;

@@ -1,9 +1,10 @@
 // A raised floor is not a stair. Profile the transition: if the ground steps up
 // in climbable increments it is a stair; if it jumps 2.9 m in one sample it is a
 // mezzanine you cannot reach on foot.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2000);
 console.log(await p.evaluate(()=>{

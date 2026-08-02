@@ -1,9 +1,10 @@
 // Targeted: for each 0.56 x 1.4 pit, look for the trunk DIRECTLY ABOVE it rather
 // than globally - a global search pairs pits with lamp posts.
 // Also check the kerb strip: B says 0.117 m of paving between pit and kerb.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 console.log(await p.evaluate(()=>{

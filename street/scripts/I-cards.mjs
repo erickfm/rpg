@@ -24,12 +24,13 @@
 //
 // Usage: SHOT_URL=http://127.0.0.1:4191/ node scripts/I-cards.mjs
 //        --selftest   pin one card back at the old constant z, require red
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
 const ARGS = flags(['--selftest']);
-const URL = process.env.SHOT_URL ?? 'http://127.0.0.1:4191/';
+const URL = aim('http://127.0.0.1:4191/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 750 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

@@ -17,11 +17,12 @@
 // `E_FLAT=1` is the positive control: it counts the same band on a synthetic
 // flat fill instead of the frame, and MUST come back red. A grain check that
 // has never been shown to fail is one you will argue with.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 mkdirSync('shots/E-soffit', { recursive: true });
 
 const b = await chromium.launch();

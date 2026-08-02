@@ -10,11 +10,12 @@
 // supposed to be observing can only produce 0 or a multiple of 30.
 //
 // The rain is the one with a map on its material. Same test, right subject.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { goto, settle } from './lib/reachable.mjs';
 
 const BOX = 30;
-const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
+const URL = aim('http://localhost:4195/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 620 } });
 const errs = [];

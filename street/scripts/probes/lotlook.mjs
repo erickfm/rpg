@@ -1,10 +1,11 @@
 // The lot's parked stock, looked at. My tyre-cluster finder located only the two
 // cars near the entrance, so it cannot enumerate the herringbone rows and I will
 // not report a count from it.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1500);
 await p.evaluate(()=>window.__ct.clock(13,0)); await afterFrames(p,6);

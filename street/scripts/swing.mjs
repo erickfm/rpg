@@ -15,9 +15,10 @@
 // `window`. `scripts/bunting.mjs` appears to use `window.THREE_V` but the
 // helper it defines is never called, so it has never been exercised. Do the
 // matrix maths by hand, as below.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 720 } });
 await p.goto(URL, { waitUntil: 'networkidle' });
