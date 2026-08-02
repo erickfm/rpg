@@ -64,8 +64,7 @@ second time the check below caught it in seconds.
 **Run this after every queue edit:**
 
 ```sh
-t=$(grep -c '| TODO |' notes/QUEUE.md); c=$(grep -c '^| *[0-9]*[a-z]* *| *TODO *|' notes/QUEUE.md)
-[ "$t" = "$c" ] || echo "MISMATCH — claim.sh cannot see every TODO row"
+./scripts/queue-check.sh          # counts must match; see the script
 ```
 
 **Workers run whenever this file has unclaimed work.** The user's standing rule:
