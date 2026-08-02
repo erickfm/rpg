@@ -2398,3 +2398,12 @@ GOTCHAS 58.)
 Measured: the spot moved x 198.30 → 198.84. Looked at it from the seat — the TV
 is now square in the middle of the view with the poster above it, instead of off
 to one side.
+
+- **"i dont want sit on bed and watch tv to be the main option if im facing the door to leave"**
+  (2026-08-02) → **routed to a builder as queue item 85, top of the queue.**
+  Direct consequence of `fa5c32e01` (item 0b), which the desk approved: `pickSpot`
+  now tracks `bestNear` and `bestLooked` as two tiers with near winning outright.
+  That fixed the user's earlier *"i dont want to be so far from the bed and the
+  option is still to sit on the bed"* and created its mirror image. The two
+  complaints are the same knob at opposite ends, so the fix has to satisfy both
+  at once rather than swing back.
