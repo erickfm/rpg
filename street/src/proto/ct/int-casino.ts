@@ -698,13 +698,22 @@ export function buildCasino(ctx: CtxBuild): void {
    * ring the wheel from the avenue you walk down, and the croupier stands with
    * their back to the wall, which is where a croupier stands.
    *
-   * The span is ±0.75 rad, not the old ±1.15. At 2.35 m the outermost approach
-   * then lands 0.17 m clear of the bank and 0.77 m clear of the poker table;
-   * ±0.90 would put it 0.07 m INSIDE the bank. Both ends are checked by
-   * `scripts/w15-roulette-gap.mjs`, which fails if any of the five is blocked.
+   * THE ARC IS NOT CENTRED ON +x, and that is the whole reason five places
+   * still fit. Solving `0.2 + 2.35·cos a` against the bank at z 2.15 and the
+   * poker table at z −2.35 (both less the 0.36 m capsule's half-width, and
+   * 0.15 m of margin on top) gives a legal arc of **0.810 … 2.807 rad** — 1.997
+   * rad wide, but centred on **1.81**, leaning off +x toward the poker side
+   * because the bank is the nearer of the two. Centring on π/2 instead wastes
+   * the slack at the far end and forces the stools to 0.58 m apart, which is
+   * what a first pass here did.
+   *
+   * Using the arc properly gives ±0.95 and **0.74 m between stool centres**,
+   * against the 0.89 m this ring had before it moved — snug, and a roulette
+   * table is snug. `scripts/w15-roulette-gap.mjs` fails if any of the five
+   * approaches is blocked; `scripts/w15-roulette-walk.mjs` sits in all five.
    */
-  const ROU_OPEN = Math.PI / 2;
-  const ROU_SPAN = 0.75;
+  const ROU_OPEN = 1.81;
+  const ROU_SPAN = 0.95;
   const PLAYER_R = 0.36;
   /** is this point inside a game table, as far as a player's body is concerned? */
   const inPit = (x: number, z: number) => PIT.some((t) =>
