@@ -281,23 +281,30 @@ const sTail = sFwd > 0 ? deck.minZ : deck.maxZ;
 const sMidX = (deck.minX + deck.maxX) / 2;
 const sYawFwd = sFwd < 0 ? 0 : Math.PI;
 const sYawBack = sFwd < 0 ? Math.PI : 0;
-await warp(sMidX, sTail - sFwd * 1.4, sYawFwd);
-await p.waitForTimeout(300);
-await hold('w', 600);
-await p.waitForTimeout(200);
-await hopOnto('w', 220, deck, 'z');
-if (Math.abs((await feet()) - deck.maxY) > TOL) {
-  fails.push('never reached the sedan trailer deck — case 5 (boot lid) measured nothing');
-} else {
-  await hold('w', 420);
-  await p.waitForTimeout(200);
-  await hopOnto('w', 200, boot, 'z');
-  if (Math.abs((await feet()) - boot.maxY) > TOL) {
-    fails.push('never reached the sedan boot lid — case 5 measured nothing');
-  } else {
-    await face(sYawBack);
-    mustFall('5. walked off the SEDAN BOOT LID', await leave('w'), boot.maxY);
+// Three attempts, for the same reason climbBed has them: road -> deck -> boot is
+// two chained hops, and it misses often enough that the built bundle failed this
+// case on a world where the fix was working. "Never got up there" and "got up
+// there and fell wrong" are opposite findings.
+const climbBoot = async () => {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await warp(sMidX, sTail - sFwd * 1.4, sYawFwd);
+    await p.waitForTimeout(300);
+    await hold('w', 600);
+    await p.waitForTimeout(200);
+    await hopOnto('w', 220, deck, 'z');
+    if (Math.abs((await feet()) - deck.maxY) > TOL) continue;
+    await hold('w', 420);
+    await p.waitForTimeout(200);
+    await hopOnto('w', 200, boot, 'z');
+    if (Math.abs((await feet()) - boot.maxY) <= TOL) return true;
   }
+  return false;
+};
+if (!await climbBoot()) {
+  fails.push('never reached the sedan boot lid in three attempts — case 5 measured nothing');
+} else {
+  await face(sYawBack);
+  mustFall('5. walked off the SEDAN BOOT LID', await leave('w'), boot.maxY);
 }
 
 // ── 6. THE KERB IS UNCHANGED — pinned, not endorsed (see the header) ───────
