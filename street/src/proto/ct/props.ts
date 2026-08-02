@@ -784,6 +784,33 @@ export function buildProps(ctx: CtxBuild): Props {
           ? 1 - Math.min(1, Math.max(0, (span - SPAN_FULL) / (SPAN_NONE - SPAN_FULL)))
           : 0;
         const sizeW = tw * tw * (3 - 2 * tw);
+        // ── PUBLISH THE TAPER SO IT CAN BE CHECKED FROM OUTSIDE ──────────
+        //
+        // The weight above was stored ONLY on `litList`, which is a module
+        // internal. Nothing outside this file could read it, so
+        // `scripts/wallpool.mjs` verified the taper by RETYPING the smoothstep
+        // and comparing the world against its own restatement of the world —
+        // it agreed with itself and could not go red on any change to the two
+        // lines above. Row L260 was demoted CONFIRMED -> LANDED for exactly
+        // that reason: "a row confirmed on an instrument that cannot
+        // distinguish the world from its own copy of the rule is not
+        // confirmed."
+        //
+        // BOTH numbers, not just the weight. `sizeW` alone is unfalsifiable —
+        // any value looks correct with nothing to relate it to. The span is
+        // the taper's INPUT, so publishing the pair makes the rule a query:
+        // a checker can read (span, sizeW) off the world and test the
+        // properties the taper exists to provide (monotone, continuous, full
+        // below the knee, zero above it) without ever restating the formula.
+        // BUILDER-BRIEF §8: derive, never retype.
+        //
+        // On the MESH, not the material, because the span is a property of
+        // this mesh's bounding box while one material may dress several. A
+        // mesh whose material some earlier mesh already registered is skipped
+        // by the `litSeen` guard above and correctly carries nothing — it is
+        // not in the pooling registry either.
+        o.userData.sizeW = sizeW;
+        o.userData.poolSpan = span;
         const poolable = wy.y < 4.5 && sizeW > 0;
         const selfLit = isSelfLit(m);
         // Say so on the material. A sheet held at FLOOR_SIGN is graded and
