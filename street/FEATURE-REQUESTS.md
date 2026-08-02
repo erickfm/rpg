@@ -2750,3 +2750,13 @@ to one side.
   through that API, which the project never calls. Long frames → fewer events → less
   accumulated delta → the camera turns less for the same hand movement. Explains why it
   is worst *looking into* the room rather than standing in it.
+
+- **"still feels weird to look around at the door frame to my room. idk what changed but
+  it seems like a recent change. not on click behavior or anything. its just from looking
+  around"** (2026-08-02) → **routed as queue item 140, TOP.** Desk's leading suspect is
+  item 85 (the pickSpot facing gate, landed today): before it, the nearest spot won
+  outright so the prompt was STABLE while turning; now turning changes which tier wins —
+  and 301's doorway is the worst place in the world for that, with the bed seat, door
+  spot and sleep spot all overlapping (1.27 m apart, touch circles 0.85 m and 1.10 m,
+  measured by w40). NOT the perf fix: `canSee` is yaw-independent and deliberately not
+  keyed on yaw, so turning cannot change its answers.
