@@ -1931,3 +1931,22 @@ page with no `__ct`: exit 0.
    it is wrong" are different sentences. That distinction has now been paid for
    four separate times in this file.
 
+
+## 66.
+
+**A test file under `src/` kills the dev world while the build stays clean.**
+Vite serves everything under `src/` to the browser, so a `*.test.ts` there is
+*executed in the page*: `__ct` never appears, the playtest world is dead, and
+`npm run build` reports no problem at all. It would have shipped as "builds
+fine, world dead" — the worst possible pairing, because the signal everyone
+trusts stays green.
+
+Found when the repo gained its first unit tests. **Tests live in `test/`, never
+under `src/`.**
+
+That first test file is worth its own note. `ct/gap.ts`'s turned-box clearance
+was got **wrong twice** — narrowest axis, then widest, the second understating
+by 0.634 m — and **all sixteen hand-written cases passed the first wrong
+version.** What caught both was a property test: 4000 random box pairs checked
+against an independent exact-polygon oracle. Hand-picked cases test the author's
+mental model; a property test tests the code.
