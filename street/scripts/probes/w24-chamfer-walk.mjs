@@ -23,9 +23,16 @@
 // wrong before.
 //
 // Usage: SHOT_URL=http://localhost:<port>/ node scripts/probes/w24-chamfer-walk.mjs
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4210/';
+// AIMED, NOT GUESSED. This carried a bare `?? 'http://localhost:4210/'` — the
+// GOTCHAS 48 trap that had 648 other instruments swept on 2026-08-02. Run it
+// without SHOT_URL and it opened 4210, measured whoever was serving it, and
+// printed a confident chamfer verdict about somebody else's tree with nothing
+// in the output admitting the port was a default nobody chose. `aim()` hands
+// SHOT_URL straight back when it is set, and otherwise says so on stderr.
+const URL = aim('http://localhost:4210/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 const errs = [];
@@ -33,6 +40,18 @@ p.on('pageerror', (e) => errs.push(String(e.message)));
 p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
+
+// CPU_THROTTLE=8 is this file's own regression test. §4a used to walk a fixed
+// 2600 ms and so measured frames-under-load rather than the chamfer: on
+// identical world bytes it cleared 2.58 / 3.48 / 4.63 / 8.32 / 8.41 m across
+// five runs, straddling the 2.83 m face width the verdict compares against.
+// Applied AFTER load so the world still boots in reasonable time.
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 1);
+if (THROTTLE > 1) {
+  const cdp = await p.context().newCDPSession(p);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+  console.log(`CPU throttled x${THROTTLE}`);
+}
 
 // THE CUT COMES OUT OF THE BUILT WORLD, not out of a number typed here and not
 // out of the module graph either. `ct/bodega-corner.ts` exports its `BAY`, and
@@ -304,18 +323,85 @@ if (Math.abs(edge.edge - trueEdge) < 0.01) pass('gap.ts measures the turned box 
 else fail(`gap.ts measures the turned box to x ${edge.edge.toFixed(3)}, but it reaches x ${trueEdge.toFixed(3)}`);
 }
 
-/** Hold `keys`, sampling the track. */
-async function walk(keys, ms, step = 65) {
+// ── the walker: IT ENDS ON WORLD STATE, NEVER ON A CLOCK ───────────────────
+//
+// This used to hold `w` for a fixed 2600 ms and sample every 65 ms, and that
+// was the flakiest thing in this file. `dt` is CLAMPED at 0.05 s
+// (src/main.ts:107), so a loaded browser advances the simulation by at most
+// 50 ms however long the frame really took: the wall-clock window closes while
+// the player is still mid-corner, and what gets reported is how many frames the
+// machine managed, not how far the chamfer let anybody go. Measured on
+// bit-identical world bytes, §4a's "cleared" distance over five runs:
+//
+//     fixed 2600 ms   2.58 / 3.48 / 4.63 / 8.32 / 8.41 m     (the face is 2.83 m)
+//
+// The same world therefore passed three times and failed twice, and re-tuning
+// the threshold could only have chosen which half it lied about. Every
+// clock-free verdict in this file — 1, 2a, 3, 3b — was identical on all five.
+//
+// So a leg now ends when the WORLD says it is over: either you came out the far
+// end of the face, or you stopped moving for STALL_FRAMES consecutive rendered
+// frames. Both are statements about world state, so neither can be truncated by
+// load, and a wedged player still ends the leg promptly instead of burning the
+// budget. Sampling is per rendered frame, in-page, so no sample can straddle a
+// frame the way a 65 ms poll did.
+const STALL_EPS = 0.002;        // metres travelled in one frame that counts as none
+const STALL_FRAMES = 30;
+// FRAMES, not ms — the whole point. A budget generous in wall clock is
+// unbounded exactly when frames are slow, which is when this check matters;
+// jump-walk.mjs sat on one at x40 for twenty minutes. The longest leg is ~1.1 m
+// of approach plus the 2.83 m face plus clearance, about 5 m at 3.2 m/s. At a
+// 1/60 s step that is ~95 frames, and the dt clamp means a SLOWER frame covers
+// more ground rather than less, so ~95 is the worst case. 600 is a 6x margin
+// and still terminates under any load.
+const WALK_FRAME_BUDGET = 600;
+
+/** Hold `keys` and sample every RENDERED frame in-page until the world ends the
+ *  leg: `target` metres along the face reached, or no travel for STALL_FRAMES
+ *  frames. Returns `{ track, why, frames }`. */
+async function walk(keys, target) {
   for (const k of keys) await p.keyboard.down(k);
-  const out = [];
-  for (let t = 0; t < ms; t += step) {
-    await p.waitForTimeout(step);
-    const [x, , z] = await pos();
-    out.push({ t, x, z, s: perp(x, z), a: along(x, z) });
-  }
+  const r = await p.evaluate(([ax, az, cut, target, eps, stallFrames, budget]) => new Promise((resolve) => {
+    const S2 = Math.SQRT2;
+    const out = [];
+    let n = 0, still = 0, moved = false, lx = null, lz = null;
+    const tick = () => {
+      const [x, , z] = window.__ct.pos();
+      // This copy of the projection exists only to GATE THE LOOP — an in-page
+      // callback cannot close over the node-side `along`/`perp`. Every number
+      // this file reports or judges is recomputed from x/z by those originals
+      // once the track comes back, so there is exactly one definition of the
+      // face frame in play and this copy cannot drift into a verdict.
+      const a = ((x - ax) - (z - az)) / S2;
+      out.push({ x, z });
+      if (lx !== null) {
+        const d = Math.hypot(x - lx, z - lz);
+        if (d > eps) moved = true;
+        // Stillness only counts once the leg has actually STARTED. The first
+        // frames after a warp routinely show no travel because the keydown has
+        // not been read yet, and calling that "wedged" would end the leg at
+        // zero and paint a perfectly good world red.
+        still = (moved && d <= eps) ? still + 1 : 0;
+      }
+      lx = x; lz = z;
+      if (a > target) return resolve({ track: out, why: 'cleared', frames: n });
+      if (still >= stallFrames) return resolve({ track: out, why: 'stalled', frames: n });
+      if (++n > budget) return resolve({ track: out, why: 'budget', frames: n });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }), [A.x, A.z, CUT, target, STALL_EPS, STALL_FRAMES, WALK_FRAME_BUDGET]);
   for (const k of keys) await p.keyboard.up(k);
-  return out;
+  // The single definition of the face frame, applied to the raw track.
+  return { ...r, track: r.track.map(({ x, z }) => ({ x, z, a: along(x, z), s: perp(x, z) })) };
 }
+// Walk until half a metre PAST the far end, so "cleared" is unambiguous and the
+// verdict below still has headroom rather than tripping on the exact sample
+// that crossed the line.
+const walkTarget = () => FW + 0.5;
+// Print a thinned track: per-frame sampling yields hundreds of rows and the
+// shape is what a reader needs, not every frame.
+const thin = (tr) => tr.filter((_, i) => i % 5 === 0 || i === tr.length - 1);
 const stalls = (tr) => {
   let n = 0;
   for (let i = 1; i < tr.length; i++) if (Math.hypot(tr[i].x - tr[i - 1].x, tr[i].z - tr[i - 1].z) < 0.01) n++;
@@ -327,9 +413,11 @@ console.log('\n── 4a. walk the diagonal: cut the corner south-east past the 
 const YAW = Math.PI / 4;    // fwd = (+1, -1)/sqrt2, the a -> b tangent
 await warp(A.x - 1.1, A.z + 1.3, YAW);
 await p.waitForTimeout(300);
-const leg1 = await walk(['w'], 2600);
+const run1 = await walk(['w'], walkTarget());
+const leg1 = run1.track;
 const e1 = leg1[leg1.length - 1];
-for (const r of leg1) console.log(`      x ${r.x.toFixed(3)}  z ${r.z.toFixed(3)}  along ${r.a.toFixed(3)}  perp ${r.s.toFixed(3)}`);
+for (const r of thin(leg1)) console.log(`      x ${r.x.toFixed(3)}  z ${r.z.toFixed(3)}  along ${r.a.toFixed(3)}  perp ${r.s.toFixed(3)}`);
+console.log(`   leg ended: ${run1.why} after ${run1.frames} rendered frames (budget ${WALK_FRAME_BUDGET})`);
 console.log(`   ended x ${e1.x.toFixed(2)} z ${e1.z.toFixed(2)}, along ${e1.a.toFixed(2)} of ${FW.toFixed(2)} m`);
 // CLEARING IS THE VERDICT; the stall count is an observation beside it.
 // Being caught on the corner means you are still on it — so "did you come out
@@ -352,10 +440,15 @@ else fail(`did NOT clear the corner — stopped ${e1.a.toFixed(2)} m along a ${F
 console.log('\n── 4b. walk the diagonal: hug the face, aimed 20 degrees into it ──');
 await warp(A.x - 0.75, A.z - 0.75, YAW + 0.35);
 await p.waitForTimeout(300);
-const leg2 = await walk(['w'], 2600);
+// Same world-state ending as 4a, and for the same reason: this leg's own
+// verdict below is "did hugging the face still carry you off the end", which a
+// fixed 2600 ms window answers with the frame rate rather than with the wall.
+const run2 = await walk(['w'], walkTarget());
+const leg2 = run2.track;
+console.log(`   leg ended: ${run2.why} after ${run2.frames} rendered frames (budget ${WALK_FRAME_BUDGET})`);
 const on = leg2.filter((r) => r.a > 0.2 && r.a < FW - 0.2 && r.s < 0.75);
 console.log(`   ${on.length} samples alongside the face`);
-for (const r of on) console.log(`      along ${r.a.toFixed(3)}  perp ${r.s.toFixed(3)}`);
+for (const r of thin(on)) console.log(`      along ${r.a.toFixed(3)}  perp ${r.s.toFixed(3)}`);
 console.log(`   frames that moved under 10 mm: ${stalls(leg2)} of ${leg2.length - 1}`);
 // THE OUTWARD KICK IS REPORTED, NOT JUDGED, and the reason is worth writing
 // down because it looked like the perfect metric and is not one.
