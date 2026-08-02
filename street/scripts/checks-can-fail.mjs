@@ -54,8 +54,15 @@ const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
   'jump-walk', 'gaps', 'feet-check', 'side-night',
   // 'corner-traffic' — CLEARED by w37, item 77: canfail case `corner-lean-into`.
-  // 'unstick-walk' — CLEARED by w37, item 77: canfail case `unstick-off`. SLOW:
-  // ~11 min, over any 10-minute harness timeout, and one run crashed the page.
+  //
+  // 'unstick-walk' STAYS ON THIS REGISTER, and w37 (item 77) had a working
+  // mutation for it and withheld it deliberately. The check is **already red on
+  // unmutated mainline** — `1/531 traps are still traps`, exit 1, on a real trap
+  // at (8.50, -94.50) the player can reach. canfail scores CAUGHT on any
+  // non-zero exit (GOTCHAS §32), so a case here would certify itself whatever
+  // the mutation did. FIX THE WORLD FIRST; the mutation is written up in
+  // notes/w37-walking-tier-failpaths.md and takes a minute to re-add.
+  'unstick-walk',
   // 'crowd-net' — CLEARED by w37, item 77: canfail case `crowd-net-inroad`.
   // 'side-walk' — CLEARED by w37, item 77: canfail case `sidewalk-sealed`. It
   // already had a working failing path; nothing had watched it use one.

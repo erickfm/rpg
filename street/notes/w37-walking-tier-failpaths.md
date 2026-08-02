@@ -1,12 +1,23 @@
 # w37 — item 77: the six walking-tier checks with no failing path
 
-**All 6 cleared.** One of them was a real sleeper and needed fixing before its
+**5 of 6 cleared. `unstick-walk` is handed back — with a working mutation I
+deliberately did NOT register, because the check is already red on mainline over
+a real bug.** One of the five was a genuine sleeper and needed fixing before its
 case could mean anything: **`I-seat-exit` is the sixth member of the
 `health.mjs` family** — it printed its own clean bill of health over a sample of
 zero and exited 0.
 
+**Two things here want the desk's attention more than the clearances do:**
+
+1. **There is a real trap in the world at (8.50, −94.50)** — you can walk into it
+   and the stuck protection does not get you out. Found by the clean baseline.
+2. **The last measurement changed the answer.** I had `unstick-walk` written up
+   as cleared and committed before its baseline landed. It came back red on
+   unmutated source, which invalidated the case, and I withdrew it. See
+   "The correction" below — the sequencing is the lesson, not the outcome.
+
 Port **4180**, proved `000` free before use, dev server (`npx vite --port 4180
---strictPort`), shut down at the end. Debt register **20 → 14**.
+--strictPort`), shut down at the end. Debt register **20 → 15**.
 
 Every status below was read **unpiped**, as `echo "UNPIPED EXIT=$?"` on the line
 after the command, never after a pipeline.
@@ -20,7 +31,7 @@ after the command, never after a pipeline.
 | `side-walk` | side-street walks sealed at every tree | **1** | cleared, `sidewalk-sealed` |
 | `crowd-net` | walk line laid inside the roadway | **1** | cleared, `crowd-net-inroad` |
 | `corner-traffic` | cars lean INTO the turn | **1** | cleared, `corner-lean-into` |
-| `unstick-walk` | safety net switched off | **1** | cleared, `unstick-off` — but **slow, see below** |
+| `unstick-walk` | safety net switched off | **1** — but baseline is **1** too | **HANDED BACK**, case withheld |
 
 ## The headline: `I-seat-exit` could not fail over an empty sample
 
@@ -106,7 +117,47 @@ anything the moment the margin moves — and it looks exactly like a passing
 case.** The registered case is a decisive one instead: 1.415 → 1.62 leaves the
 bed rail at 0.97 and makes the last step 0.65 m, past what the rig climbs.
 
-## `unstick-walk` — cleared, but it is over every timeout in the harness
+## The correction: `unstick-walk` is already red, so its case is withheld
+
+**This is the most useful thing in the note, and I nearly shipped the opposite.**
+
+I had the mutation working, the red measured, the case registered, the register
+decremented and the whole thing committed — and *then* the clean baseline
+finished. It is red too:
+
+```
+531 were genuinely stuck; 530 freed themselves
+  FAIL  inside @ 8.50,-94.50 — still inside a collider after 1.1 s (at 7.75,-95.25)
+1/531 traps are still traps                                              exit 1
+```
+
+**`unstick-walk` exits 1 on unmutated mainline.** `canfail` scores CAUGHT on
+*any* non-zero exit — GOTCHAS §32 says so in as many words — so a case against a
+check that is already failing **certifies itself no matter what the mutation
+does**. That is a false GREEN, and the note in `canfail.mjs`'s own header calls
+a false green the one you never look at twice. Registering it would have been
+worse than registering nothing.
+
+So: the row goes back on the debt register, the case is withheld and written up
+in `canfail.mjs` where the next person will find it, and **the world gets fixed
+first**.
+
+Two things follow that I want to be explicit about:
+
+- **The bug is real and it is the player's.** `(8.50, −94.50)` is on the side
+  street, and it is the same coordinate the DRIVEN leg of the mutated run
+  reported (`rig could not walk away (0.00 m)`). The baseline shows the rig gets
+  *shoved* — it ends at `(7.75, −95.25)`, 1.06 m away — and is still inside
+  something when it arrives. This deserves its own queue item: **"one trap on
+  the side street does not release the player."**
+- **My earlier commit `fcdbe86c4` claimed unstick-walk was cleared and it was
+  wrong.** It is corrected in the commit that follows it rather than rewritten,
+  so the sequence stays legible. **The lesson is ordering: I registered a case
+  on the strength of a red I had watched and a green I had not.** Four of the
+  five clearances above had both; this one did not, and it was the only one that
+  turned out to be wrong. A red without a green is half a measurement.
+
+## `unstick-walk`, the rest: the mutation, and why the check takes 11 minutes
 
 The mutation switches the stuck-protection off. **Both halves have to go**, and
 that is the interesting part of the case: zeroing `UNSTICK_SPEED` stops the push
@@ -124,15 +175,10 @@ The `DRIVEN` lines are the strong evidence: that leg walks the rig out for real
 rather than asking the collider predicate, so it cannot be fooled by a mutation
 that only changes what the predicate sees.
 
-> **The clean baseline for this one is the weakest evidence in this note, and it
-> is the only case here whose green run I did not get to watch.** The first
-> baseline attempt crashed the page at 4 m 40 s; the second was killed by the
-> 10-minute cap; the third was still running when I finished. So the red above
-> is compared against *no* observed green. I am registering it anyway because
-> the mutation is a one-line switch-off of the exact mechanism the check is
-> named for and the failure is near-total (537 of 531), but **if the desk wants
-> one thing re-checked from this session, make it a clean `unstick-walk` run on
-> unmutated source.**
+The mutation is sound and takes a minute to re-add once the trap at
+(8.50, −94.50) is fixed — it is quoted in full in `canfail.mjs` where the case
+would have gone. What it cannot do is prove anything *while the check is already
+red*, which is the correction above.
 
 **It takes 11 m 15 s, and that is arithmetic rather than bad luck.** The loop
 waits a fixed 1.1 s per trap and the world now offers **582 traps** — 640 s of
@@ -166,6 +212,11 @@ flagging it as suspected only, on the strength of the identical hole found and
 proved in `I-seat-exit` this session. Worth a cheap follow-up item.
 
 ## Also found, not fixed
+
+- **A real trap in the world at (8.50, −94.50)**, side street: `unstick-walk`'s
+  own baseline says the player gets shoved 1.06 m and is still inside a collider
+  1.1 s later. **This is the one player-facing bug this session turned up, and
+  it wants its own item.** It is also what blocks `unstick-walk`'s canfail case.
 
 - **`w21-roof-climb.mjs` has `process.exit(allOk ? 0 : 1);` on lines 492 AND
   493.** The second is dead code. Harmless, and it looks like a bad merge —

@@ -623,7 +623,7 @@ const CHECKS = [
   // what the user's "im literally stuck here" request cost to guard properly.
   // Asserted since it was written and registered nowhere until now, so those
   // 177 escapes have been proving themselves to nobody.
-  ['unstick-walk',     'can the player still always get out of a trap?',      'unstick-off', [], true],
+  ['unstick-walk',     'can the player still always get out of a trap?',      false, [], true],
   // G's two suites, 132 checks the runner has never seen. Both walk, so both are
   // SLOW by the rule above — a runtime tier, not an importance tier. Measured on
   // an idle dev server: G-vice-walk 47 s, G-rooms-walk 158 s. The second is the
