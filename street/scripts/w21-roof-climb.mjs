@@ -169,7 +169,7 @@ console.log(`rail: x ${rail.minX.toFixed(2)}..${rail.maxX.toFixed(2)}, strafing 
  *  jump and jumps again. What is NOT relaxed is the assertion: every surface
  *  must hold the feet at its own `maxY`, inside its own footprint, and three
  *  misses in a row still fail. */
-const route = async (shoot, stopAtRoof = false) => {
+const route = async (shoot, stopAt = 'street') => {
   steps = [];
   // ── 0. START ON THE PAVEMENT, and walk off it ───────────────────────────
   //
@@ -224,6 +224,11 @@ const route = async (shoot, stopAtRoof = false) => {
   await p.waitForTimeout(200);
   await hopOnto(strafe, 200, rail, 'x');
   if (!await check('2. bed rail', rail.maxY, rail)) return false;
+  // The margin section below needs a player STANDING ON THE RAIL, and for the
+  // same reason the roof exits do: you cannot warp onto a tier. `warp` writes x
+  // and z but not your height, so a warp to the rail drops you into the truck's
+  // box at street level and `unstick()` shoves you out sideways.
+  if (stopAt === 'rail') return true;
 
   // ── 3. bed rail -> cab roof ─────────────────────────────────────────────
   await hold('w', 500);                       // forward along the rail, flush to the cab
@@ -253,7 +258,7 @@ const route = async (shoot, stopAtRoof = false) => {
   // first version of the four-direction test did exactly that, and it PASSED
   // all four: the player was never up there, so "did you get down" was
   // trivially true (feet 0.00 at every one). A check that cannot fail.
-  if (stopAtRoof) return true;
+  if (stopAt === 'roof') return true;
 
   // ── 4. cab roof -> hood -> street ───────────────────────────────────────
   await hold('w', 620);
@@ -267,7 +272,7 @@ const route = async (shoot, stopAtRoof = false) => {
 let climbed = false;
 for (let attempt = 1; attempt <= 3 && !climbed; attempt++) {
   console.log(`attempt ${attempt}:`);
-  climbed = await route(attempt === 1);
+  climbed = await route(attempt === 1, 'street');
 }
 if (!climbed) console.log('FAIL: three attempts, never reached the street off the nose');
 
@@ -311,7 +316,7 @@ for (const [name, yaw] of ways) {
   // clamp); if all four miss we say SKIPPED and fail the run rather than
   // silently scoring the direction.
   let up = false;
-  for (let t = 0; t < 4 && !up; t++) up = await route(false, true);
+  for (let t = 0; t < 4 && !up; t++) up = await route(false, 'roof');
   const onRoof = up && Math.abs((await feet()) - roof.maxY) < 0.06;
   if (!onRoof) {
     console.log(`  MISS 7.${name.padEnd(8)} could not get onto the roof in 4 tries — direction untested`);
@@ -334,10 +339,149 @@ for (const [name, yaw] of ways) {
   console.log(`  ${off ? 'ok  ' : 'STUCK'} 7.${name.padEnd(8)} feet ${f.toFixed(2)} at ${P[0].toFixed(2)},${P[2].toFixed(2)}`);
 }
 
+// ── 8. AND IT CLEARS BY A WHOLE FRAME, NOT BY A VERTICAL MARGIN ──────────
+//
+// THE OLD ACCEPTANCE BAR MEASURED THE WRONG QUANTITY, and it cost three
+// builders an argument (item 69). It was "the roof hop clears by 21 mm at the
+// dt clamp" — a purely VERTICAL margin. But height is only half of a hop:
+//
+//     fp.ts:289   if (c.maxY !== undefined && atY >= c.maxY - TOP_EPS) continue;
+//     fp.ts:469   const atY = this.lastWorldY;
+//     fp.ts:491   if (!this.blocked(nx, this.pos.z, atY)) this.pos.x = nx;
+//
+// `blocked()` keeps padding the roof by RADIUS until your feet clear
+// `maxY - TOP_EPS`, so to LAND you must also cross that padding HORIZONTALLY
+// while you are high — and `main.ts:107` clamps dt at 0.05 s, so what you
+// actually get is a whole number of frames at a fixed step. A vertical margin
+// of 21 mm and one of 0 mm buy the identical number of frames; the bar could
+// not tell them apart, and the shipped hop turned out to be the 0 mm case.
+// (Raising `PICKUP_CAB.roofY` by 100 nanometres took it from 4/4 to 0/4:
+// scripts/probes/w33-roof-frames.mjs.)
+//
+// So the rule is now stated in FRAMES, and every number in it is measured in
+// this world rather than typed here — the standoff the player is held at, the
+// distance a walk covers in one frame, and the frames the hop spends above the
+// threshold. Nothing below reads a constant out of fp.ts, so this still fails
+// correctly if the jump, RADIUS or TOP_EPS is retuned.
+//
+//     REQUIRED: the frames available above the threshold must exceed the
+//     frames needed to cross the standoff — BY AT LEAST ONE. That spare frame
+//     is the whole point: it is what makes the hop survive the engine dropping
+//     a frame, which at three-frames-needed-three-available it did not.
+//
+// Run under CPU throttling, because the clamp is the worst case and an idle
+// headless browser never reaches it: unthrottled this hop gets 8 frames where
+// the clamp gives 4, so measuring it fast would report a margin no player with
+// a loaded machine ever has (GOTCHAS 48's hat again).
+const frames = (n) => p.evaluate((n) => new Promise((done) => {
+  let i = 0;
+  const tick = () => (++i >= n ? done(i) : requestAnimationFrame(tick));
+  requestAnimationFrame(tick);
+}), n);
+/** Sample one row per RENDERED frame. `box`, when given, stops the trace the
+ *  moment the player is inside it — which is how the pushing hop below lets go
+ *  of `w` on arrival instead of holding it. Holding it walks him straight over
+ *  the roof and down onto the hood in the frames that follow, and the landing
+ *  check then reports a miss for a hop that landed perfectly. That is not
+ *  hypothetical: it is what a five-frame hop did here that a four-frame one had
+ *  been too short to do. */
+const trace = async (n, box) => p.evaluate(([n, box]) => new Promise((done) => {
+  const rows = [];
+  const tick = () => {
+    const P = window.__ct.pos();
+    rows.push([window.__ct.camY(), P[0], P[2]]);
+    const arrived = box && P[0] > box.minX && P[0] < box.maxX && P[2] > box.minZ && P[2] < box.maxZ;
+    if (arrived || rows.length >= n) return done(rows);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}), [n, box ?? null]);
+
+const cdp = await p.context().newCDPSession(p);
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: 8 });
+const NEED_Y = roof.maxY - 0.08;                 // the height that stops the roof being a wall
+const roofFace = fwd > 0 ? roof.minZ : roof.maxZ;
+let margin = null;
+
+/** Climb to the rail and walk forward until the cab stops you. Returns the
+ *  distance from where you are held to the roof's near face — the ground the
+ *  hop has to cover. MEASURED: it is RADIUS plus however much of a frame the
+ *  last permitted step left over, which is why it is read rather than assumed
+ *  to be RADIUS exactly. */
+//  LEAVES `w` HELD ON PURPOSE — the caller releases it. Pressing forward only
+//  AFTER the jump costs a CDP round trip, and under throttle that round trip is
+//  most of the hop's usable window: the push then arrives past the apex and the
+//  hop "fails" for a reason that exists only in the harness (BUILDER-BRIEF §7).
+//  A player walks into the cab and jumps while still leaning on the key, which
+//  is both more honest and free of the round trip.
+const toFlush = async () => {
+  let onRail = false;
+  for (let t = 0; t < 4 && !onRail; t++) onRail = await route(false, 'rail');
+  if (!onRail) return null;
+  await p.keyboard.down('w');
+  await frames(10);
+  if (Math.abs((await feet()) - rail.maxY) > 0.06) { await p.keyboard.up('w'); return null; }
+  return Math.abs((await pos())[2] - roofFace);
+};
+
+const standoff = await toFlush();
+if (standoff === null) {
+  console.log('  MISS 8. could not get onto the rail to measure the hop margin');
+} else {
+  // (a) FRAMES AVAILABLE — hop straight up, with no push at all. The player
+  //     never arrives anywhere, so `standTop` never catches him and the count
+  //     is the honest size of the window rather than "every frame after he
+  //     landed", which is what makes a 4-frame hop look like a 40-frame one.
+  await p.keyboard.up('w');                      // straight up: no push at all
+  await frames(4);
+  await p.keyboard.down(' ');
+  const up = await trace(20);
+  await p.keyboard.up(' ');
+  await frames(8);
+  const available = up.filter(([cy]) => cy - EYE >= NEED_Y).length;
+
+  // (b) ONE FRAME OF WALKING, measured on the same surface under the same
+  //     throttle — the step the crossing is actually made of.
+  const s2 = await toFlush();
+  let perFrame = null, landed = false;
+  if (s2 !== null) {
+    await p.keyboard.down(' ');                  // `w` is already down — see toFlush
+    const hop = await trace(20, roof);
+    await p.keyboard.up('w'); await p.keyboard.up(' ');
+    await frames(12);
+    const steps = [];
+    for (let i = 1; i < hop.length; i++) {
+      const d = Math.hypot(hop[i][1] - hop[i - 1][1], hop[i][2] - hop[i - 1][2]);
+      if (d > 1e-4) steps.push(d);
+    }
+    steps.sort((a, b) => a - b);
+    perFrame = steps.length ? steps[Math.floor(steps.length / 2)] : null;
+    const P = await pos(); const f = await feet();
+    landed = Math.abs(f - roof.maxY) < 0.06 &&
+      P[0] > roof.minX && P[0] < roof.maxX && P[2] > roof.minZ && P[2] < roof.maxZ;
+  }
+  if (perFrame) {
+    const needed = Math.ceil(standoff / perFrame);
+    const spare = available - needed;
+    margin = { standoff, perFrame, available, needed, spare, landed };
+    console.log(`\n  hop margin, at the dt clamp (CPU throttle x8):`);
+    console.log(`    held ${standoff.toFixed(3)} m off the roof face; a walk covers ${perFrame.toFixed(3)} m per frame`);
+    console.log(`    frames needed to cross it: ${needed}   frames available above ${NEED_Y.toFixed(3)}: ${available}`);
+    console.log(`    ${spare >= 1 ? 'ok  ' : 'FAIL'} 8. spare frames: ${spare} (need >= 1, so a dropped frame still lands)`);
+    console.log(`    ${landed ? 'ok  ' : 'FAIL'} 8b. and the throttled hop actually landed on the roof`);
+  } else {
+    console.log('  MISS 8. could not measure a walking step on the rail');
+  }
+}
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+const marginOk = margin !== null && margin.spare >= 1 && margin.landed;
+
 if (errs.length) console.log('page errors:', errs.slice(0, 5).join(' | '));
-const allOk = climbed && stillSolid && exits === ways.length && errs.length === 0;
-console.log(allOk ? 'PASS: pavement -> bed -> rail -> ROOF -> hood -> street, and off it four ways'
-  : `FAIL: climbed=${climbed} solid=${stillSolid} exits=${exits}/${ways.length} errs=${errs.length}`);
+const allOk = climbed && stillSolid && exits === ways.length && errs.length === 0 && marginOk;
+console.log(allOk ? 'PASS: pavement -> bed -> rail -> ROOF -> hood -> street, off it four ways, ' +
+  `and the roof hop clears with ${margin.spare} spare frame(s) at the dt clamp`
+  : `FAIL: climbed=${climbed} solid=${stillSolid} exits=${exits}/${ways.length} errs=${errs.length} ` +
+    `margin=${margin ? `spare ${margin.spare}, landed ${margin.landed}` : 'unmeasured'}`);
 await browser.close();
 // ── AND SAY SO IN THE EXIT CODE ──────────────────────────────────────────
 //
