@@ -2121,3 +2121,25 @@ others matched footprints, so any box with the same 4-tuple vouched for another.
 It was not hygiene either. `builtlane`'s UNFILTERED narrowest gap reads
 0.72–0.77 m, under its own 0.95 m trap line — a live false-failure path standing
 open, not a tidiness argument.
+
+## 74.
+
+**`colliders()` is live by reference; `staticColliders()` returns a copy — so
+migrating a check that MUTATES the array silently disarms its own selftest.**
+Several interior and lot checks plant their mutation by pushing a box onto
+`colliders()`, which the world then sees. Point those at `staticColliders()` and
+the push lands in a copy nobody reads: the check still passes, the selftest
+still says CAUGHT, and nothing is being tested. A builder spotted this before
+migrating them and left them alone deliberately.
+
+Two more reasons not to migrate blindly, from the same pass:
+
+- **`crowd-walk.mjs` must keep the unfiltered array.** Its whole question is
+  *"a citizen who stops must not seal the walk"* — the stopped citizen **is** the
+  subject. Filtering would delete the thing it measures.
+- Interior and lot checks never meet an actor anyway: citizens stay within
+  x −6.25…6.25 (measured) while interiors sit near x 600.
+
+**"Apply the fix everywhere" is not a migration plan.** Ask what each caller is
+for. Three of nine call sites here were right to keep the old array, and one of
+those three would have been quietly broken by the change.
