@@ -29,46 +29,165 @@ export const ENTERABLE = 0.40;
 /** Is this gap a trap? */
 export const isTrap = (w: number) => w > ENTERABLE && w < PASSABLE;
 
-/**
- * A collider's footprint in WORLD axes — which for a turned box (`AABB.rot`,
- * fp.ts) is not the box.
- *
- * EVERY FUNCTION BELOW READS min/max AS WORLD COORDINATES, and for a box with
- * a `rot` they are not: they are its extents in its OWN frame. Handed one of
- * those raw, the corridor tests do not approximate the answer, they compute a
- * different box's answer — and they did. The bodega's chamfer, turned 45°, has
- * local `maxX` 9.914 while its real east corner reaches x = 10.0; against the
- * wing shopfront's face at 10.4 that is the difference between a 0.486 m
- * corridor and a 0.4 m one, and the first is inside the trap band while the
- * second is not. The overlay painted a wall red for a slot made of brick.
- *
- * So a turned box is measured by the smallest world-axis rectangle that
- * CONTAINS it. Two properties, and the second is the price:
- *
- * · An UNROTATED box is returned unchanged — the same object, not a copy of
- *   it — so every existing collider takes exactly the arithmetic it always
- *   did, down to object identity. That is what keeps `nudgeClear`'s parked-car
- *   decisions, and therefore the drawn world, bit-for-bit where they were.
- * · A turned box is measured LARGER than it is, so gaps against it measure
- *   SMALLER than they are. That direction is safe for a false alarm — a
- *   passable gap may read as a trap — but it can also push a real trap under
- *   `ENTERABLE` and hide it, and for a 45° box the inflation is not small.
- *   Exact oriented-corridor geometry is the honest fix and it is NOT done here:
- *   the corridor width would generalise (a separating-axis test over both
- *   boxes' axes reduces to this one for axis-aligned pairs), but
- *   `corridorFilled` below would not — clearing a turned corridor needs 2-D
- *   coverage, not an interval union along one axis, and half a generalisation
- *   that reports MORE false red than today would be worse than none. There is
- *   one turned collider in the world; when there is a second, this is the
- *   thing to fix, and it is written up in notes/w24-collider-rotation.md.
- */
-function footprint(c: AABB): AABB {
-  if (!c.rot) return c;
+// ── TURNED BOXES ARE MEASURED IN THEIR OWN FRAME ───────────────────────────
+//
+// EVERY min/max IN THIS FILE USED TO BE READ AS A WORLD COORDINATE, and for a
+// box with a `rot` (`AABB.rot`, fp.ts) they are not: they are its extents in
+// its OWN frame. Handed one of those raw, the corridor tests did not
+// approximate the answer, they computed a different box's answer. The bodega's
+// chamfer, turned 45°, has local `maxX` 9.914 while its real east corner
+// reaches x = 10.0; against the wing shopfront's face at 10.4 that is the
+// difference between a 0.486 m corridor and a 0.4 m one — the first inside the
+// trap band, the second not. The overlay painted a wall red for a slot made of
+// brick.
+//
+// w24 fixed that with a BOUNDING BOX: the smallest world-axis rectangle
+// containing the turned box. That is exact for every WORLD-AXIS question — a
+// rotated rectangle's bounding box touches its own corners, so its X and Z
+// extents are the box's true X and Z extents — and it removed the false red.
+// What it cannot see is the box's OWN axes, and that is where a slot between
+// two turned boxes actually runs. w24 named it as the thing to fix before a
+// second turned collider existed (notes/archive/w24-collider-rotation.md,
+// finding 2), and this is that fix:
+//
+// · The corridor width is a SEPARATING-AXIS test over both boxes' own axes.
+//   For an axis-aligned pair the candidate axes ARE world X and Z, so the test
+//   reduces to the arithmetic below — and to keep that identity beyond doubt
+//   rather than by argument, an unrotated pair still takes the ORIGINAL
+//   expressions, untouched, on an explicit branch. `nudgeClear` decides where
+//   parked cars stand; the drawn world must not move by a float.
+// · Clearing a corridor (`corridorFilled`) needs 2-D coverage once the slot is
+//   turned. The oriented path does the same interval union in the CORRIDOR's
+//   frame, and refuses to let a filler count unless that filler is square to
+//   that frame — where a projection is exact coverage. A filler at some other
+//   angle is skipped, which can only leave a corridor UNCLEARED, i.e. it can
+//   only over-report red, never hide a trap. That is the direction this
+//   project's own history says to err in.
+
+type Vec = { x: number; z: number };
+const AXIS_X: Vec = { x: 1, z: 0 }, AXIS_Z: Vec = { x: 0, z: 1 };
+
+/** The box's own axes in WORLD directions. Same convention as `fp.ts`'s
+ *  `inFrame`, read off it rather than re-derived: `inFrame` maps world→local
+ *  by [[k,-s],[s,k]], so local→world is its transpose and the box's local +x
+ *  is (k, −s), its local +z is (s, k). Getting this backwards is a 90° error
+ *  that looks plausible in every symmetric test case. */
+function axesOf(c: AABB): [Vec, Vec] {
+  if (!c.rot) return [AXIS_X, AXIS_Z];
+  const s = Math.sin(c.rot), k = Math.cos(c.rot);
+  return [{ x: k, z: -s }, { x: s, z: k }];
+}
+
+/** `c` projected onto unit axis `n`, as [lo, hi]. Exact for a turned box: a
+ *  box's extent along any direction is the sum of each half-extent times the
+ *  size of its own axis's component along it. */
+function project(c: AABB, n: Vec): [number, number] {
   const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
   const hx = (c.maxX - c.minX) / 2, hz = (c.maxZ - c.minZ) / 2;
-  const s = Math.abs(Math.sin(c.rot)), k = Math.abs(Math.cos(c.rot));
-  const ex = hx * k + hz * s, ez = hx * s + hz * k;
-  return { minX: cx - ex, maxX: cx + ex, minZ: cz - ez, maxZ: cz + ez };
+  const [ax, az] = axesOf(c);
+  const mid = cx * n.x + cz * n.z;
+  const ext = hx * Math.abs(ax.x * n.x + ax.z * n.z)
+            + hz * Math.abs(az.x * n.x + az.z * n.z);
+  return [mid - ext, mid + ext];
+}
+
+/** Is `c` square to a frame built on `n`? Only then does projecting it onto
+ *  that frame describe the region it actually covers, rather than the shadow
+ *  of a diagonal sliver. */
+function squareTo(c: AABB, n: Vec): boolean {
+  const [ax] = axesOf(c);
+  const d = Math.abs(ax.x * n.x + ax.z * n.z);
+  return d < 1e-6 || d > 1 - 1e-6;
+}
+
+/** `c` in WORLD axes, exactly — or `null` when it is turned off them, where no
+ *  axis-aligned rectangle describes what it covers. An unrotated box is
+ *  returned unchanged, the same object, so the axis-aligned world takes the
+ *  arithmetic it always did down to object identity. */
+function worldBox(c: AABB): AABB | null {
+  if (!c.rot) return c;
+  if (!squareTo(c, AXIS_X)) return null;
+  const [x0, x1] = project(c, AXIS_X), [z0, z1] = project(c, AXIS_Z);
+  return { minX: x0, maxX: x1, minZ: z0, maxZ: z1 };
+}
+
+/**
+ * The corridor between two boxes when at least one is turned: the slot they
+ * face each other across, and the frame it runs in.
+ *
+ * A candidate axis `n` gives a corridor when the boxes are SEPARATED along it
+ * and their extents still OVERLAP along its perpendicular `m` — the same two
+ * conditions the axis-aligned test uses, stated without assuming n is world X
+ * or Z. Both axes of both boxes are tried, which is the standard separating-
+ * axis candidate set for two rectangles in 2-D.
+ *
+ * THE WIDEST qualifying separation wins, and getting this backwards is the
+ * trap in the trap-finder. My first cut took the narrowest, reasoning that the
+ * tightest slot is the one a body wedges in. It is not, because a separation
+ * along a badly-chosen axis is not a slot at all. Two parallel bars turned 45°,
+ * 2 m apart along world X, are 1.214 m apart in reality — but their world-X
+ * separation is 0.444 m, squarely in the trap band, measured between two
+ * corners that are 1.6 m from each other. Taking the narrowest reports that
+ * phantom; taking the widest reports 1.214 and passes it. (gap.test.ts pins
+ * both halves of that.)
+ *
+ * That is not a heuristic. For two convex rectangles the separation along any
+ * axis is a LOWER BOUND on the true distance, so the greatest of them is the
+ * tightest bound available — and it is EXACT whenever the boxes face each
+ * other across a face, which is what requiring overlap on `m` already demands.
+ * A corridor is by definition that configuration.
+ *
+ * For an axis-aligned pair at most one axis can ever qualify — separated on X
+ * forbids overlapping on X — so widest, narrowest and today's answer are the
+ * same number, and the reduction is exact.
+ */
+function orientedCorridor(a: AABB, b: AABB): { w: number; n: Vec; m: Vec } | null {
+  let best: { w: number; n: Vec; m: Vec } | null = null;
+  for (const c of [a, b]) {
+    const [ax, az] = axesOf(c);
+    for (const [n, m] of [[ax, az], [az, ax]] as [Vec, Vec][]) {
+      const [a0, a1] = project(a, n), [b0, b1] = project(b, n);
+      const sep = Math.max(b0 - a1, a0 - b1);
+      if (!(sep > 0)) continue;
+      const [p0, p1] = project(a, m), [q0, q1] = project(b, m);
+      if (!(Math.min(p1, q1) - Math.max(p0, q0) > 0)) continue;
+      if (!best || sep > best.w) best = { w: sep, n, m };
+    }
+  }
+  return best;
+}
+
+/** Is the oriented corridor between `a` and `b` already solid? The interval
+ *  union of `corridorFilled`, done in the corridor's own frame. */
+function orientedFilled(a: AABB, b: AABB, others: AABB[]): boolean {
+  const found = orientedCorridor(a, b);
+  if (!found) return false;
+  const { n, m } = found;
+  const [a0, a1] = project(a, n), [b0, b1] = project(b, n);
+  const [gapLo, gapHi] = b0 - a1 >= a0 - b1 ? [a1, b0] : [b1, a0];
+  const [p0, p1] = project(a, m), [q0, q1] = project(b, m);
+  const crossLo = Math.max(p0, q0), crossHi = Math.min(p1, q1);
+
+  const segs: [number, number][] = [];
+  for (const o of others) {
+    if (o === a || o === b) continue;
+    if (!squareTo(o, n)) continue;              // conservative: cannot clear with it
+    const [o0, o1] = project(o, m);
+    if (o0 > crossLo + 1e-6 || o1 < crossHi - 1e-6) continue;   // must reach across
+    const [r0, r1] = project(o, n);
+    const lo = Math.max(r0, gapLo), hi = Math.min(r1, gapHi);
+    if (hi > lo) segs.push([lo, hi]);
+  }
+  if (!segs.length) return false;
+  segs.sort((p, q) => p[0] - q[0]);
+  if (segs[0][0] > gapLo + 1e-6) return false;
+  let covered = segs[0][1];
+  for (let i = 1; i < segs.length; i++) {
+    const [lo, hi] = segs[i];
+    if (lo > covered + 1e-6) return false;
+    covered = Math.max(covered, hi);
+  }
+  return covered >= gapHi - 1e-6;
 }
 
 /**
@@ -80,8 +199,16 @@ function footprint(c: AABB): AABB {
  * came in — and counting those produces a flood of false positives that buries
  * the real ones.
  */
-export function corridor(ra: AABB, rb: AABB): number | null {
-  const a = footprint(ra), b = footprint(rb);
+export function corridor(a: AABB, b: AABB): number | null {
+  // THE UNROTATED PAIR TAKES THE ORIGINAL EXPRESSIONS. `orientedCorridor`
+  // computes the same answer for it, but "the same" through a different chain
+  // of floating-point operations is not the same, and `nudgeClear` turns this
+  // number into where a parked car stands. An explicit branch is the only way
+  // to say "the drawn world cannot move" and be believed.
+  if (a.rot || b.rot) {
+    const found = orientedCorridor(a, b);
+    return found ? found.w : null;
+  }
   const overlapX = a.minX < b.maxX && b.minX < a.maxX;
   const overlapZ = a.minZ < b.maxZ && b.minZ < a.maxZ;
   const sx = Math.max(b.minX - a.maxX, a.minX - b.maxX);
@@ -101,8 +228,7 @@ export function corridor(ra: AABB, rb: AABB): number | null {
  *  test as `corridor()`; kept separate rather than folded in because most
  *  callers (the parked-car draw) only ever want the width, and every one of
  *  them already existed before this was added — BUILDER-BRIEF §9. */
-function corridorRect(ra: AABB, rb: AABB): { rect: AABB; axis: 'x' | 'z' } | null {
-  const a = footprint(ra), b = footprint(rb);
+function corridorRect(a: AABB, b: AABB): { rect: AABB; axis: 'x' | 'z' } | null {
   const overlapX = a.minX < b.maxX && b.minX < a.maxX;
   const overlapZ = a.minZ < b.maxZ && b.minZ < a.maxZ;
   if (overlapZ) {
@@ -163,11 +289,17 @@ function corridorFilled(rect: AABB, axis: 'x' | 'z', a: AABB, b: AABB, others: A
   const alongX = axis === 'x';
   const segs: [number, number][] = [];
   for (const raw of others) {
-    // identity on the ORIGINAL, geometry from the footprint: `footprint()`
-    // hands back a fresh object for a turned box, so `raw === a` is the only
-    // comparison that still means "this is one of the two boxes in question".
+    // identity on the ORIGINAL, geometry from `worldBox`: it hands back a
+    // fresh object for a turned box, so `raw === a` is the only comparison
+    // that still means "this is one of the two boxes in question".
     if (raw === a || raw === b) continue;
-    const o = footprint(raw);
+    const o = worldBox(raw);
+    // A box turned off the world axes cannot CLEAR an axis-aligned corridor:
+    // its bounding rectangle covers ground it does not, and believing that
+    // would clear a slot a body still fits into. Skipping it can only leave a
+    // corridor reported — the safe direction, and the same refusal
+    // `orientedFilled` makes in the corridor's own frame.
+    if (!o) continue;
     if (alongX) {
       // must reach exactly across rect's Z span to count
       if (o.minZ > rect.minZ + 1e-6 || o.maxZ < rect.maxZ - 1e-6) continue;
@@ -199,8 +331,15 @@ export function trapAgainst(box: AABB, others: AABB[]): number | null {
     if (o === box) continue;
     const w = corridor(box, o);
     if (w === null || !isTrap(w)) continue;
-    const found = corridorRect(box, o);
-    if (found && corridorFilled(found.rect, found.axis, box, o, others)) continue;
+    // Same two questions either way — how wide is the slot, and is anything
+    // already standing in it — asked in world axes when they are the boxes'
+    // axes, and in the corridor's own frame when they are not.
+    if (box.rot || o.rot) {
+      if (orientedFilled(box, o, others)) continue;
+    } else {
+      const found = corridorRect(box, o);
+      if (found && corridorFilled(found.rect, found.axis, box, o, others)) continue;
+    }
     return w;
   }
   return null;
