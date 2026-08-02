@@ -2445,3 +2445,11 @@ to one side.
   → **routed to a builder as queue item 91.** It is the painted statue that is
   supposed to sit on a bracket above the votive stand (`ct/int-church.ts:651, 683`).
   The statue reads; the bracket does not, so it floats against the wall.
+
+- **"[screenshot] would love more detail here, also the window is misaligned?"**
+  (2026-08-02) → **routed to a builder as queue item 92.** The east wall of the church:
+  a large blank plaster field with the rose window high, the crucifix below it and the
+  sanctuary lamp to the right. `ct/int-church.ts:744` says the window belongs "at
+  centre" — in the frame it is visibly off the crucifix's axis, so one of the two is
+  wrong. Fifth report of this sitting; the desk is at its 5-agent cap, so this is
+  queued rather than spawned.
