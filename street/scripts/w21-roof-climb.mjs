@@ -39,6 +39,40 @@ const missing = need.filter((t) => !byTag[t]);
 if (missing.length) { console.log('FAIL: no such standable surface:', missing.join(', ')); process.exit(1); }
 for (const t of need) console.log(`  ${t.padEnd(18)} ${JSON.stringify(byTag[t])}`);
 
+// ── THE TIERS MUST MATCH THE TRUCK, NOT MERELY MATCH THEMSELVES ──────────
+//
+// Every `check()` below asserts `feet === <box>.maxY`, reading its expectation
+// out of the very collider under test. That is a tautology: flatten a tier and
+// the check simply expects the flattened value and stays green. Proven on the
+// sedan's copy of this file, which slept through exactly that mutation
+// (notes/w29-sedan-climb.md), and this file has the same shape.
+//
+// So each tier's height is pinned against a FRESHLY BUILT pickup, measured off
+// its own drawn panels. `__ct.carVariant` goes through the same `makeCar` the
+// street uses but touches none of the collider code in crosstown.ts, so it
+// cannot agree with a mutation there.
+const panelTops = await p.evaluate(() => {
+  const g = window.__ct.carVariant('pickup', {}, 400, 0, 400);
+  const tops = [];
+  for (const c of g.children) {
+    if (!c.geometry) continue;
+    c.updateMatrix(); c.geometry.computeBoundingBox();
+    tops.push(+c.geometry.boundingBox.clone().applyMatrix4(c.matrix).max.y.toFixed(4));
+  }
+  g.parent.remove(g);
+  return [...new Set(tops)].sort((a, b) => a - b);
+});
+console.log(`\nflat tops on a freshly built pickup: ${panelTops.join(', ')}`);
+const unpinned = need.filter((t) => !panelTops.some((y) => Math.abs(y - byTag[t].maxY) < 1e-3));
+if (unpinned.length) {
+  for (const t of unpinned) {
+    console.log(`FAIL: tier ${t} stands at ${byTag[t].maxY} — the truck has no panel at that height`);
+  }
+  await browser.close();
+  process.exit(1);
+}
+console.log('every tier stands at a height the truck actually has a panel at\n');
+
 const bed = byTag['pickup-bed-floor'];
 const roof = byTag['pickup-cab-roof'];
 const hood = byTag['pickup-hood'];
@@ -135,7 +169,7 @@ console.log(`rail: x ${rail.minX.toFixed(2)}..${rail.maxX.toFixed(2)}, strafing 
  *  jump and jumps again. What is NOT relaxed is the assertion: every surface
  *  must hold the feet at its own `maxY`, inside its own footprint, and three
  *  misses in a row still fail. */
-const route = async (shoot) => {
+const route = async (shoot, stopAtRoof = false) => {
   steps = [];
   // ── 0. START ON THE PAVEMENT, and walk off it ───────────────────────────
   //
@@ -212,6 +246,15 @@ const route = async (shoot) => {
     await p.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, undefined, 0), [P[0], P[2], yawFwd]);
   }
 
+  // The exit test below needs a player ACTUALLY STANDING ON THE ROOF, which is
+  // only reachable by climbing — you cannot warp there. `warp` writes x and z
+  // but not your height, so a warp to the roof's centre puts you at street
+  // level INSIDE the truck's box and `unstick()` shoves you out sideways. My
+  // first version of the four-direction test did exactly that, and it PASSED
+  // all four: the player was never up there, so "did you get down" was
+  // trivially true (feet 0.00 at every one). A check that cannot fail.
+  if (stopAtRoof) return true;
+
   // ── 4. cab roof -> hood -> street ───────────────────────────────────────
   await hold('w', 620);
   await p.waitForTimeout(250);
@@ -244,8 +287,63 @@ const q = await pos();
 const stillSolid = q[0] < bed.minX || q[0] > bed.maxX;
 console.log(`${stillSolid ? 'ok  ' : 'FAIL'} 6. flank is still a wall on foot   stopped at x ${q[0].toFixed(2)} (box ${bed.minX.toFixed(2)}..${bed.maxX.toFixed(2)})`);
 
+// ── 7. AND YOU CAN GET OFF THE ROOF IN EVERY DIRECTION ───────────────────
+//
+// Promoted from scripts/probes/w21-roof-exit.mjs, which proved this once and
+// was then never run again. The route above only ever leaves the roof FORWARDS,
+// over the hood — so three of the four ways down were guarded by nothing.
+//
+// BUILDER-BRIEF §11 aimed at a surface instead of a panel: a roof you cannot
+// leave is the same bug as a panel you cannot close, and the user has been
+// trapped twice — *"no im telling you i can't get up anything i do once i sit
+// down"*. The roof is still the only place in this world a player can stand
+// that is not a floor.
+//
+// A STUCK here was seen once under load and never reproduced (w21; w22 then ran
+// 27 throttled exits clean). If it ever recurs this prints what was next to you
+// when it did, rather than leaving the next reader to guess.
+let exits = 0;
+const ways = [['forward', yawFwd], ['back', yawFwd + Math.PI],
+  ['left', yawFwd + Math.PI / 2], ['right', yawFwd - Math.PI / 2]];
+for (const [name, yaw] of ways) {
+  // CLIMB UP FOR REAL, EVERY TIME. Up to four attempts, because a mistimed hop
+  // is a miss and not a broken world (the roof hop clears by ~21 mm at the dt
+  // clamp); if all four miss we say SKIPPED and fail the run rather than
+  // silently scoring the direction.
+  let up = false;
+  for (let t = 0; t < 4 && !up; t++) up = await route(false, true);
+  const onRoof = up && Math.abs((await feet()) - roof.maxY) < 0.06;
+  if (!onRoof) {
+    console.log(`  MISS 7.${name.padEnd(8)} could not get onto the roof in 4 tries — direction untested`);
+    continue;
+  }
+  const here = await pos();
+  await p.evaluate(([x, z, y]) => window.__ct.warp(x, z, y, undefined, 0), [here[0], here[2], yaw]);
+  await p.waitForTimeout(300);
+  await hold('w', 2400);
+  await p.waitForTimeout(400);
+  const f = await feet(); const P = await pos();
+  const off = f < roof.maxY - 0.2;
+  if (off) exits++;
+  else {
+    const near = await p.evaluate(([x, z]) => window.__ct.colliders()
+      .filter((c) => Math.abs((c.minX + c.maxX) / 2 - x) < 3 && Math.abs((c.minZ + c.maxZ) / 2 - z) < 3)
+      .map((c) => ({ tag: c.tag ?? null, maxY: c.maxY ?? null })), [P[0], P[2]]);
+    console.log(`       what was beside you: ${JSON.stringify(near).slice(0, 300)}`);
+  }
+  console.log(`  ${off ? 'ok  ' : 'STUCK'} 7.${name.padEnd(8)} feet ${f.toFixed(2)} at ${P[0].toFixed(2)},${P[2].toFixed(2)}`);
+}
+
 if (errs.length) console.log('page errors:', errs.slice(0, 5).join(' | '));
-const allOk = climbed && stillSolid && errs.length === 0;
-console.log(allOk ? 'PASS: pavement -> bed -> rail -> ROOF -> hood -> street' : 'FAIL: route incomplete');
+const allOk = climbed && stillSolid && exits === ways.length && errs.length === 0;
+console.log(allOk ? 'PASS: pavement -> bed -> rail -> ROOF -> hood -> street, and off it four ways'
+  : `FAIL: climbed=${climbed} solid=${stillSolid} exits=${exits}/${ways.length} errs=${errs.length}`);
 await browser.close();
+// ── AND SAY SO IN THE EXIT CODE ──────────────────────────────────────────
+//
+// This printed `FAIL: route incomplete` and exited 0. That was survivable while
+// nothing ran it; registering it in scripts/checks.mjs makes it fatal, because
+// a check that always exits 0 reports green forever. Same family as
+// scripts/health.mjs (queue item 61) and scripts/bugsweep.mjs (item 62).
+process.exit(allOk ? 0 : 1);
 process.exit(allOk ? 0 : 1);
