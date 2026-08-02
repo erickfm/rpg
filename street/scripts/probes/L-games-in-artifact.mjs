@@ -231,18 +231,24 @@ if (!up) {
 // The panels are built inside a `.then()` on a dynamic import, so they arrive a
 // tick after the world does. Wait for the EVENT rather than sleeping a constant
 // (GOTCHAS §30) — and a timeout here is the finding, not an error.
-const arrived = await p.waitForFunction(
+const waited = await p.waitForFunction(
   () => typeof window.__slots?.open === 'function' && typeof window.__blackjack?.open === 'function',
   { timeout: 15000 }).then(() => true).catch(() => false);
 
-// Mutate only once the world is up: three of these replace things the world
-// publishes, which do not exist before it does.
+// Mutate only once the world is up: every one of these replaces something the
+// world publishes, none of which exists before it does. The `arrived` verdict
+// is therefore READ AFTER this and not from `waited` — asserting the state the
+// wait observed would make the two `*-gone` mutations invisible, which is
+// precisely how this check slept on them on its first selftest.
 if (process.env.L_ART_MUTATE) {
   const fn = MUTATIONS[process.env.L_ART_MUTATE];
   if (!fn) { console.error(`ABORTED: no mutation "${process.env.L_ART_MUTATE}"`); await b.close(); process.exit(3); }
   await p.evaluate(fn);
   console.log(`  [MUTATED: ${process.env.L_ART_MUTATE}] — this run is expected to FAIL`);
 }
+const arrived = waited && await p.evaluate(
+  (keys) => keys.every((k) => typeof window[k]?.open === 'function'),
+  GAMES.map((g) => g.station)).catch(() => false);
 
 console.log('\nWALKING UP TO BOTH GAMES AND SITTING DOWN, IN THE SINGLE-FILE ARTIFACT.\n');
 for (const g of GAMES) console.log(`  ${g.name.padEnd(12)} joins its stool on '${g.label}'  (${g.where})`);
