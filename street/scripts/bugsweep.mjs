@@ -42,7 +42,16 @@ const faceTo = (from, to) => Math.atan2(to.x - from.x, -(to.z - from.z));
 // right name is worse than a missing one — GOTCHAS §20, "an unread screenshot
 // is not an observation" — so every dynamically-aimed station checks its own
 // landing and the sweep says so in its error output rather than staying quiet.
-const verifyLanded = async (name, x, z, tol = 3.0) => {
+//
+// AND IT MUST CHECK THE FLOOR, NOT ONLY THE MAP REFERENCE. This function
+// compared x and z only, and that is exactly how the apartment went a whole
+// release photographing the OUTSIDE of its own building while reporting
+// success: the three `bug-apt301-*` stations landed on the right x and z —
+// three storeys below the flat — and passed. A station can be dead right on
+// the map and in the wrong world vertically. `__ct.pos()` returns
+// `[x, y, z, gy]`, so the floor the storey picker settled on is `p[3]`, and
+// `y` here is the floor the station ASKED for.
+const verifyLanded = async (name, x, z, tol = 3.0, y = null) => {
   const p = await page.evaluate(() => window.__ct.pos());
   const d = Math.hypot(p[0] - x, p[2] - z);
   if (d > tol) {
@@ -50,6 +59,14 @@ const verifyLanded = async (name, x, z, tol = 3.0) => {
       `player is at (${p[0].toFixed(1)}, ${p[2].toFixed(1)}), ${d.toFixed(1)} m away — the ` +
       `shot almost certainly captured the WRONG place, likely because the target is inside ` +
       `a collider the player could not be placed in (fp.ts unstick() reverts on a ~0.45s timeout)`);
+  }
+  // 0.6 m is ct/apartment.ts's own "no stepping up half a storey" limit, so
+  // anything past it is a DIFFERENT floor rather than a step or a kerb.
+  if (y !== null && Math.abs(p[3] - y) > 0.6) {
+    errors.push(`STATION MISS: ${name} aimed at floor y=${y.toFixed(2)} but the player ` +
+      `settled on y=${p[3].toFixed(2)} — right x/z, WRONG STOREY, so the shot is of ` +
+      `whatever is at that map reference on another floor (this is how apt301 was ` +
+      `photographed from the street for a whole release)`);
   }
 };
 
@@ -135,9 +152,47 @@ await shot('citizen', () => window.__ct.warp(-1, -22, Math.PI, 0, 0));
 // pews, the stacks, the cells, whatever it is, without this script needing to
 // know per-room what that furniture is.
 const roomDims = await page.evaluate(() => window.__ct.roomDims());
-if (roomDims.length < 12) {
-  errors.push(`COVERAGE: only ${roomDims.length} of 12 expected rooms answered roomDims() — a room failed to build or the count regressed`);
+
+// ── HOW MANY ROOMS SHOULD THERE BE? ASK THE DISK, NOT A TYPED NUMBER ─────
+//
+// This guard used to read `roomDims.length < 12`, and by the time anyone
+// looked there were THIRTEEN rooms — the apartment had joined the registry, so
+// the count sailed past the threshold and the guard stopped biting. A typed
+// threshold only ever fails downwards; the moment the world grows past it, it
+// is a check that cannot fail (BUILDER-BRIEF §7).
+//
+// So the expectation is derived from an INDEPENDENT source of truth: writing
+// `ct/int-<name>.ts` is what puts a belt room in the world (ct/interior.ts,
+// "there is no line to add in crosstown.ts and therefore no line to forget"),
+// so the files on disk ARE the roster. Verified: the twelve file stems are
+// exactly the twelve ids `__ct.rooms()` publishes.
+//
+// Two directions, because they catch different failures:
+//   · a room whose file exists but which never registered  -> it failed to build
+//   · a room registered under an id no file declares       -> the roster rotted
+// Rooms in `roomDims()` that are NOT in `rooms()` are DECLARED extras (apt301
+// comes from ct/apartment.ts, not from an int-*.ts) — they are photographed
+// like any other but are not part of the belt roster.
+const { readdirSync } = await import('node:fs');
+const beltFiles = readdirSync(new URL('../src/proto/ct/', import.meta.url))
+  .filter((f) => /^int-.+\.ts$/.test(f)).map((f) => f.replace(/^int-|\.ts$/g, ''));
+const beltIds = await page.evaluate(() => window.__ct.rooms());
+const dimIds = new Set(roomDims.map((r) => r.id));
+const missingFromWorld = beltFiles.filter((f) => !beltIds.includes(f));
+const missingFromDisk = beltIds.filter((id) => !beltFiles.includes(id));
+const noDims = beltIds.filter((id) => !dimIds.has(id));
+if (missingFromWorld.length) {
+  errors.push(`COVERAGE: ct/int-${missingFromWorld.join('.ts, ct/int-')}.ts ${missingFromWorld.length === 1 ? 'exists' : 'exist'} on disk but ` +
+    `${missingFromWorld.length === 1 ? 'that room' : 'those rooms'} never registered — a room failed to build`);
 }
+if (missingFromDisk.length) {
+  errors.push(`COVERAGE: the world publishes room(s) ${missingFromDisk.join(', ')} with no ct/int-*.ts to declare them — the roster rotted`);
+}
+if (noDims.length) {
+  errors.push(`COVERAGE: room(s) ${noDims.join(', ')} are registered but answered no roomDims() — nothing can be photographed there`);
+}
+console.log(`rooms: ${beltFiles.length} int-*.ts on disk, ${beltIds.length} registered, ` +
+  `${roomDims.length} with dimensions (${roomDims.length - beltIds.length} declared elsewhere)`);
 for (const r of roomDims) {
   const center = { x: r.cx, z: r.cz };
   const doorWorld = { x: r.cx + r.door.x, z: r.cz + r.door.z };
@@ -148,9 +203,14 @@ for (const r of roomDims) {
 
   const entryPos = { x: doorWorld.x + inward.x * 1.1, z: doorWorld.z + inward.z * 1.1 };
   const entryYaw = Math.atan2(inward.x, -inward.z);
-  await shot(`${r.id}-entry`, (a) => window.__ct.warp(a.x, a.z, a.yaw, 0, 0), 500,
-    { x: entryPos.x, z: entryPos.z, yaw: entryYaw });
-  await verifyLanded(`${r.id}-entry`, entryPos.x, entryPos.z);
+  // `a.gy` is the room's OWN floor height, not a literal 0. Zero is right for
+  // the whole belt and wrong for anything off it: it put the camera at street
+  // level under a flat three storeys up, and `verifyLanded` waved it through
+  // because it compared x and z only. The room knows; nobody else should have
+  // to remember (ct/interior.ts, `RoomDims.y`).
+  await shot(`${r.id}-entry`, (a) => window.__ct.warp(a.x, a.z, a.yaw, a.gy, 0), 500,
+    { x: entryPos.x, z: entryPos.z, yaw: entryYaw, gy: r.y });
+  await verifyLanded(`${r.id}-entry`, entryPos.x, entryPos.z, 3.0, r.y);
 
   const corners = [
     { x: r.cx - r.w / 2 + 0.9, z: r.cz - r.d / 2 + 0.9 },
@@ -164,14 +224,14 @@ for (const r of roomDims) {
     if (dd > bestD) { bestD = dd; far = c; }
   }
   const farYaw = faceTo(far, doorWorld);
-  await shot(`${r.id}-far`, (a) => window.__ct.warp(a.x, a.z, a.yaw, 0, 0), 400,
-    { x: far.x, z: far.z, yaw: farYaw });
-  await verifyLanded(`${r.id}-far`, far.x, far.z);
+  await shot(`${r.id}-far`, (a) => window.__ct.warp(a.x, a.z, a.yaw, a.gy, 0), 400,
+    { x: far.x, z: far.z, yaw: farYaw, gy: r.y });
+  await verifyLanded(`${r.id}-far`, far.x, far.z, 3.0, r.y);
 
   const wideYaw = Math.atan2(perp.x, -perp.z);
-  await shot(`${r.id}-wide`, (a) => window.__ct.warp(a.x, a.z, a.yaw, 0, 0), 400,
-    { x: center.x, z: center.z, yaw: wideYaw });
-  await verifyLanded(`${r.id}-wide`, center.x, center.z);
+  await shot(`${r.id}-wide`, (a) => window.__ct.warp(a.x, a.z, a.yaw, a.gy, 0), 400,
+    { x: center.x, z: center.z, yaw: wideYaw, gy: r.y });
+  await verifyLanded(`${r.id}-wide`, center.x, center.z, 3.0, r.y);
 }
 
 // Sites are open-air lots (park, lot, jail yard), published as a world AABB
@@ -224,3 +284,26 @@ await browser.close();
 console.log('bugsweep done. rainy hour', rainy, '\nshots:', shots.length);
 if (errors.length) { console.error('CONSOLE/PAGE ISSUES:\n' + errors.join('\n')); }
 else console.log('no console/page errors');
+
+// ── AND SAY SO IN THE EXIT CODE, OR NOTHING UPSTREAM CAN TELL ────────────
+//
+// This script printed `STATION MISS` and exited 0. Anything that runs it as a
+// registered check — or any builder who trusts `$?` — scored a green on a
+// sweep that had just photographed the wrong place. Same family as
+// `scripts/health.mjs`, which prints `WORLD BROKEN` and also exits 0 (queue
+// item 61); it is worth fixing here because it is what let the apt301 defect
+// survive a whole release of green sweeps.
+//
+// It gates on THE SWEEP'S OWN FINDINGS, not on `errors.length`. That array
+// also collects every browser `warning` (line 9), and the world emits several
+// benign ones on every load — THREE's Clock deprecation, Canvas2D's
+// getImageData hint, the WebGL ReadPixels stall. Failing on those would make
+// this red always, which is just as useless as never. So: the assertions this
+// file makes itself, and nothing else.
+const findings = errors.filter((e) => /^(STATION MISS|COVERAGE):/.test(e));
+if (findings.length) {
+  console.error(`\nFAIL: ${findings.length} sweep finding(s) — see STATION MISS / COVERAGE above`);
+  process.exitCode = 1;
+} else {
+  console.log('sweep findings: none (0 STATION MISS, 0 COVERAGE)');
+}
