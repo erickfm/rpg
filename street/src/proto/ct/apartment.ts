@@ -2486,7 +2486,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       draw: (g, t) => RENDER[a.fmt](g, a, t),
     }));
 
-    let tvSeg = 0, tvLeft = SEGMENTS[0].secs, tvClock = 0, tvRedraw = 0;
+    /** The user: *"ads play too fast too. slow it down a bit"* (2026-08-02).
+     *
+     *  ONE MULTIPLIER RATHER THAN 20 EDITED NUMBERS. Each spot carries its own
+     *  `secs` — 3.0 for a price card, 5.6 for the bodega's five-line list — and
+     *  those RELATIVE lengths are the writing: a price card is meant to be
+     *  shorter than a list. Scaling them all preserves that shape, and it means
+     *  the next "a bit more" is this one number again rather than another sweep.
+     *  1.4x: a 3.0 s card becomes 4.2 s, the 5.6 s list becomes 7.8 s. */
+    const TV_PACE = 1.4;
+    let tvSeg = 0, tvLeft = SEGMENTS[0].secs * TV_PACE, tvClock = 0, tvRedraw = 0;
     let tvBag: number[] = [];
     const tvScreenT = surfTex('detail', TVW, TVH, (g) => { g.fillStyle = '#1b211d'; g.fillRect(0, 0, TVW, TVH); });
     const tvScreenM = flatOf2(tvScreenT);
@@ -2665,7 +2674,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         for (let k = tvBag.length - 1; k >= 0; k--) {
           if (ADS[tvBag[k]].fmt !== ADS[tvSeg].fmt) { pick = k; break; }
         }
-        tvSeg = tvBag.splice(pick, 1)[0]; tvLeft = SEGMENTS[tvSeg].secs; tvRedraw = 0;
+        tvSeg = tvBag.splice(pick, 1)[0]; tvLeft = SEGMENTS[tvSeg].secs * TV_PACE; tvRedraw = 0;
         tvPaint();
         return;
       }

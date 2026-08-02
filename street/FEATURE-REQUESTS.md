@@ -2648,3 +2648,16 @@ to one side.
   (SLICE O MATIC, MIRACLE MOP, HAIR IN A CAN, AB BLASTER 3000, CARPET BARN, the psychic
   line, VIDEO HUT). Meanwhile **casino, diner, hotel, library, thrift and tax have no ad
   at all.** The user's instinct is exactly right and cuts both ways.
+
+- **"ads play too fast too. slow it down a bit"** (2026-08-02) → **done by the desk
+  directly.** `ct/apartment.ts` gains `TV_PACE = 1.4`, applied at both places `tvLeft` is
+  set. One multiplier rather than editing 20 `secs` values, because the RELATIVE lengths
+  are the writing — a price card is meant to be shorter than a five-line list — and this
+  preserves that shape. A 3.0 s card becomes 4.2 s; the 5.6 s bodega list becomes 7.8 s.
+
+- **"add a vcr player to the tv we have. also make sure the top of the ad isn't getting
+  cut off by the tv. we can reduce the bezel a little bit."** (2026-08-02)
+  → **routed as items 119 (the ad being clipped by the bezel) and 120 (the VCR).** The
+  bezel was itself a user request — `ct/apartment.ts:2494` records *"give the tv a
+  bezel"* and `:2507` a follow-up on its colour — so this is a third pass on it and the
+  file already warns *"the bezel must frame the glow, not swallow it"*.
