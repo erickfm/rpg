@@ -37,6 +37,36 @@ import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from 
 export function makeCrosstown(): Proto {
   const scene = new THREE.Scene();
   const cam = new THREE.PerspectiveCamera(88, 1, 0.1, 220);
+
+  // ── scroll to zoom, clamped tight ─────────────────────────────────────────
+  //
+  // *"i want scroll to be zoom. it shouldnt be able to zoom too much though."*
+  // Nothing handled the wheel before this. 88° above is the deliberate wide
+  // 1997 look and stays the RESTING value — scroll only ever pulls IN from it
+  // and springs back out to it, never wider. The range is deliberately
+  // modest (24°): "shouldn't be able to zoom too much" is the whole spec, so
+  // this errs tight rather than guessing wide and walking it back.
+  const FOV_REST = 88, FOV_MIN = 64, FOV_STEP = 3;
+  let fovTarget = FOV_REST;
+  const onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    // scroll UP (deltaY < 0) zooms IN — the Google-Maps/Photoshop convention,
+    // and the opposite sign from `ct/hud.ts`'s own "+1 forward" wheel, which
+    // answers a different question (which menu item) and has no bearing here.
+    fovTarget = THREE.MathUtils.clamp(fovTarget + Math.sign(e.deltaY) * FOV_STEP, FOV_MIN, FOV_REST);
+  };
+  // BUBBLE phase, deliberately not capture, and the reason this needs no
+  // import from `ct/hud.ts` at all: whenever a panel (ATM, slots, blackjack,
+  // pockets) is open, `ct/hud.ts`'s own gate installs a CAPTURE-phase 'wheel'
+  // listener on `window` and calls `stopImmediatePropagation()` on every one.
+  // Capture always runs before bubble on the same target, so that swallows
+  // the event before it ever reaches this bubble-phase listener — "scrolling
+  // must NOT zoom the world while the ATM, slots or blackjack are up" holds
+  // for free, without this file knowing panels exist. Verified by scrolling
+  // with the ATM open: fov unchanged, and by scrolling on the sidewalk and
+  // indoors: fov moves in `shots/`-verified screenshots. See the w3 handoff.
+  window.addEventListener('wheel', onWheel, { passive: false });
+
   scene.background = new THREE.Color(0x8a97a2);
   scene.fog = new THREE.Fog(0x8a97a2, FOG_NEAR, FOG_FAR);
   scene.add(new THREE.AmbientLight(0xffffff, 1.1), new THREE.HemisphereLight(0xd8dce0, 0x6a6258, 0.5));
@@ -870,6 +900,12 @@ export function makeCrosstown(): Proto {
     },
     update(dt, t, input) {
       rig.update(dt, input);
+      // smooth toward the scroll target rather than stepping per notch — a
+      // ~0.1 s time constant so it reads as eased zoom, not a slide show
+      if (Math.abs(cam.fov - fovTarget) > 0.01) {
+        cam.fov += (fovTarget - cam.fov) * Math.min(1, dt * 10);
+        cam.updateProjectionMatrix();
+      }
       const px = rig.pos.x, pz = rig.pos.z;
 
       // the clock: one real second is one game minute
@@ -1074,6 +1110,13 @@ export function makeCrosstown(): Proto {
       // false (the ColliderDebug instance builds no geometry until the first
       // `on: true` call, and tears it down again the moment it goes false).
       colliderDebug.update(scene, colliders, apt.gy(), { x: px, z: pz, radius: RADIUS }, debugCollision);
+    },
+    dispose() {
+      // the zoom listener is added once per `makeCrosstown()` call; `main.ts`
+      // rebuilds a fresh world (and a fresh `cam`) on every load, so a stale
+      // one left behind would double up the zoom on the next load instead of
+      // just leaking — remove it, not just the objects it closed over.
+      window.removeEventListener('wheel', onWheel);
     },
   };
 }
