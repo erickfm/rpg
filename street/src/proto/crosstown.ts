@@ -874,13 +874,43 @@ export function makeCrosstown(): Proto {
   // rather than retyped, because "the one flat height on this street a standing
   // jump gains from the road" is exactly the property both surfaces are for.
   //
-  //   road 0.00 → deck 0.50 → boot lid 0.93 → cab roof 1.46 → hood 0.94 → road
+  //   road 0.00 → trailer deck 0.50 → boot lid 0.93
   //
-  // Margins at `main.ts:107`'s dt clamp, where a hop gains 0.4714 + TOP_EPS =
-  // 0.5514 m: 51 mm, 121 mm, 21 mm. The last is the roof hop and it is
-  // NUMERICALLY THE SAME HOP the pickup already ships — both are a 0.53 m rise —
-  // so this route is nowhere tighter than the tightest thing already standing.
-  // scripts/w29-sedan-climb.mjs is what catches it if anyone retunes the jump.
+  // ── AND THE ROOF IS DELIBERATELY NOT ON THAT LIST ───────────────────────
+  //
+  // The item asked for "at least the pickup's 21 mm margin at the dt clamp",
+  // and a boot-lid → roof hop has EXACTLY that: both are a 0.53 m rise. I built
+  // it, walked it, and it failed three times out of three — so I measured the
+  // hop frame by frame (scripts/probes/w29-roof-hop.mjs) instead of retrying,
+  // and 21 mm turns out not to be a margin at all.
+  //
+  // Height is only half of a hop. To LAND on a tier you must also cross RADIUS
+  // (0.36 m) of ground horizontally while you are above `maxY - TOP_EPS`,
+  // because `blocked()` pads that tier by RADIUS until you are over it. At the
+  // dt clamp every frame is 0.05 s and a walk covers 0.165 m, so what actually
+  // decides a hop is HOW MANY FRAMES clear the threshold:
+  //
+  //     rise ≤ 0.52   3 frames   0.495 m of travel   clears 0.36 ✓
+  //     rise = 0.53   2 frames   0.330 m of travel   does NOT clear ✗
+  //
+  // 0.53 sits exactly on the boundary — the fourth frame's apex is 0.450 and
+  // the threshold it must beat is 0.450 — so which side it falls on is decided
+  // by floating-point rounding rather than by design. THE PICKUP'S ROOF HOP IS
+  // THE SAME 0.53 AND WINS THAT TIE BY LUCK: its heights are exact doubles
+  // (`PICKUP_CAB.roofY` 1.5, `PICKUP_BED.railY` 0.97) and 0.97 + 0.45 === 1.42
+  // exactly. The sedan's come off the mesh's Float32 bounding box (1.46 stored
+  // as 1.4600000381), which moves the threshold 38 nanometres the wrong way and
+  // costs the whole frame. That is a real, queueable finding about work that
+  // already shipped, not a reason to nudge a number until it passes.
+  //
+  // A roof route WOULD be robust off the hood (1.46 − 0.94 = 0.52, three
+  // frames), but the hood cannot be reached: its own first step would have to
+  // jut ~0.5 m out of the nose to leave RADIUS of standing band, into the road.
+  // So the honest set is the two hops below, which clear by 4 and 5 frames, and
+  // the greenhouse stays a plain wall — nobody stands on sloping glass, and a
+  // standable roof reachable only on a coin flip is a collider nobody meets.
+  // scripts/w29-sedan-climb.mjs is what catches all of this if anyone retunes
+  // the jump, RADIUS or TOP_EPS.
   const sedan = parkedFleet.find((p) => p.kind === 'sedan');
   if (sedan) {
     const sz = sedan.car.position.z, sx = sedan.car.position.x;
@@ -921,7 +951,6 @@ export function makeCrosstown(): Proto {
     // kind grows a third one.
     const lids = parts.filter((p) => p.bb.max.y > belt + 0.02 && p.bb.max.y < belt + 0.20)
       .sort((a, b) => a.bb.min.z - b.bb.min.z);
-    const cabin = parts.reduce((a, b) => (b.bb.max.y > a.bb.max.y ? b : a));
 
     if (lids.length !== 2) {
       // Refuse rather than guess. A tier seamed off the wrong panel is a
@@ -929,7 +958,11 @@ export function makeCrosstown(): Proto {
       // PICKUP_COWL_Z exists to prevent.
       console.warn(`[sedan-climb] expected 2 belt lids, found ${lids.length} — no tiers built`);
     } else {
-      const hoodLid = lids[0].bb, bootLid = lids[1].bb;
+      // lids[0] is the hood (front is -z), lids[1] the boot lid. Only the boot
+      // lid is used — the hood is unreachable, see the block comment above —
+      // but both are still REQUIRED to be found, because "there are exactly two
+      // lids and the rear one is the boot" is the assumption the seam rests on.
+      const bootLid = lids[1].bb;
       type Top = AABB & { tag: string };
       const tops: Top[] = [];
       const top = (tag: string, z: [number, number], maxY: number): Top => {
@@ -938,31 +971,29 @@ export function makeCrosstown(): Proto {
         return t;
       };
 
-      // ── tier 1: the hood, nose back to the panel's OWN rear edge ────────
+      // ── tier 1: the body forward of the boot lid, STILL A PLAIN WALL ────
       //
-      // Stopping at the hood mesh's own edge is what PICKUP_COWL_Z had to be
-      // derived to do: one centimetre further back and this is a standable
-      // shelf at 0.94 m inside the cabin, under the windscreen.
-      const [hoodMinZ, hoodMaxZ] = localZ(-sedan.half, hoodLid.max.z);
-      sedan.cb.minZ = hoodMinZ; sedan.cb.maxZ = hoodMaxZ;
-      sedan.cb.maxY = hoodLid.max.y;
-      (sedan.cb as Top).tag = 'sedan-hood';
-      tops.push(sedan.cb as Top);
+      // The car's own box is kept, only shortened, so the nose, engine bay and
+      // greenhouse behave exactly as every other car in the world does: solid
+      // at every height. It carries no `maxY`, which is what makes that true —
+      // `blocked()`'s `c.maxY !== undefined` guard means an untagged box is a
+      // wall forever (fp.ts:236). It is tagged anyway, so the acceptance test
+      // can assert "still a wall" against THIS box rather than against
+      // whichever collider it happens to find first.
+      sedan.cb.minZ = Math.min(...localZ(-sedan.half, bootLid.min.z));
+      sedan.cb.maxZ = Math.max(...localZ(-sedan.half, bootLid.min.z));
+      (sedan.cb as Top).tag = 'sedan-body';
 
-      // ── tier 2: the cabin, whose top IS the roof ────────────────────────
+      // ── tier 2: the boot lid — the one panel on this body worth standing on ─
       //
-      // One box over the greenhouse, at the roof's own height, spanning lid to
-      // lid. It overfills the sloped screen by up to 0.53 m at its foot and
-      // reaches past the roof plate on each side — the same price of an
-      // axis-aligned box on a welded loft the pickup's cab tier pays at 0.47 m,
-      // and the same reason: a narrower box would notch the car's GROUND
-      // footprint, which `nudgeClear`'s trap-band rule was already run against.
-      top('sedan-cab-roof', localZ(hoodLid.max.z, bootLid.min.z), cabin.bb.max.y);
-
-      // ── tier 3: the boot lid ───────────────────────────────────────────
+      // Seamed at the lid's OWN front edge, which is where the rear glass
+      // starts to rise. A tier that ran any further forward would be a
+      // standable shelf at 0.93 m inside the cabin, under the back window —
+      // exactly the defect PICKUP_COWL_Z had to be derived to avoid, obtained
+      // here straight from the panel instead.
       top('sedan-boot-lid', localZ(bootLid.min.z, sedan.half), bootLid.max.y);
 
-      // ── tier 4: the trailer deck — the step the body cannot provide ─────
+      // ── tier 3: the trailer deck — the step the body cannot provide ─────
       //
       // Deck collider starts at the car's own tail, not at the deck plank, so
       // the car and the trailer present ONE continuous solid at ground level.
