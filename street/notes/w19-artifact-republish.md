@@ -1,6 +1,14 @@
 # w19 — the artifact, rebuilt and verified on the BUILT bundle
 
-Queue item 38. Build `8ffdc5979`. **Artifact:
+Queue item 38. **Artifact build `c0ed1559a`** — everything below was measured on
+the pack stamped `8ffdc5979`, and it was repacked afterwards so `dist/` matches
+HEAD. The only commit between the two is this note; no source changed, and
+`check-artifact` and `L-games-in-artifact` were re-run on the repack and both
+pass. Left matching on purpose: `checks.mjs` exits 2 when `dist/` was built from
+a different commit than HEAD, so a stale stamp would abort the next person's
+whole suite before a single check ran.
+
+**Artifact:
 `/home/erick/projects/rpg/.claude/worktrees/agent-a1526cd3fb43d34ff/street/dist/artifact.html`**,
 1,113,501 bytes. **The desk publishes it** — the item says so and I have not
 touched the artifact URL.
