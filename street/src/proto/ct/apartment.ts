@@ -1027,26 +1027,51 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // Where you stand to work it. Out in front of the leaf and back from it,
       // on the room side — a door you can only reach by standing inside its
       // own swing is a door you can never shut.
-      ctx.spot({
-        x: DOOR_PIV_X - 0.55, z: DOOR_PIV_Z - H301 * 1.45, r: 0.95,
-        ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
-        // IT NEVER REFUSES. The user: *"it should always be able to
-        // open/close."* This used to read 'step clear of the door' and do
-        // nothing when you stood in the swing, which is safe and makes the
-        // door feel broken — refusing an interaction is the one outcome a
-        // player reads as a bug rather than as a rule.
-        //
-        // The reason the refusal existed is now handled a layer down, by
-        // machinery that did not exist when this was written: F's unstick()
-        // runs every frame, sums the escape vectors from everything the rig is
-        // inside, and eases the player out along the minimum translation
-        // (fp.ts:191). The shut leaf publishes doorShutCap like any other
-        // collider, so a player standing in the swept volume is pushed clear
-        // by the same code that handles a collider appearing under them
-        // anywhere else. One rule, not two.
-        label: () => (doorShut ? 'open the door' : 'close the door'),
-        act: () => { doorShut = !doorShut; },
-      });
+      //
+      // ONE spot used to exist here, and it only reached the room side. Its
+      // r0.95 circle centred at x 199.36 dies at x 200.31 — short of the
+      // hall, whose free floor starts at AX(0.07) = 200.07, the wall's far
+      // face, and which the SHUT leaf then also blocks with doorShutCap
+      // (199.84-200.06). So nobody could ever stand close enough to touch it
+      // from the landing. Line of sight does not save it either: pickSpot's
+      // aimed fallback needs `visible()`, and a shut door is opaque, so
+      // there is no ray from the hall into the room for it to travel along.
+      // SHUT AND ON THE LANDING, THE DOOR WAS UNOPENABLE — exactly what the
+      // room said two lines up must never happen. `scripts/A-verify-301-door.mjs`
+      // never caught it because it only ever warps to `spots().find(...)`,
+      // which is this one spot, standing inside 301 the whole time.
+      //
+      // Both stand-points share the same ok/label/act — a door is one piece
+      // of state with two thresholds, not two doors that happen to agree.
+      const doorOk = () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5;
+      const doorLabel = () => (doorShut ? 'open the door' : 'close the door');
+      const doorAct = () => { doorShut = !doorShut; };
+      // IT NEVER REFUSES. The user: *"it should always be able to
+      // open/close."* This used to read 'step clear of the door' and do
+      // nothing when you stood in the swing, which is safe and makes the
+      // door feel broken — refusing an interaction is the one outcome a
+      // player reads as a bug rather than as a rule.
+      //
+      // The reason the refusal existed is now handled a layer down, by
+      // machinery that did not exist when this was written: F's unstick()
+      // runs every frame, sums the escape vectors from everything the rig is
+      // inside, and eases the player out along the minimum translation
+      // (fp.ts:191). The shut leaf publishes doorShutCap like any other
+      // collider, so a player standing in the swept volume is pushed clear
+      // by the same code that handles a collider appearing under them
+      // anywhere else. One rule, not two.
+      const ROOM_STAND_X = DOOR_PIV_X - 0.55, STAND_Z = DOOR_PIV_Z - H301 * 1.45;
+      ctx.spot({ x: ROOM_STAND_X, z: STAND_Z, r: 0.95, ok: doorOk, label: doorLabel, act: doorAct });
+      // AND ITS MIRROR, on the hall side. Reflected about the wall's own
+      // centreline (AX(0)) rather than a second hand-typed x, so the two
+      // stand-points keep the same 0.57 m offset off their own wall face by
+      // construction: the room spot sits 199.93 (the wall's room-side face,
+      // AX(-0.07)) minus 0.57; this one sits 200.07 (the hall-side face,
+      // AX(0.07)) plus 0.57. Neither the shut collider (199.84-200.06) nor
+      // the wall itself falls inside either circle, so both are reachable
+      // whichever side of a shut door you are standing on.
+      const HALL_STAND_X = 2 * AX(0) - ROOM_STAND_X;
+      ctx.spot({ x: HALL_STAND_X, z: STAND_Z, r: 0.95, ok: doorOk, label: doorLabel, act: doorAct });
     }
     // the hermit — a big quiet man; you only ever catch him at his door.
     //
