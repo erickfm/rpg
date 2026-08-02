@@ -741,21 +741,59 @@ export function pickSpot<T extends Pickable>(
    *  bed. */
   visible?: (s: T) => boolean,
 ): { spot: T; looked: boolean; offAxis: number; dist: number } | null {
-  // TWO TIERS, NOT ONE KEY. `bestNear`/`bestLooked` are tracked separately and
-  // combined at the end, because a single `offAxis + d*0.02` key — what this
-  // used to be — does NOT give near candidates priority despite the comment
-  // below claiming it does. Reproduced live (scripts/w9-reach-repro.mjs):
-  // standing exactly ON the apartment door's own stand-point (d=0, touching)
-  // but facing the bed across the room, the bed's small offAxis beat the
-  // door's ~180 deg offAxis outright — *"i dont want to be so far from the bed
-  // and the option is still to sit on the bed and watch tv"*, seen from the
-  // door's side. A door you are standing in is not "near the centre of the
-  // screen" when your back is to it, so it needs a real priority tier, not a
-  // combined score that a large offAxis term can always outweigh.
-  let bestNear: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
-  let bestNearKey = Infinity;
+  // THREE TIERS, NOT ONE KEY — and the middle one is the whole of this
+  // function's history, because THIS KNOB HAS A USER COMPLAINT AT BOTH ENDS.
+  //
+  //   tier 1  TOUCHING AND AIMED AT   ranked by distance
+  //   tier 2  AIMED AT                ranked by screen centre, distance breaks ties
+  //   tier 3  TOUCHING, AIMED AWAY    ranked by distance
+  //
+  // END ONE — *"i dont want to be so far from the bed and the option is still
+  // to sit on the bed and watch tv"*. This used to be a single
+  // `offAxis + d*0.02` key for every candidate, so a touched-but-facing-away
+  // spot could lose to a merely-aimed-at one: standing exactly ON the
+  // apartment door's stand-point but facing the bed, the bed won
+  // (scripts/w9-reach-repro.mjs). `fa5c32e01` answered it by splitting near
+  // from looked and letting near win OUTRIGHT.
+  //
+  // END TWO — *"i dont want sit on bed and watch tv to be the main option if
+  // im facing the door to leave"*, which is that same outright win read back
+  // from the other side. In flat 301 the bed seat (r0.70) and the door spot
+  // (r0.95) stand 1.27 m apart while their touch circles reach 0.85 m and
+  // 1.10 m, so THE CIRCLES OVERLAP over most of the floor between them. Both
+  // are `near` there, the near tier ranked by distance alone, and the bed won
+  // no matter how squarely you were aimed at the door — 10 of 19 standable
+  // cells, scripts/probes/w40-301-grid.mjs. Two spots 1.27 m apart is not an
+  // accident of that room either; a seat and the door it faces are close
+  // together everywhere in this world.
+  //
+  // RESTORING LOOKED-OVER-NEAR JUST RETURNS END ONE, so the near tier stays
+  // and grows a facing gate instead: it keeps its unconditional win while you
+  // are not plainly pointed at something else, and yields when you are. The
+  // gate is `looked` itself — the SAME `lookTolerance` cone the rest of the
+  // resolver uses, not a second angle constant that could drift away from it.
+  //
+  // WHAT PROTECTS END ONE IS TIER 1, and specifically the `d < 1e-4` clause on
+  // `offAxis` below: a spot you are standing ON has offAxis 0 by construction,
+  // so it is always `looked`, so it is always tier 1, so it cannot be taken off
+  // you by anything. That is w9's repro and `seats-walk`'s standing assertion
+  // (stand on a seat, get THAT seat, not the one 0.67 m away) both held by the
+  // same line.
+  //
+  // AND TIER 3 IS STILL A TIER — *"standing beside it, not looking"* keeps
+  // working, because a touched spot with nothing aimed-at to lose to still
+  // wins. Measured at the case w9's note names as the reason for the outright
+  // win, the No. 227 frame: at 0.00 m and at the 1.15 m facade-cushion
+  // stand-off, over 16 headings, `enter No. 227` is the ONLY candidate in
+  // every pose — nothing near it, nothing looked, nothing across the street
+  // (scripts/probes/w40-227-frame.mjs). Demoting it costs nothing there
+  // because there is nothing to be demoted below.
+  let bestNearLooked: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
+  let bestNearLookedKey = Infinity;
   let bestLooked: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
   let bestLookedKey = Infinity;
+  let bestNearOnly: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
+  let bestNearOnlyKey = Infinity;
   const fx = Math.sin(view.yaw), fz = -Math.cos(view.yaw);
   for (const s of spots) {
     if (!s.ok()) continue;
@@ -803,31 +841,33 @@ export function pickSpot<T extends Pickable>(
     // is the expensive one — a raycast per candidate, only for candidates that
     // have already passed the cheap tests.
     if (visible && !visible(s)) continue;
-    // NEAR BEATS LOOKED, ALWAYS — enforced by TIER now, not by hoping a single
-    // key orders that way. `near` candidates are ranked by distance ONLY
-    // (offAxis plays no part: you can be touching something with your back to
-    // it, and that must still win over something merely aimed at — that is
-    // the whole of *"a door you are standing in should beat furniture across
-    // the room"*). `looked` candidates are ranked by screen centre first,
-    // distance as the tiebreak, exactly as before.
+    // NEAR STILL BEATS LOOKED — but only while you are not plainly aimed at
+    // something else, which is the facing gate the tier comment above sets out.
+    // Ordering inside each tier is unchanged from what it has always been:
+    // touching ranks by distance, aimed-at ranks by screen centre with distance
+    // as the tiebreak.
     //
-    // My first ordering made `looked` dominant and it was wrong twice over. A
-    // door you were STANDING IN stopped being offered because something across
-    // the street was nearer the centre of the screen — measured, at the No. 227
-    // frame — and it would have broken `seats-walk`'s standing assertion, which
-    // is that standing ON a seat offers THAT seat and not the one 0.67 m away.
-    // That check exists because the bug it guards shipped once already
-    // (`098269aa`), and a new pick that quietly re-opens it is worse than no new
-    // pick at all.
-    if (near) {
-      if (d < bestNearKey) { bestNearKey = d; bestNear = { spot: s, looked, offAxis, dist: d }; }
-    } else {
+    // Making `looked` dominant OUTRIGHT — the obvious swing back, and the thing
+    // to keep resisting — was wrong twice over. A door you were STANDING IN
+    // stopped being offered because something else was nearer the centre of the
+    // screen, and it broke `seats-walk`'s standing assertion, which is that
+    // standing ON a seat offers THAT seat and not the one 0.67 m away. That
+    // check exists because the bug it guards shipped once already (`098269aa`),
+    // and a new pick that quietly re-opens it is worse than no new pick at all.
+    // Both of those are poses where you are standing ON the spot, so both land
+    // in tier 1 here and neither is reachable by anything in tiers 2 or 3.
+    const entry = { spot: s, looked, offAxis, dist: d };
+    if (near && looked) {
+      if (d < bestNearLookedKey) { bestNearLookedKey = d; bestNearLooked = entry; }
+    } else if (looked) {
       const key = offAxis + d * 0.02;
-      if (key < bestLookedKey) { bestLookedKey = key; bestLooked = { spot: s, looked, offAxis, dist: d }; }
+      if (key < bestLookedKey) { bestLookedKey = key; bestLooked = entry; }
+    } else {
+      if (d < bestNearOnlyKey) { bestNearOnlyKey = d; bestNearOnly = entry; }
     }
   }
-  // near wins outright over looked-only — see the tier comment above.
-  return bestNear ?? bestLooked;
+  // touching-and-aimed-at, then aimed-at, then touching-but-aimed-away.
+  return bestNearLooked ?? bestLooked ?? bestNearOnly;
 }
 
 /**

@@ -33,10 +33,21 @@ if (MODE === 'diff') {
   const c = JSON.parse(readFileSync(OUT('after'), 'utf8'));
   const keys = [...new Set([...Object.keys(a), ...Object.keys(c)])].sort();
   const changed = keys.filter((k) => a[k] !== c[k]);
-  console.log(`${keys.length} poses; ${changed.length} changed (${(100 * changed.length / keys.length).toFixed(1)}%)\n`);
+  // A CHANGE OF INDEX IS NOT A CHANGE THE PLAYER CAN SEE. The casino has ~70
+  // identically-labelled "sit at the slot" spots in a dense grid; swapping
+  // which one a pose resolves to alters no prompt and no outcome, so it is
+  // counted apart from changes that actually rename what [E] offers.
+  const lbl = (v) => (v == null ? '(none)' : v.slice(v.indexOf(':') + 1));
+  const renamed = changed.filter((k) => lbl(a[k]) !== lbl(c[k]));
+  const nulled = changed.filter((k) => c[k] == null && a[k] != null);
+  const gained = changed.filter((k) => a[k] == null && c[k] != null);
+  console.log(`${keys.length} poses; ${changed.length} changed (${(100 * changed.length / keys.length).toFixed(1)}%)`);
+  console.log(`  of those, ${changed.length - renamed.length} are same-label index swaps (invisible to the player)`);
+  console.log(`  ${renamed.length} change the PROMPT TEXT (${(100 * renamed.length / keys.length).toFixed(2)}% of all poses)`);
+  console.log(`  ${nulled.length} poses lost their offer entirely; ${gained.length} gained one\n`);
   const buckets = new Map();
-  for (const k of changed) {
-    const sig = `${a[k] ?? '(none)'}  ->  ${c[k] ?? '(none)'}`;
+  for (const k of renamed) {
+    const sig = `${lbl(a[k])}  ->  ${lbl(c[k])}`;
     if (!buckets.has(sig)) buckets.set(sig, []);
     buckets.get(sig).push(k);
   }
@@ -44,7 +55,29 @@ if (MODE === 'diff') {
     console.log(`  ${String(ks.length).padStart(4)}x  ${sig}`);
     console.log(`         e.g. ${ks[0]}`);
   }
-  process.exit(0);
+  // DID ANYTHING BECOME UNREACHABLE? Reordering which of several competing
+  // offers wins is the point; making a spot that used to be winnable from
+  // somewhere winnable from nowhere would be a real defect, and it is invisible
+  // in the per-pose counts above because every one of those poses still offers
+  // SOMETHING. Compare the SET of spots that win at least one pose.
+  const winners = (m) => new Set(Object.values(m).filter(Boolean).map((v) => v.split(':')[0]));
+  const wb = winners(a), wc = winners(c);
+  const lost = [...wb].filter((s) => !wc.has(s));
+  const won = [...wc].filter((s) => !wb.has(s));
+  console.log(`\nspots winnable from at least one pose: ${wb.size} before, ${wc.size} after`);
+  const name = (idx) => {
+    for (const k of keys) { const v = c[k] ?? a[k]; if (v && v.split(':')[0] === idx) return v.slice(v.indexOf(':') + 1); }
+    return '?';
+  };
+  if (lost.length) {
+    console.log(`  UNREACHABLE NOW (${lost.length}):`);
+    for (const s of lost) console.log(`    ${s}: ${name(s)}`);
+  } else console.log('  none became unreachable');
+  if (won.length) {
+    console.log(`  newly reachable (${won.length}):`);
+    for (const s of won) console.log(`    ${s}: ${name(s)}`);
+  }
+  process.exit(lost.length ? 1 : 0);
 }
 
 const URL = aim('http://localhost:4188/');
