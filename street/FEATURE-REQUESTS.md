@@ -2181,3 +2181,38 @@ much deeper other wise it loks like a fake building"*.
 **The fix must keep the walkable forecourt and yard that change bought** — the
 site really was two-thirds solid before — while closing the flanks. Restoring
 depth alone re-creates the original bug.
+
+
+## Interaction reach is too wide, and the bed beats the door you are standing at
+
+> *"it should be easy to open and close the door. the radius for interaction is
+> far too wide. i dont want to be so far from the bed and the option is still to
+> sit on the bed and watch tv"*
+
+**Measured.** The bed's spot declares `r 0.7` at (198.3, −16.3); the door's is
+`r 0.95` at (199.36, −17.45). But `fp.ts:463` adds **`REACH_MARGIN = 0.6` to
+every spot**, so the bed is actually live out to **1.3 m** — nearly double its
+declared radius, and from the doorway that is enough to reach him.
+
+**This is the second half of a complaint he already made.** In July: *"i think
+the selection options are a bit to wide. i feel like i select stuff without even
+looking at it."* The desk's fix then was to narrow the **aim cone**, 35.5° → 15°
+(`lookTolerance`, `fp.ts:474`), and the comment there records exactly that. **The
+cone was tightened and the reach never was** — so he is now reporting the half
+that was left.
+
+**And it is the same bug as his front door**, seen from the other side. Standing
+in the doorway looking in, the bed is straight ahead and inside the cone; the
+door is at his shoulder and outside it. The hall-side door spot that just landed
+does not settle this on its own — **the bed can still out-reach the door from
+the very spot where the door is the obvious thing to use.**
+
+Two things worth separating for whoever takes it:
+
+1. **`REACH_MARGIN` is global.** Lowering it touches every interaction in the
+   world, which is why it deserves care rather than a quick nudge. Its comment
+   claims 0.60 is *"still under half the sacred 2 m walk, so it cannot make two
+   spots across a pavement both live"* — true outdoors, and a bedroom is not a
+   pavement.
+2. **A door you are standing in should beat furniture across the room**, whatever
+   the margins are. That is a resolver question, not only a radius one.
