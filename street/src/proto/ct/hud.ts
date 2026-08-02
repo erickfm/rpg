@@ -244,6 +244,82 @@ function blockInput(): () => void {
 // What is YOURS: everything inside the glass. The framework never draws in
 // your screen area and never interprets a key you have handled.
 
+// ══ DIEGETIC SCREENS ══════════════════════════════════════════════════════
+//
+// *"this doesnt look integrated. i want when i hit e here to adjust my position
+// and perspective and lock it to be looking at the atm and for the screen on the
+// literal atm be the overlay that i can use my mouse to click through."*
+//
+// The panel framework above draws a machine in SCREEN SPACE — a canvas at
+// `position:fixed`, centred, over a dimmed world. That is the thing in his
+// screenshot, and it is the last survivor of *"i never want there to be menus
+// popping up unless they are embedded to look as if they are in the actual
+// game"*: item 0c took the framework's beige chrome off the ATM, which stopped
+// it looking like a dialog, but it was still a rectangle floating in front of
+// the camera rather than a screen on an object.
+//
+// A DIEGETIC panel is the same panel with its canvas hung on a MESH instead.
+// Everything the framework already guarantees — one at a time, the world frozen,
+// ESC always closes, `release` undoes the way in, the dismiss lockout — is
+// unchanged and uncopied; only where the pixels land, and where the mouse comes
+// from, are different. That is why this lives inside `makePanel` rather than in
+// a module of its own: a second implementation of "a modal you cannot escape
+// from" is exactly the thing this project has been burned by, and there is now
+// only ever going to be one.
+//
+// THIS IS THE TEMPLATE. Slots, blackjack and the library PC each already draw a
+// complete self-contained fascia into a `chrome:'none'` panel; each becomes
+// diegetic by naming the mesh its picture belongs on and nothing else.
+
+/** The surface a panel is painted onto, and how the player is put in front of it. */
+export interface ScreenSurface {
+  /**
+   * The mesh whose face IS this screen, resolved at open time rather than at
+   * build time — the world is assembled in pieces and a module usually cannot
+   * see the object it belongs to when it registers. Return `null` and the panel
+   * falls back to the screen-space cabinet, which is what makes this safe to
+   * adopt: a surface that cannot be found is a worse-looking panel, not a
+   * broken one.
+   */
+  mesh: () => THREE.Object3D | null;
+  /** how far the eye settles off the face, in metres along its normal */
+  standoff?: number;
+  /** the field of view to lean in to. Narrower reads as leaning closer. */
+  fov?: number;
+  /** is there something pressable at this canvas pixel? Drives the cursor. */
+  hot?: (x: number, y: number) => boolean;
+  /** a click landed at this canvas pixel */
+  click?: (x: number, y: number) => void;
+}
+
+/**
+ * The view half, implemented by `crosstown.ts` — which owns the camera, the rig
+ * and the frame loop, none of which this file can see.
+ *
+ * Registered rather than imported because the dependency runs the other way:
+ * every module already imports the HUD, and the HUD importing the world back
+ * would be a cycle. Same shape as `setPocketInfo` above.
+ */
+export interface ScreenFocus {
+  /**
+   * Ease the eye onto this face, lock the look, and freeze the feet. `escape`
+   * is the way back OUT and the focus controller must call it if it loses the
+   * lock for any reason it did not initiate — a rig-level Escape, a fade, a
+   * teleport. **A locked camera whose panel stayed open is a view you cannot
+   * leave**, which is the worst bug this project ships, so the controller is
+   * required to report the loss rather than to sit there hoping.
+   */
+  enter: (o: { mesh: THREE.Object3D; standoff: number; fov: number; escape: () => void }) => void;
+  /** give the view, the look and the feet back */
+  leave: () => void;
+  /** where on the focused face is this client-space pointer? `null` = off it */
+  pick: (clientX: number, clientY: number) => { u: number; v: number } | null;
+}
+let FOCUS: ScreenFocus | null = null;
+export function setScreenFocus(f: ScreenFocus | null): void { FOCUS = f; }
+/** is the world's focus controller wired up at all? */
+export function screenFocusReady(): boolean { return FOCUS !== null; }
+
 /** The shared look. Three authors picking three greys is the thing this stops. */
 export const UI = {
   /** moulded beige-grey plastic, the colour of every machine made in 1997 */
@@ -325,6 +401,12 @@ export interface PanelSpec {
    * `openedFromSeat` on `open()` is the structural half — see there.
    */
   release?: () => void;
+  /**
+   * PAINT THIS PANEL ONTO AN OBJECT IN THE WORLD instead of over the camera.
+   * See `ScreenSurface`. Omit it and nothing changes — this is additive, and
+   * every existing panel keeps the screen-space cabinet it has today.
+   */
+  surface?: ScreenSurface;
 }
 
 export interface Panel {
@@ -488,6 +570,14 @@ export function makePanel(spec: PanelSpec): Panel {
   let exit: (() => void) | null = null;
   /** were they sitting down when it came up? then closing it stands them up */
   let seatedAtOpen = false;
+  /**
+   * The mesh this panel is painted onto right now, or `null` when it is the
+   * ordinary screen-space cabinet. Resolved on EVERY open rather than cached at
+   * build time: modules register long before the object they belong to exists,
+   * and interiors are rebuilt as the player moves between them, so a reference
+   * kept from last time can name a mesh no longer in the scene.
+   */
+  let onMesh: THREE.Object3D | null = null;
 
   const paint = () => {
     const g = cv.getContext('2d')!;
@@ -622,10 +712,30 @@ export function makePanel(spec: PanelSpec): Panel {
       livePanel = { spec, close: () => api.close() };
       releaseHeld();                     // let go of anything already held down
       gateUp(true);                      // …and the gate is the freeze, see above
-      backdropUp(true);
+      // DIEGETIC OR NOT IS DECIDED HERE, per open, and it degrades rather than
+      // fails: a surface whose mesh cannot be found, or a world that never
+      // registered a focus controller (the prototype harnesses do not), simply
+      // gets the screen-space cabinet it would have got anyway.
+      onMesh = spec.surface && FOCUS ? spec.surface.mesh() : null;
+      // The vignette says "you have stopped looking at the world". A screen you
+      // are genuinely standing in front of has not stopped being in the world,
+      // and dimming it is the exact tell the user's screenshot is pointing at.
+      backdropUp(!onMesh);
       paint();
-      wrap!.style.opacity = '1';
-      if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(1)';
+      if (onMesh) {
+        // THE WAY OUT, handed to the controller at the moment the way in
+        // happens. If it ever loses the lock without being asked to, it closes
+        // this panel rather than leaving a locked camera over an open one.
+        FOCUS!.enter({
+          mesh: onMesh,
+          standoff: spec.surface!.standoff ?? 0.55,
+          fov: spec.surface!.fov ?? 60,
+          escape: () => api.close(),
+        });
+      } else {
+        wrap!.style.opacity = '1';
+        if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(1)';
+      }
       spec.onOpen?.();
     },
     close: () => {
@@ -634,6 +744,15 @@ export function makePanel(spec: PanelSpec): Panel {
       dismissedAt = performance.now();
       wrap!.style.opacity = '0';
       if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(.94)';
+      // GIVE THE VIEW BACK FIRST, and outside the `livePanel === spec` guard
+      // below: that guard exists because another panel may already have taken
+      // the gate over, and a camera still locked to a screen the player has
+      // left is precisely the trap this must never allow. Wrapped because a
+      // controller that throws must not be able to abandon the lock.
+      if (onMesh) {
+        onMesh = null;
+        try { FOCUS?.leave(); } catch (err) { console.error(`[panel ${spec.id}] leaving the screen threw:`, err); }
+      }
       if (livePanel && livePanel.spec === spec) {
         livePanel = null;
         gateUp(false);

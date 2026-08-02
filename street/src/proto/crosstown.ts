@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Proto } from './types';
-import { FPRig, RADIUS, type AABB, type SeatPose } from './fp';
+import { FPRig, RADIUS, SIT_EYE, type AABB, type SeatPose } from './fp';
 import { ColliderDebug } from './ct/debug-collision';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -27,7 +27,7 @@ import { buildCrowd, type Crowd } from './ct/crowd';
 import { pickSpot, SpotOutline, REACH_MARGIN } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
-import { makeHud, type Purse } from './ct/hud';
+import { makeHud, setScreenFocus, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
@@ -1255,6 +1255,142 @@ export function makeCrosstown(): Proto {
     rig.yaw = yaw;
     apt.setGy(gy);
   };
+  // ── DIEGETIC SCREEN FOCUS ────────────────────────────────────────────────
+  //
+  // *"i want when i hit e here to adjust my position and perspective and lock it
+  // to be looking at the atm"*.
+  //
+  // `ct/hud.ts` owns what a screen SHOWS and how it is escaped. This owns the
+  // only three things that file cannot see — the camera, the rig and the frame
+  // loop — and it is registered into the HUD rather than imported by it, because
+  // every module already imports the HUD and the arrow cannot point both ways.
+  //
+  // THE POSE IS DERIVED FROM THE MESH AND NOTHING IS TYPED HERE ABOUT THE BANK.
+  // A screen's own normal already states which way it faces and how far it is
+  // raked, so standing off ALONG that normal puts the eye square to the glass
+  // at the height the person who tilted it implied. Measured on the real mesh:
+  // the ATM's screen is raked 8.1°, its world normal is (0.99, 0.14, 0), and a
+  // 0.55 m stand-off therefore lands the eye at 1.59 m looking 8° down — which
+  // is where a head actually is at a cash machine. `ct/bank.ts` is not touched,
+  // not imported, and none of its numbers are copied: this reads the object.
+  const RAY = new THREE.Raycaster();
+  let renderer: THREE.WebGLRenderer | null = null;
+  /** seconds to ease ONTO a screen. Leaving is instant — see `leave`. */
+  const FOCUS_IN = 0.40;
+  /** how far the FEET stop from the face. The eye goes closer than the body
+   *  can; a person leans in to read a screen and their shoes do not follow. */
+  const FOCUS_FEET = 0.95;
+  type FocusPose = { pos: THREE.Vector3; yaw: number; pitch: number; fov: number; feetX: number; feetZ: number };
+  let focus: { mesh: THREE.Object3D; escape: () => void; from: FocusPose; to: FocusPose; t: number } | null = null;
+  const wrapPi = (a: number) => {
+    while (a > Math.PI) a -= Math.PI * 2;
+    while (a < -Math.PI) a += Math.PI * 2;
+    return a;
+  };
+  const poseFor = (mesh: THREE.Object3D, standoff: number, fov: number): FocusPose => {
+    mesh.updateWorldMatrix(true, false);
+    const c = new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
+    const geo = (mesh as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+    const na = geo?.getAttribute?.('normal');
+    // The FIRST vertex normal, transformed into the world. Every screen this is
+    // for is a flat plane, so vertex 0's normal is the face's normal; the
+    // fallback covers a mesh built without normals at all.
+    const n = (na
+      ? new THREE.Vector3(na.getX(0), na.getY(0), na.getZ(0))
+      : new THREE.Vector3(0, 0, 1)).transformDirection(mesh.matrixWorld).normalize();
+    const eye = c.clone().addScaledVector(n, standoff);
+    // A screen mounted at knee height must not put the player's head on the
+    // floor. The stand-off decides the DISTANCE; this decides that a person is
+    // still a person, and the pitch below absorbs whatever the clamp took.
+    const gy = groundPick(eye.x, eye.z);
+    eye.y = THREE.MathUtils.clamp(eye.y, gy + 1.05, gy + 1.75);
+    const dir = c.clone().sub(eye).normalize();
+    // where the body stands: square to the face, along its HORIZONTAL normal
+    const flat = new THREE.Vector3(n.x, 0, n.z);
+    if (flat.lengthSq() < 1e-6) flat.set(0, 0, 1);     // a screen facing straight up
+    flat.normalize();
+    return {
+      pos: eye,
+      // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw)
+      yaw: Math.atan2(dir.x, -dir.z),
+      pitch: Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1)),
+      fov,
+      feetX: c.x + flat.x * FOCUS_FEET,
+      feetZ: c.z + flat.z * FOCUS_FEET,
+    };
+  };
+  /** The eased fly-in. Runs AFTER `rig.update` so the lock is the last word on
+   *  where the eye is, and it is the only thing that writes the camera while a
+   *  screen is up. */
+  const stepFocus = (dt: number): void => {
+    const f = focus;
+    if (!f) return;
+    // THE RIG LOST THE SEAT WITHOUT BEING ASKED — fp.ts's own capture-phase
+    // Escape (the deepest hatch in the codebase), a teleport, a fade. Hand the
+    // panel back its way out rather than hold a camera the world has stopped
+    // agreeing with; `escape` closes the panel, which calls `leave()`.
+    if (!rig.seated) { const esc = f.escape; focus = null; esc(); return; }
+    f.t = Math.min(1, f.t + dt / FOCUS_IN);
+    const k = f.t * f.t * (3 - 2 * f.t);                       // smoothstep
+    const yaw = f.from.yaw + wrapPi(f.to.yaw - f.from.yaw) * k;
+    const pitch = f.from.pitch + (f.to.pitch - f.from.pitch) * k;
+    // KEEP THE RIG IN STEP with what is actually on screen. Releasing then
+    // continues from where the player was looking instead of snapping their
+    // head back to the direction they walked up in.
+    rig.yaw = yaw; rig.pitch = pitch;
+    cam.position.lerpVectors(f.from.pos, f.to.pos, k);
+    const fov = f.from.fov + (f.to.fov - f.from.fov) * k;
+    if (Math.abs(cam.fov - fov) > 0.001) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    const cp = Math.cos(pitch);
+    cam.lookAt(
+      cam.position.x + Math.sin(yaw) * cp,
+      cam.position.y + Math.sin(pitch),
+      cam.position.z - Math.cos(yaw) * cp,
+    );
+  };
+  setScreenFocus({
+    enter: ({ mesh, standoff, fov, escape }) => {
+      const to = poseFor(mesh, standoff, fov);
+      const from: FocusPose = {
+        pos: cam.position.clone(), yaw: rig.yaw, pitch: rig.pitch, fov: cam.fov,
+        feetX: rig.pos.x, feetZ: rig.pos.z,
+      };
+      // THE FEET ARE LOCKED BY THE RIG'S OWN SEAT rather than by a second freeze
+      // written here. That is not laziness — it buys the escape hatch in
+      // fp.ts's constructor, which listens for Escape in the capture phase
+      // precisely because `ct/hud.ts`'s gate can swallow everything above it,
+      // so a locked player still has a way out even if this file and that one
+      // both fail. `h` is set from the eye height the player is standing at
+      // RIGHT NOW, so nothing about the pose reads as sitting down.
+      const eyeNow = cam.position.y - groundPick(rig.pos.x, rig.pos.z);
+      rig.sit({ x: to.feetX, z: to.feetZ, yaw: to.yaw, h: Math.max(0, eyeNow - SIT_EYE) });
+      focus = { mesh, escape, from, to, t: 0 };
+    },
+    // INSTANT, deliberately, where entering is eased. An ease OUT would go on
+    // owning the camera for a fifth of a second after the player asked to
+    // leave, and "did Escape work?" must never be a question this world makes
+    // anybody ask. The orientation is already continuous — `stepFocus` keeps
+    // `rig.yaw`/`rig.pitch` in step every frame — so what actually snaps is
+    // the half-metre lean, and the fov, back to the player's own zoom.
+    leave: () => {
+      if (!focus) return;
+      focus = null;
+      if (Math.abs(cam.fov - fovTarget) > 0.001) { cam.fov = fovTarget; cam.updateProjectionMatrix(); }
+      if (rig.seated) rig.stand();
+    },
+    pick: (clientX, clientY) => {
+      if (!focus || !renderer) return null;
+      const r = renderer.domElement.getBoundingClientRect();
+      if (!r.width || !r.height) return null;
+      RAY.setFromCamera(new THREE.Vector2(
+        ((clientX - r.left) / r.width) * 2 - 1,
+        -((clientY - r.top) / r.height) * 2 + 1,
+      ), cam);
+      const hit = RAY.intersectObject(focus.mesh, false)[0];
+      return hit && hit.uv ? { u: hit.uv.x, v: hit.uv.y } : null;
+    },
+  });
+
   HOOKS.sort((a, b) => a.order - b.order);
   GROUNDS.sort((a, b) => a.order - b.order);
 
@@ -1485,12 +1621,32 @@ export function makeCrosstown(): Proto {
     configure(r) {
       r.toneMapping = THREE.NoToneMapping;
       r.shadowMap.enabled = false;
+      // kept so a diegetic screen can turn a page-space pointer into a ray —
+      // the canvas's own rect is the only honest source for that mapping
+      renderer = r;
     },
     update(dt, t, input) {
+      // LOOK IS LOCKED WHILE A SCREEN IS UP, and it is locked HERE rather than
+      // in fp.ts: the rig applies mouse deltas before its own seated branch, so
+      // a seated player can still turn their head — right for a bench, wrong
+      // for a machine you are reading. Dropping the delta before the rig sees
+      // it also frees the mouse to be a POINTER, which is the whole request.
+      if (focus) { input.mouseDX = 0; input.mouseDY = 0; }
       rig.update(dt, input);
+      // …and the lock gets the last word on the camera, after the rig has had
+      // its say and before anything reads the finished view.
+      stepFocus(dt);
       // smooth toward the scroll target rather than stepping per notch — a
-      // ~0.1 s time constant so it reads as eased zoom, not a slide show
-      if (Math.abs(cam.fov - fovTarget) > 0.01) {
+      // ~0.1 s time constant so it reads as eased zoom, not a slide show.
+      //
+      // NOT WHILE A SCREEN IS UP: `stepFocus` owns the fov then, and these two
+      // were pulling against each other every frame — the lock setting 60° and
+      // this dragging it back toward the resting 88°, meeting at a stable 66°
+      // that looked like an ease which had not finished. Two owners of one
+      // number, which is the same fault shape as the ATM palette this file's
+      // neighbours already carry a follow-up for. The lock wins while it is on;
+      // `leave()` hands the fov straight back to `fovTarget`.
+      if (!focus && Math.abs(cam.fov - fovTarget) > 0.01) {
         cam.fov += (fovTarget - cam.fov) * Math.min(1, dt * 10);
         cam.updateProjectionMatrix();
       }

@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { BUILD } from './ctx';
 import { makePanel, UI, type Panel, type Purse } from './hud';
@@ -354,6 +355,41 @@ function onKey(k: string): void {
  * in the player's pocket; the ACCOUNT is now `purse.account`. Worth swapping if
  * you keep a readout at all — but the machine says it on its own screen now.)
  */
+/**
+ * WHICH machine you walked up to. Both ATMs of the pair carry the same
+ * interface, so the one that lights up has to be the one you are standing at.
+ *
+ * Found by ASKING THE WORLD, not by importing the bank's coordinates: `ct/bank.ts`
+ * tags every panel it builds with `userData.atmPart`, and the raked screen faces
+ * are the ones tagged `'screen'`. That tag is the only thing this file knows
+ * about the machine — no position, no size, no tilt — so A can move, re-rake or
+ * re-texture the cabinets and this keeps working. Nearest to the player wins.
+ *
+ * BUILDER-BRIEF §8, and the alternative is the second copy of the truth this
+ * file already carries once (see the palette block at the top) and got a
+ * follow-up filed against it.
+ */
+let SCENE: THREE.Scene | null = null;
+let PLAYER: { x: () => number; z: () => number } | null = null;
+function screenMesh(): THREE.Object3D | null {
+  if (!SCENE || !PLAYER) return null;
+  const px = PLAYER.x(), pz = PLAYER.z();
+  let best: THREE.Object3D | null = null;
+  let bestD = Infinity;
+  const p = new THREE.Vector3();
+  SCENE.traverse((o) => {
+    if (o.userData?.atmPart !== 'screen') return;
+    o.updateWorldMatrix(true, false);
+    p.setFromMatrixPosition(o.matrixWorld);
+    const d = (p.x - px) ** 2 + (p.z - pz) ** 2;
+    if (d < bestD) { bestD = d; best = o; }
+  });
+  // Nothing tagged means the cabinets are not in this world (a prototype
+  // harness, a future refactor). The panel framework falls back to the
+  // screen-space cabinet on a null, so this is a downgrade and not a break.
+  return best;
+}
+
 export function openAtm(): void {
   if (!panel || !PURSE) return;
   clearTimeout(timer);
@@ -363,6 +399,8 @@ export function openAtm(): void {
 
 export function register(ctx: CtxBuild): void {
   PURSE = ctx.purse;
+  SCENE = ctx.scene;
+  PLAYER = ctx.player;
   acct(ctx.purse);                              // seed the balance once
   if (ctx.purse.card === undefined) ctx.purse.card = true;
 
@@ -379,6 +417,11 @@ export function register(ctx: CtxBuild): void {
     // exist so this second cabinet matched the real one on the bank facade;
     // with no second cabinet there is nothing left to match.
     id: 'ct-atm', w: W, h: H, scale: 2, chrome: 'none',
+    // ON THE MACHINE, not over the camera. *"i want … the screen on the literal
+    // atm be the overlay"*. The panel above already paints a complete fascia
+    // into its own canvas; naming the mesh that canvas belongs on is the whole
+    // of the change here — this file draws exactly what it drew before.
+    surface: { mesh: screenMesh },
     hint: () => (screen === 'pin' ? 'digits, then ENTER' : 'press the numbered buttons'),
     draw: (g) => drawScreen(g),
     key: (k) => onKey(k),
