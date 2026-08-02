@@ -82,24 +82,36 @@ console.log(`  dt is clamped to ${DT_CLAMP} in main.ts:107, so the hop cannot be
 // same frames. Polling from node on a wall-clock timer cannot see either.
 const runs = [];
 for (let i = 0; i < 6; i++) {
-  await p.evaluate(() => {
-    window.__jaPeak = -Infinity; window.__jaDts = []; window.__jaOn = true;
-    let prev = performance.now();
+  // WAIT FOR THE HOP TO END, NEVER FOR A CONSTANT. A fixed 1100 ms window —
+  // which is what this had, and what jump-walk.mjs still has — is a bet on
+  // wall-clock speed that the dt clamp makes unsafe: at the 0.05 s clamp the
+  // hop needs ~12 physics steps, and under load those 12 frames can span well
+  // over a second of real time, so the window closes mid-ascent and reports a
+  // truncated peak. That is exactly how this probe produced a 0.1632 m "apex",
+  // which is below a floor the physics cannot go under — the instrument, not
+  // the world (GOTCHAS §30).
+  //
+  // So the page decides when the hop is over: it must take off, and then come
+  // back to rest for 4 consecutive frames.
+  const hop = p.evaluate((rest) => new Promise((resolve) => {
+    let peak = -Infinity, took = false, back = 0, frames = 0;
+    const dts = []; let prev = performance.now();
     const f = (now) => {
-      if (!window.__jaOn) return;
-      window.__jaDts.push((now - prev) / 1000); prev = now;
-      window.__jaPeak = Math.max(window.__jaPeak, window.__ct.camY());
+      dts.push((now - prev) / 1000); prev = now;
+      const y = window.__ct.camY();
+      peak = Math.max(peak, y);
+      if (y > rest + 0.02) took = true;
+      if (took && Math.abs(y - rest) < 5e-3) back++; else back = 0;
+      if ((took && back >= 4) || ++frames > 600) {
+        return resolve({ peak, dts: dts.filter((x) => x > 0).map((x) => Math.min(x, 0.05)), took, frames });
+      }
       requestAnimationFrame(f);
     };
     requestAnimationFrame(f);
-  });
+  }), rest);
   await p.keyboard.down(' '); await p.waitForTimeout(60); await p.keyboard.up(' ');
-  await p.waitForTimeout(1100);                       // the hop is ~0.57 s of hang
-  const r = await p.evaluate(() => {
-    window.__jaOn = false;
-    const d = window.__jaDts.filter((x) => x > 0).map((x) => Math.min(x, 0.05));
-    return { peak: window.__jaPeak, dts: d };
-  });
+  const r = await hop;
+  if (!r.took) { console.log(`  run ${i + 1}: the hop never left the ground — skipped`); continue; }
   const rise = r.peak - rest;
   // The apex is set by the frames DURING the ascent, which is the first ~0.29 s.
   const asc = r.dts.slice(0, Math.max(1, Math.round(0.29 / (r.dts.reduce((a, x) => a + x, 0) / r.dts.length))));

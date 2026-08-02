@@ -468,9 +468,18 @@ export class FPRig {
     // hop at 0.475 m — an exact reachable value, not a noise band.
     //
     // Measured, `scripts/probes/w25-jump-apex.mjs` against the built bundle:
-    // 0.4750 m at the clamp (20 fps) and 0.5333 m at 61 fps, each within 0.006 m
-    // of that formula evaluated on the frames that produced it. A 60 Hz display
-    // therefore sees ~0.538 m; only a much faster one approaches 0.55.
+    // 0.4750 m at the clamp (20 fps) rising to 0.5383 m at 62 fps, every hop
+    // within 0.008 m of that formula evaluated on the frames that produced it.
+    // A 60 Hz display therefore sees ~0.538 m; only a much faster one
+    // approaches 0.55.
+    //
+    // Measure it with an instrument that waits for the hop to END, not for a
+    // constant: at the clamp the hop needs ~12 physics steps, and under load
+    // those can span well over a second of wall clock, so a fixed window closes
+    // mid-ascent. That produced a 0.1632 m "apex" here — below a floor the
+    // physics cannot go under, which is how you know it was the instrument
+    // (GOTCHAS §30). `scripts/jump-walk.mjs` still uses a fixed 1100 ms wait
+    // and is exposed to the same truncation.
     //
     // Still verified against scripts/jump-walk.mjs's whole spot list (pavement,
     // kerb edge, road, stoop, ground floor, stairs, upstairs): every apex lands
