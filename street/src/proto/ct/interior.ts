@@ -3,7 +3,7 @@ import type { AABB } from '../fp';
 import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf, frontageWorld, alongU } from './tex-world';
-import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor, doorLeafFor } from './doors';
+import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor, doorLeafFor, type DoorLeaf } from './doors';
 import { citizenSprite, type Look } from './citizens';
 import { clockFace } from './clockface';
 import { FACE } from './rng';
@@ -1199,19 +1199,68 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       + `Move outX/outZ at least ${(doorR + 0.35).toFixed(2)} m clear.`);
   }
 
-  // The door leaf, propped open.
+  // The door leaf, propped open — its FRAME COLOUR and GLAZING now come from
+  // the room's own DECLARATION (`LEAF`, above) rather than a hardcoded
+  // brown-timber-with-a-window for every room regardless of what it actually
+  // declared.
   //
+  // notes/door-faces-match.md: 7 of 12 rooms had a facade that disagreed with
+  // its own interior door, and 6 of those 7 shared one cause — this default
+  // read `LEAF` for `clearW`/`h` (sizing the wall opening) but never for
+  // `frame.colour` or `glazing` (what the leaf actually LOOKS like), so every
+  // room got the same single timber leaf with a small window no matter what
+  // its exterior showed. jail is the sharpest case: it already declares
+  // `frame: steel, glazing: 'none'` and the kit was ignoring both.
+  //
+  // A room that has never declared a `leaf` still gets exactly the old
+  // default (`doorLeafFor` falls back to timber/vision-panel), so this is
+  // additive: nothing changes until a room's own DOOR speaks up.
+  //
+  // NOT done here: `LEAF.leaves` (1 vs 2). Five rooms (casino, hotel, bank,
+  // library, pawn) already hide this single mesh and hang their OWN leaf —
+  // they find it by `geometry.type === 'PlaneGeometry'` and a 32x64 texture
+  // image, and hide it only when they find EXACTLY ONE. Drawing a second
+  // mesh here for any room whose declared `leaves` is 2 makes three of those
+  // five (bank, casino, library — the two that resolve `bName` via
+  // `spec.building`/`spec.frontage`) find TWO kit leaves, hide neither, and
+  // render their own on top: two doors, stacked, in three rooms that were
+  // correct before this change. Measured, not guessed — `node
+  // scripts/bugsweep.mjs` against a leafPair-based version of this fix printed
+  // exactly that: `[interior:bank] expected 1 kit door leaf to hide, found 2`,
+  // same for casino and library. Reverted to a single mesh for that reason.
+  // jail's leaf COUNT (it declares 2, matching its real riveted double door)
+  // is therefore still wrong after this fix — only its colour and glazing are
+  // corrected. Closing the count needs either a per-room opt-out this kit
+  // does not have yet, or — cheaper — giving `int-jail.ts` the same "hide the
+  // kit's one leaf, hang leafPair's own" recipe the other five already use,
+  // which is a one-file change in O's room, not this kit. Flagged, not done.
+  const frameHex = '#' + (LEAF?.frame.colour ?? 0x3a2c22).toString(16).padStart(6, '0');
+  const glazing = LEAF?.glazing ?? 'vision-panel';
+  // the glass rect in the leaf's 32x64 texel canvas, by declared coverage —
+  // 'none' draws no glass at all (jail's riveted steel), 'vision-panel' is
+  // the kit's old small window, 'half' and 'full' scale up from there.
+  const GLASS: Record<DoorLeaf['glazing'], [number, number, number, number] | null> = {
+    none: null,
+    'vision-panel': [4, 4, 24, 40],
+    half: [4, 4, 24, 28],
+    full: [3, 3, 26, 58],
+  };
+  const leafT = declareSurface(pixTex(32, 64, (g) => {
+    g.fillStyle = frameHex; g.fillRect(0, 0, 32, 64);
+    const gl = GLASS[glazing];
+    if (gl) {
+      const [gx, gy, gw, gh] = gl;
+      g.fillStyle = '#8a97a2'; g.fillRect(gx, gy, gw, gh);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(gx, gy + gh / 2, gw, 2);
+    }
+    g.fillStyle = '#c9b45e'; g.fillRect(25, 34, 3, 3);
+  }), 'detail');
   // Hung on a pivot at the hinge rather than positioned at an angle by hand:
   // a plane placed at its own centre and then rotated swings its inner half
   // back THROUGH the jamb, which is what the previous version did. Hinged on
   // the outer face and swung outward, it cannot reach the wall at all, and it
   // reads from inside as a propped shop door rather than as a hole.
-  const leafT = declareSurface(pixTex(32, 64, (g) => {
-    g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
-    g.fillStyle = '#8a97a2'; g.fillRect(4, 4, 24, 40);
-    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(4, 24, 24, 2);
-    g.fillStyle = '#c9b45e'; g.fillRect(25, 34, 3, 3);
-  }), 'detail');
+  //
   // The hinge is done by arithmetic rather than by a pivot Group, for the same
   // reason everything else here is: a child of a nested group carries a LOCAL
   // position, `dimWorld` reads that local position, and the leaf alone would
