@@ -144,6 +144,22 @@ so and queue the world fix. (GOTCHAS 56.)
 
 ---
 
+## 7a. Your one-shot probe goes in `scripts/probes/`
+
+`scripts/` reached **797 files**, of which about thirty were ever run twice. The
+rest were one-shot measurements — every agent writes two or three — and the cost
+is that nobody can find the real instruments any more.
+
+So: **a script you wrote to answer one question once goes in
+`scripts/probes/`**, named for the question. It graduates to `scripts/` only when
+something *calls* it: a `package.json` entry, a shell wrapper, another script's
+import, or a standing instruction in `notes/`.
+
+Committing it is still right — the note that cites it is worth much less without
+it. Just put it where it belongs.
+
+---
+
 ## 8. Derive, never retype
 
 A second hand-typed copy of a number is the single most expensive habit in this
