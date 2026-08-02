@@ -2638,3 +2638,13 @@ to one side.
   comment says it *"errs tight rather than guessing wide and walking it back"* — this is
   that walk-back, invited by its own author. `FOV_STEP` stays 3, so the extra range is
   four more notches rather than coarser ones.
+
+- **"make the ads on the tv actually representative of the businesses we created thus far
+  a lot of these ads are pretty good, but they need the business in reference. also i like
+  the video hut ad so please add a video hut business ty"** (2026-08-02)
+  → **routed as items 117 (point the ads at real businesses) and 118 (build VIDEO HUT).**
+  Measured: the ad roster in `ct/apartment.ts:~2440` already carries real ones (pawn,
+  bodega, BURGER BARN, the bank loan) alongside inventions with nothing behind them
+  (SLICE O MATIC, MIRACLE MOP, HAIR IN A CAN, AB BLASTER 3000, CARPET BARN, the psychic
+  line, VIDEO HUT). Meanwhile **casino, diner, hotel, library, thrift and tax have no ad
+  at all.** The user's instinct is exactly right and cuts both ways.
