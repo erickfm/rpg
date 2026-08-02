@@ -443,17 +443,41 @@ export function buildBankInterior(ctx: CtxBuild): void {
     for (let i = 0; i < 6; i++) g.fillRect(6 + ((i * 17) % 40), 8 + ((i * 11) % 28), 2, 2);
     dither(g, 48, 40, 44);
   }), 'detail');
+  // This canvas was one MATERIAL shared, unrepeated, across four faces of very
+  // different real size — the 3.0 m east wall, two front-wall slivers under
+  // 0.9 m each, and the 3.4 x 3.0 m roof. A ClampToEdge texture stretched once
+  // across each of those reads its six speckle blotches at a different
+  // physical size on every face, which is exactly GOTCHAS 5 (repeat must derive
+  // from the surface's real metres) — and exactly what turned poured-concrete
+  // form lines and aggregate into what looks like scattered random dashes.
+  // `panelMat`/`topMat` above set the local pattern: clone, tile in real
+  // metres, one material per run length. Same move here, at a tile chosen so
+  // the form-board bands read at roughly the scale drawn (8 bands / 40 px, so
+  // ~1.3 m of wall per texture repeat keeps a board close to real height).
+  const CONCRETE_TILE_M = 1.3;
+  const concreteMat = (wMeters: number, hMeters: number) => {
+    const t = concreteT.clone();
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(Math.max(1, Math.round(wMeters / CONCRETE_TILE_M)),
+      Math.max(1, Math.round(hMeters / CONCRETE_TILE_M)));
+    t.needsUpdate = true;
+    return ctx.flat(t);
+  };
+  // Small incidental faces (the safe-deposit nest's end caps, top and bottom —
+  // never more than ~0.2 m of any one, never what a player is looking at) keep
+  // the plain unrepeated material; they are not the surfaces the row is about.
   const concreteM = ctx.flat(concreteT);
 
   // the east wall, full height of the strongroom
-  skin(bx(V_T, V_H, V_Z1 - (-hd), concreteM, V_X1 - V_T / 2, V_H / 2, (V_Z1 + -hd) / 2),
-    'vault east wall');
+  const eastWallLen = V_Z1 - (-hd);
+  skin(bx(V_T, V_H, eastWallLen, concreteMat(eastWallLen, V_H),
+    V_X1 - V_T / 2, V_H / 2, (V_Z1 + -hd) / 2), 'vault east wall');
   solid(V_X1 - V_T / 2, (V_Z1 + -hd) / 2, V_T, V_Z1 - (-hd));
   // the front wall, in two pieces either side of the throat, plus a header
   {
     const wSeg = (x0: number, x1: number) => {
       if (x1 - x0 <= 0.001) return;
-      skin(bx(x1 - x0, V_H, V_T, concreteM, (x0 + x1) / 2, V_H / 2, V_Z1 - V_T / 2),
+      skin(bx(x1 - x0, V_H, V_T, concreteMat(x1 - x0, V_H), (x0 + x1) / 2, V_H / 2, V_Z1 - V_T / 2),
         'vault front wall');
       solid((x0 + x1) / 2, V_Z1 - V_T / 2, x1 - x0, V_T);
     };
@@ -461,11 +485,12 @@ export function buildBankInterior(ctx: CtxBuild): void {
     wSeg(THROAT_X1, V_IN_X1);
     // the header over the opening — and NOT a collider, so the throat stays a
     // way through rather than a hole with a box in it (GOTCHAS 8)
-    bx(THROAT_W, V_H - THROAT_H, V_T, concreteM,
+    bx(THROAT_W, V_H - THROAT_H, V_T, concreteMat(THROAT_W, V_H - THROAT_H),
       THROAT_CX, THROAT_H + (V_H - THROAT_H) / 2, V_Z1 - V_T / 2);
   }
   // the roof slab, which is what makes it read as a box in a taller room
-  skin(bx(hw + V_X1, 0.18, V_Z1 - (-hd), concreteM,
+  const roofW = hw + V_X1, roofD = V_Z1 - (-hd);
+  skin(bx(roofW, 0.18, roofD, concreteMat(roofW, roofD),
     (-hw + V_X1) / 2, V_H + 0.09, (V_Z1 + -hd) / 2), 'vault roof');
 
   // ── the throat: a steel architrave, and a sill you step over ───────────────
