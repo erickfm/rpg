@@ -2505,7 +2505,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // therefore means one thing only. `__ct.seated()` exists but it is a test
     // affordance on the entry point, not something a module can reach; a real
     // `ctx.seated()` would be better and is worth asking F for.
-    const TV_SEAT_X = AX(-2.10), TV_SEAT_Z = AZI(4.42);
+    //
+    // THIS PAIR IS THE SEAT. `ctx.seat` below is registered from these two
+    // constants rather than from a second copy of the numbers, because the
+    // last time there were two copies the feature died silently: the seat was
+    // moved to the foot of the bed (4d5729246, the user's *"sitting on the bed
+    // should have a perspective more from the foot of the bed"*) from
+    // AX(-2.10) to AX(TV_X) = AX(-1.56), and this test was left behind on the
+    // old x. `rig.sit` puts the player exactly on the seat pose, so the frame
+    // loop was measuring 0.54 m against a 0.20 m tolerance — the set could
+    // never come on again, and nothing errored. One declaration, read twice,
+    // is the only version of this that cannot drift (BUILDER-BRIEF §8).
+    const TV_SEAT_X = AX(TV_X), TV_SEAT_Z = AZI(4.42);
     let tvLit = false, tvWarm = 0;
     // A DEAD SCREEN IS NOT BLACK. Pure black reads as a hole cut in the wall;
     // a switched-off CRT is dark grey-green with the room faintly in it.
@@ -2613,8 +2624,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // `bedcavity.mjs` measuring a truck that no longer existed and
     // `doorside2.mjs` failing a door that was fine (GOTCHAS 56). Move the
     // television and the seat follows it.
+    //
+    // AND IT IS REGISTERED FROM `TV_SEAT_X/TV_SEAT_Z` — the pair the frame
+    // loop above tests to decide whether the set is lit — rather than from a
+    // second `AX(TV_X)`. Those were two independent copies of one coordinate
+    // until now, and moving the seat here broke the television silently.
     ctx.seat({
-      x: AX(TV_X), z: AZI(4.42), yaw: 0, h: 0.45, r: 0.70,
+      x: TV_SEAT_X, z: TV_SEAT_Z, yaw: 0, h: 0.45, r: 0.70,
       approach: { x: AX(TV_X + 0.40), z: AZI(3.70) },
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: 'sit on the bed and watch TV',
