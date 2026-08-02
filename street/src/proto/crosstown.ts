@@ -16,7 +16,7 @@ import { ROAD_HALF, WALK, FACE, PARK_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng'
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
 import { buildGround, JUNCTION_CROSSINGS } from './ct/tex-ground';
-import { type CarKind, makeCar } from './ct/cars';
+import { type CarKind, makeCar, PICKUP_BED } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
 import { nudgeClear, corridor, ENTERABLE, PASSABLE } from './ct/gap';
@@ -673,6 +673,50 @@ export function makeCrosstown(): Proto {
       p.car.position.z = fit.at;
       p.cb.minZ = fit.at - p.half; p.cb.maxZ = fit.at + p.half;
     }
+  }
+
+  // ── item 1, stage 3: make ONE object standable, and prove it ────────────
+  //
+  // The pickup's bed floor (`PICKUP_BED.floorY`, 0.50 m) is the one flat
+  // surface on the whole fleet under the jump's own apex (~0.57 m from flat
+  // ground) — see PICKUP_BED's own comment in ct/cars.ts for the doors,
+  // hoods and roofs (0.84-1.8 m) that are real but are NOT reachable with the
+  // jump as currently tuned. Splits the truck's one collision box into a cab
+  // (unchanged: full height, always a wall) and a bed (the new part: a wall
+  // below `maxY`, standable at or above it).
+  //
+  // Placed HERE, after settleParking, and mutates `p.cb` rather than
+  // registering the split from the start, because settleParking's own gap
+  // check (`others = colliders.filter(b => b !== p.cb)`, a few lines up)
+  // excludes the truck's box by REFERENCE — a bed box registered before that
+  // loop ran would not be excluded, and the truck would read as trapped
+  // against its own tailgate. Every other car is untouched.
+  const truck = parkedFleet.find((p) => p.kind === 'pickup');
+  if (truck) {
+    const tz = truck.car.position.z;
+    // Every OTHER car collider in this file ignores rotation entirely —
+    // `box()` above is a fixed ±1.05 x ±carHalf box at any yaw — so this
+    // matches that convention rather than inventing real oriented-box math
+    // for one object (item 1's rotation stage is not this stage). `dir` only
+    // has to answer "which world end is the bed", which needs the SIGN of
+    // cos(ry), not its value; parkYaw()'s few degrees of jitter never get
+    // near flipping that sign.
+    const dir = Math.cos(truck.car.rotation.y) >= 0 ? 1 : -1;
+    const localZ = (a: number, b: number): [number, number] =>
+      dir === 1 ? [tz + a, tz + b] : [tz - b, tz - a];
+    const [cabMinZ, cabMaxZ] = localZ(-carHalf.pickup, PICKUP_BED.z0);
+    const [bedMinZ, bedMaxZ] = localZ(PICKUP_BED.z0, carHalf.pickup);
+    truck.cb.minZ = cabMinZ; truck.cb.maxZ = cabMaxZ;   // cab: same box, shorter
+    const bed: AABB = {
+      minX: truck.cb.minX, maxX: truck.cb.maxX,
+      minZ: bedMinZ, maxZ: bedMaxZ,
+      maxY: PICKUP_BED.floorY,
+    };
+    // `colliders`/`citAvoid` are pushed to directly, not `carColliders` —
+    // `colliders` was already spread from `carColliders` above, so pushing
+    // there instead would not reach FPRig, colliderDebug or ctx.colliders().
+    colliders.push(bed);
+    citAvoid.push(bed);
   }
 
   props.dimWorld(scene);
