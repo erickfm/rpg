@@ -739,6 +739,31 @@ const CASES = [
     'const lean = THREE.MathUtils.clamp(p.turn * a * LEAN_PER_A, -LEAN_MAX, LEAN_MAX);',
     'corner-traffic.mjs', [], 'cars leaning INTO the corner, like a motorcycle'],
 
+  // THE SAFETY NET SWITCHED OFF — the user's *"im literally stuck here. i think
+  // we need some sort of stuck protection"*, restored. `unstick()` has two
+  // halves and BOTH have to go, which is why this needle spans three lines:
+  // zeroing UNSTICK_SPEED stops the push out of a box, but the PATIENCE timer
+  // would still teleport the player back to `lastGood` after 0.45 s and free
+  // them, so the check would stay green on a world with no push at all. A
+  // mutation that only breaks one of two redundant mechanisms proves nothing.
+  //
+  // Measured: `537/531 traps are still traps`, and the DRIVEN cross-check —
+  // which walks the rig out for real rather than asking the collider predicate —
+  // reported `rig could not walk away (0.00 m)` on all six it drove.
+  //
+  // SLOW: ~11 minutes, because the loop waits a fixed 1.1 s per trap and the
+  // world now offers 582 of them. See the note in notes/w37-walking-tier-failpaths.md
+  // — it is over any 10-minute harness timeout, and one run crashed the page
+  // outright at 4m40s. Budget for it, or run this case on its own.
+  ['unstick-off', FP,
+    '    const UNSTICK_SPEED = 3.0;              // m/s, comparable to walking\n'
+    + '    const PASSES = 4;                       // ample for a corner of two boxes\n'
+    + '    const PATIENCE = 0.45;                  // s of getting nowhere before we give up and jump',
+    '    const UNSTICK_SPEED = 0;                // selftest: no push out of a box\n'
+    + '    const PASSES = 4;                       // ample for a corner of two boxes\n'
+    + '    const PATIENCE = 1e9;                   // selftest: and never jump back either',
+    'unstick-walk.mjs', [], 'the player wedged for good, with no stuck protection at all'],
+
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
   // a commit message.

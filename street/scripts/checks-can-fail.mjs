@@ -53,8 +53,9 @@ const EXEMPT = {
 const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
   'jump-walk', 'gaps', 'feet-check', 'side-night',
-  'unstick-walk',
   // 'corner-traffic' — CLEARED by w37, item 77: canfail case `corner-lean-into`.
+  // 'unstick-walk' — CLEARED by w37, item 77: canfail case `unstick-off`. SLOW:
+  // ~11 min, over any 10-minute harness timeout, and one run crashed the page.
   // 'crowd-net' — CLEARED by w37, item 77: canfail case `crowd-net-inroad`.
   // 'side-walk' — CLEARED by w37, item 77: canfail case `sidewalk-sealed`. It
   // already had a working failing path; nothing had watched it use one.
