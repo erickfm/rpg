@@ -56,7 +56,7 @@ away, not 1e-4, so the clause never fires. Measured cost of that version:
 | | before item 85 | aim-outright (rejected) | shipped |
 |---|---|---|---|
 | `w9-reach-repro.mjs` | PASS | **FAIL** | PASS |
-| `seats-walk.mjs` | 115/219 | **69/219** | see below |
+| `seats-walk.mjs` | 115/219 | **69/219** | **103/219** |
 | 301 cells offering the bed while facing the door | 10/19 | 0/19 | **3/19** |
 
 Those 46 seats are the wrong-bench bug `seats-walk` exists for, shipped once
@@ -134,6 +134,11 @@ conservative, so its diff is a subset.)
 - `scripts/D-look-selects.mjs` — 12 pass, 0 fail, 1 pre-existing skip.
 - `scripts/D-confirmed-prompts.mjs` — 15/15 pass.
 - `scripts/w9-reach-repro.mjs` — PASS.
+- `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`:
+  **textures, structure and tints all IDENTICAL** (1461 textures, 8324 objects);
+  `places` differs on **2** meshes, both with a partner within 5 cm — pigeons
+  drifting, under the 4–6 noise floor. The world did not move.
+- `node scripts/bugsweep.mjs` — 96 shots, **0 STATION MISS, 0 COVERAGE**, exit 0.
 
 ## Found and NOT fixed
 
@@ -146,6 +151,34 @@ conservative, so its diff is a subset.)
   nothing near, nothing looked, no competitor at all. The tier is still right,
   but for the flat-301 reason, not that one. Worth a row only if someone leans on
   that sentence again.
+- **THE 12 SEATS I DID NOT GET BACK — the one thing on this item I would put in
+  front of the user before the desk closes it.** `seats-walk` goes 115 → 103,
+  and every one of the 12 is the same shape: the check stations the player at
+  **yaw 0**, `standableNear` happens to pick a point with the seat *behind* them,
+  and something else is squarely in front. Seven read
+
+  > `no "sit down" prompt from the one standable point (600.78,1.14); got "[E] order fries — $0.99"`
+
+  which is the new rule working as asked — you are facing the counter, so you
+  are offered the counter. **Five are sharper and I am not comfortable with
+  them:**
+
+  > `sat at 599.46,-1.22 but the seat is at 598.9,1.68`
+
+  i.e. `[E]` seated the player at a booth **2.95 m away** because they were
+  aimed at it while 0.54 m from a stool. That is defensible by the same
+  principle (`D-look-selects` deliberately validates selecting a bench by gaze
+  at 3 m and 5 m), but "press E beside a stool, get teleported across the
+  diner" is close enough to the wrong-bench bug `seats-walk` was written for
+  that **it should be a user call, not mine.**
+
+  I did NOT loosen `seats-walk` to make them pass, and I did not invent a
+  distance ratio to special-case them — every shape I could find that recovers
+  these 12 also re-opens item 85 (a "looked candidate must not be much further
+  than the touched one" rule with any threshold over ~1.1 m puts the bed back at
+  the cell 0.45 m from it). If the user dislikes the teleport, the honest fix is
+  in the DINER's seat/approach geometry, not another swing of this knob.
+
 - **`seats-walk.mjs`'s pre-existing failures.** Baseline on this checkout is
   **115/219** before I touched anything; the ~104 failures are not mine and I did
   not classify them. Flagging so the number is not read as new breakage.
