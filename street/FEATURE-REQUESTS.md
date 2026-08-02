@@ -2711,3 +2711,11 @@ to one side.
   A declared hotspot that disagrees with where the art puts that feature is exactly a
   "misaligned" cursor. The arrow's tail also steps diagonally x4→x8 across rows 11–15 and
   wants checking against the head.
+
+- **"i think just make all drops falls then we can work back from there."** (2026-08-02)
+  → **RULING on item 130, which was the only thing blocked on the user.** No threshold:
+  every drop becomes a fall, kerbs included. The desk added one engineering note — put
+  the threshold in as a **named constant set to 0** rather than hard-coding it, because
+  *"work back from there"* means he expects to tune it by feel and that must be one
+  number, not a re-implementation. Flagged the stairs as the risk: a staircase is a
+  sequence of small drops and could become a bouncing descent.
