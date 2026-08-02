@@ -3,7 +3,6 @@ import { REGISTRY } from './protos';
 import type { Proto, Input } from './proto/types';
 
 const app = document.getElementById('app')!;
-const hud = document.getElementById('style-hud')!;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -86,10 +85,11 @@ function load(i: number) {
   current = REGISTRY[currentIndex].make();
   current.configure?.(renderer);
   applyAspect();
-  hud.innerHTML =
-    `<b>${current.name}</b>  <span class="hint">${currentIndex + 1}/${REGISTRY.length}</span><br>` +
-    `${current.feel}<br>` +
-    `<span class="hint">click to look · WASD walk · Shift run · C crouch · Space jump · E feed · look down = watch · right-click = wallet</span>`;
+  // NO TITLE CARD, NO CONTROLS STRIP. Item 0d/0g: *"get rid of the overlay
+  // descriptions here, controlls and all."* — same law as 0c (no pop-up
+  // menus): nothing on screen that is not in the world. The `[E]` prompt is
+  // untouched; it lives in `#ct-prompt` (`ct/hud.ts`/`crosstown.ts`), a
+  // separate element from the one this used to write into.
 }
 
 function applyAspect() {
