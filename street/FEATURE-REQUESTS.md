@@ -1834,3 +1834,36 @@ transcript, so ASK rather than guess.** He praised the facade ATM earlier
 (*"i like the atm, maybe add another on the left"*), which argues the cabinets
 are the keeper — but "graphics" more naturally describes the 2D interface. A
 wrong guess means redoing a design pass, so it is worth one question.
+
+
+## Collision should fit the objects, and cars should be climbable
+
+> *"i want the collision to be a bit more accurate to the objects. the cars for
+> instance. we should be able to jump on the cars"*
+
+**The cause is one line, and it explains the whole request.** `src/proto/fp.ts:9`:
+
+```ts
+export type AABB = { minX: number; maxX: number; minZ: number; maxZ: number };
+```
+
+**There is no Y.** Every collider in this world is a footprint extruded to
+infinite height. A car is not a box you can climb onto — it is a wall that
+happens to be car-shaped in plan and unbounded upward. Same for the kerb props,
+the dumpster, the tyre stacks and the parked fleet.
+
+So *"more accurate to the objects"* and *"jump on the cars"* are one change, not
+two: **give a collider a top.** That means `minY`/`maxY` on `AABB`, and a floor
+picker that treats a collider's top face as standable when the player is above
+it — which is the same job `ct/interior.ts` and `COURT.climbable` already do for
+storeys and library steps, so there is prior art in the codebase.
+
+**This is the most dangerous change anyone could make here.** `fp.ts` is the
+movement core, it is desk-owned, and the 2 m sidewalk lane is sacred. Every
+existing `ctx.obstacle` call must keep behaving exactly as it does now unless it
+opts in, or the whole world silently becomes climbable.
+
+**Timing is good:** the collision debug overlay (press **V**) landed hours ago,
+so for the first time this is verifiable by looking rather than by walking into
+things. It has already earned this — it is how the user found the car-lot
+collider gap.
