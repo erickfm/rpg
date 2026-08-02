@@ -30,7 +30,10 @@ const errs = [];
 p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
-await p.evaluate(() => window.__ct.clock(23, 10));      // night: these are the world's only lights
+// night by default — these two buildings are the world's only light sources, so
+// that is the hour they are designed for. HOUR=13 checks the other half: the
+// same texels have to hold up as dull painted metal by day.
+await p.evaluate((h) => window.__ct.clock(h, 10), Number(process.env.HOUR ?? 23));
 await p.waitForTimeout(1600);
 
 for (const s of STATIONS) {
