@@ -2008,3 +2008,23 @@ it for the full 150 minutes (GOTCHAS 67).
 
 Nothing is lost by stopping it: the work was committed, which is the entire
 reason commit-early is the first rule in the brief.
+
+## 70.
+
+**An acceptance bar longer than an agent's budget is a trap, and it will eat
+agents one after another.** Item 67 asked for ten throttled runs of a walking
+check. Two builders took it in succession and **both stalled in the same place**
+— each tried to background the run set and wait, each reported "4 of 10", "5 of
+10" and never finished. Neither was careless; the item was unfinishable in one
+sitting and nothing in it said so.
+
+Worse, **the evidence they produced was already sufficient and the item could
+not recognise it.** Between them they ran nine of the ten, from two independent
+worktrees, and got essentially one number (3.43 / 3.43 / 3.43 / 3.34, and "all
+identical"). The old code could not repeat a value at all — identical readings
+ARE the finding. The bar asked for a count when what it wanted was agreement.
+
+**Write acceptance as a property, not a repetition count.** "N runs" invites
+backgrounding; "runs agree to within X, and say how many you did" is finishable
+in one pass and produces better evidence. And when a second agent stalls on the
+same item, **fix the item** — do not send a third.
