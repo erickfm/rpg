@@ -862,6 +862,23 @@ const CHECKS = [
   // --selftest pins scene.userData.tv.on true and requires the red. Currently
   // red on the stand-up half, for the seat bug above and not for the TV. (K)
   ['K-tv-off-unless-seated', 'is the television off unless you are sitting down?', true],
+  // REGISTERED 2026-08-02 (w48, item 119). "make sure the top of the ad isnt
+  // getting cut off by the tv." The rails never overlapped the glass — all four
+  // abut it exactly — so this is not a check on the bezel's SIZE. The ads only
+  // play to a seated player, whose eye is a fixed 0.538 m above the screen's
+  // centre, and the surround standing proud of a recessed screen cut a band off
+  // the top by PARALLAX. So it measures the band from the real seated eye
+  // against the real meshes, and separately requires all 27 spots to keep their
+  // ink inside the declared safe area. Either half can rot alone: deepen the
+  // bezel and the geometry goes red, write a spot that paints at row 0 and the
+  // content half does. Backgrounds are still allowed to bleed.
+  //
+  // SLOW, and irreducibly so: "all 27" means sitting through the pack, and the
+  // pack is 27 spots at `secs * 1.4` — about 150 s of television — plus the
+  // sweep for a standing square that offers the seat rather than the bed's
+  // other spot. That lands within a few seconds of PER_CHECK_MS, so it is
+  // marked slow rather than left to flake against a 180 s budget. (w48)
+  ['w48-tv-title-safe', 'is the top of the ad clear of the bezel, for all 27 spots?', true, [], true],
   // THE GUARD FOR THE TRAP THE USER ACTUALLY HIT — "pressing e doesnt get me out
   // of it". A slot stool opened a modal, the modal's gate swallowed every
   // keydown, and BOTH of that night's fixes lived downstream of the swallowed

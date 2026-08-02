@@ -117,4 +117,61 @@ const eye = await page.evaluate(() => {
 });
 console.log('SEATED EYE', JSON.stringify(eye));
 
+// ── THE BAND, on ANY build ───────────────────────────────────────────────
+// The same slab test the real check uses, but it does not need the world to
+// publish a safe area — which is the whole point, because the BEFORE build
+// does not publish one and this is how the before/after was measured.
+const band = await page.evaluate((seatSpot) => {
+  const sc = window.__ct.scene();
+  const V = (o) => { const p = new o.position.constructor(); o.updateWorldMatrix(true, false); o.getWorldPosition(p); return p; };
+  let screen = null, best = 1e9;
+  sc.traverse((o) => {
+    if (!o.isMesh || o.geometry.type !== 'PlaneGeometry') return;
+    const gp = o.geometry.parameters || {};
+    if (Math.abs(gp.width - 0.36) > 1e-6 || Math.abs(gp.height - 0.26) > 1e-6) return;
+    const p = V(o); const d = Math.hypot(p.x - seatSpot.x, p.z - seatSpot.z);
+    if (d < best) { best = d; screen = o; }
+  });
+  const sp = V(screen);
+  const { width: SW, height: SH } = screen.geometry.parameters;
+  const boxes = [];
+  sc.traverse((o) => {
+    if (!o.isMesh || o === screen || o.geometry.type !== 'BoxGeometry') return;
+    const p = V(o);
+    if (Math.hypot(p.x - sp.x, p.y - sp.y, p.z - sp.z) > 0.5) return;
+    const gp = o.geometry.parameters;
+    boxes.push([p.x - gp.width / 2, p.x + gp.width / 2, p.y - gp.height / 2,
+                p.y + gp.height / 2, p.z - gp.depth / 2, p.z + gp.depth / 2]);
+  });
+  const cam = window.__ct.camera(); cam.updateWorldMatrix(true, false);
+  const e = new cam.position.constructor(); cam.getWorldPosition(e);
+  const blocked = (tx, ty, tz) => {
+    const dx = tx - e.x, dy = ty - e.y, dz = tz - e.z;
+    for (const [x0, x1, y0, y1, z0, z1] of boxes) {
+      let t0 = 0, t1 = 0.999, bad = false;
+      for (const [o, d, a, b] of [[e.x, dx, x0, x1], [e.y, dy, y0, y1], [e.z, dz, z0, z1]]) {
+        if (Math.abs(d) < 1e-12) { if (o < a || o > b) { bad = true; break; } continue; }
+        let ta = (a - o) / d, tb = (b - o) / d;
+        if (ta > tb) { const s = ta; ta = tb; tb = s; }
+        t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+        if (t0 > t1) { bad = true; break; }
+      }
+      if (!bad) return true;
+    }
+    return false;
+  };
+  const ROWS = 48, COLS = 64;
+  const rowY = (r) => sp.y + SH / 2 - ((r + 0.5) / ROWS) * SH;
+  const colX = (c) => sp.x - SW / 2 + ((c + 0.5) / COLS) * SW;
+  // sub-row resolution too, so the answer is not quantised to whole rows
+  let fine = 0;
+  while (fine < ROWS * 10 && blocked(colX(32), sp.y + SH / 2 - (fine / (ROWS * 10)) * SH, sp.z)) fine++;
+  let top = 0;
+  while (top < ROWS && [1, 16, 32, 48, 62].some((c) => blocked(colX(c), rowY(top), sp.z))) top++;
+  let bot = 0;
+  while (bot < ROWS && [1, 16, 32, 48, 62].some((c) => blocked(colX(c), rowY(ROWS - 1 - bot), sp.z))) bot++;
+  return { top, bot, fineRows: +(fine / 10).toFixed(2), boxes: boxes.length };
+}, seat);
+console.log('OCCLUDED BAND', JSON.stringify(band));
+
 await browser.close();
