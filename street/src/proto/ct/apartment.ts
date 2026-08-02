@@ -17,6 +17,7 @@ const surfTex = (kind: SurfaceKind, w: number, h: number,
                  draw: (g: CanvasRenderingContext2D) => void) =>
   declareSurface(pixTex(w, h, draw), kind);
 import { ENTRANCE } from './tex-world';
+import { declareRoom } from './interior';
 import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
@@ -1479,6 +1480,29 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     casing(AZI(0.02), AX(1.2) - IN_LEAF_W / 2, AX(1.2) + IN_LEAF_W / 2,
       0, IN_DOOR_H + IN_BAR + IN_TRANSOM_H, false);
 
+    // ── FLAT 301's EXTENT, DECLARED ONCE ─────────────────────────────────
+    //
+    // Four walls, a floor, a ceiling and a door skin each carried their own
+    // hand-typed copy of these numbers, and the WORLD's room registry carried
+    // none of them — the walk-up predates `buildRoom`, so no slab was ever
+    // claimed for it and `__ct.roomDims()` did not know this room exists. The
+    // cost showed up in `scripts/seat-facing.mjs`, which resolves a seat's room
+    // from that registry: the bed seat below came back `outdoor`, and both of
+    // that check's rules are skipped for a seat with no room. The seat the
+    // player uses most, in the room he spawns in, was the one seat in the world
+    // the facing check could not see. `declareRoom` at the foot of this section
+    // is the other half of the fix.
+    //
+    // These are wall CENTRELINES in room-local metres — the shell is drawn on
+    // them, so the CLEAR room is WALL_T narrower on each axis. That distinction
+    // is what the registry wants: `RoomDims.w/d` are "wall face to wall face",
+    // the same as `RoomSpec.w/d` in the kit.
+    const R301_X0 = -3.2, R301_X1 = 0;       // west (window) wall … the shell
+    const R301_Z0 = 2, R301_Z1 = 5.5;        // south wall … north wall
+    const R301_CX = (R301_X0 + R301_X1) / 2, R301_CZ = (R301_Z0 + R301_Z1) / 2;
+    const R301_W = R301_X1 - R301_X0, R301_D = R301_Z1 - R301_Z0;
+    const R301_H = 2.55;                     // ceiling height inside the flat
+    const R301_DOOR_Z = 3.5;                 // the doorway's centre in the shell
     // 301 — your place: wood floor, a bed, the window with the city in it
     // The west wall, in FOUR pieces with a hole in it for the window.
     //
@@ -1492,18 +1516,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // The collider is untouched and still spans the whole wall, so the hole is
     // in the geometry only and you cannot walk through the window.
     {
-      const WY = 2 * ST + 1.5, WH = 1.3, WZ = 3.75, WW = 1.3;
-      const y0 = 2 * ST, y1 = 2 * ST + 2.55;
+      const WY = 2 * ST + 1.5, WH = 1.3, WZ = R301_CZ, WW = 1.3;
+      const y0 = 2 * ST, y1 = 2 * ST + R301_H;
       const oy0 = WY - WH / 2, oy1 = WY + WH / 2;
-      const z0 = WZ - 1.75, z1 = WZ + 1.75;
+      const z0 = R301_Z0, z1 = R301_Z1;
       const oz0 = WZ - WW / 2, oz1 = WZ + WW / 2;
-      wallMesh(3.5, oy0 - y0, AX(-3.2), (y0 + oy0) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, 0);
-      wallMesh(3.5, y1 - oy1, AX(-3.2), (oy1 + y1) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, oy1 - y0);
-      wallMesh(oz0 - z0, WH, AX(-3.2), WY, AZI((z0 + oz0) / 2), Math.PI / 2, roomWallT, 0, oy0 - y0);
-      wallMesh(z1 - oz1, WH, AX(-3.2), WY, AZI((oz1 + z1) / 2), Math.PI / 2, roomWallT, oz1 - z0, oy0 - y0);
+      wallMesh(R301_D, oy0 - y0, AX(R301_X0), (y0 + oy0) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, 0);
+      wallMesh(R301_D, y1 - oy1, AX(R301_X0), (oy1 + y1) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, oy1 - y0);
+      wallMesh(oz0 - z0, WH, AX(R301_X0), WY, AZI((z0 + oz0) / 2), Math.PI / 2, roomWallT, 0, oy0 - y0);
+      wallMesh(z1 - oz1, WH, AX(R301_X0), WY, AZI((oz1 + z1) / 2), Math.PI / 2, roomWallT, oz1 - z0, oy0 - y0);
     }
-    wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(2), 0, roomWallT);
-    wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(5.5), Math.PI, roomWallT);
+    wallMesh(R301_W, R301_H, AX(R301_CX), 2 * ST + R301_H / 2, AZI(R301_Z0), 0, roomWallT);
+    wallMesh(R301_W, R301_H, AX(R301_CX), 2 * ST + R301_H / 2, AZI(R301_Z1), Math.PI, roomWallT);
     // ── 301's FOURTH wall ────────────────────────────────────────────────
     // The room papered three walls and forgot the one with its own door in it.
     // That wall is the stairwell shell's, built by the `wallMesh` runs at
@@ -1523,8 +1547,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the room side, around the opening, sampling `roomWallT` the same way
     // `wallMesh` does so the paper lines up with the walls either side of it.
     {
-      const SKIN_X = AX(0) - WALL_T / 2 - 0.002;      // just proud of the shell
-      const DZ0 = 3.5 - DOOR_GAP / 2, DZ1 = 3.5 + DOOR_GAP / 2;
+      const SKIN_X = AX(R301_X1) - WALL_T / 2 - 0.002;  // just proud of the shell
+      const DZ0 = R301_DOOR_Z - DOOR_GAP / 2, DZ1 = R301_DOOR_Z + DOOR_GAP / 2;
       const HEAD = 2.1;                                // the doorway's own height
       const skin = (w: number, h: number, lz: number, ly: number, vOff: number) => {
         const t = roomWallT.clone();
@@ -1543,12 +1567,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         m.rotation.y = -Math.PI / 2;                   // faces -x, into the room
         scene.add(m);
       };
-      skin(DZ0 - 2, 2.55, (2 + DZ0) / 2, 2 * ST + 1.275, 0);          // south of the door
-      skin(5.5 - DZ1, 2.55, (DZ1 + 5.5) / 2, 2 * ST + 1.275, 0);      // north of it
-      skin(DOOR_GAP, 2.55 - HEAD, 3.5, 2 * ST + HEAD + (2.55 - HEAD) / 2, HEAD);  // over it
+      skin(DZ0 - R301_Z0, R301_H, (R301_Z0 + DZ0) / 2, 2 * ST + R301_H / 2, 0);    // south of the door
+      skin(R301_Z1 - DZ1, R301_H, (DZ1 + R301_Z1) / 2, 2 * ST + R301_H / 2, 0);    // north of it
+      skin(DOOR_GAP, R301_H - HEAD, R301_DOOR_Z, 2 * ST + HEAD + (R301_H - HEAD) / 2, HEAD);  // over it
     }
-    floorMesh(2 * ST + 0.007, 3.2, 3.5, AX(-1.6), AZI(3.75), woodFloorT);
-    floorMesh(2 * ST + 2.55, 3.2, 3.5, AX(-1.6), AZI(3.75), ceilT);
+    floorMesh(2 * ST + 0.007, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ), woodFloorT);
+    floorMesh(2 * ST + R301_H, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ), ceilT);
+
+    // ── AND SAY SO, so the world's room registry knows this room exists ────
+    //
+    // Clear size is the wall centrelines less one wall thickness, which is what
+    // `RoomDims.w/d` means everywhere else — the kit's `buildRoom` publishes
+    // its rooms face-to-face and a check that mixes the two conventions is
+    // reading a 7 cm lie on every wall. The doorway is given in ROOM-LOCAL
+    // metres with the normal pointing INTO the room: 301's door is in the
+    // stairwell shell on the room's +x side, so you come through it heading -x.
+    //
+    // Not a slab, deliberately — the walk-up has four storeys and its own
+    // floor picker (`aptGround` below), and `interiorGround` cannot express
+    // that. See the note on `declareRoom` in ct/interior.ts.
+    declareRoom({
+      id: 'apt301',
+      w: R301_W - WALL_T, d: R301_D - WALL_T,
+      cx: AX(R301_CX), cz: AZI(R301_CZ),
+      // FLOOR 3, the same `2 * ST` the flat's own floor and ceiling are drawn
+      // at. It is the only room in the registry that is not at y 0, and a
+      // harness that warps here must hand it to `warp`'s `gy` — see RoomDims.y.
+      y: 2 * ST,
+      door: { x: R301_X1 - R301_CX, z: R301_DOOR_Z - R301_CZ, nx: -1, nz: 0 },
+    });
     // ── 301, furnished ───────────────────────────────────────────────────
     // A specific person's room, not a hotel room. Everything here is
     // somebody's: the frame and the mattress do not match, the middle drawer
