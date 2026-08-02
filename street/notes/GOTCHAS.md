@@ -1633,3 +1633,39 @@ invisible to an actual player, with a shelf run through her only standing spot.
 The general form is worth keeping: **"is the capability called?" and "does the
 result read right to the player?" are different questions, and only the second
 one is what the user asked for.**
+
+## 56. On this project, bad instruments produce about as many "defects" as the world does
+
+Tally for 31 July – 1 August, when the sweep finally started photographing the
+whole world and everything got re-measured.
+
+**Real defects found and fixed (7):** the sweep photographing 1 room of 12; the
+jail site two-thirds solid; the thrift keeper standing 5 cm inside a wall; five
+casino figures untagged and invisible to every people-check; the thrift coat-rack
+hem; the diner pastry case; the vault's concrete at four different scales.
+
+**Instrument artifacts that looked exactly like defects (5):** `health.mjs`
+hardcoded to port 4177; `interiors-walk.mjs` walking `+x` out of a west-facing
+door because `room.east` was silently `undefined` (§54); `bedcavity.mjs` measuring
+`CAV.x = 0.74`, an outer panel deleted when the wheel well was built; the car
+lot's "12 flat slabs of 11.59 m²", which are the **bounding boxes of 12 rotated
+0.09 × 5.0 paint stripes** whose real area is 0.45 m²; `doorside2.mjs` reporting
+the bodega as not mirroring, on a quantity that room stopped using.
+
+**Roughly one in two.** So the prior on any surprising measurement should be
+*near even odds that the instrument is wrong*, and the cost is not symmetric: a
+missed defect wastes a player's goodwill, a false one wastes a builder.
+
+**Three of the five had already been diagnosed and written down.** The lot
+stripes were explained in commit `97dd4b7e3` on 25 July — *"I measured a paint
+stripe as a slab"* — and were re-filed as a defect on 30 July anyway, then
+entered into the ledger by the desk, then spent a builder's time on 1 August.
+**The correction existed. Nobody applied it to the row.** That is §55's failure
+mode and it is the expensive one.
+
+**What actually works, learned the hard way:** before believing a measurement,
+find the thing in the source. `WELL_IN = 0.66` against a tyre spanning
+0.70–0.94 settled the pickup in one line. `PlaneGeometry(0.09, 5.0)` settled the
+lot in one line. `int-hotel.ts` importing the same `VICE_DOOR_X` that `vice.ts`
+places the door from settled twelve rooms at once. **A number in the source beats
+a number from a script**, because the script is a hypothesis about the source.
