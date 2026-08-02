@@ -38,13 +38,29 @@
 // DEEP = 0.80 sits in the gap. The margin below it is thin — 0.72 m of tyres —
 // so if a new prop lands between 0.72 and 1.00 m deep, widen the rule with a
 // second dimension rather than nudging this number until the run goes green.
+//
+// BEHIND_DEG is set the same way. The one legitimate hit left in the world is
+// the casino banquette, whose own 0.90 m bench box reaches 0.14 m past the seat
+// point and so is not recognised as what you sit on — it reads 105 deg, i.e.
+// alongside. The shallowest genuine offender is a roulette stool at 147 deg.
+//
+// ── what this check does NOT cover ────────────────────────────────────────
+//
+// BOTH RULES ARE INDOOR-ONLY, and that is a real gap, not an oversight. On the
+// street the thing behind a seat is a building — a bus bench backs onto a shop
+// front 0.62 m away and a car-lot chair onto the portacabin at 0.55 m, and both
+// are correct, because outdoors "your back to a wall, looking out" is what a
+// bench IS. An AABB cannot tell that bench from the same bench turned round, so
+// rule B would fire on every one of them. The park benches in the five-bug list
+// therefore remain unguarded; guarding them needs the seat to declare what it
+// is meant to look at, which is a change to `ctx.seat`, not to this file.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
 const WALL_MIN = 1.20;      // m — nose-to-the-wall distance that is a defect
 const REACH = 0.80;         // m — "furniture you are sitting AT" is this close
 const DEEP = 0.80;          // m — shallower than this and it is a back, not a table
-const BEHIND_DEG = 100;     // off-axis angle that counts as "turned away from"
+const BEHIND_DEG = 125;     // off-axis angle that counts as "turned away from"
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4189/';
 const b = await chromium.launch();
@@ -109,8 +125,10 @@ const out = await p.evaluate(async ({ WALL_MIN, REACH, DEEP, BEHIND_DEG }) => {
     }
 
     // ── B. the nearest substantial furniture, and its bearing ──
+    // Indoors only — see the header. Outdoors every seat has a building behind
+    // it and the rule cannot tell that from a mirrored yaw.
     let worst = null;
-    for (const c of cols) {
+    for (const c of r ? cols : []) {
       if (isOwn(c)) continue;
       const w = c.maxX - c.minX, dd = c.maxZ - c.minZ;
       if (Math.min(w, dd) < DEEP) continue;              // a back, a rail, a bollard
