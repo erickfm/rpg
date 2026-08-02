@@ -39,13 +39,20 @@ const info = await p.evaluate(() => {
   const s = window.__ct.scene();
   let r = null; s.traverse((o) => { if (o.type === 'Points' && o.material?.map) r = o; });
   r.onBeforeRender = () => { r.userData.w16drawn = (r.userData.w16drawn ?? 0) + 1; };
-  r.geometry.computeBoundingSphere();
+  // DO NOT computeBoundingSphere() HERE. The first cut of this probe did, and
+  // it re-centred the sphere on the drops' current positions — i.e. it applied
+  // the very fix it was supposed to be testing for, and printed PASS. Read
+  // what the renderer cached; touch nothing.
   const bs = r.geometry.boundingSphere;
-  return { culled: r.frustumCulled, c: [bs.center.x, bs.center.y, bs.center.z], rad: bs.radius };
+  return { culled: r.frustumCulled, c: bs ? [bs.center.x, bs.center.y, bs.center.z] : null,
+           rad: bs ? bs.radius : null };
 });
 console.log(`rainLevel ${lvl.toFixed(3)}  frustumCulled=${info.culled}`);
-console.log(`bounding sphere as the renderer sees it: centre (${info.c.map((v) => v.toFixed(1)).join(', ')}) r ${info.rad.toFixed(1)}`);
-console.log(`player stands at (-6, -34) — distance from that centre ${Math.hypot(-6 - info.c[0], -34 - info.c[2]).toFixed(1)} m\n`);
+console.log(info.c
+  ? `bounding sphere the renderer cached: centre (${info.c.map((v) => v.toFixed(1)).join(', ')}) r ${info.rad.toFixed(1)}\n`
+    + `player stands at (-6, -34) — ${Math.hypot(-6 - info.c[0], -34 - info.c[2]).toFixed(1)} m from that centre`
+  : 'bounding sphere: not computed yet');
+console.log('');
 
 console.log('  heading   frames the rain was DRAWN in (over ~0.6 s)');
 const bad = [];

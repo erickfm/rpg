@@ -146,6 +146,35 @@ export function buildProps(ctx: CtxBuild): Props {
     s.vertexShader = s.vertexShader.replace(line, `${line}\n\t\tgl_PointSize = min( gl_PointSize, 46.0 );`);
   };
   const rain = new THREE.Points(rainGeo, rainM);
+  // ── THIS IS WHY IT RAINS IN SOME DIRECTIONS AND NOT OTHERS ──────────────
+  // The user, twice: *"how come i face some directions and it's not raining
+  // and then i face a different direction and it is raining?"* It was read as
+  // a contrast problem both times. The sheath above is a real improvement and
+  // should stay, but it was never the cause. THIS is.
+  //
+  // The renderer computes a geometry's bounding sphere ONCE, lazily, and
+  // caches it on the geometry — measured live: centre (0, 7, 0), radius 21.5,
+  // which is the box of random positions this file fills in at BUILD time,
+  // sitting at the world origin. The drops then spend the rest of the game
+  // being wrapped in world space to follow the player (see updateRain), and
+  // nothing ever recomputes that sphere. The object's own transform never
+  // moves either — deliberately, because the rain is world-locked — so the
+  // renderer keeps culling a 21.5 m sphere at the origin while the drops it
+  // describes are wherever you are.
+  //
+  // Standing on the pavement at (-6, -34) you are 34.5 m outside that sphere,
+  // so the cull test stops being about the rain and becomes "can you see the
+  // middle of the map". Measured there with onBeforeRender, which fires only
+  // for objects that survive the cull: the rain was drawn on 4 of 8 headings
+  // and drawn in ZERO frames on the other 4 — not faint, not low contrast,
+  // ABSENT. scripts/w16-raindrawn.mjs is that check and it fails if this line
+  // is removed.
+  //
+  // Culling is worthless here anyway: the volume is recentred on the camera
+  // every frame, so the correct answer is always "visible". Recomputing the
+  // sphere each frame would also work and would cost an O(N) pass over 2600
+  // drops to arrive at that same answer.
+  rain.frustumCulled = false;
   rain.visible = false;
   scene.add(rain);
   let rainLevel = 0;      // is it raining RIGHT NOW — drives the falling drops
