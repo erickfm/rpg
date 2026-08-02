@@ -2760,3 +2760,15 @@ to one side.
   spot and sleep spot all overlapping (1.27 m apart, touch circles 0.85 m and 1.10 m,
   measured by w40). NOT the perf fix: `canSee` is yaw-independent and deliberately not
   keyed on yaw, so turning cannot change its answers.
+
+- **"yea facing the window in my room makes the game feel slow. like my mouse moving
+  across the screen feels like it drags"** (2026-08-02) → **routed as queue item 141,
+  TOP. This is almost certainly THE cause, and it is not what item 128 fixed.** Desk
+  measured: **there is no interior/exterior culling anywhere in this project** — nothing
+  is ever hidden for being indoors, and the only culling is three.js's default frustum
+  test. So facing the window puts the whole exterior inside the frustum and it draws
+  THROUGH the aperture: every building, citizen and raindrop. Facing away, the exterior
+  falls outside the frustum and costs nothing. Explains every version of his report
+  including "looking into my room from the hall" — the window is in view from there too.
+  **Item 128 (the [E] raycast, 7,832 tests/frame) was real and worth fixing, but it was
+  not the thing he is feeling.**
