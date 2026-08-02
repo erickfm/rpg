@@ -2462,3 +2462,13 @@ to one side.
   is no `occupied`/`taken`/`reserved` concept at all. The casino stools carry seated
   NPCs on the same terms, so the collision is waiting there too. Sixth report this
   sitting; queued rather than spawned, fleet at its 5-agent cap.
+
+- **"[screenshot] lighting needs a full refactor. it isnt consistent anywhere. this is a
+  prime example. the lighting only affects the street but not the sidewalk. it doesnt
+  affect the car at all."** (2026-08-02) → **routed as queue item 95, top of the queue,
+  and it is the largest item on the board.** The desk measured the cause: the world is
+  unlit (671 `MeshBasicMaterial` uses, no real lights) and lamplight is faked by tinting
+  materials that **opt in** to a registry — and there are **several private registries**
+  (`ct/sidestreet.ts` `lampHeads`, `ct/traffic.ts`, `ct/crowd.ts`, `ct/vice.ts`'s `lit()`),
+  not one. Anything that never registered is never lit. So the inconsistency is
+  structural, exactly as he says, and not a list of oversights to patch.
