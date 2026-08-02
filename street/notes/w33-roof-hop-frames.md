@@ -155,6 +155,54 @@ failing its own arithmetic in a compensating direction.
    the clamp, not 0.36**. Whoever adds the next standable tier should be told
    that up front; `w33-roof-frames.mjs` will measure it for them.
 
+## Reply to the desk's mid-item note (hatch route, tyre top, throttle x8)
+
+**1. "A hatch route has a 91 mm worst-case margin against the pickup's 21 mm."**
+That comparison is the exact bar this item removed — a vertical margin cannot
+tell a hop that clears by 91 mm from one that clears by 0, because both buy a
+whole number of frames. Converted to frames against the measured 0.515 m
+standoff (4 needed), the desk's geometry and my fix agree, and there is no
+conflict to resolve:
+
+| leg | rise | frames | spare |
+|---|---|---|---|
+| hatch: pavement → bumper | 0.460 | 5 | +1 |
+| hatch: bumper → spoiler | 0.450 | 5 | +1 |
+| hatch: spoiler → roof | 0.390 | 6 | +2 |
+| **pickup: rail → roof (mine, 1.415)** | **0.445** | **5** | **+1** |
+| pickup: rail → roof (as shipped, 1.50) | 0.530 | 3 | −1 |
+
+So the fix already lands the pickup in the hatch's class. **I did not need to
+choose between a coin flip and abandoning the feature, and I did not tune a
+test to get there** — the roof came down 85 mm.
+
+**But the hatch route has a leg the desk should check before treating it as the
+safe reference.** By the same arithmetic, `road (0.00) → bumper (0.60)` needs
+`airY >= 0.52`, and **the clamped apex is 0.475 — zero frames, unreachable at
+the dt clamp.** It only works entered from the 0.14 m pavement (5 frames). I
+have not walked it, so this is arithmetic and not a measurement: it should be
+run through `scripts/probes/w33-roof-frames.mjs`'s method before that route is
+quoted as having headroom.
+
+**2. "The tyre top is 0.6634, not 0.68."** Noted, and it does not touch item 69:
+**none of my arithmetic uses a tyre height at all.** `grep` for `0.68`/`0.663`/
+`tyre` across `w33-roof-frames.mjs`, `w21-roof-climb.mjs` and this note returns
+nothing. The pickup route is pavement → bed floor → rail → roof; no wheel is on
+it.
+
+**3. "CPU throttle x8 is not achievable in this sandbox — the headless browser
+dies under software WebGL."** **This was not my experience and I did not
+substitute a lower rate.** x8 via `Emulation.setCPUThrottlingRate` ran to
+completion twice at 20 reps, browser healthy, **20/20 landed both times**, with
+median frame times of **68.8–115.2 ms** (against ~25 ms unthrottled).
+
+The stronger point is that the multiplier is not the quantity that matters:
+`main.ts:107` clamps `dt` at 0.05 s, so **every one of those frames is past the
+clamp**, and past the clamp more throttling cannot change the physics — the sim
+advances 50 ms per frame however long the frame took. x8 is simply a convenient
+way to sit on the clamp; x4 or x12 would measure the same worst case. So the
+DONE WHEN was met as written, and the figure I report is the one I achieved.
+
 ## Derived or copied?
 
 The frame table in `cars.ts`'s comment is **copied with citations**
