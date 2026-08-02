@@ -2612,3 +2612,12 @@ to one side.
   sold | bare` — all **windscreen** effects — so there is no "up on blocks" concept and
   this is not intentional. The car is `{ kind: 'hatch', col: 5, price: '$695', treat:
   'soap' }` at `:1612`.
+
+- **"[screenshot] shadow fence still here. shadow geometry in general needs to be
+  removed"** (2026-08-02) → **routed as queue item 114, top of the queue. FIFTH report of
+  this class.** Why "still": the previous fix (`2d3eba3f7`) was explicitly scoped to
+  *"4 real GROUND-QUAD defects"*. The plane in this frame is **vertical** — a translucent
+  sheet crossing the pavement — which that audit never covered. Strong lead for why they
+  read as ghosts: `ct/lot.ts:159` records that `props.ts`'s `dimWorld` **skips any
+  material with `transparent: true`**, so translucent planes stay bright while the world
+  around them dims. There are **68** `transparent: true` materials in `ct/`.
