@@ -29,6 +29,7 @@
 // measure. "Could not measure" and "measured, and it is wrong" are different
 // sentences and the second one is the expensive one to get wrong.
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { distSha, localHead } from './lib/which-world.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
@@ -42,7 +43,29 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
     const r = await fetch(URL, { signal: AbortSignal.timeout(4000) });
     live = r.ok;
     if (!r.ok) why = `HTTP ${r.status}`;
-  } catch (e) { why = String(e.cause?.code ?? e.name ?? e.message); }
+    // `cause.message` before `name`: a blocked port sets no `cause.code`, so
+    // reading `name` next turned the one diagnosable failure into "TypeError".
+  } catch (e) { why = String(e.cause?.code ?? e.cause?.message ?? e.name ?? e.message); }
+  // A THIRD THING THIS CAN MEAN, and it is not "nothing is serving".
+  //
+  // `fetch` implements the WHATWG BAD PORTS list, and so does every browser —
+  // so Playwright will refuse the same URL. A preview on one of those ports
+  // answers `curl` with 200 and this probe with "fetch failed", and the run
+  // then aborts saying the server is down while the server is plainly up. Cost
+  // me twenty minutes on 4190 (ManageSieve); 4045, 4190, 6000 and 6666 are all
+  // in the 4000-6999 range builders pick their ports from.
+  //
+  // Told apart rather than lumped in, for this file's usual reason: "start a
+  // server" is useless advice to somebody who has one running.
+  if (!live && why === 'bad port') {
+    const port = new URL(URL).port;
+    console.error(`\nPORT ${port} IS ON THE BROWSER'S BLOCKED-PORTS LIST.\n`);
+    console.error(`  ${URL} may well be serving — curl will say 200 — but neither`);
+    console.error('  fetch nor Chrome will ever open it, so no check here can measure it.\n');
+    console.error('  Fix: restart your preview on another port and pass it through');
+    console.error('  SHOT_URL. Avoid 4045, 4190, 6000, 6665-6669 in particular.\n');
+    process.exit(2);
+  }
   if (!live) {
     console.error(`\nNOTHING IS SERVING ${URL}  (${why})\n`);
     console.error('  Every check below would have reported FAILED, and none of them');
@@ -828,6 +851,41 @@ const PER_CHECK_MS = 180_000;
 // get their own ceiling rather than relaxing everyone else's, so "past three
 // minutes is stuck rather than thorough" stays true where it was written.
 const SLOW_MS = 1_500_000;
+// IS EVERY REGISTERED CHECK ACTUALLY ON DISK? Third probe, and the same
+// argument as the first two: "could not measure" and "measured, and it is
+// wrong" are different sentences, and this file has now been bitten by the
+// difference three times — a dead port, a stale dist/, and this.
+//
+// Measured 2026-08-02: a scripts/ reorganisation moved 55 of the 121 registered
+// checks into scripts/probes/. `spawnSync('node', ['scripts/<name>.mjs'])` then
+// exits 1 with MODULE_NOT_FOUND, and every one of them printed as `FAILED (1)`
+// — the same row a real defect prints. **45% of the suite was not running and
+// the summary said it was red**, which is worse than the suite being red,
+// because somebody reads those rows and goes hunting for a fault that is not
+// there. That is most of what queue item 9 was sent to classify.
+//
+// A registry that names a file that does not exist is a broken registry, not a
+// broken world. It stops the run, like the other two, rather than producing 55
+// confident verdicts about nothing.
+{
+  const absent = CHECKS
+    .map(([name]) => name)
+    .filter((n, i, a) => a.indexOf(n) === i)
+    .filter((n) => !existsSync(`scripts/${n}.mjs`));
+  if (absent.length) {
+    console.error(`\n${absent.length} REGISTERED CHECK(S) ARE NOT ON DISK.\n`);
+    for (const n of absent) {
+      const alt = ['probes', 'lib'].map((d) => `scripts/${d}/${n}.mjs`).find((p) => existsSync(p));
+      console.error(`  scripts/${n}.mjs` + (alt ? `   — but ${alt} exists` : '   — missing entirely'));
+    }
+    console.error('\n  Each would have run as `node scripts/<name>.mjs`, exited 1 with');
+    console.error('  MODULE_NOT_FOUND, and printed FAILED (1) — which is what a real');
+    console.error('  defect prints. Nothing about the world would have been measured.\n');
+    console.error('  Fix: move the file back to scripts/, or drop its row from CHECKS.\n');
+    process.exit(2);
+  }
+}
+
 const rows = [];
 for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
   if (slow && !SLOW) { rows.push([name, 'walks — use --slow', '—']); continue; }

@@ -1,15 +1,21 @@
-// LOOK AT A DOWNPOUR AT PEAK, FACING FOUR WAYS — and count what is actually
-// on screen, so "heavy" is a number and not an impression.
+// LOOK AT A DOWNPOUR AT PEAK, FACING FOUR WAYS — a shot sheet, plus the one
+// number a picture cannot give you: how many drops are inside the frustum.
 //
 // Rides at a genuinely rainy ABSOLUTE hour (rainAt hashes hourAbs, which is
-// not periodic mod 24 — pass the raw hour to __ct.clock), waits for the lerp
-// to settle, then for each of four headings:
-//   · screenshots it
-//   · counts how many raindrops are inside the camera frustum
-//   · measures the drop-pixel budget by diffing against the same frame with
-//     the rain hidden — the only honest measure of "how heavy does this look",
-//     because it is immune to the ~20% frame-to-frame noise that makes plain
-//     screenshot diffing useless here.
+// not periodic mod 24 — pass the raw hour to __ct.clock, not h % 24) and waits
+// for the lerp to settle before shooting anything.
+//
+// WHAT THIS DELIBERATELY NO LONGER DOES. It used to hide the drops and diff
+// the two frames to report a "rain pixel budget". That number was worthless
+// twice over and both failures are worth remembering:
+//   · hiding with `points.visible = false` does nothing — updateRain writes
+//     `rain.visible` every frame, so the "no rain" frame had rain in it.
+//   · even with `scene.remove()`, the two frames are ~300 ms apart and cars
+//     and pedestrians move far more pixels in that time than the rain does.
+//     It reported 13% "rain" on a heading where a 3x native crop showed not
+//     one streak — because the rain object was being frustum-culled outright.
+// For "is the rain actually drawn", use scripts/w16-raindrawn.mjs, which reads
+// onBeforeRender and is exact. This script is for LOOKING.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { goto, settle } from './lib/reachable.mjs';
@@ -89,52 +95,14 @@ for (const [name, yaw] of views) {
     return { n, opacity: rain.material.opacity, size: rain.material.size, total: a.count };
   });
 
-  const withRain = await p.screenshot({ path: `${OUT}/${name}.png` });
-  // the same frame with the drops hidden — a controlled A/B, not a noise diff
-  await p.evaluate(() => {
-    const s = window.__ct.scene();
-    s.traverse((o) => { if (o.type === 'Points' && o.material?.map) { o.userData.w16hide = true; o.visible = false; } });
-  });
-  await p.waitForTimeout(260);
-  const noRain = await p.screenshot({ path: `${OUT}/${name}-norain.png` });
-  await p.evaluate(() => {
-    const s = window.__ct.scene();
-    s.traverse((o) => { if (o.userData.w16hide) { o.visible = true; delete o.userData.w16hide; } });
-  });
-  await p.waitForTimeout(260);
-
-  rows.push({ name, ...inView, withRain, noRain });
+  await p.screenshot({ path: `${OUT}/${name}.png` });
+  rows.push({ name, ...inView });
 }
 
-// Pixel budget: how much of the frame did the rain actually paint? Decoded in
-// the browser because node has no image decoder here.
-for (const r of rows) {
-  const stat = await p.evaluate(async ([a, bb]) => {
-    const load = (d) => new Promise((res) => {
-      const im = new Image(); im.onload = () => res(im); im.src = 'data:image/png;base64,' + d;
-    });
-    const [ia, ib] = await Promise.all([load(a), load(bb)]);
-    const cv = document.createElement('canvas'); cv.width = ia.width; cv.height = ia.height;
-    const g = cv.getContext('2d');
-    g.drawImage(ia, 0, 0); const da = g.getImageData(0, 0, cv.width, cv.height).data;
-    g.clearRect(0, 0, cv.width, cv.height);
-    g.drawImage(ib, 0, 0); const db = g.getImageData(0, 0, cv.width, cv.height).data;
-    let touched = 0, sum = 0, strong = 0;
-    for (let i = 0; i < da.length; i += 4) {
-      const d = Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]);
-      if (d > 8) { touched++; sum += d; }
-      if (d > 45) strong++;
-    }
-    const px = da.length / 4;
-    return { pctTouched: +(100 * touched / px).toFixed(2), pctStrong: +(100 * strong / px).toFixed(2),
-             meanDelta: touched ? +(sum / touched / 3).toFixed(1) : 0 };
-  }, [r.withRain.toString('base64'), r.noRain.toString('base64')]);
-  r.stat = stat;
-}
 
-console.log(`\n  view                drops in frustum   px touched   px strong   mean delta`);
+console.log(`\n  view                drops inside the frustum`);
 for (const r of rows) {
-  console.log(`  ${r.name.padEnd(18)} ${String(r.n).padStart(10)} /${r.total}  ${String(r.stat.pctTouched).padStart(9)}%  ${String(r.stat.pctStrong).padStart(9)}%  ${String(r.stat.meanDelta).padStart(10)}`);
+  console.log(`  ${r.name.padEnd(18)} ${String(r.n).padStart(10)} / ${r.total}`);
 }
 console.log(`\n  material opacity at peak ${rows[0].opacity.toFixed(4)}, point size ${rows[0].size}`);
 console.log(`  shots in ${OUT}/`);
