@@ -45,7 +45,19 @@ for (const label of ['INDOORS (the spawn, x ~198) — expected 0 by design', 'OU
   const outdoors = label.startsWith('OUTDOORS');
   if (outdoors) await p.evaluate(() => window.__ct.warp(-6, -40, 0, 0.14, 0));
   const h = hours[0];
-  await p.evaluate(([hh]) => window.__ct.clock(hh % 24, 30), [h]);
+  // ABSOLUTE, never `h % 24`. `crosstown.ts:805` sets `totalMin = h * 60 + m`
+  // and `hourAbs` is `Math.floor(totalMin / 60)`, so `clock(h)` sets the
+  // absolute hour to exactly `h` — and `rainAt` hashes that absolute hour
+  // through murmur3's finalizer, which is NOT periodic in 24. `h % 24` asks the
+  // world a different question than the `rainAt(h)` above answered, and lands
+  // on a dry hour: w16 read `rainLevel 0.0000` for sixteen straight seconds
+  // that way. It happens to be harmless TODAY only because `hours[0]` is 0 —
+  // the search starts at 0 and 30% of hours rain, so the first hit is
+  // essentially always under 24 and `h % 24 === h`. That is luck, not
+  // correctness, and it stops being true the moment anyone narrows the search
+  // to daylight (`hours.find(x => x % 24 >= 11)`) — which is exactly what
+  // `rain-check.mjs` now does, and it would then test a dry hour silently.
+  await p.evaluate(([hh]) => window.__ct.clock(hh, 30), [h]);
   // let the lerp settle rather than sampling once
   let last = null, r = null;
   for (let i = 0; i < 30; i++) {
@@ -55,7 +67,7 @@ for (const label of ['INDOORS (the spawn, x ~198) — expected 0 by design', 'OU
     last = r.rain;
   }
   console.log(`\n  ${label}`);
-  console.log(`    at hour ${h % 24}:30, x ${r.pos.toFixed(1)}   rainLevel ${r.rain?.toFixed(4)}   wetness ${r.wet?.toFixed(4)}`);
+  console.log(`    at absolute hour ${h} (${h % 24}:30), x ${r.pos.toFixed(1)}   rainLevel ${r.rain?.toFixed(4)}   wetness ${r.wet?.toFixed(4)}`);
 }
 
 // and let the ground catch up: wetness rises fast and falls slowly
