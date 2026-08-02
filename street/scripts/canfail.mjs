@@ -587,6 +587,38 @@ const CASES = [
     'hood.position.set(0, BELT - 0.05, -(half + 0.95) / 2 + 0.02);',
     'carstate.mjs', [], "the hood buried inside the slab it should rest on"],
 
+  // THE CANARY'S OWN MUTATION. `scripts/health.mjs` is the command CLAUDE.md
+  // hands every new agent for "does the world initialise", and for months it
+  // could not go red: it printed `WORLD BROKEN` through console.log and fell off
+  // the end of the file, so node returned 0 and `checks.mjs` scored a dead world
+  // as a green `ok` row. It was registered here with `false` — no selftest at
+  // all — which is precisely how that survived. The check with the least
+  // coverage was the one every other check's reader trusts first.
+  //
+  // WHY THIS NEEDLE. `(window as any).__ct = {` is the last thing the entry
+  // point does, so every real initialisation failure — a module that throws, the
+  // `const FRONT` collision that passed `tsc` and 500'd in Vite, the world that
+  // "stopped initialising" in G-interiors2 — arrives at the browser as exactly
+  // this observable state: the page serves, and `__ct` is never there. Withholding
+  // the assignment reproduces that state through the WORLD, in source, with a
+  // rebuild, rather than inverting an assertion inside the check.
+  //
+  // It is NOT a blinded stamp, which is the failure GOTCHAS 34 warns about and
+  // which `footprint-blind` and `glow-blind` exist to demonstrate. `__ct` really
+  // is absent from `window` afterwards — library-pc.ts, slots.ts, blackjack.ts
+  // and hud.ts all read it through `__ct?.` and all genuinely find nothing.
+  //
+  // HONEST LIMIT, because the case is weaker than it looks: this withholds the
+  // handle at the END of a world that otherwise built correctly, so it proves
+  // health notices the STATE every init failure produces, not that it notices an
+  // early throw. Every early throw is a superset of this one — it also prevents
+  // line 997 — so a health that catches this catches those; the converse is not
+  // established by this case and nothing here claims it is.
+  ['health-dead', TOWN,
+    '  (window as any).__ct = {',
+    '  (window as any).__ct_withheld_by_selftest = {',
+    'health.mjs', [], 'a world that serves a page and never finishes initialising'],
+
   // Parking off the UNSEEDED stream. The world still looks right; every
   // fingerprint downstream of it quietly stops being evidence.
   ['park-repro', TOWN,
