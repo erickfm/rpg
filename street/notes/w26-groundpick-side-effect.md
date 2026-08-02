@@ -67,6 +67,35 @@ that is the whole API change.
   and GL ReadPixels stalls).
 - `tsc --noEmit` clean; both probes green on the **built bundle** at 4191 as
   well as dev.
+- **The world did not move.** `scenedump` before/after, both from built
+  bundles on 4191: `textures=44c087f0` and `structure=b9c8813c` **identical**.
+  `fpdiff` reports 3 tint differences (the casino/hotel chase, i.e. which frame
+  the dump landed on) and 10 places, of which 7 moved more than 5 cm — all
+  walkers on the pavement between −20 and −60, which is the documented noise
+  floor. Nothing structural changed, as expected: this touches no geometry.
+- **`npm run checks`, fast tier, against my built bundle.** Seven real reds,
+  and I attributed every one:
+  - `D-outline-debug-only` — "close the door" gets no prompt. **Pre-existing.**
+    Baselined by checking `crosstown.ts` and `ct/apartment.ts` back out to
+    4d35e1b1b, rebuilding, and re-running: **18 pass / 2 fail, the identical two
+    lines.** This was the one that could plausibly have been mine — it is the
+    upper-floor `[E]` that depends on `canSee`'s storey-aware eye — so it is
+    the one I spent a build proving.
+  - `door301` — "E from inside the swing DOES shut it: false". **A flake.** It
+    goes green on re-run against the same build, unchanged: "the door holds:
+    opens, shuts, blocks the doorway, never refuses, and pushes you clear."
+  - `mirror-walk` (PAWN/THRIFT door sides), `spot-coverage` (the standing
+    inventory of 281 registered spots with no check), `floaters-walk` (props
+    with air under them), `checks-registered` (three scripts in no tier),
+    `hashes-resolve` (189 rebased commit hashes cited across `notes/`) — all
+    unrelated standing reds.
+  - Every `WRONG WORLD` in that run is **my own commits landing mid-run** — the
+    runner says so itself: "THE TREE MOVED UNDER THIS RUN: 820377126 →
+    567d9f0b5". Not a finding.
+
+  Worth knowing for the next builder: `scripts/probes/` is **not** flagged by
+  `checks-registered`, so BUILDER-BRIEF §7a's instruction to put one-shot
+  probes there does not fight that check.
 
 ### Mutation-tested, bytes confirmed, both halves separately
 
@@ -97,7 +126,14 @@ the probe cannot pass by simply refusing to write.
    outside this item. Worth one walk: **the door drops you on the one x that
    does not climb.**
 
-3. `groundPick`'s pure path is now called ~once per candidate spot per frame
+3. **`scripts/door301.mjs` is flaky.** It failed "E from inside the swing DOES
+   shut it" inside `npm run checks` and passed on an immediate re-run against
+   the byte-identical build. One of the two runs is lying and neither is
+   loosened by me. Given §5 (a held `[E]` is read once per rendered frame) and
+   the machine's load, my guess is its keypress hold or its settle, not the
+   door — but that is a guess and it wants measuring, not a tolerance bump.
+
+4. `groundPick`'s pure path is now called ~once per candidate spot per frame
    and does slightly less work than before (no `setGy`), so nothing here is a
    cost regression. No pixel change is expected or was observed — this is
    bookkeeping only.
