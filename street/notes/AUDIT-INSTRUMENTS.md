@@ -254,7 +254,7 @@ its own timing and its own warp arguments.
 
 ### Sixth test: I reproduced its seat-1 sequence verbatim, and it PASSES
 
-Rather than edit A's file I instrumented a copy (`scripts/seatdebug.mjs`) running
+Rather than edit A's file I instrumented a copy (`scripts/seatdebug.mjs` — deleted in 26bf5d56c once it had done its job; the finding stands, the tool is gone) running
 the identical steps on the identical seat: `seats[0]`, its own `standableNear`
 ring search copied line for line, its `warp(x, z, 0, 0)`, its 140 ms wait, its
 `#ct-prompt` reader.
