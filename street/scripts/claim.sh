@@ -313,9 +313,9 @@ fi
 #
 # The reaper would have freed it in 150 minutes, but a typo should not cost that,
 # and the failure is silent: the output looks exactly like a successful claim.
-case "$who" in
+case "$mode" in
   -*)
-    echo "unknown option: $who"
+    echo "unknown option: $mode"
     echo
     echo "usage:  claim.sh <your-name>                    claim the top unclaimed item"
     echo "        claim.sh --stale [minutes]              report DOING rows by age"
