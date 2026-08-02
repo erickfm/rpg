@@ -34,6 +34,17 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + 
 await goto(page, aim('http://localhost:4177/'));
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
+
+// CPU_THROTTLE=20 is how the SLEPT was finally reproduced on purpose. canfail
+// runs this under a full `npm run build` and a browser per case, and the whole
+// defect only exists when frames are slow — an idle box catches the mutation
+// every time and tells you nothing. Applied after load so the world still boots.
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 1);
+if (THROTTLE > 1) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+  console.log(`CPU throttled x${THROTTLE}`);
+}
 await page.waitForTimeout(500);
 
 // same predicate ct/props.ts uses, so we pick hours the world agrees are wet
