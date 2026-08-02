@@ -76,6 +76,13 @@ differ ~20% of pixels. To prove a change didn't move the world:
 `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`. Textures
 and structure must match; 4–6 pigeons drifting is the noise floor.
 
+**BUT `fp` IS A PURE-REFACTOR TOOL ONLY.** `scenedump.mjs` seeds `Math.random`
+globally, and three draws random UUIDs per mesh — so **adding or removing any
+geometry shifts the stream and repaints every dithered texture after it**. One
+builder saw 294 of 1461 textures differ on a change that moved nothing. If your
+change adds a mesh, this recipe reports a catastrophe that is not there; compare
+`places` as a multiset instead (`scripts/probes/w44-placediff.mjs`).
+
 Anything involving movement, collision or floors must be verified by **actually
 walking it**, not from a screenshot. The 2 m sidewalk lane is sacred.
 

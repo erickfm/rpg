@@ -165,7 +165,19 @@ export function hudNote(text: string, ms?: number): void { LIVE?.note(text, ms);
 // it" is the same requirement in both and two implementations of it would drift.
 const HELD_KEYS = ['w', 'a', 's', 'd', 'c', 'e', 'shift', ' ',
   'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
-const BLOCKED = ['keydown', 'mousedown', 'mousemove', 'wheel'];
+// `click` IS IN THIS LIST AND IT HAS TO BE. `main.ts:30` re-takes pointer lock
+// on the CANVAS'S CLICK EVENT, not on mousedown — so swallowing mousedown, as
+// this list did, blocked the button press and let the click sail past to grab
+// the pointer anyway. On a screen-space panel that costs nothing and hid the
+// bug for months; on a diegetic one it is fatal, because a locked pointer stops
+// reporting clientX/clientY, so the first click on a machine froze the cursor
+// and every click after it missed. One click worked, then the surface went
+// dead — measured, not guessed, by watching `document.pointerLockElement` flip
+// on exactly the click that broke it.
+//
+// The gate's contract is that the world behind a panel hears NOTHING, and a
+// click reaching the world to seize the mouse is the world hearing something.
+const BLOCKED = ['keydown', 'mousedown', 'click', 'mousemove', 'wheel'];
 // `wheel` on `window` is PASSIVE BY DEFAULT — the browser assumes a root-level
 // wheel listener is a scroll observer and refuses its `preventDefault`, with a
 // console warning per event. So every registration here is explicit about it.
@@ -243,6 +255,82 @@ function blockInput(): () => void {
 //
 // What is YOURS: everything inside the glass. The framework never draws in
 // your screen area and never interprets a key you have handled.
+
+// ══ DIEGETIC SCREENS ══════════════════════════════════════════════════════
+//
+// *"this doesnt look integrated. i want when i hit e here to adjust my position
+// and perspective and lock it to be looking at the atm and for the screen on the
+// literal atm be the overlay that i can use my mouse to click through."*
+//
+// The panel framework above draws a machine in SCREEN SPACE — a canvas at
+// `position:fixed`, centred, over a dimmed world. That is the thing in his
+// screenshot, and it is the last survivor of *"i never want there to be menus
+// popping up unless they are embedded to look as if they are in the actual
+// game"*: item 0c took the framework's beige chrome off the ATM, which stopped
+// it looking like a dialog, but it was still a rectangle floating in front of
+// the camera rather than a screen on an object.
+//
+// A DIEGETIC panel is the same panel with its canvas hung on a MESH instead.
+// Everything the framework already guarantees — one at a time, the world frozen,
+// ESC always closes, `release` undoes the way in, the dismiss lockout — is
+// unchanged and uncopied; only where the pixels land, and where the mouse comes
+// from, are different. That is why this lives inside `makePanel` rather than in
+// a module of its own: a second implementation of "a modal you cannot escape
+// from" is exactly the thing this project has been burned by, and there is now
+// only ever going to be one.
+//
+// THIS IS THE TEMPLATE. Slots, blackjack and the library PC each already draw a
+// complete self-contained fascia into a `chrome:'none'` panel; each becomes
+// diegetic by naming the mesh its picture belongs on and nothing else.
+
+/** The surface a panel is painted onto, and how the player is put in front of it. */
+export interface ScreenSurface {
+  /**
+   * The mesh whose face IS this screen, resolved at open time rather than at
+   * build time — the world is assembled in pieces and a module usually cannot
+   * see the object it belongs to when it registers. Return `null` and the panel
+   * falls back to the screen-space cabinet, which is what makes this safe to
+   * adopt: a surface that cannot be found is a worse-looking panel, not a
+   * broken one.
+   */
+  mesh: () => THREE.Object3D | null;
+  /** how far the eye settles off the face, in metres along its normal */
+  standoff?: number;
+  /** the field of view to lean in to. Narrower reads as leaning closer. */
+  fov?: number;
+  /** is there something pressable at this canvas pixel? Drives the cursor. */
+  hot?: (x: number, y: number) => boolean;
+  /** a click landed at this canvas pixel */
+  click?: (x: number, y: number) => void;
+}
+
+/**
+ * The view half, implemented by `crosstown.ts` — which owns the camera, the rig
+ * and the frame loop, none of which this file can see.
+ *
+ * Registered rather than imported because the dependency runs the other way:
+ * every module already imports the HUD, and the HUD importing the world back
+ * would be a cycle. Same shape as `setPocketInfo` above.
+ */
+export interface ScreenFocus {
+  /**
+   * Ease the eye onto this face, lock the look, and freeze the feet. `escape`
+   * is the way back OUT and the focus controller must call it if it loses the
+   * lock for any reason it did not initiate — a rig-level Escape, a fade, a
+   * teleport. **A locked camera whose panel stayed open is a view you cannot
+   * leave**, which is the worst bug this project ships, so the controller is
+   * required to report the loss rather than to sit there hoping.
+   */
+  enter: (o: { mesh: THREE.Object3D; standoff: number; fov: number; escape: () => void }) => void;
+  /** give the view, the look and the feet back */
+  leave: () => void;
+  /** where on the focused face is this client-space pointer? `null` = off it */
+  pick: (clientX: number, clientY: number) => { u: number; v: number } | null;
+}
+let FOCUS: ScreenFocus | null = null;
+export function setScreenFocus(f: ScreenFocus | null): void { FOCUS = f; }
+/** is the world's focus controller wired up at all? */
+export function screenFocusReady(): boolean { return FOCUS !== null; }
 
 /** The shared look. Three authors picking three greys is the thing this stops. */
 export const UI = {
@@ -325,6 +413,12 @@ export interface PanelSpec {
    * `openedFromSeat` on `open()` is the structural half — see there.
    */
   release?: () => void;
+  /**
+   * PAINT THIS PANEL ONTO AN OBJECT IN THE WORLD instead of over the camera.
+   * See `ScreenSurface`. Omit it and nothing changes — this is additive, and
+   * every existing panel keeps the screen-space cabinet it has today.
+   */
+  surface?: ScreenSurface;
 }
 
 export interface Panel {
@@ -358,6 +452,130 @@ let backdrop: HTMLDivElement | null = null;
 // existence. The ATM opened, drew perfectly, and answered no key at all,
 // including ESC: a cabinet you could not use and could not leave. The gate
 // swallows exactly what `blockInput` does, so the freeze is already in here.
+// ── the pointer, while a screen is up ─────────────────────────────────────
+//
+// The world plays under pointer lock: there is no cursor, and the mouse turns
+// your head. A screen you are meant to click needs the exact opposite, so the
+// lock is dropped on the way in and the arrow comes back. `main.ts` re-takes it
+// on `mousedown`, which never reaches it — the gate swallows mousedown in the
+// capture phase — so this needs no cooperation from that file and no flag it
+// could get out of step with.
+let cursorShape: string | null = null;
+function cursorAs(shape: string): void {
+  if (shape === cursorShape) return;
+  cursorShape = shape;
+  document.body.style.cursor = shape;
+}
+
+// *"the mouse cursor should be like a lil hand almost like win98 cursor"*.
+//
+// PIXEL-DRAWN, not a font glyph and not the browser's `pointer` — the whole
+// world is 1997 pixel art and the one place a modern OS cursor would appear is
+// the moment the player is closest to the screen and looking hardest at it.
+//
+// TWO of them, which is what Windows 98 actually did and what makes `hot`
+// worth having: the arrow everywhere, the pointing hand over something that
+// will do something if you click it. So the cursor answers "is this a control"
+// before the player commits, and a hand over a dead key would be the machine
+// lying about itself.
+//
+// 16 x 16 at 2x = 32 x 32, which is the size browsers are safe to honour; over
+// that Chrome starts refusing the image and falls back, so the art is authored
+// to fit rather than scaled up and hoped for. `pointer`/`default` are named as
+// the fallback after the url for exactly that case.
+const ARROW_ART = [
+  'X               ',
+  'XX              ',
+  'X.X             ',
+  'X..X            ',
+  'X...X           ',
+  'X....X          ',
+  'X.....X         ',
+  'X......X        ',
+  'X.......X       ',
+  'X........X      ',
+  'X.....XXXX      ',
+  'X..X..X         ',
+  'X.X X..X        ',
+  'XX   X..X       ',
+  'X     X..X      ',
+  '       XX       ',
+];
+const HAND_ART = [
+  '    XX          ',
+  '   X..X         ',
+  '   X..X         ',
+  '   X..X         ',
+  '   X..X         ',
+  '   X..XXX       ',
+  '   X..X..XX     ',
+  'XX X..X..X.X    ',
+  'X.XX..X..X.X    ',
+  'X..X.......X    ',
+  'X..........X    ',
+  ' X.........X    ',
+  ' X.........X    ',
+  '  X........X    ',
+  '  X.......X     ',
+  '   XXXXXXX      ',
+];
+/** `X` is the black outline, `.` the white fill, a space transparent. */
+function cursorUrl(art: string[]): string {
+  const S = 2, N = 16;
+  const c = document.createElement('canvas');
+  c.width = N * S; c.height = N * S;
+  const g = c.getContext('2d')!;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const ch = art[y]?.[x] ?? ' ';
+      if (ch === ' ') continue;
+      g.fillStyle = ch === 'X' ? '#000000' : '#ffffff';
+      g.fillRect(x * S, y * S, S, S);
+    }
+  }
+  return c.toDataURL('image/png');
+}
+/** Built once, on first use — `document` exists by then, and a module-load-time
+ *  canvas would run in every harness that only imports this file for `UI`. */
+let ARROW_URL: string | null = null;
+let HAND_URL: string | null = null;
+/** hovering something pressable, or not */
+function cursorHand(over: boolean): void {
+  if (over) {
+    HAND_URL ??= cursorUrl(HAND_ART);
+    cursorAs(`url(${HAND_URL}) 9 0, pointer`);      // hotspot: the fingertip
+  } else {
+    ARROW_URL ??= cursorUrl(ARROW_ART);
+    cursorAs(`url(${ARROW_URL}) 0 0, default`);     // hotspot: the point
+  }
+}
+/** give the page its own cursor back */
+function cursorRelease(): void { cursorShape = null; document.body.style.cursor = ''; }
+
+/**
+ * Where on the live diegetic screen is this pointer, in the caller's OWN canvas
+ * pixels? `null` when there is no such screen or the ray misses it.
+ *
+ * Canvas pixels rather than UV on purpose: a machine hit-tests against the
+ * layout it drew, and it drew in canvas pixels. Handing it a 0…1 pair would
+ * make every caller multiply by its own width to get back to the coordinates it
+ * already had — and the slots machine's `BET ONE`/`MAX BET`/`SPIN` are laid out
+ * exactly the same way the ATM's soft keys are, so this seam is what lets the
+ * next machine answer for its own buttons instead of registering rectangles
+ * with the framework.
+ *
+ * UV's origin is bottom-left and a canvas's is top-left, hence the flip on v.
+ * Verified against the real mesh rather than assumed: on the ATM screen, u runs
+ * 0→1 as world z runs +0.31→−0.31, which with the face looking down +x is left
+ * to right from the player's eye, and v = 1 is the top edge.
+ */
+function surfaceHit(e: MouseEvent): { x: number; y: number } | null {
+  const p = livePanel;
+  if (!p?.spec.surface || !FOCUS) return null;
+  const uv = FOCUS.pick(e.clientX, e.clientY);
+  return uv ? { x: uv.u * p.spec.w, y: (1 - uv.v) * p.spec.h } : null;
+}
+
 function gate(e: Event): void {
   const p = livePanel;
   // A DESYNCED GATE IS A TRAP. If the gate is somehow installed with no panel
@@ -378,6 +596,15 @@ function gate(e: Event): void {
     else p.spec.key?.(k, e as KeyboardEvent);
   } else if (e.type === 'wheel') {
     p.spec.wheel?.((e as WheelEvent).deltaY > 0 ? 1 : -1);
+  } else if (e.type === 'mousemove') {
+    // THE POINTER IS A POINTER AGAIN while a screen is up. These events are
+    // still swallowed below, so the world neither turns its head nor takes
+    // pointer lock back — they are read on the way past and go no further.
+    const h = surfaceHit(e as MouseEvent);
+    cursorHand(!!h && !!p.spec.surface?.hot?.(h.x, h.y));
+  } else if (e.type === 'mousedown') {
+    const h = surfaceHit(e as MouseEvent);
+    if (h) p.spec.surface?.click?.(h.x, h.y);
   }
   swallow(e);
 }
@@ -488,10 +715,34 @@ export function makePanel(spec: PanelSpec): Panel {
   let exit: (() => void) | null = null;
   /** were they sitting down when it came up? then closing it stands them up */
   let seatedAtOpen = false;
+  /**
+   * The mesh this panel is painted onto right now, or `null` when it is the
+   * ordinary screen-space cabinet. Resolved on EVERY open rather than cached at
+   * build time: modules register long before the object they belong to exists,
+   * and interiors are rebuilt as the player moves between them, so a reference
+   * kept from last time can name a mesh no longer in the scene.
+   */
+  let onMesh: THREE.Object3D | null = null;
+  /**
+   * The panel's own canvas, hung in the scene graph. ONE texture, made once and
+   * reused: `CanvasTexture` is a view onto the canvas rather than a copy of it,
+   * so every `repaint()` this panel already does becomes a live update to the
+   * object in the world for the cost of a `needsUpdate` flag.
+   *
+   * NEAREST filtering, no mipmaps — the whole world is pixel art and a screen
+   * that resampled smoothly would be the one soft object in it.
+   */
+  let tex: THREE.CanvasTexture | null = null;
+  /** what the mesh was showing before we borrowed it, to be put back exactly */
+  let savedMap: THREE.Texture | null = null;
+  let savedColor = 0xffffff;
 
   const paint = () => {
     const g = cv.getContext('2d')!;
     g.clearRect(0, 0, CW, CH);
+    // the canvas IS the texture when this panel is hung on a mesh, so every
+    // repaint the caller already makes is a live screen in the world
+    if (tex) tex.needsUpdate = true;
 
     if (frameless) {
       // NO CASE, NO SCREWS, NO TITLE, NO RECESS, NO CAPTION BAND — the
@@ -622,10 +873,67 @@ export function makePanel(spec: PanelSpec): Panel {
       livePanel = { spec, close: () => api.close() };
       releaseHeld();                     // let go of anything already held down
       gateUp(true);                      // …and the gate is the freeze, see above
-      backdropUp(true);
+      // DIEGETIC OR NOT IS DECIDED HERE, per open, and it degrades rather than
+      // fails: a surface whose mesh cannot be found, or a world that never
+      // registered a focus controller (the prototype harnesses do not), simply
+      // gets the screen-space cabinet it would have got anyway.
+      onMesh = spec.surface && FOCUS ? spec.surface.mesh() : null;
+      // The vignette says "you have stopped looking at the world". A screen you
+      // are genuinely standing in front of has not stopped being in the world,
+      // and dimming it is the exact tell the user's screenshot is pointing at.
+      backdropUp(!onMesh);
       paint();
-      wrap!.style.opacity = '1';
-      if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(1)';
+      if (onMesh) {
+        // HANG THE CANVAS ON THE OBJECT. The mesh keeps its geometry, its rake
+        // and its place in the wall; only what it is showing changes, and it is
+        // put back exactly on close.
+        const mat = (onMesh as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        if (!tex) {
+          tex = new THREE.CanvasTexture(cv);
+          tex.magFilter = THREE.NearestFilter;
+          tex.minFilter = THREE.NearestFilter;
+          tex.generateMipmaps = false;
+          tex.colorSpace = THREE.SRGBColorSpace;
+        }
+        tex.needsUpdate = true;
+        savedMap = mat.map ?? null;
+        savedColor = mat.color.getHex();
+        mat.map = tex;
+        // A LIT CRT IS NOT DIMMED BY THE EVENING. Whatever tint the material
+        // carries belongs to the cabinet, not to the picture on its tube, and
+        // multiplying the live interface by it would drag the thing the player
+        // is reading down with the night wash. Put back on close.
+        mat.color.setHex(0xffffff);
+        mat.needsUpdate = true;
+        // ONLY THE CAPTION SURVIVES ON THE GLASS OF THE MONITOR — moved to the
+        // bottom of the frame, where `ct-prompt` already lives, so it reads as
+        // the world's own prompt line rather than as chrome. The canvas itself
+        // is in the scene now and must not also be drawn over the camera; but
+        // "how do I leave" is the one thing every panel still owes the player,
+        // and a diegetic screen that swallowed it would be the exact trap this
+        // framework exists to prevent.
+        cv.style.display = 'none';
+        wrap!.style.top = 'auto';
+        wrap!.style.bottom = '7%';
+        wrap!.style.transform = 'translate(-50%,0)';
+        wrap!.style.opacity = '1';
+        // GIVE THE MOUSE BACK. You cannot click a screen with a pointer the
+        // browser has hidden and pinned to the middle of the canvas.
+        try { document.exitPointerLock?.(); } catch { /* never locked */ }
+        cursorHand(false);
+        // THE WAY OUT, handed to the controller at the moment the way in
+        // happens. If it ever loses the lock without being asked to, it closes
+        // this panel rather than leaving a locked camera over an open one.
+        FOCUS!.enter({
+          mesh: onMesh,
+          standoff: spec.surface!.standoff ?? 0.55,
+          fov: spec.surface!.fov ?? 60,
+          escape: () => api.close(),
+        });
+      } else {
+        wrap!.style.opacity = '1';
+        if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(1)';
+      }
       spec.onOpen?.();
     },
     close: () => {
@@ -634,6 +942,32 @@ export function makePanel(spec: PanelSpec): Panel {
       dismissedAt = performance.now();
       wrap!.style.opacity = '0';
       if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(.94)';
+      // GIVE THE VIEW BACK FIRST, and outside the `livePanel === spec` guard
+      // below: that guard exists because another panel may already have taken
+      // the gate over, and a camera still locked to a screen the player has
+      // left is precisely the trap this must never allow. Wrapped because a
+      // controller that throws must not be able to abandon the lock.
+      if (onMesh) {
+        // GIVE THE MESH ITS OWN FACE BACK, and do it before anything that can
+        // throw. A machine left wearing a frozen copy of the last thing it
+        // said is the visible half of this failing; a camera left locked is
+        // the half that traps somebody.
+        const mesh = onMesh;
+        onMesh = null;
+        cursorRelease();
+        try {
+          const mat = (mesh as THREE.Mesh).material as THREE.MeshBasicMaterial;
+          mat.map = savedMap;
+          mat.color.setHex(savedColor);
+          mat.needsUpdate = true;
+        } catch (err) { console.error(`[panel ${spec.id}] could not restore the surface:`, err); }
+        // and put the caption back where every other panel's lives
+        cv.style.display = '';
+        wrap!.style.top = '50%';
+        wrap!.style.bottom = 'auto';
+        wrap!.style.transform = frameless ? 'translate(-50%,-50%)' : 'translate(-50%,-50%) scale(.94)';
+        try { FOCUS?.leave(); } catch (err) { console.error(`[panel ${spec.id}] leaving the screen threw:`, err); }
+      }
       if (livePanel && livePanel.spec === spec) {
         livePanel = null;
         gateUp(false);
@@ -737,7 +1071,13 @@ export function makeHud(purse: Purse): Hud {
     // to the right would have slid the watch 77 px to the LEFT. `left` moves the
     // same 77 px the other way to cancel it exactly, so the watch face lands
     // where it has always landed and only the hand is new.
-    watchWrap.style.cssText = 'position:fixed;left:calc(52% + 77px);bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
+    // LEFT OF CENTRE, on the user's own eye: *"can we move the watch arm thing
+    // as a whole over to the left a little bit?"* (2026-08-02). It sat at
+    // `52% + 77px` — right of centre by half a screen-width's worth of offset,
+    // so the wrist crowded the middle of the frame. 46% keeps it clearly on the
+    // near arm without reaching the edge. One number, and the whole arm moves
+    // because the cuff, the strap and the face are all inside `watchWrap`.
+    watchWrap.style.cssText = 'position:fixed;left:calc(46% + 77px);bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
     watchCv = document.createElement('canvas');
     watchCv.width = WATCH_W; watchCv.height = 72;
     watchCv.style.cssText = 'width:484px;height:198px;image-rendering:pixelated;display:block;';

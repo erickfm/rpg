@@ -236,6 +236,14 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 ## 10. How to prove it
 
 - **Movement, collision, floors and seats: WALK them.** A screenshot cannot prove you are not wedged.
+- **THE `fp` TEXTURE HASH CANNOT SURVIVE ADDING OR REMOVING A MESH — it is a PURE-REFACTOR tool only.**
+  `scripts/scenedump.mjs:26` seeds `Math.random` globally so dithering is reproducible, and three's
+  `generateUUID()` draws four random values per object, geometry and material. So **six new meshes shift
+  the stream and repaint every dithered texture built after them** — one builder saw `294/1461 textures
+  differing` on a change that moved nothing. `fpdiff`'s counts are positional too, so inserting a mesh
+  inflates them. **If your change adds or removes geometry, `fp`/`fpdiff` will report a catastrophe that
+  is not there.** Compare `places` as a multiset instead (`scripts/probes/w44-placediff.mjs` does this),
+  or diff only what you did not touch. Use `fp` as proof ONLY when you changed no geometry at all.
 - **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor.
 - **Press `V` for the collision overlay.** Wireframe boxes, red where a gap under 0.95 m could trap a player. It is how the user found two real bugs on its first day.
 - **Verify on the BUILT bundle** (`npx vite preview`), not only on dev. The panel/keydown class of bug has shipped differently than it renders in dev.
@@ -265,3 +273,34 @@ In your `done.sh` line and your handoff note at `notes/<name>-<topic>.md`:
 4. Whether you derived a value or copied it, and why.
 
 **Reporting something you could not do is worth more than a silent workaround.**
+
+---
+
+## 7b. A TEXTURE'S DENSITY COMES FROM THE FACE IT LANDS ON. ALWAYS.
+
+The user, 2026-08-02, on the jail interior: *"why aren't we catching these? what's
+causing them and do we need to set a rule against them so they aren't created?"*
+
+**Yes. This is the rule.**
+
+Every textured surface **declares** its density and **derives** its repeat from
+its own dimensions. Never accept the default repeat, and never type a repeat by
+hand. `declareSurface` and `masonry(w, h, …).ppm` / `ppmW` / `ppmH` exist for
+exactly this — use them.
+
+**What it costs when you don't.** Fixed four separate times in two days:
+
+- a texture painted for 4 m stretched over a **14 m** jail wall — 4.57 px/m against a declared 16
+- 0.2 m screen-wall end caps wearing a **9.65 m** run — 770 px/m
+- five trim boxes sharing one 1 m canvas — an 0.08 m sill drawing at 200 px/m
+- a bench's boards tiling as repeated blocks
+
+**Why it keeps reaching the user.** `scripts/masonry.mjs` only sweeps faces
+tagged `userData.masonry`. A pillar, a door, a bench, a floor tile is not
+masonry, so **nothing checks it**. And the world holds **343 texture creations
+against 267 declarations** — about 76 surfaces have no declared density at all,
+so there is nothing to check them against.
+
+**So: if you create a texture, declare its density. If you apply one, derive the
+repeat.** A surface that cannot state its own px/m is a surface no check can ever
+defend, and the user finds those by eye — he has now done so five times.

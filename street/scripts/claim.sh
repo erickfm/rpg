@@ -304,6 +304,25 @@ if [ "$mode" = "--touch" ]; then
   exit 0
 fi
 
+# ── ANYTHING STARTING WITH `-` IS A FLAG, NOT A BUILDER ───────────────────
+#
+# `mode` falls through to `who` here, so an unrecognised flag was taken as a
+# NAME and given an item. A builder ran `claim.sh --help` and it claimed item 93
+# for an agent called `--help` — the row sat DOING under a holder that does not
+# exist and could never release it. Caught only because the builder said so.
+#
+# The reaper would have freed it in 150 minutes, but a typo should not cost that,
+# and the failure is silent: the output looks exactly like a successful claim.
+case "$mode" in
+  -*)
+    echo "unknown option: $mode"
+    echo
+    echo "usage:  claim.sh <your-name>                    claim the top unclaimed item"
+    echo "        claim.sh --stale [minutes]              report DOING rows by age"
+    echo "        claim.sh --release <item-id> [name]     force an item back to TODO"
+    echo "        claim.sh --touch <your-name>            re-stamp your claim"
+    exit 2;;
+esac
 who=$mode
 
 # ── REAP DEAD CLAIMS BEFORE PICKING, NOT ON A DESK TICK ────────────────────
