@@ -744,7 +744,7 @@ export function pickSpot<T extends Pickable>(
   // THREE TIERS, NOT ONE KEY — and the middle one is the whole of this
   // function's history, because THIS KNOB HAS A USER COMPLAINT AT BOTH ENDS.
   //
-  //   tier 1  TOUCHING AND AIMED AT   ranked by distance
+  //   tier 1  STANDING IN IT, OR TOUCHING AND AIMED AT   ranked by distance
   //   tier 2  AIMED AT                ranked by screen centre, distance breaks ties
   //   tier 3  TOUCHING, AIMED AWAY    ranked by distance
   //
@@ -773,12 +773,30 @@ export function pickSpot<T extends Pickable>(
   // gate is `looked` itself — the SAME `lookTolerance` cone the rest of the
   // resolver uses, not a second angle constant that could drift away from it.
   //
-  // WHAT PROTECTS END ONE IS TIER 1, and specifically the `d < 1e-4` clause on
-  // `offAxis` below: a spot you are standing ON has offAxis 0 by construction,
-  // so it is always `looked`, so it is always tier 1, so it cannot be taken off
-  // you by anything. That is w9's repro and `seats-walk`'s standing assertion
-  // (stand on a seat, get THAT seat, not the one 0.67 m away) both held by the
-  // same line.
+  // WHAT PROTECTS END ONE IS TIER 1, via `onIt` — THE SPOT'S CENTRE IS INSIDE
+  // YOUR OWN BODY, so which way you are facing is not a question the geometry
+  // can answer, and the spot is unbeatable. You cannot look away from something
+  // you are standing in.
+  //
+  // I FIRST WROTE THIS AS `d < 1e-4` — the existing degenerate-offAxis clause
+  // below — reasoning that a spot you stand on has offAxis 0 by construction so
+  // it is always `looked` and therefore always tier 1. THAT REASONING IS FALSE
+  // IN THE WORLD, because the rig's `unstick` nudges you off the exact point:
+  // warping onto the 301 door's own stand-point lands you 0.060 m away, not
+  // 1e-4, and the clause never fires. Measured, not assumed — it cost
+  // `seats-walk` 46 seats (115/219 -> 69/219, every one of them "sat at X but
+  // the seat is at Y"), because that check stations the player at yaw 0 and
+  // never faces the seat, so an aimed-at seat across the room took the press.
+  // That is the wrong-bench bug `seats-walk` was written for, shipped once
+  // already at `098269aa`, and a new pick that quietly re-opens it is worse
+  // than no new pick at all.
+  //
+  // So the threshold is the PLAYER'S OWN COLLISION CAPSULE, `RADIUS`, which is
+  // the honest form of what `d < 1e-4` was reaching for and is imported from
+  // the top of this file rather than retyped. Inside it you are standing in the
+  // thing; outside it, aim decides. That single constant is what holds w9's
+  // repro and `seats-walk`'s standing assertion at one end while END TWO is
+  // fixed at the other, and it is why the two complaints do not have to trade.
   //
   // AND TIER 3 IS STILL A TIER — *"standing beside it, not looking"* keeps
   // working, because a touched spot with nothing aimed-at to lose to still
@@ -856,8 +874,13 @@ export function pickSpot<T extends Pickable>(
     // and a new pick that quietly re-opens it is worse than no new pick at all.
     // Both of those are poses where you are standing ON the spot, so both land
     // in tier 1 here and neither is reachable by anything in tiers 2 or 3.
+    // THE SPOT'S CENTRE IS INSIDE YOUR OWN BODY. Not "very close" — inside the
+    // capsule `blocked()` collides with, so no heading points away from it in
+    // any meaningful sense. See the tier comment for why this is `RADIUS` and
+    // not the degenerate `d < 1e-4` I tried first.
+    const onIt = d < RADIUS;
     const entry = { spot: s, looked, offAxis, dist: d };
-    if (near && looked) {
+    if (near && (looked || onIt)) {
       if (d < bestNearLookedKey) { bestNearLookedKey = d; bestNearLooked = entry; }
     } else if (looked) {
       const key = offAxis + d * 0.02;
