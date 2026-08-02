@@ -58,7 +58,10 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
   // Told apart rather than lumped in, for this file's usual reason: "start a
   // server" is useless advice to somebody who has one running.
   if (!live && why === 'bad port') {
-    const port = new URL(URL).port;
+    // `URL` the global is shadowed by this file's own `const URL` (the target
+    // address), so the port comes off the string. Caught by watching this very
+    // branch throw `URL is not a constructor` instead of printing.
+    const port = (URL.match(/:(\d+)/) ?? [, '?'])[1];
     console.error(`\nPORT ${port} IS ON THE BROWSER'S BLOCKED-PORTS LIST.\n`);
     console.error(`  ${URL} may well be serving — curl will say 200 — but neither`);
     console.error('  fetch nor Chrome will ever open it, so no check here can measure it.\n');
