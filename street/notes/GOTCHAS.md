@@ -1873,6 +1873,10 @@ the pack, which wipes `dist/` and takes `artifact.html` with it.
 One builder hit this and reported the artifact delivered, in good faith, while
 the file no longer existed.
 
+**`scripts/guards.sh` ALSO destroys `dist/artifact.html`** — a builder watched it happen and
+restored from the staging copy. It is not only `npm run build`: anything that rebuilds into
+`dist/` takes the artifact with it, and `guards.sh` does, without saying so.
+
 **If you need the artifact to outlive your worktree, copy it out of `dist/`.**
 The desk now stages it at `street/artifact/` (gitignored) before publishing.
 
