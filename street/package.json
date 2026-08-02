@@ -17,6 +17,7 @@
     "wiring": "node scripts/check-wiring.mjs -v",
     "checks": "node scripts/checks.mjs",
     "walk": "node scripts/D-walk.mjs",
+    "stepoff": "node scripts/stepoff-walk.mjs",
     "artifact": "node scripts/pack-artifact.mjs && node scripts/check-artifact.mjs",
     "ledger": "node scripts/ledger-intact.mjs"
   },
