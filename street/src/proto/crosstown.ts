@@ -219,6 +219,12 @@ export function makeCrosstown(): Proto {
   // this always should have been.
   let debugCollision = false;
   let debugCollisionKeyHeld = false;
+  // F: the frame-rate readout, same rule as V above — off by default, toggled,
+  // a diagnosis tool rather than a player feature. `fpsWorst` tracks the LONGEST
+  // frame in the window, because the user's report is about drops and a mean
+  // hides those.
+  let showFps = false, fpsKeyHeld = false;
+  let fpsCount = 0, fpsAccum = 0, fpsWorst = 0, fpsText = '';
   const colliderDebug = new ColliderDebug();
   // HYSTERESIS ON TRANSITIONS. A spot you have just USED is latched off until
   // you have physically left its volume, and only then re-arms.
@@ -1712,6 +1718,30 @@ export function makeCrosstown(): Proto {
       const debugKeyDown = input.keys.has('v');
       if (debugKeyDown && !debugCollisionKeyHeld) debugCollision = !debugCollision;
       debugCollisionKeyHeld = debugKeyDown;
+      // F: toggle the frame-rate readout. The user: *"i get awful performance
+      // drops in my room not sure why. can we also get an fps counter?"*
+      //
+      // OFF BY DEFAULT AND TOGGLED, not a permanent corner overlay — he had the
+      // standing HUD text removed (*"get rid of the overlay descriptions here,
+      // controlls and all"*) and a number nailed to the screen forever is that
+      // same complaint wearing a different hat. Same edge-trigger and the same
+      // reasoning as V beside it: a diagnosis tool, not a player feature.
+      //
+      // It reports the WORST frame in the last second as well as the mean,
+      // because his report is *drops* — an average hides exactly the thing he
+      // is asking about.
+      const fpsKeyDown = input.keys.has('f');
+      if (fpsKeyDown && !fpsKeyHeld) { showFps = !showFps; hud.setFps(showFps ? fpsText : null); }
+      fpsKeyHeld = fpsKeyDown;
+      if (showFps) {
+        fpsCount++; fpsAccum += dt; fpsWorst = Math.max(fpsWorst, dt);
+        if (fpsAccum >= 0.5) {
+          const mean = fpsCount / fpsAccum, low = 1 / fpsWorst;
+          fpsText = `${mean.toFixed(0)} fps   worst ${low.toFixed(0)}`;
+          hud.setFps(fpsText);
+          fpsCount = 0; fpsAccum = 0; fpsWorst = 0;
+        }
+      }
       // E: nearest live spot wins; with nothing near, E feeds the birds
       //
       // It said "nearest" and did FIRST-REGISTERED — the loop broke on the

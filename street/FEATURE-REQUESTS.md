@@ -2670,3 +2670,12 @@ to one side.
   seat, so under this ruling it is asking the wrong question — some of the 12 lost seats
   may be the check measuring something he has just said he does not care about. Suspect
   the check before the world.
+
+- **"i get awful performance drops in my room not sure why. can we also get an fps
+  counter?"** (2026-08-02) → **FPS counter done by the desk directly (press F); the
+  performance drop queued as item 128.** The counter is toggled, not pinned — he had the
+  standing HUD text removed, so a number nailed to a corner forever is that complaint in
+  a new coat. It reports the **worst frame in the window** alongside the mean, because
+  his report is about *drops* and a mean hides those. Lead for 128: the TV in 301
+  repaints its whole canvas and re-uploads the texture **9 times a second**
+  (`ct/apartment.ts:2683`, `tvRedraw = 0.11`).
