@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, dither, slabTex } from './paint';
+import { pixTex, dither } from './paint';
 import { weedTuft } from './weeds';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
@@ -148,10 +148,72 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // not slabs — and `grain: 0.18` reads as that aggregate rather than as
   // stone. The dirt branch keeps its own painter: it draws the grass creeping
   // in at the edges, which is a thing about worn ground and not about paving.
-  const pathTex = (wM: number, dM: number) =>
-    slabTex({ wMeters: wM, dMeters: dM, base: PATH, joint: 0, grain: 0.18 });
+  //
+  // …and `grain: 0.18` was over `slabTex`'s own 0.14 pebble threshold, so on
+  // top of the speckle it laid 2 px STONES at full contrast. That is the
+  // confetti in the frame the user called awful: bright chips scattered evenly
+  // over a flat pale field, which is the look of terrazzo, not of earth.
+  //
+  // ONE WRAPPED CANVAS FOR THE WHOLE LOOP, not a bespoke one per piece.
+  // Everything that reads as path — the circuit, the gate spur, the shelter
+  // apron — samples this same 4 m tile through WORLD-METRE UVs, so the grain is
+  // continuous across every join and every corner instead of each rectangle
+  // carrying its own independently-rolled noise that stops dead at its edge.
+  // The tile is drawn wrapped (every mark repeated across both seams) so it
+  // repeats invisibly.
+  const PATH_TILE = 4;                              // metres per repeat
+  let loopTexCache: THREE.Texture | null = null;
+  const loopTex = () => {
+    // ONE texture object, shared by every path surface. It can be shared
+    // because the UVs are world metres and the repeat is 1 — nothing is scaled
+    // per mesh, so there is nothing per mesh to hold.
+    if (loopTexCache) return loopTexCache;
+    const S = PATH_TILE * 32;                       // 128 px, the world's density
+    const t = pixTex(S, S, (g) => {
+      const r = clcg(0x51c0a7);
+      g.fillStyle = PATH; g.fillRect(0, 0, S, S);
+      /** paint a mark and its wraps, so the tile has no seam */
+      const wrapped = (x: number, y: number, w: number, h: number) => {
+        for (const dx of [-S, 0, S]) for (const dy of [-S, 0, S]) g.fillRect(x + dx, y + dy, w, h);
+      };
+      // THREE SCALES, and it needs all three. A ground texture that carries
+      // only one is what reads as a pattern rather than as a place: the old one
+      // had a single scale (1 px pepper) and my first pass at this had a single
+      // scale (5 px mottle) and both went flat at ten paces for the same
+      // reason. Metre-scale first, so the path is not one tone down its length.
+      for (let i = 0; i < 16; i++) {
+        g.fillStyle = r() < 0.68 ? `rgba(104,92,66,${(0.07 + r() * 0.09).toFixed(3)})`
+                                 : `rgba(186,172,138,${(0.05 + r() * 0.06).toFixed(3)})`;
+        wrapped(Math.floor(r() * S), Math.floor(r() * S),
+          16 + Math.floor(r() * 26), 12 + Math.floor(r() * 22));
+      }
+      // hand-scale mottle: rolled clay with gravel in it, weighted DARK. The
+      // first pass weighted it light and the path came out the colour of sand.
+      for (let i = 0; i < 120; i++) {
+        g.fillStyle = r() < 0.72 ? `rgba(118,104,74,${(0.12 + r() * 0.16).toFixed(3)})`
+                                 : `rgba(190,176,142,${(0.05 + r() * 0.09).toFixed(3)})`;
+        wrapped(Math.floor(r() * S), Math.floor(r() * S), 3 + Math.floor(r() * 7), 2 + Math.floor(r() * 5));
+      }
+      // the aggregate, and mostly on the DARK side. The bright chips at full
+      // contrast are what sparkled — grit you read as texture and never as
+      // dots is what a gravel path actually gives you at this density.
+      for (let i = 0; i < Math.round(S * S * 0.055); i++) {
+        g.fillStyle = r() > 0.42 ? PATH_D : 'rgba(120,106,76,0.6)';
+        g.fillRect(Math.floor(r() * S), Math.floor(r() * S), 1, 1);
+      }
+      // a very few pale ones, so it is not uniformly dark grit either
+      for (let i = 0; i < Math.round(S * S * 0.006); i++) {
+        g.fillStyle = `rgba(179,163,124,${(0.30 + r() * 0.25).toFixed(2)})`;
+        g.fillRect(Math.floor(r() * S), Math.floor(r() * S), 1, 1);
+      }
+      dither(g, S, S, Math.round(S * S * 0.02));
+    });
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    loopTexCache = t;
+    return t;
+  };
   const surfaceTex = (wM: number, dM: number, kind: 'path' | 'dirt') => {
-    if (kind === 'path') return pathTex(wM, dM);
+    if (kind === 'path') return loopTex();
     const PW = Math.max(8, Math.round(wM * 32)), PH = Math.max(8, Math.round(dM * 32));
     return pixTex(PW, PH, (g) => {
       const r = clcg(0x2b7f31);
@@ -209,16 +271,55 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
         }
       }
       // (the tar repair that used to sit here is gone, and the path branch
-      //  now returns before this point — see `pathTex` above)
+      //  now returns before this point — see `loopTex` above)
       dither(g, PW, PH, Math.round(wM * dM * 8));
     });
   };
   /** a flat run of surface, laid in the x/z plane */
   const lay = (x0: number, x1: number, z0: number, z1: number, kind: 'path' | 'dirt') => {
     const w = Math.abs(x1 - x0), d = Math.abs(z1 - z0);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), wet(flat(surfaceTex(w, d, kind))));
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const seg = (m: number) => Math.max(1, Math.min(24, Math.round(m / 0.22)));
+    const geo = kind === 'path' ? new THREE.PlaneGeometry(w, d, seg(w), seg(d))
+                                : new THREE.PlaneGeometry(w, d);
+    if (kind === 'path') {
+      // WORLD-METRE UVs, the same ones the loop's band uses. A spur or an apron
+      // that meets the circuit then samples the same tile at the same phase, so
+      // the grain runs straight through the join. With 0…1 UVs it would stretch
+      // one whole 4 m tile across whatever size the rectangle happened to be —
+      // which is the old fault (every piece its own independently-rolled patch)
+      // wearing a new hat.
+      const uv = geo.attributes.uv as THREE.BufferAttribute;
+      const p = geo.attributes.position as THREE.BufferAttribute;
+      // rotation.x = -π/2 below sends local +y to world -z
+      for (let i = 0; i < uv.count; i++) {
+        uv.setXY(i, (cx + p.getX(i)) / PATH_TILE, (cz - p.getY(i)) / PATH_TILE);
+      }
+      uv.needsUpdate = true;
+      // …AND THE SAME CROSS-SECTION. Without this the circuit had a walked
+      // spine and the gate spur meeting it stayed a flat rectangle, so the one
+      // join every visitor crosses read as two different materials — which is
+      // the fault this whole pass exists to end, moved one metre along. An
+      // elongated run is worn across its SHORT axis; a square apron (the
+      // shelter's) has no direction to be worn along, so it takes a flat
+      // mid-tread tone rather than a spine that would point nowhere.
+      const long = Math.max(w, d), short = Math.min(w, d);
+      const acrossX = w < d;                          // the short axis is x
+      const col = new Float32Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) {
+        const wx = cx + p.getX(i), wz = cz - p.getY(i);
+        const c = long / short > 1.5
+          ? tread(((acrossX ? wx - cx : wz - cz) / (short / 2)) * (PATH_W / 2), acrossX ? wz : wx)
+          : tread(PATH_W * 0.22, wx + wz);
+        col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    }
+    const mat = wet(flat(surfaceTex(w, d, kind)));
+    if (kind === 'path') mat.vertexColors = true;
+    const m = new THREE.Mesh(geo, mat);
     m.rotation.x = -Math.PI / 2;
-    m.position.set((x0 + x1) / 2, KERB_H + LIFT, (z0 + z1) / 2);
+    m.position.set(cx, KERB_H + LIFT, cz);
     scene.add(m);
     return m;
   };
@@ -298,41 +399,162 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const INSET = 6.0, CHAM = 2.6;
   const lx0 = site.minX + INSET + 0.5, lx1 = EDGE_X - INSET;
   const lz0 = site.minZ + INSET, lz1 = site.maxZ - INSET;
-  // the four straight legs, each stopped short by the chamfer
-  lay(lx0 - PATH_W / 2, lx0 + PATH_W / 2, lz0 + CHAM, lz1 - CHAM, 'path');   // back
-  lay(lx1 - PATH_W / 2, lx1 + PATH_W / 2, lz0 + CHAM, lz1 - CHAM, 'path');   // street
-  for (const lz of [lz0, lz1]) {
-    lay(lx0 + CHAM, lx1 - CHAM, lz - PATH_W / 2, lz + PATH_W / 2, 'path');   // the ends
-  }
-  // …and the four corners that turn between them.
+
+  // ── THE LOOP IS ONE SURFACE NOW, NOT FOUR LEGS AND FOUR PATCHES ──────────
   //
-  // They OVERLAP the legs on purpose: a PATH_W-wide diagonal meeting a
-  // PATH_W-wide straight at 45° leaves a triangular notch on the outside of
-  // every turn unless it runs past the join, so each corner is drawn 0.3 m long
-  // at both ends. That is eight overlaps of two coplanar surfaces, and both
-  // were at exactly KERB_H + LIFT — the §6 fault, and the flavour of it that a
-  // screenshot cannot be trusted on, because which surface wins depth-fights is
-  // view-dependent and a still frame may show either.
+  // The user, on a frame of a turn: *"look at this path corner it looks so
+  // messed up."* He is right, and there were three faults stacked in one spot:
   //
-  // §6 says abut, never overlap, and where an overlap is the right drawing the
-  // answer this file already uses everywhere else is to separate in y: the
-  // field is at LIFT × 0.5, the paths at 1.0, litter at 1.5, the bald ring at
-  // 2.0, the desire lines at 2.5. The corners take 1.25 — 1.5 mm over the legs
-  // they cross, under everything laid on the grass, and far too little to read
-  // as a lip on a path you walk over.
-  const corner = (cx: number, cz: number, sx: number, sz: number) => {
-    const len = Math.hypot(CHAM, CHAM) + PATH_W * 0.4;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(PATH_W, len),
-      wet(flat(surfaceTex(PATH_W, len, 'path'))));
-    m.rotation.x = -Math.PI / 2;
-    m.rotation.z = -Math.atan2(sx * CHAM, sz * CHAM);
-    m.position.set(cx + sx * CHAM / 2, KERB_H + LIFT * 1.25, cz + sz * CHAM / 2);
-    scene.add(m);
+  //   THE TURN WAS A SEPARATE ROTATED QUAD dropped over the junction, drawn
+  //     0.6 m longer than the gap it filled so its square ends poked ears out
+  //     into the grass past both legs.
+  //   IT WAS WIDER THAN THE PATH. A PATH_W band crossing a PATH_W band at 45°
+  //     covers PATH_W/cos45 = 2.12 m of it, so the turn measured half again as
+  //     wide as either leg it joined and read as a lozenge, not a bend.
+  //   THE EDGING CROSSED ITSELF IN THE MIDDLE OF IT. The four strips each ran
+  //     the FULL length of their leg (`lz0…lz1`) while the legs themselves
+  //     stopped `CHAM` short, so all four overran into the turn and drew a grey
+  //     X on the corner. That is the thing the screenshot is actually of.
+  //
+  // A path does not have corners; it has a plan. So the plan is ONE closed
+  // octagonal ring, and everything that follows the loop — the surface, the
+  // edging, the hoop rail — is generated from that one function at a different
+  // offset. Nothing can fail to mitre, because nothing is drawn twice, and the
+  // §6 y-separation hack the old corners needed is gone with them: there is not
+  // one overlapping pair of coplanar surfaces left in the loop.
+  //
+  // THE IDENTITY THAT MAKES IT WORK: offsetting a 45°-chamfered rectangle
+  // outward by `t` grows the rectangle by `t` on every side AND grows the
+  // chamfer by `t·(2 − √2)`. Two rings built that way are a constant distance
+  // apart the whole way round, corners included — which is exactly what "the
+  // path keeps its width through the turn" means, and it is why a corner can no
+  // longer be a different width from its legs.
+  const CH_K = 2 - Math.SQRT2;
+  /** the loop's centreline offset outward by `t` m, as its 8 corner points */
+  const ringPts = (t: number): [number, number][] => {
+    const x0 = lx0 - t, x1 = lx1 + t, z0 = lz0 - t, z1 = lz1 + t;
+    const c = CHAM + t * CH_K;
+    return [[x0 + c, z0], [x1 - c, z0], [x1, z0 + c], [x1, z1 - c],
+            [x1 - c, z1], [x0 + c, z1], [x0, z1 - c], [x0, z0 + c]];
   };
-  corner(lx0, lz0 + CHAM, 1, -1);
-  corner(lx0, lz1 - CHAM, 1, 1);
-  corner(lx1, lz0 + CHAM, -1, -1);
-  corner(lx1, lz1 - CHAM, -1, 1);
+  // Every ring is cut into the SAME number of pieces per edge, taken off the
+  // centreline, so vertex i of one ring is always opposite vertex i of the
+  // next and a band between two rings closes with no seam and no bookkeeping.
+  const SEG = 1.1;                                   // metres per piece
+  const cuts = ringPts(0).map((p, i, a) => {
+    const q = a[(i + 1) % 8];
+    return Math.max(1, Math.round(Math.hypot(q[0] - p[0], q[1] - p[1]) / SEG));
+  });
+  const NCOL = cuts.reduce((a, b) => a + b, 0);
+  const ring = (t: number) => {
+    const P = ringPts(t), out: [number, number][] = [];
+    for (let i = 0; i < 8; i++) {
+      const a = P[i], b = P[(i + 1) % 8];
+      for (let k = 0; k < cuts[i]; k++) {
+        const f = k / cuts[i];
+        out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]);
+      }
+    }
+    return out;
+  };
+  // arc length round the centreline, for anything that wants to vary ALONG the
+  // path rather than across it
+  const ARC: number[] = [];
+  {
+    const m = ring(0);
+    let s = 0;
+    for (let i = 0; i < NCOL; i++) {
+      ARC.push(s);
+      const a = m[i], b = m[(i + 1) % NCOL];
+      s += Math.hypot(b[0] - a[0], b[1] - a[1]);
+    }
+  }
+
+  /**
+   * A closed band round the loop: one quad strip per pair of consecutive
+   * rings, laid flat at `y`. UVs are WORLD METRES, so a wrapped texture is
+   * continuous across every corner for free — there is no per-piece canvas to
+   * fail to line up with its neighbour.
+   */
+  const band = (rows: number[], y: number, mat: THREE.MeshBasicMaterial, tile: number,
+                tint: (t: number, s: number) => [number, number, number]) => {
+    const pts = rows.map((t) => ring(t));
+    const pos: number[] = [], uv: number[] = [], col: number[] = [], idx: number[] = [];
+    for (let r = 0; r < rows.length; r++) {
+      for (let i = 0; i < NCOL; i++) {
+        const [x, z] = pts[r][i];
+        pos.push(x, y, z);
+        uv.push(x / tile, z / tile);
+        col.push(...tint(rows[r], ARC[i]));
+      }
+    }
+    for (let r = 0; r + 1 < rows.length; r++) {
+      for (let i = 0; i < NCOL; i++) {
+        const j = (i + 1) % NCOL;
+        const a = r * NCOL + i, b = r * NCOL + j;
+        const c = (r + 1) * NCOL + i, d = (r + 1) * NCOL + j;
+        idx.push(a, c, d, a, d, b);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    mat.vertexColors = true;
+    mat.side = THREE.DoubleSide;                     // a ground decal, seen from above only
+    const m = new THREE.Mesh(geo, mat);
+    scene.add(m);
+    return m;
+  };
+
+  // ── WHY THE SURFACE READ AWFUL, AND THE ANSWER ──────────────────────────
+  //
+  // The user, second rejection of this surface: *"the path looks awful."* The
+  // first rejection (see PATH above) was that it read as ROAD and the answer
+  // was the warm hoggin palette, which is right and stays. What is wrong now is
+  // not the colour, it is that THE PATH HAS NO STRUCTURE: isotropic 1-texel
+  // pepper at even density over a flat pale field, identical from one shoulder
+  // to the other and from one end to the other. Nothing about it says people
+  // walk here. That is the read of poured aggregate — terrazzo — not of ground.
+  //
+  // Re-rolling the noise is the change that already failed, so the answer is
+  // not in the canvas at all, it is in the SHADING ACROSS THE WIDTH. A path
+  // that is walked is polished pale down the spine where feet go, dirtier and
+  // damper at the shoulders where they do not, and dies into the turf at its
+  // margin instead of stopping at a line. That is a cross-section, and a
+  // cross-section is the one thing a tiling texture cannot hold — so it goes
+  // where this file already puts form in an unlit world: vertex colour, the
+  // same technique and the same 0.78…1.26 range the field's relief uses.
+  //
+  // It also fixes the join for free. The outermost ring is pulled down AND
+  // toward olive, so the last 100 mm of path is the colour of thin grass and
+  // the edging sits on a margin rather than on a butt joint.
+  const H = PATH_W / 2;
+  const tread = (t: number, s: number): [number, number, number] => {
+    // AND THE WORN LINE WANDERS. This is where the direction of travel comes
+    // from, and it is why the cross-section is a function of arc length rather
+    // than a per-ring constant: a pale stripe pinned to the centreline for 70 m
+    // is a stripe, not wear. Drifting it slowly from one side to the other —
+    // which is what a formal path that people cut the corners of actually
+    // looks like — gives the surface a line running ALONG it, and because the
+    // drift is driven by distance round the loop it carries through the turns
+    // instead of stopping at them.
+    const drift = 0.20 * Math.sin(s * 0.17 + 0.6) + 0.11 * Math.sin(s * 0.41 + 2.3);
+    const u = Math.min(1, Math.abs(t - drift) / H);
+    const k = u * u;                          // pale across the middle, falling
+                                              // away only near the shoulders
+    const lum = (1.03 - 0.33 * k)
+      * (1 + 0.035 * Math.sin(s * 0.29) + 0.022 * Math.sin(s * 0.81 + 1.9));
+    // …and the shoulder goes OLIVE as well as dark, which is the join to the
+    // grass: the last 100 mm of path is the colour of turf that has been walked
+    // thin, so the edge is a margin instead of a butt joint.
+    return [lum * (1 - 0.07 * k), lum * (1 + 0.04 * k), lum * (1 - 0.15 * k)];
+  };
+  const TREAD = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1].map((f) => f * H);
+  band(TREAD, KERB_H + LIFT, wet(flat(loopTex())), PATH_TILE, tread);
+
   // In from the gate to MEET the circuit — to its near edge, not through it.
   // Written as `lx1` this ran to the leg's CENTRELINE and overlapped its east
   // half, 0.75 × 1.9 m of two coplanar path surfaces at the same height, in the
@@ -1242,18 +1464,52 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   //
   // A municipal path has an edging strip holding the grass off it, and
   // without one the loop's edges dissolve into the field at any distance.
-  // Same granite as the frontage kerb, laid flat rather than proud.
-  const edgeM = stoneOf(PK_STONE, 2.0, 0.14);        // the path edging
-  const edging = (x0: number, x1: number, z0: number, z1: number) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), 0.07, Math.abs(z1 - z0)), edgeM);
-    m.position.set((x0 + x1) / 2, KERB_H + 0.035, (z0 + z1) / 2);
-    scene.add(m);
+  // Same granite as the frontage kerb.
+  //
+  // ── THIS IS THE GREY X ON THE CORNER ────────────────────────────────────
+  //
+  // It was four straight strips, each drawn the FULL length of its leg
+  // (`lz0…lz1`, `lx0…lx1`) while the legs themselves stopped `CHAM` short of
+  // the turn. So all four ran on past the end of the path they were edging,
+  // straight through the corner and out into the grass beyond it, and the two
+  // pairs crossed each other in the middle of the turn. What the user
+  // photographed and called "so messed up" is literally a grey cross painted
+  // over the corner, and no amount of work on the corner PATCH would have
+  // touched it — the fault was never in the corner, it was in the edging that
+  // did not know the corner existed.
+  //
+  // Now it is two closed rings off the loop's own `ring()`, so it mitres
+  // through every turn by construction and cannot overrun something it is a
+  // constant offset from.
+  //
+  // Two other things came off it in the same pass, both the user's own words:
+  //
+  //   FLAT, NOT PROUD. It stood 70 mm up as a box, which is a ROAD kerb
+  //     profile — a road detail on a park path is exactly the complaint this
+  //     surface has now been rejected twice for. A path edging is a haunched
+  //     strip you walk over without noticing, and this world has a documented
+  //     dislike of lips on paths (see the corners' §6 note above).
+  //   IT GOES THROUGH `wet()`. The path did and the edging did not, so in rain
+  //     the path darkened and the edging stayed put — which is why in the
+  //     user's own dusk frame it reads as near-white rails flanking a dark
+  //     brown path, the "very stark" he reported once already and which the
+  //     palette change only half fixed. The two surfaces now weather together.
+  const EDGE_T = 0.14;                               // how wide the strip reads
+  const edgeM = () => {
+    const m = wet(stoneOf(PK_STONE, 2.0, EDGE_T));
+    m.map!.wrapS = m.map!.wrapT = THREE.RepeatWrapping;
+    m.map!.repeat.set(1, 1);
+    return m;
   };
-  for (const lx of [lx0, lx1]) {
-    for (const d of [-1, 1]) edging(lx + d * PATH_W / 2 - 0.06, lx + d * PATH_W / 2 + 0.06, lz0, lz1);
-  }
-  for (const lz of [lz0, lz1]) {
-    for (const d of [-1, 1]) edging(lx0, lx1, lz + d * PATH_W / 2 - 0.06, lz + d * PATH_W / 2 + 0.06);
+  // A touch of the same wander, so the strip is not one flat grey ribbon for
+  // 70 m either — the reason it read as a drawn line rather than as stone.
+  const edgeTint = (_t: number, s: number): [number, number, number] => {
+    const k = 0.93 + 0.05 * Math.sin(s * 0.23 + 1.1) + 0.03 * Math.sin(s * 0.71);
+    return [k, k, k * 0.98];
+  };
+  for (const s of [-1, 1]) {
+    band([s * (PATH_W / 2 - 0.04), s * (PATH_W / 2 + EDGE_T - 0.04)],
+      KERB_H + LIFT * 1.6, edgeM(), PK_TILE, edgeTint);
   }
 
   // ── ivy on the walls ─────────────────────────────────────────────────────
@@ -1368,35 +1624,55 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   //     view. The memorial gives the near turn a destination; this gives the
   //     deep half one, and it is the thing you walk the loop to reach.
   const hoopM = new THREE.MeshBasicMaterial({ color: 0x3d4239 });
-  const hoop = (x: number, z: number, alongZ: boolean, lean: number) => {
+  /** one hoop, standing across the path's direction, yawed to follow it */
+  const hoop = (x: number, z: number, yaw: number, lean: number) => {
     const w = 0.58, h = 0.29;
+    const g = new THREE.Group();
     for (const d of [-w / 2, w / 2]) {                  // two legs
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? 0.05 : 0.05, h, 0.05), hoopM);
-      leg.position.set(x + (alongZ ? 0 : d), KERB_H + h / 2, z + (alongZ ? d : 0));
-      leg.rotation.x = alongZ ? 0 : lean;
-      leg.rotation.z = alongZ ? lean : 0;
-      scene.add(leg);
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.05), hoopM);
+      leg.position.set(0, h / 2, d);
+      leg.rotation.z = lean;
+      g.add(leg);
     }
-    const top = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? 0.05 : w, 0.05, alongZ ? w : 0.05), hoopM);
-    top.position.set(x, KERB_H + h, z);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, w), hoopM);
+    top.position.set(0, h, 0);
     top.rotation.z = lean;
-    scene.add(top);
+    g.add(top);
+    g.position.set(x, KERB_H, z);
+    g.rotation.y = yaw;
+    scene.add(g);
   };
+  // ── THE HOOPS FOLLOW THE LOOP, INCLUDING ROUND THE TURNS ────────────────
+  //
+  // They used to be four axis-aligned runs at `lz0+1.2 … lz1-1.2`, which meant
+  // that at every corner two runs met at a hard right angle in the grass while
+  // the path beside them chamfered — a square corner drawn next to a mitred
+  // one, in the same frame, at the same distance. It is a smaller part of "this
+  // corner looks messed up" than the grey X, but it is the same fault: a thing
+  // that follows the path was told about the legs and not about the plan.
+  //
+  // 0.72 m apart, not 1.15. THE GREY CHEVRONS THE USER ASKED ABOUT are these:
+  // a run of low iron hoop edging, the municipal thing that keeps feet off the
+  // grass. At 1.15 m centres each hoop stands alone against the turf and reads
+  // as a bracket somebody dropped — which is exactly what was reported, and a
+  // fair reading of it. Closed up, the run reads as one piece of edging.
   const hp = clcg(0x64bb17);
-  for (const [lx, side] of [[lx0, 1], [lx1, -1]] as [number, number][]) {
-    // 0.72 m apart, not 1.15. THE GREY CHEVRONS THE USER ASKED ABOUT are
-    // these: a run of low iron hoop edging, the municipal thing that keeps feet
-    // off the grass. At 1.15 m centres each hoop stands alone against the turf
-    // and reads as a bracket somebody dropped — which is exactly what was
-    // reported, and a fair reading of it. Closed up, the run reads as one piece
-    // of edging, which is what a hoop rail is.
-    for (let z = lz0 + 1.2; z < lz1 - 1.2; z += 0.72) {
-      hoop(lx + side * (PATH_W / 2 + 0.25), z, true, (hp() - 0.5) * 0.22);
-    }
-  }
-  for (const [lz, side] of [[lz0, 1], [lz1, -1]] as [number, number][]) {
-    for (let x = lx0 + 1.2; x < lx1 - 1.2; x += 0.72) {
-      hoop(x, lz + side * (PATH_W / 2 + 0.25), false, (hp() - 0.5) * 0.22);
+  const HOOP_STEP = 0.72;
+  {
+    // THE FIELD SIDE ONLY — a negative offset is inside the loop. The run has
+    // always been the inner one (it is what gives the grass an edge); putting
+    // one outside as well would fence the gate spur off from the circuit.
+    const pts = ringPts(-(PATH_W / 2 + 0.25));
+    let s = 0;                                        // distance still to walk
+    for (let i = 0; i < 8; i++) {
+      const a = pts[i], b = pts[(i + 1) % 8];
+      const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
+      const yaw = Math.atan2(dx, dz);                 // this world's forward is (sin, cos)
+      for (; s < len; s += HOOP_STEP) {
+        const f = s / len;
+        hoop(a[0] + dx * f, a[1] + dz * f, yaw, (hp() - 0.5) * 0.22);
+      }
+      s -= len;                                       // carried to the next edge
     }
   }
 
