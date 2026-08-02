@@ -45,4 +45,13 @@ if (!stamp) {
   process.exit(1);
 }
 const when = new Date(+stamp[2]).toTimeString().slice(0, 5);
-console.log(`packed dist/artifact.html — ${out.length} bytes, build ${stamp[1]} ${when}`);
+// BYTES, not `out.length`. A JS string's length is UTF-16 code units, and this
+// bundle carries enough non-ASCII (em dashes, accents, box-drawing) that the two
+// differ: 1,115,475 vs 1,115,685 on the first build that was measured both ways
+// — a 210-byte undercount reported under the label "bytes". Harmless until
+// somebody compares the printed number against `ls -la` or a published upload to
+// decide whether the artifact they are holding is the one that was packed, which
+// is exactly what the size is for. Derived from the same string that was just
+// written, so it cannot drift from the file.
+const bytes = Buffer.byteLength(out, 'utf8');
+console.log(`packed dist/artifact.html — ${bytes.toLocaleString()} bytes, build ${stamp[1]} ${when}`);
