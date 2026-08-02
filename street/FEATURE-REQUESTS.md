@@ -2560,3 +2560,12 @@ to one side.
 - **"[screenshot] mug looks messed up"** (2026-08-02, the flat 301 windowsill)
   → **routed as queue item 108.** Reads as a white blob on the sill — the handle does not
   separate from the body at player distance, and it sits proud of the sill edge.
+
+- **"doors in apt are flush with wall on every floor except my floor"** (2026-08-02)
+  → **routed as queue item 109.** Correct, and structural: `ct/apartment.ts` special-cases
+  301 throughout — `:249` "DOOR_GAP is the real hole in the west wall that 301's doorway
+  is cut", `:264` "301's doorway only opens on floor 3", `:585` "West wall leaves 301's
+  doorway gap on floor 3". So 301 gets a cut opening with jambs and a reveal (`:506`);
+  the other seven flats get a leaf on an uncut wall. Same shape as the vehicle-collider
+  report (item 87): the thing the player uses got the real treatment and its siblings
+  did not.
