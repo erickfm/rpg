@@ -46,7 +46,15 @@ export function makeCrosstown(): Proto {
   // and springs back out to it, never wider. The range is deliberately
   // modest (24°): "shouldn't be able to zoom too much" is the whole spec, so
   // this errs tight rather than guessing wide and walking it back.
-  const FOV_REST = 88, FOV_MIN = 64, FOV_STEP = 3;
+  //
+  // WALKED BACK, as that comment invited: *"make zoom a little stronger"*
+  // (2026-08-02). FOV_MIN 64 -> 52, so the range goes 24° -> 36°. Still a
+  // one-way pull from the 88° resting look and still springs back to it — the
+  // original spec ("shouldn't be able to zoom too much") is a ceiling on the
+  // range, not on this particular number, and 52° is a normal lens rather than
+  // a telephoto. FOV_STEP stays 3, so the extra range costs four more notches
+  // rather than making each notch coarser.
+  const FOV_REST = 88, FOV_MIN = 52, FOV_STEP = 3;
   let fovTarget = FOV_REST;
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();

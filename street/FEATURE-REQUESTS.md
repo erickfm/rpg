@@ -2631,3 +2631,10 @@ to one side.
   → **routed as queue item 116.** New feature. Ties to the weather work: `stormAt` is
   published on `scene.userData` and item 110 is making drizzle vs downpour distinct, so
   an umbrella has a natural threshold to key off.
+
+- **"make zoom a little stronger"** (2026-08-02) → **done by the desk directly, not
+  queued.** `crosstown.ts:49` `FOV_MIN` 64 → 52, so the pull-in range goes 24° → 36°.
+  The original spec was *"it shouldnt be able to zoom too much though"* and the code
+  comment says it *"errs tight rather than guessing wide and walking it back"* — this is
+  that walk-back, invited by its own author. `FOV_STEP` stays 3, so the extra range is
+  four more notches rather than coarser ones.
