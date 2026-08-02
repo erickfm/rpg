@@ -14,9 +14,18 @@ const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1100, height: 780 } });
 page.on('pageerror', (e) => console.error('PAGEERR', e.message));
 await page.goto(URL, { waitUntil: 'networkidle' });
-await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
-await page.evaluate(() => window.__ct.clock(13, 20));
-await page.waitForTimeout(500);
+await page.waitForFunction(() => window.__ct?.scene !== undefined, { timeout: 20000 });
+// HIS OWN FRAMES WERE DIM AND WET, and that matters here: the path goes
+// through `wet()` and (until this pass) the edging did not, so in rain the path
+// darkened and the edging stayed put. Set SHOT_HOUR/SHOT_WET to stand in the
+// weather he was standing in rather than in the noon that flatters it.
+const HOUR = Number(process.env.SHOT_HOUR ?? 13);
+const WET = Number(process.env.SHOT_WET ?? 0);
+await page.evaluate(([h, w]) => {
+  window.__ct.clock(h, 20);
+  if (w > 0) window.__ct.scene().userData.wetness = w;   // `scene` is a getter FUNCTION on __ct, not the object
+}, [HOUR, WET]);
+await page.waitForTimeout(700);
 
 // the park layout, recomputed from the same constants park.ts uses
 const L = { INSET: 6.0, CHAM: 2.6, PATH_W: 1.5, KERB_W: 0.25,
