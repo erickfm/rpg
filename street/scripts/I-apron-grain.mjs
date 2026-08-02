@@ -29,12 +29,13 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 
 const URL = aim('http://127.0.0.1:4191/');
 const W = 1200, H = 800;
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: W, height: H } });
-await p.goto(URL, { waitUntil: 'networkidle' });
+await goto(p, URL);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
 await p.evaluate(() => window.__ct.clock(13, 0));

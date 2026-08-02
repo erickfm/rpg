@@ -21,6 +21,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errs = [];
@@ -34,7 +35,7 @@ const errs = [];
 const HMR_NOISE = /WebSocket closed without opened/;
 const noise = (m) => process.env.SHOT_WORLD === 'integration' && HMR_NOISE.test(m);
 page.on('pageerror', (e) => { const m = String(e.message); if (!noise(m)) errs.push(m); });
-await page.goto(aim('http://localhost:4177/'), { waitUntil: 'networkidle' });
+await goto(page, aim('http://localhost:4177/'));
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(400);

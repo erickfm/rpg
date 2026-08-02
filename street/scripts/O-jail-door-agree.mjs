@@ -22,12 +22,13 @@
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('aim it: SHOT_URL=http://localhost:PORT/'); process.exit(2); }
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
-await p.goto(URL, { waitUntil: 'networkidle' });
+await goto(p, URL);
 await reportWorld(p, URL);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await afterFrames(p, 10); await p.waitForTimeout(1000);

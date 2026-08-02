@@ -35,6 +35,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 // These MIRROR ct/rng.ts. A copy goes stale silently — move the building line
 // and this keeps scanning the old band, measuring a strip of road and calling
 // it a pavement. confirmBand() below proves them against the world before any
@@ -43,7 +44,7 @@ const ROAD_HALF = 5.0, FACE = 7.0, R = 0.36;
 const b = await chromium.launch();
 const p = await b.newPage();
 const URL = aim('http://localhost:4190/');
-await p.goto(URL, { waitUntil: 'networkidle' });
+await goto(p, URL);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
 

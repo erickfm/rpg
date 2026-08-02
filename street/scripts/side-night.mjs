@@ -3,10 +3,11 @@
 // this is the check that the prediction held.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 import { setClock } from './lib/clock.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
-await p.goto(process.env.SHOT_URL, { waitUntil: 'networkidle' });
+await goto(p, process.env.SHOT_URL);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(p, process.env.SHOT_URL);   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);

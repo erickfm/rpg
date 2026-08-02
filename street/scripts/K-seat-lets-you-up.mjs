@@ -40,6 +40,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 
 const URL = aim('http://localhost:4292/');
 /** measured, not remembered: the world has 225 seats */
@@ -47,7 +48,7 @@ const MIN_SEATS = 50;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1024, height: 640 } });
-await page.goto(URL, { waitUntil: 'networkidle' });
+await goto(page, URL);
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(page, URL);
 
