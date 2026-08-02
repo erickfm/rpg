@@ -1669,3 +1669,37 @@ find the thing in the source. `WELL_IN = 0.66` against a tyre spanning
 lot in one line. `int-hotel.ts` importing the same `VICE_DOOR_X` that `vice.ts`
 places the door from settled twelve rooms at once. **A number in the source beats
 a number from a script**, because the script is a hypothesis about the source.
+
+## 57. A shared queue stops double-CLAIMING, not double-DOING
+
+Two builders fixed the same door on the same night and their branches conflicted
+in `ct/apartment.ts`. The queue worked exactly as designed — one claim each, no
+overlap — and the duplicate happened anyway.
+
+**Because a worktree is a snapshot.** w2 claimed the door, fixed it, released it,
+and its fix went to *its own branch*. w3's worktree had been created before that
+and never saw it. When w3 reached the item it measured the world **it** had,
+found the bug genuinely present, and fixed it again — correctly, on the evidence
+in front of it. Its own report says *"the queue's own 'already fixed' claim was
+false on this checkout"*, which is true and is the whole problem in one line.
+
+So the shared queue solved the coordination it was built for and left this one
+untouched:
+
+| | |
+|---|---|
+| **claim collision** — two builders take one item | solved, by the lock |
+| **stale-tree collision** — two builders fix one bug from different snapshots | NOT solved |
+
+**What the desk must do until this is fixed properly:** merge and push each
+finished item *before* the next builder reaches it, so later worktrees inherit
+it. Long-running builders drift furthest and are the ones who redo work.
+
+**What a builder should do:** before starting an item, `git fetch` and check
+whether the fix is already on `add-stick-and-city98`. Measuring your own
+worktree is not evidence about the project — it is evidence about your snapshot,
+which is the same trap as GOTCHAS 48 (instrument aimed at the wrong world) and
+52 (builder aimed at the wrong tree), arriving a third way.
+
+**Cost when it happened:** two agents' work on one bug, a merge conflict, and the
+desk discarding one of two correct fixes.
