@@ -113,14 +113,29 @@ export const HOOD_TOP = BELT + HOOD_T;
  *
  *  A surface whose reachability turns on the last bit of a double is not a
  *  design, so the roof comes down to sit in the MIDDLE of a frame band instead
- *  of on its edge. The rise is 1.455 - 0.97 = 0.485, needing airY >= 0.405,
- *  which catches f4 f5 f6 AND f7 — four frames, 0.66 m of travel against a
- *  0.36 m requirement. 0.405 sits 0.015 above f3 and 0.015 below f7, so it is
- *  as far from both boundaries as the band allows.
+ *  of on its edge.
+ *
+ *  AND THE GROUND TO CROSS IS NOT RADIUS — IT IS RADIUS PLUS A FRAME. This is
+ *  the part that caught a first attempt at 1.455. `blocked()` refuses the whole
+ *  step, so a player walking into the cab is not left touching the RADIUS pad;
+ *  he is left wherever the last permitted step put him, which is up to one
+ *  frame short of it. Measured in the running world, he is held **0.515 m** off
+ *  the roof face, not 0.36 — so the crossing needs FOUR frames, not three, and
+ *  1.455 (four frames) had a spare of exactly zero all over again.
+ *
+ *  1.415 gives a rise of 0.445, needing airY >= 0.365, which catches f3 f4 f5
+ *  f6 f7 — five frames, 0.825 m of travel. 0.365 sits 0.025 above f8 and 0.025
+ *  below f3, as far from both boundaries as the band allows.
  *
  *  The property that buys is DROPPED-FRAME HEADROOM, and it is the thing worth
- *  protecting here: at four frames the hop still lands if the engine loses one
- *  entirely (3 x 0.165 = 0.495 > 0.36). At three it did not.
+ *  protecting here: five frames cross the 0.515 m standoff with one whole frame
+ *  to spare, so the hop still lands if the engine loses one entirely. At four
+ *  it landed with nothing in hand, and at three it depended on the standoff
+ *  coming out at the lucky end of its range.
+ *
+ *  The cab is 85 mm lower than it shipped. That is a change you can see, and it
+ *  reads BETTER rather than worse: the greenhouse is now 0.575 m from beltline
+ *  to roof, where a real pickup's is 0.55-0.65 — 1.50 was the tall one.
  *
  *  These numbers are copied from fp.ts/main.ts with citations rather than
  *  imported, because `TOP_EPS` (fp.ts:98) and the jump's v0/gravity are module
@@ -130,7 +145,7 @@ export const HOOD_TOP = BELT + HOOD_T;
  *  world, so it fails if the physics moves under this comment. */
 export const PICKUP_CAB = {
   baseY: BELT,        // y0 — the greenhouse's foot, on the beltline
-  roofY: 1.455,       // y1 — the roof plate's top face. NOT a round number: see below
+  roofY: 1.415,       // y1 — the roof plate's top face. NOT a round number: see below
   baseZ0: -1.0,       // zbf — the windscreen's foot
   baseZ1: 0.45,       // zbr — the rear window's foot
   roofZ0: -0.45,      // zrf — the roof plate, front edge
