@@ -29,14 +29,21 @@ export const CAR_SPEC: Record<CarKind, { len: number; wheelZ: number }> = {
  *  `FLOOR_T` in the pickup branch of `makeCar`, which now READ these fields
  *  rather than restate them; `half` mirrors `CAR_SPEC.pickup.len / 2`.
  *
- *  `floorY` (0.50 m) is the one flat surface on the whole fleet UNDER the
- *  jump's own apex (~0.57 m from flat ground — `fp.ts`'s `vy = 4.0` against
- *  14 m/s² of gravity). Every other flat top in the fleet is taller: the
- *  door line (BELT 0.84), the hoods (0.94), the roofs (1.4-1.8). That is why
- *  the bed floor, not the hood or the roof, is the one surface this project
- *  made standable first — the others are real but are not reachable with the
- *  jump as currently tuned, and re-tuning the jump is a separate change this
- *  item does not make (see notes/w13-collider-volume.md). */
+ *  `floorY` (0.50 m) is the one flat surface on the whole fleet a standing
+ *  jump can gain from the street. Every other flat top is taller: the door
+ *  line (BELT 0.84), the hoods (0.94), the roofs (1.4-1.8). That is why the
+ *  bed floor is the surface this project made standable first
+ *  (notes/w13-collider-volume.md).
+ *
+ *  ITEM 1 SAID "UNDER THE JUMP'S OWN APEX (~0.57 m)" HERE, AND THAT IS NOT
+ *  WHY IT WORKS. 0.571 m is the apex of the CONTINUOUS system; measured, the
+ *  world gives 0.471 m at `main.ts`'s dt clamp and 0.538 m at 60 fps
+ *  (scripts/probes/w21-apex.mjs). **0.50 m is ABOVE the worst-case apex**, and
+ *  the hop off the road only lands because `standTop` credits a surface from
+ *  `TOP_EPS` (0.08 m) below it — a 51 mm margin off flat road, 191 mm off the
+ *  kerb. The conclusion survived; the reason did not. Anything picked against
+ *  "0.571" from here on is picked against a number this engine never reaches.
+ *  (w21, item 29.) */
 export const PICKUP_BED = {
   half: CAR_SPEC.pickup.len / 2,   // 2.45 — the mesh's own half-length
   z0: 0.55,                        // BED_Z0 — bed front, behind the cab
@@ -57,10 +64,13 @@ const ROCKER = 0.34, BELT = 0.84;
  *  `BELT + HOOD_T / 2` and its top face is `HOOD_TOP`. */
 const HOOD_T = 0.10;
 /** The top face of the hood — the flat panel over the engine, on every kind.
- *  0.94 m: too high to reach from the pavement (fp.ts's jump apexes at
- *  0.571 m and `standTop` credits a top from 0.08 m below it, so 0.14 + 0.651
- *  = 0.79 m is the whole of a standing player's reach off the kerb), which is
- *  why on the pickup it is only ever met on the way DOWN off the cab roof. */
+ *  0.94 m: too high to reach from the pavement. A hop gains 0.471-0.558 m
+ *  depending on frame time (fp.ts:446's "0.571" is the continuous apex and is
+ *  never reached — see crosstown.ts's item-29 block and
+ *  scripts/probes/w21-apex.mjs) and `standTop` credits a top from 0.08 m
+ *  below it, so 0.14 + 0.551 = 0.69 m is a standing player's guaranteed reach
+ *  off the kerb. Which is why on the pickup this is only ever met on the way
+ *  DOWN off the cab roof. */
 export const HOOD_TOP = BELT + HOOD_T;
 
 /** The pickup's CAB, in the vehicle's own LOCAL frame (front is -z). Same

@@ -682,23 +682,43 @@ export function makeCrosstown(): Proto {
   //
   // Item 1 (notes/w13-collider-volume.md) made the pickup's bed floor
   // standable and stopped there, because 0.50 m is the ONLY flat surface on
-  // the whole fleet under a standing jump: fp.ts's `vy = 4.0` against 14 m/s²
-  // apexes at 0.571 m, and `standTop` credits a top from `TOP_EPS` (0.08 m)
-  // below it, so one hop gains you 0.651 m and no more. A roof at 1.50 m was
-  // therefore left alone — correctly, because a collider nothing can reach is
-  // a collider nobody meets.
+  // the whole fleet a standing jump can gain. A roof at 1.50 m was left alone
+  // — correctly, because a collider nothing can reach is a collider nobody
+  // meets.
+  //
+  // HOW HIGH A HOP ACTUALLY IS, because it is the number every height below
+  // is chosen against and the obvious source for it is WRONG. fp.ts:446's
+  // comment says 0.571 m; that is the apex of the CONTINUOUS system, and the
+  // world never reaches it. `fp.ts:455-456` steps semi-implicit Euler — `vy`
+  // is decremented before the position update — which costs v0·dt/2 of height
+  // every frame, and `main.ts:107` clamps dt at 0.05. So the apex runs from
+  // **0.471 m at the clamp (the worst frame the engine can ever take) to
+  // 0.558 m at 144 fps**, and `standTop` adds `TOP_EPS` (0.08 m) on top of
+  // whichever you get. **Worst-case reach is 0.551 m, not 0.651.** Measured,
+  // not derived: scripts/probes/w21-apex.mjs samples it per animation frame
+  // under CDP CPU throttling and gets 0.475 m at every throttle, which is the
+  // dt clamp holding.
   //
   // The answer is not a bigger jump (that is fp.ts, the 2 m lane, and every
   // tuned spot in scripts/jump-walk.mjs). It is that a pickup ALREADY has a
   // staircase, and it was one box pretending to be a wall:
   //
+  //                        rise   worst-case margin
   //     pavement  0.14 ─┐
-  //     bed floor 0.50  │ PICKUP_BED.floorY   ← item 1 got you this far
-  //     bed rail  0.97  │ PICKUP_BED.railY    ← the step that was missing
-  //     cab roof  1.50  │ PICKUP_CAB.roofY    ← what the user asked for
-  //     hood      0.94  │ HOOD_TOP            ← and the way back down
+  //     bed floor 0.50  │  0.36        +0.191   PICKUP_BED.floorY  (item 1's)
+  //     bed rail  0.97  │  0.47        +0.081   PICKUP_BED.railY   ← the missing step
+  //     cab roof  1.50  │  0.53        +0.021   PICKUP_CAB.roofY   ← what was asked for
+  //     hood      0.94  │  (down)               HOOD_TOP           ← and the way back
   //
-  // Every gap in that column is under 0.651 m, so every step is a real jump
+  // THE ROOF HOP CLEARS BY 21 mm on the engine's worst possible frame, and by
+  // ~88 mm for a 60 fps player. It is the tightest thing in this file and the
+  // first thing that breaks if anyone retunes `vy`, gravity or `TOP_EPS` —
+  // scripts/w21-roof-climb.mjs is what will catch that. There is no
+  // intermediate surface between the rail and the roof to spend the slack on;
+  // the truck simply has nothing there.
+  //
+  // Every gap in that column is under the 0.551 m worst case, so every step
+  // is a real jump
   // from a real surface. Nothing here changes movement: the tops are opt-in
   // `maxY` values on boxes that already existed, and the union of their
   // FOOTPRINTS is exactly the footprint the truck had before — so the lane

@@ -15,8 +15,13 @@ const p = await b.newPage({ viewport: { width: 800, height: 600 } });
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4188/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 
-// fp.ts: vy = 4.0 against 14 m/s^2 of gravity, and standTop's TOP_EPS = 0.08
-const APEX = 4.0 * 4.0 / (2 * 14), EPS = 0.08, REACH = APEX + EPS;
+// THE WORST-CASE APEX, not fp.ts:446's 0.571 — that is the continuous figure
+// and the world never reaches it. fp.ts:455-456 is semi-implicit Euler (`vy`
+// decremented before the position update), which loses v0·dt/2 per frame, and
+// main.ts:107 clamps dt at 0.05. Measured at 0.475 by
+// scripts/probes/w21-apex.mjs; 0.471 is the analytic value at that clamp and
+// is the floor no frame can fall below. TOP_EPS is fp.ts:52.
+const APEX = 4.0 * 4.0 / (2 * 14) - 4.0 * 0.05 / 2, EPS = 0.08, REACH = APEX + EPS;
 const KERB = await p.evaluate(() => window.__ct.groundAt(-6.0, -20.0));
 console.log(`one hop gains ${REACH.toFixed(3)} m (apex ${APEX.toFixed(3)} + TOP_EPS ${EPS}); pavement is ${KERB.toFixed(2)}`);
 
@@ -40,12 +45,6 @@ for (const kind of ['sedan', 'hatch', 'pickup', 'van']) {
   const flats = [...new Map(tops.filter((t) => t.w >= 0.5 && t.d >= 0.5)
     .map((t) => [t.y, t])).values()].sort((a, c) => a.y - c.y);
   console.log(`\n${kind}:`);
-  let at = KERB, step = 0;
-  const line = [];
-  for (const f of flats) {
-    if (f.y <= at + 1e-6) continue;
-    if (f.y <= at + REACH) { line.push(`${f.y.toFixed(2)} (${f.w}x${f.d})`); at = f.y; step++; }
-  }
   const highest = flats.length ? flats[flats.length - 1].y : 0;
   console.log(`  flat tops: ${flats.map((f) => f.y.toFixed(2)).join(', ')}`);
   // and everything else, narrow surfaces included — a tyre is only 0.24 m
@@ -54,10 +53,18 @@ for (const kind of ['sedan', 'hatch', 'pickup', 'van']) {
   const all = [...new Map(tops.map((t) => [t.y, t])).values()].sort((a, c) => a.y - c.y)
     .filter((t) => t.y > KERB && t.y < 1.0);
   console.log(`  every top under 1.0 m: ${all.map((t) => `${t.y.toFixed(2)}(${t.w}x${t.d})`).join(' ')}`);
-  console.log(`  climbable from the pavement in ${step} hop(s): ${line.join(' -> ') || 'nothing'}`);
-  if (at < highest) {
-    console.log(`  STUCK at ${at.toFixed(2)}; the highest surface is ${highest.toFixed(2)}, `
-      + `so it needs a step at ${(at + 0.01).toFixed(2)}..${(at + REACH).toFixed(2)} that it does not have`);
+  // THE ONE QUESTION THAT DECIDES IT: is there anything at all you can get
+  // onto from the pavement? A greedy chain over these panels lies, because
+  // the 0.84 beltline is under the bonnet and the glass and nobody can stand
+  // on it; what the route needs is a FIRST step, and after that the truck's
+  // own column shows the rest is easy. The proven route is a walk, not this:
+  // scripts/w21-roof-climb.mjs.
+  const first = all.filter((t) => t.y <= KERB + REACH && t.y > KERB + 0.15);
+  if (!first.length) {
+    console.log(`  NO FIRST STEP: nothing between ${(KERB + 0.15).toFixed(2)} and ${(KERB + REACH).toFixed(2)}, `
+      + `so the ${highest.toFixed(2)} roof cannot be started from the pavement at all`);
+  } else {
+    console.log(`  first step available: ${first.map((t) => `${t.y.toFixed(2)} (${t.w}x${t.d}, margin ${(KERB + REACH - t.y).toFixed(3)})`).join(', ')}`);
   }
 }
 await b.close();
