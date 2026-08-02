@@ -748,6 +748,59 @@ export function register(ctx: CtxBuild): void {
   // reopening the walkability bug this file exists to fix.
   ctx.obstacle({ minX: FENCE_X - 0.1, maxX: FENCE_X + 0.1, minZ: Z_S, maxZ: Z_N });
 
+  // ── THE FLANK SCREENS — closing the gap the walkability fix opened ──────
+  //
+  // URGENT, queue item 0: *"the jail has empty gaps around it."* The desk
+  // approved shortening `JAIL.DEPTH` from 12 to 4 this morning to free up a
+  // real, walkable yard, and verified it from exactly one angle — head-on,
+  // dead centre of the side street, the one view where the facade hides its
+  // own flanks. From any oblique one, measured here with
+  // `scripts/w2-jail-look.mjs along-south-flank`: the building's own
+  // north/south end walls are only `DEP` (4 m) deep, so past them is 9.65 m
+  // of open yard and then a 2.4 m fence — nothing between that and the sky
+  // for the 13.6 m of height the building itself stands. You are not
+  // looking at a building with a yard behind it; you are looking at a thin
+  // slab standing in an empty lot.
+  //
+  // NOT `DEPTH` BACK TO 12 — the desk's own ruling is explicit that this
+  // would reopen the unwalkable-mass fault `notes/O-jail-site-walkable.md`
+  // exists to fix, and the yard is real ground the user can now reach.
+  // Instead, a screen along each flank line, from the back of the real
+  // building (`BX`) to the fence (`FENCE_X`) it already stops at, wearing
+  // the SAME stone-then-brick profile the building itself does — freshly
+  // sized to its own 9.65 m run rather than the building's 4 m textures
+  // stretched over it, which is what `stoneFlank`/`upperTex` above are
+  // already sized for and exactly why they are not reused here.
+  //
+  // THIN AND AT THE PROPERTY LINE — 0.2 m, standing where the yard's own
+  // floor plane already ends (`Z_S`/`Z_N`), same move `FENCE_X`'s collider
+  // above made for the back edge. It costs the yard's walkable WIDTH
+  // nothing: the floor was never wider than `Z_S…Z_N` to begin with, so
+  // this draws a wall where an invisible edge already stood rather than
+  // narrowing anything a player could reach. `ctx.obstacle` below matches
+  // the same "thin, at the edge" shape as the fence's own.
+  //
+  // It also happens to be the right building for the idea rather than a
+  // patch bolted on: a real House of Detention's exercise yard is WALLED,
+  // not open to the next lot. This was never only a gap to close.
+  const SCR_T = 0.2;
+  const SCR_LEN = FENCE_X - BX;
+  const scrCx = BX + SCR_LEN / 2;
+  const scrBase = flat(stoneTex(SCR_LEN, JAIL.BASE_H, 0));
+  const scrUpper = flat(upperTex(SCR_LEN, JAIL.UPPER_H, UY, false));
+  const scrCap = flat(stoneTex(SCR_LEN, JAIL.CORNICE_H + JAIL.PARAPET_H, CY));
+  for (const zLine of [Z_S + SCR_T / 2, Z_N - SCR_T / 2]) {
+    shell(SCR_LEN, JAIL.BASE_H, SCR_T, scrCx, JAIL.BASE_H / 2, zLine, scrBase, scrBase);
+    shell(SCR_LEN, JAIL.UPPER_H, SCR_T, scrCx, UY + JAIL.UPPER_H / 2, zLine, scrUpper, scrUpper);
+    // one plain stone cap rather than repeating the building's own
+    // cornice-then-parapet break — a perimeter wall reads as a wall precisely
+    // by NOT being as ornamented as the building it enclosures, the same
+    // distinction a real yard wall keeps from the elevation behind it.
+    shell(SCR_LEN, JAIL.CORNICE_H + JAIL.PARAPET_H, SCR_T, scrCx,
+      CY + (JAIL.CORNICE_H + JAIL.PARAPET_H) / 2, zLine, scrCap, scrCap);
+    ctx.obstacle({ minX: BX, maxX: FENCE_X, minZ: zLine - SCR_T / 2, maxZ: zLine + SCR_T / 2 });
+  }
+
   // ── collision, registered by the module that draws the building ─────────
   //
   // The desk's ruling: `crosstown.ts:491` held a hand-written collider standing
