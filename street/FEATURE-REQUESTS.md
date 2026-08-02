@@ -2055,3 +2055,34 @@ they do not give the object any depth** — that is the gap the user is seeing.
 A real pole sign is a **cabinet** — a box with returns down its edges, deep
 enough to house the lamps that light it. That is the shape to build, keeping the
 two artwork faces exactly as they are so nothing mirrors.
+
+
+## Pews run up to the altar, and the church's doors disagree
+
+> *"why are there pews where the alter is?"*
+
+**Measured — it is 42 centimetres.** In `ct/int-church.ts`:
+
+- the altar sits at `z = -hd + 2.4` and is 0.75 m deep (line 299/309), so its
+  back edge is at `-hd + 2.775`;
+- the first pew row is laid at `z = -hd + 3.2` (line 192).
+
+**Clearance: 0.425 m.** A church has a *chancel* — several metres of clear floor
+in front of the altar, usually raised a step and often railed, because that is
+where the service actually happens. Here the congregation's front row is close
+enough to rest a hymnbook on the communion table.
+
+The code comment even says the rows are *"laid from the ALTAR end"* — so the
+start offset is doing double duty as both "where pews begin" and "how much
+sanctuary there is", and 3.2 m from the wall was chosen for the wall, not for
+the altar.
+
+> *"inner door of the church does not match outer doors"*
+
+**Same fault he caught on the bank**, and the church is on the known list: the
+twelve-room survey found it mismatched on **leaf count (2 outside vs 1 inside),
+glazing (none vs glazed) and hardware**. It is one of the six rooms whose cause
+is shared — `ct/interior.ts`'s default door leaf ignoring a room's declared
+`leaves`/`frame`/`glazing` — and **a fix for exactly that is sitting in a
+worker's branch right now, unverified.** So this may already be answered; the
+desk verifies before queueing a duplicate.
