@@ -1867,3 +1867,28 @@ opts in, or the whole world silently becomes climbable.
 so for the first time this is verifiable by looking rather than by walking into
 things. It has already earned this — it is how the user found the car-lot
 collider gap.
+
+
+## The library is cramped
+
+> *"things feel cramped in the library. spread things out."*
+> (screenshot with the **V** collision overlay on)
+
+**He diagnosed it with the tool that shipped this morning, and the tool agrees
+with him.** The overlay draws a collider **red** when `ct/gap.ts`'s own
+`trapAgainst()` finds a corridor under 0.95 m against a neighbour — and the
+left half of the library reads almost entirely red: the returns desk, the end
+stack and the wall shelving are all inside sub-0.95 m of each other.
+
+Note what that means: this is not only a *feel* complaint. **0.95 m is the
+project's own trap threshold** — the number `ct/gap.ts` exists to keep the
+parked-car draw away from, because a corridor that narrow is one a player can
+enter and not leave. The library is full of them.
+
+This is the third time the library has come back — *"library interior is better
+but still jank"*, *"make the library interior larger and more ambitious"* — and
+the first time there is a measurement behind the word *cramped* instead of an
+argument about taste.
+
+The fix is spacing, not deletion: he has asked for the library to be **more**
+ambitious, never smaller.
