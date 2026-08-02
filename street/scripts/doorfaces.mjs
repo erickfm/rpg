@@ -11,7 +11,7 @@
 // and wrong from inside: the numbered material is stamped `userData.plate`,
 // and the check computes which way that face's normal points at the SHUT
 // angle and compares it with the side the hall is actually on.
-import { chromium } from '/home/erick/projects/rpg-entrance/street/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const HALL_X0 = 200, HALL_X1 = 202.4;                 // the landing, in world x

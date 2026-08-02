@@ -16,7 +16,7 @@
 // under the conditions that used to decide it: whatever he is looking at,
 // wherever the nearest spot is, and on a seat whose own sit spot is
 // co-located with its stand spot.
-import { chromium } from '/home/erick/projects/rpg-entrance/street/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const b = await chromium.launch();

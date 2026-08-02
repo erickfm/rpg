@@ -18,7 +18,7 @@
 // So this tests from ABOVE as well as below, and from several places, because
 // a respawn that only fires when you fall through the floor is the half that
 // already worked.
-import { chromium } from '/home/erick/projects/rpg-entrance/street/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const b = await chromium.launch();

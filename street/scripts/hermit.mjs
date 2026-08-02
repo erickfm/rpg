@@ -10,7 +10,7 @@
 //
 // The world publishes `scene.userData.hermit` = {phase, x, door, visible};
 // nothing here infers the state from a sprite position.
-import { chromium } from '/home/erick/projects/rpg-entrance/street/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const X_IN = 2.52, X_OUT = 1.95, D_SHUT = Math.PI / 2, D_OPEN = Math.PI - 0.28;

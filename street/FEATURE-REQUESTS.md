@@ -1776,3 +1776,37 @@ NOT pass that test (GOTCHAS §2/§31: it was quietly burning `Math.random` draws
 off the shared seeded stream on every load, whether the key was ever pressed or
 not), which is worth remembering next time a debug tool feels free because
 nothing is added to the scene. Full writeup: `notes/debug-collision.md`.
+
+
+## The bank's outer door and its inner door are different doors
+
+> *"door of the bank doesnt match the inner door of the bank"*
+
+**He named the room, and the room proved the measurement wrong.** The desk had
+closed *"make the exteriors match the interiors"* the same day at **12 of 12
+match**, with a standing invitation on the status board: *"if you still see a
+mismatch, name one room — it'll mean I'm measuring the wrong thing."*
+
+He did, and it does. Photographed both faces of the one door:
+
+| | |
+|---|---|
+| **outside** (`shots/bank-door-out.png`) | a grand **double** door — two dark glass leaves in a **brass** frame, brass vertical push-bars, grey stone surround under FIRST FEDERAL |
+| **inside** (`shots/bank-door-in.png`) | a **single brown wooden** door with a small round **knob** and a plain glass upper panel |
+
+Different leaf count, different material, different hardware. Walk through it
+and the door changes behind you.
+
+**Why the audit missed it, stated plainly: it measured the wrong axis.** Every
+check on this request — `doorside2.mjs`, `doormatch12.mjs`, the twelve-room
+table — asks *which SIDE of the frontage the door sits on*, because GOTCHAS 45
+told us it did: *"'match the exterior' means WHICH SIDE THE DOOR IS ON, not
+dimensions"*, after over-enforcing width cost three rooms their depth.
+
+That reading was right about **dimensions** and wrong to stop there. The user
+has never once complained about a door being on the wrong side. What he
+notices — five times now — is that **the door does not look like the same
+object from both faces**. GOTCHAS 45 needs a second clause.
+
+Routed with the whole class in view, not just the bank: the same question must
+be asked of all twelve rooms, since nothing has ever checked it.

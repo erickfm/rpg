@@ -10,7 +10,7 @@
 // rather than eyeballing one landing.
 //
 // The world publishes `scene.userData.packages`; nothing here infers state.
-import { chromium } from '/home/erick/projects/rpg-entrance/street/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const PKG_D = 0.34, ST = 2.7;
@@ -125,7 +125,12 @@ const wallet = async () => {
 let walletBefore = '', walletAfter = '';
 if (pr) {
   walletBefore = await wallet();
-  await p.keyboard.press('KeyE');
+  // HELD 90 ms, not an instant press. `p.keyboard.press()` can complete its
+  // whole down+up inside one animation frame, and crosstown's E dispatch is an
+  // edge read ONCE PER RENDERED FRAME — so the tap is simply never observed and
+  // this check reported a working steal as three failures. Same duration the
+  // project's own calibrated helper in scripts/interiors-walk.mjs uses.
+  await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e');
   await p.waitForTimeout(600);
   const gone = (await list()).find((q) => q.num === g.num);
   rep('taking it removes it from the landing', !gone.present, `${g.num} present=${gone.present}`);
