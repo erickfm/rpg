@@ -280,6 +280,37 @@ const prompt = () => p.evaluate(() => {
 const warp = (x, z, yaw, gy) => p.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const press = async () => { await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e'); await p.waitForTimeout(260); };
 const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(120); };
+// Hold a key until the WORLD says to stop, with wall-clock only as a cap.
+//
+// A fixed `hold('w', ms)` does not walk a DISTANCE, it walks however far the
+// frame budget got through in that many milliseconds — and this suite's §5 leg
+// starts 0.9 m from a door whose way-out spot has r = 1.4 (ct/interior.ts:1255).
+// Measured on the bodega with scripts/probes/w30-iw-wayout-flake.mjs: the same
+// `hold('w', 2600)` travelled 0.79 m on one run and 1.79 m on another, and the
+// long ones walk straight out of the far side of the trigger, so the prompt is
+// gone by the time it is read. 3 failures in 10 at CPU x1.
+//
+// NOTE THE SIGN, because it is the opposite of the other fixed-wait bug this
+// project has fixed: item 50's `jump-walk.mjs` was TRUNCATED by a slow frame.
+// This one OVERSHOOTS on a fast one — under CPU throttle x8 it passed 10/10,
+// because throttling makes the player travel less. Throttling is not a
+// worst case for a wall-clock wait; it is just a different case.
+//
+// So: settle on the condition the check is about. The cap is still wall-clock
+// because something has to bound a walk that never arrives — but the cap is an
+// upper bound on patience, not the measurement.
+const holdUntil = async (k, ready, capMs) => {
+  await p.keyboard.down(k);
+  const t0 = Date.now();
+  let hit = false;
+  while (Date.now() - t0 < capMs) {
+    await p.waitForTimeout(80);
+    if (await ready()) { hit = true; break; }
+  }
+  await p.keyboard.up(k);
+  await p.waitForTimeout(120);
+  return hit;
+};
 
 const results = [];
 let room = null;
@@ -798,7 +829,13 @@ for (room of rooms) {
     cut ? built.cz + DOOR.z + DOOR.nz * 0.9 : (doorLane ? doorLane[1] : lane.z),
       approachHeading(DOOR), 0);   // see the banner: never retype this
   await p.waitForTimeout(150);
-  await hold('w', 2600);
+  // Walk at the door until the way-out prompt is ACTUALLY up, not for 2600 ms
+  // and a hope — see `holdUntil`. This does not weaken the assertion: the check
+  // below still reads the live prompt and still fails if it never appeared. It
+  // only stops the walk from carrying the player back out of the trigger it
+  // just entered, which is what made this and the five checks after it fail as
+  // a block, one run in four.
+  await holdUntil('w', async () => /out to the street/.test((await prompt()) ?? ''), 2600);
   const dPrompt = await prompt();
   check('walking to the inside of the door raises the way-out prompt',
     /out to the street/.test(dPrompt ?? ''), `prompt=${JSON.stringify(dPrompt)}`);
