@@ -1228,10 +1228,16 @@ export function register(ctx: CtxBuild): void {
     CHIP = slots.CREDIT;
     setChipValue(CHIP);          // one rate, and the felt reads the same one
     panel = makePanel({
+      // FRAMELESS. `paintTable` already paints a complete table — rail, felt,
+      // and its own `BLACKJACK PAYS 3 TO 2` legend (line 1024) — filling the
+      // whole FELT.w×FELT.h canvas. The framework's moulded 'machine' bezel
+      // used to wrap a SECOND rail around that picture of a first one and
+      // stamp the game's name a second time in its title bar. Item 0c,
+      // *"i never want there to be menus popping up unless they are embedded
+      // to look as if they are in the actual game."*
       id: 'ct-blackjack',
       w: FELT.w, h: FELT.h, scale: 2,
-      chrome: 'machine',
-      title: 'BLACKJACK',
+      chrome: 'none',
       hint: () => (table.view().phase === 'betting'
         ? (ctx.purse.cash < CHIP
           ? 'SPACE deal · +/- bet · C cash out'          // no I: nothing to buy in with

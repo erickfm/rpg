@@ -367,11 +367,18 @@ export function register(ctx: CtxBuild): void {
   if (ctx.purse.card === undefined) ctx.purse.card = true;
 
   panel = makePanel({
-    id: 'ct-atm', w: W, h: H, scale: 2, chrome: 'machine',
-    // The one caller of `caseTint`: this cabinet exists twice, on the bank
-    // facade and in here, and it has to be the same charcoal both times.
-    caseTint: { body: CAB_BODY, hi: CAB_BODY_HI, lo: CAB_BODY_LO, edge: CAB_BODY_EDGE },
-    title: 'FIRST FEDERAL SAVINGS',
+    // FRAMELESS. `drawScreen` already paints a complete fascia — the two
+    // button columns, the CRT in its own bezel and recess, the card slot and
+    // cash mouth — filling the whole W×H canvas edge to edge, `FIRST FEDERAL`
+    // printed on the tube itself (line 240 below). The framework's moulded
+    // 'machine' chrome drew a SECOND cabinet around that picture of a first
+    // one, stamping the bank's name a second time in its title bar: two
+    // machines, two labels, for a screen that already carries both. Item 0c,
+    // *"i never want there to be menus popping up unless they are embedded to
+    // look as if they are in the actual game"* — `caseTint` above used to
+    // exist so this second cabinet matched the real one on the bank facade;
+    // with no second cabinet there is nothing left to match.
+    id: 'ct-atm', w: W, h: H, scale: 2, chrome: 'none',
     hint: () => (screen === 'pin' ? 'digits, then ENTER' : 'press the numbered buttons'),
     draw: (g) => drawScreen(g),
     key: (k) => onKey(k),

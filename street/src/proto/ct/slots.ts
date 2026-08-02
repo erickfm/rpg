@@ -1343,14 +1343,18 @@ export function register(ctx: CtxBuild): void {
 
   void import('./hud').then(({ makePanel }) => {
   panel = makePanel({
+    // FRAMELESS. `paintMachine` already draws a complete cabinet — case,
+    // topper marquee with its own chasing bulbs, pay table, reels, meters and
+    // button deck — filling the whole FACE.w×FACE.h canvas. The framework's
+    // moulded 'machine' bezel used to wrap a SECOND cabinet around that
+    // picture of a first one, plus a title stamp on top of it — which is
+    // exactly the *"i never want there to be menus popping up unless they are
+    // embedded"* law item 0c names. `LOOSEST SLOTS` is real signage
+    // (`ct/vice.ts` paints it on the facade); it was never missing from the
+    // world, only doubled onto this screen's own frame.
     id: 'ct-slots',
     w: FACE.w, h: FACE.h, scale: 2,
-    chrome: 'machine',
-    // The building's OTHER line, not 'SEVENS' — the face below already carries
-    // SEVENS on its own topper with the bulbs chasing round it, and stamping it
-    // into the bezel as well would say it twice on one machine. Both strings are
-    // the facade's; `ct/vice.ts` paints SEVENS and LOOSEST SLOTS on the front.
-    title: 'LOOSEST SLOTS',
+    chrome: 'none',
     hint: () => (machine.settled()
       ? (ctx.purse.cash < CREDIT
         ? 'SPACE spin · B bet · M max · C cash out'      // no I: there is nothing to insert

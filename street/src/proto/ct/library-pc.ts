@@ -403,8 +403,16 @@ export function register(ctx: CtxBuild): void {
   // script should be able to import directly without dragging a browser in.
   void import('./hud').then(({ makePanel }) => {
     panel = makePanel({
-      id: 'ct-library-pc', w: W, h: H, scale: 2, chrome: 'machine',
-      title: 'LIBRARY TERMINAL',
+      // FRAMELESS. `draw` already paints a complete monitor — the '95 teal
+      // desktop with its own scanlines, icons and taskbar (`drawDesktop`),
+      // or the catalog / Minesweeper screens it swaps to — filling the whole
+      // W×H canvas. The framework's moulded 'machine' bezel used to wrap a
+      // SECOND monitor around that picture of a first one, with a
+      // `LIBRARY TERMINAL` title stamped over it that no real '95 desktop
+      // would print on itself. Item 0c, *"i never want there to be menus
+      // popping up unless they are embedded to look as if they are in the
+      // actual game."*
+      id: 'ct-library-pc', w: W, h: H, scale: 2, chrome: 'none',
       hint: () => (screen === 'desktop'
         ? 'arrows select · ENTER open · ESC step back'
         : 'TAB desktop · ESC step back'),
