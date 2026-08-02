@@ -395,6 +395,85 @@ async function walk(keys, target) {
   // The single definition of the face frame, applied to the raw track.
   return { ...r, track: r.track.map(({ x, z }) => ({ x, z, a: along(x, z), s: perp(x, z) })) };
 }
+// ── A LEG A PASSER-BY BLOCKED IS NOT A VERDICT ABOUT THE WALL ─────────────
+//
+// THE RESIDUAL FLAKE IN THIS FILE, FOUND AND NAMED 2026-08-02 (w38, item 78).
+// 4a failed 3 times in 34 runs on a clean tree with no throttle, and the cause
+// is not the chamfer and not the frame rate — which is why the throttle
+// experiment came back negative and should not be run again.
+//
+// The heading here is yaw pi/4, EXACTLY parallel to the 45-degree cut:
+// fwd = (+1,-1)/sqrt2, so d(x+z) = 0 and a healthy leg holds `perp` dead flat
+// at 0.800 the whole way along the face. On a failing leg it does not — it
+// collapses 0.800 -> 0.596 -> 0.387 and the player wedges. `perp` can only fall
+// if the -z step is refused while the +x step is allowed (fp.ts tests the axes
+// separately), which drives x+z up toward the wall.
+//
+// So the question was never "is the chamfer built wrong" — 2a measures the
+// surface flat to 0.0 mm on the very same runs — but WHAT REFUSED THE -Z STEP,
+// given nothing static sits south of the player there. Measured, by dumping
+// every collider within 1.2 m of the stall and re-reading them a second later:
+//
+//     x 8.018..8.518  z -97.250..-96.750  rot 0  MOVING (an actor)
+//
+// A 0.5 x 0.5 m box due south of the player: a CITIZEN. crosstown.ts spreads
+// citizen and vehicle boxes into the same `colliders()` array the wall lives in,
+// so a pedestrian crossing the corner refuses the -z step exactly like masonry,
+// and this leg then reports "the chamfer did not let me past". You cannot walk
+// through people; that is the world working. The instrument was blaming the wall
+// for it.
+//
+// THIS DISCRIMINATES, IT DOES NOT LOOSEN — the distinction BUILDER-BRIEF §7
+// turns on. A stall is still a failure. It is only set aside when the thing
+// beside the player is demonstrably an ACTOR, proved by its footprint changing
+// over the following second, and a stall against anything static fails exactly
+// as before. Proved both ways: with a static blocker planted in the walk line
+// this still goes red, and it does not retry its way out of it.
+const NEAR_R = 0.75;
+const colliderKey = (c) => `${c.minX} ${c.maxX} ${c.minZ} ${c.maxZ} ${c.rot ?? 0}`;
+const nearBoxes = (x, z) => p.evaluate(([px, pz, R, ks]) => {
+  const kf = eval(`(${ks})`);
+  return window.__ct.colliders().filter((c) => {
+    const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+    const rx = (c.maxX - c.minX) / 2 + (c.maxZ - c.minZ) / 2 + R;
+    return Math.abs(cx - px) < rx && Math.abs(cz - pz) < rx;
+  }).map((c) => ({ k: kf(c), minX: c.minX, maxX: c.maxX, minZ: c.minZ, maxZ: c.maxZ }));
+}, [x, z, NEAR_R, colliderKey.toString()]);
+
+/** Colliders beside (x,z) whose footprint does NOT survive the next second —
+ *  i.e. the moving ones. A wall cannot pass this test; a citizen or a vehicle
+ *  does. */
+async function actorsBeside(x, z) {
+  const before = await nearBoxes(x, z);
+  await p.waitForTimeout(1000);
+  const after = new Set((await nearBoxes(x, z)).map((c) => c.k));
+  return before.filter((c) => !after.has(c.k));
+}
+
+/** Run one leg, and re-run it if a passer-by ended it. Returns the last run,
+ *  plus how many attempts an actor cost. */
+async function legFrom(from, yaw, keys, target, label, tries = 3) {
+  let run, voided = 0;
+  for (let t = 1; t <= tries; t++) {
+    await warp(from.x, from.z, yaw);
+    await p.waitForTimeout(300);
+    run = await walk(keys, target);
+    if (run.why !== 'stalled') return { run, voided };
+    const e = run.track[run.track.length - 1];
+    const movers = await actorsBeside(e.x, e.z);
+    if (!movers.length) return { run, voided };      // static wedge — a real fail
+    voided++;
+    console.log(`   ${label}: leg VOID — stalled at along ${along(e.x, e.z).toFixed(2)} beside ` +
+      `${movers.length} MOVING collider(s), an actor and not the wall:`);
+    for (const m of movers) {
+      console.log(`      x ${m.minX.toFixed(3)}..${m.maxX.toFixed(3)}  z ${m.minZ.toFixed(3)}..${m.maxZ.toFixed(3)}` +
+        `  (${(m.maxX - m.minX).toFixed(2)} x ${(m.maxZ - m.minZ).toFixed(2)} m)`);
+    }
+    console.log(`   retrying (attempt ${t + 1} of ${tries})`);
+  }
+  return { run, voided };
+}
+
 // Walk until half a metre PAST the far end, so "cleared" is unambiguous and the
 // verdict below still has headroom rather than tripping on the exact sample
 // that crossed the line.
@@ -411,9 +490,8 @@ const stalls = (tr) => {
 // ── 4a. cut the corner ─────────────────────────────────────────────────────
 console.log('\n── 4a. walk the diagonal: cut the corner south-east past the bay ──');
 const YAW = Math.PI / 4;    // fwd = (+1, -1)/sqrt2, the a -> b tangent
-await warp(A.x - 1.1, A.z + 1.3, YAW);
-await p.waitForTimeout(300);
-const run1 = await walk(['w'], walkTarget());
+const leg1r = await legFrom({ x: A.x - 1.1, z: A.z + 1.3 }, YAW, ['w'], walkTarget(), '4a');
+const run1 = leg1r.run;
 const leg1 = run1.track;
 const e1 = leg1[leg1.length - 1];
 for (const r of thin(leg1)) console.log(`      x ${r.x.toFixed(3)}  z ${r.z.toFixed(3)}  along ${r.a.toFixed(3)}  perp ${r.s.toFixed(3)}`);
@@ -438,12 +516,12 @@ else fail(`did NOT clear the corner — stopped ${e1.a.toFixed(2)} m along a ${F
 // `right` sum to due EAST, so W+D is a push into the wall, not a hug, and the
 // first draft of this probe measured a stall that was entirely its own doing.
 console.log('\n── 4b. walk the diagonal: hug the face, aimed 20 degrees into it ──');
-await warp(A.x - 0.75, A.z - 0.75, YAW + 0.35);
-await p.waitForTimeout(300);
 // Same world-state ending as 4a, and for the same reason: this leg's own
 // verdict below is "did hugging the face still carry you off the end", which a
 // fixed 2600 ms window answers with the frame rate rather than with the wall.
-const run2 = await walk(['w'], walkTarget());
+// Same actor discrimination too — a citizen blocks this leg just as readily.
+const leg2r = await legFrom({ x: A.x - 0.75, z: A.z - 0.75 }, YAW + 0.35, ['w'], walkTarget(), '4b');
+const run2 = leg2r.run;
 const leg2 = run2.track;
 console.log(`   leg ended: ${run2.why} after ${run2.frames} rendered frames (budget ${WALK_FRAME_BUDGET})`);
 const on = leg2.filter((r) => r.a > 0.2 && r.a < FW - 0.2 && r.s < 0.75);
