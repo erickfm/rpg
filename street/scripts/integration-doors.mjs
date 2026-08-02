@@ -117,6 +117,23 @@ for (const l of out) console.log(l);
 // name the world it actually measured — "the MERGED world" was printed
 // unconditionally, which is a lie the moment SHOT_URL points somewhere else
 const WHERE = process.env.SHOT_URL ? process.env.SHOT_URL : 'the MERGED world on :5177';
+const shut = out.filter((l) => l.startsWith('FAIL')).length;
 console.log(`\n${out.filter((l) => l.startsWith(' ok')).length}/${out.length} doors let you in — ${WHERE}`);
 if (errs.length) console.log('page errors: ' + errs.slice(0, 3).join(' | '));
 await b.close();
+// ── AND SAY SO IN THE EXIT CODE ──────────────────────────────────────────
+//
+// THIS PRINTED `FAIL  JAIL: ...` AND EXITED 0. The only `process.exit(1)` in
+// the file guards the "no declared doors" case above — the verdict itself, the
+// thing the check exists to decide, had no exit path at all. So a door that
+// refused to let you in scored the check GREEN in `npm run checks`, and the
+// more doors that broke the quieter it got: exactly the shape the guard 25
+// lines up was written to prevent, in the same file that prevents it.
+//
+// Printing is not failing. Same family as scripts/health.mjs (queue item 61),
+// scripts/bugsweep.mjs (item 62) and scripts/w21-roof-climb.mjs, all three of
+// which shipped this and were fixed one at a time.
+//
+// `errs` counts too, matching scripts/unstick-walk.mjs:150 — a room you can
+// only enter by throwing a page error is not a room that lets you in.
+process.exit(shut || errs.length ? 1 : 0);

@@ -40,3 +40,20 @@ console.log(`\ntotal direction reversals across all walkers: ${tot}`);
 console.log(tot===0 ? 'no walker reversed direction while moving — no back-and-forth'
   : `**${tot} reversals — back-and-forth is present`);
 await b.close();
+// ── AND SAY SO IN THE EXIT CODE ──────────────────────────────────────────
+//
+// THIS PRINTED `**N reversals — back-and-forth is present` AND EXITED 0.
+// The user's report is the first line of this file — *"this red guy glitches
+// back and forth as he walks sometimes idk why"* — and the check written to
+// catch it scored GREEN in `npm run checks` no matter how many reversals it
+// counted. The only exit in the file was the `exit(3)` for "no walkers
+// sampled", so the one path that could never happen was guarded and the
+// verdict was not.
+//
+// Printing is not failing. Same family as scripts/health.mjs (queue item 61),
+// scripts/bugsweep.mjs (item 62) and scripts/w21-roof-climb.mjs.
+//
+// 3 is kept for "could not answer" (above) and 1 means measured-and-wrong, so
+// a builder who forgot to start a preview is still distinguishable from a
+// world that really does jitter.
+process.exit(tot===0 ? 0 : 1);
