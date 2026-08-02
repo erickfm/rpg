@@ -1,21 +1,32 @@
 #!/usr/bin/env node
-// THE CLAIM: the blackjack table works IN THE WORLD — its panel opens in the
-// built bundle, its keys reach it through K's gate, the world is frozen behind
-// it, and the chips come out of and go back into the one wallet at the one rate.
+// THE CLAIM: the blackjack table works IN THE WORLD — SITTING DOWN opens it
+// (not a second [E], not a bare `window.__blackjack.open()` call), its keys
+// reach it through K's gate, the world is frozen behind it, and the chips
+// come out of and go back into the one wallet at the one rate.
 //
-// Its sibling `L-slots-inworld.mjs` walks a player to a stool and plays. This
-// one cannot, and the difference is the whole of `notes/BLOCKED-L.md`: the felt
-// table registers no seats, so there is no way for a player to reach the game
-// and no way for a check to press the key that would. Everything downstream of
-// the seat is testable, and all of it is tested here.
+// `notes/BLOCKED-L.md` used to be the reason this called `open()` directly:
+// the felt table registered no seats, so there was no way for a player — or a
+// check — to reach the game by sitting. `ct/int-casino.ts` closed that (four
+// seats at `TX,TZ` carrying `blackjack.ts`'s own `SEAT_LABEL`, asserted by
+// population in `L-blackjack-reachable.mjs`), which this file had not caught
+// up to: it kept calling `open()` past nobody being seated, and `27be185fc`'s
+// deliberate "NOT SEATED MEANS NOT OPEN, NO CONDITION ON IT" tick — the fix
+// for the global `[E]` deadlock the user hit twice — closed the panel again
+// one frame later, failing everything downstream. **The world was right; this
+// check was calling a door that, by the time it was written, already had a
+// real handle.** Fixed by using the handle: sit at the seat the world
+// actually publishes, the same way `L-slots-inworld.mjs` does.
 //
-// WHY IT IS WORTH HAVING WITHOUT THE SEAT. Three of the faults this catches live
-// in the join rather than in the game, and none of them can be seen by the node
-// checks that prove the rules: keys that never arrive because a gate ate them,
-// a world that keeps walking behind an open cabinet, and money that moves at a
-// rate the slot machine does not use. `ct/hud.ts` has already had the first of
-// those — the ATM opened, drew perfectly and answered no key at all, including
-// ESC — so it is not a hypothetical.
+// WHY THIS IS WORTH HAVING BEYOND THE RULES CHECKS. Three of the faults this
+// catches live in the join rather than in the game, and none of them can be
+// seen by the node checks that prove the rules: keys that never arrive
+// because a gate ate them, a world that keeps walking behind an open
+// cabinet, and money that moves at a rate the slot machine does not use.
+// `ct/hud.ts` has already had the first of those — the ATM opened, drew
+// perfectly and answered no key at all, including ESC — so it is not a
+// hypothetical. A fourth is added here: that the seat-close rule itself
+// still fires on a force-stand that never touches the panel's own Escape
+// handler, which is the exact shape of the bug `27be185fc` fixed.
 //
 //   SHOT_URL=http://localhost:<yours>/ node scripts/L-blackjack-inworld.mjs
 //
@@ -89,10 +100,44 @@ const rules = await p.evaluate(() => window.__blackjack.rules());
 console.log(`  a chip is $${CHIP.toFixed(2)};`
   + ` ${rules.decks} decks, blackjack pays ${rules.blackjackPays}\n`);
 
-// ── the cabinet opens, and the world stops ──────────────────────────────────
-await p.evaluate(() => window.__blackjack.open());
+// ── SITTING DOWN IS THE TRIGGER, not a bare open() call ─────────────────────
+//
+// Aimed from the SOURCE, never from memory (GOTCHAS §20): the seat is found
+// by asking the world for its seats and matching blackjack.ts's own label,
+// the same pattern `L-slots-inworld.mjs` and `L-blackjack-reachable.mjs` both
+// use, so this keeps working if the casino floor is ever re-laid. The label
+// itself is a citation copy of `SEAT_LABEL` in `ct/blackjack.ts` — a script
+// cannot import a TS module the browser build compiled, so every check in
+// this file's family (L-blackjack-reachable.mjs included) hardcodes the same
+// string rather than each guessing its own.
+const BJ_LABEL = 'sit at the blackjack table';
+const bjSeats = await p.evaluate(
+  (label) => window.__ct.seats().filter((s) => s.label === label), BJ_LABEL);
+console.log(`  ${bjSeats.length} seats publish themselves as '${BJ_LABEL}'\n`);
+if (!bjSeats.length) {
+  console.error(`ABORTED: no seat in the world is labelled '${BJ_LABEL}'.`
+    + ' Either the casino did not build or the felt table lost its seats —'
+    + ' see notes/BLOCKED-L.md. Nothing below was measured.');
+  await b.close(); process.exit(3);
+}
+check(bjSeats.length === 4, `4 seats on the player side of the felt table (found ${bjSeats.length})`);
+
+const seat = bjSeats[0];
+await p.evaluate((s) => window.__ct.warp(s.at.x, s.at.z, 0, 0, 0), seat);
+await until(() => {
+  const d = document.getElementById('ct-prompt');
+  return !!d && d.style.display !== 'none' && /blackjack/i.test(d.textContent ?? '');
+}, 'the seat to offer itself');
+const beforeSit = await panelUp();
+await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e');
+const seated = await until(() => !!window.__ct.seated(), 'the player to be seated');
 const opened = await until(() => window.__hud.panel() === 'ct-blackjack', 'the table to open');
-check(opened, 'the table opens as a panel on K\'s shared cabinet');
+console.log(`  sat at (${seat.pose.x.toFixed(2)}, ${seat.pose.z.toFixed(2)});`
+  + ` panel before: ${beforeSit ?? 'none'}\n`);
+check(seated, 'pressing E at the seat actually seats the player');
+check(beforeSit === null, 'no panel was up beforehand — the check is measuring the sit');
+check(opened, 'SITTING DOWN OPENS THE TABLE — the seat is the trigger, not a second [E]'
+  + ' and not a bare open() call past the "not seated means not open" rule');
 
 // THE FREEZE, checked with a control rather than trusted. A modal that traps you
 // and a modal that works look identical until you try to walk.
@@ -104,6 +149,30 @@ console.log(`  held W with the table up: moved ${movedWhileOpen.toFixed(2)} m\n`
 check(movedWhileOpen < 0.05,
   `the world is frozen behind it (${movedWhileOpen.toFixed(2)} m) — you cannot walk`
   + ' out of the casino while a hand is in front of you');
+
+// ── THE TRAP THIS ITEM PROTECTS AGAINST: a force-stand, not the panel's own
+// Escape ─────────────────────────────────────────────────────────────────
+//
+// `ct/blackjack.ts`'s tick rule is "NOT SEATED MEANS NOT OPEN, NO CONDITION
+// ON IT" (27be185fc) — written because a stand that never touches
+// `panel.close()` (a warp, a floor change, or — exactly what this calls —
+// `__ct.stand()` reaching straight past the panel) used to leave the table
+// open with nobody sitting at it, and `ct/hud.ts` blocks keydown EVERYWHERE
+// while a panel is open, which is the global `[E]` deadlock the user hit
+// twice. Every check above this line stands up through the panel's own
+// Escape handler, which cannot exercise that rule at all. This can.
+await p.evaluate(() => window.__ct.stand());
+const autoClosed = await until(() => window.__hud.panel() === null,
+  'the table to close on a force-stand', 2000);
+check(autoClosed, 'standing WITHOUT Escape still closes the table — the "not seated'
+  + ' means not open" rule still fires on a force-stand, the exact shape of the'
+  + ' [E] deadlock this item exists to keep closed');
+
+// Sit back down: the mode-gated checks below assume an open table.
+await p.evaluate((s) => window.__ct.warp(s.at.x, s.at.z, 0, 0, 0), seat);
+await p.waitForTimeout(200);
+await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e');
+await until(() => window.__hud.panel() === 'ct-blackjack', 'the table to re-open');
 
 if (mode === 'keys' || mode === 'all') {
   // ── the keys reach it through the gate ────────────────────────────────────
@@ -184,12 +253,6 @@ if (mode === 'money' || mode === 'all') {
 }
 
 check(errs.length === 0, `no console errors (${errs.length})${errs.length ? `: ${errs[0]}` : ''}`);
-
-// The one thing this file cannot test, said out loud rather than left as a gap
-// somebody has to notice: there is no seat, so a player cannot reach any of the
-// above. See notes/BLOCKED-L.md.
-console.log('\n  NOT TESTED HERE: sitting down. The felt table registers no seats,');
-console.log('  so nothing a player can press reaches this cabinet — notes/BLOCKED-L.md.\n');
 
 await b.close();
 console.log(bad === 0 ? `  ${mode}: all checks pass.\n` : `  ${mode}: ${bad} FAILED.\n`);
