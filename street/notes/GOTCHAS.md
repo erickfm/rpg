@@ -1898,3 +1898,24 @@ integration world and anything you started by hand are safe.
 line, so it kills itself partway through and leaves the job half done **with no
 error** — the desk did this and only noticed from the exit code. Iterate over
 pids and skip your own.
+
+## 65.
+
+**A guard that reports failure in PROSE exits 0 and scores green.**
+`scripts/health.mjs` — the command `CLAUDE.md` hands every new agent to answer
+"does the world actually initialise" — prints `WORLD BROKEN — __ct never
+appeared` through `console.log` and then falls off the end of the file. It
+contains no `process.exit` at all. It is also registered in `CHECKS`, so a world
+that has stopped initialising renders as a green `ok` row in the suite.
+
+Of 122 registered checks it was the only one that could not go red, and it
+survived every sweep for exactly one reason: **it prints "WORLD BROKEN", not
+"FAIL"**, so every grep for failure vocabulary missed it. The desk's own sweep
+found it, saw it was the single check with no non-zero exit path, and explained
+it away as "reports state, probably intentional". A builder measured it instead,
+against a page with no `__ct`: exit 0.
+
+**Two lessons, and the second is the expensive one.** A check must exit non-zero
+to fail — printing is not failing. And when a sweep turns up exactly one
+exception, that is the finding, not the noise: the cost of measuring it is a
+minute, and the cost of reasoning past it is every green run since.

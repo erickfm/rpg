@@ -100,4 +100,4 @@ with `cd street && npm run build && node scripts/pack-artifact.mjs`, then publis
 | `./scripts/land.sh [--dry]` | merge train: rebase + merge every green builder |
 | `./scripts/ownership.sh <agent>` | are your edits inside your boundaries |
 | `npm run sweep` | 48-shot world sweep, reports console errors |
-| `node scripts/health.mjs` | does the world actually initialise |
+| `node scripts/health.mjs` | does the world actually initialise — **READ ITS OUTPUT, DO NOT TRUST ITS EXIT CODE.** It prints `WORLD BROKEN` and still exits 0 (it contains no `process.exit` at all), so a dead world scores green both here and as a registered check. Queued as item 61; until that lands, look at the line it prints. It also defaults `SHOT_URL` to 4177, which is usually somebody else's world |
