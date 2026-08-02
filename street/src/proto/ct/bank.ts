@@ -7,6 +7,41 @@ import type { AABB } from '../fp';
 import type { CtxBuild, Spot } from './ctx';
 import { openAtm } from './atm';
 
+/**
+ * THE BANK DOOR, DECLARED ONCE — READ BY BOTH FACES.
+ *
+ * *"door of the bank doesnt match the inner door of the bank"* — outside was a
+ * double door, two dark glass leaves in a brass frame with brass push-bars;
+ * inside was a single brown wooden door with a round knob. Different leaf
+ * count, different material, different hardware. The audit that closed
+ * "exteriors match interiors" at 12/12 had only ever checked WHICH SIDE the
+ * door sits on (GOTCHAS 45) — never whether the two faces are the same
+ * object.
+ *
+ * The two faces used to author their look twice: `placeBank` below painted
+ * its own hex literals into a 60x82 canvas, and `ct/int-bank.ts` typed
+ * `0x7a6a44`, `clearW: 1.9`, `h: 2.6`, `leaves: 2` a SECOND time into its
+ * `DOOR.leaf` declaration, matched by eye rather than read from here. Two
+ * authorings of one fact is the exact shape already fixed for door POSITION
+ * (`VICE_DOOR_X`, `JAIL_DOOR`) — this is the same fix applied to what the
+ * door IS rather than where it is. `placeBank` paints from this object and
+ * `ct/int-bank.ts` imports it both for its own `DOOR.leaf` and for the real
+ * 3D leaves it hangs in place of the kit's default single timber door — the
+ * same "hide the kit leaf, draw our own" pattern the casino, hotel and pawn
+ * shop already use, and for the same reason: the leaf `ct/interior.ts` hangs
+ * by default is hardcoded brown-timber-with-a-knob regardless of what a room
+ * declares, and `ct/interior.ts` is F's file, not this one.
+ */
+export const BANK_DOOR = {
+  clearW: 1.9, h: 2.6, leaves: 2 as const,
+  bronze: 0x7a6a44,                              // the frame — one bronze, inside and out
+  glassDark: '#232a31',
+  glassHighlight: 'rgba(170,190,210,0.16)',
+  hardware: '#c9b07a',                           // brass, vertical push-bars — not a knob
+  kickRail: '#3a4048',
+  glazing: 'full' as const,
+};
+
 /** FIRST FEDERAL — the bank, and the ATM in its wall.
  *
  *  Third cut of the split my queue file asks for. The alley and the canted
@@ -87,7 +122,11 @@ export function buildBank(k: {
   // grey precast, dead flat, square-headed, and looks like it was cleaned
   // last year.
   const BANK_STONE = '#9a9ca0', BANK_DARK = '#7c7f85', BANK_LIGHT = '#b3b5b8';
-  const BANK_GRANITE = '#4e5358', BANK_BRONZE = '#7a6a44';
+  // BANK_BRONZE is a CSS string DERIVED from `BANK_DOOR.bronze`, not a second
+  // literal — the door's frame and the rest of the bronze trim on this
+  // building are one colour by construction, not by matching.
+  const BANK_GRANITE = '#4e5358';
+  const BANK_BRONZE = '#' + BANK_DOOR.bronze.toString(16).padStart(6, '0');
   // ── the ATM, as a NICHE in the wall ───────────────────────────────────────
   //
   // Declared here because two things need to agree exactly: `bankBand` cuts the
@@ -651,15 +690,18 @@ export function buildBank(k: {
     // A recessed entrance, because a bank door is not a glass hole in a band.
     // Same trick as the bodega's canted bay: the leaf sits back behind the
     // wall line and the reveal is boxed in, so the opening has a shadow.
-    const DW = 1.9, DH = 2.6, DREC = 0.30;
+    // Every dimension and every colour below comes from `BANK_DOOR` — see its
+    // comment at the top of the file. `ct/int-bank.ts` paints the same leaf
+    // from the same object rather than retyping these numbers by eye.
+    const DW = BANK_DOOR.clearW, DH = BANK_DOOR.h, DREC = 0.30;
     const XF = -FACE;
     const doorT = declareSurface(pixTex(60, 82, (g) => {
       g.fillStyle = BANK_BRONZE; g.fillRect(0, 0, 60, 82);
-      g.fillStyle = '#232a31'; g.fillRect(5, 5, 22, 58); g.fillRect(33, 5, 22, 58);
-      g.fillStyle = 'rgba(170,190,210,0.16)'; g.fillRect(7, 7, 7, 54); g.fillRect(35, 7, 7, 54);
+      g.fillStyle = BANK_DOOR.glassDark; g.fillRect(5, 5, 22, 58); g.fillRect(33, 5, 22, 58);
+      g.fillStyle = BANK_DOOR.glassHighlight; g.fillRect(7, 7, 7, 54); g.fillRect(35, 7, 7, 54);
       g.fillStyle = BANK_BRONZE; g.fillRect(28, 0, 4, 82);            // meeting stile
-      g.fillStyle = '#c9b07a'; g.fillRect(24, 30, 3, 20); g.fillRect(33, 30, 3, 20);  // pull handles
-      g.fillStyle = '#3a4048'; g.fillRect(0, 66, 60, 16);             // kick rail
+      g.fillStyle = BANK_DOOR.hardware; g.fillRect(24, 30, 3, 20); g.fillRect(33, 30, 3, 20);  // push-bars
+      g.fillStyle = BANK_DOOR.kickRail; g.fillRect(0, 66, 60, 16);             // kick rail
       g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(0, 66, 60, 1);
     }), 'detail');
     // The surround PROJECTS and the leaf sits flush behind it, rather than the

@@ -11,6 +11,13 @@ import { type DoorDecl } from './doors';
 // build stamp and nothing else, so there is no path back. Verified against the
 // bundle with scripts/doors-declared.mjs, not assumed.
 import { makePanel, UI } from './hud';
+// THE DOOR'S LOOK, READ FROM WHERE THE FACADE PAINTS IT. Not a cycle for the
+// same reason `./hud` above is safe: `ct/bank.ts` imports paint/rng/tex-world/
+// civic/ctx/atm and nothing that globs `./int-*.ts`, so there is no path back
+// to this module while `ct/doors.ts` is still resolving its glob. Verified
+// against the built bundle with scripts/doors-declared.mjs, not assumed.
+import { BANK_DOOR } from './bank';
+import { leafPair } from './vice';
 
 // FIRST FEDERAL, inside.
 //
@@ -76,15 +83,19 @@ import { makePanel, UI } from './hud';
  * `DoorLeaf` existed: the facade's door is a wide bronze double under a granite
  * head, so the room's is too. A narrow domestic leaf inside a double-door bank
  * is exactly the contradiction the declaration exists to make impossible.
+ *
+ * `leaf` below is BUILT FROM `BANK_DOOR`, not retyped — that used to be a
+ * comment's promise ("read from there rather than matched by eye") with no
+ * import behind it, which is how the user found a single brown timber door
+ * with a knob behind a brass double door with push-bars. See `BANK_DOOR` in
+ * `ct/bank.ts` for the one place this is now written down.
  */
 export const DOOR: DoorDecl = {
   building: 'FIRST FEDERAL', w: 19.2, cz: 4.6, side: -1, at: 0,
   leaf: {
-    clearW: 1.9, h: 2.6, leaves: 2,
-    // #7a6a44 is `BANK_BRONZE` in ct/bank.ts, read from there rather than
-    // matched by eye. The frame inside and the frame outside are one frame.
-    frame: { colour: 0x7a6a44, material: 'brass' },
-    glazing: 'full',
+    clearW: BANK_DOOR.clearW, h: BANK_DOOR.h, leaves: BANK_DOOR.leaves,
+    frame: { colour: BANK_DOOR.bronze, material: 'brass' },
+    glazing: BANK_DOOR.glazing,
   },
 };
 
@@ -174,8 +185,66 @@ export function buildBankInterior(ctx: CtxBuild): void {
   const { put, solid } = room;
   const hw = room.W / 2, hd = room.D / 2;
 
+  // ── the door itself, matched to the one outside ────────────────────────────
+  //
+  // The kit (`ct/interior.ts`, F's) cuts the wall opening at `DOOR.leaf`'s
+  // width and height — that part already worked, because the SIZE was
+  // declared correctly even before this fix. What it hangs IN that opening is
+  // its own default: a single hardcoded brown timber leaf with a small round
+  // knob, regardless of what the room declared. That default is exactly what
+  // the user saw and it is what four other rooms (casino, hotel, pawn) already
+  // work around the same way: hide the kit's leaf, hang the room's own.
+  //
+  // Everything below reads `BANK_DOOR` — the same object `ct/bank.ts` paints
+  // its own leaf from — so the two faces cannot drift back apart by a builder
+  // matching one to the other by eye.
+  const DW = BANK_DOOR.clearW, DH = Math.min(BANK_DOOR.h, room.H - 0.2), dAt = room.doorAt;
+  {
+    const hits: THREE.Mesh[] = [];
+    room.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.geometry?.type !== 'PlaneGeometry') return;
+      const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshBasicMaterial;
+      const img = mat?.map?.image as HTMLCanvasElement | undefined;
+      if (img && img.width === 32 && img.height === 64) hits.push(m);
+    });
+    if (hits.length === 1) hits[0].visible = false;
+    else console.warn(`[interior:bank] expected 1 kit door leaf to hide, found ${hits.length}`
+      + ' — the bank now has both the kit door and its own. ct/interior.ts changed shape.');
+  }
+  // the brass surround: jambs and head, the granite portal's frame repeated on
+  // the inside face — same shape as the casino's gold surround, brass instead
+  // of gold. Named `doorFrameM`/`doorFrameDarkM` rather than `bronzeM` because
+  // the palette below declares its own `bronzeM` for the rest of the room's
+  // joinery — same colour, kept as two materials because Three.js materials
+  // are mutable handles and the door and the teller line should not share one.
+  const doorFrameM = new THREE.MeshBasicMaterial({ color: BANK_DOOR.bronze });
+  const doorFrameDarkM = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(BANK_DOOR.bronze).multiplyScalar(0.72) });
+  put(new THREE.Mesh(new THREE.BoxGeometry(DW + 0.34, 0.16, 0.10), doorFrameM), dAt, DH + 0.06, hd - 0.06);
+  put(new THREE.Mesh(new THREE.BoxGeometry(DW + 0.34, 0.05, 0.11), doorFrameDarkM), dAt, DH - 0.03, hd - 0.06);
+  for (const sx of [-1, 1]) {
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.15, DH + 0.16, 0.10), doorFrameM),
+      dAt + sx * (DW / 2 + 0.10), (DH + 0.16) / 2, hd - 0.06);
+  }
+  // two leaves, hinged at the jambs and standing a little open — dark glass in
+  // a brass frame, with a vertical brass push-bar at the FREE edge of each
+  // leaf. The push-bar sits near u=1 of this canvas because `leafPair`'s own
+  // doc requires the handle at the free edge (away from the hinge) for BOTH
+  // leaves after its mirror — see ct/vice.ts.
+  const bronzeCss = '#' + BANK_DOOR.bronze.toString(16).padStart(6, '0');
+  const bankLeafT = declareSurface(pixTex(24, 56, (g) => {
+    g.fillStyle = bronzeCss; g.fillRect(0, 0, 24, 56);               // frame border
+    g.fillStyle = BANK_DOOR.glassDark; g.fillRect(2, 2, 20, 52);
+    g.fillStyle = BANK_DOOR.glassHighlight; g.fillRect(3, 3, 7, 48);
+    g.fillStyle = BANK_DOOR.hardware; g.fillRect(17, 20, 3, 16);   // the push-bar
+    dither(g, 24, 56, 40);
+  }), 'detail');
+  const bankLeafM = new THREE.MeshBasicMaterial({ map: bankLeafT, side: THREE.DoubleSide });
+  leafPair(put, bankLeafM, dAt, DW, DH, hd - 0.12, 0.55, 'bank', 0.03);
+
   // ── the palette, named once ────────────────────────────────────────────────
-  const BRONZE = 0x7a6a44;          // ct/bank.ts BANK_BRONZE — one bronze, inside and out
+  const BRONZE = BANK_DOOR.bronze;  // ct/bank.ts BANK_DOOR.bronze — one bronze, inside and out
   const OAK = 0x6a4f30, OAK_DARK = 0x503a22;
   const STONE_TOP = 0x3e3a34;       // the counter's polished top
   const STEEL = 0xa8acb0, STEEL_DARK = 0x5e6266;
