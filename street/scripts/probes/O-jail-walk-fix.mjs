@@ -5,7 +5,7 @@
 //
 //   SHOT_URL=http://localhost:4181/ node scripts/O-jail-walk-fix.mjs
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('aim it: SHOT_URL=http://localhost:PORT/'); process.exit(2); }
@@ -45,7 +45,10 @@ console.log(`   ${inForecourt ? 'OK ' : 'FAIL'} walked past the old facade line 
 // ── 2. From there, is the door's [E] actually in reach, on foot? ─────────
 const reach = await p.evaluate(() => {
   const q = window.__ct.pos();
-  const REACH_MARGIN = 0.6;
+  // READ, not retyped — the margin is one global in fp.ts and the world
+  // publishes it. A hand-typed 0.6 here asserted against a number that would
+  // stop being true the day anyone re-tuned reach. (BUILDER-BRIEF §8)
+  const REACH_MARGIN = window.__ct.reachMargin();
   return window.__ct.spots()
     .filter((s) => /DETENTION/i.test(s.label ?? ''))
     .map((s) => ({ label: s.label, d: +Math.hypot(s.x - q[0], s.z - q[2]).toFixed(2), ok: s.ok, r: s.r }))

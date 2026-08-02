@@ -920,6 +920,20 @@ export function makeCrosstown(): Proto {
       widthM: d.width ?? null,
     })),
     spots: () => SPOTS.map((sp) => ({ x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok() })),
+    // REACH IS NOT RADIUS, and a script cannot work that out from `spots()`
+    // alone: a spot publishes its `r`, but whether you are standing AT it is
+    // `d < r + REACH_MARGIN`, and that margin lives in fp.ts. Two scripts had
+    // therefore hand-typed `const REACH_MARGIN = 0.6` to reconstruct the
+    // predicate — BUILDER-BRIEF §8's "a second hand-typed copy of a number is
+    // the single most expensive habit in this codebase", and the reason
+    // `bedcavity.mjs` spent a week measuring a truck that no longer existed.
+    //
+    // Published rather than folded into `spots()` as a `reach` field: the
+    // margin is ONE global (fp.ts:486), not a property of each spot, and giving
+    // every row its own copy would put 200 duplicates in the payload where the
+    // duplication is exactly what this exists to remove. It is imported from
+    // fp.ts at the top of this file, so there is no copy here either.
+    reachMargin: () => REACH_MARGIN,
     // The acceptance test for the selection highlight, asked of the WORLD rather
     // than of a copy of it: every registered [E], whether it names an object,
     // and therefore whether its outline is the real contour or the generic
