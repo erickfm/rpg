@@ -2585,3 +2585,12 @@ to one side.
   was too faint (`:249-250`). **Third knob today with a user complaint at both ends**,
   after the bed/door prompt and the interaction reach — so the fix must satisfy both,
   not swing back.
+
+- **"[screenshot] for the watch i would like the rest of the arm (to the left) rendered
+  as well. should be simple. just a continuation of the arm"** (2026-08-02)
+  → **routed as queue item 111, top of the queue.** Not done at the desk despite being
+  small: the forearm already runs to the left edge OF ITS OWN CANVAS (`fillRect(0, 6,
+  104, 66)`), so extending it means widening the canvas — and the wrap is centred with
+  `translateX(-50%)`, so a wider canvas shifts the watch face RIGHT (undoing the move he
+  just asked for) and shrinks every pixel unless the fixed `width:484px` scales with it.
+  Three coupled numbers and a result the desk cannot see without running it.
