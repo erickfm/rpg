@@ -2500,3 +2500,11 @@ to one side.
   band — offered, not offered, offered — cannot be seen by any instrument we own. A
   builder hit the same class last night: a check that warped had never once tested the
   thing it was named for.
+
+- **"[screenshot] slots similarly need to be embedded into the game like i mentioned
+  with the atm. fixed perspective. embedded interactable overlay to make it look
+  realistic and immersion forward."** (2026-08-02) → **routed as queue item 100, which
+  DEPENDS on item 86 (the ATM) and must not be started before it.** The user is
+  confirming the pattern is general, which is exactly why 86 was scoped to build the
+  mechanism into the framework rather than into `ct/atm.ts`. Item 100 is the second
+  application of it; blackjack and the library PC are the third and fourth.
