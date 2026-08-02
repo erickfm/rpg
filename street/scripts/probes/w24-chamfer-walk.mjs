@@ -261,24 +261,27 @@ const otherRed = red.atCorner.filter((r) => !isChamfer(r.c));
 // boxes in the SAME array, so "is this box red" has a moving answer: a walker
 // passing 0.45 m off a facade forms a textbook trap corridor against it for as
 // long as it takes to walk by. That is not a verdict on how the wall is built,
-// which is what item 36 is about. A collider counts here only if its footprint
-// is identical in two samples a second apart.
-const key = (c) => `${c.minX} ${c.maxX} ${c.minZ} ${c.maxZ} ${c.rot ?? 0}`;
-const snapA = await p.evaluate((k) => window.__ct.colliders().map(eval(`(${k})`)), key.toString());
-await p.waitForTimeout(1000);
-const snapB = await p.evaluate((k) => window.__ct.colliders().map(eval(`(${k})`)), key.toString());
-const stillKeys = snapA.filter((k) => snapB.includes(k));
-const ownRed = await p.evaluate(async ([keep, bx, bz, ks]) => {
+// which is what item 36 is about.
+//
+// THE TWO-SNAPSHOT FILTER THAT USED TO STAND HERE IS GONE. It kept a collider
+// whose footprint was identical in two samples a second apart, which is a guess
+// about motion rather than a fact about kind: **a citizen who stood still for
+// that second was scored as masonry**, and citizens stand still constantly —
+// crowd-walk.mjs finds 40-plus stopped samples in 25 s and exists because of it.
+// It also compared by `includes` over stringified footprints, so two boxes with
+// the same 4-tuple vouched for each other. `__ct.staticColliders()` separates by
+// OBJECT IDENTITY against the two registration hooks (crosstown.ts:1411), which
+// has neither failure mode and costs no wall clock.
+const ownRed = await p.evaluate(async ([bx, bz]) => {
   const { trapAgainst } = await import('/src/proto/ct/gap.ts');
-  const kf = eval(`(${ks})`);
-  const set = new Set(keep);
-  const cols = window.__ct.colliders().filter((c) => set.has(kf(c)));
+  const cols = window.__ct.staticColliders();
   return cols.filter((c) => (c.rot !== undefined
       || (Math.abs(c.minX - bx) < 1e-9 && Math.abs(c.minZ - bz) < 1e-9))
     && trapAgainst(c, cols) !== null)
     .map((c) => `${c.minX.toFixed(2)}..${c.maxX.toFixed(2)} x ${c.minZ.toFixed(2)}..${c.maxZ.toFixed(2)} rot=${c.rot ?? 0}`);
-}, [stillKeys, B.x, B.z, key.toString()]);
-console.log(`   static colliders: ${stillKeys.length} of ${snapA.length}`);
+}, [B.x, B.z]);
+const nStat = await p.evaluate(() => [window.__ct.staticColliders().length, window.__ct.colliders().length]);
+console.log(`   static colliders: ${nStat[0]} of ${nStat[1]}`);
 if (ownRed.length === 0) pass('no red on the chamfer or the pier that closes it');
 else fail(`${ownRed.length} red box(es) ON the chamfer: ${ownRed.join(' | ')}`);
 if (otherRed.length) console.log(`   NOTE ${otherRed.length} red box(es) near, but not part of, the corner — see the handoff note`);
