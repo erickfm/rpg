@@ -1163,22 +1163,37 @@ import type { Panel } from './hud';
 export const ORDER = BUILD.INTERIOR + 6;
 
 /**
- * THE SEAT THIS OPENS AT, and the reason it is not wired yet.
+ * THE SEAT THIS OPENS AT. **WIRED — you sit down at the felt table and it
+ * opens.** `ae4147cee` did it; before that commit this docstring said the seat
+ * did not exist, and it was right at the time.
  *
  * The slots bridge on G's `'sit at the slot'`, which is unambiguous — 96 stools
- * and nothing else carries it. **Every table stool on that floor publishes
- * `'sit at the table'`**: roulette's five, craps's six and poker's six. Bridging
- * on that string would open a blackjack game at the roulette wheel, which is
- * worse than not shipping it.
+ * and nothing else carries it. **Every table stool on that floor used to publish
+ * `'sit at the table'`**: roulette's five, craps's six and poker's six, AND the
+ * felt table's, because `int-casino.ts`'s `gameStool()` hard-coded the string.
+ * Bridging on it would have opened a blackjack game at the roulette wheel, which
+ * is worse than not shipping it — so this waited for a label of its own instead.
  *
- * So this waits for a label of its own. `notes/BLOCKED-L.md` asks G for three or
- * four seats on the player side of the felt table at `TX = -2.6, TZ = -13.0` —
- * the only game on that floor with a dealer standing at it, and the only one
- * shaped like dealer-versus-player. It registers no seats today, so the one
- * table that is already a blackjack table is the one you cannot sit at.
+ * `ae4147cee` gave `gameStool()` an optional `label` (default unchanged, so
+ * roulette, craps and poker still carry `'sit at the table'`) and put four
+ * stools on the player side of the felt table at `TX = -2.6, TZ = -13.0` — the
+ * only game on that floor with a dealer standing at it, and the only one shaped
+ * dealer-versus-player. They import this constant rather than retyping it, so
+ * the two sides of the bridge cannot drift apart.
  *
- * The moment any seat carries this string, the game opens by sitting down with
- * no further change here. `__blackjack.open()` works meanwhile.
+ * Measured in the world, not read back off that commit
+ * (`scripts/probes/w19-blackjack-seats.mjs`): four seats carry this string, at
+ * world z −12.15, each with its own stand point 0.80 m behind — which is the
+ * `approach` the ask insisted on, and 69 of this world's seats still lack.
+ *
+ * `__blackjack.open()` still works and is still the right way to drive the
+ * cabinet from a check that is not about the seat.
+ *
+ * STILL STALE ELSEWHERE, and not mine to edit under the item that fixed this
+ * one: `scripts/L-blackjack-inworld.mjs` (its header, and a paragraph it PRINTS
+ * on every run) and the `L-blackjack-inworld` entry in `scripts/checks.mjs` both
+ * still say the felt table registers no seats. Both also cite
+ * `notes/BLOCKED-L.md`, which has moved to `notes/archive/`.
  */
 export const SEAT_LABEL = 'sit at the blackjack table';
 
