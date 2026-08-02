@@ -677,6 +677,34 @@ export function buildCasino(ctx: CtxBuild): void {
     { x: 3.0, z: 0.2, w: 1.8, d: 3.0 },       // craps
     { x: -3.0, z: -3.6, w: 2.5, d: 2.5 },     // poker
   ];
+  /**
+   * WHICH WAY THE ROULETTE'S PLAYERS STAND — read by the stool ring AND by the
+   * wheel head, so the head is always opposite the players rather than the two
+   * being typed independently and drifting apart.
+   *
+   * It used to be +z, and three of the five places were unreachable. The lane
+   * between the table's own collider (z ≤ 1.35) and the last slot bank's
+   * (z ≥ 2.15) is **0.80 m** — measured live, `scripts/w15-roulette-gap.mjs`;
+   * the queue said 0.08 m, which is out by a factor of ten and made this look
+   * like a rounding problem rather than a layout one. A stool sits 1.55 m out
+   * and its [E] approach a further 0.80 m behind, so a place facing +z needs
+   * 2.35 m of clear radius on that side and has 1.95 m. **No stool radius and
+   * no approach distance can fix that** — the arithmetic runs out before the
+   * stool reaches the felt — which is why this is a layout call, as w17 said.
+   *
+   * +x is the side that is actually open: 4.05 m of avenue between this table
+   * and the craps table, against 0.80 m to the bank, 1.25 m to the west wall
+   * and 1.40 m to the poker table. It is also the better room: the players now
+   * ring the wheel from the avenue you walk down, and the croupier stands with
+   * their back to the wall, which is where a croupier stands.
+   *
+   * The span is ±0.75 rad, not the old ±1.15. At 2.35 m the outermost approach
+   * then lands 0.17 m clear of the bank and 0.77 m clear of the poker table;
+   * ±0.90 would put it 0.07 m INSIDE the bank. Both ends are checked by
+   * `scripts/w15-roulette-gap.mjs`, which fails if any of the five is blocked.
+   */
+  const ROU_OPEN = Math.PI / 2;
+  const ROU_SPAN = 0.75;
   const PLAYER_R = 0.36;
   /** is this point inside a game table, as far as a player's body is concerned? */
   const inPit = (x: number, z: number) => PIT.some((t) =>
@@ -1084,9 +1112,15 @@ export function buildCasino(ctx: CtxBuild): void {
       const RX = ROU.x, RZ = ROU.z;
       put(new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.12, 16), feltG), RX, 0.86, RZ);
       put(new THREE.Mesh(new THREE.CylinderGeometry(1.10, 1.10, 0.10, 16), rail), RX, 0.78, RZ);
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.10, 12), wood), RX, 0.97, RZ - 0.42);
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.04, 12), chrome), RX, 1.03, RZ - 0.42);
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8), chrome), RX, 1.10, RZ - 0.42);
+      // THE WHEEL HEAD SITS OPPOSITE THE PLAYERS, derived from `ROU_OPEN`
+      // rather than typed as `RZ - 0.42`. That literal was the other half of
+      // the same assumption the stool ring made — players on +z, head on −z —
+      // and moving the players without moving the head would have left the
+      // wheel behind the seated row instead of in front of it.
+      const hx = RX - Math.sin(ROU_OPEN) * 0.42, hz = RZ - Math.cos(ROU_OPEN) * 0.42;
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.10, 12), wood), hx, 0.97, hz);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.04, 12), chrome), hx, 1.03, hz);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8), chrome), hx, 1.10, hz);
       for (const lz of [-0.7, 0.7]) for (const lx of [-0.7, 0.7]) {
         put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.78, 0.10), wood), RX + lx, 0.39, RZ + lz);
       }
@@ -1191,10 +1225,12 @@ export function buildCasino(ctx: CtxBuild): void {
      */
     const faceAt = (gx: number, gz: number, tx: number, tz: number) =>
       Math.atan2(tx - gx, -(tz - gz));
-    // roulette: five round its open side
+    // roulette: five round its open side — which is +x, the avenue, not +z.
+    // See ROU_OPEN's own comment for the 0.80 m that made the old side
+    // impossible rather than merely tight.
     const ROU_X = PIT[0].x, ROU_Z = PIT[0].z;
     for (let i = 0; i < 5; i++) {
-      const a = -1.15 + i * 0.575;
+      const a = ROU_OPEN - ROU_SPAN + (i * 2 * ROU_SPAN) / 4;
       const gx = ROU_X + Math.sin(a) * 1.55, gz = ROU_Z + Math.cos(a) * 1.55;
       gameStool(gx, gz, faceAt(gx, gz, ROU_X, ROU_Z));
     }
