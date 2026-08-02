@@ -2082,3 +2082,32 @@ was real when it was written, on a world sitting exactly on a frame boundary;
 a day later there was a whole spare frame and the same mutation **passed** —
 indistinguishable from a check that failed to notice. Mutate by a margin the
 world cannot absorb.
+
+## 73.
+
+**Moving actors share the static collider array, and that one fact has now
+produced FOUR false defects.** `crosstown.ts` spreads citizen and vehicle boxes
+into the same `colliders()` array as the masonry, and `crowd.ts:168`'s
+`ctx.solid(box)` puts every citizen in there. Anything that reasons about
+*geometry* by reading that array is reading pedestrians too.
+
+The bill, all in one session:
+
+1. The **V overlay** — the user's own debug tool — painted the whole east walk
+   lane red, for people walking on it.
+2. A **red-dump** recorded a walking citizen as static geometry, and the desk
+   queued a 0.45 m trap that does not exist.
+3. **`interiors-walk`'s chamfer leg** reported *"the chamfer did not let me
+   past"* when a pedestrian crossed the corner and refused the −z step exactly
+   as a wall would. Diagnosed only by dumping every collider within 1.2 m of the
+   stall and **re-reading a second later** — the box had moved.
+4. **`unstick-walk`** reported a trap at a point that turned out to be the centre
+   of a wall, which no player can reach.
+
+Item 65 fixed the **overlay's scoring** by filtering on object identity. It did
+not separate the arrays, so every future consumer inherits the bug — three of
+the four above were found *after* that fix.
+
+**The test that distinguishes them is time, not shape.** A 0.5 × 0.5 m box is a
+citizen or a crate depending on nothing you can see in one frame. Read the
+collider twice, a second apart: geometry does not move.
