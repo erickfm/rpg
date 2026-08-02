@@ -268,6 +268,44 @@ export function makeCrosstown(): Proto {
   // arrived on. One rule, no per-spot bookkeeping, and it cannot be defeated by
   // two spots sharing a doorway.
   let landing: { x: number; z: number } | null = null;
+  // ── LINE-OF-SIGHT CACHE ───────────────────────────────────────────────────
+  // *"i get awful performance drops in my room not sure why."* Flat 301.
+  //
+  // MEASURED, scripts/probes/w52-raycast-count.mjs: standing perfectly still in
+  // 301 the world ran **7,832 `Mesh.raycast` tests every frame** — that is every
+  // mesh in the scene, once per frame — and 15,664 on the landing outside his
+  // door, where two spots are in range. On the street it ran **zero**. That is
+  // the user's report exactly: the cost appears where he lives and nowhere else.
+  //
+  // The cause is `canSee` below, the `[E]` line-of-sight test. It is cast once
+  // per candidate spot per frame against `intersectObject(scene, true)`, which
+  // walks the WHOLE world; the ray is at most ~6 m long inside one small room,
+  // so essentially all of that work is spent proving that the far end of the
+  // street is not between him and his bed.
+  //
+  // THE FIX IS TO CAST LESS OFTEN, NOT TO CAST DIFFERENTLY. `canSee` reads only
+  // the eye position and the spot — **it does not depend on yaw or pitch at
+  // all** — so turning on the spot, which is the single most common thing a
+  // player does, cannot change any answer it gives. Standing still, neither can
+  // anything else except an occluder that moves. So the answers are memoised
+  // against the position they were computed at and re-taken when the player
+  // moves `SEE_MOVE`, changes storey, or the entry goes `SEE_TTL` stale.
+  //
+  // The staleness this admits is bounded at SEE_TTL on a PROMPT LABEL, and the
+  // only thing that can be stale is a citizen or a car crossing the line while
+  // he stands still — the geometry cannot move under him. Nothing about which
+  // spot wins changes: `pickSpot` gets the same answers, just fewer times.
+  // Deliberately NOT keyed on yaw, and that is the whole saving.
+  const seeCache = new Map<Spot, boolean>();
+  let seeAtX = NaN, seeAtZ = NaN, seeAtGy = NaN, seeAtT = -Infinity;
+  /** How far he may walk before every sight line is re-taken. A quarter of the
+   *  0.6 m REACH_MARGIN — under the slack the resolver already tolerates, so a
+   *  spot cannot change tier on the strength of a stale sight line. */
+  const SEE_MOVE = 0.15;
+  /** …and how long an answer may stand while he does not move at all. Only a
+   *  moving occluder can invalidate one, so this is the reaction time of the
+   *  prompt to somebody walking in front of it. */
+  const SEE_TTL = 0.10;
   const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
   const hud = makeHud(purse);
   // Modules that answer for a patch of floor. Asked in declared order, first
@@ -1428,6 +1466,13 @@ export function makeCrosstown(): Proto {
 
   (window as any).__ct = {
     warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => {
+      // A TELEPORT BREAKS THE SIGHT CACHE'S ONE ASSUMPTION — that he cannot have
+      // moved further than SEE_MOVE since the last answer was taken. A warp of
+      // 0.05 m is still a warp, and it puts him somewhere the cached sight lines
+      // were never cast from. Every instrument in `scripts/` drives the world
+      // through this door, so a stale read here is a check measuring the station
+      // before the one it thinks it is at.
+      seeCache.clear(); seeAtT = -Infinity;
       rig.pos.set(x, rig.pos.y, z);
       if (yaw !== undefined) rig.yaw = yaw;
       if (gy !== undefined) apt.setGy(gy);
@@ -1813,9 +1858,28 @@ export function makeCrosstown(): Proto {
       const eye = new THREE.Vector3(px, apt.gy() + 1.6, pz);
       const aim = new THREE.Vector3();
       const seeRay = new THREE.Raycaster();
+      // Retake every sight line when the eye has actually moved, when he has
+      // changed storey, or when the newest answer has gone stale. `apt.gy()` is
+      // in the key because the eye is `gy + 1.6`: a lift or a stair changes what
+      // is between him and a spot without moving him in x/z at all.
+      const gyNow = apt.gy();
+      if (Math.abs(px - seeAtX) > SEE_MOVE || Math.abs(pz - seeAtZ) > SEE_MOVE
+        || gyNow !== seeAtGy || t - seeAtT > SEE_TTL) {
+        seeCache.clear();
+        seeAtX = px; seeAtZ = pz; seeAtGy = gyNow; seeAtT = t;
+      }
       const canSee = (s: Spot) => {
         if (landing) return false;                    // just arrived here; take a step first
-
+        // Memoised on the key above. `landing` stays OUTSIDE the cache: it is
+        // cleared by a 1.2 m step, which is eight times SEE_MOVE, so a cached
+        // `false` could otherwise outlive the arrival that caused it.
+        const memo = seeCache.get(s);
+        if (memo !== undefined) return memo;
+        const v = seeRaw(s);
+        seeCache.set(s, v);
+        return v;
+      };
+      const seeRaw = (s: Spot) => {
         // A PURE READ, and it has to be: this runs once per candidate spot,
         // every frame, at coordinates that are not the player's. While it
         // committed, `apt.gy()` ended each frame describing the last spot the
