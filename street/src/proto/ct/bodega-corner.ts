@@ -151,22 +151,72 @@ export function buildBodegaCorner(c: {
   };
     const SHOP = SHOP_BAND_H, BH = 3.4 + bod.floors * 2.4, TOP = SHOP + BH;
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    // The corner's footprint FOLLOWS THE CUT. The shell is the rectangle
-    // BX0…BX1 × BZ1…BZ0 minus the triangle the chamfer takes out of its
-    // south-west corner — the void is x ≥ BX0, z ≤ BZ1 + CHF and
-    // x + z ≤ BX0 + BZ1 + CHF. An AABB cannot be diagonal, so the cut is
-    // approximated by a staircase of thin bands, each starting at the
-    // MOST PERMISSIVE x in its band so the stair never eats walkable ground
-    // — the 0.36 m player radius more than covers the sliver of masonry that
-    // leaves unblocked. Collide square here and you clip the cut face, which
-    // is exactly what the user reported.
+    // ── the corner's footprint FOLLOWS THE CUT, and now it does so with ONE
+    //    TURNED BOX rather than a staircase ────────────────────────────────
+    //
+    // *"whats going on with the collision geometry here? we should fix this so
+    //  its not just a bunch of separate rectangles and its just made properly."*
+    //
+    // The shell is the rectangle BX0…BX1 × BZ1…BZ0 minus the triangle the
+    // chamfer takes out of its south-west corner — the void is x ≥ BX0,
+    // z ≤ BZ1 + CHF and x + z ≤ BX0 + BZ1 + CHF. An AABB could not be diagonal,
+    // so this used to be EIGHT abutting bands of BAND = 0.25, each starting at
+    // the most permissive x in its band. That was not merely ugly. Measured
+    // (scripts/probes/w24-chamfer-walk.mjs): walking straight into the cut at
+    // stations along it, the surface you actually stop against stepped between
+    // 0.343 m and 0.425 m — an 83 mm staircase you feel as a ratchet when you
+    // walk the diagonal with the wall at your shoulder. More, smaller bands
+    // would have made it finer and never flat.
+    //
+    // `AABB.rot` (fp.ts) is what fixes it, and the corner is now exactly three
+    // boxes, none of them an approximation of the cut:
     {
-      const CUT = BX0 + BZ1 + CHF;                    // x + z along the cut
-      const BAND = 0.25;
-      for (let z = BZ1; z < BZ1 + CHF - 1e-6; z += BAND) {
-        solid({ minX: CUT - z, maxX: BX1 + 8, minZ: z, maxZ: z + BAND });
-      }
-      // …and the rest of the block, north of the cut, at full width
+      // 1. THE CANTED WALL ITSELF, turned onto the cut. Local +x runs a → b and
+      //    local +z is the INWARD normal, so the face sits on the box's own
+      //    local minZ and the player's radius pads perpendicular to the wall —
+      //    which is what makes the stop distance a constant instead of sawing.
+      //
+      //    Its yaw is `BAY.yawAlong`, taken from the bay this file already
+      //    publishes rather than derived a second time by hand: `rot` uses the
+      //    `mesh.rotation.y` convention, which is the convention `yawAlong` is
+      //    documented in, and its own comment records that hand-deriving this
+      //    corner's orientation is the step that came out 90° wrong before.
+      //
+      //    DEPTH IS DERIVED, NOT CHOSEN: CFW / 2 is the height of the cut
+      //    triangle from its hypotenuse to the right-angle corner at
+      //    (BX0 + CHF, BZ1 + CHF), so a CFW × CFW/2 rectangle laid on the face
+      //    is the smallest one that contains the whole cut triangle. It spills
+      //    past the triangle's two legs, and that spill is harmless BY
+      //    CONSTRUCTION rather than by luck: its four corners are (BX0, BZ1+CHF),
+      //    (BX0+CHF, BZ1), (BX0+CHF/2, BZ1+1.5·CHF) and (BX0+1.5·CHF, BZ1+CHF/2),
+      //    every one of them inside the shell BX0…BX1 × BZ1…BZ0 and inside the
+      //    two boxes below. No spill reaches walkable ground.
+      const cx = BX0 + CHF * 0.75, cz = BZ1 + CHF * 0.75;   // the rectangle's centre
+      solid({
+        minX: cx - CFW / 2, maxX: cx + CFW / 2,             // along the face
+        minZ: cz - CFW / 4, maxZ: cz + CFW / 4,             // into the building
+        rot: BAY.yawAlong,
+      });
+      // 2. The brick pier that closes the cut on the side street — R2's own
+      //    footprint, run east through the block. This is the part of the band
+      //    z ∈ [BZ1, BZ1+CHF] that lies EAST of the cut triangle, and it is a
+      //    plain rectangle: it never needed to be part of a staircase at all.
+      //
+      //    IT RUNS NORTH AS FAR AS THE TURNED BOX DOES, to BZ1 + 1.5·CHF rather
+      //    than stopping on the cut band at BZ1 + CHF. Two reasons, and the
+      //    first is the load-bearing one. `ct/gap.ts` clears a candidate
+      //    corridor only when a filler spans it ACROSS, one box at a time; with
+      //    the pier stopping at BZ1+CHF, the 0.4 m of masonry between the turned
+      //    box's north-east corner and the wing shopfront's face at BX1 was
+      //    filled by the pier and the north block BETWEEN them, neither of them
+      //    spanning it alone — so the V overlay painted the chamfer red for a
+      //    slot that is solid brick and that no player can stand in. Running the
+      //    pier the full depth of the wall it closes against makes it one
+      //    spanning filler and the false trap goes away. Second: every metre it
+      //    gains is north of BZ1 + CHF and east of BX0 + CHF, which is inside
+      //    the north block already — it cannot take walkable ground.
+      solid({ minX: BX0 + CHF, maxX: BX1 + 8, minZ: BZ1, maxZ: BZ1 + CHF * 1.5 });
+      // 3. …and the rest of the block, north of the cut, at full width.
       solid({ minX: BX0 - 0.3, maxX: BX1 + 8, minZ: BZ1 + CHF, maxZ: BZ0 });
     }
     // The corner used to carry its own brick painter, because facadeTex once

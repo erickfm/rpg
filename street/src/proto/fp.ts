@@ -17,10 +17,56 @@ import type { Input } from './types';
 // `minY` is reserved for the mirror case (an overhang you can walk under) and
 // is not consumed anywhere yet — nothing needs headroom today, so nothing
 // implements it; a real user report is worth more than a guessed mechanism.
+// `rot` is OPT-IN for the same reason and in the same way. Without it a box is
+// axis-aligned, exactly as every box in this world has always been, and the
+// four tests below take a branch that is bit-for-bit the old arithmetic. With
+// it, `minX/maxX/minZ/maxZ` describe the box IN ITS OWN FRAME and the box is
+// turned by `rot` radians about its own centre — so `rot: 0` is the identity
+// and not merely "close to" the old behaviour.
+//
+// The angle is the SAME convention as `mesh.rotation.y` (three.js `Ry`), so a
+// collider for a mesh can take the mesh's own yaw instead of a second number
+// derived by hand — which is the step that has gone wrong here before
+// (`BAY.yawAlong`'s own comment, ct/bodega-corner.ts).
+//
+// WHY THIS EXISTS: *"whats going on with the collision geometry here? we should
+// fix this so its not just a bunch of separate rectangles and its just made
+// properly."* An AABB cannot be diagonal, so the bodega's 45-degree chamfer was
+// a staircase of 8 abutting bands — and a staircase is not merely ugly, it is
+// FELT: walking the cut with the wall at your shoulder, the collision surface
+// stepped 83 mm in and out and the slide ratcheted 267 mm (measured, before and
+// after, scripts/probes/w24-chamfer-walk.mjs). More, smaller boxes cannot fix
+// that; only a box that is actually at 45 degrees can.
 export type AABB = {
   minX: number; maxX: number; minZ: number; maxZ: number;
   minY?: number; maxY?: number;
+  /** yaw about the box's own centre, `mesh.rotation.y` convention. Absent or 0
+   *  means axis-aligned — the old behaviour, exactly. */
+  rot?: number;
 };
+
+/** A world point in the box's OWN frame, so the plain min/max tests below work
+ *  unchanged on a turned box. Identity — the same object arithmetic, not an
+ *  approximation of it — when `rot` is absent or zero, which is every collider
+ *  in the world but one.
+ *
+ *  three.js's `Ry(t)` sends local (x, z) to (x cos t + z sin t, -x sin t +
+ *  z cos t); this is its inverse, `Ry(-t)`, applied about the centre. */
+function inFrame(c: AABB, x: number, z: number): { x: number; z: number } {
+  if (!c.rot) return { x, z };
+  const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+  const s = Math.sin(c.rot), k = Math.cos(c.rot);
+  const dx = x - cx, dz = z - cz;
+  return { x: cx + dx * k - dz * s, z: cz + dx * s + dz * k };
+}
+
+/** The mirror of `inFrame` for a DIRECTION (no centre offset): a push worked
+ *  out in the box's frame, turned back into world axes. */
+function outOfFrame(c: AABB, dx: number, dz: number): { dx: number; dz: number } {
+  if (!c.rot) return { dx, dz };
+  const s = Math.sin(c.rot), k = Math.cos(c.rot);
+  return { dx: dx * k + dz * s, dz: -dx * s + dz * k };
+}
 
 export interface FPOpts {
   height?: number;
@@ -232,7 +278,14 @@ export class FPRig {
    */
   private blocked(x: number, z: number, atY?: number): boolean {
     for (const c of this.colliders) {
-      if (x > c.minX - RADIUS && x < c.maxX + RADIUS && z > c.minZ - RADIUS && z < c.maxZ + RADIUS) {
+      // The RADIUS padding is applied in the BOX's frame, not the world's. It
+      // was always a square Minkowski sum standing in for the player's circle
+      // (see ct/debug-collision.ts's player-box comment); on a turned box the
+      // square turns with it, which is the same approximation and no worse —
+      // and against a 45-degree wall it is what makes the stop distance a
+      // constant instead of sawing with the wall's angle.
+      const q = inFrame(c, x, z);
+      if (q.x > c.minX - RADIUS && q.x < c.maxX + RADIUS && q.z > c.minZ - RADIUS && q.z < c.maxZ + RADIUS) {
         if (c.maxY !== undefined && atY !== undefined && atY >= c.maxY - TOP_EPS) continue;
         return true;
       }
@@ -252,7 +305,8 @@ export class FPRig {
     let best: number | null = null;
     for (const c of this.colliders) {
       if (c.maxY === undefined) continue;
-      if (x < c.minX || x > c.maxX || z < c.minZ || z > c.maxZ) continue;
+      const q = inFrame(c, x, z);
+      if (q.x < c.minX || q.x > c.maxX || q.z < c.minZ || q.z > c.maxZ) continue;
       if (atY < c.maxY - TOP_EPS) continue;
       if (best === null || c.maxY > best) best = c.maxY;
     }
@@ -282,16 +336,23 @@ export class FPRig {
    *  `unstick` would shove you back off the edge you just landed on. */
   private escapeFrom(c: AABB, x: number, z: number, atY?: number): { dx: number; dz: number; d: number } | null {
     if (c.maxY !== undefined && atY !== undefined && atY >= c.maxY - TOP_EPS) return null;
-    const left = x - (c.minX - RADIUS);     // push -x by this
-    const right = (c.maxX + RADIUS) - x;    // push +x
-    const back = z - (c.minZ - RADIUS);     // push -z
-    const front = (c.maxZ + RADIUS) - z;    // push +z
+    // Worked out in the box's own frame — the minimum translation out of a
+    // TURNED box is along one of ITS axes, not the world's — then turned back
+    // into world axes on the way out. `d`, a length, is frame-independent.
+    const q = inFrame(c, x, z);
+    const left = q.x - (c.minX - RADIUS);     // push -x by this
+    const right = (c.maxX + RADIUS) - q.x;    // push +x
+    const back = q.z - (c.minZ - RADIUS);     // push -z
+    const front = (c.maxZ + RADIUS) - q.z;    // push +z
     if (left <= 0 || right <= 0 || back <= 0 || front <= 0) return null;   // not inside
     const d = Math.min(left, right, back, front);
-    if (d === left) return { dx: -left, dz: 0, d };
-    if (d === right) return { dx: right, dz: 0, d };
-    if (d === back) return { dx: 0, dz: -back, d };
-    return { dx: 0, dz: front, d };
+    let dx = 0, dz = 0;
+    if (d === left) dx = -left;
+    else if (d === right) dx = right;
+    else if (d === back) dz = -back;
+    else dz = front;
+    const w = outOfFrame(c, dx, dz);
+    return { dx: w.dx, dz: w.dz, d };
   }
 
   /**

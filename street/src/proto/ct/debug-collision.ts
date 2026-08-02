@@ -140,7 +140,15 @@ export class ColliderDebug {
       // the debug view should say so rather than keep drawing it as one.
       const h = c.maxY !== undefined ? Math.max(0.05, c.maxY) : BOX_H;
       const b = this.boxes[i];
+      // A TURNED collider (`AABB.rot`, item 36) is drawn TURNED. Its min/max
+      // are extents in its own frame and `rot` spins it about its own centre —
+      // which is the same centre either way, so only the rotation is new. The
+      // whole contract of this overlay is that it cannot disagree with what
+      // actually stops you; drawing the bodega's chamfer as an axis-aligned box
+      // would have put a wireframe across the pavement it leaves walkable and
+      // none along the wall you actually collide with.
       b.position.set((c.minX + c.maxX) / 2, floorY + h / 2, (c.minZ + c.maxZ) / 2);
+      b.rotation.y = c.rot ?? 0;
       b.scale.set(sx, h, sz);
       b.material = trapAgainst(c, colliders) ? trapMat : okMat;
     }
