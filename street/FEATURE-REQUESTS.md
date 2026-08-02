@@ -2407,3 +2407,14 @@ to one side.
   option is still to sit on the bed"* and created its mirror image. The two
   complaints are the same knob at opposite ends, so the fix has to satisfy both
   at once rather than swing back.
+
+- **"[screenshot] this doesnt look integrated. i want when i hit e here to adjust my
+  position and perspective and lock it to be looking at the atm and for the screen on
+  the literal atm be the overlay that i can use my mouse to click through. the mouse
+  cursor should be like a lil hand almost like win98 cursor"** (2026-08-02)
+  → **routed to a builder as queue item 86, top of the queue.**
+  This is the concrete form of the standing design law the user gave on 2026-08-01:
+  *"i never want there to be menus popping up unless they are embedded to look as if
+  they are in the actual game. i dont want to break immersion."* Item 0c removed the
+  panel CHROME; this removes the panel. The ATM is the template — slots, blackjack and
+  the library PC follow the same pattern once it works.
