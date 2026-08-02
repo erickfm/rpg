@@ -1878,3 +1878,23 @@ The desk now stages it at `street/artifact/` (gitignored) before publishing.
 
 Related, from the same builder: `pack-artifact.mjs` printed `out.length` —
 UTF-16 code units — labelled "bytes", a 210-byte undercount on a 1.1 MB file.
+
+## 64.
+
+**Killed agents leave their dev servers running, and the fleet runs out of
+ports.** By the end of one night 4177 and every port in 4180-4199 was listening,
+with ~86 vite processes, most of them orphans from agents that had stopped hours
+earlier. A builder that cannot find a free port either stops, or — worse — falls
+back to a default and measures somebody else's world while reporting confidently
+about it (GOTCHAS 48). One builder found exactly one free port in the whole
+range and said the next builder would find none.
+
+`./scripts/reap-servers.sh [--dry] <live-agent-id ...>` fixes it. Get the live
+ids from `./scripts/claim.sh --stale`, which names every builder holding an item.
+It only touches servers running out of an agent worktree, so the live
+integration world and anything you started by hand are safe.
+
+**NEVER `pkill -f vite`.** The pattern matches the killing command's own command
+line, so it kills itself partway through and leaves the job half done **with no
+error** — the desk did this and only noticed from the exit code. Iterate over
+pids and skip your own.
