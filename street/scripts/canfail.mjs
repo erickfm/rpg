@@ -398,8 +398,24 @@ const CASES = [
     'basin(-ROAD_HALF, -105, 1);    // selftest: built inside out',
     'basin.mjs', [], 'the west basin mirrored into its own kerb'],
 
+  // NEEDLE RE-QUOTED, not redesigned — the sixth stale needle this month, and
+  // the only one that had a second-order cost (see `applied` at the foot of this
+  // file). `2bb64f49f` took the drop count from 500 to 2600 because rain "was
+  // never heavy", and this quotation went on saying 500, so the case patched
+  // ZERO BYTES from that commit until now.
+  //
+  // NOT `fc332c5c5`, which is the commit the report of this arrived citing.
+  // That one is the sibling piece of the same rain work — its own message says
+  // "5x the drops is 5x the posts", so RAIN_N was ALREADY 2600 when it was
+  // written — and `git show fc332c5c5 -- src/proto/ct/props.ts` contains no
+  // RAIN_N line at all. The two are parallel branches, neither an ancestor of
+  // the other, both merged into mainline three minutes apart. Recorded because
+  // this is the twin-hash trap `hashes-resolve` was written for, and it caught
+  // a reader who was looking straight at it.
+  //
+  // The property under test is untouched: a storm with six drops in it.
   ['rain', PROPS,
-    'const RAIN_N = 500;',
+    'const RAIN_N = 2600;',
     'const RAIN_N = 6;',
     'rain.mjs', [], 'a storm with six drops in it'],
 
@@ -812,6 +828,10 @@ const digest = (t) => (t === null ? null : createHash('sha1').update(t).digest('
 const only = process.argv.slice(2).filter((a) => a !== PORT_ARG);
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
 const results = [];
+// EVERY CASE WHOSE FILE WE ACTUALLY WROTE TO. The restore check at the foot of
+// this file is about putting back what we took; a case that never matched was
+// never taken, and conflating the two produced a false alarm — see there.
+const applied = [];
 
 // the bundle with NOTHING mutated, to tell an inert mutation from a real one
 sh('npm run build');
@@ -846,6 +866,7 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
   const src = readFileSync(file, 'utf8');
   const n = src.split(needle).length - 1;
   if (n !== 1) { results.push([name, 'NEEDLE', `matched ${n}x, not 1 — mutation not applied`]); continue; }
+  applied.push([name, file, needle]);   // we are about to WRITE this file — see the restore check
   try {
     backupPath = `.canfail-backup-${file.split('/').pop()}`;   // per FILE, never shared
     writeFileSync(backupPath, src);   // the exact bytes back, whatever state they were in
@@ -909,7 +930,21 @@ for (const [name, verdict, note] of results) {
   console.log(`  ${mark} ${name.padEnd(11)} ${verdict.padEnd(7)} ${note}`);
 }
 const bad = results.filter((r) => r[1] !== 'CAUGHT');
-const unprovable = results.filter((r) => ['INERT', 'NOT-RUN'].includes(r[1]));
+// NEEDLE JOINS THIS LIST, and it belongs here for the same reason the other two
+// do: the case was not scored, and that is not the same news as a guard asleep.
+//
+// It is here now because of what the restore check above used to do by accident.
+// The `density` case's own comment records it — *"canfail said so plainly
+// (RESTORE FAILED ... does not hold its original text), which is the only reason
+// it surfaced"* — so for five stale needles running, the way anyone found out
+// was a message about a corrupted source tree, which was not true and did not
+// name the case. Repairing that (see the restore check) removes an accidental
+// reporter, so the honest one has to get louder rather than quieter: a stale
+// needle is now called out by name, in its own block, with the count.
+//
+// `bad` still contains it, so the exit code is unchanged and non-zero. This adds
+// a sentence; it does not forgive anything.
+const unprovable = results.filter((r) => ['INERT', 'NOT-RUN', 'NEEDLE'].includes(r[1]));
 if (unprovable.length) {
   console.log(`\n${unprovable.length} case(s) could not be scored — NOT sleeping guards:`);
   for (const [n, v, why] of unprovable) console.log(`  ${v.padEnd(8)} ${n} — ${why}`);
@@ -917,10 +952,39 @@ if (unprovable.length) {
 console.log(`\n${results.length - bad.length}/${results.length} checks caught their mutation`);
 // Not "is the tree clean" — it may legitimately be dirty and that is the point
 // now. The question is whether the file came back byte-for-byte as it was.
-const stillWrong = CASES.filter(([, file, needle]) =>
-  run.some((r) => r[1] === file) && !readFileSync(file, 'utf8').includes(needle));
+//
+// ONLY THE CASES WE ACTUALLY WROTE, and that is a bug fix, not a relaxation.
+//
+// This used to ask a different question: for every case in `CASES` sharing a
+// FILE with anything in this run, is that case's needle present? A stale needle
+// answers no — not because a restore failed, but because the text was never
+// there. Measured on this tree, with `rain` quoting a `RAIN_N` that `2bb64f49f`
+// had changed:
+//
+//     node scripts/canfail.mjs footprint
+//     OK   footprint   CAUGHT  litter allowed to straddle the kerb
+//     1/1 checks caught their mutation
+//     RESTORE FAILED — src/proto/ct/props.ts does not hold its original text.
+//
+// Nothing was wrong. `footprint` ran, caught its mutation and restored cleanly,
+// and the tree was untouched — `git status` clean. But ONE stale needle in
+// props.ts made every run touching props.ts (footprint, trash, glow, wetness,
+// bus, rain, rain-memory, crowd-lane…) announce a corrupted source tree and
+// exit 3, which by the house convention (GOTCHAS §32) means "aborted, nothing
+// measured" — so `checks.mjs --selftest` scored eight healthy guards as failed.
+//
+// That is the expensive direction of this file's own warning: a false RED sends
+// somebody to fix a check that works, and "your source tree did not come back"
+// sends them somewhere much worse than that. A stale needle already has an
+// honest verdict of its own (`NEEDLE`, scored not-CAUGHT, non-zero exit); it
+// does not also need to masquerade as data loss.
+//
+// So the population is `applied` — the cases we opened the file for. If we did
+// not write it, we cannot have failed to put it back.
+const stillWrong = applied.filter(([, file, needle]) => !readFileSync(file, 'utf8').includes(needle));
 if (stillWrong.length) {
   console.error(`\nRESTORE FAILED — ${stillWrong[0][1]} does not hold its original text.`);
+  console.error(`  Case: ${stillWrong[0][0]}. Its backup is .canfail-backup-${stillWrong[0][1].split('/').pop()}.`);
   process.exit(3);
 }
 console.log('every mutated file restored byte-for-byte');
