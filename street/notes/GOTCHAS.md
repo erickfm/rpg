@@ -2143,3 +2143,31 @@ Two more reasons not to migrate blindly, from the same pass:
 **"Apply the fix everywhere" is not a migration plan.** Ask what each caller is
 for. Three of nine call sites here were right to keep the old array, and one of
 those three would have been quietly broken by the change.
+
+## 75.
+
+**`fp`/`fpdiff` CANNOT verify any change that adds or removes geometry, and three
+builders proved it independently on the same day.**
+
+`scripts/scenedump.mjs:26` seeds **one global `Math.random`** so dithering is
+reproducible, and three's `generateUUID()` draws four random values per object,
+geometry and material. So anything that changes *how many draws precede an
+object* re-rolls every dithered texture painted after it. `structure` embeds the
+texture hash, so it follows. `fpdiff`'s counts are positional, so an inserted
+mesh inflates them further.
+
+The three confirmations, each arrived at separately:
+
+- **294 of 1461** textures differing on a change that moved nothing. Proved by
+  taking two dumps of identical code (they matched) and reproducing the
+  before-hash across a stash/pop.
+- **671 of 1461** — and the cleanest proof of the three: a **control run** of the
+  pre-change file with *one extra `Math.random()` call and nothing else*
+  reproduced the same 671.
+- **849 of 1461**, with the real diff being 2 replaced and 7 added textures once
+  the grain was pinned.
+
+**`CLAUDE.md`'s "textures and structure must match" is unachievable for any world
+change.** Use `fp` only for pure refactors. Otherwise compare `places` as a
+multiset — `scripts/probes/w44-placediff.mjs` does exactly that — and expect the
+documented noise floor of a few pigeons at 1–2 cm.
