@@ -398,8 +398,12 @@ const CASES = [
     'basin(-ROAD_HALF, -105, 1);    // selftest: built inside out',
     'basin.mjs', [], 'the west basin mirrored into its own kerb'],
 
+  // NEEDLE MOVED WITH THE FIX, like basin-west and the pit plane above. The
+  // rain work raised RAIN_N from 500 to 2600 (`ct/props.ts:87`), so this needle
+  // matched 0x from `fc332c5c5` until now and the case scored NEEDLE instead of
+  // CAUGHT every run since. Re-quoted, not redesigned: still six drops.
   ['rain', PROPS,
-    'const RAIN_N = 500;',
+    'const RAIN_N = 2600;',
     'const RAIN_N = 6;',
     'rain.mjs', [], 'a storm with six drops in it'],
 
