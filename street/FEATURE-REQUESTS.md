@@ -2679,3 +2679,11 @@ to one side.
   his report is about *drops* and a mean hides those. Lead for 128: the TV in 301
   repaints its whole canvas and re-uploads the texture **9 times a second**
   (`ct/apartment.ts:2683`, `tvRedraw = 0.11`).
+
+- **"scroll wheel needs to be more effective? i need to scroll way too much to get zoom
+  moving. i want it to be much more sensitive"** (2026-08-02) → **done by the desk
+  directly.** `FOV_STEP` 3 → 7, so the full 36° range is about five notches instead of
+  twelve. **Partly the desk's own doing:** widening `FOV_MIN` 64 → 52 one message earlier
+  answered his complaint about zoom *reach* while making the *effort* worse — range and
+  step are coupled and only one was changed. Recorded in the source so the pair stays
+  together next time.

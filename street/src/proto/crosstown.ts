@@ -54,7 +54,17 @@ export function makeCrosstown(): Proto {
   // range, not on this particular number, and 52° is a normal lens rather than
   // a telephoto. FOV_STEP stays 3, so the extra range costs four more notches
   // rather than making each notch coarser.
-  const FOV_REST = 88, FOV_MIN = 52, FOV_STEP = 3;
+  //
+  // AND THAT WAS THE WRONG CALL, one message later: *"scroll wheel needs to be
+  // more effective? i need to scroll way too much to get zoom moving. i want it
+  // to be much more sensitive"*. Widening the range at a fixed step took a full
+  // pull from 8 notches to 12 — answering a complaint about REACH by making the
+  // EFFORT worse. STEP 3 -> 7: the whole 36° is now about five notches and one
+  // notch is a visible move rather than a nudge.
+  //
+  // THE TWO NUMBERS ARE COUPLED. Range and step have to be chosen together;
+  // changing one alone is exactly what produced the second complaint.
+  const FOV_REST = 88, FOV_MIN = 52, FOV_STEP = 7;
   let fovTarget = FOV_REST;
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
