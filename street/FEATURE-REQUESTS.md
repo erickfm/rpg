@@ -2243,3 +2243,16 @@ enforcement does not.
 puts a wall in front of it. `interiors-walk.mjs` already asserts *"the keeper is
 looking at you, not away"* for shop staff — the same idea applied to seats would
 have caught all five.
+
+> *"this door is making it a little too cramped in the back of the library"*
+
+An open door leaf standing proud into the rear aisle, with the stacks opposite —
+his own overlay paints the pinch red, i.e. under the 0.95 m trap threshold.
+Queued as its own item: the library spacing pass had already been released by
+its worker when this arrived, so there is no longer a conflict in that file. It
+must be checked **together with** that pass — a spacing fix that ignores a door
+leaf swinging into the aisle has not fixed the aisle.
+
+Note this is the *third* distinct fault he has found in that one room tonight —
+the cramped stacks, the tilted lectern, and now the door. All were invisible
+until the collision overlay shipped this morning.
