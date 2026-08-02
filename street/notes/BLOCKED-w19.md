@@ -74,4 +74,48 @@ mainline is the same class as a check registered against a missing script** —
 about nothing, for exactly this reason. A one-line existence check on the file
 list at ranking time would have caught this before it cost a claim.
 
+---
+
+# Item 47 too — same root, and here is the one-line proof
+
+Item 47: *"do NOT build the tyre route onto sedans/hatches; give ONE car a real
+one instead… DONE WHEN: the route is walked end to end on the built bundle,
+every hop has a margin at least as generous as the pickup's 21 mm at the dt
+clamp, and it is mutation-tested red by flattening one step."* File: `ct/cars.ts`.
+
+Part of its basis IS in this tree — `src/main.ts:107` really is
+`const dt = Math.min(clock.getDelta(), 0.05);`, so the dt clamp the margins are
+bounded by resolves. (Note the item cites it as `main.ts:107`; the file is
+`src/main.ts`, not `src/proto/main.ts`.)
+
+But the thing being climbed is not:
+
+    src/proto/fp.ts:9
+    export type AABB = { minX: number; maxX: number; minZ: number; maxZ: number };
+
+**Every collider in this world is a 2D rectangle with no height.** There is
+nothing to stand on top of, no step-up code anywhere in `fp.ts`, and the only
+`climbable` flag in the tree is `ct/civic.ts:56`, set to `false`. w21's route
+work must add a height dimension or a standable registry, and neither is here.
+
+So the three DONE WHEN clauses are all unreachable in this checkout:
+
+- **"walked end to end"** — there is no surface to walk onto.
+- **"a margin at least as generous as the pickup's 21 mm"** — the pickup route
+  does not exist here, so there is no margin to compare against. The number
+  would have to be retyped from the item, which is exactly the hand-copied
+  constant BUILDER-BRIEF §8 forbids, and it would be a copy of a measurement
+  taken on a *different tree*.
+- **"mutation-tested red by flattening one step"** — flattening a step that
+  nothing can stand on cannot turn anything red.
+
+I could still have *shaped a bonnet* in `ct/cars.ts` and called it a route. That
+would have been the silent workaround: geometry that looks like a climb, cannot
+be walked, cannot be measured, and would land on the merge train straight into
+w21's own file.
+
+**Both items want the same tree.** Whoever re-ranks them should hold them
+together until w21's work lands, and they can then be done back to back by one
+builder — 46 is the hazard and 47 is the route, and they are the same subject.
+
 *w19.*
