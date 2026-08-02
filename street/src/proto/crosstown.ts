@@ -99,19 +99,78 @@ export function makeCrosstown(): Proto {
   const sidewalkY = KERB_H; // prop base height on the walks
   const lineT = pixTex(8, 32, (g) => { g.fillStyle = '#b8a24e'; g.fillRect(2, 0, 4, 18); });
   lineT.wrapS = lineT.wrapT = THREE.RepeatWrapping;
-  lineT.repeat.set(1, 38);
-  const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 36 - SIDE_Z0), new THREE.MeshBasicMaterial({ map: lineT, alphaTest: 0.5 }));
-  line.rotation.x = -Math.PI / 2;
-  line.position.set(0, 0.03, (36 + SIDE_Z0) / 2);
-  const lineT2 = lineT.clone();
-  lineT2.repeat.set(1, 22);
-  lineT2.needsUpdate = true;
-  const line2 = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 48), new THREE.MeshBasicMaterial({ map: lineT2, alphaTest: 0.5 }));
-  line2.rotation.x = -Math.PI / 2;
-  line2.rotation.z = Math.PI / 2;
-  line2.position.set(30, 0.032, (SIDE_Z0 + SIDE_Z1) / 2);
-  scene.add(line2);
-  scene.add(line);
+
+  // ── the centre line stops short of a crossing ──────────────────────────
+  //
+  // *"remove the yellow stripes where the cross walk is. it doesnt look
+  // right."* Real centre lines stop at a crossing; one plane spanning the
+  // whole street's length cannot know a crossing exists, so it painted
+  // straight through both of them (`ct/tex-ground.ts`'s two junction
+  // crossings). Fixed by building the line as SEGMENTS either side of each
+  // crossing's gap instead of one span.
+  //
+  // THE GAPS ARE COPIED, WITH A CITATION, NOT IMPORTED — and that is a
+  // finding, not a shortcut. `ct/tex-ground.ts:1351-1352` (as of `705b78b74`)
+  // declares `XA_Z`/`XA_HW` (the main-street crossing: z centre, half-width)
+  // and `XB_X`/`XB_HW` (the side-street crossing: x centre, half-width) as
+  // consts LOCAL to `buildGround()`'s own closure — nothing there is
+  // exported, and this item's grant is `crosstown.ts` + READ (not edit)
+  // `tex-ground.ts`. A hand-typed gap stops matching the moment a crossing
+  // moves, which is exactly how this project's instruments have rotted
+  // before (BUILDER-BRIEF §8) — so this is reported for the desk to queue an
+  // export (e.g. `JUNCTION_CROSSINGS`) rather than silently duplicated and
+  // left to drift; see notes/w8-crossing-lines.md.
+  const XA_Z = -90.2, XA_HW = 1.3;    // main-street junction crossing
+  const XB_X = 10.6, XB_HW = 1.3;     // side-street junction crossing
+
+  // DASH PITCH IS DERIVED, NOT RETYPED, from the length/repeat this file had
+  // already tuned for the ONE unsegmented plane each line used to be —
+  // splitting a line into shorter segments must not squeeze or stretch how
+  // dense its dashes read. (GOTCHAS 27: a rebuilt prop silently reversing its
+  // own tuning is exactly the class of bug a hand-typed second number causes.)
+  const LINE_LEN = 36 - SIDE_Z0, LINE_PITCH = LINE_LEN / 38;      // main street's old repeat
+  const LINE2_LEN = 48, LINE2_PITCH = LINE2_LEN / 22;             // side street's old repeat
+  const dashedTex = (len: number, pitch: number) => {
+    const t = lineT.clone();
+    t.repeat.set(1, len / pitch);
+    t.needsUpdate = true;
+    return t;
+  };
+  /** a dashed segment running along Z (the main street), from z0 to z1 */
+  const zLineSeg = (z0: number, z1: number, y: number, pitch: number) => {
+    const len = z1 - z0;
+    if (len <= 0) return;                 // a crossing wider than the gap it cuts — nothing to draw
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, len),
+      new THREE.MeshBasicMaterial({ map: dashedTex(len, pitch), alphaTest: 0.5 }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(0, y, (z0 + z1) / 2);
+    scene.add(m);
+  };
+  /** a dashed segment running along X (the side street), from x0 to x1 at fixed z */
+  const xLineSeg = (x0: number, x1: number, z: number, y: number, pitch: number) => {
+    const len = x1 - x0;
+    if (len <= 0) return;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, len),
+      new THREE.MeshBasicMaterial({ map: dashedTex(len, pitch), alphaTest: 0.5 }));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = Math.PI / 2;
+    m.position.set((x0 + x1) / 2, y, z);
+    scene.add(m);
+  };
+
+  // MAIN STREET: was one plane z SIDE_Z0..36; now two, either side of the
+  // crossing's z = XA_Z ± XA_HW.
+  zLineSeg(SIDE_Z0, XA_Z - XA_HW, 0.03, LINE_PITCH);
+  zLineSeg(XA_Z + XA_HW, 36, 0.03, LINE_PITCH);
+
+  // SIDE STREET: was one plane x 6..54 (centred x=30, half-length 24); now
+  // two, either side of the crossing's x = XB_X ± XB_HW. Same fault C's own
+  // comment on `crossingStripes` already flagged: "check the side street's
+  // line (line2) for the same fault."
+  const SIDE_LINE_X0 = 30 - LINE2_LEN / 2, SIDE_LINE_X1 = 30 + LINE2_LEN / 2;
+  const SIDE_LINE_Z = (SIDE_Z0 + SIDE_Z1) / 2;
+  xLineSeg(SIDE_LINE_X0, XB_X - XB_HW, SIDE_LINE_Z, 0.032, LINE2_PITCH);
+  xLineSeg(XB_X + XB_HW, SIDE_LINE_X1, SIDE_LINE_Z, 0.032, LINE2_PITCH);
 
   // buildings — every one a specific place, laid by hand end to end.
   // West carries the walk-up (No. 227, res facade, entrance at z=-31) and
