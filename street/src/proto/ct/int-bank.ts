@@ -1444,9 +1444,18 @@ export function buildBankInterior(ctx: CtxBuild): void {
     const owedOn = (a: number) => cents(a * (1 + RATE[a] / 100));
     let stamp: 'none' | 'approved' | 'declined' = 'none';
 
+    // FRAMELESS. `draw` below already paints a complete fascia — the
+    // letterhead, the FIRST FEDERAL / SAVINGS & LOAN masthead, the whole
+    // sheet of paper — filling the canvas edge to edge. `chrome: 'cloth'`
+    // wrapped that paper in a SECOND cabinet with its own `LOAN APPLICATION`
+    // title stamp, which is the framework redrawing a letterhead the form
+    // already has. Item 5i (the same fix as item 0c, just not named by it):
+    // *"i never want there to be menus popping up unless they are embedded
+    // to look as if they are in the actual game."* `title` dropped with it —
+    // frameless has no title band to put it in, and the masthead the form
+    // draws for itself already says what this is.
     const panel = makePanel({
-      id: 'ct-loan', w: 300, h: 214, chrome: 'cloth',
-      title: 'LOAN APPLICATION',
+      id: 'ct-loan', w: 300, h: 214, chrome: 'none',
       hint: () => (stamp === 'approved'
         ? 'ESC  step back'
         : 'W / S  amount   ·   ENTER  submit   ·   ESC  step back'),
