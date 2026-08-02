@@ -48,7 +48,7 @@ do not resolve, **and** 6 more are honestly flagged unrecoverable") and row
 313 says explicitly they were "not re-attempted here — this item named only
 the 2 presented as live." A citation whose commit object is genuinely gone
 being marked dead rather than invented is the correct, desired outcome per
-GOTCHAS 51 — nothing to fix there.
+GOTCHAS 53 — nothing to fix there.
 
 ## Derived vs copied
 

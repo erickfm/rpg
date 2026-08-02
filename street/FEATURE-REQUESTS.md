@@ -2393,7 +2393,7 @@ The seat now reads **`TV_X`**, the set's own centre line as declared where the
 cabinet is built, rather than a copy of it. Move the television and the seat
 follows. (A hand-typed second number is what left `bedcavity.mjs` measuring a
 truck that no longer existed and `doorside2.mjs` failing a door that was fine —
-GOTCHAS 56.)
+GOTCHAS 58.)
 
 Measured: the spot moved x 198.30 → 198.84. Looked at it from the seat — the TV
 is now square in the middle of the view with the poster above it, instead of off

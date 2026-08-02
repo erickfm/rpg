@@ -3,6 +3,54 @@
 Things that have cost real time. Read before your first change; most are not
 discoverable from the code alone.
 
+## RENUMBERED 2026-08-02 — if you are following a citation, read this first
+
+**§51 and §52 were each used TWICE, and the second §51 appeared *after* the
+first §52.** Anything appended after that inherited the wrong number, so §59 was
+really the 61st entry. Nine entries were renumbered to make the sequence unique
+and monotonic. **No entry's text was changed** — only its number, so a citation
+that lands on the wrong lesson can be re-pointed with this table:
+
+| was | is now | entry |
+|---|---|---|
+| 51 *(first)* | **51** *(unchanged)* | The player SPAWNS INSIDE 301 |
+| 52 *(first)* | **52** *(unchanged)* | Watch your ERROR RATE |
+| 51 *(second)* | **53** | The dangling objects are the only copy of every rejected design |
+| 52 *(second)* | **54** | A fresh agent worktree does NOT start on this project |
+| 53 | **55** | An agent that backgrounds its own work and waits will never finish |
+| 54 | **56** | A silently-undefined field makes a test walk the wrong way |
+| 55 | **57** | A false ledger row survived three corrections and then ate a builder |
+| 56 | **58** | Bad instruments produce about as many "defects" as the world does |
+| 57 | **59** | A shared queue stops double-CLAIMING, not double-DOING |
+| 58 | **60** | The queue's own claim pattern could not see most of the queue |
+| 59 | **61** | A spawned builder does NOT automatically get its own worktree |
+
+**§1–§50 are untouched**, so the overwhelming majority of citations in this repo
+are unaffected. Every live citation of a renumbered entry was updated in the
+same commit (`notes/BUILDER-BRIEF.md`, `notes/LEDGER.md`, `notes/QUEUE.md`,
+`FEATURE-REQUESTS.md`, `notes/w14-sha-repair-check.md`, `scripts/bedcavity.mjs`,
+`scripts/doorside2.mjs`, `scripts/queue-check.sh`, `src/proto/ct/apartment.ts`,
+and five cross-references inside this file).
+
+**Two classes were deliberately NOT rewritten**, and both are correct as they
+stand:
+
+- **`notes/archive/`** — those notes are historical records written when the
+  numbering was what it was. Rewriting them would falsify the record; use the
+  table above. Affected: `AUDIT-shadow-geometry.md` (51 → 53),
+  `exteriors-match-interiors.md` (55 → 57), `feel-gravity-and-pickup.md`
+  (52 → 54), `QUEUE-done-2026-08-01.md` (56 → 58, 58 → 60),
+  `vault-and-lot-surfaces.md` (55 → 57), `w2-ledger-sha-repair.md` (51 → 53),
+  `w4-junction-crossings-export.md` (56 → 58), `w5-shadow-geometry.md`
+  (55/56 → 57/58).
+- **`notes/w15-jail-seams.md:142` quotes a real commit subject** —
+  `52b7c8a99 GOTCHAS 59: a spawned builder may share your worktree…`. A commit
+  message cannot be edited, so changing the quote would misquote git history.
+  That commit's "59" is this table's **61**.
+
+§59 also had **no title at all** — just `## 59.` — which is why the desk could
+not see it was the third defect. It is now titled from its own opening sentence.
+
 ---
 
 ## 1. The paint layer uses UNSEEDED `Math.random()`
@@ -1474,7 +1522,7 @@ cost every row after it, and somebody else would have had to find out.
 retype wrong. If a convention has bitten twice, it belongs in a shared helper or
 in a comment where the next person cannot miss it — not in your memory.
 
-## 51. The dangling objects are the only copy of every rejected design
+## 53. The dangling objects are the only copy of every rejected design
 
 This repo carries ~2,138 dangling commits. **Do not `git prune` them and do not
 `git gc --prune=now`.** `gc.pruneExpire` is set to `never` in `.git/config` for
@@ -1514,7 +1562,7 @@ from every ref, across all of `street/src`, regardless of path.** Anything less
 confidently reports a false verdict in whichever direction you were already
 leaning.
 
-## 52. A fresh agent worktree does NOT start on this project
+## 54. A fresh agent worktree does NOT start on this project
 
 Every subagent spawned with worktree isolation on 2026-07-31 — four for four —
 was handed a worktree checked out at **the repo's initial commit (a bare
@@ -1545,7 +1593,7 @@ of the world under test. This is the same failure one level up — the *builder*
 pointed at the wrong tree. Check what you are standing on before you trust
 anything you measure from it.
 
-## 53. An agent that backgrounds its own work and waits will never finish
+## 55. An agent that backgrounds its own work and waits will never finish
 
 One agent on the twelve-room exit check burned **245,000 tokens across two
 wake-ups and delivered nothing** — no commit, no note, no partial table. Both
@@ -1570,7 +1618,7 @@ learned a losing habit inside its own transcript. This is the cheap version of
 the lesson that cost the account its usage: *an agent exists only while it holds
 an item*, and one that is not producing is not holding it.
 
-## 54. A silently-undefined field makes a test walk the wrong way and blame the world
+## 56. A silently-undefined field makes a test walk the wrong way and blame the world
 
 The third false catastrophe from a mis-aimed instrument, and the subtlest.
 GOTCHAS 48 was an instrument pointed at the wrong *world*; this one is pointed
@@ -1602,7 +1650,7 @@ Two rules come out of it:
    building's collider runs eastward **from the door face**. Any one alone would
    have been weak; together they are decisive.
 
-## 55. A false ledger row survived three corrections and then ate a builder
+## 57. A false ledger row survived three corrections and then ate a builder
 
 The row `OPEN | F+G | interior people, THE ADOPTION HALF: 0 of 10 int-*.ts call
 citizenSprite` was **false when written and false for days after**. All twelve
@@ -1634,7 +1682,7 @@ The general form is worth keeping: **"is the capability called?" and "does the
 result read right to the player?" are different questions, and only the second
 one is what the user asked for.**
 
-## 56. On this project, bad instruments produce about as many "defects" as the world does
+## 58. On this project, bad instruments produce about as many "defects" as the world does
 
 Tally for 31 July – 1 August, when the sweep finally started photographing the
 whole world and everything got re-measured.
@@ -1646,7 +1694,7 @@ hem; the diner pastry case; the vault's concrete at four different scales.
 
 **Instrument artifacts that looked exactly like defects (5):** `health.mjs`
 hardcoded to port 4177; `interiors-walk.mjs` walking `+x` out of a west-facing
-door because `room.east` was silently `undefined` (§54); `bedcavity.mjs` measuring
+door because `room.east` was silently `undefined` (§56); `bedcavity.mjs` measuring
 `CAV.x = 0.74`, an outer panel deleted when the wheel well was built; the car
 lot's "12 flat slabs of 11.59 m²", which are the **bounding boxes of 12 rotated
 0.09 × 5.0 paint stripes** whose real area is 0.45 m²; `doorside2.mjs` reporting
@@ -1660,7 +1708,7 @@ missed defect wastes a player's goodwill, a false one wastes a builder.
 stripes were explained in commit `97dd4b7e3` on 25 July — *"I measured a paint
 stripe as a slab"* — and were re-filed as a defect on 30 July anyway, then
 entered into the ledger by the desk, then spent a builder's time on 1 August.
-**The correction existed. Nobody applied it to the row.** That is §55's failure
+**The correction existed. Nobody applied it to the row.** That is §57's failure
 mode and it is the expensive one.
 
 **What actually works, learned the hard way:** before believing a measurement,
@@ -1670,7 +1718,7 @@ lot in one line. `int-hotel.ts` importing the same `VICE_DOOR_X` that `vice.ts`
 places the door from settled twelve rooms at once. **A number in the source beats
 a number from a script**, because the script is a hypothesis about the source.
 
-## 57. A shared queue stops double-CLAIMING, not double-DOING
+## 59. A shared queue stops double-CLAIMING, not double-DOING
 
 Two builders fixed the same door on the same night and their branches conflicted
 in `ct/apartment.ts`. The queue worked exactly as designed — one claim each, no
@@ -1704,7 +1752,7 @@ which is the same trap as GOTCHAS 48 (instrument aimed at the wrong world) and
 **Cost when it happened:** two agents' work on one bug, a merge conflict, and the
 desk discarding one of two correct fixes.
 
-## 58. The queue's own claim pattern could not see most of the queue
+## 60. The queue's own claim pattern could not see most of the queue
 
 `claim.sh` matched rows with `'^| *[0-9]* *| *TODO *|'`. The desk inserts urgent
 work with **lettered ranks** — `0a`, `5b`, `6b` — so a new item can jump ahead
@@ -1722,9 +1770,9 @@ instrument was wrong.
 because it is the tool that hands out the work:**
 
 - §48 — an instrument aimed at the wrong world (port 4177)
-- §54 — an instrument walking the wrong direction (`room.east` undefined)
-- §57 — a builder measuring its own stale snapshot
-- §58 — **the dispatcher blind to most of its own list**
+- §56 — an instrument walking the wrong direction (`room.east` undefined)
+- §59 — a builder measuring its own stale snapshot
+- §60 — **the dispatcher blind to most of its own list**
 
 **The rule that would have caught it, and now must be run after any queue edit:**
 
@@ -1737,7 +1785,7 @@ because it is the tool that hands out the work:**
 worker reports empty and you believe there is work, check the reader before you
 believe the report.
 
-## 59.
+## 61. A spawned builder does NOT automatically get its own worktree
 
 **A spawned builder does NOT automatically get its own worktree — check, do not
 assume.** w13 and w14 got one; w15, w16 and w17 did not, and all three ran
@@ -1757,3 +1805,51 @@ a bisect starts lying to you.
 list` after — if the count did not rise, the builder is in your tree.** Scope
 every `git add` to the paths you actually touched; never `-A` from the repo root
 while a fleet is running.
+
+---
+
+## 62. A SEAT's yaw and a CITIZEN's facing use OPPOSITE zero directions
+
+**`ctx.seat({ yaw })` has `0 = −z`. `citizenSprite({ facing })` has `0 = +z`.
+The same number points the two of them 180° apart.** Both are documented, in
+their own files, and neither mentions the other:
+
+| | | |
+|---|---|---|
+| `ct/ctx.ts:72-74` | `Seat.yaw` | *"0 = −z, π/2 = +x, π = +z, −π/2 = −x. Point it at the table."* |
+| `ct/citizens.ts:528` | `citizenSprite` `facing` | *"initial facing, atan2(vx, vz). **Default 0 = facing +z**."* |
+
+So a room that seats a player and stands an NPC beside him, and gives both the
+angle it measured once, has put one of them backwards — and **it will look
+correct from wherever the author was standing when they picked the number**,
+because at yaw ±π/2 the two conventions agree. `cos` is 0 there. The error is
+zero at the two angles a builder is most likely to try first and maximal at
+0 and π, which is precisely why it keeps shipping.
+
+**This is a plausible origin of several of the five facing bugs in this
+project's history** — the burger barn guy, the librarian, the casino sitter, the
+park benches, the tax office waiting row. It is exactly the shape of the largest
+one: `seat-facing.mjs` found **96 casino slot stools with their backs 0.37 m
+from the machines, sitting next to NPCs who faced them correctly.** One of the
+two numbers had been mirrored; the NPCs beside them proved the author knew which
+way the machines were.
+
+**So: never pass the same angle to both, and never copy an angle from an NPC to
+a seat or back.** Derive it from geometry instead — point at the thing:
+
+```ts
+const faceAt = (fromX: number, fromZ: number, toX: number, toZ: number) =>
+  Math.atan2(toX - fromX, -(toZ - fromZ));      // Seat.yaw convention
+```
+
+`int-casino.ts` uses exactly this after the 96-stool fix, and the reason it is
+written as a helper rather than typed per stool is that `a + Math.PI` — the
+obvious way to turn something round — carried the same mirror into the approach
+points and put them **inside** the craps table.
+
+**The check is `scripts/seat-facing.mjs`.** Run it after touching any seat.
+It fails on both nose-to-the-wall and turned-away-from-your-own-furniture, and
+it covers `__ct.seats()`, so it sees seats registered by modules that did not
+exist when it was written. It does **not** cover outdoor benches or seated NPCs
+(the NPC keeps its facing in a closure and never publishes it), so on those the
+convention clash is still unguarded and you are checking by eye.

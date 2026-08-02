@@ -14,7 +14,7 @@
 // static thing in the way. A seat you sit in to stare at brick from a metre is
 // player-visible in a way a yaw number is not.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
 const b = await chromium.launch();
@@ -26,8 +26,12 @@ await p.waitForTimeout(800);
 
 const out = await p.evaluate(async () => {
   const key = (c) => `${c.minX.toFixed(2)},${c.minZ.toFixed(2)}`;
+  // NO COORDINATE CEILING. This filtered to |minX| < 500 and the interior belt
+  // starts at x ~ 600, so it could not see one interior wall or table and called
+  // 213 of 219 seats clear on a world seat-facing.mjs later found 105 backwards
+  // seats in. isFinite is the only thing a collider has to be. (QUEUE item 22.)
   const snap = () => window.__ct.colliders()
-    .filter((c) => c && isFinite(c.minX) && Math.abs(c.minX) < 500)
+    .filter((c) => c && isFinite(c.minX) && isFinite(c.minZ))
     .map((c) => ({ minX: c.minX, maxX: c.maxX, minZ: c.minZ, maxZ: c.maxZ }));
   const a = snap();
   await new Promise((r) => setTimeout(r, 1500));
