@@ -248,6 +248,9 @@ const CASES = [
   // asserts: that the street STAYS WET after the rain stops. Drying almost
   // instantly is the failure the user would actually notice, and it is the half
   // of the weather system that was kept and liked.
+  // THE CASE WAS ALWAYS SOUND — it changes bytes, and it changes the world by
+  // 200x. It was the guard that could not see it under load. See the note by
+  // the SLEPT verdict at the bottom of this file.
   ['wetness', PROPS,
     'const dryFor = 48 * (1 + soak * 1.5) * (1 + nightNow * 1.1);',
     'const dryFor = 0.24 * (1 + soak * 1.5) * (1 + nightNow * 1.1);',
@@ -955,21 +958,32 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
         continue;
       }
     }
-    // FLAKY IS REAL AND THIS FILE CANNOT YET TELL YOU WHICH. `wetness` measured
-    // CAUGHT, CAUGHT, SLEPT, SLEPT, CAUGHT across five identical invocations —
-    // so a 43-case suite reports it asleep roughly half the time, and several
-    // flaky guards land together as a cluster of SLEPTs that reads exactly like
-    // sudden rot in one module. That is the likeliest reading of a
-    // five-at-once report.
+    // FLAKY IS REAL AND THIS FILE CANNOT TELL YOU WHICH — and the one case that
+    // proved it is now FIXED, in the guard rather than here.
     //
-    // I BUILT A RETRY HERE AND TOOK IT OUT AGAIN. Re-running the check against
-    // the same mutated world does not stabilise it: when wetness sleeps it
-    // sleeps on the retry too, so the non-determinism is at the level of the
-    // built world or the run, not the invocation. Shipping the retry would have
-    // put a mechanism in the one tool whose whole job is trustworthiness
-    // without evidence that it detects anything — the exact fault this file
-    // exists to catch. Whoever removes wetness's non-determinism should own
-    // that, and it is B's: the case mutates ct/props.ts.
+    // `wetness` measured CAUGHT, CAUGHT, SLEPT, SLEPT, CAUGHT across five
+    // identical invocations. A retry was built here and taken out again,
+    // correctly: re-running the check against the same mutated world did not
+    // stabilise it, because the non-determinism was never at the level of the
+    // invocation.
+    //
+    // IT WAS THE CLOCK. Drying is `wetness -= dt / dryFor` (ct/props.ts:1925)
+    // and dt is clamped at 0.05 s (src/main.ts:107), so the street dries in
+    // SIMULATED time — while wetness.mjs sampled it on seven waits of 2000 ms of
+    // WALL CLOCK. This file is the loaded case by construction: a full
+    // `npm run build` and a browser for every case. Under that load the ladder
+    // bought far less simulated time than it asked for, stopped short of the
+    // bone-dry street the mutation produces, and every mutation-sensitive
+    // verdict passed. Reproduced deliberately with CPU_THROTTLE=20 (a knob
+    // wetness.mjs now carries): at x20 the old guard was red on a HEALTHY world
+    // for an unrelated clock reason and green on the mutation. Its colour was
+    // uncorrelated with the mutation in both directions.
+    //
+    // The lesson generalises past this one case, and it is the reason to read
+    // this comment: ANY guard that measures a rate on a wall-clock wait will
+    // sleep HERE and nowhere else, because nowhere else is the box this busy.
+    // A SLEPT that will not reproduce on an idle machine is this, until proven
+    // otherwise — count frames, or measure the world's own state.
     results.push([name, red ? 'CAUGHT' : 'SLEPT', expect]);
   } finally { restore(); }
 }
