@@ -2508,3 +2508,11 @@ to one side.
   confirming the pattern is general, which is exactly why 86 was scoped to build the
   mechanism into the framework rather than into `ct/atm.ts`. Item 100 is the second
   application of it; blackjack and the library PC are the third and fourth.
+
+- **"[screenshot] when folks sit, they clip, fix this"** (2026-08-02, casino slot stool)
+  → **folded into queue item 93, which was widened from the church pew to EVERY seated
+  sprite in the world.** Second sighting of the same class: the desk had already written,
+  when queueing the church one, that "the casino stools carry seated NPCs on the same
+  terms, so the collision is waiting there too". It was. Not filed as a new item —
+  splitting one job across two rows has already cost this session two duplicate-work
+  incidents.
