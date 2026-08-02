@@ -4,6 +4,7 @@ import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { citizenSprite } from './citizens';
 import { type DoorDecl } from './doors';
+import { PASSABLE } from './gap';
 // the hard-texel text painter, so a sign in here is as crisp as one on the
 // street — same reason ct/int-hotel.ts imports it
 import { hardLayer as hardLayerLib } from './vice';
@@ -1678,7 +1679,35 @@ export function buildLibrary(ctx: CtxBuild): void {
   // librarian and the one on the street outside is nobody's parent; a children's
   // corner with no children in it reads as closed.
   {
-    const AX = -W / 2 + 1.05;
+    // FLUSH TO THE WALL, not centred in the strip — item 5g: *"this door is
+    // making it a little too cramped in the back of the library"*. Measured
+    // with `__ct.colliders()` + `ct/gap.ts`'s own corridor() (the exact
+    // function the V overlay paints red with): the reported cause was wrong —
+    // this room's door leaves carry no collider at all and cannot produce a
+    // trap — but the SYMPTOM was real and sat one screen further into the
+    // room, at this stand. `AX = -W/2 + 1.05` put the stand dead centre in the
+    // 2.4 m strip between the wall and the stacks' west end, and its own 0.6 m
+    // footprint left ~0.75 m bare on BOTH sides — under gap.ts's 0.95 m
+    // PASSABLE floor either way you tried to pass it, confirmed as two
+    // separate trap corridors (stand-vs-wall AND stand-vs-stack, both 0.75 m).
+    //
+    // Nobody reads a wall-mounted rack from behind it — the reading side is
+    // the chair (`CHAIR_X`, derived below), into the room — so there is no
+    // reason to leave floor on the wall side at all. Push it flush (a hair off the
+    // wall, not coplanar with it — GOTCHAS 6) and the same floor that used to
+    // split 0.75/0.75 goes entirely to the stack side, comfortably clear.
+    const STAND_W = 0.6;                    // matches the solid() below
+    const AX = -W / 2 + STAND_W / 2 + 0.05;
+    // THE CHAIR MOVED TOO, and reintroduced the same trap one object over.
+    // It has always sat at `AX + 1.15`; moving AX 0.70 m west to flush the
+    // stand pulled the chair 0.70 m closer to the wall-mounted magazine case
+    // (`wallRun` below) as well — measured with the same colliders()+gap.ts
+    // corridor() check, 0.63 m against the case, the identical trap class in
+    // a new spot. Deriving the chair from the CASE's own known east edge
+    // instead of an offset from AX means it cannot drift out of clearance
+    // again if either one moves independently.
+    const caseEastEdge = -W / 2 + BAY_D + 0.06;     // wallRun's own lx + BAY_D / 2
+    const CHAIR_X = caseEastEdge + PASSABLE + 0.25 + 0.15;  // +chair half-width (solid w 0.5), +margin
     // ── REBUILT AS A FACE-OUT CASE, 2026-07-25 ──
     //
     // The user, and he filed it as `user-library-computers.png` because he
@@ -1773,15 +1802,15 @@ export function buildLibrary(ctx: CtxBuild): void {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.52), ctx.flat(paperT));
       face.rotation.y = Math.PI / 2; face.rotation.x = -0.21;
       put(face, AX + 0.17, 1.02, rz);
-      solid(AX, rz, 0.6, 1.2);
+      solid(AX, rz, STAND_W, 1.2);
     }
     // a chair to read them in, turned into the alcove rather than facing the room
-    box(0.46, 0.06, 0.46, wood, AX + 1.15, 0.44, 0.9);
-    box(0.46, 0.52, 0.06, wood, AX + 1.15, 0.72, 1.12);
+    box(0.46, 0.06, 0.46, wood, CHAIR_X, 0.44, 0.9);
+    box(0.46, 0.52, 0.06, wood, CHAIR_X, 0.72, 1.12);
     for (const lx of [-0.18, 0.18]) for (const lz of [-0.18, 0.18]) {
-      box(0.05, 0.44, 0.05, woodDark, AX + 1.15 + lx, 0.22, 0.9 + lz);
+      box(0.05, 0.44, 0.05, woodDark, CHAIR_X + lx, 0.22, 0.9 + lz);
     }
-    solid(AX + 1.15, 0.9, 0.5, 0.5);
+    solid(CHAIR_X, 0.9, 0.5, 0.5);
 
     // ── AND SOMETHING ON THE WALL ABOVE THEM ──
     //
