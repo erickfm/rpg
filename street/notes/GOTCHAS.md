@@ -1856,21 +1856,25 @@ convention clash is still unguarded and you are checking by eye.
 
 ## 63.
 
-**`npm run build` WIPES `dist/`, so packing the artifact and then rebuilding
-destroys the artifact.** Two hygiene rules point in opposite directions and
-neither said so:
+**Pack the artifact LAST — after your final commit — and do not run a bare
+`npm run build` afterwards.**
 
-- `pack-artifact.mjs` writes `dist/artifact.html`, the only thing the user
-  actually plays.
-- `checks.mjs` exits 2 on a `dist`-vs-HEAD mismatch, which aborts the next
-  person's entire suite — so a builder who has just built at some other commit
-  is right to want `dist/` rebuilt at HEAD before leaving.
+The desk first wrote this entry as "two hygiene rules in direct conflict":
+`pack-artifact.mjs` writes `dist/artifact.html`, while `checks.mjs` exits 2 on a
+`dist`-vs-HEAD mismatch, so a departing builder is right to want `dist/` rebuilt.
 
-Do the second and you silently delete the first. `dist/` is gitignored, so no
-commit preserves it and nothing warns you. A builder hit this exactly once and
-reported the artifact delivered, in good faith, while the file no longer existed.
+**That framing was wrong, and a builder disproved it.** `pack-artifact.mjs`
+already builds *and then* packs, so packing last satisfies both rules at once —
+`dist` matches HEAD *and* the artifact exists. There is no conflict to trade off.
+The only thing that destroys the artifact is a bare `npm run build` run *after*
+the pack, which wipes `dist/` and takes `artifact.html` with it.
 
-**Pack the artifact LAST, publish or copy it out of `dist/` immediately, and do
-not run another build in that tree.** If you need `dist` to match HEAD as well,
-copy `artifact.html` somewhere outside `dist/` first — the ordering is the whole
-fix.
+`dist/` is gitignored, so nothing preserves the artifact and nothing warns you.
+One builder hit this and reported the artifact delivered, in good faith, while
+the file no longer existed.
+
+**If you need the artifact to outlive your worktree, copy it out of `dist/`.**
+The desk now stages it at `street/artifact/` (gitignored) before publishing.
+
+Related, from the same builder: `pack-artifact.mjs` printed `out.length` —
+UTF-16 code units — labelled "bytes", a 210-byte undercount on a 1.1 MB file.

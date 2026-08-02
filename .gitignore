@@ -16,3 +16,7 @@ node_modules
 # notes/archive/QUEUE-done-*.md, which IS tracked — that is where the history
 # lives.
 street/notes/QUEUE.md
+
+# Staging copy of the packed artifact, taken out of dist/ so it survives a
+# worktree cleanup long enough to publish. A build product, not source.
+street/artifact/
