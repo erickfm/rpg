@@ -2427,3 +2427,11 @@ to one side.
   vehicle as a full-height wall. The staging was right — it is why the change was safe —
   but the half-converted state is now visible to the player. **The trailer is explicitly
   KEEP: the user named it.**
+
+- **"[screenshot] bench is a lil too close to the path. also the path looks awful"**
+  (2026-08-02) → **routed to a builder as queue items 88 (bench spacing) and 89 (the
+  path's look).** Split because they are different work: one is a measurable clearance,
+  the other is a look the user has now rejected twice. `ct/park.ts:120` already records
+  the bench as **0.36 m out onto the walk**, so the encroachment was known and
+  under-weighted. The path was reworked once before, after *"THE PATHS READ AS ROAD"*
+  (`ct/park.ts:31-43`) — this is the second rejection of it.
