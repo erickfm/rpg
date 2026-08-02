@@ -51,22 +51,33 @@ export const ORDER = BUILD.PROPS + 6;
 //   CAB_KEY_HI    bank.ts:363  '#c6cbcf'                   a worn (pale) key face
 //   CAB_KEY_LO    bank.ts:363  '#aab0b6'                   an unworn key face
 //
-// NOT AN IMPORT, and that is a finding rather than a shortcut. `ct/bank.ts`
-// never names these — they are inline literals inside a closure, not
-// module-level constants — so there is nothing today to `export` and
-// `import`. Turning them into a shared, named palette means adding an
-// export to a file OWNERSHIP.md gives to A, and this row's own brief draws
-// the line at reading A's file to source the palette, not editing it — the
-// user explicitly wants the cabinets untouched, and OWNERSHIP.md's one
-// file/one owner rule does not carve out "just an export" the way it does
-// for the desk-owned shared modules. So: reported here rather than forced.
-// The fragility that leaves behind is real and has a precedent already on
-// record — `ct/vice.ts` declares GOLD/RED for the hotel and `int-hotel.ts`
-// duplicates two of the three as literals rather than importing them, and
-// the ledger already flags it as agreeing today with nothing keeping it
-// agreeing. Recommended follow-up for the desk: ask A to hoist this file's
-// own ATM colours into a named, exported `ATM_PALETTE` in `bank.ts`, so this
-// block can become an import and stop being a second copy of the truth.
+// NOT AN IMPORT, and the reason has CHANGED — the note that used to stand here
+// is now wrong in a way that would send the next reader into a trap.
+//
+// It said there was "nothing today to export": the values were inline literals
+// inside a closure in `ct/bank.ts`. That has since been fixed. A hoisted them
+// into an exported `ATM_PALETTE` (bank.ts:62) and left a docstring inviting
+// this file to "import instead of duplicate", noting it is this file's call
+// when to switch.
+//
+// **Taking that invitation would create an import cycle, and this codebase has
+// a documented way of dying from exactly that.** `ct/bank.ts:8` already does
+// `import { openAtm } from './atm'` — it has to, it owns the `[E]` spot — so
+// `atm -> bank` closes the loop. GOTCHAS §28: a module in an import cycle can
+// resolve to an undefined namespace at `ct/world.ts`'s eager-glob collection
+// time and be **silently dropped from the BUILT BUNDLE ONLY**, which is the
+// worst way round — dev would look perfect and the ATM would simply not exist
+// in the artifact the user plays. `ct/hud.ts`'s own header block records the
+// same hazard being designed around for the pockets.
+//
+// So the twelve literals below STAY, and the real fix is a third module that
+// neither of these two imports — `ct/atm-palette.ts`, or a slot in an existing
+// desk-owned shared file — which both can then import without a loop. That is
+// a one-file change and it is queued rather than taken here, because creating
+// it and rewriting `bank.ts`'s references is A's file, not this row's.
+//
+// Verified identical to `ATM_PALETTE` value-for-value as of `ce0f3b2c3`, so the
+// duplication is currently harmless and only the FRAGILITY is outstanding.
 const CAB_BODY = '#414a52';
 const CAB_BEZEL = '#1c2026';
 const CAB_GLASS = '#0d1418';
