@@ -13,9 +13,32 @@
 // are builder H's to re-space; the point of the safety net is that the next
 // trap, wherever it is, is survivable.
 //
+// A COLLIDER IS NOT ITS min/max WHEN IT IS TURNED, and every predicate below
+// used to assume it was. `fp.ts` gained `AABB.rot` so the bodega's 45-degree
+// chamfer could be one box instead of a staircase of eight; on a turned box
+// `minX..maxX / minZ..maxZ` are extents in the box's OWN frame, and `fp.ts:287`
+// maps the world point into that frame (`inFrame`) before comparing. This file
+// predates that and never adopted it, so it was comparing raw world x/z against
+// own-frame extents — for the chamfer, an axis-aligned 2.83 x 1.41 rectangle
+// standing in for a box turned 45 degrees.
+//
+// That produced a PHANTOM at (8.50, -94.50): the centre of the chamfer, i.e.
+// the middle of solid masonry. `unstick` ejects the player from it correctly,
+// 1.068 m along the box's short axis — which is exactly `0.707 + RADIUS`, the
+// minimum translation out — and `fp.ts` then agrees he is free. This file's
+// rotation-blind test still called him buried in a wall, and the desk filed it
+// as the session's one player-facing bug. It is not reachable on foot at all:
+// walked at from 16 headings, 3 m out, the closest approach is 1.106 m, three
+// player-radii short (notes/w38-chamfer-trap-premise.md).
+//
+// So every "is this point inside something" question here now goes through
+// `scripts/lib/collide.mjs`, which is `fp.ts`'s own arithmetic in one place
+// rather than a fourth hand copy of it.
+//
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/unstick-walk.mjs
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
+import { installCollide } from './lib/collide.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
 const RADIUS = 0.36, PLAYER = RADIUS * 2;
@@ -27,20 +50,35 @@ p.on('pageerror', (e) => errs.push(String(e.message)));
 await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct?.colliders !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
+await installCollide(p);   // window.__probeCollide — fp.ts's blocked(), frame-aware. Throws if it did not arrive.
 await p.waitForTimeout(300);
 
 const pos = () => p.evaluate(() => window.__ct.pos());
 const warp = (x, z, gy) => p.evaluate(([x, z, gy]) => window.__ct.warp(x, z, 0, gy, 0), [x, z, gy]);
 const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(60); };
-const isBlocked = (x, z) => p.evaluate(([x, z, R]) => window.__ct.colliders().some((c) =>
-  x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R), [x, z, RADIUS]);
+const isBlocked = (x, z) => p.evaluate(([x, z, R]) =>
+  window.__probeCollide.blockedAt(window.__ct.colliders(), x, z, R), [x, z, RADIUS]);
 
 // Every trap the world offers, found rather than listed.
 const traps = await p.evaluate(([RADIUS, PLAYER]) => {
-  const cols = window.__ct.colliders().filter((c) =>
-    // the street and its interiors, not the giant boundary walls: a "gap"
-    // between two 100 m walls is a street, not a trap
-    (c.maxX - c.minX) < 8 && (c.maxZ - c.minZ) < 8);
+  // IN WORLD AXES, which for a turned box is not what its min/max say. The
+  // pair search below reasons about "are these two things beside each other",
+  // and that is a question about world space; comparing one box's own-frame
+  // extents against another's is comparing two different coordinate systems.
+  // `worldAabb` is the identity on every unrotated collider — which is all but
+  // one of them — so the search this file has always done is unchanged, and on
+  // the chamfer it widens 2.83 x 1.41 to the 3.00 x 3.00 the box really covers.
+  // Candidates only: the verdict is always `blockedAt`, never this.
+  //
+  // The CENTRE is unaffected by either reading — `rot` turns a box about its
+  // own centre — so the "dead centre inside each solid thing" case below picks
+  // exactly the same points it always did.
+  const cols = window.__ct.colliders()
+    .map((c) => window.__probeCollide.worldAabb(c))
+    .filter((c) =>
+      // the street and its interiors, not the giant boundary walls: a "gap"
+      // between two 100 m walls is a street, not a trap
+      (c.maxX - c.minX) < 8 && (c.maxZ - c.minZ) < 8);
   const out = [];
   // 1. dead centre inside each solid thing — the dumpster, a bench, a crate,
   //    a car. This is "a collider appeared on top of you".
@@ -112,8 +150,10 @@ const FRAME_BUDGET = 240;      // ~4 s at 60 fps; a terminator, never the path
  *  and whether any direction is open — the same three facts as before, in one
  *  round trip instead of five. */
 const probeTrap = (x, z) => p.evaluate(([x, z, R, stillNeed, budget]) => new Promise((resolve) => {
-  const blockedAt = (px, pz) => window.__ct.colliders().some((c) =>
-    px > c.minX - R && px < c.maxX + R && pz > c.minZ - R && pz < c.maxZ + R);
+  // fp.ts's own test, frame and all — see scripts/lib/collide.mjs. Read fresh
+  // each frame on purpose: the array is live, and a citizen who walks off is
+  // supposed to stop blocking you.
+  const blockedAt = (px, pz) => window.__probeCollide.blockedAt(window.__ct.colliders(), px, pz, R);
   // …and having come free, you are genuinely not trapped: there is SOME
   // direction you can move in. Asked of the collider predicate rather than by
   // driving the rig in a couple of arbitrary directions — the thrift's aisles
