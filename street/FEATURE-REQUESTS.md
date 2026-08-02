@@ -2216,3 +2216,30 @@ Two things worth separating for whoever takes it:
    pavement.
 2. **A door you are standing in should beat furniture across the room**, whatever
    the margins are. That is a resolver question, not only a radius one.
+
+
+## Tax office waiting seats face the wall
+
+> *"seats in the tax office are reversed"*
+
+**Found: `yaw: 0`, typed.** `ct/int-tax.ts:449` places the waiting row at
+`WAIT_Z = hd - 0.62` — hard against the far wall — and hands each seat
+`yaw: 0`. This world's forward is `(sin yaw, cos yaw)`, so yaw 0 faces **+z**,
+which from that wall is *into* it. The backrests face the room and the seats face
+the glass.
+
+**Same cause as the askew park benches, in a different file, and the file itself
+already knows better.** Line 185 says *"the preparer's FACING is derived from"*
+its chair positions — so the desk chairs derive correctly and the waiting row is
+the one place a literal survived. GOTCHAS §27: *derive facing from what the
+object should FACE, never from a constant.*
+
+That is now **five** facing bugs from typed or wrongly-referenced yaws: the
+burger barn guy facing away, the librarian, the casino sitter clipping his seat,
+the park benches pointing at the loop centre, and this. The rule exists; the
+enforcement does not.
+
+**Worth a check, not just a fix:** something should fail when a seat's facing
+puts a wall in front of it. `interiors-walk.mjs` already asserts *"the keeper is
+looking at you, not away"* for shop staff — the same idea applied to seats would
+have caught all five.
