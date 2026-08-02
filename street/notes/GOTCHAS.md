@@ -1989,3 +1989,22 @@ the number becomes evidence instead of a hurdle.
 The same builder is why this is known at all. **When you cannot meet a stated
 bar, say which bar you actually cleared.** Every builder here has been trusted
 because they did that.
+
+## 69.
+
+**An agent stuck waiting on its own background run will notify repeatedly
+without progressing — stop it rather than hoping.** One builder reported four
+times over two hours: *"I'll stop polling and wait for the notification"*, then
+*"holding at 2 of 10"*, *"4 of 10"*, *"5 of 10"*. Each report cost tokens and
+none finished the run. It reached ~109k tokens having landed its fix on the
+second report and nothing since.
+
+This is BUILDER-BRIEF §3 seen from the desk's side, and the desk's part is
+simple: **a second notification saying "still waiting" is the signal.** Land what
+it has committed, `claim.sh --release` its item so the queue is not frozen for
+the reaping window, and `TaskStop` the agent. All three, in that order — the
+release matters because a builder that touched its claim before stalling holds
+it for the full 150 minutes (GOTCHAS 67).
+
+Nothing is lost by stopping it: the work was committed, which is the entire
+reason commit-early is the first rule in the brief.
