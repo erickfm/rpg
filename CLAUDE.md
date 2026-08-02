@@ -13,7 +13,14 @@ Read these; everything else is history or reference.
    works; this is where it currently stands
 1. **`street/START-HERE.md`** — orientation, which agent you are, how to run things
 2. **`street/notes/GOTCHAS.md`** — landmines. Read before your first change
-3. **`street/notes/OWNERSHIP.md`** — which files are yours
+3. **`street/notes/OWNERSHIP.md`** — **DEMOTED, history only.** It names which
+   agent *last held* a file — `C`, `F`, `J` and so on — and **none of them is
+   running.** It is not a permission list. Read it to find out who touched
+   something last, never to decide whether you may edit it; **the queue grants
+   files now.** Reading it as authority cost the first worker on the self-serve
+   queue its entire wave: three items released un-actioned in eleven minutes,
+   because every file it was handed "belonged" to a letter that had not existed
+   for days
 4. **`street/notes/QUEUE.md`** — **the one ranked list of work.** Builders take
    the top item with `./scripts/claim.sh <name>`, finish it, run
    `./scripts/done.sh <name> "..."`, and claim again — nobody waits to be told
@@ -44,6 +51,15 @@ non-zero. Workers are only absent when the queue is genuinely empty.
 finish it, release it, and take the next.** The desk ranks the queue and verifies
 what comes back; it does not hand out work item by item. A builder that runs out
 of queue says so and stops — it does not invent work.
+
+**THE DESK RANKS AND VERIFIES. IT DOES NOT DIAGNOSE.** Measured over the 35 items
+of 2026-08-01: the desk's stated cause was wrong on 6, and a builder caught it 6
+times out of 6. The three longest cycles on the board were all "the brief was
+wrong and the builder had to work backwards first" — not hard work, bad dispatch.
+So an item ships **the symptom, the user's words verbatim, the screenshot path,
+and a "done when" line a script can fail** — never a guessed cause or a guessed
+filename. Every item that landed with no follow-up had a check that could fail;
+every item that needed follow-up was a symptom plus a guess.
 
 `claim.sh` and `done.sh` lock the file, so two builders can never hold the same
 item. **A builder never confirms its own work**: `done.sh` marks DONE, and the

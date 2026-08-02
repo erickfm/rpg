@@ -102,6 +102,28 @@ A row once claimed *"0 of 10 files call citizenSprite"*; all twelve did, three
 builders had already reported it stale, and it cost a fourth builder anyway.
 (GOTCHAS 55.)
 
+### 6a. THE USER'S QUOTE OUTRANKS THE DESK'S DIAGNOSIS
+
+Measured across the 35 items of 1 August: **the desk's stated cause was wrong on
+6 of them, and the builder caught it 6 times out of 6.** The desk reads a
+screenshot; you are standing in the world with instruments. On this particular
+step you are simply better than it is.
+
+So when the item's diagnosis and the user's quoted words disagree, **the words
+win** and you say so in your `done.sh` line. That is exactly how the three
+recoveries happened:
+
+- *"this door is making it a little too cramped"* → filed against the door leaf.
+  Entrance leaves carry **no collider at all** and cannot trap anyone; the real
+  cause was a newspaper stand centred in a 0.75 m strip.
+- *"seats in the tax office are reversed"* → filed as a yaw. `yaw:0` already
+  faced correctly into the room; the backrest mesh was on the wrong side.
+- *"get rid of the overlay descriptions"* → filed against `ct/hud.ts`, which does
+  not build that text. It lives in `main.ts` and `index.html`.
+
+**Reporting "the stated cause is wrong, here is the real one" is the single most
+valuable thing a builder does here.** It is never a failure to hand back.
+
 ---
 
 ## 7. Half of all "defects" here are the instrument, not the world
