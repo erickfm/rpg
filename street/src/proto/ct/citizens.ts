@@ -542,13 +542,37 @@ export function citizenSprite(look: Look, o: {
   }));
   mesh.scale.set(o.w ?? 1, o.h ?? 1, 1);
   let facing = o.facing ?? 0;
+  // PUBLISH THE FACING. `mesh.rotation.y` is NOT it — that is the billboard
+  // angle, rewritten every frame to turn the plane towards the camera, so a
+  // check that reads it measures where the OBSERVER stands. The real heading
+  // lived only in this closure, which is why three of the five facing bugs this
+  // project has shipped were PEOPLE and no check could see them: there was
+  // nothing to read. `interiors-walk.mjs` had to decode it from the rendered
+  // sprite, and only for shop keepers.
+  //
+  // THE KEY IS `citizenFacing`, and neither of the two obvious names was free:
+  //   - `userData.citizen` is a BOOLEAN tag (`= true`) that rooms stamp on to
+  //     mark a mesh as a person — ct/interior.ts, ct/int-casino.ts,
+  //     ct/int-library.ts — and `scripts/J-library-people.mjs` tests it.
+  //     Writing an object here would have silently changed that contract.
+  //   - `userData.facing` is ALREADY TAKEN, for building shells: ct/street.ts
+  //     and ct/bank.ts set it to the string 'x' or 'z', and
+  //     `scripts/shells.mjs:124` traverses EVERY mesh looking for it. A number
+  //     here would have made that instrument parse citizens as buildings.
+  //
+  // Set here rather than by the caller on purpose: the room tags are opt-in and
+  // have been forgotten before — int-casino's own comment records five figures
+  // going invisible to every people-sweep that way. Every sprite gets this one.
+  mesh.userData.citizenFacing = facing;
   let walking = false;
   let sector = -1;
   let anim = 0;
   const cad = o.cadence ?? 5;
   return {
     mesh,
-    setFacing: (rad) => { facing = rad; },
+    // kept in step with the closure — a published value that stops updating is
+    // worse than none, because it looks live
+    setFacing: (rad) => { facing = rad; mesh.userData.citizenFacing = rad; },
     setWalking: (on) => { walking = on; },
     update: (px, pz, dt = 0) => {
       const camAng = Math.atan2(px - mesh.position.x, pz - mesh.position.z);
