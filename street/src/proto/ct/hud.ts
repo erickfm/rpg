@@ -737,7 +737,13 @@ export function makeHud(purse: Purse): Hud {
     // to the right would have slid the watch 77 px to the LEFT. `left` moves the
     // same 77 px the other way to cancel it exactly, so the watch face lands
     // where it has always landed and only the hand is new.
-    watchWrap.style.cssText = 'position:fixed;left:calc(52% + 77px);bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
+    // LEFT OF CENTRE, on the user's own eye: *"can we move the watch arm thing
+    // as a whole over to the left a little bit?"* (2026-08-02). It sat at
+    // `52% + 77px` — right of centre by half a screen-width's worth of offset,
+    // so the wrist crowded the middle of the frame. 46% keeps it clearly on the
+    // near arm without reaching the edge. One number, and the whole arm moves
+    // because the cuff, the strap and the face are all inside `watchWrap`.
+    watchWrap.style.cssText = 'position:fixed;left:calc(46% + 77px);bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
     watchCv = document.createElement('canvas');
     watchCv.width = WATCH_W; watchCv.height = 72;
     watchCv.style.cssText = 'width:484px;height:198px;image-rendering:pixelated;display:block;';

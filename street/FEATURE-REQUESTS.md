@@ -2445,3 +2445,162 @@ to one side.
   → **routed to a builder as queue item 91.** It is the painted statue that is
   supposed to sit on a bracket above the votive stand (`ct/int-church.ts:651, 683`).
   The statue reads; the bracket does not, so it floats against the wall.
+
+- **"[screenshot] would love more detail here, also the window is misaligned?"**
+  (2026-08-02) → **routed to a builder as queue item 92.** The east wall of the church:
+  a large blank plaster field with the rose window high, the crucifix below it and the
+  sanctuary lamp to the right. `ct/int-church.ts:744` says the window belongs "at
+  centre" — in the frame it is visibly off the crucifix's axis, so one of the two is
+  wrong. Fifth report of this sitting; the desk is at its 5-agent cap, so this is
+  queued rather than spawned.
+
+- **"[screenshot] this guy is sat in the pew but is clipping the pew geometry.
+  additionally if you sit in his pew you sit where he sits and that just breaks
+  immersion."** (2026-08-02) → **routed as queue items 93 (the clip) and 94 (seat
+  occupancy, a framework gap).** Split because the second is not a church bug: the desk
+  grepped the whole world and **no seat anywhere knows whether it is occupied** — there
+  is no `occupied`/`taken`/`reserved` concept at all. The casino stools carry seated
+  NPCs on the same terms, so the collision is waiting there too. Sixth report this
+  sitting; queued rather than spawned, fleet at its 5-agent cap.
+
+- **"[screenshot] lighting needs a full refactor. it isnt consistent anywhere. this is a
+  prime example. the lighting only affects the street but not the sidewalk. it doesnt
+  affect the car at all."** (2026-08-02) → **routed as queue item 95, top of the queue,
+  and it is the largest item on the board.** The desk measured the cause: the world is
+  unlit (671 `MeshBasicMaterial` uses, no real lights) and lamplight is faked by tinting
+  materials that **opt in** to a registry — and there are **several private registries**
+  (`ct/sidestreet.ts` `lampHeads`, `ct/traffic.ts`, `ct/crowd.ts`, `ct/vice.ts`'s `lit()`),
+  not one. Anything that never registered is never lit. So the inconsistency is
+  structural, exactly as he says, and not a list of oversights to patch.
+
+- **"[screenshot] hotel interior is strange. needs some work"** (2026-08-02)
+  → **routed as queue item 96.** Eighth report this sitting. Deliberately vague from the
+  user, so the item names what the desk can SEE in the frame without claiming a verdict:
+  a near-black ceiling against saturated red walls; a very busy carpet; teal/lavender
+  lobby chairs against the red; the clerk reading as a head with no body behind the
+  counter; and the sign over the far door looking MIRRORED — which `ct/int-hotel.ts:259`
+  records as a fault that has already happened once in this exact file.
+
+- **"[screenshot] sevens casino front looks so messed up. take influence from vegas
+  thanks."** (2026-08-02) → **routed as queue item 97.** Ninth report this sitting, and
+  the THIRD user complaint about this same facade — `ct/vice.ts:117` records "the blur
+  the user reported on the marquee" and `:141` records *"the LEFT leaf is reversed"*.
+  Concrete defects visible in the frame: **SEVENS is clipped at both ends** (reads
+  "EVEN"), the marquee's second line is clipped (**"$1 BLACKJA"**), and a black vertical
+  bar floats over the left edge of the facade. Plus the standing direction: Vegas.
+
+- **"when i try to enter the casino there's like a distance far away i can enter (i dont
+  like this), then a distance i can't enter, then when im at the door i can enter again.
+  make sure we review these things. this just seems messy and idk how you are missing
+  this sort of stuff"** (2026-08-02) → **routed as queue items 98 (the bug) and 99 (the
+  instrument that would have caught it).**
+  **Why it was missed, plainly:** every check in this project **warps to a coordinate
+  and presses E**. `scripts/interiors-walk.mjs` alone has 13 `warp()` calls. Nothing
+  ever walks an approach and watches the prompt continuously, so a discontinuous prompt
+  band — offered, not offered, offered — cannot be seen by any instrument we own. A
+  builder hit the same class last night: a check that warped had never once tested the
+  thing it was named for.
+
+- **"[screenshot] slots similarly need to be embedded into the game like i mentioned
+  with the atm. fixed perspective. embedded interactable overlay to make it look
+  realistic and immersion forward."** (2026-08-02) → **routed as queue item 100, which
+  DEPENDS on item 86 (the ATM) and must not be started before it.** The user is
+  confirming the pattern is general, which is exactly why 86 was scoped to build the
+  mechanism into the framework rather than into `ct/atm.ts`. Item 100 is the second
+  application of it; blackjack and the library PC are the third and fourth.
+
+- **"[screenshot] when folks sit, they clip, fix this"** (2026-08-02, casino slot stool)
+  → **folded into queue item 93, which was widened from the church pew to EVERY seated
+  sprite in the world.** Second sighting of the same class: the desk had already written,
+  when queueing the church one, that "the casino stools carry seated NPCs on the same
+  terms, so the collision is waiting there too". It was. Not filed as a new item —
+  splitting one job across two rows has already cost this session two duplicate-work
+  incidents.
+
+- **"[screenshot] you can remove the craps table. too complicated. lets develop the
+  roulette table though. maybe a big wheel you can spin too would be fun"** (2026-08-02)
+  → **routed as items 101 (remove craps), 102 (develop roulette) and 103 (the big
+  wheel).** Note craps is referenced in **7 files** including `L-blackjack-reachable.mjs`
+  and `L-games-in-artifact.mjs`, so removal is not just deleting a table. Roulette
+  already has five walkable approaches (w15's work) — 102 builds the game on top of
+  that, and should use the diegetic framework from item 86 rather than a DOM panel.
+
+- **"[screenshot] front door of jail graphics are messed up"** (2026-08-02)
+  → **routed as queue item 104.** Diagonal hatching across the door panels that does not
+  match the panelling, and the two leaves do not align. Note `d3770c506` re-sized every
+  jail MASONRY face's texture to the face it sits on last night (a texture painted for
+  4 m had been stretched over a 14 m wall) — the door is a different system (`ct/doors.ts`
+  declaration + the shared kit leaf) and may simply not have been reached by that fix.
+  The frame is also very dark, which is item 95 (lighting), not this.
+
+- **"[screenshot] jail interior front door also looks bad and doesnt match outside"**
+  (2026-08-02) → **routed as queue item 105.** THIRD building with this exact complaint:
+  *"door of the bank doesnt match the inner door of the bank"* and *"inner door of the
+  church does not match outer doors"* both preceded it. There is a `doormatch12.mjs` and
+  a CONFIRMED ledger row claiming exteriors match interiors 12 of 12 — **so the check
+  says match while the user keeps seeing mismatches.** That is the more valuable half.
+
+- **"[screenshot] bench texture is off and sitting looks nonsensical"** (2026-08-02,
+  jail interior bench) → **sitting folded into item 93 (now its THIRD sighting: church
+  pew, casino stool, jail bench); the bench TEXTURE queued as item 106.**
+
+- **"[screenshot] interior jail textures look off. again why aren't we catching these?
+  what's causing them and do we need to set a rule against them so they aren't
+  created?"** (2026-08-02) → **answered with numbers and routed as item 107 (the
+  world-wide sweep) plus a new standing rule in BUILDER-BRIEF §7b.**
+  **Why we are not catching them:** the density checker (`scripts/masonry.mjs`) only
+  sweeps faces tagged `userData.masonry`. Pillars, doors, benches and floor tiles are not
+  masonry, so nothing checks them. **343 texture creations exist against 267 density
+  declarations** — ~76 textured surfaces never declare a density at all, so there is
+  nothing to compare them against. And `masonry.mjs:22` records an earlier version
+  reporting "42 of 109 masonry faces as wrong when none were", which biased it toward
+  silence. **The cause:** a texture's repeat accepted as a default or typed by hand
+  instead of derived from the face it lands on.
+
+- **"[screenshot] mug looks messed up"** (2026-08-02, the flat 301 windowsill)
+  → **routed as queue item 108.** Reads as a white blob on the sill — the handle does not
+  separate from the body at player distance, and it sits proud of the sill edge.
+
+- **"doors in apt are flush with wall on every floor except my floor"** (2026-08-02)
+  → **routed as queue item 109.** Correct, and structural: `ct/apartment.ts` special-cases
+  301 throughout — `:249` "DOOR_GAP is the real hole in the west wall that 301's doorway
+  is cut", `:264` "301's doorway only opens on floor 3", `:585` "West wall leaves 301's
+  doorway gap on floor 3". So 301 gets a cut opening with jambs and a reveal (`:506`);
+  the other seven flats get a leaf on an uncut wall. Same shape as the vehicle-collider
+  report (item 87): the thing the player uses got the real treatment and its siblings
+  did not.
+
+- **"[screenshot] can we move the watch arm thing as a whole over to the left a little
+  bit?"** (2026-08-02) → **done by the desk directly, not queued.** One number:
+  `ct/hud.ts:740` `left: calc(52% + 77px)` → `calc(46% + 77px)`. The whole arm moves
+  because the cuff, strap and face all live inside `watchWrap`. Told the user the exact
+  figure so he can ask for more or less rather than another screenshot round-trip.
+
+- **"[screenshot] rain seems extra intense now. thats fine but i want a drizzle to also
+  exist and be more likely than the downpour featured here"** (2026-08-02)
+  → **routed as queue item 110, top of the queue.** Cause found exactly:
+  `ct/props.ts:251` `stormAt(h) = 0.62 + 0.38 * uniform` — range **0.62–1.00, uniform**,
+  so the weakest storm in the world is already 62% strength and drizzle cannot occur.
+  The 0.62 floor was put there deliberately to answer his PREVIOUS complaint that rain
+  was too faint (`:249-250`). **Third knob today with a user complaint at both ends**,
+  after the bed/door prompt and the interaction reach — so the fix must satisfy both,
+  not swing back.
+
+- **"[screenshot] for the watch i would like the rest of the arm (to the left) rendered
+  as well. should be simple. just a continuation of the arm"** (2026-08-02)
+  → **routed as queue item 111, top of the queue.** Not done at the desk despite being
+  small: the forearm already runs to the left edge OF ITS OWN CANVAS (`fillRect(0, 6,
+  104, 66)`), so extending it means widening the canvas — and the wrap is centred with
+  `translateX(-50%)`, so a wider canvas shifts the watch face RIGHT (undoing the move he
+  just asked for) and shrinks every pixel unless the fixed `width:484px` scales with it.
+  Three coupled numbers and a result the desk cannot see without running it.
+
+- **"when i jump off of stuff i teleport straight down. please fix this"** (2026-08-02)
+  → **routed as queue item 112, top of the queue.** A regression from the collider-height
+  work: before it, nothing could be stood on, so nothing could be stepped off. Cause
+  located: `fp.ts:553` `airY = Math.max(0, airY + vy*dt)` — `airY` is height above THE
+  GROUND, and world Y is `groundY(x,z) + airY`. Standing on a roof, the ground IS the
+  roof and `airY` is 0; step off and `groundY` returns the street in the same frame, so
+  the player arrives at street level instantly. Second effect: `:549` gates jumping on
+  `airY === 0`, which is true the instant you step off — so stepping off a car also
+  hands back a fresh jump in mid-air.
