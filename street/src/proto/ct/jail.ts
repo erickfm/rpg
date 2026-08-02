@@ -286,6 +286,51 @@ export function register(ctx: CtxBuild): void {
     });
   };
 
+  // ── DRESSED STONE, for the trim — which is NOT ashlar ───────────────────
+  //
+  // Sills, jambs, the door head and the string course are each ONE dressed
+  // stone. They were all wearing `surroundM = stoneTex(1.0, 1.0, 0)` — a single
+  // 16x16 ashlar canvas reused on boxes from 0.08 m to 14 m — and that is the
+  // long tail of queue item 6: the same "16 px/m" stamp came out at 1.14 px/m
+  // on the 14 m string course and 200 px/m on an 0.08 m window sill, a 175x
+  // spread of actual block size all claiming one density. Painting each at its
+  // own size would not have helped either, because a 0.575 m ashlar course
+  // cannot be drawn on an 0.08 m face at all.
+  //
+  // So it is drawn as what it is. A dressed stone has no coursing and no
+  // perpends, only a face, a lit top arris and a shadowed underside — the line
+  // the string course's own comment says it exists to throw. Declared
+  // 'detail', NOT stamped as masonry, because it is not a run of brick and a
+  // seam tool must not compare it to one. That is a change in what is drawn,
+  // not a relabelling of what was there: the ashlar joints are gone from the
+  // trim, which is why the sills read as one stone now.
+  const DRESS_PPM = 32;
+  const dressed = (wM: number, hM: number) => {
+    const W = Math.max(3, Math.round(wM * DRESS_PPM));
+    const H = Math.max(3, Math.round(hM * DRESS_PPM));
+    const arris = Math.max(1, Math.round(H * 0.14));
+    return declareSurface(pixTex(W, H, (g) => {
+      g.fillStyle = STONE; g.fillRect(0, 0, W, H);
+      // quarried grain: the same per-block drift the ashlar has, without the
+      // blocks, so trim and wall still read as one material
+      for (let i = 0; i < W * H * 0.16; i++) {
+        const x = Math.random() * W, y = Math.random() * H, v = Math.random();
+        g.fillStyle = v < 0.5 ? `rgba(0,0,0,${0.03 + v * 0.15})`
+                              : `rgba(255,255,255,${(v - 0.5) * 0.10})`;
+        g.fillRect(x, y, 1, 1);
+      }
+      g.fillStyle = 'rgba(255,255,255,0.09)'; g.fillRect(0, 0, W, arris);
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, H - arris, W, arris);
+      // soot collects on a projecting band's top face and washes down its front
+      for (let i = 0; i < W * H * 0.05; i++) {
+        const x = Math.random() * W, y = H - Math.pow(Math.random(), 2.0) * H;
+        g.fillStyle = `rgba(24,22,20,${0.05 + Math.random() * 0.14})`;
+        g.fillRect(x, y, 1, 1);
+      }
+      dither(g, W, H, Math.round(W * H * 0.02));
+    }), 'detail');
+  };
+
   // ── BRICK, with the windows painted into it ────────────────────────────
   //
   // The openings are PAINTED and the bars are GEOMETRY. Both halves are needed
@@ -352,14 +397,30 @@ export function register(ctx: CtxBuild): void {
   /** a box with the FACADE on its −x face. BoxGeometry face order is
    *  [+x, −x, +y, −y, +z, −z], so index 1 is the face that looks down the
    *  street and 4/5 are the flanks. Getting that index wrong is how a facade
-   *  ends up painted on the back of a building. */
+   *  ends up painted on the back of a building.
+   *
+   *  THE BACK IS NOT A FLANK. Index 0 used to be handed `flank` too, and that
+   *  is the whole of queue item 6's 227 seam disagreements: on
+   *  `BoxGeometry(depth, height, width)` the ±x faces are `width` metres
+   *  across and the ±z faces are `depth`, so a flank texture painted for
+   *  `depth` was being stretched over a face `width` wide. Measured on the
+   *  upper shell that is a 4 m canvas over a 14 m face — 4.57 px/m against a
+   *  declared 16, brick drawn three and a half times too big, on the wall the
+   *  yard looks straight at.
+   *
+   *  `back` therefore defaults to `face`, DERIVED rather than chosen: both ±x
+   *  faces span exactly `width × height`, and every `face` texture in this
+   *  file is painted at exactly that size. Pass a `back` explicitly only when
+   *  the front carries something the back must not — the upper storey's
+   *  painted windows are the one case. */
   const shell = (
     depth: number, height: number, width: number,
     cx: number, cy: number, cz: number,
     face: THREE.Material, flank: THREE.Material,
+    back: THREE.Material = face,
   ) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(depth, height, width),
-      [flank, face, roofM, roofM, flank, flank]);
+      [back, face, roofM, roofM, flank, flank]);
     m.position.set(cx, cy, cz);
     return add(m);
   };
@@ -376,6 +437,14 @@ export function register(ctx: CtxBuild): void {
   const LINT_Y = JAIL.DOOR_H + 0.14;                 // the head, above the 0.14 kerb
   const pierS_W = (CZ - D_HW) - Z_S;                 // 5.8
   const pierN_W = Z_N - (CZ + D_HW);                 // 5.8
+  // A FLANK TEXTURE IS SIZED TO THE BOX IT IS ON, not to the tallest one.
+  // `stoneFlank` was painted DEP x BASE_H and handed to all four boxes below,
+  // but only the two piers are DEP wide and BASE_H tall: the lintel is 1.4 m
+  // tall and the recess back is 3.45 m deep, so the same canvas came out at
+  // 52.86 and 23.13 px/m against a declared 16. Each box now paints its own,
+  // at its own depth, its own height and its own `baseY` — which is also what
+  // keeps the ashlar bond walking up the WORLD grid across the seam between
+  // them, exactly as `stoneTex`'s own comment requires.
   const stoneFlank = flat(stoneTex(DEP, JAIL.BASE_H, 0));
   shell(DEP, JAIL.BASE_H, pierS_W, FX + DEP / 2, JAIL.BASE_H / 2, Z_S + pierS_W / 2,
     flat(stoneTex(pierS_W, JAIL.BASE_H, 0)), stoneFlank);
@@ -383,16 +452,23 @@ export function register(ctx: CtxBuild): void {
     flat(stoneTex(pierN_W, JAIL.BASE_H, 0)), stoneFlank);
   shell(DEP, JAIL.BASE_H - LINT_Y, JAIL.DOOR_W, FX + DEP / 2,
     (LINT_Y + JAIL.BASE_H) / 2, CZ,
-    flat(stoneTex(JAIL.DOOR_W, JAIL.BASE_H - LINT_Y, LINT_Y)), stoneFlank);
+    flat(stoneTex(JAIL.DOOR_W, JAIL.BASE_H - LINT_Y, LINT_Y)),
+    flat(stoneTex(DEP, JAIL.BASE_H - LINT_Y, LINT_Y)));
   shell(DEP - JAIL.RECESS, LINT_Y, JAIL.DOOR_W,
     FX + JAIL.RECESS + (DEP - JAIL.RECESS) / 2, LINT_Y / 2, CZ,
-    flat(stoneTex(JAIL.DOOR_W, LINT_Y, 0)), stoneFlank);
+    flat(stoneTex(JAIL.DOOR_W, LINT_Y, 0)),
+    flat(stoneTex(DEP - JAIL.RECESS, LINT_Y, 0)));
 
   // ── the upper floors, the cornice and the parapet ───────────────────────
   const UY = JAIL.BASE_H;
+  // The back gets its own W-wide brick — the same run as the facade, minus the
+  // openings. It cannot reuse `face` (that one has the windows painted into it)
+  // and it must not reuse `flank` (that one is DEP metres wide, and stretching
+  // it across W is the bug this shell's `back` parameter exists to end).
   shell(DEP, JAIL.UPPER_H, W, FX + DEP / 2, UY + JAIL.UPPER_H / 2, CZ,
     flat(upperTex(W, JAIL.UPPER_H, UY, true)),
-    flat(upperTex(DEP, JAIL.UPPER_H, UY, false)));
+    flat(upperTex(DEP, JAIL.UPPER_H, UY, false)),
+    flat(upperTex(W, JAIL.UPPER_H, UY, false)));
 
   // The cornice projects FORWARD only. Extending it sideways would poke it
   // through SEVENS' and LOANS' east walls, which stop dead on this same plane —
@@ -477,13 +553,17 @@ export function register(ctx: CtxBuild): void {
   // coming out: a sally port is a recess, not a porch, and a projection past
   // 0.12 would be eating the pavement the whole site was chosen to widen.
   const PROUD = WALK_PROJECTION;
-  const surroundM = flat(stoneTex(1.0, 1.0, 0));
+  // Each piece of trim paints at ITS OWN face size — `box(w,h,d)` shows its
+  // −x face, which spans d x h. One shared 1 m canvas is what put a 175x
+  // spread of block size on five different boxes; see `dressed()` above.
   const jambW = 0.7;
+  const jambM = flat(dressed(jambW, LINT_Y + 0.55));
   for (const s of [-1, 1]) {
-    box(PROUD, LINT_Y + 0.55, jambW, surroundM,
+    box(PROUD, LINT_Y + 0.55, jambW, jambM,
       FX - PROUD / 2, (LINT_Y + 0.55) / 2, CZ + s * (D_HW + jambW / 2));
   }
-  box(PROUD, 0.55, JAIL.DOOR_W + 2 * jambW, surroundM,
+  box(PROUD, 0.55, JAIL.DOOR_W + 2 * jambW,
+    flat(dressed(JAIL.DOOR_W + 2 * jambW, 0.55)),
     FX - PROUD / 2, LINT_Y + 0.275, CZ);
 
   // ── the municipal plate ─────────────────────────────────────────────────
@@ -598,12 +678,13 @@ export function register(ctx: CtxBuild): void {
       box(0.045, 0.045, w, barM, xf, ty, z);
     }
   };
+  const winSillM = flat(dressed(WIN_W + 0.30, 0.08));
   for (let i = 0; i < BAYS; i++) {
     const z = bayZ(i);
     for (const [sill, head] of ROWS) {
       grille(FX - 0.045, z, sill + 0.03, head - 0.03, WIN_W - 0.06, 5);
       // a stone sill under each, projecting just enough to throw a line
-      box(0.10, 0.08, WIN_W + 0.30, surroundM, FX - 0.05, sill - 0.05, z);
+      box(0.10, 0.08, WIN_W + 0.30, winSillM, FX - 0.05, sill - 0.05, z);
     }
   }
 
@@ -619,6 +700,7 @@ export function register(ctx: CtxBuild): void {
     g.fillStyle = 'rgba(150,150,140,0.10)'; g.fillRect(13, 3, 3, 17);
     dither(g, 16, 20, 30);
   }), 'detail');
+  const slotSillM = flat(dressed(SLOT_W + 0.26, 0.09));
   for (const s of [-1, 1]) {
     const z = CZ + s * 2.85;
     const p = new THREE.Mesh(new THREE.PlaneGeometry(SLOT_W, SLOT_Y1 - SLOT_Y0), flat(slotT));
@@ -626,7 +708,7 @@ export function register(ctx: CtxBuild): void {
     p.position.set(FX - 0.015, (SLOT_Y0 + SLOT_Y1) / 2, z);
     add(p);
     grille(FX - 0.05, z, SLOT_Y0 + 0.04, SLOT_Y1 - 0.04, SLOT_W - 0.08, 4);
-    box(0.10, 0.09, SLOT_W + 0.26, surroundM, FX - 0.05, SLOT_Y0 - 0.06, z);
+    box(0.10, 0.09, SLOT_W + 0.26, slotSillM, FX - 0.05, SLOT_Y0 - 0.06, z);
   }
 
   // ── a string course, where the stone gives out and the brick starts ─────
@@ -636,7 +718,7 @@ export function register(ctx: CtxBuild): void {
   // one building — `shots/O-jail-day-approach.png` before this. A civic base
   // always terminates in a band; it is one box and it does most of the work of
   // making the elevation look composed.
-  box(0.16, 0.26, W, surroundM, FX - 0.06, JAIL.BASE_H - 0.02, CZ);
+  box(0.16, 0.26, W, flat(dressed(W, 0.26)), FX - 0.06, JAIL.BASE_H - 0.02, CZ);
 
   // ── the lamps ──────────────────────────────────────────────────────────
   //
@@ -798,15 +880,27 @@ export function register(ctx: CtxBuild): void {
   const scrBase = flat(stoneTex(SCR_LEN, JAIL.BASE_H, 0));
   const scrUpper = flat(upperTex(SCR_LEN, JAIL.UPPER_H, UY, false));
   const scrCap = flat(stoneTex(SCR_LEN, JAIL.CORNICE_H + JAIL.PARAPET_H, CY));
+  // THE END CAPS ARE 0.2 m, NOT 9.65. `shell`'s `face`/`back` slots are the ±x
+  // faces, and on THIS wall those are the thin returns, not the elevation — the
+  // long run is the `flank` pair. Passing `scrBase` into both slots therefore
+  // squeezed the 9.65 m canvas into a 0.2 m face and drew it at 770 px/m
+  // against a declared 16, the worst reading in queue item 6 and 72 of its 227
+  // pairs. The wall's free end stands 13.6 m tall in the middle of a yard the
+  // player can walk to, so it is not a hidden face. Same courses, same baseY,
+  // same declared density — only sized to the face it is actually on, which is
+  // the rule the comment above already states for the run itself.
+  const scrEndBase = flat(stoneTex(SCR_T, JAIL.BASE_H, 0));
+  const scrEndUpper = flat(upperTex(SCR_T, JAIL.UPPER_H, UY, false));
+  const scrEndCap = flat(stoneTex(SCR_T, JAIL.CORNICE_H + JAIL.PARAPET_H, CY));
   for (const zLine of [Z_S + SCR_T / 2, Z_N - SCR_T / 2]) {
-    shell(SCR_LEN, JAIL.BASE_H, SCR_T, scrCx, JAIL.BASE_H / 2, zLine, scrBase, scrBase);
-    shell(SCR_LEN, JAIL.UPPER_H, SCR_T, scrCx, UY + JAIL.UPPER_H / 2, zLine, scrUpper, scrUpper);
+    shell(SCR_LEN, JAIL.BASE_H, SCR_T, scrCx, JAIL.BASE_H / 2, zLine, scrEndBase, scrBase);
+    shell(SCR_LEN, JAIL.UPPER_H, SCR_T, scrCx, UY + JAIL.UPPER_H / 2, zLine, scrEndUpper, scrUpper);
     // one plain stone cap rather than repeating the building's own
     // cornice-then-parapet break — a perimeter wall reads as a wall precisely
     // by NOT being as ornamented as the building it enclosures, the same
     // distinction a real yard wall keeps from the elevation behind it.
     shell(SCR_LEN, JAIL.CORNICE_H + JAIL.PARAPET_H, SCR_T, scrCx,
-      CY + (JAIL.CORNICE_H + JAIL.PARAPET_H) / 2, zLine, scrCap, scrCap);
+      CY + (JAIL.CORNICE_H + JAIL.PARAPET_H) / 2, zLine, scrEndCap, scrCap);
     ctx.obstacle({ minX: BX, maxX: FENCE_X, minZ: zLine - SCR_T / 2, maxZ: zLine + SCR_T / 2 });
   }
 
