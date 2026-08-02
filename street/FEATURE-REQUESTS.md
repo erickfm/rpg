@@ -2472,3 +2472,11 @@ to one side.
   (`ct/sidestreet.ts` `lampHeads`, `ct/traffic.ts`, `ct/crowd.ts`, `ct/vice.ts`'s `lit()`),
   not one. Anything that never registered is never lit. So the inconsistency is
   structural, exactly as he says, and not a list of oversights to patch.
+
+- **"[screenshot] hotel interior is strange. needs some work"** (2026-08-02)
+  → **routed as queue item 96.** Eighth report this sitting. Deliberately vague from the
+  user, so the item names what the desk can SEE in the frame without claiming a verdict:
+  a near-black ceiling against saturated red walls; a very busy carpet; teal/lavender
+  lobby chairs against the red; the clerk reading as a head with no body behind the
+  counter; and the sign over the far door looking MIRRORED — which `ct/int-hotel.ts:259`
+  records as a fault that has already happened once in this exact file.
