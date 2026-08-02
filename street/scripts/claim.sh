@@ -14,8 +14,23 @@
 # Usage:  ./scripts/claim.sh <your-name>
 set -u
 cd "$(dirname "$0")/.." || exit 1
-Q=notes/QUEUE.md
-LOCK=notes/.queue.lock
+# THE QUEUE IS SHARED, AND IT MUST NOT LIVE IN GIT.
+#
+# First cut kept it at notes/QUEUE.md. That is tracked, so every worktree gets
+# its OWN copy — a builder claimed item 1 in its worktree, the main tree still
+# read TODO, and a second builder would have claimed the same item. The mkdir
+# lock was guarding a file nobody else could see. Caught within ten minutes of
+# shipping it, by watching a real worker.
+#
+# So both scripts resolve to ONE path outside every worktree. `git rev-parse
+# --git-common-dir` points at the shared .git for the whole repo, worktrees
+# included, which is exactly the scope the queue needs.
+COMMON=$(git rev-parse --git-common-dir 2>/dev/null) || COMMON=.git
+case "$COMMON" in /*) ;; *) COMMON="$PWD/$COMMON";; esac
+SHARED=$(dirname "$COMMON")/street/notes
+Q="$SHARED/QUEUE.md"
+LOCK="$SHARED/.queue.lock"
+[ -f "$Q" ] || { echo "no queue at $Q"; exit 1; }
 
 who=${1:-}
 [ -z "$who" ] && { echo "usage: claim.sh <your-name>"; exit 2; }

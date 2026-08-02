@@ -128,17 +128,31 @@ queue a follow-up to hoist a shared export.** Do not silently duplicate.
 
 ---
 
-## 9. Ownership is not negotiable
+## 9. Ownership — CLAIMING AN ITEM MAKES ITS FILES YOURS
 
-`notes/OWNERSHIP.md` says which files are whose. **If your fix needs a file that
-is not yours, report it and queue it — do not edit it.** That is a success.
+**Read this carefully; the first worker to use this queue got it wrong and
+released every item as "not mine".**
 
-Reaching across ownership broke the live world once and corrupted a third
-worktree. A queued one-liner costs a minute; a cross-builder conflict costs ten
-plus a broken world. (PARALLEL-WORKFLOW §11.)
+`notes/OWNERSHIP.md` names historical owners — `C`, `F`, `J` and so on. **You are
+not competing with them. They are not running.** Those letters record which agent
+last held a file, not a permission list you must match your name to.
 
-**Never two builders in one file at once.** If the queue offers you an item in a
-file someone else has claimed, skip it and take the next.
+**The queue is the authority now.** Every item names the file(s) it touches.
+**Claiming the item grants you those files for as long as you hold it** — that is
+exactly what the claim is for, and why the lock matters.
+
+So:
+
+- **The item names a file → it is yours. Do the work.**
+- **You discover you also need a file the item does NOT name → stop, and report
+  it in your `done.sh` line.** That is the real boundary, and reporting it is a
+  success.
+- **Another builder holds an item naming the same file → skip it, take the next.**
+
+Editing a file *outside your claimed item* is what broke the live world and
+corrupted a third worktree — not editing a file whose historical owner was a
+different letter. A queued one-liner costs a minute; a cross-builder conflict
+costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 
 ---
 
