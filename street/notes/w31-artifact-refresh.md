@@ -28,8 +28,11 @@ staged (per GOTCHAS 63, so it outlives the worktree) at:
 |---|---|
 | bytes, **from `ls`** | **1,117,520** |
 | bytes, from `pack-artifact.mjs` | 1,117,520 — **they agree** |
-| md5 (both copies identical) | `540969170400d6f6c4c60ef28b39754d` |
-| build stamp in the bundle | see "which build" below |
+| md5 (both copies identical) | `73c2bdfc96ae9ad9a3171c54e7d1061b` |
+| build stamp in the bundle | **`df0f27deb`** — equal to HEAD |
+
+Packed **after** the final commit, so `dist/` matches HEAD and the stamp is the
+honest answer to "which build is this?". No build was run afterwards.
 
 **The byte counts agreeing is itself a result.** GOTCHAS 63's tail records
 `pack-artifact.mjs` printing `out.length` — UTF-16 code units — under the label
@@ -86,6 +89,41 @@ a dev server that serves TypeScript source, and w24 already measured them
 (red on the chamfer: 3 → **0**). The two `CORS`/`ERR_FAILED` console lines in
 that run are the probe's own blocked `import()` of `gap.ts` from `file://` — the
 instrument, not the world.
+
+### ONE RUN IN FIVE WENT RED, AND IT IS THE PROBE'S CLOCK, NOT THE CHAMFER
+
+I am not reporting a clean sweep, because I did not get one. Across **five runs
+on artifacts whose world bytes are identical** (only the build stamp differs),
+section 4a's *"cleared the corner"* verdict gave:
+
+| run | cleared | verdict |
+|---|---|---|
+| 1 | 3.48 m | ok |
+| 2 | 4.63 m | ok |
+| 3 | **2.58 m** | **FAIL — did NOT clear the corner** |
+| 4 | 8.41 m | ok |
+| 5 | 8.32 m | ok |
+
+A 3.3x spread on the same world means the number is not a property of the world.
+4a walks for a **fixed number of held-key steps**, so what it measures is how
+many frames this machine rendered in that wall-clock window — the trap the brief
+names as *"a fixed wall-clock wait truncates what you measure under load"*. Five
+other builders were running when run 3 happened.
+
+**The verdicts that describe the collision surface passed in every one of the
+five runs**, and they are the ones with no clock in them:
+
+- the chamfer is ONE rotated collider (`rot 0.7854`);
+- surface FLAT to 0.0 mm across 21 stations;
+- no walk ended up inside the wall;
+- riding and hugging the face never puts you inside it.
+
+So the chamfer is sound and **4a's pass/fail threshold is load-dependent**. For
+the desk: 4a wants to walk until it stops making progress, or to normalise by
+frames rendered, rather than to assert a distance after a fixed number of steps.
+w24's own note already records `interiors-walk.mjs bodega` as flaky; this is the
+same shape in the same area. I did **not** re-tune it — it is w24's file and
+tuning a metric until it agrees with me is what the brief forbids.
 
 ## SAT AT A GAME, in the artifact — `scripts/probes/w31-artifact-sit-at-a-game.mjs`
 
@@ -144,10 +182,9 @@ Both are in the probe's header, because they are the useful part.
 
 ## Which build, and what publishing still needs
 
-The packed artifact carries the build stamp of the commit it was built from, and
-**every commit after it in this item touches only `scripts/probes/` and
-`notes/`** — `git diff <pack build>..HEAD -- src/` is empty, so the file is an
-honest representation of the world at HEAD.
+The packed artifact's stamp is **`df0f27deb`, equal to HEAD** — it was packed
+after the final commit of this item, so there is no gap to reason about. (The
+only thing committed after the pack is this paragraph.)
 
 **I did not publish it.** Item 60's DONE WHEN stops at the packed, checked and
 walked file, and republishing to the existing artifact URL is the desk's step:
