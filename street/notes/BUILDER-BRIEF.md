@@ -36,6 +36,12 @@ nothing like the cause. (GOTCHAS 52, 13.)
    claim and marks it for the desk to verify.
 4. Repeat. When `claim.sh` says the queue is empty, say so and stop.
 
+**If your item runs long, run `./scripts/claim.sh --touch <your-name>` after each
+commit.** Claiming now reaps any item held for 150 minutes without a touch —
+twice today an item froze because the agent holding it had died, for 85 and 136
+minutes, and nobody noticed. The reaper cannot tell your slow item from a corpse;
+`--touch` is how you tell it. One line after a commit, and your claim is safe.
+
 **You do not wait to be told what to do next, and you do not pick items out of
 order** — the queue is ranked, and the ranking is the desk's judgement about
 what the user cares about.

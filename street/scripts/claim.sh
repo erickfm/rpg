@@ -14,6 +14,7 @@
 # Usage:  ./scripts/claim.sh <your-name>
 #         ./scripts/claim.sh --stale [threshold-minutes]     report DOING rows by age
 #         ./scripts/claim.sh --release <item-id> [your-name] force a stuck item back to TODO
+#         ./scripts/claim.sh --touch <your-name>             re-stamp your claim, you are alive
 #
 # A STALE CLAIM IS INDISTINGUISHABLE FROM ACTIVE WORK, AND THAT IS ITEM 9d.
 # Item 9 sat `DOING w1` after the desk stopped w1 — nothing could take it and
@@ -134,7 +135,67 @@ if [ "$mode" = "--release" ]; then
   exit 0
 fi
 
+# ── --touch: "I am still alive on this item" ───────────────────────────────
+# The counterpart to the auto-reap below, and the thing that makes it safe. A
+# genuinely long item — the collider work is scoped in four committed stages —
+# would otherwise be indistinguishable from a dead holder at the 150m mark.
+# Call it after each commit and your claim can never be reaped out from under
+# you. Costs one line in a builder's loop; removes the only way auto-reap can
+# hurt.
+if [ "$mode" = "--touch" ]; then
+  who=${2:-}
+  [ -z "$who" ] && { echo "usage: claim.sh --touch <your-name>"; exit 2; }
+  row=$(grep -n "^| *[0-9]*[a-z]* *| *DOING $who " "$Q" | head -1)
+  [ -z "$row" ] && { echo "you ($who) do not hold anything — nothing to touch"; exit 3; }
+  ln=${row%%:*}
+  item=$(printf '%s' "$row" | sed 's/^[0-9]*:| *\([0-9a-z]*\) *|.*/\1/')
+  sed -i "${ln}s/| *DOING $who [^|]*|/| DOING $who $(date '+%H:%M') |/" "$Q" || exit 1
+  echo "item $item — claim refreshed for $who, the reaper will leave it alone"
+  exit 0
+fi
+
 who=$mode
+
+# ── REAP DEAD CLAIMS BEFORE PICKING, NOT ON A DESK TICK ────────────────────
+#
+# THIS HAS NOW COST THE PROJECT 221 MINUTES OF QUEUE TIME IN ONE DAY. Item 9
+# sat DOING w1 for 85 minutes after the desk stopped w1, and then DOING w9 for
+# 136 more after w9 died holding it. `--stale` and `--release` (item 9d) were
+# built to fix exactly this and they work — but they are things the DESK has to
+# remember to run, and the desk did not remember, twice. A recovery mechanism
+# that depends on somebody noticing is not a recovery mechanism.
+#
+# So the reap happens here, in the path every builder already runs, every time.
+# No tick, no desk, no noticing.
+#
+# WHY 150 MINUTES AND NOT THE 90 `--stale` REPORTS AT. They answer different
+# questions. `--stale` is a human asking "is anything worth a look?" and 90m is
+# right for that. This one ACTS, and acting wrongly means handing a live item to
+# a second builder — two agents in one file is what corrupted a worktree and
+# broke the live world (PARALLEL-WORKFLOW §11). So the acting threshold is
+# deliberately well past the reporting one, and `--touch` above lets any builder
+# on a genuinely long item opt out entirely.
+REAP_MIN=${CLAIM_REAP_MINUTES:-150}
+now_hh=$(date '+%H'); now_mm=$(date '+%M')
+now_hh=${now_hh#0}; now_mm=${now_mm#0}
+now_min=$((now_hh * 60 + now_mm))
+grep -n '^| *[0-9]*[a-z]* *| *DOING' "$Q" | while IFS= read -r r; do
+  ln=${r%%:*}
+  item=$(printf '%s' "$r" | sed 's/^[0-9]*:| *\([0-9a-z]*\) *|.*/\1/')
+  ws=$(printf '%s' "$r" | sed 's/^[0-9]*:| *[0-9a-z]* *| *DOING \([^ ]*\) \([0-9][0-9]\):\([0-9][0-9]\).*/\1 \2 \3/')
+  holder=$(printf '%s' "$ws" | cut -d' ' -f1)
+  hh=$(printf '%s' "$ws" | cut -d' ' -f2); mm=$(printf '%s' "$ws" | cut -d' ' -f3)
+  # An unparseable stamp is left ALONE, never reaped — the failure mode of a
+  # reaper that guesses is worse than the one it is fixing.
+  case "$hh$mm" in *[!0-9]*|'') continue;; esac
+  hh=${hh#0}; mm=${mm#0}
+  age=$((now_min - (hh * 60 + mm)))
+  [ "$age" -lt 0 ] && age=$((age + 1440))
+  if [ "$age" -ge "$REAP_MIN" ]; then
+    sed -i "${ln}s/| *DOING [^|]* *|/| TODO |/" "$Q"
+    echo "reaped item $item — $holder held it ${age}m with no --touch; back to TODO"
+  fi
+done
 
 # ── the top TODO row, if any ──────────────────────────────────────────────
 # `[0-9]*` MISSED EVERY LETTERED RANK. The desk inserts urgent items as 0a, 5b,
