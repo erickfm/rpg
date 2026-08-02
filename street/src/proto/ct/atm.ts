@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { BUILD } from './ctx';
 import { makePanel, UI, type Panel, type Purse } from './hud';
@@ -50,22 +51,33 @@ export const ORDER = BUILD.PROPS + 6;
 //   CAB_KEY_HI    bank.ts:363  '#c6cbcf'                   a worn (pale) key face
 //   CAB_KEY_LO    bank.ts:363  '#aab0b6'                   an unworn key face
 //
-// NOT AN IMPORT, and that is a finding rather than a shortcut. `ct/bank.ts`
-// never names these — they are inline literals inside a closure, not
-// module-level constants — so there is nothing today to `export` and
-// `import`. Turning them into a shared, named palette means adding an
-// export to a file OWNERSHIP.md gives to A, and this row's own brief draws
-// the line at reading A's file to source the palette, not editing it — the
-// user explicitly wants the cabinets untouched, and OWNERSHIP.md's one
-// file/one owner rule does not carve out "just an export" the way it does
-// for the desk-owned shared modules. So: reported here rather than forced.
-// The fragility that leaves behind is real and has a precedent already on
-// record — `ct/vice.ts` declares GOLD/RED for the hotel and `int-hotel.ts`
-// duplicates two of the three as literals rather than importing them, and
-// the ledger already flags it as agreeing today with nothing keeping it
-// agreeing. Recommended follow-up for the desk: ask A to hoist this file's
-// own ATM colours into a named, exported `ATM_PALETTE` in `bank.ts`, so this
-// block can become an import and stop being a second copy of the truth.
+// NOT AN IMPORT, and the reason has CHANGED — the note that used to stand here
+// is now wrong in a way that would send the next reader into a trap.
+//
+// It said there was "nothing today to export": the values were inline literals
+// inside a closure in `ct/bank.ts`. That has since been fixed. A hoisted them
+// into an exported `ATM_PALETTE` (bank.ts:62) and left a docstring inviting
+// this file to "import instead of duplicate", noting it is this file's call
+// when to switch.
+//
+// **Taking that invitation would create an import cycle, and this codebase has
+// a documented way of dying from exactly that.** `ct/bank.ts:8` already does
+// `import { openAtm } from './atm'` — it has to, it owns the `[E]` spot — so
+// `atm -> bank` closes the loop. GOTCHAS §28: a module in an import cycle can
+// resolve to an undefined namespace at `ct/world.ts`'s eager-glob collection
+// time and be **silently dropped from the BUILT BUNDLE ONLY**, which is the
+// worst way round — dev would look perfect and the ATM would simply not exist
+// in the artifact the user plays. `ct/hud.ts`'s own header block records the
+// same hazard being designed around for the pockets.
+//
+// So the twelve literals below STAY, and the real fix is a third module that
+// neither of these two imports — `ct/atm-palette.ts`, or a slot in an existing
+// desk-owned shared file — which both can then import without a loop. That is
+// a one-file change and it is queued rather than taken here, because creating
+// it and rewriting `bank.ts`'s references is A's file, not this row's.
+//
+// Verified identical to `ATM_PALETTE` value-for-value as of `ce0f3b2c3`, so the
+// duplication is currently harmless and only the FRAGILITY is outstanding.
 const CAB_BODY = '#414a52';
 const CAB_BEZEL = '#1c2026';
 const CAB_GLASS = '#0d1418';
@@ -188,19 +200,73 @@ function rows(p: Purse): Row[] {
 // INSIDE the panel's screen area rather than on its bezel, because the bezel is
 // the shared cabinet — the slots machine and the pockets get the same one, and
 // neither of them has eight buttons.
-const W = 300, H = 214;
-const CRT = { x: 34, y: 8, w: 232, h: 162 };
+// THE CANVAS IS THE RAKED SCREEN FACE ITSELF, so it is cut to that face's own
+// proportions rather than to a shape chosen for a floating rectangle. Measured
+// off the mesh `ct/bank.ts` builds: 0.62 m across by 0.4243 m down the rake,
+// which is 1.461:1 — so 300 × 205. It used to be 300 × 214 (1.402:1), a 4%
+// vertical stretch nobody could see while it floated in screen space and which
+// becomes a real distortion once it is wrapped onto the object.
+const W = 300, H = 205;
+const CRT = { x: 32, y: 9, w: 236, h: 187 };
 // Pushed DOWN from y 22. At 22 the first menu label printed straight across the
 // FIRST FEDERAL rule at the top of the tube — legible in a still, wrong in the
 // way a real fascia never is, because on a real machine the top button is below
 // the header for exactly this reason.
-const BTN_Y = [50, 82, 114, 146], BTN_H = 14, BTN_W = 24;
+//
+// Re-spaced for the taller tube, and the 18 px of clear air between the header
+// band and the first button label is the number being PRESERVED here, not the
+// button positions: scaling the old rows to the new height proportionally left
+// only 6 px there and printed `ENTER YOUR PIN` into `CANCEL ▶`.
+const BTN_Y = [56, 92, 128, 164], BTN_H = 15, BTN_W = 26;
 /** the three horizontal bands every screen lays out on */
-const HEAD = 34, BODY = 100, SUB = 122;
+const HEAD = 39, BODY = 115, SUB = 141;
+
+// ── the PIN pad, which exists because of the MOUSE ────────────────────────
+//
+// *"the screen on the literal atm be the overlay that i can use my mouse to
+// click through"* — CLICK THROUGH, all of it. Every other screen this machine
+// has is worked with the eight soft keys down the sides, which a pointer can
+// reach; the PIN screen was digits-only, so a player using the mouse got two
+// steps in and hit a wall he could only pass by putting his hand back on the
+// keyboard.
+//
+// The machine has a real twelve-key pad in 3-D right below the tube and clicking
+// THAT would be the prettier answer. It is a different mesh with a different
+// texture, and its key layout is a set of literals inside a closure in
+// `ct/bank.ts` — so hit-testing it would mean a second hand-typed copy of
+// somebody else's geometry, which is BUILDER-BRIEF §8 and the single most
+// expensive habit in this codebase. Queued as a follow-up instead; see the
+// handoff note.
+//
+// ONE SOURCE FOR THE CELLS, used by both the painting and the hit-test, so a
+// key can never be drawn somewhere the click does not land.
+const PAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLR', '0', 'ENT'];
+const PAD = { w: 40, h: 24, gx: 5, gy: 5, x: 52, y: 72 };
+/** cell `i` of the pad, in CANVAS pixels — the same space clicks arrive in */
+function padCell(i: number): { x: number; y: number; w: number; h: number } {
+  return {
+    x: CRT.x + PAD.x + (i % 3) * (PAD.w + PAD.gx),
+    y: CRT.y + PAD.y + Math.floor(i / 3) * (PAD.h + PAD.gy),
+    w: PAD.w, h: PAD.h,
+  };
+}
 
 function drawScreen(g: CanvasRenderingContext2D): void {
   const p = PURSE!;
   const r = rows(p);
+
+  // THE FASCIA ITSELF, and it has to be PAINTED rather than left bare. A panel
+  // floating over the page could leave its background transparent and let the
+  // world show through; a canvas wrapped onto a mesh cannot, because an
+  // untouched canvas is rgba(0,0,0,0) and a MeshBasicMaterial with no
+  // `transparent` flag renders that as flat BLACK. The first shot of this on
+  // the machine had the tube sitting in a black slab where the cabinet's own
+  // gunmetal should have been.
+  g.fillStyle = CAB_BODY; g.fillRect(0, 0, W, H);
+  // the moulding: a lit top edge and a shadowed bottom, so the face reads as a
+  // panel set into the niche rather than as a sticker on it
+  g.fillStyle = CAB_BODY_HI; g.fillRect(0, 0, W, 2);
+  g.fillStyle = CAB_BODY_EDGE; g.fillRect(0, H - 2, W, 2);
 
   // the two button columns. A physical nub with a lit edge, not a rectangle:
   // these are the only thing on the fascia you are meant to press.
@@ -244,9 +310,24 @@ function drawScreen(g: CanvasRenderingContext2D): void {
     line(p.card === false ? 'NO CARD' : 'WELCOME', BODY, CAB_TEXT_LIT, 15);
     line(p.card === false ? 'SEE YOUR BRANCH FOR A NEW ONE' : 'PLEASE INSERT YOUR CARD', SUB, CAB_TEXT_LIT, 8);
   } else if (screen === 'pin') {
-    line('ENTER YOUR PIN', HEAD, CAB_TEXT_LIT, 10);
-    line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), BODY, CAB_TEXT_LIT, 18);
-    line('THEN PRESS ENTER', SUB, CAB_TEXT_DIM, 7);
+    line('ENTER YOUR PIN', 32, CAB_TEXT_LIT, 10);
+    line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), 60, CAB_TEXT_LIT, 18);
+    // the pad. Drawn in CANVAS space, so it steps outside the CRT translation
+    // the rest of this block works in — and back in again afterwards.
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    for (let i = 0; i < PAD_KEYS.length; i++) {
+      const c = padCell(i);
+      const k = PAD_KEYS[i];
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(c.x, c.y, c.w, c.h);
+      g.strokeStyle = CAB_TEXT_DIM; g.lineWidth = 1;
+      g.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
+      g.fillStyle = CAB_TEXT_LIT;
+      g.font = UI.font(k.length > 1 ? 8 : 11, true);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(k, c.x + c.w / 2, c.y + c.h / 2);
+    }
+    g.restore();
   } else if (screen === 'menu') {
     line('SELECT A SERVICE', HEAD, CAB_TEXT_LIT, 10);
   } else if (screen === 'balance') {
@@ -288,23 +369,20 @@ function drawScreen(g: CanvasRenderingContext2D): void {
   for (let y = 0; y < CRT.h; y += 3) g.fillRect(0, y, CRT.w, 1);
   g.restore();
 
-  // under the CRT: the card slot and the cash mouth, which is where the
-  // machine tells you something is physically happening
-  const fy = CRT.y + CRT.h + 8;
-  g.fillStyle = CAB_SLOT; g.fillRect(40, fy, 92, 12);
-  g.fillStyle = CAB_SLOT_DARK; g.fillRect(43, fy + 3, 86, 5);
-  g.fillStyle = screen === 'idle' || screen === 'thanks' ? CAB_BODY_LO : CAB_LIT;
-  g.fillRect(43, fy + 9, 86, 2);                        // the slot's little lamp
-  g.fillStyle = CAB_KEY_LO; g.font = UI.font(6); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillText('CARD', 86, fy + 20);
-
-  g.fillStyle = CAB_SLOT; g.fillRect(168, fy, 92, 14);
-  g.fillStyle = CAB_SLOT_DARK; g.fillRect(171, fy + 3, 86, 8);
-  if (screen === 'cash') {                              // notes in the mouth
-    g.fillStyle = '#6a8a5a'; g.fillRect(176, fy + 4, 76, 6);
-    g.fillStyle = '#7a9a68'; g.fillRect(176, fy + 4, 76, 2);
-  }
-  g.fillStyle = CAB_KEY_LO; g.fillText('CASH', 214, fy + 20);
+  // THE CARD SLOT AND THE CASH MOUTH USED TO BE PAINTED HERE AND ARE NOT ANY
+  // MORE. This canvas is the raked SCREEN face now, and the machine already has
+  // both of those as real geometry: the card slot down the right of this same
+  // face, the cash mouth on the apron a few centimetres below it, built by
+  // `ct/bank.ts` and visible in the same frame as this. Drawing them again gave
+  // the cabinet two card slots and two cash mouths, one of them a picture — the
+  // same "one object that does not agree with itself" the user caught on the
+  // bank door and on the ATM's own palette.
+  //
+  // `CASH READY` still says TAKE IT FROM THE MOUTH BELOW, and below is now a
+  // place that exists.
+  const lamp = screen === 'idle' || screen === 'thanks' ? CAB_BODY_LO : CAB_LIT;
+  g.fillStyle = lamp;
+  g.fillRect(CRT.x, H - 6, CRT.w, 2);        // the fascia's one live lamp
 }
 
 // ── keys ──────────────────────────────────────────────────────────────────
@@ -333,6 +411,73 @@ function onKey(k: string): void {
   else r[i - 4]?.actR?.();
 }
 
+// ── the mouse ─────────────────────────────────────────────────────────────
+//
+// The framework raycasts the pointer onto this machine's screen mesh and hands
+// back the hit in THIS canvas's own pixels — the same coordinates everything
+// above is drawn in — so the machine hit-tests its own layout and the framework
+// never has to be told where anything is.
+//
+// The pressable area of a soft key is the NUB PLUS ITS LABEL. The nub is 26 px
+// wide on a 300 px fascia; on screen that is a target about 8 mm across, and
+// the thing the player is actually reading and aiming at is the `◀ WITHDRAW`
+// beside it. So each row claims its whole end of the fascia out to
+// `LABEL_REACH` into the tube. The two ends cannot meet: the CRT is 236 wide
+// and they reach 100 each.
+const LABEL_REACH = 100;
+const L_EDGE = CRT.x + LABEL_REACH;                  // 132
+const R_EDGE = CRT.x + CRT.w - LABEL_REACH;          // 168
+
+function buttonAt(x: number, y: number): { i: number; right: boolean } | null {
+  for (let i = 0; i < 4; i++) {
+    if (y < BTN_Y[i] - 5 || y > BTN_Y[i] + BTN_H + 5) continue;
+    if (x <= L_EDGE) return { i, right: false };
+    if (x >= R_EDGE) return { i, right: true };
+    return null;
+  }
+  return null;
+}
+
+function padAt(x: number, y: number): string | null {
+  if (screen !== 'pin') return null;
+  for (let i = 0; i < PAD_KEYS.length; i++) {
+    const c = padCell(i);
+    if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) return PAD_KEYS[i];
+  }
+  return null;
+}
+
+/** is there something PRESSABLE here? Drives the hand cursor, so it must be
+ *  true only where a click actually does something — a hand over a dead key is
+ *  a machine lying about what it will do. */
+function hotAt(x: number, y: number): boolean {
+  if (!PURSE) return false;
+  // THANK YOU is dismissed by any key, so it is dismissed by any click too —
+  // the keyboard path has always ended that way and a mouse user reaching the
+  // last screen of the session must not be the one person who has to hunt for
+  // the way out of it.
+  if (screen === 'thanks') return true;
+  if (padAt(x, y)) return true;
+  const b = buttonAt(x, y);
+  if (!b) return false;
+  const r = rows(PURSE);
+  return b.right ? !!r[b.i]?.right : !!r[b.i]?.left;
+}
+
+/** ROUTED THROUGH `onKey`, not through a second copy of the dispatch. A click
+ *  on `3` and a press of `3` are the same event as far as this machine is
+ *  concerned, and the one thing worse than two input paths is two input paths
+ *  that disagree about what button 3 does. */
+function clickAt(x: number, y: number): void {
+  if (!PURSE) return;
+  if (screen === 'thanks') { onKey('1'); return; }        // any key ends it
+  const k = padAt(x, y);
+  if (k) { onKey(k === 'CLR' ? 'backspace' : k === 'ENT' ? 'enter' : k); return; }
+  const b = buttonAt(x, y);
+  if (!b) return;
+  onKey(String(b.right ? b.i + 5 : b.i + 1));
+}
+
 // ── the way in ────────────────────────────────────────────────────────────
 
 /**
@@ -354,6 +499,41 @@ function onKey(k: string): void {
  * in the player's pocket; the ACCOUNT is now `purse.account`. Worth swapping if
  * you keep a readout at all — but the machine says it on its own screen now.)
  */
+/**
+ * WHICH machine you walked up to. Both ATMs of the pair carry the same
+ * interface, so the one that lights up has to be the one you are standing at.
+ *
+ * Found by ASKING THE WORLD, not by importing the bank's coordinates: `ct/bank.ts`
+ * tags every panel it builds with `userData.atmPart`, and the raked screen faces
+ * are the ones tagged `'screen'`. That tag is the only thing this file knows
+ * about the machine — no position, no size, no tilt — so A can move, re-rake or
+ * re-texture the cabinets and this keeps working. Nearest to the player wins.
+ *
+ * BUILDER-BRIEF §8, and the alternative is the second copy of the truth this
+ * file already carries once (see the palette block at the top) and got a
+ * follow-up filed against it.
+ */
+let SCENE: THREE.Scene | null = null;
+let PLAYER: { x: () => number; z: () => number } | null = null;
+function screenMesh(): THREE.Object3D | null {
+  if (!SCENE || !PLAYER) return null;
+  const px = PLAYER.x(), pz = PLAYER.z();
+  let best: THREE.Object3D | null = null;
+  let bestD = Infinity;
+  const p = new THREE.Vector3();
+  SCENE.traverse((o) => {
+    if (o.userData?.atmPart !== 'screen') return;
+    o.updateWorldMatrix(true, false);
+    p.setFromMatrixPosition(o.matrixWorld);
+    const d = (p.x - px) ** 2 + (p.z - pz) ** 2;
+    if (d < bestD) { bestD = d; best = o; }
+  });
+  // Nothing tagged means the cabinets are not in this world (a prototype
+  // harness, a future refactor). The panel framework falls back to the
+  // screen-space cabinet on a null, so this is a downgrade and not a break.
+  return best;
+}
+
 export function openAtm(): void {
   if (!panel || !PURSE) return;
   clearTimeout(timer);
@@ -363,6 +543,8 @@ export function openAtm(): void {
 
 export function register(ctx: CtxBuild): void {
   PURSE = ctx.purse;
+  SCENE = ctx.scene;
+  PLAYER = ctx.player;
   acct(ctx.purse);                              // seed the balance once
   if (ctx.purse.card === undefined) ctx.purse.card = true;
 
@@ -379,7 +561,21 @@ export function register(ctx: CtxBuild): void {
     // exist so this second cabinet matched the real one on the bank facade;
     // with no second cabinet there is nothing left to match.
     id: 'ct-atm', w: W, h: H, scale: 2, chrome: 'none',
-    hint: () => (screen === 'pin' ? 'digits, then ENTER' : 'press the numbered buttons'),
+    // ON THE MACHINE, not over the camera. *"i want … the screen on the literal
+    // atm be the overlay"*. The panel above already paints a complete fascia
+    // into its own canvas; naming the mesh that canvas belongs on is the whole
+    // of the change here — this file draws exactly what it drew before.
+    // 0.75 m and 58° rather than the framework's default 0.55/60: at 0.55 the
+    // face filled the whole frame and you could no longer tell you were at a
+    // cash machine — the niche, the keypad and the cash mouth all fell outside
+    // it, which is most of what makes the thing read as an object. Backing off
+    // 0.20 m puts the cabinet back in its wall and still leaves the tube at
+    // roughly 44% of frame width, ~1.9 screen pixels per texel.
+    surface: { mesh: screenMesh, standoff: 0.75, fov: 58, hot: hotAt, click: clickAt },
+    // The mouse is the way in now, so it is what the caption offers; the keys
+    // still work and still get a mention, because a player who learned this
+    // machine on the keyboard must not be told it stopped listening.
+    hint: () => (screen === 'pin' ? 'click the pad, or type it' : 'click a button, or press its number'),
     draw: (g) => drawScreen(g),
     key: (k) => onKey(k),
     onClose: () => {
@@ -401,6 +597,10 @@ export function register(ctx: CtxBuild): void {
   (window as unknown as { __atm: unknown }).__atm = {
     open: () => openAtm(),
     screen: () => screen,
+    /** how many digits are in, so a harness can tell "the pad did nothing" from
+     *  "the pad worked and ENTER did nothing" — two failures that look identical
+     *  from outside and cost a debugging round to tell apart */
+    pin: () => pin.length,
     account: () => ctx.purse.account,
     cash: () => ctx.purse.cash,
     pending: () => pending,
