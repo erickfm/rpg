@@ -73,7 +73,19 @@ asynchronous. (GOTCHAS 55.)
 Instruments default to port **4177**, where somebody else's server is usually
 running. **Always pass `SHOT_URL=http://localhost:<your port>/`.**
 
-Pick your own port from the queue's ports column, or any free port in 4180–4199.
+**A PORT THE DESK ASSIGNED YOU IS A SUGGESTION, NOT A FACT — PROVE IT IS FREE.**
+Three builders in a row were handed a port already serving another builder's
+world. It answers HTTP 200, so nothing looks wrong: you measure someone else's
+street and report confidently about it. One builder lost 20 minutes to this
+tonight, and it is the same failure as GOTCHAS 48 wearing a different hat.
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:<port>/   # 000 = free
+```
+
+Anything other than `000` means **take a different port** — any free one in
+4180–4199 — and **say which one you used** in your handoff. The desk has been
+assigning these blind and cannot tell from here.
 
 > An instrument aimed at the wrong world reports a catastrophe it cannot see —
 > or a clean bill of health it did not earn. (GOTCHAS 48.)
