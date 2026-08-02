@@ -722,6 +722,23 @@ const CASES = [
     'const IN = -1.0;',
     'crowd-net.mjs', [], 'the whole pedestrian network laid a metre inside the roadway'],
 
+  // A CAR THAT LEANS INTO ITS TURN, like a motorcycle. The sign on `-p.turn` is
+  // the whole of "leans AWAY from the turn centre: a right turn drops the left
+  // side", and corner-traffic.mjs asserts it as a RELATION —
+  // `Math.sign(steerPeak) !== Math.sign(leanPeak)` — rather than as a number, so
+  // it cannot be satisfied by the arithmetic agreeing with itself.
+  //
+  // The narrowest case in this file, and deliberately: measured, exactly ONE of
+  // the check's twenty assertions went red — `leans away from the turn, not into
+  // it (steer -35.0°, roll -3.4°)` — and the other nineteen stayed OK, including
+  // both arcs, the yield to the pedestrian, the continuity and yaw-snap tests
+  // and the three parked cars. A mutation that trips one named assertion and
+  // nothing else is the strongest evidence a check is actually watching.
+  ['corner-lean-into', 'src/proto/ct/traffic.ts',
+    'const lean = THREE.MathUtils.clamp(-p.turn * a * LEAN_PER_A, -LEAN_MAX, LEAN_MAX);',
+    'const lean = THREE.MathUtils.clamp(p.turn * a * LEAN_PER_A, -LEAN_MAX, LEAN_MAX);',
+    'corner-traffic.mjs', [], 'cars leaning INTO the corner, like a motorcycle'],
+
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
   // a commit message.

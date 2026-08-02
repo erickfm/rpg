@@ -53,7 +53,8 @@ const EXEMPT = {
 const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
   'jump-walk', 'gaps', 'feet-check', 'side-night',
-  'unstick-walk', 'corner-traffic',
+  'unstick-walk',
+  // 'corner-traffic' — CLEARED by w37, item 77: canfail case `corner-lean-into`.
   // 'crowd-net' — CLEARED by w37, item 77: canfail case `crowd-net-inroad`.
   // 'side-walk' — CLEARED by w37, item 77: canfail case `sidewalk-sealed`. It
   // already had a working failing path; nothing had watched it use one.

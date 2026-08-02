@@ -664,7 +664,7 @@ const CHECKS = [
   // crowd-net 93 s, corner-traffic 141 s and up to ~7 min when it has to retry
   // (it discards any run the car spent yielding, because a held run says
   // nothing about the arc).
-  ['corner-traffic',   'do cars actually turn the corner, and yield?',       false, [], true],
+  ['corner-traffic',   'do cars actually turn the corner, and yield?',       'corner-lean-into', [], true],
   ['crowd-net',        'do people route the block, cross only at crossings?', 'crowd-net-inroad', [], true],
   ['side-walk',        'are both side-street walks clear, doors reachable?',  'sidewalk-sealed', [], true],
   ['jitter',           'does a walker flip-flop when it passes somebody?',    ['jitter-reversals'], [], true],
