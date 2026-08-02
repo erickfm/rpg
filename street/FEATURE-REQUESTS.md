@@ -2575,3 +2575,13 @@ to one side.
   `ct/hud.ts:740` `left: calc(52% + 77px)` → `calc(46% + 77px)`. The whole arm moves
   because the cuff, strap and face all live inside `watchWrap`. Told the user the exact
   figure so he can ask for more or less rather than another screenshot round-trip.
+
+- **"[screenshot] rain seems extra intense now. thats fine but i want a drizzle to also
+  exist and be more likely than the downpour featured here"** (2026-08-02)
+  → **routed as queue item 110, top of the queue.** Cause found exactly:
+  `ct/props.ts:251` `stormAt(h) = 0.62 + 0.38 * uniform` — range **0.62–1.00, uniform**,
+  so the weakest storm in the world is already 62% strength and drizzle cannot occur.
+  The 0.62 floor was put there deliberately to answer his PREVIOUS complaint that rain
+  was too faint (`:249-250`). **Third knob today with a user complaint at both ends**,
+  after the bed/door prompt and the interaction reach — so the fix must satisfy both,
+  not swing back.
