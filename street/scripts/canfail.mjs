@@ -686,6 +686,35 @@ const CASES = [
     '  sit(pose: SeatPose): void {\n    if (!this.seat) return;   // selftest: nothing is sittable\n    if (this.seat) return;',
     'I-seat-exit.mjs', ['--n', '6'], 'a world where no seat can be sat on, scored as "no seat traps you"'],
 
+  // ── the bed-vs-door knob, BOTH ENDS ──────────────────────────────────────
+  //
+  // `pickSpot` has been swung twice by two OPPOSITE user complaints, and each
+  // one can be "fixed" by reintroducing the other. So it gets two cases, one
+  // per direction, and w40-bed-vs-door.mjs is only doing its job if both go
+  // red — a single case here would certify half a guard.
+
+  // END TWO RESTORED: the near tier wins outright again, exactly as it did
+  // between fa5c32e01 and item 85. Aim stops mattering to anything you are
+  // touching, so standing by the bed and facing the door offers the bed —
+  // *"i dont want sit on bed and watch tv to be the main option if im facing
+  // the door to leave"*, put back. Measured: END TWO's every-stride verdict
+  // goes red, the AIM and END ONE verdicts stay green, exit 1.
+  ['w40-near-outright', FP,
+    '    if (near && (looked || onIt)) {',
+    '    if (near) {   // selftest: near beats aim outright again',
+    'w40-bed-vs-door.mjs', [], 'the bed offered while the player is aimed at the door'],
+
+  // END ONE RESTORED: `onIt` never fires, so a spot whose centre is inside the
+  // player's own body is no longer unbeatable and aim takes it away. This is
+  // the version I actually wrote first and the walked check rejected — it costs
+  // w9's repro and 46 of seats-walk's seats. Measured: END ONE(b) goes red
+  // (station 3 offers the bed from inside the doorway), the END TWO and AIM
+  // verdicts stay green, exit 1.
+  ['w40-looked-dominant', FP,
+    '    const onIt = d < RADIUS;',
+    '    const onIt = false;   // selftest: standing in it no longer protects it',
+    'w40-bed-vs-door.mjs', [], 'a door you are standing in losing to whatever you glance at'],
+
   // THE SIDE STREET'S WALKS SEALED, at every tree — the `bus-walk` fault on the
   // other street. Only the TRUNK is solid there (0.16 m across) precisely so the
   // walk stays passable; widening it to 3.2 m severs both walks, which is what
