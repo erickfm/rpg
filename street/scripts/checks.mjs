@@ -607,6 +607,16 @@ const CHECKS = [
   ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
   ['seats-walk',       'does every seat seat you — on ITSELF, not a neighbour?', true, [], true],
+  // REGISTERED 2026-08-02 (w40, item 85). `pickSpot` has now been swung by two
+  // OPPOSITE user complaints — *"i dont want to be so far from the bed and the
+  // option is still to sit on the bed and watch tv"* and *"i dont want sit on
+  // bed and watch tv to be the main option if im facing the door to leave"* —
+  // and either is satisfiable by reintroducing the other. This walks flat 301
+  // and pins both ends plus the band between them, so the next swing is caught
+  // rather than shipped and reported. Two canfail cases, one per end: a single
+  // one would certify half a guard.
+  ['w40-bed-vs-door',  'does aim beat proximity in 301 — at BOTH ends of the knob?',
+    ['w40-near-outright', 'w40-looked-dominant'], [], true],
   // The complement of seats-walk: that one asks whether a seat SEATS you, this
   // asks whether you can get OUT of it, which is the half the user reported —
   // "pressing e doesnt get me out of it". It approaches each seat from a pace
