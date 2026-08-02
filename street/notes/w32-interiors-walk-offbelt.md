@@ -111,6 +111,33 @@ Both were mine, in the new off-belt legs, and both would have shipped green.
 The third is the one that matters: **before** the fix in §2 above, that same
 mutation passed 6/6.
 
+## The full run
+
+`SHOT_URL=http://localhost:4188/ node scripts/interiors-walk.mjs` — **312/318,
+all 13 rooms walked, no room `FAILED (2)`.** All six apt301 legs pass, including
+`rig gy=5.4, groundAt=5.4`.
+
+The suite still **exits 1**, on six failures that are all pre-existing and none
+of which are in code I touched:
+
+| room | assertion |
+| --- | --- |
+| casino, hotel, pawn, tax | "the customer station comes from the world, not from memory" — no served-spot published; already documented in `F-keeper-stations-audit.md` |
+| jail, casino | "the room keeps its own light after dark" — 6/501 and 109/803 interior materials dimmed by the night sweep |
+
+Proof they are not mine: the diff removes **seven lines**, all of them in the
+coverage guard, the positional room filter, and the empty-run tally message. The
+entire belt walk loop is byte-identical to mainline, so none of these six can
+have moved. That exit 1 is "ran and found a fault" — which is exactly the status
+this item wanted distinguishable from "refused to run", and it is now the one the
+suite reports.
+
+Also green: `npm run build` (tsc + vite) clean, and
+`node scripts/bugsweep.mjs` → **0 STATION MISS, 0 COVERAGE**, no new console
+errors. Bugsweep already prints the same distinction in its own words —
+*"12 int-*.ts on disk, 12 registered, 13 with dimensions (1 declared
+elsewhere)"*.
+
 ## Found and did NOT fix
 
 - **`scripts/bugsweep.mjs`'s three `bug-apt301-*` stations.** `ct/interior.ts`'s
