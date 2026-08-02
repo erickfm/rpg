@@ -2256,3 +2256,32 @@ leaf swinging into the aisle has not fixed the aisle.
 Note this is the *third* distinct fault he has found in that one room tonight —
 the cramped stacks, the tilted lectern, and now the door. All were invisible
 until the collision overlay shipped this morning.
+
+
+## Yellow centre line runs straight through the crossing
+
+> *"remove the yellow stripes where the cross walk is. it doesnt look right."*
+
+**He is right and it is a real-world rule, not just taste:** a road's centre line
+stops short of a pedestrian crossing. Ours does not — the yellow dashes run
+straight over the zebra, so two sets of markings occupy the same asphalt.
+
+**Cause is structural, not a bad coordinate.** `crosstown.ts:73` draws the centre
+line as **one plane the whole length of the street** with a repeating dash
+texture:
+
+```ts
+const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 36 - SIDE_Z0), …);
+lineT.repeat.set(1, 38);
+```
+
+One mesh, one texture, no knowledge of anything else on the road. It cannot stop
+at a crossing because nothing tells it a crossing exists — the crossings are
+painted into the ground in `ct/tex-ground.ts`, a different file with a different
+owner.
+
+So the fix is to **break the line into segments that stop short of each
+crossing**, and to derive those gaps from wherever the crossings are actually
+defined rather than typing z values — a hand-typed gap silently stops matching
+the moment a crossing moves, which is precisely the class of rot that has cost
+this project four instruments this week.
