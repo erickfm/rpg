@@ -578,10 +578,26 @@ export function makePanel(spec: PanelSpec): Panel {
    * kept from last time can name a mesh no longer in the scene.
    */
   let onMesh: THREE.Object3D | null = null;
+  /**
+   * The panel's own canvas, hung in the scene graph. ONE texture, made once and
+   * reused: `CanvasTexture` is a view onto the canvas rather than a copy of it,
+   * so every `repaint()` this panel already does becomes a live update to the
+   * object in the world for the cost of a `needsUpdate` flag.
+   *
+   * NEAREST filtering, no mipmaps — the whole world is pixel art and a screen
+   * that resampled smoothly would be the one soft object in it.
+   */
+  let tex: THREE.CanvasTexture | null = null;
+  /** what the mesh was showing before we borrowed it, to be put back exactly */
+  let savedMap: THREE.Texture | null = null;
+  let savedColor = 0xffffff;
 
   const paint = () => {
     const g = cv.getContext('2d')!;
     g.clearRect(0, 0, CW, CH);
+    // the canvas IS the texture when this panel is hung on a mesh, so every
+    // repaint the caller already makes is a live screen in the world
+    if (tex) tex.needsUpdate = true;
 
     if (frameless) {
       // NO CASE, NO SCREWS, NO TITLE, NO RECESS, NO CAPTION BAND — the
@@ -723,6 +739,39 @@ export function makePanel(spec: PanelSpec): Panel {
       backdropUp(!onMesh);
       paint();
       if (onMesh) {
+        // HANG THE CANVAS ON THE OBJECT. The mesh keeps its geometry, its rake
+        // and its place in the wall; only what it is showing changes, and it is
+        // put back exactly on close.
+        const mat = (onMesh as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        if (!tex) {
+          tex = new THREE.CanvasTexture(cv);
+          tex.magFilter = THREE.NearestFilter;
+          tex.minFilter = THREE.NearestFilter;
+          tex.generateMipmaps = false;
+          tex.colorSpace = THREE.SRGBColorSpace;
+        }
+        tex.needsUpdate = true;
+        savedMap = mat.map ?? null;
+        savedColor = mat.color.getHex();
+        mat.map = tex;
+        // A LIT CRT IS NOT DIMMED BY THE EVENING. Whatever tint the material
+        // carries belongs to the cabinet, not to the picture on its tube, and
+        // multiplying the live interface by it would drag the thing the player
+        // is reading down with the night wash. Put back on close.
+        mat.color.setHex(0xffffff);
+        mat.needsUpdate = true;
+        // ONLY THE CAPTION SURVIVES ON THE GLASS OF THE MONITOR — moved to the
+        // bottom of the frame, where `ct-prompt` already lives, so it reads as
+        // the world's own prompt line rather than as chrome. The canvas itself
+        // is in the scene now and must not also be drawn over the camera; but
+        // "how do I leave" is the one thing every panel still owes the player,
+        // and a diegetic screen that swallowed it would be the exact trap this
+        // framework exists to prevent.
+        cv.style.display = 'none';
+        wrap!.style.top = 'auto';
+        wrap!.style.bottom = '7%';
+        wrap!.style.transform = 'translate(-50%,0)';
+        wrap!.style.opacity = '1';
         // THE WAY OUT, handed to the controller at the moment the way in
         // happens. If it ever loses the lock without being asked to, it closes
         // this panel rather than leaving a locked camera over an open one.
@@ -750,7 +799,23 @@ export function makePanel(spec: PanelSpec): Panel {
       // left is precisely the trap this must never allow. Wrapped because a
       // controller that throws must not be able to abandon the lock.
       if (onMesh) {
+        // GIVE THE MESH ITS OWN FACE BACK, and do it before anything that can
+        // throw. A machine left wearing a frozen copy of the last thing it
+        // said is the visible half of this failing; a camera left locked is
+        // the half that traps somebody.
+        const mesh = onMesh;
         onMesh = null;
+        try {
+          const mat = (mesh as THREE.Mesh).material as THREE.MeshBasicMaterial;
+          mat.map = savedMap;
+          mat.color.setHex(savedColor);
+          mat.needsUpdate = true;
+        } catch (err) { console.error(`[panel ${spec.id}] could not restore the surface:`, err); }
+        // and put the caption back where every other panel's lives
+        cv.style.display = '';
+        wrap!.style.top = '50%';
+        wrap!.style.bottom = 'auto';
+        wrap!.style.transform = frameless ? 'translate(-50%,-50%)' : 'translate(-50%,-50%) scale(.94)';
         try { FOCUS?.leave(); } catch (err) { console.error(`[panel ${spec.id}] leaving the screen threw:`, err); }
       }
       if (livePanel && livePanel.spec === spec) {

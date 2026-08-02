@@ -189,19 +189,43 @@ function rows(p: Purse): Row[] {
 // INSIDE the panel's screen area rather than on its bezel, because the bezel is
 // the shared cabinet — the slots machine and the pockets get the same one, and
 // neither of them has eight buttons.
-const W = 300, H = 214;
-const CRT = { x: 34, y: 8, w: 232, h: 162 };
+// THE CANVAS IS THE RAKED SCREEN FACE ITSELF, so it is cut to that face's own
+// proportions rather than to a shape chosen for a floating rectangle. Measured
+// off the mesh `ct/bank.ts` builds: 0.62 m across by 0.4243 m down the rake,
+// which is 1.461:1 — so 300 × 205. It used to be 300 × 214 (1.402:1), a 4%
+// vertical stretch nobody could see while it floated in screen space and which
+// becomes a real distortion once it is wrapped onto the object.
+const W = 300, H = 205;
+const CRT = { x: 32, y: 9, w: 236, h: 187 };
 // Pushed DOWN from y 22. At 22 the first menu label printed straight across the
 // FIRST FEDERAL rule at the top of the tube — legible in a still, wrong in the
 // way a real fascia never is, because on a real machine the top button is below
 // the header for exactly this reason.
-const BTN_Y = [50, 82, 114, 146], BTN_H = 14, BTN_W = 24;
+//
+// Re-spaced for the taller tube, and the 18 px of clear air between the header
+// band and the first button label is the number being PRESERVED here, not the
+// button positions: scaling the old rows to the new height proportionally left
+// only 6 px there and printed `ENTER YOUR PIN` into `CANCEL ▶`.
+const BTN_Y = [56, 92, 128, 164], BTN_H = 15, BTN_W = 26;
 /** the three horizontal bands every screen lays out on */
-const HEAD = 34, BODY = 100, SUB = 122;
+const HEAD = 39, BODY = 115, SUB = 141;
 
 function drawScreen(g: CanvasRenderingContext2D): void {
   const p = PURSE!;
   const r = rows(p);
+
+  // THE FASCIA ITSELF, and it has to be PAINTED rather than left bare. A panel
+  // floating over the page could leave its background transparent and let the
+  // world show through; a canvas wrapped onto a mesh cannot, because an
+  // untouched canvas is rgba(0,0,0,0) and a MeshBasicMaterial with no
+  // `transparent` flag renders that as flat BLACK. The first shot of this on
+  // the machine had the tube sitting in a black slab where the cabinet's own
+  // gunmetal should have been.
+  g.fillStyle = CAB_BODY; g.fillRect(0, 0, W, H);
+  // the moulding: a lit top edge and a shadowed bottom, so the face reads as a
+  // panel set into the niche rather than as a sticker on it
+  g.fillStyle = CAB_BODY_HI; g.fillRect(0, 0, W, 2);
+  g.fillStyle = CAB_BODY_EDGE; g.fillRect(0, H - 2, W, 2);
 
   // the two button columns. A physical nub with a lit edge, not a rectangle:
   // these are the only thing on the fascia you are meant to press.
@@ -289,23 +313,20 @@ function drawScreen(g: CanvasRenderingContext2D): void {
   for (let y = 0; y < CRT.h; y += 3) g.fillRect(0, y, CRT.w, 1);
   g.restore();
 
-  // under the CRT: the card slot and the cash mouth, which is where the
-  // machine tells you something is physically happening
-  const fy = CRT.y + CRT.h + 8;
-  g.fillStyle = CAB_SLOT; g.fillRect(40, fy, 92, 12);
-  g.fillStyle = CAB_SLOT_DARK; g.fillRect(43, fy + 3, 86, 5);
-  g.fillStyle = screen === 'idle' || screen === 'thanks' ? CAB_BODY_LO : CAB_LIT;
-  g.fillRect(43, fy + 9, 86, 2);                        // the slot's little lamp
-  g.fillStyle = CAB_KEY_LO; g.font = UI.font(6); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillText('CARD', 86, fy + 20);
-
-  g.fillStyle = CAB_SLOT; g.fillRect(168, fy, 92, 14);
-  g.fillStyle = CAB_SLOT_DARK; g.fillRect(171, fy + 3, 86, 8);
-  if (screen === 'cash') {                              // notes in the mouth
-    g.fillStyle = '#6a8a5a'; g.fillRect(176, fy + 4, 76, 6);
-    g.fillStyle = '#7a9a68'; g.fillRect(176, fy + 4, 76, 2);
-  }
-  g.fillStyle = CAB_KEY_LO; g.fillText('CASH', 214, fy + 20);
+  // THE CARD SLOT AND THE CASH MOUTH USED TO BE PAINTED HERE AND ARE NOT ANY
+  // MORE. This canvas is the raked SCREEN face now, and the machine already has
+  // both of those as real geometry: the card slot down the right of this same
+  // face, the cash mouth on the apron a few centimetres below it, built by
+  // `ct/bank.ts` and visible in the same frame as this. Drawing them again gave
+  // the cabinet two card slots and two cash mouths, one of them a picture — the
+  // same "one object that does not agree with itself" the user caught on the
+  // bank door and on the ATM's own palette.
+  //
+  // `CASH READY` still says TAKE IT FROM THE MOUTH BELOW, and below is now a
+  // place that exists.
+  const lamp = screen === 'idle' || screen === 'thanks' ? CAB_BODY_LO : CAB_LIT;
+  g.fillStyle = lamp;
+  g.fillRect(CRT.x, H - 6, CRT.w, 2);        // the fascia's one live lamp
 }
 
 // ── keys ──────────────────────────────────────────────────────────────────
@@ -421,7 +442,13 @@ export function register(ctx: CtxBuild): void {
     // atm be the overlay"*. The panel above already paints a complete fascia
     // into its own canvas; naming the mesh that canvas belongs on is the whole
     // of the change here — this file draws exactly what it drew before.
-    surface: { mesh: screenMesh },
+    // 0.75 m and 58° rather than the framework's default 0.55/60: at 0.55 the
+    // face filled the whole frame and you could no longer tell you were at a
+    // cash machine — the niche, the keypad and the cash mouth all fell outside
+    // it, which is most of what makes the thing read as an object. Backing off
+    // 0.20 m puts the cabinet back in its wall and still leaves the tube at
+    // roughly 44% of frame width, ~1.9 screen pixels per texel.
+    surface: { mesh: screenMesh, standoff: 0.75, fov: 58 },
     hint: () => (screen === 'pin' ? 'digits, then ENTER' : 'press the numbered buttons'),
     draw: (g) => drawScreen(g),
     key: (k) => onKey(k),
