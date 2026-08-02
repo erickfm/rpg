@@ -35,6 +35,14 @@ import { screenFade } from './hud';
 // height you were at last frame. Everything outside that needs to move the
 // player between floors (the warp hook, the street's own groundY, the door
 // jumps) goes through setGy so there is exactly one writer of record.
+//
+// ONE WRITER OF RECORD IS TRUE OF THE FUNCTION AND NOT OF THE CALLERS, which
+// is the gap that produces the kerb-edge disagreement — see the note on `gy()`
+// where this object is returned. `setGy` is indeed the only thing that assigns
+// `lastGy`, but its caller `groundPick` is invoked per-frame with coordinates
+// that are NOT the player's, so the single writer faithfully records the wrong
+// position. A sole writer guarantees no races; it does not guarantee the value
+// is about you.
 
 // A 4×5 texel numeral, stamped rather than typed. Canvas text antialiases —
 // at the sizes this world paints at, 'bold 8px monospace' lands half a texel
@@ -3296,6 +3304,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   return {
     colliders: sevColliders,
     ground: aptGround,
+    // READ THIS BEFORE TRUSTING gy() OUTDOORS. At the kerb edge it reports 0.00
+    // while the ground there is 0.14, and the camera — which is right — sits at
+    // 1.76. The drift is NOT in this module: `setGy` stores exactly what it is
+    // handed, and `groundPick` (crosstown.ts:780) routes every one of its
+    // returns through it, so the two can never disagree about one coordinate.
+    //
+    // What disagrees is WHICH coordinate wrote last. `groundPick` is a query
+    // with a side effect, and it has three callers (crosstown.ts:766, 984,
+    // 1125). Only the first passes the PLAYER's position. `canSee` at
+    // crosstown.ts:1125 calls it once per candidate [E] spot, every frame, at
+    // the SPOT's coordinates — so `lastGy` ends each frame describing the last
+    // spot the prompt-aimer probed, not the ground under the player. On the
+    // pavement the last spot probed happens to be at 0.14 and it looks fine; at
+    // the kerb edge it is a road-level spot at 0.00 and it does not.
+    //
+    // Measured, `scripts/probes/w25-kerb-gy.mjs`: standing still on the
+    // pavement at gy 0.140, a single `groundAt(-2, -20)` call moves gy to 0.000
+    // WITHIN THE SAME TICK, and the next frame puts it back — which is why
+    // sampling it across two frames hides the fault entirely.
+    //
+    // Consequences are real but small today: `gy()` gates the No. 227 entry
+    // spot (`lastGy < 1`) and the respawn band, both of which tolerate 0.14.
+    // The fix belongs in crosstown.ts, not here — give `canSee` and the
+    // `groundAt` test affordance a PURE ground query and leave the writing
+    // side effect on the one call that passes the player's position.
     gy: () => lastGy,
     setGy: (v) => (lastGy = v),
     forceHermit: (v) => { hermitForce = v === null ? -1 : v ? 1 : 0; },

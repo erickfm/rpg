@@ -436,19 +436,55 @@ export class FPRig {
     const jumpDown = input.keys.has(' ');
     // A SNAPPIER jump: a little more height, noticeably less hang.
     //
-    // 3.6 / 11 gave a 0.589 m apex over 0.655 s in the air, and the float at
-    // the top was the part that felt wrong. 4.0 / 13 is a 0.615 m apex over
-    // 0.615 s — 4% higher, 6% quicker. Both changes are tiny and they only
-    // work together: more velocity alone floats worse, stronger gravity alone
-    // makes the hop feel stunted.
+    // EVERY FIGURE IN THE TUNING HISTORY BELOW IS ANALYTIC — v0^2/2g for the
+    // apex and 2*v0/g for the hang — AND THE WORLD REACHES NONE OF THEM. They
+    // are kept because the COMPARISONS between them are what the tuning was
+    // about and those still hold; they are labelled so nobody tunes a surface
+    // height against a number that does not exist. What the world actually does
+    // is the paragraph after them.
     //
-    // "make gravity a tiny bit stronger" (user ask, untracked before this):
-    // gravity only, 13 -> 14, jump velocity left at 4.0. 0.615 m apex / 0.615 s
-    // hang -> 0.571 m apex / 0.571 s hang — 7% lower, 7% quicker fall. Verified
-    // against scripts/jump-walk.mjs's whole spot list (pavement, kerb edge,
-    // road, stoop, ground floor, stairs, upstairs): every apex still lands in
-    // its required 0.45-0.8 m band and every spot lands back on the floor it
-    // left.
+    //   3.6 / 11  ->  0.589 m apex, 0.655 s hang   (analytic)
+    //   4.0 / 13  ->  0.615 m apex, 0.615 s hang   (analytic) — 4% higher, 6% quicker
+    //   4.0 / 14  ->  0.571 m apex, 0.571 s hang   (analytic) — 7% lower, 7% quicker fall
+    //
+    // The float at the top was the part that felt wrong at 3.6 / 11. Both
+    // changes are tiny and they only work together: more velocity alone floats
+    // worse, stronger gravity alone makes the hop feel stunted. The last row is
+    // the user's ask, "make gravity a tiny bit stronger" — gravity only, 13 ->
+    // 14, jump velocity left at 4.0.
+    //
+    // WHAT THE HOP ACTUALLY REACHES: 0.475 m to about 0.538 m, depending on
+    // frame rate.
+    //
+    // The loop below is semi-implicit (symplectic) Euler and decrements `vy`
+    // BEFORE integrating position, so each step advances the height by the
+    // velocity it will have at the END of that step, not the start. Summing to
+    // the sign change costs exactly one half-step of the initial velocity:
+    //
+    //   apex(dt) = v0^2/(2g) - v0*dt/2  =  0.5714 - 2*dt      (v0 = 4, g = 14)
+    //
+    // So 0.571 m is the dt -> 0 LIMIT, approached from below and never attained.
+    // `src/main.ts:107` clamps dt to 0.05 s, which puts a HARD FLOOR under the
+    // hop at 0.475 m — an exact reachable value, not a noise band.
+    //
+    // Measured, `scripts/probes/w25-jump-apex.mjs` against the built bundle:
+    // 0.4750 m at the clamp (20 fps) rising to 0.5383 m at 62 fps, every hop
+    // within 0.008 m of that formula evaluated on the frames that produced it.
+    // A 60 Hz display therefore sees ~0.538 m; only a much faster one
+    // approaches 0.55.
+    //
+    // Measure it with an instrument that waits for the hop to END, not for a
+    // constant: at the clamp the hop needs ~12 physics steps, and under load
+    // those can span well over a second of wall clock, so a fixed window closes
+    // mid-ascent. That produced a 0.1632 m "apex" here — below a floor the
+    // physics cannot go under, which is how you know it was the instrument
+    // (GOTCHAS §30). `scripts/jump-walk.mjs` still uses a fixed 1100 ms wait
+    // and is exposed to the same truncation.
+    //
+    // Still verified against scripts/jump-walk.mjs's whole spot list (pavement,
+    // kerb edge, road, stoop, ground floor, stairs, upstairs): every apex lands
+    // in its required 0.45-0.8 m band — note the band's floor is only 0.025 m
+    // below the clamped apex — and every spot lands back on the floor it left.
     if (jumpDown && !this.jumpHeld && this.airY === 0 && this.vy === 0) this.vy = 4.0;
     this.jumpHeld = jumpDown;
     if (this.vy !== 0 || this.airY > 0) {
