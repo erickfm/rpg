@@ -37,11 +37,15 @@ const SLOW = process.argv.includes('--slow');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // Is anything actually there? One request, before thirty browsers start.
+// Kept (not folded into the probe below) so a dead port still gets its own
+// plain answer rather than being read as "not a bundle".
+let bodyAtStart = null;
 {
   let live = false, why = '';
   try {
     const r = await fetch(URL, { signal: AbortSignal.timeout(4000) });
     live = r.ok;
+    if (r.ok) bodyAtStart = await r.text();
     if (!r.ok) why = `HTTP ${r.status}`;
     // `cause.message` before `name`: a blocked port sets no `cause.code`, so
     // reading `name` next turned the one diagnosable failure into "TypeError".
@@ -79,6 +83,29 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
   }
 }
 
+// IS THIS EVEN A BUNDLE? A preview serves `dist/`, whose entry script is a
+// content-hashed asset (`/assets/index-xxxxxx.js`); a dev server hands back
+// the raw source path (`/src/main.ts`) for anything, live off disk, and has
+// no relationship to `dist/` at all. The `dist`-vs-`HEAD` probe below is only
+// a real question for the first case — `scripts/canfail.mjs` already draws
+// exactly this DEV/bundle line (`HASHED`/`servedEntry`) for the same reason,
+// and BUILDER-BRIEF tells every builder to point `SHOT_URL` at their OWN dev
+// server, which is the common case this guard used to get wrong.
+//
+// Measured, against a dev server with a stale `dist/` sitting on disk from an
+// earlier commit: every one of the individual checks' own `reportWorld` reads
+// the LIVE page's build stamp and passes correctly — the check-level guard
+// was already dev-server-safe. Only THIS pre-flight probe was not: it exits 2
+// before a single check runs, on a `dist/` mismatch that has nothing to do
+// with what is actually being measured. `notes/archive/K-check-artefacts.md`
+// separately found the "kills its own preview server" symptom does NOT
+// reproduce from running checks (8/8 survived; the deaths it saw happened
+// with no check running at all) — this pre-flight is a different, real bug
+// that happens to share the row, not the same one.
+const entryOf = (html) => (html?.match(/src="([^"?]+\.(?:js|ts|tsx))(?:\?[^"]*)?"/) ?? [])[1] ?? null;
+const HASHED = (e) => !!e && /\/assets\/.*-[\w-]{6,}\.js$/.test(e);
+const servingBundle = HASHED(entryOf(bodyAtStart));
+
 // IS THE BUILD ON DISK THE ONE CHECKED OUT? Second probe, same argument as the
 // first, and it cost two twelve-minute runs to learn that the argument applies
 // twice.
@@ -93,10 +120,12 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 // wrong to land here. Asking once, before any browser starts, turns twelve
 // wasted minutes into one second and a sentence.
 //
-// Not fatal in integration mode: that world's stamp can never equal any one
-// checkout, which is exactly what SHOT_WORLD=integration exists to say.
+// Not fatal in integration mode (that world's stamp can never equal any one
+// checkout, which is exactly what SHOT_WORLD=integration exists to say) and
+// not fatal against a dev server (see `servingBundle` above) — a dev server
+// is never stale, so there is nothing here for this probe to catch.
 const headAtStart = localHead();
-if (process.env.SHOT_WORLD !== 'integration') {
+if (process.env.SHOT_WORLD !== 'integration' && servingBundle) {
   const dist = distSha();
   if (dist && headAtStart && !dist.startsWith(headAtStart) && !headAtStart.startsWith(dist)) {
     console.error(`\ndist/ ON THIS DISK IS NOT THIS COMMIT.\n`);
@@ -889,10 +918,37 @@ const SLOW_MS = 1_500_000;
   }
 }
 
+// DID THE SERVER SURVIVE THE LAST CHECK? Measured (not fixed by fiat — see
+// `notes/archive/K-check-artefacts.md`, which ran the suite eight times
+// against a live preview and could not make it die from the checks
+// themselves): whatever kills it, it is not this file putting concurrent
+// load on it — spawnSync runs everything sequentially, one browser at a
+// time, and a clean run here left zero leaked chromium processes behind.
+// But the auditor DID reproduce a death mid-run (`notes/LEDGER.md`, "the
+// full check suite kills the preview server"), and when it happens every
+// check after the death currently reports FAILED — indistinguishable from a
+// real one, which is the actual complaint: "~half its 52 failures are that
+// rather than real faults."
+//
+// So: ask, after every check, whether the server is still there. Cheap (one
+// HEAD-shaped GET, same probe as the pre-flight above) and it turns an
+// unmeasurable back half of a run into an honest "SERVER DIED" rather than a
+// wall of FAILED that a reader cannot tell from real ones. This does NOT
+// restart the server — restarting would hide exactly the check that
+// triggered the death, which the item this exists for explicitly warns
+// against. It only stops trusting results once the server is confirmed
+// gone, and says so once rather than fifty times.
+async function serverAlive() {
+  try { return (await fetch(URL, { signal: AbortSignal.timeout(3000) })).ok; }
+  catch { return false; }
+}
+
 const rows = [];
+let serverDied = false;
 for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
   if (slow && !SLOW) { rows.push([name, 'walks — use --slow', '—']); continue; }
   if (SELFTEST && !selftest) { rows.push([name, 'no selftest', '—']); continue; }
+  if (serverDied) { rows.push([name, question, 'SERVER DIED (unmeasured)']); continue; }
   process.stderr.write(`  … ${name}\n`);
   const t0 = Date.now();
   // A string names a case in scripts/canfail.mjs: the mutation lives there,
@@ -915,6 +971,15 @@ for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
   const r = spawnSync('node', args, { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: slow ? SLOW_MS : PER_CHECK_MS });
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
   if (r.error?.code === 'ETIMEDOUT' || r.signal === 'SIGTERM') {
+    // A timeout is exactly the shape a dead-server casualty takes (GOTCHAS
+    // §32's discriminator: non-zero with nothing measured) — check now,
+    // before deciding this one check is the fault rather than the server.
+    if (!(await serverAlive())) {
+      serverDied = true;
+      rows.push([name, question, 'SERVER DIED (unmeasured)']);
+      process.exitCode = 1;
+      continue;
+    }
     rows.push([name, question, `TIMED OUT after ${secs}s`, secs]);
     process.exitCode = 1;
     continue;
@@ -924,10 +989,29 @@ for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
   // (BLOCKED-H), which is a status this runner can trust; the string match stays
   // as a fallback for any check that predates it or prints without exiting.
   const wrongWorld = r.status === 3 || out.includes('MEASURING THE WRONG WORLD');
+  if (r.status !== 0 && !wrongWorld && !(await serverAlive())) {
+    // The check exited non-zero AND the server that was supposed to answer it
+    // is gone. Attributing this (and everything after it) to the check would
+    // be exactly the "~half its 52 failures are that rather than real
+    // faults" this item exists to stop.
+    serverDied = true;
+    rows.push([name, question, 'SERVER DIED (unmeasured)']);
+    process.exitCode = 1;
+    continue;
+  }
   rows.push([name, question, r.status === 0 ? 'ok' : wrongWorld ? 'WRONG WORLD' : `FAILED (${r.status})`, secs]);
   if (r.status !== 0) process.exitCode = 1;
   // On failure the detail matters more than the summary, so pass it through.
   if (r.status !== 0) console.log(out.trimEnd() + '\n');
+}
+if (serverDied) {
+  console.log(`\nTHE SERVER AT ${URL} DIED PARTWAY THROUGH THIS RUN.`);
+  console.log('  Everything above SERVER DIED is real; everything from there down was');
+  console.log('  never measured, not FAILED. `notes/archive/K-check-artefacts.md` could');
+  console.log('  not reproduce this from the checks themselves (8/8 survived, sequential,');
+  console.log('  zero leaked browsers) — if it keeps happening, the next thing to check is');
+  console.log('  what else in the environment is reaping processes, not this file.');
+  console.log('  Re-run once the server is back up.');
 }
 
 const w = Math.max(...rows.map(([n]) => n.length));
