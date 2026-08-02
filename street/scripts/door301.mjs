@@ -62,8 +62,21 @@ if (process.env.DOOR301_CPU) {
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto(URL, { waitUntil: 'networkidle' });
-await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+// EXIT 3, NOT A CRASH, WHEN NOTHING IS SERVING — GOTCHAS §32, and it belongs in
+// this item rather than a later one: node turns an unhandled throw into exit 1,
+// and exit 1 here means "measured, and the door is WRONG". A soak run counted
+// two reds against a perfectly good door when the preview server was reaped out
+// from under it, which is precisely the "check nobody can act on" this item
+// exists to remove.
+try {
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+} catch (e) {
+  console.error(`ABORTED: ${URL} did not serve a world — ${String(e.message).split('\n')[0]}`);
+  console.error('  Nothing was measured. This is not a red.');
+  await browser.close();
+  process.exit(3);
+}
 // WHERE THE RIG ACTUALLY STARTS, read before this script warps anywhere. This
 // is the entry point's spawn as the player meets it, and it is the only way to
 // see it from outside crosstown.ts without that file publishing anything.
