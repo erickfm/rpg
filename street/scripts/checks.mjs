@@ -657,7 +657,7 @@ const CHECKS = [
   // The ONLY check that walks into a room in a BUILT BUNDLE. interiors-walk
   // above cannot: it imports a source path no bundle serves. Run the slow tier
   // with PINNED_MODE=preview and this is what covers the artefact.
-  ['integration-doors', 'can you get into all eight rooms in the BUNDLE?',    false, [], true],
+  ['integration-doors', 'can you get into all eight rooms in the BUNDLE?',    ['door-standoff'], [], true],
   // H's walking and watching suites. These drive or watch in real time, so they
   // belong in the SLOW tier for the reason stated above — a runtime tier, not an
   // importance tier. Measured: crowd-walk 45 s, jitter 73 s, side-walk 77 s,
@@ -667,7 +667,7 @@ const CHECKS = [
   ['corner-traffic',   'do cars actually turn the corner, and yield?',       false, [], true],
   ['crowd-net',        'do people route the block, cross only at crossings?', false, [], true],
   ['side-walk',        'are both side-street walks clear, doors reachable?',  false, [], true],
-  ['jitter',           'does a walker flip-flop when it passes somebody?',    false, [], true],
+  ['jitter',           'does a walker flip-flop when it passes somebody?',    ['jitter-reversals'], [], true],
   ['crowd-walk',       'do people yield to the player and keep the 2 m lane?', 'crowd-lane', [], true],
 
   // ── A's TWO, from the facade work. Fast tier: both measure, neither walks. ──
