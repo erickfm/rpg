@@ -414,6 +414,13 @@ const CASES = [
   // a reader who was looking straight at it.
   //
   // The property under test is untouched: a storm with six drops in it.
+  //
+  // AND 6 MUST STAY UNDER 100 (w22, from the first end-to-end run of this
+  // harness). `rain.mjs` locates the storm with `c.isPoints &&
+  // position.count > 100`, so a buffer of 6 makes the particle system
+  // undiscoverable and the "is it raining" leg goes red. Raise that threshold
+  // and this case silently stops proving anything — the same coupling that let
+  // the needle rot, one level up.
   ['rain', PROPS,
     'const RAIN_N = 2600;',
     'const RAIN_N = 6;',
@@ -804,11 +811,43 @@ const localEntry = () => {
 // UNREACHABLE and UNRECOGNISED are different answers. Nothing serving is exit 3
 // — the check never ran. A page we cannot parse is merely unproven, and must
 // not take the suite down with it.
+// WHY it could not be read, not just that it could not. A bare null here spends
+// a case's whole cost and then says `served null`, which is indistinguishable
+// from a dead server, a stale build and a page that will not parse — and
+// `wetness` has been reporting exactly that on every multi-case run while
+// scoring CAUGHT on its own. A reason costs one property.
+// RETRIED ONCE, and the reason is the whole finding.
+//
+// undici pools keep-alive sockets per origin. The startup probe opens one;
+// `vite preview` then closes it while minutes go by rebuilding and running a
+// browser, and the next fetch reuses the dead socket and throws
+// UND_ERR_SOCKET before it ever reaches the server.
+//
+// That fires on the FIRST case that does not go red — because a red case never
+// gets here — so it lands precisely on a SLEEPING GUARD and scores it NOT-RUN.
+// Measured: `wetness` was NOT-RUN on both full runs and on a four-case run, and
+// CAUGHT on three single-case runs, which is exactly this shape. The harness was
+// quietly converting its most important finding into "could not be scored".
+//
+// A fresh connection is the fix; a second attempt gets one, because the dead
+// socket is evicted on failure. Not a retry of the MEASUREMENT — the check is
+// never re-run (see the note about wetness in the loop) — only of reading the
+// page, which is idempotent.
 const servedEntry = async () => {
-  try {
-    const r = await fetch(URL, { cache: 'no-store' });
-    return { up: true, entry: entryOf(await r.text()) };
-  } catch { return { up: false, entry: null }; }
+  let why = null;
+  for (const attempt of [0, 1]) {
+    try {
+      const r = await fetch(URL, { cache: 'no-store', headers: { connection: 'close' } });
+      const html = await r.text();
+      const entry = entryOf(html);
+      return { up: true, entry,
+        why: entry ? null : `HTTP ${r.status}, ${html.length} bytes, no module <script src>` };
+    } catch (e) {
+      why = `${String(e.cause?.code ?? e.message)}${attempt ? ' (twice)' : ''}`;
+      if (!attempt) await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  return { up: false, entry: null, why };
 };
 const HASHED = (e) => !!e && /\/assets\/.*-[\w-]{6,}\.js$/.test(e);
 // THE DEV-SERVER PROOF, and it is the one that matters here: both ports on this
@@ -862,6 +901,18 @@ if (DEV) {
 const PRIS = {};
 for (const f of [...new Set(run.map((c) => c[1]))]) PRIS[f] = digest(await servedModule(f));
 
+// …and what each one looks like ON DISK, which is the only honest way to
+// answer "did I give it back". The end-of-run assertion used to re-read every
+// case's NEEDLE instead, so a needle that had gone stale — which is a fault in
+// this file, not in the tree — reported `RESTORE FAILED` and exited 3 about a
+// tree that was byte-perfect. Measured on the first end-to-end run: `rain`'s
+// needle had rotted from 500 to 2600, and canfail told me it had corrupted
+// props.ts. That is the worst thing a source-editing tool can say when it is
+// not true; the natural response is `git checkout --`, which is exactly how
+// uncommitted work gets destroyed. The two questions are now separate.
+const ORIGINAL = {};
+for (const f of [...new Set(run.map((c) => c[1]))]) ORIGINAL[f] = digest(readFileSync(f, 'utf8'));
+
 for (const [name, file, needle, repl, script, args, expect] of run) {
   const src = readFileSync(file, 'utf8');
   const n = src.split(needle).length - 1;
@@ -893,13 +944,14 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
     // this, "the server is not ours" and "the mutation does nothing" both wore
     // the SLEPT badge, and neither is a fault in the check.
     if (!red && !DEV) {
-      const mine = localEntry(), theirs = (await servedEntry()).entry;
+      const mine = localEntry(), s = await servedEntry(), theirs = s.entry;
       if (mine === PRISTINE) {
         results.push([name, 'INERT', `${expect} — mutation compiles to identical bytes; retarget the CASE`]);
         continue;
       }
       if (theirs !== mine) {
-        results.push([name, 'NOT-RUN', `${expect} — ${URL} served ${theirs}, we built ${mine}`]);
+        results.push([name, 'NOT-RUN',
+          `${expect} — ${URL} served ${theirs ?? `nothing readable (${s.why})`}, we built ${mine}`]);
         continue;
       }
     }
@@ -981,13 +1033,40 @@ console.log(`\n${results.length - bad.length}/${results.length} checks caught th
 //
 // So the population is `applied` — the cases we opened the file for. If we did
 // not write it, we cannot have failed to put it back.
-const stillWrong = applied.filter(([, file, needle]) => !readFileSync(file, 'utf8').includes(needle));
+//
+// AND THE TEST IS THE BYTES, not the needle (w22, merging the same fix arrived
+// at independently). Restricting the population to `applied` removes the false
+// alarm, which was the expensive half; but "the needle is present again" is
+// still a weaker claim than "the file is as I found it". A restore that wrote
+// back a DIFFERENT file containing the same needle passes a needle test and
+// fails this one, and this one is the question the header promises to answer —
+// "it restores from a BYTE COPY … so uncommitted work survives a run untouched".
+// `ORIGINAL` holds a digest of each file taken before anything was written;
+// `applied` still names which case last held the pen, because "which one" is
+// the first thing you want to know.
+const stillWrong = Object.keys(ORIGINAL)
+  .filter((f) => digest(readFileSync(f, 'utf8')) !== ORIGINAL[f]);
 if (stillWrong.length) {
-  console.error(`\nRESTORE FAILED — ${stillWrong[0][1]} does not hold its original text.`);
-  console.error(`  Case: ${stillWrong[0][0]}. Its backup is .canfail-backup-${stillWrong[0][1].split('/').pop()}.`);
+  const f = stillWrong[0];
+  const by = applied.filter(([, file]) => file === f).pop();
+  console.error(`\nRESTORE FAILED — ${f} does not hold its original bytes.`);
+  console.error(`  ${by ? `Last written by case '${by[0]}'. ` : ''}`
+    + `Its backup is .canfail-backup-${f.split('/').pop()}.`);
   process.exit(3);
 }
 console.log('every mutated file restored byte-for-byte');
+// …and for a stale needle, THE TEXT THAT NO LONGER MATCHES. The block above
+// says which cases could not be scored; this says what to do about it, which is
+// the part that costs time otherwise — re-aiming means diffing a quotation
+// against somebody else's source, and the quotation is right here.
+const stale = results.filter((r) => r[1] === 'NEEDLE');
+if (stale.length) {
+  console.error(`\nthe stale quotations, verbatim — these guards are UNPROVEN, not passing:`);
+  for (const [n] of stale) {
+    const c = CASES.find((x) => x[0] === n);
+    console.error(`  ${n} — ${c[1]} no longer contains: ${JSON.stringify(c[2])}`);
+  }
+}
 
 // A STAMP, so a sleeping guard is discoverable without running this again.
 // The whole reason five guards could be reported as asleep is that nothing on
