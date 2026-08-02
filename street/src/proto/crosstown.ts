@@ -15,7 +15,7 @@ import { ColliderDebug } from './ct/debug-collision';
 import { ROAD_HALF, WALK, FACE, PARK_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng';
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
-import { buildGround } from './ct/tex-ground';
+import { buildGround, JUNCTION_CROSSINGS } from './ct/tex-ground';
 import { type CarKind, makeCar } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
@@ -109,19 +109,14 @@ export function makeCrosstown(): Proto {
   // crossings). Fixed by building the line as SEGMENTS either side of each
   // crossing's gap instead of one span.
   //
-  // THE GAPS ARE COPIED, WITH A CITATION, NOT IMPORTED — and that is a
-  // finding, not a shortcut. `ct/tex-ground.ts:1351-1352` (as of `705b78b74`)
-  // declares `XA_Z`/`XA_HW` (the main-street crossing: z centre, half-width)
-  // and `XB_X`/`XB_HW` (the side-street crossing: x centre, half-width) as
-  // consts LOCAL to `buildGround()`'s own closure — nothing there is
-  // exported, and this item's grant is `crosstown.ts` + READ (not edit)
-  // `tex-ground.ts`. A hand-typed gap stops matching the moment a crossing
-  // moves, which is exactly how this project's instruments have rotted
-  // before (BUILDER-BRIEF §8) — so this is reported for the desk to queue an
-  // export (e.g. `JUNCTION_CROSSINGS`) rather than silently duplicated and
-  // left to drift; see notes/w8-crossing-lines.md.
-  const XA_Z = -90.2, XA_HW = 1.3;    // main-street junction crossing
-  const XB_X = 10.6, XB_HW = 1.3;     // side-street junction crossing
+  // THE GAPS ARE READ FROM `JUNCTION_CROSSINGS` (`ct/tex-ground.ts`), NOT
+  // RETYPED. They used to be a hand-copied literal citing `tex-ground.ts`'s
+  // then-local consts (`705b78b74`) because that item was read-only on the
+  // file; w4 hoisted the module-level export in the follow-up (item 9b), and
+  // this item points the read at it and deletes the copy — same numbers, one
+  // source, so the two can no longer drift apart (BUILDER-BRIEF §8).
+  const { z: XA_Z, hw: XA_HW } = JUNCTION_CROSSINGS.main;   // main-street junction crossing
+  const { x: XB_X, hw: XB_HW } = JUNCTION_CROSSINGS.side;   // side-street junction crossing
 
   // DASH PITCH IS DERIVED, NOT RETYPED, from the length/repeat this file had
   // already tuned for the ONE unsegmented plane each line used to be —
