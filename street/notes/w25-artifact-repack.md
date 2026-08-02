@@ -18,6 +18,15 @@ shows 4177 and 4180–4199 all listening except 4182). Preview started with
 **1,115,685 bytes**, build stamp = HEAD. It exists on disk and I did not run a
 build after packing it.
 
+The pack is deliberately the **last action of the whole item**, taken after the
+final commit — including this note's. That is the only ordering in which
+`dist/` matches HEAD *and* `artifact.html` survives, because every commit moves
+HEAD out from under an already-built `dist/`. Verified immediately after the
+final pack with `distSha() == localHead()`, both reading the same short SHA.
+(An intermediate pack during this item read `369712937`; the numbers quoted in
+the measurement sections below come from that run and are unchanged by the
+re-pack, since no `src/` file was touched — only `scripts/`.)
+
 ## DONE WHEN, clause by clause
 
 | clause | verdict |
