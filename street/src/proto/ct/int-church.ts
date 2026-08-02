@@ -680,13 +680,77 @@ export function buildChurch(ctx: CtxBuild) {
         ci++;
       }
     }
-    // the statue on its bracket above them
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.10, 0.26),
-      new THREE.MeshBasicMaterial({ color: 0x8a8274 })), CX, 1.42, CZ - 0.16);
-    put(new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.13, 0.52, 8),
-      new THREE.MeshBasicMaterial({ color: 0xc8c2b2 })), CX, 1.73, CZ - 0.16);
-    put(new THREE.Mesh(new THREE.SphereGeometry(0.085, 8, 6),
-      new THREE.MeshBasicMaterial({ color: 0xd8d2c4 })), CX, 2.04, CZ - 0.16);
+    // ── the statue, ON the wall rather than beside it ──────────────────
+    //
+    // The user, with a screenshot: "what is this floating thing in the
+    // church?" — and the sharper half of that is that he did not recognise
+    // it as a statue at all.
+    //
+    // MEASURED BEFORE CHANGING, because both of the obvious causes were
+    // wrong. The bracket was not missing, not undersized, and not drawn
+    // behind the wall plane: it was there at x -5.72..-5.38, y 1.37..1.47,
+    // in front of everything, with the figure's foot resting on its top to
+    // within 0.000 m. It was attached to NOTHING. The west wall's inner face
+    // is at x = -hw = -6.5 and the bracket's back edge stood 0.78 m clear of
+    // it, hanging in mid-air over the rack — which is precisely the thing in
+    // the frame. (The plaster it appears to sit against IS that west wall:
+    // from the aisle you face it nearly head-on, while the narthex masonry
+    // rakes away to the left. The eye pairs the two and nothing joins them.)
+    //
+    // So the shrine is built off the WALL PLANE now — every depth below is
+    // measured out from `WALL` in +x, never from the rack's centre. Move the
+    // room's width and the shrine stays on its wall.
+    const WALL = -hw;
+    const stoneM = new THREE.MeshBasicMaterial({ color: 0x8a8274 });
+    // The corbel is three stages, and the two under the shelf are the point:
+    // a lone slab is exactly what read as floating. Nothing in this world
+    // casts a shadow, so an underside that visibly dies into the plaster is
+    // the only thing that can say "carried" at 8 px/m.
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.07, 0.38), stoneM),
+      WALL + 0.15, 1.425, CZ);                        // the shelf, back flush to the wall
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.12, 0.24), stoneM),
+      WALL + 0.095, 1.330, CZ);                       // the wedge under it
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.11, 0.15), stoneM),
+      WALL + 0.045, 1.215, CZ);                       // and its foot, into the wall
+    // And the figure — PAINTED, which is what the note above this block has
+    // always claimed and what the geometry never was. It was a tapered
+    // cylinder and a ball in #c8c2b2 / #d8d2c4, against #a8a294 plaster:
+    // three tones inside one narrow band of warm grey. Unlit, at 8 px/m,
+    // that is a chess pawn, and he read it as one. Silhouette and palette
+    // are the whole toolkit here, so it gets a cream robe under a blue
+    // mantle, a face, joined hands and a halo — a cheap parish plaster
+    // saint, not a good one. Nothing here is pretty; it is only legible.
+    const mantleM = new THREE.MeshBasicMaterial({ color: 0x3f5580 });
+    const robeM = new THREE.MeshBasicMaterial({ color: 0xd9d2bf });
+    const skinM = new THREE.MeshBasicMaterial({ color: 0xc9a184 });
+    const goldM = new THREE.MeshBasicMaterial({ color: 0xbf9a3a });
+    const FX = WALL + 0.17;            // the figure's axis, standing on the shelf
+    const FOOT = 1.46;                 // = the shelf's top (1.425 + 0.07/2)
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.122, 0.135, 0.16, 8), robeM),
+      FX, FOOT + 0.08, CZ);                           // the robe's hem
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.122, 0.34, 8), mantleM),
+      FX, FOOT + 0.33, CZ);                           // the mantle over it
+    // hands joined at the breast: the one gesture that survives this scale
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.075, 0.11), skinM),
+      FX + 0.108, FOOT + 0.38, CZ);
+    // The halo sits BEHIND the head, its disc flat to the room — rotated on
+    // the GEOMETRY, not the mesh, because `put` owns the object's transform.
+    //
+    // ITS RADIUS IS SET BY PARALLAX, NOT BY TASTE. First cut was r 0.12 stood
+    // 0.095 m behind the veil, and you never see this shrine square on — you
+    // come at it up the aisle, 20-30 degrees off its axis. That offset throws
+    // the disc ~0.04 m sideways, which was more than the 0.038 m of ring that
+    // showed past the veil, so the whole halo bunched into a gold crescent on
+    // one side and read as a smudge behind the head. The ring has to be wider
+    // than the throw: r 0.14 past a 0.082 veil leaves 0.058, and it reads as
+    // a disc from anywhere you can actually stand.
+    put(new THREE.Mesh(
+      new THREE.CylinderGeometry(0.14, 0.14, 0.015, 12).rotateZ(Math.PI / 2), goldM),
+    FX - 0.108, FOOT + 0.575, CZ);
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.082, 8, 6), mantleM),
+      FX - 0.020, FOOT + 0.578, CZ);                  // the veil, over the back of the head
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.072, 8, 6), skinM),
+      FX + 0.012, FOOT + 0.565, CZ);                  // and the face
     solid(CX, CZ, 1.4, 0.5);
   }
 
