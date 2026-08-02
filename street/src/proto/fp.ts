@@ -335,10 +335,18 @@ export class FPRig {
     // 0.615 s — 4% higher, 6% quicker. Both changes are tiny and they only
     // work together: more velocity alone floats worse, stronger gravity alone
     // makes the hop feel stunted.
+    //
+    // "make gravity a tiny bit stronger" (user ask, untracked before this):
+    // gravity only, 13 -> 14, jump velocity left at 4.0. 0.615 m apex / 0.615 s
+    // hang -> 0.571 m apex / 0.571 s hang — 7% lower, 7% quicker fall. Verified
+    // against scripts/jump-walk.mjs's whole spot list (pavement, kerb edge,
+    // road, stoop, ground floor, stairs, upstairs): every apex still lands in
+    // its required 0.45-0.8 m band and every spot lands back on the floor it
+    // left.
     if (jumpDown && !this.jumpHeld && this.airY === 0 && this.vy === 0) this.vy = 4.0;
     this.jumpHeld = jumpDown;
     if (this.vy !== 0 || this.airY > 0) {
-      this.vy -= 13 * dt;
+      this.vy -= 14 * dt;
       this.airY = Math.max(0, this.airY + this.vy * dt);
       if (this.airY === 0 && this.vy < 0) this.vy = 0;
     }
