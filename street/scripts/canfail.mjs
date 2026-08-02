@@ -686,6 +686,21 @@ const CASES = [
     '  sit(pose: SeatPose): void {\n    if (!this.seat) return;   // selftest: nothing is sittable\n    if (this.seat) return;',
     'I-seat-exit.mjs', ['--n', '6'], 'a world where no seat can be sat on, scored as "no seat traps you"'],
 
+  // THE SIDE STREET'S WALKS SEALED, at every tree — the `bus-walk` fault on the
+  // other street. Only the TRUNK is solid there (0.16 m across) precisely so the
+  // walk stays passable; widening it to 3.2 m severs both walks, which is what
+  // side-walk.mjs is for ("are both side-street walks clear, doors reachable?").
+  //
+  // It discriminates, which is why this case is worth having over a blunter one:
+  // measured, the four hikes and the bodega-door reach went red (longest stall
+  // 10.5 s, 0.5 m covered; door reached only within 5.30 m of a 1.05 m trigger)
+  // while the tree/car/pit heights, the traffic leg and all three [E] spots
+  // stayed OK. 8 CHECK(S) FAILED, exit 1.
+  ['sidewalk-sealed', 'src/proto/ct/sidestreet.ts',
+    'mine.push(obstacle({ minX: px - 0.12, maxX: px + 0.12, minZ: tz - 0.08, maxZ: tz + 0.08 }));',
+    'mine.push(obstacle({ minX: px - 0.12, maxX: px + 0.12, minZ: tz - 1.6, maxZ: tz + 1.6 }));',
+    'side-walk.mjs', [], 'both side-street walks sealed shut at every tree'],
+
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
   // a commit message.

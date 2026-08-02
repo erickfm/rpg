@@ -53,7 +53,9 @@ const EXEMPT = {
 const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
   'jump-walk', 'gaps', 'feet-check', 'side-night',
-  'unstick-walk', 'corner-traffic', 'crowd-net', 'side-walk',
+  'unstick-walk', 'corner-traffic', 'crowd-net',
+  // 'side-walk' — CLEARED by w37, item 77: canfail case `sidewalk-sealed`. It
+  // already had a working failing path; nothing had watched it use one.
   // 'I-seat-exit' — CLEARED by w37, item 77: cases `seat-traps` and `seat-nosit`.
   // SIXTH MEMBER OF THE health.mjs FAMILY, and it needed a fix before either
   // case could mean anything: the verdict was `stuck.length ? 1 : 0`, so with
