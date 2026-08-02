@@ -19,6 +19,7 @@
 //
 //     node scripts/people-walk.mjs            # everywhere
 //     node scripts/people-walk.mjs 6 32 -12 16   # just the car lot
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installMats, blindSpot } from './lib/materials.mjs';
@@ -39,9 +40,9 @@ const NUM = RAW.map(Number);
 const b = await chromium.launch();
 const p = await b.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await installMats(p);
 await blindSpot(p);
 

@@ -1,10 +1,11 @@
 // "make sure the people in the buildings are in the right orientation."
 // H measured all ten from each room's own customer spot and reports bodega 4 -
 // dead away, the only one. Stand where a customer stands and look.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:900,height:600}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1500);
 await p.evaluate(()=>window.__ct.clock(13,0)); await afterFrames(p,4);

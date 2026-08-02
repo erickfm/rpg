@@ -33,6 +33,7 @@
 //     PINNED_MODE=preview ./scripts/slow-pinned.sh integration-doors   # the BUNDLE
 //
 // 2026-07-25: 8/8, with the whole block merged.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
@@ -41,7 +42,7 @@ const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
 // world. It reads nothing but `__ct`, no source imports, so unlike
 // interiors-walk it survives a built bundle — which makes it the only thing
 // that walks a room in the artefact the user actually plays.
-const URL = process.env.SHOT_URL ?? 'http://localhost:5177/';
+const URL = aim('http://localhost:5177/');
 // INTEGRATION MODE vs OWN-BUILD MODE, and the guard depends on which.
 //
 // This started unregistered because it measures a tree that is not this

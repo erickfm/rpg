@@ -13,12 +13,13 @@
 // `atan2(dx, -dz)`; both wrong versions of that produced perfectly plausible
 // photographs of the wrong building, because a square-on shot has dz = 0 and
 // cannot tell them apart.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
 const WANT = (process.argv[2] || '').toUpperCase();
 if (!WANT) { console.error('usage: A-shopfront-look.mjs "<SHOP NAME>"'); process.exit(2); }
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const slug = WANT.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const b = await chromium.launch();

@@ -5,8 +5,9 @@
 // asked the opposite question: does the tyre reach INBOARD through the body's
 // own side wall, so you see tyre inside the cab or the bed? Measured in each
 // car's OWN frame, so yaw cannot smear it.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

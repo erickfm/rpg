@@ -13,6 +13,7 @@
 // register their spots. If that drifts you walk up to a blank wall.
 //
 // Usage: SHOT_URL=http://localhost:4186/ node scripts/G-vice-walk.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
@@ -43,9 +44,9 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4186/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4186/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4186/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4186/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
 
 const pos = () => p.evaluate(() => window.__ct.pos());

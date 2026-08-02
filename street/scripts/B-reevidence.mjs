@@ -18,11 +18,12 @@
 // Three of them are the SAME OBJECT, so one trip settles them — but each gets
 // its OWN predicate, because "the bench looks right" is exactly the kind of
 // evidence that let these rows rot in the first place.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1034, height: 757 } });
 await goto(p, URL);

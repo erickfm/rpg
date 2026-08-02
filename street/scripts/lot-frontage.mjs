@@ -32,6 +32,7 @@
 // 0.72 m, exactly the player's own, and connectivity never lost.
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lot-frontage.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 // These MIRROR ct/rng.ts. A copy goes stale silently — move the building line
@@ -41,7 +42,7 @@ import { reportWorld } from './lib/which-world.mjs';
 const ROAD_HALF = 5.0, FACE = 7.0, R = 0.36;
 const b = await chromium.launch();
 const p = await b.newPage();
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);

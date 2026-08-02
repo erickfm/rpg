@@ -4,8 +4,9 @@
 // through bodywork. A body BOUNDING BOX overlapping the wheel is not that: a
 // wheel is meant to sit inside the car's footprint, which is why my first
 // bbox test flagged 22 of 23 and meant nothing.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

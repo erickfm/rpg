@@ -1,10 +1,11 @@
 // B quotes 0.5278 under a head against 0.0450 mid-block. Those are the world's
 // own per-surface night values, so read THOSE rather than frame pixels - my
 // downward-frame sampling mixes kerb, walk and road and is not comparable.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(-6.2,-40,0,0.14,0));
 await p.waitForTimeout(2000);

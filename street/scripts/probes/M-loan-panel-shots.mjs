@@ -1,9 +1,10 @@
 // PICTURES OF THE LOAN APPLICATION PANEL — an investigation, not an assertion.
 // The claims about it live in `M-bank-int-walk.mjs`.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4204/';
+const URL = aim('http://localhost:4204/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 760 } });
 p.on('pageerror', (e) => console.log('PAGEERROR', e.message));

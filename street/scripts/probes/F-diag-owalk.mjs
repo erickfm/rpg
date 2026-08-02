@@ -94,9 +94,15 @@ if (mode === 'door' || mode === 'all') {
   // either way, which is the whole of GOTCHAS 34.
   //
   // The world does publish `spots()`, so ask the real predicate instead: is the
-  // player inside the jail spot's REACH? Reach is not radius — `fp.ts:425` adds
-  // REACH_MARGIN = 0.6 on top of r.
-  const REACH_MARGIN = 0.6;
+  // player inside the jail spot's REACH? Reach is not radius — the near test is
+  // `d < r + REACH_MARGIN`, and that margin is ONE global living in fp.ts.
+  // Read from the world (`__ct.reachMargin()`) rather than retyped; the copy
+  // that used to sit here cited `fp.ts:425`, which is not where it lives.
+  const REACH_MARGIN = await p.evaluate(() => window.__ct.reachMargin());
+  if (typeof REACH_MARGIN !== 'number' || !isFinite(REACH_MARGIN)) {
+    console.error('ABORT: __ct.reachMargin() did not return a number.');
+    await b.close(); process.exit(3);                       // GOTCHAS §32
+  }
   const reachable = await p.evaluate(([margin]) => {
     const q = window.__ct.pos();
     const hits = window.__ct.spots()
@@ -191,7 +197,10 @@ if (mode === 'door' || mode === 'all') {
   // the way out must clear the way in, or a second E bounces you straight back
   {
     const gap = Math.hypot(out[0] - stand.x, out[2] - stand.z);
-    ok(gap > 1.65, `the landing clears the way-in trigger — ${gap.toFixed(2)} m against r 1.05 + REACH_MARGIN 0.6`);
+    const r = Math.max(...reachable.map((h) => h.r));
+    const reach = r + REACH_MARGIN;   // derived, not the hand-computed 1.65 this was
+    ok(gap > reach, `the landing clears the way-in trigger — ${gap.toFixed(2)} m`
+      + ` against r ${r} + REACH_MARGIN ${REACH_MARGIN} = ${reach.toFixed(2)}`);
   }
 }
 

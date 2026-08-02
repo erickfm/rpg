@@ -1,9 +1,10 @@
 // H: which room does a coordinate actually land in? Reads roomDims() LIVE
 // rather than trusting any published slot table.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4187/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4187/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct?.roomDims, null, { timeout: 60000 });
 const rs = await p.evaluate(() => window.__ct.roomDims());
 const where = (x, z) => {

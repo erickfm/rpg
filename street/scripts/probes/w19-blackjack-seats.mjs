@@ -22,6 +22,7 @@
 //      string. That is the historical bug and the check catches it.
 //
 //   SHOT_URL=http://localhost:4184/ node scripts/probes/w19-blackjack-seats.mjs
+import { aim } from '../lib/aim.mjs';
 import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
@@ -30,7 +31,7 @@ const SRC = 'src/proto/ct/blackjack.ts';
 const LABEL = (readFileSync(SRC, 'utf8').match(/export const SEAT_LABEL = '([^']+)'/) ?? [])[1];
 if (!LABEL) { console.error(`no 'export const SEAT_LABEL' in ${SRC}`); process.exit(2); }
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

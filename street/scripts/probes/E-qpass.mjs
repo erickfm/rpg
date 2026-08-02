@@ -24,11 +24,12 @@
 // prints the station under each one so a finding can name where it was seen.
 // Do not cite this file as evidence that anything is correct; cite the frame,
 // and say which station it was taken from.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const OUT = 'shots/E-qpass';
 mkdirSync(OUT, { recursive: true });
 

@@ -28,13 +28,14 @@
 // changes; this only alters what you are told when there was nothing to
 // measure. "Could not measure" and "measured, and it is wrong" are different
 // sentences and the second one is the expensive one to get wrong.
+import { aim } from './lib/aim.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { distSha, localHead } from './lib/which-world.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const SLOW = process.argv.includes('--slow');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 
 // Is anything actually there? One request, before thirty browsers start.
 // Kept (not folded into the probe below) so a dead port still gets its own
@@ -436,6 +437,24 @@ const CHECKS = [
   // Discovery is a source grep, not a list: a new script with a mode word is
   // covered the day it is written, by an author who never read this comment.
   ['no-silent-pass',   'can any check pass by doing nothing?',             false],
+  // The sibling of no-silent-pass, one axis over: that one asks whether a check
+  // can pass without running, this asks whether it can run against the WRONG
+  // WORLD without saying so. 648 scripts here fell back to a hardcoded port, on
+  // 21 different ports, and on a machine with nine builders every one of those
+  // ports belongs to somebody else — measured 2026-08-02, all twenty of
+  // 4180-4199 listening, `jump-walk`'s default of 4185 serving another builder's
+  // tree all session.
+  //
+  // Registered because the 649th is the problem, not the 648. That line is the
+  // obvious one to type, it is in every neighbouring file's history, and it
+  // fails silently by construction — a wrong-port run looks exactly like a right
+  // one. canfail.mjs's header spends thirty lines on two rounds lost to it.
+  //
+  // Costs no browser and no build. Its --selftest plants all four spellings of
+  // the bare form and requires each to be caught, plus three shapes of the FIX
+  // that must not be — the detector is one regex, which is the part of it most
+  // likely to stop matching quietly.
+  ['aimed',            'can any instrument measure a default port in silence?', true],
   // ALSO RED ON ARRIVAL, for a defect nobody planted: 164 of the 610 commit
   // hashes cited in this repo cannot be resolved from mainline. 158 have a
   // landed twin carrying the same subject, so they are rebase-rewritten hashes

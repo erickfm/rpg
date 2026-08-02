@@ -4,9 +4,10 @@
 // AISLE is defined here and not borrowed: sample lines across the room every
 // 0.5 m, take the widest continuous clear gap on each line, report the median
 // and the worst. Same definition for all ten rooms, so they can be compared.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const rooms=await p.evaluate(()=>window.__ct.roomDims());

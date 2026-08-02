@@ -13,10 +13,11 @@
 // So: march from each seat along its facing direction and report the first
 // static thing in the way. A seat you sit in to stare at brick from a metre is
 // player-visible in a way a yaw number is not.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

@@ -3,10 +3,11 @@
 // But D's design says aim-free selection is INTENDED at touching distance
 // (d < r + 0.15) and everything further must be aimed at. So the question is
 // not "are there off-axis winners" but "are the off-axis winners all close".
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:800,height:600}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1200);
 // UNIQUE LABELS ONLY. "sit on the bench" names nine different benches, so a

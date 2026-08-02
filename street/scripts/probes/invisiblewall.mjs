@@ -2,9 +2,10 @@
 // collider leaves an invisible wall in the triangle the building cuts away.
 // Test: for each point, is it inside a collider, and is there any BUILDING
 // above it? Solid with nothing overhead = you bump into air.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

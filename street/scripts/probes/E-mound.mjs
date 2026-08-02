@@ -1,10 +1,11 @@
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 // HONOUR SHOT_URL. This file hard-coded a port, so every run measured that
 // port whatever it was told — including the runs I reported as green "on
 // :5177", which never looked at :5177. GOTCHAS 26 exists for exactly this
 // and reportWorld printed the real URL each time; I read past it.
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 // Shots of the relief. The SEATS are not tested here — scripts/seats-walk.mjs
 // already enumerates `__ct.seats()` and sits on every one, so the bench on the
 // mound is covered by running that, not by a second probe of my own.

@@ -1,7 +1,8 @@
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from '../lib/clock.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(0,-40,0,0.14,0)); await p.waitForTimeout(2000);
 await setClock(p,22); await p.waitForTimeout(2500);

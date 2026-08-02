@@ -13,9 +13,10 @@
 //
 // Sector 0 means "looking at the viewer". So sampling from a known bearing gives
 // the authored facing directly, and I can ask what that direction runs into.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(URL,{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});

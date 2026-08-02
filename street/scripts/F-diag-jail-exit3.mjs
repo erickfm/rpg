@@ -1,7 +1,8 @@
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 
-const URL = process.env.SHOT_URL || 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const N = parseInt(process.argv[2] || '20', 10);
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });

@@ -3,9 +3,10 @@
 // directly and 64c13034b's decode then explained properly.
 // If the figures billboard to the camera, their authored facing must live in
 // WHICH ATLAS FRAME they show, not in the transform. Read the map offset.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 const read = () => p.evaluate(() => {
   const out=[];

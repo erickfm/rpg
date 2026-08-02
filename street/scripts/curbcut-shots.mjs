@@ -8,11 +8,12 @@
 // scripts/kerbcut.mjs. Theirs measures; this one takes the pictures.
 // The cut is z 2.6, half-width 3.4, with 0.9 m flares — the same centre and
 // width as ct/lot.ts's drive aisle, so the two have to line up exactly.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from './lib/clock.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const out = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'shots/curbcut';
 mkdirSync(out, { recursive: true });
 const at = (dx, dz) => Math.atan2(dx, -dz);

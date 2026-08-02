@@ -35,13 +35,14 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lot-clearance.mjs
 //        --selftest   shove one car into its neighbour, require this to go red
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
 const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently ignored
 const SELFTEST = ARGS.selftest;
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 // Real lots park tight — the user: *"30 to 60 cm between cars is authentic and
 // looks right - so the target is not generous spacing, it is NO OVERLAP with a
 // small honest gap."* So the bar is overlap, and the gap is REPORTED rather

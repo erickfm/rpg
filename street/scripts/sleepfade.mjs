@@ -2,11 +2,12 @@
 // Two separate questions, and D has already flagged that they may differ:
 //   (a) does the CAPABILITY work when called directly?
 //   (b) does SLEEPING actually trigger it - which is the user's request?
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 import fs from 'fs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:900,height:560}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1200);
 const dec=await b.newPage(); await dec.goto('about:blank');

@@ -31,10 +31,11 @@
 // rather than a number: the same keeper is read from three bearings and the
 // column must change. A constant column would mean the atlas is not turning and
 // a "0" would be luck.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 const b = await chromium.launch();
 const page = await b.newPage();
 try { await page.goto(URL, { waitUntil: 'networkidle' }); }

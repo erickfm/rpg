@@ -17,6 +17,7 @@
 // them makes it — same idiom as E's scripts/E-yard-walk.mjs.
 //
 //   SHOT_URL=http://localhost:PORT/ node scripts/D-walk.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
@@ -33,7 +34,7 @@ import { setClock } from './lib/clock.mjs';
 // bundle is caught too. That was the other half of the same failure and my
 // banner could not see it. Two lines saying nearly the same thing is how the
 // weaker one gets trusted, so the weaker one goes.
-const URL = process.env.SHOT_URL ?? 'http://localhost:4231/';
+const URL = aim('http://localhost:4231/');
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });

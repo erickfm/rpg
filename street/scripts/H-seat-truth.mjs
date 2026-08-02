@@ -2,8 +2,9 @@
 // G's row says the casino stools under-reported by half a cushion and are
 // fixed, and that three library seats still under-report by 2.5 cm. This
 // compares each ctx.seat()'s declared h against the real top face beneath it.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

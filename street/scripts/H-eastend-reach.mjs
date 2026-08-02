@@ -4,8 +4,9 @@
 // are long-range and 2 of ~14 act-nodes are at the east end, so the expected
 // number of east trips in 150 s is about 0.6. Observing zero is the dice, not
 // a fault. Routing is deterministic and answers the question directly.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const FROM = ['w-diner', 'n-bodega', 'e-bench'];
 const TO = ['n-win1', 's-win2', 's-east', 'ne-corner', 'se-jail', 'ne-jail'];
 const b = await chromium.launch();

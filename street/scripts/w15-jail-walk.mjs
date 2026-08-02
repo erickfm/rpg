@@ -4,9 +4,10 @@
 // is a REGRESSION check with teeth rather than a discovery run: every leg has
 // a condition that can go red. Pattern (and the `groundAt` lesson) borrowed
 // from scripts/E-park-walk.mjs.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4194/';
+const URL = aim('http://localhost:4194/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 900, height: 600 } });
 const errs = [];

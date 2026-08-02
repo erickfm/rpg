@@ -9,9 +9,10 @@
 // look at the canvas; when the question is "did the world move", use `fp`.
 //
 //   node scripts/bandcanvas.mjs THRIFT [outdir]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { writeFileSync, mkdirSync } from 'node:fs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const NAME = process.argv[2] ?? 'THRIFT';
 const out = process.argv[3] ?? 'shots';
 mkdirSync(out, { recursive: true });

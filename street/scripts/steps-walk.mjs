@@ -5,15 +5,16 @@
 // within half a riser of the flight's gradient, so a wrong dispatch order in
 // the picker either sinks you into the stone or stops you climbing — and both
 // look like "the steps do not work".
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 const pos = () => p.evaluate(() => window.__ct.pos());
 const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(80); };
 

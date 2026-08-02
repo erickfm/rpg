@@ -1,7 +1,8 @@
 // H (verifier): what yaw do the lot cars ACTUALLY have, at HEAD?
 // Two rows argue from yaw 0.55 rad; I once measured 0 and flagged it stale.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 800, height: 500 } });
 await page.goto(URL, { waitUntil: 'networkidle' });

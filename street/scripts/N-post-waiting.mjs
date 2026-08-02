@@ -40,11 +40,12 @@
 // probe cheerfully reported that my module was intact IN SOMEBODY ELSE'S
 // ARTIFACT. reportWorld caught it and the ad-hoc probe did not, which is the
 // entire argument for §26 in one afternoon.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
+const URL = aim('http://localhost:4195/');
 // AN ARGUMENT THIS SCRIPT ACCEPTS AND IGNORES IS WORSE THAN ONE IT REJECTS
 // (GOTCHAS §48 — an instrument that cannot be aimed answers about whatever it
 // is looking at). `flags` already refuses an unknown FLAG; it only refuses an

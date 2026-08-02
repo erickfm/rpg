@@ -61,6 +61,7 @@
 // rule B would fire on every one of them. The park benches in the five-bug list
 // therefore remain unguarded; guarding them needs the seat to declare what it
 // is meant to look at, which is a change to `ctx.seat`, not to this file.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
@@ -70,7 +71,7 @@ const DEEP = 0.80;          // m — shallower than this and it is a back, not a
 const BEHIND_DEG = 125;     // off-axis angle that counts as "turned away from"
 const AHEAD_DEG = 60;       // off-axis angle that still counts as "sat at"
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4189/';
+const URL = aim('http://localhost:4189/');
 const b = await chromium.launch();
 const p = await b.newPage();
 const errs = [];

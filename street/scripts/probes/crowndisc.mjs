@@ -1,9 +1,10 @@
 // B's fix for "the tree is transparent when you look up through it" was a LEVEL
 // CROWN DISC facing down, because boards spun on Y alone are edge-on from
 // below. So the structural question is simply: which canopies have one?
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

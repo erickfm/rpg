@@ -1,9 +1,10 @@
 // The four casino figures footpaint says are 0.165 m off the floor.
 // Stand in the room and look at them before calling it a float.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(2000);
 for(const [n,tx,tz,d] of [['a',602.44,13.42,3.0],['b',598.2,10.22,3.0],['c',596.28,14.58,2.6]]){

@@ -3,9 +3,10 @@
 // between. Those can BOTH be true: a bevel you can see and a ground function
 // that does not follow it. Count vertices at intermediate heights directly, and
 // use B's own control so the number means something.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2000);
 const count=(x0,x1,z0,z1)=>p.evaluate(([x0,x1,z0,z1])=>{

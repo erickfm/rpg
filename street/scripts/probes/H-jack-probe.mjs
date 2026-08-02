@@ -1,7 +1,8 @@
 // H (verifier): where IS the jack, and how high do the wheels sit?
 // The second question is the half I's row files to me (ct/cars.ts:1129).
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 800, height: 500 } });
 await page.goto(URL, { waitUntil: 'networkidle' });

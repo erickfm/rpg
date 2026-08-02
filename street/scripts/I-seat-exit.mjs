@@ -34,10 +34,11 @@
 // by hand.
 //
 // Usage: SHOT_URL=http://127.0.0.1:4194/ node scripts/I-seat-exit.mjs [--n 30] [--all]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://127.0.0.1:4194/';
+const URL = aim('http://127.0.0.1:4194/');
 const argv = process.argv.slice(2);
 const ALL = argv.includes('--all');
 const N = ALL ? Infinity : Number(argv[argv.indexOf('--n') + 1]) || 30;

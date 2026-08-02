@@ -28,10 +28,11 @@
 // checks-registered.mjs asks of its own exempt list, and it is honest in a way
 // that widening the tolerance to 180 would not be: widening would also stop
 // this catching the real thing.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const MAX_GAP = 40;                       // degrees of hue
 const EXCEPT = new Map([
   ['A-1 TAX', 'navy is the shop identity; its cream band is a cloth banner, not a fascia'],

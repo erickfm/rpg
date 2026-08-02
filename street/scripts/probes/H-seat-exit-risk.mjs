@@ -1,8 +1,9 @@
 // H (verifier): C's seat-exit row. Two measurable claims:
 //   (1) seated on the bed, a NON-stand spot is live inside the stand radius;
 //   (2) of 225 seats, 149 have one inside 0.5 m and 12+ at exactly 0.00 m.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });
 p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));

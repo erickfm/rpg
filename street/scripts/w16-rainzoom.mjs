@@ -2,11 +2,12 @@
 // paint, and at 960x640 viewed shrunk I could not see a single streak. One of
 // those two readings is wrong and a 3x native-pixel crop settles it — a 1 px
 // wide streak survives being looked at, it does not survive being downscaled.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
+const URL = aim('http://localhost:4195/');
 const TAG = process.argv[2] ?? 'now';
 const OUT = `shots/w16-zoom-${TAG}`;
 mkdirSync(OUT, { recursive: true });

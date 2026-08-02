@@ -16,10 +16,11 @@
 // Exit 3 = wrong world: the server is serving a different build, so the run
 // never happened (reportWorld, ec7aae0d — asked for in BLOCKED-H after a red
 // that could not be told apart from a rebuild).
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errs = [];

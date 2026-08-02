@@ -3,11 +3,12 @@
 // does not exist. So: press the two whose ACTION I have never triggered.
 //   "buy cereal — $2.50"  — does it take the money?
 //   "enter No. 227"       — does it let you in?
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p);
 await p.evaluate(() => window.__ct.clock(13, 0));

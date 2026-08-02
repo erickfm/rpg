@@ -5,10 +5,11 @@
 //
 // Measured, not eyeballed: at every 0.25 m of z, take the nominal 2.0 m lane,
 // subtract every collider interval crossing it, and keep the largest free run.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const STEP=0.25, Z0=-102, Z1=15;
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const out=await p.evaluate(([STEP,Z0,Z1])=>{

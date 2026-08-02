@@ -9,6 +9,7 @@
 // quietly lighting the grass.
 //
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/park.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const browser = await chromium.launch();
@@ -16,9 +17,9 @@ const page = await browser.newPage({ viewport: { width: 1000, height: 620 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4177/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 await page.evaluate(() => window.__ct.clock(2, 30));
 await page.waitForTimeout(1600);
 

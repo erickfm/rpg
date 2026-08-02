@@ -9,10 +9,11 @@
 // paints a stainless fascia from a constant. So the diner is the one shop on
 // the block whose mouldings are a different material from the band they sit
 // on, and this reads it out of the LIVE world rather than off the source.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });

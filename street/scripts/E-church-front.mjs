@@ -22,11 +22,12 @@
 // numbers cannot tell you whether it looks thought-out.
 //
 //   SHOT_URL=http://localhost:4182/ node scripts/E-church-front.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const OUT = 'shots/E-church-front';
 mkdirSync(OUT, { recursive: true });
 

@@ -2,11 +2,12 @@
 // fully thought out. they block the windows i thin[k]" — row claims the
 // buttresses no longer clip the lancets, from a specific station. Walk it,
 // don't read the source.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 720 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

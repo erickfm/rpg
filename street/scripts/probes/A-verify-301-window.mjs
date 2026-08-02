@@ -7,10 +7,11 @@
 // So: stand where a player stands IN 301 and look at the top-right corner.
 // STATION: spawned into 301 on the third floor via SPAWN, then walked to the
 // window wall — the same place the user is standing when he photographs it.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = aim('http://localhost:4188/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 740 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

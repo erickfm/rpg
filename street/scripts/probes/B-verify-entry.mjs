@@ -14,11 +14,12 @@
 // same screenshot but is a different complaint — "the black slot-bank sides are
 // large untextured flat masses" — and it is the exact class A published helpers
 // for. A verification that only checked the seating would pass a row half done.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { goto, settle } from '../lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1034, height: 757 } });
 await goto(p, URL);

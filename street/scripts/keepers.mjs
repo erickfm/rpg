@@ -1,9 +1,10 @@
 // The librarian does not render. Is that one room or all ten? For each keeper:
 // where is the PAINTED foot against its own floor - the measurement that
 // distinguishes a harmless quad overhang from a figure that is actually sunk.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(3000);
 console.log(await p.evaluate(()=>{

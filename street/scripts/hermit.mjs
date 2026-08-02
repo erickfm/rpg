@@ -10,9 +10,10 @@
 //
 // The world publishes `scene.userData.hermit` = {phase, x, door, visible};
 // nothing here infers the state from a sprite position.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const X_IN = 2.52, X_OUT = 1.95, D_SHUT = Math.PI / 2, D_OPEN = Math.PI - 0.28;
 const APT_X = 200, APT_Z = -20, ST = 2.7;
 const AX = (v) => APT_X + v, AZI = (v) => APT_Z + v;

@@ -3,9 +3,10 @@
 // enter from +z and the counter's public face is its +z side. My earlier
 // rejection shot her from z 1.4, 2.6 and -1.5 - all BEHIND the counter - and
 // concluded she stood in front of it.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 for(const [n,x,z,yaw,pi] of [

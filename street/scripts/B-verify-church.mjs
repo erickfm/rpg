@@ -11,11 +11,12 @@
 // and it gives the wrong answer. So this measures each pier's extent AT THE
 // HEIGHT THE LANCET IS, off matrixWorld, and reports both numbers so the
 // difference is visible rather than asserted.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto, settle } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1034, height: 757 } });
 await goto(p, URL);

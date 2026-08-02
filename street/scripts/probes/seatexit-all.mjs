@@ -3,10 +3,11 @@
 // Sample seats across every label and try to leave each from a fresh sit.
 // The observable state is THE PROMPT, not eye height - pos()[1] stays 1.62 when
 // you sit, which is the trap the row records.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:900,height:560}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'domcontentloaded'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'domcontentloaded'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:20000});
 await afterFrames(p,10); await p.waitForTimeout(1200);
 const prompt=()=>p.evaluate(()=>{const m=(document.body.innerText||'').match(/\[E\][^\n]*/);return m?m[0].trim():null;});

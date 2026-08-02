@@ -8,9 +8,10 @@
 // `m.color`, so the two should compose — the material colour carries the wet
 // state, the vertex colours carry the relief. Should. Every other "should" I
 // have written today has cost me an hour, so this measures it.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1000, height: 600 } });
 await page.goto(URL, { waitUntil: 'networkidle' });

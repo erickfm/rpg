@@ -1,9 +1,10 @@
 // My pit filter found none on the side street. Given three previous tree-pit
 // finder failures, widen first: list EVERY ground-level patch and every tall
 // thin trunk along the side street, with dimensions, and let the data speak.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 console.log(await p.evaluate(()=>{

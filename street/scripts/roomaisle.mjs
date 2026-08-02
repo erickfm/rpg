@@ -1,9 +1,10 @@
 // "bodega interior is very cramped". Declared floor area is not what a player
 // feels - the aisle between the fittings is. Same instrument as the sidewalk
 // audit: largest continuous free run, room by room, so the set can be compared.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const r=await p.evaluate(()=>{

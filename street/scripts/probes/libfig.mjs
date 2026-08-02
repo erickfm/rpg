@@ -1,9 +1,10 @@
 // My rejection rested on "the librarian at z 4.45". The shot shows no figure at
 // all, so enumerate every atlas-framed figure in the library and say what each
 // actually is - I may have rejected twice on a misidentified object.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 console.log(await p.evaluate(()=>{

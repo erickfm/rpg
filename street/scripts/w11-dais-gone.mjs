@@ -1,11 +1,12 @@
 // Structural check for item 9c: no BoxGeometry(6.4, 0.18, 2.6) survives in the
 // church's mesh graph — the exact dimensions the removed `dais` box carried.
 // Also a look at the near-door end of the nave floor, for the eyes.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
-await p.goto(process.env.SHOT_URL || 'http://localhost:4190/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4190/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await afterFrames(p, 10); await p.waitForTimeout(1000);
 

@@ -7,13 +7,14 @@
 // of a door can give.
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/door301.mjs [outdir]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 import { mkdirSync } from 'node:fs';
 import { flags } from './lib/args.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 // argv[2] is NOT the output directory — argv is a mix of flags and paths, and
 // `--selftest` landed here as a folder name and got a directory called
 // `--selftest/` full of screenshots. Take the first argument that is not a

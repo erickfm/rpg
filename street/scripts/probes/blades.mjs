@@ -1,11 +1,12 @@
 // "these signs block each other" + "maybe the aces sign belongs on the other end"
 // Blades are tall, thin and project from the facade. Measure where they are and
 // how far apart, then look from along the street where overlap would show.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { setClock } from '../lib/clock.mjs';
 import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(30,-104,0,0,0)); await afterFrames(p,10); await p.waitForTimeout(2000);
 await setClock(p,13);

@@ -26,11 +26,12 @@
 //     · at height   between LOW and HIGH: not a floor decal, not a roof sign
 //
 // It prints the candidates and what is already registered. An investigation.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto } from './lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const LAMP_MAX = +(process.env.LAMP_MAX ?? 0.9);
 const LOW = 0.5, HIGH = 6.0;
 

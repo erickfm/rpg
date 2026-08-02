@@ -40,13 +40,20 @@
 // Every station is occlusion-checked with the shared oracle at the moment the
 // prompt is read (lib/D-see.mjs). Without that, "not offered at 8 m" is equally
 // well explained by a wall, and the reach cap would be credited for a hedge.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installSee } from './lib/D-see.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 const ISOLATION = 8.0;       // no other spot this close, per H
-const REACH_MARGIN = 0.6;    // fp.ts — the flat proximity bonus
+// THE FLAT PROXIMITY BONUS, read from the world rather than retyped. It was
+// `const REACH_MARGIN = 0.6;   // fp.ts` — a comment naming the owner, which is
+// what a citation looks like when it has stopped being a link. Every verdict in
+// this file is a comparison against `r + REACH_MARGIN`, so a copy going stale
+// here does not break the run, it silently moves the line the run asserts.
+// Assigned after the page is up because `__ct` is what publishes it.
+let REACH_MARGIN = null;    // fp.ts's REACH_MARGIN, via __ct.reachMargin()
 const WANT = 3;              // fewer than this and the run has settled nothing
 
 const b = await chromium.launch();
@@ -55,6 +62,14 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 30000 });
 await reportWorld(page, URL);
 await installSee(page);
+REACH_MARGIN = await page.evaluate(() => window.__ct.reachMargin());
+if (typeof REACH_MARGIN !== 'number' || !isFinite(REACH_MARGIN)) {
+  // Nothing below can be measured without it, and every verdict here is a
+  // comparison against it — so abort rather than compare against NaN, which
+  // reads as "nothing was ever offered" and would print as a wall of failures.
+  console.error('ABORT: __ct.reachMargin() did not return a number.');
+  await b.close(); process.exit(3);                         // GOTCHAS §32
+}
 
 const prompt = () => page.evaluate(() => {
   const m = (document.body.innerText || '').match(/\[E\][^\n]*/); return m ? m[0] : '';

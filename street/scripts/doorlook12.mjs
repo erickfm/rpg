@@ -9,11 +9,12 @@
 // looks at it, then stands inside and looks back at the same door, and saves
 // both. The verdict is read by eye from the pairs, same as the user's own
 // bank-door-out.png / bank-door-in.png that started this.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
+const URL = aim('http://localhost:4195/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 640 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

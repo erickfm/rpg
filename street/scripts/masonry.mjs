@@ -26,6 +26,7 @@
 // scripts/seampairs.mjs does. When scripts/lib/faces.mjs lands (proposed in
 // 1a9e4661, because four copies of this logic existed and two were wrong) this
 // should use it instead of carrying a fifth.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { FACE_LIB } from './lib/faces.mjs';
@@ -33,9 +34,9 @@ import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 await p.addInitScript({ content: FACE_LIB });   // window.__faceLib, see scripts/lib/faces.mjs
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(1200);
 // --selftest: the new "wrong density" verdict below must be able to go red, or
 // it is decoration. Same mutation seampairs.mjs uses and for the same reason —

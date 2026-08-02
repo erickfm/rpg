@@ -13,6 +13,7 @@
 // true today and nothing about tomorrow.
 //
 //   SHOT_URL=http://localhost:PORT/ node scripts/D-old-rows-hold.mjs [--selftest]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
@@ -23,7 +24,7 @@ for (const a of process.argv.slice(2)) {
   }
 }
 const SELFTEST = process.argv.includes('--selftest');
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 
 const b = await chromium.launch();
 const page = await b.newPage();

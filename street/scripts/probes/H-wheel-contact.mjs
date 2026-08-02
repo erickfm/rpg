@@ -1,8 +1,9 @@
 // H: true wheel clearance — each wheel against the ground UNDER IT, not against
 // one sampled deck height. Assuming a uniform deck is how 36 sound wheels would
 // read as floating.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 800, height: 500 } });
 await page.goto(URL, { waitUntil: 'networkidle' });

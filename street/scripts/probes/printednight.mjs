@@ -1,11 +1,12 @@
 // Does printed signage go dark at night now? Same frame at 13:00 and 02:00,
 // measuring the SIGN's pixels against the WALL beside it — a sign that darkens
 // with its wall is lit by the world; one that holds its brightness is not.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from '../lib/frames.mjs';
 import fs from 'fs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1500);
 // stand off the bodega frontage at (7.13, ...) looking at the printed sheets

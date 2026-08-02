@@ -80,6 +80,85 @@ honest form here, which is why the row's third field is a case list rather than
 population, so its registration is protected by nothing but this note and the
 row itself.
 
+## ADDENDUM — the `rain` case, sent back to me by the desk (`54a703e4a`)
+
+The desk routed the `mutations-quote-real-source` red back to me as a defect in
+a file I hold, asking whether the harness could be made to assert that a mutation
+changed bytes before trusting the result — "if it can, that closes the whole
+class."
+
+**Measured first, and the diagnosis was wrong in both directions.**
+
+**The class was already closed, three ways.** canfail does *not* silently pass a
+zero-byte mutation. It has a `NEEDLE` guard (`n !== 1` → not scored, not CAUGHT,
+non-zero exit), an `INERT` guard (built bytes identical to pristine) and a
+`NOT-RUN` guard (served module digest unchanged). And
+`mutations-quote-real-source` is a registered check dedicated to precisely this,
+needing no browser and no build — it is how I found the `rain` case in the first
+place, in the full run for the item above. The verdict on the real world:
+
+    node scripts/canfail.mjs rain
+    ???? rain  NEEDLE  matched 0x, not 1 — mutation not applied
+    0/1 checks caught their mutation
+
+That is not a guard certifying itself mutation-proof. It is a guard saying
+plainly that it did not run.
+
+**But there was a real second-order bug underneath, and it is worse than the
+instance.** The closing restore check asked: for every case in `CASES` sharing a
+*file* with anything in this run, is that case's needle present? A stale needle
+answers no — not because a restore failed, but because the text was never there.
+
+    node scripts/canfail.mjs footprint
+    OK   footprint   CAUGHT  litter allowed to straddle the kerb
+    1/1 checks caught their mutation
+    RESTORE FAILED — src/proto/ct/props.ts does not hold its original text.
+
+`footprint` ran, caught its mutation, restored cleanly, and `git status` was
+clean. **One stale needle in props.ts made every run touching props.ts announce a
+corrupted source tree and exit 3** — and exit 3 by the house convention (GOTCHAS
+§32) means "aborted, nothing measured", so `checks --selftest` scored eight
+healthy guards (footprint, trash, glow, wetness, bus, rain, rain-memory,
+crowd-lane) as failed. A false red sends somebody to fix a check that works;
+"your source tree did not come back" sends them somewhere much worse.
+
+Fixed by taking the population from the cases actually **written** rather than
+from every case sharing a filename. **Mutation-tested by disabling `restore()`:
+the guard still fires, and now names the offending case and its backup file.**
+Never loosened until green — the real failure still reddens.
+
+**The instance:** `rain`'s needle now quotes `const RAIN_N = 2600;`.
+**The commit that made it stale is `2bb64f49f`, not `fc332c5c5`** as the report
+said. `fc332c5c5` is the sibling piece of the same rain work — its own message
+says "5x the drops is 5x the posts", so RAIN_N was already 2600 when it was
+written — and `git show fc332c5c5 -- src/proto/ct/props.ts` contains no RAIN_N
+line at all. Neither is an ancestor of the other; they are parallel branches
+merged three minutes apart. This is the twin-hash trap `hashes-resolve` exists
+for, catching a reader looking straight at it.
+
+**One thing I deliberately made louder rather than quieter.** The `density`
+case's own comment records that a false `RESTORE FAILED` was historically *the
+only reason a stale needle ever surfaced*. Repairing it removes an accidental
+reporter, so `NEEDLE` now joins the "could not be scored — NOT sleeping guards"
+block: named, counted, in its own paragraph. `bad` still contains it, so the exit
+code is unchanged. Proved by re-staling the needle on purpose:
+
+    ???? rain        NEEDLE  matched 0x, not 1 — mutation not applied
+    1 case(s) could not be scored — NOT sleeping guards:
+      NEEDLE   rain — matched 0x, not 1 — mutation not applied
+    1/2 checks caught their mutation
+    every mutated file restored byte-for-byte
+
+Exit 1, a finding — where the same situation used to exit 3 with a lie in it.
+
+`mutations-quote-real-source` now reports **all 45 needles quote source that
+exists**, and `rain`, `seat-facing`, `seat-facing-wall` are 3/3 CAUGHT.
+
+On the desk's last line — *"the `seat-facing.mjs` you may be registering needs a
+canfail case too, and it should go red for the right reason"* — that was already
+done above, two cases, and `seat-facing-wall` is precisely "a seat turned to face
+a wall".
+
 ## Found and NOT fixed
 
 Three things, none of them mine, all reproducible from `/tmp/w19-checks.log`:

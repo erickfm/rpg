@@ -2,9 +2,10 @@
 // confirm." Find the rise by scanning the room, then WALK it - a floor is not
 // verified from a height map (CLAUDE.md), and my last attempt at this scanned
 // the wrong axis and nearly filed "a mezzanine you cannot reach".
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const dims=await p.evaluate(()=>window.__ct.roomDims().find(r=>r.id==='library'));

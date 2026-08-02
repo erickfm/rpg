@@ -2,6 +2,7 @@
 // Measures the axes the queue names (ceiling, doorway, wall thickness, floor
 // density, light, way out) for every interior region, then walks the entry and
 // exit of each to test the two things a builder cannot see from inside.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
@@ -20,9 +21,9 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
 const warns = [];
 p.on('console', m => { if (m.type() === 'warning' || /interior:/.test(m.text())) warns.push(m.text()); });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, aim('http://localhost:4184/'));   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(1200);
 

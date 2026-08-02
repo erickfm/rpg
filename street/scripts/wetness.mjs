@@ -19,6 +19,7 @@
 // after the last drop lands.
 //
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/wet.mjs [probe|shots|all]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto } from './lib/reachable.mjs';
@@ -30,9 +31,9 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await goto(page, process.env.SHOT_URL ?? 'http://localhost:4177/');
+await goto(page, aim('http://localhost:4177/'));
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(500);
 
 // same predicate ct/props.ts uses, so we pick hours the world agrees are wet

@@ -5,9 +5,10 @@
 // It duplicates the pre-e0c68e46 formula and comments that scripts "cannot
 // import from the TS module" — no longer true: rainAt is published on
 // scene.userData. Compare the hour it picks against the world's own schedule.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
+const URL = aim('http://localhost:4184/');
 const b = await chromium.launch(); const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });

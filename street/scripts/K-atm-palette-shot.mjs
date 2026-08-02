@@ -1,8 +1,9 @@
 // LOOKING, not proving (GOTCHAS §1). Screenshots the cabinet on the bank
 // facade beside the interface panel it opens, at a few of the panel's own
 // screens, so the two can be judged by eye against the same build.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4197/';
+const URL = aim('http://localhost:4197/');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1000, height: 750 } });
 const errors = [];

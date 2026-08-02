@@ -73,11 +73,12 @@
 // visibility filter dropped from the pick, lines or the debug volume becoming
 // blockers, or the re-entry hysteresis suppressing a prompt that should be
 // there.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { installSee } from '../lib/D-see.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 const RADII = [1.2, 1.0, 1.5];   // inside r + REACH_MARGIN for every spot
 const MIN_PAIRS = 6;             // discovering nothing is a FAILURE, not a pass
 // HOW MANY PAIRS TO ATTEMPT. Raised from 26 after the pick tightened and the

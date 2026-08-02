@@ -1,6 +1,7 @@
+import { aim } from '../lib/aim.mjs';
 import {chromium} from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL??'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction('!!window.__ct',{timeout:60000}); await p.waitForTimeout(2500);
 const T=[[602.44,13.42],[604.36,4.98],[596.28,14.58],[598.2,10.22]];
 console.log(await p.evaluate(T=>{ const s=window.__ct.seats?.()||[]; const L=[`seats in world: ${s.length}`];

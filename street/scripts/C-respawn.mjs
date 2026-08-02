@@ -18,9 +18,10 @@
 // So this tests from ABOVE as well as below, and from several places, because
 // a respawn that only fires when you fall through the floor is the half that
 // already worked.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const URL = aim('http://localhost:4190/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 660 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

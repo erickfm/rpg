@@ -2,10 +2,11 @@
 // "bodega exit needs work". Both are behaviours, so both get walked: stand at
 // the published door, press E, read where you came to rest and which way you
 // face; then leave the same way.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(1500);
 await p.evaluate(()=>window.__ct.clock(13,0)); await afterFrames(p,4);

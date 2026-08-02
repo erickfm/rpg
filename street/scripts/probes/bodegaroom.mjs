@@ -1,9 +1,10 @@
 // The bodega's "cramped / crowded" rows: F claims free run ahead 0.44 -> 2.86 m,
 // left 1.01 -> 6.49 m, and aisle 0.95 -> 1.15. Measured from where you actually
 // come to rest, which is the only place the complaint is about.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2000);
 await p.evaluate(()=>window.__ct.warp(441.24,3.83,0,0,0)); await p.waitForTimeout(600);

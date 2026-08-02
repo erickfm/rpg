@@ -2,9 +2,10 @@
 // Trash: clipping through anything?
 // The tag lives on the GROUP (props.ts:2597), not on a mesh — filtering by
 // isMesh finds zero and then every downstream check passes off an empty set.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(aim('http://localhost:4184/'),{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(4.78,-60.15,0,0.14,0));
 await p.waitForTimeout(2500);

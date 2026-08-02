@@ -4,6 +4,7 @@
 // honestly), and a walkability probe for the bodega door.
 //
 //   SHOT_URL=http://localhost:4182/ node scripts/seams2.mjs
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 const look = (x, z, tx, tz) => Math.atan2(tx - x, -(tz - z));
@@ -78,9 +79,9 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: 1 });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.message)));
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4182/', { waitUntil: 'networkidle' });
+await page.goto(aim('http://localhost:4182/'), { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4182/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, aim('http://localhost:4182/'));   // GOTCHAS 26: prove it, do not just name it
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.waitForTimeout(800);
 

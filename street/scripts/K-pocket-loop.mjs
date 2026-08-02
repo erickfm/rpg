@@ -11,11 +11,12 @@
 // cannot distinguish "taken" from "hidden behind you".
 //
 // Usage: SHOT_URL=http://localhost:4292/ node scripts/K-pocket-loop.mjs [--selftest]
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4292/';
+const URL = aim('http://localhost:4292/');
 const ARGS = flags(['--selftest']);
 const SELFTEST = ARGS.selftest;
 

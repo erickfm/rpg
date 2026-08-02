@@ -26,10 +26,11 @@
 // buffer rather than the frame that was saved.
 //
 // Usage: SHOT_URL=http://127.0.0.1:4191/ node scripts/I-apron-grain.mjs
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://127.0.0.1:4191/';
+const URL = aim('http://127.0.0.1:4191/');
 const W = 1200, H = 800;
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: W, height: H } });

@@ -294,7 +294,7 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     // proportion this body cannot accommodate:
     //
     //   panel (rocker 0.34 -> belt 0.84)   0.50 m = 20 texel rows
-    //   tyre                               0.68 m tall — TALLER than the panel
+    //   tyre                               0.65 m tall — TALLER than the panel
     //   tyre intrudes into the panel        0.34 m = 14 of those 20 rows
     //
     // So an arch drawn to clear the tyre's top must occupy about 85% of the
@@ -338,7 +338,7 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     // The width was fixed last time: 0.38 m half-width against a 0.34 m tyre
     // hugs the wheel, and no longer takes its extent from the panel. But the
     // height was 0.27 m, so the arch topped out at y = 0.34 + 0.27 = 0.61 while
-    // THE TYRE'S TOP IS AT 0.68. The tyre poked out above the arch — and since it
+    // THE TYRE'S TOP IS AT 0.66. The tyre poked out above the arch — and since it
     // stands 0.04 m proud of the flank, the disc then covered the arch behind it.
     // What was left to see was a disc on a flat panel above a straight rocker
     // line: "discs against a straight sill", which is the report.
@@ -1042,9 +1042,9 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // the tyre from the load space, and a top that closes it."
     //
     // Exactly right, and the arithmetic agrees. The bed's side wall spans x
-    // 0.74…0.90. The rear tyre spans 0.70…0.94 and tops out at 0.68 against a
+    // 0.74…0.90. The rear tyre spans 0.70…0.94 and tops out at 0.66 against a
     // bed floor at 0.50. So the tyre passes clean through the wall, pokes 4 cm
-    // into the cavity and stands 18 cm proud of the floor. On a sedan that is
+    // into the cavity and stands 16 cm proud of the floor. On a sedan that is
     // hidden inside a closed body; on an open bed it is in plain sight.
     //
     // Inner wall plus lid, per rear wheel. The lid's top face at 0.76 IS the
@@ -1162,6 +1162,26 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   g.userData.rocker = ROCKER;
   g.userData.belt = BELT;
   g.userData.hoodTop = HOOD_TOP;         // the hood slab sits ON the belt, HOOD_T thick
+  // THE RADIUS, and the top of the tyre is NOT twice it. Measured off the
+  // rendered geometry (`scripts/probes/w19-tyre-top.mjs`, 22 cars, every one
+  // identical): the tyre's top stands **0.6634 m** above the ground it is
+  // parked on, and the mesh's own height is 0.6467 — not the 0.68 that `2 * R`
+  // gives you.
+  //
+  // The gap is the FACETS. A tyre is a low-segment cylinder, so its silhouette
+  // is a polygon inscribed in the circle and every extent is short of the ideal
+  // by the sagitta. 0.68 is the circle nobody drew.
+  //
+  // Worth a comment because 20 mm sounds like nothing and is not: the first
+  // step of a climbing route onto a car was costed at a 28 mm margin, so an
+  // error of this size is most of the thing it is being compared against. Two
+  // comments in this file said 0.68 for the tyre's TOP and both are corrected
+  // above; the places that say 0.68 for how far the tyre reaches ACROSS are a
+  // different quantity wearing the same number — that one is the nominal
+  // diameter, and its rendered extent is short for the same reason.
+  //
+  // Anything that needs the real number should measure it or take it from here
+  // rather than doubling this one. (BUILDER-BRIEF §8.)
   g.userData.tyre = 0.34;
   g.userData.wheelbase = spec.wheelZ * 2;
   g.userData.steer = (a: number) => { for (const w of front) w.rotation.y = a; };

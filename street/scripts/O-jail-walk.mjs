@@ -92,9 +92,21 @@ if (mode === 'door' || mode === 'all') {
   // either way, which is the whole of GOTCHAS 34.
   //
   // The world does publish `spots()`, so ask the real predicate instead: is the
-  // player inside the jail spot's REACH? Reach is not radius — `fp.ts:425` adds
-  // REACH_MARGIN = 0.6 on top of r.
-  const REACH_MARGIN = 0.6;
+  // player inside the jail spot's REACH? Reach is not radius — the near test is
+  // `d < r + REACH_MARGIN`, and that margin is ONE global living in fp.ts.
+  //
+  // READ FROM THE WORLD, not retyped. This was `const REACH_MARGIN = 0.6;` with
+  // a comment citing `fp.ts:425`, which is not where the constant is — it is
+  // `fp.ts:486`, and the number was right only by luck of nobody having tuned
+  // it since. BUILDER-BRIEF §8: "if you need a value another module owns, import
+  // it." `crosstown.ts` now publishes `__ct.reachMargin()` for exactly this, so
+  // the day somebody re-tunes the margin this check follows instead of quietly
+  // asserting against a number the world stopped using.
+  const REACH_MARGIN = await p.evaluate(() => window.__ct.reachMargin());
+  if (typeof REACH_MARGIN !== 'number' || !isFinite(REACH_MARGIN)) {
+    console.error('ABORT: __ct.reachMargin() did not return a number — nothing below can be measured.');
+    await b.close(); process.exit(3);                       // GOTCHAS §32
+  }
   const reachable = await p.evaluate(([margin]) => {
     const q = window.__ct.pos();
     const hits = window.__ct.spots()
@@ -187,9 +199,19 @@ if (mode === 'door' || mode === 'all') {
   ok(out[0] < 100, `E from inside puts you back on the STREET — (${out[0]}, ${out[2]})`);
   ok(out[0] > KERB && out[0] < FX, `and on the PAVEMENT, not in the road — ${KERB} < ${out[0]} < ${FX}`);
   // the way out must clear the way in, or a second E bounces you straight back
+  //
+  // THE THRESHOLD IS DERIVED, not typed. It was `gap > 1.65` with a message
+  // reading "r 1.05 + REACH_MARGIN 0.6" — two hand-copied numbers and their
+  // hand-computed sum, so re-tuning either the margin or the jail spot's radius
+  // would have left this asserting against arithmetic nobody re-did. Both come
+  // off the world now: `r` from the spot itself (already read above), the margin
+  // from `__ct.reachMargin()`.
   {
     const gap = Math.hypot(out[0] - stand.x, out[2] - stand.z);
-    ok(gap > 1.65, `the landing clears the way-in trigger — ${gap.toFixed(2)} m against r 1.05 + REACH_MARGIN 0.6`);
+    const r = Math.max(...reachable.map((h) => h.r));
+    const reach = r + REACH_MARGIN;
+    ok(gap > reach, `the landing clears the way-in trigger — ${gap.toFixed(2)} m`
+      + ` against r ${r} + REACH_MARGIN ${REACH_MARGIN} = ${reach.toFixed(2)}`);
   }
 }
 

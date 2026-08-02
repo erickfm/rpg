@@ -1,9 +1,10 @@
 // THE CONDITIONS THE USER ACTUALLY REPORTED IT IN. Their frame was dim and
 // raining, and that is when the park path collapsed onto the carriageway. I
 // checked the fix at noon. A tone that only separates in full sun is not fixed.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
+const URL = aim('http://localhost:4182/');
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1000, height: 600 } });
 await page.goto(URL, { waitUntil: 'networkidle' });

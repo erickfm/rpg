@@ -12,12 +12,13 @@
 // props call it. Buildings, walls, doors and alley dressing never do.
 //
 // Usage: SHOT_URL=http://localhost:PORT/ node scripts/pool-census.mjs
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { goto } from '../lib/reachable.mjs';
 import { reportWorld } from '../lib/which-world.mjs';
 import { setNight } from '../lib/clock.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 800, height: 450 } });
 await goto(page, URL);

@@ -9,10 +9,11 @@
 //   SHOT_URL=http://localhost:PORT/ node scripts/D-pawnalley-walk.mjs
 //
 // The slot runs x 7…24.8 between z −53.0 and −55.5.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 600 } });
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await p.mouse.click(400, 300);

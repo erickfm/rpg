@@ -3,8 +3,9 @@
 // The guard throws when a leaf's handle lands on its hinge. G says "the rooms
 // refuse to build". This checks BOTH halves: that it fires (positive control,
 // run by hand by inverting the mirror) and that a normal build is clean.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const pageErrs = [], consoleErrs = [];

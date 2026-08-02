@@ -29,6 +29,7 @@
 // created by an edit, and the cheapest moment to catch it is the same edit.
 //
 //   node scripts/D-dead-prompt-literals.mjs [--selftest]
+import { aim } from './lib/aim.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
 
 for (const a of process.argv.slice(2)) {
@@ -66,7 +67,7 @@ const SRC_TEXT = readdirSync('src/proto', { recursive: true })
   .map((f) => strip(readFileSync(`src/proto/${f}`, 'utf8')))
   .join('\n');
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
+const URL = aim('http://localhost:4181/');
 const browser = await chromium.launch();
 const page = await browser.newPage();
 try { await page.goto(URL, { waitUntil: 'networkidle' }); }

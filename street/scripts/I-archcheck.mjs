@@ -26,12 +26,13 @@
 //
 // Usage: SHOT_URL=http://127.0.0.1:4194/ node scripts/I-archcheck.mjs
 //        --selftest   flatten every arch, require this to go red
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
 const ARGS = flags(['--selftest']);
-const URL = process.env.SHOT_URL ?? 'http://127.0.0.1:4194/';
+const URL = aim('http://127.0.0.1:4194/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 await p.goto(URL, { waitUntil: 'networkidle' });

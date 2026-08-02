@@ -1,8 +1,9 @@
 // H (verifier): C's TV bezel + ad-pool row, at C's own station — sit on the
 // bed in 301 and watch. Pool predicate: scene.userData.tv publishes
 // {seg, i, left, pool}; watch and count DISTINCT names.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const SECS = +(process.env.SECS ?? 130);
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });

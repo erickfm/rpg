@@ -2,8 +2,9 @@
 // I's row says one "leans on the wing with a pale hub". Three frames did not
 // show it and a cylinder probe found only the three fitted wheels, so this
 // looks at EVERY mesh near the car regardless of geometry type.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4187/';
+const URL = aim('http://localhost:4187/');
 const CAR = [26.65, 7.30];
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 800, height: 500 } });

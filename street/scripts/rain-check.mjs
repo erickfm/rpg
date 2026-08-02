@@ -37,6 +37,7 @@
 // `hourAbs` is `Math.floor(totalMin / 60)`, so `clock(h)` sets the ABSOLUTE
 // hour to exactly `h`. `rainAt` hashes that absolute hour and is NOT periodic
 // in 24, so the hour must be passed through unchanged — never `h % 24`.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const browser = await chromium.launch();
@@ -44,7 +45,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+const URL = aim('http://localhost:4177/');
 await page.goto(URL, { waitUntil: 'networkidle' });
 await reportWorld(page, URL);   // GOTCHAS 26 — before the try/catch below judges the world
 try {

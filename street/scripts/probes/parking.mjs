@@ -6,6 +6,7 @@
 //   shots           — look at the row
 //
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/parking.mjs [probe|dist|shots|all]
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { flags } from '../lib/args.mjs';
@@ -70,9 +71,9 @@ if (mode === 'probe' || mode === 'shots' || mode === 'all') {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
-    await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+    await page.goto(aim('http://localhost:4177/'), { waitUntil: 'networkidle' });
   await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
-  await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+  await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
   await page.waitForTimeout(500);
   await page.evaluate(() => window.__ct.clock(13, 0));
 

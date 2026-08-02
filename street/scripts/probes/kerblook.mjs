@@ -8,11 +8,12 @@
 //
 // Steep pitch on purpose. The complaint is about the ground at the player's
 // feet, which is the one thing an eye-level shot never shows.
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
 import { goto } from '../lib/reachable.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
+const URL = aim('http://localhost:4279/');
 const TAG = process.env.TAG ?? 'kl';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1034, height: 757 } });
