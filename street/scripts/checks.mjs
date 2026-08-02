@@ -141,9 +141,38 @@ if (process.env.SHOT_WORLD !== 'integration' && servingBundle) {
 // what each one answers, in the order a reader would want it
 const CHECKS = [
   ['check-wiring',     'is every module that was written actually built?', true],
+  // REGISTERED 2026-08-02 (w28, item 71). The only check here that touches no
+  // browser at all — it diffs notes/LEDGER.md against add-stick-and-city98 and
+  // fails if a row was lost, an evidence cell shrank, a contribution was dropped
+  // or a conflict marker survived. LEDGER.md is what this project treats as its
+  // record of what is done, and it was guarded by a check that ran never.
+  //
+  // Run by hand first, as item 71 required: 253 rows -> 253, intact, exit 0 in
+  // 0.06 s. `--selftest` reports "DAMAGED: lost rows, shrunk evidence" and
+  // exits 0 by its own inverted convention, so it can fail.
+  //
+  // It tolerates the ordinary case of a builder's branch being behind — cells
+  // shorter than mainline in rows this branch never touched are reported as
+  // "add-stick-and-city98 moving on", not as loss.
+  ['ledger-intact',    'is notes/LEDGER.md intact against mainline?',       true],
   ['health',           'does the world initialise at all?',                false],
   ['check-seethrough', 'can you see the pavement through a shopfront?',    true],
   ['density',          'is every masonry face at the density it declares?', ['density']],
+  // REGISTERED 2026-08-02 (w28, item 71) after being run by hand first, which is
+  // what that item asked for rather than registering three orphans reflexively.
+  //
+  // It is NOT a duplicate of `density` above, which was my first worry: its own
+  // header says it is density.mjs's SUCCESSOR — "that fixes what broke
+  // density.mjs: its filter was geometric, so foliage, ground decals and signage
+  // sat in a net meant for walls" — and it asks a second question density cannot,
+  // namely whether each stamp AGREES with the face it is mapped to. A stamp that
+  // disagrees is worse than no stamp, because it looks like an answer.
+  //
+  // Measured on this world: 305 masonry stamps, 16 disagreements, all 16
+  // explained by whole-texel canvas rounding, 0 faces actually authored wrong.
+  // 2.9 s, and it does not walk, so it is default tier by this file's own rule.
+  // `--selftest` breaks one stamp at RUNTIME and it goes red: "selftest: caught it".
+  ['masonry',          'does each masonry stamp agree with the face it is on?', true],
   ['nightgrade',       'does everything the dimmer touched actually dim?',  true],
   ['seampairs',        'do two faces that should draw the same brick?',     true],
   // SLOW TIER, moved 2026-07-25. lotwalk WALKS — 28 held-W samples — and costs
@@ -513,6 +542,16 @@ const CHECKS = [
   // guessed. The four with a case name have that mutation in canfail.mjs; the
   // rest say `false` rather than carry a selftest that does not exist.
   ['carstate',         'do hood-up, jacked and blocked cars still build right?', ['carstate-bay', 'carstate-hood']],
+  // REGISTERED 2026-08-02 (w28, item 71), here with the other car checks. It
+  // asks whether any mesh sticks out past the silhouette of tyre and body at
+  // wheel height — the wheel-arch flare that was removed and could be
+  // re-attached by an edit to ct/cars.ts without anything else noticing.
+  //
+  // Run by hand first: 23 cars, 0 offenders, 1.0 s, and it does not walk.
+  // `--selftest` re-attaches a flare and it is caught — "SELFTEST PASSED — the
+  // re-attached flare was caught" — naming the offending BoxGeometry at
+  // half-width 1.64 against a body of 0.90.
+  ['H-flare-silhouette', 'does any car mesh stick out past tyre and body?',  true],
   ['gaps',             'can a parked car trap the player, or eat an [E]?',   false],
   ['park-repro',       'is the parked arrangement the same on every load?',  'park-repro'],
   ['faces',            'does any face read as more than one tone?',          'faces-bands'],
