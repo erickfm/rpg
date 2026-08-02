@@ -2739,3 +2739,14 @@ to one side.
   turn the camera in jumps, which feels like a broken mouse in exactly the room where he
   already reported drops. That is now the second desk diagnosis disproved on this one
   report; both are written into item 128 so nobody repeats them.
+
+- **"its like my mouse moves slower when im looking into my room from the hall"**
+  (2026-08-02) → **routed as queue item 135, TOP. This detail cracked it.** *Slower*, not
+  choppier, means input is being DISCARDED. Traced: `main.ts:47-50` accumulates
+  `movementX/Y` correctly, `fp.ts:459` applies the full delta with no per-frame clamp,
+  and `main.ts:113` resets once per frame — all sound. **What is missing is
+  `getCoalescedEvents()`.** Browsers merge multiple physical mouse samples into one
+  `mousemove` and align delivery to the frame; the merged samples are only recoverable
+  through that API, which the project never calls. Long frames → fewer events → less
+  accumulated delta → the camera turns less for the same hand movement. Explains why it
+  is worst *looking into* the room rather than standing in it.
