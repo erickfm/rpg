@@ -111,6 +111,28 @@ const run = async (label) => {
 
 const A = await run('CLEAN WORLD');
 
+// ── WHERE DO THE ACTORS ACTUALLY GO? ──────────────────────────────────────
+//
+// This decides which instruments needed migrating at all. The interior belt is
+// parked far out along +x and every interior check measures out there; if no
+// actor box ever reaches it, those checks were never exposed to the defect and
+// leaving them on `colliders()` is a finding rather than an omission. Measured
+// rather than assumed — the assumption is exactly the kind this project keeps
+// paying for.
+const reach = await p.evaluate(async () => {
+  let lo = Infinity, hi = -Infinity, n = 0;
+  for (let i = 0; i < 40; i++) {
+    for (const c of window.__ct.actorColliders()) {
+      if (!isFinite(c.minX) || Math.abs(c.minX) > 900) continue;   // the traffic pool parks at 999
+      lo = Math.min(lo, c.minX); hi = Math.max(hi, c.maxX); n++;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return { lo: +lo.toFixed(2), hi: +hi.toFixed(2), n };
+});
+console.log(`actor boxes over 4 s: ${reach.n} observations, x ranges ${reach.lo} .. ${reach.hi}`);
+console.log(`  the interior belt starts near x 600 — actors ${reach.hi < 100 ? 'never reach it' : 'DO REACH IT'}\n`);
+
 // ── a REAL static trap, beside the citizens ───────────────────────────────
 //
 // Pushed onto the live `colliders()` array, which `__ct.colliders()` returns BY
@@ -137,6 +159,9 @@ await p.evaluate(() => { window.__ct.colliders().pop(); });
 let bad = 0;
 const say = (ok, msg) => { if (!ok) bad++; console.log(`${ok ? 'ok   ' : 'FAIL '} ${msg}`); };
 
+say(reach.n > 0 && reach.hi < 100,
+  `every actor box stayed on the street (x ${reach.lo}..${reach.hi}) — so the interior checks out at`
+  + ' x ~600 were never exposed to this defect, and leaving them on colliders() is deliberate');
 say(Math.max(...A.walkers) > 0,
   `citizens really did walk the measured bands (${Math.min(...A.walkers)}..${Math.max(...A.walkers)} on a walk)`
   + ' — without this, "nothing changed" would be a claim about an empty sample');

@@ -191,8 +191,16 @@ const doors = await page.evaluate(() => {
   // EVERY collider, not a windowed subset. The first version of this check
   // filtered boxes to the same x/z window as the spots, which quietly excluded
   // the casino and hotel footprints — it passed because it could not see them,
-  // not because they were clear.
-  const boxes = window.__ct.colliders();
+  // not because they were clear. `staticColliders()` narrows by KIND, never by
+  // position, so that fix is untouched.
+  //
+  // STATIC, because "can the player stand within reach of this [E]" is a
+  // question about the world's geometry. The side street is a pavement the
+  // crowd walks, so a citizen standing on a spot at the sampled instant would
+  // otherwise be reported as a trigger nobody can reach — and they will have
+  // walked on before anyone reads the output. Same invariant, and now the same
+  // collider set, as scripts/gaps.mjs's doorbell half.
+  const boxes = window.__ct.staticColliders();
   const hits = (b, px, pz) => px > b.minX - RAD && px < b.maxX + RAD && pz > b.minZ - RAD && pz < b.maxZ + RAD;
   // And the question is "can the player STAND within reach", not "is the spot
   // inside a box" — a shopfront's spot is inside its own building's AABB by

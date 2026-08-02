@@ -84,18 +84,24 @@ await p.waitForTimeout(900);
 const out = await p.evaluate(async ({ WALL_MIN, REACH, DEEP, BEHIND_DEG, AHEAD_DEG }) => {
   // MOVERS ARE NOT SCENERY. Cars and the traffic pool park their boxes at
   // x = 999 and shuffle; a seat cannot be judged against a collider that will
-  // be somewhere else next frame. Keep only boxes that held still.
-  const key = (c) => `${c.minX.toFixed(2)},${c.minZ.toFixed(2)}`;
+  // be somewhere else next frame.
+  //
+  // THIS USED TO KEEP THE BOXES THAT HELD STILL for 1.2 s, which answers a
+  // different question than the one it asks. A citizen who pauses is byte-
+  // identical across the window and gets scored as furniture — and a seat
+  // "blocked" by a person who then walks away is not a seat defect at all.
+  // `__ct.staticColliders()` separates by OBJECT IDENTITY against the two
+  // registration hooks (crosstown.ts:1411), so standing still proves nothing
+  // and neither does moving.
+  //
   // NO COORDINATE CEILING HERE. The report this replaces filtered to
   // |minX| < 500 and the interior belt starts at x ~ 600 — so it could not see
   // a single interior wall or table, and called 222 of 228 seats clear.
-  const snap = () => window.__ct.colliders()
+  // `staticColliders()` applies no ceiling of its own, which is what keeps that
+  // fix intact.
+  const cols = window.__ct.staticColliders()
     .filter((c) => c && isFinite(c.minX) && isFinite(c.minZ))
     .map((c) => ({ minX: c.minX, maxX: c.maxX, minZ: c.minZ, maxZ: c.maxZ }));
-  const first = snap();
-  await new Promise((r) => setTimeout(r, 1200));
-  const still = new Set(snap().map(key));
-  const cols = first.filter((c) => still.has(key(c)));
 
   const rooms = window.__ct.roomDims();
   const roomOf = (x, z) => rooms.find((r) =>
