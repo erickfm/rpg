@@ -2118,3 +2118,37 @@ height and no rotation.
 
 Queued next to that item so they are considered together rather than patched
 apart.
+
+
+## Park benches sit askew to the path
+
+> *"these park benches are askew. they should be in line with the path."*
+
+**Found, and the cause is a subtle one — the last fix was right in principle and
+picked the wrong reference.** `ct/park.ts:1030`:
+
+```ts
+const facingIn = (bx, bz) => [bx, bz, Math.atan2(loopCx - bx, loopCz - bz)];
+```
+
+Every bench points at **the centre of the loop**. That was a deliberate
+improvement: the comment above it records that every yaw used to be a hand-typed
+literal, that rebuilding the bench silently reversed half of them, and that
+GOTCHAS §27 says *derive facing from what the object should FACE, never from a
+constant*. All true, and the rule is right.
+
+**But "face the middle" is a radial direction and the path is a straight run.**
+A bench is only square to the path when it happens to sit at the exact midpoint
+of its side; anywhere else along that side it rotates toward the centre point and
+goes visibly off-square. The further from the midpoint, the more askew — which is
+exactly what the screenshot shows.
+
+**The fix keeps the principle and changes the reference: derive the yaw from the
+path segment the bench stands on** — square to the run, facing the park side.
+On a loop that still satisfies the original requirement (*"it looks INTO the
+park, and its back is to the fence"*) while also lining up, so nothing is traded
+away.
+
+**Fourth time the benches have come back** — *"benches are clipping and tilted"*,
+*"benches still tilted and clipping trash"*, *"park bench looks bad and clips the
+drinking fountain"*. Each earlier fix was correct about the thing it fixed.
