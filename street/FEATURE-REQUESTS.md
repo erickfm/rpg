@@ -2703,3 +2703,11 @@ to one side.
   today in `crosstown.ts:1060+` for the sedan climbing route — and its wheels are
   constructed there, not in `ct/cars.ts` with the fleet's. So this may be one cause or
   two; the item now says to establish which before fixing either.
+
+- **"the atm interface is so good. but the mouse cursor is a bit misaligned. like the
+  stick part of the cursor."** (2026-08-02) → **routed as queue item 133.** Praise for
+  item 86 noted. The cursors are 16×16 pixel art at 2× scale with hotspots declared
+  separately (`ct/hud.ts:555-558`): arrow `0 0` "the point", hand `9 0` "the fingertip".
+  A declared hotspot that disagrees with where the art puts that feature is exactly a
+  "misaligned" cursor. The arrow's tail also steps diagonally x4→x8 across rows 11–15 and
+  wants checking against the head.
