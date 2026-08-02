@@ -66,10 +66,19 @@ for (const st of STATIONS) {
   const r = await p.evaluate(() => ({ ...window.__rc }));
   const here = await p.evaluate(() => window.__ct.pos());
   const perFrame = r.frames ? r.calls / r.frames : 0;
-  rows.push({ name: st.name, ...r, perFrame, at: here });
+  const fps = r.frames / SECS;
+  const sweepsSec = r.calls / SECS / installed.meshes;
+  rows.push({ name: st.name, ...r, perFrame, sweepsSec, fps, at: here });
   console.log(`${st.name.padEnd(20)} at (${here[0].toFixed(1)}, ${here[2].toFixed(1)}) gy ${here[3].toFixed(1)}`);
   console.log(`  ${r.calls} mesh raycast tests over ${r.frames} frames `
-    + `= ${perFrame.toFixed(0)} per frame  (${(100 * perFrame / installed.meshes).toFixed(0)}% of the scene, per frame)\n`);
+    + `= ${perFrame.toFixed(0)} per frame  (${(100 * perFrame / installed.meshes).toFixed(0)}% of the scene, per frame)`);
+  // PER FRAME IS THE MISLEADING FORM AND PER SECOND IS THE PORTABLE ONE. Before
+  // the cache the cost was one full sweep PER FRAME, so it scaled with the frame
+  // rate and headless (~15 fps) understates what the user's 60 fps machine paid.
+  // The cache bounds it per SECOND instead, so this figure is the same number on
+  // his machine as on this one — and the faster he renders, the more it saves.
+  console.log(`  ${fps.toFixed(1)} fps here -> ${sweepsSec.toFixed(1)} full-scene sweeps/SECOND`
+    + `   (uncached this would be ${fps.toFixed(1)} x rays-in-range)\n`);
 }
 
 // ── how many spots pass the cheap filter here, i.e. how many rays are cast ──
