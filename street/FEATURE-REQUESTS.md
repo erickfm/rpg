@@ -2325,3 +2325,51 @@ both must be proven from inside every one of these views.
 **Timing matters:** every new panel built before this lands is more to convert.
 The library PC shipped tonight with a floating panel, so this should be settled
 before the next interface is drawn.
+
+
+## Remove the on-screen HUD text
+
+> *"get rid of the overlay descriptions here, controlls and all."*
+
+The bottom-left block — `CROSSTOWN '97 1/1`, *"The small world — one hand-made
+street. We grow it from here."*, and the controls strip (`click to look · WASD
+walk · Shift run · C crouch · Space jump · E feed · look down = watch ·
+right-click = wallet`).
+
+**This is the same law as the no-pop-up-menus request, one line lower down:**
+nothing on screen that is not in the world. A title card and a keyboard legend
+are the most literal possible break of it.
+
+Keep the `[E]` interaction prompt — that is how the world tells you a thing can
+be used, and he has never objected to it. The controls legend is a tutorial that
+has outlived its purpose.
+
+
+## The shadow geometry is still there — and it was never actually closed
+
+> *"what is with these shadow geometries. they're all over the place and i need
+> you to get rid of them"*
+
+**He is right, and the record shows it was known.** Yesterday the desk marked
+three shadow-geometry rows CONFIRMED after an auditor re-walked them, and I
+verified that verdict — **at one location, the civic forecourt.** His screenshot
+is a different frontage and the defect is unmistakable: large translucent grey
+quads lying across the pavement, the shopfront glazing and the planter.
+
+**The audit's own note said the class was not closed.** In
+`notes/AUDIT-shadow-geometry.md`: *"a live scan of this build found 131
+untextured ground meshes (~1092 m²) remaining"*, and it named the surviving
+instances — the car-lot bays and *"~92 untextured interior floor meshes"*. **Only
+the four originally-named spots were ever fixed.** The three rows were true about
+those four spots and the desk let them stand for the whole complaint.
+
+**That is the same error I made on the jail**, twice in two days: verify one
+instance, retire the class.
+
+**Mechanism, already documented** in `ct/paint.ts:50-93`: a ground mesh with **no
+map** sitting beside grained neighbours reads as a translucent shadow patch.
+Nothing in this street casts real shadows — it is unlit `MeshBasicMaterial`.
+The cure is `slabTex`/`plazaTex`/`apronTex`, already proven at several sites.
+
+**So this is not a hunt. It is a census with a known fix:** find every unmapped
+ground-facing mesh and give it a texture. He has now reported it four times.
