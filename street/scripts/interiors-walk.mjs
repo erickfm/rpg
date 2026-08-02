@@ -1166,8 +1166,19 @@ for (const spec of offBelt) {
     `rig gy=${f2(at[3])}, groundAt=${ground === null ? 'null' : f2(ground)} (room floor y=${f2(gy)})`);
   // …and that it is THIS room's floor and not the pavement three storeys below,
   // which is the exact failure RoomDims.y was published to stop.
+  // AGAINST `built.y`, THE PUBLISHED VALUE — never against the local `gy` this
+  // function warps with. Those are the same number today and that is exactly
+  // what makes the distinction easy to lose: written as `at[3] - gy` this leg
+  // compares the harness's own input to itself, so it holds whatever the
+  // harness happens to be doing and can never fail. Caught by mutation:
+  // replacing `const { y: gy } = built` with `gy = 0` — the precise bug
+  // `RoomDims.y` was published to stop, and the one bugsweep's three
+  // `bug-apt301-*` stations shipped for weeks — left this reporting
+  // "rig gy=0, room floor y=0" and passing 6/6, standing in the street under
+  // the building it claimed to be inside. Reading the room's own y back from
+  // the registry is what makes the mutation go red.
   check('the floor you are standing on is the room\'s own, not the street',
-    Math.abs(at[3] - gy) < 0.05, `rig gy=${f2(at[3])}, room floor y=${f2(gy)}`);
+    Math.abs(at[3] - built.y) < 0.05, `rig gy=${f2(at[3])}, room's published floor y=${f2(built.y)}`);
 
   // ── is there floor to stand on, and can you cross it ──
   //
