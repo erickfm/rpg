@@ -1273,13 +1273,39 @@ export function register(ctx: CtxBuild): void {
   ctx.onFrame((f) => {
     if (!panel) return;
     const seat = seatedAtTable();
-    if (seat === null) dismissed = null;
-    if (!panel.isOpen()) {
+    // ── NOT SEATED MEANS NOT OPEN. NO CONDITION ON IT. ────────────────────
+    //
+    // This block used to read:
+    //
+    //     if (seat === null) dismissed = null;        // clears it …
+    //     …
+    //     if (seat === null && dismissed !== null)    // … then requires it
+    //       { panel.close(); return; }
+    //
+    // The guard cleared `dismissed` and the close then demanded it be
+    // non-null, so **the close could never fire.** Any force-stand that was not
+    // the panel's own Escape handler — `__ct.stand()` from `ct/hud.ts`, a warp,
+    // a floor change — left the table open with nobody sitting at it.
+    //
+    // And an open panel is not a local problem: `hud.ts` swallows keydown while
+    // one is up, so `[E]` was dead EVERYWHERE IN THE WORLD until the page was
+    // reloaded. That is the trap the user has already been bitten by twice
+    // (the TV seat, his own front door), in its worst form yet — global, and
+    // reachable by standing up from a table.
+    //
+    // Found by w11 while fixing a different seat bug, reported rather than
+    // reached for, and confirmed here from the two lines alone.
+    if (seat === null) {
+      dismissed = null;
+      if (panel.isOpen()) { panel.close(); }
       lastT = -1;
-      if (seat !== null && seat !== dismissed) { lastT = f.t; panel.open(); }
       return;
     }
-    if (seat === null && dismissed !== null) { panel.close(); return; }
+    if (!panel.isOpen()) {
+      lastT = -1;
+      if (seat !== dismissed) { lastT = f.t; panel.open(); }
+      return;
+    }
     // `Frame.t` is wall time; `Frame.dt` is clamped to 0.05 by src/main.ts so a
     // long frame cannot teleport a body through a wall. A table you sit at is an
     // interface, not physics — see the same note in ct/slots.ts.
