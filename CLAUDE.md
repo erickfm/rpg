@@ -33,6 +33,13 @@ Log every user request to `street/FEATURE-REQUESTS.md`, and **say which agent it
 was routed to** when you reply — the user cannot reprioritise a queue he cannot
 see.
 
+**IF THE QUEUE HAS UNCLAIMED WORK, WORKERS ARE RUNNING. ALWAYS.** The user's
+standing instruction, 2026-08-01: *"if there is a queue there should be workers
+working. always."* An idle queue with idle workers is the desk failing, not the
+fleet resting. The desk's first act on any tick is to check
+`grep -c '| TODO' street/notes/QUEUE.md` and spawn up to the cap if it is
+non-zero. Workers are only absent when the queue is genuinely empty.
+
 **Builders are self-serving: they take the top item from `street/notes/QUEUE.md`,
 finish it, release it, and take the next.** The desk ranks the queue and verifies
 what comes back; it does not hand out work item by item. A builder that runs out
