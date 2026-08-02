@@ -944,7 +944,8 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // +cos, not -cos. THE NINTH ORIENTATION BUG, and the one GOTCHAS 27 was
     // written for: this world's forward is (sin yaw, cos yaw) — `E-benchface`
     // uses it, the shelter's hand-set approach agrees with it, and the seat
-    // yaws come from `facingIn`, which is atan2 in that same order. With the
+    // yaws come from `facingAcrossZLeg`/`facingAcrossXLeg`, which are atan2 in
+    // that same order. With the
     // sign flipped the APPROACH landed behind the bench, so the way to sit
     // down was to walk round the back of it.
     //
@@ -965,7 +966,7 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // nothing reconciles them. Measured, not reasoned: warping to yaw 0 and
     // holding W moves -z, and yaw PI moves +z.
     //
-    // `facingIn` returns the MESH value, which is right for the bench body and
+    // `facingAcrossZLeg`/`facingAcrossXLeg` return the MESH value, which is right for the bench body and
     // is why the backrest genuinely sits on the wall side. Handing that same
     // number to ctx.seat pointed the SITTER the other way, so the bench faced
     // the park and the person on it faced the wall. I confirmed 9/9 "facing
@@ -1026,11 +1027,33 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // wherever the bench is and however the loop is re-cut. A bench added on a
   // side that does not exist yet cannot come out backwards, because nothing
   // about its direction is written down.
+  //
+  // FOURTH TIME THE BENCHES HAVE COME BACK: *"these park benches are askew.
+  // they should be in line with the path."* `Math.atan2(loopCx - bx, loopCz -
+  // bz)` is a BEARING TO A POINT — the loop's own centre — and that only
+  // equals "square to the run" at the exact midpoint of a leg. Anywhere else
+  // on a 27 m leg it rotates toward the centre and goes off-square, worse the
+  // further out you stand, which is exactly "askew" and exactly why it only
+  // showed up once benches were spread along the full length of each leg.
+  //
+  // The loop's perimeter is axis-aligned (chamfered corners aside, and no
+  // bench stands on a chamfer), so every leg a bench stands on runs along
+  // exactly one axis. "Square to the run, facing the park side" is then: face
+  // along the OTHER axis, using only THAT axis's offset from the loop centre
+  // — the same bearing-to-centre principle §27 asked for, just with the
+  // along-the-run component zeroed instead of left in. That keeps it derived
+  // and loop-shape-agnostic (re-cut a leg and every bench on it re-derives)
+  // without going back to a typed literal per leg, which is the mistake this
+  // is replacing.
   const loopCx = (lx0 + lx1) / 2, loopCz = (lz0 + lz1) / 2;
-  const facingIn = (bx: number, bz: number): [number, number, number] =>
-    // the bench's local +z is its front, so this is the yaw that points +z at
-    // the park's interior
-    [bx, bz, Math.atan2(loopCx - bx, loopCz - bz)];
+  // a leg running in z (fixed x, varying z, i.e. the two street/west legs):
+  // face along x only
+  const facingAcrossZLeg = (bx: number, bz: number): [number, number, number] =>
+    [bx, bz, Math.atan2(loopCx - bx, 0)];
+  // a leg running in x (fixed z, varying x, i.e. the two end legs): face
+  // along z only
+  const facingAcrossXLeg = (bx: number, bz: number): [number, number, number] =>
+    [bx, bz, Math.atan2(0, loopCz - bz)];
   const benchRun: [number, number, number][] = [];
   const clearOfGate = (z: number) => Math.abs(z - gateMid) > 2.6;
   const spaced = (from: number, to: number, step: number) => {
@@ -1045,12 +1068,12 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // showed it — eight in a park with a 110 m circuit. Both legs are stepped
   // over their own length now.
   for (const z of spaced(lz0 + 4.0, lz1 - 4.0, 9.2)) {
-    if (clearOfGate(z)) benchRun.push(facingIn(lx1 + PATH_W / 2 + 0.42, z));
-    benchRun.push(facingIn(lx0 - PATH_W / 2 - 0.42, z));
+    if (clearOfGate(z)) benchRun.push(facingAcrossZLeg(lx1 + PATH_W / 2 + 0.42, z));
+    benchRun.push(facingAcrossZLeg(lx0 - PATH_W / 2 - 0.42, z));
   }
   for (const x of spaced(lx0 + 4.5, lx1 - 4.5, 9.4)) {
-    benchRun.push(facingIn(x, lz0 - 1.05));
-    benchRun.push(facingIn(x, lz1 + 1.05));
+    benchRun.push(facingAcrossXLeg(x, lz0 - 1.05));
+    benchRun.push(facingAcrossXLeg(x, lz1 + 1.05));
   }
   for (const [bx, bz, yaw] of benchRun) {
     if (!clearOfFountain(bx, bz, yaw)) continue;      // it would stand in the fountain
