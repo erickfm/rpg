@@ -36,6 +36,27 @@ nothing like the cause. (GOTCHAS 54, 13.)
    claim and marks it for the desk to verify.
 4. Repeat. When `claim.sh` says the queue is empty, say so and stop.
 
+**BEFORE EACH CLAIM, PULL MAINLINE IN — YOUR WORKTREE IS A SNAPSHOT.**
+
+```sh
+git stash list >/dev/null; git merge --no-edit add-stick-and-city98   # tree must be clean first
+```
+
+Your worktree was cut when you started and **does not move**. Other builders
+land work the whole time you are running, and by your third item mainline can be
+hours ahead of what you are standing in.
+
+This is not hypothetical. One builder reported two items **BLOCKED** because
+"`fp.ts:9` defines `AABB` as `{minX, maxX, minZ, maxZ}` — colliders have no
+height, so there is nothing to stand on." It proved it properly, by standing on
+six cars rather than by grepping, and it was **right about its own checkout and
+wrong about the world**: collider height had landed hours earlier. It refused to
+run the 20+ "clean" roof-exit runs the item asked for, on the grounds they would
+have passed by measuring nothing — which was exactly the right instinct, spent
+on a problem that did not exist.
+
+Do it **between** items, with a clean tree — never mid-item.
+
 **If your item runs long, run `./scripts/claim.sh --touch <your-name>` after each
 commit.** Claiming now reaps any item held for 150 minutes without a touch —
 twice today an item froze because the agent holding it had died, for 85 and 136
