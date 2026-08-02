@@ -119,6 +119,20 @@ rather than changing the feel of every pavement in the world silently.
 | `npm run test` | 17/17 |
 | `node scripts/bugsweep.mjs` | **0 STATION MISS, 0 COVERAGE**, 96 shots, no new console errors |
 
+### Why no interior, stair or kerb can be affected — structurally, not by sampling
+
+`standTop()` only ever returns non-null for a collider that carries a `maxY`, and
+**the only code in the world that sets one is `crosstown.ts` (~lines 800–1006):
+the pickup's 5 tops and the sedan's 2.** `scripts/probes/w50-tops.mjs` lists all
+seven and finds nothing else. So `heldByTop` is false in every interior, on every
+stair and at every kerb, and the new block cannot execute there at all.
+
+That is worth more than the walk I tried to get out of it: `scripts/interiors-walk.mjs`
+ran ~15 minutes against dev and then died on browser teardown — **0 FAIL and 0 MISS
+lines before it went**, so it found nothing, but it did not finish either. The
+structural argument above covers what it would have measured; `jump-walk.mjs`
+independently walks the stairs, the half landing and the upstairs storey and passes.
+
 ### The world did not move
 
 `fp` is legitimate here and only here: **this change adds no geometry at all**, so
