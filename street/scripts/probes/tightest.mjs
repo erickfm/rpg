@@ -2,7 +2,7 @@
 // as 0.72 m and never said where, which makes it unroutable. Locate it, and name
 // what forms it.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });

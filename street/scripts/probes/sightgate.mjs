@@ -4,7 +4,7 @@
 // classify each station by whether the segment station->spot crosses a collider
 // AABB. Sight-gating means: clear stations offer the prompt, blocked ones do not.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:800,height:600}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});

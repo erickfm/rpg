@@ -5,7 +5,7 @@
 // 0.72*s. If they are NOT scaled, 0.803 stands 8.3 cm above a 0.72 arch line and
 // the defect H fixed for the street fleet is live on the lot's stock.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });

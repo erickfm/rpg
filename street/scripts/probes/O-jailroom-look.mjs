@@ -4,8 +4,8 @@
 //
 //   SHOT_URL=http://localhost:4297/ node scripts/O-jailroom-look.mjs
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
-import { reportWorld } from './lib/which-world.mjs';
+import { afterFrames } from '../lib/frames.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('aim it: SHOT_URL=http://localhost:PORT/'); process.exit(2); }

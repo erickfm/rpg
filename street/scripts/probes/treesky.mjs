@@ -3,7 +3,7 @@
 // worst went 100% -> 37%. The open-sky control is what makes the number mean
 // something: if a clear patch does not read ~100%, the classifier is wrong.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 import fs from 'fs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:800,height:600}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});

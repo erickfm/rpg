@@ -2,8 +2,8 @@
 // Investigation, not an assertion (GOTCHAS 24) — it is what the jail's site
 // proposal is looking at. Aim it: SHOT_URL=http://localhost:4297/
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
-import { reportWorld } from './lib/which-world.mjs';
+import { afterFrames } from '../lib/frames.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('aim it: SHOT_URL=http://localhost:PORT/'); process.exit(2); }

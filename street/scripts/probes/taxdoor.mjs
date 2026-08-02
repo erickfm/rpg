@@ -2,8 +2,8 @@
 // Both are on the STREET: the opening you walk through vs the door painted on
 // the shopfront. Stand outside and compare them.
 import { chromium } from 'playwright';
-import { setClock } from './lib/clock.mjs';
-import { afterFrames } from './lib/frames.mjs';
+import { setClock } from '../lib/clock.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});

@@ -17,8 +17,8 @@
 // the EXACT enumeration of all 22^3 = 10,648 stop combinations". `__slots.rtp()`
 // recomputes it; if it disagrees with the row, the row is stale.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { goto, settle } from './lib/reachable.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { goto, settle } from '../lib/reachable.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
 const b = await chromium.launch();

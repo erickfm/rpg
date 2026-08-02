@@ -5,7 +5,7 @@
 // Spots are read from the live registry, not typed in, so this stays correct if
 // the shop is re-priced or re-laid-out.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 700 } });

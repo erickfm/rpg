@@ -2,7 +2,7 @@
 // the toe point" is a thing you can SEE rather than squint at.
 // Usage: SHOT_URL=... node scripts/feet-zoom.mjs
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 await page.goto(process.env.SHOT_URL, { waitUntil: 'networkidle' });

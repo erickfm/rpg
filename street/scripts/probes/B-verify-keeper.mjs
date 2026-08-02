@@ -16,8 +16,8 @@
 // So: stand where a customer stands, at the counter, and look at him. A third
 // filter would just be a third population.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { goto, settle } from './lib/reachable.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { goto, settle } from '../lib/reachable.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
 const b = await chromium.launch();

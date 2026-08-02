@@ -1,7 +1,7 @@
 // Re-verify seam pattern #1 after builder A's density fix. Same instances,
 // same kind of cameras as notes/seam-audit.md, against the current world.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const look = (x, z, tx, tz) => Math.atan2(tx - x, -(tz - z));
 const S = [
   // A's own tightest test: BODEGA wing | FLOWERS | CHOP SUEY, one frame

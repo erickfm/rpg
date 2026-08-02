@@ -7,9 +7,9 @@
 //
 // exit 0 measured and fine · 1 measured and WRONG · 2 usage · 3 nothing measured
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
-import { reportWorld } from './lib/which-world.mjs';
-import { modes } from './lib/modes.mjs';
+import { afterFrames } from '../lib/frames.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { modes } from '../lib/modes.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('aim it: SHOT_URL=http://localhost:PORT/ (GOTCHAS 48)'); process.exit(2); }

@@ -1,6 +1,6 @@
 // Looking at the room I just delivered, from inside, the way a player does.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1000, height: 620 } });

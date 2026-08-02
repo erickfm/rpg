@@ -2,7 +2,7 @@
 // a parked car, eye level, no pitch tricks.
 // Usage: SHOT_URL=... node scripts/kerb.mjs [tag]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const tag = process.argv[2] ?? 'now';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });

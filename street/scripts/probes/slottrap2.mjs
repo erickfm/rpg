@@ -2,7 +2,7 @@
 // the same as VISIBLE, and "can you leave" is a question about moving, not about
 // an element. Check visibility and then try to walk away.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1000,height:640}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'domcontentloaded'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:20000});

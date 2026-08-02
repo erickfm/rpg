@@ -1,7 +1,7 @@
 // The first thing a player sees, and the two objects nobody has looked at up
 // close: the gate sequence, the fountain, the memorial.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1000, height: 620 } });

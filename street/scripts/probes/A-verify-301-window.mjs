@@ -8,7 +8,7 @@
 // STATION: spawned into 301 on the third floor via SPAWN, then walked to the
 // window wall — the same place the user is standing when he photographs it.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
 const b = await chromium.launch();

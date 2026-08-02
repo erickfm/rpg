@@ -15,7 +15,7 @@
 //
 //   SHOT_URL=http://localhost:4182/ node scripts/seams4.mjs
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const look = (x, z, tx, tz) => Math.atan2(tx - x, -(tz - z));
 const DOWN = -1.3;
 

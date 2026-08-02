@@ -22,7 +22,7 @@
 //
 //   SHOT_URL=http://localhost:4184/ node scripts/support.mjs
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 
 const EPS = 0.05;

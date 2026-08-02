@@ -1,7 +1,7 @@
 // My own oldest CONFIRMED rows rest on COUNTS owned by other agents' files.
 // Re-measure each against what I originally recorded.
 import { chromium } from 'playwright';
-import { setClock } from './lib/clock.mjs';
+import { setClock } from '../lib/clock.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});

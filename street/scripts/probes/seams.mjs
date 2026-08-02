@@ -7,7 +7,7 @@
 // fwd = (sin yaw, 0, -cos yaw), so to look from (x,z) at (tx,tz):
 //   yaw = atan2(tx - x, -(tz - z))
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const look = (x, z, tx, tz) => Math.atan2(tx - x, -(tz - z));

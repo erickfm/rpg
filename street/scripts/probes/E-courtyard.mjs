@@ -1,7 +1,7 @@
 // Builder E: look at the library courtyard from the angles that matter.
 // Shots are for LOOKING (GOTCHAS §1) — walking is proved by E-walk.mjs.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';

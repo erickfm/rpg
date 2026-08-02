@@ -1,6 +1,6 @@
 // Close-up verification shots: tree pit, pickup bed, dumpster + bags.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';

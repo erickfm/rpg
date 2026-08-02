@@ -17,7 +17,7 @@
 // rather than defaulted, because a default port is somebody else's server
 // (GOTCHAS 26, 48).
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) {

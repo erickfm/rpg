@@ -8,7 +8,7 @@
 // the dead ground behind the park one day. The relief is far from the boundary
 // by design; this is the check that says so rather than the reasoning.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage();

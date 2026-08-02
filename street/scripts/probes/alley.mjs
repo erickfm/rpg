@@ -1,7 +1,7 @@
 // The alley: both side walls, the rear wall, the dumpster and the cat.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { setClock, setNight } from './lib/clock.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { setClock, setNight } from '../lib/clock.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });

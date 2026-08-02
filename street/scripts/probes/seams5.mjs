@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const look = (x, z, tx, tz) => Math.atan2(tx - x, -(tz - z));
 // blade at (44.35, 7.4, -96.72), faces at x 44.22 / 44.48, 1.5w x 6.2h
 // marquee at (51.225, 25.2, -95.0), faces at x 50.94 / 51.52, 8.8w x 7.0h

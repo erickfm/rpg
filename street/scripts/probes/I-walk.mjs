@@ -17,8 +17,8 @@
 //
 // Usage: SHOT_URL=http://127.0.0.1:4191/ node scripts/I-walk.mjs [--night]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { flags } from './lib/args.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { flags } from '../lib/args.mjs';
 
 const ARGS = flags(['--night']);
 const URL = process.env.SHOT_URL ?? 'http://127.0.0.1:4191/';

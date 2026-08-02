@@ -10,7 +10,7 @@
 // the source, not from memory). The only hand-typed number is how far out of
 // the facade the pavement is, and that comes from ROAD_HALF.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
 const b = await chromium.launch();

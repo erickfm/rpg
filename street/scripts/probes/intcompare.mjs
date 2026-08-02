@@ -3,7 +3,7 @@
 // measured one at a time. Same relative station in each room: 1.5 m in from the
 // front wall, on the room centreline, looking at the back wall, same pitch.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const R = [
   { id: 'diner',  cx: 440, hd: 3.5,  at: -2.6 },
   { id: 'burger', cx: 520, hd: 4.25, at: -3.6 },

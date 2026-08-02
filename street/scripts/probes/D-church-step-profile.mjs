@@ -6,7 +6,7 @@
 // rather than a verdict — a pass/fail cannot tell a strict threshold from a
 // cliff. An investigation: it prints, it does not assert.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
 const b = await chromium.launch();

@@ -19,7 +19,7 @@
 // has never been shown to fail is one you will argue with.
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 mkdirSync('shots/E-soffit', { recursive: true });

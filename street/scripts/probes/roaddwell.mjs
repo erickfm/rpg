@@ -3,7 +3,7 @@
 // were happening. That reading is only safe if nobody is stranded there. So:
 // per walker, how long in the carriageway, and were they MOVING while in it?
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const SECS=Number(process.env.SECS||240), HZ=4;
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});

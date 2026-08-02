@@ -74,8 +74,8 @@
 // blockers, or the re-entry hysteresis suppressing a prompt that should be
 // there.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { installSee } from './lib/D-see.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { installSee } from '../lib/D-see.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
 const RADII = [1.2, 1.0, 1.5];   // inside r + REACH_MARGIN for every spot

@@ -26,7 +26,7 @@
 //
 //   node scripts/A-bed-corner-pick.mjs [port] [loads]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const ARG = process.argv[2];
 const URL = process.env.SHOT_URL

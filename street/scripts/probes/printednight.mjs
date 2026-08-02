@@ -2,7 +2,7 @@
 // measuring the SIGN's pixels against the WALL beside it — a sign that darkens
 // with its wall is lit by the world; one that holds its brightness is not.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 import fs from 'fs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});

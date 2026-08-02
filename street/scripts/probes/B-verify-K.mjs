@@ -14,8 +14,8 @@
 // of thing that works when you press the key during the fade and fails when the
 // key was already down — and nobody tests the second case by hand.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { goto, settle } from './lib/reachable.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { goto, settle } from '../lib/reachable.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
 const b = await chromium.launch();

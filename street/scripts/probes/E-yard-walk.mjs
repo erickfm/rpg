@@ -8,7 +8,7 @@
 //   world x 9.6  = the church facade, at the top of the steps
 //   world z -86 … -68 = the 18 m frontage; the doors are on z = -79.5
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const browser = await chromium.launch();

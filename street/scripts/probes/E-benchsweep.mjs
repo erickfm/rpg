@@ -22,7 +22,7 @@
 //           a seat pose yaw is the CAMERA's, so the sitter looks along
 //           (sin yaw, -cos yaw), not the mesh's (sin yaw, cos yaw).
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage();

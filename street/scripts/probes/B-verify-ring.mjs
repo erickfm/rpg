@@ -13,8 +13,8 @@
 // SMALLEST x reached — because the failure mode is not "cannot get there", it
 // is "gets there by cutting the corner through the road".
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { goto, settle } from './lib/reachable.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { goto, settle } from '../lib/reachable.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
 const b = await chromium.launch();

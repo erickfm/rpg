@@ -10,7 +10,7 @@
 // the block whose mouldings are a different material from the band they sit
 // on, and this reads it out of the LIVE world rather than off the source.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
 const b = await chromium.launch();

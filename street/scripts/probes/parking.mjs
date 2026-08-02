@@ -7,8 +7,8 @@
 //
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/parking.mjs [probe|dist|shots|all]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { flags } from './lib/args.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { flags } from '../lib/args.mjs';
 
 // An unrecognised mode matched no branch, ran nothing and exited 0 — the
 // same shape as an ignored flag, and `lib/args.mjs` has had `opts.modes`

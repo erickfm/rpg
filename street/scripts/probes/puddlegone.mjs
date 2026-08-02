@@ -2,7 +2,7 @@
 // kept. Verify BOTH - the water is gone AND the wet look still outlasts the rain,
 // because removing a feature is only safe if what it was entangled with survives.
 import { chromium } from 'playwright';
-import { setClock } from './lib/clock.mjs';
+import { setClock } from '../lib/clock.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});

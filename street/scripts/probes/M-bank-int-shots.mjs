@@ -8,8 +8,8 @@
 // publishes the resolved centre and size — so it cannot be aimed at a stale
 // offset the way five hand-typed room coordinates in this project have been.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { setClock } from './lib/clock.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { setClock } from '../lib/clock.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4204/';
 const b = await chromium.launch();

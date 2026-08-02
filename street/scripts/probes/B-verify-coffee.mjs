@@ -8,8 +8,8 @@
 // to be from the DOOR, because occlusion is what the move was for — a shot
 // taken from beside the object would confirm the detail and miss the point.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { goto, settle } from './lib/reachable.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { goto, settle } from '../lib/reachable.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
 const b = await chromium.launch();

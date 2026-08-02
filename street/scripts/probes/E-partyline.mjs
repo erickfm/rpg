@@ -11,7 +11,7 @@
 // come out of one loop over s. So this checks both, by measurement, rather
 // than trusting that the fix for the end in the screenshot did the other.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage();

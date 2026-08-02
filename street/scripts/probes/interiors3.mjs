@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 // diner: cx=440, cz=0, W=8.6 D=7.0 -> hd=3.5, T=0.18, door at local x=-2.6 w=1.15
 // way-out spot = (cx-2.6, hd-0.55) = (437.4, 2.95); arrive = (437.4, 2.35)
 // outside blocker spans z = hd+T .. hd+T+0.18 = 3.68 .. 3.86

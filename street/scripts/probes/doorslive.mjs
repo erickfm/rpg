@@ -8,7 +8,7 @@
 // For each door spot, sample over time WITH the movers in and ask: is there
 // still at least one standable point inside the trigger?
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });

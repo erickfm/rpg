@@ -15,7 +15,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/feet.mjs [personIndex]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 
 // GOTCHAS 34, THE OTHER WAY UP. That rule is about an argument that makes a

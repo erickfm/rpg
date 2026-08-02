@@ -13,8 +13,8 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/I-rowshots.mjs [--night]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { flags } from './lib/args.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { flags } from '../lib/args.mjs';
 
 const ARGS = flags(['--night']);
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';

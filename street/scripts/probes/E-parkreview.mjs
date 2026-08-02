@@ -3,7 +3,7 @@
 // the road. Plus a dry midday pass, because a tone that only works wet is not
 // fixed.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1100, height: 640 } });

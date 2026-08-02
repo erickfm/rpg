@@ -4,7 +4,7 @@
 // The observable state is THE PROMPT, not eye height - pos()[1] stays 1.62 when
 // you sit, which is the trap the row records.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:900,height:560}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'domcontentloaded'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:20000});

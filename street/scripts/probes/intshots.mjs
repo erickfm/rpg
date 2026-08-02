@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const look=(x,z,tx,tz)=>Math.atan2(tx-x,-(tz-z));
 // diner slab0 cx=440 cz=0 (8.6x7.0 h3.0) · burger slab1 cx=520 cz=0 (11.0x8.5 h3.2)
 const S=[

@@ -5,7 +5,7 @@
 // kerb (5.0) and past the facade collider (6.7). Re-run with the band clipped
 // to the actual pavement and compare.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });

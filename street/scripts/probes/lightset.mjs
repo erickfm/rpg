@@ -7,7 +7,7 @@
 // Slabs are assigned by sorted filename since 0b6d6630:
 //   burger 0 · casino 1 · diner 2 · hotel 3 · pawn 4 · tax 5 · thrift 6
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const R = [
   { id: '0-burger', cx: 440, hd: 4.25 },
   { id: '1-casino', cx: 520, hd: 4.5  },

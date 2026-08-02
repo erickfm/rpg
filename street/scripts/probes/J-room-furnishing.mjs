@@ -23,8 +23,8 @@
 // GOTCHAS §29: this is the EMPTY world. Citizens and the player are excluded,
 // and a room's keeper is one sprite either way.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { modes } from './lib/modes.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { modes } from '../lib/modes.mjs';
 
 const mode = modes('J-room-furnishing', ['probe', 'all']);
 void mode;

@@ -1,7 +1,7 @@
 // The computed schedule, checked against the BUILT WORLD hour by hour.
 // Arithmetic that agrees with the source proves the source, not the build.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const HERMIT_GAP=6;
 const raw=(h)=>{ const d=((h%24)+24)%24;
   const c=d>=12&&d<18?0.16:d>=8&&d<22?0.06:0.015;

@@ -3,7 +3,7 @@
 // density, light, way out) for every interior region, then walks the entry and
 // exit of each to test the two things a builder cannot see from inside.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const REGIONS = [
   { id: 'apartment (pre-kit)', x0: 100, x1: 230 },

@@ -10,7 +10,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/walkup.mjs [outdir]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';

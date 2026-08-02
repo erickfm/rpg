@@ -1,8 +1,8 @@
 // THE BANK FACADE, from the pavement opposite — where the user shot it.
 // Day and night, because a facade that only works in one light is half done.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { setClock } from './lib/clock.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { setClock } from '../lib/clock.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
 const b = await chromium.launch();

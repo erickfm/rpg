@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const look=(x,z,tx,tz)=>Math.atan2(tx-x,-(tz-z));
 const S=[
   // blade signs, both directions along the side street

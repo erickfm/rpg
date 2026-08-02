@@ -6,7 +6,7 @@
 // So: plot SPAN against the grade each surface carries. A cliff shows as two
 // populations either side of 6; a taper shows as a slope between 6 and 12.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});

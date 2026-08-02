@@ -5,7 +5,7 @@
 //
 //   SHOT_URL=http://localhost:4181/ node scripts/O-jail-walk-fix.mjs
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('aim it: SHOT_URL=http://localhost:PORT/'); process.exit(2); }

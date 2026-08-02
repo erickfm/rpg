@@ -3,7 +3,7 @@
 // Usage: npm run build && npx vite preview --port 4177 &  then
 //   node scripts/shots.mjs [outDir]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';

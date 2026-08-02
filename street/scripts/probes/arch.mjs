@@ -9,7 +9,7 @@
 // Cars are found by shape, not by remembered coordinates. Fresh build, because
 // a stale dist has already fooled one probe on this project.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 800 } });

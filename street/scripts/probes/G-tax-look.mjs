@@ -4,7 +4,7 @@
 // "less, arranged, aligned" is a judgement, and the only way to make it is to
 // stand in the room. Structure is proved by G-rooms-walk.mjs, not by these.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4186/';
 const EYE = 0.0;                       // warp's gy is the GROUND; eye height is fixed

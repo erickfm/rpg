@@ -1,8 +1,8 @@
 // The front door from both sides, one after the other — the only way to see
 // whether it is the same door. Report finding 1.
 import { chromium } from 'playwright';
-import { setClock } from './lib/clock.mjs';
-import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from '../lib/clock.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const out = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'shots/lobbydoor';

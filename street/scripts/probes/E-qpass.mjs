@@ -26,7 +26,7 @@
 // and say which station it was taken from.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const OUT = 'shots/E-qpass';

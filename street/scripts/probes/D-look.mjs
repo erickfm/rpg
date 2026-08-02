@@ -8,8 +8,8 @@
 // A view is `name:x,z,yaw[,pitch][,gy]` — yaw and pitch in radians, world
 // metres. `--list` prints the built-in ones.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { setClock } from './lib/clock.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { setClock } from '../lib/clock.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
 const OUT = process.env.SHOT_DIR ?? 'shots';

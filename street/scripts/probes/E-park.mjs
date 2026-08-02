@@ -1,6 +1,6 @@
 // Builder E: the park. Site is x -14…-7, z -98…-68; gate opening z -87.2…-78.8.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 mkdirSync('shots/E-park', { recursive: true });
 const b = await chromium.launch();

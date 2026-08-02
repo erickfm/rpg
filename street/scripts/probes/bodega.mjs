@@ -5,7 +5,7 @@
 // So sweep a 2D patch of pavement instead of a line, and map the trigger.
 // Visibility-checked prompt read, lifted from doorsweep.mjs.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 700 } });

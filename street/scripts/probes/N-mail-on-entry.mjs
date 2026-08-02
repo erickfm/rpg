@@ -15,8 +15,8 @@
 //
 // Usage: SHOT_URL=http://localhost:<a port you own>/ node scripts/N-mail-on-entry.mjs
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { flags } from './lib/args.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { flags } from '../lib/args.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
 const ARGS = flags(['--selftest']);

@@ -6,7 +6,7 @@
 // mapping is right and TAX is a real finding. If both pairs behave the same,
 // my mapping is inverted and the finding dissolves.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 700 } });
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });

@@ -13,9 +13,9 @@
 //
 // Usage: SHOT_URL=http://localhost:PORT/ node scripts/pool-census.mjs
 import { chromium } from 'playwright';
-import { goto } from './lib/reachable.mjs';
-import { reportWorld } from './lib/which-world.mjs';
-import { setNight } from './lib/clock.mjs';
+import { goto } from '../lib/reachable.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { setNight } from '../lib/clock.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 const browser = await chromium.launch();

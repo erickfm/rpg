@@ -1,7 +1,7 @@
 // Builder E: evidence for the SEVENS roof sign report. The sign lives in
 // ct/street.ts (D's), so this LOOKS and measures, it does not change anything.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 mkdirSync('shots/E-sign', { recursive: true });
 const b = await chromium.launch();

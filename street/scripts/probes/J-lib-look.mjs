@@ -3,8 +3,8 @@
 // a check. It walks in the way a player does and stands where the user's three
 // 2026-07-25 22:0x screenshots were taken from.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { modes } from './lib/modes.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { modes } from '../lib/modes.mjs';
 
 const mode = modes('J-lib-look', ['shots', 'all']);
 void mode;

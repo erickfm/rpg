@@ -2,7 +2,7 @@
 // Also: is there an office at the back? Find building-scale structures inside
 // the lot's own bounds rather than assuming one.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 780 } });

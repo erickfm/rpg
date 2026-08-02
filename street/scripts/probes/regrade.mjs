@@ -14,7 +14,7 @@
 // collider array the movement code itself tests. A warp can put you anywhere,
 // including inside a building. Walking cannot.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 750 } });

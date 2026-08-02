@@ -8,7 +8,7 @@
 // Doors are found by walking first (no coordinate typed in), then each one's
 // own z span is swept across the full pavement depth.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });

@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const look=(x,z,tx,tz)=>Math.atan2(tx-x,-(tz-z));
 const S=[
   ['T1-side',   604.6, -2.42, look(604.6,-2.42, 602.2,-2.42), 0, 0.05],

@@ -8,7 +8,7 @@
 // that overlap in ALL THREE axes: two things at the same x/z but different
 // heights are a bin under a sign, which is fine.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage();

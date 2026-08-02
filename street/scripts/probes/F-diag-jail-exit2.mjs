@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 
 const URL = process.env.SHOT_URL || 'http://localhost:4184/';
 const b = await chromium.launch();

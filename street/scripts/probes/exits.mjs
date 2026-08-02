@@ -4,7 +4,7 @@
 // check where you actually end up — is it on the walk, is it clear of the way-in
 // trigger, and can you move once you are there.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 // slab centres: diner 440, burger 520, thrift 600.  hd = d/2
 const ROOMS = [
   { id: 'DINER',       cx: 440, d: 7.0, at: -2.6, inX: -6.55, inZ: 9.6,     inR: 1.05 },

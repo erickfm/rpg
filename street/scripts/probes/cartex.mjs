@@ -6,7 +6,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/cartex.mjs
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });

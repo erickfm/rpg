@@ -3,7 +3,7 @@
 // on one frame tests neither - a CRT showing green-on-black is darker than white
 // plastic at any hour. The test is the SAME surface, day against night.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 import fs from 'fs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1000,height:640}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});

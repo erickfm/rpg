@@ -7,7 +7,7 @@
 // region east of the shopfront line that contains cars, and the cars are found
 // by shape.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 780 } });

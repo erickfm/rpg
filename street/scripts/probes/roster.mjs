@@ -3,7 +3,7 @@
 // user, so re-running updates them in place.
 //   SHOT_URL=http://localhost:4185/ node scripts/roster.mjs
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });

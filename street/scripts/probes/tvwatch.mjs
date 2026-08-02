@@ -3,7 +3,7 @@
 // (197.90, -15.58), prompt becomes [E] stand up. Then the content must not be
 // a loop - segments should cut and not immediately repeat.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 import fs from 'fs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1000,height:640}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});

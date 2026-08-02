@@ -4,7 +4,7 @@
 //   301  "much more diversity"        -> scene.userData.tv.fmt, ten LAYOUTS not
 //                                        twenty palettes of one layout
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1000,height:640}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});

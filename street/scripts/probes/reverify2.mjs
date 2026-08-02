@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const look=(x,z,tx,tz)=>Math.atan2(tx-x,-(tz-z));
 const S=[
   ['W1-bodega-arris',   6.0, -99.0, look(6.0,-99.0, 9,-96),      0, 0.35],

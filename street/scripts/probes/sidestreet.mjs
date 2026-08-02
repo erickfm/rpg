@@ -2,7 +2,7 @@
 // way. Both make measurable claims - gaps that GROW with x, and every walker
 // visiting several distinct stretches.
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
+import { afterFrames } from '../lib/frames.mjs';
 const SECS=Number(process.env.SECS||150), HZ=2;
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});

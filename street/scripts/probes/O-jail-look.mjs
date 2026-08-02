@@ -4,9 +4,9 @@
 //
 //   SHOT_URL=http://localhost:4297/ node scripts/O-jail-look.mjs [day|night|all]
 import { chromium } from 'playwright';
-import { afterFrames } from './lib/frames.mjs';
-import { reportWorld } from './lib/which-world.mjs';
-import { modes } from './lib/modes.mjs';
+import { afterFrames } from '../lib/frames.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { modes } from '../lib/modes.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('aim it: SHOT_URL=http://localhost:PORT/ (GOTCHAS 48)'); process.exit(2); }

@@ -2,8 +2,8 @@
 //
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/truck.mjs [shots|fleet]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { flags } from './lib/args.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { flags } from '../lib/args.mjs';
 // GOTCHAS 34 SHAPE ONE, and no-silent-pass caught it in this file: an unknown
 // mode used to fall through to the default and exit 0. Ask for `fleet`, get the
 // single-truck shots instead, with nothing said. This produces no assertions —

@@ -8,7 +8,7 @@
 //   axis 'z'  frontage runs along z, facade at x = facePos, door z = doorWorld
 //   axis 'x'  frontage runs along x, facade at z = facePos, door x = doorWorld
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });

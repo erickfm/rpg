@@ -9,8 +9,8 @@
 // Steep pitch on purpose. The complaint is about the ground at the player's
 // feet, which is the one thing an eye-level shot never shows.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { goto } from './lib/reachable.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { goto } from '../lib/reachable.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4279/';
 const TAG = process.env.TAG ?? 'kl';

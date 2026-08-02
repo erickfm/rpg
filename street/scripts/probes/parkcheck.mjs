@@ -3,7 +3,7 @@
 // the original: count light sources inside the park bbox from the scene graph,
 // then look at it at night.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const P = { x0: -21, x1: -7, z0: -96, z1: -60 };
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 800 } });

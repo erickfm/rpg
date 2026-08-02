@@ -3,7 +3,7 @@
 // If it varies between loads it is a lottery and any room can vanish; if it is
 // stable, it is deterministic per build and only the casino is affected today.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 const b = await chromium.launch();
 const seen = [];
 for (let i = 0; i < 6; i++) {

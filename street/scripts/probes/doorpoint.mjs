@@ -6,7 +6,7 @@
 // on either axis. __ct.doors() publishes {x, z, nx, nz} per building, so a 2D
 // distance answers every case with no axis convention to get wrong.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });

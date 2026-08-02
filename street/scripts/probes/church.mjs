@@ -7,7 +7,7 @@
 // scan aimed at slabs that actually exist is both faster and honest about where
 // it looked.
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1100, height: 750 } });
