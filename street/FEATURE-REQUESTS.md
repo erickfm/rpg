@@ -2418,3 +2418,12 @@ to one side.
   they are in the actual game. i dont want to break immersion."* Item 0c removed the
   panel CHROME; this removes the panel. The ATM is the template — slots, blackjack and
   the library PC follow the same pattern once it works.
+
+- **"also not all car and object collidable boxes are consistent. some cars have full
+  height others are aligned with the vehicle. i love the car with the trailer thing btw
+  keep that tysm"** (2026-08-02) → **routed to a builder as queue item 87.**
+  Correct, and a direct consequence of staging: the collider-height work deliberately
+  converted ONE object (the pickup) and later the sedan+trailer, leaving every other
+  vehicle as a full-height wall. The staging was right — it is why the change was safe —
+  but the half-converted state is now visible to the player. **The trailer is explicitly
+  KEEP: the user named it.**
