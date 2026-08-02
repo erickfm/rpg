@@ -2556,3 +2556,7 @@ to one side.
   reporting "42 of 109 masonry faces as wrong when none were", which biased it toward
   silence. **The cause:** a texture's repeat accepted as a default or typed by hand
   instead of derived from the face it lands on.
+
+- **"[screenshot] mug looks messed up"** (2026-08-02, the flat 301 windowsill)
+  → **routed as queue item 108.** Reads as a white blob on the sill — the handle does not
+  separate from the body at player distance, and it sits proud of the sill edge.
