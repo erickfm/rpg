@@ -2516,3 +2516,11 @@ to one side.
   terms, so the collision is waiting there too". It was. Not filed as a new item —
   splitting one job across two rows has already cost this session two duplicate-work
   incidents.
+
+- **"[screenshot] you can remove the craps table. too complicated. lets develop the
+  roulette table though. maybe a big wheel you can spin too would be fun"** (2026-08-02)
+  → **routed as items 101 (remove craps), 102 (develop roulette) and 103 (the big
+  wheel).** Note craps is referenced in **7 files** including `L-blackjack-reachable.mjs`
+  and `L-games-in-artifact.mjs`, so removal is not just deleting a table. Roulette
+  already has five walkable approaches (w15's work) — 102 builds the game on top of
+  that, and should use the diegetic framework from item 86 rather than a DOM panel.
