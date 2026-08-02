@@ -2661,3 +2661,12 @@ to one side.
   bezel was itself a user request — `ct/apartment.ts:2494` records *"give the tv a
   bezel"* and `:2507` a follow-up on its colour — so this is a third pass on it and the
   file already warns *"the bezel must frame the glow, not swallow it"*.
+
+- **"its fine if the diner seat isnt reachable from one side. just make sure geometries
+  allow for access"** (2026-08-02) → **a RULING on the item-85 trade-off, written into
+  item 126.** He accepts the new look-preference behaviour; the acceptance becomes
+  *reachable from somewhere*, not *reachable from everywhere*. Consequence the desk
+  flagged into the row: `seats-walk` stations the player at **yaw 0**, one fixed pose per
+  seat, so under this ruling it is asking the wrong question — some of the 12 lost seats
+  may be the check measuring something he has just said he does not care about. Suspect
+  the check before the world.
