@@ -2108,6 +2108,16 @@ Item 65 fixed the **overlay's scoring** by filtering on object identity. It did
 not separate the arrays, so every future consumer inherits the bug — three of
 the four above were found *after* that fix.
 
-**The test that distinguishes them is time, not shape.** A 0.5 × 0.5 m box is a
-citizen or a crate depending on nothing you can see in one frame. Read the
-collider twice, a second apart: geometry does not move.
+**Ask the world which is which — do NOT infer it.** `__ct.staticColliders()`
+exists for this.
+
+The desk's first advice here was *"read the collider twice, a second apart:
+geometry does not move"*, and a builder disproved it while migrating the
+instruments. **That idiom classifies by MOTION when the question is KIND, and
+citizens pause constantly** — a paused citizen scores as masonry. Worse, the
+hand-rolled versions compared different things: one matched index-by-index while
+others matched footprints, so any box with the same 4-tuple vouched for another.
+
+It was not hygiene either. `builtlane`'s UNFILTERED narrowest gap reads
+0.72–0.77 m, under its own 0.95 m trap line — a live false-failure path standing
+open, not a tidiness argument.
