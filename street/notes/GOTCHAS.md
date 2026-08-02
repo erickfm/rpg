@@ -1971,3 +1971,21 @@ polling entirely and wait for the notification"* about its own acceptance run �
 the exact pattern BUILDER-BRIEF §3 forbids, in a session whose brief warned
 about it in bold. Its work was committed and survived; only the proof was lost.
 **Commit early is what makes this recoverable.**
+
+## 68.
+
+**`CPU_THROTTLE=8` kills the headless browser in this sandbox** — software
+WebGL cannot keep up and the process dies, so a check "verified at x8" either
+was not, or was lucky. The desk wrote x8 into three separate acceptance
+criteria before a builder said plainly that it had substituted **x4 on a box at
+load 18-21, and named the substitution** rather than quietly running x2 and
+reporting the number the item asked for.
+
+**An acceptance criterion nobody can satisfy is worse than none**, because the
+only ways to "meet" it are luck or a quiet lie, and both read identically in a
+handoff. Ask for *the strongest throttle the machine sustains, reported*, and
+the number becomes evidence instead of a hurdle.
+
+The same builder is why this is known at all. **When you cannot meet a stated
+bar, say which bar you actually cleared.** Every builder here has been trusted
+because they did that.
