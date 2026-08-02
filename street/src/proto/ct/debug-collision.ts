@@ -40,10 +40,13 @@ import { trapAgainst } from './gap';
 // happens once a player actually turns the overlay on — closes that; the
 // fingerprint is IDENTICAL bit-for-bit with the overlay never toggled.
 
-/** Box height drawn for every collider. Colliders carry no Y at all —
- *  `FPRig.blocked()` (fp.ts) never tests one — a collider is solid at every
- *  height a player can stand at, full stop. So this is not a measurement of
- *  anything real; it is just tall enough to read as a wall rather than a curb. */
+/** Box height drawn for a collider with no `maxY` of its own — still most of
+ *  them: item 1 (BUILDER-BRIEF, notes/w13-collider-volume.md) made `AABB.maxY`
+ *  possible, but only ONE collider in the world sets it so far (the pickup's
+ *  bed floor). Every other box is still a wall at every height a player can
+ *  stand at, so this is still not a measurement of anything real for those —
+ *  just tall enough to read as a wall rather than a curb. A collider that DOES
+ *  carry `maxY` is drawn at its own real height instead, below. */
 const BOX_H = 2.4;
 
 /** A corridor under this reads red. Matches `ct/gap.ts`'s own `PASSABLE`
@@ -131,9 +134,14 @@ export class ColliderDebug {
       const c = colliders[i];
       const sx = Math.max(0.05, c.maxX - c.minX);
       const sz = Math.max(0.05, c.maxZ - c.minZ);
+      // A collider with a real `maxY` (item 1) is drawn at its OWN height
+      // above `floorY`, not the generic wall height — the whole point of
+      // giving one a top is that it stops being a wall at every height, and
+      // the debug view should say so rather than keep drawing it as one.
+      const h = c.maxY !== undefined ? Math.max(0.05, c.maxY) : BOX_H;
       const b = this.boxes[i];
-      b.position.set((c.minX + c.maxX) / 2, floorY + BOX_H / 2, (c.minZ + c.maxZ) / 2);
-      b.scale.set(sx, BOX_H, sz);
+      b.position.set((c.minX + c.maxX) / 2, floorY + h / 2, (c.minZ + c.maxZ) / 2);
+      b.scale.set(sx, h, sz);
       b.material = trapAgainst(c, colliders) ? trapMat : okMat;
     }
     // the player's own capsule. blocked() (fp.ts) expands every collider by

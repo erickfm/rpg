@@ -10,6 +10,41 @@ import { pixTex, dither } from './paint';
 export const CAR_COLORS = ['#7a8a5c', '#8a5a5a', '#5a6a8a', '#8a825a', '#6a5a7a', '#4a5a52'];
 export type CarKind = 'sedan' | 'hatch' | 'pickup' | 'van';
 
+// Body length + rear wheel offset per kind, in car-local metres (front is
+// -z). Hoisted out of `makeCar` and exported so `PICKUP_BED` below — and any
+// future caller that needs a real vehicle dimension — reads the ONE table
+// rather than a second hand-typed copy of `4.9`.
+export const CAR_SPEC: Record<CarKind, { len: number; wheelZ: number }> = {
+  sedan: { len: 4.5, wheelZ: 1.45 },
+  hatch: { len: 3.8, wheelZ: 1.2 },
+  pickup: { len: 4.9, wheelZ: 1.65 },
+  van: { len: 4.6, wheelZ: 1.5 },
+};
+
+/** The pickup's open bed, in the vehicle's own LOCAL frame (front is -z).
+ *  Exported so the world's collider system can build a standable-top box
+ *  from the SAME numbers the mesh below uses, rather than a second hand-typed
+ *  copy that could drift from it (BUILDER-BRIEF §8: derive, never retype).
+ *  `z0`/`gateT`/`halfW`/`floorY` mirror `BED_Z0`, `GATE_T`, `HW` and
+ *  `FLOOR_T` in the pickup branch of `makeCar`, which now READ these fields
+ *  rather than restate them; `half` mirrors `CAR_SPEC.pickup.len / 2`.
+ *
+ *  `floorY` (0.50 m) is the one flat surface on the whole fleet UNDER the
+ *  jump's own apex (~0.57 m from flat ground — `fp.ts`'s `vy = 4.0` against
+ *  14 m/s² of gravity). Every other flat top in the fleet is taller: the
+ *  door line (BELT 0.84), the hoods (0.94), the roofs (1.4-1.8). That is why
+ *  the bed floor, not the hood or the roof, is the one surface this project
+ *  made standable first — the others are real but are not reachable with the
+ *  jump as currently tuned, and re-tuning the jump is a separate change this
+ *  item does not make (see notes/w13-collider-volume.md). */
+export const PICKUP_BED = {
+  half: CAR_SPEC.pickup.len / 2,   // 2.45 — the mesh's own half-length
+  z0: 0.55,                        // BED_Z0 — bed front, behind the cab
+  gateT: 0.10,                     // GATE_T — tailgate thickness
+  halfW: 0.9,                      // HW — the tub's inner half-width
+  floorY: 0.50,                    // FLOOR_T — the floor's top surface
+};
+
 // ── DOORS ────────────────────────────────────────────────────────────────
 //
 // A door is an OUTLINE, not a line. What was drawn before was two 1-texel bars
@@ -702,12 +737,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   darkM.userData.noLight = true;
   const g = new THREE.Group();
 
-  const spec = {
-    sedan: { len: 4.5, wheelZ: 1.45 },
-    hatch: { len: 3.8, wheelZ: 1.2 },
-    pickup: { len: 4.9, wheelZ: 1.65 },
-    van: { len: 4.6, wheelZ: 1.5 },
-  }[kind];
+  const spec = CAR_SPEC[kind];
   const half = spec.len / 2;
 
   // ── the body slab: rocker to beltline ───────────────────────────────────
@@ -728,7 +758,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   // hood BURIED 0.05 m inside the slab and the greenhouse floating clear of it,
   // on every vehicle. Found by actually trying BELT = 0.94 and noticing the hood
   // apex did not move, which is also the blind spot scripts/carstate.mjs had.
-  const BED_Z0 = 0.55;                                  // bed front, behind the cab
+  const BED_Z0 = PICKUP_BED.z0;                         // bed front, behind the cab
   const ROCKER = 0.34, BELT = 0.84;                     // the slab's own extent
   const slabLen = kind === 'pickup' ? half + BED_Z0 : spec.len;
   const slabZ = kind === 'pickup' ? (BED_Z0 - half) / 2 : 0;
@@ -791,9 +821,9 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     //   skin       0.34 … 0.97 — the outer wall now spans rocker to rail, so
     //                     it carries the body side art the slab used to
     const RAIL_T = 0.97;
-    const FLOOR_T = 0.50;               // the floor's TOP surface
-    const WALL_T = 0.16, GATE_T = 0.10;
-    const HW = 0.9;                     // body half-width — the slab is 1.8 wide
+    const FLOOR_T = PICKUP_BED.floorY;  // the floor's TOP surface
+    const WALL_T = 0.16, GATE_T = PICKUP_BED.gateT;
+    const HW = PICKUP_BED.halfW;        // body half-width — the slab is 1.8 wide
     const SKIN_H = RAIL_T - ROCKER;     // 0.63 m of outer wall
     const wallLen = (half - GATE_T) - BED_Z0;
     const bedMidZ = BED_Z0 + wallLen / 2;
