@@ -516,10 +516,32 @@ for (room of rooms) {
   const onSpot = await p.evaluate(([x, z]) => {
     const R = 0.36;
     return window.__ct.colliders()
-      .filter((c) => x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R)
+      .filter((c) => {
+        // A TURNED collider (`AABB.rot`, fp.ts) keeps its min/max in ITS OWN
+        // frame, so the plain world-axis test below is asking about a box that
+        // is not there. Put the point in the collider's frame first — the same
+        // thing `fp.ts`'s `blocked()` does, and the reason this must match it
+        // is that the question here IS "would this stop me standing on the
+        // trigger". `rot` absent leaves the arithmetic exactly as it was.
+        //
+        // Nor is the collider's world AABB good enough as a stand-in: the
+        // bodega's chamfer is 45°, and its bounding box covers the whole corner
+        // wedge including the pavement the [E] spot stands on. Tested that way
+        // this check failed a door you can demonstrably walk to, stand on and
+        // open (scripts/probes/w24-bodega-door.mjs).
+        let qx = x, qz = z;
+        if (c.rot) {
+          const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+          const s = Math.sin(c.rot), k = Math.cos(c.rot);
+          const dx = x - cx, dz = z - cz;
+          qx = cx + dx * k - dz * s; qz = cz + dx * s + dz * k;
+        }
+        return qx > c.minX - R && qx < c.maxX + R && qz > c.minZ - R && qz < c.maxZ + R;
+      })
       .map((c) => ({
         w: +(c.maxX - c.minX).toFixed(2), d: +(c.maxZ - c.minZ).toFixed(2),
-        s: `x ${c.minX.toFixed(2)}..${c.maxX.toFixed(2)} z ${c.minZ.toFixed(2)}..${c.maxZ.toFixed(2)}`,
+        s: `x ${c.minX.toFixed(2)}..${c.maxX.toFixed(2)} z ${c.minZ.toFixed(2)}..${c.maxZ.toFixed(2)}`
+          + (c.rot ? ` rot ${c.rot.toFixed(3)}` : ''),
       }));
   }, [room.doorX, room.doorZ]);
   // What counts as "parked on the trigger" is a PROP. Two things are expected

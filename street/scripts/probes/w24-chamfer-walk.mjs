@@ -123,12 +123,25 @@ else fail(`expected exactly 1 rotated collider at the corner, found ${rotated.le
 // you are inside something, so "did the position change" IS fp.ts's own
 // collision predicate, not a re-implementation of it. Bisect on that.
 console.log('\n── 2a. boundary trace: the collision surface, to the millimetre ──');
-async function illegal(x, z) {
+async function shoved(x, z) {
   await warp(x, z, 0);
-  await p.waitForTimeout(90);            // 2-3 frames: enough to be pushed, far
-  const [nx, , nz] = await pos();        // short of unstick's 0.45 s lastGood jump
+  await p.waitForTimeout(130);           // several frames: enough to be pushed,
+  const [nx, , nz] = await pos();        // far short of unstick's 0.45 s jump
   return Math.hypot(nx - x, nz - z) > 1e-3;
 }
+// A "clear" verdict is CONFIRMED TWICE, an "inside" verdict taken first time.
+// The asymmetry is deliberate and it is not a loosening: `unstick` needs a
+// rendered frame to push you, so a frame that has not run yet looks exactly
+// like open ground — and a browser that has just loaded skips one. Measured:
+// on the built bundle the very first station of the trace, and only ever the
+// first, reported the surface 229 mm inside the wall where every other station
+// on the identical collider array reported 0.359. Re-asking cannot turn a solid
+// wall into a hole, but it does stop a dropped frame reporting one.
+async function illegal(x, z) {
+  if (await shoved(x, z)) return true;
+  return await shoved(x, z);
+}
+await shoved(A.x - 2, A.z - 2);          // warm up: get a frame on the board
 const surface = [];
 for (let a = 0.2; a <= FW - 0.15; a += 0.12) {
   let lo = 0.02, hi = 0.9;               // lo assumed inside, hi assumed clear
@@ -178,8 +191,14 @@ else fail(`${through.length} walk(s) ended INSIDE the collision surface`);
 
 // ── 3. red in the V overlay ────────────────────────────────────────────────
 console.log('\n── 3. trapAgainst (what the V overlay paints red) ──');
+// gap.ts is reached through the dev server's source graph, which a BUILT bundle
+// does not serve. Checks 3 and 3b then say SKIPPED and say so out loud — a
+// check that quietly turns into a pass when its subject is unreachable is worse
+// than one that is wrong (BUILDER-BRIEF §7). Everything else in this file works
+// against either.
 const red = await p.evaluate(async ([ax, az, bx, bz]) => {
-  const { trapAgainst } = await import('/src/proto/ct/gap.ts');
+  let trapAgainst;
+  try { ({ trapAgainst } = await import('/src/proto/ct/gap.ts')); } catch { return null; }
   const cols = window.__ct.colliders();
   const lo = { x: Math.min(ax, bx) - 0.6, z: Math.min(az, bz) - 0.6 };
   const hi = { x: Math.max(ax, bx) + 0.6, z: Math.max(az, bz) + 0.6 };
@@ -193,6 +212,9 @@ const red = await p.evaluate(async ([ax, az, bx, bz]) => {
   }
   return { atCorner: out, worldRed: cols.filter((c) => trapAgainst(c, cols) !== null).length, total: cols.length };
 }, [A.x, A.z, B.x, B.z]);
+const SRC = red !== null;
+if (!SRC) console.log('   SKIPPED — this is a BUILT bundle; gap.ts is not served as source here.');
+if (SRC) {
 console.log(`   red near the corner: ${red.atCorner.length}   red world-wide: ${red.worldRed} of ${red.total}`);
 for (const r of red.atCorner) console.log(`      ${JSON.stringify(r.c)}  gap ${r.w.toFixed(3)}`);
 // THE CHAMFER ITSELF is what the item is about: the turned box and the pier
@@ -200,12 +222,87 @@ for (const r of red.atCorner) console.log(`      ${JSON.stringify(r.c)}  gap ${r
 // 11.7 x 8 m slab spanning the whole frontage and reads red against props
 // metres away up the street — pre-existing, unrelated, and reported below
 // rather than quietly folded into a pass or a fail.
-const isChamfer = (c) => c.rot !== undefined || (c.minZ < -93 && c.minX > 8 && c.maxX > 18);
-const ownRed = red.atCorner.filter((r) => isChamfer(r.c));
+// The chamfer's two boxes, named PRECISELY. An earlier draft said "turned, or
+// far east and deep in z", which also matched the traffic pool: idle vehicles
+// are parked at x = 999 (ct/traffic.ts), so two of them sitting on top of each
+// other read as a corridor and this check failed on a taxi that was not out.
+// The pier is identified by the corner it closes on — B, from the bay itself.
+const isChamfer = (c) => c.rot !== undefined
+  || (Math.abs(c.minX - B.x) < 1e-9 && Math.abs(c.minZ - B.z) < 1e-9);
 const otherRed = red.atCorner.filter((r) => !isChamfer(r.c));
+// SAMPLED, NOT SNAPSHOTTED. `crosstown.ts` spreads the moving `vehicleBoxes`
+// into `colliders` and citizens carry boxes too, so a car or a pedestrian
+// passing forms a transient corridor against whatever it is beside — for one
+// frame, anywhere in the world. Measured on the CONTROL, the corner block north
+// of the cut, which this item does not touch: it reads red in 16 of 60 samples
+// against a 0.5 m box walking down the pavement 0.45 m off its face. A single
+// instant therefore cannot answer "is the chamfer red"; ten over two seconds
+// can. (scripts/probes/w24-chamfer-red-repeat.mjs is the long-run version.)
+// …AND IT IS ASKED OF THE STATIC WORLD. Citizens and vehicles carry collider
+// boxes in the SAME array, so "is this box red" has a moving answer: a walker
+// passing 0.45 m off a facade forms a textbook trap corridor against it for as
+// long as it takes to walk by. That is not a verdict on how the wall is built,
+// which is what item 36 is about. A collider counts here only if its footprint
+// is identical in two samples a second apart.
+const key = (c) => `${c.minX} ${c.maxX} ${c.minZ} ${c.maxZ} ${c.rot ?? 0}`;
+const snapA = await p.evaluate((k) => window.__ct.colliders().map(eval(`(${k})`)), key.toString());
+await p.waitForTimeout(1000);
+const snapB = await p.evaluate((k) => window.__ct.colliders().map(eval(`(${k})`)), key.toString());
+const stillKeys = snapA.filter((k) => snapB.includes(k));
+const ownRed = await p.evaluate(async ([keep, bx, bz, ks]) => {
+  const { trapAgainst } = await import('/src/proto/ct/gap.ts');
+  const kf = eval(`(${ks})`);
+  const set = new Set(keep);
+  const cols = window.__ct.colliders().filter((c) => set.has(kf(c)));
+  return cols.filter((c) => (c.rot !== undefined
+      || (Math.abs(c.minX - bx) < 1e-9 && Math.abs(c.minZ - bz) < 1e-9))
+    && trapAgainst(c, cols) !== null)
+    .map((c) => `${c.minX.toFixed(2)}..${c.maxX.toFixed(2)} x ${c.minZ.toFixed(2)}..${c.maxZ.toFixed(2)} rot=${c.rot ?? 0}`);
+}, [stillKeys, B.x, B.z, key.toString()]);
+console.log(`   static colliders: ${stillKeys.length} of ${snapA.length}`);
 if (ownRed.length === 0) pass('no red on the chamfer or the pier that closes it');
-else fail(`${ownRed.length} red box(es) ON the chamfer itself`);
+else fail(`${ownRed.length} red box(es) ON the chamfer: ${ownRed.join(' | ')}`);
 if (otherRed.length) console.log(`   NOTE ${otherRed.length} red box(es) near, but not part of, the corner — see the handoff note`);
+}
+
+// ── 3b. does gap.ts see the box's WORLD footprint, or its local extents? ───
+// The turned box's local maxX is 9.914 while its real east corner reaches
+// x = 10.0 — a 86 mm lie, and the difference between a 0.486 m corridor
+// (inside the trap band) and a 0.400 m one (outside it). Nothing in the world
+// currently sits in that 86 mm, so no red moves either way; this asks gap.ts
+// the question directly instead, by walking a probe box east past the corner
+// and finding where `corridor()` says the chamfer ends. Its own function, on
+// the live collider — not a re-implementation.
+console.log('\n── 3b. the east corner gap.ts measures the chamfer to ──');
+const edge = !SRC ? null : await p.evaluate(async () => {
+  const { corridor } = await import('/src/proto/ct/gap.ts');
+  const c = window.__ct.colliders().find((k) => k.rot);
+  if (!c) return null;
+  // a tall thin probe spanning the chamfer's whole z range, slid east until it
+  // stops overlapping; the last overlapping x IS the box's east extent.
+  const zLo = -200, zHi = 200;
+  let lo = 5, hi = 15;                       // lo overlaps, hi does not
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    const probe = { minX: mid, maxX: mid + 20, minZ: zLo, maxZ: zHi };
+    if (corridor(c, probe) === null) lo = mid; else hi = mid;
+  }
+  return { edge: hi, localMaxX: c.maxX };
+});
+if (!edge) console.log('   SKIPPED — built bundle, gap.ts not served as source.');
+if (edge) {
+console.log(`   gap.ts measures the chamfer's east corner at x ${edge.edge.toFixed(4)}`);
+console.log(`   its LOCAL maxX is                            x ${edge.localMaxX.toFixed(4)}`);
+// The true corner: the turned box's centre plus its own half-extents rotated.
+const trueEdge = await p.evaluate(() => {
+  const c = window.__ct.colliders().find((k) => k.rot);
+  const cx = (c.minX + c.maxX) / 2, hx = (c.maxX - c.minX) / 2, hz = (c.maxZ - c.minZ) / 2;
+  return cx + Math.abs(hx * Math.cos(c.rot)) + Math.abs(hz * Math.sin(c.rot));
+});
+console.log(`   its four corners actually reach              x ${trueEdge.toFixed(4)}`);
+if (Math.abs(edge.edge - trueEdge) < 0.01) pass('gap.ts measures the turned box by its real world footprint');
+else fail(`gap.ts measures the turned box to x ${edge.edge.toFixed(3)}, but it reaches x ${trueEdge.toFixed(3)}`);
+}
 
 /** Hold `keys`, sampling the track. */
 async function walk(keys, ms, step = 65) {
@@ -234,9 +331,18 @@ const leg1 = await walk(['w'], 2600);
 const e1 = leg1[leg1.length - 1];
 for (const r of leg1) console.log(`      x ${r.x.toFixed(3)}  z ${r.z.toFixed(3)}  along ${r.a.toFixed(3)}  perp ${r.s.toFixed(3)}`);
 console.log(`   ended x ${e1.x.toFixed(2)} z ${e1.z.toFixed(2)}, along ${e1.a.toFixed(2)} of ${FW.toFixed(2)} m`);
-console.log(`   frames that moved under 10 mm: ${stalls(leg1)} of ${leg1.length - 1}`);
-if (e1.a > FW && stalls(leg1) === 0) pass('cleared the corner without catching');
-else fail(`did not clear cleanly (along ${e1.a.toFixed(2)}, ${stalls(leg1)} stalled frames)`);
+// CLEARING IS THE VERDICT; the stall count is an observation beside it.
+// Being caught on the corner means you are still on it — so "did you come out
+// the far end" is the question, and it is the one the user's complaint is
+// about. The per-sample stall count cannot be the verdict because it also
+// counts the browser: one run of this same bundle logged 13 stalled frames of
+// 39 and STILL ended 3.95 m along, which is a page hitch (GC, texture upload)
+// freezing every sample together, not a player wedged on a box. A wedged
+// player does not resume, and does not clear.
+console.log(`   frames that moved under 10 mm: ${stalls(leg1)} of ${leg1.length - 1}` +
+  ` — observation only; a page hitch freezes these too`);
+if (e1.a > FW) pass(`cleared the corner (${e1.a.toFixed(2)} m along a ${FW.toFixed(2)} m face)`);
+else fail(`did NOT clear the corner — stopped ${e1.a.toFixed(2)} m along a ${FW.toFixed(2)} m face`);
 
 // ── 4b. hug the face ───────────────────────────────────────────────────────
 // Aimed 20 degrees INTO the wall: a flat wall converts that into a steady slide
@@ -251,23 +357,42 @@ const on = leg2.filter((r) => r.a > 0.2 && r.a < FW - 0.2 && r.s < 0.75);
 console.log(`   ${on.length} samples alongside the face`);
 for (const r of on) console.log(`      along ${r.a.toFixed(3)}  perp ${r.s.toFixed(3)}`);
 console.log(`   frames that moved under 10 mm: ${stalls(leg2)} of ${leg2.length - 1}`);
-// THE METRIC IS THE OUTWARD KICK, not the spread. Aimed into the wall, the
-// player closes on it and then rides it, so `perp` FALLS and then holds — the
-// spread over the whole stretch is dominated by that approach and says nothing
-// about the wall. What a staircase does, and a flat wall cannot, is shove you
-// back OUT: each band's padded corner is further from the true cut than the
-// last one's, so riding along it lifts you off and drops you on, over and over.
-// So: the largest single outward step between consecutive samples. Off the
-// 8-band staircase this reads 83 mm; off one flat wall it is frame noise.
+// THE OUTWARD KICK IS REPORTED, NOT JUDGED, and the reason is worth writing
+// down because it looked like the perfect metric and is not one.
+//
+// Riding a wall aimed into it, `perp` should fall and then hold. A staircase
+// shoves you back out at every band. So "largest outward step between
+// consecutive samples" ought to separate the two — and off the 8-band
+// staircase it does read 98 mm. But it reads 5 mm on the dev server and 87 mm
+// on the BUILT BUNDLE with a bit-identical collider array, so it is not
+// measuring the wall at all.
+//
+// What it is measuring is `fp.ts`'s axis-separated movement, which does this
+// against ANY diagonal wall: the two axes are tested independently
+// (`blocked(nx, z)` then `blocked(x, nz)`), so when the x step is refused by a
+// 45-degree face the z step is still allowed — and on this wall moving -z
+// alone INCREASES the distance from it. You drift off, come back, drift off:
+// a limit cycle whose amplitude is set by the frame step, which is why a
+// slower browser reads a bigger number. Nothing to do with how many boxes the
+// wall is made of.
+//
+// The check that DOES separate them is 2a, which measures the surface itself
+// rather than a walk over it: 152 mm on the staircase, 0.0 mm on one turned
+// box. So this stays visible and stays out of the verdict.
 if (on.length >= 3) {
   let kick = 0, at = 0;
   for (let i = 1; i < on.length; i++) if (on[i].s - on[i - 1].s > kick) { kick = on[i].s - on[i - 1].s; at = on[i].a; }
   console.log(`   perpendicular offset while hugging  min ${Math.min(...on.map((r) => r.s)).toFixed(3)}  max ${Math.max(...on.map((r) => r.s)).toFixed(3)}`);
-  console.log(`   largest OUTWARD kick: ${(kick * 1000).toFixed(0)} mm, at along ${at.toFixed(2)}`);
-  if (kick < 0.02) pass(`rides the face without being kicked off it (${(kick * 1000).toFixed(0)} mm)`);
-  else fail(`the slide ratchets: kicked ${(kick * 1000).toFixed(0)} mm back off the wall at along ${at.toFixed(2)}`);
+  console.log(`   largest outward step: ${(kick * 1000).toFixed(0)} mm at along ${at.toFixed(2)} — REPORTED, not judged (see above)`);
 }
-if (stalls(leg2) === 0) pass('no stalled frames while hugging'); else fail(`${stalls(leg2)} stalled frames while hugging`);
+// What IS judged: riding the wall must never put you inside it.
+const inWall = on.filter((r) => r.s < Math.min(...uv) - 0.02);
+if (inWall.length === 0) pass('riding the face never puts you inside it');
+else fail(`${inWall.length} sample(s) ended up inside the wall while hugging it`);
+// Same reasoning as 4a: the verdict is that hugging the wall still gets you
+// along it, not that no frame was slow.
+if (Math.max(...leg2.map((r) => r.a)) > FW) pass('hugging the face still carries you along it and off the end');
+else fail(`hugging the face stopped you at ${Math.max(...leg2.map((r) => r.a)).toFixed(2)} m of ${FW.toFixed(2)} m`);
 
 console.log('\nconsole errors:', errs.length ? errs : 'none');
 console.log(bad === 0 ? '\nALL CHECKS PASS' : `\n${bad} CHECK(S) FAILED`);
