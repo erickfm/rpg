@@ -5,9 +5,9 @@
 // shot, while the west wall recedes edge-on to the LEFT — so the surface the
 // eye pairs it with may be the narthex face at z = hd - NAR_D = 9.4, not the
 // west wall at all. Settle it: list every large mesh within 3 m of the statue.
-import { aim } from './lib/aim.mjs';
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-import { goto } from './lib/reachable.mjs';
+import { goto } from '../lib/reachable.mjs';
 
 const URL = aim('http://localhost:4192/');
 const b = await chromium.launch();

@@ -11,10 +11,10 @@
 //   · whether the statue's foot actually rests on the bracket's top
 //
 // Usage: node scripts/w44-statue.mjs [label]   (SHOT_URL selects the server)
-import { aim } from './lib/aim.mjs';
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
-import { goto, settle } from './lib/reachable.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
+import { goto, settle } from '../lib/reachable.mjs';
 
 const label = process.argv[2] ?? 'now';
 const URL = aim('http://localhost:4192/');
@@ -40,10 +40,15 @@ const hold = async (k, ms) => {
 };
 
 // ── get to the church door, then WALK the last stretch and press E ──────
-const stand = await p.evaluate(async () => {
-  const dm = await import('/src/proto/ct/doors.ts');
-  return dm.doorStandFor('ST BRIGID');
+// ASK THE RUNNING WORLD, not the source tree. This first imported
+// `/src/proto/ct/doors.ts` directly, which works on the dev server and dies on
+// the BUILT bundle ("Failed to fetch dynamically imported module") — where the
+// change actually has to be proved. `__ct.spots()` is published by both.
+const stand = await p.evaluate(() => {
+  const s = window.__ct.spots().find((q) => /BRIGID/.test(q.label ?? ''));
+  return s ? { x: s.x, z: s.z } : null;
 });
+if (!stand) { console.error('no BRIGID door spot published — nothing measured'); process.exit(3); }
 console.log('church door stand spot:', stand);
 // The face normal is -x, so the forecourt is at SMALLER x. Stand back 2.2 m
 // out along it and WALK in (+x, yaw +PI/2), so arrival is by foot not by warp.
