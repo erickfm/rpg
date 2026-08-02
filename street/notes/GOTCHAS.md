@@ -1736,3 +1736,24 @@ because it is the tool that hands out the work:**
 **"The queue is empty" is a claim about the queue AND about the reader.** When a
 worker reports empty and you believe there is work, check the reader before you
 believe the report.
+
+## 59.
+
+**A spawned builder does NOT automatically get its own worktree — check, do not
+assume.** w13 and w14 got one; w15, w16 and w17 did not, and all three ran
+concurrently in the main tree. Nothing collided, but only because they happened
+to hold items in three different files (`jail.ts`, `props.ts`, `int-tax.ts`).
+Two builders on one file in one tree is what corrupted a worktree and broke the
+live world before (PARALLEL-WORKFLOW §11).
+
+The second, quieter failure is `git add -A`: in a shared tree it sweeps whatever
+the *other* builders have in flight into your commit. The desk did exactly this
+while reorganising — w16's and w17's uncommitted probe scripts landed in a commit
+about directory layout. Harmless here (same branch, and the project commits
+freely) but it means a commit's contents stop matching its message, which is how
+a bisect starts lying to you.
+
+**So: pass `isolation: "worktree"` when spawning a builder, and `git worktree
+list` after — if the count did not rise, the builder is in your tree.** Scope
+every `git add` to the paths you actually touched; never `-A` from the repo root
+while a fleet is running.
