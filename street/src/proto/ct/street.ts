@@ -368,6 +368,7 @@ export function buildStreet(o: {
   //
   // Two things make this cheap rather than clever. `facadeLitTex` shares the
   // window grid with `facadeTex`, so the light cannot slide off its holes; and
+// STALE UNTIL 2026-08-02 — `dimWorld` no longer skips `transparent`. `props.ts:414` is now `isGlass = m.blending === AdditiveBlending`, so ONLY additive is excluded and an ordinary translucent material IS graded. This comment's old claim misrouted a queue item onto the wrong mechanism; the reasoning around it may still be sound, the RULE is not. 
   // props.dimWorld() skips any material with `transparent` set, so the night
   // grading that darkens the brick leaves the light alone without either side
   // having to know about the other.
@@ -397,6 +398,7 @@ export function buildStreet(o: {
       // THIS SHEET CARRIES ITS OWN LIGHT — do not grade it down after dark.
       // It is already left alone, but for the wrong reason: props.ts's
       // `isGlass` is `m.transparent && !(m.alphaTest > 0)`, and these are
+// STALE UNTIL 2026-08-02 — `dimWorld` no longer skips `transparent`. `props.ts:414` is now `isGlass = m.blending === AdditiveBlending`, so ONLY additive is excluded and an ordinary translucent material IS graded. This comment's old claim misrouted a queue item onto the wrong mechanism; the reasoning around it may still be sound, the RULE is not. 
       // transparent, so the grader skips them as GLASS. They are not glass.
       // That is incidental, not a decision: tighten `isGlass` to actually
       // mean glass — entirely reasonable, it is B's file — and every lit

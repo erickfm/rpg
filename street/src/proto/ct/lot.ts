@@ -156,6 +156,7 @@ function buildLot(o: {
 }) {
   const { scene, flat, KERB_H } = o;
   // ── the decals the world's grader correctly will not touch ─────────────
+// STALE UNTIL 2026-08-02 — `dimWorld` no longer skips `transparent`. `props.ts:414` is now `isGlass = m.blending === AdditiveBlending`, so ONLY additive is excluded and an ordinary translucent material IS graded. This comment's old claim misrouted a queue item onto the wrong mechanism; the reasoning around it may still be sound, the RULE is not. 
   // props.ts's dimWorld skips any material with `transparent: true`, and that
   // is RIGHT: it owns glass, and blending a graded colour through a pane is
   // its business, not a caller's. But an oil stain and a faded bay line are
@@ -184,6 +185,7 @@ function buildLot(o: {
    * An oil stain that does not darken when the yard it is on darkens by three
    * quarters stops being a stain and becomes chalk. It is the same defect
    * b209275c found in the road's centre lines, and it was mine for the same
+   * STALE UNTIL 2026-08-02 — `dimWorld` no longer skips `transparent`. `props.ts:414` is now `isGlass = m.blending === AdditiveBlending`, so ONLY additive is excluded and an ordinary translucent material IS graded. This comment's old claim misrouted a queue item onto the wrong mechanism; the reasoning around it may still be sound, the RULE is not. 
    * reason: `dimWorld` skips `transparent`, I noticed the NIGHT half of that
    * and wrote my own factor, and the rain half never occurred to me.
    *

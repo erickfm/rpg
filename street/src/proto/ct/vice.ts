@@ -678,6 +678,7 @@ export function buildVice(o: {
 
   // ── shared material factories ─────────────────────────────────────────
   //
+// STALE UNTIL 2026-08-02 — `dimWorld` no longer skips `transparent`. `props.ts:414` is now `isGlass = m.blending === AdditiveBlending`, so ONLY additive is excluded and an ordinary translucent material IS graded. This comment's old claim misrouted a queue item onto the wrong mechanism; the reasoning around it may still be sound, the RULE is not. 
   // Everything lit is `transparent` so dimWorld leaves it alone, and
   // `fog: false` so it burns through 40 m of haze. FrontSide, never
   // DoubleSide: a transparent double-sided plane puts both faces in the sorted
