@@ -60,7 +60,12 @@ for (let h = 0; h < 48; h++) { if (wetH < 0 && rainy(h)) wetH = h; if (dryH < 0 
 
 const read = () => page.evaluate(() => {
   const sc = window.__ct.scene();
-  const out = { pud: [], refl: [], strip: null, broad: null, rainOpacity: 0 };
+  // `wetness` is the world's OWN answer to "how wet is the ground" (0 dry … 1),
+  // published by ct/props.ts:1010. Read alongside the surfaces rather than
+  // instead of them: the scalar says what the simulation believes, the colours
+  // say what the player can see, and the check below wants both to agree.
+  const out = { pud: [], refl: [], strip: null, broad: null, rainOpacity: 0,
+    wetness: sc.userData.wetness ?? 0 };
   sc.traverse((o) => {
     if (!o.isMesh || !o.material) return;
     const m = o.material;
@@ -106,6 +111,43 @@ if (mode === 'probe' || mode === 'all') {
   // it ramp to 0.999 in four seconds.
   await page.evaluate(() => window.__ct.warp(6.2, -50, 0, 0.14, 0));
   await page.waitForTimeout(300);
+
+  // ── THE DRY REFERENCE, AND WHY THIS FILE NEEDED ONE ──────────────────────
+  //
+  // The verdict below used to be `last.broad !== wet.broad` — "the surface is
+  // no longer what it was mid-storm". THAT IS WHAT DRYING DOES. It went green
+  // on a bone-dry street, and it slept through five canfail runs before the
+  // harness could score it.
+  //
+  // To ask "is the street WET" you need to know what dry looks like, and the
+  // reference has to be taken AT THE SAME HOUR: props colours a surface
+  // `base * ambient` when dry and multiplies it toward WET_WALL when wet
+  // (ct/props.ts:1022-1030), so the hour's own light changes the colour by more
+  // than the rain does. Comparing across hours would measure the sun.
+  //
+  // Taking it HERE is what makes it free: `wetness` starts at 0 on load
+  // (ct/props.ts:185) and the spawn is indoors, where props forces rainLevel to
+  // 0, so nothing has soaked yet. Measured: wetness is exactly 0 at this point,
+  // and the reference reads 3c3c3c against 141618 after the storm. Waiting for
+  // a dry reference the honest way instead would take minutes — drying is
+  // `48 * (1 + soak * 1.5) * ...` seconds by design.
+  await page.evaluate((h) => window.__ct.clock(h, 0), dryH);
+  await page.waitForTimeout(1500);
+  const dryRef = await read();
+  if (!(dryRef.wetness <= 0.004)) {
+    console.error(`\n  FAIL the dry reference was taken on a street that is already wet ` +
+      `(wetness ${dryRef.wetness}) — every verdict below would be measured against a wet baseline`);
+    process.exit(1);
+  }
+  // Relative luminance, so "wet" is a DIRECTION (darker) rather than merely a
+  // different hex. A tint that lightened the road would be the inversion bug
+  // this file was written for, and `!==` could not tell the two apart.
+  const lum = (hex) => {
+    const n = parseInt(hex, 16);
+    return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  };
+  console.log(`  dry reference at hour ${dryH}: road ${dryRef.broad}, gutter ${dryRef.strip}, wetness ${dryRef.wetness}`);
+
   await page.evaluate((h) => window.__ct.clock(h, 0), wetH);
   await page.waitForTimeout(5000);                       // let it come down
   const wet = await read();
@@ -137,9 +179,29 @@ if (mode === 'probe' || mode === 'all') {
   // water minutes after the last drop — and the mean is what states it.
   const meanAt = samples.map((s) => s.pud.reduce((a2, b2) => a2 + b2, 0) / s.pud.length);
   const stillFilling = meanAt[3] > meanAt[0] + 0.005;
-  // and the street must not be bone dry the moment it stops
-  const streetStillWet = samples[samples.length - 1].broad !== wet.broad ||
-                         samples[samples.length - 1].strip !== wet.strip;
+  // ── AND THE STREET MUST NOT BE BONE DRY THE MOMENT IT STOPS ─────────────
+  //
+  // Asked against the DRY reference, not against the storm. The old form
+  // (`!== wet.broad`) was satisfied by any change at all, and drying is a
+  // change, so it could only fail if the street stayed EXACTLY as wet as it was
+  // mid-downpour — the opposite of what it is named for.
+  //
+  // Two legs, because they fail for different reasons and a wet street needs
+  // both: the simulation still believes the ground is wet, AND the surfaces the
+  // player looks at are still visibly darker than dry. Reading only the scalar
+  // would pass a world whose tint had stopped being applied; reading only the
+  // colour would pass a world that had frozen the tint on.
+  //
+  // 0.02 of luminance is the threshold. Measured margin is 0.13-0.15 on both
+  // surfaces (scripts/probes/w29-wetref.mjs), so this sits an order of
+  // magnitude below the real signal and far above the ~0.004 quantisation of an
+  // 8-bit channel — it is not a threshold tuned until the test went green.
+  // 0.004 is ct/props.ts's own early-out epsilon for "effectively dry".
+  const last = samples[samples.length - 1];
+  const darkerRoad = lum(dryRef.broad) - lum(last.broad);
+  const darkerGutter = lum(dryRef.strip) - lum(last.strip);
+  const streetStillWet = last.wetness > 0.004 &&
+                         darkerRoad > 0.02 && darkerGutter > 0.02;
   const stillDark = maxAt[maxAt.length - 1] > 0.05;
   // individual fill: they must not move in lockstep
   const spread = new Set(samples[3].pud.filter((o) => o > 0.02).map((o) => o.toFixed(3)));
@@ -173,7 +235,9 @@ if (mode === 'probe' || mode === 'all') {
   const gutterHolds = samples[3].strip !== samples[3].broad;
 
   console.log(`\n  ${rainStopped ? 'OK  ' : 'FAIL'} the rain actually stopped`);
-  console.log(`  ${streetStillWet ? 'OK  ' : 'FAIL'} the street is still wet, not bone dry on the last drop`);
+  console.log(`  ${streetStillWet ? 'OK  ' : 'FAIL'} the street is still wet, not bone dry on the last drop ` +
+    `(wetness ${last.wetness.toFixed(3)}; road ${darkerRoad.toFixed(4)} and gutter ` +
+    `${darkerGutter.toFixed(4)} darker than dry, need >0.02)`);
   console.log(`  ${gutterHolds ? 'OK  ' : 'FAIL'} the gutter and the road crown dry at different rates`);
 
   // The puddle-versus-road contrast block stood here. It was the sharpest
