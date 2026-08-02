@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, declareSurface, dither } from './paint';
+import { pixTex, declareSurface, dither, slabTex } from './paint';
 import { masonry, WALK_PROJECTION } from './tex-world';
 import { plazaTex, walkTex } from './tex-ground';
 
@@ -456,7 +456,16 @@ export function register(ctx: CtxBuild): void {
   for (const s of [-1, 1]) {
     box(0.06, 0.34, 0.05, steelDkM, DOOR_FACE - 0.02, SILL + 1.02, CZ + s * 0.18);
   }
-  box(JAIL.RECESS + 0.06, 0.05, JAIL.DOOR_W, steelDkM,
+  // slabTex, not the flat steelDkM: the threshold is walked on and sits right
+  // beside the textured portal paving, so a flat quad here is exactly item
+  // 0a's defect class. The box is only 0.05 m tall, so one mapped material
+  // on all six faces (rather than a top-only array) is enough — the sides
+  // are a sliver nobody sees edge-on.
+  const thresholdM = new THREE.MeshBasicMaterial({
+    color: STEEL_DK,
+    map: slabTex({ wMeters: JAIL.RECESS + 0.06, dMeters: JAIL.DOOR_W, base: '#26282c', joint: 0, grain: 0.12 }),
+  });
+  box(JAIL.RECESS + 0.06, 0.05, JAIL.DOOR_W, thresholdM,
     FX + JAIL.RECESS / 2, SILL + 0.02, CZ);
 
   // ── the portal surround ─────────────────────────────────────────────────

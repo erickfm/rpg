@@ -319,8 +319,15 @@ export function buildChurch(ctx: CtxBuild) {
   //
   // Raised one step, which is the only level change inside and the reason the
   // far end reads as somewhere rather than as the back wall.
-  const stoneM = new THREE.MeshBasicMaterial({ color: 0x9a9488 });
-  const dais = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.18, 2.6), stoneM);
+  // slabTex, not a flat MeshBasicMaterial: the nave floor around it is
+  // grained flagstone (`flagT` above), and a flat-colour box standing 0.18 m
+  // proud of it read as a tint-over-paving patch rather than a step — the
+  // same defect ct/paint.ts's slabTex doc-comment names, item 0a's census.
+  const stoneTop = slabTex({ wMeters: 6.4, dMeters: 2.6, base: '#9a9488', joint: 0.8, ppm: 24 });
+  const dais = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.18, 2.6),
+    [new THREE.MeshBasicMaterial({ color: 0x9a9488 }), new THREE.MeshBasicMaterial({ color: 0x9a9488 }),
+     ctx.flat(stoneTop), new THREE.MeshBasicMaterial({ color: 0x9a9488 }),
+     new THREE.MeshBasicMaterial({ color: 0x9a9488 }), new THREE.MeshBasicMaterial({ color: 0x9a9488 })]);
   put(dais, 0, 0.09, hd - 2.2);
   const altar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.95, 0.75),
     new THREE.MeshBasicMaterial({ color: 0xb0a894 }));

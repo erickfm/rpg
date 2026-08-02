@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { FACE } from './rng';
@@ -217,8 +217,13 @@ export function buildPawn(ctx: CtxBuild): void {
   // Worn where people actually stand: a wide patch from the door to the case,
   // not the long thin strip the old corridor left. Wear is evidence of where
   // the room is used, so it has to agree with the new plan or it contradicts it.
+  // slabTex, not a flat MeshBasicMaterial: an untextured quad over a grained
+  // floor reads as a translucent tint rather than a worn patch of the same
+  // floor (ct/paint.ts's slabTex doc-comment, and the whole diagnosis behind
+  // item 0a). joint: 0 keeps it grain-only, the "worn ground" case the
+  // comment names rather than a poured slab.
   const worn = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.4),
-    new THREE.MeshBasicMaterial({ color: 0x7c7268 }));
+    ctx.flat(slabTex({ wMeters: 4.6, dMeters: 4.4, base: '#7c7268', joint: 0, grain: 0.09 })));
   worn.rotation.x = -Math.PI / 2;
   // the worn patch follows the DOOR, wherever the facade has put it
   put(worn, room.doorAt + 0.3, 0.014, -0.4);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { facadeTex, masonry, SHOP_BAND_H, SHOP_MULT } from './tex-world';
 import { type BldSpec } from './civic';
 import { type AABB } from '../fp';
@@ -986,7 +986,13 @@ export function buildVice(o: {
       // module that also paints it would fight for it. Every other ground surface
       // here is an additive spill driven by my own ticks and must NOT be given
       // away.
-      const sillM = new THREE.MeshBasicMaterial({ color: 0x7a2028 });
+      // slabTex, not a flat colour: this is the exact item 0a case, "the
+      // casino's red entrance runner, #7a2028" the wet-comment above already
+      // names by colour — a flat quad on the ground beside grained pavement.
+      // `.color` stays 0x7a2028 so registerWet's base-colour capture below is
+      // unaffected; the map only adds grain the wet lerp tints on top of.
+      const sillTex = slabTex({ wMeters: 3.0, dMeters: 1.5, base: '#7a2028', joint: 0, grain: 0.08 });
+      const sillM = new THREE.MeshBasicMaterial({ color: 0x7a2028, map: sillTex });
       (scene.userData as { registerWet?: (m: THREE.MeshBasicMaterial) => THREE.MeshBasicMaterial })
         .registerWet?.(sillM);
       const sill = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.5), sillM);
