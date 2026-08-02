@@ -623,6 +623,35 @@ const CASES = [
     'export function doorStandFor(building: string, standoff = 0.75)',
     'export function doorStandFor(building: string, standoff = 4.5)',
     'integration-doors.mjs', [], 'published door spots too far out to reach the door'],
+  // ── w37's, from item 77's walking tier ────────────────────────────────────
+  //
+  // THE ROOF PUT OUT OF REACH. w21-roof-climb exists for item 29 — walk
+  // pavement -> bed -> rail -> ROOF -> hood -> street — so the mutation that
+  // breaks its subject is a cab you cannot get on top of. Raising the roof
+  // plate from 1.415 to 1.62 leaves the rail at 0.97 and makes the last step
+  // 0.65 m, past what the rig can climb: the check prints
+  // `MISS 3. CAB ROOF  feet 0.970 (want 1.62)` on every attempt, then
+  // `could not get onto the roof in 4 tries` for all four exits. Measured:
+  // PASS with 1 spare frame before, exit 1 after.
+  //
+  // NOT w33's 100-NANOMETRE MUTATION, and that is the finding behind this case.
+  // notes/archive/w33-roof-hop-frames.md measured `roofY += 1e-7` taking the hop
+  // from 4/4 to 0/4, and item 77 handed it on as ready-made. It does not
+  // reproduce: I applied it, confirmed the dev server was serving `1.4150001`,
+  // and the check passed with `spare frames: 1`. w33's world was sitting exactly
+  // on a frame boundary, so a rounding-width nudge flipped an integer; today
+  // there is a whole spare frame and 1e-7 cannot cross it. A case that depends
+  // on the world being knife-edged stops proving anything the moment the margin
+  // moves, and it would have looked exactly like a passing case.
+  //
+  // The tier-pinning guard stays green through this on purpose: `carVariant`
+  // builds from the same PICKUP_CAB constant, so the panel really is at 1.62
+  // and the check fails on REACHING the roof rather than on a mismatched pin.
+  ['roof-unreachable', CARS,
+    '  roofY: 1.415,       // y1 — the roof plate\'s top face. NOT a round number: see below',
+    '  roofY: 1.62,        // selftest: the cab roof lifted out of climbing reach',
+    'w21-roof-climb.mjs', [], 'the pickup roof too high to climb onto at all'],
+
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
   // a commit message.

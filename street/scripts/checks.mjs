@@ -440,7 +440,7 @@ const CHECKS = [
   // like a constant when it does. It walks the whole route rather than warping
   // (a check that warped instead of walking is how the storey picker went its
   // whole life untested), so it is slow — hence the slow tier.
-  ['w21-roof-climb',   'can you still climb onto the pickup, and get back off it?', false, [], true],
+  ['w21-roof-climb',   'can you still climb onto the pickup, and get back off it?', 'roof-unreachable', [], true],
   // THE FIFTH FACING BUG, and the first thing to guard the class rather than one
   // instance of it. Five have shipped from a typed or mirrored yaw — the burger
   // barn guy, the librarian, the casino sitter, the park benches, the tax office

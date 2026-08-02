@@ -52,8 +52,13 @@ const EXEMPT = {
 // not typed from memory.
 const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
-  'jump-walk', 'w21-roof-climb', 'gaps', 'feet-check', 'side-night', 'I-seat-exit',
+  'jump-walk', 'gaps', 'feet-check', 'side-night', 'I-seat-exit',
   'unstick-walk', 'corner-traffic', 'crowd-net', 'side-walk',
+  // 'w21-roof-climb' — CLEARED by w37, item 77: canfail case `roof-unreachable`.
+  // It already HAD a working failing path (item 64 gave it one); what it lacked
+  // was a mutation anyone had watched it catch. Note the case is NOT w33's
+  // 100-nanometre nudge, which item 77 handed on as ready-made and which no
+  // longer reproduces — see the comment on the case in canfail.mjs.
   // 'A-eye-height-holds' — CLEARED by w35, item 72: canfail case `eye-gate-flat`,
   // proven CAUGHT behaviourally rather than declared.
   // 'integration-doors' — CLEARED by w36, item 73: canfail case `door-standoff`.
