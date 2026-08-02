@@ -51,7 +51,28 @@
 import { chromium } from 'playwright';
 
 const MODES = ['twice', 'all', 'named'];
-const mode = process.argv.includes('--selftest') ? '--selftest' : (process.argv[2] ?? 'twice');
+// THERE IS NO --selftest HERE, AND THIS FILE USED TO CLAIM THERE WAS.
+//
+// The line was `process.argv.includes('--selftest') ? '--selftest' : …`, which
+// set `mode` to a string that is not in MODES — so the very next statement
+// exited 2 with a usage message. The flag was never implemented; all its
+// detection ever did was make the script refuse to run. Measured:
+// `node scripts/L-every-stool-seats-you.mjs --selftest` → exit 2, "usage: …".
+//
+// It was registered `false` in scripts/checks.mjs, so the suite never passed
+// the flag and nobody saw it. Had anyone "fixed" the registry row to `true` on
+// the strength of the flag appearing in the source — which is exactly the
+// textual test item 70 exists to replace — the row would have rendered
+// `FAILED (2)` forever, the same shape as item 68.
+//
+// So the dead detection goes rather than being papered over. Making the flag
+// merely tolerated would be worse: the script would then run its ORDINARY pass
+// under `--selftest`, exit 0, and the runner would score that as a selftest
+// that caught its mutation. That is a check reporting a proof it never ran
+// (GOTCHAS 34). This check's real failing path is sound — `process.exit(bad ===
+// 0 ? 0 : 1)` at the foot of the file — it simply has no mutation behind it
+// yet, and the registry's `false` now tells the truth about that.
+const mode = process.argv[2] ?? 'twice';
 if (!MODES.includes(mode)) {
   console.error(`usage: SHOT_URL=… node scripts/L-every-stool-seats-you.mjs [${MODES.join('|')}]`);
   process.exit(2);
