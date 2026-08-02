@@ -77,41 +77,92 @@ const traps = await p.evaluate(([RADIUS, PLAYER]) => {
 
 console.log(`${traps.length} traps found (inside-a-collider + every sub-${(PLAYER + 0.25).toFixed(2)} m gap)\n`);
 
-const fails = [];
-let tested = 0, freedBy = { push: 0, alreadyOut: 0 };
-for (const t of traps) {
-  if (!(await isBlocked(t.x, t.z))) { freedBy.alreadyOut++; continue; }   // gap wide enough after all
-  tested++;
-  await warp(t.x, t.z, 0);
-  await p.waitForTimeout(60);
-  // let the rig resolve it — no input at all, which is the honest test: a
-  // stuck player pressing nothing must still come free
-  await p.waitForTimeout(1100);
-  const out = await pos();
-  if (await isBlocked(out[0], out[2])) {
-    fails.push(`${t.kind} @ ${t.x.toFixed(2)},${t.z.toFixed(2)} — still inside a collider after 1.1 s `
-      + `(at ${out[0].toFixed(2)},${out[2].toFixed(2)})`);
-    continue;
-  }
+// ── ONE ROUND TRIP PER TRAP, AND IT ENDS ON WORLD STATE ───────────────────
+//
+// THIS CHECK COST 11m15s AND WAS OVER EVERY TIMEOUT IN THE HARNESS — two
+// baseline attempts never finished at all, one a page crash at 4m40s and one
+// the 10-minute cap. A check that cannot complete reports nothing, which is
+// strictly worse than a check that is wrong.
+//
+// The cost was a FIXED 1.1 s wall-clock wait per trap, and wall clock is the
+// wrong instrument for this (GOTCHAS 30/43, and the same fault fixed in
+// jump-walk and wetness): `dt` is clamped at 0.05 s (src/main.ts:107), so the
+// simulation advances at most 50 ms per frame however long the frame really
+// took. 1.1 s of waiting is 1.1 s of waiting on FRAMES, and frames are
+// observable — so wait for the frames and stop the moment the world has
+// answered. Nearly every trap frees the player in a fraction of that.
+//
+// COVERAGE IS UNTOUCHED. All 582 traps are still visited and the verdicts are
+// the same three: escaped, still inside, or free-but-boxed-in. The item is
+// explicit that reducing the trap count would be cutting coverage, and this
+// does not reduce it — it stops paying a second of wall clock for an answer
+// that arrived in a tenth.
+//
+// WHY 40 FRAMES OF STILLNESS AND NOT 5. `FPRig.unstick` has a PATIENCE of
+// 0.45 s (fp.ts:371): a player it cannot push out is teleported back to
+// `lastGood` only after 0.45 s of ACCUMULATED dt. Ending the probe on a short
+// stall would cut that rescue off before it fires and invent failures the world
+// does not have. 0.45 s of dt is 9 frames at the 0.05 s clamp and 27 at a
+// 60 fps 1/60 s step, so the worst case is 27 and 40 clears it with margin —
+// derived from fp.ts's own constant, not tuned until the suite went green.
+const STILL_FRAMES = 40;
+const FRAME_BUDGET = 240;      // ~4 s at 60 fps; a terminator, never the path
+/** Warp into a trap and watch, per rendered frame, until the WORLD says the
+ *  attempt is over. Returns where the rig ended, whether it is still inside,
+ *  and whether any direction is open — the same three facts as before, in one
+ *  round trip instead of five. */
+const probeTrap = (x, z) => p.evaluate(([x, z, R, stillNeed, budget]) => new Promise((resolve) => {
+  const blockedAt = (px, pz) => window.__ct.colliders().some((c) =>
+    px > c.minX - R && px < c.maxX + R && pz > c.minZ - R && pz < c.maxZ + R);
   // …and having come free, you are genuinely not trapped: there is SOME
   // direction you can move in. Asked of the collider predicate rather than by
   // driving the rig in a couple of arbitrary directions — the thrift's aisles
   // clear the player by 0.19 m a side on purpose, so "hold W and expect a
   // metre" fails rooms that are working exactly as designed. Eight directions,
   // a quarter metre, is the honest statement of "not stuck".
-  const canMove = await p.evaluate(([x, z, R]) => {
-    const cols = window.__ct.colliders();
-    const free = (a, c) => !cols.some((k) =>
-      a > k.minX - R && a < k.maxX + R && c > k.minZ - R && c < k.maxZ + R);
+  const anyWayOut = (px, pz) => {
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      if (free(x + Math.cos(a) * 0.25, z + Math.sin(a) * 0.25)) return true;
+      if (!blockedAt(px + Math.cos(a) * 0.25, pz + Math.sin(a) * 0.25)) return true;
     }
     return false;
-  }, [out[0], out[2], RADIUS]);
-  if (!canMove) {
+  };
+  // no input at all, which is the honest test: a stuck player pressing nothing
+  // must still come free
+  window.__ct.warp(x, z, 0, 0, 0);
+  let n = 0, still = 0, lx = null, lz = null;
+  const done = (why) => {
+    const [px, , pz] = window.__ct.pos();
+    resolve({ why, frames: n, x: px, z: pz, blocked: blockedAt(px, pz), canMove: anyWayOut(px, pz) });
+  };
+  const tick = () => {
+    const [px, , pz] = window.__ct.pos();
+    if (n > 0 && !blockedAt(px, pz)) return done('free');
+    if (lx !== null && Math.hypot(px - lx, pz - lz) < 1e-4) still++; else still = 0;
+    lx = px; lz = pz;
+    if (still >= stillNeed) return done('stalled');
+    if (++n > budget) return done('budget');
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}), [x, z, RADIUS, STILL_FRAMES, FRAME_BUDGET]);
+
+const fails = [];
+let tested = 0, freedBy = { push: 0, alreadyOut: 0 };
+let frameTotal = 0;
+for (const t of traps) {
+  if (!(await isBlocked(t.x, t.z))) { freedBy.alreadyOut++; continue; }   // gap wide enough after all
+  tested++;
+  const r = await probeTrap(t.x, t.z);
+  frameTotal += r.frames;
+  if (r.blocked) {
+    fails.push(`${t.kind} @ ${t.x.toFixed(2)},${t.z.toFixed(2)} — still inside a collider after `
+      + `${r.frames} rendered frames (${r.why}) (at ${r.x.toFixed(2)},${r.z.toFixed(2)})`);
+    continue;
+  }
+  if (!r.canMove) {
     fails.push(`${t.kind} @ ${t.x.toFixed(2)},${t.z.toFixed(2)} — came free but every direction is still blocked `
-      + `(at ${out[0].toFixed(2)},${out[2].toFixed(2)})`);
+      + `(at ${r.x.toFixed(2)},${r.z.toFixed(2)})`);
     continue;
   }
   freedBy.push++;
@@ -140,6 +191,8 @@ for (const t of traps.slice(0, 6)) {
 }
 console.log(`${driven} of them also driven for real: ${drivenOk} walked away under their own steam`);
 console.log(`${tested} were genuinely stuck; ${freedBy.push} freed themselves`);
+console.log(`   (${frameTotal} rendered frames across ${tested} probes, ${tested ? (frameTotal / tested).toFixed(1) : 0} each —`
+  + ` the fixed wait this replaced was ~66 frames every time)`);
 console.log(`${freedBy.alreadyOut} candidate gaps turned out to be passable already\n`);
 for (const f of fails) console.log(`  FAIL  ${f}`);
 console.log(fails.length
