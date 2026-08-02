@@ -756,11 +756,43 @@ const localEntry = () => {
 // UNREACHABLE and UNRECOGNISED are different answers. Nothing serving is exit 3
 // — the check never ran. A page we cannot parse is merely unproven, and must
 // not take the suite down with it.
+// WHY it could not be read, not just that it could not. A bare null here spends
+// a case's whole cost and then says `served null`, which is indistinguishable
+// from a dead server, a stale build and a page that will not parse — and
+// `wetness` has been reporting exactly that on every multi-case run while
+// scoring CAUGHT on its own. A reason costs one property.
+// RETRIED ONCE, and the reason is the whole finding.
+//
+// undici pools keep-alive sockets per origin. The startup probe opens one;
+// `vite preview` then closes it while minutes go by rebuilding and running a
+// browser, and the next fetch reuses the dead socket and throws
+// UND_ERR_SOCKET before it ever reaches the server.
+//
+// That fires on the FIRST case that does not go red — because a red case never
+// gets here — so it lands precisely on a SLEEPING GUARD and scores it NOT-RUN.
+// Measured: `wetness` was NOT-RUN on both full runs and on a four-case run, and
+// CAUGHT on three single-case runs, which is exactly this shape. The harness was
+// quietly converting its most important finding into "could not be scored".
+//
+// A fresh connection is the fix; a second attempt gets one, because the dead
+// socket is evicted on failure. Not a retry of the MEASUREMENT — the check is
+// never re-run (see the note about wetness in the loop) — only of reading the
+// page, which is idempotent.
 const servedEntry = async () => {
-  try {
-    const r = await fetch(URL, { cache: 'no-store' });
-    return { up: true, entry: entryOf(await r.text()) };
-  } catch { return { up: false, entry: null }; }
+  let why = null;
+  for (const attempt of [0, 1]) {
+    try {
+      const r = await fetch(URL, { cache: 'no-store', headers: { connection: 'close' } });
+      const html = await r.text();
+      const entry = entryOf(html);
+      return { up: true, entry,
+        why: entry ? null : `HTTP ${r.status}, ${html.length} bytes, no module <script src>` };
+    } catch (e) {
+      why = `${String(e.cause?.code ?? e.message)}${attempt ? ' (twice)' : ''}`;
+      if (!attempt) await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  return { up: false, entry: null, why };
 };
 const HASHED = (e) => !!e && /\/assets\/.*-[\w-]{6,}\.js$/.test(e);
 // THE DEV-SERVER PROOF, and it is the one that matters here: both ports on this
@@ -852,13 +884,14 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
     // this, "the server is not ours" and "the mutation does nothing" both wore
     // the SLEPT badge, and neither is a fault in the check.
     if (!red && !DEV) {
-      const mine = localEntry(), theirs = (await servedEntry()).entry;
+      const mine = localEntry(), s = await servedEntry(), theirs = s.entry;
       if (mine === PRISTINE) {
         results.push([name, 'INERT', `${expect} — mutation compiles to identical bytes; retarget the CASE`]);
         continue;
       }
       if (theirs !== mine) {
-        results.push([name, 'NOT-RUN', `${expect} — ${URL} served ${theirs}, we built ${mine}`]);
+        results.push([name, 'NOT-RUN',
+          `${expect} — ${URL} served ${theirs ?? `nothing readable (${s.why})`}, we built ${mine}`]);
         continue;
       }
     }
