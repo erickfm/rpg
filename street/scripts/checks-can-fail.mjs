@@ -52,8 +52,13 @@ const EXEMPT = {
 // not typed from memory.
 const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
-  'jump-walk', 'gaps', 'feet-check', 'side-night', 'I-seat-exit',
+  'jump-walk', 'gaps', 'feet-check', 'side-night',
   'unstick-walk', 'corner-traffic', 'crowd-net', 'side-walk',
+  // 'I-seat-exit' — CLEARED by w37, item 77: cases `seat-traps` and `seat-nosit`.
+  // SIXTH MEMBER OF THE health.mjs FAMILY, and it needed a fix before either
+  // case could mean anything: the verdict was `stuck.length ? 1 : 0`, so with
+  // nothing in the world sittable it printed "no seat traps the player" over an
+  // empty sample and exited 0. Proved twice, pre-fix and fixed, same broken world.
   // 'w21-roof-climb' — CLEARED by w37, item 77: canfail case `roof-unreachable`.
   // It already HAD a working failing path (item 64 gave it one); what it lacked
   // was a mutation anyone had watched it catch. Note the case is NOT w33's

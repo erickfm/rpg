@@ -617,7 +617,7 @@ const CHECKS = [
   // before F's e090a74fa, then 3 of 30 (all slot stools) until K's 9017f4318.
   // C's rule is register it the day it goes green, and it is green — 24 released
   // by E, 3 by Escape, 0 trapped. ~6 min for 32 seats, so SLOW. (I)
-  ['I-seat-exit',      'can you get out of every seat you sit in?',           false, [], true],
+  ['I-seat-exit',      'can you get out of every seat you sit in?',           ['seat-traps', 'seat-nosit'], [], true],
   ['interiors-walk',   'can you enter every room, and does each hold you in?', true, [], true],
   // 395 s — SLOW tier, and by a distance. It walks 177 trap positions, which is
   // what the user's "im literally stuck here" request cost to guard properly.

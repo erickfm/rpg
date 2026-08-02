@@ -652,6 +652,40 @@ const CASES = [
     '  roofY: 1.62,        // selftest: the cab roof lifted out of climbing reach',
     'w21-roof-climb.mjs', [], 'the pickup roof too high to climb onto at all'],
 
+  // ── I-seat-exit's TWO, and they fail apart on purpose ─────────────────────
+  //
+  // `seat-traps` breaks the thing the check is named for. `seat-nosit` breaks
+  // the thing it could NOT see until item 77 — the verdict was
+  // `stuck.length ? 1 : 0`, which is a pass over zero assertions, and with
+  // nothing in the world sittable it printed "no seat traps the player" and
+  // exited 0. A single case against the trap alone would have left that hole
+  // registered as proven.
+  //
+  // Both are one-line refusals in fp.ts, which is the single point every seat
+  // in the world goes through — `sit()` and `stand()` are the whole mechanic,
+  // and Escape reaches `stand()` too (fp.ts:449), so blocking it there really
+  // does leave no key out rather than leaving Escape as an exit.
+
+  // THE USER'S OWN BUG, verbatim: *"pressing e doesnt get me out of it — stuck
+  // in the TV seat"*. Measured: 5 of 5 sampled seats trapped, teleport distance
+  // 1.18-1.40 m, which is the same 1.0-1.4 m trap band this script's header
+  // recorded when it was written.
+  ['seat-traps', FP,
+    '  stand(): void {\n    this.forceUp = false;\n    if (!this.seat) return;',
+    '  stand(): void {\n    this.forceUp = false;\n    if (this.seat) return;   // selftest: E and Escape both refuse\n    if (!this.seat) return;',
+    'I-seat-exit.mjs', ['--n', '6'], 'seats you sit in and cannot get out of by any key'],
+
+  // THE EMPTY SAMPLE. Nothing can be sat on at all, so there is no seat to be
+  // trapped in and every bucket the verdict reads is zero. Measured on the same
+  // broken world, twice: the pre-fix script printed
+  // `no seat traps the player: 0 released by E, 0 by Escape.` and exited 0; the
+  // fixed one exits 1. Registering this case a day earlier would have scored
+  // SLEPT for a reason that had nothing to do with the world.
+  ['seat-nosit', FP,
+    '  sit(pose: SeatPose): void {\n    if (this.seat) return;',
+    '  sit(pose: SeatPose): void {\n    if (!this.seat) return;   // selftest: nothing is sittable\n    if (this.seat) return;',
+    'I-seat-exit.mjs', ['--n', '6'], 'a world where no seat can be sat on, scored as "no seat traps you"'],
+
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
   // a commit message.
