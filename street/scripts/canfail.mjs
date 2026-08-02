@@ -396,8 +396,19 @@ const CASES = [
     'basin(-ROAD_HALF, -105, 1);    // selftest: built inside out',
     'basin.mjs', [], 'the west basin mirrored into its own kerb'],
 
+  // RE-AIMED 2026-08-02 (w22): the needle read `const RAIN_N = 500;` and the
+  // source has said 2600 since the storm was made heavier. It matched 0 bytes,
+  // so `rain.mjs` had never once been shown a broken world — and the run before
+  // this one is the first time anybody ran the harness end to end and saw it.
+  // A static audit had just declared 35/35 needles true; this was one of them.
+  //
+  // 6 is not arbitrary and must stay under 100: `rain.mjs` finds the storm with
+  // `c.isPoints && position.count > 100`, so a buffer of 6 makes the particle
+  // system undiscoverable and the "is it raining" leg goes red. Move that
+  // threshold and this case stops proving anything — which is the same coupling
+  // that let the needle rot, one level up.
   ['rain', PROPS,
-    'const RAIN_N = 500;',
+    'const RAIN_N = 2600;',
     'const RAIN_N = 6;',
     'rain.mjs', [], 'a storm with six drops in it'],
 
@@ -799,6 +810,18 @@ if (DEV) {
 const PRIS = {};
 for (const f of [...new Set(run.map((c) => c[1]))]) PRIS[f] = digest(await servedModule(f));
 
+// …and what each one looks like ON DISK, which is the only honest way to
+// answer "did I give it back". The end-of-run assertion used to re-read every
+// case's NEEDLE instead, so a needle that had gone stale — which is a fault in
+// this file, not in the tree — reported `RESTORE FAILED` and exited 3 about a
+// tree that was byte-perfect. Measured on the first end-to-end run: `rain`'s
+// needle had rotted from 500 to 2600, and canfail told me it had corrupted
+// props.ts. That is the worst thing a source-editing tool can say when it is
+// not true; the natural response is `git checkout --`, which is exactly how
+// uncommitted work gets destroyed. The two questions are now separate.
+const ORIGINAL = {};
+for (const f of [...new Set(run.map((c) => c[1]))]) ORIGINAL[f] = digest(readFileSync(f, 'utf8'));
+
 for (const [name, file, needle, repl, script, args, expect] of run) {
   const src = readFileSync(file, 'utf8');
   const n = src.split(needle).length - 1;
@@ -873,14 +896,30 @@ if (unprovable.length) {
 }
 console.log(`\n${results.length - bad.length}/${results.length} checks caught their mutation`);
 // Not "is the tree clean" — it may legitimately be dirty and that is the point
-// now. The question is whether the file came back byte-for-byte as it was.
-const stillWrong = CASES.filter(([, file, needle]) =>
-  run.some((r) => r[1] === file) && !readFileSync(file, 'utf8').includes(needle));
+// now. The question is whether the file came back byte-for-byte as it was, and
+// that is a comparison against the bytes taken before the run, NOT against the
+// needles: a stale needle is a fault in this file and must not be reported as a
+// corrupted tree. See ORIGINAL.
+const stillWrong = Object.keys(ORIGINAL)
+  .filter((f) => digest(readFileSync(f, 'utf8')) !== ORIGINAL[f]);
 if (stillWrong.length) {
-  console.error(`\nRESTORE FAILED — ${stillWrong[0][1]} does not hold its original text.`);
+  console.error(`\nRESTORE FAILED — ${stillWrong[0]} does not hold its original bytes.`);
+  console.error(`  Your copy is at .canfail-backup-${stillWrong[0].split('/').pop()} if the run died mid-case.`);
   process.exit(3);
 }
 console.log('every mutated file restored byte-for-byte');
+// A needle that matches nothing is a case that proved NOTHING, and it is easy
+// to skim past a `????` row among forty greens. Say it in words, at the end,
+// where the summary is read.
+const stale = results.filter((r) => r[1] === 'NEEDLE');
+if (stale.length) {
+  console.error(`\n${stale.length} case(s) NEVER RAN — the needle no longer matches the source:`);
+  for (const [n] of stale) {
+    const c = CASES.find((x) => x[0] === n);
+    console.error(`  ${n} — ${c[1]} no longer contains: ${JSON.stringify(c[2])}`);
+  }
+  console.error('  Those guards are UNPROVEN, not passing. Re-aim the needle at current source.');
+}
 
 // A STAMP, so a sleeping guard is discoverable without running this again.
 // The whole reason five guards could be reported as asleep is that nothing on
