@@ -1379,6 +1379,36 @@ export function makeCrosstown(): Proto {
      *  matches these against `colliders()` BY VALUE, the same way the red-dump
      *  probes already key a box on its four extents plus `rot`. */
     actorColliders: () => [...actorBoxes],
+    /** THE WORLD'S GEOMETRY, WITHOUT THE THINGS THAT WALK.
+     *
+     *  One root cause has now produced four false defects, all of them the same
+     *  sentence: moving actors live in the same array as masonry. The V overlay
+     *  painted the whole east walk red for pedestrians; a red-dump wrote a
+     *  walking citizen down as a static prop and the desk queued a 0.45 m trap
+     *  that does not exist; the chamfer walk reported "the chamfer did not let
+     *  me past" when a citizen crossed the corner and refused the -z step
+     *  exactly like a wall; and unstick-walk probed a point on the strength of
+     *  the same confusion.
+     *
+     *  Item 65 fixed the OVERLAY's scoring by filtering locally, at one call
+     *  site. That is the right answer in the wrong place: every future consumer
+     *  inherits the bug, and three of the four defects above were written after
+     *  that fix landed. So the distinction is published here instead, once,
+     *  where anything reasoning about GEOMETRY can ask for geometry.
+     *
+     *  Actors keep their colliders and `fp.ts` is still right to be stopped by
+     *  them — you cannot walk through a person. What they are not is a wall, and
+     *  `gap.ts`'s corridor maths only means something about walls: a corridor is
+     *  narrow or it is not, and a pedestrian standing in one is a pedestrian.
+     *
+     *  BY IDENTITY, against the set the two registration hooks build, never by
+     *  shape — a citizen's box is 0.5 x 0.5 and so is plenty of real furniture,
+     *  so any size test would have excused the furniture too.
+     *
+     *  A COPY, unlike `colliders()`, and deliberately: this is a derived view
+     *  and nothing may push onto it expecting the world to change. The one
+     *  selftest that mutates `colliders()` by reference keeps doing so. */
+    staticColliders: () => colliders.filter((c) => !actorBoxes.has(c)),
     // test affordance: WHAT GROUND HAS BEEN PUBLISHED, and where? Same argument
     // as colliders() and groundAt() — a module that asks `ctx.site('jail')` and
     // gets null must build nothing and say so, and until now there was no way
