@@ -2696,3 +2696,10 @@ to one side.
   the "black bar"), and **item 121 is queued to give HOTEL ORPHEUS the same treatment** —
   if the SEVENS blade goes, 121 needs re-deciding rather than cancelling, since ORPHEUS
   is a different building and he has not commented on it.
+
+- **"[screenshot] fix the wheels on the trailer"** (2026-08-02) → **folded into item 113,
+  widened from the $695 hatch to "displaced wheels, world-wide".** Second sighting of the
+  same shape: a dark blob detached from the vehicle. Note the trailer is NEW — built
+  today in `crosstown.ts:1060+` for the sedan climbing route — and its wheels are
+  constructed there, not in `ct/cars.ts` with the fleet's. So this may be one cause or
+  two; the item now says to establish which before fixing either.
