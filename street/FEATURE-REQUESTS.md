@@ -2569,3 +2569,9 @@ to one side.
   the other seven flats get a leaf on an uncut wall. Same shape as the vehicle-collider
   report (item 87): the thing the player uses got the real treatment and its siblings
   did not.
+
+- **"[screenshot] can we move the watch arm thing as a whole over to the left a little
+  bit?"** (2026-08-02) → **done by the desk directly, not queued.** One number:
+  `ct/hud.ts:740` `left: calc(52% + 77px)` → `calc(46% + 77px)`. The whole arm moves
+  because the cuff, strap and face all live inside `watchWrap`. Told the user the exact
+  figure so he can ask for more or less rather than another screenshot round-trip.
