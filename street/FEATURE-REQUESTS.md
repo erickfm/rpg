@@ -2435,3 +2435,13 @@ to one side.
   the bench as **0.36 m out onto the walk**, so the encroachment was known and
   under-weighted. The path was reworked once before, after *"THE PATHS READ AS ROAD"*
   (`ct/park.ts:31-43`) — this is the second rejection of it.
+
+- **"[screenshot] look at this path corner it looks so messed up"** (2026-08-02)
+  → **routed to a builder as queue item 90.** Same park frame as items 88/89; the
+  corner is drawn separately (`ct/park.ts:307-328`, a rotated 0.3 m patch per turn)
+  so it is its own defect, not the surface. Third park complaint in one sitting.
+
+- **"[screenshot] what is this floating thing in the church?"** (2026-08-02)
+  → **routed to a builder as queue item 91.** It is the painted statue that is
+  supposed to sit on a bracket above the votive stand (`ct/int-church.ts:651, 683`).
+  The statue reads; the bracket does not, so it floats against the wall.
