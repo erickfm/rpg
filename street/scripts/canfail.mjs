@@ -591,6 +591,38 @@ const CASES = [
     'const PIT_X = TRUNK_X;',
     'const PIT_X = 5.09;',
     'footprint.mjs', [], 'tree pits run flush into the kerb'],
+
+  // ── w36's two, from item 73's walking tier ────────────────────────────────
+  //
+  // BOTH OF THESE CHECKS PRINTED THEIR FAILURE AND EXITED 0 until this session,
+  // so before these cases could mean anything the checks had to be given an
+  // exit code at all. That is why each was proved TWICE: the mutation below was
+  // run against the fixed script AND against the pre-fix script from git, on
+  // the same broken world. `jitter` printed "24 reversals — back-and-forth is
+  // present" and exited 0; `integration-doors` printed "8/12 doors let you in"
+  // and exited 0. A case registered against either of them a day earlier would
+  // have been scored SLEPT for a reason that had nothing to do with the world.
+
+  // The oscillation the user reported — *"this red guy glitches back and forth
+  // as he walks sometimes idk why"*. `c.pick` is the lateral offset a walker
+  // COMMITTED to; trying it first is what stops a pass being re-decided every
+  // frame. crowd.ts's own comment at that line calls re-deriving the choice
+  // "the other half of the oscillation", so dropping it restores the real bug
+  // rather than inventing a new one. Measured: 0 reversals before, 29 after.
+  ['jitter-reversals', 'src/proto/ct/crowd.ts',
+    'for (const off of [c.pick, want, want + 0.4 * k, want - 0.8 * k, 0,',
+    'for (const off of [want, want + 0.4 * k, want - 0.8 * k, 0,',
+    'jitter.mjs', [], 'walkers flip-flopping as they pass, the stickiness gone'],
+
+  // Every door in the belt is reached by standing on its PUBLISHED stand point
+  // and pressing [E]. Push that point out of reach and the doors stop letting
+  // you in — which is the whole subject of the check. 0.75 m is the standoff
+  // the facade and the [E] spot share; 4.5 m is outside anybody's reach.
+  // Measured: 12/12 doors before, 8/12 after.
+  ['door-standoff', 'src/proto/ct/doors.ts',
+    'export function doorStandFor(building: string, standoff = 0.75)',
+    'export function doorStandFor(building: string, standoff = 4.5)',
+    'integration-doors.mjs', [], 'published door spots too far out to reach the door'],
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
   // a commit message.

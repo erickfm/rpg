@@ -53,10 +53,16 @@ const EXEMPT = {
 const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
   'jump-walk', 'w21-roof-climb', 'gaps', 'feet-check', 'side-night', 'I-seat-exit',
-  'unstick-walk', 'integration-doors', 'corner-traffic', 'crowd-net', 'side-walk',
+  'unstick-walk', 'corner-traffic', 'crowd-net', 'side-walk',
   // 'A-eye-height-holds' — CLEARED by w35, item 72: canfail case `eye-gate-flat`,
   // proven CAUGHT behaviourally rather than declared.
-  'jitter', 'K-seat-lets-you-up', 'O-jail-door-agree',
+  // 'integration-doors' — CLEARED by w36, item 73: canfail case `door-standoff`.
+  // 'jitter' — CLEARED by w36, item 73: canfail case `jitter-reversals`.
+  // BOTH NEEDED A FIX BEFORE THEY COULD BE CLEARED: each printed its own failure
+  // and exited 0, so no mutation could ever have shown up. Proved twice — the
+  // mutation was run against the fixed script and against the pre-fix script
+  // from git on the same broken world, and only the fixed one goes red.
+  'K-seat-lets-you-up', 'O-jail-door-agree',
   'L-slots-inworld', 'L-every-stool-seats-you', 'L-blackjack-inworld',
 ];
 
