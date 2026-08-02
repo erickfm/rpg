@@ -31,6 +31,7 @@
 //   node scripts/A-eye-height-holds.mjs [port]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 
 const ARG = process.argv[2];
 const URL = process.env.SHOT_URL
@@ -46,7 +47,7 @@ const gateEye = (gy) => gy + 1.6;
 const TOL = 0.5;               // a step's worth of slop; 5.4 m is not slop
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });
-await p.goto(URL, { waitUntil: 'networkidle' });
+await goto(p, URL);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await p.waitForTimeout(2500);
 await reportWorld(p, URL);
@@ -106,7 +107,7 @@ console.log(`\nplaces where the gate's eye is more than ${TOL} m from the player
 //
 // Reloaded so the spawn context is real: the apartment is a floor entered
 // through its door and cannot be warped back into.
-await p.goto(URL, { waitUntil: 'networkidle' });
+await goto(p, URL);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await p.waitForTimeout(3000);
 // A STEP FIRST. canSee refuses everything while `landing` is set — "just

@@ -22,6 +22,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 import { installMats, blindSpot } from './lib/materials.mjs';
 // THE SAME FAULT floaters-walk.mjs HAD, found by sweeping for its shape rather
 // than by waiting for someone to hit it. `people-walk.mjs diner` mapped to
@@ -40,7 +41,7 @@ const NUM = RAW.map(Number);
 const b = await chromium.launch();
 const p = await b.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
-await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
+await goto(p, aim('http://localhost:4185/'));
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await installMats(p);

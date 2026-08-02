@@ -18,6 +18,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 
 const FACE = 7.0, RADIUS = 0.36;
 
@@ -40,7 +41,7 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 540 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
-await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
+await goto(p, aim('http://localhost:4185/'));
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(300);
