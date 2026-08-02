@@ -35,10 +35,20 @@ const lamps = await page.evaluate(() => {
   });
   return out;
 });
-const run = lamps.filter((l) => l.x > 0 && l.x < 12 && l.z > -60 && l.z < 10).sort((a, b) => a.z - b.z);
-const A = run[run.length - 1], B = run[run.length - 2];
-const gapZ = (A.z + B.z) / 2;
-console.log(`lamp A (${A.x}, ${A.z})  lamp B (${B.x}, ${B.z})  gap z=${gapZ.toFixed(1)}`);
+// THE LAMPS ALTERNATE SIDES: (-4.1,-9), (4.1,-23), (-4.1,-37), (4.1,-51)...
+// The first cut of this took the midpoint of two lamps on the SAME side, at
+// z=-37 -- which is exactly where the opposite side's lamp stands. It was
+// sampling a pool and calling it a gap, and it made the fix look like it had
+// lifted the dark stretch by 2.26x when the dark stretch had never been
+// measured. The true trough is the midpoint of CONSECUTIVE lamps, whichever
+// side each is on.
+const street = lamps.filter((l) => Math.abs(l.x) < 8 && l.z > -60 && l.z < 10)
+  .sort((a, b) => b.z - a.z);
+const A = street.find((l) => l.x > 0);            // a +x lamp: the pavement we watch
+const nb = street.filter((l) => l !== A).sort((a, b) => Math.abs(a.z - A.z) - Math.abs(b.z - A.z))[0];
+const gapZ = (A.z + nb.z) / 2;
+console.log(`lamp A (${A.x}, ${A.z})  nearest neighbour (${nb.x}, ${nb.z})  true trough z=${gapZ.toFixed(1)}`);
+console.log(`all street lamps: ${street.map((l) => `(${l.x},${l.z})`).join(' ')}`);
 
 // Out in the road, looking across at the +x pavement. Yaw +x is 0 in this rig's
 // convention as used by the other probes' atan2 forms; pitch shallow so the
@@ -54,10 +64,12 @@ const look = async (z, tag) => {
     const c = document.createElement('canvas');
     c.width = img.width; c.height = img.height;
     const g = c.getContext('2d'); g.drawImage(img, 0, 0);
-    // A band across the FULL width, below the horizon and above the hands:
-    // 62%-80% of frame height. The saved screenshot is there to confirm by eye
-    // that this band is pavement.
-    const y0 = Math.floor(c.height * 0.62), y1 = Math.floor(c.height * 0.80);
+    // THE PAVEMENT BAND, not the road. At this camera the +x sidewalk runs
+    // across the frame at roughly 48-52% of its height, which the saved
+    // screenshot is there to confirm by eye. The first cut sampled 62-80% and
+    // that is entirely roadway -- so it reported the road's brightness under
+    // the heading "sidewalk", on both sides of the comparison.
+    const y0 = Math.floor(c.height * 0.478), y1 = Math.floor(c.height * 0.522);
     const d = g.getImageData(0, y0, c.width, y1 - y0).data;
     let s2 = 0;
     for (let i = 0; i < d.length; i += 4) s2 += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];

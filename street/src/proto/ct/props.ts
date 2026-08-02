@@ -500,7 +500,24 @@ export function buildProps(ctx: CtxBuild): Props {
   // all of its brightness in the TEXTURE. See isSelfLit below.
   const FLOOR_GROUND = 0.045, FLOOR_LOW = 0.115, FLOOR_HIGH = 0.03;
   const FLOOR_SIGN = 1.0;      // a light source does not dim when the sun sets
-  const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor
+  // WAS 12, AND 12 WAS CALIBRATED AGAINST A WORLD WHERE ALMOST NOTHING POOLED.
+  //
+  // With the span taper in force the only things a lamp could hand light back
+  // to were objects under ~6 m across — a hydrant, a person, a car — so the
+  // gain was set by how bright those small things should get, and it never had
+  // to describe an AREA. Now that the road and the pavement take the same term,
+  // 12 covers most of the near field: at full night the ambient is 0.045, so
+  // 0.045 x (1 + 12) = 0.585, and a 14 m circle of ground at 58% of daylight
+  // reads as "the street is lit" rather than "there is a lamp there". Measured
+  // on the four standing frames, mean luminance roughly doubled, and looking at
+  // them the dark asphalt the user likes had gone flat and grey.
+  //
+  // 6.5 puts a fully-pooled surface at 0.045 x 7.5 = 0.34, which is about where
+  // the painted road decal already sat (0.72 opacity additive over the same
+  // floor) — so the pool under a lamp lands close to the one the user has been
+  // looking at all along, and the change is that the pavement and the car now
+  // get it too instead of only the roadway.
+  const POOL_GAIN = 6.5;       // what a lamp hands back, against the deep floor
   const LOW_Y = 3.0, HIGH_Y = 12.0;   // the elevation the light runs out over
   // splash-back is a ground-level phenomenon: full strength at the pavement,
   // gone by the second floor. Also used as the drying rate — the top dries
@@ -729,6 +746,30 @@ uniform float uPoolAmb;`)
     });
   };
   const lit = (root: THREE.Object3D) => register(root, true);
+  // ── REGISTERING SOMETHING BUILT AFTER THE WORLD WAS ────────────────────
+  //
+  // `lit` and `dimWorld` are both build-time calls, so ANYTHING CONSTRUCTED
+  // LATER IS PERMANENTLY UNLIT — it is in no registry and carries no shader,
+  // and it stays at full daylight colour after dark. Measured: a car placed by
+  // `__ct.carVariant` comes back 0 of 33 body materials patched, and it is the
+  // same fleet geometry that is correctly lit when the parked cars are built.
+  //
+  // This is the one piece of the desk's diagnosis that is literally true —
+  // "anything that never registered is never lit" — but it is true of things
+  // built after buildProps, not of the modules it named, all of which do
+  // register. There is no runtime path in or out today, which is why it has
+  // never been visible: almost everything is built once at load.
+  //
+  // Published on scene.userData, exactly as addLamp is at :326 and for the same
+  // stated reason — reachable by anyone holding `scene`, so no caller needs an
+  // edit and ct/ctx.ts does not have to be widened.
+  //
+  //     (scene.userData as any).addLit?.(obj)
+  //
+  // It is idempotent: register() skips any material already in litSeen, so
+  // calling it twice on the same object costs a traverse and changes nothing.
+  (scene.userData as Record<string, unknown>).addLit =
+    (root: THREE.Object3D) => { lit(root); };
   // Everything else on the block: it loses the ambient at night like anything
   // would, but a lamp does not pick it out — the buildings already get the
   // wall splash and the road already gets the pool decal, and warming a 12 m
@@ -1766,7 +1807,27 @@ uniform float uPoolAmb;`)
       scene.add(splash);
       nightLit.push({ mat: splash.material as THREE.MeshBasicMaterial, base: 0.62 });
     }
-    nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.72 });
+    // ── THE PAINTED ROAD POOL COMES DOWN, BECAUSE IT IS NOW DOUBLE-COUNTED ──
+    //
+    // This 5.6 m additive quad existed because nothing else could put light on
+    // the ground: the ground is in wetMats, which both night-grading loops
+    // skip, so a decal was the only mechanism available. It is also the whole
+    // of the user's complaint — a quad was laid on the ROADWAY and never on the
+    // pavement, so the road had a pool and the sidewalk did not, and no amount
+    // of registering things could have changed that.
+    //
+    // Now that the ground takes the real falloff per fragment, the quad is the
+    // same light a second time, in one place only. Left at full strength the
+    // road sat about twice as bright as before while the pavement beside it was
+    // correct, which is the original inconsistency with its sign flipped.
+    //
+    // Kept at a low base rather than deleted: at 0.22 it is no longer the light
+    // — the shader is — but it still puts a soft bloom right under the head
+    // where wet asphalt would scatter it, and that read better than nothing in
+    // the frames. Deleting the mesh outright is the tidier change and it is
+    // NOT the one I am making, because the pool sheet is also what the park
+    // lanterns use at :1851 and that call is on the same texture.
+    nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.22 });
   };
   // 0.35 OFF THE KERB, not 0.55. The lane audit traced twelve separate stretches
   // of walk under 1.00 m — both walks, both side streets — to this one number,

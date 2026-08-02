@@ -32,11 +32,27 @@ const lamp = await page.evaluate(() => {
 });
 console.log(`lamp (${lamp.x}, ${lamp.z})`);
 
+// Mean luminance of the whole frame, reported alongside each shot. Not a
+// proof of anything on its own -- it is the sanity number that says whether
+// the world as a whole got brighter, which is the thing a lighting change is
+// most likely to do by accident and the thing the user has asked against
+// ("make the unilluminated stuff darker, it should feel scarier at night").
 const shot = async (name, x, z, yaw, pitch = -0.25) => {
   await page.evaluate(([a, b, c, d]) => window.__ct.warp(a, b, c, 0, d), [x, z, yaw, pitch]);
   await page.waitForTimeout(450);
-  await page.screenshot({ path: `shots/w45-${name}-${TAG}.png` });
-  console.log(`  shots/w45-${name}-${TAG}.png`);
+  const buf = await page.screenshot({ path: `shots/w45-${name}-${TAG}.png` });
+  const mean = await page.evaluate(async (s) => {
+    const img = new Image();
+    await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = 'data:image/png;base64,' + s; });
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let t = 0;
+    for (let i = 0; i < d.length; i += 4) t += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    return +(t / (d.length / 4) / 255).toFixed(5);
+  }, buf.toString('base64'));
+  console.log(`  ${name.padEnd(12)} mean ${mean.toFixed(5)}   shots/w45-${name}-${TAG}.png`);
 };
 
 // Standing on the sidewalk just short of the lamp, looking along it: the pool
