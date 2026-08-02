@@ -366,7 +366,14 @@ export function buildProps(ctx: CtxBuild): Props {
                   // take. See the note at `poolable` — these exist so a pool is
                   // sampled at the nearest point of a surface rather than at its
                   // centre, which is what made pools stop at invisible seams.
-                  bx0?: number; bx1?: number; bz0?: number; bz1?: number; sizeW?: number }
+                  bx0?: number; bx1?: number; bz0?: number; bz1?: number; sizeW?: number;
+                  // THE POOL NOW HAPPENS IN THE SHADER, and this is the one
+                  // value it needs from the CPU: this material's ambient for
+                  // this frame. Per material because the night floor is per
+                  // elevation — a shopfront and the road under it are on
+                  // different floors and must stay that way. Present only on
+                  // entries whose material was handed to attachPool.
+                  ambU?: { value: number } }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
   // WHAT COUNTS AS GLASS. The night grading skips translucent materials on
@@ -493,7 +500,24 @@ export function buildProps(ctx: CtxBuild): Props {
   // all of its brightness in the TEXTURE. See isSelfLit below.
   const FLOOR_GROUND = 0.045, FLOOR_LOW = 0.115, FLOOR_HIGH = 0.03;
   const FLOOR_SIGN = 1.0;      // a light source does not dim when the sun sets
-  const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor
+  // WAS 12, AND 12 WAS CALIBRATED AGAINST A WORLD WHERE ALMOST NOTHING POOLED.
+  //
+  // With the span taper in force the only things a lamp could hand light back
+  // to were objects under ~6 m across — a hydrant, a person, a car — so the
+  // gain was set by how bright those small things should get, and it never had
+  // to describe an AREA. Now that the road and the pavement take the same term,
+  // 12 covers most of the near field: at full night the ambient is 0.045, so
+  // 0.045 x (1 + 12) = 0.585, and a 14 m circle of ground at 58% of daylight
+  // reads as "the street is lit" rather than "there is a lamp there". Measured
+  // on the four standing frames, mean luminance roughly doubled, and looking at
+  // them the dark asphalt the user likes had gone flat and grey.
+  //
+  // 6.5 puts a fully-pooled surface at 0.045 x 7.5 = 0.34, which is about where
+  // the painted road decal already sat (0.72 opacity additive over the same
+  // floor) — so the pool under a lamp lands close to the one the user has been
+  // looking at all along, and the change is that the pavement and the car now
+  // get it too instead of only the roadway.
+  const POOL_GAIN = 6.5;       // what a lamp hands back, against the deep floor
   const LOW_Y = 3.0, HIGH_Y = 12.0;   // the elevation the light runs out over
   // splash-back is a ground-level phenomenon: full strength at the pavement,
   // gone by the second floor. Also used as the drying rate — the top dries
@@ -509,7 +533,177 @@ export function buildProps(ctx: CtxBuild): Props {
     return FLOOR_LOW + (FLOOR_HIGH - FLOOR_LOW) * t;
   };
   let nightNow = 0;
+  /** where the player is standing, for picking which lamps to upload. Written
+   *  by updateRain, which is handed it every frame; updateLit is not. */
+  let playerX = 0, playerZ = 0;
   const ambient = (floor: number) => 1 - nightNow * (1 - floor);
+  // ── LAMPLIGHT PER FRAGMENT, WHICH IS THE WHOLE OF ITEM 95 ───────────────
+  //
+  // The user: *"lighting needs a full refactor. it isnt consistent anywhere.
+  // this is a prime example. the lighting only affects the street but not the
+  // sidewalk. it doesnt affect the car at all."* He is right, and the cause is
+  // not a registry anybody forgot to sign up to — it is that a pool was
+  // computed ONCE PER MATERIAL.
+  //
+  // Measured before touching anything (scripts/probes/w45-whatisdark.mjs), at
+  // the lamp at (4.1, -23), every material within 4.5 m of the head, daylight
+  // colour against 23:00 colour:
+  //
+  //     held up by the lamp (night/day > 0.5):   3
+  //     at the night floor  (night/day <= 0.2): 38
+  //
+  // and the three were a 0.1 x 0.1 lamp post and two 0.1 x 0.1 sign posts.
+  // The road ribbon (60 x 124.5) read 0.045. The kerb (1.9 x 92.8) read 0.045.
+  // Every shopfront read 0.030-0.115. They were not unregistered — they nearly
+  // all carried `graded` — they were registered and then REFUSED, by the span
+  // taper below feeding `poolable = wy.y < 4.5 && sizeW > 0`.
+  //
+  // AND THE TAPER WAS RIGHT. Its own comment states the real ceiling: "one
+  // material carries ONE tint, so a 92 m road ribbon cannot hold a gradient.
+  // Pool it and the whole street lifts uniformly, which would flatten the
+  // pools the user likes — I did exactly that once with a shared-material fix
+  // and had to revert it." That is true of every fix that stays on the CPU.
+  // Every surface a lamp stands on in this world is longer than 12 m, so the
+  // taper was not excluding an unlucky few: it was excluding ALL GROUND, by
+  // construction, and the pool you can see on the road is not tinting at all —
+  // it is a painted 5.6 x 5.6 additive quad laid on the roadway. There is no
+  // such quad on the sidewalk and none on a car, which is the screenshot.
+  //
+  // So the fix is to move the SAME MATH one stage down the pipe: evaluate the
+  // pool at each fragment's world x/z instead of once at the mesh's centre.
+  // Then a 92 m ribbon holds a gradient, the taper's premise dissolves, and
+  // every surface is lit on identical terms whether or not anyone remembered
+  // it — which is what "consistent anywhere" has to mean.
+  //
+  // THIS IS NOT CONVERTING THE WORLD TO REAL LIGHTS, and that distinction is
+  // the reason it is safe. There are no normals in this, no diffuse term, no
+  // light type, no shading of any kind. Every material stays MeshBasicMaterial
+  // and every texel keeps its painted value; the only thing added is the
+  // existing falloff — LAMP_R, LAMP_CORE, the same smoothstep, the same
+  // POOL_GAIN, the same WARM_* multiply — read at a fragment instead of at a
+  // centroid. A surface far from every lamp comes out bit-identical to what it
+  // was. That is why the "warmed greenhouse" failure cannot recur here: the
+  // thing that made 8 px/m art read as a brown slab was shading it by normal,
+  // and there is no normal anywhere in this block.
+  //
+  // Cost: one program, shared. The injected source is identical for every
+  // material, so three.js compiles it once and every patched material reuses
+  // it — customProgramCacheKey below makes that explicit rather than lucky.
+  // ── WHAT THIS COSTS, MEASURED, AND WHY IT IS 16 AND NOT 64 ─────────────
+  //
+  // First cut uploaded all 27 heads into 64 slots and let every patched
+  // fragment walk the list. Frame time at (2.6, -23), 120 frames, median:
+  //
+  //                    day 13:00     night 23:00
+  //     before          47.1 ms        50.0 ms
+  //     64 slots, all   64.7 ms       129.8 ms
+  //
+  // Night went 2.6x slower — 20 fps to 8 — and DAY got 38% slower too, which
+  // is the tell: the loop ran in broad daylight, when uPoolNight is 0 and every
+  // iteration is multiplied away. Two things follow, and both are in the shader
+  // rather than in how much light there is:
+  //
+  //   1. Skip the whole block unless it is actually night. The branch is on a
+  //      uniform, so it is coherent across every fragment in the draw and costs
+  //      nothing to take.
+  //   2. Upload only the lamps NEAR THE PLAYER. A pool is 7 m across; the 16th
+  //      nearest head is already ~60 m away, past the point where its pool is
+  //      more than a smudge in the fog. updateRain is handed the player's
+  //      position every frame, so this needs no new plumbing.
+  //
+  // 16 slots rather than 27 also matters on its own: a uniform-bounded loop is
+  // not guaranteed to early-out on every driver, so POOL_MAX is the real worst
+  // case and it should be the smallest number that cannot be noticed.
+  const POOL_MAX = 12;                 // uniform slots; 27 heads exist, nearest win
+  const poolLampU = Array.from({ length: POOL_MAX }, () => new THREE.Vector4());
+  const uPoolLamps = { value: poolLampU };
+  /** scratch for the nearest-first sort, reused so the per-frame pass allocates
+   *  nothing */
+  const lampNear: { x: number; z: number; r?: number; core?: number }[] = [];
+  const uPoolCount = { value: 0 };
+  const uPoolNight = { value: 0 };
+  // THE POOL IS PLANAR — it always was; `addLamp` takes x/z and no height, and
+  // the note there says so. On the ground that is exactly right. On a wall it
+  // is not: a planar pool would light a 15 m facade evenly to the roofline,
+  // because every fragment shares the lamp's plan distance. The old code hid
+  // that behind `wy.y < 4.5`, a cliff on the MESH's centre — which is why a
+  // shopfront whose box runs y 0-15 got nothing at its base either.
+  //
+  // Per fragment the honest form is available: fade the pool out with the
+  // fragment's own height. Full strength up to a car roof, gone by the top of
+  // a shopfront, so a lamp lights the ground, the cars and the people on it
+  // and the bottom of what they stand against — and the fifth floor still has
+  // nothing on it, which is what FLOOR_HIGH is for.
+  const POOL_Y0 = 2.2, POOL_Y1 = 4.5;
+  const nf = (n: number) => n.toFixed(5);
+  const POOL_FRAG = `
+// TWO UNIFORM-OR-VARYING TESTS BEFORE THE LOOP, both exact rather than
+// approximations. Daylight skips it outright. And a fragment above POOL_Y1 is
+// multiplied to zero by the height fade below anyway, so walking the lamp list
+// for it is pure waste — this is most of the fragments on a 15 m facade, and
+// facades are the deepest overdraw on the street.
+if (uPoolNight > 0.0 && vPoolW.y < ${nf(POOL_Y1)}) {
+  float w45best = 0.0;
+  for (int i = 0; i < ${POOL_MAX}; i++) {
+    if (i >= uPoolCount) break;
+    vec4 L = uPoolLamps[i];                       // x, z, radius, core
+    // BRANCHLESS, AND IT IS THE SAME FUNCTION, not an approximation of it:
+    //   1 - (d - C)/(R - C)  ==  (R - d)/(R - C)
+    // so the "full strength inside the core" case is just the clamp at 1, and
+    // the "past the radius" case is the clamp at 0. Two branches per lamp per
+    // fragment came out of the inner loop for nothing.
+    float d = distance(vPoolW.xz, L.xy);
+    w45best = max(w45best, clamp((L.z - d) / max(L.z - L.w, 1e-3), 0.0, 1.0));
+  }
+  // the same smoothstep the CPU pass used, and the same reason: squared alone
+  // only reaches 0.23 two metres out, too faint to read as lit at all
+  float w45k = uPoolNight * (w45best * w45best * (3.0 - 2.0 * w45best));
+  w45k *= 1.0 - smoothstep(${nf(POOL_Y0)}, ${nf(POOL_Y1)}, vPoolW.y);
+  float w45mul = min(1.0, uPoolAmb * (1.0 + w45k * ${nf(POOL_GAIN)}));
+  // diffuseColor already carries base * uPoolAmb, written by updateLit, so
+  // dividing it back out lands exactly on the old formula's base * mul * warm
+  diffuseColor.rgb *= (w45mul / max(uPoolAmb, 1e-4)) * vec3(
+    1.0 + (${nf(WARM_R)} - 1.0) * w45k,
+    1.0 + (${nf(WARM_G)} - 1.0) * w45k,
+    1.0 + (${nf(WARM_B)} - 1.0) * w45k);
+}`;
+  /** ambient uniforms for the WET registry, whose materials updateRain owns
+   *  and which therefore never appear in litList. Keyed by material because
+   *  `WetSurface` lives in ct/ctx.ts and is not this module's to widen. */
+  const wetPoolAmb = new Map<THREE.MeshBasicMaterial, { value: number }>();
+  /** Give one material the per-fragment pool. `ambU` is its own ambient for
+   *  this frame — per material because the night floor is per elevation. */
+  const attachPool = (m: THREE.MeshBasicMaterial, ambU: { value: number }) => {
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uPoolLamps = uPoolLamps;
+      sh.uniforms.uPoolCount = uPoolCount;
+      sh.uniforms.uPoolNight = uPoolNight;
+      sh.uniforms.uPoolAmb = ambU;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vPoolW;')
+        // after <begin_vertex>, `transformed` is the local position this vertex
+        // will actually be drawn at, so the world point is exact even where a
+        // parent group is transformed — which is the same bug the wx/wz fields
+        // were added to fix on the CPU side.
+        .replace('#include <project_vertex>',
+          'vPoolW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+varying vec3 vPoolW;
+uniform vec4 uPoolLamps[${POOL_MAX}];
+uniform int uPoolCount;
+uniform float uPoolNight;
+uniform float uPoolAmb;`)
+        // AFTER <color_fragment>, not before: that chunk is what folds the
+        // `diffuse` uniform into diffuseColor, and the pool has to act on the
+        // graded colour rather than on the raw map.
+        .replace('#include <color_fragment>', `#include <color_fragment>${POOL_FRAG}`);
+    };
+    // Every patched material injects byte-identical source, so they share one
+    // compiled program. Saying so beats letting three.js discover it.
+    m.customProgramCacheKey = () => 'w45pool';
+    m.needsUpdate = true;
+  };
   const register = (root: THREE.Object3D, pool: boolean) => {
     root.traverse((o) => {
       const mm = (o as THREE.Mesh).material;
@@ -573,12 +767,48 @@ export function buildProps(ctx: CtxBuild): Props {
         // flag, set by the owner who knows, and nothing else moves.
         const emits = !!m.userData?.lightSource;
         if (emits) m.userData.selfLit = true;
+        const takesPool = pool && !emits;
+        // A CAR IS THE OTHER HALF OF THE USER'S SENTENCE. "it doesnt affect the
+        // car at all" — and crosstown.ts does call props.lit(car), so the car
+        // WAS in this list and still came out flat. The reason is two lines
+        // down from here in the old code: this path stores `ox/oz` and the pool
+        // branch sampled `root.position + offset`, one point for a 4.5 m body,
+        // against a 1.8 m core. A car half in a pool got the whole car's answer
+        // from wherever its origin happened to fall. Per fragment there is no
+        // origin to be unlucky about: the near wing lights and the far one does
+        // not, which is what a sodium lamp does to a parked car.
+        const ambU = takesPool ? { value: 1 } : undefined;
+        if (ambU) attachPool(m, ambU);
         litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(),
-                       pool: pool && !emits, floor: emits ? FLOOR_SIGN : FLOOR_GROUND, wetK: 0 });
+                       pool: takesPool, floor: emits ? FLOOR_SIGN : FLOOR_GROUND, wetK: 0, ambU });
       }
     });
   };
   const lit = (root: THREE.Object3D) => register(root, true);
+  // ── REGISTERING SOMETHING BUILT AFTER THE WORLD WAS ────────────────────
+  //
+  // `lit` and `dimWorld` are both build-time calls, so ANYTHING CONSTRUCTED
+  // LATER IS PERMANENTLY UNLIT — it is in no registry and carries no shader,
+  // and it stays at full daylight colour after dark. Measured: a car placed by
+  // `__ct.carVariant` comes back 0 of 33 body materials patched, and it is the
+  // same fleet geometry that is correctly lit when the parked cars are built.
+  //
+  // This is the one piece of the desk's diagnosis that is literally true —
+  // "anything that never registered is never lit" — but it is true of things
+  // built after buildProps, not of the modules it named, all of which do
+  // register. There is no runtime path in or out today, which is why it has
+  // never been visible: almost everything is built once at load.
+  //
+  // Published on scene.userData, exactly as addLamp is at :326 and for the same
+  // stated reason — reachable by anyone holding `scene`, so no caller needs an
+  // edit and ct/ctx.ts does not have to be widened.
+  //
+  //     (scene.userData as any).addLit?.(obj)
+  //
+  // It is idempotent: register() skips any material already in litSeen, so
+  // calling it twice on the same object costs a traverse and changes nothing.
+  (scene.userData as Record<string, unknown>).addLit =
+    (root: THREE.Object3D) => { lit(root); };
   // Everything else on the block: it loses the ambient at night like anything
   // would, but a lamp does not pick it out — the buildings already get the
   // wall splash and the road already gets the pool decal, and warming a 12 m
@@ -811,7 +1041,34 @@ export function buildProps(ctx: CtxBuild): Props {
         // not in the pooling registry either.
         o.userData.sizeW = sizeW;
         o.userData.poolSpan = span;
-        const poolable = wy.y < 4.5 && sizeW > 0;
+        // ── THE SPAN CLIFF IS GONE, AND SO IS THE CENTRE-HEIGHT CLIFF ──────
+        //
+        // This was `wy.y < 4.5 && sizeW > 0` and both halves were centroid
+        // tests, which is what put every large surface in the world outside
+        // the light:
+        //
+        //   sizeW > 0   is false beyond a 12 m span, and the road ribbon is
+        //               124.9 m, the kerb 92.8 m, the shopfronts 13-23.5 m.
+        //               NO GROUND IN THIS WORLD PASSED IT. That was correct
+        //               while one material carried one tint; the shader pool
+        //               removes the premise, so the taper is no longer what
+        //               decides whether a surface may be lit.
+        //   wy.y < 4.5  is the mesh's CENTRE height, so a shopfront whose box
+        //               runs y 0-15 has a centre at 10.7 and was refused —
+        //               including the part of it standing on the pavement.
+        //
+        // Both are now questions the fragment answers for itself: the height
+        // fade at POOL_Y0/POOL_Y1 does the second one honestly, per fragment,
+        // and the first one simply is not a question any more. What is left
+        // here is only "could any part of this mesh be near the ground", read
+        // off the box's BASE rather than its middle — a cheap way to avoid
+        // patching a shader onto roofs and sky that can never take a pool.
+        //
+        // `sizeW` is still computed and still published on the mesh: it is the
+        // taper's own instrument (scripts/wallpool.mjs reads the (span, sizeW)
+        // pair) and the additive wall splash still uses the taper's idea. It
+        // just no longer gates poolability.
+        const poolable = bx.min.y < POOL_Y1;
         const selfLit = isSelfLit(m);
         // Say so on the material. A sheet held at FLOOR_SIGN is graded and
         // deliberately kept bright, which from outside is indistinguishable
@@ -821,13 +1078,20 @@ export function buildProps(ctx: CtxBuild): Props {
         // user asked for: "Lit windows and signs must NOT dim with it."
         if (selfLit) m.userData.selfLit = true;
         m.userData.graded = true;
-        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(),
+        const dimTakesPool = poolable && !selfLit && !noLamp;
+        // noLamp still means exactly what ct/cars.ts set it for — "a lit engine
+        // bay reads as a brown tray" — and it still means it the same way:
+        // registered, dimmed by nightfall, never handed the warm term. It just
+        // now buys an unpatched shader as well as `pool: false`.
+        const dimAmbU = dimTakesPool ? { value: 1 } : undefined;
+        if (dimAmbU) attachPool(m, dimAmbU);
+        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), ambU: dimAmbU,
                        // wy is this mesh's WORLD position, already computed above
                        // for the elevation floor. The pool branch needs the same
                        // point and was using o.position instead.
                        wx: wy.x, wz: wy.z,
                        bx0: bx.min.x, bx1: bx.max.x, bz0: bx.min.z, bz1: bx.max.z, sizeW,
-                       pool: poolable && !selfLit && !noLamp,
+                       pool: dimTakesPool,
                        floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
                        // SELF-LIT MEANS "DO NOT DIM ME", NOT "DO NOT WET ME".
                        // This zeroed wetK for anything isSelfLit() matched, and
@@ -1041,6 +1305,40 @@ export function buildProps(ctx: CtxBuild): Props {
     if (night <= 0.001 && litLast <= 0.001 && wetness <= 0.004 && wetLast <= 0.004) return;
     wetLast = wetness;
     litLast = night;
+    // ── HAND THE LAMPS TO THE GPU ──────────────────────────────────────────
+    //
+    // One upload for the whole world, not one per material: `uPoolLamps` is a
+    // single uniform object shared by every patched material, so writing it
+    // here reaches all of them. Packed as (x, z, radius, core) because that is
+    // exactly what the falloff below reads, and per-head rather than global so
+    // a 2.6 m door bulkhead keeps lighting only its doorway.
+    //
+    // The count is published so a check can ask the world how many lights it
+    // thinks it has, instead of counting lamp posts in a screenshot.
+    // NEAREST THE PLAYER WIN. 27 heads exist and 16 slots are uploaded, so the
+    // order matters: taking them in build order would hand the GPU whichever
+    // lamps happened to be created first, which on the side street is nowhere
+    // near the player. Sorted by plan distance to where he is standing, so the
+    // ones that can actually put light in frame are always the ones present.
+    //
+    // Sorting 27 entries once a frame, after dusk only, against a shader that
+    // was costing 80 ms — this is not the expensive end of the change.
+    lampNear.length = 0;
+    for (const h of lampHeads) lampNear.push(h);
+    if (lampNear.length > POOL_MAX) {
+      lampNear.sort((a, b) =>
+        ((a.x - playerX) ** 2 + (a.z - playerZ) ** 2)
+        - ((b.x - playerX) ** 2 + (b.z - playerZ) ** 2));
+    }
+    const nLamps = Math.min(lampNear.length, POOL_MAX);
+    for (let i = 0; i < nLamps; i++) {
+      const h = lampNear[i];
+      poolLampU[i].set(h.x, h.z, h.r ?? LAMP_R, h.core ?? LAMP_CORE);
+    }
+    uPoolCount.value = nLamps;
+    uPoolNight.value = night;
+    scene.userData.lampHeadCount = lampHeads.length;
+    scene.userData.lampHeadsUploaded = nLamps;
     for (const e of litList) {
       const amb = ambient(e.floor);
       if (!e.pool) {
@@ -1088,7 +1386,14 @@ export function buildProps(ctx: CtxBuild): Props {
       }
       // smoothstep, not a square: squared only reaches 0.23 two metres from
       // the head, too faint to read as lit at all
-      const k = night * (best * best * (3 - 2 * best)) * (e.sizeW ?? 1);
+      //
+      // `sizeW` IS GONE FROM THIS PRODUCT and that is the change. It was here
+      // to stop a big shared material lifting uniformly, which was the right
+      // answer to the wrong stage of the pipeline: it made the taper decide
+      // how BRIGHT a surface could get from how BIG it was, so the 92 m kerb
+      // could only ever be at zero. The gradient the taper was standing in for
+      // now exists for real, in the fragment.
+      const k = night * (best * best * (3 - 2 * best));
       // dark by default, and the lamp gives it back — capped so a pool reads
       // as lit rather than blown out
       const mul = Math.min(1, amb * (1 + k * POOL_GAIN));
@@ -1104,11 +1409,20 @@ export function buildProps(ctx: CtxBuild): Props {
       // state — most materials are either in a pool all night or never.
       const held = mul > 0.995 && k > 0;
       if (!!e.m.userData.poolLit !== held) e.m.userData.poolLit = held;
-      e.m.color.setRGB(
-        e.base.r * mul * (1 + (WARM_R - 1) * k),
-        e.base.g * mul * (1 + (WARM_G - 1) * k),
-        e.base.b * mul * (1 + (WARM_B - 1) * k),
-      );
+      // ── AND THE COLOUR IS NOW JUST THE AMBIENT ─────────────────────────
+      //
+      // The warm term and the gain moved into POOL_FRAG, which applies them at
+      // the fragment. All this pass still owes the material is its ambient for
+      // this frame — the elevation floor, which is a property of the mesh and
+      // not of the pixel, so it belongs here.
+      //
+      // `mul` and `k` above are still computed, and only for `poolLit`. That
+      // flag answers "is a lamp holding this material up", which several
+      // checks read; it is a per-MATERIAL question and the shader cannot
+      // answer it, so the CPU keeps doing so. It costs a few dozen entries
+      // against ~21 heads, once a frame, after dusk only.
+      e.ambU!.value = amb;
+      e.m.color.setRGB(e.base.r * amb, e.base.g * amb, e.base.b * amb);
     }
   };
 
@@ -1547,7 +1861,27 @@ export function buildProps(ctx: CtxBuild): Props {
       scene.add(splash);
       nightLit.push({ mat: splash.material as THREE.MeshBasicMaterial, base: 0.62 });
     }
-    nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.72 });
+    // ── THE PAINTED ROAD POOL COMES DOWN, BECAUSE IT IS NOW DOUBLE-COUNTED ──
+    //
+    // This 5.6 m additive quad existed because nothing else could put light on
+    // the ground: the ground is in wetMats, which both night-grading loops
+    // skip, so a decal was the only mechanism available. It is also the whole
+    // of the user's complaint — a quad was laid on the ROADWAY and never on the
+    // pavement, so the road had a pool and the sidewalk did not, and no amount
+    // of registering things could have changed that.
+    //
+    // Now that the ground takes the real falloff per fragment, the quad is the
+    // same light a second time, in one place only. Left at full strength the
+    // road sat about twice as bright as before while the pavement beside it was
+    // correct, which is the original inconsistency with its sign flipped.
+    //
+    // Kept at a low base rather than deleted: at 0.22 it is no longer the light
+    // — the shader is — but it still puts a soft bloom right under the head
+    // where wet asphalt would scatter it, and that read better than nothing in
+    // the frames. Deleting the mesh outright is the tidier change and it is
+    // NOT the one I am making, because the pool sheet is also what the park
+    // lanterns use at :1851 and that call is on the same texture.
+    nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.22 });
   };
   // 0.35 OFF THE KERB, not 0.55. The lane audit traced twelve separate stretches
   // of walk under 1.00 m — both walks, both side streets — to this one number,
@@ -1925,6 +2259,7 @@ export function buildProps(ctx: CtxBuild): Props {
   ctx.onFrame((f) => updateRain(f.dt, f.px, f.pz, f.hourAbs), ORDER.PROPS);
 
   const updateRain = (dt: number, px: number, pz: number, hAbs: number) => {
+    playerX = px; playerZ = pz;      // for the lamp cull in updateLit
     const wantRain = rainAt(hAbs) && px < 100 ? 1 : 0;
     rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
     // LATCHED, not read live. `stormAt(hAbs)` on the hour the rain STOPS is a
@@ -1958,6 +2293,32 @@ export function buildProps(ctx: CtxBuild): Props {
     // the road and the sidewalk kept full daylight brightness all night,
     // which is exactly why they read as "daylight asphalt with a filter".
     const amb = ambient(FLOOR_GROUND);
+    // ── THE GROUND IS NOT IN litList AT ALL, AND THAT IS THE SIDEWALK BUG ──
+    //
+    // Both night-grading loops skip anything in wetMats — "one writer per
+    // material", which is right and must stay. But the road, the sidewalk, the
+    // kerb and the gutter are ALL wet surfaces, so the entire ground plane of
+    // the world was never in the lamplight registry in the first place. Not
+    // refused by the span taper: absent, and so far upstream of it that the
+    // taper was a red herring for the ground specifically.
+    //
+    // Which is why the visible pool on the road is a painted additive quad and
+    // not light: with no ground in the pool registry, a decal was the only way
+    // anything could appear under a lamp at all. And a decal was placed on the
+    // roadway and never on the pavement, which is the user's sentence word for
+    // word — "the lighting only affects the street but not the sidewalk".
+    //
+    // Fixed here rather than by moving the ground into litList, because
+    // updateRain must remain its single writer. The pool is not a colour write
+    // — it is a shader the material carries — so the two do not fight: this
+    // loop keeps writing the wet-and-graded colour, and hands the fragment the
+    // ambient it used, exactly as the litList path does.
+    for (const w of wetMats) {
+      if (w.m.userData.noLight || w.m.blending === THREE.AdditiveBlending) continue;
+      let u = wetPoolAmb.get(w.m);
+      if (!u) { u = { value: 1 }; wetPoolAmb.set(w.m, u); attachPool(w.m, u); }
+      u.value = amb;
+    }
     for (const w of wetMats) {
       // The wet registry is graded too — updateRain owns these colours, and the
       // note asking for the stamp called this out as the other blind spot. Same
