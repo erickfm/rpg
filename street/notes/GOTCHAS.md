@@ -2171,3 +2171,26 @@ The three confirmations, each arrived at separately:
 change.** Use `fp` only for pure refactors. Otherwise compare `places` as a
 multiset — `scripts/probes/w44-placediff.mjs` does exactly that — and expect the
 documented noise floor of a few pigeons at 1–2 cm.
+
+## 76.
+
+**A state-based TRIGGER does not save you if the CAPTURE is not atomic with it.**
+
+A builder timing an animated bulb chase triggered its screenshots with
+`waitForFunction` on real world state — the correct pattern, and the one this
+brief demands everywhere else. The shots still landed **50–200 ms after** the
+trigger fired, which is longer than a flash half-beat, so **two frames came out
+with their labels swapped**. It looked like the animation was wrong. It was not.
+
+This is GOTCHAS 53's "fixed wall-clock waits lie under load" wearing a different
+hat, and the lesson is sharper: *waiting for the right moment* and *capturing at
+the right moment* are two different problems. Freeze `performance.now()` — or
+otherwise stop the clock — so the capture is deterministic rather than merely
+well-aimed.
+
+**Related, from the same run: never recover ordered classes by material
+reference.** Grouping bulbs by which material object they share returns the
+phase classes in **arbitrary order**, and every question worth asking about a
+chase is about order. It reported 209 of 330 samples unclassifiable against a
+world that was fine. Recover order **physically** instead — along any straight
+run, consecutive sockets are consecutive classes.
