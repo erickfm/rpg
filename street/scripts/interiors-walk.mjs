@@ -223,6 +223,39 @@ const ROOMS = [
   },
 ];
 
+// ── ROOMS THAT ARE NOT IN THE BELT, and cannot be walked the way the twelve are
+//
+// Everything in `ROOMS` above shares four facts that this whole file is built
+// on: the room is a kit slab at x >= 400, its cz is 0, its floor is y 0, and
+// you get in by pressing [E] at a door on the pavement. Section 1 walks the
+// street up to that door, section 5 walks back out of it and checks you landed
+// on the kerb, and the entry leg locates the room by `400 + floor((x-400)/80)
+// * 80 + 40` — the slab address. None of that means anything for a room that
+// has none of those four properties.
+//
+// `apt301` has none of them. Measured from the world's own registry
+// (`scripts/probes/w32-roomdims-dump.mjs`):
+//
+//     twelve belt rooms   cx 440..1320   cz 0.00     y 0.000   w 8.8..20.0
+//     apt301              cx 198.40      cz -16.25   y 5.400   w 3.06
+//
+// It is a 3 m flat on the THIRD FLOOR of the walk-up, reached by climbing a
+// stair shaft, and its door is an interior door onto a landing — there is no
+// street approach to walk and no "out to the street" prompt to press.
+//
+// So it is walked, but for the legs that are ACTUALLY DECIDABLE about it (see
+// `walkOffBelt` below): was it built, does the floor picker agree with where
+// the rig stands three storeys up, is there floor to stand on, can you cross
+// it. The street-approach, [E]-entry, way-out and landing legs are declared
+// not-applicable and PRINTED as such — not silently dropped, which is the
+// GOTCHAS 34 failure this file's coverage guard exists to prevent.
+//
+// `covers` names the check that DOES test the parts this one cannot, so the
+// opt-out points at a real instrument rather than at nothing.
+const OFF_BELT = [
+  { id: 'apt301', covers: 'door301', label: /301/ },
+];
+
 // Rooms that name a building get their door and width DERIVED from the same
 // published frontage the kit and the painter use. Hand-typed door positions in
 // a test file go stale exactly the way they did in the rooms — three of them
@@ -236,8 +269,11 @@ const ROOMS = [
 const SELFTEST = flags(['--selftest']).selftest;
 const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const rooms = only ? ROOMS.filter((r) => r.id === only) : ROOMS;
-if (only && !rooms.length) {
-  console.log(`no room called "${only}" — ids are: ${ROOMS.map((r) => r.id).join(', ')}`);
+// The positional filter has to reach the off-belt rooms too, or `apt301` would
+// be the one room in the world you could not ask this suite about by name.
+const offBelt = only ? OFF_BELT.filter((r) => r.id === only) : OFF_BELT;
+if (only && !rooms.length && !offBelt.length) {
+  console.log(`no room called "${only}" — ids are: ${[...ROOMS, ...OFF_BELT].map((r) => r.id).join(', ')}`);
   process.exit(1);
 }
 
@@ -369,12 +405,46 @@ for (const r of ROOMS) {
 // So the world's own list is the authority and the hand-written one has to
 // keep up with it. This cannot be silent, so it exits 2 — "refused to run",
 // distinguishable from "ran and found a fault", per lib/flags.mjs.
+//
+// IT ASKS THE ROOM WHICH LIST IT BELONGS IN, rather than requiring every room
+// to be in `ROOMS`. That single `known` set was one question too few and it
+// cost the whole suite: `apt301` joined the registry so `seat-facing` could see
+// its bed, and because a third-floor flat with no street door is not something
+// `ROOMS` can hold, this guard exited 2 for EVERY room — twelve working rooms
+// reported as `FAILED (2)` by scripts/checks.mjs on the strength of one room it
+// had no way to describe. The guard was right that it could not report on a
+// subset; it was wrong that there was only one kind of room.
+//
+// The teeth are unchanged in both directions, and that is the point: a belt
+// room missing from `ROOMS` still exits 2, and an off-belt room missing from
+// `OFF_BELT` exits 2 as well. Nothing is waved through — a new room still has
+// to be declared somewhere before this suite will run at all.
 {
   const known = new Set(ROOMS.map((r) => r.id));
-  const missing = DIMS.map((d) => d.id).filter((id) => !known.has(id));
-  if (missing.length) {
-    console.error(`\nthe world publishes rooms this suite does not test: ${missing.join(', ')}`);
-    console.error('add them to ROOMS (with a `keeper` entry, or `keeper: null` if unstaffed)');
+  const knownOff = new Set(OFF_BELT.map((r) => r.id));
+  // `d.belt` is published by ct/interior.ts. If it is missing the world is
+  // OLDER than this harness, and guessing (`cx >= 400`) would be exactly the
+  // hand-typed duplicate of a value the registry owns that §8 of the brief
+  // forbids — so say so and refuse, rather than quietly mis-sorting rooms.
+  const unsorted = DIMS.filter((d) => typeof d.belt !== 'boolean').map((d) => d.id);
+  if (unsorted.length) {
+    console.error(`\nthe world does not publish \`belt\` for: ${unsorted.join(', ')}`);
+    console.error('this harness needs ct/interior.ts to say which rooms are street-entered slabs');
+    console.error('refusing to guess from cx — see the note above OFF_BELT');
+    await b.close();
+    process.exit(2);
+  }
+  const missing = DIMS.filter((d) => d.belt && !known.has(d.id)).map((d) => d.id);
+  const missingOff = DIMS.filter((d) => !d.belt && !knownOff.has(d.id)).map((d) => d.id);
+  if (missing.length || missingOff.length) {
+    if (missing.length) {
+      console.error(`\nthe world publishes BELT rooms this suite does not test: ${missing.join(', ')}`);
+      console.error('add them to ROOMS (with a `keeper` entry, or `keeper: null` if unstaffed)');
+    }
+    if (missingOff.length) {
+      console.error(`\nthe world publishes OFF-BELT rooms this suite does not test: ${missingOff.join(', ')}`);
+      console.error('add them to OFF_BELT, naming in `covers` the check that walks their door');
+    }
     console.error('refusing to report on a subset and call it the world — see GOTCHAS 34');
     await b.close();
     process.exit(2);
@@ -1063,6 +1133,130 @@ for (room of rooms) {
   await p.evaluate(() => window.__ct.clock(13, 20));
 }
 
+// ── OFF-BELT ROOMS ─────────────────────────────────────────────────────────
+//
+// The legs above cannot run here (see the note above `OFF_BELT`), but "cannot
+// walk it the way I walk the twelve" is not the same as "cannot walk it". What
+// IS decidable about a room off the belt is the part that has nothing to do
+// with doors: was it built, is its floor where the picker says it is, is there
+// anywhere to stand, and can you cross it. Those are exactly the questions the
+// walk-up's third floor was never asked — `scripts/seat-facing.mjs` only got
+// the room's dimensions, and nothing has ever put a rig inside it and walked.
+//
+// EVERY WARP HERE PASSES `built.y`, NOT 0. That is the whole reason `RoomDims.y`
+// exists: `ct/interior.ts` records that bugsweep's three `bug-apt301-*` stations
+// passed `verifyLanded` — which only checks x and z — while standing at street
+// level and photographing the OUTSIDE of the building. A harness that hardcodes
+// gy 0 here does not test this room, it tests the pavement under it.
+for (const spec of offBelt) {
+  room = spec;
+  const built = DIMS.find((d) => d.id === spec.id);
+  check('the room was actually built', !!built, built ? `w=${f2(built.w)} d=${f2(built.d)} y=${f2(built.y)}` : 'no room of that id in __ct.roomDims()');
+  if (!built) continue;
+  const { cx, cz, y: gy } = built;
+  const hw = built.w / 2, hd = built.d / 2;
+
+  // ── does the floor picker agree with where the rig stands, three floors up ──
+  await warp(cx, cz, 0, gy);
+  await p.waitForTimeout(200);
+  const at = await pos();
+  const ground = await p.evaluate(([x, z]) => window.__ct.groundAt(x, z), [at[0], at[2]]);
+  check('you stand where the floor picker says — not sunk, not floating',
+    ground !== null && Math.abs(at[3] - ground) < 0.001,
+    `rig gy=${f2(at[3])}, groundAt=${ground === null ? 'null' : f2(ground)} (room floor y=${f2(gy)})`);
+  // …and that it is THIS room's floor and not the pavement three storeys below,
+  // which is the exact failure RoomDims.y was published to stop.
+  check('the floor you are standing on is the room\'s own, not the street',
+    Math.abs(at[3] - gy) < 0.05, `rig gy=${f2(at[3])}, room floor y=${f2(gy)}`);
+
+  // ── is there floor to stand on, and can you cross it ──
+  //
+  // Same grid as the belt rooms', but around the room's OWN centre on both
+  // axes. The belt version writes bare `z` because every slab has cz 0; this
+  // room's cz is -16.25 and that shortcut would sample the street outside.
+  const standables = await p.evaluate(([cx, cz, hw, hd, R]) => {
+    const cols = window.__ct.colliders();
+    const free = (x, z) => !cols.some((c) =>
+      x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R);
+    const out = [];
+    for (let z = -hd + R; z <= hd - R; z += 0.3) {
+      for (let x = -hw + R; x <= hw - R; x += 0.3) if (free(cx + x, cz + z)) out.push([+x.toFixed(2), +z.toFixed(2)]);
+    }
+    return out;
+  }, [cx, cz, hw, hd, RADIUS]);
+  check('there is standable floor in the room at all', standables.length >= 6,
+    `${standables.length} clear spots on a 0.3 m grid in a ${f2(built.w)} x ${f2(built.d)} room`);
+
+  // The widest clear run in x, found rather than declared — the same question
+  // the belt asks, at the same 0.1 m resolution.
+  const lane = await p.evaluate(([cx, cz, hw, hd, R]) => {
+    const cols = window.__ct.colliders();
+    const free = (x, z) => !cols.some((c) =>
+      x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R);
+    let best = { z: 0, x0: 0, run: 0 };
+    for (let z = -hd + R; z <= hd - R; z += 0.1) {
+      let start = null, run = 0;
+      for (let x = -hw + R; x <= hw - R; x += 0.1) {
+        if (free(cx + x, cz + z)) {
+          if (start === null) { start = x; run = 0; }
+          run += 0.1;
+          if (run > best.run) best = { z: +z.toFixed(2), x0: +start.toFixed(2), run: +run.toFixed(2) };
+        } else { start = null; run = 0; }
+      }
+    }
+    return best;
+  }, [cx, cz, hw, hd, RADIUS]);
+  // The player's own diameter, which is the only non-arbitrary floor for "can a
+  // person be in here": 2 * RADIUS = 0.72 m. The belt's `W * 0.55` is a
+  // proportion of a shop's frontage and means nothing in a 3 m bedroom.
+  check('there is a clear run a player actually fits down',
+    lane.run > RADIUS * 2, `widest clear run is ${f2(lane.run)} m at local z=${f2(lane.z)} (player is ${f2(RADIUS * 2)} wide)`);
+
+  // …and WALK it, because a gap in the collider list is not the same as a lane
+  // the movement code will carry you down (the whole premise of this file).
+  //
+  // MEASURED AS ARRIVAL AT THE FAR END, NOT AS DISTANCE TRAVELLED — and that
+  // distinction is not pedantry here, it is the difference between testing this
+  // room and testing the landing outside it. The belt's version asks for
+  // `travelled > run * 0.8`, which is safe in a shop because the doorway is a
+  // dead reveal you cannot walk through. 301's door is a REAL door onto a REAL
+  // landing, and in a room only 3.06 m wide the widest clear lane is the one
+  // straight through it: the lane comes out at local z -0.22 and the doorway is
+  // at local z -0.25, the same band. First version of this leg reported
+  // "travelled 4.43 m of a 2.20 m run" and passed — the rig had crossed the
+  // room, carried on out of the door and was 3.44 m local when it stopped, one
+  // and a half room-widths past the far wall (scripts/probes/
+  // w32-apt301-lane-overshoot.mjs; gy stays 5.40 throughout, so it is the
+  // landing, not a fall, and not a wall clip).
+  //
+  // A distance test that a doorway can inflate is a test the room can fail
+  // while it passes. Arrival at `x0 + run` — a point that is INSIDE the room,
+  // because the lane search is clipped to the walls — cannot be reached without
+  // actually crossing the floor.
+  if (lane.run > RADIUS * 2) {
+    await warp(cx + lane.x0, cz + lane.z, Math.PI / 2, gy);
+    await p.waitForTimeout(150);
+    const a0 = await pos();
+    await hold('w', Math.round((lane.run / 3.3) * 1000) + 900);
+    const a1 = await pos();
+    const farEnd = lane.x0 + lane.run;          // local x, inside the room
+    const gotTo = a1[0] - cx;                   // local x reached
+    check('you can walk the room end to end',
+      gotTo >= farEnd - 0.1,
+      `started local x=${f2(a0[0] - cx)}, reached ${f2(gotTo)}, far end of the lane is ${f2(farEnd)}`
+        + (gotTo > hw ? ` (and kept going out of the doorway to ${f2(gotTo)} — the flat's door is a real one)` : ''));
+  }
+
+  // ── and SAY what was not asked, rather than looking complete ──
+  //
+  // GOTCHAS 34 is not only about rooms that go untested; it is about a report
+  // that reads as though it covered something it never looked at. These legs
+  // are genuinely undecidable here, so they are named, with the check that does
+  // decide them.
+  console.log(`\n  ${spec.id}: NOT APPLICABLE here — street approach, [E] entry, way-out prompt,`);
+  console.log(`  kerb landing, keeper facing. It has no street door; \`${spec.covers}\` walks its door.\n`);
+}
+
 console.log('');
 for (const [ok, name, detail] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${name}\n        ${detail}`);
 const bad = results.filter((r) => !r[0]).length;
@@ -1081,7 +1275,7 @@ console.log(`\n${results.length - bad}/${results.length} passed`);
 // nothing asked. It should not have had it too.
 if (!results.length) {
   console.log('NO CHECKS RAN AT ALL. That is a failure, not a pass — the harness');
-  console.log('never reached a room. Expected ' + rooms.length + ' room(s).');
+  console.log('never reached a room. Expected ' + (rooms.length + offBelt.length) + ' room(s).');
   process.exit(1);
 }
 if (errs.length) console.log('\npage errors / kit warnings:\n  ' + errs.slice(0, 8).join('\n  '));
