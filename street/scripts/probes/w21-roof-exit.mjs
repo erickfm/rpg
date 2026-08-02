@@ -28,7 +28,10 @@ const pos = () => p.evaluate(() => window.__ct.pos());
 const feet = async () => (await p.evaluate(() => window.__ct.camY())) - EYE;
 const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); };
 const aim = async (k, riseMs, box, ax) => {
-  await p.keyboard.down(' '); await p.waitForTimeout(riseMs); await p.keyboard.up(' ');
+  // space stays DOWN through the hop — BUILDER-BRIEF §5; a loaded machine can
+  // produce a frame longer than the press and swallow it whole. jumpHeld
+  // (fp.ts:453) means holding it cannot double-jump.
+  await p.keyboard.down(' '); await p.waitForTimeout(riseMs);
   await p.keyboard.down(k);
   const lo = ax === 'x' ? box.minX : box.minZ, hi = ax === 'x' ? box.maxX : box.maxZ;
   await p.evaluate(([lo, hi, ax]) => new Promise((d) => {
@@ -41,6 +44,7 @@ const aim = async (k, riseMs, box, ax) => {
     requestAnimationFrame(tick);
   }), [lo, hi, ax]);
   await p.keyboard.up(k);
+  await p.keyboard.up(' ');
   await p.waitForTimeout(450);
 };
 
@@ -48,8 +52,8 @@ const climb = async () => {
   await p.evaluate(([x, z, y]) => window.__ct.warp(x, z, y, 0, 0), [midX, tailZ - fwd * 1.6, yawFwd]);
   await p.waitForTimeout(400);
   await hold('w', 700); await p.waitForTimeout(150);
-  await p.keyboard.down(' '); await p.waitForTimeout(220); await p.keyboard.up(' ');
-  await hold('w', 900); await p.waitForTimeout(450);
+  await p.keyboard.down(' '); await p.waitForTimeout(220);
+  await hold('w', 900); await p.keyboard.up(' '); await p.waitForTimeout(450);
   if (Math.abs(await feet() - bed.maxY) > 0.06) return false;
   await hold(strafe, 400); await p.waitForTimeout(150);
   await aim(strafe, 200, rail, 'x');
@@ -72,6 +76,18 @@ for (const [name, key] of [['forward (over the bonnet)', 'w'], ['back (over the 
   const off = y1 < y0 - 0.4;               // got down off the roof somehow
   if (!off) bad++;
   console.log(`${off ? 'ok  ' : 'STUCK'} ${name.padEnd(26)} ${y0.toFixed(2)} -> ${y1.toFixed(2)} at ${P[0].toFixed(2)},${P[2].toFixed(2)}`);
+  if (!off) {
+    // WHAT actually stopped you? A tier of the truck would be a real bug; a
+    // box with no maxY at all is something else standing in the road — every
+    // collider in the world except this truck's four is still a wall at every
+    // height, and ct/traffic.ts drives its vehicle boxes down this very lane.
+    const near = await p.evaluate(([x, z]) => window.__ct.colliders()
+      .filter((c) => x > c.minX - 2 && x < c.maxX + 2 && z > c.minZ - 2 && z < c.maxZ + 2)
+      .map((c) => ({ tag: c.tag ?? null, minX: +c.minX.toFixed(2), maxX: +c.maxX.toFixed(2),
+        minZ: +c.minZ.toFixed(2), maxZ: +c.maxZ.toFixed(2), maxY: c.maxY ?? null })), [P[0], P[2]]);
+    for (const c of near) console.log('       near:', JSON.stringify(c));
+    console.log('       traffic:', JSON.stringify(await p.evaluate(() => window.__ct.traffic())));
+  }
 }
 if (errs.length) console.log('page errors:', errs.slice(0, 4).join(' | '));
 console.log(bad === 0 ? 'every way off the roof works' : `${bad} direction(s) leave you stranded`);

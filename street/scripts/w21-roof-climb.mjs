@@ -65,9 +65,16 @@ const hold = async (key, ms) => { await p.keyboard.down(key); await p.waitForTim
  *  AND jumping from a standstill reaches the obstacle long after the apex has
  *  passed; bump into it first, then hop up and over, is the order a player
  *  actually uses (and the order scripts/w13-bed-check.mjs established). */
+// KEEP SPACE DOWN THROUGH THE WHOLE HOP. BUILDER-BRIEF §5, and it bites here
+// exactly as it bites `[E]`: `fp.ts` reads the key set once per rendered
+// frame, so a 220 ms press vanishes whole if the machine is loaded enough to
+// produce a 300 ms frame — scripts/probes/w21-apex.mjs caught one doing
+// precisely that under CDP throttling. Holding it costs nothing, because
+// `jumpHeld` (fp.ts:453) refuses to re-jump until it is released.
 const hopInto = async (key, riseMs, pushMs) => {
-  await p.keyboard.down(' '); await p.waitForTimeout(riseMs); await p.keyboard.up(' ');
-  await p.keyboard.down(key); await p.waitForTimeout(pushMs); await p.keyboard.up(key);
+  await p.keyboard.down(' '); await p.waitForTimeout(riseMs);
+  await p.keyboard.down(key); await p.waitForTimeout(pushMs);
+  await p.keyboard.up(key); await p.keyboard.up(' ');
   await p.waitForTimeout(450);   // let the fall settle
 };
 /** The same hop, but the push STOPS when you are over the box you are aiming
@@ -77,7 +84,7 @@ const hopInto = async (key, riseMs, pushMs) => {
  *  lets go, and so does this. What is asserted afterwards is unchanged: feet
  *  at the surface's own `maxY`, inside its own footprint. */
 const hopOnto = async (key, riseMs, box, axis, maxMs = 800) => {
-  await p.keyboard.down(' '); await p.waitForTimeout(riseMs); await p.keyboard.up(' ');
+  await p.keyboard.down(' '); await p.waitForTimeout(riseMs);   // held: see hopInto
   await p.keyboard.down(key);
   const lo = axis === 'x' ? box.minX : box.minZ, hi = axis === 'x' ? box.maxX : box.maxZ;
   // WATCH FROM INSIDE THE PAGE, ONE ANIMATION FRAME AT A TIME. Polling with
@@ -98,6 +105,7 @@ const hopOnto = async (key, riseMs, box, axis, maxMs = 800) => {
     requestAnimationFrame(tick);
   }), [lo, hi, axis, maxMs]);
   await p.keyboard.up(key);
+  await p.keyboard.up(' ');
   await p.waitForTimeout(450);
 };
 

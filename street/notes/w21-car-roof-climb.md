@@ -131,8 +131,8 @@ coordinate — the truck is placed by a seeded draw and moved again by
 - `scripts/probes/w21-roof-exit.mjs` — **BUILDER-BRIEF §11 aimed at a surface
   instead of a panel.** A roof you cannot leave is the same bug as a panel you
   cannot close. Off in all four directions: 1.50 → 0.00 forward, back and
-  left; 1.50 → 0.14 right, onto the pavement. Nobody gets stranded, on dev and
-  on the built bundle.
+  left; 1.50 → 0.14 right, onto the pavement. Nobody gets stranded — **three
+  consecutive clean runs, two on dev and one on the built bundle.**
 - `scripts/w13-bed-check.mjs` — **PASS**, feet 0.500 on the bed and 0.000
   after walking off. Item 1's behaviour is intact.
 - `scripts/jump-walk.mjs` — every spot still lands on the floor it left, every
@@ -220,7 +220,24 @@ them.
    (`carHalf.pickup` is 2.6, the mesh's own half-length is 2.45), so at bed
    height there is a sliver behind the tailgate you can stand on. Pre-existing,
    from item 1, and untouched here.
-5. **Rotation is still ignored**, as it is for every other car collider in
+5. **One STUCK I saw once and could not reproduce, reported rather than
+   buried.** During a spell when the machine was loaded enough that four
+   climbs in a row failed, `w21-roof-exit` once reported `STUCK left
+   1.50 -> 1.50 at -3.02,-30.52` — the player stopped 0.14 m short of the roof
+   edge. Every collider in the world *except* this truck's four is still a
+   wall at every height, and `ct/traffic.ts` drives vehicle boxes down exactly
+   that lane, so my best hypothesis is a passing vehicle blocking at roof
+   height for the length of the 1800 ms window. **I did not prove it**: I added
+   the diagnostic (the probe now dumps nearby colliders and `__ct.traffic()`
+   on a STUCK) and then could not reproduce it in three further runs, two on
+   dev and one built, all four directions clean. If it recurs the probe will
+   now say what stopped you instead of leaving the next person to guess.
+   The related cause I *did* fix is instrument-side: both scripts released the
+   space bar before the hop finished, and a frame longer than the press
+   swallows it whole (BUILDER-BRIEF §5) — `w21-apex.mjs` caught one doing that
+   under throttling. Space is held through the hop now, which `jumpHeld`
+   (fp.ts:453) makes free.
+6. **Rotation is still ignored**, as it is for every other car collider in
    `crosstown.ts` — a fixed-width box at any yaw. `dir` only answers "which
    world end is the bed". That is item 1's explicitly-deferred half and it is
    still deferred.
