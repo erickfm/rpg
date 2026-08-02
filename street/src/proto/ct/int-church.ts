@@ -177,11 +177,32 @@ export function buildChurch(ctx: CtxBuild) {
   const CONF_D = 2.70, CONF_Z = hd - 2.6 - 1.9;
   const AISLE = 1.6, PEW_W = (room.W - AISLE) / 2 - 0.55;
   const PEW_CX = AISLE / 2 + PEW_W / 2;
+  // THE FIRST ROW STARTS OFF THE CHANCEL STEP, NOT OFF THE ALTAR TABLE.
+  //
+  // *"why are there pews where the alter is?"* This used to read `-hd + 3.2`,
+  // sized against the ALTAR's own 0.75 m footprint (back edge -hd + 2.775,
+  // so 0.425 m of "clearance") — math from before the chancel platform at
+  // CHANCEL_Z existed. That platform is 7.4 m deep (`room.floor` above
+  // returns CHANCEL_Y for every lz < CHANCEL_Z) and pews are placed with
+  // `put()`, which does not consult `room.floor` — every other object on the
+  // sanctuary (the dais, the rail, the tabernacle) manually adds CHANCEL_Y to
+  // its y, and the pew loop below did not. So the true bug was worse than
+  // "0.425 m to a small table": the first four pew rows stood AT z -8.8,
+  // -7.75, -6.7 and -5.65, all inside -12..-4.6, i.e. their legs sat 0.18 m
+  // *below* the sanctuary floor they were standing on — pews sunk into the
+  // chancel step, not just close to the altar.
+  //
+  // PEW_FRONT_CLEAR is the gap between the chancel's own edge and the first
+  // kneeler (which projects to pz - 0.66), sized like every other "stand and
+  // use it" clearance in this file (REAR_CLEAR's 1.2 m). Fixing the start
+  // point re-flows PEW_ROWS below, so this is the one number to change.
+  const PEW_FRONT_CLEAR = 1.0;
+  const PEW_Z0 = CHANCEL_Z + PEW_FRONT_CLEAR;
   // ENOUGH ROWS TO FILL THE NAVE. Nine was right for a 16 m church; at 20 m it
   // left almost six metres of bare floor between the narthex arch and the first
   // pew, because the rows are laid from the ALTAR end and all the new length
   // arrived at the other one. Derived so the nave stays full whatever the room
-  // becomes: rows from -hd + 3.2 up to 3.6 short of the narthex face.
+  // becomes: rows from PEW_Z0 up to 3.6 short of the narthex face.
   // THE REAR PEWS STOP CLEAR OF THE CONFESSIONALS, which is the user's own
   // remedy: "pews in the church clip into the confession booths, lets get rid of
   // some of the rear pews". Filling the nave to the rear wall is what caused the
@@ -213,9 +234,9 @@ export function buildChurch(ctx: CtxBuild) {
   // without the seat height silently moving — the same shape as STOOL_TOP in
   // ct/int-casino.ts, and for the same reason.
   const PEW_TOP = 0.50, PEW_T = 0.08;
-  const PEW_ROWS = Math.max(6, Math.floor((REAR_CLEAR - (-hd + 3.2)) / 1.05) + 1);
+  const PEW_ROWS = Math.max(6, Math.floor((REAR_CLEAR - PEW_Z0) / 1.05) + 1);
   for (let i = 0; i < PEW_ROWS; i++) {
-    const pz = -hd + 3.2 + i * 1.05;
+    const pz = PEW_Z0 + i * 1.05;
     for (const side of [-1, 1]) {
       // THE SEAT TOP IS DECLARED ONCE AND THE BOARD DERIVES FROM IT. See PEW_TOP.
       const seat = new THREE.Mesh(new THREE.BoxGeometry(PEW_W, PEW_T, 0.42), woodM);
@@ -790,7 +811,7 @@ export function buildChurch(ctx: CtxBuild) {
   // version: seated height, dark coat, still. From the 8-angle atlas like every
   // other figure in the world — the whole point of the user's complaint was
   // that interior people were cardboard when the street's were not.
-  const PRAY_Z = -hd + 3.2 + 3 * 1.05;
+  const PRAY_Z = PEW_Z0 + 3 * 1.05;
   room.person({
     jacket: '#3a3640', pants: '#2e2b33', skin: '#c9a48a', hair: '#7a7068',
     fit: 'coat', accent: '#5a5260', cut: 'short', build: 0,
