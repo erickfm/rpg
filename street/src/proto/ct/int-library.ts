@@ -1259,7 +1259,14 @@ export function buildLibrary(ctx: CtxBuild): void {
       ctx.seat({
         x: room.wx(cx), z: room.wz(tz), yaw: Math.PI / 2, h: SEAT_TOP,
         approach: { x: room.wx(cx - 0.85), z: room.wz(tz) },
-        label: 'sit at the terminal',
+        // MUST MATCH `SEAT_LABEL` in `ct/library-pc.ts` EXACTLY — that module
+        // opens its desktop only for a seat carrying this string, the same way
+        // slots.ts joins on 'sit at the slot'. It read 'sit at the terminal'
+        // while the PC waited on 'sit at the computer', so the whole computer
+        // was unreachable — character-for-character the bug that left blackjack
+        // unplayable for days. A terminal is a dumb glass teletype; what is
+        // drawn here is a beige mid-90s PC.
+        label: 'sit at the computer',
         ok: () => room.inside(),
       });
     }
