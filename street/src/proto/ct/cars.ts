@@ -79,12 +79,58 @@ export const HOOD_TOP = BELT + HOOD_T;
  *  world builds from them cannot drift from the glass it describes
  *  (BUILDER-BRIEF §8: derive, never retype).
  *
- *  `roofY` (1.50 m) is the surface item 29 exists to make reachable. It is a
+ *  `roofY` is the surface item 29 exists to make reachable. It is most of a
  *  metre above the bed floor — two jumps, not one — which is why the bed WALL
- *  (`PICKUP_BED.railY`, 0.97) is the step between them. */
+ *  (`PICKUP_BED.railY`, 0.97) is the step between them.
+ *
+ *  WHY 1.455 AND NOT 1.50, WHICH IS WHAT THIS SHIPPED AT (w33, item 69).
+ *
+ *  Three builders measured the rail -> roof hop and got three answers. All of
+ *  them were looking at the wrong quantity. A HOP IS NOT DECIDED BY HEIGHT. To
+ *  land on a tier you must also cross `RADIUS` (0.36 m, fp.ts:87) of ground
+ *  horizontally, because `blocked()` keeps padding that tier by RADIUS until
+ *  you are over it, and it only stops once your feet clear `maxY - TOP_EPS`:
+ *
+ *      fp.ts:289   if (c.maxY !== undefined && atY >= c.maxY - TOP_EPS) continue;
+ *      fp.ts:469   const atY = this.lastWorldY;     // LAST frame's foot height
+ *
+ *  So what actually decides the hop is HOW MANY RENDERED FRAMES clear that
+ *  threshold. `main.ts:107` clamps dt at 0.05 s, and at the clamp a walk covers
+ *  0.165 m per frame — so you need three such frames (0.495 m) to beat RADIUS,
+ *  and two (0.330 m) is a miss. The jump (v0 = 4, g = 14, semi-implicit Euler,
+ *  fp.ts:549-553) puts the feet at these heights above the take-off surface:
+ *
+ *      f2 0.295   f3 0.390   f4 0.450   f5 0.475   f6 0.465   f7 0.420   f8 0.340
+ *
+ *  A rise of 0.53 needs airY >= 0.45, which catches f4, f5 and f6 — THREE
+ *  frames, 0.495 m, and it does land. w21 and w22 were right that it works, and
+ *  it works deterministically rather than "on a coin flip": IEEE 754 is not
+ *  luck. But f4 is 0.44999999999999996 and the threshold is 0.44999999999999996
+ *  — the tightest frame clears by EXACTLY ZERO, and it only counts because the
+ *  comparison is `>=`. Measured, not argued: raising this constant by 100
+ *  NANOMETRES took the climb from 4/4 to 0/4 at CPU throttle x8, frames 3 -> 2
+ *  and travel 0.495 -> 0.330 (scripts/probes/w33-roof-frames.mjs).
+ *
+ *  A surface whose reachability turns on the last bit of a double is not a
+ *  design, so the roof comes down to sit in the MIDDLE of a frame band instead
+ *  of on its edge. The rise is 1.455 - 0.97 = 0.485, needing airY >= 0.405,
+ *  which catches f4 f5 f6 AND f7 — four frames, 0.66 m of travel against a
+ *  0.36 m requirement. 0.405 sits 0.015 above f3 and 0.015 below f7, so it is
+ *  as far from both boundaries as the band allows.
+ *
+ *  The property that buys is DROPPED-FRAME HEADROOM, and it is the thing worth
+ *  protecting here: at four frames the hop still lands if the engine loses one
+ *  entirely (3 x 0.165 = 0.495 > 0.36). At three it did not.
+ *
+ *  These numbers are copied from fp.ts/main.ts with citations rather than
+ *  imported, because `TOP_EPS` (fp.ts:98) and the jump's v0/gravity are module
+ *  locals and hoisting them means editing a file this item does not name
+ *  (BUILDER-BRIEF §8/§9). The check does NOT depend on that copy:
+ *  scripts/w21-roof-climb.mjs measures the frames and the travel in the running
+ *  world, so it fails if the physics moves under this comment. */
 export const PICKUP_CAB = {
   baseY: BELT,        // y0 — the greenhouse's foot, on the beltline
-  roofY: 1.50,        // y1 — the roof plate's top face
+  roofY: 1.455,       // y1 — the roof plate's top face. NOT a round number: see below
   baseZ0: -1.0,       // zbf — the windscreen's foot
   baseZ1: 0.45,       // zbr — the rear window's foot
   roofZ0: -0.45,      // zrf — the roof plate, front edge
