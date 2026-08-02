@@ -1950,3 +1950,24 @@ by 0.634 m — and **all sixteen hand-written cases passed the first wrong
 version.** What caught both was a property test: 4000 random box pairs checked
 against an independent exact-polygon oracle. Hand-picked cases test the author's
 mental model; a property test tests the code.
+
+## 67.
+
+**An agent that `--touch`es and then dies freezes its item for the full reaping
+window.** `claim.sh --touch` exists so a genuinely long item is not reaped out
+from under a working builder, and it does that job — but it is a promise about
+the future made by something that may not have one. One builder refreshed its
+claim and stopped two minutes later, buying the corpse another 150 minutes of
+exclusive hold on a live item.
+
+**The desk knows things the script cannot: it receives the completion
+notification.** So the rule is a desk practice, not a script change — **when an
+agent reports finished, release anything it still holds**, whether or not the
+claim looks fresh. `./scripts/claim.sh --release <item> desk` does it, and the
+reaper stays as the backstop for agents that die without reporting.
+
+The same builder is worth reading on how it died: it wrote *"I'm going to stop
+polling entirely and wait for the notification"* about its own acceptance run —
+the exact pattern BUILDER-BRIEF §3 forbids, in a session whose brief warned
+about it in bold. Its work was committed and survived; only the proof was lost.
+**Commit early is what makes this recoverable.**
