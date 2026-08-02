@@ -533,6 +533,9 @@ export function buildProps(ctx: CtxBuild): Props {
     return FLOOR_LOW + (FLOOR_HIGH - FLOOR_LOW) * t;
   };
   let nightNow = 0;
+  /** where the player is standing, for picking which lamps to upload. Written
+   *  by updateRain, which is handed it every frame; updateLit is not. */
+  let playerX = 0, playerZ = 0;
   const ambient = (floor: number) => 1 - nightNow * (1 - floor);
   // ── LAMPLIGHT PER FRAGMENT, WHICH IS THE WHOLE OF ITEM 95 ───────────────
   //
@@ -586,9 +589,37 @@ export function buildProps(ctx: CtxBuild): Props {
   // Cost: one program, shared. The injected source is identical for every
   // material, so three.js compiles it once and every patched material reuses
   // it — customProgramCacheKey below makes that explicit rather than lucky.
-  const POOL_MAX = 64;                 // uniform slots; the world has ~21 + fittings
+  // ── WHAT THIS COSTS, MEASURED, AND WHY IT IS 16 AND NOT 64 ─────────────
+  //
+  // First cut uploaded all 27 heads into 64 slots and let every patched
+  // fragment walk the list. Frame time at (2.6, -23), 120 frames, median:
+  //
+  //                    day 13:00     night 23:00
+  //     before          47.1 ms        50.0 ms
+  //     64 slots, all   64.7 ms       129.8 ms
+  //
+  // Night went 2.6x slower — 20 fps to 8 — and DAY got 38% slower too, which
+  // is the tell: the loop ran in broad daylight, when uPoolNight is 0 and every
+  // iteration is multiplied away. Two things follow, and both are in the shader
+  // rather than in how much light there is:
+  //
+  //   1. Skip the whole block unless it is actually night. The branch is on a
+  //      uniform, so it is coherent across every fragment in the draw and costs
+  //      nothing to take.
+  //   2. Upload only the lamps NEAR THE PLAYER. A pool is 7 m across; the 16th
+  //      nearest head is already ~60 m away, past the point where its pool is
+  //      more than a smudge in the fog. updateRain is handed the player's
+  //      position every frame, so this needs no new plumbing.
+  //
+  // 16 slots rather than 27 also matters on its own: a uniform-bounded loop is
+  // not guaranteed to early-out on every driver, so POOL_MAX is the real worst
+  // case and it should be the smallest number that cannot be noticed.
+  const POOL_MAX = 12;                 // uniform slots; 27 heads exist, nearest win
   const poolLampU = Array.from({ length: POOL_MAX }, () => new THREE.Vector4());
   const uPoolLamps = { value: poolLampU };
+  /** scratch for the nearest-first sort, reused so the per-frame pass allocates
+   *  nothing */
+  const lampNear: { x: number; z: number; r?: number; core?: number }[] = [];
   const uPoolCount = { value: 0 };
   const uPoolNight = { value: 0 };
   // THE POOL IS PLANAR — it always was; `addLamp` takes x/z and no height, and
@@ -606,15 +637,23 @@ export function buildProps(ctx: CtxBuild): Props {
   const POOL_Y0 = 2.2, POOL_Y1 = 4.5;
   const nf = (n: number) => n.toFixed(5);
   const POOL_FRAG = `
-{
+// TWO UNIFORM-OR-VARYING TESTS BEFORE THE LOOP, both exact rather than
+// approximations. Daylight skips it outright. And a fragment above POOL_Y1 is
+// multiplied to zero by the height fade below anyway, so walking the lamp list
+// for it is pure waste — this is most of the fragments on a 15 m facade, and
+// facades are the deepest overdraw on the street.
+if (uPoolNight > 0.0 && vPoolW.y < ${nf(POOL_Y1)}) {
   float w45best = 0.0;
   for (int i = 0; i < ${POOL_MAX}; i++) {
     if (i >= uPoolCount) break;
     vec4 L = uPoolLamps[i];                       // x, z, radius, core
+    // BRANCHLESS, AND IT IS THE SAME FUNCTION, not an approximation of it:
+    //   1 - (d - C)/(R - C)  ==  (R - d)/(R - C)
+    // so the "full strength inside the core" case is just the clamp at 1, and
+    // the "past the radius" case is the clamp at 0. Two branches per lamp per
+    // fragment came out of the inner loop for nothing.
     float d = distance(vPoolW.xz, L.xy);
-    if (d >= L.z) continue;
-    float ff = d <= L.w ? 1.0 : 1.0 - (d - L.w) / max(L.z - L.w, 1e-3);
-    w45best = max(w45best, clamp(ff, 0.0, 1.0));
+    w45best = max(w45best, clamp((L.z - d) / max(L.z - L.w, 1e-3), 0.0, 1.0));
   }
   // the same smoothstep the CPU pass used, and the same reason: squared alone
   // only reaches 0.23 two metres out, too faint to read as lit at all
@@ -1276,9 +1315,24 @@ uniform float uPoolAmb;`)
     //
     // The count is published so a check can ask the world how many lights it
     // thinks it has, instead of counting lamp posts in a screenshot.
-    const nLamps = Math.min(lampHeads.length, POOL_MAX);
+    // NEAREST THE PLAYER WIN. 27 heads exist and 16 slots are uploaded, so the
+    // order matters: taking them in build order would hand the GPU whichever
+    // lamps happened to be created first, which on the side street is nowhere
+    // near the player. Sorted by plan distance to where he is standing, so the
+    // ones that can actually put light in frame are always the ones present.
+    //
+    // Sorting 27 entries once a frame, after dusk only, against a shader that
+    // was costing 80 ms — this is not the expensive end of the change.
+    lampNear.length = 0;
+    for (const h of lampHeads) lampNear.push(h);
+    if (lampNear.length > POOL_MAX) {
+      lampNear.sort((a, b) =>
+        ((a.x - playerX) ** 2 + (a.z - playerZ) ** 2)
+        - ((b.x - playerX) ** 2 + (b.z - playerZ) ** 2));
+    }
+    const nLamps = Math.min(lampNear.length, POOL_MAX);
     for (let i = 0; i < nLamps; i++) {
-      const h = lampHeads[i];
+      const h = lampNear[i];
       poolLampU[i].set(h.x, h.z, h.r ?? LAMP_R, h.core ?? LAMP_CORE);
     }
     uPoolCount.value = nLamps;
@@ -2205,6 +2259,7 @@ uniform float uPoolAmb;`)
   ctx.onFrame((f) => updateRain(f.dt, f.px, f.pz, f.hourAbs), ORDER.PROPS);
 
   const updateRain = (dt: number, px: number, pz: number, hAbs: number) => {
+    playerX = px; playerZ = pz;      // for the lamp cull in updateLit
     const wantRain = rainAt(hAbs) && px < 100 ? 1 : 0;
     rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
     // LATCHED, not read live. `stormAt(hAbs)` on the hour the rain STOPS is a
