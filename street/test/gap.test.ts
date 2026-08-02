@@ -9,8 +9,8 @@
 // per world axis but blind to the box's OWN axes, which is where a slot between
 // two turned boxes actually runs.
 import { describe, expect, it } from 'vitest';
-import { corridor, isTrap, nudgeClear, trapAgainst, ENTERABLE, PASSABLE } from './gap';
-import type { AABB } from '../fp';
+import { corridor, isTrap, nudgeClear, trapAgainst, ENTERABLE, PASSABLE } from '../src/proto/ct/gap';
+import type { AABB } from '../src/proto/fp';
 
 /** a box by centre and half-extents, so the turned cases read as geometry */
 const box = (cx: number, cz: number, hx: number, hz: number, rot?: number): AABB =>
