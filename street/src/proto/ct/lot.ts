@@ -1128,6 +1128,32 @@ function buildLot(o: {
     }
     o.onFrame?.((f) => { signGlowM.opacity = 0.62 * f.night; });
 
+    /* THE CABINET ITSELF — third report, and this is the part that had never
+     * been touched: *"used car sign is completely flat."* The two faces above
+     * are single-sided planes with nothing between them, so edge-on or from
+     * below the sign was paper, no matter how the artwork read from the
+     * street. GOTCHAS 10/35 already ruled out collapsing them into one
+     * DoubleSide plane (mirrors from behind) — back-to-back planes are the
+     * cure for THAT bug, they just never gave the sign a body.
+     *
+     * Fill the gap the faces already declare rather than re-deriving it: they
+     * sit at px +- 0.19 (a 0.38 m span — the mast's own radius up here is only
+     * 0.13, so a real cabinet is meant to overhang it). Inset the box a hair
+     * so its ends sit BEHIND the faces instead of exactly coplanar with them
+     * (GOTCHAS 6) — the same margin the glow tubes already take from the
+     * other side, just deep enough to plausibly house the tubes that light
+     * the faces after dark.
+     */
+    const CABINET_DEPTH = 0.36; // faces at +-0.19: a 0.01 m reveal each side
+    const cabinetM = new THREE.MeshBasicMaterial({ color: 0x54585f }); // darker than the mast (postM) so the case reads as its own part, not more pole
+    const cabinet = new THREE.Mesh(
+      new THREE.BoxGeometry(CABINET_DEPTH, SIGN_H, SIGN_W),
+      cabinetM,
+    );
+    cabinet.position.set(px, signY, pz);
+    cabinet.name = 'lot-pole-sign-cabinet';
+    scene.add(cabinet);
+
     /* ── THE POLE SIGN, PUBLISHED ─────────────────────────────────────────
      * H's sign-finder returned a building facade and stood 78 m back from it.
      * That is not H's fault: nothing in the scene said which rectangle was the
