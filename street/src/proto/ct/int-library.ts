@@ -1203,8 +1203,18 @@ export function buildLibrary(ctx: CtxBuild): void {
     // Its own stand rather than a place on the bench: fan-fold paper feeds from
     // underneath, which is why these always stood on a trolley of their own,
     // and the bench is 3.2 m for three seats with nothing spare.
+    //
+    // STOOD BACK FURTHER THAN IT LOOKS LIKE IT NEEDS TO, and that is the fix,
+    // not a style choice: at the old `BZ1 + 0.85` the gap between the bench's
+    // own collider (back face `BZC + (BL + 0.1) / 2`) and the stand's near
+    // face measured 0.44 m — inside `gap.ts`'s 0.40-0.95 trap band, wide
+    // enough to step into and too narrow to turn round in. Flagged by w4
+    // while fixing item 5g, unfixed until now (item 5j). Derived from
+    // `PASSABLE` rather than a bigger literal, so it stays provably clear if
+    // the bench ever changes depth.
     {
-      const px = BX, pz = BZ1 + 0.85;
+      const BENCH_BACK = BZC + (BL + 0.1) / 2;
+      const px = BX, pz = BENCH_BACK + PASSABLE + 0.10 + 0.36;   // +0.36 = the stand's own half-depth
       box(0.70, 0.06, 0.62, wood, px, 0.72, pz);                  // the stand
       for (const dx of [-0.28, 0.28]) for (const dz of [-0.25, 0.25]) {
         box(0.06, 0.72, 0.06, woodDark, px + dx, 0.36, pz + dz);
@@ -1457,7 +1467,21 @@ export function buildLibrary(ctx: CtxBuild): void {
     // stops you at GALLERY_X0 + 0.09 down there, so everything under this deck
     // is behind a wall at floor level either way.
     const SHELF_X = W / 2 - BAY_D / 2 - 0.06;
-    for (const [z0, z1, seed] of [[deckZ0 + 0.5, -6.4, 0x9a11], [-5.4, -1.4, 0x9a22]] as [number, number, number][]) {
+    // TWO SUB-PASSABLE PINCHES ON THE DECK, flagged by w4 while fixing item
+    // 5g, unfixed until now (item 5j). `wallRun`'s own `solid()` pads a run's
+    // z-span by 0.08 m total (0.04 m past each end) so the gap the PLAYER
+    // actually walks through is 0.04-0.08 m narrower than the z0/z1 numbers
+    // below suggest — the old `deckZ0 + 0.5` wall gap measured 0.46 m clear
+    // and the old `-6.4`/`-5.4` middle gap measured 0.92 m, both inside
+    // `gap.ts`'s 0.40-0.95 trap band. Widened, not removed: same two runs,
+    // same "the deck reads as having a middle" break, just spaced far enough
+    // apart that both gaps clear `PASSABLE` with margin, derived so the
+    // padding is compensated rather than guessed.
+    const GALLERY_SHELF_CLEAR = PASSABLE + 0.15;
+    const WALLRUN_PAD = 0.04;                       // half of solid()'s own len+0.08
+    const shelfZ0 = deckZ0 + GALLERY_SHELF_CLEAR + WALLRUN_PAD, shelfMid0 = -6.4;
+    const shelfMid1 = shelfMid0 + GALLERY_SHELF_CLEAR + 2 * WALLRUN_PAD;
+    for (const [z0, z1, seed] of [[shelfZ0, shelfMid0, 0x9a11], [shelfMid1, -1.4, 0x9a22]] as [number, number, number][]) {
       wallRun(SHELF_X, (z0 + z1) / 2, z1 - z0, 'z', -1, seed, GALLERY_Y);
     }
   }
@@ -1622,8 +1646,17 @@ export function buildLibrary(ctx: CtxBuild): void {
   // waiting to be shelved, a globe nobody has updated since the Soviet Union,
   // a bin, and a stand full of umbrellas because it has been raining.
   {
-    // the returns trolley, parked at the open east end of the issue desk
-    const TR_X = -0.9, TR_Z = 4.2;
+    // the returns trolley, parked at the open east end of the issue desk.
+    //
+    // PUSHED FURTHER EAST THAN IT LOOKS LIKE IT NEEDS, and that is the fix:
+    // at the old `TR_X = -0.9` the gap between the desk's own U-collider
+    // (east face `DESK_X + (DESK_W + 0.1) / 2`) and the trolley's west face
+    // measured 0.64 m — inside `gap.ts`'s 0.40-0.95 trap band. Flagged by w4
+    // while fixing item 5g, unfixed until now (item 5j). Derived from
+    // `PASSABLE` rather than a bigger literal, so it stays provably clear if
+    // the desk's own footprint ever changes.
+    const DESK_EAST = DESK_X + (DESK_W + 0.1) / 2;
+    const TR_X = DESK_EAST + PASSABLE + 0.10 + 0.31, TR_Z = 4.2;   // +0.31 = the trolley's own half-width
     box(0.52, 0.06, 0.86, wood, TR_X, 0.80, TR_Z);
     box(0.52, 0.06, 0.86, wood, TR_X, 0.42, TR_Z);
     for (const dx of [-0.22, 0.22]) for (const dz of [-0.38, 0.38]) {
