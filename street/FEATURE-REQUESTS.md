@@ -2086,3 +2086,35 @@ is shared — `ct/interior.ts`'s default door leaf ignoring a room's declared
 `leaves`/`frame`/`glazing` — and **a fix for exactly that is sitting in a
 worker's branch right now, unverified.** So this may already be answered; the
 desk verifies before queueing a duplicate.
+
+
+## The bodega corner's collision is a staircase of rectangles
+
+> *"whats going on with the collision geometry here? we should fix this so its
+> not just a bunch of separate rectangles and its just made properly"*
+
+**He is looking at the cost of the collision primitive itself.** `AABB` is
+`{ minX, maxX, minZ, maxZ }` — **axis-aligned**. The bodega's door is a 45°
+chamfered corner, and an axis-aligned rectangle cannot be a diagonal, so the
+diagonal is approximated by a stair of small boxes. Measured live: **13 colliders
+around that corner, four of them tiny** — 0.62×0.56, 0.62×0.56, 0.40×0.40 and
+0.24×0.16 m.
+
+**Two consequences, and the second one matters for trust in the tools:**
+
+1. It is not "made properly" and never can be while the primitive is
+   axis-aligned. Every angled surface in the world pays this.
+2. **The red is largely a false alarm.** The overlay paints a box red when
+   `ct/gap.ts`'s `trapAgainst()` sees a sub-0.95 m corridor against a neighbour —
+   but adjacent boxes forming *one wall* are not a corridor, and here they are
+   nearly touching. **The debug view is over-reporting exactly where the geometry
+   is worst**, which is the one place a person will look hardest.
+
+**This is the same root cause as the collider-height item**, and he has now
+reported it from three directions without being told they are connected:
+*"we should be able to jump on the cars"*, *"collision more accurate to the
+objects"*, and now the stepped corner. One primitive is too weak: it has no
+height and no rotation.
+
+Queued next to that item so they are considered together rather than patched
+apart.
