@@ -129,12 +129,51 @@ console.log(`rail: x ${rail.minX.toFixed(2)}..${rail.maxX.toFixed(2)}, strafing 
  *  misses in a row still fail. */
 const route = async (shoot) => {
   steps = [];
-  // ── 1. pavement -> bed floor, over the open tailgate ────────────────────
-  await warp(midX, tailZ - fwd * 1.6, yawFwd);
-  await p.waitForTimeout(300);
+  // ── 0. START ON THE PAVEMENT, and walk off it ───────────────────────────
+  //
+  // The truck is parked IN THE ROAD against the kerb, so "from the pavement"
+  // means a real leg: stand on the raised walk behind it, cross to the tail,
+  // then climb. The kerb is found by stepping outward from the truck until
+  // `groundAt` stops reading the road — the walk's own height is not typed
+  // here, and this still works if the block is ever re-kerbed.
+  const kerbX = await p.evaluate(([x0, z, dir]) => {
+    for (let d = 1.0; d < 6.0; d += 0.1) {
+      const x = x0 + dir * d;
+      if (window.__ct.groundAt(x, z) > 0.01) return x + dir * 0.6;
+    }
+    return null;
+  }, [midX, tailZ - fwd * 1.6, midX > 0 ? 1 : -1]);
+  if (kerbX === null) { console.log('FAIL: no raised pavement beside the truck'); return false; }
+  await warp(kerbX, tailZ - fwd * 1.6, midX > 0 ? -Math.PI / 2 : Math.PI / 2);
+  // WAIT FOR THE FLOOR TO SETTLE BEFORE MEASURING ANYTHING. You spawn in room
+  // 301, three storeys up, and ct/apartment.ts's storey picker walks down to
+  // the street over several frames rather than snapping (it "refuses to step
+  // up more than 0.6 m"). Sample too early and the first reading is the
+  // APARTMENT's eye height — 5.40 m — which is also what makes
+  // scripts/jump-walk.mjs report a 5.260 m hop at its first spot on the built
+  // bundle, on mainline as much as here (see notes/w21-car-roof-climb.md).
+  await p.evaluate(() => new Promise((done) => {
+    let last = NaN, still = 0, frames = 0;
+    const tick = () => {
+      const y = window.__ct.camY();
+      still = Math.abs(y - last) < 1e-4 ? still + 1 : 0;
+      last = y;
+      if (still >= 5 || ++frames > 240) return done(y);
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }));
+  await check('start: on the pavement', await p.evaluate(([x, z]) => window.__ct.groundAt(x, z), [kerbX, tailZ - fwd * 1.6]));
+  await hold('w', 900);                       // off the kerb, into the road
+  await p.waitForTimeout(250);
+
+  // ── 1. street -> bed floor, over the open tailgate ──────────────────────
+  const q0 = await pos();
+  await warp(midX, q0[2], yawFwd);             // line up behind the tail
+  await p.waitForTimeout(250);
   await hold('w', 700);                       // walk up flush against the tail
   await p.waitForTimeout(200);
-  await check('start: on the street', 0);
+  await check('   down in the road', 0);
   await hopInto('w', 220, 900);
   if (!await check('1. bed floor', bed.maxY, bed)) return false;
 
