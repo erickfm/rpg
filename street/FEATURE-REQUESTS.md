@@ -1892,3 +1892,16 @@ argument about taste.
 
 The fix is spacing, not deletion: he has asked for the library to be **more**
 ambitious, never smaller.
+
+> *"what is this? why is it looking messed up"* (same session, V overlay on)
+
+A second library fault in the same shot: a **brown plinth or lectern carrying a
+white printed panel — a newspaper or an open book — sitting at a drunken angle,
+its panel clipping through the shelving behind it** and its base intersecting
+the floor. It reads as an object whose rotation was set on the wrong axis, or
+which was placed against a shelf that has since moved.
+
+**Not routed separately — forwarded to the library agent already in
+`int-library.ts`.** Two agents in one file is how a worktree got corrupted and
+the live world broke once already (PARALLEL-WORKFLOW §11); the spacing pass and
+this fix are the same file and the same walk.
