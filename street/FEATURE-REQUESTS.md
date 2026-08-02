@@ -1993,3 +1993,37 @@ resting value** and zoom pulls in from it.
 
 *"Shouldn't be able to zoom too much"* is the whole spec: a clamp, and one that
 errs tight. This is a first-person street, not a sniper scope.
+
+
+## Rain appears in one direction down the street and not the other
+
+> *"its raining if i face one direction down the street but not if i face the
+> other"*
+
+**Measured, and there is a strong lead.** `ct/props.ts` draws rain as **500
+`THREE.Points` in a 30 m box** (`RAIN_BOX = 30`), and the box is kept around the
+player by wrapping each drop a whole box-width when it drifts outside:
+
+```ts
+rx - RAIN_BOX * Math.round((rx - px) / RAIN_BOX)
+```
+
+Two things fall out of that, both consistent with the report:
+
+1. **The wrap only runs inside `if (rain.visible)`.** Probed live: with rain off,
+   the drops still span x −14.9…15, z −15…15 — centred on the **world origin**,
+   while the player stood at x 198.6. They are only ever re-centred once rain is
+   already falling.
+2. **±15 m is short against this street.** The camera's far plane is 220 m and
+   the block runs ~130 m. Look *across* the street and the whole view is inside
+   the rain volume; look *along* it and almost everything you can see is beyond
+   the drops. **That is the same view containing rain and not containing rain,
+   depending only on which way you turn** — which is exactly what he describes.
+
+Note the comment above that code: the volume used to be pinned to the camera and
+was deliberately changed because *"a personal rain cloud you could never walk out
+from under"* was worse. **The fix must not simply revert that** — it needs the
+volume to cover the sightline without following the head.
+
+I could not reproduce the asymmetry from a screenshot in the time available, so
+this is a lead, not a diagnosis. **Reproduce it first.**
