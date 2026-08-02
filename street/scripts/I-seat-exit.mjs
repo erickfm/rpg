@@ -139,8 +139,33 @@ if (escOnly.length) {
   console.log('\n  SEATS E WILL NOT LEAVE — Escape is the only way out:');
   for (const [k, v] of [...byL].sort((a, c) => c[1] - a[1])) console.log(`     ${String(v).padStart(3)}  ${JSON.stringify(k)}`);
 }
+// ── AND THE VERDICT HAS TO BE ABLE TO FAIL OVER AN EMPTY SAMPLE ─────────────
+//
+// This was `process.exit(stuck.length ? 1 : 0)` and nothing else, which is a
+// pass over zero assertions. Measured, item 77: with `FPRig.sit()` refusing
+// every seat in the world, this printed
+//
+//     could not sit  : 6  (aim or reach, not a verdict either way)
+//     no seat traps the player: 0 released by E, 0 by Escape.      exit 0
+//
+// 219 seats published, six sampled, not one of them sittable, and the check
+// that exists to guard seating reported green. `nosit` is correctly "not a
+// verdict either way" for ONE seat — aim and reach really are ambiguous — but
+// when it swallows the whole sample there is no verdict left to draw, and an
+// absence is free over an empty set. Sixth member of the health.mjs family
+// (items 61, 62, 64, and 73's two); `integration-doors` carries a guard against
+// exactly this shape and this file did not.
+//
+// NOT a dead-port guard. On an unreachable world this still exits 1 from the
+// throw above, which conflates "could not measure" with "measured and broken" —
+// true of 20 of the suite's 23 walking/fast checks and filed as its own item by
+// w36. Fixing it here alone would be misleading, so it is left named, not hidden.
+const answered = fine.length + escOnly.length + stuck.length;
 console.log(stuck.length
-  ? `\nFAIL  ${stuck.length} of ${fine.length + escOnly.length + stuck.length} seats trap the player with no key out at all.`
-  : `\nno seat traps the player: ${fine.length} released by E, ${escOnly.length} by Escape.`);
+  ? `\nFAIL  ${stuck.length} of ${answered} seats trap the player with no key out at all.`
+  : answered
+    ? `\nno seat traps the player: ${fine.length} released by E, ${escOnly.length} by Escape.`
+    : `\nFAIL  none of the ${pick.length} sampled seats could be sat on at all — `
+      + `the seat kit is broken, and there is no verdict here to pass.`);
 await b.close();
-process.exit(stuck.length ? 1 : 0);
+process.exit(stuck.length || !answered ? 1 : 0);

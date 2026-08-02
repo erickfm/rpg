@@ -2032,3 +2032,53 @@ ARE the finding. The bar asked for a count when what it wanted was agreement.
 backgrounding; "runs agree to within X, and say how many you did" is finishable
 in one pass and produces better evidence. And when a second agent stalls on the
 same item, **fix the item** — do not send a third.
+
+## 71.
+
+**A check that proves an ABSENCE must first prove it looked at something.**
+`I-seat-exit` ended `process.exit(stuck.length ? 1 : 0)` with no floor on the
+sample size, so "no seat traps the player" was free over an empty set. Measured
+with `FPRig.sit()` refusing every seat, it printed:
+
+```
+could not sit  : 6  (aim or reach, not a verdict either way)
+no seat traps the player: 0 released by E, 0 by Escape.      exit 0
+```
+
+**219 seats published, six sampled, not one sittable, and the check that exists
+to guard seating reported green.** It is the sixth member of the `health.mjs`
+family and the nastiest, because the other five fail loudly and exit 0 — this one
+has nothing to say at all and is *right* to say nothing. Only the exit code is
+wrong.
+
+`integration-doors.mjs` already carried a guard against exactly this shape. The
+pattern existed in the repo and this file did not use it — the third time
+tonight the answer to a real problem was something already written down.
+
+**Every "no X was found" verdict needs a minimum-sample floor, and the floor
+should be derived from the registry** (219 seats published) **rather than typed.**
+
+## 72.
+
+**A red without a green is half a measurement, and `canfail` cannot tell the
+difference.** `canfail` scores CAUGHT on *any* non-zero exit (GOTCHAS 32), so a
+case registered against a check that is **already failing on unmutated mainline**
+self-certifies: the mutation is irrelevant, the score is green, and the guard
+proves nothing forever after.
+
+A builder nearly shipped exactly this, caught it, and withdrew its own landed
+work. It had watched the mutated run go red and committed on that alone; the
+baseline took 11m15s and came back **exit 1 on clean mainline** — a real trap at
+(8.50, −94.50) that had nothing to do with the mutation.
+
+**So: watch the red AND the green.** Both runs, both statuses, before a case is
+registered. If the baseline is slow, that is a reason to wait, not a reason to
+skip it — the builder's own words are the rule worth keeping: *"I registered a
+case on the strength of a red I had watched and a green I had not."*
+
+Related, from the same session: **a mutation that depends on a knife-edge stops
+proving anything the moment the margin moves.** A 100-nanometre roof mutation
+was real when it was written, on a world sitting exactly on a frame boundary;
+a day later there was a whole spare frame and the same mutation **passed** —
+indistinguishable from a check that failed to notice. Mutate by a margin the
+world cannot absorb.

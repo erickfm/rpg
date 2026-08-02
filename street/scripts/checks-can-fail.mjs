@@ -52,8 +52,30 @@ const EXEMPT = {
 // not typed from memory.
 const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
-  'jump-walk', 'w21-roof-climb', 'gaps', 'feet-check', 'side-night', 'I-seat-exit',
-  'unstick-walk', 'corner-traffic', 'crowd-net', 'side-walk',
+  'jump-walk', 'gaps', 'feet-check', 'side-night',
+  // 'corner-traffic' — CLEARED by w37, item 77: canfail case `corner-lean-into`.
+  //
+  // 'unstick-walk' STAYS ON THIS REGISTER, and w37 (item 77) had a working
+  // mutation for it and withheld it deliberately. The check is **already red on
+  // unmutated mainline** — `1/531 traps are still traps`, exit 1, on a real trap
+  // at (8.50, -94.50) the player can reach. canfail scores CAUGHT on any
+  // non-zero exit (GOTCHAS §32), so a case here would certify itself whatever
+  // the mutation did. FIX THE WORLD FIRST; the mutation is written up in
+  // notes/w37-walking-tier-failpaths.md and takes a minute to re-add.
+  'unstick-walk',
+  // 'crowd-net' — CLEARED by w37, item 77: canfail case `crowd-net-inroad`.
+  // 'side-walk' — CLEARED by w37, item 77: canfail case `sidewalk-sealed`. It
+  // already had a working failing path; nothing had watched it use one.
+  // 'I-seat-exit' — CLEARED by w37, item 77: cases `seat-traps` and `seat-nosit`.
+  // SIXTH MEMBER OF THE health.mjs FAMILY, and it needed a fix before either
+  // case could mean anything: the verdict was `stuck.length ? 1 : 0`, so with
+  // nothing in the world sittable it printed "no seat traps the player" over an
+  // empty sample and exited 0. Proved twice, pre-fix and fixed, same broken world.
+  // 'w21-roof-climb' — CLEARED by w37, item 77: canfail case `roof-unreachable`.
+  // It already HAD a working failing path (item 64 gave it one); what it lacked
+  // was a mutation anyone had watched it catch. Note the case is NOT w33's
+  // 100-nanometre nudge, which item 77 handed on as ready-made and which no
+  // longer reproduces — see the comment on the case in canfail.mjs.
   // 'A-eye-height-holds' — CLEARED by w35, item 72: canfail case `eye-gate-flat`,
   // proven CAUGHT behaviourally rather than declared.
   // 'integration-doors' — CLEARED by w36, item 73: canfail case `door-standoff`.

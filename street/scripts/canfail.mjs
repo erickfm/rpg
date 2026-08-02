@@ -623,6 +623,145 @@ const CASES = [
     'export function doorStandFor(building: string, standoff = 0.75)',
     'export function doorStandFor(building: string, standoff = 4.5)',
     'integration-doors.mjs', [], 'published door spots too far out to reach the door'],
+  // ── w37's, from item 77's walking tier ────────────────────────────────────
+  //
+  // THE ROOF PUT OUT OF REACH. w21-roof-climb exists for item 29 — walk
+  // pavement -> bed -> rail -> ROOF -> hood -> street — so the mutation that
+  // breaks its subject is a cab you cannot get on top of. Raising the roof
+  // plate from 1.415 to 1.62 leaves the rail at 0.97 and makes the last step
+  // 0.65 m, past what the rig can climb: the check prints
+  // `MISS 3. CAB ROOF  feet 0.970 (want 1.62)` on every attempt, then
+  // `could not get onto the roof in 4 tries` for all four exits. Measured:
+  // PASS with 1 spare frame before, exit 1 after.
+  //
+  // NOT w33's 100-NANOMETRE MUTATION, and that is the finding behind this case.
+  // notes/archive/w33-roof-hop-frames.md measured `roofY += 1e-7` taking the hop
+  // from 4/4 to 0/4, and item 77 handed it on as ready-made. It does not
+  // reproduce: I applied it, confirmed the dev server was serving `1.4150001`,
+  // and the check passed with `spare frames: 1`. w33's world was sitting exactly
+  // on a frame boundary, so a rounding-width nudge flipped an integer; today
+  // there is a whole spare frame and 1e-7 cannot cross it. A case that depends
+  // on the world being knife-edged stops proving anything the moment the margin
+  // moves, and it would have looked exactly like a passing case.
+  //
+  // The tier-pinning guard stays green through this on purpose: `carVariant`
+  // builds from the same PICKUP_CAB constant, so the panel really is at 1.62
+  // and the check fails on REACHING the roof rather than on a mismatched pin.
+  ['roof-unreachable', CARS,
+    '  roofY: 1.415,       // y1 — the roof plate\'s top face. NOT a round number: see below',
+    '  roofY: 1.62,        // selftest: the cab roof lifted out of climbing reach',
+    'w21-roof-climb.mjs', [], 'the pickup roof too high to climb onto at all'],
+
+  // ── I-seat-exit's TWO, and they fail apart on purpose ─────────────────────
+  //
+  // `seat-traps` breaks the thing the check is named for. `seat-nosit` breaks
+  // the thing it could NOT see until item 77 — the verdict was
+  // `stuck.length ? 1 : 0`, which is a pass over zero assertions, and with
+  // nothing in the world sittable it printed "no seat traps the player" and
+  // exited 0. A single case against the trap alone would have left that hole
+  // registered as proven.
+  //
+  // Both are one-line refusals in fp.ts, which is the single point every seat
+  // in the world goes through — `sit()` and `stand()` are the whole mechanic,
+  // and Escape reaches `stand()` too (fp.ts:449), so blocking it there really
+  // does leave no key out rather than leaving Escape as an exit.
+
+  // THE USER'S OWN BUG, verbatim: *"pressing e doesnt get me out of it — stuck
+  // in the TV seat"*. Measured: 5 of 5 sampled seats trapped, teleport distance
+  // 1.18-1.40 m, which is the same 1.0-1.4 m trap band this script's header
+  // recorded when it was written.
+  ['seat-traps', FP,
+    '  stand(): void {\n    this.forceUp = false;\n    if (!this.seat) return;',
+    '  stand(): void {\n    this.forceUp = false;\n    if (this.seat) return;   // selftest: E and Escape both refuse\n    if (!this.seat) return;',
+    'I-seat-exit.mjs', ['--n', '6'], 'seats you sit in and cannot get out of by any key'],
+
+  // THE EMPTY SAMPLE. Nothing can be sat on at all, so there is no seat to be
+  // trapped in and every bucket the verdict reads is zero. Measured on the same
+  // broken world, twice: the pre-fix script printed
+  // `no seat traps the player: 0 released by E, 0 by Escape.` and exited 0; the
+  // fixed one exits 1. Registering this case a day earlier would have scored
+  // SLEPT for a reason that had nothing to do with the world.
+  ['seat-nosit', FP,
+    '  sit(pose: SeatPose): void {\n    if (this.seat) return;',
+    '  sit(pose: SeatPose): void {\n    if (!this.seat) return;   // selftest: nothing is sittable\n    if (this.seat) return;',
+    'I-seat-exit.mjs', ['--n', '6'], 'a world where no seat can be sat on, scored as "no seat traps you"'],
+
+  // THE SIDE STREET'S WALKS SEALED, at every tree — the `bus-walk` fault on the
+  // other street. Only the TRUNK is solid there (0.16 m across) precisely so the
+  // walk stays passable; widening it to 3.2 m severs both walks, which is what
+  // side-walk.mjs is for ("are both side-street walks clear, doors reachable?").
+  //
+  // It discriminates, which is why this case is worth having over a blunter one:
+  // measured, the four hikes and the bodega-door reach went red (longest stall
+  // 10.5 s, 0.5 m covered; door reached only within 5.30 m of a 1.05 m trigger)
+  // while the tree/car/pit heights, the traffic leg and all three [E] spots
+  // stayed OK. 8 CHECK(S) FAILED, exit 1.
+  ['sidewalk-sealed', 'src/proto/ct/sidestreet.ts',
+    'mine.push(obstacle({ minX: px - 0.12, maxX: px + 0.12, minZ: tz - 0.08, maxZ: tz + 0.08 }));',
+    'mine.push(obstacle({ minX: px - 0.12, maxX: px + 0.12, minZ: tz - 1.6, maxZ: tz + 1.6 }));',
+    'side-walk.mjs', [], 'both side-street walks sealed shut at every tree'],
+
+  // THE WALK LINE MOVED INTO THE ROADWAY. `IN` is "one metre in from the kerb:
+  // the middle of a 2 m walk", so every node in the network is derived from it;
+  // -1.0 puts the whole pedestrian network a metre INSIDE the road, which is
+  // what crowd-net.mjs's registered question ("do people route the block, cross
+  // only at crossings?") exists to catch.
+  //
+  // SAME CONSTANT AS `crowd-lane`, DELIBERATELY THE OTHER WAY. crowd-lane takes
+  // IN to 1.95 — walkers against the shopfronts, sealing the 2 m lane — and is
+  // aimed at crowd-walk.mjs. This takes it the other way, off the kerb, and is
+  // aimed at crowd-net.mjs. The two checks own different halves of the same
+  // constant and a case for one proves nothing about the other.
+  //
+  // Measured: `stepped off the kerb away from a crossing` at x=-2.55 (the road
+  // is |x| < 5), worst lingering 44.3 s against a 4 s bar, longest freeze 64.5 s
+  // against 30 s, and two walkers who never got anywhere. It discriminates — the
+  // end-to-end routing, the overlap test and the errand variety stayed OK.
+  ['crowd-net-inroad', 'src/proto/ct/crowd-net.ts',
+    'const IN = 1.0;',
+    'const IN = -1.0;',
+    'crowd-net.mjs', [], 'the whole pedestrian network laid a metre inside the roadway'],
+
+  // A CAR THAT LEANS INTO ITS TURN, like a motorcycle. The sign on `-p.turn` is
+  // the whole of "leans AWAY from the turn centre: a right turn drops the left
+  // side", and corner-traffic.mjs asserts it as a RELATION —
+  // `Math.sign(steerPeak) !== Math.sign(leanPeak)` — rather than as a number, so
+  // it cannot be satisfied by the arithmetic agreeing with itself.
+  //
+  // The narrowest case in this file, and deliberately: measured, exactly ONE of
+  // the check's twenty assertions went red — `leans away from the turn, not into
+  // it (steer -35.0°, roll -3.4°)` — and the other nineteen stayed OK, including
+  // both arcs, the yield to the pedestrian, the continuity and yaw-snap tests
+  // and the three parked cars. A mutation that trips one named assertion and
+  // nothing else is the strongest evidence a check is actually watching.
+  ['corner-lean-into', 'src/proto/ct/traffic.ts',
+    'const lean = THREE.MathUtils.clamp(-p.turn * a * LEAN_PER_A, -LEAN_MAX, LEAN_MAX);',
+    'const lean = THREE.MathUtils.clamp(p.turn * a * LEAN_PER_A, -LEAN_MAX, LEAN_MAX);',
+    'corner-traffic.mjs', [], 'cars leaning INTO the corner, like a motorcycle'],
+
+  // NO `unstick-off` CASE, AND THE REASON IS WORTH MORE THAN THE CASE.
+  //
+  // I wrote one, ran it, and it went red exactly as designed: switching the
+  // stuck protection off (`UNSTICK_SPEED = 0` AND `PATIENCE = 1e9` — both, since
+  // either alone still frees the player) gave `537/531 traps are still traps`
+  // and `rig could not walk away (0.00 m)` on all six the DRIVEN leg drove.
+  //
+  // Then the clean baseline landed, and `unstick-walk` is **already red on
+  // unmutated mainline**: `1/531 traps are still traps`, exit 1, on
+  //
+  //     FAIL  inside @ 8.50,-94.50 — still inside a collider after 1.1 s
+  //
+  // canfail scores CAUGHT on ANY non-zero exit (GOTCHAS §32), so a case against
+  // a check that already exits 1 would certify itself no matter what the
+  // mutation did — a FALSE GREEN, and the most expensive kind here because
+  // nobody looks twice at one. Registering it would have been worse than
+  // registering nothing.
+  //
+  // So the case is withheld until the world is fixed, and the trap above is the
+  // thing to fix — it is a real one the player can reach. Recorded here rather
+  // than dropped quietly, because a case silently missing from this list is
+  // exactly what giving up looks like. See notes/w37-walking-tier-failpaths.md.
+
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
   // a commit message.
