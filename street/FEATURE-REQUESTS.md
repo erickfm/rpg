@@ -1711,3 +1711,25 @@ user's own words; the ledger is the record of work. When a request reaches the
 ledger without passing through here, the user loses the ability to see and
 reprioritise it — he cannot reprioritise a queue he cannot see. The fix is not
 to remember harder: it is to route through `route.sh`, which writes both.
+
+
+## The green sedan outside the diner
+
+> *"hey can you move this car back just a bit?"*
+> (`Screenshot from 2026-08-01 17-50-42.png` — the green sedan on the east kerb,
+> seen broadside from the walk by the lamp post, diner and thrift behind it)
+
+**Kept at the desk** — it is `parked[0] = ['sedan', 1, 1, -13]` in
+`crosstown.ts`, which is desk-owned, and it is a one-number change. Writing a
+brief would cost more than the edit (PARALLEL-WORKFLOW §10).
+
+**The measurement behind the complaint, which is worth keeping:** the parking
+lane's snug limit is `PARK_SNUG = 3.93` and a car's half-width is 1.05, so the
+snuggest-parked car's body edge sits at **4.98 against a kerb at `ROAD_HALF`
+= 5.0 — two centimetres of clearance.** The file's own comment celebrates this
+as "collider never on the walk", which is true and is not the same as *looking*
+right. At 2 cm the car reads as riding the kerb, which is exactly what the
+screenshot shows.
+
+So this is not only a placement nudge; the snug limit itself is drawn tighter
+than the eye accepts.
