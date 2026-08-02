@@ -997,9 +997,15 @@ export function buildLibrary(ctx: CtxBuild): void {
       box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, cz + fz);
     }
     ctx.seat({
-      // camera yaw 0 looks along −z, into the room. `ctx.seat` hands its yaw to
-      // the rig, so this is the CAMERA convention and not the sprite one.
-      x: room.wx(cx), z: room.wz(cz), yaw: 0, h: SEAT_TOP,
+      // FACE THE TABLE. `ctx.seat` hands its yaw to the rig, so this is the
+      // CAMERA convention and not the sprite one: yaw 0 looks along −z, yaw PI
+      // along +z. The chairs stand at `TAB_Z - 0.80`, so the table is at HIGHER
+      // z than the sitter and facing it is PI — which the chair's own geometry
+      // has said all along, because the back three lines up is drawn at
+      // `cz - 0.20`, behind a +z-facing sitter. This read `yaw: 0` and put you
+      // with your nose 0.20 m from your own backrest and the table at your
+      // shoulder blades. (scripts/seat-facing.mjs, rule B.)
+      x: room.wx(cx), z: room.wz(cz), yaw: Math.PI, h: SEAT_TOP,
       approach: { x: room.wx(cx), z: room.wz(cz - 0.85) },
       label: 'sit at the table',
       // only offered while you are actually in here, like every kit seat

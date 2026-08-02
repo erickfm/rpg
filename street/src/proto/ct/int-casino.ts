@@ -706,7 +706,15 @@ export function buildCasino(ctx: CtxBuild): void {
         put(new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.017, 4, 10), stoolPoleM), sx2, 0.22, sz2)
           .rotation.x = Math.PI / 2;
         ctx.seat({
-          x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? Math.PI : 0, h: STOOL_TOP,
+          // FACE THE MACHINE, which is the whole point of the stool. The bank
+          // is at `bz` and this stool at `bz + face * 1.02`, so the cabinets are
+          // always in the −face direction. Facing is (sin yaw, −cos yaw), so
+          // looking along −z is yaw 0 and along +z is PI: a stool on the +z side
+          // (face > 0) wants 0, one on the −z side wants PI. This was written
+          // the other way round and every one of the 96 stools sat you with
+          // your back 0.37 m from the machines, looking at the far wall.
+          // (scripts/seat-facing.mjs, rule B.)
+          x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? 0 : Math.PI, h: STOOL_TOP,
           approach: { x: room.wx(sx2), z: room.wz(sz2 + face * 0.75) },
           label: 'sit at the slot', ok: () => room.inside(),
         });
@@ -1123,23 +1131,51 @@ export function buildCasino(ctx: CtxBuild): void {
         .rotation.x = Math.PI / 2;
       ctx.seat({
         x: room.wx(gx), z: room.wz(gz), yaw, h: GSTOOL_TOP,   // the TOP face, not the centre
-        approach: { x: room.wx(gx + Math.sin(yaw) * 0.8), z: room.wz(gz + Math.cos(yaw) * 0.8) },
+        // THE APPROACH IS BEHIND YOU, which is the opposite of facing:
+        // facing is (sin yaw, −cos yaw), so a stride back is (−sin, +cos).
+        // The x term read `+Math.sin`, the same mirror as the yaws below, and
+        // it put the craps approach points inside the craps table.
+        approach: { x: room.wx(gx - Math.sin(yaw) * 0.8), z: room.wz(gz + Math.cos(yaw) * 0.8) },
         label, ok: () => room.inside(),
       });
     };
+    /**
+     * THE YAW A STOOL NEEDS TO LOOK AT ITS OWN TABLE — derived from the two
+     * positions, never typed.
+     *
+     * Facing is (sin yaw, −cos yaw) (`ctx.ts`, `Seat`), so looking from
+     * (gx, gz) toward (tx, tz) is `atan2(dx, −dz)`.
+     *
+     * The call sites below used to type `a + PI` for a stool placed at
+     * `C + R * (sin a, cos a)`. That is a MIRROR of the right answer: correct
+     * in x, inverted in z. It happens to be right for the four stools where
+     * cos a = 0 and wrong for the other seven, which is why it survived — the
+     * craps stools looked fine and nobody sat at roulette. Derived like this a
+     * fourth table cannot be added facing the wrong way.
+     */
+    const faceAt = (gx: number, gz: number, tx: number, tz: number) =>
+      Math.atan2(tx - gx, -(tz - gz));
     // roulette: five round its open side
+    const ROU_X = -3.1, ROU_Z = 0.2;
     for (let i = 0; i < 5; i++) {
       const a = -1.15 + i * 0.575;
-      gameStool(-3.1 + Math.sin(a) * 1.55, 0.2 + Math.cos(a) * 1.55, a + Math.PI);
+      const gx = ROU_X + Math.sin(a) * 1.55, gz = ROU_Z + Math.cos(a) * 1.55;
+      gameStool(gx, gz, faceAt(gx, gz, ROU_X, ROU_Z));
     }
-    // craps: three a side down the long table
+    // craps: three a side down the long table. Square ACROSS it, not at its
+    // centre — the far end of a craps table is not what you look at — so the
+    // aim point shares the stool's own z.
+    const CRP_X = 3.0;
     for (const sx of [-1, 1]) for (const dz of [-0.85, 0, 0.85]) {
-      gameStool(3.0 + sx * 1.35, 0.2 + dz, sx > 0 ? -Math.PI / 2 : Math.PI / 2);
+      const gx = CRP_X + sx * 1.35, gz = 0.2 + dz;
+      gameStool(gx, gz, faceAt(gx, gz, CRP_X, gz));
     }
     // poker: six round it, which is what a poker table seats
+    const POK_X = -3.0, POK_Z = -3.6;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
-      gameStool(-3.0 + Math.sin(a) * 1.65, -3.6 + Math.cos(a) * 1.65, a + Math.PI);
+      const gx = POK_X + Math.sin(a) * 1.65, gz = POK_Z + Math.cos(a) * 1.65;
+      gameStool(gx, gz, faceAt(gx, gz, POK_X, POK_Z));
     }
     // BLACKJACK: four seats on the player side of the felt table at
     // (TX, TZ) = (-2.6, -13.0), facing the dealer who already stands at

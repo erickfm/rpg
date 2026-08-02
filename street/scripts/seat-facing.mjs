@@ -17,11 +17,18 @@
 //    WALL, closer than WALL_MIN. This is the tax office / lot chair class:
 //    a yaw that reads fine in isolation and puts you a stride from brick.
 //
-// B. TURNED AWAY FROM YOUR OWN FURNITURE. A substantial piece of furniture is
-//    within REACH of the seat and more than BEHIND_DEG off the way you face.
-//    You do not sit down with your back 0.37 m from a slot machine bank; if
-//    you are, the yaw is mirrored. This is the class the wall test CANNOT see,
-//    because a backwards stool in a big room faces open floor.
+// B. TURNED AWAY FROM YOUR OWN FURNITURE. Substantial furniture sits within
+//    REACH BEHIND you and nothing substantial is nearer in front. You do not
+//    sit down with your back 0.37 m from a slot machine bank; if you are, the
+//    yaw is mirrored. This is the class the wall test CANNOT see, because a
+//    backwards stool in a big room faces open floor.
+//
+//    IT IS THE COMPARISON THAT MAKES THIS DECIDABLE, not the distance. A first
+//    draft failed any seat whose NEAREST furniture was behind it and reported
+//    fifteen casino stools that were correct: the floor is crowded enough that
+//    a roulette player has a slot bank 0.65 m at his back while the wheel is
+//    0.40 m in front of him. Nearest-thing-behind is a fact about the room.
+//    Nearer-behind-than-in-front is a fact about the seat.
 //
 // ── why "substantial" is one number and where it came from ────────────────
 //
@@ -61,6 +68,7 @@ const WALL_MIN = 1.20;      // m — nose-to-the-wall distance that is a defect
 const REACH = 0.80;         // m — "furniture you are sitting AT" is this close
 const DEEP = 0.80;          // m — shallower than this and it is a back, not a table
 const BEHIND_DEG = 125;     // off-axis angle that counts as "turned away from"
+const AHEAD_DEG = 60;       // off-axis angle that still counts as "sat at"
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4189/';
 const b = await chromium.launch();
@@ -72,7 +80,7 @@ await p.waitForFunction(() => window.__ct?.seats !== undefined, { timeout: 20000
 await reportWorld(p, URL);        // GOTCHAS 26: prove which world, do not name it
 await p.waitForTimeout(900);
 
-const out = await p.evaluate(async ({ WALL_MIN, REACH, DEEP, BEHIND_DEG }) => {
+const out = await p.evaluate(async ({ WALL_MIN, REACH, DEEP, BEHIND_DEG, AHEAD_DEG }) => {
   // MOVERS ARE NOT SCENERY. Cars and the traffic pool park their boxes at
   // x = 999 and shuffle; a seat cannot be judged against a collider that will
   // be somewhere else next frame. Keep only boxes that held still.
@@ -127,7 +135,7 @@ const out = await p.evaluate(async ({ WALL_MIN, REACH, DEEP, BEHIND_DEG }) => {
     // ── B. the nearest substantial furniture, and its bearing ──
     // Indoors only — see the header. Outdoors every seat has a building behind
     // it and the rule cannot tell that from a mirrored yaw.
-    let worst = null;
+    let back = null, front = null;
     for (const c of r ? cols : []) {
       if (isOwn(c)) continue;
       const w = c.maxX - c.minX, dd = c.maxZ - c.minZ;
@@ -138,22 +146,24 @@ const out = await p.evaluate(async ({ WALL_MIN, REACH, DEEP, BEHIND_DEG }) => {
       if (gap > REACH) continue;
       const dot = ((nx - x) * fx + (nz - z) * fz) / (gap || 1);
       const deg = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
-      if (!worst || deg > worst.deg) worst = { deg: +deg.toFixed(0), gap: +gap.toFixed(2),
-        size: `${w.toFixed(2)}x${dd.toFixed(2)}` };
+      const hit = { deg: +deg.toFixed(0), gap: +gap.toFixed(2), size: `${w.toFixed(2)}x${dd.toFixed(2)}` };
+      if (deg > BEHIND_DEG && (!back || gap < back.gap)) back = hit;
+      if (deg < AHEAD_DEG && (!front || gap < front.gap)) front = hit;
     }
 
     const bad = [];
     if (r && solidAhead === Infinity && wallAhead < WALL_MIN)
       bad.push(`nose to the wall: ${wallAhead.toFixed(2)} m of nothing, then ${r.id}'s own wall`);
-    if (worst && worst.deg > BEHIND_DEG)
-      bad.push(`turned away from its own furniture: ${worst.size} m at ${worst.gap} m, ${worst.deg} deg off`);
+    if (back && (!front || back.gap < front.gap))
+      bad.push(`turned away from its own furniture: ${back.size} m at ${back.gap} m, ${back.deg} deg off`
+        + (front ? `, with only ${front.size} m at ${front.gap} m in front` : ', nothing in front'));
 
     return { label: s.label, room: r ? r.id : 'outdoor',
              x: +x.toFixed(2), z: +z.toFixed(2), yaw: +yaw.toFixed(3),
              ahead: solidAhead === Infinity ? null : +solidAhead.toFixed(2),
              wall: wallAhead === null ? null : +wallAhead.toFixed(2), bad };
   });
-}, { WALL_MIN, REACH, DEEP, BEHIND_DEG });
+}, { WALL_MIN, REACH, DEEP, BEHIND_DEG, AHEAD_DEG });
 await b.close();
 
 const bad = out.filter((s) => s.bad.length);

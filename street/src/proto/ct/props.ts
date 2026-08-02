@@ -67,7 +67,24 @@ export function buildProps(ctx: CtxBuild): Props {
   // field over 900 px, each drop is about 7 px tall and well under a pixel
   // WIDE. A sub-pixel hairline is mostly thrown away by the pixel grid however
   // many of them there are, which is exactly why more did not help.
-  const RAIN_N = 500;
+  //
+  // ── AND THAT IS WHY THE COUNT CAN BE RAISED NOW ─────────────────────────
+  // The line above is still true of the world it was written in and is the
+  // reason the count is only being touched now. Once size went 0.22 → 0.36 and
+  // the sheath gave each drop its own contrast, a drop stopped being a
+  // sub-pixel hairline — so N stopped multiplying nothing and started
+  // multiplying something. Measured, not assumed: at rainLevel 0.99 the drops
+  // painted 1.1–13.7% of the frame facing four ways, and the frame looking
+  // south — the one with the most sky in it — carried about two dozen
+  // countable streaks. Two dozen streaks is a drizzle at ANY opacity, which is
+  // the real answer to "rain never gets heavy": rainLevel already reaches
+  // 0.999 (measured), it just had nothing but alpha to spend itself on.
+  //
+  // 500 drops in a 30 x 14 x 30 m box is 0.04 per cubic metre. 2600 is 0.21,
+  // and about a quarter of the box is in frame at any time, so a downpour is
+  // ~650 streaks rather than ~130. The per-frame wrap loop is O(N) on a typed
+  // array — 2600 is nothing next to the 3383-mesh scene it falls through.
+  const RAIN_N = 2600;
   const RAIN_BOX = 30;   // world-space wrap period for raindrops
   const rainPos = new Float32Array(RAIN_N * 3);
   for (let i = 0; i < RAIN_N; i++) {
@@ -109,10 +126,30 @@ export function buildProps(ctx: CtxBuild): Props {
     g.fillRect(4, 1, 1, 14);
   }), 'detail');
   const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.36, transparent: true, opacity: 0, depthWrite: false });
+  // ── A DROP 60 cm FROM YOUR EYE IS A WHITE POST ──────────────────────────
+  // Size attenuation makes gl_PointSize grow as 1/distance with no ceiling, so
+  // a drop that wraps in close to the camera draws as a 200 px pale bar
+  // standing in the middle of the street. It reads as a lamp post, not as
+  // rain, and it is the one thing raising the drop count makes strictly worse:
+  // the near-field is a fixed fraction of the box, so five times the drops is
+  // five times the posts (~7 within 2 m at N=2600, against ~1.3 at N=500).
+  //
+  // Clamped in the shader rather than by moving drops out of a bubble around
+  // the player: every drop must keep wrapping by WHOLE multiples of RAIN_BOX
+  // or it stops being world-locked, which scripts/rain-check.mjs asserts and
+  // which was itself a reported bug ("a personal rain cloud you could never
+  // walk out from under"). Nothing moves here — the same drop is drawn, just
+  // never taller than a hand's width of screen.
+  rainM.onBeforeCompile = (s) => {
+    const line = 'if ( isPerspective ) gl_PointSize *= ( scale / - mvPosition.z );';
+    if (!s.vertexShader.includes(line)) return;   // three changed the chunk: leave it alone
+    s.vertexShader = s.vertexShader.replace(line, `${line}\n\t\tgl_PointSize = min( gl_PointSize, 46.0 );`);
+  };
   const rain = new THREE.Points(rainGeo, rainM);
   rain.visible = false;
   scene.add(rain);
   let rainLevel = 0;      // is it raining RIGHT NOW — drives the falling drops
+  let stormNow = 1;       // how HARD this particular storm is; see stormAt
   // The ground has its own state, and it is not rainLevel. Tying the wet look
   // straight to the rain made the street bone dry the instant the last drop
   // landed, which is the one thing a wet street never does.
@@ -172,6 +209,18 @@ export function buildProps(ctx: CtxBuild): Props {
   // with rainAt() in ct/props.ts" — two copies of a formula that just turned out
   // to be wrong, which is two places to forget.
   scene.userData.rainAt = rainAt;
+  // ── HOW HARD, not just WHETHER ──────────────────────────────────────────
+  // `rainAt` answers a yes/no question and `rainLevel` is only the ramp onto
+  // that answer — it settles at 0.999 within ~11 real seconds of a wet hour
+  // starting (measured), and a game hour is 60 real seconds, so EVERY storm
+  // was the same storm. There was no intensity axis anywhere in the weather.
+  //
+  // `stormAt` is that axis. Same murmur3 finalizer as the hour draw, offset so
+  // it is an independent draw rather than a second read of the same bits, and
+  // floored at 0.62 because the complaint on file is that rain is too faint —
+  // the weakest storm in the world should still be plainly rain.
+  const stormAt = (h: number) => 0.62 + 0.38 * ((mixHour(h + 9973) % 1024) / 1023);
+  scene.userData.stormAt = stormAt;
 
   // billboard sprites: trees, hydrant, pigeons
   function board(tex: THREE.Texture, w: number, h: number, x: number, z: number): THREE.Mesh {
@@ -1822,6 +1871,18 @@ export function buildProps(ctx: CtxBuild): Props {
   const updateRain = (dt: number, px: number, pz: number, hAbs: number) => {
     const wantRain = rainAt(hAbs) && px < 100 ? 1 : 0;
     rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
+    // LATCHED, not read live. `stormAt(hAbs)` on the hour the rain STOPS is a
+    // different draw from the storm that is currently fading out, so reading it
+    // every frame would step the drop count sideways mid-fade — the one moment
+    // the player is looking straight at it. Hold the strength for as long as it
+    // is actually raining and let it ride the fade out.
+    if (wantRain) stormNow = stormAt(hAbs);
+    // Published for the same reason rainAt is: an instrument that re-derives
+    // "how heavy is it right now" from the material's alpha is re-deriving a
+    // number the world already knows, and that is exactly how the reading this
+    // item was built on ("rainLevel never exceeds 0.28") came out wrong.
+    scene.userData.stormNow = stormNow;
+    scene.userData.rainHeavy = rainLevel * stormNow;
     if (px > 100) rainLevel = 0; // it NEVER rains indoors — cut, don't fade
     // Wet fast, dry slow. Soaking takes seconds; drying takes minutes of game
     // time, longer after a long storm and longer again at night when there is
@@ -1896,7 +1957,23 @@ export function buildProps(ctx: CtxBuild): Props {
     // wet after the rain stops. That was the liked half and it is untouched.
     rain.visible = rainLevel > 0.02;
     if (rain.visible) {
-      rainM.opacity = 0.55 * rainLevel;
+      // HEAVY IS A COUNT, NOT AN ALPHA. Opacity alone cannot make rain heavy —
+      // it makes the same drizzle louder, and past about 0.6 the drops go from
+      // faint to hard-edged without ever getting more numerous. So `heavy`
+      // spends itself on three things at once, which is what actually reads as
+      // weather: how MANY drops are drawn, how solid each one is, and how fast
+      // they fall.
+      const heavy = rainLevel * stormNow;
+      rainM.opacity = 0.72 * heavy;
+      // The draw range is the density axis. Positions were randomised at build
+      // over the whole box, so the first n of them are a uniform sample of it —
+      // taking a prefix thins the rain evenly instead of clearing one corner.
+      // Floored so the weakest moment of the fade is still recognisably rain
+      // rather than four drops hanging in the air.
+      rainGeo.setDrawRange(0, Math.max(120, Math.round(RAIN_N * heavy)));
+      // Rain that falls at one speed whatever the sky is doing reads as a
+      // screen effect. 13 m/s was the drizzle's speed; a downpour comes down.
+      const fall = 13 + 9 * heavy;
       // Rain belongs to the WORLD, not to the camera. The volume used to be
       // pinned to the player every frame (rain.position.set(px,0,pz)) with
       // fixed local x/z, so every drop translated exactly with you — a
@@ -1908,7 +1985,7 @@ export function buildProps(ctx: CtxBuild): Props {
       // rain that stays put in the world while still covering wherever you are.
       const rp = rain.geometry.getAttribute('position') as THREE.BufferAttribute;
       for (let i = 0; i < RAIN_N; i++) {
-        let ry = rp.getY(i) - dt * 13;
+        let ry = rp.getY(i) - dt * fall;
         if (ry < 0) ry += 14;
         const rx = rp.getX(i), rz = rp.getZ(i);
         rp.setXYZ(i,
