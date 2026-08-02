@@ -37,6 +37,8 @@ const ALLEY = 'src/proto/ct/alley.ts';      // D's, split out of street.ts by 23
 const CAT = 'src/proto/ct/cat.ts';          // D's
 const CORNER = 'src/proto/ct/bodega-corner.ts';  // D's, split out of street.ts
 const BANK = 'src/proto/ct/bank.ts';        // D's, split out of street.ts
+const CASINO = 'src/proto/ct/int-casino.ts';  // the 96 slot stools
+const TAX = 'src/proto/ct/int-tax.ts';        // the waiting row the user reported
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
 //
@@ -635,6 +637,47 @@ const CASES = [
     'if (true) continue;   // stop sealing enclosed pockets',
     'A-tree-canopy-opaque.mjs', [], 'holes punched clean through a tree crown'],
 
+  // ── SEAT FACING: two cases, because the check has two rules and they fail
+  // apart. `scripts/seat-facing.mjs` is the first guard on the FACING CLASS
+  // rather than on one instance of it — five backwards-yaw bugs have shipped
+  // here one at a time, and it went red on 105 seats the day it was written.
+  //
+  // Both mutations are in SOURCE and both restore a bug that actually shipped.
+  // There is no runtime alternative: the only handle a harness has on
+  // `__ct.seats()` would break the check's VIEW while leaving the world intact,
+  // which GOTCHAS 34 says proves nothing. (w19)
+  //
+  // RULE B — turned away from your own furniture. The 96 casino slot stools,
+  // mirrored back to the historical bug verbatim: the bank of machines sits at
+  // `bz` and each stool at `bz + face * 1.02`, so the cabinets are always in the
+  // −face direction; writing the ternary the other way round sat every player
+  // with their back 0.37 m from the machine they had just pressed [E] to play.
+  //
+  // This is the clause a wall test structurally CANNOT reach — the casino floor
+  // is 11 m across, so a backwards stool is looking at open floor and every
+  // nose-to-the-wall predicate in this repo passes it. Chosen for that reason
+  // rather than because it is the biggest number.
+  ['seat-facing', CASINO,
+    'x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? 0 : Math.PI, h: STOOL_TOP,',
+    'x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? Math.PI : 0, h: STOOL_TOP,   // the mirrored ternary that shipped',
+    'seat-facing.mjs', [], '96 slot stools with their backs to the machines'],
+
+  // RULE A — nose to the wall. The tax office waiting row, turned round into the
+  // plaster it is bolted to. The seat sits at `WAIT_Z + 0.04` = `hd − 0.58`, so
+  // `yaw: Math.PI` leaves 0.58 m of nothing and then the room's own front wall —
+  // inside the check's 1.20 m WALL_MIN with margin to spare.
+  //
+  // NOT the same defect the user reported in this room, deliberately. His
+  // *"seats in the tax office are reversed"* turned out to be the BACKREST MESH
+  // on the wrong side of a correct `yaw: 0` (int-tax.ts:450-456 records the
+  // measurement), and an AABB check cannot see a backrest. This mutates the yaw
+  // that was wrongly blamed, because that is the thing seat-facing is able to
+  // decide — a case must break what the check claims to catch, not what the
+  // ticket said. (w19)
+  ['seat-facing-wall', TAX,
+    'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: 0, h: 0.47,',
+    'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: Math.PI, h: 0.47,   // selftest: the row turned into the wall',
+    'seat-facing.mjs', [], 'the waiting row facing plaster 0.58 m away'],
 
 ];
 

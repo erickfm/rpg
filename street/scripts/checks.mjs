@@ -388,6 +388,36 @@ const CHECKS = [
   // tiny bit stronger" — a feel request, which is the kind most easily undone by
   // an unrelated edit to fp.ts because nothing about it looks like a constant.
   ['jump-walk',        'does the jump still clear what it was tuned to clear?', false],
+  // THE FIFTH FACING BUG, and the first thing to guard the class rather than one
+  // instance of it. Five have shipped from a typed or mirrored yaw — the burger
+  // barn guy, the librarian, the casino sitter, the park benches, the tax office
+  // waiting row — and each was fixed one at a time by somebody looking at it.
+  // This one went red on 105 seats the day it was written: 96 casino slot stools
+  // sat you with your back 0.37 m from the machines you had just pressed [E] to
+  // play, next to NPCs already facing the right way.
+  //
+  // IT WAS A ONE-OFF NO SUITE RAN. That is the whole reason for this row: the
+  // sixth would have shipped exactly like the first five. It reads `__ct.seats()`
+  // rather than a list, so a seat registered by a builder who has not been
+  // written yet is covered the day it lands.
+  //
+  // Fast tier, measured not guessed: 4.4 s against an idle dev server, against
+  // the 36 s that moved lotwalk to slow. It measures and does not walk — I-facing
+  // makes the same claim for the lot alone and sits in the fast tier too.
+  //
+  // TWO CASES, because the check has two rules and they fail apart (the
+  // `footprint` precedent above): `seat-facing` mirrors the casino stools back to
+  // the historical bug verbatim — rule B, turned away from your own furniture,
+  // which is the class a wall test structurally cannot see because a backwards
+  // stool in a big room faces open floor — and `seat-facing-wall` turns the tax
+  // office waiting row into the plaster 0.58 m behind it, which is rule A. One
+  // case would have left the other silently unproven.
+  //
+  // NO --selftest, and that is deliberate rather than missing: both mutations
+  // have to move the WORLD's yaws, and the only handle a harness has on
+  // `__ct.seats()` would break the check's view while leaving the world intact,
+  // which GOTCHAS 34 says proves nothing. Source mutations are the honest form.
+  ['seat-facing',      'does every seat look at something, or at a wall?',   ['seat-facing', 'seat-facing-wall']],
   // RED ON ARRIVAL, and correctly so — it is reporting three real scripts.
   //
   // Eight scripts here dispatch on a mode word. Hand one a mode it does not
