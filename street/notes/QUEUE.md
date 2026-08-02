@@ -47,7 +47,7 @@ second time the check below caught it in seconds.
 `grep -c '| TODO' notes/QUEUE.md` first thing every tick; if it is non-zero and
 fewer than the cap are running, spawn. Do not let items sit while slots are free.
 
-**Push before spawning.** GOTCHAS 57: a worktree is a snapshot, so a builder
+**Push before spawning.** GOTCHAS 59: a worktree is a snapshot, so a builder
 created before a fix lands cannot see it and will redo the work — that has
 already cost two agents on one door and a merge conflict. Land and push
 everything finished, THEN spawn.

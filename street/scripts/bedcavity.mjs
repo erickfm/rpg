@@ -32,7 +32,7 @@ console.log(`\npickups: ${picks.length}`);
 // The cavity box used to be a hand-typed constant lifted from a reading of
 // cars.ts (CAV.x = 0.74) taken BEFORE the wheel well existed — it was the
 // bed's outer wall, not the well's inner wall. `f67796741` built a real well
-// (GOTCHAS 56 / 48/54-class staleness): an inner wall box, BoxGeometry(0.04,
+// (GOTCHAS 58 / 48/56-class staleness): an inner wall box, BoxGeometry(0.04,
 // WELL_TOP-FLOOR_T, 0.86), standing between the tyre and the load space. That
 // retyped 0.74 went stale the moment the well shipped and sat wrong for a
 // week, contradicting builder H's correct "cannot reproduce".

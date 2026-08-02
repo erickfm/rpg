@@ -23,7 +23,7 @@ git reset --hard add-stick-and-city98     # if not
 
 That `npm install` is the part people skip; the hard reset removes the
 `node_modules` symlink and the dev server then fails with an error that looks
-nothing like the cause. (GOTCHAS 52, 13.)
+nothing like the cause. (GOTCHAS 54, 13.)
 
 ---
 
@@ -64,7 +64,7 @@ An uncommitted result is a lost result. The repo commits freely — do not ask.
 
 An agent that launches a suite and waits to be woken will never come back — this
 has happened twice, at ~250k tokens each. If a run is slow, make it smaller, not
-asynchronous. (GOTCHAS 53.)
+asynchronous. (GOTCHAS 55.)
 
 ---
 
@@ -100,7 +100,7 @@ that is a success, not a failure.
 
 A row once claimed *"0 of 10 files call citizenSprite"*; all twelve did, three
 builders had already reported it stale, and it cost a fourth builder anyway.
-(GOTCHAS 55.)
+(GOTCHAS 57.)
 
 ### 6a. THE USER'S QUOTE OUTRANKS THE DESK'S DIAGNOSIS
 
@@ -140,7 +140,7 @@ believe it**. A script is a hypothesis about the source; the source is the answe
 **Never fix a failing check by loosening it until it passes.** A check that
 cannot fail is worse than one that is wrong, and this project has a documented
 family of guards that "slept". If the check is right and the world is wrong, say
-so and queue the world fix. (GOTCHAS 56.)
+so and queue the world fix. (GOTCHAS 58.)
 
 ---
 

@@ -2,7 +2,7 @@
 # Do the queue's TODO rows all match what claim.sh can actually see?
 #
 # Twice now a rank id has made an item INVISIBLE to the dispatcher while looking
-# perfectly normal in the file. The first time (GOTCHAS 58) eleven lettered rows
+# perfectly normal in the file. The first time (GOTCHAS 60) eleven lettered rows
 # read as an empty queue and four builders were spawned onto nothing. The second
 # time an id of `0d2` — a digit AFTER a letter — slipped past, and this check
 # caught it in seconds.

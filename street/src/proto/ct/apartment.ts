@@ -2611,7 +2611,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // It reads `TV_X`, the set's OWN centre line declared where the cabinet is
     // built — not a copy of it. A hand-typed second number is what left
     // `bedcavity.mjs` measuring a truck that no longer existed and
-    // `doorside2.mjs` failing a door that was fine (GOTCHAS 56). Move the
+    // `doorside2.mjs` failing a door that was fine (GOTCHAS 58). Move the
     // television and the seat follows it.
     ctx.seat({
       x: AX(TV_X), z: AZI(4.42), yaw: 0, h: 0.45, r: 0.70,

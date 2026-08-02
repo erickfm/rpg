@@ -35,7 +35,7 @@
 // nothing), five metres from and on a different wall than the bodega's real
 // customer door on the canted bay (`DOOR.face`, world (8.0, -95.0)). Comparing
 // the room's real declared door against that unrelated wall produced a
-// confident, wrong "** DOES NOT MIRROR **" (GOTCHAS 56) — the two sides were
+// confident, wrong "** DOES NOT MIRROR **" (GOTCHAS 58) — the two sides were
 // never describing the same door.
 //
 // Fix: detect a chamfered door from `window.__ct.doors()`'s own `chamfer`
