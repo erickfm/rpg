@@ -24,7 +24,11 @@ export interface FPOpts {
 // clearance to pass a person. Only ever reduce this: every lane in the world
 // (the 2 m walk past a tree, the alley mouth, doorways) was tuned against the
 // old value, so a smaller radius can only make gaps easier, never trap you.
-const RADIUS = 0.36;   // was 0.42
+export const RADIUS = 0.36;   // was 0.42
+// (export added for ct/debug-collision.ts — the collision-view toggle draws the
+// player's own footprint at the SAME radius blocked() actually collides with,
+// rather than a second hand-typed number that could drift from it. Bounded
+// desk exception for this feature; nothing else in this file changed.)
 
 /** How far your eye sits above the seat pan. Standing eye is 1.62; on a
  *  0.45 m bench this puts you at 1.17, on a 0.71 m stool at 1.43. */

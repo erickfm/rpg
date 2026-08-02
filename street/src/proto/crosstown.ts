@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Proto } from './types';
-import { FPRig, type AABB, type SeatPose } from './fp';
+import { FPRig, RADIUS, type AABB, type SeatPose } from './fp';
+import { ColliderDebug } from './ct/debug-collision';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CROSSTOWN '97 — the small world. One hand-authored street.
@@ -119,6 +120,14 @@ export function makeCrosstown(): Proto {
   // affordance in this file is already a function on `__ct` (`clock`, `hermit`,
   // `bus`, `drive`), so it needs no new mechanism and no new place to look.
   let debugSpots = false;
+  // COLLISION DEBUG VIEW. Press V to toggle — see ct/debug-collision.ts, and
+  // notes/debug-collision.md for why V (every letter WASD/shift/C/space/E
+  // and i/g/x/z/[/] was already spoken for). Off by default, same rule as
+  // debugSpots just above: a player feature this never was, a diagnosis tool
+  // this always should have been.
+  let debugCollision = false;
+  let debugCollisionKeyHeld = false;
+  const colliderDebug = new ColliderDebug();
   // HYSTERESIS ON TRANSITIONS. A spot you have just USED is latched off until
   // you have physically left its volume, and only then re-arms.
   //
@@ -716,6 +725,13 @@ export function makeCrosstown(): Proto {
      *  wrong thing", not a player feature; see `SpotOutline` for why it draws a
      *  volume and not an object outline. */
     debugSpots: (on: boolean) => { debugSpots = on; if (!on) spotOutline.show(scene, null); },
+    // DEBUG: same shape as debugSpots — a console/probe affordance for the
+    // collision-view toggle (player key: V), so a script can turn it on
+    // without simulating a keypress. off means truly off: see ct/debug-
+    // collision.ts's ColliderDebug.update, which tears its scene objects
+    // down rather than merely hiding them.
+    debugCollision: (on: boolean) => { debugCollision = on; },
+    debugCollisionOn: () => debugCollision,
     // test affordance for the ctx.clock verb, the same way colliders() and
     // groundAt() expose their registries — a capability nobody can drive from
     // a harness is a capability nobody can prove works.
@@ -903,6 +919,11 @@ export function makeCrosstown(): Proto {
       const rmb = input.keys.has('rmb');
       if (rmb && !rmbHeld) hud.toggleWallet();
       rmbHeld = rmb;
+      // V: toggle the collision debug view. Edge-triggered like rmb/E just
+      // above, so holding it down does not flicker the overlay on and off.
+      const debugKeyDown = input.keys.has('v');
+      if (debugKeyDown && !debugCollisionKeyHeld) debugCollision = !debugCollision;
+      debugCollisionKeyHeld = debugKeyDown;
       // E: nearest live spot wins; with nothing near, E feeds the birds
       //
       // It said "nearest" and did FIRST-REGISTERED — the loop broke on the
@@ -1048,6 +1069,11 @@ export function makeCrosstown(): Proto {
       // ct/traffic.ts each register a LATE frame hook
       // pigeons: peck, chase scattered cereal, spook when approached
       props.updatePigeons(dt, t, px, pz);
+      // COLLISION DEBUG VIEW — see ct/debug-collision.ts. Last in the frame so
+      // it draws over a settled world; costs nothing when debugCollision is
+      // false (the ColliderDebug instance builds no geometry until the first
+      // `on: true` call, and tears it down again the moment it goes false).
+      colliderDebug.update(scene, colliders, apt.gy(), { x: px, z: pz, radius: RADIUS }, debugCollision);
     },
   };
 }

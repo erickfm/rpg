@@ -1761,3 +1761,18 @@ invisible collision.** Two thirds of the jail site was solid and nobody could
 see it; the thrift keeper stood 5 cm inside a wall; a parked-car gap once
 trapped the user with *"im literally stuck here"*. Every one of those would have
 been obvious at a glance with collider volumes drawn.
+
+**Done.** Press **V** to toggle. Draws every live collider from
+`window.__ct.colliders()` as a wireframe box — green, or red where two of them
+form a corridor under 0.95 m (the same `trapAgainst()` rule the parked-car draw
+is already constrained by) — plus the player's own square collision footprint
+in blue. New file, `src/proto/ct/debug-collision.ts`; a bounded exception added
+the toggle + one draw call to `crosstown.ts` and exported `RADIUS` from `fp.ts`,
+nothing else in either. Off by default and measurably free when off: scene
+object count returns to the exact baseline on toggle-off, and
+`npm run fp before/after` came back with `textures`/`structure` bit-for-bit
+IDENTICAL — a first version that built its geometry at module-import time did
+NOT pass that test (GOTCHAS §2/§31: it was quietly burning `Math.random` draws
+off the shared seeded stream on every load, whether the key was ever pressed or
+not), which is worth remembering next time a debug tool feels free because
+nothing is added to the scene. Full writeup: `notes/debug-collision.md`.
