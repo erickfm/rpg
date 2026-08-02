@@ -236,6 +236,14 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 ## 10. How to prove it
 
 - **Movement, collision, floors and seats: WALK them.** A screenshot cannot prove you are not wedged.
+- **THE `fp` TEXTURE HASH CANNOT SURVIVE ADDING OR REMOVING A MESH — it is a PURE-REFACTOR tool only.**
+  `scripts/scenedump.mjs:26` seeds `Math.random` globally so dithering is reproducible, and three's
+  `generateUUID()` draws four random values per object, geometry and material. So **six new meshes shift
+  the stream and repaint every dithered texture built after them** — one builder saw `294/1461 textures
+  differing` on a change that moved nothing. `fpdiff`'s counts are positional too, so inserting a mesh
+  inflates them. **If your change adds or removes geometry, `fp`/`fpdiff` will report a catastrophe that
+  is not there.** Compare `places` as a multiset instead (`scripts/probes/w44-placediff.mjs` does this),
+  or diff only what you did not touch. Use `fp` as proof ONLY when you changed no geometry at all.
 - **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor.
 - **Press `V` for the collision overlay.** Wireframe boxes, red where a gap under 0.95 m could trap a player. It is how the user found two real bugs on its first day.
 - **Verify on the BUILT bundle** (`npx vite preview`), not only on dev. The panel/keydown class of bug has shipped differently than it renders in dev.
