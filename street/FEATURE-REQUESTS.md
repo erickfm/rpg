@@ -2285,3 +2285,43 @@ crossing**, and to derive those gaps from wherever the crossings are actually
 defined rather than typing z values — a hand-typed gap silently stops matching
 the moment a crossing moves, which is precisely the class of rot that has cost
 this project four instruments this week.
+
+
+## No pop-up menus — every interface must be diegetic
+
+> *"for all the interactable areas (atm, slot machine, cards, etc.) i dont want a
+> dialog to pop up i simply want to sit down and have the game happen in front of
+> me. maybe we lock the view once we sit and we create a table view/slot view/atm
+> view thats actually a fixed dialog but to the player it just looks like its
+> actually the game still. the point is i never want there to be menus popping up
+> unless they are embedded to look as if they are in the actual game. i dont want
+> to break immersion. so this also applies for inventory."*
+
+**This is a standing design law, not a feature request**, and it retires the
+pattern every interface in this world currently uses. `ct/hud.ts`'s `makePanel`
+draws a floating bezel — beige or charcoal chrome, a title bar, an `ESC` hint —
+centred over the screen. That reads as a *dialog over a game*. He wants the
+opposite: the machine's own screen, seen from the chair.
+
+**He has already conceded the implementation**, which makes this far cheaper than
+it sounds: *"actually a fixed dialog but to the player it just looks like its
+actually the game."* So the panel machinery survives. What changes is that
+sitting down **locks the camera to a fixed view of the object**, and the panel is
+drawn to sit exactly where that object's screen is — no chrome, no title bar, no
+floating box. The illusion only has to hold from one known camera position, which
+is the whole reason locking the view makes it tractable.
+
+**Applies to:** the ATM, the slot machine, blackjack, the inventory, and the
+library PC that landed tonight. The TV already works this way — you sit on the
+bed and watch it in the world — so **the TV is the worked example of what he
+wants**, and the others are the exceptions.
+
+**The rule that must not be broken while doing it.** `hud.ts` blocks keydown
+while a panel is open, and the user was once trapped in a TV seat: *"no im
+telling you i can't get up anything i do once i sit down."* **Locking the camera
+adds a second way to trap someone.** Escape must leave, standing must leave, and
+both must be proven from inside every one of these views.
+
+**Timing matters:** every new panel built before this lands is more to convert.
+The library PC shipped tonight with a floating panel, so this should be settled
+before the next interface is drawn.
