@@ -2218,6 +2218,45 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // redrawing it plus `needsUpdate` is the whole of the animation. No new
     // texture per frame — that would leak one every 120 ms.
     const TVW = 64, TVH = 48;
+    /** ── TITLE-SAFE ────────────────────────────────────────────────────
+     *  The user: *"make sure the top of the ad isnt getting cut off by the tv.
+     *  we can reduce the bezel a little bit"* (2026-08-02).
+     *
+     *  THE BEZEL RAILS DO NOT OVERLAP THE GLASS — measured, all four abut it
+     *  to the micron (scripts/probes/w48-tvprobe.mjs): the top rail's underside
+     *  is at y 6.162 and the screen's top edge is at y 6.162. The clipping is
+     *  PARALLAX. The rails stand proud of a recessed screen, and the ads only
+     *  ever play to a SEATED player, whose eye is a fixed 0.538 m ABOVE the
+     *  screen's centre at 1.928 m out — so he looks 15.6deg DOWN at it and the
+     *  top rail's front edge cuts a band off the top of the picture.
+     *
+     *  Measured band, at the rail depth this file used to carry (0.06 m):
+     *  0.01311 m of a 0.26 m screen = **2.42 of the 48 canvas rows**. `list`
+     *  put its headline at row 2 and `split` its BEFORE/AFTER at row 2, so
+     *  both lost the top row of every glyph; `slate` lost the top edge of its
+     *  border. Ten of the 27 spots were visibly cut.
+     *
+     *  SHRINKING THE BEZEL ALONE CANNOT FIX THIS. Any recess at all occludes
+     *  something off-axis: at 0.04 m the band is still 1.60 rows, at 0.03 m
+     *  still 1.19. So the bezel comes in to 0.04 (the "little bit" he
+     *  authorised, and no more — he likes the chunky set) and the ads get a
+     *  declared safe area on top of it, which is what broadcast does and the
+     *  only version of this that a NEW spot cannot reintroduce.
+     *
+     *  3 rows > the 1.60 the geometry actually eats, so there is a row of
+     *  margin. `scripts/w48-tv-title-safe.mjs` re-measures the band in the
+     *  built world and fails if it ever grows past this number — that is the
+     *  guard, not this comment.
+     *
+     *  BACKGROUNDS STILL BLEED. A full-width accent bar is meant to run to the
+     *  edge and is not harmed by losing two rows of itself; only INK has to
+     *  stay inside. So the inset is enforced in `tvFit`/`tvAt`, the two
+     *  functions that draw words, and nowhere else. */
+    const TV_SAFE_T = 3, TV_SAFE_B = 2;
+    /** the topmost canvas row any GLYPH pixel was drawn at during the current
+     *  paint — published on `scene.userData.tv` so a check can assert the safe
+     *  area holds for all 27 spots without re-deriving where each one writes */
+    let tvMinRow = TVH;
     type TvSeg = { name: string; secs: number; live?: boolean;
                    draw: (g: CanvasRenderingContext2D, t: number) => void };
     const scr = (g: CanvasRenderingContext2D) => { g.fillStyle = '#0b0d12'; g.fillRect(0, 0, TVW, TVH); };
@@ -2247,10 +2286,23 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       for (const ch of txt.toUpperCase()) {
         const rows = F[ch] ?? F[' '];
         for (let r = 0; r < 5; r++) for (let q = 0; q < 3; q++)
-          if (rows[r][q] === '1') g.fillRect(cx + q * (px / 3), y + r * (px / 5), px / 3, px / 5);
+          if (rows[r][q] === '1') {
+            const gy = y + r * (px / 5);
+            if (gy < tvMinRow) tvMinRow = gy;      // the safe-area witness
+            g.fillRect(cx + q * (px / 3), gy, px / 3, px / 5);
+          }
         cx += px / 3 * 4;
       }
     };
+    /** clamp a text baseline into the title-safe box. `glyphH` is the drawn
+     *  height of a line at this size — 5 glyph rows of `px/5` each, i.e. `px`.
+     *
+     *  This is the whole enforcement. Both writers below go through it, so a
+     *  spot written next month that asks for row 0 gets row 3 instead of
+     *  getting cut, and an over-tall headline is pushed up off the bottom
+     *  rather than running past it. */
+    const tvSafeY = (y: number, glyphH: number) =>
+      Math.max(TV_SAFE_T, Math.min(y, TVH - TV_SAFE_B - glyphH));
     /** centred, and SIZED TO FIT — 'CROSSTOWN' at px 5 is 60 px on a 48 px
      *  screen, so the first version read 'CROSST'. Everything on this screen
      *  is seen from across a small room, so it either fits or it is not
@@ -2264,7 +2316,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const max = Math.floor((TVW - 4) / (px / 3 * 4));
       if (txt.length > max) txt = txt.slice(0, max);
       const w = txt.length * px / 3 * 4;
-      tvText(g, txt, Math.max(1, Math.round((TVW - w) / 2)), y, c, px);
+      tvText(g, txt, Math.max(1, Math.round((TVW - w) / 2)), tvSafeY(y, px), c, px);
     };
     /**
      * ADS THAT DIFFER IN KIND, NOT IN CONTENT.
@@ -2302,7 +2354,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       let px = maxPx;
       while (px > 3 && x + txt.length * px / 3 * 4 > TVW - 2) px -= 1;
       const max = Math.max(1, Math.floor((TVW - 2 - x) / (px / 3 * 4)));
-      tvText(g, txt.length > max ? txt.slice(0, max) : txt, x, y, c, px);
+      tvText(g, txt.length > max ? txt.slice(0, max) : txt, x, tvSafeY(y, px), c, px);
     };
     const fill = (g: CanvasRenderingContext2D, c: string) => { g.fillStyle = c; g.fillRect(0, 0, TVW, TVH); };
     /** the starburst, for the formats loud enough to deserve one */
@@ -2417,8 +2469,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // white on blue. The quiet one, and it is what makes the loud ones loud.
       slate: (g, a) => {
         fill(g, a.bg);
-        g.fillStyle = a.accent; g.fillRect(2, 2, TVW - 4, TVH - 4);
-        g.fillStyle = a.bg; g.fillRect(3, 3, TVW - 6, TVH - 6);
+        // THE BORDER IS THE SLATE. Everything else on this format is a full-
+        // bleed wash that loses nothing by being trimmed, but a rule drawn
+        // 2 rows down had its top edge eaten by the bezel and read as a
+        // three-sided box. It is the one piece of non-text that has to sit
+        // inside the safe area, so it is written FROM the safe constants
+        // rather than from the 2 it used to carry.
+        const bt = TV_SAFE_T, bh = TVH - TV_SAFE_B - TV_SAFE_T;
+        g.fillStyle = a.accent; g.fillRect(2, bt, TVW - 4, bh);
+        g.fillStyle = a.bg; g.fillRect(3, bt + 1, TVW - 6, bh - 2);
         (a.lines ?? []).forEach((ln, i) => tvFit(g, ln, 8 + i * 8, a.ink, 5));
       },
     };
@@ -2552,7 +2611,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     screen.position.set(AX(TV_X), SCR_Y, AZI(WELL_Z + 0.012));
     scene.add(screen);
     // the four rails, standing proud of the glass so the screen sits INSIDE
-    const RAIL_D = 0.06, RAIL_Z = WELL_Z + RAIL_D / 2 + 0.012;
+    //
+    // 0.06 -> 0.04. The user: *"we can reduce the bezel a little bit"*, and
+    // this is the only number that controls how much of the picture the
+    // surround eats: the rails abut the aperture exactly on all four sides,
+    // so nothing is covered head-on and the loss is pure PARALLAX from the
+    // seated eye 0.538 m above the screen's centre. Depth is the whole of it —
+    // 0.06 cost 2.42 canvas rows off the top, 0.04 costs 1.60.
+    //
+    // IT DOES NOT GO FURTHER. He likes the set (*"the tv bezel looks good"*)
+    // and a surround that stands 40 mm off the glass is still the chunky 1997
+    // object the bezel was asked for; chasing the last row here would flatten
+    // it into the poster the bezel exists to stop it being. The remaining
+    // 1.60 rows are absorbed by TV_SAFE_T instead, which is the fix that also
+    // survives the next spot somebody writes.
+    //
+    // The badge, buttons, LED and band all derive their z from RAIL_Z and
+    // RAIL_D, so they follow the face in and nothing here is retyped.
+    const RAIL_D = 0.04, RAIL_Z = WELL_Z + RAIL_D / 2 + 0.012;
     const topH = (TV_Y + CASE_H / 2) - (SCR_Y + SCR_H / 2);
     const botH = (SCR_Y - SCR_H / 2) - (TV_Y - CASE_H / 2);
     const sideW = (CASE_W - SCR_W) / 2;
@@ -2621,6 +2697,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const tvPaint = () => {
       const cv = tvScreenT.image as HTMLCanvasElement;
       const g = cv.getContext('2d')!;
+      tvMinRow = TVH;                     // reset the witness for THIS paint
       SEGMENTS[tvSeg].draw(g, tvClock);
       tvScreenT.needsUpdate = true;
     };
@@ -2686,7 +2763,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // rather than hashing pixels and guessing
     ctx.onFrame(() => {
       scene.userData.tv = { seg: SEGMENTS[tvSeg].name, fmt: ADS[tvSeg].fmt, i: tvSeg,
-                            left: tvLeft, pool: SEGMENTS.length, on: tvLit, warming: tvWarm > 0 };
+                            left: tvLeft, pool: SEGMENTS.length, on: tvLit, warming: tvWarm > 0,
+                            // the title-safe contract, published rather than
+                            // retyped in the check that enforces it, and the
+                            // witness that says where this spot actually drew
+                            safe: { t: TV_SAFE_T, b: TV_SAFE_B, rows: TVH },
+                            minRow: tvMinRow };
     }, ORDER.WORLD);
     // ── and somewhere to watch it from ──────────────────────────────────
     // `ctx.seat` already does the whole mechanism the request describes —
