@@ -731,10 +731,44 @@ export function buildVice(o: {
     //
     // Bulbs are FIXED sockets and the chase is which of them are alight, so the
     // light runs and the sockets do not — a scrolling texture would carry the
-    // dead bulb along with it, and a dead bulb is a fixed socket. Three shared
-    // phase materials do it in three colour writes a frame however many bulbs
-    // there are, plus a fourth that never lights.
-    const PHASES = 3;
+    // dead bulb along with it, and a dead bulb is a fixed socket. Bulb i belongs
+    // to class `i % PHASES`, so the whole installation animates in PHASES colour
+    // writes a frame however many bulbs there are, plus one class that never
+    // lights.
+    //
+    // ═══ FLAIR IS TIMING AND PATTERN, NOT DETAIL PER BULB ═══════════════
+    //
+    // The user, on the finished facade: *"add more flair to the bulbs
+    // themselves instead"*. At 8 px/m a bulb is one or two texels across, so
+    // there is no detail to add TO a bulb — the only thing a sign at this
+    // resolution can vary is what the light DOES, and that is also the only
+    // thing a real marquee varies. What stood here did exactly one thing from
+    // the day it was built: every third socket alight, marching one step at
+    // 6 Hz, forever, on both buildings.
+    //
+    // So the chase became a PROGRAM on the same clock, the same materials and
+    // the same draw cost — a mode only changes which classes are lit this
+    // frame:
+    //
+    //   chase   a two-socket comet running along every run
+    //   alt     odd and even sockets trading at 5 Hz — the shimmer
+    //   flash   every socket on both buildings on and off together, four times
+    //   back    the comet, running the other way
+    //   on      everything held lit
+    //
+    // PHASES MUST BE EVEN or `alt` cannot work: a bulb's parity is
+    // `(i % PHASES) % 2`, and that equals `i % 2` only for even PHASES — at
+    // PHASES 3 the odds and evens do not separate at all and the mode reads as
+    // a stutter. Six also holds `chase` at the SAME 1/3 duty the three-phase
+    // version had (COMET 2 of 6), so the building did not get darker in order
+    // to get livelier; the light is simply gathered into a travelling pair
+    // instead of spread as an even stipple.
+    //
+    // The dud classes are untouched and still never light, including through
+    // `flash` and `on` — that is the whole point of a dud, and `deadEvery` is
+    // 23 / 19 / 17 at the three runs that use it, all coprime with 6, so no
+    // dud rate collapses onto a single phase class.
+    const PHASES = 6, COMET = 2;
     const chaseOn = new THREE.Color(0xfff2c0), chaseOff = new THREE.Color(0x6a5a3a);
     const phaseM = Array.from({ length: PHASES }, () => new THREE.MeshBasicMaterial({
       color: 0x6a5a3a, transparent: true, fog: false }));
@@ -751,10 +785,31 @@ export function buildVice(o: {
         scene.add(m);
       }
     };
+    // The loop, as DATA rather than as branching — 13.2 s end to end. Long
+    // enough that it does not read as a blink pattern, short enough that
+    // someone crossing the road in front of it sees the whole thing once.
+    type ChaseMode = 'chase' | 'alt' | 'flash' | 'back' | 'on';
+    const PROGRAM: [ChaseMode, number][] = [
+      ['chase', 3.6], ['alt', 1.6], ['chase', 2.4],
+      ['flash', 1.6], ['back', 3.2], ['on', 0.8],
+    ];
+    const LOOP = PROGRAM.reduce((a, [, s]) => a + s, 0);
+    const CHASE_HZ = 7, ALT_HZ = 5, FLASH_HZ = 5;   // 5 Hz over 1.6 s = four blinks
     ticks.push((n, t) => {
-      const step = Math.floor(t * 6) % PHASES;          // six sockets a second
+      let u = t % LOOP;
+      let mode: ChaseMode = PROGRAM[PROGRAM.length - 1][0];
+      for (const [md, dur] of PROGRAM) { if (u < dur) { mode = md; break; } u -= dur; }
+      // The comet steps off the GLOBAL clock, never off `u`, so coming back to
+      // `chase` after a flash picks the run up where it left off rather than
+      // snapping to socket 0 — a visible jolt across every run in the world at
+      // once. `flash` is the one mode that wants `u`: a blink has to start on
+      // its own beat, not wherever the global second happens to be.
+      const run = Math.floor(t * CHASE_HZ);
       for (let i = 0; i < PHASES; i++) {
-        const on = i === step;
+        const on = mode === 'on' ? true
+          : mode === 'flash' ? Math.floor(u * FLASH_HZ) % 2 === 0
+          : mode === 'alt' ? (i & 1) === (Math.floor(t * ALT_HZ) & 1)
+          : ((((mode === 'back' ? i + run : i - run) % PHASES) + PHASES) % PHASES) < COMET;
         phaseM[i].color.copy(on ? chaseOn : chaseOff);
         phaseM[i].opacity = on ? 1 : 0.55 + 0.30 * n;
       }
@@ -935,122 +990,43 @@ export function buildVice(o: {
       scene.add(mqGlow);
       ticks.push((n) => { (mqGlow.material as THREE.MeshBasicMaterial).opacity = 0.10 + 0.30 * n; });
 
-      // ── the blade: full height, and the tallest thing on the frontage ──
+      // ═══ THE BLADE IS GONE — AND THE SKYLINE MARK IS NOT ═══════════════
       //
-      // It projects from the facade so its faces are ±x, which is the only axis
-      // this street is ever seen along. Runs from over the marquee to 21.4 m —
-      // above the casino's own roof at 17.2 and above the hotel's at 19.6. The
-      // rooftop pylon still stands behind it and is still the skyline mark at
-      // 26 m; this is the tallest thing on the building line, which is the read
-      // you get walking toward it rather than seeing it over the rooftops.
-      // THE FAR END OF ITS OWN FRONTAGE, which is the user's fix and a better one
-      // than staggering projection and height: it solves the occlusion with
-      // distance instead of with a compromise, and it is what a real operator
-      // would do with the sign they paid for.
+      // The user, on the now-legible facade: *"casino sign still a lil janky.
+      // maybe we get rid of the one on the side here? add more flair to the
+      // bulbs themselves instead?"*
       //
-      // It was `casino[0] + 0.95` — x 46.40, the WEST end of a building that runs
-      // 45.45 to 57.00 — which put it 6.9 m from HOTEL ORPHEUS' blade at 39.51,
-      // on adjacent buildings, at the same projection and nearly the same height.
-      // Two blades competing for one corner, and neither reading.
+      // He phrased it as a question, so it was answered with a frame before it
+      // was answered with a deletion — `scripts/probes/w51-frontage-without-
+      // blade.mjs` hides the blade at runtime and shoots three stations. The
+      // verdict from his own station is not close: the blade stood edge-on to
+      // the road, so what it showed him was its 0.34 m cabinet laid down the
+      // left third of the elevation, cutting the parapet run in half and
+      // occluding the west chevron outright. Off, the frontage reads as one lit
+      // rectangle — CASINO, the framed name, 777 between two chevrons, the
+      // marquee — which is the composition item 97 built and the blade was
+      // standing in front of.
       //
-      // `casino[1] - 0.95` is x 56.05: 16.5 m of clear air between them, each
-      // building with its own sign over its own frontage.
-      const BL_X = casino[1] - 0.95, BL_Y0 = 5.6, BL_Y1 = 21.4;
-      const BL_Z1 = FACE_Z - 1.35;
-      const blCz = (FACE_Z + BL_Z1) / 2, blD = FACE_Z - BL_Z1;
-      const cab = new THREE.Mesh(new THREE.BoxGeometry(0.34, BL_Y1 - BL_Y0, blD), boardM);
-      cab.position.set(BL_X, (BL_Y0 + BL_Y1) / 2, blCz);
-      scene.add(cab);
-      // bracketed back to the wall, the way a blade this size has to be
-      for (const y of [7.4, 11.6, 15.8, 19.4]) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.5), steel);
-        arm.position.set(BL_X, y, FACE_Z - 0.75);
-        scene.add(arm);
-        const stay = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.5, 0.06), steel);
-        stay.position.set(BL_X, y + 0.62, FACE_Z - 0.7);
-        stay.rotation.x = 0.72;
-        scene.add(stay);
-      }
-      // SEVENS down the blade in tube neon, over a chevron of bulbs pointing at
-      // the door.
+      // THE COST, MEASURED RATHER THAN ASSUMED. The worry was that this is the
+      // tallest thing on the building and the only thing that reads from down
+      // the street. It is NOT the tallest thing: the blade topped out at 21.4 m
+      // and the rooftop board tops out at 26.0 m, 4.6 m above it, and that board
+      // carries SEVENS in bulb-outlined letters on both faces. The skyline mark
+      // was never the blade's job — the comment on the pylon below has said so
+      // all along ("the blade below it does a different job"). So the long view
+      // keeps its vertical, and what it loses is a second SEVENS three metres
+      // from the first, competing with HOTEL ORPHEUS' blade for the same corner.
       //
-      // ── GOTCHAS §10, and the way this one actually works ──────────────
+      // Item 97 gave this blade a lit leading edge and that fix was correct —
+      // it is why the black bar stopped being a black bar. Removing the object
+      // does not retire the idiom: `riser`'s `z`/`w` parameters and the leading
+      // edge treatment stay, and the rooftop board still uses both.
       //
-      // A blade is read from BOTH ends of the street, so it is two SINGLE-sided
-      // planes back to back — never one DoubleSide plane, which renders its far
-      // face mirrored and is how a HOTEL sign shipped backwards here once
-      // already.
-      //
-      // The part that is easy to get wrong, and that I got wrong: with the two
-      // planes at rotation.y = +PI/2 and -PI/2, the artwork must be IDENTICAL on
-      // both. It is tempting to paint the rear one mirrored — that is the
-      // standard fix — but the geometry has already supplied that flip here.
-      // A plane's u runs from local -x to +x; at +PI/2 that is world +z to -z
-      // and at -PI/2 it is -z to +z, and each viewer's screen-right runs the
-      // same way. The two mirrors cancel. Painting one face flipped as well
-      // un-cancels them, which is exactly what made the west face read
-      // backwards while the east face was fine.
-      //
-      // Verified from BOTH ends of the street on asymmetric letters — SEVENS,
-      // ORPHEUS, VACANCY, LOOSEST SLOTS. Symmetric text hides this completely,
-      // which is why the last one survived.
-      const bladeArt = () => pixTex(44, 224, (g) => {
-        g.fillStyle = '#17141c'; g.fillRect(0, 0, 44, 224);
-        g.fillStyle = GOLD_D; g.fillRect(0, 0, 44, 3); g.fillRect(0, 221, 44, 3);
-        g.fillRect(0, 0, 3, 224); g.fillRect(41, 0, 3, 224);
-        'SEVENS'.split('').forEach((ch, i) => tubeText(g, ch, 22, 32 + i * 33, 30, '#ff5a4a'));
-        // the chevrons, running down toward the marquee
-        for (let k = 0; k < 4; k++) {
-          const y = 168 + k * 13;
-          g.fillStyle = k % 2 ? '#f2b83a' : '#f6e2a2';
-          for (let j = 0; j < 9; j++) {
-            g.fillRect(20 - j, y + j, 4, 3);
-            g.fillRect(20 + j, y + j, 4, 3);
-          }
-        }
-      });
-      for (const s of [-1, 1]) {
-        const face = new THREE.Mesh(new THREE.PlaneGeometry(blD * 0.92, BL_Y1 - BL_Y0),
-          neon(bladeArt()));
-        face.position.set(BL_X + s * 0.18, (BL_Y0 + BL_Y1) / 2, blCz);
-        face.rotation.y = s * Math.PI / 2;
-        scene.add(face);
-      }
-
-      // ═══ THE LEADING EDGE — AND THE "BLACK VERTICAL BAR" ═══════════════
-      //
-      // The user: *"a black vertical bar floats over the left edge"*, unattached
-      // to anything. It is THIS CABINET, and the diagnosis is geometric rather
-      // than a matter of taste.
-      //
-      // A blade projects from the wall, so all of its artwork is on the two +/-x
-      // faces — that is the whole point of a blade, it is read from along the
-      // street. But the user is standing in the ROAD, looking at the facade
-      // straight on, and from there those two faces are edge-on and project to
-      // nothing. What faces him is the box's own front: 0.34 m wide, 15.8 m
-      // tall, flat unlit `boardM` #24222a, hanging from 5.6 m to 21.4 m. Sixteen
-      // metres of black stripe laid over the brightest wall in the world, with
-      // 2.5 m of clear air between its bottom and the marquee. Nothing about the
-      // sign's own artwork can be seen from that angle, so no amount of neon on
-      // the sides was ever going to answer it.
-      //
-      // Both of the earlier fixes on this facade moved the blade — first for
-      // occlusion against the hotel's blade, then to the far end of its own
-      // frontage — and neither could have helped, because the bar is not WHERE
-      // the blade is, it is WHICH FACE OF IT you are looking at. That is why
-      // this is the third complaint.
-      //
-      // A real blade answers it the same way: the leading edge is exactly where
-      // the chase bulbs go, because it is the edge everyone sees. So the dead
-      // face gets the chase and a tube behind it, and the tallest black thing on
-      // the frontage becomes the brightest vertical on it — running downward,
-      // which points at the door.
-      {
-        const edge: [number, number, number][] = sockets(BL_Y0 + 0.35, BL_Y1 - 0.35, 0.5)
-          .map((by) => [BL_X, by, BL_Z1 - 0.11]);
-        bulbRun(edge, 31);                       // one dud, same 1984 ladder
-        riser(BL_X, BL_Y0 + 0.2, BL_Y1 - 0.2, '#ff5a4a', BL_Z1 - 0.03, 0.30);
-      }
+      // ITEM 121 IS STILL LIVE. It gives HOTEL ORPHEUS' blade the same
+      // leading-edge fix. ORPHEUS is a different building on a different
+      // frontage, the user has not commented on it, and its blade does not
+      // duplicate a name already painted two metres away — so nothing here
+      // cancels it.
 
       // ── the blank wall the 1984 refit made ───────────────────────────
       //
@@ -1183,10 +1159,16 @@ export function buildVice(o: {
           // rays from the middle of the mark: at 8 px/m every ray inside the
           // 777's own ink is invisible, the vertical ones run out of band before
           // they clear it, and what survived was four gold specks that read as
-          // damage rather than as light. The chevron is the motif this file
-          // already owns — `bladeArt` runs the same one down the blade — so it
-          // is the same hand by construction rather than by resemblance, and an
-          // arrow is a shape 8 px/m can actually hold.
+          // damage rather than as light. The chevron is a shape 8 px/m can
+          // actually hold, which a ray is not.
+          //
+          // It was chosen because `bladeArt` ran the same chevron down the
+          // blade, so the two marks were the same hand by construction rather
+          // than by resemblance. THE BLADE IS GONE (item 132) and `bladeArt`
+          // with it, so that argument no longer holds — but the chevron does,
+          // on its own merits, and it is now the only place this motif lives.
+          // Recorded rather than quietly dropped: the reason a thing was drawn
+          // outliving the thing it referred to is how a comment starts lying.
           {
             const scy = 85;
             for (const wcx of [Math.round(W * 0.11), Math.round(W * 0.89)]) {
@@ -1249,15 +1231,18 @@ export function buildVice(o: {
         // parapet above it and the base below it, so the sign sits on a lit wall
         // rather than behind a set of bars.
         //
-        // The east pair is set 1.35/2.05 m in rather than 0.55/1.25 because the
-        // blade cabinet stands at `casino[1] - 0.95` and would eat anything
-        // closer to that corner — measured, its 0.34 m box spans x 55.88..56.22
-        // and it sits 1.3 m proud of the wall, so it occludes rather than
-        // overlaps. That asymmetry is the building having a blade on one end.
+        // THE EAST PAIR CAME BACK TO THE CORNER. It was set 1.35/2.05 m in
+        // rather than 0.55/1.25 for one reason: the blade cabinet stood at
+        // `casino[1] - 0.95` and occluded anything nearer that corner. The
+        // blade is gone (see the tombstone above), so the reason is gone, and
+        // what is left without this is a building whose two lit corners sit at
+        // different insets for no cause a viewer can see. Both pairs are now at
+        // 0.55/1.25 and the elevation is symmetrical, which is what it was
+        // drawn to be.
         const TOP = skinY(NAME_T), BOT = skinY(NAME_B);
         const pairs: [number, string][] = [
           [x0 + 0.55, '#f2b83a'], [x0 + 1.25, '#ff4a3a'],
-          [x1 - 2.05, '#ff4a3a'], [x1 - 1.35, '#f2b83a'],
+          [x1 - 1.25, '#ff4a3a'], [x1 - 0.55, '#f2b83a'],
         ];
         for (const [rx, col] of pairs) {
           riser(rx, TOP, CROWN, col);                    // the parapet, above the sign
@@ -1316,7 +1301,11 @@ export function buildVice(o: {
       // ── and what it throws on the ground ─────────────────────────────
       spill(DOOR_X, FACE_Z - 1.4, 8.5, 4.0, KERB_H + 0.03, 0xffcf7a, 0.05, 0.70);
       spill(DOOR_X, -99.4, 12.5, 6.8, 0.05, 0xffb85a, 0.03, 0.58);
-      spill(BL_X, FACE_Z - 1.2, 4.0, 3.4, KERB_H + 0.028, 0xff6a4a, 0.04, 0.42);
+      // The third pool was the BLADE's — a 4.0 x 3.4 m red wash at x 56.05, the
+      // foot of a sign that is no longer there. A spill is the ground's account
+      // of what is lit above it, so it goes with the thing that cast it;
+      // leaving it would be a red pool thrown by nothing, which is the same
+      // fault as the blade's own unlit face wearing the opposite sign.
     }
 
     // ═══ THE HOTEL ══════════════════════════════════════════════════════
