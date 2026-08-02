@@ -2604,3 +2604,11 @@ to one side.
   the player arrives at street level instantly. Second effect: `:549` gates jumping on
   `airY === 0`, which is true the instant you step off — so stepping off a car also
   hands back a fresh jump in mid-air.
+
+- **"[screenshot] fix the wheel on this cheap car"** (2026-08-02, the $695 hatch on the
+  used-car lot) → **routed as queue item 113.** The near-front wheel reads as a large
+  dark shape displaced forward and down, detached from the arch. Checked first whether it
+  was deliberate: `ct/lot.ts:1596` defines the treatments as `soap | burst | card | slip |
+  sold | bare` — all **windscreen** effects — so there is no "up on blocks" concept and
+  this is not intentional. The car is `{ kind: 'hatch', col: 5, price: '$695', treat:
+  'soap' }` at `:1612`.
