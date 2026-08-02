@@ -2621,3 +2621,13 @@ to one side.
   read as ghosts: `ct/lot.ts:159` records that `props.ts`'s `dimWorld` **skips any
   material with `transparent: true`**, so translucent planes stay bright while the world
   around them dims. There are **68** `transparent: true` materials in `ct/`.
+
+- **"library is crowded in some areas and spacious in others. try a different layout
+  thanks"** (2026-08-02) → **routed as queue item 115.** Note the history: the library
+  has already had a spacing pass ("things feel cramped in the library. spread things
+  out.") and four separate trap-gap fixes. This asks for a LAYOUT, not another widening.
+
+- **"give people umbrellas if they're out walking and it rains"** (2026-08-02)
+  → **routed as queue item 116.** New feature. Ties to the weather work: `stormAt` is
+  published on `scene.userData` and item 110 is making drizzle vs downpour distinct, so
+  an umbrella has a natural threshold to key off.
