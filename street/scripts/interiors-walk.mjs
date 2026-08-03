@@ -197,6 +197,20 @@ const ROOMS = [
     // across the felt from the dealer, who stands at local (-2.6, -13.95):
     // the table is at (-2.6, -13.0) and a player stands on the near side of it
     keeper: [-2.6, -12.0],
+    // `/SEVENS/` until item 196, which REPAINTED this elevation to the user's
+    // own ask — *"make it a combo orpheus hotel and casino"*. `ct/vice.ts` now
+    // draws ORPHEUS over CASINO on the marquee and ORPHEUS / HOTEL & CASINO on
+    // the board, so the word SEVENS is no longer painted on the building, and
+    // `int-casino.ts:134` renamed the prompt to match its own sign. The regex
+    // was the last thing still saying the old address; the world is right.
+    // (`building`/roster keys elsewhere are still 'SEVENS' and must stay — the
+    // address changed, the registry key did not.)
+    // Deliberately NOT bare `/ORPHEUS/`: that is the HOTEL's label two entries
+    // down, and the two rooms are now one property with adjacent doors.
+    // RESOLVED (item 213): identify by the REGISTRY KEY, not the label. The
+    // comment above already said the key must stay; matching on a display
+    // name is the very thing 213 exists to remove, since the user renames
+    // businesses (this one, and the mattress store, item 166).
     id: 'casino', building: 'SEVENS', W: 11.0, D: 36.0,
     doorX: 51.29, doorZ: -97.0, at: -3.2, sideStreet: true,
   },
@@ -740,12 +754,32 @@ for (room of rooms) {
 
   await press();
   const inside = await pos();
-  // slabs start at x = 400 and are 80 m wide; you land at the door of yours,
-  // so the slab you are standing in tells you where the room is
-  cx = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+  // ASK THE ROOM WHERE IT IS. This was
+  //
+  //     cx = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+  //
+  // — the SLAB centre, which was the room centre only while every room was
+  // centred in its slab. Item 196's party wall (`PARTY` in `ct/interior.ts`)
+  // shoves two rooms to a shared boundary so one opening can be cut through
+  // both flank walls, and the hotel now stands at 874.32 in a slab centred on
+  // 840. Every leg below that measures "the room" from `cx` was measuring the
+  // dead ground beside it — 34.32 m out — and reporting the room broken.
+  // GOTCHAS 86.
+  //
+  // `__ct.roomDims()` publishes `cx`, and this file already holds it: `DIMS` is
+  // fetched at :370 and `built` is picked out of it at the top of this loop. So
+  // this is not new plumbing, it is using a value already in hand — and it is
+  // the same argument `Slab.w`'s docstring makes one field over: *"Two
+  // authorings of one number … Published so a harness can ASK."*
+  //
+  // The slab formula is still true about which SLAB a point is in, so it stays
+  // — as the ASSERTION that E landed you in your own room's slab, which is what
+  // this check was really for.
+  cx = built.cx;
+  const slab = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
   check('E puts you inside a room in the interior belt',
     inside[0] >= 400 && Math.abs(inside[0] - cx) < 40,
-    `pos=${inside.slice(0, 3).map(f2)} → slab centre ${cx}`);
+    `pos=${inside.slice(0, 3).map(f2)} → room centre ${f2(cx)} (slab centre ${slab})`);
 
   // ── 2. facing and floor ──
   const beforeF = await pos();

@@ -126,6 +126,24 @@ for (const C of CASES) {
   else if (!/stand up/i.test(away ?? '')) fail(`head turned away, the exit should be back on [E]; got ${JSON.stringify(away)}`);
   else ok(`looked away -> ${JSON.stringify(away)}  (aim decides, not proximity)`);
 
+  // ── 5b. …and the key BEHIND that label really stands you up. The row's ──
+  //      "standing up still works from both". Reading the prompt is not the
+  //      same claim as pressing the key: `[E] stand up` is drawn by
+  //      crosstown.ts:2166 and acted on twenty lines further down.
+  await tap('e');
+  const stood = await p.evaluate(() => ({ seated: !!window.__ct.seated(), panel: window.__hud?.panel?.() ?? null }));
+  if (stood.seated) fail(`[E] with the head turned away did not stand the player up (${JSON.stringify(stood)})`);
+  else if (stood.panel) fail(`[E] with the head turned away opened ${stood.panel} instead of standing up`);
+  else ok('[E] with the head turned away stands the player up, as it always did');
+  // back on the seat, and back into the dismissed state, for leg 6
+  await p.evaluate(([st, k]) => {
+    window.__ct.sit(window.__ct.seats()[k].pose);
+    window[st].dismissHere();
+    window.__ct.sit(window.__ct.seats()[k].pose);
+  }, [C.station, i]);
+  await p.waitForTimeout(500);
+  if (await panelNow()) { fail('could not get back to the dismissed state for the [E] leg'); continue; }
+
   // ── 6. [E] on the machine opens it, from the chair. ──
   await turnTo(yawTo);
   await p.screenshot({ path: `shots/w74-${C.panel}-1-offered.png` });

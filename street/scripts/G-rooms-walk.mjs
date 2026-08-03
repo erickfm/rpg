@@ -28,6 +28,24 @@ const KERB_H = 0.14, RADIUS = 0.36;
 // arrives instead.
 const ROOMS = [
   {
+    // `/SEVENS/` until item 196, and this check gates ENTRY: it never matched,
+    // so the casino was never walked and every leg after it — including the
+    // hotel's, which is entered from inside — fell over behind it. That is most
+    // of the 113/114 → 62/65 drop, not the slab formula alone.
+    //
+    // IT IS THE CHECK THAT IS STALE, NOT THE WORLD, and I had this backwards
+    // first time. `ae06532ad` REPAINTED the elevation to the user's own ask —
+    // *"make it a combo orpheus hotel and casino"* — so `ct/vice.ts` now draws
+    // `track(g, 'ORPHEUS', …)` over `fitTube(g, 'CASINO', …)` on the marquee and
+    // `ORPHEUS` / `HOTEL & CASINO` on the board. **The word SEVENS is no longer
+    // painted on this building.** `int-casino.ts:134`'s prompt was renamed to
+    // match the sign, which is exactly what this leg's name asks for — "the
+    // painted entrance and the [E] spot still agree" — so the two DO agree and
+    // the regex was the last thing still saying the old address.
+    //
+    // `building: 'SEVENS'` below is UNCHANGED and must stay: it is the key into
+    // `vice.VICE`, `VICE_DOOR_X` and the DoorDecl registry. The address changed;
+    // the roster key did not.
     // NO `label` — the room is identified by `building` below, and its [E] text
     // is read back from the world at runtime. `label: /SEVENS/` lived here until
     // item 213: item 196 renamed the elevation to the Orpheus casino wing, the
@@ -467,7 +485,29 @@ const walkTill = async (axis, enough = Infinity, maxSteps = 14) => {
   if (others.length) console.log(`  note  not mine, same risk: runtime ./doors import in ${others.join(', ')}`);
 }
 
+// WHERE THE ROOMS ACTUALLY ARE, asked once rather than derived per room.
+// See the note at `const CX` below: the slab formula this file used is no
+// longer the room centre (GOTCHAS 86), and `roomDims()` has published the real
+// one all along. Fetched here, up front, so a room that is not in the registry
+// fails loudly with its own name instead of quietly measuring bare ground.
+const DIMS = await p.evaluate(() => window.__ct.roomDims());
+// EXIT 3, NOT A FAILED CHECK (GOTCHAS 32): if a room this suite walks is not in
+// the registry there is no centre to ask for, every leg below it would measure
+// bare ground, and NOTHING is established about the world either way. It also
+// deliberately does not add a results row — the pass count of this suite is a
+// number the desk compares across runs, and a guard that can only ever pass is
+// not worth moving it for.
+const missing = rooms.filter((r) => !DIMS.some((d) => d.id === r.id));
+if (missing.length) {
+  console.error(`${SCRIPT}: ${missing.map((r) => r.id).join(', ')} not in __ct.roomDims()`
+    + ' — no room centre to measure from, so nothing below would mean anything.'
+    + ' Exiting 3 (GOTCHAS 32): the check never ran.');
+  await b.close();
+  process.exit(3);
+}
+
 for (room of rooms) {
+  const built = DIMS.find((d) => d.id === room.id);
 
   // ── the way in ───────────────────────────────────────────────────────
   //
@@ -492,7 +532,37 @@ for (room of rooms) {
   const inside = await pos();
   check('E puts you inside an interior slab (x ≥ 400)', inside[0] >= 400, `pos=${inside.slice(0, 3).map(f2)}`);
   if (inside[0] < 400) continue;                    // nothing below can mean anything
-  const CX = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+  // ASK THE ROOM WHERE IT IS. This was
+  //
+  //     const CX = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+  //
+  // — the SLAB centre, which equalled the ROOM centre only while every room was
+  // centred in its slab. Item 196's party wall (`PARTY` in `ct/interior.ts`)
+  // shoves two rooms to a shared boundary so one opening can be cut through
+  // both flank walls — the only way *"i should be able to walk from one into
+  // the other"* is a walk rather than a teleport. The hotel now stands at
+  // 874.32 in a slab centred on 840 and the casino at 885.68 in one centred on
+  // 920, so every leg below was measuring the dead ground beside the room and
+  // reporting the room broken: **113/114 before the party wall, 62/65 after**,
+  // two of them "the room reports its own extents — no floor plane found".
+  // GOTCHAS 86.
+  //
+  // The church is the control and it is the whole finding: it MOVED SLAB in the
+  // same change and scored 25/25. Moving a room between slabs costs nothing;
+  // assuming where it sits inside one costs everything.
+  //
+  // `__ct.roomDims()` publishes `cx` — that is what it is for, and `Slab.w`'s
+  // docstring says it one field over: *"Two authorings of one number, which is
+  // the same defect the door declarations exist to kill. Published so a harness
+  // can ASK."*
+  //
+  // The slab formula is kept, because it is still TRUE about which slab a point
+  // is in. It is just no longer where the room is, so it is reported beside the
+  // real centre rather than used as one.
+  const slab = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+  const CX = built.cx;
+  if (Math.abs(CX - slab) > 1) console.log(`  note  ${room.id}: room centre ${f2(CX)}`
+    + ` is ${f2(Math.abs(CX - slab))} m off its slab centre ${slab} — party wall (GOTCHAS 86)`);
 
   // MEASURED from the room, not typed in the table above.
   //

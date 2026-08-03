@@ -29,6 +29,28 @@ if [ "${1:-}" = "--dry" ]; then DRY=1; shift; fi
 LIVE="$*"
 
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || ROOT=$PWD
+
+# NEVER REAP THE CALLER'S OWN WORKTREE. (Item 215.)
+#
+# This script spared everything outside an agent worktree and everything named
+# on the command line -- and a builder running it from INSIDE its own worktree
+# is neither. So the default invocation, `./scripts/reap-servers.sh` with no
+# arguments, killed the caller's own preview.
+#
+# THAT IS NOT A HYPOTHETICAL AND IT COST A WHOLE MEASUREMENT. Worker sixtyseven
+# lost its preview mid-sweep this way while building the jail containment check,
+# and the sweep "happily reported 0 escapes about a world that was gone" -- a
+# containment check reports success by finding NOTHING, which is exactly what a
+# dead server produces. The sweep grew a dead-server guard because of it
+# (w75-site-contained.mjs), and that guard should stay, because a server can die
+# for reasons no script owns. But the reaper should not have been one of them.
+#
+# `$PWD` is this script's own directory's parent -- the `cd` above -- so for a
+# copy of the script living in an agent worktree it contains that worktree's id.
+# One line, and the no-argument case stops being a foot-gun.
+SELF=$(printf '%s' "$PWD" | grep -oE 'agent-[a-f0-9]+' | head -1 | sed 's/agent-//')
+[ -n "$SELF" ] && LIVE="$LIVE $SELF"
+
 killed=0; spared=0
 
 for pid in $(ps -eo pid,args | grep '[v]ite' | awk '{print $1}'); do
@@ -52,6 +74,7 @@ for pid in $(ps -eo pid,args | grep '[v]ite' | awk '{print $1}'); do
 
   if [ "$keep" = 1 ]; then
     spared=$((spared + 1))
+    [ "$id" = "${SELF:-}" ] && [ "$DRY" = 1 ] && echo "sparing pid $pid — agent $id is US"
     continue
   fi
 

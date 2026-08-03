@@ -870,9 +870,10 @@ export function register(ctx: CtxBuild): void {
   // `[E] sit at the computer` re-opens it. `ct/slots.ts:2083` writes the same
   // dependency down and keeps its own guard for exactly this reason.
   //
-  // **w69 has queued the removal of that line** — *"closing the form put you
-  // back in the chair"*, `notes/w69-seated-e.md`, "WHAT I DID NOT DO" §2. The
-  // day it lands, a dismissed machine has no way back at all: you are seated,
+  // **That removal is queued as item 206** — *"closing a panel from a chair
+  // ejects you from the chair"*, reported by w69, `leave()` to re-sit the
+  // remembered pose. The day 206 lands a dismissed machine has no way back at
+  // all without this spot: you are seated,
   // `dismissed` is latched, and there is no `[E]` target. This spot is what
   // makes that a non-event, and it is the item's own ask.
   //
