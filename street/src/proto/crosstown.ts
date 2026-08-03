@@ -1627,6 +1627,20 @@ export function makeCrosstown(): Proto {
     // the bundle the user actually ships, this number had no runtime path at all
     // — and GOTCHAS 28 says the bundle is where a check must be believed.
     touchMargin: () => TOUCH_MARGIN,
+    // THE PLAYER'S OWN COLLISION RADIUS, published for item 170. A check that
+    // asks "can somebody walk past this without brushing it" is asking about the
+    // width of the person, and `RADIUS` was reachable only by hand-copying 0.36
+    // — which `scripts/w40-bed-vs-door.mjs:117` names as the exact habit
+    // BUILDER-BRIEF §8 exists to stop, and which the ONE runtime alternative,
+    // `await import('/src/proto/fp.ts')`, cannot supply on the built bundle
+    // (item 223 measured that import 404ing against `vite preview`).
+    //
+    // `ct/park.ts` derives every bench's clearance from RADIUS + TOUCH_MARGIN;
+    // `scripts/bench-clearance.mjs` re-derives the same figure from these two
+    // published values rather than from the module it is judging, so re-tuning
+    // the player moves the world and the guard together and neither can drift
+    // into agreeing with itself.
+    playerRadius: () => RADIUS,
     // The acceptance test for the selection highlight, asked of the WORLD rather
     // than of a copy of it: every registered [E], whether it names an object,
     // and therefore whether its outline is the real contour or the generic

@@ -600,6 +600,24 @@ const CHECKS = [
     ['litter-self-push']],
   ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried'], ['probe']],
   ['park',             'is EVERY park lantern lit, and the loop walkable?', ['park', 'park-partial', 'park-walk', 'park-buried', 'park-sunk']],
+  // REGISTERED 2026-08-03 (item 170). The user asked twice and the second time
+  // in the PLURAL — *"bench is a lil too close to the path"* then *"benches need
+  // space away from the path"* — so nudging the one he photographed is exactly
+  // what earned the second report. This is the rule he was owed: every bench
+  // derives its offset from one named constant, and this fails if a future bench
+  // crowds the path.
+  //
+  // Measured before the fix, EVERY bench in the park OVERHUNG the circuit — the
+  // two z legs by 0.04 m and the two x legs by 0.16 m, from two different
+  // hand-typed offsets neither of which was named. After, all eight stand at
+  // 0.51 m: RADIUS + TOUCH_MARGIN, both read off `__ct` rather than typed, so
+  // re-tuning the player moves the world and this check together and neither can
+  // drift into agreeing with itself.
+  //
+  // 2 s, no walking, so default tier. `--selftest` puts one bench back where the
+  // item found it — 0.04 m INTO the path, the SMALLER of the two real defects,
+  // so the mutation is the hard case — and requires the clearance leg to go red.
+  ['bench-clearance',  'does every park bench stand clear of the path?',    true],
   ['wetness',          'are puddles darker than the road they sit in?',    ['wetness', 'wet-blind'],  ['probe']],
   ['basin',            'are BOTH catch basins real casting, sunk and proud?', ['basin', 'basin-west']],
   ['kerbcut',          'is there a curb cut, and is it at the lot?',       ['kerbcut', 'kerbcut-moved']],
