@@ -144,7 +144,7 @@ is the same revert reached from the other end.
 | `checks-registered.mjs` | exit 0 (170 registered) |
 | item 199's `watch-vs-panel` | still **32/32** after this change to the same file |
 | `npm test` | 17/17 |
-| `interiors-walk` (built bundle, build 9825d1234) | **365/369**, exit 0. The 4 failures are PRE-EXISTING and unrelated: `jail: the room keeps its own light after dark`, and `the customer station comes from the world, not from memory` for casino, hotel and tax. Same count before and after this change; none touches a panel or the pointer. The bank and library — the two rooms holding overlays I drove — are **29/29 each** on their own |
+| `interiors-walk` (built bundle) | **365/369, exit 1** — NOT exit 0, and my first report of this was WRONG. I read an early run through `tail`, so the exit code I saw was `tail`'s, which is the exact trap "exit codes from the COMMAND, not after a pipe" names. The 4 failures are `jail: the room keeps its own light after dark` and `the customer station comes from the world, not from memory` for casino, hotel and tax. **PROVEN pre-existing rather than assumed:** re-run with my fix DISABLED (the `pointer-never-returns` mutation, so nothing else moves) — `jail 28/29 exit 1` and `casino 29/30 exit 1`, the same two failures with the fix off. A wholesale revert of `hud.ts` would have confounded this, because mainline's item 275 also landed in that file. Bank and library — the two rooms holding overlays I drove — are **29/29 each** |
 | console errors | **0** in every non-sandbox run |
 
 Registered as `['pointer-returns', …, ['pointer-never-returns',
