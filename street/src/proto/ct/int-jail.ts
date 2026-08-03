@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
-import { buildRoom } from './interior';
+import { buildRoom, seatTaken } from './interior';
 import { type DoorDecl } from './doors';
 import { JAIL, JAIL_DOOR, JAIL_STEEL, jailLeafTex } from './jail';
 import { leafPair, LEAF_AJAR } from './vice';
@@ -210,6 +210,17 @@ export function buildJail(ctx: CtxBuild): void {
   /** a bolted-down bench: slat seat, no back, cast legs. Against a wall, so
    *  the front is the side that faces the room — derived from which wall it is
    *  on, never copied from a sibling (GOTCHAS §33). */
+  // HOW MANY PLACES A 4.6 m BENCH OFFERS, and why it is not as many as will fit.
+  //
+  // The pitch has to clear `seatTaken`'s 0.30 m tolerance on BOTH sides or one
+  // sitter blanks her neighbour: 4.6/5 = 0.92 m, so the nearest other place is
+  // 0.92 m away against a 0.30 m radius — 3× the margin, where the casino's
+  // 0.65 m lounge pitch leaves only 0.025 m. It is also just what a public
+  // bench is: five people on fifteen feet of slat, not seven.
+  const BENCH_PITCH_N = 5;
+  /** a bolted-down bench: slat seat, no back, cast legs. Against a wall, so
+   *  the front is the side that faces the room — derived from which wall it is
+   *  on, never copied from a sibling (GOTCHAS §33). */
   const bench = (lx: number, lz: number, len: number, along: 'x' | 'z') => {
     const w = along === 'x' ? len : BENCH_D, d = along === 'x' ? BENCH_D : len;
     const seat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, d), woodM);
@@ -222,15 +233,73 @@ export function buildJail(ctx: CtxBuild): void {
       put(new THREE.Mesh(new THREE.BoxGeometry(0.07, BENCH_Y - 0.04, 0.30), legM), px, (BENCH_Y - 0.04) / 2, pz);
     }
     solid(lx, lz, w + 0.1, d + 0.1);
-    return { y: BENCH_Y };
+
+    // ── AND YOU CAN SIT ON IT ────────────────────────────────────────────
+    //
+    // The standing rule is *"for every seat in the game i want to be able to
+    // sit down"*, and this room had the only bench in the world you could not:
+    // measured on the built bundle before this change, the jail registered
+    // ZERO seats and the nearest registered spot to the waiting woman was
+    // 6.46 m away ('out to the street'). Item 245 was filed believing the
+    // registration existed and needed one clause added to it; it did not exist.
+    //
+    // WHICH WAY YOU FACE, AND WHERE YOU STAND, ARE ONE VECTOR. A bench along z
+    // is against an x wall, so "into the room" is −sign(lx); along x it is
+    // against a z wall. Both the seat's `yaw` and the sitter's `facing` below
+    // derive from that single vector, because the two use DIFFERENT conventions
+    // for the same direction (a seat's forward is `(sin yaw, −cos yaw)`,
+    // ctx.ts:72-74; a person's is `(sin f, cos f)`, i.e. 0 = +z) and hand-typing
+    // both is precisely how the tax preparer ended up facing his own back wall.
+    const inX = along === 'z' ? (lx < 0 ? 1 : -1) : 0;
+    const inZ = along === 'x' ? (lz < 0 ? 1 : -1) : 0;
+    // A stride out into the room. The bench's own collider pads to len/2+0.05
+    // and 0.42/2+0.05 = 0.26 across, so a player (radius 0.36) can get no
+    // closer than 0.62 m to the slat centre — inside the default 0.75 m reach,
+    // but by 0.13 m, which is thinner than the margin any of this room's other
+    // clearances run at. The approach point puts the trigger where he can
+    // actually stand instead of relying on that.
+    const APPROACH = 0.85;
+    const places: { lx: number; lz: number }[] = [];
+    for (let i = 0; i < BENCH_PITCH_N; i++) {
+      const t = (i + 0.5) / BENCH_PITCH_N - 0.5;
+      const px = along === 'x' ? lx + t * len : lx;
+      const pz = along === 'x' ? lz : lz + t * len;
+      places.push({ lx: px, lz: pz });
+      const wx = room.wx(px), wz = room.wz(pz);
+      ctx.seat({
+        x: wx, z: wz, yaw: Math.atan2(inX, -inZ), h: BENCH_Y,
+        approach: { x: room.wx(px + inX * APPROACH), z: room.wz(pz + inZ * APPROACH) },
+        label: 'sit on the bench',
+        // …AND NOT WHERE SOMEBODY IS ALREADY SITTING. The user, of the church:
+        // *"if you sit in his pew you sit where he sits and that just breaks
+        // immersion."* `seatTaken` is the world's one registry for that
+        // (ct/interior.ts:927); `room.person(..., {seated:true})` claims into it
+        // automatically, so the woman below needs no extra call.
+        //
+        // Resolved through `ok` at QUERY time, not filtered here: this loop runs
+        // BEFORE she is placed, so a registration-time test would read an empty
+        // registry and suppress nothing. crosstown.ts calls `ok` once a frame.
+        ok: () => room.inside() && !seatTaken(wx, wz),
+      });
+    }
+    return { y: BENCH_Y, places, inX, inZ };
   };
-  bench(-hw + 0.42, hd - 4.2, 4.6, 'z');
+  const westBench = bench(-hw + 0.42, hd - 4.2, 4.6, 'z');
   bench(hw - 0.42, hd - 4.2, 4.6, 'z');
 
   // SOMEBODY WHO HAS BEEN WAITING. Not a criminal — this is the public half of
   // the building, and the person who is actually in a jail lobby at two in the
   // afternoon is somebody's mother with her coat still on. One figure does
   // more for this room than every bar in the cell block.
+  //
+  // SHE SITS ON A REGISTERED PLACE, not near one. Her position used to be the
+  // hand-typed `hd - 3.0`, which landed 0.28 m from the nearest of the five
+  // places the bench now offers — inside `seatTaken`'s 0.30 m tolerance by two
+  // centimetres, i.e. the suppression would have worked by luck and any change
+  // to the bench's length or pitch would have silently un-suppressed it. Taken
+  // from the bench's own list instead: index 4 is the end nearest the door,
+  // 2.36 m in, which is where somebody waiting to be called actually sits.
+  const HER = westBench.places[westBench.places.length - 1];
   //
   // `seated: true` is a field on the LOOK, and the origin moves with the pose:
   // standing is the painted shoe and goes on the floor, seated is the hip and
@@ -239,10 +308,11 @@ export function buildJail(ctx: CtxBuild): void {
   room.person(
     { jacket: '#4a4038', pants: '#3a3630', skin: '#8d5a34', hair: '#2a2018',
       fit: 'coat', cut: 'tied', build: 0, stride: 2, seated: true },
-    -hw + 0.42, hd - 3.0,
+    HER.lx, HER.lz,
     // facing ACROSS the room toward the counter, which is what you look at
-    // when you are waiting to be called. Derived from the thing she faces.
-    { facing: Math.PI / 2, seated: true, y: BENCH_Y,
+    // when you are waiting to be called. THE SAME VECTOR the seat's yaw is
+    // derived from, in the person convention (0 = +z) — see `bench()` above.
+    { facing: Math.atan2(westBench.inX, westBench.inZ), seated: true, y: BENCH_Y,
       // …and forward to the front of the slat, or the bench bisects her legs:
       // the slat passed straight through the middle of them, shins in front and
       // thighs behind, so she read as embedded in the furniture. Derived from

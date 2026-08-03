@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
-import { buildRoom } from './interior';
+import { buildRoom, seatTaken } from './interior';
 import { type DoorDecl } from './doors';
 import { FACE } from './rng';
 
@@ -230,10 +230,24 @@ export function buildTax(ctx: CtxBuild): void {
     // 0.485. Facing -z, across the desk at the preparer, which is the whole point
     // of that chair. Approach a stride back from it on the door side, so the sit
     // spot and the stand spot cannot share a coordinate.
+    // ⚠ THE `!seatTaken` CLAUSE HERE SUPPRESSES NOTHING TODAY, AND THAT IS THE
+    // FINDING, NOT AN OVERSIGHT. Item 245 was filed believing this room had a
+    // figure sitting on one of its chairs — *"the registry ALREADY CLAIMS their
+    // figures"*. Measured on the built bundle: this room's ONE person, the
+    // preparer at :297, is placed STANDING, so `room.person` never claims a
+    // seat, and the nearest seated citizen in the world is 160 m away in the
+    // library. The office's actual complaint (*"[screenshot] fix this"*, a
+    // figure clipping a chair) was the CLIP, and it was fixed at item 150b by
+    // deriving PREP_GAP above. The clause is here so that seating him — or any
+    // client — later cannot reintroduce the church's "you sit where he sits",
+    // not because it is doing anything now. See `notes/onehundredtwentythree-
+    // item245-jail-bench-and-office-chair.md`.
+    const cSeatX = room.wx(dx), cSeatZ = room.wz(CLIENT_CZ);
     ctx.seat({
-      x: room.wx(dx), z: room.wz(CLIENT_CZ), yaw: 0, h: 0.485,
+      x: cSeatX, z: cSeatZ, yaw: 0, h: 0.485,
       approach: { x: room.wx(dx), z: room.wz(CLIENT_CZ + 0.85) },
-      label: 'sit down with the preparer', ok: () => room.inside(),
+      label: 'sit down with the preparer',
+      ok: () => room.inside() && !seatTaken(cSeatX, cSeatZ),
     });
     // ONE collider for the desk and both its chairs. The gaps between them are
     // under the 0.72 m player, so per-object boxes would only carve slots to
@@ -488,10 +502,15 @@ export function buildTax(ctx: CtxBuild): void {
       for (const sx of [-0.2, 0.2]) bx(0.04, 0.38, 0.04, steelM, cx + sx, 0.19, WAIT_Z + 0.16);
       // every seat sittable, which is the standing rule for anything you can sit
       // on — "for every seat in the game i want to be able to sit down"
+      // …and not where somebody is already sitting — same clause as the client
+      // chair above, and the same caveat: nobody sits in this room today, so it
+      // suppresses 0 of 3. It is a guard against a future sitter, not a fix.
+      const wSeatX = room.wx(cx), wSeatZ = room.wz(WAIT_Z + 0.04);
       ctx.seat({
-        x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: 0, h: 0.47,
+        x: wSeatX, z: wSeatZ, yaw: 0, h: 0.47,
         approach: { x: room.wx(cx), z: room.wz(WAIT_Z - 0.85) },
-        label: 'sit and wait', ok: () => room.inside(),
+        label: 'sit and wait',
+        ok: () => room.inside() && !seatTaken(wSeatX, wSeatZ),
       });
     }
     // The collider reaches THE WALL, not just the back of the chairs. At 0.75
