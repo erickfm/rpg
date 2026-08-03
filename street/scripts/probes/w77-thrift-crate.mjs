@@ -119,13 +119,27 @@ const lane = await p.evaluate(([boxes, z0, z1]) => {
   return rows;
 }, [cols, D.z + 7, D.z - 7]);
 
+// THE THRESHOLD IS 0.95, NOT 2.0, AND THAT CORRECTION IS THE POINT.
+// "The 2 m sidewalk lane is sacred" is the width of the BAND — ct/rng.ts lays
+// the walk at x 5.0..7.0 — not a floor every cross-section must clear. What the
+// project actually asserts is ct/gap.ts's PASSABLE = 0.95 m, quoted by
+// scripts/builtlane.mjs:68-71 as "0.72 m of capsule plus room to turn", and
+// builtlane passes this street at a narrowest 1.12 m. My first version of this
+// check demanded 2.00 and went red on a 1.32 m section that the registered
+// check calls fine — a probe inventing a stricter rule than the world's own and
+// then reporting the world broken. The number is still PRINTED, because a
+// narrowing at a shop door is worth seeing; it is just not a failure.
+const PASSABLE = 0.95;                  // ct/gap.ts, via scripts/builtlane.mjs:71
 if (lane.length < 10) bad(`lane sweep produced ${lane.length} rows — measured nothing`);
 else {
   const worst = lane.reduce((a, c) => (c.width < a.width ? c : a));
   console.log(`\nwest-walk body width across the THRIFT frontage (${lane.length} sections, x -7.0..-5.0):`);
   console.log('  ' + lane.map((r) => `z${r.z}:${r.width.toFixed(2)}`).join('  '));
-  if (worst.width < 2.0) bad(`narrowest body width ${worst.width.toFixed(2)} m at z ${worst.z} — the 2 m lane is broken`);
-  else ok(`narrowest body width ${worst.width.toFixed(2)} m at z ${worst.z} — the 2 m lane holds`);
+  if (worst.width < PASSABLE) bad(`narrowest body width ${worst.width.toFixed(2)} m at z ${worst.z} — under PASSABLE ${PASSABLE} m`);
+  else ok(`narrowest body width ${worst.width.toFixed(2)} m at z ${worst.z} — at or above PASSABLE ${PASSABLE} m`);
+  const tight = lane.filter((r) => r.width < 2.0);
+  console.log(`  FYI ${tight.length} section(s) under the 2.00 m band width` +
+    `${tight.length ? ': ' + tight.map((r) => `${r.width.toFixed(2)} m at z ${r.z}`).join(', ') : ''}`);
 }
 
 // ── NEGATIVE CASE: this detector must be able to go red ──────────────────
