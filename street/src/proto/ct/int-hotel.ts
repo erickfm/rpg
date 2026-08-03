@@ -244,6 +244,48 @@ export function buildHotel(ctx: CtxBuild): void {
   const { put, solid } = room;
   const hw = room.W / 2, hd = room.D / 2;
 
+  // ── UPHOLSTERY HAS A WEAVE ────────────────────────────────────────────
+  //
+  // Worker ninetyseven, surveying this room: the seating group *"reads as flat
+  // untextured slabs (they are — `MeshBasicMaterial`, no map)"*. Measured here:
+  // of the 30 largest meshes in the lobby, **7 carry no map at all**, and the
+  // suite and all three chairs are among them.
+  //
+  // This is `ct/paint.ts`'s own doctrine, quoted from `slabTex`'s docstring:
+  // *"an untextured quad has no grain for the eye to attach to and no joints to
+  // give it scale"* — it is already recorded there as being behind four separate
+  // user complaints.
+  //
+  // IT KEEPS THE COLOUR. `slabTex` fills `base` unchanged, so the bottle-green
+  // velvet and the three deliberately mismatched chairs are exactly the tones
+  // that were authored — this adds grain, it does not restyle anything. That
+  // matters more than usual here: the mismatch IS the room's thesis and two of
+  // these colours are things the user asked for.
+  //
+  // `joint: 0` — grain and no joints. Upholstery is not masonry.
+  //
+  // ⚠ AND `grain` MUST STAY UNDER 0.14. Above it `slabTex` starts scattering
+  // PEBBLES — 2 px stones, deliberately, because that is what separates a gravel
+  // path from a poured slab (`ct/paint.ts`, the `if (grain > 0.14)` branch). My
+  // first pass asked for 0.17 and the lobby suite came back covered in bright
+  // confetti: a velvet sofa wearing gravel. Photographed, then read in the
+  // source rather than tuned by eye — BUILDER-BRIEF §7, the source is the answer.
+  //
+  // ⚠ SIZED TO THE LARGEST FACE, NOT TO THE TOP. `slabTex` sizes from a w×d and
+  // maps 1:1, and a backrest's TOP face is a 0.1 m sliver — sizing to that and
+  // letting it stretch across the 0.52 × 0.5 face you actually look at is
+  // BUILDER-BRIEF §7b's "0.2 m end caps wearing a 9.65 m run" with the numbers
+  // reversed. So the two biggest dimensions of the box are what the sheet is
+  // built for.
+  const FABRIC_PPM = 48;      // finer than the ground's 32: you stand next to it
+  const fabric = (col: number, w: number, h: number, d: number) => {
+    const [a, b] = [w, h, d].sort((x, y) => y - x);
+    return new THREE.MeshBasicMaterial({
+      map: slabTex({ wMeters: a, dMeters: b, base: `#${col.toString(16).padStart(6, '0')}`,
+        joint: 0, ppm: FABRIC_PPM, grain: 0.09 }),
+    });
+  };
+
   // ── the way in, matched to the doorway you came through ───────────────
   //
   // The same fault the user caught on the casino, found by doing what they then
@@ -552,7 +594,10 @@ export function buildHotel(ctx: CtxBuild): void {
     // by looking down the room, which is the whole reason for the eye-height
     // pass. Faded bottle-green velvet: what a lobby suite of this period
     // actually was, and it reads against ox-blood at any distance.
-    const plush = new THREE.MeshBasicMaterial({ color: 0x3f5449 });
+    const plush = fabric(0x3f5449, 0.85, 0.42, 2.1);
+    const plushBack = fabric(0x3f5449, 0.30, 0.52, 2.1);
+    const plushSeat = fabric(0x3f5449, 0.72, 0.40, 0.72);
+    const plushRest = fabric(0x3f5449, 0.72, 0.46, 0.22);
     const paper = new THREE.MeshBasicMaterial({ color: 0xd8d2c0 });
     const bx = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number) =>
       put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z);
@@ -565,12 +610,12 @@ export function buildHotel(ctx: CtxBuild): void {
       // in it. hw - 0.62 puts the back 6 cm off the plaster.
       const SX = hw - 0.62, SZ = hd - 9.5;
       bx(0.85, 0.42, 2.1, plush, SX, 0.21, SZ);                    // sofa seat
-      bx(0.30, 0.52, 2.1, plush, SX + 0.32, 0.62, SZ);             // its back
+      bx(0.30, 0.52, 2.1, plushBack, SX + 0.32, 0.62, SZ);         // its back
       bx(0.95, 0.16, 2.2, oakD, SX, 0.06, SZ);                     // the plinth
       solid(SX, SZ, 1.1, 2.2);
       for (const az of [-1.7, 1.7]) {                              // the armchairs
-        bx(0.72, 0.40, 0.72, plush, SX - 1.1, 0.20, SZ + az);
-        bx(0.72, 0.46, 0.22, plush, SX - 1.1, 0.58, SZ + az + (az < 0 ? -0.25 : 0.25));
+        bx(0.72, 0.40, 0.72, plushSeat, SX - 1.1, 0.20, SZ + az);
+        bx(0.72, 0.46, 0.22, plushRest, SX - 1.1, 0.58, SZ + az + (az < 0 ? -0.25 : 0.25));
         solid(SX - 1.1, SZ + az, 0.9, 0.9);
       }
       // AND YOU CAN SIT ON ALL OF IT. The user's standing rule is *"for every seat
@@ -984,10 +1029,11 @@ export function buildHotel(ctx: CtxBuild): void {
   // was always the point. They are just no longer scattered.
   const CH_X = 3.0, CH_Z = hd - 3.6;
   const chair = (lx: number, lz: number, col: number, back: number, ry: number) => {
-    const m = new THREE.MeshBasicMaterial({ color: col });
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.12, 0.5), m);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.12, 0.5),
+      fabric(col, 0.52, 0.12, 0.5));
     seat.rotation.y = ry; put(seat, lx, 0.42, lz);
-    const br = new THREE.Mesh(new THREE.BoxGeometry(0.52, back, 0.1), m);
+    const br = new THREE.Mesh(new THREE.BoxGeometry(0.52, back, 0.1),
+      fabric(col, 0.52, back, 0.1));
     br.rotation.y = ry;
     put(br, lx - Math.sin(ry) * 0.2, 0.48 + back / 2, lz - Math.cos(ry) * 0.2);
     for (const sx of [-0.2, 0.2]) for (const sz of [-0.2, 0.2]) {
