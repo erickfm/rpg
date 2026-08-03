@@ -1333,8 +1333,31 @@ const servedModule = async (file) => {
 };
 const digest = (t) => (t === null ? null : createHash('sha1').update(t).digest('hex').slice(0, 12));
 
-const only = process.argv.slice(2).filter((a) => a !== PORT_ARG);
+const only = process.argv.slice(2).filter((a) => a !== PORT_ARG && a !== '--plan');
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
+
+// `--plan` — what WOULD this run cost, without spending it.
+//
+// Item 233 asks for the price of the green-before leg to be measured and
+// stated rather than estimated in a comment. The leg is keyed on the CHECK, not
+// on the case, so the only number that matters is how many distinct check
+// invocations the selected cases share between them — and that is knowable in
+// milliseconds, before any build. Printing it costs nothing and stops the next
+// person from having to re-derive it.
+if (process.argv.includes('--plan')) {
+  const seen = new Map();
+  for (const c of run) {
+    const k = `${c[4]} ${c[5].join(' ')}`.trim();
+    seen.set(k, (seen.get(k) ?? 0) + 1);
+  }
+  console.log(`\ncases selected:              ${run.length}`);
+  console.log(`distinct check invocations:  ${seen.size}   <- the pre-pass runs this many, with NO build`);
+  console.log(`per-case builds:             ${run.length}   <- unchanged by the pre-pass\n`);
+  for (const [k, n] of [...seen].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(n).padStart(2)}x  ${k}`);
+  }
+  process.exit(0);
+}
 
 // ── A CASE NAME THAT MATCHES NOTHING IS A GREEN CERTIFICATE THAT NOTHING WAS
 //    VERIFIED, IN THE TOOL WHOSE ENTIRE JOB IS CATCHING THAT ─────────────────
@@ -1501,7 +1524,92 @@ for (const f of [...new Set(run.map((c) => c[1]))]) PRIS[f] = digest(await serve
 const ORIGINAL = {};
 for (const f of [...new Set(run.map((c) => c[1]))]) ORIGINAL[f] = digest(readFileSync(f, 'utf8'));
 
+// ── RUNNING A CHECK, AND DECIDING IT IS RED. One definition, two callers. ────
+//
+// This logic used to exist only inside the scoring loop. The pre-pass below has
+// to ask the identical question of the identical script, and a second copy that
+// drifted by one regex would make the before and after legs incomparable —
+// which is the exact failure this whole item is about.
+const checkRed = (script, args) => {
+  let red = false, out = '';
+  try { out = sh(`SHOT_URL=${URL} node scripts/${script} ${args.join(' ')}`); }
+  catch (e) { red = true; out = String(e.stdout || '') + String(e.stderr || ''); }
+  if (!red && /^FAIL/m.test(out)) red = true;
+  return { red, out };
+};
+
+// ── CAUGHT MUST MEAN "RED *BECAUSE OF* THE MUTATION" ────────────────────────
+//
+// Item 233. This file proves a check can fail by breaking the source and
+// requiring the check to go red — but it scored CAUGHT on ANY non-zero exit.
+// **So a case pointed at a check that was ALREADY RED for an unrelated reason
+// passed while proving nothing.** The mutation was never shown to be what
+// caused the failure; the case certified air, and it certified it in the tool
+// this project has used all week to certify twelve repairs to lying checks.
+//
+// That is the empty-set defect of item 224 one level out, and it is the same
+// discipline every probe here now follows: SELF-TEST BOTH SIGNS. A guard that
+// is red on a healthy world and red on a broken one has a colour uncorrelated
+// with the mutation, which the `wetness` note further down describes from the
+// other direction. One-sided evidence is not evidence.
+//
+// So: every distinct check is run ONCE on the unmutated tree first. Green
+// before + red after is CAUGHT. Already red is `PRE-RED` — a distinct status,
+// scored as unprovable, named in the report, non-zero exit — never CAUGHT and
+// never a silent pass.
+//
+// ── WHAT IT COSTS, MEASURED (2026-08-03, `node scripts/canfail.mjs <port>
+//    --plan` plus `time` on the two components) ───────────────────────────────
+//
+// The item's warning was that a green-then-red pair doubles a run that is
+// already a build and a browser per case. Measured, it does not:
+//
+//   62 cases  ->  38 DISTINCT check invocations. The pass is keyed on
+//     `script + args`, not on cases, because five cases share `footprint.mjs`,
+//     five share `park.mjs` and four share `glow.mjs probe`. `--plan` prints
+//     this for any selection, so the ratio is a fact in the log.
+//   NO BUILD IS DUPLICATED. The pristine bundle is built ~15 lines above and
+//     the pre-pass runs against it unmutated. On this tree `npm run build` is
+//     0.49 s and one browser check is ~1.9 s, so the pass is browser time only.
+//   IT REFUNDS. A PRE-RED case skips its mutation entirely — no build, no
+//     browser. `glow.mjs probe` is red today and carries FOUR cases, so four
+//     builds and four checks come straight back off the bill.
+//
+//   62 x (0.49 + 1.9) = 148 s before;  + 38 x 1.9 - 4 x 2.4 = 62 s net.
+//   About +40%, not +100%. Check durations vary, so treat this as the shape.
+//
+// WHICH DESIGN, AND WHY NOT THE OTHER ONE. The item offered running the before
+// leg only for checks NOT in a known-red set. That is cheaper and it is the
+// wrong trade: a hand-maintained list of known-red checks is exactly the kind
+// of state that rots, and a rotted entry would silently restore the very bug
+// this item is about — a case certifying air, now with a comment saying it was
+// considered. The measured pass has no list to go stale.
+const ckey = (script, args) => `${script} ${args.join(' ')}`;
+const BASE = new Map();
+{
+  const distinct = [...new Map(run.map((c) => [ckey(c[4], c[5]), [c[4], c[5]]])).values()];
+  console.log(`\n  pre-pass: ${distinct.length} distinct check invocation(s) across ${run.length} case(s),`);
+  console.log(`  on the UNMUTATED tree — a check already red here cannot certify anything.`);
+  for (const [script, args] of distinct) {
+    const r = checkRed(script, args);
+    BASE.set(ckey(script, args), r);
+    if (r.red) console.log(`    ALREADY RED  scripts/${ckey(script, args)}`);
+  }
+  const reds = [...BASE.values()].filter((r) => r.red).length;
+  console.log(`  ${BASE.size - reds} of ${BASE.size} green before any mutation.\n`);
+}
+
 for (const [name, file, needle, repl, script, args, expect] of run) {
+  // THE BEFORE LEG. A check that is red on the unmutated tree is not evidence
+  // of anything, so the mutation is not even attempted — which is also why this
+  // sits above the build rather than beside the scoring.
+  const base = BASE.get(ckey(script, args));
+  if (base && base.red) {
+    results.push([name, 'PRE-RED',
+      `${expect} — scripts/${ckey(script, args)} is ALREADY RED on the unmutated tree, `
+      + `so this case proves nothing; fix that check before trusting this guard`]);
+    continue;
+  }
   const src = readFileSync(file, 'utf8');
   const n = src.split(needle).length - 1;
   if (n !== 1) { results.push([name, 'NEEDLE', `matched ${n}x, not 1 — mutation not applied`]); continue; }
@@ -1524,10 +1632,10 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
         restore(); continue;
       }
     }
-    let red = false, out = '';
-    try { out = sh(`SHOT_URL=${URL} node scripts/${script} ${args.join(' ')}`); }
-    catch (e) { red = true; out = String(e.stdout || '') + String(e.stderr || ''); }
-    if (!red && /^FAIL/m.test(out)) red = true;
+    // THE AFTER LEG. Same helper, same regex, same idea of red as the pre-pass
+    // — see `checkRed`. The before leg already ran and was green, or this case
+    // would have been scored PRE-RED and never reached here.
+    let { red, out } = checkRed(script, args);
     // Only a mutation that CHANGED THE WORLD can be slept through. Without
     // this, "the server is not ours" and "the mutation does nothing" both wore
     // the SLEPT badge, and neither is a fault in the check.
@@ -1569,6 +1677,9 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
     // sleep HERE and nowhere else, because nowhere else is the box this busy.
     // A SLEPT that will not reproduce on an idle machine is this, until proven
     // otherwise — count frames, or measure the world's own state.
+    // CAUGHT now carries BOTH legs: the pre-pass found this check green on the
+    // unmutated tree, and it is red now. That is what makes the mutation the
+    // cause rather than a coincidence.
     results.push([name, red ? 'CAUGHT' : 'SLEPT', expect]);
   } finally { restore(); }
 }
@@ -1595,7 +1706,11 @@ const bad = results.filter((r) => r[1] !== 'CAUGHT');
 //
 // `bad` still contains it, so the exit code is unchanged and non-zero. This adds
 // a sentence; it does not forgive anything.
-const unprovable = results.filter((r) => ['INERT', 'NOT-RUN', 'NEEDLE'].includes(r[1]));
+// PRE-RED JOINS THIS LIST for exactly the reason the other three are on it: the
+// case was not scored. It is emphatically NOT a sleeping guard — the guard was
+// never given a fair test — and calling it one would send a builder to rewrite
+// a check whose only sin is standing downstream of a different broken one.
+const unprovable = results.filter((r) => ['INERT', 'NOT-RUN', 'NEEDLE', 'PRE-RED'].includes(r[1]));
 if (unprovable.length) {
   console.log(`\n${unprovable.length} case(s) could not be scored — NOT sleeping guards:`);
   for (const [n, v, why] of unprovable) console.log(`  ${v.padEnd(8)} ${n} — ${why}`);
