@@ -3071,3 +3071,12 @@ to one side.
   with item 208, which now carries the desk's actual DESCRIPTION of his frame
   rather than a guess.** He asked to be shown we looked before we changed
   anything — a fair demand after two measured-correct fixes he rejected.
+
+- **ANSWER to "[screenshot] what is this weird grass on the ground"** (item 169,
+  closed 2026-08-03): it is **not grass and not a bug**. It is the landlord's
+  **rent slip pushed under 301's door** — `ct/tenancy.ts:1120-1141`. The builder
+  walked to it and pressed E: *"[E] pick up the slip of paper"* → **PUSHED UNDER
+  YOUR DOOR / OUTSTANDING NOW: $45.00 / PAST DUE**. It deliberately did NOT
+  delete it, because the row's "DONE WHEN: the floor of 301 is clear" would have
+  destroyed the rent-letter system. The desk's leak hypothesis is discarded:
+  zero outdoor-module meshes in any of the 13 rooms.
