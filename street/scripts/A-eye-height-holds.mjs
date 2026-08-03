@@ -155,17 +155,44 @@ await p.waitForTimeout(120);
 await walk('w', 80);
 await p.waitForTimeout(300);
 
-const reach = await p.evaluate(() => {
+// ── THE MARGIN IS READ FROM THE WORLD, AND IT IS THE TOUCH ONE (item 232) ───
+//
+// This filter was `s.d <= s.r + 0.6` — a hand-typed copy of `REACH_MARGIN`, so
+// `grep REACH_MARGIN` did not even find it. Two faults in one line.
+//
+// WRONG CONSTANT. For a STANDING player `fp.ts:991` decides the aim-free offer
+// with `d < s.r + TOUCH_MARGIN` (0.15). `REACH_MARGIN` (0.6) governs only the
+// SEATED clause (`fp.ts:1006`) and the debug ring (`fp.ts:1124`) — neither is
+// this. Measured cost of the difference: `probes/w88-margin-population.mjs`
+// stands in the disputed ring r+0.15 .. r+0.60 at 11 live spots facing away and
+// the world offers **0 of 11**, while a r+0.6 filter counts all 11.
+//
+// WHY IT MATTERS HERE SPECIFICALLY. This list is the candidate set for the
+// verdict below: too generous, and the check can report "the spawn room offers
+// what the player is standing next to" on the strength of a spot the player is
+// NOT standing next to and can only get by turning to face it. The sentence it
+// prints becomes untrue while the check stays green.
+//
+// HAND-TYPED, so it also could not follow a re-tune. `__ct.touchMargin()` is
+// published for exactly this (item 223) and resolves on the BUILT bundle;
+// `await import('/src/proto/fp.ts')` does NOT — it 404s under `vite preview`,
+// which is how seven harnesses silently fell back to a default.
+const TOUCH_MARGIN = await p.evaluate(() => window.__ct.touchMargin?.());
+if (typeof TOUCH_MARGIN !== 'number' || !isFinite(TOUCH_MARGIN)) {
+  console.error('ABORT: __ct.touchMargin() did not return a number — the candidate set below cannot be built.');
+  await b.close(); process.exit(3);                          // GOTCHAS §32
+}
+const reach = await p.evaluate(([margin]) => {
   const v = window.__ct.pos();
   return window.__ct.spots().filter((s) => s.ok)
     .map((s) => ({ label: s.label, d: Math.hypot(s.x - v[0], s.z - v[2]), r: s.r, x: s.x, z: s.z }))
-    .filter((s) => s.d <= s.r + 0.6)
+    .filter((s) => s.d <= s.r + margin)
     .sort((a, c) => a.d - c.d);
-});
+}, [TOUCH_MARGIN]);
 const here = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(2)));
 console.log(`\nafter one step, standing at (${here[0]}, ${here[2]}) on floor ${here[3]}`);
-console.log(`live [E] spots within their own reach: ${reach.length}`);
-for (const s of reach) console.log(`   ${s.label} at ${s.d.toFixed(2)} m (reach ${(s.r + 0.6).toFixed(2)})`);
+console.log(`live [E] spots the player is TOUCHING (r + ${TOUCH_MARGIN}): ${reach.length}`);
+for (const s of reach) console.log(`   ${s.label} at ${s.d.toFixed(2)} m (touch bound ${(s.r + TOUCH_MARGIN).toFixed(2)})`);
 
 let offered = null;
 for (const s of reach) {
