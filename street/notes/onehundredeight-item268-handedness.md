@@ -154,6 +154,10 @@ All on the built bundle at `http://localhost:4642/`.
 | `bugsweep.mjs` | **0 STATION MISS, 0 COVERAGE**, 96 shots, no console errors (warnings only: THREE.Clock deprecation, Canvas2D willReadFrequently, GL ReadPixels stalls — all pre-existing) |
 | `health.mjs` | `WORLD OK`, exit 0 |
 | `tsc --noEmit` | clean |
+| `interiors-walk.mjs` | **DID NOT COMPLETE — see §6.4. This item is not covered by the 12-room suite.** |
+
+Re-run on the final committed build (`b2b39a90e`, rebuilt `dist/`): handedness
+**5/5 MATCH**, rails **6/6**, `health` exit 0.
 
 **Frames, which I have looked at myself** (`shots/w108-{before,after}-*.png`):
 
@@ -205,7 +209,21 @@ All in `scripts/probes/`, per BUILDER-BRIEF §7a.
    *facade-side and belt-side handedness must agree for every room, not only the
    pair with a party wall* — has no check at all, and it is the same class as the
    user's "make the exteriors match the interiors", asked five times. Worth a row.
-4. **`interiors-walk.mjs` takes well over 10 minutes** on this machine and its
-   build-SHA guard means any commit made while it runs invalidates it. Not a
-   defect, but it makes "run it between items" impractical; worth knowing when
-   ranking.
+4. **`scripts/interiors-walk.mjs` DID NOT COMPLETE and I stopped it. Say so
+   plainly: this item is NOT covered by the 12-room suite.** Two attempts. Both
+   printed the same three lines — the SHA line, `entry spots: 12 of 12`, and
+   `floor predicate ok (RAYCAST): 93467 triangles from 7990 meshes` — and then
+   produced no per-room output for **14 minutes**, at which point I killed it.
+   It was not wedged: its headless browser had burned **52 minutes of CPU in 10
+   minutes of wall clock**, and there were **five other headless browsers on the
+   machine** (other agents). So it is a *throughput* problem, not a hang, and it
+   may well pass in a quiet moment.
+
+   **What that leaves uncovered:** the per-room escape/prompt/keeper legs for all
+   12 rooms. What covers the same ground for *this* change: `bugsweep` (96 shots,
+   12/12 rooms, 3/3 sites, 0 STATION MISS), `w70-orpheus-walk` 13/13 on both
+   rooms in the pair, `w85-item230-party-threshold` on the doorway, and the belt
+   census. **A desk verifying this item should re-run `interiors-walk` when the
+   machine is quiet.** It also carries a related risk worth ranking: its
+   build-SHA guard is evaluated once at start, so any commit made during its
+   ~15-minute run leaves it reporting on a SHA that no longer exists.
