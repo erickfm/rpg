@@ -4,6 +4,7 @@ import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf, frontageWorld, alongU } from './tex-world';
 import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor, doorLeafFor, type DoorLeaf } from './doors';
+import { LEAF_AJAR } from './vice';   // item 193: the one door angle
 import { citizenSprite, type Look } from './citizens';
 import { clockFace } from './clockface';
 import { FACE } from './rng';
@@ -1717,8 +1718,12 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   // Hung on a pivot at the hinge rather than positioned at an angle by hand:
   // a plane placed at its own centre and then rotated swings its inner half
   // back THROUGH the jamb, which is what the previous version did. Hinged on
-  // the outer face and swung outward, it cannot reach the wall at all, and it
-  // reads from inside as a propped shop door rather than as a hole.
+  // the outer face and swung outward, it cannot reach the wall at all.
+  //
+  // (That paragraph used to end "and it reads from inside as a propped shop
+  // door rather than as a hole." It no longer does, and the claim went with the
+  // angle — see the LEAF_AJAR block below. The hinge arithmetic still matters:
+  // it is what keeps the leaf out of the jamb whenever the angle is not zero.)
   //
   // The hinge is done by arithmetic rather than by a pivot Group, for the same
   // reason everything else here is: a child of a nested group carries a LOCAL
@@ -1726,7 +1731,35 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   // go dark at 2am in an otherwise lit room. So swing it by hand — offset the
   // centre a half-leaf out from the hinge along the open angle, which is
   // exactly what the pivot was doing.
-  const SWING = -0.85;                            // ~49° open, swinging outward
+  // ── ITEM 193: THE ANGLE IS `LEAF_AJAR` NOW, NOT A CONSTANT OF THIS FILE ────
+  //
+  // This read `const SWING = -0.85;   // ~49° open, swinging outward` — the last
+  // survivor of the eight different door angles item 159 collapsed. That item
+  // made `ct/vice.ts` export a single `LEAF_AJAR = 0` and removed the swing
+  // parameter from `leafPair` entirely, so *"a caller that cannot pass one
+  // cannot copy the wrong one."* This file was outside its scope and kept its
+  // own, so the shared room kit went on hanging every unreplaced leaf 49° open
+  // while the twelve buildings that matter hung theirs shut.
+  //
+  // ⚠ `LEAF_AJAR = 0` IS NOT A TASTE CALL and `vice.ts:160-179` argues it at
+  // length: nine of the twelve shopfronts have **no door geometry at all** — the
+  // door is painted into the facade, shut — and the two that hang real leaves on
+  // the street (jail, bodega) hang them shut. Zero is the only value that can
+  // agree with what is already outside.
+  //
+  // IMPORTED FROM `vice.ts`, NOT FROM `doors.ts`, and that is load-bearing.
+  // `ct/doors.ts` looks like the right home for shared door state and is a trap:
+  // it eagerly globs `int-*.ts`, and every one of those imports only
+  // `type DoorDecl` precisely so no runtime edge exists. A runtime import closes
+  // the cycle and GOTCHAS 28 drops the module **from the built bundle only** —
+  // source looks fine and the world is broken. `vice.ts` imports paint,
+  // tex-world, civic and fp, and nothing that reaches back here, so this edge is
+  // safe in the direction it is drawn.
+  //
+  // The arithmetic below is left exactly as it was rather than simplified for
+  // the zero case, for the reason `vice.ts` types the constant as `number`: the
+  // day this value moves, `cos`/`sin` still have to be here.
+  const SWING = LEAF_AJAR;
   const leafW = dW * 0.95;
   const hx = dAt - dW / 2, hz = hd + T + 0.02;    // the hinge, on the OUTER face
   const leaf = new THREE.Mesh(new THREE.PlaneGeometry(leafW, DOOR_H * 0.98),
