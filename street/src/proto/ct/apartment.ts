@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+import { DOOR_RANK } from '../fp';
 import { pixTex, dither, declareSurface, type SurfaceKind } from './paint';
 
 /** `pixTex` + `declareSurface` in one call — see the twin in ct/lot.ts.
@@ -1291,7 +1292,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // by the same code that handles a collider appearing under them
       // anywhere else. One rule, not two.
       const ROOM_STAND_X = DOOR_PIV_X - 0.55, STAND_Z = DOOR_PIV_Z - H301 * 1.45;
-      ctx.spot({ x: ROOM_STAND_X, z: STAND_Z, r: 0.95, ok: doorOk, label: doorLabel, act: doorAct });
+      // `rank: DOOR_RANK` — *"just make the door high rank pls."* (item 291).
+      // This is the flat's way out, and `read the calendar` (item 270, on the
+      // wall it stands 0.46 m off) was beating it everywhere he walks. Both
+      // stand-points carry it, because a door is one piece of state with two
+      // thresholds and the two must not disagree about how loudly they argue.
+      ctx.spot({ x: ROOM_STAND_X, z: STAND_Z, r: 0.95, rank: DOOR_RANK, ok: doorOk, label: doorLabel, act: doorAct });
       // AND ITS MIRROR, on the hall side. Reflected about the wall's own
       // centreline (AX(0)) rather than a second hand-typed x, so the two
       // stand-points keep the same 0.57 m offset off their own wall face by
@@ -1301,7 +1307,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // the wall itself falls inside either circle, so both are reachable
       // whichever side of a shut door you are standing on.
       const HALL_STAND_X = 2 * AX(0) - ROOM_STAND_X;
-      ctx.spot({ x: HALL_STAND_X, z: STAND_Z, r: 0.95, ok: doorOk, label: doorLabel, act: doorAct });
+      ctx.spot({ x: HALL_STAND_X, z: STAND_Z, r: 0.95, rank: DOOR_RANK, ok: doorOk, label: doorLabel, act: doorAct });
     }
     // the hermit — a big quiet man; you only ever catch him at his door.
     //
