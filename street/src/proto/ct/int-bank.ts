@@ -1513,7 +1513,27 @@ export function buildBankInterior(ctx: CtxBuild): void {
     /** the second act. You read the form, then you sign it — and signing IS
      *  handing it over, which is the spirit of the two-spot aim rule the block
      *  comment above describes, kept on the sheet now that both acts are. */
-    const SIGN = { x: 22, y: 306, w: SHEET_W - 44, h: 46 };
+    // ⚠ AND IT LIVES ABOVE CANVAS y 300, WHICH IS NOT A TASTE DECISION.
+    //
+    // MEASURED, in `/tmp/w66-loan-2-open.png`: the player's own forearm and
+    // wristwatch are drawn across the bottom of the frame while this is open,
+    // and they cover the foot of the sheet completely. The cause is not the
+    // panel — it is `crosstown.ts:1891`, `hud.watch(rig.pitch < -0.95, …)`.
+    // Checking the time in this world is LOOKING STEEPLY DOWN, and a diegetic
+    // panel on a HORIZONTAL face is looking straight down by construction:
+    // `poseFor` takes the eye along the face's own normal, and this face's
+    // normal points at the ceiling. So the pose that makes the form readable is
+    // the same pose that raises a watch over it.
+    //
+    // Every earlier tenant is a vertical screen and none of them can hit this.
+    // The first draft put SIGN at 306…352 and it was unpressable — the button
+    // was behind a wristwatch. This is w55's cushion finding wearing different
+    // clothes: something in the world cuts the face, and the fix is that every
+    // LIVE band ends before the cut while the decorative footer takes it.
+    //
+    // Which is, as it happens, correct: the part now behind your wrist is the
+    // signature line, and your wrist is where a hand signing a form would be.
+    const SIGN = { x: 22, y: 262, w: SHEET_W - 44, h: 38 };
     const inRect = (r: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
       x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
     /** which amount box a canvas point is in, or -1 */
@@ -1540,7 +1560,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
      * about seven eighths of a 45° frame. That is a person leaning over a form,
      * which is the pose the request describes.
      */
-    const LOAN_STANDOFF = 0.55;
+    const LOAN_STANDOFF = 0.60;
     const LOAN_FOV = 45;
 
     /**
@@ -1642,7 +1662,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
           ['TOTAL DUE', money(owed)],
         ];
         rows.forEach(([k, v], i) => {
-          const y = 150 + i * 26;
+          const y = 146 + i * 22;
           g.font = UI.font(9); g.fillStyle = DIM;
           g.fillText(k, 12, y);
           // the dotted leader, which is what makes a column of pairs read as a form
@@ -1657,16 +1677,16 @@ export function buildBankInterior(ctx: CtxBuild): void {
         // What they want off you against what you have. THE COMPARISON IS THE
         // DECISION, so it is on the sheet before you submit rather than only in
         // the refusal afterwards — you can see why the answer will be no.
-        g.fillStyle = 'rgba(106,100,88,0.5)'; g.fillRect(8, 262, w - 16, 1);
+        g.fillStyle = 'rgba(106,100,88,0.5)'; g.fillRect(8, 226, w - 16, 1);
         g.font = UI.font(8); g.fillStyle = DIM;
-        g.fillText(`SECURITY REQUIRED (${Math.round(DOWN * 100)} %)`, 10, 276);
+        g.fillText(`SECURITY REQUIRED (${Math.round(DOWN * 100)} %)`, 10, 238);
         g.textAlign = 'right'; g.font = UI.font(9, true); g.fillStyle = INK;
-        g.fillText(money(need), w - 10, 276);
+        g.fillText(money(need), w - 10, 238);
         g.textAlign = 'left'; g.font = UI.font(8); g.fillStyle = DIM;
-        g.fillText('CASH ON HAND', 10, 292);
+        g.fillText('CASH ON HAND', 10, 254);
         g.textAlign = 'right'; g.font = UI.font(9, true);
         g.fillStyle = have >= need ? '#2f6a3a' : RED;
-        g.fillText(money(have), w - 10, 292);
+        g.fillText(money(have), w - 10, 254);
         g.textAlign = 'left';
 
         // ── ACT TWO: SIGN IT, WHICH IS HANDING IT OVER ──────────────────────
@@ -1688,14 +1708,14 @@ export function buildBankInterior(ctx: CtxBuild): void {
 
         // the signature line with a scrawl on it: a form nobody has signed reads
         // as a form nobody has filled in
-        g.fillStyle = 'rgba(60,52,42,0.55)'; g.fillRect(10, 372, 108, 1);
+        g.fillStyle = 'rgba(60,52,42,0.55)'; g.fillRect(10, 344, 108, 1);
         g.fillStyle = 'rgba(40,36,30,0.75)';
         for (let i = 0; i < 26; i++) {
-          g.fillRect(14 + i * 3.4, 366 + Math.round(Math.sin(i * 0.9) * 3), 3, 1);
+          g.fillRect(14 + i * 3.4, 338 + Math.round(Math.sin(i * 0.9) * 3), 3, 1);
         }
         g.font = UI.font(7); g.fillStyle = DIM;
-        g.fillText('APPLICANT', 10, 384);
-        g.textAlign = 'right'; g.fillText('OFFICER USE ONLY', w - 10, 384);
+        g.fillText('APPLICANT', 10, 360);
+        g.textAlign = 'right'; g.fillText('OFFICER USE ONLY', w - 10, 360);
         g.textAlign = 'left';
 
         // THE STAMP: the answer and the reason, rotated across the middle
@@ -1708,7 +1728,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
           // numbers the whole sheet is about and a stamp that hides them is a
           // stamp that hides the point.
           g.save();
-          g.translate(w * 0.50, 226); g.rotate(-0.11);
+          g.translate(w * 0.50, 180); g.rotate(-0.11);
           g.strokeStyle = `rgba(${col},0.85)`; g.lineWidth = 3;
           g.strokeRect(-104, -24, 208, 48);
           g.textAlign = 'center';
