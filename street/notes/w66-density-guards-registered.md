@@ -1,7 +1,10 @@
 # Item 161 — the two density guards, registered and floored
 
 Worker sixtysix, 2026-08-02. Port **4220** (probed free: `000` before binding).
-Build measured: `be9340006` for the baselines, `caeb1ac9e` after.
+Baselines measured against build `be9340006`, which is the mainline commit this
+work sits on. The after-figures were taken against my own commits, which are
+deliberately NOT cited here: they are un-merged, so the rebase that lands them
+renames them and the citation would be dead to everyone but me (GOTCHAS 36).
 
 ---
 
@@ -22,7 +25,7 @@ WRITTEN BUT NEVER REGISTERED — these run exactly never:
 It is green now.
 
 **(2) IS FALSE AS STATED, and the row should not be verified on it.**
-`scripts/checks.mjs:1144` builds every non-canfail check's argv as
+`scripts/checks.mjs:1207` builds every non-canfail check's argv as
 
 ```js
 const args = [`scripts/${name}.mjs`, ...extra, ...(SELFTEST ? ['--selftest'] : [])];
@@ -153,6 +156,36 @@ node scripts/checks.mjs --selftest --only masonry      ✓ masonry +canfail
 node scripts/canfail.mjs masonry-blind                 OK masonry-blind CAUGHT
                                                        every mutated file restored byte-for-byte
 ```
+
+### The whole default suite, through the modified runner
+
+`checks.mjs` is shared, so the runner change was run against the **whole**
+registry, not only my two rows: **133 rows**, 18 correctly skipped as
+`walks — use --slow`, no runner-level error, and
+
+```
+✓ masonry            does each masonry stamp agree with the face it is on?
+✓ texdensity         is any textured face in the world drawing a stretched texture?
+✓ checks-registered  is every self-testing script actually registered?
+```
+
+that last one being the guard that was **red on `texdensity` before this**.
+
+15 rows are red and **every one of them predates this work**; none is in the
+density area, and none names a file I touched. For the record so the next reader
+does not re-diagnose them: `mirror-walk` (2 of 5 rooms, and its own output says
+*"DO NOT ROUTE THIS YET"*), `I-clip` (reporting overlaps of 1.0e9 m — an
+arithmetic fault in the instrument), `D-walk`, `glow`, `park`, `spot-coverage`,
+`floaters-walk`, `K-pocket-loop`, `K-tyre-has-arch`, `N-post-waiting`,
+`L-every-stool-seats-you`, plus the four registry auditors listed below.
+`note-hashes` reported **WRONG WORLD**, which is exit 3 — nothing measured
+(GOTCHAS 32), not a red.
+
+**One caution for whoever re-runs this.** I invalidated a twelve-minute run by
+committing a note halfway through it: `dist/` stays at the commit it was built
+from, `localHead()` moves, and every check from that moment on aborts WRONG
+WORLD. `checks.mjs` says so in its own closing lines and it is right — do not
+commit while a suite is running.
 
 ---
 
