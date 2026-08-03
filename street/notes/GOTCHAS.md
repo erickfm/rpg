@@ -2205,17 +2205,40 @@ succeeded — look for `built in` — before believing a single result from it.*
 This is the same family as GOTCHAS 63 (a rebuild destroying the packed
 artifact): `dist/` does not tell you how old it is.
 
-## 78.
+## 78. `__ct` existing is not a picture — ASK THE RENDERER, with `waitPainted`
 
 **`__ct` publishes BEFORE the world is drawn, so a frame taken immediately after
-`waitForFunction(() => window.__ct)` is solid black.** That reads exactly like a
-culled or broken world, and it cost one builder a bisect against mainline before
-it was identified. It is the likely source of past "the room is black"
+`waitForFunction(() => window.__ct)` can be solid black.** That reads exactly
+like a culled or broken world, and it cost one builder a bisect against mainline
+before it was identified. It is the likely source of past "the room is black"
 findings — including any that were believed.
 
-**Wait for something the RENDERER has done**, not for the API to exist. A
-non-black pixel sample, a rendered frame count, or `afterFrames` are all honest;
-`__ct` existing is not.
+The reason is one line: `crosstown.ts` assigns `window.__ct` inside `make()`,
+and `src/main.ts` calls `configure(renderer)` and then the first `frame()`
+**afterwards**. So `__ct` existing is a statement about that file, not about the
+screen.
+
+**Wait for something the RENDERER has done, and `afterFrames` is NOT that.**
+This entry used to name it as one of three honest options and it is not one:
+rAF fires whether or not `renderer.render()` was called, and whether or not the
+call drew anything. See §80.
+
+```js
+import { waitPainted } from './lib/painted.mjs';
+await waitPainted(page);          // frames advanced AND triangles > 0
+await page.screenshot({ path: … });
+```
+
+`__ct.painted()` returns `{ frames, triangles, calls }` off
+`renderer.info.render`, or `null` before `configure()` has run. `frames` alone
+is still a half-answer — a render call that drew nothing advances it and leaves
+a black screen — so the helper requires geometry to have gone through as well.
+`lib/painted.mjs` also exports `blackFraction(page, pngBuffer)`, because the
+last line of defence is still **looking at the image you captured**.
+
+`afterFrames` remains exactly right for its own job: letting the SIMULATION
+advance a tick after a warp, where rAF is the thing that drives it. The two
+waits look identical at the call site and are not the same question.
 
 ## 79. A check that filters on `visible` measures NOTHING, and says so in green
 
@@ -2260,11 +2283,35 @@ bundle after the prescribed wait and got **8 solid black frames**, while the ver
 same bundle's scene graph read perfectly when queried. The first genuinely
 painted frame did not arrive until **1136 ms**.
 
-Right now you cannot easily do better, because **`crosstown.ts:1339` does not
-publish the renderer on `__ct`**, so a probe has no way to ask how many frames
-have actually been rendered. That is item 181. Until it lands, treat any probe
-that waits only on rAF ticks as suspect, and **look at the image you captured** —
-a black frame is a failure to paint, not evidence about the world.
+**Item 181 landed and you can do better now.** `__ct.painted()` returns
+`{ frames, triangles, calls }` from `renderer.info.render`, and
+`scripts/lib/painted.mjs`'s `waitPainted(page)` waits for the frame count to
+advance **with triangles in it**. Use that instead of `afterFrames` before any
+screenshot you intend to look at. §78 has the call.
+
+### But the black frames DID NOT REPRODUCE, and that matters more than the fix
+
+Seventeen attempts against the built bundle on `vite preview` — three recipes
+(`__ct` alone, `__ct` + `afterFrames(2)`, `waitPainted`), each on a cold browser
+context so the bundle was re-fetched and re-parsed, plus six concurrent copies
+per GOTCHAS §30 — **came back 0.0% black every time**, with the renderer
+reporting 13–15 frames already drawn by the moment `__ct` first answered.
+
+So the mechanism this entry describes is real and the guard is worth having, but
+**it is not established that it was the cause of sixtyone's eight black frames.**
+Things that were NOT ruled out and are at least as likely:
+
+- **`CONTEXT_LOST_WEBGL`.** `bugsweep` logs it on this machine today. A lost GPU
+  context paints black no matter how long you wait, and no frame counter can see
+  it — `info.render.frame` keeps counting.
+- **A genuinely cold `vite preview`**, where the first painted frame arrived at
+  1136 ms in sixtyone's measurement and at ~300 ms in every one of mine.
+- **A viewport difference** — sixtyone shot 1280 × 720, this measured 1000 × 640.
+
+If you get black frames again: `waitPainted` will now tell you whether the
+renderer thinks it drew. **If it says frames advanced with triangles in them and
+the picture is still black, the fault is below three** and this entry is not
+your answer.
 
 ## 81. `curl` is not a free-port test; only `ss -ltn` is
 
@@ -2320,3 +2367,29 @@ still running, or it failed after emptying dist/; re-run `npm run build`),
 **The general lesson is the one this file keeps relearning: a 4xx and a refused
 connection are not the same news, and `response.ok` cannot tell you which you
 have.**
+
+## 82. Rebuilding the queue MUST preserve in-flight claims
+
+When `notes/QUEUE.md` was destroyed and rebuilt on 2026-08-02, the desk carried
+over only the two `DOING` rows it could see in its own recent output. Every other
+in-flight claim silently became `TODO` again.
+
+The cost was immediate and invisible for about half an hour: **two builders
+independently implemented item 157**, one to WIP and one to completion, and the
+collision only surfaced as seven conflict regions in `ct/library-pc.ts` at merge
+time. Both had done real work; one lot was thrown away.
+
+`claim.sh` is a lock over a FILE. Replace the file and you have released every
+lock in it, whether or not anyone was still holding one. So if the queue ever has
+to be reconstructed again:
+
+- **Enumerate the running agents first** and ask each what it holds, rather than
+  trusting what the desk happens to remember.
+- Re-stamp those rows `DOING <who> <time>` **before** any worker is told the
+  queue is back.
+- Only then unblock anyone.
+
+This is now much less likely to matter, because `scripts/queue-backup.sh` (item
+160) snapshots the queue under the same lock on every `claim`/`done`/`add` — so
+the first move after a loss is **restore the newest snapshot**, which still has
+the claims in it, not rebuild from prose.

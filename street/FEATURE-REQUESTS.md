@@ -2991,3 +2991,36 @@ to one side.
   `ct/inventory.ts:165,247` and have **no consumers anywhere in `src/`**. The
   comment at `:158` records the half-finished handoff: *"builder C is putting
   packages on the walk-up landings."* Builder C never landed it.
+
+- **"trying to hit cancel on the pin keypad doesnt work cause it's also 5? once
+  you enter 4 digits it auto submits please. also the first time you go to the
+  atm it saves your pin"** (2026-08-02) → **routed as queue item 184.** He is
+  right about the collision: `ct/atm.ts:437` consumes any digit as a PIN digit
+  and returns, so the numeric shortcut for the CANCEL fascia button (`:179`)
+  can never fire while the PIN screen is up. Note also that **no PIN is stored
+  anywhere today** — `:442` opens the menu on any four digits.
+
+- **"the load [loan] application process should also be like atm and whatnot.
+  you sit and its the loan process as an integrated overlay"** (2026-08-02)
+  → **routed as queue item 185.** FIFTH tenant of the diegetic framework, after
+  the ATM (86, done), slots (100), mail (155) and the library PC (157).
+  **It overrules a deliberate decision:** `ct/int-bank.ts:1161` states the loan
+  was built as three `[E]` interactions *"rather than as a screen over it,
+  because every other verb in this world is an `[E]` on an object you can walk
+  up to and this one should not be the exception."* The user has now asked for
+  the exception, so per BUILDER-BRIEF §6a his words win.
+
+- **"[screenshot] get rid of shadow texture here pls"** (2026-08-02, the alley
+  mouth by the phone booth and dumpster) → **routed as queue item 186.** SIXTH+
+  report of this class — `ct/jail.ts:928` already logs item 114 as *"his FIFTH
+  report of the class"*. **It is not a shadow.** `ct/paint.ts:52-60` carries the
+  diagnosis: an untextured ground quad *"reads as a TINT OVER the paving rather
+  than as a piece of paving"*; 123 such surfaces, ~454 m², already named as the
+  cause of four earlier complaints. `scripts/w5-shadow-census.mjs` exists and is
+  **not registered in `checks.mjs`.**
+
+- **"make people different heights pls"** (2026-08-02) → **routed as queue item
+  187.** Height variation already exists but is coarse: `ct/crowd.ts` has six
+  cast members with fixed `hs` values (1.09, 0.91, 0.97, 1.05, 0.94, 1.02) and
+  **no per-instance jitter**, so a street full of people shows the same six
+  heights repeated.
