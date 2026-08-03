@@ -22,6 +22,7 @@ import { FACE_LIB } from './lib/faces.mjs';
 // fixing three reporting bugs in it.
 const SELFTEST = process.argv.includes('--selftest');
 import { writeFileSync } from 'node:fs';
+import { ensureShots } from './lib/shots.mjs';   // item 191: shots/ is gitignored
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 await p.addInitScript({ content: FACE_LIB });   // window.__faceLib, see scripts/lib/faces.mjs
@@ -270,6 +271,7 @@ if (other) console.log(`   ${other} at other ratios — includes the 32 px/m fla
 console.log('');
 for (const q of (likeBad.length ? likeBad : bad).slice(0,10))
   console.log(`   u ${String(q.rU).padStart(5)}× v ${String(q.rV).padStart(5)}×   ${q.a.u}×${q.a.v} (decl ${q.a.d}) at (${q.a.at.join(',')})   vs   ${q.c.u}×${q.c.v} (decl ${q.c.d}) at (${q.c.at.join(',')})`);
+ensureShots();
 writeFileSync('shots/seampairs.json', JSON.stringify(out,null,2));
 await b.close();
 

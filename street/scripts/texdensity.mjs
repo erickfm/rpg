@@ -98,6 +98,7 @@ import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { FACE_LIB } from './lib/faces.mjs';
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { ensureShots } from './lib/shots.mjs';   // item 191: shots/ is gitignored
 
 const URL = aim('http://localhost:4183/');
 const ALL = process.argv.includes('--all');
@@ -381,6 +382,7 @@ for (const r of gross.slice(0, ALL ? 999 : 20))
               `  canvas ${r.canvas.join('×')}  rep ${r.repeat.join('×')}  ${r.type}/${r.mi}` +
               `  ${r.kind || 'UNDECLARED'}  ${r.owner}  at (${r.at.join(', ')})`);
 
+ensureShots();
 writeFileSync('shots/texdensity.json', JSON.stringify(out, null, 2));
 await b.close();
 

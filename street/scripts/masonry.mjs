@@ -31,6 +31,7 @@ import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { FACE_LIB } from './lib/faces.mjs';
 import { writeFileSync } from 'node:fs';
+import { ensureShots } from './lib/shots.mjs';   // item 191: shots/ is gitignored
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 await p.addInitScript({ content: FACE_LIB });   // window.__faceLib, see scripts/lib/faces.mjs
@@ -219,6 +220,7 @@ if (checked.length !== withAch.length)
   console.log(`   (${checked.length - withAch.length} stamps carry no ppmW/ppmH and were not judged)`);
 const naiveBad = checked.filter(r => Math.abs(r.naive[0]-r.declaredPpm) > 0.6 || Math.abs(r.naive[1]-r.declaredPpm) > 0.6);
 console.log(`\nfor comparison, IGNORING map.repeat the disagreement count would be: ${naiveBad.length}`);
+ensureShots();
 writeFileSync('shots/masonry.json', JSON.stringify(out,null,2));
 await b.close();
 // AN EXIT CODE, so this can guard rather than only narrate. `wrong` is the

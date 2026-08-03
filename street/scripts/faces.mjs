@@ -14,6 +14,7 @@ import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
+import { ensureShots } from './lib/shots.mjs';   // item 191: shots/ is gitignored
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
@@ -96,6 +97,7 @@ const out = await page.evaluate(async () => {
   return { png: cv.toDataURL(), rows };
 });
 
+ensureShots();
 writeFileSync('shots/faces.png', Buffer.from(out.png.split(',')[1], 'base64'));
 console.log('faces -> shots/faces.png  (every citizen, all five painted views, head only)\n');
 // A CHECK THAT CAN RETURN ZERO MUST PROVE IT CAN RETURN NON-ZERO. Every

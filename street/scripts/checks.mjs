@@ -45,6 +45,18 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { distSha, localHead } from './lib/which-world.mjs';
 import { probeWithRecovery, probeServer, reportEndOfRun } from './lib/server-state.mjs';
+// ITEM 191 — BELT AND BRACES, and the braces are the four checks themselves.
+// `shots/` is gitignored, so a fresh worktree has none, and four registered
+// checks (`faces`, `masonry`, `seampairs`, `texdensity`) threw ENOENT on their
+// own `writeFileSync` *after* their descriptive output and *before* their exit
+// code — a correct-looking run followed by a stack trace, on a new builder's
+// first command. Each of the four now calls `ensureShots()` at its own write
+// site; this call covers everything the SUITE runs, including anything added
+// later that forgets. Both, deliberately: the per-check call is the one that
+// still works when somebody runs the check on its own, which is how they are
+// usually run.
+import { ensureShots } from './lib/shots.mjs';
+ensureShots();
 
 const SELFTEST = process.argv.includes('--selftest');
 const SLOW = process.argv.includes('--slow');
@@ -782,6 +794,19 @@ const CHECKS = [
   // somebody's source; it is the one kind of test that a REFACTOR breaks
   // silently and a bug never does." (D)
   ['mutations-quote-real-source', 'do the mutation cases still quote source that exists?', true],
+
+  // ITEM 191 — the class that cost every new builder its first run. `shots/` is
+  // gitignored, so a FRESH WORKTREE has none, and four registered checks did an
+  // `fs` write into it with no mkdir: ENOENT thrown *after* the descriptive
+  // output and *before* the exit code, so you saw a correct-looking run ending
+  // in a stack trace. Fixed at the write site in all four plus at this suite's
+  // own start — and this is the guard that stops a fifth appearing.
+  //
+  // It votes on the REGISTERED subset only (the ~51 one-shot probes are printed
+  // but do not veto — a check that cries wolf is how the four survived), and it
+  // exits **2** on a collapsed population, because "0 registered checks at
+  // risk" is free at zero. Costs no browser and no build; it reads source.
+  ['w101-shots-enoent', 'can a fresh worktree run the suite without ENOENT?', true],
   // And the other half of the same tool: does canfail REFUSE a selection it
   // cannot honour? Costs no browser and one ~0.7 s build.
   //
