@@ -2044,15 +2044,55 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     brew.position.set(AX(MUG_X), SILL_TOP + MUG_H + 0.001, AZI(MUG_Z));
     brew.rotation.x = -Math.PI / 2;
     scene.add(brew);
-    // the handle: its own tone, a step down from the body, so the eye can find
-    // the hole from either side — dark glass behind it, pale cup beside it.
-    // HANDLE_OFF is derived from the cup, not typed: far enough out that the
-    // hole (inner radius H_R - H_TUBE) clears the cup wall completely, close
-    // enough that the ring passes THROUGH the wall and is joined to it.
-    const H_R = 0.022, H_TUBE = 0.007;
-    const HANDLE_OFF = MUG_R + (H_R - H_TUBE);          // hole starts at the wall
+    // ── THE HANDLE, THIRD REPORT: IT WAS PAINTED IN ITS OWN BACKGROUND ───────
+    //
+    // The user, three times: *"mug looks messed up"*, *"the mug is messed up"*,
+    // then *"mug handle still looks off, please try."* Item 108 fixed the
+    // GEOMETRY and fixed it correctly — the offset/hole-axis bug above is real
+    // and stays fixed. It then chose the handle's colour by reasoning about
+    // which surface would be BEHIND it, and got that one thing wrong:
+    //
+    //   *"It is close to the sill's 0xa8a091, which would matter if the handle
+    //    were ever seen against the sill; it is not, because it hangs 27-84 mm
+    //    above it with the window behind."*
+    //
+    // IT IS SEEN AGAINST THE SILL, because he does not look at it level — he
+    // stands at the window and looks DOWN at the sill at close range, at a
+    // pitch of 22-49 degrees. From there the sightline past the handle, and
+    // THROUGH ITS HOLE, lands on the sill top, not on the dark glass.
+    //
+    // MEASURED, in the rendered pixels of his own view rather than argued:
+    // in the crop of the at-sill frame the sill #a8a091 is the single most
+    // common colour at 6,921 px, and the handle's 176 px of #a79f8f differ from
+    // it by (1, 1, 2) OUT OF 255. The world is unlit MeshBasicMaterial, so
+    // material colour IS rendered colour and there is nothing else to save it.
+    // A 176-pixel object drawn in its background's colour is not a handle; the
+    // shape was right and simply could not be seen.
+    //
+    // So the fix is TONE AND SIZE, not construction:
+    //
+    //   PAINT IT AS CERAMIC, NOT AS A SEPARATE PART. 0xd0c9ba is one shade off
+    //     the body — 8-10 levels, enough to round the form where it crosses the
+    //     cup — but 40+ levels off the sill, which is the contrast that
+    //     actually has to work. The cup already reads against that sill at ~50;
+    //     the handle now reads for the same reason the cup does. Separating
+    //     handle from CUP was never the problem: a real handle IS the same
+    //     ceramic, and what says "handle" is the HOLE, not a tonal seam.
+    //   MAKE THE HOLE WORTH SEEING. H_R 0.022 -> 0.028 takes the ring from 58 to
+    //     70 mm against a 95 mm cup, which is a mug's real proportion, and opens
+    //     the hole from 30 to 32 mm of daylight while the ring gains pixels.
+    //   BITE DEEPER INTO THE WALL. The old offset put the hole's inner edge
+    //     exactly ON the cup wall, so only 7 mm of ring lay inside it — under
+    //     2 px at this range, which is why it read as a hoop parked beside the
+    //     cup even though it was genuinely joined. Pulling it in 10 mm sinks the
+    //     ring 17 mm into the wall and the two ends now merge visibly, the way a
+    //     real handle does. The hole is still bounded by the cup on its inner
+    //     side, which is also what a real handle looks like.
+    const H_R = 0.028, H_TUBE = 0.007;
+    const HANDLE_BITE = 0.010;                          // how far the ring sinks past the wall
+    const HANDLE_OFF = MUG_R + (H_R - H_TUBE) - HANDLE_BITE;
     const handle = new THREE.Mesh(new THREE.TorusGeometry(H_R, H_TUBE, 6, 14),
-      new THREE.MeshBasicMaterial({ color: 0xa79f8f }));
+      new THREE.MeshBasicMaterial({ color: 0xd0c9ba }));
     handle.position.set(AX(MUG_X), SILL_TOP + 0.055, AZI(MUG_Z + HANDLE_OFF));
     handle.rotation.y = Math.PI / 2;                    // hole axis along x, facing the room
     scene.add(handle);
@@ -3071,8 +3111,42 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = '#cfd8a8';
       for (let i = 0; i < 5; i++) g.fillRect(6 - i, 43 - i, 1, 1);   // the curl itself
       dither(g, 32, 44, 22);
-    });    const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.70), texM(postT));
-    poster.position.set(AX(-1.05), RY + 1.55, AZI(2.085));
+    });
+    // ── THE TWO HANGING PLANES, DECLARED TOGETHER ────────────────────────────
+    //
+    // The user: *"put the calendar where the poster is and the poster where the
+    // calendar is."* The swap crosses the room, so the two z planes now have to
+    // be named in ONE place rather than one being a bare literal down here and
+    // the other a `const` ninety lines below — `NORTH_Z` was declared after this
+    // point, so hanging the poster north would have read a `const` in its
+    // temporal dead zone and thrown at module init.
+    //
+    // THEY ARE NOT MIRROR IMAGES OF EACH OTHER, which is the whole trap:
+    //   SOUTH_Z sits 0.015 PROUD of the south wall's room face, at +z from it.
+    //   NORTH_Z sits 0.015 proud of the NORTH wall's room face, at -z from it,
+    //     and that face is `AZI(5.5) - 0.07` because AZI(5.5) is the box's
+    //     CENTRELINE and the box is 0.14 deep. Hanging at AZI(5.49) entombs the
+    //     mesh in the plaster: present, visible:true, right x and y, invisible.
+    // So a hanging also needs the ROTATION belonging to its wall — see below.
+    const SOUTH_Z = AZI(2.085);
+    const NORTH_Z = AZI(5.5) - 0.07 - 0.015;
+    // ── THE POSTER NOW HANGS ON THE NORTH WALL, ABOVE THE BED ────────────────
+    //
+    // It takes the calendar's former x and y verbatim; only the wall changed.
+    // `rotation.y = Math.PI` because this wall faces -z and `texM` is
+    // DoubleSide — get it wrong and nothing goes missing, the flyer simply
+    // reads MIRRORED, which is the failure the calendar's own comment warned
+    // about and which no "is it there?" check would catch.
+    //
+    // CLEARANCE, measured rather than assumed, because the flyer is 0.52 x 0.70
+    // and the calendar it replaces was 0.30 x 0.40 — it is the bigger object
+    // moving into the smaller one's slot, so this is the direction that can
+    // foul. Spans x -2.71…-2.19; the three snapshots span -1.82…-1.42, so
+    // 0.37 m of clear wall between them, and the west wall's inner face at
+    // AX(-3.2) is a further 0.49 m past its left edge. Nothing overlaps.
+    const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.70), texM(postT));
+    poster.position.set(AX(-2.45), RY + 1.66, NORTH_Z);
+    poster.rotation.y = Math.PI;
     scene.add(poster);
 
     // ── the north wall, above the bed ────────────────────────────────────
@@ -3089,16 +3163,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Small enough that the wall is still mostly wall; a second poster up here
     // would have made the room read as decorated rather than lived in.
     //
-    // rotation.y = PI on both. The south poster faces +z into the room with no
-    // rotation; this wall is the other one, so its artwork has to be turned to
-    // face -z or it reads mirrored — texM is DoubleSide, so getting this wrong
-    // shows nothing missing, just a backwards calendar.
-    // THE WALL IS A BOX AND AZI(5.5) IS ITS CENTRELINE, not its face. It is
-    // 0.14 deep, so the room side is AZI(5.5) - 0.07 and anything hung at
-    // AZI(5.49) is entombed inside the plaster — which is exactly what my
-    // first attempt did: both meshes present, visible:true, at the right x and
-    // y, and invisible. 0.015 proud of the face is what the south poster uses.
-    const NORTH_Z = AZI(5.5) - 0.07 - 0.015;
+    // rotation.y = PI on the snapshots below, and on the POSTER that now hangs
+    // here — this wall faces -z, so its artwork has to be turned or it reads
+    // mirrored; texM is DoubleSide, so getting this wrong shows nothing
+    // missing, just a backwards flyer. Both z planes are declared together up
+    // beside the poster, with the centreline-vs-face trap written out there.
+    //
+    // THE CALENDAR HAS LEFT THIS WALL for the south one, at the user's request.
+    // What remains above the bed is the poster and the three snapshots.
     const calT = surfTex('detail', 30, 40, (g) => {
       g.fillStyle = '#8c3a2e'; g.fillRect(0, 0, 30, 12);            // the month block
       stampNum(g, '1997', 5, 3, '#e8dcb8');
@@ -3112,9 +3184,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillRect(9, 24, 1, 6); g.fillRect(14, 24, 1, 6);
       dither(g, 30, 40, 26);
     });
+    // ── THE CALENDAR NOW HANGS ON THE SOUTH WALL ─────────────────────────────
+    //
+    // It takes the poster's former x and y verbatim, and — the half of the swap
+    // that is easy to forget — it loses its `rotation.y`. The south wall faces
+    // +z into the room, so its artwork carries NO rotation. Leaving the PI on
+    // would not hide it; it would show the month page reversed, biro ring and
+    // all, and it would look like a texture bug rather than a placement one.
+    //
+    // No clearance check is owed in this direction: at 0.30 x 0.40 the calendar
+    // fits strictly inside the 0.52 x 0.70 footprint the poster vacated, and the
+    // south wall carries nothing else.
     const cal = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.40), texM(calT));
-    cal.position.set(AX(-2.45), RY + 1.66, NORTH_Z);
-    cal.rotation.y = Math.PI;
+    cal.position.set(AX(-1.05), RY + 1.55, SOUTH_Z);
     scene.add(cal);
     // three snapshots taped up in a row, curling at one corner. Alpha outside
     // them so it is three photographs and not a photograph-coloured rectangle.

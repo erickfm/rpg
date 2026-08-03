@@ -741,12 +741,23 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // is about height, and the mound is where height is cheapest. So the whole
   // budget goes to the mound.
   //
-  // MND_H IS THE ONE DIAL. Grade scales linearly with it: 0.485 → 1 in 9.4,
-  // which is exactly what the park measured BEFORE this change; 0.570 → 1 in
-  // 8.0 and 0.653 m of range. It is set to the first, so the grade is not a
-  // regression on any reading. If the desk decides a 1-in-8 lawn is acceptable
-  // — and a real grass bank is 1 in 4 — that one number buys another 40% of
-  // relief with nothing else touched.
+  // MND_H IS THE ONE DIAL, AND THE DESK HAS NOW TURNED IT (item 235). Grade
+  // scales linearly with it: 0.485 → 1 in 9.4, which is what the park measured
+  // before item 172; 0.570 → 1 in 8.0 and 0.653 m of range. It was set to the
+  // first so that item 172 could deliver +55% relief at an unchanged grade and
+  // nobody had to weigh the result against a constraint. The desk then took the
+  // trade explicitly — the user's words were "the height is soooo flat", three
+  // os of emphasis — on the grounds that 1 in 8.0 is still a stroll: a kerb ramp
+  // is far steeper, and a real grass bank is 1 in 4. Both numbers below are
+  // SWEPT, not predicted (`scripts/probes/w83-park-relief.mjs`).
+  //
+  // THE CEILING ABOVE THIS DIAL IS NOT FAR, and it is not another number in this
+  // file. Relief must be ZERO where the grass meets the level loop, so the whole
+  // run lives inside the FIELD — 17.75 x 16.5 m, not the site's 32 x 30 — and a
+  // landform zero on a rectangle's boundary cannot exceed grade x inradius. At
+  // 1 in 8 that caps ANY shape near 1.0 m. Going past it needs the loop itself
+  // draped on the relief, which moves the benches (item 170) and the shelter
+  // (item 171). That is a separate piece of work; do not start it here.
   // ── ONE LANDFORM PRIMITIVE, WITH A SLOPE YOU CAN BUDGET ──────────────────
   //
   // The old relief was three gaussians, and a gaussian is the wrong tool here
@@ -784,16 +795,24 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
         : s * (1 - a) - (s * (1 - t) * (1 - t)) / (2 * a);
   };
   // ── THE FEATURES, AND WHAT EACH COSTS IN GRADE ───────────────────────────
-  //   MOUND  +0.485 m  r 0.7…6.4   1.25*0.485/5.7 = 0.106 → 1 in 9.4
+  //   MOUND  +0.570 m  r 0.7…6.4   1.25*0.570/5.7 = 0.125 → 1 in 8.0
   //   DISH   -0.083 m  r 0.4…3.4   1.25*0.083/3.0 = 0.035 → 1 in 29
   //
-  // The mound is 62% taller than the 0.30 m it replaces and the composite grade
-  // is UNCHANGED from what shipped. Per-feature arithmetic is the BUDGET, not
-  // the answer — features add where they overlap and no sum written here can
-  // see that — so both are confirmed against
+  // The mound is 90% taller than the 0.30 m it replaces. The composite grade is
+  // 1 in 8.0, against 1 in 9.4 both before item 172 and after it — this is the
+  // trade item 235 bought deliberately, range for grade, and it is the ONLY
+  // number here that got worse. Per-feature arithmetic is the BUDGET, not the
+  // answer — features add where they overlap and no sum written here can see
+  // that — so both are confirmed against
   // `scripts/probes/w83-park-relief.mjs` on the built world, and three times
   // now that sweep has disagreed with a comment in this block and been right.
-  const MND_H = 0.485, HOLLOW = -0.083;
+  //
+  // NOTE THE HEADROOM AGAINST `EDGE_G` BELOW, because it is now thin: the peak
+  // grade 0.125 sits just under the 0.13 edge clamp, so the clamp remains very
+  // nearly the no-op it is meant to be. Raise MND_H further and the clamp starts
+  // engaging across the field, flattening the crest instead of the rim — the
+  // shape would change character before the numbers said anything obvious.
+  const MND_H = 0.570, HOLLOW = -0.083;
   const relief = (x: number, z: number) => {
     const inset = Math.min(x - fx0, fx1 - x, z - fz0, fz1 - z);
     if (inset <= 0) return 0;
