@@ -977,6 +977,33 @@ export function makePanel(spec: PanelSpec): Panel {
   /** were they sitting down when it came up? then closing it stands them up */
   let seatedAtOpen = false;
   /**
+   * THE POINTER LOCK WE TOOK OFF THE PLAYER, so we can give it back.
+   *
+   * The user, item 277: *"when i exit overlays my mouse stops working as
+   * well."* Opening a diegetic panel calls `exitPointerLock()` below, and that
+   * is right — you cannot click a screen with a pointer the browser has hidden
+   * and pinned to the middle of the canvas. **The half that was missing is the
+   * other one:** there is exactly one `requestPointerLock` in the whole source
+   * (`main.ts:32`) and it hangs off a canvas CLICK, so nothing re-acquired the
+   * lock when the panel went away and the player had to work out for himself
+   * that he must click the world to get his camera back. With six diegetic
+   * overlays that is close to §11 territory — not a view he cannot leave, but a
+   * control he cannot get back.
+   *
+   * THE ELEMENT, NOT A BOOLEAN, and that is the point: this file has no idea
+   * which canvas the renderer owns and should not learn. `document.
+   * pointerLockElement` names it at the moment we take it away, so giving it
+   * back is `el.requestPointerLock()` on the very thing that was locked — a
+   * value DERIVED from the browser rather than a second copy of something
+   * `main.ts` owns (BUILDER-BRIEF §8).
+   *
+   * NULL MEANS "HE DID NOT HAVE IT", which is the case that must not re-lock:
+   * a player who never clicked into the world, or a sandboxed artifact iframe
+   * where locking is refused outright, has not given us a pointer to hand back,
+   * and seizing one on close would be taking a control he never surrendered.
+   */
+  let lockedAtOpen: Element | null = null;
+  /**
    * The mesh this panel is painted onto right now, or `null` when it is the
    * ordinary screen-space cabinet. Resolved on EVERY open rather than cached at
    * build time: modules register long before the object they belong to exists,
@@ -1241,6 +1268,11 @@ export function makePanel(spec: PanelSpec): Panel {
         wrap!.style.opacity = '1';
         // GIVE THE MOUSE BACK. You cannot click a screen with a pointer the
         // browser has hidden and pinned to the middle of the canvas.
+        //
+        // REMEMBERED BEFORE IT IS RELEASED, because after the call
+        // `document.pointerLockElement` is null and the answer is gone. `close()`
+        // hands it back — see `lockedAtOpen`.
+        lockedAtOpen = document.pointerLockElement ?? null;
         try { document.exitPointerLock?.(); } catch { /* never locked */ }
         cursorHand(false);
         // THE WAY OUT, handed to the controller at the moment the way in
@@ -1321,6 +1353,42 @@ export function makePanel(spec: PanelSpec): Panel {
         livePanel = null;
         gateUp(false);
         backdropUp(false);
+      }
+      // ── GIVE THE POINTER BACK, the other half of the release in `open()` ──
+      //
+      // Item 277. Placed HERE, immediately after the gate comes down and before
+      // any caller code runs, for three reasons:
+      //
+      //  · `gateUp(false)` has just stopped swallowing clicks, so the world is
+      //    ready to be looked at again; re-locking any earlier would fight the
+      //    gate that exists to keep the world from hearing anything.
+      //  · It is ahead of `undo()`, `stand()` and `onClose()`, all of which are
+      //    CALLER code that can throw. Those three are individually wrapped
+      //    precisely because a caller must not be able to leave the player
+      //    trapped — and a dead mouse is exactly that trap in a quieter form.
+      //  · Every exit path in this world funnels through `close()`: `[E]`,
+      //    Escape, the ATM's own farewell timeout, and closing while seated.
+      //    Putting the re-lock on the one path they share is why it cannot be
+      //    forgotten by one of them, which is how the release came to have no
+      //    partner in the first place.
+      //
+      // `!livePanel` IS LOAD-BEARING, NOT BELT-AND-BRACES. `open()` calls
+      // `closePanels()` before it raises the new cabinet, so a panel closing is
+      // routinely a panel being REPLACED. Without this test, closing a diegetic
+      // panel to open a SCREEN-SPACE one would re-lock the pointer and leave it
+      // locked under the new cabinet — a pointer hidden and pinned under an
+      // interface the player is being asked to read, which is the precise state
+      // the release in `open()` exists to prevent.
+      //
+      // `isConnected`, because interiors are rebuilt as the player moves and a
+      // canvas detached from the document cannot take a lock; asking anyway
+      // throws where nobody is listening.
+      const relock = lockedAtOpen; lockedAtOpen = null;
+      if (relock && !livePanel && relock.isConnected) {
+        // Same catch, and the same reason, as `main.ts:32`: a sandboxed iframe
+        // refuses pointer lock outright and the artifact falls back to
+        // drag-look. Failing to re-lock there is correct and must stay silent.
+        try { (relock as HTMLElement).requestPointerLock?.(); } catch { /* sandboxed iframe: drag-look still works */ }
       }
       // RELEASE BEFORE onClose, and inside a try, because THIS is the callback
       // that un-traps the player. A caller whose release throws must not be
