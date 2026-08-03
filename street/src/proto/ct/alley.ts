@@ -87,7 +87,44 @@ export function buildAlley(a: {
     const AFW = Math.round(AF_W * AF_PXM), AFL = Math.round(AF_L * AF_PXM);
     const am = (v: number) => Math.max(1, Math.round(v * AF_PXM));
     const alleyFloorT = declareSurface(pixTex(AFW, AFL, (g) => {
-      g.fillStyle = '#2e3034'; g.fillRect(0, 0, AFW, AFL);
+      // ── #2e3034 -> #42454a: THE SIXTH "SHADOW TEXTURE" REPORT WAS THIS ────
+      //
+      // The user, 2026-08-02, standing at this mouth: *"get rid of shadow
+      // texture here pls"* — the sixth report of the class, and the first one
+      // where the surface he pointed at was NOT the thing the class describes.
+      //
+      // `ct/paint.ts:52` has the standing diagnosis: *"an untextured quad has
+      // no grain for the eye to attach to … so it reads as a TINT OVER the
+      // paving."* THAT IS NOT WHAT IS WRONG HERE, and saying so is most of the
+      // value of this fix. This floor is textured, at 24 px/m, and MEASURED
+      // (`scripts/probes/w64-alleymouth-shot.mjs`) it carries **19.4% relative
+      // grain against the sidewalk's 9.7%** — twice as much. It was never
+      // missing grain. It was painted too dark to show any.
+      //
+      //     sidewalk paving   256x256   mean 123.5   sd 12.1
+      //     alley floor (old) 158x156   mean  43.3   sd  8.4     = 0.35x
+      //
+      // and in HIS OWN FRAME, with the world's grade and the rain wetness on
+      // top, those became **49.6 and 14.8** — a 3.3x step with a hard straight
+      // arris between them at x = -7. At 14.8/255 an sd of 8.4 has been
+      // compressed to about +/-3 levels: there is no visible structure left, so
+      // what is on the screen is a black shape with a clean edge lying over the
+      // paving. THAT IS A PAINTED SHADOW. His word is literally accurate.
+      //
+      // THE GRADE IS MULTIPLICATIVE, which is why this could not be fixed by
+      // adding more grain. `ct/props.ts` multiplies every graded material
+      // toward the night floor and `updateRain` darkens this one further (it is
+      // roofless — see the `wet()` call below), so whatever is painted here
+      // gets scaled, never offset. A surface that starts at 43 has no headroom
+      // to survive that; one that starts near the ROAD's 61 does.
+      //
+      // 0x42454a is the old colour scaled by 68.6/47.9 in luminance — the same
+      // blue-grey, brought up so the mean lands beside the road rather than at
+      // a third of the sidewalk. THERE IS NO SHADE IN THIS WORLD: it is
+      // entirely MeshBasic with no lights, so an alley is not darker than the
+      // street because it is enclosed — it is only darker if somebody paints it
+      // darker, and painting it darker is exactly the thing he keeps reporting.
+      g.fillStyle = '#42454a'; g.fillRect(0, 0, AFW, AFL);
       // grain per SQUARE METRE, not a flat count — the same correction the
       // facades and the party walls already took
       dither(g, AFW, AFL, Math.round(AF_W * AF_L * 22));
@@ -96,11 +133,23 @@ export function buildAlley(a: {
       // (GOTCHAS §2).
       let h = 0x9e3779b1;
       const nx = () => { h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0; return (h >>> 9) / 0x7fffff; };
-      g.fillStyle = 'rgba(0,0,0,0.32)';
-      for (let i = 0; i < 9; i++) {
+      // …AND THE STAINS THEMSELVES READ AS CAST SHADOWS, which is the second
+      // half of the same report. Nine soft black ellipses at alpha 0.32, up to
+      // 2.2 m across on a 6.6 m floor, are indistinguishable from something's
+      // shadow — and nothing in this world casts one, so the eye hunts for the
+      // object and does not find it. They are visible as four dark blobs in
+      // /tmp/w64-alley/before.png at midday, before any grade.
+      //
+      // Smaller, weaker and MORE of them: 16 marks at alpha 0.15 and at most
+      // 1.2 m across read as ground that has been walked on, which is what a
+      // stain is. This is the same correction the note above records making
+      // once already — *"two blobs that each happened once … read as smears
+      // rather than as ground"* — applied to what it left behind.
+      g.fillStyle = 'rgba(0,0,0,0.15)';
+      for (let i = 0; i < 16; i++) {
         const cx = nx() * AFW, cy = nx() * AFL;
         g.beginPath();
-        g.ellipse(cx, cy, am(0.35 + nx() * 0.75), am(0.2 + nx() * 0.4), nx() * Math.PI, 0, Math.PI * 2);
+        g.ellipse(cx, cy, am(0.18 + nx() * 0.42), am(0.11 + nx() * 0.24), nx() * Math.PI, 0, Math.PI * 2);
         g.fill();
       }
       // THE DRAIN IS REAL CASTING NOW, so this paints the HOLE and nothing
