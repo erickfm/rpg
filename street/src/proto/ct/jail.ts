@@ -1079,6 +1079,53 @@ export function register(ctx: CtxBuild): void {
     ctx.obstacle({ minX: BX, maxX: FENCE_X, minZ: zLine - SCR_T / 2, maxZ: zLine + SCR_T / 2 });
   }
 
+  // ── THE FORECOURT FLANKS — the SAME gap, on the front of the building ────
+  //
+  // Item 175. The user: *"side of the jail are still bugged and allow for out
+  // of bounds."* **"Still" is the word that matters, and the screens above are
+  // why.** They close the flank line from `BX` (the back of the building) to
+  // the fence — the YARD half. Nothing ever closed `site.minX` to `FX`, the
+  // FORECOURT half, so the far side of the same building had the identical hole
+  // the block above was written to fix.
+  //
+  // WHY IT IS A HOLE RATHER THAN A NOOK. The side street's flanking buildings
+  // stop at the frontage: measured on this tree, their faces are at z −108.32
+  // and z −97.85, while the jail's site runs z −110…−96. That leaves a slot
+  // 1.68 m wide on the south flank and 1.85 m on the north, between the
+  // neighbour's face and the site edge, opening east out of the corridor. The
+  // building's own mass does not close it, because `FORE` sets the building
+  // back 4 m — the slot is in front of the facade, beside the forecourt.
+  //
+  // Through it, the player is outside every collider in the world: 69 of 112
+  // scripted walks escaped, finishing as far north as z −84.95 and, to the
+  // south, at **z −110.60 — which is `crosstown.ts`'s own world clamp**, i.e.
+  // standing on the last half-metre of the world with sky on three sides.
+  // (`scripts/probes/w67-jail-escape.mjs`.)
+  //
+  // SAME IDIOM, NOT A PATCH. These are the screens above with a different run,
+  // so the wall a player sees along the north flank is one wall from the street
+  // to the fence rather than a screen that starts halfway down the building.
+  // Textures are sized to THIS run rather than reusing the yard screens'
+  // (§7b: a texture's density comes from the face it lands on), which is the
+  // same reason `scrBase` is not reused from `stoneFlank` above.
+  //
+  // AND IT COSTS THE 2 m LANE NOTHING. The walls stand on `Z_S`/`Z_N`, the
+  // site's own edges, which are 1.68 m and 1.85 m OUTSIDE the corridor the
+  // player actually walks. The forecourt keeps its full width; what closes is
+  // the dead ground beside it that was never meant to be reachable.
+  const FC_LEN = FX - site.minX;
+  const fcCx = site.minX + FC_LEN / 2;
+  const fcBase = flat(stoneTex(FC_LEN, JAIL.BASE_H, 0));
+  const fcUpper = flat(upperTex(FC_LEN, JAIL.UPPER_H, UY, false));
+  const fcCap = flat(stoneTex(FC_LEN, JAIL.CORNICE_H + JAIL.PARAPET_H, CY));
+  for (const zLine of [Z_S + SCR_T / 2, Z_N - SCR_T / 2]) {
+    shell(FC_LEN, JAIL.BASE_H, SCR_T, fcCx, JAIL.BASE_H / 2, zLine, scrEndBase, fcBase);
+    shell(FC_LEN, JAIL.UPPER_H, SCR_T, fcCx, UY + JAIL.UPPER_H / 2, zLine, scrEndUpper, fcUpper);
+    shell(FC_LEN, JAIL.CORNICE_H + JAIL.PARAPET_H, SCR_T, fcCx,
+      CY + (JAIL.CORNICE_H + JAIL.PARAPET_H) / 2, zLine, scrEndCap, fcCap);
+    ctx.obstacle({ minX: site.minX, maxX: FX, minZ: zLine - SCR_T / 2, maxZ: zLine + SCR_T / 2 });
+  }
+
   // ── collision, registered by the module that draws the building ─────────
   //
   // The desk's ruling: `crosstown.ts:491` held a hand-written collider standing

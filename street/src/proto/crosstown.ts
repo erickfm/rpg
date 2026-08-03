@@ -27,7 +27,7 @@ import { buildCrowd, type Crowd } from './ct/crowd';
 import { pickSpot, SpotOutline, REACH_MARGIN } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
-import { makeHud, setScreenFocus, type Purse } from './ct/hud';
+import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
@@ -1731,6 +1731,38 @@ export function makeCrosstown(): Proto {
      *  and nothing may push onto it expecting the world to change. The one
      *  selftest that mutates `colliders()` by reference keeps doing so. */
     staticColliders: () => colliders.filter((c) => !actorBoxes.has(c)),
+    /** WHAT THE CROWD STEERS AROUND — the pedestrians' obstacle list.
+     *
+     *  `colliders` stops the PLAYER; `citAvoid` is what `ct/crowd.ts` steers
+     *  citizens around, and the two are different lists on purpose. Nothing
+     *  published it, so **the difference between them was unobservable from
+     *  outside**, and that is a blocker under two of the user's own bugs:
+     *  *"pedestrians sometimes clip into the fruit in the sidewalk outside the
+     *  bodega"* (195) and *"people still get stuck"* (173). Both could be
+     *  watched and neither could be asserted — a probe could see a citizen
+     *  walk through a crate but could not ask whether the crate was ever
+     *  offered to the crowd in the first place. Those are different bugs with
+     *  different fixes, and telling them apart is the whole value here.
+     *
+     *  NUMBERS, NOT THE LIVE ARRAY, and this is the one place it differs from
+     *  `colliders()` above. That one returns by reference because
+     *  `interiors-walk.mjs --selftest` walls doors shut by pushing onto it;
+     *  nothing needs that here, and a probe that can push a box into the
+     *  crowd's obstacle list is a probe that can make the world agree with it.
+     *  Each entry is a fresh spread, so mutating one changes nothing — the same
+     *  reasoning `painted()` gives for publishing three counters rather than
+     *  the renderer.
+     *
+     *  `actor` IS COMPUTED HERE, INSIDE THE WORLD, because it can only be
+     *  computed here: it is an IDENTITY test against `actorBoxes`, and identity
+     *  is exactly what does not survive `page.evaluate`. Cars and citizens push
+     *  onto `citAvoid` too, so without this flag a probe asking "is the fruit
+     *  stand in the list" has to distinguish a crate from a pedestrian by
+     *  shape — and a citizen's box is 0.5 x 0.5, which is also plenty of real
+     *  furniture. The spread carries `rot`, `minY`/`maxY` and any `tag` a box
+     *  was built with, so a caller can key on the same fields the red-dump
+     *  probes already key on. */
+    citAvoid: () => citAvoid.map((b) => ({ ...b, actor: actorBoxes.has(b) })),
     // test affordance: WHAT GROUND HAS BEEN PUBLISHED, and where? Same argument
     // as colliders() and groundAt() — a module that asks `ctx.site('jail')` and
     // gets null must build nothing and say so, and until now there was no way
@@ -1796,6 +1828,21 @@ export function makeCrosstown(): Proto {
     groundAt: (x: number, z: number) => groundPick(x, z),
     seated: () => (rig.seated ? rig.seatedOn : null),
     stand: () => rig.stand(),
+    // Test affordance, and the missing half of `stand()` — which has been
+    // published since the seat mechanic shipped, while the only way IN was to
+    // walk up to a seat and press E.
+    //
+    // That asymmetry is why nothing had ever asked all 219 seats what they offer
+    // a player sitting on them: the question costs one warp-and-press per seat,
+    // ten minutes a run, so it got asked of a handful and generalised from. Item
+    // 188 turns the seated `[E]` into a real contest, and the only honest
+    // acceptance test for that is the whole population
+    // (`scripts/probes/w69-seated-offers.mjs`).
+    //
+    // It goes through `rig.sit`, so it inherits the guard that a seated player
+    // cannot hop to another seat; a caller that wants to move must `stand()`
+    // first, exactly as a player must.
+    sit: (pose: { x: number; z: number; yaw: number; h: number }) => rig.sit(pose),
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
     camera: () => cam,    // test affordance: raycast a screen pixel back to the mesh under it
     // test affordance: turn the region cull off, so a check can render the SAME
@@ -1924,8 +1971,29 @@ export function makeCrosstown(): Proto {
         wet: (scene.userData.wetness as number | undefined) ?? 0,
       };
       for (const h of HOOKS) h.fn(frame);
-      // look down: your watch
-      hud.watch(rig.pitch < -0.95, Math.floor(clockMin));
+      // look down: your watch — BUT NOT WHILE A CABINET IS UP.
+      //
+      // `poseFor` takes the eye along the target face's own NORMAL. For a
+      // screen bolted to a wall that normal is horizontal and the player ends
+      // up level; for a form lying on a desk it points STRAIGHT UP, so reading
+      // it means looking down — and looking down is the exact gesture that
+      // raises the watch. Worker sixtysix photographed the result while
+      // building the loan (item 185): its first SIGN box sat behind a
+      // wristwatch. The ATM, slots and blackjack are all VERTICAL surfaces,
+      // which is the only reason this went four panels without being seen.
+      //
+      // You are reading a document, not checking the time, so the watch stands
+      // down. Same shape and same reasoning as `hud.prompt`, which already
+      // silences itself on `panelUp()` for the double-caption overlap.
+      //
+      // WHY THIS ALSO ANSWERS "does it come back on every close path". It is
+      // not an event and it does not need to be: this is a per-frame RECOMPUTE
+      // of `want`, so the frame after `livePanel` clears — however it cleared,
+      // by [E], by Escape, by the ATM's own farewell timeout, or by a future
+      // panel that closes itself in a way nobody has written yet — the watch
+      // slides back if the player is still looking down. There is no close
+      // path to miss because no close path is enumerated.
+      hud.watch(rig.pitch < -0.95 && !panelUp(), Math.floor(clockMin));
       // right-click: flip the wallet out / away
       const rmb = input.keys.has('rmb');
       if (rmb && !rmbHeld) hud.toggleWallet();
@@ -2061,23 +2129,62 @@ export function makeCrosstown(): Proto {
         }
         return true;
       };
-      const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch }, 6, canSee);
+      // SEATED IS A DIFFERENT PICK, NOT A SUPPRESSED ONE.
+      //
+      // *"you sit and its the loan process as an integrated overlay"*, and of
+      // the library terminal *"like the atm too. intergrated overlay. realistic
+      // setup"* — a PC is a thing you SIT at. Until this line, **no seat in this
+      // world could carry an interaction you use while sitting on it**; the
+      // limit is written down at `ct/int-bank.ts:1414`, found by walking, and it
+      // is why the loan is transacted standing in a room that has a chair for
+      // you.
+      //
+      // The cause named there — *"the stand-up spot is registered at the seat
+      // itself, so while you are seated it is at d 0"* — WAS true and is no
+      // longer: the exit stopped being a spot when it became a state exit (see
+      // `ctx.seat`). What replaced it is this file, right here: the dispatch
+      // below simply did not consult `picked` at all while seated. So the engine
+      // limit was one `if`, in crosstown.ts, not a scoring bug in fp.ts.
+      //
+      // `{ seated: true }` turns off the aim-free proximity pass and shortens
+      // reach to the spot's own `r + REACH_MARGIN` — fp.ts's `opts.seated` has
+      // the derivation. Standing, the call is byte-for-byte the one that was
+      // here before.
+      const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch },
+        6, canSee, rig.seated ? { seated: true } : undefined);
       const active: Spot | null = picked ? picked.spot : null;
-      // WHILE SEATED THE PROMPT IS THE EXIT, and it does not depend on
-      // selection either — the label must not be able to disappear while the
-      // key that works is still E. A state with an invisible exit reads as
-      // being stuck, which is exactly what happened.
-      hud.prompt(rig.seated
-        ? `[E] ${SEAT_EXIT.get(rig.seatedOn!) ?? 'stand up'}`
+      // THE EXIT NEVER LEAVES THE SCREEN. It used to be the whole seated prompt,
+      // for a reason that still holds — *"the label must not be able to
+      // disappear while the key that works is still E. A state with an invisible
+      // exit reads as being stuck"*. So when a seated player is aimed at
+      // something, the exit is not replaced, it is JOINED: the object takes `[E]`
+      // and standing up is named on the same line under `[ESC]`, which is the
+      // key `fp.ts` honours unconditionally from two independent listeners and
+      // which therefore cannot be taken away by anything on offer here.
+      const exit = rig.seated ? (SEAT_EXIT.get(rig.seatedOn!) ?? 'stand up') : null;
+      hud.prompt(exit
+        ? (active ? `[E] ${active.label()}   ·   [ESC] ${exit}` : `[E] ${exit}`)
         : (active ? `[E] ${active.label()}` : null));
       spotOutline.show(scene, debugSpots ? active : null);
       // E dispatch (edge-triggered)
       const feedDown = input.keys.has('e');
       if (feedDown && !feedHeld) {
-        if (rig.seated) {
-          // FIRST, AND UNCONDITIONALLY. Standing up is a state exit, not a
-          // world interaction: it fires regardless of what is near, what is in
-          // front, or where he is looking.
+        if (rig.seated && !active) {
+          // STANDING UP IS THE FALLBACK, AND THE FALLBACK IS THE DEFAULT.
+          //
+          // This used to be unconditional, on the grounds that standing up is a
+          // state exit rather than a world interaction. That is still true of
+          // the STATE — Escape stands you up from anywhere, through two
+          // independent listeners in fp.ts, and nothing here can reach that. It
+          // was not true of the KEY, and paying for it with `[E]` is what made a
+          // seat a dead end: sit down and the only verb left in the world is
+          // getting back up.
+          //
+          // So `[E]` is spent on what you are aiming at IF the seated pick found
+          // anything — which needs real aim and arm's length, so it is empty
+          // almost everywhere — and otherwise on standing up, exactly as before.
+          // Look away from the desk and you get your seat back. Measured across
+          // all 219 registered seats before this landed; see the handoff.
           rig.stand();
         } else if (active) {
           // LATCH ONLY WHAT MOVED YOU. The hysteresis is for TRANSITIONS — a
