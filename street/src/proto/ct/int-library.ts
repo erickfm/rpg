@@ -876,10 +876,20 @@ export function buildLibrary(ctx: CtxBuild): void {
   // AND WEST, from 6.5 to 5.0. At 6.5 the collider's east face was 0.60 m off
   // the door opening's west jamb (the opening is 2.5 m on the door axis); that
   // was harmless when the desk sat 5.8 m inside, and is a counter in the
-  // doorway once it moves forward. 5.0 puts 2.10 m of clear floor between the
-  // desk and the door axis — the sacred lane, indoors — and centres it in the
-  // entrance hall's west half, the stair and the entrance table having the
-  // east. Walked, not eyeballed; the walk is in the handoff note.
+  // doorway once it moves forward. At 5.0 the collider runs x -6.65..-3.35, so
+  // the east face stands 2.10 m off that jamb and centres the desk in the
+  // entrance hall's west half — the stair and the entrance table have the east.
+  //
+  // The returns trolley parks inside that 2.10 m, by derivation and not by
+  // accident: its x is `DESK_EAST + PASSABLE + 0.10 + …`, which leaves exactly
+  // 1.05 m between desk and trolley however the desk moves. So the lane in is
+  // 1.05 m west of the trolley and 4.88 m east of it, and neither is in
+  // gap.ts's 0.40–0.95 trap band.
+  //
+  // WALKED, not eyeballed — scripts/probes/w98-library-relayout-walk.mjs, five
+  // runs on the built bundle: in at the doors and down to the hall 5/5, and
+  // walking up to the counter comes to rest at z 9.22 with a spread of 0.00 m,
+  // which is `VISITOR_Z` (DESK_Z + 0.75 = 9.15) to within a capsule radius.
   const DESK_X = -(W / 2 - 5.0), DESK_Z = D / 2 - 2.6;
   const DESK_W = 3.2, RETURN_D = 2.0;             // the pocket, front face to back
   const BACK_Z = DESK_Z - RETURN_D;
