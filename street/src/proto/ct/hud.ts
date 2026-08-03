@@ -278,6 +278,15 @@ if (typeof window !== 'undefined') {
 
 function latchSeen(e: Event): void {
   if (!latchedKey || (e as KeyboardEvent).key?.toLowerCase() !== latchedKey) return;
+  // ONLY A REAL RELEASE DISARMS THIS, and that guard is the whole latch.
+  //
+  // `releaseHeld()` fires a synthetic `keyup` for every key in `HELD_KEYS` — `e`
+  // among them — and it runs immediately AFTER the open-side latch is armed. So
+  // without this line the latch disarmed itself microseconds after arming, the
+  // first auto-repeat sailed through, and a machine opened with a normal human
+  // press shut itself again. Measured, not reasoned: `__hud.latched()` read
+  // `null` one frame after an open that had just called `latch('e')`.
+  if (!(e as KeyboardEvent).isTrusted) return;
   // THE RELEASE IS NEVER SWALLOWED — see the note on `HELD_KEYS`: eat a keyup
   // and you strand the key down forever, and the player wakes up walking.
   if (e.type === 'keyup') { unlatch(); return; }
@@ -1580,6 +1589,11 @@ export function makeHud(purse: Purse): Hud {
     closePanels: () => closePanels(),
     /** every panel in the world, so a guard cannot miss one. See `everyPanel`. */
     panels: () => everyPanel().map((q) => q.id),
+    /** test affordance: what the latch believes is physically held, and what it
+     *  is currently holding inert. A latch nobody can read is a latch nobody can
+     *  prove — and the open-side arm is invisible from outside without it. */
+    held: () => [...physical],
+    latched: () => latchedKey,
     openPanel: (id: string) => {
       const q = everyPanel().find((r) => r.id === id);
       if (!q) return false;
