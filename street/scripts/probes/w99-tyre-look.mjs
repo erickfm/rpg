@@ -88,5 +88,29 @@ for (const t of picks) {
     await p.screenshot({ path: f });
     console.log(`   ${f}`);
   }
+
+  // ── THE V COLLISION VIEW, which the item asks for by name ────────────────
+  //
+  // And the answer it gives is worth writing down: **a tyre carries no
+  // collider.** V draws the wireframe boxes a player can be stopped by, and
+  // there is none at a wheel — the car's flank box starts above the rocker.
+  // So this change cannot wedge anybody, and V is the wrong instrument for
+  // grading it; the seating proof is w99-tyre-seating.mjs and the walks are
+  // w21/w29. Shot anyway, because the user graded the last wheel bug in this
+  // view and a claim that "V shows nothing here" should be lookable.
+  const boxes = await p.evaluate(([tx, tz]) => {
+    window.__ct.debugCollision(true);
+    return window.__ct.colliders()
+      .filter((c) => c && isFinite(c.minX)
+        && tx > c.minX - 0.5 && tx < c.maxX + 0.5 && tz > c.minZ - 0.5 && tz < c.maxZ + 0.5)
+      .map((c) => ({ tag: c.tag ?? '(untagged)', maxY: c.maxY ?? null }));
+  }, [t.cx, t.cz]);
+  console.log(`   V: ${boxes.length} collider(s) within 0.5 m of this wheel: `
+    + (boxes.length ? boxes.map((c) => `${c.tag}${c.maxY !== null ? `@${c.maxY}` : ''}`).join(', ') : 'none'));
+  await p.waitForTimeout(500);
+  const vf = `shots/tyre-${label}-${i}-vview.png`;
+  await p.screenshot({ path: vf });
+  console.log(`   ${vf}`);
+  await p.evaluate(() => window.__ct.debugCollision(false));
 }
 await b.close();

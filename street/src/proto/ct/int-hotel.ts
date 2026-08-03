@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 // the hard-texel text painter from the casino's facade — one signage hand for
@@ -110,6 +110,32 @@ const H_W = 11.0, H_D = 26.0, H_H = 3.4;
 const LAMP_N = 5, LAMP_DEAD = 1;
 const lampZ = (i: number) => -H_D / 2 + H_D * ((i + 0.5) / LAMP_N);
 
+// THE PALETTE, NAMED ONCE. These four went straight into the `palette:` literal
+// below and nowhere else, which was fine while nothing else in the file needed
+// them. The ceiling section at the bottom does — its coffer field is the ceiling
+// tone and its cornice is the trim tone — and a second hand-typed `0x2e1c1e`
+// down there is the two-authorings problem this file's own header spends four
+// paragraphs on (BUILDER-BRIEF §8). Same four numbers, one place.
+//
+// They are ct/vice.ts's constants for this elevation brought inside: RED
+// #8e1f2a, RED_D #5a1520, GOLD_D #8a6a22. See the note on `palette:`.
+const H_FLOOR = 0x5a2430, H_WALL = 0x6d2029, H_CEIL = 0x2e1c1e, H_TRIM = 0x8a6a22;
+
+// THE BAY JOINTS — the seams of the coffered ceiling, one rhythm with the lamps.
+//
+// `lampZ(i)` is the CENTRE of bay i; this is its two EDGES, half a bay either
+// side, for i = 0..LAMP_N. Derived off `lampZ` rather than written as a second
+// `-hd + D * (i / N)` that happens to agree today: the user's complaint that
+// started all of this was *"the pendant lights and the recessed panels are on
+// different rhythms"*, and it was caused by exactly that — two formulas for one
+// grid. There is one grid here and this is the other half of it.
+//
+// It also means a beam can never land on a lamp. `bayZ(i)` and `lampZ(j)` are
+// half a bay (2.6 m) apart for every i and j by construction, so the coffer
+// beams cannot collide with the kit's rose-and-dome at H − 0.185…H.
+const BAY = H_D / LAMP_N;
+const bayZ = (i: number) => lampZ(0) - BAY / 2 + i * BAY;
+
 export function buildHotel(ctx: CtxBuild): void {
   const DOOR_X = 39.51, WALK_Z = -97.0;
   const room = buildRoom(ctx, {
@@ -165,7 +191,7 @@ export function buildHotel(ctx: CtxBuild): void {
     // building. Faded, not municipal: the wall sits between RED and RED_D so it
     // reads as deep red gone dusty, and the ceiling is darker than the wall so
     // the room feels tall and the light hangs IN it.
-    palette: { floor: 0x5a2430, wall: 0x6d2029, ceil: 0x2e1c1e, trim: 0x8a6a22 },
+    palette: { floor: H_FLOOR, wall: H_WALL, ceil: H_CEIL, trim: H_TRIM },
     door: {
       // From the DECLARATION above, not typed again here. Hand-typing it
       // beside a declaration is the two-authorings problem in miniature, and
@@ -1101,6 +1127,144 @@ export function buildHotel(ctx: CtxBuild): void {
   put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.07, 0.04), mahogM), 0, 2.35, -hd + 0.02);
   put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, room.D), mahogM), -hw + 0.02, 2.35, 0);
   put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, room.D), mahogM), hw - 0.02, 2.35, 0);
+
+  // ── the ceiling: a surface, where there was a hole ────────────────────
+  //
+  // THE COMPLAINT. The user, on this room: *"hotel interior is strange. needs
+  // some work"* — and of the five things that could be seen in his frame, four
+  // are this room's stated design and were surveyed and refused
+  // (notes/ninetyseven-item96-hotel-survey.md). The one that survived is the
+  // ceiling, and it is CONDITIONAL: it only reads badly looking ACROSS the room.
+  //
+  // MEASURED, before touching anything, on the built bundle at a pinned 13:00
+  // (scripts/probes/w101-hotel-ceiling.mjs):
+  //
+  //     vantage     ceiling cover   distinct RGB in it
+  //     across-e         39.6%              (one)
+  //     across-w         43.6%              (one)
+  //     along            22.8%              (one)
+  //     entry            23.0%              (one)
+  //
+  // Two facts, and neither is the colour.
+  //
+  // ONE: `ct/interior.ts:889` builds every room's ceiling as
+  // `MeshBasicMaterial({ color })` with NO MAP. This file's own `paint.ts`
+  // already has the diagnosis written down, for the ground: *"an untextured
+  // quad has no grain for the eye to attach to and no joints to give it scale,
+  // so it reads as a TINT OVER the paving rather than as a piece of paving."*
+  // B measured 123 ground-facing surfaces in that state and it was behind four
+  // separate user complaints. **Nobody ever swept the ceilings.** In the ten
+  // pale rooms it does not show — a flat #c4c1b4 at 2.5 m passes for plaster.
+  // Here it is the darkest ceiling in the world (luminance 32 against the
+  // wall's 49) on the tallest room in the belt, and a large dark field with
+  // literally one colour in it does not read as dark, it reads as ABSENT.
+  //
+  // TWO: nothing terminated the wall. This room has a skirting and a picture
+  // rail at 2.35, and then 1.05 m of bare ox-blood running into black with a
+  // razor-sharp step and no moulding. That step is why the eye reads the black
+  // as *behind* the wall rather than *above* it.
+  //
+  // Which is the whole of "why only across the room": look ALONG it and there
+  // is a lit pendant in frame, both side walls converging, and the field is 23%
+  // of the picture. Look ACROSS and there is no lamp above you — they hang in a
+  // single file down the centreline — the field nearly doubles to 40%, and it
+  // is bounded by one straight edge. Same ceiling, twice the frame, none of the
+  // things that were explaining it.
+  //
+  // SO THE COLOUR IS NOT CHANGED. `H_CEIL` stays exactly what it was and the
+  // ceiling stays darker than the wall, because that is this room's own written
+  // rationale (*"so the room feels tall and the light hangs IN it"*) and because
+  // the frame the survey called handsome is the one lit by that darkness. What
+  // it gets instead is what it never had: grain, joints, and an edge.
+  {
+    // THE COFFER FIELD. `slabTex` sized from the room's REAL METRES and mapped
+    // 1:1 — so the joints land on a grid I chose rather than wherever a repeat
+    // happens to cut, and BUILDER-BRIEF §7b's rule ("declare the density,
+    // derive the repeat") is satisfied by there being no repeat at all.
+    //
+    // 12 px/m is the kit's own wall density (ct/interior.ts:908, 32 px per
+    // 2.7 m ≈ 11.9), matched rather than picked, so the ceiling does not draw
+    // at a different grain from the wall it meets. `joint: 1.3` is a plaster
+    // panel a person can read the size of; at 5.2 m — the beam bay below — the
+    // panels are too big to give the field any scale, which is the failure this
+    // is fixing, one size up.
+    //
+    // `grain: 0.055`, and that number was WALKED BACK from 0.11 by looking at
+    // the frame it made. `slabTex` scales its speckle CONTRAST off `grain`
+    // (paint.ts:139), so 0.11 on a near-black base put pale texels at RGB
+    // ~(84,69,68) — and at 11.9 px/m one texel is 8.4 cm, so from underneath
+    // they read as a ceiling with bits MISSING rather than as plaster. Half the
+    // grain is still far clear of the "no grain at all" this exists to fix.
+    const CEIL_PPM = 32 / 2.7;
+    const ceilT = slabTex({
+      wMeters: room.W, dMeters: room.D, ppm: CEIL_PPM, joint: 1.3, grain: 0.055,
+      base: '#' + new THREE.Color(H_CEIL).getHexString(), kind: 'detail',
+    });
+    // 1 cm below the kit's, the same way the carpet is laid 7 mm over the kit
+    // floor. It is under the kit's rose (H − 0.03) so the fittings still sit in
+    // it, and 1 cm is far enough that nothing z-fights.
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(ceilT));
+    ceil.rotation.x = Math.PI / 2;                      // faces DOWN
+    put(ceil, 0, room.H - 0.010, 0);
+
+    // THE PRINCIPAL BEAMS, on the bay joints. Four of them, spanning the width,
+    // never on a lamp — see `bayZ`. They are the reason the field can stay dark:
+    // a dark recess between beams is a coffer, where a dark plane is a hole.
+    //
+    // A FIFTH OF THE WAY FROM THE CEILING TO THE TRIM — a rib moulded IN the
+    // ceiling, not a sawn timber laid across it. My first try read as a barn
+    // roof, which is a change of the room's character and not the sightline fix
+    // that was asked for.
+    //
+    // ⚠ AND `THREE.Color.lerp` IS NOT THE TOOL FOR THAT, which cost me a round.
+    // `new THREE.Color(hex)` converts sRGB into the LINEAR working space, so a
+    // lerp there is a photometric mix and not the mix the eye reads: dropping
+    // the parameter from 0.30 to 0.17 moved the beams from RGB (85,63,31) to
+    // (72,52,31) — thirteen levels, invisible in the re-shot frame, which is
+    // the only reason I caught it. Every other colour in this file is a
+    // hand-picked sRGB hex, so the blend belongs in the same space they were
+    // chosen in.
+    const mixHex = (a: number, b: number, k: number) => {
+      const ch = (s: number) => Math.round((((a >> s) & 255) * (1 - k) + ((b >> s) & 255) * k));
+      return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+    };
+    const beamM = new THREE.MeshBasicMaterial({ color: mixHex(H_CEIL, H_TRIM, 0.21) });
+    for (let i = 1; i < LAMP_N; i++) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.15, 0.30), beamM), 0, room.H - 0.075, bayZ(i));
+    }
+    // …and two down the length, so the coffers are squarish rather than eleven
+    // metres of unbroken plank. At ±W/4 they miss the centreline the lamps hang
+    // on by 2.75 m.
+    for (const bx of [-room.W / 4, room.W / 4]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.13, room.D), beamM), bx, room.H - 0.065, 0);
+    }
+
+    // THE CORNICE — the thing that was actually missing. A moulding capping all
+    // four walls: a deep member in the gone-dusty gold this room already uses
+    // high up, and a thin lit fillet on its bottom arris, which is what reads as
+    // a moulded edge rather than a stripe. Both colours DERIVED off `H_TRIM`
+    // rather than picked to look similar.
+    //
+    // Its underside sits at 3.24 m. The two things nearest it are the corridor
+    // sign (top 3.21) and the window pelmet (top 2.97), so it clears both — the
+    // sign by 3 cm, which is why the member is 0.16 deep and not 0.20.
+    const cornM = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(H_TRIM).multiplyScalar(0.62) });
+    const fillM = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(H_TRIM).multiplyScalar(0.88) });
+    const CORN_H = 0.16, CORN_P = 0.13, FILL_H = 0.035;
+    const cy = room.H - CORN_H / 2, fy = room.H - CORN_H - FILL_H / 2;
+    for (const [sz, z] of [[1, hd], [-1, -hd]] as [number, number][]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(room.W, CORN_H, CORN_P), cornM), 0, cy, z - sz * CORN_P / 2);
+      put(new THREE.Mesh(new THREE.BoxGeometry(room.W, FILL_H, CORN_P + 0.04), fillM),
+        0, fy, z - sz * (CORN_P + 0.04) / 2);
+    }
+    for (const [sx, x] of [[1, hw], [-1, -hw]] as [number, number][]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(CORN_P, CORN_H, room.D), cornM), x - sx * CORN_P / 2, cy, 0);
+      put(new THREE.Mesh(new THREE.BoxGeometry(CORN_P + 0.04, FILL_H, room.D), fillM),
+        x - sx * (CORN_P + 0.04) / 2, fy, 0);
+    }
+  }
 
   // ── the pendants, hanging from the kit's own roses ──
   //
