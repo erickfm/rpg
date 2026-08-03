@@ -32,6 +32,7 @@ import { flags } from './lib/flags.mjs';
 import { approachHeading } from './lib/viewof.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { entrySpots } from './lib/entry-spot.mjs';
+import { sampleFloors, makeHasFloor, selfTestFloors } from './lib/floors.mjs';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 
@@ -412,6 +413,67 @@ const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 // size now (`__ct.roomDims()`), which is the same fix as the doors: one
 // authoring, asked for rather than copied.
 const DIMS = await p.evaluate(() => window.__ct.roomDims());
+
+// ── THE ROOMS ARE NO LONGER ALL SEPARATE, AND THIS FILE HAS TO KNOW ────────
+//
+// Item 196 cut a doorway through the flank walls the hotel and the casino
+// share, because the user asked for it in those words: *"i should be able to
+// walk from one into the other."* Leg 3 below was a per-room BOX test, so a
+// player using that doorway read as a player leaving the world, and the casino
+// has been failing containment ever since — a KNOWN-GOOD RED that has now cost
+// three separate investigations (items 222, 226).
+//
+// ASK `ct/interior.ts`, DO NOT COPY IT. `PARTY` is the one authoring of the
+// doorway: the pair, the local z, the clear width. Retyping any of it here is
+// the defect BUILDER-BRIEF §8 exists for, and this file has already paid for it
+// once (the pawn shop's `W`, four hundred lines up). vite dev serves TS
+// transpiled and the app has already imported this module, so the ES module
+// cache hands back the same instance — this reads the live declaration, and a
+// second party wall added tomorrow is understood here for free, with no edit.
+const PARTY = await p.evaluate(async () => {
+  const m = await import('/src/proto/ct/interior.ts');
+  return m.PARTY ?? null;
+});
+if (!Array.isArray(PARTY)) {
+  console.log('could not read PARTY from /src/proto/ct/interior.ts — refusing to');
+  console.log('guess which rooms are joined. A containment run that does not know');
+  console.log('about the party doorways reports the feature as a hole.');
+  await b.close(); process.exit(3);
+}
+/** are these two rooms joined by a DECLARED opening? */
+const joined = (a, c) => PARTY.some((w) =>
+  (w.west === a && w.east === c) || (w.east === a && w.west === c));
+/** is this world point inside that room, allowing for the wall's own thickness?
+ *  T is the OUTER face (0.18) plus 0.05: a doorway is a real reveal you can
+ *  stand in, and calling that "out" fails a room for having a door. Reads `cz`
+ *  rather than assuming 0, so it is true of `apt301` as well as of the belt. */
+const ROOM_T = 0.18 + 0.05;
+const inRoom = (r, x, z) =>
+  Math.abs(x - r.cx) <= r.w / 2 + ROOM_T && Math.abs(z - r.cz) <= r.d / 2 + ROOM_T;
+
+// ── AND WHERE THERE IS ACTUALLY A FLOOR ───────────────────────────────────
+//
+// Leg 3's invariant used to be "you are inside your own box". That cannot tell
+// *left the world* from *walked next door*, which is why the doorway read as an
+// escape. The invariant that survives a doorway is the one item 215 arrived at
+// on the sites, from the user's own words (*"allow for out of bounds"*):
+//
+//     THE PLAYER MUST NEVER STAND WHERE THERE IS NO FLOOR.
+//
+// A room rectangle says who OWNS ground, not where the world ENDS.
+// `groundAt()` cannot answer it — `groundPick` never returns null — so the
+// floors come from the scene. See `scripts/lib/floors.mjs`.
+const FLOORS = await sampleFloors(p);
+const hasFloor = makeHasFloor(FLOORS);
+{
+  const bad = await selfTestFloors(p, FLOORS, hasFloor);
+  if (bad.length) {
+    console.log('FLOOR PREDICATE FAILED ITS OWN CONTROLS — nothing measured:\n  ' + bad.join('\n  '));
+    await b.close(); process.exit(3);
+  }
+  console.log(`floor predicate ok: ${FLOORS.length} floor meshes, road solid, off-world void`);
+}
+
 // A ROOM MAY DECLARE ITS DOOR BY `face:` AND PUBLISH NO FRONTAGE.
 //
 // The jail does. Its door is a cut face like the bodega's chamfer, it has no
@@ -568,6 +630,11 @@ for (room of rooms) {
   const W = built.w, D = built.d;
   const hw = W / 2, hd = D / 2;
   let cx = 0;   // discovered on entry, below
+  // ASK for cz too. It is 0 for every room in the belt today, which is exactly
+  // what makes it dangerous to write as a bare `z`: the shortcut is invisibly
+  // correct until a room declares otherwise, and `apt301` already does at
+  // -16.25. Same argument as `cx` at GOTCHAS 86, one field over.
+  const cz = built.cz;
 
   // ── 1. can you get in AT ALL, and from every direction someone would try ──
   //
@@ -841,25 +908,53 @@ for (room of rooms) {
   // those points, and run in all four directions from each. The invariant is
   // simply that you are still inside the room afterwards, which is the thing
   // the four probes were circling anyway.
-  const standables = await p.evaluate(([cx, hw, hd, R]) => {
+  const standables = await p.evaluate(([cx, cz, hw, hd, R]) => {
     const cols = window.__ct.colliders();
     const free = (x, z) => !cols.some((c) =>
       x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R);
     const out = [];
     for (let z = -hd + R; z <= hd - R; z += 0.45) {
-      for (let x = -hw + R; x <= hw - R; x += 0.45) if (free(cx + x, z)) out.push([+x.toFixed(2), +z.toFixed(2)]);
+      for (let x = -hw + R; x <= hw - R; x += 0.45) if (free(cx + x, cz + z)) out.push([+x.toFixed(2), +z.toFixed(2)]);
     }
     return out;
-  }, [cx, hw, hd, RADIUS]);
+  }, [cx, cz, hw, hd, RADIUS]);
   check('there is standable floor in the room at all', standables.length >= 6,
     `${standables.length} clear spots on a 0.45 m grid`);
 
   // a spread rather than all of them — six runs a room, evenly sampled
   const spread = standables.filter((_, i) => i % Math.max(1, Math.floor(standables.length / 6)) === 0).slice(0, 6);
-  let escapes = 0, ranFrom = 0;
+
+  // ── CLASSIFY THE ENDPOINT. DO NOT COUNT IT AGAINST A BOX. ────────────────
+  //
+  // The old test was `|a.x - cx| > hw + 0.23 || |a.z| > hd + 0.23`, and it
+  // asked "are you still inside YOUR OWN room" — a question that cannot
+  // distinguish LEFT THE WORLD from WALKED NEXT DOOR. Item 196 gave exactly
+  // two rooms a doorway to next door, and so exactly two rooms "leaked": the
+  // ten scoring 0 were read as proof the check worked, when what they
+  // identified was the ten rooms with no party wall.
+  //
+  // Four outcomes, and only one of them is a defect in the WORLD:
+  //
+  //   OWN      still inside your own room, tolerance as before
+  //   PARTY    inside a room this one is DECLARED joined to — the feature
+  //   OTHER    inside a room it is NOT joined to — a real leak, walls missing
+  //   FLOORED  no room, but there is ground under you — off the belt entirely
+  //   VOID     no room and NO FLOOR — the escape, and the thing that matters
+  //
+  // MEASURED BEFORE THIS WAS WRITTEN, over all 12 belt rooms, 288 runs
+  // (`scripts/probes/w82-classify-belt-endpoints.mjs`):
+  //
+  //     OWN 287   PARTY 1   OTHER 0   FLOORED 0   VOID 0
+  //
+  // So OTHER and FLOORED are asserted on rather than tolerated: they do not
+  // occur in a sound world, which is what licenses failing on them instead of
+  // inventing a threshold. And the escape count this file has been reporting
+  // as 1 for the casino is really **0** — nobody has ever left the world here.
+  let voids = 0, leaks = 0, party = 0, ranFrom = 0;
+  const where = [];
   for (const [lx, lz] of spread) {
     for (const key of ['-x', '+x', '-z', '+z']) {
-      await warp(cx + lx, lz, YAW[key], 0);
+      await warp(cx + lx, cz + lz, YAW[key], built.y);
       await p.waitForTimeout(90);
       await hold('w', 1800);
       const a = await pos();
@@ -867,18 +962,57 @@ for (room of rooms) {
       // past the inner one. The doorway is a real reveal you can stand in —
       // the diner's lets you reach z = 3.28 against an inner face at 3.5 —
       // and calling that an escape fails a room for having a doorway.
-      const ex = Math.abs(a[0] - cx) > hw + 0.18 + 0.05;
-      const ez = Math.abs(a[2]) > hd + 0.18 + 0.05;
-      if (ex || ez) {
-        escapes++;
-        if (escapes <= 3) check(`walked OUT of the room going ${key}`, false,
-          `from local ${f2(lx)},${f2(lz)} ended at ${f2(a[0] - cx)},${f2(a[2])} — room is ${f2(hw)} x ${f2(hd)}`);
+      if (inRoom(built, a[0], a[2])) continue;
+
+      const other = DIMS.find((d) => d.id !== built.id && inRoom(d, a[0], a[2]));
+      if (other) {
+        if (joined(built.id, other.id)) {
+          party++;
+          where.push(`${key} from local ${f2(lx)},${f2(lz)} → ${other.id} through the party doorway`);
+        } else {
+          leaks++;
+          if (leaks <= 3) check(`walked into ${other.id} going ${key}`, false,
+            `from local ${f2(lx)},${f2(lz)} ended at ${f2(a[0])},${f2(a[2])} — `
+            + `${built.id} and ${other.id} share no declared party wall, so this is a hole`);
+        }
+        continue;
       }
+      if (hasFloor(a[0], a[2], a[3])) {
+        leaks++;
+        if (leaks <= 3) check(`walked out of every room going ${key}`, false,
+          `from local ${f2(lx)},${f2(lz)} ended at ${f2(a[0])},${f2(a[2])} gy=${f2(a[3])} — `
+          + 'on floor, but floor belonging to no room in the registry');
+        continue;
+      }
+      voids++;
+      if (voids <= 3) check(`walked OFF THE WORLD going ${key}`, false,
+        `from local ${f2(lx)},${f2(lz)} ended at ${f2(a[0])},${f2(a[2])} gy=${f2(a[3])} — no floor mesh under the player`);
     }
     ranFrom++;
   }
-  check('the room holds you in, from every direction, everywhere in it',
-    escapes === 0, `${ranFrom * 4} runs from ${ranFrom} spread points, ${escapes} escapes`);
+  // THE ASSERTION IS THE USER'S, NOT THE RECTANGLE'S: never stand on nothing.
+  check('you never walk off the world, from anywhere in the room',
+    voids === 0,
+    `${ranFrom * 4} runs from ${ranFrom} spread points, ${voids} ended with no floor`
+    + (party ? `, ${party} crossed a declared party doorway` : ''));
+  // …and the room still has to HOLD you: the only way out is a declared one.
+  check('the only way out of the room is a declared doorway',
+    leaks === 0,
+    leaks ? `${leaks} runs left the room somewhere the world does not declare an opening`
+          : `${ranFrom * 4} runs, every endpoint in this room or through a declared opening`
+            + (party ? ` (${party} used it: ${where[0]})` : ''));
+  // A LEG THAT WALKED NOTHING IS NOT A PASS. Every classification above can
+  // shrink the population silently; this is the floor under all of them.
+  check('…and it actually walked the room to find that out', ranFrom >= 2,
+    `${ranFrom} spread points of ${standables.length} standable spots`);
+  // The floor predicate's POSITIVE leg, asked where it will actually be used.
+  // Its startup controls are the road and a point past the world clamp — both
+  // OUTDOORS. A predicate that could not see interior floors at all would pass
+  // those two and then call every endpoint in this room VOID; conversely this
+  // is the leg that fails if a room's floor stops being floor-shaped.
+  check('the floor predicate can see this room\'s own floor',
+    hasFloor(cx, cz, built.y),
+    `room centre ${f2(cx)},${f2(cz)} at y=${f2(built.y)} reads ${hasFloor(cx, cz, built.y) ? 'FLOORED' : 'VOID'}`);
 
   // the doorway is the one deliberate gap in the collider line, so it gets
   // walked at head-on as well
@@ -1217,7 +1351,21 @@ for (room of rooms) {
       `${n} meshes in the room, floor is ${room.minMeshes}`);
   }
 
-  // ── 6. the room keeps its light after dark ──
+  await lightLeg(built);
+}
+
+// ── 6. the room keeps its light after dark ──
+//
+// A FUNCTION, AND NOT INLINE IN THE BELT LOOP, BECAUSE IT WAS SILENTLY SKIPPING
+// A ROOM. `apt301` is walked by the off-belt loop below, which never ran this
+// leg — and the "NOT APPLICABLE here" line that loop prints, the one this file's
+// coverage guard exists to force, does not mention the light. So the flat's
+// lighting was neither tested nor declared untested: it was simply absent, which
+// is the exact GOTCHAS 34 shape ("a report that reads as though it covered
+// something it never looked at") that the rest of this file is careful about.
+// Nothing decides it for that room — `door301` covers the door, not the dark.
+async function lightLeg(built) {
+  const cx = built.cx, cz = built.cz;
   //
   // ⚠ THIS COMPARED BY ARRAY INDEX AND WAS FLAKY, AND A FLAKY CHECK IS WORSE
   // THAN NO CHECK. It returned 109, 109, 110 and then 0 over four runs of the
@@ -1251,18 +1399,57 @@ for (room of rooms) {
   // agree, and the check then judges a bulb that was simply lit at a different
   // moment. Four samples spanning ~1.5 s at each hour catch it: the chase has
   // to be stationary across the whole span to escape, which it is not.
-  const sample = () => p.evaluate((cx) => {
+  // ⚠ AND THE SAMPLE BOX ASKED THE ROOM WHERE IT WAS ON ONE AXIS OUT OF THREE.
+  //
+  // This was `Math.abs(wp.x - cx) > 8 || Math.abs(wp.z) > 8` — cx from the
+  // registry, but z against a bare 0 and y not considered at all. True of every
+  // room in the belt, and false of the one room that is not: `apt301` sits at
+  // cz -16.25, three storeys up at y 5.40. Measured
+  // (`scripts/probes/w82-party-and-apt301-sampler.mjs`):
+  //
+  //     as written (|z| < 8 about z = 0)   1 mesh,   2 materials
+  //     asking the room for cz           436 meshes, 156 materials
+  //     …and its storey too              344 meshes, 130 materials
+  //
+  // One mesh. The single thing inside that box is an unnamed plane at y 5.33 —
+  // the flat's own floor slab, caught by its width — and everything the leg
+  // exists to judge was outside it. This is GOTCHAS 86 one field over, and the
+  // same shape as `cx` before item 192: the shortcut is invisibly correct until
+  // a room declines to sit where it was assumed to.
+  //
+  // AND THERE IS DELIBERATELY NO y BOUND, WHICH I TRIED FIRST AND MEASURED OUT.
+  //
+  // A storey bound looks obviously right — 301's own ±8 m box takes in the flats
+  // above and below it — and there is no constant that does not break something
+  // else (`scripts/probes/w82-storey-extent.mjs`, mesh origins relative to each
+  // room's own floor):
+  //
+  //     ten belt rooms   0.00 .. +3.60      church  0.01 .. +9.50
+  //     library          0.00 .. +6.40      apt301  -7.90 .. +5.25
+  //
+  // Any bound tight enough to isolate one flat of a 2.7 m stack throws away the
+  // church's nave and the library's upper floor, reddening or hollowing two
+  // rooms that are fine today to sharpen a third. And the cost of NOT bounding
+  // is small in a way the cost of bounding is not: this leg asserts that no
+  // interior material dims after dark, so judging the neighbouring flats'
+  // materials too BROADENS the population rather than corrupting it — they are
+  // interior materials and they must not dim either.
+  //
+  // The principled fix is for `RoomDims` to publish the room's height, the same
+  // way item 192 made it publish `cx`. That is a change to `ct/interior.ts`,
+  // which item 226 does not name — filed for the desk (BUILDER-BRIEF §9).
+  const sample = () => p.evaluate(([cx, cz]) => {
     const out = {};
     window.__ct.scene().traverse((o) => {
       if (!o.isMesh) return;
       const wp = new o.position.constructor();
       o.getWorldPosition(wp);
-      if (Math.abs(wp.x - cx) > 8 || Math.abs(wp.z) > 8) return;
+      if (Math.abs(wp.x - cx) > 8 || Math.abs(wp.z - cz) > 8) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of mats) if (m && m.color && !m.transparent) out[m.uuid] = m.color.getHex();
     });
     return out;
-  }, cx);
+  }, [cx, cz]);
   /** four samples with the clock held at `h`, and the set that never moved */
   const steadyAt = async (h, settle) => {
     await p.evaluate((hh) => window.__ct.clock(hh, 0), h);
@@ -1300,6 +1487,7 @@ for (room of rooms) {
     `judged ${judged.length} of the ${seen} materials sampled in the room`);
   await p.evaluate(() => window.__ct.clock(13, 20));
 }
+
 
 // ── OFF-BELT ROOMS ─────────────────────────────────────────────────────────
 //
@@ -1425,6 +1613,16 @@ for (const spec of offBelt) {
       `started local x=${f2(a0[0] - cx)}, reached ${f2(gotTo)}, far end of the lane is ${f2(farEnd)}`
         + (gotTo > hw ? ` (and kept going out of the doorway to ${f2(gotTo)} — the flat's door is a real one)` : ''));
   }
+
+  // ── the room keeps its light after dark, HERE TOO ──
+  //
+  // This leg used to be inline in the belt loop and so never ran for this room.
+  // It is decidable here — the flat has materials and the night sweep reaches
+  // them — and nothing else was deciding it, so it is not in the not-applicable
+  // list below. It is the reason `sample()` had to stop assuming cz 0: at this
+  // room the old box saw 1 mesh and 2 materials, against 436 and 156 for a box
+  // that asks the room where it is.
+  await lightLeg(built);
 
   // ── and SAY what was not asked, rather than looking complete ──
   //
