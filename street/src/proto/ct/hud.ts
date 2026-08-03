@@ -1069,46 +1069,139 @@ export function makeHud(purse: Purse): Hud {
   // `sleeve` is the forearm covering (a sweater here); a tee would just leave
   // the forearm as `skin`. The first-person hands (watch + wallet) read from it.
   const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', sleeve: '#3f4a5c', cuff: '#333c4a' };
-  /** canvas width. 176 rather than 120 since the fist arrived: the wrist ends at
-   *  x 104 and the hand needs 72 px beyond it. Height is unchanged — the arm is
-   *  cut by the bottom of the frame, which is what makes it read as YOUR arm. */
-  const WATCH_W = 176;
+  // ── THE ARM, AND THE FOUR NUMBERS THAT HOLD IT IN PLACE ──────────────────
+  //
+  // *"for the watch i would like the rest of the arm (to the left) rendered as
+  // well. should be simple. just a continuation of the arm."*
+  //
+  // It is simple, and it was previously impossible to do safely because the
+  // scale was HIDDEN. The canvas was 176 px wide and displayed at a literal
+  // `width:484px`; 484/176 = 2.75 is the size of a watch pixel on screen and it
+  // appeared in neither number. Widen the canvas and every pixel silently
+  // shrinks. `left: calc(46% + 77px)` carried the same problem — the 77 is
+  // `(176-120)/2 x 2.75`, the compensation for the last time this canvas grew,
+  // and nothing said so.
+  //
+  // So the scale is named, and the two positioning numbers are DERIVED from it.
+  const WATCH_S = 2.75;                    // CSS px per canvas px
+  /** the wrist-and-fist, unchanged: the wrist ends at x 104 and the hand needs
+   *  72 px beyond it. Every pixel of what the user already has is in here. */
+  const WATCH_HAND = 176;
+  /**
+   * The forearm added to the LEFT, in canvas px. Nothing is drawn to the right.
+   *
+   * DERIVED FROM THE ONE THING IT HAS TO DO — reach the edge of the frame. The
+   * canvas's left edge lands at `0.46V - 165 - WATCH_S x WATCH_ARM` for a
+   * viewport `V` wide (the `46%`, the two halves of `translateX(-50%)`, and the
+   * `left` compensation below all fold into that), so
+   *
+   *     WATCH_ARM >= (0.46 V - 165) / 2.75      →  1280: 155   1920: 262
+   *                                                2560: 369   3840: 583
+   *
+   * 600 covers every viewport up to 3840 with room over. It costs a 776 x 72
+   * canvas — 224 kB, repainted once a minute — and anything past the frame edge
+   * is simply clipped by the viewport, which is what "runs off the edge" means.
+   * Overflow to the LEFT never produces a scrollbar; the probe asserts it.
+   */
+  const WATCH_ARM = 600;
+  const WATCH_W = WATCH_ARM + WATCH_HAND;
+  // GROWING LEFT MOVES TWO THINGS, AND BOTH ARE CANCELLED HERE. The element is
+  // centred by `translateX(-50%)` and rotated about its own middle, so adding
+  // `WATCH_ARM` canvas px on the left would (a) slide everything right by half
+  // the added width and (b) swing the watch UP, because the fist would suddenly
+  // be a metre from the pivot instead of a hand's breadth. (b) is the one that
+  // is easy to miss: it is silent in the CSS and it moves the exact thing the
+  // user said not to move.
+  //
+  //   · `left` gives back `WATCH_ARM x WATCH_S / 2`, which is (a) exactly.
+  //   · `transform-origin` pins the pivot to where the element's middle USED to
+  //     be. Only the left side grew, so that point is a fixed `WATCH_HAND/2`
+  //     canvas px in from the RIGHT edge — hence `calc(100% - …)`, which stays
+  //     true whatever `WATCH_ARM` becomes.
+  //
+  // Work the algebra through and every term in `x` and `y` cancels: a pixel that
+  // existed before lands on the same screen pixel after. That is checked rather
+  // than argued — `scripts/probes/w57-watch.mjs` reads the LCD's bounding box
+  // off the live element both ways round.
+  //
+  // The `46%` is the user's own: *"can we move the watch arm thing as a whole
+  // over to the left a little bit?"* (2026-08-02). It was `52%`. Untouched.
+  const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
+  const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
+  const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${72 * WATCH_S}px;image-rendering:pixelated;display:block;`;
+  const WRAP_CSS = 'position:fixed;'
+    + `left:calc(46% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
+    + `transform-origin:calc(100% - ${WATCH_PIVOT}px) 50%;`
+    + 'transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
     watchWrap = document.createElement('div');
     watchWrap.id = 'ct-watch';
-    // WIDER CANVAS, SAME WATCH POSITION. The canvas grew 120 -> 176 to make room
-    // for the hand; the element is centred with translateX(-50%), so growing it
-    // to the right would have slid the watch 77 px to the LEFT. `left` moves the
-    // same 77 px the other way to cancel it exactly, so the watch face lands
-    // where it has always landed and only the hand is new.
-    // LEFT OF CENTRE, on the user's own eye: *"can we move the watch arm thing
-    // as a whole over to the left a little bit?"* (2026-08-02). It sat at
-    // `52% + 77px` — right of centre by half a screen-width's worth of offset,
-    // so the wrist crowded the middle of the frame. 46% keeps it clearly on the
-    // near arm without reaching the edge. One number, and the whole arm moves
-    // because the cuff, the strap and the face are all inside `watchWrap`.
-    watchWrap.style.cssText = 'position:fixed;left:calc(46% + 77px);bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
+    watchWrap.style.cssText = WRAP_CSS;
     watchCv = document.createElement('canvas');
     watchCv.width = WATCH_W; watchCv.height = 72;
-    watchCv.style.cssText = 'width:484px;height:198px;image-rendering:pixelated;display:block;';
+    watchCv.style.cssText = WATCH_CSS;
     watchWrap.appendChild(watchCv);
     document.body.appendChild(watchWrap);
   } else {
+    // A HUD BUILT OVER AN EXISTING ONE MUST NOT KEEP THE OLD GEOMETRY. This
+    // branch used to resize the canvas and leave the wrapper's `left`, its
+    // pivot and the canvas's displayed size at whatever the previous build set
+    // — so a rebuild would have shown the new arm at the old scale, in the old
+    // place, which is three bugs that only appear on the second build.
+    watchWrap.style.cssText = WRAP_CSS;
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
     watchCv.width = WATCH_W; watchCv.height = 72;
+    watchCv.style.cssText = WATCH_CSS;
   }
   // the wrist-and-watch close-up (the good one — arm version was reverted)
   const drawWatch = (mins: number) => {
     const g = watchCv.getContext('2d')!;
     g.clearRect(0, 0, WATCH_W, 72);
-    // STEP 1 of an incremental rebuild (an all-at-once redraw was rejected).
-    // Only change so far: the forearm runs OFF THE LEFT EDGE instead of
-    // floating with a gap either side. A limb cut by the frame reads as your
-    // own arm; a band with air around it reads as a disembodied cuff.
+    // ── THE FOREARM ───────────────────────────────────────────────────────
+    //
+    // STEP 2 of an incremental rebuild (an all-at-once redraw was rejected, and
+    // an earlier arm was tried and reverted — so this adds LENGTH and changes
+    // nothing else). Step 1 ran the wrist off the left edge of its own canvas;
+    // the canvas simply ended there, which is the stub the user is looking at.
+    //
+    // ONE BAND, the same skin tone and the same y 6…72 as the wrist, so there is
+    // no seam to see: the wrist below is drawn by the identical `fillRect` it
+    // always was, just further along the same band.
+    g.fillStyle = '#c9946a'; g.fillRect(0, 6, WATCH_ARM, 66);
+    // …and it RECEDES. The wrist's shading is "light from the right", carried by
+    // a 10 px `rgba(0,0,0,0.15)` cap that used to sit at the cut end and would
+    // now be a dark stripe across the middle of a limb, which is exactly the
+    // "two limbs" failure to avoid — so it is gone, and the same tone is spread
+    // over the whole new length instead, deepest at the elbow end.
+    //
+    // A GRADIENT, not bands, and the pixel art survives it: the canvas is
+    // painted at 1x and upscaled `image-rendering:pixelated`, so this resolves
+    // to 600 one-texel steps shown 2.75 px wide — banded at the texel scale like
+    // everything else here, with no step big enough to read as an edge. The
+    // stop at the wrist end is fully transparent, so the join is not a join.
+    //
+    // THE RAMP IS A RATE, NOT A FRACTION OF THE CANVAS, and the first cut got
+    // that wrong: spread over all 600 px it reached only 0.07 by the edge of a
+    // 1280-wide frame and the arm read dead flat. `WATCH_ARM` is sized for a
+    // 3840 viewport, so on any normal screen most of it is off-frame — the
+    // shading has to be spent where the player can see it. 240 canvas px is the
+    // 242 that reach the left edge of a 1280 frame; past that the gradient
+    // clamps to its end stop and the arm simply stays in shadow, which is what
+    // a limb going back out of the light does.
+    const RECEDE = 240;
+    const recede = g.createLinearGradient(WATCH_ARM - RECEDE, 0, WATCH_ARM, 0);
+    recede.addColorStop(0, 'rgba(0,0,0,0.18)');
+    recede.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = recede; g.fillRect(0, 6, WATCH_ARM, 66);
+    // EVERYTHING BELOW IS THE OLD DRAWING, MOVED — not redrawn. The wrist, the
+    // fist, the strap, the case and the LCD keep their own coordinates and their
+    // own order; the translate is the whole of the change, so the thing the user
+    // said he liked cannot have drifted by a pixel.
+    g.save();
+    g.translate(WATCH_ARM, 0);
     g.fillStyle = '#c9946a'; g.fillRect(0, 6, 104, 66);          // wrist, cut by the frame
-    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(0, 6, 10, 66);
     g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
     // ── THE FIST ──────────────────────────────────────────────────────────
     //
@@ -1145,6 +1238,7 @@ export function makeHud(purse: Purse): Hud {
     g.fillText(`${hh}:${m2}`, 60, 38);
     g.fillStyle = '#8a8d95'; g.font = '5px monospace';
     g.fillText('CROSSTOWN QUARTZ', 60, 50);
+    g.restore();
   };
   const WALLET_W = 180, WALLET_H = 140;
   let walletWrap = document.getElementById('ct-wallet') as HTMLDivElement | null;
