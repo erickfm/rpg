@@ -2186,7 +2186,37 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // That is what makes "every night they go away" free: the day index is an
     // input, so a new day IS a new set, and it works identically whether the
     // player walked through midnight or slept through it. Nothing to clear.
-    const PKG_CHANCE = 0.08;                 // per door per day — see scripts/packages.mjs
+    // ── 0.08 -> 0.20, AND THE UNIT IS THE PROBLEM ────────────────────────
+    //
+    // The user, after all of the above shipped: *"i havent seen a single
+    // package outside my neighbors doors?"* — and everything here works. I
+    // walked to his own landing and stole 302's parcel and got a pair of
+    // trainers (`scripts/probes/w64-pkg-landing3.mjs`). What was wrong is how
+    // often one is THERE, and the reason is a unit nobody converted.
+    //
+    // `crosstown.ts:423`: **one real second is one game minute**, so a game DAY
+    // is 24 real minutes. A "small chance per day" sounds like a chance per day;
+    // it is a chance per 24 minutes of play.
+    //
+    // MEASURED at 0.08 over 120 days, sampling the real hash rather than
+    // re-deriving it:
+    //
+    //     building-wide   76 parcels, on 50% of days
+    //     HIS LANDING     19 parcels, on 14% of days
+    //     longest stretch with nothing outside 301 or 302:  19 DAYS
+    //
+    // Nineteen game days is **7.6 real hours of play** in which no package
+    // appears where he lives. That is not a rare event, it is an invisible
+    // feature, and his sentence is the correct report of it.
+    //
+    // 0.20 is chosen with both of his statements in hand — he asked for *"a
+    // small chance"* and he is telling me he has never seen one — and with the
+    // failure the queue row names in the other direction: *"a landing with a
+    // parcel at every door reads as a depot."* At 0.20 a door gets a parcel
+    // about one day in five, his own landing carries one on a third of days,
+    // and the building averages 1.6 of its 8 doors. Re-measured numbers are in
+    // notes/w64-packages.md. It is one constant either way.
+    const PKG_CHANCE = 0.20;                 // per door per day — see scripts/packages.mjs
     const PKG_W = 0.28, PKG_H = 0.26, PKG_D = 0.34;
     // margin from the jamb: half the parcel, plus enough that it reads as
     // beside the door rather than against it
