@@ -192,6 +192,13 @@ const INVERTED = [
   'pawn: the customer side is 9 m deep or better, not a corridor',
   'pawn: you cannot get behind the counter in the middle',
   'pawn: the keeper is looking at you, not away',
+  // Item 209. The three above are all HARNESS inversions of geometry legs and
+  // none of them says anything about the night-light leg — so when that leg was
+  // rewritten (index → material identity) it could have been rewritten into
+  // something that measures nothing at all and this selftest would still have
+  // gone green. That is GOTCHAS §34 in the tool whose job is catching it. Its
+  // mutation is in-page, below `p.goto`, because it needs the built world.
+  'pawn: the room keeps its own light after dark',
 ];
 if (SELFTEST) {
   const r = ROOMS.find((q) => q.id === 'pawn');
@@ -212,6 +219,41 @@ await p.goto(aim('http://localhost:4186/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4186/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
+
+// ── the night-light leg's own inversion, and it has to happen IN THE PAGE ──
+//
+// Item 209. The failure this leg exists for is the night sweep reaching inside
+// a room and dimming it, and `ct/props.ts` publishes `scene.userData.addLit` as
+// the one runtime way into that grade — so handing it an interior mesh IS that
+// failure rather than a simulation of it, and the dimmer's own registry then
+// owns the material, which is precisely what the leg reads.
+//
+// AIMED AT THE ROOM BEING WALKED, at the same 7 m box the leg samples. A
+// mutation that lands in a neighbouring room is a selftest that has broken
+// nothing — `interiors-walk` hit exactly that: its first cut took the first 40
+// interior meshes past x = 300 and the subject room stayed green.
+if (SELFTEST) {
+  const lit = await p.evaluate(() => {
+    const s = window.__ct.scene();
+    const add = s.userData.addLit;
+    if (typeof add !== 'function') return -1;
+    const centres = window.__ct.roomDims().map((d) => d.cx);
+    let k = 0;
+    s.traverse((o) => {
+      if (!o.isMesh) return;
+      const w = new o.position.constructor(); o.getWorldPosition(w);
+      if (Math.abs(w.z) > 7) return;
+      if (!centres.some((cx) => Math.abs(w.x - cx) <= 7)) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      if (!mats.some((m) => m && m.color && !m.transparent)) return;
+      add(o); k++;
+    });
+    return k;
+  });
+  console.log(lit < 0
+    ? 'selftest: scene.userData.addLit is missing — the night-light leg was NOT mutated\n'
+    : `selftest: handed ${lit} interior meshes to the night dimmer — the night-light leg MUST now go red\n`);
+}
 
 const pos = () => p.evaluate(() => window.__ct.pos());
 const prompt = () => p.evaluate(() => {
@@ -949,15 +991,45 @@ for (room of rooms) {
   // props.dimWorld() skips |x| > 100 so interiors stay lit round the clock —
   // and the kit's group sits at the world origin precisely so its children
   // carry world positions and are skipped too.
+  //
+  // ⚠ THIS COMPARED BY ARRAY INDEX (item 209; item 192 in `interiors-walk.mjs`,
+  // where the same line returned 109, 109, 110 and then 0 over four runs of
+  // UNCHANGED source and a worker very nearly reported the 0 as its fix).
+  //
+  // The sample is a BOX, not a list of objects, so `noon[i]` and `night[i]` are
+  // only the same material while nothing enters, leaves or reorders inside it.
+  // One extra mesh at the front of the traverse shifts every index after it and
+  // the comparison silently pairs a lamp against a floorboard. Nothing in the
+  // arithmetic can tell that from the night sweep reaching indoors, which is
+  // the one thing this leg exists to detect.
+  //
+  // So: BY MATERIAL IDENTITY — three's `uuid`, which is what makes a material
+  // the same material — over the materials present in BOTH samples. A prop that
+  // was not there at 02:00 is not a dimmed surface.
+  //
+  // AND THE ANIMATED SET IS DERIVED, NOT LISTED. Four samples are taken at each
+  // hour with the clock held still, and any material that is not identical
+  // across all four is moving under its own power and is excluded from the
+  // verdict. Two samples 450 ms apart were MEASURED insufficient on the casino
+  // (three reds in five runs), because two shots can land on the same phase of
+  // an animation and agree. No file here has to know what the rooms animate,
+  // and the exclusion stays correct when somebody animates something new.
+  //
+  // NOTE ON POPULATION, because the numbers move a lot and the floor below
+  // depends on it: the ARRAY held 746/67/211/174 entries for casino/hotel/tax/
+  // pawn, but those collapse to 57/29/56/59 DISTINCT materials — this world
+  // shares materials heavily. The old typed floor of 40 would therefore have
+  // failed the hotel outright once the comparison became honest. The floor is a
+  // fraction of what was actually sampled instead, so it scales with the room.
   const sample = () => p.evaluate((cx) => {
-    const out = [];
+    const out = {};
     window.__ct.scene().traverse((o) => {
       if (!o.isMesh) return;
       const wp = new o.position.constructor();
       o.getWorldPosition(wp);
       if (Math.abs(wp.x - cx) > 7 || Math.abs(wp.z) > 7) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) if (m && m.color && !m.transparent) out.push(m.color.getHex());
+      for (const m of mats) if (m && m.color && !m.transparent) out[m.uuid] = m.color.getHex();
     });
     return out;
   }, CX);
@@ -970,33 +1042,50 @@ for (room of rooms) {
   // measured as what the grade actually costs, and warns loudly if rAF does not
   // deliver them.
   const nf = () => p.evaluate(() => window.__ct.scene().userData?.nightFactor ?? null);
-  await setClock(p, 12, 0);
-  const noon = await sample(), nfNoon = await nf();
-  await setClock(p, 2, 0);
-  const night = await sample(), nfNight = await nf();
-  const dimmed = noon.filter((c, i) => night[i] !== undefined && night[i] !== c).length;
+  /** four samples with the clock held at `h`; the set that never moved, and the set that did */
+  const steadyAt = async (h) => {
+    await setClock(p, h, 0);
+    const shots = [];
+    for (let i = 0; i < 4; i++) { shots.push(await sample()); if (i < 3) await p.waitForTimeout(500); }
+    const steady = {}, moved = new Set();
+    for (const u of Object.keys(shots[0])) {
+      if (shots.every((s) => s[u] === shots[0][u])) steady[u] = shots[0][u];
+      else moved.add(u);
+    }
+    return { steady, moved, nf: await nf() };
+  };
+  const noon = await steadyAt(12);
+  const night = await steadyAt(2);
+  const judged = Object.keys(noon.steady).filter((u) => night.steady[u] !== undefined);
+  const dimmed = judged.filter((u) => night.steady[u] !== noon.steady[u]).length;
+  const animated = new Set([...noon.moved, ...night.moved]);
   // MEASURE THE FLOOR (GOTCHAS §34). `dimmed === 0` is equally true of a room
-  // that sampled nothing, and of a night pass that came back SHORT — every index
-  // missing from `night` is skipped by the `!== undefined` guard rather than
-  // counted, so a half-empty second sample reads as a clean room. Measured
-  // populations across the four rooms: 441, 155, 137, 123. The floor is 40:
-  // far below the smallest so ordinary authoring will not trip it, far above
-  // the collapse it exists to catch.
+  // that judged nothing, and every step above — the intersection, the
+  // self-animating exclusion — is a way for the judged set to shrink to zero
+  // while the leg keeps reporting a clean room. The floor is
+  // `max(8, 50% of what was sampled)`: a fraction of what was actually there,
+  // so it scales with the room rather than being a typed count that goes stale
+  // the moment somebody adds or removes props.
   // …and a POSITIVE CONTROL, because a floor on the sample size still does not
   // prove the world went dark. "Nothing dimmed" is worth having only if the
   // night sweep ran at all, so ask the published night factor whether it did.
   // Without this the strongest failure mode left — the clock not taking — still
-  // reads green with 441 materials sampled.
+  // reads green with hundreds of materials sampled.
+  const nfNoon = noon.nf, nfNight = night.nf;
   const wentDark = nfNoon !== null && nfNight !== null && nfNight > nfNoon + 0.5;
-  const enough = noon.length >= 40 && night.length === noon.length && wentDark;
+  const seen = Object.keys(noon.steady).length + animated.size;
+  const floor = Math.max(8, Math.round(seen * 0.5));
+  const enough = judged.length >= floor && wentDark;
   check('the room keeps its own light after dark',
     enough && dimmed === 0,
     enough
-      ? `${noon.length - dimmed}/${noon.length} interior materials kept their colour while`
+      ? `${judged.length - dimmed}/${judged.length} interior materials kept their colour while`
         + ` the world went night ${nfNoon.toFixed(2)} → ${nfNight.toFixed(2)}`
+        + ` (${animated.size} excluded as self-animating)`
       : !wentDark
         ? `NOTHING TO CHECK: the world did not go dark — nightFactor ${nfNoon} → ${nfNight}`
-        : `NOTHING TO CHECK: sampled ${noon.length} materials at noon and ${night.length} at 02:00`);
+        : `NOTHING TO CHECK: judged ${judged.length} distinct materials of the ${seen}`
+          + ` sampled in the room, floor is ${floor}`);
 }
 
 // the kit warns about openings that do not fit and exits that land inside

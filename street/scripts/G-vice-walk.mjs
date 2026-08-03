@@ -374,15 +374,35 @@ for (const [nm, x, re] of [
 // behind these two being light sources. Prove it rather than trust it: sample
 // the neon and bulb materials at noon and at 2am and require them UNCHANGED,
 // while the brick beside them does change.
+//
+// ⚠ THIS COMPARED BY ARRAY INDEX (item 209; item 192 fixed the same line in
+// `interiors-walk.mjs`, where it returned 109, 109, 110 and then 0 across four
+// runs of unchanged source). The sample is a BOX over the two frontages, not a
+// list of objects, so `day.dull[i]` and `nite.dull[i]` are the same material
+// only while nothing enters, leaves or reorders inside it — and this box is
+// OUTDOORS, on the side street, where a passer-by or a parked car is exactly
+// the kind of thing that shifts every index after it.
+//
+// It also fails in the dangerous direction HERE, which is the opposite of the
+// room leg's. This assertion is `dulled > 0`, so mispairing INFLATES the number
+// it wants: two unrelated materials compared against each other differ, and the
+// check goes green on the strength of a comparison it never made. A latent
+// false GREEN, not a false red.
+//
+// So: BY MATERIAL IDENTITY — three's `uuid` — over the materials present in
+// both samples, with four samples at each hour and anything that moved across
+// them excluded as self-animating. The chase is transparent so it lands in
+// `lit` rather than `dull`, but the exclusion is derived rather than assuming
+// that, and it stays correct if somebody animates an opaque surface out here.
 const sample = () => p.evaluate(() => {
-  const lit = [], dull = [];
+  const lit = {}, dull = {};
   window.__ct.scene().traverse((o) => {
     if (!o.isMesh) return;
     const wp = new o.position.constructor(); o.getWorldPosition(wp);
     if (wp.x < 33 || wp.x > 58 || wp.z < -99 || wp.z > -90) return;
     for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
       if (!m || !m.color) continue;
-      (m.transparent ? lit : dull).push(m.color.getHex() * 1000 + Math.round((m.opacity ?? 1) * 100));
+      (m.transparent ? lit : dull)[m.uuid] = m.color.getHex() * 1000 + Math.round((m.opacity ?? 1) * 100);
     }
   });
   return { lit, dull };
@@ -393,16 +413,44 @@ const sample = () => p.evaluate(() => {
 // direction and still the wrong behaviour: a false red under load is how a
 // suite teaches people to read past it, which is the same complaint I filed
 // against two other checks this session.
-await setClock(p, 13, 0);
-const day = await sample();
-await setClock(p, 2, 0);
-const nite = await sample();
-const dulled = day.dull.filter((v, i) => nite.dull[i] !== undefined && nite.dull[i] !== v).length;
+/** four samples with the clock held at `h`: what never moved, and what did */
+const steadyAt = async (h) => {
+  await setClock(p, h, 0);
+  const shots = [];
+  for (let i = 0; i < 4; i++) { shots.push(await sample()); if (i < 3) await p.waitForTimeout(500); }
+  const out = {};
+  for (const kind of ['lit', 'dull']) {
+    const steady = {}, moved = new Set();
+    for (const u of Object.keys(shots[0][kind])) {
+      if (shots.every((s) => s[kind][u] === shots[0][kind][u])) steady[u] = shots[0][kind][u];
+      else moved.add(u);
+    }
+    out[kind] = steady; out[`${kind}Moved`] = moved;
+  }
+  return out;
+};
+const day = await steadyAt(SELFTEST ? 2 : 13);   // selftest: "day" IS night, so nothing can dim
+const nite = await steadyAt(2);
+const judged = Object.keys(day.dull).filter((u) => nite.dull[u] !== undefined);
+const dulled = judged.filter((u) => nite.dull[u] !== day.dull[u]).length;
+const animated = new Set([...day.dullMoved, ...nite.dullMoved]);
+// A POPULATION FLOOR, and it could not stay the old typed 40 (GOTCHAS §34).
+// The array held 53 opaque entries out here; those are only 19 DISTINCT
+// materials, because this world shares materials heavily — so an honest
+// comparison legitimately judges ~19 and a floor of 40 would have failed a
+// frontage that is completely fine. The floor is a fraction of what was
+// actually sampled instead, so it scales with the frontage rather than going
+// stale the moment somebody adds or removes trim.
+const seenDull = Object.keys(day.dull).length + animated.size;
+const dullFloor = Math.max(8, Math.round(seenDull * 0.5));
+const enoughDull = judged.length >= dullFloor;
 check('the brick and stone around them DO go dark after dark',
-  day.dull.length > 0 && dulled > 0,
-  day.dull.length
-    ? `${dulled}/${day.dull.length} opaque materials changed`
-    : 'NOTHING TO CHECK: no opaque vice materials were sampled at all');
+  enoughDull && dulled > 0,
+  enoughDull
+    ? `${dulled}/${judged.length} distinct opaque materials changed`
+      + ` (${animated.size} excluded as self-animating)`
+    : `NOTHING TO CHECK: judged ${judged.length} distinct opaque vice materials of the`
+      + ` ${seenDull} sampled, floor is ${dullFloor}`);
 // This check was named "the lit parts are not dimmed by the night sweep" and
 // asserted `day.lit.length > 0` — a PRESENCE COUNT that never compared the two
 // samples. The name claimed the thing the assertion did not test. Renamed to what
@@ -414,10 +462,16 @@ check('the brick and stone around them DO go dark after dark',
 // frame by design, so day-vs-night on those compares animation phase. The lit
 // elements that ARE monotone in the night factor are the ground sheets, so that
 // is what gets asserted.
+// Counted over DISTINCT materials now that the sampler is keyed by uuid (item
+// 209), including the self-animating ones — the chase phases are exactly the
+// lit materials this is asking about, so excluding them would be counting the
+// wrong set.
+const nLit = Object.keys(day.lit).length + day.litMoved.size;
+const nDull = Object.keys(day.dull).length + day.dullMoved.size;
 check('there are lit (transparent) materials on the two frontages at all',
-  day.dull.length > 0 && day.lit.length > 0,
-  day.dull.length
-    ? `${day.lit.length} transparent (lit) materials found`
+  nDull > 0 && nLit > 0,
+  nDull
+    ? `${nLit} distinct transparent (lit) materials found`
     : 'NOTHING TO CHECK: the sampler returned no vice materials of any kind, lit or dull');
 
 // ── 5. the pavement in front of them is actually coloured at night ──────
@@ -637,8 +691,17 @@ const bad = results.filter((r) => !r[0]).length;
 console.log(`\n${results.length - bad}/${results.length} passed`);
 
 if (SELFTEST) {
+  // Item 209 adds the third. The two above are geometry legs, so when the
+  // night-light leg was rewritten (index → material identity) nothing in this
+  // selftest could tell whether the rewrite still measured anything — GOTCHAS
+  // §34 in the tool whose whole job is catching that. Its inversion is up at
+  // the sampler: the "day" sample is taken at 02:00 as well, so the night sweep
+  // has nothing left to change and `dulled > 0` must fail. It reddens with a
+  // full population (`0/19`), not as NOTHING TO CHECK — a vacuous red would
+  // prove nothing about the comparison.
   const INVERTED = ['there is a clear band past the frontage furniture, wide enough to walk',
-    'the two faces of each blade carry the SAME texture, not a mirrored one'];
+    'the two faces of each blade carry the SAME texture, not a mirrored one',
+    'the brick and stone around them DO go dark after dark'];
   const missed = INVERTED.filter((n) => { const r = results.find((q) => q[1] === n); return !r || r[0]; });
   console.log('\nSELFTEST — two inverted truths, both must fail:');
   for (const n of INVERTED) {
