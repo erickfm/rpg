@@ -1902,14 +1902,58 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       q.rotation.y = ry + 0.4;
       scene.add(q);
     }
-    // the mug, at the other end, with the handle turned to the room
+    // ── the mug, at the other end ────────────────────────────────────────
+    // The user, twice: *"mug looks messed up"*, then a close-up and *"the mug
+    // is messed up."* Measured from the room's own SPAWN before touching it
+    // (`scripts/probes/w60-mug-geometry.mjs`), the mug covers 20 x 25 px —
+    // enough for a handle to read — and three things were wrong with it:
+    //
+    //  1. THE HANDLE WAS TURNED 90° FROM ANY ORIENTATION A HANDLE CAN HAVE.
+    //     The ring's hole axis pointed along +x and it was ALSO offset along
+    //     +x, so the loop's plane was perpendicular to the direction it stuck
+    //     out (measured: |hole axis · offset| = 1.0000, where a real handle is
+    //     0). That is a hoop parked beside the cup, not a handle joined to it,
+    //     and it did not even touch: 9 mm of air between cup wall and ring.
+    //     The ROTATION is fine and stays; it was the OFFSET that had to move.
+    //  2. Body and handle shared one material, so nothing separated them.
+    //  3. Seen from the doorway the cup's flat top read as a solid peg. In an
+    //     unlit world every face of a cylinder is the same colour, so segment
+    //     count buys nothing here — only tone and silhouette do.
+    //
+    // So the handle now hangs off the +z side, ACROSS the player's sightline
+    // (he comes at the window ~15° off the -x axis), where it is silhouetted
+    // against the dark glass of the light well and its hole shows daylight
+    // instead of more cup. Turned along the sill rather than into the room:
+    // that is also how a mug ends up when somebody puts it down without
+    // thinking, which is the story this sill is telling.
     const mugM = new THREE.MeshBasicMaterial({ color: 0xd8d2c4 });
-    const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.034, 0.095, 8), mugM);
-    mug.position.set(AX(SILL_X), SILL_TOP + 0.0475, AZI(WIN_LZ - 0.55));
+    const MUG_X = SILL_X, MUG_Z = WIN_LZ - 0.55, MUG_R = 0.038, MUG_H = 0.095;
+    const mug = new THREE.Mesh(new THREE.CylinderGeometry(MUG_R, 0.034, MUG_H, 12), mugM);
+    mug.position.set(AX(MUG_X), SILL_TOP + MUG_H / 2, AZI(MUG_Z));
     scene.add(mug);
-    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.008, 4, 8), mugM);
-    handle.position.set(AX(SILL_X + 0.055), SILL_TOP + 0.05, AZI(WIN_LZ - 0.55));
-    handle.rotation.y = Math.PI / 2;
+    // what is left in it. Without this the top is a disc of the body colour
+    // and the whole thing reads as a peg — the player looks DOWN at this from
+    // 22°, so the top face is a third of what he sees of it. It rides 1 mm
+    // ABOVE the cylinder's own top cap rather than at coffee level inside it:
+    // the cap is solid, so a disc sunk into the cup would simply be hidden by
+    // it, and 1 mm is clear of the z-fighting the reveal corners cost us.
+    // What is left is a 6 mm ring of rim around a dark disc — an open vessel.
+    const brew = new THREE.Mesh(new THREE.CircleGeometry(MUG_R - 0.006, 12),
+      new THREE.MeshBasicMaterial({ color: 0x4a3524 }));
+    brew.position.set(AX(MUG_X), SILL_TOP + MUG_H + 0.001, AZI(MUG_Z));
+    brew.rotation.x = -Math.PI / 2;
+    scene.add(brew);
+    // the handle: its own tone, a step down from the body, so the eye can find
+    // the hole from either side — dark glass behind it, pale cup beside it.
+    // HANDLE_OFF is derived from the cup, not typed: far enough out that the
+    // hole (inner radius H_R - H_TUBE) clears the cup wall completely, close
+    // enough that the ring passes THROUGH the wall and is joined to it.
+    const H_R = 0.022, H_TUBE = 0.007;
+    const HANDLE_OFF = MUG_R + (H_R - H_TUBE);          // hole starts at the wall
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(H_R, H_TUBE, 6, 14),
+      new THREE.MeshBasicMaterial({ color: 0xa79f8f }));
+    handle.position.set(AX(MUG_X), SILL_TOP + 0.055, AZI(MUG_Z + HANDLE_OFF));
+    handle.rotation.y = Math.PI / 2;                    // hole axis along x, facing the room
     scene.add(handle);
     // architrave, room side only. `casing` puts trim on BOTH faces, which is
     // right for a doorway you pass through and wrong for a window — the far

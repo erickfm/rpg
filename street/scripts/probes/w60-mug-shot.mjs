@@ -188,12 +188,25 @@ for (const [tag, sx, sz] of stations) {
           mx.x = Math.max(mx.x, sx2); mx.y = Math.max(mx.y, sy2);
         }
     });
-    return mn ? { w: mx.x - mn.x, h: mx.y - mn.y } : null;
+    return mn ? { w: mx.x - mn.x, h: mx.y - mn.y, box: { x0: mn.x, y0: mn.y } } : null;
   }, mug);
 
   const file = `shots/w60-mug-${label}-${tag}.png`;
   await p.screenshot({ path: file });
   console.log(`  ${file}`);
+  // AND THE SAME PIXELS, CROPPED. "Does it read?" is a question about a 20 px
+  // object in a 1200 px frame; judging it from the whole frame is judging it
+  // from a thumbnail of itself. This is not a closer camera — it is the exact
+  // pixels the player sees from this spot, cut out.
+  if (px && px.box) {
+    const pad = Math.max(18, px.w * 0.9);
+    const clip = {
+      x: Math.max(0, Math.round(px.box.x0 - pad)), y: Math.max(0, Math.round(px.box.y0 - pad)),
+      width: Math.round(px.w + pad * 2), height: Math.round(px.h + pad * 2),
+    };
+    await p.screenshot({ path: `shots/w60-mug-${label}-${tag}-crop.png`, clip });
+    console.log(`  shots/w60-mug-${label}-${tag}-crop.png  (${clip.width}x${clip.height} of the same frame)`);
+  }
   console.log(`     stood (${at[0].toFixed(2)}, ${at[2].toFixed(2)}) eye ${best.eyeY.toFixed(2)}`
     + `  range ${horiz.toFixed(2)} m  pitch ${best.pitch.toFixed(3)} (sign ${best.sign})`);
   if (px) console.log(`     the whole mug covers ${px.w.toFixed(1)} x ${px.h.toFixed(1)} PIXELS here`);
