@@ -87,10 +87,15 @@ const WALL_T = 0.18;
 // it. Both rooms in this pair are flat, so the crossing is level; a pair where
 // one room has `floor` levels must match heights at the opening.
 export interface PartyWall {
-  /** the room in the LOWER slab — its EAST flank carries the opening */
-  west: string;
-  /** the room in the NEXT slab up — its WEST flank carries the opening */
-  east: string;
+  /** the two rooms this wall joins, in NO significant order. Which of them ends
+   *  up west is DERIVED — see `handedness` below and `west`/`east`. */
+  rooms: readonly [string, string];
+  /** the room in the LOWER slab — its EAST flank carries the opening.
+   *  **Derived from the street, never typed.** */
+  readonly west: string;
+  /** the room in the NEXT slab up — its WEST flank carries the opening.
+   *  **Derived from the street, never typed.** */
+  readonly east: string;
   /** centre of the opening in ROOM-LOCAL z. Both rooms sit on cz = 0, so one
    *  number addresses both of them. */
   at: number;
@@ -102,16 +107,147 @@ export interface PartyWall {
 }
 
 /**
+ * THE HEADING YOU ARRIVE ON when you walk into a belt room, and the reason the
+ * handedness below can be computed at all.
+ *
+ * Hoisted out of `buildRoom`'s `spec.arriveYaw ?? 0` so the arrival convention
+ * and the code that reasons about it are ONE authoring. If a room ever needs a
+ * different default, `handedness` stops being valid for a pair containing it
+ * and `assertArrivalConvention` (called from `buildRoom`) says so out loud.
+ */
+const ARRIVE_YAW = 0;
+
+/**
+ * WHICH OF A PAIR IS WEST — measured off the street, never typed.
+ *
+ * ── THE BUG THIS REPLACES ────────────────────────────────────────────────────
+ * The user, for the third time in this class: *"the hotel is the right of the
+ * casino outside but to the left inside. again these interior exterior
+ * mismatch."* He was right, and the reason was written down here as an argument:
+ *
+ *   > *"a room is its facade seen from behind, so what is on your left outside
+ *   > is on your right once you are inside (the `localOf` mirror)."*
+ *
+ * **There is no such mirror, and `localOf` is not one.** Interiors are not
+ * behind their facades — they are parked in a belt 800 m away with their own
+ * axes and you arrive by TELEPORT, so the arrival heading decides and nothing
+ * else does. (`localOf`'s `side` factor converts between the two sides of the
+ * STREET; check it on the east side, where greater z is on your right outside
+ * and greater local x — also your right — inside. It preserves the hand. The
+ * comment cited it for the opposite of what it does.)
+ *
+ * ── THE DERIVATION ───────────────────────────────────────────────────────────
+ * The rig's convention (`crosstown.ts`): fwd = (sin yaw, 0, −cos yaw), so with
+ * up = +y, left = up × fwd = (−cos yaw, 0, −sin yaw).
+ *
+ *   OUTSIDE  you face the shopfronts, i.e. along the INWARD normal −n of the
+ *            frontage, which `ct/doors.ts` publishes per building.
+ *   INSIDE   you arrive on `ARRIVE_YAW`, so left is fixed and known.
+ *
+ * A pair must present the same hand on both sides. So: take the direction from
+ * one room's door to the other's along the street, ask which hand it is on
+ * facing −n, and require the same hand of the belt's +x direction facing
+ * `ARRIVE_YAW`. Whichever room that puts on the LEFT inside is the one in the
+ * LOWER slab, because inside-left is −x when `ARRIVE_YAW` is 0.
+ *
+ * ── WHY IT IS LAZY ───────────────────────────────────────────────────────────
+ * `doorPointFor` is `ct/doors.ts`'s registry, collected from an eager glob of
+ * `./int-*.ts`. Forcing that collection while THIS module is still evaluating
+ * is the cycle that silently dropped SEVENS from the built bundle once already
+ * (GOTCHAS 28, and the long note over `MODS` in `ct/doors.ts`). So `west`/`east`
+ * are getters: nothing reads them until `buildAllInteriors` runs, by which time
+ * `publishDeclaredDoors()` has long since collected everything.
+ */
+/**
+ * Every interior module, eagerly. Hoisted to module scope so `buildAllInteriors`
+ * and `buildingOfRoom` share ONE glob — two globs of the same pattern is two
+ * authorings of the belt's membership, and the second one would be the one that
+ * goes stale. The import edges this creates are the same ones
+ * `buildAllInteriors` has always had; only the READS are new, and they are all
+ * lazy for the reason given over `handedness`.
+ */
+const INT_MODS = import.meta.glob<Record<string, unknown>>('./int-*.ts', { eager: true });
+
+/**
+ * The roster name of the building a belt room sits in — `'hotel'` →
+ * `'HOTEL ORPHEUS'`.
+ *
+ * Read off the room's OWN `DoorDecl`, which is the same object `ct/doors.ts`
+ * keys its registry by, so this cannot name a building the door registry has
+ * never heard of. Not a second table: `int-<id>.ts` builds the room whose id is
+ * `<id>` is a convention `scripts/interiors-wired.mjs` already enforces, so the
+ * filename is the join and there is nothing to keep in step.
+ */
+function buildingOfRoom(id: string): string | null {
+  const d = INT_MODS[`./int-${id}.ts`]?.DOOR as { building?: string } | undefined;
+  return typeof d?.building === 'string' ? d.building : null;
+}
+
+const HANDED = new Map<string, readonly [string, string]>();
+
+function handedness(rooms: readonly [string, string]): readonly [string, string] {
+  const key = rooms.join('|');
+  const done = HANDED.get(key);
+  if (done) return done;
+
+  const pts = rooms.map((id) => {
+    const b = buildingOfRoom(id);
+    return b ? doorPointFor(b) : null;
+  });
+  const [p0, p1] = pts;
+  if (!p0 || !p1) {
+    // NOT a silent fallback. A party wall whose handedness cannot be derived is
+    // the exact defect this function exists to end, so it is loud — `bugsweep`
+    // reports console errors and will go red rather than quietly re-typing it.
+    console.error(`[interior] party wall ${key}: cannot read a door point for `
+      + `${rooms.filter((_, i) => !pts[i]).join(' and ')} — handedness NOT derived, `
+      + `falling back to declaration order. See ct/interior.ts handedness().`);
+    return rooms;                                  // uncached: a later call retries
+  }
+  if (p0.nx !== p1.nx || p0.nz !== p1.nz) {
+    console.error(`[interior] party wall ${key}: the two buildings face different ways `
+      + `(${p0.nx},${p0.nz}) vs (${p1.nx},${p1.nz}) — there is no shared street to `
+      + `derive a handedness from.`);
+    return rooms;
+  }
+
+  // OUTSIDE: facing the inward normal, fwd = −n. Substituting into
+  // left = (−cos yaw, 0, −sin yaw) with fwd = (sin yaw, 0, −cos yaw) gives
+  // left = (fwd_z, 0, −fwd_x) = (−n_z, 0, n_x).
+  // Check it on this street: n = (0, −1) gives left = (+1, 0) = +x, and facing
+  // +z along the side street your left hand IS +x. (The first draft of this
+  // line had the sign the other way and the after-verdict came back identical
+  // to the before — which is what an instrument is for.)
+  const lx = -p0.nz, lz = p0.nx;
+  // is rooms[1] on rooms[0]'s LEFT out on the pavement?
+  const oneIsLeftOutside = (p1.x - p0.x) * lx + (p1.z - p0.z) * lz > 0;
+  // INSIDE: left facing ARRIVE_YAW, projected on the belt's +x — which is the
+  // only axis the slabs run along.
+  const beltPlusXIsLeftInside = -Math.cos(ARRIVE_YAW) > 0;
+  // rooms[1] must be on the same hand inside. If its hand inside is LEFT and
+  // belt +x is NOT left, then rooms[1] belongs at the LOWER x, i.e. west.
+  const oneIsWest = oneIsLeftOutside !== beltPlusXIsLeftInside;
+  const out = (oneIsWest ? [rooms[1], rooms[0]] : [rooms[0], rooms[1]]) as [string, string];
+  HANDED.set(key, out);
+  return out;
+}
+
+/** A party wall, with its handedness derived on first read rather than typed. */
+function partyWall(rooms: readonly [string, string], at: number, w: number, h: number): PartyWall {
+  return {
+    rooms, at, w, h,
+    get west() { return handedness(rooms)[0]; },
+    get east() { return handedness(rooms)[1]; },
+  };
+}
+
+/**
  * Every party wall in the world. There is one.
  *
- * `hotel` west of `casino` is not arbitrary. On the pavement, HOTEL ORPHEUS
- * runs x 33.45…45.45 and the casino wing 45.45…57.00, so facing the property
- * the casino is on your LEFT — and a room is its facade seen from behind, so
- * what is on your left outside is on your right once you are inside (the
- * `localOf` mirror, forty lines down). The casino therefore has to sit on the
- * hotel's +x side in the belt for the connection to be on the side the street
- * promised. Getting this backwards is invisible in a screenshot and wrong in
- * the way the user has complained about four times.
+ * The PAIR is authored; **which of them is west is not** — see `handedness`.
+ * Typing it is what item 268 was: the declaration said `hotel` west of `casino`
+ * and the street says the opposite, and nothing could ever have caught the
+ * disagreement because the two facts had no common source.
  *
  * `at: -9.0` is measured, not chosen: `scripts/probes/w70-party-wall-clearance.mjs`
  * projects every collider within 1.6 m of each flank onto z and intersects the
@@ -119,12 +255,12 @@ export interface PartyWall {
  * lane either side is local z −13.00 … −4.85, and −9.0 is its middle.
  */
 export const PARTY: readonly PartyWall[] = [
-  { west: 'hotel', east: 'casino', at: -9.0, w: 2.6, h: 2.6 },
+  partyWall(['hotel', 'casino'], -9.0, 2.6, 2.6),
 ];
 
 /** the party wall this room is half of, if any */
 function partyFor(id: string): PartyWall | null {
-  return PARTY.find((p) => p.west === id || p.east === id) ?? null;
+  return PARTY.find((p) => p.rooms.includes(id)) ?? null;
 }
 
 interface Slab {
@@ -349,8 +485,8 @@ export function interiorRooms(): RoomDims[] {
 export const ORDER = BUILD.INTERIOR;
 
 /** The world loader's entry point for the whole interior belt — see
- *  `ct/world.ts`. The belt keeps its OWN glob inside `buildAllInteriors`
- *  because interiors carry a second convention the other modules do not:
+ *  `ct/world.ts`. The belt keeps its OWN glob (`INT_MODS`, at the top of this
+ *  file) because interiors carry a second convention the other modules do not:
  *  `int-<id>.ts` must build the room whose `spec.id` is `<id>`, which
  *  `scripts/interiors-wired.mjs` enforces. */
 export function register(ctx: CtxBuild): void { buildAllInteriors(ctx); }
@@ -360,10 +496,21 @@ export function register(ctx: CtxBuild): void { buildAllInteriors(ctx); }
  *
  * Path sort, then ONE adjustment: the two halves of a party wall must land in
  * consecutive slabs or there is no shared boundary for them to meet on, so the
- * east room is lifted out and re-inserted directly after its partner. Nothing
- * else moves relative to anything else, and the result is still a pure function
- * of the file names plus the `PARTY` declaration — a room does not change slab
- * between builds, which is the property the path sort was there for.
+ * pair is lifted out and re-inserted as a west-then-east BLOCK.
+ *
+ * ⚠ THE BLOCK GOES WHERE THE PAIR'S **LATER** MEMBER SAT, and that is the part
+ * with a reason. Item 268 re-handed this wall, and under the old rule — "lift
+ * the east room and drop it after the west one" — re-handing moved the whole
+ * pair to the other member's alphabetical slot and shoved every room between
+ * them 80 m sideways: swapping hotel/casino would have moved the CHURCH and the
+ * DINER as well, for nothing. Anchoring on the later member makes the block's
+ * address a property of the PAIR rather than of which way round it happens to
+ * be, so a handedness change swaps exactly two rooms and disturbs nothing else.
+ * It is also a strict no-op for the pre-268 declaration — hotel and casino sat
+ * in slabs 5 and 6 before this change and the pair still does.
+ *
+ * The result is still a pure function of the file names plus the `PARTY`
+ * declaration, which is the property the path sort was there for.
  *
  * Exported so `scripts/probes/w70-*.mjs` can assert the pairing is consecutive
  * without starting a browser.
@@ -372,18 +519,23 @@ export function beltOrder(paths: string[]): string[] {
   const idOf = (p: string) => (p.match(/int-(.+)\.ts$/) ?? [, p])[1] as string;
   const order = [...paths].sort();
   for (const pw of PARTY) {
-    const ei = order.findIndex((p) => idOf(p) === pw.east);
-    if (ei < 0) continue;
-    const [east] = order.splice(ei, 1);
     const wi = order.findIndex((p) => idOf(p) === pw.west);
-    // partner absent — put it back where it was rather than inventing an order
-    order.splice(wi < 0 ? ei : wi + 1, 0, east);
+    const ei = order.findIndex((p) => idOf(p) === pw.east);
+    // partner absent — leave the order alone rather than inventing one
+    if (wi < 0 || ei < 0) continue;
+    const [west, east] = [order[wi], order[ei]];
+    // where the LATER of the two sits once BOTH have been taken out
+    const anchor = Math.max(wi, ei) - 1;
+    const rest = order.filter((_, i) => i !== wi && i !== ei);
+    rest.splice(anchor, 0, west, east);
+    order.length = 0;
+    order.push(...rest);
   }
   return order;
 }
 
 export function buildAllInteriors(ctx: CtxBuild): void {
-  const mods = import.meta.glob<Record<string, unknown>>('./int-*.ts', { eager: true });
+  const mods = INT_MODS;
   for (const path of beltOrder(Object.keys(mods))) {
     const mod = mods[path];
     const entry = Object.entries(mod).find(
@@ -1628,7 +1780,18 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   // of the front wall, which is what "square to the wall the door is in"
   // means and which survives the room being rotated or mirrored. A hand-typed
   // yaw is the class of bug that produced the tax office reversal.
-  const arriveYaw = spec.arriveYaw ?? 0;
+  const arriveYaw = spec.arriveYaw ?? ARRIVE_YAW;
+  // A PARTY WALL'S HANDEDNESS IS DERIVED FROM `ARRIVE_YAW` (see `handedness`).
+  // A room that is half of one and arrives on some other heading breaks that
+  // derivation silently — inside-left stops being −x — so it is refused out
+  // loud here rather than producing a west/east that quietly means nothing.
+  // This is the check that would have caught item 268 if the handedness had
+  // been derived from the start; it exists so the next pair cannot repeat it.
+  if (PW && arriveYaw !== ARRIVE_YAW) {
+    console.error(`[interior] room '${spec.id}' is half of a party wall but arrives on `
+      + `yaw ${arriveYaw}, not the belt's ${ARRIVE_YAW}. The west/east handedness in `
+      + `ct/interior.ts is derived from that heading and is NOT valid for this pair.`);
+  }
   ctx.spot({
     x: spotOnStreet.x, z: spotOnStreet.z, r: doorR,
     ok: () => (spec.door.ok ? spec.door.ok() : player.x() < 100),
