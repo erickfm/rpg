@@ -582,6 +582,13 @@ const BANDS = {
   diner:   { fy: 0.10, fh: 1.00, ox: 0.35, og: 0.18, gi: 0.20, sg: 0.55, dw: 1.05 },
   thrift:  { fy: 0.11, fh: 0.92, ox: 0.35, og: 0.20, gi: 0.20, sg: 0.55, dw: 1.05 },
   pawn:    { fy: 0.10, fh: 0.92, ox: 0.40, og: 0.18, gi: 0.22, sg: 0.57, dw: 1.05 },
+  // A showroom is MOSTLY GLASS — that is the whole silhouette of the type, and
+  // it is what tells you from across the road that the thing inside is meant to
+  // be looked at. So the smallest opening inset on the block (0.30 against the
+  // default 0.40), the shallowest sill gap (0.44 against 0.57) so the glass runs
+  // nearly to the pavement the way a plate-glass showroom does, and a fascia in
+  // between the tax office's banner and the burger barn's box.
+  mattress: { fy: 0.10, fh: 0.86, ox: 0.30, og: 0.16, gi: 0.20, sg: 0.44, dw: 1.10 },
 } as const;
 type Character = keyof typeof BANDS;
 
@@ -592,6 +599,7 @@ function characterOf(name: string): Character {
   if (name === 'BURGER BARN') return 'burger';
   if (name.startsWith('A-1 TAX')) return 'tax';
   if (name === 'PAWN') return 'pawn';
+  if (name === 'SLEEP CENTER') return 'mattress';
   return 'default';
 }
 
@@ -2010,6 +2018,180 @@ export const taxFront = (brick: string, wM: number) => {
     for (let i = 1; i < panels; i++) {
       g.fillRect(ox + Math.round((ow * i) / panels), ry + m(0.1), Math.max(1, m(0.08)), rh - m(0.2));
     }
+    g.fillStyle = 'rgba(30,26,20,0.30)'; g.fillRect(ox, H - m(0.16), ow, m(0.16));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
+  });
+};
+
+/**
+ * THE MATTRESS SHOWROOM — *"make the liquor store a mattress store."*
+ *
+ * Character: a shop whose entire sales pitch is THE STOCK, seen through glass.
+ * A liquor store defends its window; a showroom gives it away. So this is the
+ * most glass on the block (BANDS.mattress, the smallest inset and the lowest
+ * sill on the street), lit from inside, with three beds standing in it.
+ *
+ * WHY THE BEDS ARE THE WHOLE JOB. At 8 px/m a fascia is four or five legible
+ * letters and nothing else on this street reads its name from the far pavement.
+ * "Unmistakably a mattress store" therefore cannot rest on the word MATTRESS —
+ * it has to rest on SILHOUETTE, and a mattress is one of the most recognisable
+ * silhouettes there is: a pale slab, thicker than a shelf and thinner than a
+ * table, lying on a darker base, with a pillow cocked at one end. Three of them
+ * in a row, at different heights, is a bed shop from across the road whether or
+ * not you can read a word.
+ *
+ * The palette is deliberately WARMER than the wine red it replaces (#8a2c42 was
+ * chosen to say liquor, and says it well). Rust and cream, with the one blue
+ * accent that every discount showroom of the period had somewhere in it.
+ *
+ * `SLEEP CENTER` rather than the literal word: the neighbours are A-1 TAX and
+ * PAWN — plain, working, slightly desperate — and MATTRESS DISCOUNTERS would be
+ * a chain on an arterial, not a 13 m slot between a tax office and a pawnshop.
+ * The word itself goes where a showroom actually puts it, hand-lettered across
+ * the glass on a sale banner.
+ */
+export const mattressFront = (brick: string, wM: number) => {
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const F = frontageOf('SLEEP CENTER', wM);
+  // RUST is the roster colour; keep the two in step or the mouldings that
+  // `shopfrontRelief` stands off the wall will frame a fascia of another shade.
+  const RUST = '#b8642c', CREAM = '#efe6d2', BLUE = '#2f5c86';
+  const ALU = '#8f938f', ROOM = '#43413c';
+  return surf.paint((g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
+    surf.courses(g);
+    // ── the fascia: a painted board, not cloth and not a light box ────────
+    const B = BANDS.mattress;
+    const fy = m(B.fy), fh = m(B.fh);
+    proud(g, surf, 0, fy, W, fh, RUST);
+    // a cream keyline inset from the board's edge — signwriter's habit, and it
+    // stops a flat 13 m rectangle of one colour reading as a bar
+    g.fillStyle = 'rgba(239,230,210,0.30)';
+    g.fillRect(m(0.25), fy + m(0.12), W - m(0.5), Math.max(1, m(0.05)));
+    g.fillRect(m(0.25), fy + fh - m(0.17), W - m(0.5), Math.max(1, m(0.05)));
+    g.font = `bold ${m(0.54)}px monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(40,20,10,0.45)';
+    g.fillText('SLEEP CENTER', W / 2 + 1, fy + fh / 2 + 1);
+    g.fillStyle = CREAM;
+    g.fillText('SLEEP CENTER', W / 2, fy + fh / 2);
+    // ── the opening: as much glass as the band will give ─────────────────
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
+    g.fillStyle = '#241f1a'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
+    glazed(g, surf, gx, gy, gw, gh, ROOM);
+    // A SHOWROOM IS LIT, and that is why you can see into it at all. Two things
+    // sell it: the ceiling is brighter than the floor, and the floor throws the
+    // light back — a showroom has a hard pale floor, not a shop's dark boards.
+    g.fillStyle = 'rgba(255,246,224,0.30)'; g.fillRect(gx, gy, gw, m(0.34));       // ceiling wash
+    g.fillStyle = 'rgba(226,220,205,0.22)'; g.fillRect(gx, gy + gh - m(0.9), gw, m(0.9)); // pale floor
+    // the strip lights themselves, receding — three of them, evenly along
+    for (let i = 0; i < 3; i++) {
+      const lx = gx + m(0.6) + i * Math.round((gw - m(1.2)) / 3);
+      g.fillStyle = 'rgba(255,250,235,0.55)';
+      g.fillRect(lx, gy + m(0.16), Math.round((gw - m(1.2)) / 3) - m(0.5), Math.max(1, m(0.09)));
+    }
+    // ── THE BEDS. Three, at three heights, so it reads as stock and not as
+    // furniture. Drawn back-to-front: base, then mattress, then pillow, then
+    // the shadow each throws on the pale floor.
+    // THE BEDS OWN THE LOWER TWO THIRDS OF THE GLASS AND NOTHING IS DRAWN OVER
+    // THEM. The first cut put the sale banner across the middle of the window at
+    // the same height as the mattresses, and from the far pavement the stock
+    // came out as three pale streaks behind a sign — the one thing that had to
+    // read did not. Signage now lives in the top third, stock in the bottom two,
+    // and they do not overlap at any width.
+    const bedTop = gy + gh - m(1.34);           // where the highest bed's mattress starts
+    const bedW = Math.min(m(3.1), (gw - m(1.2)) / 3);
+    for (let i = 0; i < 3; i++) {
+      const bx = gx + m(0.45) + i * ((gw - m(0.9) - bedW) / 2);
+      // the middle one is a divan set (taller), the outer two are lower
+      const lift = i === 1 ? m(0.22) : 0;
+      const by = bedTop - lift;
+      // Deeper than a real bed on purpose. At 16 px/m a 0.30 m mattress is five
+      // texels and reads as a line; the silhouette is the whole point of the
+      // shopfront, so it is drawn at the size it needs to be legible from the
+      // opposite pavement, which is where the user will be standing.
+      const baseH = m(0.55), matH = m(0.40);
+      // headboard, behind everything — a strong vertical that says "bed" even
+      // when the slab reads as a shelf
+      g.fillStyle = i === 1 ? '#5b4a3c' : '#4e4238';
+      g.fillRect(bx - m(0.06), by - m(0.52), m(0.16), baseH + matH + m(0.52));
+      g.fillRect(bx + bedW - m(0.10), by - m(0.52), m(0.16), baseH + matH + m(0.52));
+      // the shadow it throws, first
+      g.fillStyle = 'rgba(0,0,0,0.22)';
+      g.fillRect(bx - m(0.06), by + baseH + matH, bedW + m(0.12), m(0.16));
+      // base: a dark upholstered divan
+      g.fillStyle = i === 1 ? '#4a3f38' : '#403a35';
+      g.fillRect(bx, by + matH, bedW, baseH);
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(bx, by + matH + baseH - m(0.1), bedW, m(0.1));
+      // MATTRESS: the pale slab that does the whole job
+      g.fillStyle = i === 1 ? '#f0ead8' : '#e6dfcb';
+      g.fillRect(bx, by, bedW, matH);
+      g.fillStyle = HI; g.fillRect(bx, by, bedW, Math.max(1, m(0.05)));      // lit top edge
+      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(bx, by + matH - m(0.05), bedW, m(0.05));
+      // the quilted band down the side of a mattress — three stitch lines
+      g.fillStyle = 'rgba(120,105,85,0.35)';
+      for (let k = 1; k < 4; k++) g.fillRect(bx, by + Math.round(matH * k / 4), bedW, 1);
+      // pillow, cocked at the end away from the door
+      const pw = m(0.62), ph = m(0.2);
+      const px = F.doorCentreM > wM / 2 ? bx + m(0.1) : bx + bedW - pw - m(0.1);
+      g.fillStyle = '#faf4e4'; g.fillRect(px, by - ph + m(0.04), pw, ph);
+      g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(px, by - m(0.02), pw, m(0.06));
+      // a price card on a wire, because that is what is on every bed in one
+      g.fillStyle = '#fdfaf0'; g.fillRect(bx + bedW / 2 - m(0.22), by - m(0.62), m(0.44), m(0.3));
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(bx + bedW / 2 - m(0.22), by - m(0.32), m(0.44), m(0.04));
+      g.fillStyle = '#a03020'; g.font = `bold ${m(0.16)}px monospace`;
+      g.fillText('$', bx + bedW / 2, by - m(0.46));
+    }
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.4)), ALU);
+    // ── the hand-lettered sale banner, taped INSIDE the glass ────────────
+    // Off square, because it was put up by hand on a roll of paper. This is
+    // where the literal word goes.
+    const nbW = Math.min(m(6.6), gw * 0.62), nbH = m(0.66);
+    const nbX = gx + Math.round((gw - nbW) / 2), nbY = gy + m(0.30);
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(nbX + m(0.06), nbY + m(0.08), nbW, nbH);
+    g.fillStyle = '#f6efdb'; g.fillRect(nbX, nbY, nbW, nbH);
+    g.fillStyle = 'rgba(0,0,0,0.16)';                                     // tape at the corners
+    for (const tx of [nbX - m(0.06), nbX + nbW - m(0.16)])
+      for (const ty of [nbY - m(0.05), nbY + nbH - m(0.1)]) g.fillRect(tx, ty, m(0.22), m(0.15));
+    g.font = `bold ${m(0.42)}px monospace`;
+    g.fillStyle = '#a02818';
+    g.fillText('MATTRESS SALE', nbX + nbW / 2, nbY + nbH / 2);
+    g.fillStyle = BLUE; g.fillRect(nbX + m(0.3), nbY + nbH - m(0.16), nbW - m(0.6), Math.max(1, m(0.05)));
+    // smaller bills either side of it, the way a window fills up over a year
+    g.font = `bold ${m(0.2)}px monospace`;
+    // …up in the signage third with the banner, NOT down across the stock
+    const bills: [string, number][] = [["NO PAYMENTS TIL '98", 0.04], ['FREE DELIVERY', 0.80]];
+    for (const [t, at] of bills) {
+      const bx2 = gx + Math.round(gw * at), by2 = gy + m(0.42);
+      g.fillStyle = '#fdf6e2'; g.fillRect(bx2, by2, m(1.9), m(0.42));
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(bx2, by2 + m(0.42), m(1.9), m(0.05));
+      g.fillStyle = BLUE; g.fillText(t, bx2 + m(0.95), by2 + m(0.23));
+    }
+    // ── the door, where the frontage says it is ──────────────────────────
+    const dcM = doorAlongU('SLEEP CENTER', wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    g.fillStyle = ALU; g.fillRect(dx - m(0.08), gy, dw + m(0.16), gh);
+    g.fillStyle = SH; g.fillRect(dx - m(0.08), gy, m(0.08), gh);
+    glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.5), ROOM);
+    g.fillStyle = 'rgba(255,246,224,0.16)'; g.fillRect(dx, gy + m(0.12), dw, m(0.4));
+    g.fillStyle = ALU; g.fillRect(dx, gy + m(0.66), dw, 1);                     // transom
+    g.fillStyle = '#6e726e'; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.55));    // kick plate
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.06));
+    g.fillStyle = ALU; g.fillRect(dx + dw - m(0.2), gy + m(1.45), m(0.07), m(0.4));  // push bar
+    // OPEN sign, the small hard-edged thing every shop door has
+    g.fillStyle = '#f2ead0'; g.fillRect(dx + m(0.14), gy + m(0.95), m(0.5), m(0.26));
+    g.fillStyle = '#a02818'; g.font = `bold ${m(0.16)}px monospace`;
+    g.fillText('OPEN', dx + m(0.39), gy + m(1.08));
+    // ── stallriser: a low painted board, panelled like the block default ──
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#7a5340');
+    g.fillStyle = 'rgba(0,0,0,0.24)';
+    const panels = Math.max(2, Math.round(ow / surf.ppm / 1.6));
+    for (let i = 1; i < panels; i++)
+      g.fillRect(ox + Math.round((ow * i) / panels), ry + m(0.06), Math.max(1, m(0.07)), rh - m(0.12));
     g.fillStyle = 'rgba(30,26,20,0.30)'; g.fillRect(ox, H - m(0.16), ow, m(0.16));
     dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
   });
