@@ -2,6 +2,14 @@
 // the bed or the door wins there. Name it, and print the full tier arithmetic
 // for a handful of cells, so the fix is aimed at a decision I have actually
 // read rather than one I inferred from a letter on a map.
+//
+// ── RUNS ON THE BUNDLE NOW (item 237) ────────────────────────────────────────
+// "fp.ts's OWN constants" below used to mean `await import('/src/proto/fp.ts')`
+// in the page, which `vite dev` serves and `vite preview` 404s. With no
+// try/catch around it, this probe threw on its first cell against the built
+// bundle and printed no arithmetic at all. `touchMargin()` (item 223) and
+// `lookTolerance()` (item 237) are published on `__ct`, so the constants still
+// come from fp.ts — by a path that exists on both worlds.
 import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
@@ -13,6 +21,15 @@ await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 30000 });
 await p.waitForTimeout(2000);
 await reportWorld(p, URL);
+
+// GOTCHAS 32: a missing hook means the check never ran. Say so, exit 3.
+const hooks = await p.evaluate(() => ({
+  lookTolerance: typeof window.__ct.lookTolerance, touchMargin: typeof window.__ct.touchMargin,
+}));
+if (hooks.lookTolerance !== 'function' || hooks.touchMargin !== 'function') {
+  console.error(`ABORT: __ct is missing a hook — ${JSON.stringify(hooks)}`);
+  await b.close(); process.exit(3);
+}
 
 const gy = await p.evaluate(() => window.__ct.groundAt(199.36, -15.545));
 await p.evaluate(([gy]) => window.__ct.warp(199.36, -15.545, 0, gy, 0), [gy]);
@@ -37,15 +54,15 @@ for (const [x, z] of CELLS) {
   await p.waitForTimeout(200);
   const won = await prompt();
   // every candidate's tier arithmetic, from fp.ts's OWN constants
-  const rows = await p.evaluate(async ([x, z, yaw]) => {
-    const m = await import('/src/proto/fp.ts');
+  const rows = await p.evaluate(([x, z, yaw]) => {
     const fx = Math.sin(yaw), fz = -Math.cos(yaw);
+    const TOUCH = window.__ct.touchMargin();
     return window.__ct.spots().filter((s) => s.ok).map((s) => {
       const dx = s.x - x, dz = s.z - z, d = Math.hypot(dx, dz);
       const offAxis = d < 1e-4 ? 0 : Math.abs(Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz));
       return { label: s.label, d, r: s.r, offAxis,
-        near: d < s.r + m.TOUCH_MARGIN,
-        looked: d < 6 && offAxis < m.lookTolerance(s.r, d) };
+        near: d < s.r + TOUCH,
+        looked: d < 6 && offAxis < window.__ct.lookTolerance(s.r, d) };
     }).filter((q) => q.near || q.looked).sort((a, c) => a.d - c.d);
   }, [x, z, yawTo(x, z, door.x, door.z)]);
   console.log(`\n(${x.toFixed(1)}, ${z.toFixed(1)}) facing the door  ->  [E] ${won ?? '(none)'}`);
