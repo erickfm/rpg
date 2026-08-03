@@ -773,23 +773,75 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
       g.fillRect(0, y0 - 1, 32, 2);
     }
   }), 'detail');
-  const wallMat = (len: number) => {
+  /**
+   * ONE FACE OF PLASTER, AT THE DENSITY THAT FACE ASKS FOR.
+   *
+   * BUILDER-BRIEF §7b: a texture's density comes from the face it lands on.
+   * The old `wallMat(len)` got this wrong three separate ways, all of which
+   * `scripts/texdensity.mjs` now measures:
+   *
+   *  1. `Math.max(1, len / TILE_M)` — the clamp. A wall run SHORTER than one
+   *     2.7 m tile got a whole canvas anyway, so an 0.18 m run drew at
+   *     **177 px/m against the room's own 11.9**. The clamp was protecting
+   *     against a partial tile, which is not a problem: the plaster is a
+   *     tiling texture and a fraction of it is a correct fraction of it.
+   *  2. `repeat.y` was always 1, so a run that is not the full room height —
+   *     every lintel over every door — wore the whole room's canvas squeezed
+   *     into its own height. Measured at **162 px/m on a 0.24 m header**.
+   *     Fixed by `offset.y`/`repeat.y` sampling exactly the band of the wall
+   *     that this run occupies, which also makes a lintel line up with the
+   *     plaster either side of the door instead of restarting.
+   *  3. the same material went on all four sides — see `boxMats`.
+   *
+   * A full-height run gives `repeat.y = 1, offset.y = 0`, i.e. exactly what it
+   * did before, so nothing that was already right moves.
+   */
+  const matCache = new Map<string, THREE.Material>();
+  const runMat = (faceW: number, y0: number, y1: number) => {
+    const key = `${faceW.toFixed(4)}|${y0.toFixed(4)}|${y1.toFixed(4)}`;
+    const hit = matCache.get(key);
+    if (hit) return hit;
     const t = plasterT.clone();
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(Math.max(1, len / TILE_M), 1);
+    t.repeat.set(faceW / TILE_M, (y1 - y0) / H);
+    t.offset.set(0, y0 / H);
     t.needsUpdate = true;
-    return flat(t);
+    const m = flat(t);
+    matCache.set(key, m);
+    return m;
   };
   const trimM = new THREE.MeshBasicMaterial({ color: TRIM });
 
-  /** a solid run of wall: length `len`, from height `y0` to `y1` */
+  /**
+   * THE SIX MATERIALS OF A PLASTERED BOX, in three's face order
+   * `[+x, -x, +y, -y, +z, -z]`.
+   *
+   * **The ±x pair is `depth` across and the ±z pair is `width`.** Getting that
+   * backwards is the single most expensive mistake in this repo — it produced
+   * two retracted findings (42 "off-density" faces, 135 "disagreeing"
+   * junctions) and `scripts/lib/faces.mjs` exists solely to hold the one
+   * correct copy of it.
+   *
+   * Every caller here previously passed ONE material for all four sides, so
+   * whichever pair was not the wide one drew the wide one's density. On a
+   * 0.18 m wall return against a 3.6 m run that is **2394 px/m against 11.9**,
+   * and it was in all twelve interiors at once because they share this kit.
+   */
+  const boxMats = (w: number, d: number, y0: number, y1: number) => [
+    runMat(d, y0, y1), runMat(d, y0, y1),      // ±x : `depth` across
+    trimM, trimM,                               // ±y : flat trim, no texture
+    runMat(w, y0, y1), runMat(w, y0, y1),      // ±z : `width` across
+  ];
+
+  /** a solid run of wall: length `len`, from height `y0` to `y1`.
+   *  `along 'x'` is a box `len` wide and T deep; `along 'z'` is the transpose,
+   *  and `boxMats` takes the box's own width and depth so it cannot get the
+   *  pairing backwards. */
   const wallRun = (lx: number, lz: number, len: number, along: 'x' | 'z', y0: number, y1: number) => {
     if (len <= 0.001 || y1 - y0 <= 0.001) return;
-    const geo = along === 'x'
-      ? new THREE.BoxGeometry(len, y1 - y0, T)
-      : new THREE.BoxGeometry(T, y1 - y0, len);
-    const side = wallMat(len);
-    const m = new THREE.Mesh(geo, [side, side, trimM, trimM, side, side]);
+    const w = along === 'x' ? len : T;
+    const d = along === 'x' ? T : len;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, y1 - y0, d), boxMats(w, d, y0, y1));
     place(m, lx, (y0 + y1) / 2, lz);
   };
 
@@ -1018,7 +1070,7 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       const L = (t1 - t0) * len;
       if (L <= 0.001 || y1 - y0 <= 0.001) return;
       const m = new THREE.Mesh(new THREE.BoxGeometry(L, y1 - y0, T),
-        [wallMat(L), wallMat(L), trimM, trimM, wallMat(L), wallMat(L)]);
+        boxMats(L, T, y0, y1));       // ±x is the T-deep return, not another L
       m.rotation.y = rotY;
       place(m, ax + (bx - ax) * (t0 + t1) / 2, (y0 + y1) / 2,
             az + (bz - az) * (t0 + t1) / 2);
@@ -1442,8 +1494,11 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       if (L.y <= 0.001) continue;
       const bw = L.x1 - L.x0, bd = L.z1 - L.z0;
       if (bw <= 0.001 || bd <= 0.001) continue;
+      // a floor riser: bw across, bd deep, L.y tall. Its two axes are genuinely
+      // different lengths, so one repeat for all four sides was wrong on the
+      // ±x pair by exactly bd/bw.
       const m = new THREE.Mesh(new THREE.BoxGeometry(bw, L.y, bd),
-        [wallMat(bw), wallMat(bw), trimM, trimM, wallMat(bw), wallMat(bw)]);
+        boxMats(bw, bd, 0, L.y));
       place(m, (L.x0 + L.x1) / 2, L.y / 2, (L.z0 + L.z1) / 2);
     }
   }

@@ -1,0 +1,24 @@
+{
+  "note": "Gross (>=4x stretched) textured faces per owner, recorded so scripts/texdensity.mjs can fail on a REGRESSION while a real backlog is worked down. Raise a number here only with a reason in the commit message. See BUILDER-BRIEF §7b.",
+  "recorded": "2026-08-03",
+  "gross": 188,
+  "byOwner": {
+    "?": 21,
+    "jail": 1,
+    "props": 14,
+    "tex-ground": 6,
+    "civic": 39,
+    "interior:bank": 32,
+    "interior:diner": 5,
+    "street": 4,
+    "interior:church": 3,
+    "lot": 8,
+    "interior:jail": 20,
+    "interior:bodega": 2,
+    "interior:pawn": 10,
+    "interior:hotel": 3,
+    "interior:burger": 9,
+    "interior:thrift": 3,
+    "interior:casino": 8
+  }
+}
