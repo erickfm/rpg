@@ -1,7 +1,10 @@
 # w65 — item 159: one leaf angle for the whole world
 
-**Ports: 4210 (dev) and 4211 (`vite preview`, the built bundle).** Both probed
-`000` before I bound them. Everything below except `interiors-walk.mjs` was run
+**Ports: 4210 (dev) and 4211 (`vite preview`, the built bundle).** Both bound
+with `--strictPort` and both took the port — which `notes/w61-flat-doors-flush.md`
+is right that curl alone cannot establish, since a port can answer `000` and
+still refuse to bind seconds later. Everything below was re-run on the built
+bundle **after** merging mainline (`3c81d04b2`). Everything below except `interiors-walk.mjs` was run
 against the **built bundle**; that one instrument cannot be — see "the
 instrument that only runs on dev", below.
 
@@ -165,7 +168,9 @@ leaves moves them **away** from the player: ajar, the jail's pair leaned to
 the hazard.
 
 Confirmed by looking as well: `[E] out to the street` is up in **all six**
-after-frames, from 3.2 m back.
+after-frames, from 3.2 m back — and `pickSpot` only ever offers a spot `canSee`
+returned true for, so a live prompt in the frame IS an unblocked sight line.
+Then confirmed by walking it, six for six, at 0.4 m. See the walk table below.
 
 ## How it was proved
 
@@ -178,7 +183,55 @@ after-frames, from 3.2 m back.
 | `node scripts/bugsweep.mjs` | 96 shots, **0 STATION MISS, 0 COVERAGE**, exit 0, no new console warnings |
 | `node scripts/health.mjs` | `WORLD OK — __ct initialised`, exit 0 |
 | `npm run typecheck` | clean — and it is what proved every `leafPair` call site was converted, since the signature lost a parameter |
-| `scripts/interiors-walk.mjs` | see below |
+| `scripts/interiors-walk.mjs <id>` | **all six rooms walked.** See below |
+| mutation, red then green | `LEAF_AJAR = 0.55` → `w65-jail-both-faces.mjs` **exit 1**, `lobby face: 31.5° -31.5°` while the street face held at `0.0° 0.0°`; restored → **exit 0**. Both statuses watched (GOTCHAS 72) |
+
+### The walk — the assertion that actually mattered
+
+`interiors-walk.mjs` warps the player 0.9 m inside the door, walks him **at** it,
+and requires the way-out prompt to come up and `[E]` to land him on the street.
+That puts him within ~0.4 m of the now-shut leaves, which is the tightest
+version of the sight-line question. **Six for six:**
+
+| room | | |
+|---|---|---|
+| bank | 25/25 | `prompt="[E] out to the street"`, `pos=-5.8,1.62,6.1` |
+| casino | 25/26 · 24/26 | see the two pre-existing reds below |
+| church | 25/25 | `pos=7.2,1.62,-79.5` |
+| hotel | 25/26 | pre-existing red below |
+| jail | 24/25 | pre-existing red below |
+| library | 25/25 | `pos=-7.9,1.62,-13` |
+
+Every one printed `ok … walking to the inside of the door raises the way-out
+prompt` and `ok … E at the inside door puts you back on the street`.
+
+**The full 13-room run is not usable and I stopped it twice.** It buffers its
+whole report to the end, takes past its own 40-minute cap, and — the part worth
+knowing — **it can only run against a DEV server** (it does
+`import('/src/proto/ct/doors.ts')` inside the page, which a `vite preview`
+answers with `Failed to fetch dynamically imported module`, a message that reads
+like a broken world). Running it against dev while still editing source is worse
+than useless: **vite HMR reloads the page under the walk.** Per-room is the
+usable form.
+
+### Three reds in those runs that are NOT mine, each proved
+
+1. **`jail: the room keeps its own light after dark — 6/501 dimmed`.** Proved
+   pre-existing by checking out mainline's seven files onto the dev server and
+   re-walking: **identical, 6/501, 24/25**.
+2. **`casino`/`hotel`: the customer station comes from the world, not from
+   memory.** Pre-existing; the message names its own cause (*"no served-spot
+   published in this room"*) and cites `F-keeper-stations-audit.md`.
+3. **`casino: keeps its own light after dark` IS FLAKY, AND THAT IS THE REAL
+   FINDING.** Four runs, two on mainline and two on mine: **109, 109, 110, 0**.
+   I nearly reported the `0` as my change fixing something. It does not.
+   `interiors-walk.mjs:1130` compares two material-colour samples **by array
+   index** — `noon.filter((c, i) => night[i] !== c)` — taken 500 ms and 900 ms
+   after a clock snap, and the casino's bulbs are animated, so one frame's
+   difference in phase moves ~110 entries. That is GOTCHAS 76's *"never recover
+   ordered classes by material reference"* in a different file: **a positional
+   comparison over a traversal of a room that animates.** Worth a row; it is a
+   check that can go green by luck.
 
 **`fp`/`fpdiff` was NOT used and would have been invalid.** This change adds six
 meshes (`doorRebate`), and `scenedump.mjs:26` seeds one global `Math.random`
