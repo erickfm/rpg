@@ -1974,6 +1974,55 @@ export function makeCrosstown(): Proto {
     // a probe.
     bounds: () => ({ ...WORLD_BOUNDS }),
     seated: () => (rig.seated ? rig.seatedOn : null),
+    /**
+     * IS A SCREEN HOLDING THE CAMERA, AND HAS IT FINISHED MOVING? `null` when
+     * nothing is focused.
+     *
+     * THE ONE LINE BEHIND 89 PHANTOM SEAT FAILURES (item 263). `seats-walk.mjs`
+     * models a plain chair in all five of its legs — sit, face, lock, eye
+     * height, `[E] stand up` — and a slot stool is not a chair: it seats you
+     * and hands the machine its overlay, whose way out is ESCAPE. With this
+     * state unpublished a harness could not tell the two apart, so **every
+     * machine station in `__ct.seats()` failed at whichever leg it reached
+     * first**, and the count only ever moved from one leg to another: 83
+     * identical 0.350 m "seated eye" errors became 89 identical "no stand up"
+     * errors when the eye read was fixed. The honest defect count under those
+     * was 26, and it was quoted as 109 all week.
+     *
+     * The second half is `t`. The fly-in is an EASE (`FOCUS_IN`, 0.40 s), so a
+     * probe that samples on a fixed sleep is reading a camera mid-animation and
+     * calling the result a seat defect — which is exactly what happened. `t`
+     * and `settled` let it wait for the world to stop moving instead of
+     * guessing when it has (GOTCHAS 30).
+     *
+     * NUMBERS AND A COPY, NEVER THE LIVE OBJECT — the house style beside
+     * `citAvoid()`, `party()` and `painted()`, and for the same reason: a probe
+     * must not be able to reach through a test hook and move the camera, the
+     * chair or the mesh. `mesh` is published as its NAME; every field here
+     * survives `page.evaluate`'s serialisation, which a `THREE.Object3D` does
+     * not.
+     */
+    focus: () => (focus
+      ? {
+          /** 0 → 1 over FOCUS_IN seconds. Leaving is instant, so there is no
+           *  outward equivalent — `null` is the whole of "not focused". */
+          t: +focus.t.toFixed(4),
+          settled: focus.t >= 1,
+          /** the screen being read, by name rather than by reference */
+          mesh: focus.mesh.name || '(unnamed)',
+          /** TRUE when the player was ALREADY SEATED when this screen opened —
+           *  a machine station (slot stool, ATM chair, loan desk), as against a
+           *  screen someone walked up to standing. This is the discriminator a
+           *  seat harness needs: `[E] stand up` is not what this seat offers. */
+          fromChair: focus.chair !== null,
+          /** where the ease is taking the eye, in world metres */
+          eye: { x: focus.to.pos.x, y: focus.to.pos.y, z: focus.to.pos.z },
+          yaw: focus.to.yaw, pitch: focus.to.pitch, fov: focus.to.fov,
+          /** and where it stops the FEET, which is not the same point — a
+           *  person leans in to read a screen and their shoes do not follow */
+          feetX: focus.to.feetX, feetZ: focus.to.feetZ,
+        }
+      : null),
     stand: () => rig.stand(),
     // Test affordance, and the missing half of `stand()` — which has been
     // published since the seat mechanic shipped, while the only way IN was to
