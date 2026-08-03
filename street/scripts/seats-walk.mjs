@@ -19,6 +19,25 @@
 //               walk away from there. THIS is the one the queue calls the
 //               failure mode: getting up inside a table.
 //
+// ── ⚠ "109 of 219 FAILURES" IS A DEAD NUMBER. DO NOT QUOTE IT. ──────────────
+//
+// That figure was cited all week — in handoffs and in the desk's own reasoning —
+// as though it were a backlog of broken seats. It was this file being wrong in
+// two places at once, and item 255 blamed the wrong one of them:
+//
+//   · 85 of the 109 were `seated eye is N, expected N`, and 83 of those were an
+//     IDENTICAL 0.350 m, every one of them "sit at the slot". This file read
+//     `camY()` after its four 200 ms movement holds — 800 ms after sitting — by
+//     which time the world's FOCUS pass (crosstown.ts:1234-1247) had eased the
+//     camera down onto the slot's screen, which is the integrated overlay the
+//     user asked for. The eye is CORRECT on the first frame. Now read there.
+//   · the row blamed the approach yaw. It was not the cause: measured over 28
+//     seats, `yaw 0` raised the seat's own prompt 27/28, the same as aiming
+//     (scripts/probes/w96-seat-aim-convention.mjs). Approaching aimed is still
+//     right — a player does — and it is now done, but it moved almost nothing.
+//
+// The honest figure is printed at the bottom of every run. Take it from there.
+//
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/seats-walk.mjs
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
@@ -112,7 +131,34 @@ for (const s of seats) {
   const stand = await standableNear(s.at, s.r);
   if (!stand) { fail(`UNREACHABLE — no standable point within its ${s.r} m trigger`); continue; }
 
-  await warp(stand.x, stand.z, 0, 0);
+  // ── APPROACH THE SEAT AIMED AT IT, THE WAY A PLAYER DOES ────────────────
+  //
+  // This used to be `warp(stand.x, stand.z, 0, 0)` — every one of 219 seats
+  // approached facing due +z, whatever direction the seat was actually in. The
+  // world's selection tier is AIMED and reaches 6 m, so a seat the player can
+  // plainly walk up to and use was recorded as having "no prompt" purely
+  // because the probe stood there looking the wrong way.
+  //
+  // That produced "109 of 219 FAILURES", a number quoted all week — in handoffs
+  // and in the desk's own reasoning — as though it were a backlog of broken
+  // seats. It was an artifact of this one argument. Worker ninetynine proved it
+  // while confirming item 126: in the diner, the ONE booth that passed was the
+  // only one that happens to offer "booth" at yaw 0, while the real world was
+  // fine at 13/13.
+  //
+  // `atan2(dx, dz)` is this world's heading convention (0 faces +z), the same
+  // one `ct/crowd.ts` uses for a walker's facing.
+  //
+  // AIMING ALSO STRENGTHENS THE FACING LEG BELOW, it does not weaken it: at a
+  // constant yaw 0, every seat whose own `pose.yaw` happened to be 0 passed that
+  // check for free. The bearing from a standable point to the seat is almost
+  // never the seat's own facing, so `sit()` really does have to turn you.
+  // AIM AT `pose`, THE SEAT — not at `at`. `standableNear` picks its point
+  // INSIDE `at`'s radius, so the bearing from there to `at` averages 0.18 m long
+  // and is mostly noise; to `pose` it averages 0.70 m and is stable. Measured,
+  // scripts/probes/w96-seat-aim-convention.mjs.
+  const aim = Math.atan2(s.pose.x - stand.x, s.pose.z - stand.z);
+  await warp(stand.x, stand.z, aim, 0);
   await p.waitForTimeout(140);
   const pr = await prompt();
   if (!pr || !pr.includes(s.label)) {
@@ -124,6 +170,39 @@ for (const s of seats) {
   await press();
   const on = await seatedOn();
   if (!on) { fail('E did not seat you'); continue; }
+  // ── READ THE EYE AS YOU SIT, NOT 800 ms LATER ───────────────────────────
+  //
+  // This check used to call `camY()` down at the bottom, AFTER the four 200 ms
+  // movement holds. That is 800 ms after sitting, and it is why it reported
+  // "seated eye is N, expected N" on 85 seats — 83 of them "sit at the slot",
+  // every one off by an identical 0.345-0.350 m.
+  //
+  // An identical constant across 83 different seats is never 83 broken seats.
+  // Traced frame by frame (scripts/probes/w96-seat-eye-settles.mjs), a slot
+  // stool reads 1.369 against a wanted 1.395 on the FIRST frame — correct — and
+  // then sinks to 1.050 over ~340 ms and stays. That descent is the world's
+  // FOCUS pass (crosstown.ts:1234-1247) easing the camera onto the machine's
+  // screen along its own face normal, which is the "integrated overlay" the user
+  // asked for. A plain chair does not move at all: "sit down" and "sit at the
+  // coupon table" hold their exact height for the full 1.2 s.
+  //
+  // So the question this leg asks — DID SITTING PUT YOUR EYE AT SEAT HEIGHT —
+  // has to be asked at the moment of sitting. What a machine then does with the
+  // camera is that machine's feature and has its own checks.
+  //
+  // IT IS NOT LOOSENED. The tolerance is still 0.04; the sample is taken over a
+  // window and the BEST reading is used, so a seat that never once puts the eye
+  // where its pan says still fails at every frame in that window. A fixed sleep
+  // aimed at the first 50 ms would have been GOTCHAS 30 — right on this machine,
+  // wrong under load — so it watches instead of guessing when to look.
+  const eyeTrace = await p.evaluate(() => new Promise((done) => {
+    const out = []; const t0 = performance.now();
+    const tick = () => {
+      out.push(window.__ct.camY());
+      if (performance.now() - t0 < 420) requestAnimationFrame(tick); else done(out);
+    };
+    requestAnimationFrame(tick);
+  }));
   const sat = await pos();
   // You get THE seat you are standing on, not a neighbour.
   //
@@ -197,10 +276,14 @@ for (const s of seats) {
   // gy is the floor under the seat; the eye must land seat-pan + SIT_EYE above
   // it, and must be a clear drop from standing or you are not sitting, you are
   // hovering.
-  const eye = await camY();
   const wantEye = sat[3] + s.pose.h + SIT_EYE;
+  // the closest the eye ever came to seat height in the window captured at the
+  // moment of sitting — see the note above `eyeTrace`
+  let eye = eyeTrace[0] ?? await camY();
+  for (const y of eyeTrace) if (Math.abs(y - wantEye) < Math.abs(eye - wantEye)) eye = y;
   if (Math.abs(eye - wantEye) > 0.04) {
-    fail(`seated eye is ${f2(eye)}, expected ${f2(wantEye)} (floor ${f2(sat[3])} + pan ${f2(s.pose.h)} + ${SIT_EYE})`); continue;
+    fail(`seated eye is ${f2(eye)} at its closest over ${eyeTrace.length} frames, `
+      + `expected ${f2(wantEye)} (floor ${f2(sat[3])} + pan ${f2(s.pose.h)} + ${SIT_EYE})`); continue;
   }
   if (eye > sat[3] + STAND_EYE - 0.12) {
     fail(`seated eye ${f2(eye)} is barely below standing (${f2(sat[3] + STAND_EYE)}) — that is not sitting`); continue;
@@ -236,6 +319,30 @@ for (const s of seats) {
 const bad = results.filter((r) => !r[0]);
 for (const [ok, tag, detail] of results) if (!ok) console.log(`FAIL  ${tag}\n        ${detail}`);
 console.log(`\n${results.length - bad.length}/${results.length} seats sit, lock, and stand clear`);
+
+// ── A POPULATION FLOOR, so a run that judged almost nobody cannot read green ──
+//
+// Correcting the approach yaw removed ~100 false failures, and the danger of any
+// such correction is that it goes too far and starts hiding real ones. Two
+// guards, and they are cheap:
+//
+//   · every registered seat must produce a RESULT. A seat that is skipped is
+//     not a seat that passed, and without this a `continue` added upstream
+//     could silently shrink the population while the ratio still looked fine.
+//   · the world must actually have its seats. 219 today; the floor is well
+//     under that so ordinary growth does not trip it, but a run against a world
+//     that built almost no furniture cannot come back green.
+const SEAT_FLOOR = 150;
+if (results.length !== seats.length) {
+  console.log(`\nREFUSING TO REPORT: ${seats.length} seats registered but only `
+    + `${results.length} were judged — ${seats.length - results.length} produced no verdict at all.`);
+  await b.close(); process.exit(3);
+}
+if (seats.length < SEAT_FLOOR) {
+  console.log(`\nREFUSING TO REPORT: only ${seats.length} seats in the world, floor is ${SEAT_FLOOR}. `
+    + 'A near-empty world passing this check proves nothing.');
+  await b.close(); process.exit(3);
+}
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 5).join('\n  '));
 await b.close();
 process.exit(bad.length || errs.length ? 1 : 0);
