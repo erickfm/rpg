@@ -2194,3 +2194,25 @@ phase classes in **arbitrary order**, and every question worth asking about a
 chase is about order. It reported 209 of 330 samples unclassifiable against a
 world that was fine. Recover order **physically** instead — along any straight
 run, consecutive sockets are consecutive classes.
+
+## 77.
+
+**A failed build silently leaves the PREVIOUS `dist/` in place, so a mutation
+run can pass against the bundle it was meant to break.** A builder's first
+mutation did not compile; the probe ran happily against the *stale* bundle and
+reported green. **Any run that rebuilds must confirm the build actually
+succeeded — look for `built in` — before believing a single result from it.**
+This is the same family as GOTCHAS 63 (a rebuild destroying the packed
+artifact): `dist/` does not tell you how old it is.
+
+## 78.
+
+**`__ct` publishes BEFORE the world is drawn, so a frame taken immediately after
+`waitForFunction(() => window.__ct)` is solid black.** That reads exactly like a
+culled or broken world, and it cost one builder a bisect against mainline before
+it was identified. It is the likely source of past "the room is black"
+findings — including any that were believed.
+
+**Wait for something the RENDERER has done**, not for the API to exist. A
+non-black pixel sample, a rendered frame count, or `afterFrames` are all honest;
+`__ct` existing is not.
