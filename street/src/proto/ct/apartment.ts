@@ -3059,7 +3059,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       box(0.05, 0.44, 0.05, lx, RY + 0.22, lz, chairM);
     }
     box(0.42, 0.46, 0.05, -0.72, RY + 0.69, 5.29, chairM);
-    box(0.40, 0.20, 0.26, -0.74, RY + 0.80, 5.24, new THREE.MeshBasicMaterial({ color: 0x3f5a6b }), 0.1);
+    // ── "fix this chair" (item 146) ──────────────────────────────────────────
+    //
+    // The user photographed this one and the report reads: *back panel appears
+    // to float above the seat, with a separate rail above it.* Both halves are
+    // the SHIRT, not the chair — measured in world coordinates before touching
+    // anything (`scripts/probes/w90-item146-find-chair.mjs`):
+    //
+    //     seat top      5.867
+    //     backrest      5.867 .. 6.327     a 0.05 m panel
+    //     shirt         6.107 .. 6.307     0.26 m DEEP — 5.2x the panel
+    //
+    // The seat/back junction is FLUSH, gap 0.000 — nothing floats. What floats
+    // is what you can SEE: a 0.26 m slab pasted across the MIDDLE of a 0.05 m
+    // panel hides it, and leaves a **0.02 m strip of backrest peeking out above
+    // the shirt**. That two-centimetre strip is the "separate rail", and with
+    // the panel cut into bands the part below reads as detached from the seat.
+    // Confirmed against all 219 registered seats: ZERO have a real gap, so this
+    // was never a geometry fault (`probes/w90-item146-floating-backs.mjs`).
+    //
+    // A shirt left on a chair hangs OVER THE TOP RAIL. So it straddles the top
+    // edge now — 6.19..6.41 against a top of 6.327, folded 0.08 over and 0.14
+    // down — instead of being a belt across the panel's waist. No strip is left
+    // above it because there is nothing above it any more.
+    //
+    // z AND DEPTH DELIBERATELY UNCHANGED. The chair was tucked north until its
+    // near corner cleared the door's 166deg arc by 1.01 m (see above), and the
+    // shirt's 0.26 m already reaches z 5.37 toward the wall; moving it back to
+    // centre on the panel would spend clearance this chair does not have.
+    box(0.40, 0.22, 0.26, -0.74, RY + 0.90, 5.24, new THREE.MeshBasicMaterial({ color: 0x3f5a6b }), 0.1);
     box(0.34, 0.14, 0.22, -0.70, RY + 0.50, 5.08, new THREE.MeshBasicMaterial({ color: 0x7a5a4a }), -0.3);
     // ── the poster ───────────────────────────────────────────────────────
     // The user: *"what is this poster on the wall?"* — which on this project
