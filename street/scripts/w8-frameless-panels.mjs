@@ -10,7 +10,9 @@
 // BEZEL*2 + TITLE_H + CAPTION padding `makePanel` used to add — expected
 // sizes cited from source: `atm.ts` W=300,H=214 (`const W = 300, H = 214`);
 // `slots.ts` exports `FACE = { w: 320, h: 256 }`; `blackjack.ts` exports
-// `FELT = { w: 320, h: 256 }`; `library-pc.ts` has `const W = 320, H = 220`;
+// `FELT = { w: 320, h: 256 }`; `library-pc.ts` has `const W = 320, H = 256`
+// (it was 320 x 220 until item 157 re-cut it to the CRT's own 0.30 x 0.24 m
+// face — see the note above `const W` there);
 // (3) ESC still closes it AND stands the player back up — no trap left
 // behind; (4) zero console errors.
 //
@@ -150,8 +152,8 @@ await sitAndCheck('sit at the blackjack table', 'ct-blackjack', { w: 320, h: 256
   ok(opened, 'library PC opens (via its own __librarypc.open() test affordance — its seat is not wired yet, a pre-existing gap)');
   if (opened) {
     const size = await canvasSize('ct-library-pc');
-    ok(!!size && size.w === 320 && size.h === 220,
-      `ct-library-pc canvas is exactly its own 320x220, no added chrome (got ${JSON.stringify(size)})`);
+    ok(!!size && size.w === 320 && size.h === 256,
+      `ct-library-pc canvas is exactly its own 320x256, no added chrome (got ${JSON.stringify(size)})`);
   }
   await page.keyboard.press('Escape');
   ok(await until((id) => window.__hud.panel() !== id, 'ct-library-pc', 'library PC to close'), 'library PC: Escape closes it');
