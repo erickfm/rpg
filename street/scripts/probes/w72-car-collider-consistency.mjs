@@ -1,4 +1,5 @@
-// w72 / ITEM 202c — DOES EVERY VEHICLE OF ONE KIND CARRY THE SAME COLLIDER?
+// w72 / ITEM 202c / ITEM 294 — DOES EVERY VEHICLE OF ONE KIND CARRY THE SAME
+// COLLIDER?
 //
 // The user, with the V collision view on: *"truck collision isnt accurate to
 // the truck but the other truck is? it seems odd. seems like all trucks should
@@ -27,15 +28,55 @@
 //     the SHAPE agrees, so extents are compared as (long, short, maxY), which
 //     is what a rotation cannot change.
 //
-// AND THE POOL IS NOT SILENTLY SKIPPED. `ct/traffic.ts` keeps six vehicles in a
-// pool and parks each one's collider at x = 999 while it is not on the block.
-// Filtering those out by `visible` would be GOTCHAS 79 exactly — so instead
-// every vehicle with no collider on it is counted, and that count must EQUAL
-// the number of boxes sitting at the sentinel. A street car that lost its
-// collider therefore fails this file rather than passing as "idle".
+// ── AND WHAT CHANGED FOR ITEM 294, WHICH IS MOST OF THE FILE ─────────────
 //
-// Usage:  SHOT_URL=http://localhost:4370/ node scripts/probes/w72-car-collider-consistency.mjs
-//         MUTATE=flatten|stretch|drop ...   the three negative cases; each must FAIL
+// This check was RED ON MAINLINE and its census was counting the wrong cars.
+// Two faults, and they were independent of each other.
+//
+// **(1) THE RULE WAS A TRIPWIRE FOR A CHANGE THAT HAS NOW LANDED.** Rule 4 used
+// to say the lot's cars carry *"one box, all identical"* — one blanket
+// `x ± 1.4, z ± 2.0` per car whatever kind it was. That was true when it was
+// written and item 231 (`ct/lot.ts`, per-kind turned tiers with `AABB.rot`)
+// deliberately replaced it. So the check went red for doing its job, and the
+// rule it enforced is superseded by the sentence item 231 shipped and the user
+// asked for in the first place:
+//
+//     EVERY KIND HAS ONE SHAPE ACROSS EVERY INSTANCE — street and lot alike.
+//
+// Rule 3 asks that of all 17 tagged vehicles now, instead of asking it of the
+// street and letting the lot answer a weaker question of its own.
+//
+// **(2) THE CENSUS NAMED THE WRONG POPULATION, and the reason was not the one
+// on the queue row.** The row blamed `!r.parts.some(q => q.tag !== '(untagged)')`
+// — identifying a lot car as one whose parts are untagged, which item 231's tags
+// falsified. True, but that filter selected the TRAFFIC POOL for a second
+// reason that would have survived fixing it: **`ct/traffic.ts` parks an idle
+// vehicle's collider as a degenerate POINT at (999, 999) — and `IDLE_XZ` moved
+// the idle MESH there too (item 242).** So each of the 5 idle pool cars sat
+// exactly inside all 20 point-boxes in the world, the `inside` clause handed
+// every one of them all 20, and they entered the census as vehicles "on the
+// block" carrying twenty untagged 0 x 0 colliders. That is what printed under
+// "THE LOT'S 5 CARS".
+//
+// It also silently killed rule 1. `bare` — vehicles carrying no collider, the
+// `ct/lot.ts` hood-up bug that shipped a car you could walk through — went to
+// ZERO and could never fire again, because every idle car now "had" twenty.
+//
+// Measured on this tree before the rewrite: 22 tagged vehicles, 549 colliders,
+// 20 degenerate ones at (999, 999), and only **6 of the 20 belong to vehicles at
+// all** — `ct/tenancy.ts:1073` and `ct/apartment.ts:313` park their own caps on
+// the same sentinel. So "count the vehicles with no collider and compare against
+// the number of sentinel boxes" had fourteen boxes of slack in it. It is a
+// two-sided statement about the VEHICLES now: idle ⟺ no collider.
+//
+// THE POPULATION, measured rather than assumed:
+//   6 on the street (2 sedan, 2 pickup, 2 hatch) — cardinal
+//   11 in the used-car lot (4 sedan, 2 pickup, 3 hatch, 2 van) — turned 24-33°,
+//      carrying 23 colliders tagged `<kind>-<surface>@lot<bay>`
+//   5 idle in the traffic pool at (999, 999), collider-less by construction
+//
+// Usage:  SHOT_URL=http://localhost:4181/ node scripts/probes/w72-car-collider-consistency.mjs
+//         MUTATE=flatten|stretch|drop|lotshrink ...   the negative cases; each must FAIL
 import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 
@@ -47,7 +88,10 @@ const MUTATE = process.env.MUTATE ?? '';
  *  sanctioned fallback). The tolerance below is 2x it, because the skin is per
  *  SIDE and the comparison is of full extents. */
 const CAR_SKIN = 0.15;                       // src/proto/ct/cars.ts, `CAR_SKIN`
-const SENTINEL = 900;                        // ct/traffic.ts parks idle boxes at x 999
+/** ct/traffic.ts's `IDLE_XZ` (traffic.ts:221), where a pooled vehicle waits —
+ *  MESH and box alike since item 242. Copied with a citation, same reason. */
+const IDLE_XZ = 999;
+const KINDS = ['sedan', 'hatch', 'pickup', 'van'];
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
@@ -58,9 +102,14 @@ await p.waitForTimeout(800);
 // ── THE NEGATIVE CASES ───────────────────────────────────────────────────
 //
 // A green check proves nothing until it has been shown going red for the right
-// reason. Each of these breaks ONE of the three properties asserted below, in
-// the LIVE collider array (GOTCHAS 74: `colliders()` is live by reference,
+// reason. Each of these breaks ONE of the properties asserted below, in the LIVE
+// collider array (GOTCHAS 74: `colliders()` is live by reference,
 // `staticColliders()` is a copy and a mutation planted there is read by nobody).
+//
+// `lotshrink` is item 294's, and it is the runtime twin of the `lot-tier-shrunk`
+// case in scripts/canfail.mjs — that one mutates ct/lot.ts in SOURCE and
+// restores it byte-for-byte, which is the stronger claim; this one is here so
+// the failure can be watched in one line without a source edit.
 if (MUTATE) {
   const did = await p.evaluate((mode) => {
     const cols = window.__ct.colliders();
@@ -82,17 +131,60 @@ if (MUTATE) {
       }
       return 'the side street sedan has no collider at all';
     }
+    if (mode === 'lotshrink') {                      // ONE lot sedan is not its kind's shape
+      const bay = cols.filter((c) => /^sedan-.*@lot\d+$/.test(String(c.tag ?? '')));
+      if (!bay.length) return 'no sedan boxes in the lot';
+      const which = String(bay[0].tag).split('@')[1];
+      for (const c of bay.filter((q) => String(q.tag).endsWith(`@${which}`))) {
+        const shrink = (c.maxX - c.minX) * 0.1;
+        c.minX += shrink; c.maxX -= shrink;
+      }
+      return `the lot sedan in ${which} is 20% shorter than every other sedan`;
+    }
     return `unknown MUTATE=${mode}`;
   }, MUTATE);
   console.log(`\n*** MUTATED: ${did} — this run MUST fail ***`);
 }
 
-const census = await p.evaluate((SENTINEL) => {
+const census = await p.evaluate(({ IDLE_XZ, KINDS }) => {
   const scene = window.__ct.scene();
   scene.updateMatrixWorld(true);
   const cols = window.__ct.colliders();
   const V = scene.position.constructor;
-  const out = [];
+
+  // ── WHAT COUNTS AS A BOX AT ALL ────────────────────────────────────────
+  //
+  // A DEGENERATE box is a parking space, not a collider: `ct/traffic.ts`,
+  // `ct/tenancy.ts` and `ct/apartment.ts` all park an inactive box as a POINT
+  // out at the sentinel. Attributing those to a vehicle is what made every idle
+  // pool car look like it carried twenty colliders (item 294).
+  const real = cols.filter((c) => c.maxX - c.minX > 0.001 || c.maxZ - c.minZ > 0.001);
+  const sentinels = cols.length - real.length;
+
+  const shapeOf = (c) => ({
+    tag: String(c.tag ?? '(untagged)').split('@')[0],
+    inst: String(c.tag ?? '').includes('@') ? String(c.tag).split('@')[1] : null,
+    long: +Math.max(c.maxX - c.minX, c.maxZ - c.minZ).toFixed(3),
+    short: +Math.min(c.maxX - c.minX, c.maxZ - c.minZ).toFixed(3),
+    maxY: c.maxY === undefined ? null : +c.maxY.toFixed(3),
+    cx: (c.minX + c.maxX) / 2, cz: (c.minZ + c.maxZ) / 2,
+    minX: c.minX, maxX: c.maxX, minZ: c.minZ, maxZ: c.maxZ,
+  });
+
+  // ── THE LOT'S CARS ARE IDENTIFIED BY THE LOT'S OWN LABEL ───────────────
+  //
+  // `ct/lot.ts:2060` writes `${t.tag}@lot${b}` — the SHAPE is the kind's, the
+  // NAME is per bay. So the world says which bay a box belongs to, and the
+  // census reads it instead of inferring the lot from what its boxes are NOT.
+  // (The old filter was "its parts are untagged", which item 231 falsified and
+  // which selected the traffic pool.)
+  const bays = new Map();
+  for (const c of real) {
+    const m = String(c.tag ?? '').match(/@lot(\d+)$/);
+    if (m) (bays.get(m[1]) ?? bays.set(m[1], []).get(m[1])).push(shapeOf(c));
+  }
+
+  const vehicles = [];
   scene.traverse((o) => {
     const kind = o.userData && o.userData.carKind;
     if (!kind) return;
@@ -122,93 +214,124 @@ const census = await p.evaluate((SENTINEL) => {
     const zx = e[8], zz = e[10];
     const len = Math.hypot(zx, zz) || 1;
     const offAxis = Math.min(Math.abs(zx / len), Math.abs(zz / len));   // 0 = cardinal
+    vehicles.push({
+      kind,
+      x: +cx.toFixed(2), z: +cz.toFixed(2),
+      idle: Math.hypot(cx - IDLE_XZ, cz - IDLE_XZ) < 5,
+      bodyLong: +Math.max(mxx - mnx, mxz - mnz).toFixed(2),
+      bodyShort: +Math.min(mxx - mnx, mxz - mnz).toFixed(2),
+      bodyTop: +mxy.toFixed(2),
+      offAxis: +offAxis.toFixed(3),
+      bay: null, parts: [],
+    });
+  });
+
+  // ── ATTRIBUTION, BAY FIRST ─────────────────────────────────────────────
+  //
+  // Each bay's boxes go to the ONE vehicle nearest their common centre, and the
+  // distance is returned so the assertions can require it to be a fit rather
+  // than a nearest-of-whatever-there-was. Everything else falls through to the
+  // proximity rule the street has always used.
+  const bayFit = [];
+  for (const [n, boxes] of bays) {
+    const bx = boxes.reduce((s, q) => s + q.cx, 0) / boxes.length;
+    const bz = boxes.reduce((s, q) => s + q.cz, 0) / boxes.length;
+    let best = null, bestD = 1e9;
+    for (const v of vehicles) {
+      const d = Math.hypot(v.x - bx, v.z - bz);
+      if (d < bestD) { bestD = d; best = v; }
+    }
+    bayFit.push({ bay: n, d: +bestD.toFixed(3), kind: best?.kind ?? null,
+      tagKind: boxes[0].tag.split('-')[0], already: best?.bay ?? null });
+    if (best) { best.bay = n; best.parts = boxes; }
+  }
+
+  const claimed = new Set(bays.size ? [].concat(...[...bays.values()]).map((q) => `${q.tag}@${q.inst}`) : []);
+  for (const v of vehicles) {
+    if (v.bay) continue;
     // THIS VEHICLE'S OWN COLLIDERS: any box containing its centre, plus any box
     // whose tag names this kind and whose centre is within 4 m of it. The tag
     // clause is what reaches the tiers fore and aft of the centre — quoting only
     // the covering box makes a correctly-tiered vehicle look 2.8 m too SMALL,
     // which is a probe artefact w72 called out and would otherwise be read as a
     // finding. The 4 m radius separates two pickups on two different streets.
-    const own = cols.filter((c) => {
-      const inside = cx > c.minX - 0.05 && cx < c.maxX + 0.05 && cz > c.minZ - 0.05 && cz < c.maxZ + 0.05;
+    v.parts = real.filter((c) => {
+      if (/@lot\d+$/.test(String(c.tag ?? ''))) return false;      // already a bay's
+      const inside = v.x > c.minX - 0.05 && v.x < c.maxX + 0.05 && v.z > c.minZ - 0.05 && v.z < c.maxZ + 0.05;
       const bx = (c.minX + c.maxX) / 2, bz = (c.minZ + c.maxZ) / 2;
-      const near = String(c.tag ?? '').split('@')[0].startsWith(`${kind}-`)
-        && Math.hypot(bx - cx, bz - cz) < 4;
+      const near = String(c.tag ?? '').split('@')[0].startsWith(`${v.kind}-`)
+        && Math.hypot(bx - v.x, bz - v.z) < 4;
       return inside || near;
-    });
-    out.push({
-      kind,
-      x: +cx.toFixed(2), z: +cz.toFixed(2),
-      bodyLong: +Math.max(mxx - mnx, mxz - mnz).toFixed(2),
-      bodyShort: +Math.min(mxx - mnx, mxz - mnz).toFixed(2),
-      bodyTop: +mxy.toFixed(2),
-      offAxis: +offAxis.toFixed(3),
-      // the SHAPE of each of its boxes, as a rotation cannot change it
-      parts: own.map((c) => ({
-        tag: String(c.tag ?? '(untagged)').split('@')[0],
-        long: +Math.max(c.maxX - c.minX, c.maxZ - c.minZ).toFixed(3),
-        short: +Math.min(c.maxX - c.minX, c.maxZ - c.minZ).toFixed(3),
-        maxY: c.maxY === undefined ? null : +c.maxY.toFixed(3),
-      })),
-      // and the union of them, which is the vehicle's real footprint
-      unionLong: own.length ? +Math.max(
-        Math.max(...own.map((c) => c.maxX)) - Math.min(...own.map((c) => c.minX)),
-        Math.max(...own.map((c) => c.maxZ)) - Math.min(...own.map((c) => c.minZ))).toFixed(3) : null,
-      unionShort: own.length ? +Math.min(
-        Math.max(...own.map((c) => c.maxX)) - Math.min(...own.map((c) => c.minX)),
-        Math.max(...own.map((c) => c.maxZ)) - Math.min(...own.map((c) => c.minZ))).toFixed(3) : null,
-    });
-  });
-  // THE POOL'S SENTINEL IS A DEGENERATE BOX AT x 999, not merely a far-east
-  // one: the interiors belt sits out past x 600 and 142 real colliders are east
-  // of 900, so a plain `minX >= 900` counts rooms as idle vehicles. What the
-  // pool parks is a POINT — minX === maxX === 999 — and that is what to count.
-  const idle = cols.filter((c) => c.minX >= SENTINEL && c.maxX - c.minX < 0.001
-    && c.maxZ - c.minZ < 0.001);
-  return { rows: out, sentinels: idle.length, total: cols.length };
-}, SENTINEL);
+    }).map(shapeOf);
+  }
 
-const { rows, sentinels } = census;
+  for (const v of vehicles) {
+    v.unionLong = v.parts.length ? +Math.max(
+      Math.max(...v.parts.map((c) => c.maxX)) - Math.min(...v.parts.map((c) => c.minX)),
+      Math.max(...v.parts.map((c) => c.maxZ)) - Math.min(...v.parts.map((c) => c.minZ))).toFixed(3) : null;
+    v.unionShort = v.parts.length ? +Math.min(
+      Math.max(...v.parts.map((c) => c.maxX)) - Math.min(...v.parts.map((c) => c.minX)),
+      Math.max(...v.parts.map((c) => c.maxZ)) - Math.min(...v.parts.map((c) => c.minZ))).toFixed(3) : null;
+    for (const q of v.parts) { delete q.cx; delete q.cz; delete q.minX; delete q.maxX; delete q.minZ; delete q.maxZ; }
+  }
+
+  const specs = {};
+  for (const k of KINDS) {
+    specs[k] = window.__ct.carSpec(k).map((t) => ({
+      tag: t.tag,
+      long: +Math.max(t.maxX - t.minX, t.maxZ - t.minZ).toFixed(3),
+      short: +Math.min(t.maxX - t.minX, t.maxZ - t.minZ).toFixed(3),
+      maxY: t.maxY === undefined ? null : +t.maxY.toFixed(3),
+    }));
+  }
+  return { rows: vehicles, sentinels, total: cols.length, bayFit, specs,
+    bayBoxes: claimed.size };
+}, { IDLE_XZ, KINDS });
+
+const { rows, sentinels, bayFit, specs } = census;
 const fails = [];
+const shape = (q) => `${q.tag} ${q.long}x${q.short}${q.maxY === null ? ' FULL-HEIGHT' : ` top ${q.maxY}`}`;
 
 // ── 0. POPULATION FLOOR ──────────────────────────────────────────────────
 //
 // GOTCHAS 34 and this brief's own rule: a probe that found no cars has
 // established nothing either way, and a probe that found ONE of a kind cannot
-// answer a question about two of them. This world parks 3 cars on the main
-// street, 3 on the side street, keeps 6 in the traffic pool and stocks 13 in
-// the lot, so anything under 20 means the census itself broke.
+// answer a question about two of them. This world parks 6 cars on the streets,
+// stocks 11 bays in the used-car lot and keeps 6 vehicles in the traffic pool,
+// so anything under 20 means the census itself broke.
 console.log(`\n${rows.length} vehicles carry a carKind tag; `
-  + `${census.total} colliders in the world, ${sentinels} of them parked at the pool sentinel`);
+  + `${census.total} colliders in the world, ${sentinels} of them parked as degenerate`
+  + ' points at a sentinel (traffic, tenancy and apartment share that idiom)');
 if (rows.length < 20) fails.push(`POPULATION FLOOR: only ${rows.length} tagged vehicles found (expected 20+)`);
 
-const onBlock = rows.filter((r) => r.parts.length > 0);
-const bare = rows.filter((r) => r.parts.length === 0);
-// ── 1. EVERY VEHICLE WITHOUT A COLLIDER IS ONE OF THE POOL'S IDLE ONES ───
+const lot = rows.filter((r) => r.bay !== null);
+const street = rows.filter((r) => r.bay === null && r.parts.length > 0);
+const bare = rows.filter((r) => r.bay === null && r.parts.length === 0);
+
+// ── 1. A VEHICLE HAS A COLLIDER IF AND ONLY IF IT IS OUT OF THE POOL ─────
 //
 // Not "skip the ones with no collider" — that is how a car with NO COLLIDER AT
 // ALL passes, which this world has actually shipped (ct/lot.ts's hood-up car,
-// whose `continue` jumped the registration). The pool parks exactly one box per
-// idle vehicle at x 999, so the two counts must match.
-console.log(`${onBlock.length} are on the block with colliders; ${bare.length} carry none`);
-// The pool builds its six vehicles and never moves them until one is put on a
-// route, so an idle one is still at the scene origin — an AUTHORING fact, not
-// `visible`, which is GOTCHAS 79's trap. A car that has been PLACED and has no
-// collider is the real bug this catches (ct/lot.ts once shipped exactly that:
-// its hood-up car's early `continue` jumped the registration and a player could
-// walk straight through it).
-const placedBare = bare.filter((r) => Math.hypot(r.x, r.z) > 0.5);
-if (placedBare.length) {
-  for (const r of placedBare) {
-    fails.push(`${r.kind} PLACED at ${r.x},${r.z} carries no collider at all`);
-  }
+// whose `continue` jumped the registration).
+//
+// BOTH DIRECTIONS, and that is item 294's repair. The old rule compared the
+// number of collider-less vehicles against the number of sentinel BOXES, and
+// only 6 of the 20 sentinel boxes in this world belong to vehicles at all — so
+// it had fourteen boxes of slack, and a real uncollidered car could hide in it.
+// A vehicle's own position answers the question exactly: `ct/traffic.ts` parks
+// an idle vehicle's MESH at IDLE_XZ as well as its box (item 242).
+console.log(`${street.length} on the street, ${lot.length} in the used-car lot,`
+  + ` ${bare.length} idle in the pool with no collider`);
+for (const r of bare) {
+  if (!r.idle) fails.push(`${r.kind} PLACED at ${r.x},${r.z} carries no collider at all`);
 }
-if (bare.length > sentinels) {
-  fails.push(`${bare.length} vehicles have no collider but only ${sentinels} boxes sit at the pool`
-    + ' sentinel — more uncollidered vehicles than the pool can account for');
+for (const r of [...street, ...lot]) {
+  if (r.idle) fails.push(`${r.kind} is parked at the pool sentinel and still carries ${r.parts.length} collider(s)`);
 }
+if (!bare.length) fails.push('NOTHING was found idle in the pool — rule 1 measured nothing in either direction');
 
 const axis = (r) => (r.offAxis < 0.12 ? 'axis-aligned' : `turned ${(Math.asin(r.offAxis) * 180 / Math.PI).toFixed(0)}°`);
-console.log('\nkind     at (x, z)          body L x S x H       boxes  full-h  union L x S   over    parked');
+console.log('\nkind     at (x, z)          body L x S x H       boxes  full-h  union L x S   over    parked        regime');
 for (const r of [...rows].sort((a, c) => a.kind.localeCompare(c.kind) || a.x - c.x)) {
   const full = r.parts.filter((q) => q.maxY === null).length;
   const over = r.unionLong === null ? '—' : `${(r.unionLong - r.bodyLong).toFixed(2)}`;
@@ -216,7 +339,7 @@ for (const r of [...rows].sort((a, c) => a.kind.localeCompare(c.kind) || a.x - c
     + ` ${`${r.bodyLong} x ${r.bodyShort} x ${r.bodyTop}`.padEnd(20)}`
     + ` ${String(r.parts.length).padStart(5)} ${String(full).padStart(7)}`
     + `  ${String(r.unionLong === null ? '—' : `${r.unionLong} x ${r.unionShort}`).padEnd(13)} ${over.padStart(6)}`
-    + `  ${axis(r)}`);
+    + `  ${axis(r).padEnd(13)} ${r.bay !== null ? `lot bay ${r.bay}` : r.idle ? 'pool (idle)' : 'street'}`);
 }
 
 // ── 2. NO BOX IS MORE THAN THE DECLARED SKIN BIGGER THAN ITS BODY ────────
@@ -228,10 +351,12 @@ for (const r of [...rows].sort((a, c) => a.kind.localeCompare(c.kind) || a.x - c
 //
 // ONLY for vehicles parked on a cardinal. A car turned 31° has a world AABB
 // wider than itself by trigonometry, not by anyone's mistake — the lot's stock
-// is reported below rather than judged by a rule that does not apply to it.
+// carries TURNED boxes (`AABB.rot`, item 231) whose stored extents are the
+// kind's own, so rule 3 judges those exactly and this one does not apply.
 console.log('');
-const cardinal = onBlock.filter((r) => r.offAxis < 0.12);
-const turned = onBlock.filter((r) => r.offAxis >= 0.12);
+const placed = [...street, ...lot];
+const cardinal = placed.filter((r) => r.offAxis < 0.12);
+const turned = placed.filter((r) => r.offAxis >= 0.12);
 for (const r of cardinal) {
   const overL = r.unionLong - r.bodyLong, overS = r.unionShort - r.bodyShort;
   if (overL > 2 * CAR_SKIN + 0.01 || overS > 2 * CAR_SKIN + 0.01) {
@@ -244,45 +369,12 @@ console.log(`  ${cardinal.length} vehicles parked on a cardinal axis were size-c
 if (turned.length) {
   console.log(`  ${turned.length} more are parked off-axis (the used-car lot) — a turned car's world`);
   console.log('  AABB is wider than the car by trigonometry, so the size rule does not apply to');
-  console.log('  them. THEY ARE NOT SILENTLY SKIPPED: they are counted, and rule 3 still holds.');
+  console.log('  them. THEY ARE NOT SILENTLY SKIPPED: rule 3 holds them to their kind\'s spec');
+  console.log('  exactly, which is the stronger statement of the two.');
 }
 if (cardinal.length < 5) fails.push(`POPULATION FLOOR: only ${cardinal.length} cardinal-parked vehicles to size-check`);
 
 // ── 3. THE QUESTION THE ITEM ASKS: DO TWO OF A KIND AGREE? ───────────────
-//
-// Compared as SHAPE — the sorted list of (surface name, long, short, maxY) —
-// because that is what a rotation cannot change and what "all trucks should be
-// one object that are all the same" actually means. The `@side` instance label
-// is stripped off the tag first: two physical surfaces must not answer to one
-// name (the acceptance walks look them up by it), but the surfaces they name
-// are the same surface of the same kind of car.
-const sig = (r) => r.parts
-  .map((q) => `${q.tag} ${q.long}x${q.short}${q.maxY === null ? ' FULL-HEIGHT' : ` top ${q.maxY}`}`)
-  .sort().join(' | ');
-//
-// ── AND THERE ARE TWO COLLIDER REGIMES IN THIS WORLD, NOT ONE ────────────
-//
-// Split by MECHANISM, not by convenience: a vehicle whose boxes carry its
-// kind's tags was built by `carColliderSpec` in ct/cars.ts, which is what item
-// 202c is about. A vehicle carrying one untagged box was built by
-// `ct/lot.ts:1986`, which registers `x ± 1.4, z ± 2.0` for every car in the
-// used-car lot whatever kind it is and whatever angle it sits at.
-//
-// THAT SECOND REGIME IS A REAL, UNFIXED FINDING AND IT IS NOT BEING SKIPPED
-// HERE. It is measured, named, counted, and held to its own rule below. It was
-// left alone deliberately, with the numbers, in notes/w81-item202c-car-
-// colliders.md: the lot's box is SMALLER than the car it wraps on purpose — the
-// source says so at ct/lot.ts:1980, *"deliberately tighter than the true
-// footprint: you can brush a wing, and in exchange the 6.8 m you can see down
-// stays 6.8 m you can walk down"* — so adopting the street's spec there trades
-// collider accuracy for aisle width, which is a decision with a playtest in it
-// and not a refactor.
-const street = onBlock.filter((r) => r.parts.some((q) => q.tag !== '(untagged)'));
-const lot = onBlock.filter((r) => !r.parts.some((q) => q.tag !== '(untagged)'));
-
-console.log('\nDO TWO INSTANCES OF ONE KIND CARRY THE SAME COLLIDER?');
-console.log(`(street regime: ${street.length} vehicles built by carColliderSpec.`
-  + `  lot regime: ${lot.length} built by ct/lot.ts's own box — held to rule 4.)`);
 //
 // AGAINST THE KIND'S DECLARED SPEC, NOT AGAINST ANOTHER INSTANCE. Comparing two
 // instances goes green the moment both are wrong the same way, and it cannot
@@ -291,25 +383,21 @@ console.log(`(street regime: ${street.length} vehicles built by carColliderSpec.
 // deliberately not part of `carColliderSpec('sedan')`. So the world publishes
 // the spec (`__ct.carSpec`) and every instance is held to it; anything extra is
 // reported as an ATTACHMENT rather than counted as a disagreement.
-const specs = await p.evaluate(() => {
-  const out = {};
-  for (const k of ['sedan', 'hatch', 'pickup', 'van']) {
-    out[k] = window.__ct.carSpec(k).map((t) => ({
-      tag: t.tag,
-      long: +Math.max(t.maxX - t.minX, t.maxZ - t.minZ).toFixed(3),
-      short: +Math.min(t.maxX - t.minX, t.maxZ - t.minZ).toFixed(3),
-      maxY: t.maxY === undefined ? null : +t.maxY.toFixed(3),
-    }));
-  }
-  return out;
-});
-const shape = (q) => `${q.tag} ${q.long}x${q.short}${q.maxY === null ? ' FULL-HEIGHT' : ` top ${q.maxY}`}`;
+//
+// ⚠ ITEM 294 PUT THE LOT IN THIS POPULATION. There used to be two regimes here
+// and a separate, weaker rule for the second one, because `ct/lot.ts` registered
+// one blanket box per car whatever kind it was. Item 231 gave every bay its
+// kind's real tiers, so there is ONE rule now and it is the user's sentence:
+// every kind has one shape across every instance.
+console.log('\nDO ALL INSTANCES OF ONE KIND CARRY THE SAME COLLIDER?');
+console.log(`(${street.length} on the street and ${lot.length} in the lot, one population,`
+  + ' every one built from carColliderSpec)');
 const byKind = {};
-for (const r of street) (byKind[r.kind] ??= []).push(r);
+for (const r of placed) (byKind[r.kind] ??= []).push(r);
 let compared = 0;
 for (const [k, list] of Object.entries(byKind)) {
   const want = specs[k].map(shape).sort();
-  console.log(`  ${k.padEnd(8)} ${String(list.length).padStart(2)} on a street, against the declared spec:`);
+  console.log(`  ${k.padEnd(8)} ${String(list.length).padStart(2)} instance(s), against the declared spec:`);
   for (const w of want) console.log(`      spec  ${w}`);
   for (const r of list) {
     compared++;
@@ -317,51 +405,70 @@ for (const [k, list] of Object.entries(byKind)) {
     const got = r.parts.filter((q) => names.has(q.tag)).map(shape).sort();
     const extra = r.parts.filter((q) => !names.has(q.tag)).map(shape);
     const same = got.length === want.length && got.every((g, i) => g === want[i]);
-    console.log(`      ${same ? 'ok  ' : 'MISS'} at ${r.x},${r.z}`
+    console.log(`      ${same ? 'ok  ' : 'MISS'} at ${r.x},${r.z}`.padEnd(28)
+      + ` ${r.bay !== null ? `lot bay ${r.bay}` : 'street'}`
       + (same ? '' : `  ← ${got.join(' | ') || '(nothing matching the spec)'}`)
       + (extra.length ? `   + attachment: ${extra.join(' | ')}` : ''));
-    if (!same) fails.push(`${k} at ${r.x},${r.z} does not carry its kind's declared collider`);
+    if (!same) fails.push(`${k} at ${r.x},${r.z} (${r.bay !== null ? `lot bay ${r.bay}` : 'street'})`
+      + ' does not carry its kind\'s declared collider');
   }
 }
-if (compared < 5) fails.push(`POPULATION FLOOR: only ${compared} street vehicles compared`);
-if (Object.keys(byKind).length < 3) {
-  fails.push(`POPULATION FLOOR: only ${Object.keys(byKind).length} kinds on a street (expected 3+)`);
+if (compared < 15) fails.push(`POPULATION FLOOR: only ${compared} placed vehicles compared (expected 15+)`);
+if (Object.keys(byKind).length < 4) {
+  fails.push(`POPULATION FLOOR: only ${Object.keys(byKind).length} kinds placed (expected all 4)`);
 }
 // and the shape signature is still printed, because "every kind has exactly one
-// shape on the street" is the sentence the user actually wrote
+// shape" is the sentence the user actually wrote
+console.log('');
+let footprints = 0;
 for (const [k, list] of Object.entries(byKind)) {
   const names = new Set(specs[k].map((q) => q.tag));
   const sigs = [...new Set(list.map((r) => r.parts.filter((q) => names.has(q.tag)).map(shape).sort().join(' | ')))];
-  console.log(`  ${k.padEnd(8)} ${sigs.length} distinct collider shape(s) across ${list.length} instances`);
-  if (sigs.length > 1) fails.push(`${k}: ${sigs.length} distinct collider shapes on the street`);
+  footprints += specs[k].length;
+  const where = { street: list.filter((r) => r.bay === null).length, lot: list.filter((r) => r.bay !== null).length };
+  console.log(`  ${k.padEnd(8)} ${sigs.length} distinct collider shape(s) across ${list.length} instances`
+    + ` (${where.street} street, ${where.lot} lot)`);
+  if (sigs.length > 1) fails.push(`${k}: ${sigs.length} distinct collider shapes across its instances`);
 }
+console.log(`  ${footprints} distinct declared footprints across the ${Object.keys(byKind).length} kinds`);
 
-// ── 4. AND THE LOT'S OWN REGIME MUST BE INTERNALLY CONSISTENT ────────────
+// ── 4. THE LOT'S BAYS: ONE CAR EACH, AND EVERY BOX ON A CAR ──────────────
 //
-// One box per car, and every one of them the same box. That is what ct/lot.ts
-// intends today; stating it here means the lot drifting — a bay that forgets
-// its collider, or one car given a different size — fails this file rather than
-// hiding inside "the lot is different anyway".
-console.log(`\nAND THE LOT'S ${lot.length} CARS, BY THEIR OWN RULE (one box, all identical):`);
-const lotSigs = [...new Set(lot.map(sig))];
-for (const s of lotSigs) console.log(`  ${s}   × ${lot.filter((r) => sig(r) === s).length}`);
-if (lot.length && lotSigs.length > 1) {
-  fails.push(`the lot's cars carry ${lotSigs.length} different boxes — its own rule is one`);
+// Rule 3 above already says each lot car carries its kind's shape. This says the
+// BOOKKEEPING holds: every `@lot<n>` label found a car, no two bays landed on
+// one car, and the boxes sit ON the car rather than merely nearest to it.
+// Without this, a bay whose boxes were registered at the wrong coordinates would
+// be adopted by whichever car happened to be closest and rule 3 would pass.
+console.log(`\nTHE USED-CAR LOT'S ${lot.length} CARS, ONE PER BAY:`);
+const byBay = {};
+for (const f of bayFit) (byBay[f.kind ?? '(nobody)'] ??= []).push(f);
+for (const [k, list] of Object.entries(byBay)) {
+  console.log(`  ${k.padEnd(8)} bays ${list.map((f) => f.bay).join(', ')}`
+    + `  — worst box-to-car distance ${Math.max(...list.map((f) => f.d)).toFixed(3)} m`);
 }
-if (lot.some((r) => r.parts.length !== 1)) {
-  fails.push('a lot car carries more or fewer than the one box ct/lot.ts registers');
+for (const f of bayFit) {
+  if (f.kind === null) fails.push(`lot bay ${f.bay}'s boxes belong to no vehicle at all`);
+  else if (f.d > 1.0) fails.push(`lot bay ${f.bay}'s boxes sit ${f.d} m from the nearest car — they are not ON it`);
+  else if (f.tagKind !== f.kind) fails.push(`lot bay ${f.bay} is tagged ${f.tagKind}- but its car is a ${f.kind}`);
+  if (f.already !== null) fails.push(`lot bays ${f.already} and ${f.bay} both landed on one car`);
 }
-console.log('  ⚠ every one of them is FULL HEIGHT and the same size whatever kind of car it is,');
-console.log('    which is the other half of the user\'s sentence and is NOT fixed. See');
-console.log('    notes/w81-item202c-car-colliders.md — measured, scoped, and handed back.');
+if (bayFit.length !== lot.length) {
+  fails.push(`${bayFit.length} lot bays carry boxes but ${lot.length} cars claim one — a bay lost its car`);
+}
+// FLOOR AND CEILING, both, because a one-sided count is what item 294 was
+// warned about: eight would mean three bays lost their colliders, and more bays
+// than cars means a box is registered where nothing is parked.
+if (lot.length < 8) fails.push(`POPULATION FLOOR: only ${lot.length} cars in the lot (it stocks 11 bays)`);
+console.log(`  ${census.bayBoxes} colliders carry a @lot<bay> label across ${bayFit.length} bays`);
 
 console.log('');
 if (fails.length) {
   for (const f of fails) console.log(`FAIL: ${f}`);
   console.log(`\n${fails.length} failure(s)`);
 } else {
-  console.log(`PASS: every kind carries ONE collider shape across all ${compared} vehicles on the`
-    + ` block; ${bare.length} idle pool vehicles accounted for against ${sentinels} sentinel boxes`);
+  console.log(`PASS: every kind carries ONE collider shape across all ${compared} placed vehicles`
+    + ` — ${street.length} street, ${lot.length} lot — and the ${bare.length} idle pool vehicles`
+    + ' carry none, which is what idle means');
 }
 await b.close();
 process.exit(fails.length ? 1 : 0);

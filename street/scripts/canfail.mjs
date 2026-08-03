@@ -1489,6 +1489,38 @@ const CASES = [
     '    void renderer;   // selftest: the world can no longer take the pointer at all',
     'pointer-returns.mjs', [], 'a world that can never lock the pointer in the first place'],
 
+  // ITEM 294. ONE LOT SEDAN IS NOT THE SHAPE THE OTHER FIVE SEDANS ARE.
+  //
+  // `w72-car-collider-consistency.mjs` is the guard for the user's sentence —
+  // *"seems like all trucks should be one object that are all the same no?"* —
+  // and until item 294 it asked that only of the six cars on the streets. Item
+  // 231 gave the used-car lot's eleven bays their kinds' real tiers, so the
+  // question now covers all seventeen, lot and street in ONE population. This is
+  // the case that proves the lot half of it can go red.
+  //
+  // It shrinks bay 0 — a sedan — by 10% per side along its length, and only that
+  // bay: `b === 0` is the one condition, so the other five sedans (one more in
+  // the lot's bays 5, 8, 11 and two on the streets) keep the declared shape and
+  // the disagreement is what shows. A mutation that shrank EVERY sedan would
+  // leave one shape across all six and sail through the rule it is aimed at,
+  // which is the same trap `lot-colliders-unturned` above records for the aisle.
+  //
+  // Measured with the mutation in: `sedan at 10.25,8.6 (lot bay 0) does not
+  // carry its kind's declared collider` and `sedan: 2 distinct collider shapes
+  // across its instances`. Exit 1. The unmutated tree is green at 17 of 17.
+  //
+  // ⚠ THE COMPANION IS A RUNTIME ONE AND IS NOT A SUBSTITUTE. w72 carries
+  // `MUTATE=lotshrink`, which shrinks the same boxes in the live array — one
+  // line, no build, and useful while you are looking at something. This is the
+  // stronger claim: it changes the SOURCE that draws them, so it also proves the
+  // world is built the way the check believes it is, and canfail restores the
+  // file byte-for-byte afterwards.
+  ['lot-tier-shrunk', 'src/proto/ct/lot.ts',
+    '          const hx = (t.maxX - t.minX) / 2, hz = (t.maxZ - t.minZ) / 2;',
+    '          const bad = it.kind === \'sedan\' && b === 0 ? 0.8 : 1;   // selftest: one lot sedan, a shape of its own\n'
+    + '          const hx = (t.maxX - t.minX) / 2 * bad, hz = (t.maxZ - t.minZ) / 2;',
+    'probes/w72-car-collider-consistency.mjs', [], 'one lot sedan carrying a shape no other sedan has'],
+
 ];
 
 const sh = (c) => execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
