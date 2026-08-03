@@ -41,6 +41,10 @@ const CASINO = 'src/proto/ct/int-casino.ts';  // the 96 slot stools
 const FP = 'src/proto/fp.ts';                 // the player rig — eye height, reach
 const TAX = 'src/proto/ct/int-tax.ts';        // the waiting row the user reported
 const ATM = 'src/proto/ct/atm.ts';            // the cash machine's screens and keys
+// The fascia METRICS, hoisted out of ct/bank.ts so ct/atm.ts can hit-test the
+// keys ct/bank.ts draws without closing an import cycle (see the file's own
+// header). `rulings-atm` used to quote bank.ts and moved here with them.
+const ATMFACE = 'src/proto/ct/atm-face.ts';
 const JAIL = 'src/proto/ct/jail.ts';          // O's — the building and its screens
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
@@ -256,9 +260,23 @@ const CASES = [
     'D-rulings-hold.mjs', [], 'the awning sloping up and hiding the sign again'],
 
   // The fascia bottom the user named three times.
-  ['rulings-atm', BANK,
-    '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;',
-    '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.90;  // selftest: pre-ruling',
+  //
+  // NEEDLE RE-QUOTED AND RE-FILED, not redesigned — item 229. It quoted
+  // `ct/bank.ts`'s `const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;`
+  // and matched 0x from the ATM fascia dispatch rewrite onward. Nothing about
+  // the machine changed: `ct/atm-face.ts` was added as a third module importing
+  // neither `ct/bank.ts` nor `ct/atm.ts`, and the eight fascia numbers moved
+  // into its `ATM_FACE` declaration so both halves read ONE authoring instead
+  // of two. `ct/bank.ts:250` now says `KERB_H + ATM_FACE.bot` — the ruling is
+  // still there, it is simply no longer a literal in that file.
+  //
+  // So the case follows the NUMBER, which is what it was always about. `bot`
+  // is one of the two rulings `ct/atm-face.ts` names as such in its own comment,
+  // and 0.90 is the pre-ruling value `ct/bank.ts:230` records the user moving
+  // it off ("M_BOT 0.90 -> 0.68 -> 0.75", asked for twice).
+  ['rulings-atm', ATMFACE,
+    '  top: 1.58, screenBot: 1.16, keysBot: 1.04, bot: 0.75,',
+    '  top: 1.58, screenBot: 1.16, keysBot: 1.04, bot: 0.90,  // selftest: pre-ruling',
     'D-rulings-hold.mjs', [], 'the fascia bottom back where the ruling moved it from'],
 
   // ── item 184: the ATM's PIN screen ────────────────────────────────────────
@@ -363,24 +381,6 @@ const CASES = [
     'halo.position.set(headX + 1.4, sidewalkY + LAMP_H - 0.31, headZ);',
     'glow.mjs', ['probe'], 'the glow floating 1.4 m off its lamp head'],
 
-  // Switches the lamp pool off at the source. The halo SHEET still hangs in
-  // exactly the right place, so the anchoring half of glow.mjs stays green —
-  // which is the point: for weeks that was the only half there was, and the
-  // user's actual request was "light around the light posts to show up on the
-  // objects and entities under the lights".
-  // A NaN IN THE GRADE, which is the failure grade-sane.mjs exists for: it does
-  // not throw, does not log, and three.js uploads it happily — you get a black
-  // or white mesh and no clue where from. POOL_GAIN feeds the multiplier every
-  // lit material takes, so poisoning it poisons the colours without touching
-  // any geometry. Every other check on this shelf stays green through it, which
-  // is the point.
-  // WARMED TWICE. The grade's ceiling is exactly WARM_R: `mul` is capped at 1
-  // and `base` is an authored colour, so 1.15 is the most it can produce and
-  // grade-sane reads that number out of props.ts rather than repeating it.
-  // Applying the warm term a second time — which is what a second writer on one
-  // of these materials would look like, or an uncapped pool gain — takes it to
-  // 1.32 and nothing else in the suite would notice: it is not NaN, not
-  // negative, and clamps at render, so the frame merely looks slightly hotter.
   // `wet-blind` STOOD HERE AND IS GONE, not retargeted. It retextured the
   // puddle sheet so wetness.mjs's predicate stopped recognising it — a
   // blinding case against the pool population floor. Both the sheet and the
@@ -390,14 +390,70 @@ const CASES = [
   // case disappearing from this list is exactly what it would look like if
   // someone had simply given up on it.
 
+  // ── item 229: BOTH grade cases had to MOVE BRANCHES, and the reason is a
+  //    finding, not a rename ────────────────────────────────────────────────
+  //
+  // Both quoted the CPU pool branch and both matched 0x. `544053b20`
+  // ("lamplight per fragment, so a surface is lit because of where it is")
+  // moved the warm term AND the gain into `POOL_FRAG`, and the CPU pass now
+  // owes a pooled material only its ambient — `ct/props.ts:1494` is the whole
+  // of it: `e.m.color.setRGB(e.base.r * amb, e.base.g * amb, e.base.b * amb)`.
+  //
+  // THAT IS NOT A MOVED LINE, IT IS A MOVED LANGUAGE. `grade-sane.mjs` reads
+  // `m.color` out of JS; a fragment shader is invisible to it. So the warm
+  // overshoot it was written to catch cannot occur on the surface it reads any
+  // more, and its own header is now out of date by the same event — it records
+  // "20 of 5536 through the night, 156-166 at the four ramp hours, worst
+  // 1.1497 at 23:00", and measured on cd5afdd8f the world gives:
+  //
+  //     swept 24 hours, 10962 materials each — 0 impossible values
+  //     deliberately over 1.0: 0 material-hours, peak 0.0000 — none
+  //
+  // Zero, not twenty. **The ceiling clause is now green over a population in
+  // which nothing can approach the ceiling** — a vacuous pass in a check whose
+  // header is an argument against vacuous passes. Filed for the desk rather
+  // than fixed here: `grade-sane.mjs` is outside item 229 (BUILDER-BRIEF §9).
+  //
+  // Both cases are therefore re-pointed at the writes the CPU pass STILL owns,
+  // which is what the check can still see. That keeps each one's original
+  // question — "would grade-sane notice an impossible colour" — answerable,
+  // and it is deliberately NOT a loosening: the mutation still has to travel
+  // through the real grade to a real material to be caught.
+
+  // WARMED TWICE. The grade's ceiling is exactly WARM_R: `mul` is capped at 1
+  // and `base` is an authored colour, so 1.15 is the most it can produce and
+  // grade-sane reads that number out of props.ts rather than repeating it.
+  // Applying the warm term a second time — which is what a second writer on one
+  // of these materials would look like, or an uncapped pool gain — takes it
+  // over the ceiling and nothing else in the suite would notice: it is not NaN,
+  // not negative, and clamps at render, so the frame merely looks hotter.
+  //
+  // It now lands on the NON-pool branch (world geometry, the larger population
+  // and the brighter one), because that branch still multiplies a base colour
+  // by an ambient in JS. WARM_R twice is 1.3225 against a 1.155 ceiling —
+  // chosen over a single application on purpose: `base * amb * WARM_R` tops out
+  // at 1.15, which is UNDER the 1.155 bar, so the obvious one-term mutation
+  // would have been INERT and certified nothing. Measured, not assumed.
   ['grade-twice', PROPS,
-    '        e.base.r * mul * (1 + (WARM_R - 1) * k),',
-    '        e.base.r * mul * (1 + (WARM_R - 1) * k) * (1 + (WARM_R - 1) * k),',
+    '        let r = e.base.r * amb, g2 = e.base.g * amb, b2 = e.base.b * amb;',
+    '        let r = e.base.r * amb * WARM_R * WARM_R, g2 = e.base.g * amb * WARM_G * WARM_G, b2 = e.base.b * amb * WARM_B * WARM_B;',
     'grade-sane.mjs', [], 'a material warmed twice — over the ceiling the grade can produce'],
 
+  // A NaN IN THE GRADE, which is the failure grade-sane.mjs exists for: it does
+  // not throw, does not log, and three.js uploads it happily — you get a black
+  // or white mesh and no clue where from.
+  //
+  // It used to poison POOL_GAIN. POOL_GAIN is still a live constant, but since
+  // `544053b20` its only CPU consumer is `mul`, and `mul` no longer reaches a
+  // colour — it survives solely to set the `poolLit` flag (ct/props.ts:1479).
+  // Poisoning it now produces NaN in a boolean comparison, which is `false`,
+  // and a perfectly finite frame. The case would have been INERT even once
+  // re-quoted, which is why it is aimed one level up instead: `ambient()`
+  // (ct/props.ts:580) is multiplied into EVERY lit material's colour on both
+  // branches, so poisoning it is the same blast radius the original had.
   ['grade-nan', PROPS,
-    'const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor',
-    'const POOL_GAIN = NaN;       // selftest: poison the grade',
+    '  const ambient = (floor: number) => 1 - nightNow * (1 - floor);',
+    '  const ambient = (floor: number) => (1 - nightNow * (1 - floor)) * NaN;  // selftest: poison the grade',
     'grade-sane.mjs', [], 'a NaN quietly poisoning every lit material'],
 
   // BLIND THE CHECK, not the world — the sibling of footprint-blind. The lamps
@@ -411,8 +467,38 @@ const CASES = [
     "    halo.userData.lampPart = 'halo-selftest';\n    halo.position.set(headX,",
     'glow.mjs', ['probe'], 'the lamps glowing but their halos invisible to the check'],
 
+  // Switches the lamp pool off at the source. The halo SHEET still hangs in
+  // exactly the right place, so the anchoring half of glow.mjs stays green —
+  // which is the point: for weeks that was the only half there was, and the
+  // user's actual request was "light around the light posts to show up on the
+  // objects and entities under the lights".
+  //
+  // NEEDLE RE-QUOTED — item 229. It quoted `const POOL_GAIN = 12;` and matched
+  // 0x: the constant is now 6.5 (ct/props.ts:561), rewritten with the
+  // per-fragment lamplight. The mutation itself is unchanged in meaning — 0 is
+  // still "the lamps light nothing" — and POOL_GAIN is still the single source
+  // it is read from, now by the shader (`nf(POOL_GAIN)`, ct/props.ts:703) as
+  // well as by `poolLit`.
+  //
+  // ⚠ THIS CASE CANNOT DISCRIMINATE TODAY, AND SAYING SO IS THE POINT.
+  // `glow.mjs` is RED on this tree BEFORE any mutation is applied — measured on
+  // cd5afdd8f, unmutated, port 4400:
+  //
+  //     FAIL main street: under a lamp 0.0450 vs mid-block 0.0450 — 1.0x (59/164)
+  //     OK   side street: under a lamp 1.0000 vs mid-block 0.0857 — 11.7x (8/161)
+  //
+  // canfail scores CAUGHT on any non-zero exit, so a check that is ALREADY red
+  // goes "red" under every mutation and certifies nothing — the same empty-set
+  // certificate as item 224, one level out. Same cause as the two grade cases
+  // above: `544053b20` moved the pool into POOL_FRAG, and glow.mjs's pool
+  // clause reads `mat.color`, which is now `base * amb` — an ambient that is
+  // per-FLOOR, not per-lamp, so near and far on one floor are identical by
+  // construction and 1.0x is the only answer it can give. Filed for the desk;
+  // `glow.mjs` is outside item 229 (BUILDER-BRIEF §9). Re-pointed rather than
+  // retired because the case is correct and will discriminate the moment the
+  // check reads the pool where the pool now lives.
   ['glow-pool', PROPS,
-    'const POOL_GAIN = 12;',
+    'const POOL_GAIN = 6.5;',
     'const POOL_GAIN = 0;',
     'glow.mjs', ['probe'], 'lamps that glow but light nothing beneath them'],
 
