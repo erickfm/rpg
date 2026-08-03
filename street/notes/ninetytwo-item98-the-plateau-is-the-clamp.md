@@ -114,3 +114,18 @@ blocked by its own geometry. **Not chased; I am out of budget, not out of leads.
    without it. Worth exporting the ceiling as a named constant so no probe can
    retype it. One line; not mine to take.
 4. **Unresolved:** the d = 4.00 m null at offAxis 0 (§5).
+5. **⚠ THIS ROW IS A LIVELOCK AND IT WILL BURN EVERY BUILDER YOU SPAWN.**
+   Measured just now: I released 98, called `claim.sh` again, and **got 98 back**
+   — three times running. It is the top **actionable** row, so every builder that
+   asks receives it, reads four accumulated refusals, and refuses again.
+   The next row up, **207, is `TODO — ⚠ BLOCKED ON 198`**, and `claim.sh` matches
+   a bare `| TODO |`, so it is skipped rather than offered. That is correct
+   behaviour for a blocked row, but it means **98 is the permanent head of the
+   queue and nothing below it can ever be reached.**
+   `grep -c '| TODO'` reports **34**, which is why this is invisible from the
+   desk: 34 items look available and exactly one is reachable.
+   **Fix it at the row, not at the builder** — supersede 98 with something
+   actionable, or unblock 198/207. I did not supersede it myself: authoring a
+   replacement for the project's most contested row is a larger unilateral act
+   than any of the four workers who refused to touch `fp.ts`, and the decision
+   §4 describes is the user's to make, not a builder's.
