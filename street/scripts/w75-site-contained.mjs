@@ -42,6 +42,7 @@ import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { probeServer } from './lib/server-state.mjs';
+import { installRayFloorQuery, selfTestRayQuery } from './lib/floors.mjs';
 
 const URL = aim('http://localhost:4310/');
 const ASK = process.argv.slice(2).filter((a) => !a.startsWith('-'));
@@ -111,11 +112,21 @@ const frontOf = (s) => (Math.abs(s.minX) <= Math.abs(s.maxX)
 // site's z span". **That is true of the jail and FALSE of the lot, and I found
 // it out by running it.** At the jail the site's z span really is the corridor:
 // the side street's flanking buildings stop at the frontage, so a metre outside
-// it is sky. At the car lot the street CARRIES ON north past `maxZ` 14.20 —
-// there is real pavement out to z 16.75 — so that predicate reported 21 escapes
-// of which the first several were the player standing on the street. I walked
-// out there and photographed it (`shots/w75-escape-z17.png`): buildings, fence,
-// cars, ground.
+// it is sky. At the car lot the street CARRIES ON north past `maxZ` 14.20, so
+// that predicate reported 21 escapes of which the first several were the player
+// standing on the street.
+//
+// ⚠ THE JUSTIFICATION THAT USED TO SIT HERE WAS PARTLY FALSE, AND ITS
+// EVIDENCE NEVER EXISTED. It read: *"there is real pavement out to z 16.75 — I
+// walked out there and photographed it (`shots/w75-escape-z17.png`)"*. **That
+// PNG is in no tree and no commit** — checked across all branches for item 238,
+// as worker eightyfive first reported for item 230. And the claim is wrong:
+// the drawn floor at those x stops at **z 14.0**, which eightyfive photographed
+// as a hard edge with sky beyond (`shots/w85-north-z16-down.png`). The 16.75
+// figure came from a bounding box covering ground that is not drawn — which is
+// the very error this file used to make, quoted as the reason for making it.
+// The conclusion above survives (a site rectangle is not the world's edge); the
+// number and the photograph do not.
 //
 // A site rectangle is a claim about who OWNS ground, not about where the world
 // ENDS. So the assertion here is the thing the user actually said —
@@ -127,58 +138,43 @@ const frontOf = (s) => (Math.abs(s.minX) <= Math.abs(s.maxX)
 // the way through to `return put(... ? KERB_H : 0)`: it never returns null, so
 // it names a height for every point in R², void included. That is exactly why
 // item 175 could say, correctly, "this was never a floor hole" — the picker is
-// continuous over the emptiness as well as over the city. So the floors are
-// taken from the SCENE instead: every mesh, its geometry bounding box through
-// its world matrix, keep the ones that are floor-shaped at a walkable level.
+// continuous over the emptiness as well as over the city.
 //
-// **This needs no per-site envelope table**, which matters more than it sounds:
-// an authored envelope is a list of places somebody thought of, and that is the
-// precise failure this whole file exists to replace.
-const EDGE = 0.25;    // a body has width; a centre 0.25 m past the last polygon
-                      // is the edge of a legal floor, not the void
-const FLOOR_LO = 0.9, FLOOR_HI = 1.2;   // how far a floor may sit below/above
-                                        // the height the picker names, before
-                                        // it is a different storey
+// ── ITEM 238: THIS IS A RAYCAST NOW, AND THE BOUNDING BOXES WERE WRONG ────
+//
+// It used to take the floors from every mesh's axis-aligned BOUNDING BOX. Run
+// against the exact triangle raycast over one shared point set of 731,322 cells
+// (`scripts/probes/w91-floor-predicate-reconcile.mjs`) the two disagreed on
+// **19,237 cells, and in BOTH directions**:
+//
+//   11,948 cells  boxes say FLOOR, raycast says VOID  — a box always covers
+//                 more than the mesh inside it, so it claims ground that is
+//                 not drawn. This is the one that makes a containment check
+//                 GREEN OVER A HOLE, and it is why the z 16.75 claim above was
+//                 wrong.
+//    7,289 cells  boxes say VOID, raycast says FLOOR  — and this one was a
+//                 surprise. The AABB pass DROPS any mesh more than 0.6 m thick
+//                 in Y. Item 172 gave the park real topography on 2026-08-03,
+//                 and its ground plane's world box is now **0.653 m** tall —
+//                 53 mm over the threshold. So the park's entire 32 x 30 m
+//                 floor, AND its 17.75 x 16.5 m field, became invisible to this
+//                 predicate the day that landed, and this check's own park leg
+//                 was about to report a park with no floor in it.
+//                 (`scripts/probes/w91-park-ground-thickness.mjs`.)
+//
+// A predicate that is wrong in both directions is not the authority. The
+// raycast projects each triangle onto the XZ plane, so vertical faces fall out
+// for free (you cannot stand on a wall) and nothing has to be classified by
+// size or by name — which is precisely the failure above. It is EXACT at
+// arbitrary points rather than snapped to a grid, because a walk does not land
+// on cells and a 0.36 m doorway gap can fall between two 0.5 m samples.
+const ray = await installRayFloorQuery(page);
+const hasFloor = (x, z, gy) => ray.query(x, z, gy);
+const groundAt = (x, z) => page.evaluate(([x, z]) => window.__ct.groundAt(x, z), [x, z]);
 // TOL / IN are kept for the INFORMATIONAL "left its own site" count below —
 // useful to print, never asserted on, for the reason above.
 const TOL = 0.60;
 const IN = 0.5;
-
-const floors = await page.evaluate(() => {
-  const out = [];
-  window.__ct.scene().updateMatrixWorld(true);
-  window.__ct.scene().traverse((o) => {
-    if (!o.isMesh || !o.geometry) return;
-    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
-    const bb = o.geometry.boundingBox;
-    if (!bb) return;
-    // EIGHT CORNERS THROUGH THE WORLD MATRIX, not the local box: a floor is a
-    // PlaneGeometry rotated -90° about X, so its LOCAL box is flat in Z and
-    // only the transformed one is flat in Y. Doing the corners is what makes
-    // the rotation irrelevant, and it is why this does not need to know how any
-    // particular module builds its ground.
-    let mnx = Infinity, mny = Infinity, mnz = Infinity, mxx = -Infinity, mxy = -Infinity, mxz = -Infinity;
-    const e = o.matrixWorld.elements;
-    for (let i = 0; i < 8; i++) {
-      const vx = i & 1 ? bb.max.x : bb.min.x, vy = i & 2 ? bb.max.y : bb.min.y, vz = i & 4 ? bb.max.z : bb.min.z;
-      const X = e[0] * vx + e[4] * vy + e[8] * vz + e[12];
-      const Y = e[1] * vx + e[5] * vy + e[9] * vz + e[13];
-      const Z = e[2] * vx + e[6] * vy + e[10] * vz + e[14];
-      mnx = Math.min(mnx, X); mxx = Math.max(mxx, X);
-      mny = Math.min(mny, Y); mxy = Math.max(mxy, Y);
-      mnz = Math.min(mnz, Z); mxz = Math.max(mxz, Z);
-    }
-    if (mxy - mny > 0.6) return;                       // thin in Y
-    if (mxx - mnx < 1 || mxz - mnz < 1) return;        // and a metre across
-    out.push({ minX: mnx, maxX: mxx, minZ: mnz, maxZ: mxz, y: mxy });
-  });
-  return out;
-});
-
-const hasFloor = (x, z, gy) => floors.some((fl) =>
-  x >= fl.minX - EDGE && x <= fl.maxX + EDGE && z >= fl.minZ - EDGE && z <= fl.maxZ + EDGE
-  && fl.y >= gy - FLOOR_LO && fl.y <= gy + FLOOR_HI);
-const groundAt = (x, z) => page.evaluate(([x, z]) => window.__ct.groundAt(x, z), [x, z]);
 
 // ── THE PREDICATE IS SELF-TESTED IN-RUN, ON BOTH SIGNS ────────────────────
 //
@@ -191,19 +187,18 @@ const groundAt = (x, z) => page.evaluate(([x, z]) => window.__ct.groundAt(x, z),
 //
 // The negative control is 60 m south of the world's south clamp (-110.6,
 // crosstown.ts:1216) — a point the player provably cannot reach and that
-// provably has nothing on it.
+// provably has nothing on it. The positive control is NOT (0, 0): the world
+// origin has the road centre-line plane and five pooled traffic meshes sitting
+// on it, so it reads floored with every ground plane in the world deleted.
+// (world-contained.mjs:69-80.)
 {
-  const bad = [];
-  if (floors.length < 100) bad.push(`only ${floors.length} floor-shaped meshes in the whole scene`);
-  const road = await groundAt(0, 0);
-  if (!hasFloor(0, 0, road)) bad.push('the middle of the road reads as VOID — the predicate finds no floors');
-  const off = await groundAt(0, -170);
-  if (hasFloor(0, -170, off)) bad.push('a point 60 m past the world clamp reads as FLOORED — the predicate cannot say no');
+  const bad = await selfTestRayQuery(page, ray.query, ray.tris);
   if (bad.length) {
     console.log(`FLOOR PREDICATE FAILED ITS OWN CONTROLS — nothing measured:\n  ${bad.join('\n  ')}`);
     await b.close(); process.exit(3);
   }
-  console.log(`floor predicate ok: ${floors.length} floor meshes, road solid, off-world void`);
+  console.log(`floor predicate ok (raycast): ${ray.tris} triangles from ${ray.meshes} meshes `
+    + `in ${ray.buckets} buckets, road solid, off-world void`);
 }
 
 // 3 m CELLS, inherited from item 175 with its measurements, which are kept
@@ -296,7 +291,14 @@ for (const name of names) {
         walks++;
         const p = await pos();
         if (offSite(p)) leftSite++;
-        if (!hasFloor(p[0], p[2], await groundAt(p[0], p[2]))) {
+        // `await`, AND IT IS LOAD-BEARING. The raycast query is a round trip to
+        // the page, so `hasFloor` returns a Promise — and `!somePromise` is
+        // always `false`, so dropping this `await` makes the escape branch
+        // unreachable and the file becomes a check that CANNOT FAIL. That is
+        // the exact defect class this file's own two-sign selftest exists to
+        // stop, and the selftest would NOT have caught this one: it calls
+        // `ray.query` directly and correctly, not through this line.
+        if (!await hasFloor(p[0], p[2], await groundAt(p[0], p[2]))) {
           escapes.push({ from: [+px.toFixed(1), +pz.toFixed(1)], yaw: +yaw.toFixed(2), to: [+p[0].toFixed(2), +p[2].toFixed(2)] });
         }
         // Deduped AS IT IS BUILT, against both the visited set and the rest of

@@ -249,3 +249,115 @@ export function makeFloorAtRay(sweep) {
     return i >= 0 && i < NX && j >= 0 && j < NZ ? sweep.floor[i * NZ + j] === 1 : false;
   };
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * THE RAYCAST AS AN EXACT POINT QUERY — for walks, which do not land on cells.
+ *
+ * `makeFloorAtRay` snaps to the nearest 0.5 m cell, which is right for a world
+ * sweep and WRONG for a walk: worker eightytwo's doubt on item 238 was that
+ * "a 6-point spread would not reliably step in a 0.36 m gap", and a 0.5 m grid
+ * has exactly that problem — a 0.30 m gap need not contain a multiple of 0.5,
+ * so it can fall between two samples entirely. Measured at the party-wall
+ * doorway: ONE grid column lands inside it, and only by luck of phase.
+ *
+ * So a caller that asks about arbitrary points gets arbitrary precision. The
+ * triangle index is built ONCE and left in the page; each query is one round
+ * trip against it rather than a re-traverse of 7870 meshes.
+ *
+ * Signature is `(x, z, gy) => Promise<boolean>`, deliberately the same shape as
+ * `makeHasFloor`'s so it is a drop-in for the AABB predicate it replaces.
+ * ──────────────────────────────────────────────────────────────────────────── */
+export async function installRayFloorQuery(page, opts = {}) {
+  const LO = opts.FLOOR_LO ?? FLOOR_LO;
+  const HI = opts.FLOOR_HI ?? FLOOR_HI;
+  const BUCKET = opts.BUCKET ?? 4;
+  const built = await page.evaluate(([LO, HI, BUCKET]) => {
+    const scene = window.__ct.scene();
+    scene.updateMatrixWorld(true);
+    const index = new Map();
+    let tris = 0, meshes = 0;
+    const key = (i, j) => i * 100003 + j;
+    scene.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      const pos = o.geometry.getAttribute && o.geometry.getAttribute('position');
+      if (!pos) return;
+      // `visible` IS NOT CONSULTED — GOTCHAS 79. The region cull hides every
+      // interior you are not standing in; a floor does not stop being a floor
+      // because the camera is elsewhere.
+      meshes++;
+      const idx = o.geometry.getIndex();
+      const n = idx ? idx.count : pos.count;
+      const e = o.matrixWorld.elements;
+      const xf = (k) => {
+        const vx = pos.getX(k), vy = pos.getY(k), vz = pos.getZ(k);
+        return [e[0] * vx + e[4] * vy + e[8] * vz + e[12],
+          e[1] * vx + e[5] * vy + e[9] * vz + e[13],
+          e[2] * vx + e[6] * vy + e[10] * vz + e[14]];
+      };
+      for (let t = 0; t + 2 < n; t += 3) {
+        const A = xf(idx ? idx.getX(t) : t);
+        const C = xf(idx ? idx.getX(t + 1) : t + 1);
+        const D = xf(idx ? idx.getX(t + 2) : t + 2);
+        // A VERTICAL FACE PROJECTS TO A ZERO-AREA LINE and is dropped here.
+        // That is the property worth having: you cannot stand on a wall, and
+        // nobody had to write down what a wall looks like.
+        const det = (C[0] - A[0]) * (D[2] - A[2]) - (D[0] - A[0]) * (C[2] - A[2]);
+        if (!(Math.abs(det) > 1e-9)) continue;
+        const tri = [A, C, D, det];
+        tris++;
+        const i0 = Math.floor(Math.min(A[0], C[0], D[0]) / BUCKET);
+        const i1 = Math.floor(Math.max(A[0], C[0], D[0]) / BUCKET);
+        const j0 = Math.floor(Math.min(A[2], C[2], D[2]) / BUCKET);
+        const j1 = Math.floor(Math.max(A[2], C[2], D[2]) / BUCKET);
+        // A triangle spanning a huge area would be pasted into thousands of
+        // buckets; those are rare and go in a spill list that is always checked.
+        if ((i1 - i0 + 1) * (j1 - j0 + 1) > 256) {
+          if (!index.has('spill')) index.set('spill', []);
+          index.get('spill').push(tri);
+          continue;
+        }
+        for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+          const k = key(i, j);
+          if (!index.has(k)) index.set(k, []);
+          index.get(k).push(tri);
+        }
+      }
+    });
+    const hit = (list, x, z, gy) => {
+      if (!list) return false;
+      for (const [A, C, D, det] of list) {
+        const w0 = ((C[0] - x) * (D[2] - z) - (D[0] - x) * (C[2] - z)) / det;
+        const w1 = ((D[0] - x) * (A[2] - z) - (A[0] - x) * (D[2] - z)) / det;
+        const w2 = 1 - w0 - w1;
+        if (w0 < -1e-6 || w1 < -1e-6 || w2 < -1e-6) continue;
+        const y = w0 * A[1] + w1 * C[1] + w2 * D[1];
+        if (y >= gy - LO && y <= gy + HI) return true;
+      }
+      return false;
+    };
+    window.__ctFloorRay = (x, z, gy) => {
+      if (gy === undefined || gy === null) gy = window.__ct.groundAt(x, z);
+      return hit(index.get(key(Math.floor(x / BUCKET), Math.floor(z / BUCKET))), x, z, gy)
+        || hit(index.get('spill'), x, z, gy);
+    };
+    return { tris, meshes, buckets: index.size, spill: (index.get('spill') || []).length };
+  }, [LO, HI, BUCKET]);
+  const query = (x, z, gy) => page.evaluate(
+    ([x, z, gy]) => window.__ctFloorRay(x, z, gy), [x, z, gy ?? null]);
+  return { query, ...built };
+}
+
+/**
+ * THE EXACT QUERY SELF-TESTS ON BOTH SIGNS, same controls as everything else
+ * here. Returns `[]` when sound, or the reasons it must not be believed.
+ */
+export async function selfTestRayQuery(page, query, tris, minTris = 10000) {
+  const bad = [];
+  if (tris < minTris) bad.push(`only ${tris} triangles indexed (want >= ${minTris}) — nothing was read`);
+  // Plain carriageway 30 m south: clear of the road centre-line plane and of
+  // the pooled traffic meshes parked at the origin, both of which make (0, 0)
+  // a sentinel that cannot go void. (world-contained.mjs:69-80.)
+  if (!await query(3.2, -30.3)) bad.push('the road at (3.2, -30.3) reads as VOID — the query finds no floors');
+  if (await query(0, -170)) bad.push('a point 60 m past the world clamp reads as FLOORED — the query cannot say no');
+  return bad;
+}
