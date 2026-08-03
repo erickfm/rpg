@@ -1160,20 +1160,51 @@ export function makePanel(spec: PanelSpec): Panel {
       // fails: a surface whose mesh cannot be found, or a world that never
       // registered a focus controller (the prototype harnesses do not), simply
       // gets the screen-space cabinet it would have got anyway.
-      onMesh = spec.surface && FOCUS ? spec.surface.mesh() : null;
-      // AND THE MATERIAL HAS TO BE BORROWABLE, not just the mesh findable —
-      // resolved HERE, before `backdropUp` and `paint` commit to a layout,
-      // because `screenSlot` returning null must land in exactly the same
-      // place a null `mesh()` does. Item 150: this used to be a cast further
-      // down that threw out of `open()` with the movement gate already up.
-      borrowed = onMesh ? screenSlot(onMesh, spec.surface, spec.id) : null;
-      if (!borrowed) onMesh = null;
+      //
+      // ⚠ AND NOTHING FROM HERE TO THE END OF `open()` MAY THROW PAST THIS
+      // POINT. `gateUp(true)` on the line above is the freeze: it raises the
+      // gate and captures input for a panel that has not been shown yet. A
+      // throw between there and the end therefore leaves the player **frozen,
+      // with input captured, looking at the world, and NO PANEL VISIBLE** —
+      // recoverable only by Escape, and indistinguishable from a hang. That is
+      // §11 territory ("a view you cannot leave"), and it is a strictly worse
+      // failure than the wrong picture on a screen.
+      //
+      // Item 150 arrived exactly this way and the row understated it: the
+      // report was "it throws on a multi-material mesh", but the consequence
+      // was the freeze, because the throw site sat after the gate and outside
+      // any `try`.
+      //
+      // BOTH CALLS IN HERE ARE CALLER CODE. `spec.surface.mesh()` is written by
+      // whichever module owns the machine, and `FOCUS.enter()` below by
+      // `crosstown.ts`. Neither is this file's to trust, so neither is allowed
+      // to freeze the world — every failure lands on the screen-space cabinet,
+      // which is the same place a null `mesh()` has always landed.
+      try {
+        onMesh = spec.surface && FOCUS ? spec.surface.mesh() : null;
+        // AND THE MATERIAL HAS TO BE BORROWABLE, not just the mesh findable —
+        // resolved HERE, before `backdropUp` and `paint` commit to a layout,
+        // because `screenSlot` returning null must land in exactly the same
+        // place a null `mesh()` does. Item 150: this used to be a cast further
+        // down that threw out of `open()` with the movement gate already up.
+        borrowed = onMesh ? screenSlot(onMesh, spec.surface, spec.id) : null;
+        if (!borrowed) onMesh = null;
+      } catch (err) {
+        console.error(`[panel ${spec.id}] resolving the diegetic surface threw; `
+          + `using the screen-space cabinet:`, err);
+        onMesh = null; borrowed = null;
+      }
       // The vignette says "you have stopped looking at the world". A screen you
       // are genuinely standing in front of has not stopped being in the world,
       // and dimming it is the exact tell the user's screenshot is pointing at.
       backdropUp(!onMesh);
       paint();
       if (onMesh) {
+       // `saved` gates the undo below: without it a throw BEFORE the two saves
+       // would restore `savedMap`/`savedColor` left over from the last panel,
+       // and paint some other machine's face onto this one.
+       let saved = false;
+       try {
         // HANG THE CANVAS ON THE OBJECT. The mesh keeps its geometry, its rake
         // and its place in the wall; only what it is showing changes, and it is
         // put back exactly on close.
@@ -1188,6 +1219,7 @@ export function makePanel(spec: PanelSpec): Panel {
         tex.needsUpdate = true;
         savedMap = mat.map ?? null;
         savedColor = mat.color.getHex();
+        saved = true;
         mat.map = tex;
         // A LIT CRT IS NOT DIMMED BY THE EVENING. Whatever tint the material
         // carries belongs to the cabinet, not to the picture on its tube, and
@@ -1220,6 +1252,27 @@ export function makePanel(spec: PanelSpec): Panel {
           fov: spec.surface!.fov ?? 60,
           escape: () => api.close(),
         });
+       } catch (err) {
+        // THE HANG FAILED HALFWAY. Put the mesh back, undo the diegetic layout,
+        // and show the cabinet — the panel the player asked for still appears,
+        // which is the whole difference between a degraded feature and a freeze.
+        console.error(`[panel ${spec.id}] hanging it on the mesh threw; `
+          + `using the screen-space cabinet:`, err);
+        try {
+          if (saved && borrowed) {
+            borrowed.map = savedMap;
+            borrowed.color.setHex(savedColor);
+            borrowed.needsUpdate = true;
+          }
+        } catch { /* best effort: the cabinet still has to come up */ }
+        onMesh = null; borrowed = null;
+        backdropUp(true);
+        cv.style.display = '';
+        wrap!.style.top = '50%';
+        wrap!.style.bottom = 'auto';
+        wrap!.style.opacity = '1';
+        wrap!.style.transform = frameless ? 'translate(-50%,-50%)' : 'translate(-50%,-50%) scale(1)';
+       }
       } else {
         wrap!.style.opacity = '1';
         if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(1)';

@@ -599,6 +599,19 @@ const CHECKS = [
   ['prop-landing',     'does every dropped prop stand where it was put down?', true, [], false,
     ['litter-self-push']],
   ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried'], ['probe']],
+  // REGISTERED 2026-08-03 (item 150). `ct/hud.ts` cast `mesh.material` to a
+  // single material when hanging a panel on a face. `Mesh.material` is legally
+  // `Material | Material[]`, and on an array `mat.color` is undefined — so
+  // `getHex()` threw out of `open()` AFTER `gateUp(true)` had frozen the
+  // player's feet, and `close()` threw the `setHex` mirror. A box with a screen
+  // on one face is the ordinary way to build a cabinet, so this was not an
+  // exotic input; it blocked items 155 and 157.
+  //
+  // Watched failing: reverted to the pre-fix `hud.ts` and this check went red on
+  // 13 assertions across all three diegetic panels. The `screenslot-blind` case
+  // below puts the original cast back in SOURCE and rebuilds, so the check has
+  // to catch the actual bug rather than a symptom somebody planted.
+  ['screenslot',       'can a panel hang on a MULTI-MATERIAL mesh?',       ['screenslot-blind', 'screenslot-guess']],
   ['park',             'is EVERY park lantern lit, and the loop walkable?', ['park', 'park-partial', 'park-walk', 'park-buried', 'park-sunk']],
   // REGISTERED 2026-08-03 (item 170). The user asked twice and the second time
   // in the PLURAL — *"bench is a lil too close to the path"* then *"benches need

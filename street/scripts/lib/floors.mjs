@@ -61,8 +61,38 @@ export async function sampleFloors(page) {
   });
 }
 
-/** `(x, z, gy) => boolean` — is there a floor mesh under this point, at the
- *  storey the picker names there */
+/**
+ * `(x, z, gy) => boolean` — is there a floor mesh under this point, at the
+ * storey the picker names there.
+ *
+ * ⚠ **THIS PREDICATE IS NOT AUTHORITATIVE, AND IT IS WRONG IN BOTH
+ * DIRECTIONS.** Prefer `installRayFloorQuery` below for anything that decides
+ * containment. Measured for item 238 against the raycast over all 731,322
+ * cells of the world grid (`probes/w91-floor-predicate-reconcile.mjs`):
+ *
+ *   11,948 cells  it says FLOOR and there is none. A bounding box always
+ *                 covers more than the mesh inside it, and **88.4% of these
+ *                 are on open ground clear of every collider** — i.e. exactly
+ *                 where a player walks. This is the half that makes a
+ *                 containment check GREEN OVER A HOLE.
+ *
+ *    7,289 cells  it says VOID and there is floor — which surprised everyone,
+ *                 because it is not a property of boxes at all. It is the
+ *                 **FILTER** in `sampleFloors` above: `dy > 0.6` and
+ *                 `< 1 m across` throw away **7,513 of the scene's 7,870
+ *                 meshes**, and no reasoning about bounding-box containment
+ *                 can reach a box that was never computed.
+ *
+ * THE 0.6 m THICKNESS TEST IS A LANDMINE FOR TERRAIN. Item 172 gave the park
+ * real relief on 2026-08-03; its ground plane's world box became **0.653 m**
+ * tall and the whole 32 x 30 m floor vanished from this predicate the same day,
+ * silently. 43 lattice points of open, collider-free park now read as the void
+ * (`probes/w91-park-would-have-gone-red.mjs`). Any module that gives its ground
+ * more than 0.6 m of relief will do this again, with no error anywhere.
+ *
+ * Kept because `interiors-walk.mjs` and two probes still call it, and because
+ * its errors are tolerable on flat interior floors. Nothing new should.
+ */
 export function makeHasFloor(floors) {
   return (x, z, gy) => floors.some((fl) =>
     x >= fl.minX - EDGE && x <= fl.maxX + EDGE
