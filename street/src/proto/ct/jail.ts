@@ -584,21 +584,60 @@ export function register(ctx: CtxBuild): void {
     return add(b);
   };
 
-  const DOOR_FACE = FX + JAIL.RECESS;                // the leaf plane, 0.6 m back
+  /** the plane the door hangs ON — the back of the 0.55 m recess, which is the
+   *  front face of the stone box built at line ~541. A DOOR HANGS IN FRONT OF
+   *  THIS PLANE, NEVER INSIDE IT. */
+  const DOOR_FACE = FX + JAIL.RECESS;
   const SILL = 0.14;                                 // the kerb; the sill is flush
   const leafW = JAIL.DOOR_W / 2;
+  /**
+   * THE LEAF HANGS IN THE RECESS. THE STONE BEHIND IT IS AT `DOOR_FACE`, SO THE
+   * LEAF'S FRONT FACE MUST NOT BE.
+   *
+   * The user, 2026-08-02, in daylight: *"jail door is still messed up"* — the
+   * leaves were SEE-THROUGH, with masonry coursing and the stone reveal
+   * showing through them, and at an oblique approach the left leaf vanished
+   * into the wall's banding altogether.
+   *
+   * It was never transparency. `flat()` is `new MeshBasicMaterial({ map })`
+   * with no `transparent` flag, and the probe read the built world back:
+   * `transparent=false opacity=[1]` on both leaves. It was Z-FIGHTING. The
+   * leaves were centred at `DOOR_FACE + 0.045` and are 0.09 m through, so they
+   * spanned `DOOR_FACE … DOOR_FACE + 0.09` — buried in the recess-back stone
+   * with **their front face exactly coplanar with its front face**, measured at
+   * Δ 0.0000 m. Two opaque faces at one depth have no winner, so the depth test
+   * resolves per fragment and per view angle: head-on the door mostly won,
+   * obliquely the stone did. That single fault is also both of the ORIGINAL
+   * report's symptoms — *"diagonal hatching that does not match its own
+   * panelling"* is the tear pattern between two dithered canvases, and *"the
+   * left and right leaves do not align"* is the tie breaking differently on
+   * each leaf. The two leaves are in fact geometrically identical, mirrored to
+   * a millimetre about `CZ`.
+   *
+   * So the whole door assembly moves forward by exactly one leaf thickness.
+   * Every part keeps its previous relationship to the leaf — the stile still
+   * stands 0.01 proud, the handles still 0.05 — because they are now all
+   * derived from `LEAF_FRONT` rather than from the stone plane behind.
+   * Clearance to the facade is `RECESS - LEAF_T` = 0.46 m, so the door is still
+   * a recessed sally port and still projects nothing onto the pavement.
+   *
+   * `scripts/probes/w59-jaildoor-zfight.mjs` fails if any opaque face returns
+   * to within 2 mm of a leaf face.
+   */
+  const LEAF_T = 0.09;
+  const LEAF_FRONT = DOOR_FACE - LEAF_T;
   // ONE drawing, both faces — see `jailLeafTex` above. `ct/int-jail.ts` asks
   // the same function for the room's leaves, and because it is memoised the
   // room gets this very texture rather than a second copy that could drift.
   const doorM = flat(jailLeafTex());
   for (const s of [-1, 1]) {
-    box(0.09, JAIL.DOOR_H - 0.02, leafW - 0.02, doorM,
-      DOOR_FACE + 0.045, SILL + (JAIL.DOOR_H - 0.02) / 2 - 0.07, CZ + s * leafW / 2);
+    box(LEAF_T, JAIL.DOOR_H - 0.02, leafW - 0.02, doorM,
+      LEAF_FRONT + LEAF_T / 2, SILL + (JAIL.DOOR_H - 0.02) / 2 - 0.07, CZ + s * leafW / 2);
   }
   // the meeting stile, a pull handle on each leaf, and the threshold
-  box(0.12, JAIL.DOOR_H - 0.02, 0.06, steelDkM, DOOR_FACE + 0.05, SILL + JAIL.DOOR_H / 2 - 0.07, CZ);
+  box(0.12, JAIL.DOOR_H - 0.02, 0.06, steelDkM, LEAF_FRONT + 0.05, SILL + JAIL.DOOR_H / 2 - 0.07, CZ);
   for (const s of [-1, 1]) {
-    box(0.06, 0.34, 0.05, steelDkM, DOOR_FACE - 0.02, SILL + 1.02, CZ + s * 0.18);
+    box(0.06, 0.34, 0.05, steelDkM, LEAF_FRONT - 0.02, SILL + 1.02, CZ + s * 0.18);
   }
   // slabTex, not the flat steelDkM: the threshold is walked on and sits right
   // beside the textured portal paving, so a flat quad here is exactly item
