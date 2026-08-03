@@ -319,8 +319,23 @@ function latch(k: string): void {
 
 /** The key that leaves a machine. `[E]` got you in; `[E]` gets you out. */
 const EXIT_KEY = 'e';
-/** What the caption may honestly promise, given what the panel is doing. */
-const exitLabel = (spec: PanelSpec): string => (spec.typing?.() ? 'ESC' : 'E');
+/**
+ * WHAT THE CAPTION MAY HONESTLY PROMISE, given what the panel is doing: the bare
+ * key name, for testing whether a hand-written hint already mentions it, and the
+ * player-facing stamp, for drawing.
+ *
+ * THE STAMP IS BRACKETED BECAUSE `[E]` IS ALREADY HOW THIS WORLD NAMES THAT KEY.
+ * `hud.prompt` writes `[E] <label>` over every spot the player can use, so the
+ * caption and the prompt are now the same affordance said the same way.
+ *
+ * The first cut printed a bare `E` and it read badly — judged by looking at it,
+ * not by reasoning about it. The slots strip came out as
+ * `SPACE spin · B bet · M max · I insert $5 · C cash out · E`, where every other
+ * token is a key AND a verb and the last one was neither; it scans as a list
+ * that got cut off rather than as the way out. Hence the bracket and the verb.
+ */
+const exitKey = (spec: PanelSpec): string => (spec.typing?.() ? 'ESC' : 'E');
+const exitStamp = (spec: PanelSpec): string => `[${exitKey(spec)}]`;
 
 // ══ THE PANEL FRAMEWORK ═══════════════════════════════════════════════════
 //
@@ -902,9 +917,12 @@ export function makePanel(spec: PanelSpec): Panel {
         // THE CAPTION IS DERIVED FROM THE RULE, never typed beside it, so it
         // cannot promise a key the gate will not honour: `E` normally, `ESC`
         // on a panel that is eating text and has therefore given `e` up.
-        const way = exitLabel(spec);
+        // The dedupe tests the BARE KEY, not the decorated stamp: a caller that
+        // already wrote its own `ESC step back` must not be given a second one.
+        const key = exitKey(spec);
+        const way = `${exitStamp(spec)} leave`;
         cap.textContent = !label ? way
-          : new RegExp(`\\b${way}\\b`, 'i').test(label) ? label
+          : new RegExp(`\\b${key}\\b`, 'i').test(label) ? label
             : `${label}   ·   ${way}`;
       }
       return;
@@ -963,7 +981,7 @@ export function makePanel(spec: PanelSpec): Panel {
     g.fillText(spec.hint ? spec.hint() : '', SX + 4, cy + 9);
     g.textAlign = 'right';
     g.fillStyle = UI.ink;
-    g.fillText(exitLabel(spec), SX + spec.w - 4, cy + 9);
+    g.fillText(exitStamp(spec), SX + spec.w - 4, cy + 9);
   };
 
   // WHAT THE PLAYER PRESSED ESCAPE ON, and when. A caller that re-opens its

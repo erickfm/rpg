@@ -419,11 +419,14 @@ export function register(ctx: CtxBuild): void {
       // keeps ESC and nothing else changes about it. The other two screens take
       // `[E]` like everything else. The framework reads the same `typing` flag
       // to decide, so the caption and the key can never disagree.
+      // TAB and ENTER stay bare because they are THIS machine's own keys; the
+      // one that leaves the machine is bracketed, because that is how the world
+      // names it everywhere else — `[E] use the machine` over every spot.
       hint: () => (screen === 'desktop'
-        ? 'arrows select · ENTER open · E step back'
+        ? 'arrows select · ENTER open · [E] step back'
         : screen === 'catalog'
-          ? 'TAB desktop · ESC step back'
-          : 'TAB desktop · E step back'),
+          ? 'TAB desktop · [ESC] step back'
+          : 'TAB desktop · [E] step back'),
       typing: () => screen === 'catalog',
       draw,
       key: (k) => onKey(k),
