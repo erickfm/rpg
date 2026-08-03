@@ -44,6 +44,51 @@ export function declareSurface<T extends THREE.Texture>(t: T, kind: SurfaceKind,
 }
 
 /**
+ * SAY THAT A SHEET IS STRETCHED ON PURPOSE — and say WHY, in the same call.
+ *
+ * ── the trap this exists to stop ────────────────────────────────────────────
+ *
+ * `scripts/texdensity.mjs` judges an UNDECLARED face on one invariant: *on a
+ * correctly mapped face a texel is square.* That is the only thing it can check
+ * without a declaration, and it is right about nearly everything — 155 gross
+ * faces on this world, and the backlog is real.
+ *
+ * **But it cannot tell a stretched face from a ONE-DIMENSIONAL GRADIENT, and
+ * the eight worst faces in the whole world are the second thing.** Worker
+ * onehundredsix's warning, which is queue item 266: the drain rails are
+ * `castTex`, a 16x16 sheet whose sixteen ROWS over a 2.8 cm arris **are** the
+ * worn edge — a bright top row, a dark bottom row, flat grit between. Across the
+ * rail it is uniform by construction, so `15.84 x 571.43 px/m` is not damage,
+ * it is the whole drawing. **"Squaring" it destroys the detail it exists to
+ * draw**, and it would look like progress: the number would fall by eight.
+ *
+ * ── so: excluded BY DECLARATION, never by a builder remembering ─────────────
+ *
+ *     declareAnisotropic(t, 'the 16 rows over a 2.8 cm arris ARE the worn edge');
+ *
+ * **The reason is mandatory and is printed by the checker**, which is the point.
+ * A bare boolean is an off switch and would be reached for the moment a face is
+ * inconvenient; a sentence has to be true, and the next reader can disagree with
+ * it. `texdensity` lists these faces in their own counted category rather than
+ * dropping them silently — an exclusion nobody can see is the guard "sleeping"
+ * (GOTCHAS 58, BUILDER-BRIEF §7).
+ *
+ * **It excuses ASPECT and nothing else.** A face that also declares a `ppm` is
+ * still checked against it, because being deliberately 1-D says nothing about
+ * being the right density.
+ */
+export function declareAnisotropic<T extends THREE.Texture>(t: T, why: string): T {
+  if (!why || !why.trim()) {
+    console.warn('[paint] declareAnisotropic needs a REASON, and got an empty one.'
+      + ' A silent exclusion is a guard that has stopped guarding. Ignoring it,'
+      + ' which leaves this surface checked — fix the caller.');
+    return t;
+  }
+  t.userData.anisotropic = why.trim();
+  return t;
+}
+
+/**
  * SAY HOW DENSE A SURFACE IS, and then never type a repeat again.
  *
  * ── the gap this closes ────────────────────────────────────────────────────

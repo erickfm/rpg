@@ -16,7 +16,8 @@ import { ROAD_HALF, WALK, FACE, PARK_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng'
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
 import { buildGround, JUNCTION_CROSSINGS } from './ct/tex-ground';
-import { type CarKind, makeCar, PICKUP_BED, CAR_HALF_W, carHalfLen, carColliderBoxes, carColliderSpec } from './ct/cars';
+import { type CarKind, makeCar, PICKUP_BED, CAR_HALF_W, carHalfLen, carColliderBoxes, carColliderSpec,
+  tyreGeo, fleetWheelMats } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
 import { nudgeClear, corridor, ENTERABLE, PASSABLE } from './ct/gap';
@@ -968,7 +969,8 @@ export function makeCrosstown(): Proto {
     // tiers, so the car's final z is known.
     const trailer = new THREE.Group();
     const steelM = new THREE.MeshBasicMaterial({ color: 0x3c4046 });
-    const tyreM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+    // (no local tyre material any more — the wheels take the fleet's, below,
+    // which also carries the `noLight` flag this one never had)
     // A weathered plank deck, painted at the same nearest-neighbour density as
     // everything else on the block.
     const plankT = pixTex(32, 48, (g) => {
@@ -1031,8 +1033,40 @@ export function makeCrosstown(): Proto {
     const axle = new THREE.Mesh(new THREE.BoxGeometry(WHEEL_X * 2, 0.06, 0.06), steelM);
     axle.position.set(0, WHEEL_R, AXLE_Z);
     trailer.add(axle);
+    // ── AND THEY GET HUBCAPS, LIKE EVERY OTHER WHEEL IN THE WORLD (item 292) ─
+    //
+    // This was the only wheel in the fleet wearing one flat black material and
+    // no cap, because `hubcapTex` was module-private to `ct/cars.ts` and this
+    // rig is built here. `fleetWheelMats()` publishes the whole answer —
+    // `[tread, cap, cap]` in THREE's cylinder order, the tread flagged
+    // `noLight`, the cap through `flatTex` — rather than the ingredients, so
+    // "matching the fleet" is one call and not four remembered facts.
+    //
+    // ⚠ TEN SEGMENTS, NOT TWELVE, AND THE QUEUE ROW WOULD HAVE GOT THIS WRONG.
+    //
+    // The row says "use `tyreGeo`, not a bare CylinderGeometry", and it is right
+    // about the tool — but `tyreGeo(r, w, 12)` would have BROKEN the one pair of
+    // wheels in this world that is already seated perfectly. `tyreGeo` adds
+    // `thetaStart = π/segs`, and after `rotation.z = π/2` the ground contact is
+    // at θ = 270°:
+    //
+    //     segs 12, phase 0     θ = 30i          270/30 = 9      vertex ✓  (today)
+    //     segs 12, phase π/12  θ = 15 + 30i     255/30 = 8.5    FLAT   ✗  a 7.5 mm float
+    //     segs 10, phase π/10  θ = 18 + 36i     252/36 = 7      vertex ✓
+    //
+    // `ct/cars.ts`'s own docstring names these wheels as the proof that phase is
+    // what seats a tyre — *"the trailer's wheels are the only pair that measured
+    // gap 0.0000, and the reason is that they happen to be phased onto a
+    // vertex"* — so applying the fix at the wrong segment count would have
+    // undone the evidence the fix was derived from.
+    //
+    // Ten is also what the whole fleet uses (`tyreGeo(0.34, …, 10)` on a car,
+    // `tyreGeo(0.44, …, 10)` on the bus), so this now matches in phase, in
+    // facet count and in materials. Gap re-measured after the change, not
+    // assumed: `scripts/probes/w119-292-trailer-wheels.mjs`.
+    const wheelMats = fleetWheelMats();
     for (const s of [-1, 1]) {
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(WHEEL_R, WHEEL_R, WHEEL_T, 12), tyreM);
+      const w = new THREE.Mesh(tyreGeo(WHEEL_R, WHEEL_T, 10), wheelMats);
       w.rotation.z = Math.PI / 2;
       w.position.set(s * WHEEL_X, WHEEL_R, AXLE_Z);
       trailer.add(w);
@@ -1570,6 +1604,25 @@ export function makeCrosstown(): Proto {
     }
   }
 
+  // ── `__ct` OWNS THE WORLD. IT IS NOT A SUPERSET OF THE OTHER TEN. ─────────
+  //
+  // Item 249: *"`window.__hud` VERSUS `window.__ct` IS UNDOCUMENTED and cost
+  // ninety three probe detours."* Reaching for the wrong surface does not throw
+  // — it hands you `undefined`, and a probe then reasons from it, which is the
+  // same silent-failure shape that had one reasoning from `RADIUS=undefined`.
+  //
+  // What lives HERE: the rig and where it is, the scene graph, colliders, ground
+  // and floors, everything registered (spots, seats, doors, rooms, sites,
+  // modules), the clock, traffic, people, the debug overlays.
+  //
+  // What does NOT: whether a panel is up — that is `__hud`, in `ct/hud.ts` — and
+  // anything about one machine, which is on that machine's own surface (`__atm`,
+  // `__slots`, `__blackjack`, `__librarypc`, `__inv`, `__rent`, `__frontages`).
+  // **Eleven surfaces, 162 members, measured 2026-08-03.** Full map in
+  // `notes/BUILDER-BRIEF.md` §4a; re-enumerate it from the running world with
+  // `scripts/probes/w119-249-test-surfaces.mjs` rather than trusting a list.
+  //
+  // COMMENT ONLY — no member of this object is changed by item 249.
   (window as any).__ct = {
     warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => {
       // A TELEPORT BREAKS THE SIGHT CACHE'S ONE ASSUMPTION — that he cannot have

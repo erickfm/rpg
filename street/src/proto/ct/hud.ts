@@ -29,6 +29,30 @@ export interface Purse {
   account?: number;
   /** is your bank card in the wallet? Optional, defaults to yes. */
   card?: boolean;
+  /**
+   * THE PIN THE CARD IS ENROLLED WITH. `undefined` until the first visit to a
+   * cash machine sets it.
+   *
+   * *"also the first time you go to the atm it saves your pin."*
+   *
+   * Here rather than in `ct/atm.ts` because it is a property of the CARD, not of
+   * one screen — it belongs beside `card` and `account` for the same reason
+   * `account` does, and `ct/atm.ts:140` recorded the compromise it was waiting
+   * for someone to be in this file to undo (item 216).
+   *
+   * The behaviour that has to hold is the one the cash figure already has: the
+   * ATM, the wallet and the bank's loan desk all read ONE `purse.cash`, and a
+   * PIN that forgot itself on a different schedule from the money it guards
+   * would read as a bug. It now lives and dies with the purse, exactly as the
+   * cash does.
+   *
+   * Optional for the same reason `account` is: `crosstown.ts` builds the purse
+   * and is desk-owned, so this cannot be given a default there without a
+   * coordination step. `undefined` is not a sentinel needing a comment — it IS
+   * "this card has never been used", which is the state the machine's
+   * `CHOOSE A PIN` screen exists for.
+   */
+  pin?: string;
 }
 
 export interface Hud {
@@ -1016,7 +1040,34 @@ export function makePanel(spec: PanelSpec): Panel {
       // caption below the glass can never fight content the caller owns, the
       // same reasoning that keeps `ct-note`/`ct-prompt` off the 3-D scene.
       cap = document.createElement('div');
-      cap.style.cssText = 'text-align:center;margin-top:8px;font:13px/1.4 ui-monospace,Menlo,monospace;'
+      // ── THE CAPTION'S WIDTH BUDGET ────────────────────────────────────────
+      //
+      // It is `CAP_W` = the panel's own glass, in CSS pixels: **a caption may
+      // never be wider than the thing it captions.** Stated here, once, and
+      // derived from `CW * scale` rather than typed — the same rule BUILDER-BRIEF
+      // §8 applies to textures applies to a line of chrome.
+      //
+      // WHAT IT REPLACES WAS NOT "NO LIMIT", WHICH IS WHY THIS WAS INVISIBLE.
+      // `wrap` is `position:fixed; left:50%` with no `right`, so an auto-width
+      // child got SHRINK-TO-FIT against an available width of exactly HALF the
+      // viewport. The limit was therefore `50vw` and nothing to do with the
+      // panel: measured on the ATM's PIN screen, the 64-character caption is
+      // 487.6 px, so it stayed on one line down to a 976 px window and wrapped
+      // to two below it — at 800×600 the box clamped to 400 px and broke in
+      // half. A budget that moves with the window is the kind a caller cannot
+      // design against, and item 216 is queued behind four more tenants
+      // (mail 155, library PC 157, loan 185, slots 208) that would all inherit
+      // it. `width` rather than `max-width` because only an explicit width takes
+      // the shrink-to-fit rule out of play; `max-width:92vw` then keeps it on
+      // screen in a window narrower than the glass, wrapping instead of
+      // overhanging.
+      //
+      // Published on `dataset.budget` so a check reads the number the code uses
+      // instead of a second copy of it.
+      const CAP_W = CW * scale;
+      cap.dataset.budget = String(CAP_W);
+      cap.style.cssText = `text-align:center;margin-top:8px;width:${CAP_W}px;max-width:92vw;`
+        + 'box-sizing:border-box;font:13px/1.4 ui-monospace,Menlo,monospace;'
         + 'color:rgba(232,226,208,.85);text-shadow:0 1px 3px rgba(0,0,0,.85);letter-spacing:.3px;';
       wrap.appendChild(cap);
     }
@@ -2166,6 +2217,25 @@ export function makeHud(purse: Purse): Hud {
   // ask whether one is running, from outside. `scripts/K-sleep-fade.mjs` reads
   // the OPACITY off the element rather than this flag — a boolean going true is
   // not the same claim as the screen actually being black.
+  // ── `__hud` OWNS THE CHROME OVER THE WORLD, AND NOTHING IN THE WORLD ──────
+  //
+  // Item 249: *"`window.__hud` VERSUS `window.__ct` IS UNDOCUMENTED and cost
+  // ninety three probe detours."* Reaching for the wrong one does not throw — it
+  // hands you `undefined`, and a probe then reasons from it.
+  //
+  // The split, in one line each:
+  //   `__hud`  which cabinet is up, closing it, the fade, the keypress latch.
+  //   `__ct`   the WORLD — the rig, the scene, colliders, floors, spots, seats,
+  //            doors, rooms, the clock. Published by `crosstown.ts`.
+  // Each MACHINE has its own besides: `__atm`, `__slots`, `__blackjack`,
+  // `__librarypc`, `__inv`, `__rent`. **There are eleven surfaces, not two** —
+  // measured, with the full map, in `notes/BUILDER-BRIEF.md` §4a, and
+  // re-enumerable from the running world with
+  // `scripts/probes/w119-249-test-surfaces.mjs`.
+  //
+  // NOTHING ABOUT THE PLAYER GOES HERE. `__hud` deliberately does not know where
+  // he is standing and `__ct` deliberately does not know a panel is open; a
+  // probe that drives a machine needs both, plus the machine's own.
   (window as unknown as { __hud: unknown }).__hud = {
     fade: (o?: Parameters<Hud['fade']>[0]) => hud.fade(o),
     fading: () => hud.fading(),

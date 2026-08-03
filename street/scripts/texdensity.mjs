@@ -196,7 +196,11 @@ if (SELFTEST) {
   globalThis.__selftestDecl = dhit;
 }
 
-const out = await p.evaluate((k) => {
+// THE CENSUS, AS A FUNCTION so it can be taken TWICE. Item 266's self-test
+// needs a second reading of the same world with the anisotropy declarations
+// stripped — that is the only way to prove the new exclusion excludes exactly
+// what it claims and nothing else, and it cannot be done from one pass.
+const census = () => p.evaluate((k) => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
   const rows = [];
   let meshes = 0, mapped = 0, stamped = 0, kinded = 0, unmeasurable = 0, hidden = 0;
@@ -261,6 +265,13 @@ const out = await p.evaluate((k) => {
         // prove a new field works is exactly the 3,782-call-site retrofit the
         // item says not to do.
         ppmDecl: typeof u.ppm === 'number' && u.ppm > 0 ? u.ppm : null,
+        // ITEM 266: STRETCHED ON PURPOSE, said by the module that painted it.
+        // `declareAnisotropic(t, why)` in `ct/paint.ts` writes the REASON here,
+        // never a boolean, and this check prints it. Verdict B below excuses
+        // these from the aspect band and NOTHING ELSE — a declared `ppm` is
+        // still enforced against them, because being deliberately 1-D says
+        // nothing about being the right density.
+        aniso: typeof u.anisotropic === 'string' && u.anisotropic ? u.anisotropic : null,
         ppm: [+ppmX.toFixed(2), +ppmY.toFixed(2)],
         aspect: +(ppmX > ppmY ? ppmX / ppmY : ppmY / ppmX).toFixed(3),
         face: [+fw.toFixed(3), +fh.toFixed(3)],
@@ -274,6 +285,7 @@ const out = await p.evaluate((k) => {
   });
   return { meshes, mapped, stamped, kinded, unmeasurable, hidden, rows };
 }, null);
+const out = await census();
 
 const R = out.rows;
 console.log(`${out.meshes} meshes · ${out.mapped} textured faces · ${R.length} measurable`);
@@ -367,8 +379,41 @@ for (const [lo, hi] of bands) {
   const n = R.filter((r) => r.aspect >= lo && r.aspect < hi).length;
   console.log(`   ${String(n).padStart(5)} ×  ${lo}-${hi === 1e9 ? '∞' : hi}x${lo >= GROSS ? '   <-- GROSS' : ''}`);
 }
-const gross = R.filter((r) => r.aspect >= GROSS).sort((a, c) => c.aspect - a.aspect);
-console.log(`\nFACES DRAWING A STRETCHED TEXTURE (>= ${GROSS}x): ${gross.length}`);
+// ── ANISOTROPIC BY DECLARATION — EXCLUDED, AND COUNTED WHERE YOU CAN SEE IT ──
+//
+// Item 266, from worker onehundredsix: *"the eight worst remaining faces are
+// `castTex` drain rails — a 1-D vertical gradient whose 16 texels over 2.8 cm
+// ARE the worn arris … squaring them destroys the detail they exist to draw,
+// and the checker cannot tell that from a defect."*
+//
+// It cannot, and it never could: without a declaration the only invariant
+// available is "a texel is square". So the module that painted the sheet says
+// so, with a reason, through `declareAnisotropic` — and this prints the reason
+// and the count. **A silent exclusion would be this guard going to sleep**,
+// which is the failure its own header is written about; a listed one can be
+// argued with by the next reader.
+/** THE EXCLUSION RULE, IN ONE PLACE — because the selftest below re-applies it
+ *  to a second census and the two must be the same rule or the test proves
+ *  nothing about the one that ships. */
+const isExcused = (r) => !!r.aniso;
+const stretched = R.filter((r) => r.aspect >= GROSS).sort((a, c) => c.aspect - a.aspect);
+const excused = stretched.filter(isExcused);
+const gross = stretched.filter((r) => !isExcused(r));
+if (excused.length) {
+  console.log(`\nANISOTROPIC BY DECLARATION — excused from the aspect band: ${excused.length}`);
+  const byWhy = {};
+  for (const r of excused) (byWhy[r.aniso] ??= []).push(r);
+  for (const [why, rs] of Object.entries(byWhy).sort((a, c) => c[1].length - a[1].length)) {
+    const worst = rs.reduce((a, c) => (c.aspect > a.aspect ? c : a));
+    console.log(`   ${String(rs.length).padStart(4)} ×  "${why}"`);
+    console.log(`          worst ${worst.aspect.toFixed(1)}x  ${worst.ppm.join(' × ')} px/m`
+      + `  face ${worst.face.join('×')} m  ${worst.owner}  at (${worst.at.join(', ')})`);
+  }
+  console.log('   Disagree with a reason? Delete the declareAnisotropic call and the'
+    + '\n   face comes straight back into the count below. Nothing is hidden.');
+}
+console.log(`\nFACES DRAWING A STRETCHED TEXTURE (>= ${GROSS}x): ${gross.length}`
+  + (excused.length ? `  (+${excused.length} anisotropic by declaration, above)` : ''));
 
 const byOwner = {};
 for (const r of gross) byOwner[r.owner] = (byOwner[r.owner] || 0) + 1;
@@ -381,6 +426,69 @@ for (const r of gross.slice(0, ALL ? 999 : 20))
   console.log(`      ${r.aspect.toFixed(1).padStart(8)}x  ${r.ppm.join(' × ')} px/m  face ${r.face.join('×')} m` +
               `  canvas ${r.canvas.join('×')}  rep ${r.repeat.join('×')}  ${r.type}/${r.mi}` +
               `  ${r.kind || 'UNDECLARED'}  ${r.owner}  at (${r.at.join(', ')})`);
+
+// ── SELFTEST, THE ITEM-266 VERDICT: BOTH SIGNS, AND IT NEEDS THE BROWSER ────
+//
+// It sits here rather than in the block at the foot of the file because that
+// block runs after `b.close()`, and this one has to take a SECOND reading.
+//
+// THE FIRST CUT OF THIS TEST COULD NOT FAIL, and it is worth saying how. It
+// asserted `grossAfterStripping === gross.length + excused.length` — and
+// `gross + excused` is just `stretched`, which stripping a userData field cannot
+// change, so the arithmetic held no matter what the exclusion did. That is the
+// family of "check that cannot fail" this whole file's header is written about,
+// reproduced inside the guard against it.
+//
+// What actually has to be proved is CAUSATION: that the DECLARATION is what
+// excuses a face, and that nothing else does. So the second pass re-applies
+// `isExcused` — the same rule that ships — to a scene with every declaration
+// deleted, and requires:
+//
+//   · excused now 0            — if the rule keyed off anything else (a kind, a
+//                                canvas size, an owner) it would still excuse
+//                                those faces here, and this goes red
+//   · gross now == stretched   — every excused face comes back, none goes
+//                                missing, and no extra face appears
+if (SELFTEST) {
+  const stripped = await p.evaluate(() => {
+    let n = 0;
+    const seen = new Set();
+    window.__ct.scene().traverse((o) => {
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) {
+        if (!m || !m.map || !m.map.userData || !m.map.userData.anisotropic) continue;
+        if (seen.has(m.map)) continue;
+        seen.add(m.map); delete m.map.userData.anisotropic; n++;
+      }
+    });
+    return n;
+  });
+  const R2 = (await census()).rows;
+  const stretched2 = R2.filter((r) => r.aspect >= GROSS);
+  const excused2 = stretched2.filter(isExcused);
+  const gross2 = stretched2.length - excused2.length;
+  console.log(`\nselftest(266): ${excused.length} face(s) excused by ${stripped} declaration(s).`
+    + ` With every declaration deleted: excused ${excused.length} -> ${excused2.length},`
+    + ` gross ${gross.length} -> ${gross2} of ${stretched2.length} stretched.`);
+  if (excused.length === 0) {
+    console.error('SELFTEST FAILED — nothing declares anisotropy, so the exclusion is unproven.'
+      + ' A verdict with no case behind it is not a pass (GOTCHAS 34).');
+    await b.close(); process.exit(2);
+  }
+  if (excused2.length !== 0) {
+    console.error(`SELFTEST FAILED — ${excused2.length} face(s) are still excused with every`
+      + ' declaration deleted, so something OTHER than the declaration is excusing them.'
+      + ' That is an exclusion nobody declared and nobody can see.');
+    await b.close(); process.exit(2);
+  }
+  if (gross2 !== stretched2.length) {
+    console.error(`SELFTEST FAILED — gross ${gross2} against ${stretched2.length} stretched`
+      + ' with nothing excused. The two must be equal.');
+    await b.close(); process.exit(2);
+  }
+  console.log('selftest(266): caught it — the DECLARATION is what excuses those faces,'
+    + ' and nothing else is');
+}
 
 ensureShots();
 writeFileSync('shots/texdensity.json', JSON.stringify(out, null, 2));

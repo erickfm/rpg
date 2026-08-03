@@ -2887,3 +2887,37 @@ clause"*. **Seventyone was right and is upheld.** If you meet `-5.60` in a
 jail-light context anywhere, it is the dead coordinate; the live one is `-9.40`.
 
 **SETTLED. DO NOT REOPEN.** The jail does not dim, and that is correct.
+## 93. `interiors-walk` goes SILENT for many minutes, and that is it WORKING
+
+**Do not kill it.** It has now been killed twice, at 14 minutes each, on the
+belief that it had stalled — and both times it was making real progress.
+
+Its own kill stack settles it: it died inside `lightLeg`
+(`scripts/interiors-walk.mjs:1626`) at `steadyAt` (`:1612`), called from the room
+loop at `:1503`. It had **already cleared the floor predicate** — the last thing
+it prints — and was working through the per-room light legs, **a phase that
+prints nothing at all until a leg completes**. Fourteen minutes of silence was
+fourteen minutes of work.
+
+**Judge this harness by browser CPU, never by output.**
+
+```sh
+ps -o pcpu=,etime=,cmd= -C chrome --sort=-pcpu | head -3   # is it still burning?
+```
+
+A live leg keeps a headless chrome near a full core. A dead one does not.
+
+**And it is a capacity lesson as much as a patience one.** Five concurrent
+builders each driving a headless browser starve one another, and this is the
+longest-running harness on the project, so it is the one that shows it first. If
+you hit the same silence with the machine busy, **say so** rather than reporting
+a partial pass — a 12-room result with 4 rooms measured is worth less than an
+honest "could not measure", because the first reads as coverage.
+
+Item 281, 2026-08-03. The desk's ruling on that item is the other half of the
+answer: the change those legs would have covered was **already verified by direct
+measurement** — handedness 5/5 before and after with zero spread, the party
+doorway walked 5/5 each way, 351/351 threshold points floored, `w70-orpheus-walk`
+13/13, bugsweep 0 STATION MISS — so re-running twenty minutes of walk to close
+one thin gap over a thick pile of evidence was not worth the fleet's budget.
+See BUILDER-BRIEF §10a: the proof must never cost more than the code.

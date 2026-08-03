@@ -135,8 +135,57 @@ const HOOD_T = 0.10;
  *  `(2π/segs)/2`. Change `segs` and the phase follows; a hand-typed constant
  *  would silently go stale, which is the single most expensive habit in this
  *  file (BUILDER-BRIEF §8). */
-function tyreGeo(r: number, width: number, segs: number): THREE.CylinderGeometry {
+export function tyreGeo(r: number, width: number, segs: number): THREE.CylinderGeometry {
   return new THREE.CylinderGeometry(r, r, width, segs, 1, false, Math.PI / segs);
+}
+
+/**
+ * A VEHICLE TEXTURE, at this world's filtering. Hoisted to module scope for
+ * `fleetWheelMats` below; `makeCar` and `makeBus` both had their own private
+ * copy of these four lines and now both delegate to this one.
+ */
+export function flatTex(m: THREE.Texture): THREE.MeshBasicMaterial {
+  m.minFilter = THREE.NearestFilter;
+  m.generateMipmaps = false;
+  m.needsUpdate = true;
+  return new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
+}
+
+/**
+ * THE FLEET'S WHEEL MATERIALS — `[tread, cap, cap]`, in THREE's cylinder order.
+ *
+ * ── why this is exported, and why it is a TRIPLE rather than two textures ────
+ *
+ * Item 292, the user: *"[screenshot] fix the wheels on the trailer."* Half of
+ * that was the wheels standing 0.113 m proud of the deck, fixed by item 253.
+ * The half left was that **the trailer's wheels are the only wheels in the world
+ * with no hubcap** — `crosstown.ts` builds that rig, `hubcapTex` lived here as a
+ * module-private function, and there was no way across.
+ *
+ * Exporting the texture alone would not have been enough and would have been
+ * the trap: the caller would still have had to know that a wheel wears THREE
+ * materials in the order `[side, top, bottom]`, that the tread is
+ * `0x101114` with `noLight` set (a black tyre under a sodium lamp is still a
+ * black tyre), and that the cap has to go through `flatTex` or it shimmers.
+ * Four facts, none of them guessable, all of them already true four times over
+ * in this file. So the fleet publishes the answer instead of the ingredients.
+ *
+ * ── ONE SET, SHARED ──────────────────────────────────────────────────────────
+ *
+ * Memoised. Every wheel in the world can share these two materials — nothing
+ * about a wheel varies per vehicle — and this world already runs ~3,800 draw
+ * calls, so handing out fresh materials per wheel would buy nothing and cost
+ * state changes. `makeCar` and `makeBus` build their own set per call today and
+ * this does not change that; it is the door for callers outside this file.
+ */
+let FLEET_WHEEL_MATS: THREE.Material[] | null = null;
+export function fleetWheelMats(): THREE.Material[] {
+  if (FLEET_WHEEL_MATS) return FLEET_WHEEL_MATS;
+  const tireM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+  tireM.userData.noLight = true;
+  const capM = flatTex(hubcapTex());
+  FLEET_WHEEL_MATS = [tireM, capM, capM];
+  return FLEET_WHEEL_MATS;
 }
 /** The top face of the hood — the flat panel over the engine, on every kind.
  *  0.94 m: too high to reach from the pavement. A hop gains 0.471-0.558 m
@@ -997,12 +1046,7 @@ export function makeBus(): THREE.Group {
   // panel added later would have gone back to mipmapping and nobody would have
   // noticed until it shimmered. Every textured vehicle material is built
   // through `flatT`, so it goes here and cannot be forgotten.
-  const flatT = (m: THREE.Texture) => {
-    m.minFilter = THREE.NearestFilter;
-    m.generateMipmaps = false;
-    m.needsUpdate = true;
-    return new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
-  };
+  const flatT = flatTex;      // hoisted to module scope for `fleetWheelMats`
   const darkM = new THREE.MeshBasicMaterial({ color: 0x0e0f12 });
   darkM.userData.noLight = true;
   const g = new THREE.Group();
@@ -1111,12 +1155,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   // panel added later would have gone back to mipmapping and nobody would have
   // noticed until it shimmered. Every textured vehicle material is built
   // through `flatT`, so it goes here and cannot be forgotten.
-  const flatT = (m: THREE.Texture) => {
-    m.minFilter = THREE.NearestFilter;
-    m.generateMipmaps = false;
-    m.needsUpdate = true;
-    return new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
-  };
+  const flatT = flatTex;      // hoisted to module scope for `fleetWheelMats`
   const bodyM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body) });
   const glassM = new THREE.MeshBasicMaterial({ color: 0x1c2836, side: THREE.DoubleSide });
   const darkM = new THREE.MeshBasicMaterial({ color: 0x0e0f12 });
