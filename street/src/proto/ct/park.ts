@@ -6,7 +6,7 @@ import type { AABB } from '../fp';
 // only three and a type, so this cannot make a cycle — `no-import-cycles` is
 // registered and green on it.
 import { RADIUS, TOUCH_MARGIN } from '../fp';
-import { BUILD, type CtxBuild } from './ctx';
+import { BUILD, type CtxBuild, type Site } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { weedTuft } from './weeds';
 
@@ -27,7 +27,13 @@ import { weedTuft } from './weeds';
 // actually walk, and where they do not, the grass is worn through to dirt
 // anyway.
 
-export interface Site { minX: number; maxX: number; minZ: number; maxZ: number; y: number }
+// RE-EXPORTED, NOT REDECLARED. This was a third hand-typed copy of `Site` —
+// ct/ctx.ts has the real one and ct/street.ts carries a structural twin for
+// `openSite`'s own return — and the copies had already drifted: `Site` grew a
+// `displace` member for item 172 and this one silently did not, so `buildPark`
+// was handed a site whose ground it could move and could not see the handle.
+// The typecheck caught it; nothing else would have.
+export type { Site };
 
 // A local LCG, because `rnd()` in ct/rng.ts is the ONE seeded stream and its
 // order is load-bearing for every tree height and pigeon in the world
@@ -604,43 +610,66 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   //
   // It is GENTLE on purpose. The player is a 2D walker whose floor comes
   // from a picker (GOTCHAS §7), so anything you could trip over is a bug,
-  // not a feature. A crown and three gaussians:
+  // not a feature.
   //
-  //   a CROWN     +0.10 m         the whole field, domed
-  //   a MOUND     +0.30 m over σ 3.1   the thing you walk up
-  //   a DISH      -0.09 m over σ 2.6   the bit that would puddle
-  //   a CORNER    -0.10 m over σ 5.2   the ground falling away to the south-east
+  // ── 2026-08-03: THE CROWN IS OFF AND THE HOLLOWS ARE REAL (item 172) ─────
   //
-  // THE CROWN IS WHY THE HOLLOWS EXIST AT ALL. The park site is floored by one
-  // flat 32 × 30 m plane at KERB_H, drawn by `openSite` in ct/street.ts, and it
-  // is not mine and does not move. My first relief put the dish 90 mm and the
-  // corner 100 mm BELOW it, so both were drawn underneath an opaque plane: the
-  // hollows were invisible while the floor picker still lowered you into them,
-  // which is worse than not having them — you walk down into a dip that is not
-  // there. Measured, not guessed: at four points in the two hollows the top
-  // surface was the site plane and the grass was 16–79 mm under it.
+  // The user: *"try to add some y diversity here. the height is soooo flat."*
+  // He was right, and the file already knew why. What was here was
   //
-  // Real turf is crowned for drainage, so the fix is also the truer shape: dome
-  // the whole field by 0.10 and cut the hollows into the dome. Nothing then
-  // goes below the site plane, the dish still reads as an 86 mm hollow against
-  // the ground around it, and the corner still falls away — to exactly the
-  // paving level, which is as far as it is allowed to go.
+  //   a CROWN     +0.10 m               the whole field, domed
+  //   a MOUND     +0.30 m over σ 3.1    the thing you walk up
+  //   a DISH      -0.09 m over σ 2.6    the bit that would puddle
+  //   a CORNER    -0.10 m over σ 5.2    the ground falling away to the south-east
   //
-  // The cost is honest: the rim now has to climb the crown as well, so the
-  // steepest grade goes from 1 in 12 to 1 in 9.1 even with the fade widened
-  // from 3 m to 5.5. Still a lawn you stroll up, and I would rather have that
-  // than hollows nobody can see. If ct/street.ts ever lets a module own its
-  // site's ground, the crown can come off and the hollows can be real.
+  // — measured end to end at 0.366 m of total relief across the whole site
+  // (`scripts/probes/w83-park-relief.mjs`). 0.366 m over 32 x 30 m IS flat, at
+  // human scale, and no amount of shading was going to argue otherwise.
   //
-  // The numbers were SWEPT, not eyeballed, and my first set was wrong in two
-  // ways a drawing would never have shown. A gaussian's own steepest slope is
-  // A/(σ√e), which for a 0.45 m mound over σ 4.6 is a comfortable 1 in 17 —
-  // but the rim mask below multiplies the whole field, so where it bites into
-  // a mound that is still 0.4 m high it ADDS its own 1-in-6 bank on top. And
-  // a -0.13 m dish on a 0.14 m kerb puts the floor 8 mm above the roadway.
-  // Sampling the composite on a 0.2 m grid instead: steepest 1 in 12 (a lawn
-  // you stroll up, a quarter of what a kerb ramp gets away with), floor never
-  // below 0.056 m, and 0.0 mm of step where the grass meets the paths.
+  // THE CROWN WAS NEVER A DESIGN, IT WAS A WORKAROUND, and the note it replaced
+  // said so: *"The park site is floored by one flat 32 x 30 m plane at KERB_H,
+  // drawn by `openSite` in ct/street.ts, and it is not mine and does not move."*
+  // Because that plane was opaque and immovable, a hollow cut below it was
+  // drawn UNDER the ground while the floor picker still lowered the player into
+  // it — *"you walk down into a dip that is not there"* — so the dish and the
+  // corner had to be carved out of an artificial dome instead, and every metre
+  // of grade the dome's own rim consumed came off the mound's budget.
+  //
+  // The same note named the fix and could not reach it: *"If ct/street.ts ever
+  // lets a module own its site's ground, the crown can come off and the hollows
+  // can be real."* `Site.displace` is that, and it is called below. The crown
+  // is gone, the `Math.max(0, …)` clamp that pinned every dip to the site plane
+  // is gone, and the two hollows are cut into ground that moves with them.
+  //
+  // WHAT IT BOUGHT, swept on a 0.2 m grid over the whole site, before → after:
+  //
+  //   RANGE   0.366 m  →  0.633 m      +73%, and the mound alone is +83%
+  //   GRADE   1 in 9.4 →  1 in 9.6     GENTLER, not steeper
+  //   STEP    0.3 mm   →  0.3 mm       where the grass meets the paths
+  //   FLOOR   0.140 m  →  0.057 m      still above the roadway
+  //
+  // Both of the free wins came from removing workarounds rather than from
+  // spending the grade budget: the crown's rim gave back one share, and
+  // swapping the gaussians for a bounded-slope profile (see `land`) gave back
+  // the other. THE ITEM'S OWN FIGURE FOR THE OLD GRADE — "1 in 12" — WAS WRONG;
+  // it is the pre-crown number, and the comment this replaces already said the
+  // crown took it to 1 in 9.1. Measured on the built world: 1 in 9.4.
+  //
+  // WHAT STILL CAPS IT, for whoever comes next. The relief must be zero where
+  // the grass meets the loop, because the paths are laid level; that puts the
+  // rise's whole run inside the FIELD, which is 17.75 x 16.5 m — not the site's
+  // 32 x 30. A landform that is zero on a rectangle's boundary cannot exceed
+  // grade x inradius, so 8.25 m of run at 1 in 8 is a hard ceiling of about
+  // 1.0 m however it is shaped. To go past that the LOOP ITSELF has to be
+  // draped on the relief the way the desire lines already are, which moves the
+  // benches (item 170) and the shelter (item 171) and is not this item's.
+  //
+  // The old numbers, kept because they are still the reason for two placements:
+  // a gaussian's own steepest slope is A/(σ√e), which for a 0.45 m mound over
+  // σ 4.6 is a comfortable 1 in 17 — but the rim mask multiplies the whole
+  // field, so where it bit into a mound still 0.4 m high it ADDED its own
+  // 1-in-6 bank on top. And a -0.13 m dish on a 0.14 m kerb puts the floor
+  // 8 mm above the roadway, which is where the floor constraint comes from.
   //
   // Two rules keep it honest:
   //
@@ -655,6 +684,11 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   //     floor picker answers `relief`. That is the whole discipline of §7 —
   //     the shape you see and the height you walk on cannot be two
   //     descriptions of the same thing, or they drift.
+  // THE CREST DOES NOT MOVE. `mndX`/`mndZ` are read by four other things — the
+  // shaggy patch in the mowing texture, the bench at +2.1, the tree at -0.7,
+  // and the mound's own tree — and the bench belongs to item 170, which is
+  // claimed. The mound gets TALLER and WIDER here; it does not get relocated,
+  // so nothing else in the file moves in x or z.
   const mndX = fx0 + (fx1 - fx0) * 0.46, mndZ = (fz0 + fz1) / 2 - 1.6;
   // The dish sits well clear of the mound, and that clearance was measured
   // rather than assumed: at 4.6 m apart the mound's own skirt is still +0.11 m
@@ -665,29 +699,211 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // inside the fade, so both it AND the ground around it were scaled toward
   // zero and it could never be deep — it measured 36 mm against its
   // surroundings instead of the 90 mm it is drawn as.
-  const dshX = fx1 - 5.5, dshZ = fz1 - 5.5;
-  // 2.6 m in from the corner of the grass, not 1.4. At 1.4 the deepest part of
-  // the fall sat UNDER the loop's chamfered corner path, which cuts diagonally
-  // across exactly that corner of the field — so the one place the fall was at
-  // full depth was the one place you could not see grass. Found by a drape
-  // sample that reported a path on top and was right to.
-  const cnrX = fx1 - 2.6, cnrZ = fz0 + 2.6;
-  const gauss = (d2: number, sig: number) => Math.exp(-d2 / (2 * sig * sig));
+  // ── A HOLLOW MAY NOT SIT ON A MOUND'S FLANK. A RISE MAY. ────────────────
+  //
+  // This is the rule the placements below follow and it was measured, not
+  // reasoned: the first sweep of this rewrite put the dish and the corner fall
+  // where the old gaussians had them, inside the mound's skirt, and came back
+  // at 1 in 7.1 at x -19.60 z -85.80 — a point where the mound descends
+  // eastward at 0.121 and the corner fall descends eastward at 0.036, and the
+  // two ADD to 0.141.
+  //
+  // A RISE on the same flank does not do this. Between a mound and a
+  // neighbouring swell there is a SADDLE, so their gradients OPPOSE and
+  // partially cancel; past the swell's far toe the mound is already zero. That
+  // asymmetry is why the swell below is allowed to overlap the mound and the
+  // dish is not, and it is worth knowing before moving any of them.
+  //
+  // So the dish goes to the north-east corner, 8.94 m from the mound's centre —
+  // far enough that its own support only reaches the mound's soft outer fifth,
+  // where the mound's slope has ramped most of the way down.
+  const dshX = fx1 - 3.4, dshZ = fz1 - 3.4;
+  // ── WHY THERE IS ONLY ONE RISE, WHICH IS NOT WHAT I SET OUT TO BUILD ────
+  //
+  // Two extra features were built here and both were MEASURED OUT rather than
+  // argued out, and the numbers are worth keeping because the next person will
+  // want to add them back:
+  //
+  //   a SOUTH-EAST CORNER FALL, -0.083 m — the old σ 5.2 one. Every position it
+  //     can take is inside the mound's descending south-east flank, and a
+  //     hollow on a descending flank ADDS (see the rule above). It measured
+  //     1 in 7.1 at x -19.60 z -85.80.
+  //   a NORTH-WEST SWELL, +0.18 m over r 4.4 — a second crest, for a lawn with
+  //     a saddle in it rather than one dome. I expected this to be free, on the
+  //     reasoning that a rise opposes a mound in the saddle between them. IT IS
+  //     ONLY FREE ON THE LINE JOINING THEM. Off that line — x -28.20 z -82.60,
+  //     west of the mound and south of the swell — climbing east AND north
+  //     climbs both, and the components add: 0.111 of mound plus 0.027 of
+  //     swell. Swept at 1 in 8.0 against 1 in 8.6 for the mound alone.
+  //
+  // Costed properly, the swell buys a second crest for 0.034 m of RANGE off the
+  // mound at a fixed grade, which is the wrong way round: the user's complaint
+  // is about height, and the mound is where height is cheapest. So the whole
+  // budget goes to the mound.
+  //
+  // MND_H IS THE ONE DIAL, AND THE DESK HAS NOW TURNED IT (item 235). Grade
+  // scales linearly with it: 0.485 → 1 in 9.4, which is what the park measured
+  // before item 172; 0.570 → 1 in 8.0 and 0.653 m of range. It was set to the
+  // first so that item 172 could deliver +55% relief at an unchanged grade and
+  // nobody had to weigh the result against a constraint. The desk then took the
+  // trade explicitly — the user's words were "the height is soooo flat", three
+  // os of emphasis — on the grounds that 1 in 8.0 is still a stroll: a kerb ramp
+  // is far steeper, and a real grass bank is 1 in 4. Both numbers below are
+  // SWEPT, not predicted (`scripts/probes/w83-park-relief.mjs`).
+  //
+  // THE CEILING ABOVE THIS DIAL IS NOT FAR, and it is not another number in this
+  // file. Relief must be ZERO where the grass meets the level loop, so the whole
+  // run lives inside the FIELD — 17.75 x 16.5 m, not the site's 32 x 30 — and a
+  // landform zero on a rectangle's boundary cannot exceed grade x inradius. At
+  // 1 in 8 that caps ANY shape near 1.0 m. Going past it needs the loop itself
+  // draped on the relief, which moves the benches (item 170) and the shelter
+  // (item 171). That is a separate piece of work; do not start it here.
+  // ── ONE LANDFORM PRIMITIVE, WITH A SLOPE YOU CAN BUDGET ──────────────────
+  //
+  // The old relief was three gaussians, and a gaussian is the wrong tool here
+  // for two reasons that between them cost this park most of its height:
+  //
+  //   IT IS STEEPEST WHERE IT IS HALFWAY UP. A gaussian's peak slope is
+  //     A/(sigma*sqrt(e)) — 1.65x the average slope it needs to climb its own
+  //     radius. So a third of the grade budget is spent on the one band around
+  //     the bump, and the crest has to be lowered until that band is legal.
+  //     This profile ramps its slope in and out and is LINEAR in between, so
+  //     the peak is 1.25x the average. Same budget, 32% more height.
+  //   IT NEVER REACHES ZERO. exp() is positive everywhere, so every feature
+  //     sits in every other feature's skirt. That is not theoretical: the note
+  //     above records a -0.09 m dish that measured +0.15 because the mound was
+  //     still 0.11 m tall underneath it, 4.6 m away. `land` is EXACTLY zero
+  //     past r1, so a hollow placed outside a mound's radius is the depth it
+  //     says it is, and the sweep confirms it rather than the author hoping.
+  //
+  // r0 is the flat crest, r1 the toe. Peak grade is 1.25*h/(r1-r0) — the number
+  // to check against the budget before touching anything, and then to confirm
+  // with `scripts/probes/w83-park-relief.mjs` because the features add where
+  // they overlap and no per-feature sum can see that.
+  const land = (x: number, z: number, cx: number, cz: number,
+    r0: number, r1: number, h: number) => {
+    const d = Math.hypot(x - cx, z - cz);
+    if (d >= r1) return 0;
+    if (d <= r0) return h;
+    const t = (r1 - d) / (r1 - r0);       // 0 at the toe, 1 at the crest
+    // The slope ramps 0 -> s over the first fifth, holds s, ramps back to 0
+    // over the last fifth; integrating that gives s*(1-a), so s = h/(1-a)
+    // normalises the crest to exactly h. Both joins are C1 — no crease.
+    const a = 0.2, s = h / (1 - a);
+    return t < a ? (s * t * t) / (2 * a)
+      : t < 1 - a ? s * (t - a / 2)
+        : s * (1 - a) - (s * (1 - t) * (1 - t)) / (2 * a);
+  };
+  // ── THE FEATURES, AND WHAT EACH COSTS IN GRADE ───────────────────────────
+  //   MOUND  +0.570 m  r 0.7…6.4   1.25*0.570/5.7 = 0.125 → 1 in 8.0
+  //   DISH   -0.083 m  r 0.4…3.4   1.25*0.083/3.0 = 0.035 → 1 in 29
+  //
+  // The mound is 90% taller than the 0.30 m it replaces. The composite grade is
+  // 1 in 8.0, against 1 in 9.4 both before item 172 and after it — this is the
+  // trade item 235 bought deliberately, range for grade, and it is the ONLY
+  // number here that got worse. Per-feature arithmetic is the BUDGET, not the
+  // answer — features add where they overlap and no sum written here can see
+  // that — so both are confirmed against
+  // `scripts/probes/w83-park-relief.mjs` on the built world, and three times
+  // now that sweep has disagreed with a comment in this block and been right.
+  //
+  // NOTE THE HEADROOM AGAINST `EDGE_G` BELOW, because it is now thin: the peak
+  // grade 0.125 sits just under the 0.13 edge clamp, so the clamp remains very
+  // nearly the no-op it is meant to be. Raise MND_H further and the clamp starts
+  // engaging across the field, flattening the crest instead of the rim — the
+  // shape would change character before the numbers said anything obvious.
+  const MND_H = 0.570, HOLLOW = -0.083;
   const relief = (x: number, z: number) => {
     const inset = Math.min(x - fx0, fx1 - x, z - fz0, fz1 - z);
     if (inset <= 0) return 0;
-    // smoothstep, not a linear ramp: a linear mask has a corner in it where
-    // it reaches 1, and a corner in the mask is a crease in the lawn
-    const t = Math.min(1, inset / 5.5), rim = t * t * (3 - 2 * t);
-    const CROWN = 0.10;
-    const m = 0.30 * gauss((x - mndX) ** 2 + (z - mndZ) ** 2, 3.1);
-    const d = -0.09 * gauss((x - dshX) ** 2 + (z - dshZ) ** 2, 2.6);
-    const c = -0.10 * gauss((x - cnrX) ** 2 + (z - cnrZ) ** 2, 5.2);
-    return Math.max(0, CROWN + m + d + c) * rim;   // never below the site plane
+    // THE CROWN IS GONE. It was +0.10 m over the whole field, and it existed
+    // for exactly one reason: the site's flat plane was opaque and this module
+    // could not move it, so a hollow had to be cut out of an artificial dome or
+    // it would be drawn underneath the ground. `site.displace` below now hands
+    // this module that plane, so the hollows are cut into the real ground and
+    // `Math.max(0, ...)` — which clamped every dip to the site plane and was
+    // the other half of the same workaround — goes with it.
+    const m = land(x, z, mndX, mndZ, 0.7, 6.4, MND_H);
+    const d = land(x, z, dshX, dshZ, 0.4, 3.4, HOLLOW);
+    // ── THE EDGE WEDGE, which replaces the rim mask ────────────────────────
+    //
+    // What was here was `* smoothstep(inset / 5.5)` — the whole field scaled
+    // toward zero over the last 5.5 m. It forces relief to zero at the path,
+    // which is right, but it does it by MULTIPLYING, and multiplying a
+    // half-height mound by a falling mask adds the mask's own slope on top of
+    // the mound's. That is not a hypothesis: the first sweep of this rewrite
+    // came back at 1 in 5.7 at x -23.60 z -88.00, and the arithmetic accounts
+    // for it exactly — 0.1206 of mound plus 0.0669 of mask = 0.1764. The old
+    // comment recorded the same mechanism biting the same way ("it ADDS its own
+    // 1-in-6 bank on top") and the answer then was to lower the mound.
+    //
+    // A WEDGE BOUNDS THE THING THE CONSTRAINT IS ACTUALLY ABOUT. Clamping the
+    // relief inside +/- inset*EDGE_G says directly what the item demands — the
+    // ground is level where it meets the paving, and no slope anywhere near
+    // that join is steeper than EDGE_G — instead of saying it sideways through
+    // a fade width and hoping. It cannot add slope, because a clamp only ever
+    // removes it: where it engages the grade is exactly EDGE_G, and where it
+    // does not it is the landform's own.
+    //
+    // It is very nearly a no-op today, which is the intent: the features are
+    // sized to die on their own and the clamp is the guarantee that survives
+    // somebody re-tuning them. 1 in 7.7.
+    const EDGE_G = 0.13;
+    const f = m + d;
+    const cap = inset * EDGE_G;
+    return Math.max(-cap, Math.min(cap, f));
   };
 
   /** The floor of the park, at a point. Flat everywhere the relief is. */
   const parkY = (x: number, z: number) => KERB_H + relief(x, z);
+
+  // ── AND THE SITE'S OWN GROUND TAKES THE SAME SHAPE ───────────────────────
+  //
+  // This one line is the whole of item 172. Until `Site.displace` existed the
+  // park was drawing relief on top of somebody else's flat opaque plane, which
+  // is why it needed a crown to keep its hollows above that plane and why its
+  // total range was 0.366 m.
+  //
+  // THE SAME FUNCTION, A THIRD CONSUMER. `relief` already had two — the field
+  // mesh is displaced by it and the floor picker answers it — and the file's
+  // stated discipline is that the shape you see and the height you walk on
+  // cannot be two descriptions of one thing. The ground under both is now the
+  // third, from the same function, so it cannot drift from either.
+  //
+  // It is safe outside the field for free: `relief` returns 0 the moment
+  // `inset` goes non-positive, so the 6 m planted margin, the path loop, the
+  // kerb line and the strip under the party walls are all left at exactly
+  // KERB_H — nothing that stands on the site's flat ground has moved, and the
+  // paths stay level without being told anything.
+  //
+  // ── AND IT IS SUNK 30 mm UNDER THE GRASS, WHICH IS NOT COSMETIC ─────────
+  //
+  // The field mesh rides `LIFT * 0.5` — 3 mm — above the site plane, which was
+  // ample while the plane was flat. Once BOTH are curved it is not, because
+  // they are curved at DIFFERENT TESSELLATIONS: the field is
+  // `PlaneGeometry(17.75, 16.5, 27, 25)` at 0.657 m, the site plane
+  // `(32, 30, 48, 45)` at 0.667 m, and neither grid's vertices land on the
+  // other's. A flat facet across a convex crest sits below the true surface by
+  // κh²/8, and the relief's sharpest curvature is 0.093 m⁻¹ where `land` ramps
+  // its slope in — so each mesh sags up to 5.2 mm mid-facet, out of phase with
+  // the other. Where the field sags and the site plane does not, the plane
+  // stands 2.2 mm PROUD OF THE GRASS and the site's grey shows through it in
+  // slivers. That is GOTCHAS §6 with a curve in it, and no screenshot at this
+  // scale would reliably show it.
+  //
+  // 30 mm clears the worst case six times over. It costs nothing: the field
+  // mesh covers `fx0…fx1 x fz0…fz1` exactly, so every millimetre of the sunk
+  // region is under grass, and the sag ramps from zero over the first 0.6 m
+  // INSIDE the boundary — so the two surfaces still meet flush exactly where
+  // the grass ends and the site's own ground takes over.
+  //
+  // The floor picker is untouched by this: it answers `relief`, not the plane.
+  const SAG = 0.03;
+  site.displace?.((x, z) => {
+    const inset = Math.min(x - fx0, fx1 - x, z - fz0, fz1 - z);
+    if (inset <= 0) return 0;
+    return relief(x, z) - SAG * Math.min(1, inset / 0.6);
+  });
 
   if (fW > 0.5 && fD > 0.5) {
     // ── MOWING STRIPES ────────────────────────────────────────────────────
@@ -2185,9 +2401,36 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     t.repeat.set(1, 2.2);                               // ~3 m of trunk per tile
     return flat(t);
   })();
+  // ── TREE HEIGHTS: THE ITEM'S CLAIM WAS WRONG, AND WIDENED ANYWAY ─────────
+  //
+  // Item 172's second half says *"the trees are all roughly one canopy height,
+  // the lamps one height, the wall one height — so even once the ground moves,
+  // the silhouette stays a flat band."* MEASURED FIRST
+  // (`scripts/probes/w83-park-canopy.mjs`, 12 trees selected by their 0.3 m
+  // bark trunk rather than by size, which is the only non-circular way to pick
+  // them): canopy tops ran 6.76 m to 9.54 m, a 2.79 m spread with sd 0.97 and
+  // 9 of 12 distinct. They were never one height, and the previous author's
+  // `6.6 + t2()*2.8` says so in the source.
+  //
+  // WIDENED REGARDLESS, because the user's ask is height diversity and this is
+  // the cheapest place left to buy it now the ground is done: 5.6…10.6 m of
+  // tree against 6.6…9.4, so the spread nearly doubles. The party walls are
+  // `wallHeight(4)` = 13.0 m, so the tallest still stands below the skyline the
+  // boundary gives it rather than poking over it.
+  //
+  // THE TRUNK IS NOW A FRACTION OF THE HEIGHT, not an independent draw. It used
+  // to be `2.6 + t2()*1.0` against a height drawn separately, so a short tree
+  // could roll a tall trunk — at the new range that pairs a 5.6 m tree with a
+  // 3.6 m trunk and leaves a 2 m lollipop on a pole. 34–46% is the proportion
+  // the old pair actually produced across its own range, so this keeps the
+  // shape and lets the size move.
+  //
+  // No `rnd()`: `clcg(seed)` is per-tree and the object count is unchanged, so
+  // the seeded stream and every texture downstream of it are untouched
+  // (GOTCHAS §2).
   const tree = (x: number, z: number, seed: number) => {
     const t2 = clcg(seed);
-    const h = 6.6 + t2() * 2.8, spread = 4.4 + t2() * 2.0, trunk = 2.6 + t2() * 1.0;
+    const h = 5.6 + t2() * 5.0, spread = 4.0 + t2() * 2.8, trunk = h * (0.34 + t2() * 0.12);
     const gy = parkY(x, z);                           // a tree on the mound too
     const tk = new THREE.Mesh(new THREE.BoxGeometry(0.3, trunk + 0.6, 0.3), barkM);
     tk.position.set(x, gy + (trunk + 0.6) / 2, z);

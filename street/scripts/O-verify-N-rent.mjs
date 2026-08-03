@@ -44,13 +44,31 @@ const box = found[0];
 await p.evaluate(([x, z]) => window.__ct.warp(x, z + 1.1, 0, 0, 0), [box.x, box.z]);
 await afterFrames(p, 6);
 const here = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(2)));
-const live = await p.evaluate(([bx, bz]) => {
+// ── THE MARGIN IS TOUCH, NOT REACH, AND IT IS READ NOT TYPED (item 232) ─────
+//
+// This asserted `d < s.r + 0.6` — a hand-typed `REACH_MARGIN`. The player here
+// is STANDING at the mailboxes, and for a standing player `fp.ts:991` decides
+// the aim-free offer with `d < s.r + TOUCH_MARGIN` (0.15). `REACH_MARGIN` (0.6)
+// governs only the SEATED clause (`fp.ts:1006`) and the debug ring
+// (`fp.ts:1124`), neither of which is this.
+//
+// It erred in the FALSE-GREEN direction — the assertion below is "the mailbox
+// [E] is live where a player stands", so a margin four times too generous
+// certifies a mailbox the world would not actually offer. Measured cost of the
+// difference: standing in the disputed ring r+0.15 .. r+0.60 at 10 live spots,
+// facing away, the world offers 0 of 10 (`probes/w88-margin-population.mjs`).
+const TOUCH_MARGIN = await p.evaluate(() => window.__ct.touchMargin?.());
+if (typeof TOUCH_MARGIN !== 'number' || !isFinite(TOUCH_MARGIN)) {
+  console.error('ABORT: __ct.touchMargin() did not return a number — nothing below can be measured.');
+  await b.close(); process.exit(3);
+}
+const live = await p.evaluate(([bx, bz, margin]) => {
   const q = window.__ct.pos();
   const s = window.__ct.spots().filter((s) => /mailbox|letter|post/i.test(s.label ?? ''))
     .map((s) => ({ label: s.label, ok: s.ok, d: +Math.hypot(s.x - q[0], s.z - q[2]).toFixed(2),
-                   near: Math.hypot(s.x - q[0], s.z - q[2]) < s.r + 0.6 }));
+                   near: Math.hypot(s.x - q[0], s.z - q[2]) < s.r + margin }));
   return s;
-}, [box.x, box.z]);
+}, [box.x, box.z, TOUCH_MARGIN]);
 console.log(`standing at (${here[0]}, ${here[2]}): ${JSON.stringify(live)}`);
 ok(live.some((s) => s.near && s.ok), 'the mailbox [E] is live where a player stands');
 ok(live.some((s) => /\d/.test(s.label)), `the label says HOW MANY — "${live[0]?.label}"`);

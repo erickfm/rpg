@@ -10,10 +10,12 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/glow.mjs [shots|probe|all]
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
+import { readFileSync } from 'node:fs';
 import { reportWorld } from './lib/which-world.mjs';
 import { goto } from './lib/reachable.mjs';
 import { installMats } from './lib/materials.mjs';
 import { modes } from './lib/modes.mjs';
+import { waitPainted } from './lib/painted.mjs';
 
 const mode = modes('glow', ['probe', 'shots', 'all']);
 const browser = await chromium.launch();
@@ -106,120 +108,298 @@ if (mode === 'probe' || mode === 'all') {
   console.log(`  halo centre vs the lens it comes out of: ${offLens.join(', ')} m`);
   console.log(`\n  ${bad.length === 0 ? 'OK  ' : 'FAIL'} every halo is anchored on its lamp, core unoccluded`);
 
-  // DOES THE POOL ACTUALLY LIGHT ANYTHING? The user asked for "light around the
-  // light posts to show up on the objects and entities under the lights", and
-  // this script only ever checked that the halo SHEET hangs in the right place.
-  // A halo is a decal; the thing the request is about is POOL_GAIN reaching the
-  // materials underneath it, and nothing asserted that.
+  // ── DOES THE POOL ACTUALLY LIGHT THE GROUND? MEASURED IN PIXELS ──────────
   //
-  // nightgrade.mjs does not cover it either — it treats poolLit as an EXEMPTION
-  // from the must-dim rule, which is the opposite question. Exempt and lit look
-  // identical to a check that only asks whether things got darker.
-  const pool = await page.evaluate(() => {
+  // The user asked for "light around the light posts to show up on the objects
+  // and entities under the lights". This clause is the one that answers it, and
+  // until item 234 it was asking a question its sampling could not answer.
+  //
+  // IT READ `material.color`, AND THAT STOPPED WORKING AT `544053b20`. That
+  // commit ("lamplight per fragment") moved the warm term AND the gain into
+  // POOL_FRAG. `ct/props.ts:1494` now writes only `base * amb`, and `amb` is
+  // `ambient(e.floor)` — per ELEVATION, not per lamp. Two materials on one floor
+  // are therefore equal BY CONSTRUCTION however close either one is to a lamp,
+  // so this clause reported `main street ... 1.0x` — identical across five runs
+  // — about a world whose lamplight was working perfectly.
+  //
+  //     A FRAGMENT SHADER IS INVISIBLE TO ANYTHING READING `material.color`
+  //     FROM JS.
+  //
+  // AND THE SIDE STREET WAS PASSING FOR A WORSE REASON THAN THE MAIN STREET WAS
+  // FAILING. It read 11.7x and looked like the healthy one. Measured in
+  // `probes/w86-is-glows-side-street-green-real.mjs`: SEVEN OF ITS EIGHT
+  // near-lamp samples are SELF-LIT (`ct/props.ts:1113`) — neon signs and lit
+  // windows, stamped `graded` but deliberately held bright at FLOOR_SIGN so they
+  // do NOT dim at dusk, which is a thing the user asked for in as many words.
+  // Their luminance is 1.0000 at 13:00 and 1.0000 at 23:00. **A material whose
+  // colour is identical at noon and at midnight cannot be reporting on a lamp.**
+  // The old green was reading "neon is bright at night" off a population that
+  // happened to sit near a lamp post, and it cost nothing to earn.
+  //
+  // SO ASK THE RENDERER. Stand on the pavement looking down and read the PIXELS
+  // — where a fragment shader's work actually lands, and where the player's eye
+  // is.
+  //
+  // AND NORMALISE EACH SPOT AGAINST ITS OWN DAYTIME READING. The measurement is
+  // a ratio of ratios, not of luminances:
+  //
+  //     gain(spot) = luminance(23:00 at spot) / luminance(13:00 at spot)
+  //     pool       = gain(under a lamp) / gain(mid-block)
+  //
+  // At 13:00 `night` is 0 and POOL_FRAG's whole body is skipped by its own first
+  // line, so the daytime reading is that spot's paint with no lamplight in it at
+  // all. Dividing by it cancels the base colour. That is exactly the hole the
+  // self-lit signs walked through, and closing it this way closes it for every
+  // future population too, not just for neon.
+  const propsSrc = readFileSync(import.meta.dirname + '/../src/proto/ct/props.ts', 'utf8');
+  // DERIVED, NOT TYPED (BUILDER-BRIEF §8). LAMP_R decides what "mid-block"
+  // means: a spot at or beyond the pool radius takes exactly zero from that
+  // lamp, so the unlit control is chosen by the very number the shader falls off
+  // with. Retune the world and this retunes with it; retune it by ACCIDENT and
+  // this fails to parse rather than quietly measuring the wrong place.
+  const mLamp = propsSrc.match(/const LAMP_R = ([\d.]+), LAMP_CORE = ([\d.]+);/);
+  if (!mLamp) {
+    console.error('\n  FAIL cannot find LAMP_R/LAMP_CORE in ct/props.ts — the mid-block');
+    console.error('  control below is derived from them and I will not guess it.');
+    process.exit(1);
+  }
+  const LAMP_R = +mLamp[1];
+  // THE GRADE'S CEILING, AND WHY IT IS ASSERTED HERE. `grade-sane.mjs` owns the
+  // question "is anything warmed twice" and reads `m.color` from JS to answer
+  // it. Since `544053b20` the warm term is applied in POOL_FRAG, so the half of
+  // that question which concerns LAMPLIGHT is invisible to it — a fragment
+  // shader cannot be seen from `material.color`. It is answerable here, where
+  // pixels are already being read, and it is one line of arithmetic:
+  //
+  //   POOL_FRAG caps `w45mul` at 1.0, and the CPU pass has already written
+  //   `base * amb`, so the shader's output is `base * w45mul * warm` <= `base *
+  //   warm`. A surface at noon reads `base`. **So the ground under a lamp can
+  //   never be brighter at night than it is at midday, beyond the warm term's
+  //   own luminance.** Anything above that is the ceiling breached on the GPU:
+  //   an uncapped pool gain, or a warm term applied to an already-warmed colour
+  //   — the same two causes grade-sane.mjs names for the CPU side.
+  const mWarm = propsSrc.match(/const WARM_R = ([\d.]+), WARM_G = ([\d.]+), WARM_B = ([\d.]+);/);
+  if (!mWarm) {
+    console.error('\n  FAIL cannot find WARM_R/WARM_G/WARM_B in ct/props.ts — the ceiling');
+    console.error('  below is derived from them and I will not guess it.');
+    process.exit(1);
+  }
+  const WARM_LUM = 0.299 * +mWarm[1] + 0.587 * +mWarm[2] + 0.114 * +mWarm[3];
+
+  const lampXZ = await page.evaluate(() => {
     const S = window.__ct.scene(); S.updateMatrixWorld(true);
-    const lamps = [];
+    const out = [];
     S.traverse((o) => {
       if (o.isMesh && (o.userData.lampPart === 'lens' || o.userData.parkLantern)) {
-        const e = o.matrixWorld.elements; lamps.push([e[12], e[14]]);
+        const e = o.matrixWorld.elements; out.push([+e[12].toFixed(2), +e[14].toFixed(2)]);
       }
     });
-    const REG = { main: { near: [], far: [] }, side: { near: [], far: [] } };
-    S.traverse((o) => {
-      if (!o.isMesh || !o.material) return;
-      // ONE MESH CAN CARRY SEVERAL MATERIALS, and this walked o.material.map as
-      // though it never did — so every multi-material mesh was invisible to it.
-      // a7f2241d found the same blind spot in nightgrade; 528 of this world's
-      // meshes are multi-material, and my own 24-hour probe had it too.
-      //
-      // Measured before fixing: the far population on the main street goes 48
-      // -> 152 and on the side street 8 -> 50, while the medians move 0.6184 ->
-      // 0.6103 and 0.045 -> 0.045. The verdict never changed; the sample was a
-      // third of what it claimed. A side-street 'far' of 8 was also uncomfortably
-      // close to this script's own floor of 4.
-      for (const mat of window.__mats(o)) {
-      if (!mat.map) continue;
-      if (!o.userData.graded && !mat.userData?.graded) continue;
-      const e = o.matrixWorld.elements, x = e[12], z = e[14];
-      // MAIN STREET **AND SIDE STREET**. The side street was excluded for no
-      // reason I can find and it pools hardest of the three: 1.0 against 0.0529
-      // mid-block, 18.9x. Eight of the twenty-one lamps live there.
-      const main = Math.abs(x) <= 9 && z <= 2 && z >= -96;
-      const side = x > 9 && z < -94;
-      if (!main && !side) return;
-      // THE PARK IS DELIBERATELY OUT, and the reason is structural rather than
-      // a defect — worth writing down so nobody "fixes" it by widening this and
-      // gets a false failure. Measured at 23:00: park near-lamp 0.0938 against
-      // 0.045 mid-block, only 2.08x, which would fail the 3x bar below.
-      //
-      // It is not that park lamps are missing from the light. They push onto the
-      // same lampHeads registry (ct/props.ts:921) and lay their own 4.4 m pool
-      // decal. It is that this tint is PER MATERIAL, so a mesh takes one pool
-      // value from its own origin — and the park floor is a single 32 x 30
-      // plane at (-23, 0.1, -83), while the street's walk is cut into slabs.
-      // One mesh cannot show a pool under one of its lamps. The park's light
-      // arrives as the additive decal, which is park.mjs's business, and it
-      // asserts the lanterns are emitting there.
-      const c = mat.color, L = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
-      const d = Math.min(...lamps.map(([lx, lz]) => Math.hypot(x - lx, z - lz)));
-      const R = REG[main ? 'main' : 'side'];
-      if (d < 3.0) R.near.push(L); else if (d > 9) R.far.push(L);
-      }
-    });
-    const med = (a) => (a.length ? a.slice().sort((p, q) => p - q)[Math.floor(a.length / 2)] : null);
-    const out = { lamps: lamps.length };
-    for (const [k, v] of Object.entries(REG))
-      out[k] = { n: v.near.length, f: v.far.length, nearMed: med(v.near), farMed: med(v.far) };
     return out;
   });
-  // CONTROLLED AGAINST THE JUMPED CLOCK. 3d71b035 found a jumped clock reads
-  // 7.4% brighter than the night a player reaches by stepping, and this check
-  // jumps straight to 23:00. Ran the control rather than assuming the ratio
-  // absorbed it:
-  //
-  //   JUMPED   near 0.6103  far 0.045  = 13.6x   (49/162 samples)
-  //   STEPPED  near 0.6103  far 0.045  = 13.6x   (50/149)
-  //
-  // Identical to four decimals. Both bands shift together if they shift at all,
-  // so a ratio is immune to the thing an absolute reading is not — but that was
-  // worth measuring rather than arguing, since it is exactly the reasoning that
-  // would sound convincing while being wrong.
-  //
-  // MOVERS ARE IN THIS SAMPLE ON PURPOSE. 83 of the ~254 materials it reads are
-  // alpha-tested billboards — citizens, trees, pigeons — and the population
-  // drifts between snapshots (near 51 -> 53, far 203 -> 202 over three seconds).
-  // Every other check of mine drops movers; this one must not, because the
-  // request is "light around the light posts to show up on the objects AND
-  // ENTITIES under the lights". A citizen standing under a lamp is the entity.
-  //
-  // The counts are snapshots; the verdict is not. Three consecutive runs give
-  // 13.7x and 18.7x to the digit, because a median over 150-odd samples does
-  // not care which pedestrian is where. Audited after 362ab354 asked the
-  // question of its own probes — checked rather than assumed, and the answer
-  // came out the other way from the rest of the shelf.
-  //
-  // PER REGION, NOT POOLED. Widening the window to take in the side street and
-  // then taking ONE median across both would have added samples and no
-  // coverage: the main street has far more materials, so its median carries the
-  // verdict and every side-street lamp could go dark behind it. A median over a
-  // mixed population answers a question nobody asked. Same error as wetness
-  // judging nine pools by whichever it reached first, one level up.
+  // The same two windows the old clause used, kept so the regions this reports
+  // on do not silently change along with the method.
+  const REGION = {
+    main: ([x, z]) => Math.abs(x) <= 9 && z <= 2 && z >= -96,
+    side: ([x, z]) => x > 9 && z < -94,
+  };
+  const minLampD = (x, z) => Math.min(...lampXZ.map(([lx, lz]) => Math.hypot(x - lx, z - lz)));
+  /** Mid-block: the NEAREST spot on this lamp's own pavement line that is
+   *  genuinely outside every pool. Same x, walk z, take the smallest offset
+   *  whose nearest lamp is at or past LAMP_R — where `clamp((R-d)/(R-C))` is
+   *  exactly 0, so the control takes provably zero light from any lamp.
+   *
+   *  NEAREST, NOT DARKEST, and that is a correction worth keeping. Maximising
+   *  the distance instead sent five of eleven controls 18-20 m away and off the
+   *  end of the street, onto ground that reads 0.58 at midday against the
+   *  pavement's 0.28 — the daylight control below caught every one of them, but
+   *  the right answer is not to wander off the block in the first place. The
+   *  first metre past the pool edge is still mid-block and is still on the
+   *  street the lamp is standing in. */
+  const midBlock = ([lx, lz]) => {
+    let best = null;
+    for (let d = 3; d <= 20; d += 0.25) for (const s of [-1, 1]) {
+      const z = lz + s * d, m = minLampD(lx, z);
+      if (m >= LAMP_R) return { x: lx, z: +z.toFixed(2), m: +m.toFixed(2) };
+      if (!best || m > best.m) best = { x: lx, z: +z.toFixed(2), m: +m.toFixed(2) };
+    }
+    return best;
+  };
+
+  const pairs = [];
+  for (const [name, inRegion] of Object.entries(REGION))
+    for (const L of lampXZ.filter(inRegion)) pairs.push({ region: name, lamp: L, far: midBlock(L) });
+
+  /** Mean luminance of a crop of GROUND, standing at (x,z) looking steeply down.
+   *
+   *  THE CROP IS PART OF THE MEASUREMENT, not a detail. At this pitch the
+   *  frame's edges still catch sky and facades, and its BOTTOM CARRIES THE
+   *  PLAYER'S WRISTWATCH — a bright, constant, fully-HUD patch about 30% of the
+   *  frame tall. Found by looking at the frames rather than by reasoning about
+   *  them. A constant additive in both readings biases a ratio toward 1.0, so it
+   *  could only ever have made this check too FORGIVING, but it is measuring the
+   *  HUD rather than the world and it comes out. x 0.30-0.70, y 0.15-0.55. */
+  let shotsKept = 0;
+  const groundLum = async (x, z, tag) => {
+    await page.evaluate(([x, z]) => window.__ct.warp(x, z, 0, undefined, -1.35), [x, z]);
+    // GOTCHAS 78/80: rAF is not a painted frame, and a probe that shoots too
+    // early photographs the void and believes it.
+    await waitPainted(page, { quiet: true });
+    const buf = await page.screenshot(tag ? { path: `shots/gl-pool-${tag}.png` } : {});
+    if (tag) shotsKept++;
+    return page.evaluate(async (b64) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64;
+      await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const x0 = Math.floor(c.width * 0.30), y0 = Math.floor(c.height * 0.15);
+      const w = Math.floor(c.width * 0.40), h = Math.floor(c.height * 0.40);
+      const d = g.getImageData(x0, y0, w, h).data;
+      let s = 0; for (let i = 0; i < d.length; i += 4) s += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      return s / (d.length / 4) / 255;
+    }, buf.toString('base64'));
+  };
+
+  // Both hours for every spot, clock set ONCE per hour rather than per spot.
+  for (const hour of [13, 23]) {
+    await page.evaluate((h) => window.__ct.clock(h, 0), hour);
+    await page.waitForTimeout(900);
+    for (const q of pairs) {
+      if (q.far.m < LAMP_R) continue;
+      // one pair per region is kept on disk, because a luminance with no picture
+      // behind it is how a probe reports confidently on a black frame
+      const keep = q === pairs.find((t) => t.region === q.region && t.far.m >= LAMP_R);
+      q[`near${hour}`] = await groundLum(q.lamp[0], q.lamp[1], keep ? `${q.region}-near-${hour}` : null);
+      q[`far${hour}`] = await groundLum(q.far.x, q.far.z, keep ? `${q.region}-far-${hour}` : null);
+    }
+  }
+
   console.log('');
-  for (const key of ['main', 'side']) {
-    const q = pool[key];
-    if (q.nearMed === null || q.farMed === null || q.n < 4 || q.f < 4) {
-      console.log(`  FAIL ${key}: cannot answer — ${q.n} lit / ${q.f} unlit samples`);
-      process.exitCode = 1;
+  const usable = [];
+  for (const q of pairs) {
+    const at = `${q.region} lamp (${q.lamp[0]},${q.lamp[1]})`;
+    if (q.far.m < LAMP_R) {
+      console.log(`  skip  ${at} — its darkest pavement spot is still ${q.far.m} m from a lamp,`
+        + ` inside LAMP_R ${LAMP_R}; there is no unlit control here`);
       continue;
     }
-    // Measured at 23:00: main 0.6184/0.0450 = 13.7x, side 1.0/0.0529 = 18.9x.
-    // The bar is 3x — far under what the world does, far over a flat grade.
-    const ratio = q.nearMed / Math.max(q.farMed, 1e-4);
-    const ok = ratio > 3;
-    console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${key} street: under a lamp ${q.nearMed.toFixed(4)} vs ` +
-      `mid-block ${q.farMed.toFixed(4)} — ${ratio.toFixed(1)}x (${q.n}/${q.f} samples)`);
-    if (!ok) process.exitCode = 1;
+    // THE INSTRUMENT'S OWN CONTROL, AND IT IS NOT OPTIONAL. At 13:00 there is no
+    // pool anywhere, so the two spots must read ALIKE. If they do not they are
+    // not comparable ground — one is over a different surface, or indoors, or
+    // off the map — and any night ratio taken from them describes the paint
+    // rather than the lamp. This caught three bad spots while this was being
+    // written: a naive "6 m along" landed under the NEXT lamp twice and on a
+    // different surface once (day 0.2969 vs 0.1266).
+    const dayRatio = q.near13 / Math.max(q.far13, 1e-6);
+    if (!(dayRatio > 0.8 && dayRatio < 1.25)) {
+      console.log(`  skip  ${at} — at 13:00 the pair reads ${q.near13.toFixed(4)} vs `
+        + `${q.far13.toFixed(4)} (${dayRatio.toFixed(2)}x): not comparable ground`);
+      continue;
+    }
+    q.gainNear = q.near23 / Math.max(q.near13, 1e-6);
+    q.gainFar = q.far23 / Math.max(q.far13, 1e-6);
+    q.pool = q.gainNear / Math.max(q.gainFar, 1e-6);
+    usable.push(q);
+    console.log(`  ${at} vs mid-block (${q.far.x},${q.far.z}) at ${q.far.m} m — `
+      + `night/day ${q.gainNear.toFixed(3)} vs ${q.gainFar.toFixed(3)} = ${q.pool.toFixed(2)}x`);
   }
-  console.log(`       ${pool.lamps} lamps carry a lens or lantern stamp`);
+
+  // POPULATION FLOOR. Every verdict below is a comparison, and a comparison over
+  // an empty set is free — the exact failure this file already guards against
+  // for the halo stamps. Measured at HEAD: 8 main-street lamps and 3 side-street
+  // ones stamp a lens, of which 10 have a mid-block spot outside LAMP_R and
+  // survive the daylight control. The floor is set below that and well above
+  // zero.
+  const FLOOR = 4;
+  if (usable.length < FLOOR) {
+    console.error(`\n  FAIL only ${usable.length} lamp/mid-block pairs survived the daylight`
+      + ` control — need at least ${FLOOR}.`);
+    console.error(`  Measuring nothing is not a pass. Has the lens stamp stopped matching,`);
+    console.error(`  or has the lamp spacing changed so no spot is outside LAMP_R ${LAMP_R}?`);
+    process.exitCode = 1;
+  }
+  if (usable.length) {
+    const sorted = usable.map((q) => q.pool).sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const worst = sorted[0];
+    const heldMed = usable.map((q) => q.gainNear).sort((a, b) => a - b)[Math.floor(usable.length / 2)];
+    // ── THE BARS, AND WHERE THEY COME FROM ──────────────────────────────────
+    //
+    // Set against the `glow-pool` mutation in scripts/canfail.mjs, which is the
+    // only honest way to choose them: it puts `POOL_GAIN = 0` and the check must
+    // separate that world from this one. Measured on the built bundle, ten
+    // usable pairs, three runs of each:
+    //
+    //                        ratio median   ratio worst   night/day under lamp
+    //     HEAD                  4.56x          3.33x            0.686-0.718
+    //     POOL_GAIN = 0         2.10-2.11x     2.08x            0.316-0.336
+    //
+    // ⚠ AND THE MUTANT IS NOT 1.0x, WHICH IS A FINDING ABOUT THE WORLD RATHER
+    // THAN ABOUT THE BAR. `POOL_GAIN = 0` leaves 2.1x of lamplight still on the
+    // ground, because the per-fragment pool is NOT the only thing lighting it:
+    // the painted 5.6 m ADDITIVE POOL DECAL is separate geometry that POOL_GAIN
+    // never touches. So a pixel reading of the ground necessarily sees both
+    // mechanisms, and "the pool gain is dead" reads as a halving rather than as
+    // a blackout. That is why the first bar written here (1.5x, reasoned from
+    // "the ratio of ratios cancels everything, so a dead pool must give 1.00x")
+    // was wrong, and why the mutation SLEPT through it on the first run.
+    const BAR = 3.0;          // 34% under HEAD's median, 42% over the mutant's
+    // WORST AS WELL AS MEDIAN, so one dark lamp cannot hide behind nine bright
+    // ones. This is what the old clause's per-region split was reaching for and
+    // it is strictly stronger: per LAMP, not per street.
+    const BAR_WORST = 2.6;    // 22% under HEAD's dimmest, 25% over the mutant's
+    // A SECOND LEG ON A DIFFERENT QUANTITY. The ratio asks "is it brighter here
+    // than mid-block"; this asks "how much of its own daylight does the ground
+    // under a lamp keep after dark" — an absolute, and the one that moved
+    // furthest under mutation (0.69 -> 0.32). Two legs on two quantities, so a
+    // world that games one still has to get past the other.
+    const BAR_HELD = 0.50;    // 27% under HEAD's 0.69, 49% over the mutant's 0.33
+    const okMed = median > BAR, okWorst = worst > BAR_WORST, okHeld = heldMed > BAR_HELD;
+    console.log('');
+    console.log(`  ${okMed ? 'OK  ' : 'FAIL'} the ground under a lamp is held up against mid-block — `
+      + `median ${median.toFixed(2)}x over ${usable.length} lamps (bar ${BAR}x)`);
+    console.log(`  ${okWorst ? 'OK  ' : 'FAIL'} and EVERY lamp does it — dimmest ${worst.toFixed(2)}x (bar ${BAR_WORST}x)`);
+    console.log(`  ${okHeld ? 'OK  ' : 'FAIL'} lit ground keeps ${(heldMed * 100).toFixed(0)}% of its daylight `
+      + `luminance at 23:00, against ${(usable.map((q) => q.gainFar).sort((a, b) => a - b)[Math.floor(usable.length / 2)] * 100).toFixed(0)}% mid-block (bar ${(BAR_HELD * 100).toFixed(0)}%)`);
+    // ── AND THE CEILING, ON THE SIDE grade-sane.mjs CANNOT SEE ──────────────
+    // 5% over the derived factor, for the crop's own noise. Measured at HEAD the
+    // brightest lamp holds 0.72 against a 1.11 ceiling, so this is nowhere near
+    // firing on a healthy world — which is what a ceiling should look like.
+    //
+    // WATCHED FAILING, and the two attempts are worth keeping because the first
+    // one is the more instructive:
+    //
+    //   POOL_FRAG's `min(1.0, ...)` REMOVED      no change at all, 0.72
+    //   POOL_FRAG's multiply applied TWICE       1.63 vs 1.11 — FAIL
+    //
+    // Uncapping moves nothing because the cap is not binding at these pixels in
+    // the first place: the crop averages a whole patch of ground, only part of
+    // which is in the lamp's core, so the mean gain is 0.69 and never near the
+    // 1.0 the min() clamps. A mutation that changes no observable is not a
+    // failed check, it is a mutation that does not mutate — and telling those
+    // two apart is the entire job of running it.
+    //
+    // The doubled multiply is the real analogue of canfail's `grade-twice`, and
+    // it is the case FOR this leg: under it the other three verdicts go GREENER
+    // (median 4.56x -> 10.43x, held 69% -> 158%) because twice the light is
+    // still light. A floor cannot catch too much of a good thing. Only a
+    // ceiling can, and grade-sane.mjs's ceiling cannot see the GPU.
+    const CEIL = WARM_LUM * 1.05;
+    const brightest = usable.map((q) => q.gainNear).sort((a, b) => b - a)[0];
+    const okCeil = brightest <= CEIL;
+    console.log(`  ${okCeil ? 'OK  ' : 'FAIL'} and none of it is warmed twice — brightest lamp holds `
+      + `${brightest.toFixed(2)} of its daylight luminance, ceiling ${CEIL.toFixed(2)} `
+      + `(WARM ${mWarm[1]}/${mWarm[2]}/${mWarm[3]}, capped by min() in POOL_FRAG)`);
+    if (!okMed || !okWorst || !okHeld || !okCeil) process.exitCode = 1;
+    const byRegion = {};
+    for (const q of usable) (byRegion[q.region] ??= []).push(q.pool);
+    for (const [k, v] of Object.entries(byRegion))
+      console.log(`       ${k}: ${v.map((n) => n.toFixed(2) + 'x').join(', ')}`);
+  }
+  console.log(`       ${lampXZ.length} lamps carry a lens or lantern stamp; `
+    + `${shotsKept} frames kept at shots/gl-pool-*.png — LOOK at them`);
+  // put the clock back where the rest of this script expects it
+  await page.evaluate(() => window.__ct.clock(2, 30));
+  await page.waitForTimeout(900);
 
   // AND NOTHING IS DRAWN ON TOP OF THE LIGHT. The ratio above says the tint
   // reaches the ground; it says nothing about whether you can SEE it. The pool

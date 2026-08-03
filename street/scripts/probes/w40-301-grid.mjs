@@ -23,10 +23,19 @@ await p.waitForFunction(() => window.__ct !== undefined, { timeout: 30000 });
 await p.waitForTimeout(2000);
 await reportWorld(p, URL);
 
-const fpMod = await p.evaluate(async () => {
-  const m = await import('/src/proto/fp.ts');
-  return { TOUCH_MARGIN: m.TOUCH_MARGIN, REACH_MARGIN: m.REACH_MARGIN };
-});
+// READ OFF `__ct`, NOT IMPORTED (item 232). This was
+// `await import('/src/proto/fp.ts')`, which resolves on the dev server and
+// **404s on `vite preview`** — the built bundle serves `dist/`, where that path
+// does not exist. GOTCHAS 28 says the bundle is where a check must be believed,
+// so a harness that silently reads `undefined` there is measuring nothing.
+// Both constants are published: `crosstown.ts:1618` and `:1629`.
+const fpMod = await p.evaluate(() => ({
+  TOUCH_MARGIN: window.__ct.touchMargin(), REACH_MARGIN: window.__ct.reachMargin(),
+}));
+if (![fpMod.TOUCH_MARGIN, fpMod.REACH_MARGIN].every((v) => typeof v === 'number' && isFinite(v))) {
+  console.error(`ABORT: margins did not resolve off __ct — ${JSON.stringify(fpMod)}`);
+  await b.close(); process.exit(3);
+}
 console.log(`fp.ts says TOUCH_MARGIN=${fpMod.TOUCH_MARGIN} REACH_MARGIN=${fpMod.REACH_MARGIN}`);
 
 const gy = await p.evaluate(() => window.__ct.groundAt(199.36, -15.545));

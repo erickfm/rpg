@@ -78,12 +78,31 @@ const sit = async () => {
 // ── 1. IS THE PROMPT VISIBLE NOW? ─────────────────────────────────────────
 console.log('── the exit prompt, which I could not see at all a few hours ago ──');
 if (!(await sit())) { console.error('ABORT: could not sit'); await b.close(); process.exit(3); }
-const inReach = await p.evaluate(() => {
+// ── THIS ONE REALLY DOES WANT REACH_MARGIN (item 232) ───────────────────────
+//
+// The margin sweep of item 232 moved most call sites off `REACH_MARGIN` and on
+// to `TOUCH_MARGIN`, because for a STANDING player `fp.ts:991` decides the
+// aim-free offer with `d < r + TOUCH_MARGIN`. THIS SITE IS THE EXCEPTION, and
+// it is the exception for a reason visible three lines up: `sit()` has just
+// been awaited, so the player is SEATED — and the seated clause at
+// `fp.ts:1006` is precisely `(!seated || d < s.r + REACH_MARGIN)`, one of only
+// two places the constant still governs anything.
+//
+// So the CONSTANT was right and only its DERIVATION was wrong: it was the
+// hand-typed `0.6` that BUILDER-BRIEF §8 exists to stop, and it would have gone
+// on asserting 0.6 the day anyone re-tuned the world's value. Read it off
+// `__ct.reachMargin()` (`crosstown.ts:1618`) instead.
+const REACH_MARGIN = await p.evaluate(() => window.__ct.reachMargin?.());
+if (typeof REACH_MARGIN !== 'number' || !isFinite(REACH_MARGIN)) {
+  console.error('ABORT: __ct.reachMargin() did not return a number — the seated reach cannot be measured.');
+  await b.close(); process.exit(3);
+}
+const inReach = await p.evaluate(([margin]) => {
   const q = window.__ct.pos();
   return window.__ct.spots()
-    .filter((s) => Math.hypot(s.x - q[0], s.z - q[2]) < s.r + 0.6)
+    .filter((s) => Math.hypot(s.x - q[0], s.z - q[2]) < s.r + margin)
     .map((s) => ({ label: s.label, ok: s.ok }));
-});
+}, [REACH_MARGIN]);
 console.log(`  live and in reach while watching: ${JSON.stringify(inReach)}`);
 const exit = inReach.find((s) => s.ok && /stop watching/i.test(s.label ?? ''));
 ok(!!exit,
