@@ -106,7 +106,9 @@ ok(benchOk === 9, 'and EXACTLY NINE are still offered (the bench was not blanked
 // …and the suppressed one is HERS, not an arbitrary one. Without this the two
 // counts above would pass just as well if the wrong place went dark.
 const gone = bench.find((s) => !s.ok);
-const her = sitters.find((s) => Math.hypot(s.x - gone.x, s.z - gone.z) < 0.30);
+// `gone` is undefined under the mutation that drops the clause entirely, and a
+// probe that throws there reports a stack trace instead of a verdict.
+const her = gone && sitters.find((s) => Math.hypot(s.x - gone.x, s.z - gone.z) < 0.30);
 ok(!!her, 'the suppressed place is the one she is sitting on, within the 0.30 m tolerance',
   gone ? `suppressed (${gone.x}, ${gone.z}); nearest sitter ${her ? `(${her.x}, ${her.z})` : 'NONE'}` : 'none suppressed');
 // NEGATIVE CASE, same kind of seat, same room: the EAST bench has nobody on it.
@@ -131,7 +133,12 @@ console.log('\n── sit on it, and get up again ──');
 // one crosstown.ts registered, not one this script reconstructs.
 const free = bench.filter((s) => s.ok).sort((a, c) => Math.hypot(a.x - inside[0], a.z - inside[2])
   - Math.hypot(c.x - inside[0], c.z - inside[2]))[0];
+// Guarded for the same reason as `gone` above: under the always-true mutation
+// there is no free place, and the walk below must report that rather than throw.
+ok(!!free, 'there is a free place to walk to at all');
+if (!free) { console.log('  (no free place — skipping the walk)'); }
 ok(await p.evaluate(() => window.__ct.seated() === null), 'we start STANDING, not seated');
+if (free) {
 await warpTo(free.atX, free.atZ, 0);
 await p.keyboard.down('e'); await p.waitForTimeout(120); await p.keyboard.up('e');
 await frames(12);
@@ -162,6 +169,7 @@ ok(await p.evaluate(() => window.__ct.seated() !== null), 'sat down a second tim
 await p.keyboard.press('Escape');
 await frames(12);
 ok(await p.evaluate(() => window.__ct.seated() === null), 'and ESCAPE gets us out of it too');
+}
 
 // ── the tax office: NOTHING to suppress, and that is the point ────────────
 // This half of the row was filed on a false premise. The check that matters
