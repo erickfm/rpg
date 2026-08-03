@@ -1057,6 +1057,36 @@ const CASES = [
     'mine.push(obstacle({ minX: px - 0.12, maxX: px + 0.12, minZ: tz - 1.6, maxZ: tz + 1.6 }));',
     'side-walk.mjs', [], 'both side-street walks sealed shut at every tree'],
 
+  // THE PARKED-CAR CENSUS ITSELF — the population floor item 227 asked for.
+  //
+  // `sidewalk-sealed` above is aimed at the WALKS, and its own measured note
+  // records that "the tree/car/pit heights ... stayed OK" through it. So the
+  // census line was the one assertion in this file with NOTHING proving it can
+  // fail — which is exactly how it came to report "3 parked cars, 0 found" for
+  // a day without anyone being able to tell a broken counter from an empty
+  // street. A count with no negative case is a line of output, not a check.
+  //
+  // WHY THIS MUTATION AND NOT A MISSING CAR. Moving the DRAWN car 900 m east
+  // takes it out of the census box (x 8..60) while leaving the COLLIDERS where
+  // they were: `carColliderBoxes(kind, x, z, ry, '@side')` at sidestreet.ts:181
+  // reads the local `x`/`z`, not `car.position`. So the fleet is invisible to a
+  // scene census and unchanged to anything that walks or drives.
+  //
+  // It discriminates, which is the point: measured, exactly ONE line goes red —
+  // `3 parked cars, all on the road at y=0 (0 found)` — while all four hikes,
+  // the bodega-door reach, the traffic leg ("never braked for a parked car",
+  // slowest 8.50 m/s) and all three [E] spots stay OK. 1 CHECK(S) FAILED,
+  // exit 1. A blunter mutation that deleted the cars would have reddened the
+  // traffic leg too and proved much less.
+  //
+  // GOTCHAS 91: `car.position.set` at :153 is the LAST write to that position —
+  // `scene.add` and `o.lit` do not move it — so the mutation is not overwritten
+  // between here and the assertion.
+  ['sidestreet-cars-vanish', 'src/proto/ct/sidestreet.ts',
+    'car.position.set(x, 0, z);',
+    'car.position.set(x + 900, 0, z);   // selftest: drawn cars leave the census box, colliders stay',
+    'side-walk.mjs', [], 'the parked-car census counting zero against a fleet of three'],
+
   // THE WALK LINE MOVED INTO THE ROADWAY. `IN` is "one metre in from the kerb:
   // the middle of a 2 m walk", so every node in the network is derived from it;
   // -1.0 puts the whole pedestrian network a metre INSIDE the road, which is
