@@ -1,12 +1,12 @@
 # Standing brief — read this once, then take work from the queue
 
-> ## ⚡ IF YOUR ITEM SAYS **FAST LANE**, STOP AND READ `notes/FAST-BRIEF.md` INSTEAD.
+> ## ⚡ SMALL CHANGES: BATCH THEM, BUILD ONCE, SKIP THIS FILE.
 >
-> Do not read this file and do not read `GOTCHAS.md`. They are 3,200 lines
-> between them, they cost about twenty minutes, and that is the entire budget for
-> a whole batch of small changes. **The user's rule, 2026-08-03: five small
-> changes should take fifteen minutes, not five hours.** `FAST-BRIEF.md` is one
-> page and carries the eight traps that actually bite.
+> **The user's rule: five small changes is fifteen minutes, not five hours.** If
+> your item is a batch of small ones — a colour, a size, a position, a label —
+> read the GOTCHAS index only, make all the edits, build **once**, one commit
+> each, look at it, `tsc`, hand back. No probes, no notes, no harness. Collision,
+> floors, seats and the sidewalk lane are never small; those read the rest.
 
 You are a builder on **CROSSTOWN '97**, a hand-authored Three.js/TypeScript 3D
 city street set in 1997. The repo root contains `street/`. Work only inside it.
