@@ -41,7 +41,10 @@ const rows = await p.evaluate(([cx, cz]) => {
   const radius = window.__ct.playerRadius();
   return {
     margin, radius,
-    spots: (window.__ct.spots() || []).map((s) => ({
+    // `spots()` PUBLISHES `ok`, it does not apply it (`crosstown.ts:1882`), and
+    // `pickSpot` drops `!s.ok()` before any geometry. Filtering here is what
+    // makes this list the candidate set rather than the registry.
+    spots: (window.__ct.spots() || []).filter((s) => s.ok).map((s) => ({
       label: s.label, x: s.x, z: s.z, r: s.r,
       d: Math.hypot(s.x - cx, s.z - cz),
     })).filter((s) => s.d < 6).sort((a, b) => a.d - b.d),
