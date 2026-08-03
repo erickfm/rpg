@@ -40,6 +40,7 @@ const BANK = 'src/proto/ct/bank.ts';        // D's, split out of street.ts
 const CASINO = 'src/proto/ct/int-casino.ts';  // the 96 slot stools
 const FP = 'src/proto/fp.ts';                 // the player rig — eye height, reach
 const TAX = 'src/proto/ct/int-tax.ts';        // the waiting row the user reported
+const ATM = 'src/proto/ct/atm.ts';            // the cash machine's screens and keys
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
 //
@@ -258,6 +259,27 @@ const CASES = [
     '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;',
     '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.90;  // selftest: pre-ruling',
     'D-rulings-hold.mjs', [], 'the fascia bottom back where the ruling moved it from'],
+
+  // ── item 184: the ATM's PIN screen ────────────────────────────────────────
+  //
+  // THE ORIGINAL BUG, RESTORED IN SOURCE, and it is the user's own words:
+  // *"trying to hit cancel on the pin keypad doesnt work cause its also 5?"*
+  //
+  // `clickAt` used to encode a fascia soft-key press as the STRING OF ITS
+  // NUMBER, so a click on CANCEL called `onKey('5')` — and `onKey`'s PIN branch
+  // eats digits before it ever reaches the soft-key dispatch. The button was
+  // offered with a hand cursor and typed a 5 into the PIN instead of cancelling.
+  //
+  // This is the mutation to use rather than deleting the CANCEL row, because it
+  // reproduces the SYMPTOM the user reported (the screen stays, the digit count
+  // goes UP) rather than merely removing the control — and `w67-atm-pin.mjs`
+  // asserts on both halves of exactly that. Watched: the walk goes red on
+  // `CLICKING CANCEL LEAVES THE PIN SCREEN (screen=pin)` and on
+  // `CANCEL did not type a 5 on the way out (pin=3)`.
+  ['atm-cancel-shadowed', ATM,
+    '  onKey(softKey(b.i, b.right));',
+    '  onKey(String(b.right ? b.i + 5 : b.i + 1));   // selftest: digits shadow CANCEL again',
+    'w67-atm-pin.mjs', [], 'clicking CANCEL typing a 5 into the PIN again'],
 
   // ── item 72: fast-tier checks that had NO declared failing path ────────────
   //

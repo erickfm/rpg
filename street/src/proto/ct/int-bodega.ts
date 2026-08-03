@@ -427,12 +427,39 @@ export function buildBodega(ctx: CtxBuild): void {
       g.fillStyle = '#e8e4d8'; g.fillRect(2 + i * 7, 5, 5, 5);
     }
   }), 'detail');
-  const deli = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 0.72), woodM);
-  put(deli, -hw + 1.6, 0.55, hd - 1.5);
-  const deliGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.6),
+  // THE CASE'S OWN MEASUREMENTS, ONCE. `-hw + 1.6` and `hd - 1.5` were each
+  // typed three times across the four lines below and `2.2`/`0.72` twice — and
+  // the coffee station further down had a fourth, independent opinion about
+  // where this case ends. That is how the two came to occupy the same floor
+  // (see CF_Z). One declaration, and everything that needs to stand clear of
+  // this case reads it rather than remembering it (BUILDER-BRIEF §8).
+  const DELI_W = 2.2, DELI_H = 1.1, DELI_D = 0.72;
+  // AGAINST THE LEFT WALL, which is the second half of *"a bit crowded"*.
+  //
+  // At `-hw + 1.6` the case stood 0.41 m off the wall — a strip too narrow to
+  // walk and too wide to read as joinery, so it was dead floor — and its right
+  // end reached local x -1.70. The left aisle's mouth runs from there to the
+  // second gondola run's face at -1.19, which is **0.51 m**. The player capsule
+  // is 0.72 across, so THE LEFT AISLE COULD NOT BE ENTERED FROM THE FRONT OF
+  // THE SHOP AT ALL: you had to walk the middle aisle to the cooler and come
+  // back up. Walked, not deduced — `w68-bodega-walk.mjs` stops the player dead
+  // at z 5.55 against this case, 11.1 m short of the back.
+  //
+  // Standing it against the wall gives that mouth 0.98 m and costs nothing: a
+  // deli case belongs against a wall, and the 0.41 m behind it was not floor
+  // anyone could use. DERIVED from the wall face and the case's own width, so
+  // it cannot drift if either changes. `hw` is the clear half-width — the wall
+  // colliders' inner faces sit at exactly ±hw — and 0.03 is a scribe gap, not
+  // a coplanar butt.
+  const DELI_X = -hw + 0.03 + DELI_W / 2, DELI_Z = hd - 1.5;
+  /** the customer side of the case — the face everything else must clear */
+  const DELI_FRONT = DELI_Z - DELI_D / 2;
+  const deli = new THREE.Mesh(new THREE.BoxGeometry(DELI_W, DELI_H, DELI_D), woodM);
+  put(deli, DELI_X, DELI_H / 2, DELI_Z);
+  const deliGlass = new THREE.Mesh(new THREE.PlaneGeometry(DELI_W - 0.1, 0.6),
     new THREE.MeshBasicMaterial({ map: deliT, transparent: true, opacity: 0.92, side: THREE.DoubleSide }));
-  put(deliGlass, -hw + 1.6, 0.72, hd - 1.5 - 0.37);
-  solid(-hw + 1.6, hd - 1.5, 2.2, 0.72);
+  put(deliGlass, DELI_X, 0.72, DELI_FRONT - 0.01);   // proud of the face, not inside it
+  solid(DELI_X, DELI_Z, DELI_W, DELI_D);
 
   // ── the coffee station, which has to SAY coffee station ──
   //
@@ -457,7 +484,37 @@ export function buildBodega(ctx: CtxBuild): void {
   // So it moves to the front-left, ahead of the shelving (the runs start at
   // GOND_Z + GOND_L/2 going back), which is also where a corner shop actually
   // puts coffee: by the door, where you pick it up on the way in.
-  const CF_X = -hw + 1.0, CF_Z = hd - 2.2, CF_W = 1.4, CF_D = 0.55, CF_H = 0.92;
+  // ⚠ AND THIS IS WHERE IT WENT WRONG, WHICH IS WHY THE FIX IS A DERIVATION
+  // AND NOT A NUDGE.
+  //
+  // The user: *"bodega is a bit crowded and lots of clipping inside"*, with a
+  // shot of the front-left corner. The bench and the deli case form an L, and
+  // the two carcasses were INSIDE each other:
+  //
+  //     deli case   x -3.90 … -1.70   z 4.44 … 5.16
+  //     bench       x -3.68 … -3.13   z 3.40 … 4.80     <- 0.36 m past the case
+  //
+  // 0.198 m2 of shared collider floor and 0.157 m3 of interpenetrating carcass
+  // — the largest overlap in the room by an order of magnitude, and the only
+  // one that is not a wall corner (`scripts/probes/w68-bodega-clip.mjs`).
+  //
+  // The cause is written in the comment directly above: this station USED to
+  // stand in the back-left corner and was moved to the front-left so it could
+  // be seen from the door. `hd - 2.2` was chosen for the new spot; the deli
+  // case was already at `hd - 1.5` and nothing connected the two numbers. A
+  // relocation that lands on a fixture already standing there cannot be caught
+  // by re-reading either line, because each is individually reasonable.
+  //
+  // So the bench's z is no longer a coordinate at all. It is "as far forward as
+  // it can go while still clearing the case", and if the case ever moves the
+  // bench moves with it. `hd - 2.2` is gone; this evaluates to hd - 2.62.
+  const CF_W = 1.4, CF_D = 0.55, CF_H = 0.92;
+  const CF_X = -hw + 1.0;
+  /** the shadow gap between the two carcasses. Deliberately not zero: butted
+   *  flush, the bench's end face and the case's front face are coplanar over
+   *  the bench's whole footprint, which is a z-fight. 60 mm reads as joinery. */
+  const CF_GAP = 0.06;
+  const CF_Z = DELI_FRONT - CF_GAP - CF_W / 2;
   const urnM = new THREE.MeshBasicMaterial({ color: 0x2e3236 });
   const chromeM = new THREE.MeshBasicMaterial({ color: 0xb8bcc0 });
 

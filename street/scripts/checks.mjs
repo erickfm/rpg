@@ -1103,6 +1103,17 @@ const CHECKS = [
   // `ct/hud.ts` has already shipped a cabinet that opened, drew perfectly and
   // answered no key at all, so it is not hypothetical. (L)
   ['L-blackjack-inworld', 'does the blackjack table work in the world, minus its seat?', false, ['all']],
+  // REGISTERED 2026-08-02 (w67, item 184). The ATM's PIN screen, driven with the
+  // REAL pointer: CANCEL by click, CLR-on-empty by key, the fourth digit
+  // submitting on its own, the enrolled PIN remembered across a genuine second
+  // visit, and ENT/CLR/Escape unbroken. Its failing path is the `atm-cancel-
+  // shadowed` case in canfail.mjs, which restores the user's original bug —
+  // a click on CANCEL typing a 5 into the PIN.
+  //
+  // APPENDED AT THE END DELIBERATELY: worker sixtysix holds item 161 and is
+  // editing this same array around the `density`/`masonry` rows. One row at the
+  // far end is the smallest thing that can conflict with that.
+  ['w67-atm-pin', 'does the ATM PIN screen cancel, auto-submit and remember?', 'atm-cancel-shadowed'],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

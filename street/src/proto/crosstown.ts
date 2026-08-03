@@ -27,7 +27,7 @@ import { buildCrowd, type Crowd } from './ct/crowd';
 import { pickSpot, SpotOutline, REACH_MARGIN } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
-import { makeHud, setScreenFocus, type Purse } from './ct/hud';
+import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
@@ -1731,6 +1731,38 @@ export function makeCrosstown(): Proto {
      *  and nothing may push onto it expecting the world to change. The one
      *  selftest that mutates `colliders()` by reference keeps doing so. */
     staticColliders: () => colliders.filter((c) => !actorBoxes.has(c)),
+    /** WHAT THE CROWD STEERS AROUND — the pedestrians' obstacle list.
+     *
+     *  `colliders` stops the PLAYER; `citAvoid` is what `ct/crowd.ts` steers
+     *  citizens around, and the two are different lists on purpose. Nothing
+     *  published it, so **the difference between them was unobservable from
+     *  outside**, and that is a blocker under two of the user's own bugs:
+     *  *"pedestrians sometimes clip into the fruit in the sidewalk outside the
+     *  bodega"* (195) and *"people still get stuck"* (173). Both could be
+     *  watched and neither could be asserted — a probe could see a citizen
+     *  walk through a crate but could not ask whether the crate was ever
+     *  offered to the crowd in the first place. Those are different bugs with
+     *  different fixes, and telling them apart is the whole value here.
+     *
+     *  NUMBERS, NOT THE LIVE ARRAY, and this is the one place it differs from
+     *  `colliders()` above. That one returns by reference because
+     *  `interiors-walk.mjs --selftest` walls doors shut by pushing onto it;
+     *  nothing needs that here, and a probe that can push a box into the
+     *  crowd's obstacle list is a probe that can make the world agree with it.
+     *  Each entry is a fresh spread, so mutating one changes nothing — the same
+     *  reasoning `painted()` gives for publishing three counters rather than
+     *  the renderer.
+     *
+     *  `actor` IS COMPUTED HERE, INSIDE THE WORLD, because it can only be
+     *  computed here: it is an IDENTITY test against `actorBoxes`, and identity
+     *  is exactly what does not survive `page.evaluate`. Cars and citizens push
+     *  onto `citAvoid` too, so without this flag a probe asking "is the fruit
+     *  stand in the list" has to distinguish a crate from a pedestrian by
+     *  shape — and a citizen's box is 0.5 x 0.5, which is also plenty of real
+     *  furniture. The spread carries `rot`, `minY`/`maxY` and any `tag` a box
+     *  was built with, so a caller can key on the same fields the red-dump
+     *  probes already key on. */
+    citAvoid: () => citAvoid.map((b) => ({ ...b, actor: actorBoxes.has(b) })),
     // test affordance: WHAT GROUND HAS BEEN PUBLISHED, and where? Same argument
     // as colliders() and groundAt() — a module that asks `ctx.site('jail')` and
     // gets null must build nothing and say so, and until now there was no way
@@ -1939,8 +1971,29 @@ export function makeCrosstown(): Proto {
         wet: (scene.userData.wetness as number | undefined) ?? 0,
       };
       for (const h of HOOKS) h.fn(frame);
-      // look down: your watch
-      hud.watch(rig.pitch < -0.95, Math.floor(clockMin));
+      // look down: your watch — BUT NOT WHILE A CABINET IS UP.
+      //
+      // `poseFor` takes the eye along the target face's own NORMAL. For a
+      // screen bolted to a wall that normal is horizontal and the player ends
+      // up level; for a form lying on a desk it points STRAIGHT UP, so reading
+      // it means looking down — and looking down is the exact gesture that
+      // raises the watch. Worker sixtysix photographed the result while
+      // building the loan (item 185): its first SIGN box sat behind a
+      // wristwatch. The ATM, slots and blackjack are all VERTICAL surfaces,
+      // which is the only reason this went four panels without being seen.
+      //
+      // You are reading a document, not checking the time, so the watch stands
+      // down. Same shape and same reasoning as `hud.prompt`, which already
+      // silences itself on `panelUp()` for the double-caption overlap.
+      //
+      // WHY THIS ALSO ANSWERS "does it come back on every close path". It is
+      // not an event and it does not need to be: this is a per-frame RECOMPUTE
+      // of `want`, so the frame after `livePanel` clears — however it cleared,
+      // by [E], by Escape, by the ATM's own farewell timeout, or by a future
+      // panel that closes itself in a way nobody has written yet — the watch
+      // slides back if the player is still looking down. There is no close
+      // path to miss because no close path is enumerated.
+      hud.watch(rig.pitch < -0.95 && !panelUp(), Math.floor(clockMin));
       // right-click: flip the wallet out / away
       const rmb = input.keys.has('rmb');
       if (rmb && !rmbHeld) hud.toggleWallet();
