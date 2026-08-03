@@ -2287,10 +2287,10 @@ export function register(ctx: CtxBuild): void {
   // length: dismissed, and still on the stool. That state is unreachable today
   // only because `crosstown.ts:1440` stands you up on every diegetic close —
   // the exact "unreachability that lives in OTHER PEOPLE'S files" the comment on
-  // `dismissed` refuses to depend on. w69 has queued the removal of that line
-  // (`notes/w69-seated-e.md`, "WHAT I DID NOT DO" §2). This is the way back in
-  // when it goes, and it is the world's own dispatch rather than a fourth
-  // private notion of what the player is doing.
+  // `dismissed` refuses to depend on. That removal is **queued as item 206**,
+  // *"closing a panel from a chair ejects you from the chair"*, reported by w69.
+  // This is the way back in when it goes, and it is the world's own dispatch
+  // rather than a fourth private notion of what the player is doing.
   //
   // ONE SPOT, RE-AIMED. There are 87 stools; registering one spot each would put
   // 87 extra `ok()` calls inside `pickSpot`'s per-frame loop, each running a
