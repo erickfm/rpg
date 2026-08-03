@@ -1758,7 +1758,7 @@ export function paintMachine(
 //     is no line in `crosstown.ts` to add and none to forget.
 
 import * as THREE from 'three';
-import type { CtxBuild } from './ctx';
+import type { CtxBuild, Spot } from './ctx';
 import { BUILD, ORDER as HOOK } from './ctx';
 import type { Panel } from './hud';
 
@@ -2272,12 +2272,108 @@ export function register(ctx: CtxBuild): void {
   // later: `crosstown.ts` sorts HOOKS by declared ORDER once, at build time, so
   // a hook pushed after that sort runs last regardless of what it asked for.
   // It no-ops until the panel exists.
+  // ═════════════════════════════════════════════════════════════════════════
+  // THE CABINET IS AN `[E]` TARGET NOW — item 205
+  // ═════════════════════════════════════════════════════════════════════════
+  //
+  // The row asks for the poll below to be DELETED in favour of this spot. **Only
+  // the spot is added.** The poll is not a workaround here, it is the feature:
+  //
+  //   *"add a slots interface and game where WHEN I SIT DOWN I ENTER THE SLOTS
+  //    INTERFACE and i can play slots."*  — FEATURE-REQUESTS.md:281
+  //
+  // and it works today — measured before anything was touched
+  // (`scripts/probes/w74-does-the-poll-fire.mjs`): sitting on a stool opens
+  // `ct-slots` with `__slots.screen()` live, i.e. on the cabinet's own face.
+  // BUILDER-BRIEF §6a: where the row and his words disagree, his words win.
+  //
+  // WHAT THE SPOT IS FOR is the state `dismissed` above already describes at
+  // length: dismissed, and still on the stool. That state is unreachable today
+  // only because `crosstown.ts:1440` stands you up on every diegetic close —
+  // the exact "unreachability that lives in OTHER PEOPLE'S files" the comment on
+  // `dismissed` refuses to depend on. w69 has queued the removal of that line
+  // (`notes/w69-seated-e.md`, "WHAT I DID NOT DO" §2). This is the way back in
+  // when it goes, and it is the world's own dispatch rather than a fourth
+  // private notion of what the player is doing.
+  //
+  // ONE SPOT, RE-AIMED. There are 87 stools; registering one spot each would put
+  // 87 extra `ok()` calls inside `pickSpot`'s per-frame loop, each running a
+  // 219-entry `find`. Only one machine can ever be the one you are sitting at,
+  // so one registration is re-aimed at the cabinet in front of whichever stool
+  // you took, and `ok()` compares two references.
+  //
+  // THE NUMBERS COME OFF THE CABINET, via the same `cabinetAhead` ray the panel
+  // uses to find its screen — not from `AVENUE`/`SLOT_PITCH`/`BANK_Z`, which are
+  // G's and have moved five times (see SLOT_SEAT_LABEL). The radius is the
+  // measured stool-to-cabinet distance, so the circle reaches exactly the stool
+  // it was found from whatever the casino does to its layout.
+  let useSpot: (Spot & { obj?: THREE.Object3D }) | null = null;
+  let armedAt: SeatPose | null = null;
+  /** `cabinetAhead` is a raycast against the whole scene; this stops it running
+   *  every frame in the one case that would otherwise do so — sitting on a stool
+   *  whose cabinet cannot be found. */
+  let nextLook = -1;
+
+  const FACE_AT = new THREE.Vector3();
+  const aimSpot = (stool: SeatPose, t: number): void => {
+    if (armedAt === stool || t < nextLook) return;
+    nextLook = t + 0.5;
+    const found = cabinetAhead(ctx.scene, stool, ctx.player.gy());
+    if (!found) return;
+    // THE FACE, NOT THE CENTRE — and this is not a preference, it is what
+    // `canSee` requires. `crosstown.ts:2119` raycasts eye -> spot and stops
+    // `dist - 0.35` short so the thing itself is not counted as its own
+    // occluder. A cabinet is 0.6 m deep, so a spot at its CENTRE puts 0.30 m of
+    // solid machine inside that margin: measured, the ray ran 0.382 m at a front
+    // face 0.364 m away and the machine blocked the line to itself. Every leg
+    // downstream passed — `ok()` true, off-axis 0.000, inside the seated reach —
+    // and the prompt still never appeared, which is exactly the silent shape
+    // `crosstown.ts:2076` records for the apartment door.
+    //
+    // The offset is the same `half` `screenPlane` below derives for the panel's
+    // own plane, off the same bounding box and the same face normal, so the spot
+    // and the picture cannot end up on different sides of the machine.
+    const geo = found.mesh.geometry;
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox;
+    if (!bb) return;
+    const n = found.normal;
+    const alongX = Math.abs(n.x) > Math.abs(n.z);
+    const half = alongX ? (n.x > 0 ? bb.max.x : -bb.min.x) : (n.z > 0 ? bb.max.z : -bb.min.z);
+    FACE_AT.set(
+      alongX ? Math.sign(n.x) * half : 0,
+      0,
+      alongX ? 0 : Math.sign(n.z) * half,
+    );
+    found.mesh.updateWorldMatrix(true, false);
+    FACE_AT.applyMatrix4(found.mesh.matrixWorld);
+    const x = FACE_AT.x, z = FACE_AT.z;
+    const r = Math.hypot(x - stool.x, z - stool.z);
+    if (!useSpot) {
+      useSpot = {
+        x, z, r, obj: found.mesh,
+        // O(1): ask the rig which pose it is on and compare references. `armedAt`
+        // is only ever set to a stool that already carried SLOT_SEAT_LABEL, so
+        // this and `seatedSlot()` have the same answer without the search.
+        ok: () => armedAt !== null
+          && (globalThis as unknown as CtWindow).__ct?.seated() === armedAt,
+        label: () => 'play the slot machine',
+        act: () => panel?.open(),
+      };
+      ctx.spot(useSpot);
+    } else {
+      useSpot.x = x; useSpot.z = z; useSpot.r = r; useSpot.obj = found.mesh;
+    }
+    armedAt = stool;
+  };
+
   ctx.onFrame((f) => {
     if (!panel) return;
     // THE SEAT IS THE TRIGGER. Sitting down opens it; standing up is impossible
     // while it is open, because the panel has the keyboard.
     const stool = seatedSlot();
-    if (stool === null) dismissed = null;          // off the stool: offer it again
+    if (stool === null) { dismissed = null; armedAt = null; nextLook = -1; } // off the stool: offer it again
+    else aimSpot(stool, f.t);
     if (!panel!.isOpen()) {
       lastT = -1;
       if (stool !== null && stool !== dismissed) { lastT = f.t; clock = 0; panel!.open(); }
@@ -2300,6 +2396,19 @@ export function register(ctx: CtxBuild): void {
   (globalThis as unknown as Record<string, unknown>).__slots = {
     open: () => panel?.open(),
     close: () => panel?.close(),
+    /**
+     * TEST AFFORDANCE — the DISMISSED-BUT-STILL-ON-THE-STOOL state, which
+     * `useSpot` exists for and which nothing in the UI can reach today. The
+     * comment on `dismissed` above sets out why: `crosstown.ts:1440` stands you
+     * up on every diegetic close, so the frame hook clears the latch a frame
+     * later. `ct/library-pc.ts` carries the same affordance for the same reason.
+     *
+     * A capability nobody can exercise is a capability nobody can prove
+     * (GOTCHAS 79). Write `dismissed` AFTER the close — `onClose` overwrites it
+     * with `seatedSlot()`, null by then — and re-seat in the SAME turn, or the
+     * next frame clears it: `__slots.dismissHere(); __ct.sit(pose)`.
+     */
+    dismissHere: () => { const s = seatedSlot(); panel?.close(); dismissed = s; },
     view: () => machine.view(),
     insert: (n: number) => machine.insert(n),
     play: () => machine.play(),
