@@ -2892,3 +2892,36 @@ to one side.
 - **"[screenshot] remove this weird table in the library"** (2026-08-02)
   → **routed as queue item 158.** A table jutting from a shelf end at an angle,
   intersecting the shelving.
+
+- **"[screenshot] too much arm here i think it shou;ld have a bit of a steeper
+  angle maybe?"** (2026-08-02,
+  `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-02 20-29-35.png`)
+  → **routed as queue item 165, which supersedes 111.** THIRD report on the watch
+  arm. In the frame the forearm runs almost perfectly horizontally across the
+  full width of the bottom of the screen — a long flat slab. He proposes the fix
+  himself: a steeper angle.
+
+- **"make the liquor store a mattress store"** (2026-08-02) → **routed as queue
+  item 166.** The liquor store is facade-only — one row in `ct/street.ts:296`,
+  no interior module, no `[E]` spot, no ad references — so this is a signage and
+  frontage change, not a new building.
+
+- **"[screenshot] mug handle still looks off, please try"** (2026-08-02, pasted
+  image, close-up from the doorway) → **routed as queue item 167.** THIRD report
+  on the mug, and the SECOND after a fix that measured correct by construction.
+  Item 108's fix joined the handle to the cup and proved it with numbers; he is
+  still telling us it reads wrong.
+
+- **"put the calendar where the poster is and the poster where the calendar
+  is"** (2026-08-02) → **routed as queue item 168.** Both are in the player's own
+  room, `ct/apartment.ts`: the gig-flyer poster on the south wall at
+  `AX(-1.05), RY + 1.55, AZI(2.085)` (0.52 × 0.70, unrotated), the 1997 calendar
+  on the north wall at `AX(-2.45), RY + 1.66, NORTH_Z` (0.30 × 0.40,
+  `rotation.y = PI`). A straight swap of two wall hangings.
+
+- **"[screenshot] what is this weird grass on the ground"** (2026-08-02, pasted
+  image, looking down at the floorboards indoors) → **routed as queue item 169.**
+  A small pale horizontal sliver lying flat on the apartment's wooden floor.
+  `ct/apartment.ts` contains no grass or weed geometry of its own; seven other
+  modules produce some (`props.ts`, `tex-world.ts`, `street.ts`, `weeds.ts`,
+  `lot.ts`, `park.ts`, `civic.ts`).
