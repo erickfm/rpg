@@ -996,21 +996,43 @@ export function pickSpot<T extends Pickable>(
    *    a door and opening it is a feature asked for by name. From a chair it is
    *    a bug: you cannot cross the room without getting up, so a spot you can
    *    SEE from a seat is not a spot you can USE from it. The bound is
-   *    `s.r + REACH_MARGIN` — **not a new constant**, but the one this file's own
-   *    comment (see `REACH_MARGIN` above, and the note at `looked` below) has
-   *    always said that margin means: how far outside its radius a spot can be
-   *    selected when you ARE looking at it. Standing deliberately does not apply
-   *    it; sitting is the case where it is the right question.
+   *    `s.r + RADIUS + REACH_MARGIN` — **not a new constant**: `REACH_MARGIN` is
+   *    the one this file's own comment (see `REACH_MARGIN` above, and the note at
+   *    `looked` below) has always said means *how far outside its radius a spot
+   *    can be selected when you ARE looking at it*, and `RADIUS` is the player's
+   *    own collision capsule, already imported at the top of this file. Standing
+   *    deliberately does not apply the margin; sitting is the case where it is
+   *    the right question.
+   *
+   *  · **AND THE GAP IS BETWEEN TWO BODIES, NOT FROM A POINT (item 289).** The
+   *    first cut of this bound was `d < s.r + REACH_MARGIN`, which measures the
+   *    span from the player's *centre* to the spot's edge and so silently
+   *    charges the seated player 0.36 m of his own chest for every reach. That
+   *    is the same error tier 1 below already had and already fixed: `onIt`
+   *    was `d < 1e-4` until it was measured to be false in the world, and it is
+   *    `d < RADIUS` now *because the player has a body*. The seated bound has to
+   *    say it too, so the quantity being compared to `REACH_MARGIN` is the real
+   *    gap `d - s.r - RADIUS` — surface to surface.
    *
    *  Derived against the user's own case rather than tuned: the client chair
    *  sits at (4.40, 2.62) and THE APPLICATION FORM at (3.75, 1.925) —
    *  `ct/int-bank.ts:1191-1197` — so 0.952 m against the form's own
-   *  `0.70 + 0.60 = 1.30`. It clears by 0.35 m rather than by a hair, which
-   *  matters: GOTCHAS 72, a margin the world can absorb is the only kind worth
-   *  writing down. The loan officer, two rows down the same file at r 1.0 and
-   *  1.67 m from the chair, does NOT clear his own 1.60 — so sitting in the
-   *  client chair reaches the paperwork and not the man behind the desk, which
-   *  is also the right answer.
+   *  `0.70 + 0.36 + 0.60 = 1.66`. It clears by 0.71 m rather than by a hair,
+   *  which matters: GOTCHAS 72, a margin the world can absorb is the only kind
+   *  worth writing down.
+   *
+   *  **THE LOAN OFFICER IS WHY THE POINT FORM WAS WRONG.** She is two rows down
+   *  the same file at r 1.0 and 1.67 m from the chair. Against the point form's
+   *  1.60 she missed by **7 cm**, and this docstring used to record that as
+   *  *"also the right answer"* — sit in the chair the user asked for, face the
+   *  woman across the desk square on, and the world offered to stand you up.
+   *  It is not the right answer: `ct/int-bank.ts:1183-1189` builds the whole
+   *  interaction out of reaching both — *"you read the form, then you look up
+   *  and hand it over"* — and the user asked for that chair by name (*"you sit
+   *  and its the loan process as an integrated overlay"*). Against the
+   *  body-to-body form she is inside 1.96 and clears by 0.29 m. **Nothing about
+   *  the officer moved to achieve that**; the rule was 7 cm short of a room that
+   *  was already built right.
    *
    *  **STANDING UP IS NOT DEMOTED INTO THIS CONTEST.** It cannot be — a view you
    *  cannot leave is the worst bug this project ships (BUILDER-BRIEF §11). The
@@ -1135,9 +1157,18 @@ export function pickSpot<T extends Pickable>(
     // SEATED IS THE ONE CASE THAT DOES APPLY IT, and it is an `&&` on top of the
     // standing test rather than a replacement for it, so the seated reach can
     // only ever be SHORTER than the standing one. See `opts.seated` above.
+    //
+    // `+ RADIUS` IS THE PLAYER'S OWN BODY AND IT IS NOT A TUNING KNOB (item
+    // 289). `d` runs from the seat pose — the player's CENTRE — to the spot's
+    // centre, so the span a seated arm actually has to cross is `d - s.r -
+    // RADIUS`, and comparing `d - s.r` to REACH_MARGIN charges him the width of
+    // his own chest. That cost the bank's loan officer by 7 cm: 1.67 m against
+    // an r of 1.0, so a gap of 0.67 m that is really 0.31 m of air. Same lesson
+    // as `onIt` forty lines down, which was `d < 1e-4` until the world proved
+    // the player is not a point. See the derivation in `opts.seated` above.
     const seated = opts?.seated === true;
     const looked = d < reach && offAxis < lookTolerance(s.r, d)
-      && (!seated || d < s.r + REACH_MARGIN);
+      && (!seated || d < s.r + RADIUS + REACH_MARGIN);
     // Seated, the aim-free pass is off entirely: `near` is what hands a sitting
     // player the chair he is already in. `opts` absent -> this line is
     // `near = touching`, exactly as it was, so nothing about a standing player's
