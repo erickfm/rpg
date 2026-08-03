@@ -2526,3 +2526,36 @@ The prompt reads **`none`** at that spot, and a probe that warps onto it and
 presses E measures nothing and calls it a failure. A player walks away and comes
 back, so a probe must too: go to the middle of the room, then return. Two runs
 of `w70-orpheus-walk.mjs` were lost to this before the mechanism was named.
+
+## 87. Sitting with a fresh literal sits on a pose no seat recognises
+
+`crosstown.ts:1845` is `sit: (pose) => rig.sit(pose)` — it hands **the caller's
+own object** to the rig. The machine modules then match their seat **by
+identity**: `ct/library-pc.ts:56` and `ct/slots.ts:1836` both test
+`s.pose === pose`.
+
+So a probe that does `__ct.sit({ x, z, yaw, h })` with a freshly-built literal
+sits on a pose **no seat owns**. Every seat-triggered behaviour silently fails to
+fire, and the probe reports the world is broken when it is the probe that is.
+
+This cost real work. It is why a queue row asserted "the library terminal is
+currently unreachable" — it was reachable the whole time — and the desk repeated
+that to the user. **Fetch the real pose from `ct.seats()` and pass that object.**
+
+Two probes still do it wrong (`w69-seated-offers.mjs:64`,
+`w69-seated-loan.mjs:70`) and one of them is a landed item's acceptance evidence.
+Item 217.
+
+## 88. A spot at the CENTRE of a deep object is invisible to `canSee`
+
+`canSee` stops its ray `dist − 0.35` short. Put a spot at the **centre** of an
+object deeper than that and **the object blocks the line to itself**: measured on
+the slot cabinet, ray 0.382 m against a face at 0.364 m, so the spot was silently
+never offered.
+
+Everything else about it looked right — `ok()` true, off-axis 0.000, comfortably
+inside reach — which is what makes this expensive to find. **Put the spot on the
+FACE you want the player to look at, not at the object's centre.**
+
+Found inside a builder's own change by a look-away negative case in its probe.
+Which is the argument for negative cases: the positive leg passed throughout.
