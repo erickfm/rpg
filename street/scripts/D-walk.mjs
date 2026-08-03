@@ -477,20 +477,24 @@ if (found) {
       // only `onOpen`/`onClose` move this, so it proves the framework really
       // ran the open rather than something merely looking open
       padLive: window.__atm?.padLive?.() ?? null,
-      // the OLD reading, kept as the "no menu popped up" clause
-      overlays: [...document.querySelectorAll('canvas,div')]
-        .filter((e) => { const r = e.getBoundingClientRect(), st = getComputedStyle(e);
-          return r.width > 300 && r.height > 200 && st.display !== 'none' && st.visibility !== 'hidden'
-            && +st.opacity !== 0 && (st.position === 'fixed' || st.position === 'absolute'); }).length,
     };
   });
+  // WHAT IS DELIBERATELY NOT ASSERTED HERE, per BUILDER-BRIEF §10a — *"stay away
+  // from tests that are failure prone"*. The obvious extra clause is "and no new
+  // full-screen overlay appeared", counting >300x200 fixed/absolute elements. I
+  // measured it: **3 -> 3 when the machine opens on the cabinet, and 3 -> 5 under
+  // a mutation that takes `surface:` back off the panel.** So it works — but it
+  // is a world-wide DOM heuristic that any future HUD element trips for an
+  // entirely benign reason, and `onMachine` below already catches that same
+  // mutation on its own (it was the other of the two FAILs). The number is in
+  // the handoff note instead of in a clause that can cry wolf.
   const a0 = await atmState();
   // POPULATION FLOOR. A leg that measures nothing must fail: if the world has no
   // ATM panel registered, or one is already up, everything below is meaningless.
   say(a0.known.includes('ct-atm') && a0.up === null && a0.onMachine === false && a0.padLive === false,
     'the ATM cabinet is registered and nothing is up yet',
-    `panels ${JSON.stringify(a0.known)}, up ${JSON.stringify(a0.up)},`
-    + ` onMachine ${a0.onMachine}, padLive ${a0.padLive}`, 1);
+    `up ${JSON.stringify(a0.up)}, onMachine ${a0.onMachine}, padLive ${a0.padLive},`
+    + ` panels ${a0.known.length}`, 1);
   // HELD, not tapped. Measured: a bare `press('e')` opens it once the world is
   // warm but NOT on a cold page — the [E] edge is read once per rendered frame
   // (BUILDER-BRIEF §5), and this leg must not depend on how long the run before
@@ -503,13 +507,15 @@ if (found) {
   say(a0.onMachine === false && a1.onMachine === true,
     'and it opens ON THE CABINET — the screen face wears the panel canvas',
     `onMachine ${a0.onMachine} -> ${a1.onMachine}`, 1);
-  say(a1.overlays === a0.overlays,
-    'and NOTHING popped up over the camera — no new full-screen overlay',
-    `${a0.overlays} full-screen overlays -> ${a1.overlays}`, 1);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(700);
   const a2 = await atmState();
-  say(a2.up === null && a2.onMachine === false && a2.padLive === false && a2.overlays === a0.overlays,
+  // `a1.up === 'ct-atm'` is IN the predicate, not assumed by it. Without it this
+  // clause reads green on a machine that never opened — which is exactly what it
+  // did for as long as this leg was red, and GOTCHAS 34 ("a check can pass
+  // because it found nothing to check") is the entry for it.
+  say(a1.up === 'ct-atm'
+    && a2.up === null && a2.onMachine === false && a2.padLive === false,
     'and ESC gets you back out of it',
     `up ${JSON.stringify(a1.up)} -> ${JSON.stringify(a2.up)},`
     + ` onMachine ${a1.onMachine} -> ${a2.onMachine}, padLive ${a1.padLive} -> ${a2.padLive}`, 1);
