@@ -25,6 +25,33 @@ That `npm install` is the part people skip; the hard reset removes the
 `node_modules` symlink and the dev server then fails with an error that looks
 nothing like the cause. (GOTCHAS 54, 13.)
 
+**AND THERE IS NOW A MECHANISM, NOT JUST THIS PARAGRAPH — `scripts/guard-shared-checkout.mjs`.**
+Writing it down had been tried; five workers built or installed in the shared
+checkout anyway. So `preinstall`, `build`, `dev` and `live` in `package.json`
+now run the guard first, and it **refuses with exit 1** when both facts hold:
+you are in the **main checkout** (`--git-dir` equals `--git-common-dir`) and you
+are running under Claude Code. Its message names your worktree and the fix. It
+**fails open** on every uncertain answer, because it sits on `preinstall` and a
+bug there would brick the most-run command on the project.
+
+Three things to know about it:
+
+- **It does not replace the check above.** It covers four `package.json`
+  scripts. **A bare `npx vite --port N` bypasses `package.json` entirely**, and
+  so does any `node scripts/*.mjs`. Run `git log --oneline -3` first anyway.
+- **You should never see it.** If you do, you are in the wrong tree — `cd` to
+  your own worktree and re-run. Do not reach for the override.
+- **`CT_ALLOW_SHARED=1` is the override, and it is not for you.** It exists for
+  the desk, which republishes the artifact from the shared tree. If you use it,
+  say so in your handoff.
+
+**Known defect, item 247: the guard refuses the desk too.** Measured 2026-08-03
+— the desk and every builder it spawns share **one `CLAUDE_CODE_SESSION_ID` and
+one environment** (50 of 50 agent processes carry `CLAUDE_CODE_CHILD_SESSION=1`,
+the desk's own tool shells included), so nothing in the environment can tell
+them apart. Not your problem as a builder; it is why the desk exports
+`CT_ALLOW_SHARED=1`.
+
 ---
 
 ## 1. The loop: take one item, finish it, take the next
@@ -275,6 +302,26 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 - **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor.
 - **Press `V` for the collision overlay.** Wireframe boxes, red where a gap under 0.95 m could trap a player. It is how the user found two real bugs on its first day.
 - **Verify on the BUILT bundle** (`npx vite preview`), not only on dev. The panel/keydown class of bug has shipped differently than it renders in dev.
+- **ONE CHECK IS EXEMPT FROM THAT, AND IT IS NAMED: `scripts/interiors-walk.mjs`
+  IS DEV-ONLY.** It reads its declarations out of the TypeScript sources at
+  runtime — four sites, `import('/src/proto/ct/doors.ts')` ×3 and
+  `.../ct/interior.ts` ×1 — which is deliberate: on `vite dev` the ES module
+  cache hands back **the same instance the app is using**, so the harness reads
+  the live door and party-wall declarations and a room added tomorrow is
+  understood with no edit. `vite preview` serves only `dist/`, so all four 404.
+  **Run this one on `vite dev`. It is the only exception, and it is not one you
+  have to remember** — pointed at a bundle it now aborts with **exit 3, nothing
+  measured**, and says so in a sentence. It used to die on an unhandled fetch
+  error, which node turns into **exit 1 — "measured, and it is WRONG"** — so a
+  builder doing exactly what the line above says got a red against twelve rooms
+  that were fine, from a suite that never started (GOTCHAS 32).
+  **What would lift the exemption, measured 2026-08-03 by
+  `scripts/probes/w93-item246-iw-bundle-gap.mjs`:** three of the four sites are
+  already redundant — `doorStandFor` and `doorPointFor` are on `__ct.doors()`
+  and agree **12/12 and 12/12 exactly**, and `roomWidthFor`'s value is assigned
+  to `r.W` and **read nowhere in the file**. The whole remaining blocker is
+  `ct/interior.ts`'s `PARTY`, which nothing publishes. **One line beside
+  `roomDims()` in `src/proto/crosstown.ts` makes this suite bundle-runnable.**
 - **A build against the tree your preview is serving blinds it for about a fifth
   of a second. It does NOT kill it.** `vite build` empties `dist/` before writing
   and `vite preview` serves `dist/` statically, so the healthy server has no page

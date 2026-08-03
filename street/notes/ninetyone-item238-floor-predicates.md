@@ -90,18 +90,45 @@ threshold is **0.600**. Over by **53 mm**, so the park's 32 × 30 m ground plane
 and its 17.75 × 16.5 m field are invisible to the AABB predicate
 (`w91-park-ground-thickness.mjs`).
 
-**But the claim "the park leg was about to go red" is WITHDRAWN.** I built
-`w91-park-would-have-gone-red.mjs` to prove it and it refused, twice: 0 of 4 and
-then 0 of 14 in-park standing positions read void to the old predicate. The walk
-enters across the perimeter **path**, and paths are flat meshes the AABB pass
-keeps — it never reaches the open grass. The first run's 4-leg stride was also
-GOTCHAS 48 in miniature: it stopped inside the path and reported a fact about
-the stride.
+### The park check WAS red, and it took an A/B run to prove it
 
-What is true is narrower, and measured on a 1.5 m lattice across the park
-interior (**warped, not walked** — a statement about the predicates, not about
-reachability, said out loud because conflating the two is how the first version
-of this got it wrong):
+I nearly shipped this wrong in **both** directions, so the sequence is worth
+keeping:
+
+1. I claimed "the park leg was about to go red." No evidence.
+2. I built `w91-park-would-have-gone-red.mjs` to prove it. It refused — 0 of 4,
+   then 0 of 14 in-park standing positions read void to the old predicate — so I
+   **withdrew the claim** and wrote the withdrawal into the note.
+3. Then I ran the **actual pre-change file** (`git show 9bff8791e:` …) against
+   the same world, which is the only test that settles it:
+
+| leg | OLD predicate (AABB) | NEW predicate (raycast) |
+|---|---|---|
+| lot | 0 escapes / 408 walks — **PASS** | 0 escapes / 336 walks — **PASS** |
+| park | **60 escapes / 624 walks — FAIL** | 0 escapes / 544 walks — **PASS** |
+| jail | — | 0 escapes / 136 walks — **PASS** |
+
+```
+FAIL  the player cannot walk out of the world at the park
+      60 of 624 walks ended ON NO FLOOR — x -19.59…-7.73  z -96.26…-68.37
+```
+
+**So the claim was true, and my own probe was the liar.** It walked straight
+west from 8 starts; the real check is a **flood fill that fans out in 8
+directions from every cell it reaches**, so it gets onto open grass that a
+straight line never touches. A probe that examines only the route its author
+thought of reports green about everything they did not — GOTCHAS 79, committed
+by me, inside the very item about predicates that lie.
+
+The lot was **already green** with the old predicate, so the conversion did not
+turn a correct red into a green. `floors.mjs`'s header calling w75 "correctly
+red at the lot" is stale — that was true when item 226 was written and is not
+true now.
+
+### The latent half, on ground nothing currently walks
+
+Measured on a 1.5 m lattice across the park interior (**warped, not walked** —
+a statement about the predicates, not about reachability):
 
 ```
 points sampled                     342
@@ -112,13 +139,11 @@ clear of colliders AND old-void     43   <- a body fits here and the old
                                             predicate calls it the void
 ```
 
-So it is **latent, with a size**: 43 lattice points of open park a body can
-stand on that the AABB predicate calls empty space. Nothing walks into them
-today. Something will.
+43 lattice points of open park a body can stand on that the AABB predicate calls
+empty space — the same defect the flood fill found 60 real escapes in.
 
-**The converted check is green:** `w75-site-contained park` → **0 escapes /
-544 walks from 68 reachable places, 36 of them in-site**, "all contained",
-0 console errors.
+**All three converted legs are green:** jail 0/136, park 0/544, lot 0/336,
+"all contained", 0 console errors, exit 0.
 
 ## What changed
 
