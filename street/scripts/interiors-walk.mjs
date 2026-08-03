@@ -31,6 +31,7 @@ import { chromium } from 'playwright';
 import { flags } from './lib/flags.mjs';
 import { approachHeading } from './lib/viewof.mjs';
 import { reportWorld } from './lib/which-world.mjs';
+import { entrySpots } from './lib/entry-spot.mjs';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 
@@ -77,11 +78,13 @@ const ROOMS = [
     // onto the road (gy 0.14 -> 0). Nothing in ct/jail.ts changed — the
     // forecourt was open the whole time; the harness was aiming the wrong way.
     east: true,
-    // LABEL IS THE PROMPT TEXT, NOT THE ROOM ID. The door says "into the HOUSE
-    // OF DETENTION"; I wrote /JAIL/ from the id and every prompt-based check
-    // failed - six of them - against a door that works perfectly. I stood at
-    // (54.5, -103) and the prompt was up.
-    id: 'jail', label: /JAIL|HOUSE OF DETENTION/, D: 26.0, chamfer: true,
+    // THIS ROW USED TO CARRY `label: /JAIL|HOUSE OF DETENTION/` — a
+    // hand-maintained alias list, written after the display name was changed
+    // under it and six prompt checks failed against a door that works. Item 213
+    // removed the whole class: `building` is the DECLARATION key
+    // (ct/jail.ts's JAIL_DOOR), and the prompt text is read back from the world.
+    // A third rename now costs nothing instead of six red rows.
+    id: 'jail', building: 'JAIL', D: 26.0, chamfer: true,
   },
   {
     // ADDED because the suite refused to run without them - the world published
@@ -94,11 +97,11 @@ const ROOMS = [
     // bodega keeper face his own wall for weeks. A teller window in the bank
     // and a desk prompt in the library would make both decidable.
     keeper: null,
-    id: 'bank', label: /FIRST FEDERAL|BANK/, D: 12.0, front: ['FIRST FEDERAL', 19.2, 4.6, -1],
+    id: 'bank', D: 12.0, front: ['FIRST FEDERAL', 19.2, 4.6, -1],
   },
   {
     keeper: null,
-    id: 'library', label: /LIBRARY/, D: 22.0, front: ['LIBRARY', 16, -13, -1],
+    id: 'library', D: 22.0, front: ['LIBRARY', 16, -13, -1],
   },
   {
     // the bodega's door is on a CHAMFER, so its [E] spot is not on an axis —
@@ -118,7 +121,7 @@ const ROOMS = [
     // where `[E] buy cereal` is up, so the game itself says a customer stands
     // there. Room side, and now the keeper faces it.
     keeper: [1.50, 0.40],
-    id: 'bodega', label: /BODEGA/, D: 11.0, front: ['BODEGA', 10, -95, 1], chamfer: true,
+    id: 'bodega', D: 11.0, front: ['BODEGA', 10, -95, 1], chamfer: true,
   },
   {
     // ST BRIGID'S. Reached from the TOP OF A FLIGHT, not from the pavement —
@@ -127,19 +130,19 @@ const ROOMS = [
     //
     // `keeper: null` is the explicit opt-out, not an omission: a weekday
     // afternoon church has nobody in it, and that emptiness is the room.
-    id: 'church', label: /BRIGID/, D: 16, W: 8.5,
+    id: 'church', building: 'ST BRIGID', D: 16, W: 8.5,
     keeper: null,
     doorX: 8.85, doorZ: -79.5, at: 0, sideStreet: true,
   },
   {
     // `keeper` is where a PLAYER STANDS to be served — a stool-width out from the service counter.
     keeper: [-1.40, -1.00],
-    id: 'diner', label: /DINER/, D: 7.0, front: ['DINER', 12, -49.5, -1],
+    id: 'diner', D: 7.0, front: ['DINER', 12, -49.5, -1],
   },
   {
     // `keeper` is where a PLAYER STANDS to be served — in front of the order counter.
     keeper: [-2.33, -2.00],
-    id: 'burger', label: /BURGER/, D: 8.5, front: ['BURGER BARN', 16, -29, -1],
+    id: 'burger', D: 8.5, front: ['BURGER BARN', 16, -29, -1],
   },
   {
     // `keeper` is where a PLAYER STANDS to be served — at the till, where you are handed your change.
@@ -162,7 +165,7 @@ const ROOMS = [
     // `minMeshes` means NO DENSITY MANDATE for that room, which is a statement
     // — seven briefs did not ask for one.
     minMeshes: 115,
-    id: 'thrift', label: /THRIFT/, D: 9.4, front: ['THRIFT', 12.5, -61.75, -1],
+    id: 'thrift', D: 9.4, front: ['THRIFT', 12.5, -61.75, -1],
     // …and because "dense but walkable" is this room's whole risk, it also
     // gets its aisles walked: between rail rows, and down the open spine.
     aisles: [
@@ -194,7 +197,7 @@ const ROOMS = [
     // across the felt from the dealer, who stands at local (-2.6, -13.95):
     // the table is at (-2.6, -13.0) and a player stands on the near side of it
     keeper: [-2.6, -12.0],
-    id: 'casino', label: /SEVENS/, W: 11.0, D: 36.0,
+    id: 'casino', building: 'SEVENS', W: 11.0, D: 36.0,
     doorX: 51.29, doorZ: -97.0, at: -3.2, sideStreet: true,
   },
   {
@@ -202,7 +205,7 @@ const ROOMS = [
     // clerk is behind it at (-5.17, 8.75); this is the same pair
     // scripts/G-rooms-walk.mjs uses, re-copied now that it has moved.
     keeper: [-4.0, 8.75],
-    id: 'hotel', label: /ORPHEUS/, W: 11.0, D: 26.0,
+    id: 'hotel', building: 'HOTEL ORPHEUS', W: 11.0, D: 26.0,
     doorX: 39.51, doorZ: -97.0, at: -3.4, sideStreet: true,
   },
   {
@@ -214,12 +217,12 @@ const ROOMS = [
     // The keeper pair is measured and still right: the broker stands at local
     // (1.6, -3.52) and this is the customer side of his counter, 1.92 m away.
     keeper: [1.6, -1.6],
-    id: 'pawn', label: /PAWN/, D: 8.0, front: ['PAWN', 15, -60.5, 1],
+    id: 'pawn', D: 8.0, front: ['PAWN', 15, -60.5, 1],
   },
   {
     // G's OWN spot, copied from scripts/G-rooms-walk.mjs — the client chair
     keeper: [-2.6, -0.75],
-    id: 'tax', label: /A-1 TAX/, D: 8.5, front: ['A-1 TAX', 13, -15.5, 1],
+    id: 'tax', D: 8.5, front: ['A-1 TAX', 13, -15.5, 1],
   },
 ];
 
@@ -253,7 +256,7 @@ const ROOMS = [
 // `covers` names the check that DOES test the parts this one cannot, so the
 // opt-out points at a real instrument rather than at nothing.
 const OFF_BELT = [
-  { id: 'apt301', covers: 'door301', label: /301/ },
+  { id: 'apt301', covers: 'door301' },   // no `label`: it was dead data, never read (item 213)
 ];
 
 // Rooms that name a building get their door and width DERIVED from the same
@@ -286,6 +289,33 @@ await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
+
+// ── AND ASK IT WHAT EACH DOOR CALLS ITSELF (item 213) ───────────────────
+//
+// Every row above used to carry a `label` regex over the [E] prompt text — the
+// jail's was already a hand-maintained TWO-name alias list, `/JAIL|HOUSE OF
+// DETENTION/`, written after a rename broke six checks on a working door. The
+// casino's `/SEVENS/` then broke the same way when item 196 moved it to the
+// Orpheus wing: measured on build 9fbd3b781 this suite scored **13/30 on the
+// casino**, every prompt leg red, on a door that opens perfectly.
+//
+// The rows now name their `building` — the DoorDecl roster key, which is not
+// user-facing and does not move on a rename — and the expected text is read
+// back from `__ct.spots()` at the coordinate `__ct.doors()` publishes.
+// See scripts/lib/entry-spot.mjs.
+const entryIndex = await entrySpots(p);
+console.log(`entry spots: ${entryIndex.resolved} of ${entryIndex.total} declared doors resolved to an [E] spot`);
+for (const r of ROOMS) {
+  // `front[0]` IS the roster key for the rooms that publish a frontage, so
+  // those rows need nothing extra; the four chamfer/`face:` rooms name it.
+  r.building = r.building ?? (r.front ? r.front[0] : null);
+  r.entryLabel = r.building ? (entryIndex.byBuilding.get(r.building)?.label ?? null) : null;
+}
+const isEntry = (r, txt) => r.entryLabel != null && txt != null && String(txt).includes(r.entryLabel);
+{
+  const unresolved = ROOMS.filter((r) => r.entryLabel == null).map((r) => `${r.id}(${r.building ?? 'no building key'})`);
+  if (unresolved.length) console.log(`  note  no entry label resolved for: ${unresolved.join(', ')}`);
+}
 
 for (const r of ROOMS) {
   if (!r.front) continue;
@@ -628,7 +658,7 @@ for (room of rooms) {
     for (let t = 0; t < 4000 && !seen; t += 130) {
       await p.waitForTimeout(130);
       const pr = await prompt();
-      if (room.label.test(pr ?? '')) { seen = pr; at = await pos(); }
+      if (isEntry(room, pr)) { seen = pr; at = await pos(); }
     }
     await p.keyboard.up('w');
     await p.waitForTimeout(120);
@@ -640,7 +670,7 @@ for (room of rooms) {
       for (let t = 0; t < 4000 && !seen; t += 130) {
         await p.waitForTimeout(130);
         const pr = await prompt();
-        if (room.label.test(pr ?? '')) { seen = pr; at = await pos(); }
+        if (isEntry(room, pr)) { seen = pr; at = await pos(); }
       }
       await p.keyboard.up('w');
       await p.waitForTimeout(120);
@@ -705,7 +735,8 @@ for (room of rooms) {
   await warp(room.doorX, room.doorZ, -Math.PI / 2, KERB_H);
   await p.waitForTimeout(200);
   check('the [E] prompt is up standing on the painted door',
-    room.label.test((await prompt()) ?? ''), `at x=${f2(room.doorX)} z=${f2(room.doorZ)}`);
+    isEntry(room, await prompt()),
+    `at x=${f2(room.doorX)} z=${f2(room.doorZ)}, declared entry ${JSON.stringify(room.entryLabel)}`);
 
   await press();
   const inside = await pos();
@@ -956,8 +987,14 @@ for (room of rooms) {
   // landing legitimately sits part way between the walk and the road
   check('you land on the raised walk, not in the road',
     room.chamfer ? back[3] > -0.001 : Math.abs(back[3] - KERB_H) < 0.001, `gy=${back[3]}`);
+  // NEGATIVE ASSERTION, so it carries its own population floor: if no entry
+  // label resolved, `isEntry` is false for everything and this row would go
+  // green having measured nothing. `room.entryLabel != null` is what stops it.
   check('you are NOT standing in the re-entry trigger after stepping out',
-    !room.label.test((await prompt()) ?? ''), `prompt=${JSON.stringify(await prompt())}`);
+    room.entryLabel != null && !isEntry(room, await prompt()),
+    room.entryLabel == null
+      ? `NO entry label resolved for building ${JSON.stringify(room.building)} — nothing was measured`
+      : `prompt=${JSON.stringify(await prompt())}`);
   await press();
   check('a second E on the landing does not suck you straight back in',
     (await pos())[0] < 100, `pos=${(await pos()).slice(0, 3).map(f2)}`);
