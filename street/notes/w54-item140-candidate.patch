@@ -1,0 +1,117 @@
+diff --git a/street/src/proto/fp.ts b/street/src/proto/fp.ts
+index 4ad9221dc..470dcf21b 100644
+--- a/street/src/proto/fp.ts
++++ b/street/src/proto/fp.ts
+@@ -828,8 +828,12 @@ export function pickSpot<T extends Pickable>(
+   // function's history, because THIS KNOB HAS A USER COMPLAINT AT BOTH ENDS.
+   //
+   //   tier 1  STANDING IN IT, OR TOUCHING AND AIMED AT   ranked by distance
+-  //   tier 2  AIMED AT                ranked by screen centre, distance breaks ties
+-  //   tier 3  TOUCHING, AIMED AWAY    ranked by distance
++  //   tier 2  TOUCHING, AIMED AWAY    ranked by distance
++  //   tier 3  AIMED AT                ranked by screen centre, distance breaks ties
++  //
++  // TIERS 2 AND 3 ARE IN THIS ORDER BECAUSE OF ITEM 140 — everything you are
++  // TOUCHING outranks anything you are merely aimed at, so the prompt cannot
++  // change while you stand still and turn. See the long note on the `return`.
+   //
+   // END ONE — *"i dont want to be so far from the bed and the option is still
+   // to sit on the bed and watch tv"*. This used to be a single
+@@ -972,8 +976,95 @@ export function pickSpot<T extends Pickable>(
+       if (d < bestNearOnlyKey) { bestNearOnlyKey = d; bestNearOnly = entry; }
+     }
+   }
+-  // touching-and-aimed-at, then aimed-at, then touching-but-aimed-away.
+-  return bestNearLooked ?? bestLooked ?? bestNearOnly;
++  // touching-and-aimed-at, then touching-and-BEHIND-you, then merely aimed-at,
++  // then touching-but-aimed-away-and-still-in-front.
++  //
++  // THE SECOND TIER IS NEW AND IT IS ITEM 140.
++  // *"still feels weird to look around at the door frame to my room. idk what
++  // changed but it seems like a recent change. not on click behavior or
++  // anything. its just from looking around."*
++  //
++  // Before item 85 this read `return bestNear ?? bestLooked` — anything you were
++  // TOUCHING beat anything you were merely aimed at, so the prompt could not
++  // change while you stood still and turned. Item 85 split the near tier to fix
++  // END TWO, which was right, and inserted `bestLooked` between the halves,
++  // which is what the user felt: a spot you are STANDING AT can now lose the
++  // prompt to one anywhere inside `reach` (6 m) the moment your crosshair
++  // crosses it. At his own doorway, 0.5 m from the door and inside its touch
++  // circle, turning past the bed handed him `sleep until morning` — a spot
++  // 2.13 m away across the room.
++  //
++  // WHY THE DISCRIMINATOR IS "BEHIND", AND WHY IT COULD NOT BE ANYTHING ELSE.
++  // Two poses have to disagree, and they are almost the same measurement:
++  //
++  //   (A) item 140, at the doorway   touching the door  d 0.50, offAxis ~150°
++  //                                  aimed at `sleep`   d 2.13, offAxis ~0°
++  //                                  -> must give THE DOOR, the touched one
++  //
++  //   (B) item 85, beside the bed    touching the bed   d 0.59, offAxis ~21°
++  //                                  aimed at the door  d 1.80, offAxis ~0°
++  //                                  -> must give THE DOOR, the AIMED one
++  //
++  // The touched distances (0.50 / 0.59) and both aimed candidates (2.13 / 1.80
++  // at offAxis ~0) are near enough to swap under any threshold, so NO ordering
++  // and no static key over distance-and-angle can return opposite answers here —
++  // I tried strict reordering, a merged distance key and a merged angle key, and
++  // each one buys (A) by selling (B) or the reverse. The single variable that
++  // separates them by a wide margin is the offAxis of the TOUCHED spot: ~150°
++  // against ~21°. Behind you, versus just off your aim.
++  //
++  // And that has a plain meaning rather than being a fitted constant: THE AIMED
++  // TIER EXISTS SO YOU CAN LOOK PAST A NEAR THING AT A FAR ONE. In (B) that is
++  // exactly what he is doing — the bed sits 21° off his aim and the door is dead
++  // centre beyond it. In (A) there is nothing to look past: the door is behind
++  // his shoulder and he is stood at it swivelling his head. So a touched spot
++  // keeps the prompt while it is BEHIND you, and yields while it is in front,
++  // where "looking past it" is a thing that can be happening.
++  //
++  // The test is the sign of the forward dot product — no new constant to drift,
++  // and the two poses sit 60° and 69° clear of it on opposite sides.
++  //
++  // MEASURED, over the standable cells of flat 301, counting how many times the
++  // prompt CHANGES during one standing 360° turn
++  // (scripts/probes/w54-turn-stability.mjs — a COUNT, so it transfers):
++  //
++  //                                 before   after
++  //   mean changes per turn          3.26     1.68
++  //   worst cell                     6        3
++  //   cells with >= 3 changes        14/19    2/19
++  //
++  // THE TWO RESIDUAL CELLS ARE CORRECT AND MUST STAY: both touch NOTHING, so
++  // every candidate is an aimed one and the prompt SHOULD follow the crosshair.
++  // The complaint was never "the prompt tracks my aim" — it was the prompt
++  // leaving a spot he was standing on. The probe prints the touch count beside
++  // each so this stays evidenced rather than argued.
++  //
++  // NOT HYSTERESIS, though the item proposed it. The bands are 30° wide with no
++  // A->B->A reversals, so nothing was flickering: the resolver was settling on a
++  // different spot for a third of the turn, and a dead-band would only have
++  // added lag to a wrong answer.
++  //
++  // NOT A RETURN TO NEAR-OVER-LOOKED IN FULL: `bestNearLooked` is still first,
++  // so the END TWO repro the user actually filed — standing BETWEEN the bed and
++  // the door, touching both, aimed at the door — still gives the door, and
++  // w40-bed-vs-door's band walk is green across every stride of it.
++  //
++  // ⚠ ONE PINNED ASSERTION DOES MOVE, AND IT IS NOT THE BAND WALK.
++  // `w40-bed-vs-door.mjs`'s later "the offered door actually acted" step fires
++  // from a station it reaches by walking FORWARD while still facing the bed,
++  // which carries it THROUGH the bed to the far side: measured at projection
++  // -0.50 m on the bed->door axis, 1.80 m from the door, though the check logs
++  // it as "the middle of the band" (scripts/probes/w54-firing-station.mjs).
++  // There the bed is touched and the door is not, so this ordering offers the
++  // bed. That pose is still arguably inside END TWO's words, so THIS PATCH IS
++  // NOT LANDED — it is held at notes/w54-item140-candidate.patch for the desk
++  // to adjudicate. See notes/w54-doorway-turn.md.
++  //
++  // BLAST RADIUS, whole world, scripts/probes/w40-resolver-map.mjs:
++  // 53,952 poses, 6,849 changed, of which 5,078 are invisible same-label index
++  // swaps; 1,771 (3.28%) change the prompt text; 0 poses lost their offer and
++  // no spot became unreachable.
++  return bestNearLooked ?? bestNearOnly ?? bestLooked;
+ }
+ 
+ /**
