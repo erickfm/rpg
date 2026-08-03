@@ -199,7 +199,29 @@ for (const s of reach) {
   for (let k = 0; k < 12 && !offered; k++) {
     await p.evaluate(([yaw]) => { const v = window.__ct.pos(); window.__ct.warp(v[0], v[2], yaw); }, [k * Math.PI / 6]);
     await p.waitForTimeout(180);
-    const t = await p.evaluate(() => (document.getElementById('ct-prompt')?.textContent ?? '').trim() || null);
+    // ── `#ct-prompt`.textContent IS A GHOST (found on item 232) ─────────────
+    //
+    // `ct/hud.ts:1715` hides the prompt with `style.display = 'none'` and
+    // RETURNS WITHOUT CLEARING THE TEXT. The element therefore keeps the last
+    // thing it ever offered, permanently. Measured in
+    // `probes/w88-does-prompt-clear.mjs`: warped 40 m up the street from the
+    // jail door, and after a real 'w' movement nudge, `textContent` still read
+    // "[E] into the HOUSE OF DETENTION".
+    //
+    // THIS CHECK'S WHOLE VERDICT RESTS ON THIS READ, and it is a false-green:
+    // the walk above passes within touching distance of several spots, so by
+    // the time the facings loop runs, the element is already populated. The old
+    // read would report "the spawn room offers what the player is standing next
+    // to" on the strength of a prompt that had been hidden many seconds and
+    // several metres earlier — including in the exact case this check exists to
+    // catch, where the sight gate is broken and NOTHING is really offered.
+    //
+    // `display` is the truth; `textContent` is only the caption on it.
+    const t = await p.evaluate(() => {
+      const el = document.getElementById('ct-prompt');
+      if (!el || getComputedStyle(el).display === 'none') return null;
+      return (el.textContent ?? '').trim() || null;
+    });
     if (t) offered = t;
   }
 }
