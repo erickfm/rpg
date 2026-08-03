@@ -161,11 +161,105 @@ is the **measured** chair-to-glass distance off the mesh (1.02 m), so widening
 the bound can only make the terminal easier to reach, never harder. The prose is
 stale; the value is derived.
 
+## `npm run checks` is 22 red on this tree, and none of it is mine
+
+One clean frozen run, 147 of 148 checks: **22 red.** Rather than argue about
+them I A/B'd — revert **only** `src/proto/fp.ts` to `b85494d0f`, rebuild, re-run
+the same rows, put it back. I did not re-run the whole suite twice; I ran the
+subset that could plausibly involve a selection predicate, via `--only`:
+
+```
+  door301  mirror-walk  I-clip  spot-coverage  aimed  L-every-stool-seats-you
+  D-walk   K-pocket-loop  canfail-args   (+ canfail seat-traps directly)
+```
+
+**All nine red identically without my change.** That includes every check that
+touches `pickSpot` — `aimed`, `spot-coverage`, `D-walk`, `L-every-stool-seats-you`
+— which is the set that would have caught me if the widened bound had leaked into
+standing selection. It cannot: my edit lives inside `(!seated || …)`.
+
+The other 13 (`park`, `w5-shadow-census`, `K-tyre-has-arch`, `N-post-waiting`,
+`K-sleep-fade`, `floaters-walk`, `hashes-resolve`, `note-hashes`,
+`mutations-quote-real-source`, `checks-can-fail`, `J-library-room`,
+`L-slots-inworld`, `pointer-returns`) I did **not** A/B — they are shadow,
+texture, hash and pointer-lock checks with no path to a seated reach bound, and
+under §10a re-running the suite twice more would have cost several times the
+fix. **Saying so rather than implying I cleared them.**
+
+Two of them are worth a row on their own:
+
+- **`K-pocket-loop`** — *"the one you took LEFT THE GROUND (0 hidden, expected
+  1)"*. It is also **flaky**: across three runs on my own build the failing
+  assertion moved between *"LEFT THE GROUND"* and *"the loop closes"*, which is
+  the signature of a load-sensitive walk (GOTCHAS 30) rather than a fixed
+  defect. Same red on mainline `fp.ts`. Not mine, and worth a row.
+- **`canfail-args`** — *"a valid selection is NOT refused — it reaches the
+  world"*, exit 3, *"2 of 71 selected case(s); the other 69 were not run"*. The
+  mutation registry has a case quoting source that no longer exists, so the
+  pre-flight aborts every run. Identical on mainline `fp.ts`. **Separately,
+  `canfail seat-traps` reports `BUILD — mutation did not compile` on mainline
+  too**, so that case is not currently certifying anything either. Both are
+  guards that have stopped guarding, which is the family this project already
+  has a name for; the desk should queue them.
+
+## §10a — I registered NOTHING in `checks.mjs`, deliberately
+
+The rule arrived mid-item and it points straight at this one: **the fix is a
+single predicate and I spent far longer measuring it than writing it.** So,
+against *"if this check goes red in six weeks, will it be because the world
+broke, or because the world is a world?"*:
+
+| probe | what it is | verdict |
+|---|---|---|
+| `w120-officer-reach` | pure `__ct` reads — `reachMargin`, `playerRadius`, `seats`, `spots` — and arithmetic. ~5 s, no frames, no pixels, no timing | **safe to promote.** Deterministic; can only go red if a distance or a constant really moved |
+| `w120-seated-reach-census` | 219 × (`sit`, read `spots()`), geometry only. ~90 s | **safe but slow.** Same class — nothing timed — but it is the answer to a question asked once, so I would run it after a resolver change rather than every suite |
+| `w120-gained-verbs-walk` | walks 3 seats with a held `[E]` and `waitPainted` | **DO NOT PROMOTE.** It is frame-timed, which is the coin-toss family. It was the right thing to *do* — §10 still says a seat gets walked — and its result is in this note. It should not become a standing red |
+| `w120-chair-look` | two screenshots, **zero assertions** | cannot cry wolf; it is a looking tool, not a check |
+
+`grep -c w120 scripts/checks.mjs` is **0**. Nothing I wrote can fail in the suite
+the user reviews.
+
+**The honest gap, stated rather than papered over:** the guarantee I would most
+want standing — *"the officer stays reachable from the client chair"* — is
+already covered by the cheap probe above, but the guarantee *"and pressing E
+there still opens the panel and still lets you out"* is only covered by
+`w117-item283-client-chair`, which is frame-timed. I am not making a second
+flaky one. The stable half is checkable and checked; the walk half I did by hand
+and reported, and it stays unenshrined.
+
+**Two of the reds I tripped over prove the rule's point better than I can:**
+`K-pocket-loop` failed on a *different assertion each run* on identical code,
+and `canfail seat-traps` has been reporting `mutation did not compile` for long
+enough that nobody notices. Both are already in the suite. Both are exactly what
+*"a check that cries wolf is worse than no check"* is about.
+
 ## Derived or copied
 
 Derived, all of it. `RADIUS` and `REACH_MARGIN` are imported in `fp.ts` already;
 the probes read `playerRadius()`, `reachMargin()`, `seats()` and `spots()` from
 `__ct` rather than retyping anything (BUILDER-BRIEF §8).
+
+## And I looked at it
+
+`scripts/probes/w120-chair-look.mjs`, two frames from the chair, build stamp
+`e31ec9464` in the corner (`shots/` is gitignored, so the probe is committed and
+the images are not — re-run it to regenerate them):
+
+- **0°**, `shots/w120-chair-officer.png` — the officer square ahead across the
+  desk, the LOAN form on the blotter to the left, prompt
+  `[E] apply for a loan · [ESC] stand up`.
+- **−45°**, `shots/w120-chair-form.png` — the form centred and readable, prompt
+  `[E] read the loan application · [ESC] stand up`.
+
+My own verdict on them: this is the interaction `ct/int-bank.ts` describes,
+working. Look up, you get the woman; look down at the paper, you get the paper.
+For LOOKING only — the proof is the three probes above.
+
+## Something I nearly broke, recorded for the next person
+
+`pkill -f "scripts/checks.mjs"` **kills the shell you type it in**, because that
+shell's own command line contains the string. It cost me two 25-minute suite
+runs that died at exit 144 and looked like a crash in `checks.mjs` itself.
 
 ## What I did not prove
 
