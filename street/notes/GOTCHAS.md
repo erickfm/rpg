@@ -2447,3 +2447,26 @@ git status --porcelain                          # whose edits are these?
 
 If a builder must share the tree, tell it explicitly: no `add -A`, small
 complete commits, never leave the tree unbuildable.
+
+## 85. Two commits on 2026-08-02 are misattributed — do not trust their messages
+
+A consequence of GOTCHAS 84, recorded because `SESSION-STATE.md` already tracks
+unresolvable SHAs as a live problem, and `git log` is the first place anyone
+looks when asking "when did this change?".
+
+- **`95a1beb67`** — message: *"Queue the missing dark-ground detector; pin the
+  jail diffuser's exact coordinates"*. **Contents: 532 lines of
+  `src/proto/ct/slots.ts` and 76 of `scripts/probes/w73-slot-face.mjs`** — the
+  whole of item 208, the slot-machine rework, and nothing whatever about a
+  detector or a diffuser. The desk staged it with `git add -A` while worker
+  `seventythree` was mid-item in the shared tree.
+- **`e61c26448`** — worker `seventythree`'s own commit, whose message correctly
+  describes the slot-machine work, holds **six lines of a probe**.
+
+**Nothing is lost and the tree is correct.** Only the attribution is wrong. The
+queue changes the desk's message refers to were never in any commit because
+`notes/QUEUE.md` is deliberately untracked (`0d1e61de5`).
+
+History was NOT rewritten: builders branch off mainline continuously and
+rebasing under them costs more than a wrong message. **If you are archaeologising
+`slots.ts`, `95a1beb67` is where item 208 landed.**
