@@ -100,6 +100,25 @@ different heading now `console.error`s. The handedness derivation is only valid
 for the belt's arrival convention; this is the check that would have caught item
 268 at authoring time, and it exists so the next pair cannot repeat it.
 
+**d. One probe repaired, `scripts/probes/w70-orpheus-walk.mjs`** — reported here
+rather than buried, because it is the same defect as the item itself, twice:
+
+- it scraped `{ west: '…', east: '…' }` out of `ct/interior.ts` **with a regex**,
+  in the name of "one authoring". That was a second authoring of the
+  declaration's *syntax*, and the literal no longer exists, so it exited 3 on a
+  healthy world. It reads `__ct.party()` now.
+- it paired `[PW.west, 'HOTEL ORPHEUS']` and `[PW.east, 'SEVENS']` **by hand** —
+  the room↔building join, typed. It failed two legs while both doors worked
+  perfectly, landing the player in the hotel and comparing him with the casino.
+  Nothing publishes that join, so it is now **discovered**: walk in, see where
+  you come out. And the property asserted is the one that was always the point —
+  *the two frontages lead to the two joined rooms, one each* — which is true
+  whichever way round they sit. **That last leg is new**; without it two doors
+  both landing in the hotel would have passed every other line.
+
+**13/13 legs** after the repair: HOTEL ORPHEUS → hotel, SEVENS → casino, each
+exiting onto its own stretch of pavement.
+
 **No other `src/` file was touched.** The item-267 rails in `int-hotel.ts` and
 `int-casino.ts` already derive their flank from `PARTY` — both files say in their
 own comments that they did it that way *because item 268 might re-hand the wall*
@@ -119,6 +138,8 @@ All on the built bundle at `http://localhost:4642/`.
 | `w70-party-wall-clearance.mjs` | widest run clear in BOTH rooms is local z −13.00…−6.10 (**6.90 m**), which contains the declared opening −10.3…−7.7 with 2.7 m and 1.6 m of margin. The 2 m lane is intact |
 | `w108-rails-follow-handedness.mjs` | 6/6 — both rooms break the rail on the **party** flank with no segment crossing the opening, and run it unbroken on the other |
 | …its negative case | `--expect-broken-on-wrong-flank` **exits 1** |
+| `w70-orpheus-walk.mjs` (repaired, see §3d) | **13/13**, including the new "one each" leg |
+| `w95-item251-party-on-bundle.mjs` | `__ct.party()` still isolated — pushing a row and writing through element 0 does not reach the world; reports `casino/hotel` |
 | `bugsweep.mjs` | **0 STATION MISS, 0 COVERAGE**, 96 shots, no console errors (warnings only: THREE.Clock deprecation, Canvas2D willReadFrequently, GL ReadPixels stalls — all pre-existing) |
 | `health.mjs` | `WORLD OK`, exit 0 |
 | `tsc --noEmit` | clean |
