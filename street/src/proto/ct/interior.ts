@@ -712,6 +712,68 @@ export interface Room {
 
 let slabN = 0;
 
+// ── WHO IS ALREADY SITTING THERE ──────────────────────────────────────────
+//
+// The user, twice: *"[screenshot] when folks sit, they clip, fix this"* and, of
+// the church, *"this guy is sat in the pew but is clipping the pew geometry.
+// additionally **if you sit in his pew you sit where he sits** and that just
+// breaks immersion."*
+//
+// The second half of that is a CLASS, not a church bug. Every room places its
+// sitters at exactly the coordinates it registered a seat at — deliberately, so
+// that a figure sits ON a stool rather than near one — and then registers that
+// seat as free. Measured, all the same shape:
+//
+//   ct/int-church.ts   the praying woman, pew row 3 left
+//   ct/int-casino.ts   the lounge bench sitter at LOUNGE_Z - 0.325
+//   ct/int-casino.ts   all four slot players, on the stools at BANK_Z +- 1.02
+//
+// Fixing it per room would be four edits and a fifth room tomorrow, so the
+// registry is here, beside `person()` — the one call every seated figure in
+// every interior goes through. A room opts a seat in with one clause:
+//
+//     ctx.seat({ ..., ok: () => !seatTaken(x, z) })
+//
+// WHY `ok` AND NOT A FILTER AT REGISTRATION TIME. Rooms register their seats
+// BEFORE they place their people (the church registers 36 pews at :467 and its
+// figure at :1017), so anything resolved at registration would read an empty
+// registry. `crosstown.ts:398` calls a seat's `ok` lazily, once per frame, so a
+// predicate cannot be fooled by build order — and that is also what lets a
+// figure be added to a room later without revisiting the seat.
+const TAKEN: { x: number; z: number }[] = [];
+
+/**
+ * Is a seated figure already occupying this seat? Coordinates are WORLD, the
+ * same ones `ctx.seat` takes, so a caller passes what it already wrote.
+ *
+ * The default tolerance is deliberately SMALL. Seats in this world are as
+ * close as 0.65 m apart (the casino's lounge bench places four at 0.65 m
+ * pitch), so a generous radius here would blank a whole bench because one
+ * person sat on the end of it. 0.30 m is comfortably under half that pitch and
+ * comfortably over the float error of a coordinate that both sides derive from
+ * the same constant.
+ */
+export function seatTaken(wx: number, wz: number, tol = 0.30): boolean {
+  return TAKEN.some((t) => Math.abs(t.x - wx) < tol && Math.abs(t.z - wz) < tol);
+}
+
+/**
+ * Claim a seat for a figure that did NOT come through `room.person`.
+ *
+ * `ct/int-casino.ts` has its own `sitter()` helper built straight on
+ * `citizenSprite`, and deliberately so — its comment says a sitter needs the
+ * SEAT TOP where the kit wrapper takes the floor. That file already has to
+ * remember to stamp `userData.citizen`/`.seated` by hand for exactly the same
+ * reason, and its comment records the five figures that went invisible to every
+ * people-sweep the one time it forgot. This is the third thing on that list,
+ * and it is one call rather than a second registry.
+ */
+export function claimSeat(wx: number, wz: number): void { TAKEN.push({ x: wx, z: wz }); }
+
+/** Test affordance: every occupied seat, so a probe can assert the pairing
+ *  rather than infer it from a prompt that may be a ghost. */
+export function takenSeats(): { x: number; z: number }[] { return TAKEN.map((t) => ({ ...t })); }
+
 export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const { scene, flat, player } = ctx;
 
@@ -1738,6 +1800,12 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       // "does every figure turn?" answerable instead of inferable.
       s.mesh.userData.citizen = true;
       s.mesh.userData.seated = !!o.seated;
+      // …AND CLAIM THE SEAT. Read back off the mesh rather than recomputed from
+      // `lx`/`lz`: `place()` has just written `cx + lx`, and the room group sits
+      // at the world origin with its children carrying world positions, so this
+      // IS the world coordinate and cannot drift from where the figure actually
+      // is. Deriving beats retyping (BUILDER-BRIEF §8).
+      if (o.seated) TAKEN.push({ x: s.mesh.position.x, z: s.mesh.position.z });
       // the sprite picks its painted view from where YOU are, so it needs the
       // frame. LATE, after the world has moved: it is reacting to the finished
       // position, the same as the billboard pass.
