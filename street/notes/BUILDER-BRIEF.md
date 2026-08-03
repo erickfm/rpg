@@ -353,6 +353,78 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 
 ---
 
+## 10a. CHEAP CHECKS YES, FLAKY CHECKS NO — AND THE USER REVIEWS ANYWAY
+
+**The user's instruction, 2026-08-03:** *"in general i think we should keep tests
+that are cheap but stay away from tests that are failure prone. i will be
+reviewing anyway yknow?"*
+
+**And the budget, from the same conversation:** *"in general tests should not
+take longer than the work to code itself."*
+
+**THAT IS A HARD BUDGET AND IT IS THE FIRST THING TO CHECK.** Before you build
+the instrument, ask what the fix itself costs. If the fix is a one-line constant
+and the proof is a forty-minute harness, **you have the item upside down** — and
+that is not hypothetical here: item 291's fix is expected to be a single number
+in `apartment.ts`, and the desk wrote it a "done when" demanding five browser
+walks across three distances. That is the desk getting it wrong, not the builder.
+
+If proving it honestly would cost more than building it, do the cheap version of
+the proof, say plainly in your handoff what you did and did not cover, and move
+on. **Do not spend an hour of the fleet's budget insuring a five-minute change.**
+If you think an item genuinely warrants more proof than code, say so and hand it
+back — that is a ranking decision, and ranking is the desk's job, not yours.
+
+**This does not lower the bar on proving your work. It changes what you LEAVE
+BEHIND after you have proved it.** Those are two different acts and this project
+has been conflating them:
+
+- **VERIFYING** is what you do during your item: walk it, press `V`, drive the
+  built bundle, run it five times. §10 above stands unchanged. Movement,
+  collision, floors and seats still get WALKED — a screenshot still cannot prove
+  you are not wedged.
+- **ENSHRINING** is committing that verification as a standing check everyone
+  pays for forever. **That is now a decision you have to justify, not a reflex.**
+
+**The test to apply before you commit a check: if this goes red six weeks from
+now, will it be because the world broke — or because the world is a world?**
+
+Cheap and deterministic, so keep them: reading numbers out of `__ct`; counting
+colliders, spots, rooms, materials; asserting a geometry-signature multiset;
+type-level checks; anything that answers in milliseconds off a built bundle
+without a camera or a clock.
+
+Failure-prone, so do NOT enshrine them — verify with them, report the number,
+and let the check you commit be the cheap consequence:
+
+- **Anything timed.** A game day is 24 real minutes; crowds, traffic and lights
+  all move. A check that samples a moving world at a wall-clock instant is a
+  coin toss with extra steps.
+- **Anything that needs N runs to mean something.** If it needs five runs it is
+  a measurement, not a check. Take the measurement, write the number in your
+  handoff, commit an assertion on the *stable* thing you learned.
+- **Anything pixel-derived.** Already banned by §10 and this is why.
+- **Long browser walks kept purely as regression insurance.** `interiors-walk`
+  and `bugsweep` earn their keep and stay. A new twenty-minute suite leg does
+  not automatically.
+
+**Why this is not a licence to skip proof: the user reviews.** He plays the
+build at localhost:5177 and he finds things — the `V` overlay caught two real
+bugs on its first day *in his hands*. He is the backstop, and he is a good one.
+What he cannot do is tell a flaky red from a real one at 3 a.m. in a suite he
+did not write. **A check that cries wolf is worse than no check**, because it
+trains five builders and a desk to scroll past red — and this board has already
+lost items to exactly that: `w72` sat red on a rule that had been superseded,
+and item 287 spent a whole item declaring four standing reds nobody trusted.
+
+**So: one cheap assertion that fails only when the thing actually breaks beats
+five expensive ones that fail on Tuesdays.** And when you genuinely cannot make
+a cheap check for something important — say so in your handoff and leave it
+unchecked rather than leaving it flaky. An honest gap is auditable. A red that
+everyone ignores is not.
+
+---
+
 ## 11. A panel you cannot close is the worst bug this project ships
 
 `hud.ts` blocks keydown while a panel is open. The user was once trapped in a TV
