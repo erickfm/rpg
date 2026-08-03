@@ -133,21 +133,27 @@ let message = '';
 let timer = 0;
 
 /**
- * THE PIN THE CARD IS ENROLLED WITH. `null` until the first visit sets it.
+ * THE PIN THE CARD IS ENROLLED WITH — now `purse.pin`, not module state.
  *
  * *"also the first time you go to the atm it saves your pin."*
  *
- * Module state rather than a field on `Purse`, and that is a compromise worth
- * naming. It BELONGS on the purse, beside `account` and `card` — it is a
- * property of the card, not of this screen. But `Purse` lives in `ct/hud.ts`,
- * which this item does not name, and `account`'s own docstring records the same
- * coordination problem being solved the same way ("`ct/atm.ts` seeds it on first
- * use"). Behaviourally the two are identical today because `openAtm` is one
- * module shared by every ATM in the world, so there is exactly one card and one
- * PIN either way. **Queued rather than taken: hoist `pin?: string` onto `Purse`
- * when someone is next in `ct/hud.ts`.**
+ * Item 184 kept this in a module `let` and filed the reason: it belongs on the
+ * purse beside `account` and `card`, because it is a property of the CARD rather
+ * than of this screen, but `Purse` lives in `ct/hud.ts` and 184 did not name
+ * that file. Item 216 names it, so this is the hoist.
+ *
+ * **It is not a no-op, and the difference is where the PIN can now go wrong.**
+ * As module state the PIN outlived the purse: anything that hands `register` a
+ * fresh purse — a new game, a second world in one page, a test harness building
+ * its own — got a machine still enrolled with the last card's PIN, while the
+ * cash and the balance started over. The card's secret now has exactly the
+ * lifetime of the card, which is the invariant the item asks for: the ATM, the
+ * wallet and the loan desk all read one purse, and the PIN is on it.
+ *
+ * `undefined` means "never enrolled" and is what draws `CHOOSE A PIN`. Read
+ * through `enrolled()` so the null-purse case has one answer in one place.
  */
-let storedPin: string | null = null;
+const enrolled = (): string | undefined => PURSE?.pin;
 
 /**
  * How long the fourth asterisk sits on the tube before the machine acts on it.
@@ -435,10 +441,10 @@ function drawScreen(g: CanvasRenderingContext2D): void {
     // FIRST VISIT ASKS YOU TO CHOOSE ONE; every later visit asks you to enter
     // it. The machine has to say which of the two it is doing, or enrolment is
     // a silent event that only announces itself when a later visit rejects you.
-    line(storedPin === null ? 'CHOOSE A PIN' : 'ENTER YOUR PIN', HEAD, CAB_TEXT_LIT, 10);
+    line(p.pin === undefined ? 'CHOOSE A PIN' : 'ENTER YOUR PIN', HEAD, CAB_TEXT_LIT, 10);
     line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), BODY, CAB_TEXT_LIT, 22);
     if (message) line(message, SUB, '#e06a3c', 8);
-    else if (storedPin === null) line('THIS WILL BE YOUR PIN', SUB, CAB_TEXT_DIM, 8);
+    else if (p.pin === undefined) line('THIS WILL BE YOUR PIN', SUB, CAB_TEXT_DIM, 8);
     else line('CLR CANCELS', SUB, CAB_TEXT_DIM, 8);
   } else if (screen === 'menu') {
     line('SELECT A SERVICE', HEAD, CAB_TEXT_LIT, 10);
@@ -584,8 +590,8 @@ function submitPin(): void {
   if (screen !== 'pin' || pin.length !== 4) return;
   const entered = pin;
   pin = '';
-  if (storedPin === null) { storedPin = entered; go('menu', 'PIN SET'); return; }
-  if (entered === storedPin) { go('menu'); return; }
+  if (enrolled() === undefined) { if (PURSE) PURSE.pin = entered; go('menu', 'PIN SET'); return; }
+  if (entered === enrolled()) { go('menu'); return; }
   go('pin', 'INCORRECT PIN');
 }
 
@@ -890,6 +896,21 @@ export function register(ctx: CtxBuild): void {
     pin: () => pin.length,
     account: () => ctx.purse.account,
     cash: () => ctx.purse.cash,
+    /**
+     * IS THE CARD ENROLLED — read off `ctx.purse`, which is the object
+     * `crosstown.ts` built and the wallet and the loan desk are also holding.
+     * That is the whole assertion of item 216 part 1: the PIN has to persist on
+     * the same thing the cash does, and a check has to be able to see WHERE it
+     * lives, not just that the machine behaves.
+     *
+     * A boolean, not the PIN. The value is already reachable by anyone with a
+     * console, but a test hook that prints the secret into every log is a habit
+     * worth not starting, and no check needs more than "did enrolment land".
+     *
+     * `__ct.purse()` — the neutral view of the same object — does NOT publish
+     * this; `crosstown.ts` is not this item's file. Queued in the handoff.
+     */
+    enrolledOnPurse: () => ctx.purse.pin !== undefined,
     pending: () => pending,
     setCard: (v: boolean) => { ctx.purse.card = v; panel?.repaint(); },
     /**
