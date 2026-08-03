@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, declareSurface, dither, slabTex, boxFaces } from './paint';
+import { pixTex, declareSurface, dither, slabTex, slabBox } from './paint';
 import { masonry, WALK_PROJECTION } from './tex-world';
 import { plazaTex, walkTex } from './tex-ground';
 
@@ -655,12 +655,17 @@ export function register(ctx: CtxBuild): void {
   //
   // The sliver argument was about SIZE and the defect is about ASPECT: a face
   // being small does not make a texture stretched across it any less stretched.
-  // `boxFaces` costs nothing here — a box has at most three distinct face sizes,
-  // so this is three clones of a 20 × 77 canvas — and `joint: 0` means there are
-  // no seams to misalign when a face tiles. Grain only, geometry untouched.
-  const thresholdM = boxFaces(
-    slabTex({ wMeters: JAIL.RECESS + 0.06, dMeters: JAIL.DOOR_W, base: '#26282c', joint: 0, grain: 0.12 }),
+  //
+  // `slabBox` is the wrapper item 264 built for exactly this, and THIS CALL SITE
+  // IS WHY IT IS NOT SIMPLY "one slabTex per face": the top is 0.625 × 2.4 m and
+  // gets its own 1:1 sheet, but the edges are 0.05 m thin, and a fresh sheet for
+  // those hits `slabTex`'s `Math.max(8, …)` clamp — 32 × 160 px/m, a 5× stretch
+  // that would still be gross. The thin faces borrow the top's sheet with a
+  // derived repeat instead, which lands 32 px/m on both axes. Grain only
+  // (`joint: 0`), so tiling has no joint grid to misalign. Geometry untouched.
+  const thresholdM = slabBox(
     JAIL.RECESS + 0.06, 0.05, JAIL.DOOR_W,
+    { base: '#26282c', joint: 0, grain: 0.12 },
     (map) => new THREE.MeshBasicMaterial({ color: STEEL_DK, map }),
   );
   box(JAIL.RECESS + 0.06, 0.05, JAIL.DOOR_W, thresholdM,
