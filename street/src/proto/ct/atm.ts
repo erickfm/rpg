@@ -140,6 +140,29 @@ function after(ms: number, then: () => void): void {
   timer = setTimeout(then, ms) as unknown as number;
 }
 
+/** Long enough to read two words, short enough that nobody waits for it. */
+const FAREWELL_MS = 1100;
+
+/**
+ * Hand the machine back: close the view and leave a FRESH ATM behind.
+ *
+ * Resetting `screen` matters as much as closing. `go('thanks')` used to be the
+ * last thing that ran, so without this the machine would sit on its farewell
+ * screen forever and the next player would walk up to the tail of somebody
+ * else's transaction.
+ *
+ * GUARDED, because `after()` fires on a wall clock that knows nothing about the
+ * panel. If the player leaves during the flash — Escape, or walking away — the
+ * timer is still armed, and an unguarded close would fire into whatever is open
+ * a second later. Only close if we are still standing on the farewell.
+ */
+function endSession(): void {
+  if (screen !== 'thanks') return;
+  screen = 'idle';
+  pin = '';
+  panel?.close();
+}
+
 function rows(p: Purse): Row[] {
   switch (screen) {
     case 'idle':
@@ -187,21 +210,22 @@ function rows(p: Purse): Row[] {
         right: 'NO', actR: () => go('card'),
       }];
     case 'card':
-      // TAKING YOUR CARD ENDS THE TRANSACTION AND THE VIEW WITH IT.
+      // TAKE CARD: FLASH THE FAREWELL, THEN LET GO ON ITS OWN.
       //
-      // The user: *"take card from atm should immediately get us out of the
-      // menu"*. It used to `go('thanks')`, and the close for that screen lives
-      // inside the KEY HANDLER (`if (screen === 'thanks') panel?.close()`) —
-      // so the machine sat on THANK YOU until you pressed another key. Taking
-      // your card back is the one unambiguous "I am done" a cash machine has,
-      // and making it wait for a further keypress is the machine asking a
-      // question nobody has.
+      // Two rounds with the user. First: *"take card from atm should
+      // immediately get us out of the menu"* — because the farewell screen sat
+      // there until you pressed ANOTHER key, the close for it living inside the
+      // key handler. That was the machine asking a question nobody has.
       //
-      // `screen` is reset to 'idle' so the next player finds a fresh machine
-      // rather than the tail of somebody else's transaction — `go('thanks')`
-      // used to be what did that, and dropping it silently would have left the
-      // ATM on its farewell screen forever.
-      return [{ left: 'TAKE CARD', act: () => { screen = 'idle'; pin = ''; panel?.close(); } }];
+      // Then, on seeing it skipped entirely: *"im just saying after we click the
+      // first take card, just flash thank you farewell screen and release the
+      // player"*. So the screen is right and WAITING FOR INPUT was the fault.
+      // `after()` already exists for exactly this — "a step the machine takes on
+      // its own, because a real one makes you wait".
+      return [{ left: 'TAKE CARD', act: () => {
+        go('thanks');
+        after(FAREWELL_MS, endSession);
+      } }];
     default:
       return [];
   }
@@ -417,7 +441,11 @@ function onKey(k: string): void {
     if (k === 'enter' && pin.length === 4) { go('menu'); return; }
     return;
   }
-  if (screen === 'thanks') { panel?.close(); return; }
+  // A key during the farewell skips the wait rather than being swallowed —
+  // and goes through `endSession` so the machine is reset the same way the
+  // timer would have reset it. Two paths, one teardown; they used to differ,
+  // and the version that only closed left the ATM stuck on its farewell.
+  if (screen === 'thanks') { endSession(); return; }
   const i = '12345678'.indexOf(k);
   if (i < 0) return;
   const r = rows(p);
