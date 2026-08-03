@@ -2126,15 +2126,39 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const mug = new THREE.Mesh(new THREE.CylinderGeometry(MUG_R, 0.034, MUG_H, 12), mugM);
     mug.position.set(AX(MUG_X), SILL_TOP + MUG_H / 2, AZI(MUG_Z));
     scene.add(mug);
-    // what is left in it. Without this the top is a disc of the body colour
-    // and the whole thing reads as a peg — the player looks DOWN at this from
-    // 22°, so the top face is a third of what he sees of it. It rides 1 mm
-    // ABOVE the cylinder's own top cap rather than at coffee level inside it:
-    // the cap is solid, so a disc sunk into the cup would simply be hidden by
-    // it, and 1 mm is clear of the z-fighting the reveal corners cost us.
-    // What is left is a 6 mm ring of rim around a dark disc — an open vessel.
+    // ── THE MUG'S MOUTH. IT IS AN EMPTY VESSEL, NOT A CUP OF COFFEE ──────────
+    //
+    // The user, item 274: *"mug should be empty."*
+    //
+    // The disc that was here is NOT deleted, and the reason is worth keeping:
+    // the cylinder has a SOLID top cap, so with nothing dark up there the top
+    // is a disc of the body colour and the whole thing reads as a peg — the
+    // older complaint, and he looks DOWN at this from 22°, so the top face is
+    // a third of what he sees of it. A disc sunk to coffee level INSIDE the
+    // cup would simply be hidden by that cap, which is why it rides 1 mm proud
+    // (1 mm is also clear of the z-fighting the reveal corners cost us).
+    //
+    // SO THE FIX IS TONE, NOT GEOMETRY. An empty mug still has a dark mouth —
+    // but it is the SHADOW OF WHITE CERAMIC, not the brown of coffee. 0x4a3524
+    // is (74, 53, 36): warm by +38 R-over-B and dark at value 54. That is a
+    // liquid. 0x6b7078 is (107, 112, 120) — the body tone taken down to ~53%
+    // and rotated cool, so B sits ABOVE R and it reads as shade rather than as
+    // something poured.
+    //
+    // MEASURED IN HIS OWN PIXELS, not reasoned about, because that is exactly
+    // how the handle failed twice — item 167 found it drawn (1, 1, 2) out of
+    // 255 from the sill behind it. From his spot (inside the bed prompt,
+    // 22° down, `scripts/probes/w111-mug-empty.mjs`), channel-sum contrast:
+    //
+    //     interior vs RIM   459 -> 283      still nothing like a peg
+    //     interior vs SILL  310 -> 134      above the 122 item 167 accepted
+    //
+    // The interior LOST contrast against both and that is the point: it had
+    // far too much, because it was a different material, not a shadow. 283 and
+    // 134 are both comfortably clear — the cup's own body only manages 149
+    // against that sill and reads fine.
     const brew = new THREE.Mesh(new THREE.CircleGeometry(MUG_R - 0.006, 12),
-      new THREE.MeshBasicMaterial({ color: 0x4a3524 }));
+      new THREE.MeshBasicMaterial({ color: 0x6d6e6f }));
     brew.position.set(AX(MUG_X), SILL_TOP + MUG_H + 0.001, AZI(MUG_Z));
     brew.rotation.x = -Math.PI / 2;
     scene.add(brew);
