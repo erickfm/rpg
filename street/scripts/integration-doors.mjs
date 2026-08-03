@@ -6,12 +6,20 @@
 //   1. the INTEGRATED world (:5177), mainline plus every builder in flight
 //   2. the BUILT BUNDLE, via PINNED_MODE=preview ./scripts/slow-pinned.sh
 //
-// (2) matters more than it looks. `interiors-walk` — 195 assertions, the real
-// room suite — does `await import('/src/proto/ct/doors.ts')`, a source path no
-// bundle serves, so it CANNOT run against a build (AUDIT-INSTRUMENTS.md has why
-// converting it is not a one-line swap). Until this, nothing at all walked into
-// a room in the artefact the user plays. It is a smoke test next to
-// interiors-walk, and it is the only coverage that exists there.
+// (2) USED TO BE THE WHOLE POINT AND IS NO LONGER — corrected item 257.
+// This block said `interiors-walk` "CANNOT run against a build" because it did
+// `await import('/src/proto/ct/doors.ts')`, a source path no bundle serves, and
+// that until this script nothing at all walked into a room in the artefact the
+// user plays. **Item 251 retired that limitation.** Three of those four import
+// sites were already redundant against `__ct.doors()`, the fourth (`PARTY`) is
+// published as `__ct.party()`, and `interiors-walk` reads nothing but `__ct`.
+// Re-measured for item 257 rather than taken on trust: `interiors-walk church`
+// against `vite preview` scores **29/29, exit 0**, identical to dev.
+//
+// So (1), not (2), is what is unique here now: this is the only room walk that
+// can be aimed at a world THIS CHECKOUT DID NOT BUILD. On the bundle it is a
+// smoke test that `interiors-walk` strictly dominates — run both, and if only
+// one, run that one.
 //
 // DELIBERATELY NOT IN scripts/checks.mjs, and it must stay out. This measures
 // the INTEGRATED world on :5177 — mainline plus every builder in flight —
@@ -39,9 +47,9 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
 // SHOT_URL so this can be pointed at a BUNDLE as well as at the integrated
-// world. It reads nothing but `__ct`, no source imports, so unlike
-// interiors-walk it survives a built bundle — which makes it the only thing
-// that walks a room in the artefact the user actually plays.
+// world. It reads nothing but `__ct`, no source imports, so it survives a built
+// bundle. `interiors-walk` does too since item 251 (it was converted to `__ct`
+// for exactly this reason) — this one's distinct use is the INTEGRATED world.
 const URL = aim('http://localhost:5177/');
 // INTEGRATION MODE vs OWN-BUILD MODE, and the guard depends on which.
 //
