@@ -2787,3 +2787,22 @@ and a collider audit are all authoring facts.
 
 **When a check reports zero of something you can see with your own eyes, suspect
 the cull before you suspect the world.**
+
+## 91. A mutation placed one line too early tests nothing and looks green
+
+Worker onehundredthirteen's negative case for item 280 **passed twice before it
+failed**, and the reason generalises to every `canfail`-style test in this repo.
+
+It mutated a seated sprite's position *upstream* of `put()` — and `put()` sets
+`position` **absolutely** on the very next line. So the mutation was faithfully
+applied, immediately overwritten, and the check went green while proving
+nothing. Moved to between `put()` and `claimSeat()` it failed correctly, 12
+suppressed seats dropping to 11.
+
+**A mutation must land after the last write to the thing you are mutating.**
+Before you trust a red-case, ask what runs *between* your change and the
+assertion — an absolute assignment anywhere in that window silently voids it.
+
+This is the same family as GOTCHAS 79/90: a check that cannot fail is green on a
+broken world too. It is the sharpest version yet, because the mutation *did*
+take — the code ran, the value changed, and the world still came out identical.
