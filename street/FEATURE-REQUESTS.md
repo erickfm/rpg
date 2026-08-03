@@ -3009,3 +3009,12 @@ to one side.
   because every other verb in this world is an `[E]` on an object you can walk
   up to and this one should not be the exception."* The user has now asked for
   the exception, so per BUILDER-BRIEF §6a his words win.
+
+- **"[screenshot] get rid of shadow texture here pls"** (2026-08-02, the alley
+  mouth by the phone booth and dumpster) → **routed as queue item 186.** SIXTH+
+  report of this class — `ct/jail.ts:928` already logs item 114 as *"his FIFTH
+  report of the class"*. **It is not a shadow.** `ct/paint.ts:52-60` carries the
+  diagnosis: an untextured ground quad *"reads as a TINT OVER the paving rather
+  than as a piece of paving"*; 123 such surfaces, ~454 m², already named as the
+  cause of four earlier complaints. `scripts/w5-shadow-census.mjs` exists and is
+  **not registered in `checks.mjs`.**
