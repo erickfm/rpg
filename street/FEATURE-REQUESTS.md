@@ -3158,3 +3158,7 @@ to one side.
   as a bug report and wrote a row telling a builder to WIDEN the window. He wants
   it **narrowed**: essentially straight down, with a couple of degrees of play.
   The holding worker (onehundredten) was messaged directly.
+
+- **"just make the door high rank pls"** (2026-08-03) → **decision recorded on
+  item 291.** The way out of a room outranks the furniture in it. Applies to the
+  calendar and the bed in flat 301, and by extension to any room's exit.
