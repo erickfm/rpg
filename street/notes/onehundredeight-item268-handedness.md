@@ -92,7 +92,18 @@ slab  880…960  cx  885.68  hotel   (was casino 885.68)
 
 Exactly two rooms moved, and they swapped **exact mirror positions** — both are
 11.00 m wide, so the party wall plane is still x = 880.00 and the two sill planes
-are still at 879.91 and 880.09. `church` and `diner` are untouched.
+are still at 879.91 and 880.09.
+
+**How "church and diner are untouched" is established, since it is a claim about
+a world that no longer exists.** The table above is measured
+(`w108-belt-census.mjs`, after). For the before state I did not re-run the census
+— I pinned it from two independent records: my own pre-fix measurement of the
+pair (hotel 874.32 / casino 885.68, five runs) and **GOTCHAS 86**, which records
+the hotel *"at 874.32 in a slab centred on 840"* and the casino *"at 885.68 in
+one centred on 920"*. Slabs centred on 840 and 920 are indices 5 and 6, which
+fixes the old order as `… church(3), diner(4), hotel(5), casino(6), jail(7) …`.
+The after-census reads church at 680 (index 3), diner at 760 (index 4) and jail
+at 1000 (index 7) — **the same indices**. Derived, not re-measured, and said so.
 
 **c. `ARRIVE_YAW` hoisted, with a guard.** `spec.arriveYaw ?? 0` became
 `?? ARRIVE_YAW`, and a room that is half of a party wall and arrives on a
