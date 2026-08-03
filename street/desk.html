@@ -40,13 +40,13 @@
   @media (max-width:640px){ body{padding:14px} .grid{grid-template-columns:1fr} }
 </style></head><body>
 <h1>Crosstown '97 — the desk</h1>
-<p class="stamp">data as of <b>03/08/2026, 12:11:05</b> · <span id="age">fresh</span> · reloads every 12s.
+<p class="stamp">data as of <b>03/08/2026, 12:14:51</b> · <span id="age">fresh</span> · reloads every 12s.
 If the age keeps climbing past a minute the regenerator has stopped — restart it with <code>./scripts/desk-watch.sh &amp;</code></p>
 
 <div class="tallies">
-  <div><b>4</b>in flight</div>
-  <div><b>17</b>claimable</div>
-  <div><b>3</b>your asks open</div>
+  <div><b>3</b>in flight</div>
+  <div><b>20</b>claimable</div>
+  <div><b>5</b>your asks open</div>
   <div><b>1</b>deferred by you</div>
   <div><b>0</b>awaiting you</div>
 </div>
@@ -62,12 +62,12 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <p class="intent">The user: *&quot;when i exit overlays my mouse stops working as well.&quot;* THIS IS THE HIGHEST-IMPACT BUG ON THE BOARD.</p>
     <div class="files">EXITING ANY OVERLAY LEAVES THE MOUSE DEAD — nothing re-acquires the pointer lock</div>
     <footer>
-      <span class="commit">Item 277: the pointer debt is the SYSTEM's, not the panel's</span>
-             <span class="meta">6 minutes ago · 6 unlanded · a263dd7d</span>
+      <span class="commit">Item 277: register pointer-returns with both mutation cases</span>
+             <span class="meta">2 minutes ago · 8 unlanded · a263dd7d</span>
     </footer>
   </article>
 
-  <article class="card unknown">
+  <article class="card working">
     <header>
       <span class="who">onehundredeleven</span>
       <span class="item">item 276</span>
@@ -76,7 +76,8 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <p class="intent">The user: *&quot;npcs still get stuck.&quot;* His frame: two citizens standing motionless on the pavement beside the bus bench, with SLEEP CENTER behind them, in rain.</p>
     <div class="files">NPCs stranded on the pavement — and it is probably the pinch the user DEFERRED an hour ago</div>
     <footer>
-      <span class="meta nomatch">no worktree matched — it may not have committed yet</span>
+      <span class="commit">Item 276: the standing NPCs are PARKED, not pinned - measured, nothing changed</span>
+             <span class="meta">10 seconds ago · 4 unlanded · a25c220e</span>
     </footer>
   </article>
 
@@ -90,20 +91,7 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <div class="files">ct/int-library.ts — a shelf with NO books, and the file already documents this exact failure</div>
     <footer>
       <span class="commit">Item 273: the blank brown panels are the BAY ENDS, not a book rotation</span>
-             <span class="meta">12 minutes ago · 7 unlanded · a7bca97d</span>
-    </footer>
-  </article>
-
-  <article class="card unknown">
-    <header>
-      <span class="who">onehundredeight</span>
-      <span class="item">item 272</span>
-      <span class="since">claimed 12:03</span>
-    </header>
-    <p class="intent">The user: *&quot;people sitting still looks bad because they have no legs??&quot;* His frame is the diner booths: head and torso above the seat back, and nothing below the waist — the bench visible straight through where thighs should be.</p>
-    <div class="files">ct/citizens.ts — seated people read as a floating torso: &quot;they have no legs??&quot;</div>
-    <footer>
-      <span class="meta nomatch">no worktree matched — it may not have committed yet</span>
+             <span class="meta">16 minutes ago · 7 unlanded · a7bca97d</span>
     </footer>
   </article></div>
 
@@ -111,27 +99,22 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
   <article class="card unmatched">
     <header><span class="who">a1d22e74</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Merge branch 'add-stick-and-city98' into worktree-agent-a1d22e741e865e0f5</span>
-            <span class="meta">8 minutes ago · 9 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">a25c220e</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Merge branch 'add-stick-and-city98' into worktree-agent-a25c220e199e25376</span>
-            <span class="meta">25 minutes ago · 3 unlanded</span></footer>
+    <footer><span class="commit">Item 272 SCOPED, not fixed: it is occlusion, and a billboard cannot be redrawn out of it</span>
+            <span class="meta">2 minutes ago · 0 unlanded</span></footer>
   </article>
 
   <article class="card unmatched">
     <header><span class="who">a5aaa71a</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Item 271: handoff note</span>
-            <span class="meta">2 minutes ago · 0 unlanded</span></footer>
+            <span class="meta">6 minutes ago · 0 unlanded</span></footer>
   </article></div>
 <p class="note">57 dormant worktrees not shown — no commit in 120 minutes. Every builder this session left one behind; <code>git worktree prune</code> only clears entries whose directory is already gone.</p>
 
 <h2>Your asks still open</h2>
-<ul><li><b>278</b> “umbrella looks so janky.”</li>
+<ul><li><b>280</b> “people sitting still looks bad because they have no legs??”</li>
+<li><b>278</b> “umbrella looks so janky.”</li>
+<li><b>272</b> “people sitting still looks bad because they have no legs??”</li>
 <li><b>253</b> “[screenshot] fix the wheels on the trailer”</li>
 <li><b>256</b> “[screenshot] casino sign still a lil janky. maybe we get rid of the one on the side here? ”</li></ul>
 
@@ -145,7 +128,7 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
   // the DATA, not the age of the page, so if the regenerator dies the clock keeps
   // climbing and you can see it has stopped. A silent freeze is the failure mode
   // that would actually mislead.
-  const BORN = 1785784265;
+  const BORN = 1785784491;
   const KEY = 'desk-scroll';
   addEventListener('DOMContentLoaded', () => {
     const y = sessionStorage.getItem(KEY);
