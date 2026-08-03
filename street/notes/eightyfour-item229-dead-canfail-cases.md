@@ -105,6 +105,21 @@ the run fall through to the dead port, which *also* exits 3 — so the leg
 `aborts, exit 3` stayed **green over a gate that had been removed**. Exit code
 and reason are now asserted together. Only two legs caught it before that.
 
+**`checks-can-fail.mjs` then caught my own row**, which is the system working:
+`canfail-args` was registered **with no failing path at all** — *"a check nothing
+has watched fail is indistinguishable from one that works"*. Its EXEMPT list
+would have taken it on the usual grounds (a guard over `scripts/`, no world
+state to mutate, like `checks-registered` and `no-silent-pass`) and that was the
+weaker answer, because this guard **demonstrably can** be watched fail. So
+`--selftest` now blinds a **copy** of `canfail.mjs` with both refusals removed
+and requires the legs to go red: **9 do, against a floor of 6** — the same 6+3
+split I had measured by hand. Every substitution is asserted, so a mutation that
+quietly stopped applying cannot report *"the guard noticed"*. A copy and not the
+real file: a selftest that edits `scripts/canfail.mjs` in place is one crash away
+from leaving the guard-of-guards blinded on disk. Row is now `true`;
+`checks-can-fail` is down to its **three pre-existing** reds
+(`w40-bed-vs-door`, `w75-site-contained` ×2).
+
 **And my probe lied on its first run**, in the way the brief warns about: the
 assertion *"never prints `0/0 checks caught their mutation`"* went red against a
 **correct** refusal, because canfail's refusal message *quotes* the vacuous
@@ -182,8 +197,17 @@ needs to read the shader or be retired.
 ## Gates
 
 `tsc --noEmit` **0** · `npm run build` **0** · `health.mjs` **0 WORLD OK** ·
-`npm run sweep` **96 shots, 0 STATION MISS, 0 COVERAGE, exit 0** ·
-`checks.mjs --only canfail-args` **✓**.
+`npm run sweep` **96 shots, 0 STATION MISS, 0 COVERAGE, exit 0**.
+
+`checks.mjs --only mutations-quote-real-source --only canfail-args --only
+checks-registered --only checks-can-fail`: **3 green, 1 red** — the red is
+`checks-can-fail` on its three pre-existing rows, and `canfail-args` is no
+longer among them. `checks.mjs --only canfail-args --selftest` **✓**.
+
+One thing worth knowing for anyone running checks against a tree they are also
+committing to: `checks.mjs` refused the whole run with **`dist/ ON THIS DISK IS
+NOT THIS COMMIT`** after I committed the handoff, because `dist/` was built from
+the previous SHA. That is the guard working — `npm run build` and re-run.
 
 `git status` clean; every file canfail wrote was verified back byte-for-byte
 (`git diff --stat` empty after each mutation run).
