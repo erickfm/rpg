@@ -18,24 +18,34 @@
 //
 //   SHOT_URL=http://localhost:4260/ node scripts/probes/w70-orpheus-walk.mjs
 import { chromium } from 'playwright';
-import { readFileSync } from 'node:fs';
 import { waitPainted } from '../lib/painted.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('set SHOT_URL to YOUR OWN server'); process.exit(3); }
 
-// the declaration, from the source that built it — one authoring (BRIEF §8)
-const src = readFileSync(new globalThis.URL('../../src/proto/ct/interior.ts', import.meta.url), 'utf8');
-const m = src.match(/\{\s*west:\s*'(\w+)',\s*east:\s*'(\w+)',\s*at:\s*(-?[\d.]+),\s*w:\s*([\d.]+),\s*h:\s*([\d.]+)\s*\}/);
-if (!m) { console.error('could not read the PARTY declaration out of ct/interior.ts'); process.exit(3); }
-const PW = { west: m[1], east: m[2], at: +m[3], w: +m[4], h: +m[5] };
-console.log(`\n  PARTY WALL as declared: ${PW.west} | ${PW.east}   opening z ${PW.at} +/- ${PW.w / 2}, ${PW.h} m tall\n`);
-
+// THE DECLARATION, FROM THE WORLD — `__ct.party()`, not a regex over the source.
+//
+// This used to scrape `{ west: '…', east: '…', … }` out of `ct/interior.ts` with
+// a match, in the name of "one authoring". It was in fact a SECOND authoring —
+// of the declaration's *syntax* — and item 268 broke it: `west`/`east` are now
+// derived getters over a declared pair, so the literal the regex was looking for
+// does not exist and this file exited 3 on a world that was fine. A probe that
+// parses the source of the thing it is testing is reading a hypothesis; the
+// running world is the answer (BUILDER-BRIEF §7). `__ct.party()` is published
+// for exactly this and hands back a per-element copy.
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 640 } });
 await p.goto(URL, { waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => window.__ct?.roomDims !== undefined, { timeout: 20000 });
 await waitPainted(p, { quiet: true });
+
+const PARTY = await p.evaluate(() => window.__ct.party?.() ?? null);
+if (!Array.isArray(PARTY) || !PARTY.length) {
+  console.error('__ct.party() published no party wall — refusing to guess which rooms are joined');
+  process.exit(3);
+}
+const PW = PARTY[0];
+console.log(`\n  PARTY WALL as built: ${PW.west} | ${PW.east}   opening z ${PW.at} +/- ${PW.w / 2}, ${PW.h} m tall\n`);
 
 const dims = await p.evaluate(() => window.__ct.roomDims());
 const pick = (id) => dims.find((d) => d.id === id);
@@ -149,10 +159,23 @@ for (const id of [PW.west, PW.east]) {
 // are done here instead, from the coordinates the world publishes rather than
 // from a formula. (The harness is held by item 192, so it is reported, not
 // edited — BUILDER-BRIEF §9.)
+// ⚠ WHICH BUILDING LEADS TO WHICH ROOM IS DISCOVERED, NOT TYPED.
+//
+// This loop used to be `[[PW.west, 'HOTEL ORPHEUS'], [PW.east, 'SEVENS']]` — a
+// SECOND authoring of the room↔building join, and the exact habit
+// BUILDER-BRIEF §8 is about. It was correct until item 268 re-handed the wall,
+// and then it failed two legs on a world where both doors worked perfectly:
+// it landed the player in the hotel and compared him against the casino.
+//
+// Nothing publishes the join, so the join is MEASURED: walk in and see where
+// you come out. The property worth asserting was never "HOTEL ORPHEUS is the
+// west room" anyway — it is **the two doors lead to the two joined rooms, one
+// each**, which is true whichever way round they sit.
 const doors = await p.evaluate(() => window.__ct.doors());
-for (const [id, building] of [[PW.west, 'HOTEL ORPHEUS'], [PW.east, 'SEVENS']]) {
-  const room = pick(id), d = doors.find((q) => q.building === building);
-  if (!d) { check(false, `${id}: ${building} has no declared door`, ''); continue; }
+const landedRoom = {};
+for (const building of ['HOTEL ORPHEUS', 'SEVENS']) {
+  const d = doors.find((q) => q.building === building);
+  if (!d) { check(false, `${building} has no declared door`, ''); continue; }
   // stand on the pavement where the declaration says to
   await warp(d.stand.x, d.stand.z, Math.PI, undefined);
   await p.waitForTimeout(320);
@@ -160,9 +183,13 @@ for (const [id, building] of [[PW.west, 'HOTEL ORPHEUS'], [PW.east, 'SEVENS']]) 
   await p.keyboard.down('e'); await p.waitForTimeout(120); await p.keyboard.up('e');
   await p.waitForTimeout(500);
   let [x, , z] = await pos();
-  const landedIn = Math.abs(x - room.cx) <= room.w / 2 && Math.abs(z - room.cz) <= room.d / 2;
-  check(landedIn, `${building}: [E] on the pavement puts you INSIDE the ${id}`,
-    `landed ${x.toFixed(2)},${z.toFixed(2)}; room ${room.cx}+/-${room.w / 2}, ${room.cz}+/-${room.d / 2}`
+  const room = dims.find((r) => r.belt
+    && Math.abs(x - r.cx) <= r.w / 2 && Math.abs(z - r.cz) <= r.d / 2);
+  landedRoom[building] = room?.id ?? null;
+  const isPartyRoom = room && (room.id === PW.west || room.id === PW.east);
+  check(!!isPartyRoom, `${building}: [E] on the pavement puts you INSIDE one of the joined rooms`,
+    `landed ${x.toFixed(2)},${z.toFixed(2)} -> ${room?.id ?? 'NO BELT ROOM'}`
+    + `; the pair is ${PW.west}|${PW.east}`
     + `; prompt was "${inPrompt.find((l) => /into/.test(l)) ?? inPrompt[0] ?? 'none'}"`);
   // …and back out through the room's own way-out spot
   const outSpot = await p.evaluate(() => window.__ct.spots()
@@ -198,6 +225,13 @@ for (const [id, building] of [[PW.west, 'HOTEL ORPHEUS'], [PW.east, 'SEVENS']]) 
     `landed ${x.toFixed(2)},${z.toFixed(2)}; prompt was "${held ?? 'none'}"`);
   void outSpot;
 }
+
+// ONE EACH. Without this, two doors both landing in the hotel would pass every
+// line above — each leg only asks "did I end up in one of the pair".
+check(landedRoom['HOTEL ORPHEUS'] && landedRoom.SEVENS
+  && landedRoom['HOTEL ORPHEUS'] !== landedRoom.SEVENS,
+  'the two frontages lead to DIFFERENT rooms, one each',
+  `HOTEL ORPHEUS -> ${landedRoom['HOTEL ORPHEUS']}, SEVENS -> ${landedRoom.SEVENS}`);
 
 await b.close();
 const bad = out.filter(([ok]) => !ok).length;
