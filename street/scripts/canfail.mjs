@@ -1391,9 +1391,16 @@ const CASES = [
   // `[E]`, the ATM's self-close, and the seated close — while every `RELEASED`
   // and `NOT STOLEN` leg stays green, which is the shape that says the guard is
   // reading the right quantity rather than falling over generally.
+  // IT MUTATES THE RECORD, NOT THE `if`. Gating the hand-back with `if (false &&
+  // …)` was the obvious mutation and it does not COMPILE — the block goes
+  // unreachable and `tsc` rejects it, which canfail scores `BUILD  mutation did
+  // not compile — rewrite it` rather than letting a case certify nothing.
+  // Never recording the debt is the same revert reached from the other end: with
+  // `pendingLock` permanently null the guard below can never fire, which is
+  // precisely the world the user complained about.
   ['pointer-never-returns', HUD,
-    'if (pendingLock && !livePanel && !raising && pendingLock.isConnected) {',
-    'if (false && pendingLock && !livePanel && !raising && pendingLock.isConnected) {   // selftest: item 277 reverted',
+    'if (document.pointerLockElement) pendingLock = document.pointerLockElement;',
+    'pendingLock = null;   // selftest: item 277 reverted, the debt is never recorded',
     'pointer-returns.mjs', [], 'overlays that give the mouse back to nobody'],
 
   // …AND THE POPULATION UNDER IT. Same argument as `watch-panel-blind` above and
