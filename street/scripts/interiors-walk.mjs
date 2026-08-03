@@ -1364,7 +1364,13 @@ for (room of rooms) {
 // is the exact GOTCHAS 34 shape ("a report that reads as though it covered
 // something it never looked at") that the rest of this file is careful about.
 // Nothing decides it for that room — `door301` covers the door, not the dark.
-async function lightLeg(built) {
+// `box` is the half-extent sampled around the room centre, and `yMax` the
+// height above which meshes are not this room's business. The BELT passes
+// neither and gets exactly today's behaviour — 8 x 8, unbounded in y — because
+// a room-sized box measurably changes what twelve passing rooms judge (the
+// hotel goes 58 -> 39 materials) and this item has no business moving that.
+// See `scripts/probes/w82-sample-box-rules.mjs` for the full 13-room table.
+async function lightLeg(built, box = { x: 8, z: 8, yMax: Infinity }) {
   const cx = built.cx, cz = built.cz;
   //
   // ⚠ THIS COMPARED BY ARRAY INDEX AND WAS FLAKY, AND A FLAKY CHECK IS WORSE
@@ -1438,18 +1444,19 @@ async function lightLeg(built) {
   // The principled fix is for `RoomDims` to publish the room's height, the same
   // way item 192 made it publish `cx`. That is a change to `ct/interior.ts`,
   // which item 226 does not name — filed for the desk (BUILDER-BRIEF §9).
-  const sample = () => p.evaluate(([cx, cz]) => {
+  const sample = () => p.evaluate(([cx, cz, bx, bz, yMax]) => {
     const out = {};
     window.__ct.scene().traverse((o) => {
       if (!o.isMesh) return;
       const wp = new o.position.constructor();
       o.getWorldPosition(wp);
-      if (Math.abs(wp.x - cx) > 8 || Math.abs(wp.z - cz) > 8) return;
+      if (Math.abs(wp.x - cx) > bx || Math.abs(wp.z - cz) > bz) return;
+      if (wp.y > yMax) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of mats) if (m && m.color && !m.transparent) out[m.uuid] = m.color.getHex();
     });
     return out;
-  }, [cx, cz]);
+  }, [cx, cz, box.x, box.z, box.yMax]);
   /** four samples with the clock held at `h`, and the set that never moved */
   const steadyAt = async (h, settle) => {
     await p.evaluate((hh) => window.__ct.clock(hh, 0), h);
@@ -1616,13 +1623,55 @@ for (const spec of offBelt) {
 
   // ── the room keeps its light after dark, HERE TOO ──
   //
-  // This leg used to be inline in the belt loop and so never ran for this room.
-  // It is decidable here — the flat has materials and the night sweep reaches
-  // them — and nothing else was deciding it, so it is not in the not-applicable
-  // list below. It is the reason `sample()` had to stop assuming cz 0: at this
-  // room the old box saw 1 mesh and 2 materials, against 436 and 156 for a box
-  // that asks the room where it is.
-  await lightLeg(built);
+  // This leg used to be inline in the belt loop and so never ran for this room,
+  // and the not-applicable line below did not name it either — so the flat's
+  // lighting was neither tested nor declared untested. It IS decidable here.
+  //
+  // BUT NOT WITH THE BELT'S SAMPLE BOX, AND FINDING THAT OUT IS MOST OF THIS.
+  // The belt samples a fixed ±8 m, which is about room-sized for a shop and
+  // FIVE TIMES this room: 301 is 3.06 x 3.36. Run with the belt's box the leg
+  // reported `1/156 materials dimmed`, and the offender
+  // (`scripts/probes/w82-which-material-dims.mjs`) is at y 8.23 — **2.83 m
+  // above this flat's floor, and 12 cm above the floor slab at 8.11 that is the
+  // next storey.** It is in 302. Reporting it against 301 would be reporting a
+  // room as defective on evidence about the one above it.
+  //
+  // So the box is DERIVED from the room instead of typed:
+  //
+  //   x/z  the room's own half-extent plus a wall, capped at the belt's 8 so
+  //        no room can lose coverage it has today
+  //   y    the lowest floor-shaped mesh above HEAD height in this room's
+  //        footprint — for a stacked building that is the ceiling, and the
+  //        1.6 m cut is what stops a table or a counter qualifying (the casino
+  //        has floor-shaped meshes at 0.83 m; bounding a belt room this way
+  //        would clip it at knee height, which is why this is off-belt only)
+  //
+  // A single hardcoded storey height would have been wrong in both directions:
+  // tight enough to isolate one flat of a 2.7 m stack, it throws away the
+  // church's nave at +9.50 and the library's upper floor at +6.40
+  // (`scripts/probes/w82-storey-extent.mjs`).
+  const ceil = FLOORS
+    .filter((fl) => fl.maxX >= cx - hw && fl.minX <= cx + hw
+                 && fl.maxZ >= cz - hd && fl.minZ <= cz + hd
+                 && fl.y > gy + 1.6)
+    .reduce((lo, fl) => Math.min(lo, fl.y), Infinity);
+  check('the room\'s own ceiling is derivable, so the light leg can be scoped to it',
+    Number.isFinite(ceil),
+    Number.isFinite(ceil)
+      ? `lowest floor-shaped mesh above head height in this footprint is y=${f2(ceil)} (floor ${f2(gy)})`
+      : 'no slab above head height — cannot tell this room from the one above it');
+  // NO MARGIN ON x/z, AND THAT IS THE POINT. A first cut allowed the room's
+  // half-extent PLUS 0.5 m for the wall, and the leg then judged a box at
+  // x 200.25 — 1.85 m from a centre in a room 1.53 m to its own wall, so
+  // 0.32 m OUTSIDE the flat, on the landing. The margin was mine; the extent is
+  // the room's. `w`/`d` are the resolved, published footprint (`Slab.w`'s
+  // docstring: *"Published so a harness can ASK"*), so ask for exactly that and
+  // stop inventing tolerances the room did not declare.
+  await lightLeg(built, {
+    x: Math.min(8, built.w / 2),
+    z: Math.min(8, built.d / 2),
+    yMax: Number.isFinite(ceil) ? ceil : Infinity,
+  });
 
   // ── and SAY what was not asked, rather than looking complete ──
   //
