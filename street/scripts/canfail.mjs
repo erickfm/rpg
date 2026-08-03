@@ -41,6 +41,7 @@ const CASINO = 'src/proto/ct/int-casino.ts';  // the 96 slot stools
 const FP = 'src/proto/fp.ts';                 // the player rig — eye height, reach
 const TAX = 'src/proto/ct/int-tax.ts';        // the waiting row the user reported
 const ATM = 'src/proto/ct/atm.ts';            // the cash machine's screens and keys
+const JAIL = 'src/proto/ct/jail.ts';          // O's — the building and its screens
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
 //
@@ -280,6 +281,22 @@ const CASES = [
     '  onKey(softKey(b.i, b.right));',
     '  onKey(String(b.right ? b.i + 5 : b.i + 1));   // selftest: digits shadow CANCEL again',
     'w67-atm-pin.mjs', [], 'clicking CANCEL typing a 5 into the PIN again'],
+
+  // ── item 175: the walkable hole in the jail's forecourt flanks ────────────
+  //
+  // Re-opens the user's bug: *"side of the jail are still bugged and allow for
+  // out of bounds."*
+  //
+  // IT REMOVES THE COLLIDER AND LEAVES THE WALL STANDING, which is the point.
+  // Deleting the geometry would make the containment sweep red for a reason
+  // anybody would see in a screenshot; removing only the obstacle reproduces
+  // the ACTUAL fault — a wall you can see and walk through — and that is the
+  // class of bug two green route-walking checks sat over twice. A mutation has
+  // to break the symptom, not the diagnosis.
+  ['jail-forecourt-open', JAIL,
+    '    ctx.obstacle({ minX: site.minX, maxX: FX, minZ: zLine - SCR_T / 2, maxZ: zLine + SCR_T / 2 });',
+    '    void FX;   // selftest: the forecourt flanks stop colliding, hole reopened',
+    'w67-jail-contained.mjs', [], 'walking out of the world past the jail forecourt again'],
 
   // ── item 72: fast-tier checks that had NO declared failing path ────────────
   //
