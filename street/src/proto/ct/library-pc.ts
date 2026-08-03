@@ -1,5 +1,5 @@
 import { BUILD, ORDER as HOOK } from './ctx';
-import type { CtxBuild } from './ctx';
+import type { CtxBuild, Spot } from './ctx';
 import type { Panel } from './hud';
 // TYPE-ONLY, and that is the whole reason this file can stay honest with `fp`.
 // `ct/slots.ts` had to take a RUNTIME edge on three to build its own screen
@@ -54,6 +54,12 @@ function seatedAtComputer(): SeatPose | null {
   const pose = ct.seated();
   if (!pose) return null;
   return ct.seats().find((s) => s.pose === pose)?.label === SEAT_LABEL ? pose : null;
+}
+/** The pose the player is on, WITHOUT the 219-entry label search above — for
+ *  the one caller that already knows the answer to that half. See `useSpot.ok`.
+ *  Not a second notion of "sat down": it is the same `ct.seated()` call. */
+function seatedPose(): SeatPose | null {
+  return (globalThis as unknown as CtWindow).__ct?.seated() ?? null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -828,16 +834,110 @@ export function register(ctx: CtxBuild): void {
     });
   });
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // THE CRT IS AN `[E]` TARGET NOW — item 205
+  // ═════════════════════════════════════════════════════════════════════════
+  //
+  // WHAT THE ROW SAID, AND WHAT THE WORLD SAYS. The row is headed *"THE LIBRARY
+  // TERMINAL IS CURRENTLY UNREACHABLE"* and asks for the poll below to be
+  // DELETED and replaced by this spot. **The first half is false and the second
+  // half would undo a named user request**, so only the spot is added — measured
+  // before anything was touched, `scripts/probes/w74-does-the-poll-fire.mjs`:
+  //
+  //   sit at the computer -> panel "ct-library-pc", __librarypc.onMesh() TRUE
+  //   sit at the slot     -> panel "ct-slots",      __slots.screen()     TRUE
+  //
+  // Sitting down opens this machine, on its own glass, today. w69's contrary
+  // reading came from its probe, not from the world: `__ct.sit` hands the
+  // caller's object straight to `rig.sit` (crosstown.ts:1845), so the
+  // `{x,z,yaw,h}` literal `w69-seated-offers.mjs:64` builds is NOT the pose
+  // object `ctx.seat` registered — and `seatedAtComputer` matches by
+  // `s.pose === pose`. A probe that sits with a COPY can never see this fire.
+  //
+  // AND OPENING ON SIT IS THE SPEC, not an accident: queue item 4, quoted at the
+  // top of this file, is *"opening when the player sits at a library machine"*,
+  // and the slot machine's own ask is *"a slots interface and game where WHEN I
+  // SIT DOWN I ENTER THE SLOTS INTERFACE"* (FEATURE-REQUESTS.md:281). Deleting
+  // the poll would take that away from both. BUILDER-BRIEF §6a: his words win.
+  //
+  // ── SO WHY ADD THE SPOT AT ALL ────────────────────────────────────────────
+  //
+  // Because the way BACK IN is currently on loan from another file. `dismissed`
+  // below exists so ESC does not spring the panel straight back up; the only
+  // reason a dismissed machine is reachable again is that `crosstown.ts`'s
+  // `FOCUS.leave()` ends with an unconditional `if (rig.seated) rig.stand()`
+  // (crosstown.ts:1440), so closing ejects you from the chair and the seat's own
+  // `[E] sit at the computer` re-opens it. `ct/slots.ts:2083` writes the same
+  // dependency down and keeps its own guard for exactly this reason.
+  //
+  // **w69 has queued the removal of that line** — *"closing the form put you
+  // back in the chair"*, `notes/w69-seated-e.md`, "WHAT I DID NOT DO" §2. The
+  // day it lands, a dismissed machine has no way back at all: you are seated,
+  // `dismissed` is latched, and there is no `[E]` target. This spot is what
+  // makes that a non-event, and it is the item's own ask.
+  //
+  // ── ONE SPOT, RE-AIMED, NOT ONE PER MACHINE ───────────────────────────────
+  //
+  // Only one machine can ever be the one you are sitting at, so one registration
+  // is enough — and it has to be, because the same shape in `ct/slots.ts` would
+  // otherwise be 87 spots, each running a 219-entry `find` inside `ok()` once
+  // per frame inside `pickSpot`'s loop. Its coordinates are re-aimed at the CRT
+  // in front of whichever chair you took.
+  //
+  // EVERY NUMBER IS READ OFF THE MESH. The radius is the measured chair-to-glass
+  // distance, so the spot's circle reaches exactly the chair it was found from
+  // whatever `int-library.ts` does to its desks — measured 1.02 m at both
+  // terminals (`scripts/probes/w74-where-is-the-face.mjs`), against a seated
+  // bound of `r + REACH_MARGIN` (fp.ts:990). Deriving it rather than importing
+  // `REACH_MARGIN` is deliberate: this file's whole header is about staying out
+  // of the runtime module graph so `npm run fp` remains a valid proof for it
+  // (GOTCHAS 75), and one constant is not worth a dither reseed.
+  let useSpot: (Spot & { obj?: THREE.Object3D }) | null = null;
+  /** the seat `useSpot` is currently aimed from, or null when it is aimed at
+   *  nothing. Identity, like everything else here. */
+  let armedAt: SeatPose | null = null;
+  /** …and when we may next go looking. `screenAhead` is a whole-scene traverse,
+   *  and the one case that would otherwise run it EVERY frame is sitting at a
+   *  computer whose CRT is not findable — a state that should not happen and
+   *  that a per-frame traverse would make expensive if it ever did. */
+  let nextLook = -1;
+
   ctx.onFrame((f) => {
     if (!panel) return;
     const seat = seatedAtComputer();
-    if (seat === null) dismissed = null;
+    if (seat === null) { dismissed = null; armedAt = null; nextLook = -1; }
+    else if (armedAt !== seat && f.t >= nextLook) {
+      nextLook = f.t + 0.5;
+      const m = screenAhead(ctx.scene, seat, ctx.player.gy());
+      if (m) {
+        m.updateWorldMatrix(true, false);
+        const e = m.matrixWorld.elements;
+        const x = e[12], z = e[14];
+        const r = Math.hypot(x - seat.x, z - seat.z);
+        if (!useSpot) {
+          useSpot = {
+            x, z, r, obj: m,
+            // O(1) BY DESIGN. This runs once a frame inside `pickSpot`'s loop,
+            // so it asks the rig which pose it is on and compares references —
+            // it does NOT re-run `seatedAtComputer`'s search over all 219 seats.
+            // `armedAt` is only ever set to a seat that already carried
+            // SEAT_LABEL, so the two questions have the same answer.
+            ok: () => armedAt !== null && seatedPose() === armedAt,
+            label: () => 'use the computer',
+            act: () => panel?.open(),
+          };
+          ctx.spot(useSpot);
+        } else {
+          useSpot.x = x; useSpot.z = z; useSpot.r = r; useSpot.obj = m;
+        }
+        armedAt = seat;
+      }
+    }
     if (!panel.isOpen()) {
       if (seat !== null && seat !== dismissed) panel.open();
       return;
     }
     if (seat === null && dismissed !== null) { panel.close(); return; }
-    void f;
   }, HOOK.LATE);
 
   // Test affordance, same shape as __atm / __slots / __blackjack: a way to
@@ -847,6 +947,29 @@ export function register(ctx: CtxBuild): void {
   (globalThis as unknown as Record<string, unknown>).__librarypc = {
     open: () => panel?.open(),
     close: () => panel?.close(),
+    /**
+     * TEST AFFORDANCE — put the machine in the DISMISSED-BUT-STILL-SEATED state.
+     *
+     * That state is what `useSpot` exists for, and **there is no way to reach it
+     * through the UI today**: `crosstown.ts:1440` ends every diegetic close with
+     * an unconditional `if (rig.seated) rig.stand()`, so closing ejects you from
+     * the chair and the frame hook clears `dismissed` on the next frame.
+     * `ct/slots.ts:2083` writes the same fact down about its own guard. w69 has
+     * queued the removal of that line (`notes/w69-seated-e.md`, "WHAT I DID NOT
+     * DO" §2), and the day it lands this state is ordinary.
+     *
+     * A capability that cannot be exercised is a capability nobody can prove,
+     * and this project's whole complaint about its own checks is that they pass
+     * while measuring nothing (GOTCHAS 79). So the state is made reachable to a
+     * script, exactly as `__ct.sit` was added because the seated `[E]` contest
+     * could not otherwise be asked of all 219 seats.
+     *
+     * `dismissed` is written AFTER the close on purpose: `onClose` overwrites it
+     * with `seatedAtComputer()`, which is null by then because the close already
+     * stood the player up. Re-seat in the SAME turn — `__librarypc.dismissHere();
+     * __ct.sit(pose)` in one `evaluate` — or the next frame clears it.
+     */
+    dismissHere: () => { const s = seatedAtComputer(); panel?.close(); dismissed = s; },
     screen: () => screen,
     goto: (s: Screen) => { screen = s; if (s === 'minesweeper') ms = msBlank(); panel?.repaint(); },
     key: (k: string) => onKey(k),
