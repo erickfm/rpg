@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+// DERIVED, NOT RETYPED (BUILDER-BRIEF §8). `BENCH_CLEAR` below is built out of
+// the player's own collision radius and the world's smallest meaningful gap, so
+// re-tuning either steps every bench in the park back with it. `fp.ts` imports
+// only three and a type, so this cannot make a cycle — `no-import-cycles` is
+// registered and green on it.
+import { RADIUS, TOUCH_MARGIN } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { weedTuft } from './weeds';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
@@ -320,6 +326,15 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     const m = new THREE.Mesh(geo, mat);
     m.rotation.x = -Math.PI / 2;
     m.position.set(cx, KERB_H + LIFT, cz);
+    // SAY WHAT IT IS. `scripts/bench-clearance.mjs` has to know which surfaces
+    // in the park are WALKED before it can ask whether a bench crowds one, and a
+    // check that reconstructed the loop from `lx0/lx1/lz0/lz1` would be a second
+    // copy of the layout that goes stale the day somebody re-cuts a leg. The
+    // rectangle is banked so the check reads the surface that was actually laid,
+    // in the extent it was actually laid at.
+    m.userData.parkGround = kind;
+    m.userData.parkRect = { minX: Math.min(x0, x1), maxX: Math.max(x0, x1),
+      minZ: Math.min(z0, z1), maxZ: Math.max(z0, z1) };
     scene.add(m);
     return m;
   };
@@ -553,7 +568,18 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     return [lum * (1 - 0.07 * k), lum * (1 + 0.04 * k), lum * (1 - 0.15 * k)];
   };
   const TREAD = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1].map((f) => f * H);
-  band(TREAD, KERB_H + LIFT, wet(flat(loopTex())), PATH_TILE, tread);
+  {
+    const loop = band(TREAD, KERB_H + LIFT, wet(flat(loopTex())), PATH_TILE, tread);
+    // THE CIRCUIT, AS A THING A CHECK CAN ASK ABOUT. `lay()` banks its rectangles
+    // (`userData.parkRect`) but the loop is not a rectangle — it is an octagonal
+    // BAND, and `scripts/bench-clearance.mjs` measured 2 walked surfaces in a park
+    // with a 110 m circuit until this existed. The eight-point CENTRELINE plus a
+    // half-width is the honest shape of it: the same `ringPts(0)` every leg of
+    // the loop is cut from, and `H`, which is `PATH_W / 2` and the actual outer
+    // row of TREAD. Re-cut a leg and the banked polygon re-cuts with it.
+    loop.userData.parkGround = 'path';
+    loop.userData.parkLoop = { centreline: ringPts(0), halfWidth: H };
+  }
 
   // In from the gate to MEET the circuit — to its near edge, not through it.
   // Written as `lx1` this ran to the leg's CENTRELINE and overlapped its east
@@ -1079,6 +1105,43 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // exists to prevent. `claim` is declared after the benches are built, so
   // they bank their boxes here and the registry is seeded with them.
   const benchBoxes: AABB[] = [];
+  // ── EVERY BENCH STANDS THIS FAR OFF THE PATH. A RULE, NOT A NUDGE ─────────
+  //
+  // The user, twice, and the second time PLURAL: *"bench is a lil too close to
+  // the path"* -> *"benches need space away from the path."* Nudging the one he
+  // photographed is what earned the second report, so this is a constant every
+  // placement derives from, and `scripts/bench-clearance.mjs` fails if a future
+  // bench crowds the path.
+  //
+  // MEASURED BEFORE IT WAS CHANGED, and every bench in the park OVERHANGS the
+  // path. The bench's registered collider is `SEAT_D` deep either side of its
+  // centre, so the clearance from the path edge to what a walker can actually
+  // hit is `offset - PATH_W / 2 - SEAT_D`:
+  //
+  //     the two z legs   lx +- (PATH_W / 2 + 0.42)   ->  -0.04 m   INSIDE the path
+  //     the two x legs   lz +- 1.05                  ->  -0.16 m   INSIDE the path
+  //
+  // Two different hand-typed offsets, neither named, and both negative. That is
+  // the drift the item describes and the reason his screenshot shows a bench
+  // with its front legs on the kerb and the seat hanging over it.
+  //
+  // THE FIGURE IS DERIVED FROM THE PLAYER, NOT CHOSEN. A walker is entitled to
+  // the WHOLE path: his centre may reach the very edge of it, and his body then
+  // overhangs that edge by his own collision radius. `fp.ts:87 RADIUS = 0.36` is
+  // therefore the distance at which a bench starts being something he collides
+  // with while still legitimately on the path. Clearance = RADIUS + a margin, so
+  // that passing it is not BRUSHING it — BUILDER-BRIEF §10, "a person should be
+  // able to walk past a shelf without brushing it". The margin is TOUCH_MARGIN,
+  // the world's own smallest meaningful gap (`fp.ts:764`), rather than a number
+  // I liked: 0.36 + 0.15 = 0.51 m.
+  //
+  // Imported, never retyped. Re-tune the player's radius and every bench in the
+  // park steps back with it.
+  const BENCH_CLEAR = RADIUS + TOUCH_MARGIN;
+  /** half-depth of a bench ACROSS its run — the collider `bench()` registers. */
+  const BENCH_SEAT_D = 0.46;
+  /** centre-to-centre: path centreline to bench centre, on any leg. */
+  const BENCH_OFFSET = PATH_W / 2 + BENCH_CLEAR + BENCH_SEAT_D;
   const bench = (bx: number, bz: number, yaw: number) => {
     // ── REBUILT, AFTER B'S BUS BENCH ─────────────────────────────────────────
     //
@@ -1108,7 +1171,10 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // axis-by-axis arithmetic: one rotation, applied to everything, so no part
     // can drift out of line with another.
     const g = new THREE.Group();
-    const L = 1.72, SEAT_Y = 0.45, SEAT_D = 0.46;
+    // SEAT_D IS THE HOISTED ONE. It is the collider half-depth the placements
+    // above derive `BENCH_OFFSET` from, and two copies of it drifting apart is
+    // exactly how the clearance went negative (BUILDER-BRIEF §8).
+    const L = 1.72, SEAT_Y = 0.45, SEAT_D = BENCH_SEAT_D;
     const RECLINE = 0.21, BACK_LEN = 0.44;
     const put = (m: THREE.Object3D, x: number, y: number, z: number) => {
       m.position.set(x, y, z); g.add(m); return m;
@@ -1153,6 +1219,12 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     const along = Math.abs(Math.round(Math.cos(yaw)));
     const hx = along ? L / 2 : SEAT_D, hz = along ? SEAT_D : L / 2;
     solid({ minX: bx - hx, maxX: bx + hx, minZ: bz - hz, maxZ: bz + hz });
+    // …AND THE SAME BOX, ON THE GROUP, so a check can ask about THE COLLIDER a
+    // walker actually hits rather than about the geometry inside it — the two
+    // differ by 0.20 m here, and it is the collider that decides whether passing
+    // a bench is brushing it. Banked here rather than recomputed by the checker,
+    // which would be a second copy of this line (BUILDER-BRIEF §8).
+    g.userData.parkBench = { minX: bx - hx, maxX: bx + hx, minZ: bz - hz, maxZ: bz + hz };
     // banked for the footprint registry: a bin may not stand in this
     benchBoxes.push({ minX: bx - hx - 0.1, maxX: bx + hx + 0.1,
       minZ: bz - hz - 0.1, maxZ: bz + hz + 0.1 });
@@ -1290,12 +1362,12 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // showed it — eight in a park with a 110 m circuit. Both legs are stepped
   // over their own length now.
   for (const z of spaced(lz0 + 4.0, lz1 - 4.0, 9.2)) {
-    if (clearOfGate(z)) benchRun.push(facingAcrossZLeg(lx1 + PATH_W / 2 + 0.42, z));
-    benchRun.push(facingAcrossZLeg(lx0 - PATH_W / 2 - 0.42, z));
+    if (clearOfGate(z)) benchRun.push(facingAcrossZLeg(lx1 + BENCH_OFFSET, z));
+    benchRun.push(facingAcrossZLeg(lx0 - BENCH_OFFSET, z));
   }
   for (const x of spaced(lx0 + 4.5, lx1 - 4.5, 9.4)) {
-    benchRun.push(facingAcrossXLeg(x, lz0 - 1.05));
-    benchRun.push(facingAcrossXLeg(x, lz1 + 1.05));
+    benchRun.push(facingAcrossXLeg(x, lz0 - BENCH_OFFSET));
+    benchRun.push(facingAcrossXLeg(x, lz1 + BENCH_OFFSET));
   }
   for (const [bx, bz, yaw] of benchRun) {
     if (!clearOfFountain(bx, bz, yaw)) continue;      // it would stand in the fountain
@@ -1931,22 +2003,78 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // ceiling boarding, with a rafter every 0.62 m across them — that pitch is
     // what gives the ceiling scale when you are two metres under it.
     const CEIL = E * 2;
-    const ceilT = pixTex(Math.round(CEIL * 16), Math.round(CEIL * 16), (g) => {
-      const px = Math.round(CEIL * 16), r = clcg(0x5ad13b);
+    // ── THE JOINT WAS A THIRD OF EVERY BOARD ────────────────────────────────
+    //
+    // The user, item 171: *"shelter roof is still bugged in terms of
+    // graphics."* Screenshot from under it, looking up: a dense
+    // high-frequency stripe grid that shimmers instead of reading as boards.
+    // He is right, and the arithmetic says exactly why.
+    //
+    // This canvas was `CEIL * 16` — 16 px/m — with the board pitch written as
+    // `Math.max(3, Math.round(0.16 * 16))`. At 16 px/m a 0.16 m board is
+    // **2.56 px**, so:
+    //
+    //     board  = round(2.56) = 3 px       the `max(3, …)` floor also fired
+    //     face   = board - 1  = 2 px        what you see of the board
+    //     joint  =              1 px        THE SHADOW IS 33% OF THE BOARD
+    //
+    // Two texels of timber and one of shadow is not boarding with a joint in
+    // it, it is a 2:1 stripe — which is precisely the "dense stripe grid" in
+    // his screenshot. The rafters had the same disease one step further on:
+    // `max(2, round(0.07 * 16))` = max(2, **1**) = 2 px = **0.125 m**, against
+    // the 0.07 m the line asks for, 79% over.
+    //
+    // **BOTH `Math.max` FLOORS FIRING IS THE CODE SAYING IT HAS RUN OUT OF
+    // PIXELS.** A floor that is reached is a density that cannot draw its own
+    // content, and it fails silently: every texel stayed perfectly square, so
+    // `scripts/texdensity.mjs` — which judges an undeclared face on texel
+    // ASPECT — never flagged it and never could. See the handoff note.
+    //
+    // ── SO: DECLARE THE DENSITY, DERIVE EVERY PITCH FROM IT (§7b) ───────────
+    //
+    // 32 px/m, an INTEGER multiple of the world's `WALL_PPM` of 8
+    // (`ct/tex-world.ts:34`, and :67 for why the multiple must be integer:
+    // "for surfaces that carry fine content … integer keeps texels square and
+    // the course grid commensurate"). It is also the density B established for
+    // every jointed surface in the world — `ct/civic.ts:404`, *"every other
+    // ground surface here derives its canvas from its real metres at one
+    // density — 32 px/m — and carries aggregate, staining and scoring
+    // joints"* — and a boarded ceiling is a jointed surface.
+    //
+    // Every pitch below is now a WHOLE NUMBER of texels at that density, so
+    // nothing rounds and nothing drifts across the span:
+    //
+    //     board pitch   0.25   m  =  8 px      joint 1 px =  12.5% of a board
+    //     rafter pitch  0.625  m  = 20 px      the 0.62 m the note above asks
+    //                                          for, landed on a texel
+    //     rafter width  0.0625 m  =  2 px      was 0.125 m
+    //
+    // The board goes 0.16 m -> 0.25 m and that is the point, not a side
+    // effect: 0.16 m boarding is finer than any density this world paints at,
+    // and drawing it anyway is what produced the shimmer. Widening it is what
+    // makes it read as boards from two metres underneath.
+    const CEIL_PPM = 32;                       // 4 x WALL_PPM (ct/tex-world.ts:34)
+    const BOARD_M = 0.25, RAFT_M = 0.625, RAFT_W_M = 0.0625;
+    const ceilT = pixTex(Math.round(CEIL * CEIL_PPM), Math.round(CEIL * CEIL_PPM), (g) => {
+      const px = Math.round(CEIL * CEIL_PPM), r = clcg(0x5ad13b);
       g.fillStyle = '#6b5f4a'; g.fillRect(0, 0, px, px);
-      const board = Math.max(3, Math.round(0.16 * 16));
+      const board = Math.round(BOARD_M * CEIL_PPM);
       for (let y = 0; y < px; y += board) {
         g.fillStyle = r() > 0.5 ? '#75684f' : '#635844';
         g.fillRect(0, y, px, board - 1);
         g.fillStyle = 'rgba(38,30,22,0.45)';       // the shadow in each joint
         g.fillRect(0, y + board - 1, px, 1);
       }
-      const raft = Math.max(4, Math.round(0.62 * 16));
+      const raft = Math.round(RAFT_M * CEIL_PPM);
       for (let x = 0; x < px; x += raft) {         // rafters across the boards
-        g.fillStyle = '#584e3d'; g.fillRect(x, 0, Math.max(2, Math.round(0.07 * 16)), px);
+        g.fillStyle = '#584e3d'; g.fillRect(x, 0, Math.round(RAFT_W_M * CEIL_PPM), px);
       }
       dither(g, px, px, Math.round(px * px * 0.01));
     });
+    // DECLARED, so the next density sweep can judge this face instead of
+    // guessing at it. `pixTex` leaves `userData.surface` unset and an
+    // undeclared face is one `texdensity.mjs` can only test for squareness.
+    declareSurface(ceilT, 'detail');
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(CEIL, CEIL), flat(ceilT));
     ceil.rotation.x = Math.PI / 2;                 // facing DOWN, at the player
     ceil.position.set(shX, KERB_H + SH_TOP - (SH_RISE / SH_H) * SH_OVER - SH_SKIRT + 0.005, shZ);
