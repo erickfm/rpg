@@ -2447,3 +2447,115 @@ git status --porcelain                          # whose edits are these?
 
 If a builder must share the tree, tell it explicitly: no `add -A`, small
 complete commits, never leave the tree unbuildable.
+
+## 85. Two commits on 2026-08-02 are misattributed — do not trust their messages
+
+A consequence of GOTCHAS 84, recorded because `SESSION-STATE.md` already tracks
+unresolvable SHAs as a live problem, and `git log` is the first place anyone
+looks when asking "when did this change?".
+
+- **`95a1beb67`** — message: *"Queue the missing dark-ground detector; pin the
+  jail diffuser's exact coordinates"*. **Contents: 532 lines of
+  `src/proto/ct/slots.ts` and 76 of `scripts/probes/w73-slot-face.mjs`** — the
+  whole of item 208, the slot-machine rework, and nothing whatever about a
+  detector or a diffuser. The desk staged it with `git add -A` while worker
+  `seventythree` was mid-item in the shared tree.
+- **`e61c26448`** — worker `seventythree`'s own commit, whose message correctly
+  describes the slot-machine work, holds **six lines of a probe**.
+
+**Nothing is lost and the tree is correct.** Only the attribution is wrong. The
+queue changes the desk's message refers to were never in any commit because
+`notes/QUEUE.md` is deliberately untracked (`0d1e61de5`).
+
+History was NOT rewritten: builders branch off mainline continuously and
+rebasing under them costs more than a wrong message. **If you are archaeologising
+`slots.ts`, `95a1beb67` is where item 208 landed.**
+## 86. A room is no longer necessarily CENTRED IN ITS SLAB
+
+`ct/interior.ts` hands every interior an 80 m slab from x = 400 and, until now,
+centred the room in it. Two harnesses learned that number instead of asking:
+
+```js
+scripts/interiors-walk.mjs:676   cx = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+scripts/G-rooms-walk.mjs:424     const CX = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+```
+
+Item 196 broke that assumption on purpose. A **party wall** (`PARTY`, at the top
+of `ct/interior.ts`) puts two rooms in consecutive slabs and **shoves each to
+the shared boundary**, so their flank walls meet back to back and one opening
+can be cut through both — the only way *"i should be able to walk from one into
+the other"* is a walk rather than a teleport. The hotel now stands at **874.32**
+in a slab centred on 840, and the casino at **885.68** in one centred on 920.
+
+**Both harnesses then measured the dead ground beside the room and reported the
+room broken.** Measured on the built bundle, isolating one cause at a time:
+
+```
+G-rooms-walk    party wall OFF   113/114   (1 pre-existing: [interior:hotel] NO BUILDING NAME)
+G-rooms-walk    party wall ON     62/65    2 x "the room reports its own extents — no floor plane found"
+interiors-walk  hotel             17/29    "prompt=null", "pos=840,1.62,19" — the room is at 874.32
+interiors-walk  casino            13/29    "pos=885.68 → slab centre 920"
+interiors-walk  church            25/25    MOVED SLAB in the same change, still centred — untouched
+```
+
+The church is the control and it is the whole finding: **moving a room between
+slabs costs nothing. Assuming where it sits inside one costs everything.**
+
+**`__ct.roomDims()` publishes `cx`, and both files already call it** —
+`interiors-walk.mjs:370` fetches `DIMS` and then computes `cx` from the formula
+anyway. That is `Slab.w`'s own docstring repeating itself one field over: *"Two
+authorings of one number, which is the same defect the door declarations exist
+to kill. Published so a harness can ASK."* The fix in each file is to read the
+published `cx` instead of deriving it, and it is one line. **Not done here:**
+`interiors-walk.mjs` is held by item 192, and `G-rooms-walk.mjs` is outside item
+196's boundary (BUILDER-BRIEF §9).
+
+**So: anything that locates an interior must ASK `roomDims()`.** The formula
+`400 + floor((x-400)/80)*80 + 40` tells you which SLAB a point is in, which is
+still true and still useful — it is simply not where the room is.
+
+### 83a. …and a teleport SUPPRESSES the trigger it dropped you next to
+
+Found while writing the walk for the same item, and it makes a working door look
+dead. You arrive inside a room **0.60 m from the way-out spot**, and the world
+will not offer a spot you are still standing in from the jump that put you
+there — otherwise the E you are already pressing bounces you straight back out
+(`ct/interior.ts`'s `outGap` warning is the same defect on the street side).
+
+The prompt reads **`none`** at that spot, and a probe that warps onto it and
+presses E measures nothing and calls it a failure. A player walks away and comes
+back, so a probe must too: go to the middle of the room, then return. Two runs
+of `w70-orpheus-walk.mjs` were lost to this before the mechanism was named.
+
+## 87. Sitting with a fresh literal sits on a pose no seat recognises
+
+`crosstown.ts:1845` is `sit: (pose) => rig.sit(pose)` — it hands **the caller's
+own object** to the rig. The machine modules then match their seat **by
+identity**: `ct/library-pc.ts:56` and `ct/slots.ts:1836` both test
+`s.pose === pose`.
+
+So a probe that does `__ct.sit({ x, z, yaw, h })` with a freshly-built literal
+sits on a pose **no seat owns**. Every seat-triggered behaviour silently fails to
+fire, and the probe reports the world is broken when it is the probe that is.
+
+This cost real work. It is why a queue row asserted "the library terminal is
+currently unreachable" — it was reachable the whole time — and the desk repeated
+that to the user. **Fetch the real pose from `ct.seats()` and pass that object.**
+
+Two probes still do it wrong (`w69-seated-offers.mjs:64`,
+`w69-seated-loan.mjs:70`) and one of them is a landed item's acceptance evidence.
+Item 217.
+
+## 88. A spot at the CENTRE of a deep object is invisible to `canSee`
+
+`canSee` stops its ray `dist − 0.35` short. Put a spot at the **centre** of an
+object deeper than that and **the object blocks the line to itself**: measured on
+the slot cabinet, ray 0.382 m against a face at 0.364 m, so the spot was silently
+never offered.
+
+Everything else about it looked right — `ok()` true, off-axis 0.000, comfortably
+inside reach — which is what makes this expensive to find. **Put the spot on the
+FACE you want the player to look at, not at the object's centre.**
+
+Found inside a builder's own change by a look-away negative case in its probe.
+Which is the argument for negative cases: the positive leg passed throughout.

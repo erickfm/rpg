@@ -45,7 +45,7 @@ if (!west || !east) { console.error('rooms missing from the belt'); process.exit
 const seam = west.cx + west.w / 2;                 // where the wall starts
 const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2 };
 const pos = () => p.evaluate(() => window.__ct.pos());
-const warp = (x, z, yaw) => p.evaluate(([a, c, y]) => window.__ct.warp(a, c, y), [x, z, yaw]);
+const warp = (x, z, yaw) => p.evaluate(([a, c, y]) => window.__ct.warp(a, c, y, undefined, 0), [x, z, yaw]);
 const holdUntil = async (k, ready, capMs) => {
   await p.keyboard.down(k);
   const t0 = Date.now();
@@ -136,6 +136,67 @@ for (const id of [PW.west, PW.east]) {
   check(outs.length === 1 && near.length === 1,
     `${id}: exactly one 'out to the street' is live, and it is this room's`,
     `${outs.length} live, ${near.length} of them inside this room's width`);
+}
+
+// ── leg 6: in from the STREET to each wing, and back out ──────────────────
+//
+// The row's "done when" says you can walk in from the street to each. That is
+// normally scripts/interiors-walk.mjs's job and it now FAILS on these two rooms
+// — but the failure is the instrument, not the world: interiors-walk.mjs:676
+// locates a room as `400 + floor((x-400)/80)*80 + 40`, i.e. it assumes a room
+// is CENTRED IN ITS SLAB, which is exactly what a party wall stops being true.
+// It measured the casino at 920 when the casino is at 885.68. So the door legs
+// are done here instead, from the coordinates the world publishes rather than
+// from a formula. (The harness is held by item 192, so it is reported, not
+// edited — BUILDER-BRIEF §9.)
+const doors = await p.evaluate(() => window.__ct.doors());
+for (const [id, building] of [[PW.west, 'HOTEL ORPHEUS'], [PW.east, 'SEVENS']]) {
+  const room = pick(id), d = doors.find((q) => q.building === building);
+  if (!d) { check(false, `${id}: ${building} has no declared door`, ''); continue; }
+  // stand on the pavement where the declaration says to
+  await warp(d.stand.x, d.stand.z, Math.PI, undefined);
+  await p.waitForTimeout(320);
+  const inPrompt = await p.evaluate(() => window.__ct.spots().filter((s) => s.ok).map((s) => s.label));
+  await p.keyboard.down('e'); await p.waitForTimeout(120); await p.keyboard.up('e');
+  await p.waitForTimeout(500);
+  let [x, , z] = await pos();
+  const landedIn = Math.abs(x - room.cx) <= room.w / 2 && Math.abs(z - room.cz) <= room.d / 2;
+  check(landedIn, `${building}: [E] on the pavement puts you INSIDE the ${id}`,
+    `landed ${x.toFixed(2)},${z.toFixed(2)}; room ${room.cx}+/-${room.w / 2}, ${room.cz}+/-${room.d / 2}`
+    + `; prompt was "${inPrompt.find((l) => /into/.test(l)) ?? inPrompt[0] ?? 'none'}"`);
+  // …and back out through the room's own way-out spot
+  const outSpot = await p.evaluate(() => window.__ct.spots()
+    .filter((s) => s.ok && s.label === 'out to the street').map((s) => ({ x: s.x, z: s.z }))[0] ?? null);
+  if (!outSpot) { check(false, `${building}: no way out is live from inside`, ''); continue; }
+  // face the door: the way-out spot is in the +z wall and yaw 0 is -z, so a
+  // probe standing on the spot with yaw 0 has its back to it. Selection is not
+  // the same question as ok().
+  // Stand where the ROOM says its doorway is (roomDims.door is room-local with
+  // an inward normal), 0.9 m inside it, facing back at it — the same approach
+  // interiors-walk.mjs:898 uses. Warping onto the spot's own centre with yaw 0
+  // puts your back to the door, and selection is not the same question as ok().
+  //
+  // AND STEP AWAY FIRST. You arrive 0.60 m from the way-out trigger you are
+  // about to press, and the world deliberately suppresses a spot you are still
+  // standing in from the teleport that put you there — otherwise the E you are
+  // already pressing bounces you straight back out (ct/interior.ts's `outGap`
+  // check is the same defect on the street side). Measured: the prompt reads
+  // "none" until the player has left the trigger and come back. Going to the
+  // middle of the room and returning is what a player does; a probe that only
+  // warps onto the spot reports a working door as broken.
+  const D = room.door;
+  await warp(room.cx, room.cz, Math.atan2(-D.nx, D.nz));
+  await p.waitForTimeout(300);
+  await warp(room.cx + D.x + D.nx * 0.9, room.cz + D.z + D.nz * 0.9,
+    Math.atan2(-D.nx, D.nz));
+  await p.waitForTimeout(900);
+  const held = await p.evaluate(() => { const d = document.getElementById('ct-prompt'); return d && d.style.display !== 'none' ? d.textContent : null; });
+  await p.keyboard.down('e'); await p.waitForTimeout(140); await p.keyboard.up('e');
+  await p.waitForTimeout(600);
+  [x, , z] = await pos();
+  check(x < 100, `${building}: [E] inside puts you back out on the street`,
+    `landed ${x.toFixed(2)},${z.toFixed(2)}; prompt was "${held ?? 'none'}"`);
+  void outSpot;
 }
 
 await b.close();
