@@ -60,8 +60,14 @@ await b.close();
 
 // ── find the leaves by SIGNATURE ────────────────────────────────────────────
 // A jail leaf is a thin upright slab: ~0.09 m through, ~3 m tall, ~1.2 m across
-// in z, carrying a 24x64 canvas. `jailLeafTex` is the only 24x64 map in the
-// world, which is what makes this identification safe without a coordinate.
+// in z, carrying `jailLeafTex`'s 24x64 canvas.
+//
+// 24x64 ALONE IS NOT A FINGERPRINT. `ct/int-bank.ts:583` paints a 24x64 arch
+// too, and the first cut of this filter picked up two of them 370 m away and
+// reported them as jail leaves. The shape test is what disambiguates: the bank
+// arches are 0.48 m across and 2.15 m tall, nothing like a 1.18 x 3.04 m leaf.
+// Kept as a comment rather than trusted silently, because "the only texture of
+// that size" is precisely the sort of unchecked claim this project pays for.
 const leaves = out.filter((o) => o.mapW === 24 && o.mapH === 64
   && o.w < 0.2 && o.h > 2.5 && o.d > 0.8 && o.d < 2.0);
 console.log(`leaves found by 24x64 signature: ${leaves.length}`);
@@ -83,5 +89,33 @@ for (const L of leaves) {
   }
 }
 
-console.log(`\n${bad === 0 ? 'PASS' : 'FAIL'}: ${bad} coplanar front face(s) within ${Z_EPS} m of a leaf`);
-process.exit(bad === 0 ? 0 : 1);
+// ── the other half of the item: is the density DERIVED from the face? ───────
+//
+// BUILDER-BRIEF §7b — a texture's density comes from the face it lands on, and
+// a repeat is never typed by hand. `jailLeafTex` sets no `repeat` at all, so
+// the 24x64 canvas maps ONCE onto the leaf face, and the face's own dimensions
+// come from `JAIL.DOOR_W / 2 - 0.02` and `JAIL.DOOR_H - 0.02`. That makes the
+// density a consequence of the geometry rather than a number anybody chose.
+// Measured here off the BUILT world so the claim is not merely asserted.
+//
+// The band is deliberately wide: this is a check that the canvas still lands
+// once on a leaf-sized face, not a repaint of somebody's art direction.
+const PPM_LO = 12, PPM_HI = 40;
+let dbad = 0;
+console.log('\ndensity on the face the canvas lands on (BUILDER-BRIEF §7b):');
+for (const L of leaves) {
+  const across = 24 / L.d, up = 64 / L.h;            // the visible ±x face spans d x h
+  const ok = across > PPM_LO && across < PPM_HI && up > PPM_LO && up < PPM_HI;
+  if (!ok) dbad++;
+  console.log(`  leaf ${L.d.toFixed(2)} x ${L.h.toFixed(2)} m  ->  ${across.toFixed(1)} px/m across, ${up.toFixed(1)} px/m up  ${ok ? 'ok' : '<<< OUTSIDE ' + PPM_LO + '..' + PPM_HI}`);
+}
+// NOTE, so a later reader does not "fix" it: the leaf's BACK (+x) face is still
+// coplanar with the stone's front face, by construction — the door hangs ON
+// that plane. That pair is benign and this check deliberately ignores it. Both
+// are FrontSide materials, so the leaf's +x face is back-facing from the street
+// and never drawn, and the stone's -x face is occluded by the leaf 0.09 m in
+// front of it. Only two faces pointing the SAME way at the same depth tear.
+
+const fail = bad + dbad;
+console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'}: ${bad} coplanar front face(s) within ${Z_EPS} m of a leaf, ${dbad} leaf/leaves off-density`);
+process.exit(fail === 0 ? 0 : 1);
