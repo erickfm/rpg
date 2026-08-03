@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface, slabTex } from './paint';
+import { pixTex, dither, declareSurface, slabTex, boxFaces } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 // the hard-texel text painter from the casino's facade — one signage hand for
@@ -277,13 +277,36 @@ export function buildHotel(ctx: CtxBuild): void {
   // BUILDER-BRIEF §7b's "0.2 m end caps wearing a 9.65 m run" with the numbers
   // reversed. So the two biggest dimensions of the box are what the sheet is
   // built for.
+  //
+  // ⚠ …AND SIZING THE SHEET IS ONLY HALF THE JOB — THE OTHER FIVE FACES STILL
+  // HAVE TO DERIVE THEIR OWN REPEAT. Picking the largest face is the right
+  // choice of CANVAS and it does nothing about the mapping: three gives a
+  // `BoxGeometry` per-face 0..1 UVs, so a 1:1 sheet stretches independently to
+  // fit each of the six faces, and the sliver faces then draw at whatever
+  // density their own size implies. Measured on the built bundle after item 96
+  // landed: NINE gross faces in this room, `interior:hotel 3 -> 9`, with the
+  // 0.1 m arm ends of the three chairs drawing 250 × 48 px/m against a declared
+  // 48 — and that regression was the only thing holding `texdensity.mjs` red
+  // across three builders' sessions.
+  //
+  // `boxFaces` (ct/paint.ts, item 163) is the fix for exactly this shape, and
+  // `slabTex`'s own docstring names this room as the case it was written for.
+  // It clones the sheet per DISTINCT face size — at most three per box — and
+  // calls `fitRepeat` with that face's own two metres, so every face draws at
+  // FABRIC_PPM regardless of which one the canvas was sized for. The canvas
+  // choice above is unchanged and still correct: it decides how much real
+  // detail exists, not how it is mapped.
+  //
+  // `joint: 0` is what makes the tiling safe. A face larger than the sheet on
+  // one axis (the sofa's +y is 0.85 × 2.1 against a 2.1 × 0.85 sheet) repeats
+  // 2.46× — invisible in pure grain, and it would be a visible seam grid on a
+  // jointed surface.
   const FABRIC_PPM = 48;      // finer than the ground's 32: you stand next to it
-  const fabric = (col: number, w: number, h: number, d: number) => {
+  const fabric = (col: number, w: number, h: number, d: number): THREE.Material[] => {
     const [a, b] = [w, h, d].sort((x, y) => y - x);
-    return new THREE.MeshBasicMaterial({
-      map: slabTex({ wMeters: a, dMeters: b, base: `#${col.toString(16).padStart(6, '0')}`,
-        joint: 0, ppm: FABRIC_PPM, grain: 0.09 }),
-    });
+    const t = slabTex({ wMeters: a, dMeters: b, base: `#${col.toString(16).padStart(6, '0')}`,
+      joint: 0, ppm: FABRIC_PPM, grain: 0.09 });
+    return boxFaces(t, w, h, d);
   };
 
   // ── the way in, matched to the doorway you came through ───────────────
@@ -599,7 +622,8 @@ export function buildHotel(ctx: CtxBuild): void {
     const plushSeat = fabric(0x3f5449, 0.72, 0.40, 0.72);
     const plushRest = fabric(0x3f5449, 0.72, 0.46, 0.22);
     const paper = new THREE.MeshBasicMaterial({ color: 0xd8d2c0 });
-    const bx = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number) =>
+    const bx = (w: number, h: number, d: number, m: THREE.Material | THREE.Material[],
+                x: number, y: number, z: number) =>
       put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z);
 
     // A SOFA AND TWO ARMCHAIRS ROUND A LOW TABLE, in the east corner
