@@ -2925,3 +2925,18 @@ to one side.
   `ct/apartment.ts` contains no grass or weed geometry of its own; seven other
   modules produce some (`props.ts`, `tex-world.ts`, `street.ts`, `weeds.ts`,
   `lot.ts`, `park.ts`, `civic.ts`).
+
+- **"[screenshot] benches need space away from the path"** (2026-08-02,
+  `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-02 20-33-21.png`)
+  → **routed as queue item 170, which supersedes 88.** SECOND report. The first
+  was *"bench is a lil too close to the path. also the path looks awful"* and
+  named one bench; this one says **benches**, plural — a clearance rule for every
+  bench in the park, not a nudge to one.
+
+- **"[screenshot] shelter roof is still bugged in terms of graphics"**
+  (2026-08-02, pasted image, standing under the park shelter in rain) →
+  **routed as queue item 171.** The underside of the shelter roof reads as a
+  dense high-frequency stripe grid. "Still" — the shelter's timber has been
+  through a density fix before (`ct/civic.ts:403` refers back to it) and
+  `ct/park.ts:1715` already warns about scale changing between two pieces of
+  the same shelter.
