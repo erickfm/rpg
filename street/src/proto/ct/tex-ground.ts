@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, declareAnisotropic } from './paint';
 import { ROAD_HALF, WALK, FACE } from './rng';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -609,12 +609,27 @@ const BUS_STOPS: [number, number][] = [[ROAD_HALF + 0.32, -33.5]];
 // and one lit top row — no gradient anywhere, because the shape is carried by
 // the geometry's edges now and the sheet only has to say "rough grey iron".
 function castTex(): THREE.Texture {
-  return declareSurface(pixTex(16, 16, (g) => {
+  // ── STRETCHED ON PURPOSE, AND NOW IT SAYS SO (item 266) ──────────────────
+  //
+  // These eight faces were the WORST in the whole world by `texdensity`'s aspect
+  // measure — 36.1x, `15.84 × 571.43 px/m` on a 1.01 × 0.028 m rail — and every
+  // one of them is correct. The sheet is three horizontal bands: a bright worn
+  // row along the top arris, grit, a dark row at the bottom. **Across the rail
+  // it is uniform by construction**, so the horizontal density is arbitrary and
+  // the vertical density IS the drawing: sixteen rows over a 2.8 cm arris is
+  // what makes the worn edge a 1.75 mm bright line.
+  //
+  // "Fixing" it would have looked like progress — the backlog would have fallen
+  // by eight — and it would have thrown away the only detail on the kerb inlet.
+  // Worker onehundredsix caught that coming and filed it; this is the mechanism
+  // it asked for. The checker still counts these, prints this sentence, and puts
+  // them back in the backlog the moment the call is deleted.
+  return declareAnisotropic(declareSurface(pixTex(16, 16, (g) => {
     g.fillStyle = '#46413a'; g.fillRect(0, 0, 16, 16);
     g.fillStyle = '#565046'; g.fillRect(0, 0, 16, 1);     // worn bright along the top arris
     g.fillStyle = '#332f2a'; g.fillRect(0, 15, 16, 1);
     dither(g, 16, 16, 26);
-  }), 'detail');
+  }), 'detail'), 'cast-iron rail: the 16 rows over a 2.8 cm arris ARE the worn edge; across it the sheet is uniform');
 }
 // Looking into the throat. There is no geometry behind this — the kerb mesh
 // is solid — so the sheet has to carry what you would see: black under the
