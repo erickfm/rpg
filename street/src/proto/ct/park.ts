@@ -2226,9 +2226,36 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     t.repeat.set(1, 2.2);                               // ~3 m of trunk per tile
     return flat(t);
   })();
+  // ── TREE HEIGHTS: THE ITEM'S CLAIM WAS WRONG, AND WIDENED ANYWAY ─────────
+  //
+  // Item 172's second half says *"the trees are all roughly one canopy height,
+  // the lamps one height, the wall one height — so even once the ground moves,
+  // the silhouette stays a flat band."* MEASURED FIRST
+  // (`scripts/probes/w83-park-canopy.mjs`, 12 trees selected by their 0.3 m
+  // bark trunk rather than by size, which is the only non-circular way to pick
+  // them): canopy tops ran 6.76 m to 9.54 m, a 2.79 m spread with sd 0.97 and
+  // 9 of 12 distinct. They were never one height, and the previous author's
+  // `6.6 + t2()*2.8` says so in the source.
+  //
+  // WIDENED REGARDLESS, because the user's ask is height diversity and this is
+  // the cheapest place left to buy it now the ground is done: 5.6…10.6 m of
+  // tree against 6.6…9.4, so the spread nearly doubles. The party walls are
+  // `wallHeight(4)` = 13.0 m, so the tallest still stands below the skyline the
+  // boundary gives it rather than poking over it.
+  //
+  // THE TRUNK IS NOW A FRACTION OF THE HEIGHT, not an independent draw. It used
+  // to be `2.6 + t2()*1.0` against a height drawn separately, so a short tree
+  // could roll a tall trunk — at the new range that pairs a 5.6 m tree with a
+  // 3.6 m trunk and leaves a 2 m lollipop on a pole. 34–46% is the proportion
+  // the old pair actually produced across its own range, so this keeps the
+  // shape and lets the size move.
+  //
+  // No `rnd()`: `clcg(seed)` is per-tree and the object count is unchanged, so
+  // the seeded stream and every texture downstream of it are untouched
+  // (GOTCHAS §2).
   const tree = (x: number, z: number, seed: number) => {
     const t2 = clcg(seed);
-    const h = 6.6 + t2() * 2.8, spread = 4.4 + t2() * 2.0, trunk = 2.6 + t2() * 1.0;
+    const h = 5.6 + t2() * 5.0, spread = 4.0 + t2() * 2.8, trunk = h * (0.34 + t2() * 0.12);
     const gy = parkY(x, z);                           // a tree on the mound too
     const tk = new THREE.Mesh(new THREE.BoxGeometry(0.3, trunk + 0.6, 0.3), barkM);
     tk.position.set(x, gy + (trunk + 0.6) / 2, z);
