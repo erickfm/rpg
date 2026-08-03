@@ -413,9 +413,18 @@ export function register(ctx: CtxBuild): void {
       // popping up unless they are embedded to look as if they are in the
       // actual game."*
       id: 'ct-library-pc', w: W, h: H, scale: 2, chrome: 'none',
+      // WHAT LEAVES THE MACHINE DEPENDS ON WHETHER THIS SCREEN IS TYPING.
+      // `[E]` closes every machine view in the world now, but the CATALOGUE is
+      // a search field that takes any single character — `e` included — so it
+      // keeps ESC and nothing else changes about it. The other two screens take
+      // `[E]` like everything else. The framework reads the same `typing` flag
+      // to decide, so the caption and the key can never disagree.
       hint: () => (screen === 'desktop'
-        ? 'arrows select · ENTER open · ESC step back'
-        : 'TAB desktop · ESC step back'),
+        ? 'arrows select · ENTER open · E step back'
+        : screen === 'catalog'
+          ? 'TAB desktop · ESC step back'
+          : 'TAB desktop · E step back'),
+      typing: () => screen === 'catalog',
       draw,
       key: (k) => onKey(k),
       // GOING BACK TO THE DESKTOP IS NOT THE SAME AS LEAVING THE MACHINE. Every
