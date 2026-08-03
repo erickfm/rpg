@@ -3117,3 +3117,10 @@ to one side.
   `ct/int-library.ts:302-308` records this exact failure — a book plane left at
   the wrong rotation *"hangs on the END of the bay… while the sides of every
   stack — the faces you actually walk between — were blank brown board."*
+
+- **"[screenshot] mug should be empty"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-26-55.png`) → **routed as queue item 274.**
+  FOURTH mug report — and notably he does NOT mention the handle, so items 108
+  and 167 are settled. The dark disc at `ct/apartment.ts:2136-2139`
+  (`CircleGeometry(MUG_R - 0.006)`, `0x4a3524`) reads as coffee; he wants the mug
+  empty. ⚠ That disc exists on purpose: without it the top reads as a solid peg.
