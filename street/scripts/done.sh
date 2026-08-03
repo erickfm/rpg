@@ -24,8 +24,16 @@ cd "$(dirname "$0")/.." || exit 1
 COMMON=$(git rev-parse --git-common-dir 2>/dev/null) || COMMON=.git
 case "$COMMON" in /*) ;; *) COMMON="$PWD/$COMMON";; esac
 SHARED=$(dirname "$COMMON")/street/notes
-Q="$SHARED/QUEUE.md"
-LOCK="$SHARED/.queue.lock"
+# CLAIM_QUEUE is claim.sh's test hook and this file needs it for the same
+# reason: `queue-backup.sh --selftest` has to prove THIS script really writes a
+# snapshot, and the only honest way to do that is to run it — against a scratch
+# queue, not against the live one five builders are claiming from. The lock
+# moves with the queue, exactly as it does in claim.sh, so a test run cannot
+# take the real lock and stall the fleet.
+Q="${CLAIM_QUEUE:-$SHARED/QUEUE.md}"
+LOCK="$(dirname "$Q")/.queue.lock"
+# see scripts/queue-backup.sh, and the trap below
+QB="$PWD/scripts/queue-backup.sh"
 [ -f "$Q" ] || { echo "no queue at $Q"; exit 1; }
 
 who=${1:-}; shift 2>/dev/null
@@ -39,7 +47,7 @@ until mkdir "$LOCK" 2>/dev/null; do
   [ "$tries" -gt 60 ] && { rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || exit 1; break; }
   sleep 1
 done
-trap 'rm -rf "$LOCK"' EXIT INT TERM
+trap 'sh "$QB" snapshot "$Q" >/dev/null 2>&1; rm -rf "$LOCK"' EXIT INT TERM
 
 row=$(grep -n "^| *[0-9]*[a-z]* *| *DOING $who " "$Q" | head -1)
 [ -z "$row" ] && { echo "you ($who) do not hold anything — claim.sh first"; exit 3; }

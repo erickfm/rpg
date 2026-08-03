@@ -7,6 +7,18 @@
 //   npm run checks               # against $SHOT_URL, or the default preview
 //   npm run checks -- --selftest # break each one on purpose, require it to fail
 //   npm run checks -- --slow     # include the WALKING suites (minutes, not seconds)
+//   npm run checks -- --only masonry --only texdensity   # just these rows
+//
+// `--only` exists because of what it costs NOT to have it, and item 161 is the
+// bill. `--selftest` over the whole registry is 120-odd checks, most of them
+// with a full `npm run build` and a browser per mutation — hours. So in practice
+// nobody ran it, and a check whose selftest had been failing with exit 2 the
+// entire time went unnoticed for as long as it did. A flag that turns "prove
+// this one check can still go red" from an afternoon into four seconds is the
+// difference between a selftest that is run and a selftest that is merely
+// registered. It matches a row by exact name or substring, and it is a FILTER on
+// what runs — never on what is reported as passing, so a filtered run still says
+// plainly which rows it looked at.
 //
 // NOT A GATE. `npm run build` stays `tsc --noEmit && vite build`; the desk stood
 // wiring down as a gate deliberately and that reasoning holds for all of these.
@@ -35,6 +47,11 @@ import { distSha, localHead } from './lib/which-world.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const SLOW = process.argv.includes('--slow');
+// `--only <name>`, repeatable. Read positionally rather than as `--only=x` for
+// the same reason lib/modes.mjs exists: a spelling this does not recognise must
+// not silently select nothing, so an unmatched name is refused below rather than
+// producing an empty, green, entirely vacuous run (GOTCHAS 34).
+const ONLY = process.argv.reduce((a, v, i, all) => (v === '--only' && all[i + 1] ? [...a, all[i + 1]] : a), []);
 const URL = aim('http://localhost:4177/');
 
 // Is anything actually there? One request, before thirty browsers start.
@@ -179,7 +196,38 @@ const CHECKS = [
   // explained by whole-texel canvas rounding, 0 faces actually authored wrong.
   // 2.9 s, and it does not walk, so it is default tier by this file's own rule.
   // `--selftest` breaks one stamp at RUNTIME and it goes red: "selftest: caught it".
-  ['masonry',          'does each masonry stamp agree with the face it is on?', true],
+  ['masonry',          'does each masonry stamp agree with the face it is on?', true, [], false,
+    ['masonry-blind']],
+  // REGISTERED 2026-08-02 (item 161), and it is the OTHER 84% of the world.
+  //
+  // `masonry` above judges the 303 faces carrying `userData.masonry`. Measured
+  // on this build: the world has 4457 textured faces, so a pillar, a door, a
+  // bench, a floor tile — anything that is not brick — had no density guard even
+  // in principle. That is what BUILDER-BRIEF §7b's four fixed-by-hand defects
+  // all were, and it is why the fifth reached the user by eye.
+  //
+  // It needs no declaration to judge one, which is the trick worth knowing: on a
+  // correctly mapped face a TEXEL IS SQUARE, and ppmX and ppmY are derived
+  // independently from the face's own two dimensions. A face whose two densities
+  // disagree by 4x is drawing a stretched texture whatever it is and whoever
+  // failed to declare it.
+  //
+  // RATCHETED, not thresholded. It lands on a backlog of 188 gross faces, so it
+  // fails on a REGRESSION per owner against `notes/texdensity-baseline.json`
+  // rather than on the backlog — a check that is red on day one and stays red is
+  // noise, and one tuned until it is green is GOTCHAS 58. `--bless` is the only
+  // way the baseline moves and it is a reviewable commit.
+  //
+  // FAST tier, measured not guessed: 3.0 s plain and 3.1 s selftesting against a
+  // preview on this tree, against the 36 s that moved lotwalk to slow. Run by
+  // hand first, as item 71's precedent requires: 305 stamps / 16 disagreements /
+  // 0 authored wrong from `masonry`, and 4087 measurable faces / 0 stamped faces
+  // drawing wrong / 188 gross / "no owner got worse" from this — the four
+  // figures item 161 names as the baseline to preserve. Its `--selftest` gives
+  // one square face a 5x repeat and requires THAT FACE by name in the gross
+  // list, not merely a non-zero count, because the 188-deep backlog would
+  // satisfy a count no matter what the mutation did.
+  ['texdensity',       'is any textured face in the world drawing a stretched texture?', true],
   ['nightgrade',       'does everything the dimmer touched actually dim?',  true],
   ['seampairs',        'do two faces that should draw the same brick?',     true],
   // SLOW TIER, moved 2026-07-25. lotwalk WALKS — 28 held-W samples — and costs
@@ -1061,6 +1109,20 @@ const SLOW_MS = 1_500_000;
   }
 }
 
+// A `--only` THAT MATCHES NOTHING IS THE VACUOUS PASS THIS FILE KEEPS FINDING IN
+// OTHER PEOPLE'S SCRIPTS. Mistype it and every row is filtered out, the summary
+// prints an empty table, the exit code is 0, and the caller reads that as the
+// check they named being green. Same shape as GOTCHAS 34's mode word.
+if (ONLY.length) {
+  const unmatched = ONLY.filter((o) => !CHECKS.some(([n]) => n === o || n.includes(o)));
+  if (unmatched.length) {
+    console.error(`\n--only MATCHED NO REGISTERED CHECK: ${unmatched.join(', ')}\n`);
+    console.error('  Nothing would have run, and an empty run exits 0 — which reads exactly');
+    console.error('  like the check you named having passed.\n');
+    process.exit(2);
+  }
+}
+
 // DID THE SERVER SURVIVE THE LAST CHECK? Measured (not fixed by fiat — see
 // `notes/archive/K-check-artefacts.md`, which ran the suite eight times
 // against a live preview and could not make it die from the checks
@@ -1088,7 +1150,21 @@ async function serverAlive() {
 
 const rows = [];
 let serverDied = false;
-for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
+// SIXTH FIELD: canfail case names for a row that ALSO carries a --selftest flag.
+//
+// The third column is an either/or — `true` runs the script's own flag, a
+// string or array runs canfail cases instead — and for most rows that is the
+// right shape, because the two are alternative ways of saying the same thing.
+// For `masonry` they are not, and item 161 is why. Its flag doubles one face's
+// repeat and proves the "wrong density" VERDICT can go red; the `masonry-blind`
+// case empties its POPULATION and proves the floor under that verdict can go
+// red. Those fail apart — the flag sailed through the whole period this check
+// was measuring zero faces, because with no faces there was nothing to double
+// and it reported SELFTEST FAILED to a runner nobody was running. Registering
+// only one of them would certify half a guard, which is the argument the
+// `footprint` and `seat-facing` rows above already make for multiple cases.
+for (const [name, question, selftest, extra = [], slow = false, cases = []] of CHECKS) {
+  if (ONLY.length && !ONLY.some((o) => name === o || name.includes(o))) continue;
   if (slow && !SLOW) { rows.push([name, 'walks — use --slow', '—']); continue; }
   if (SELFTEST && !selftest) { rows.push([name, 'no selftest', '—']); continue; }
   if (serverDied) { rows.push([name, question, 'SERVER DIED (unmeasured)']); continue; }
@@ -1109,6 +1185,24 @@ for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
     rows.push([name, question, rc.status === 0 ? 'ok' : `FAILED (${rc.status})`, csecs]);
     if (rc.status !== 0) { process.exitCode = 1; console.log(`${rc.stdout ?? ''}${rc.stderr ?? ''}`.trimEnd() + '\n'); }
     continue;
+  }
+  // …and the sixth field, for a row that carries BOTH. Reported on its own line
+  // rather than folded into the row above, because "the verdict can go red" and
+  // "the population under it can go red" are two claims and a reader who is told
+  // one number cannot tell which one was proved.
+  if (SELFTEST && cases.length) {
+    const ct0 = Date.now();
+    process.stderr.write(`  … ${name} (canfail: ${cases.join(', ')})\n`);
+    const rc = spawnSync('node', ['scripts/canfail.mjs', ...cases],
+      { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: PER_CHECK_MS * cases.length });
+    const csecs = ((Date.now() - ct0) / 1000).toFixed(0);
+    const timedOut = rc.error?.code === 'ETIMEDOUT' || rc.signal === 'SIGTERM';
+    rows.push([`${name} +canfail`, question,
+      timedOut ? `TIMED OUT after ${csecs}s` : rc.status === 0 ? 'ok' : `FAILED (${rc.status})`, csecs]);
+    if (timedOut || rc.status !== 0) {
+      process.exitCode = 1;
+      if (!timedOut) console.log(`${rc.stdout ?? ''}${rc.stderr ?? ''}`.trimEnd() + '\n');
+    }
   }
   const args = [`scripts/${name}.mjs`, ...extra, ...(SELFTEST ? ['--selftest'] : [])];
   const r = spawnSync('node', args, { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: slow ? SLOW_MS : PER_CHECK_MS });
@@ -1159,6 +1253,13 @@ if (serverDied) {
 
 const w = Math.max(...rows.map(([n]) => n.length));
 console.log(SELFTEST ? '\nSELFTEST — each check was broken on purpose:' : `\nchecks against ${URL}:`);
+// SAY THAT THE RUN WAS FILTERED, in the summary and not only in the argv the
+// reader cannot see. A short green table is otherwise indistinguishable from a
+// whole suite passing, and this file's own preamble is about exactly that class
+// of sentence — "could not measure" and "measured, and it is fine" being
+// different news that used to print the same.
+if (ONLY.length)
+  console.log(`  (--only ${ONLY.join(', ')} — ${rows.length} of ${CHECKS.length} rows; the rest were NOT run)`);
 for (const [name, question, status, secs] of rows)
   // a skipped row must say WHY, or "·" reads as "passed quietly" — which is
   // how six checks stayed invisible in the first place

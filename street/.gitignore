@@ -4,3 +4,9 @@ shots/
 
 # canfail freshness stamp — a run artefact, and ten writers would conflict on it
 .canfail-last.json
+
+# QUEUE.md's rotating snapshots (scripts/queue-backup.sh). QUEUE.md itself is
+# deliberately untracked — `0d1e61de5` untracked it because ordinary merges were
+# silently reverting builders' DONE rows — and its backups must stay out of git
+# for exactly the same reason, or the revert comes back wearing a different name.
+notes/.queue-history/

@@ -128,6 +128,38 @@ const CASES = [
     't.userData.masonry = { ppm, mult, wMeters: wMeters * 1.4, hMeters, baseY, W, H,',
     'density.mjs', [], 'masonry painted for a width it was not mapped to'],
 
+  // BLIND THE CHECK, NOT THE WORLD — the third of its kind here, after
+  // footprint-blind and glow-blind, and the one that was owed. Item 107 found
+  // `masonry.mjs` printing `FACES ACTUALLY AUTHORED AT THE WRONG DENSITY: 0` and
+  // exiting 0 while examining ZERO faces: it skipped `visible === false` meshes,
+  // and 5016d26b5's region cull hides every group west of REGION_X plus every
+  // unentered interior, which at the default spawn is all 305 stamps in the
+  // world. The filter is gone and a population floor stands where it was; this
+  // is what proves that floor can still go red.
+  //
+  // The mutation renames the STAMP rather than touching the geometry, which is
+  // the honest form of blinding: every wall is still standing, still painted at
+  // exactly the density it was painted at, and the guard simply cannot see one
+  // of them. Nothing in src reads the property back — `ct/paint.ts:17` names it
+  // in a comment and `tex-world.ts` is the only writer — so the world the player
+  // walks is byte-identical in behaviour and only the audit goes dark.
+  //
+  // WHY NOT MUTATE scripts/masonry.mjs AND PUT THE `visible` SKIP BACK. That is
+  // the literal regression, and this file is for breaking the WORLD; a case that
+  // edits the checker proves the checker notices being edited. Blinding the
+  // population is the class both share, and it is the one that catches a fresh
+  // way of going blind that nobody has thought of yet.
+  //
+  // masonry.mjs is registered with `true` (its own --selftest doubles one face's
+  // repeat), so this rides the sixth column of scripts/checks.mjs. The two
+  // mutations fail apart, which is the whole reason both are registered: with
+  // zero stamps there is no face to double, so the flag reports SELFTEST FAILED
+  // for a reason that names none of this.
+  ['masonry-blind', TEXW,
+    't.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H,',
+    't.userData.masonryHiddenBySelftest = { ppm, mult, wMeters, hMeters, baseY, W, H,',
+    'masonry.mjs', [], 'every wall still painted the same, and no stamp the density guard can see'],
+
   // Restores the fencepost the user photographed as "chopped off at points":
   // size the window run as whole BAYS rather than as what the windows span.
   // The run then centres on something 1.25 m too long and every facade on the

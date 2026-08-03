@@ -1446,6 +1446,145 @@ export function buildBankInterior(ctx: CtxBuild): void {
     const owedOn = (a: number) => cents(a * (1 + RATE[a] / 100));
     let stamp: 'none' | 'approved' | 'declined' = 'none';
 
+    // ══ ITEM 185: THE APPLICATION IS ON THE PAPER NOW ═══════════════════════
+    //
+    // *"the load [loan] application process should also be like atm and whatnot.
+    // you sit and its the loan process as an integrated overlay."*
+    //
+    // ⚠ THIS REVERSES THE DECISION IN THE BLOCK COMMENT ABOVE, BY REQUEST.
+    // That comment says the loan was built as three `[E]`s in the room "rather
+    // than as a screen over it, because every other verb in this world is an
+    // `[E]` on an object you can walk up to and this one should not be the
+    // exception". The reasoning was sound when it was written; the user has
+    // since asked for the exception, twice over — first for the ATM, and now
+    // here — and BUILDER-BRIEF §6a is that his words outrank a note. It is left
+    // standing rather than deleted because it still explains why WINDOW 2 is
+    // a separate act in the room, which has not changed: the officer approves
+    // and the TELLER counts it out, so the two halves of the room are still one
+    // system. Only acts (1) and (2) moved onto the paper.
+    //
+    // `notes/w66-loan-diegetic.md` is the whole account, including the one
+    // finding a reader of this file most needs: a diegetic panel on a
+    // HORIZONTAL face raises the player's own wristwatch across its foot.
+    //
+    // WHAT ACTUALLY CHANGES: one field, `surface`, and the shape of the canvas.
+    // Hanging the picture on a mesh, easing the eye onto it, locking the look,
+    // freezing the feet, raycasting the pointer back into canvas pixels, the
+    // Win98 hand, ESC always closing, putting the paper's own face back — every
+    // one of those is `ct/hud.ts` and `crosstown.ts`, built for the ATM by w41
+    // and called here. Nothing of it is re-implemented, per w41's own
+    // instruction: *"If you find yourself writing new mechanism, hand it back."*
+    //
+    // AND THE MESH WAS ALREADY IN THE ROOM. w41 had to find someone else's
+    // plane; w55 had to build one, because a slot cabinet is a six-material box
+    // and `ct/hud.ts` still throws on those (item 150, open). This room already
+    // draws THE APPLICATION FORM as a single-material `PlaneGeometry` lying face
+    // up on the blotter — the exact object the player is being asked to fill in.
+    // So the overlay is not a screen standing in for the paper: it IS the paper.
+    //
+    // THE CANVAS IS CUT TO THAT PLANE'S OWN FACE, from its own geometry rather
+    // than from two numbers typed here (BUILDER-BRIEF §8). w55's finding is that
+    // this is most of the work and all of the difference: a canvas cut to the
+    // wrong aspect is a smear, and the whole point of the request is that it
+    // should read as a thing in the room.
+    const sheetGeo = (form.geometry as THREE.PlaneGeometry).parameters;
+    /** px per metre on the sheet, the SAME both ways — BUILDER-BRIEF §7b, which
+     *  is the rule for a canvas as much as for a wall. */
+    const SHEET_PPM = 1000;
+    const SHEET_W = Math.round(sheetGeo.width * SHEET_PPM);    // 0.30 m -> 300
+    const SHEET_H = Math.round(sheetGeo.height * SHEET_PPM);   // 0.40 m -> 400
+    // The width is UNCHANGED from the screen-space sheet this replaces, so every
+    // horizontal measurement in `draw` below is the one that was already tuned.
+    // Only the vertical spacing is re-cut, and it is re-SPACED rather than
+    // scaled — w55's rule, and the reason is that a form's bands are not all
+    // equally elastic: the letterhead and the rules are furniture, and the space
+    // belongs to the things you read and the things you press.
+
+    /**
+     * THE AMOUNT IS A ROW OF TICK BOXES, and that is the mouse's whole
+     * affordance on this sheet.
+     *
+     * It was a single caret row that `W`/`S` walked up and down. That is fine
+     * for a keyboard and it is nothing at all for a pointer — the same gap w41
+     * found on the ATM (no clickable PIN pad) and w55 found on the slots (no
+     * bill acceptor), and both times the answer was the same: the affordance the
+     * mouse needs and the part the object was missing are the same object. A
+     * 1997 loan application asks you to TICK THE AMOUNT YOU WANT. So it does.
+     *
+     * DECLARED ONCE and read by the painter AND by the hit test, so a box cannot
+     * be drawn where a click does not land — w55's `DECK` rule, learned there
+     * because that is exactly what happens when the two carry separate copies.
+     */
+    const BOX = { y: 88, h: 30, gap: 4, x0: 10 };
+    const boxW = (SHEET_W - BOX.x0 * 2 - BOX.gap * (AMOUNTS.length - 1)) / AMOUNTS.length;
+    const boxAt = (i: number) => ({ x: BOX.x0 + i * (boxW + BOX.gap), y: BOX.y, w: boxW, h: BOX.h });
+    /** the second act. You read the form, then you sign it — and signing IS
+     *  handing it over, which is the spirit of the two-spot aim rule the block
+     *  comment above describes, kept on the sheet now that both acts are. */
+    // ⚠ AND IT LIVES ABOVE CANVAS y 300, WHICH IS NOT A TASTE DECISION.
+    //
+    // MEASURED, and written up in `notes/w66-loan-diegetic.md` rather than left
+    // as a screenshot path under /tmp that nobody else can open: the player's
+    // own forearm and wristwatch are drawn across the bottom of the frame while
+    // this is open,
+    // and they cover the foot of the sheet completely. The cause is not the
+    // panel — it is `crosstown.ts:1891`, `hud.watch(rig.pitch < -0.95, …)`.
+    // Checking the time in this world is LOOKING STEEPLY DOWN, and a diegetic
+    // panel on a HORIZONTAL face is looking straight down by construction:
+    // `poseFor` takes the eye along the face's own normal, and this face's
+    // normal points at the ceiling. So the pose that makes the form readable is
+    // the same pose that raises a watch over it.
+    //
+    // Every earlier tenant is a vertical screen and none of them can hit this.
+    // The first draft put SIGN at 306…352 and it was unpressable — the button
+    // was behind a wristwatch. This is w55's cushion finding wearing different
+    // clothes: something in the world cuts the face, and the fix is that every
+    // LIVE band ends before the cut while the decorative footer takes it.
+    //
+    // Which is, as it happens, correct: the part now behind your wrist is the
+    // signature line, and your wrist is where a hand signing a form would be.
+    const SIGN = { x: 22, y: 262, w: SHEET_W - 44, h: 38 };
+    const inRect = (r: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
+      x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+    /** which amount box a canvas point is in, or -1 */
+    const boxHit = (x: number, y: number) =>
+      AMOUNTS.findIndex((_, i) => inRect(boxAt(i), x, y));
+    /** can the sheet be signed at all right now — the same test the painter uses
+     *  to decide whether to draw the box live, so it cannot look pressable and
+     *  do nothing. */
+    const signLive = () => stamp !== 'approved' && !loan && !shut();
+
+    /**
+     * How far the eye sits off the paper, and how wide it looks.
+     *
+     * Both are MEASURED against the built world rather than picked to sound
+     * right — w55 got the slots' standoff wrong by reasoning and right by
+     * shooting, and the reason it is easy to get wrong here is that this face
+     * is HORIZONTAL. `poseFor` clamps the eye to between 1.05 m and 1.75 m
+     * above the floor, and the sheet lies at desk height, so past a certain
+     * standoff the clamp takes over, the eye stops climbing, and backing off
+     * further only tilts the view instead of framing more of the page.
+     *
+     * At 0.55 m the eye lands 1.30 m over a 0.754 m desk — inside the clamp,
+     * so the number is still doing what it says — and the 0.40 m sheet fills
+     * about seven eighths of a 45° frame. That is a person leaning over a form,
+     * which is the pose the request describes.
+     */
+    const LOAN_STANDOFF = 0.60;
+    const LOAN_FOV = 45;
+
+    /**
+     * The ONE place the amount changes, so the wheel, the keys and the mouse
+     * cannot drift. Guards `approved` in one place too — a signed form is not
+     * a form you go on editing.
+     */
+    const setAmount = (i: number): void => {
+      if (stamp === 'approved') return;
+      amountIdx = Math.max(0, Math.min(AMOUNTS.length - 1, i));
+      stamp = 'none';
+      panel.repaint();
+    };
+
     // FRAMELESS. `draw` below already paints a complete fascia — the
     // letterhead, the FIRST FEDERAL / SAVINGS & LOAN masthead, the whole
     // sheet of paper — filling the canvas edge to edge. `chrome: 'cloth'`
@@ -1457,50 +1596,90 @@ export function buildBankInterior(ctx: CtxBuild): void {
     // frameless has no title band to put it in, and the masthead the form
     // draws for itself already says what this is.
     const panel = makePanel({
-      id: 'ct-loan', w: 300, h: 214, chrome: 'none',
+      id: 'ct-loan', w: SHEET_W, h: SHEET_H, chrome: 'none',
+      // ── THE ONE FIELD THAT MAKES IT DIEGETIC ──────────────────────────────
+      //
+      // `mesh` is resolved per open and a null degrades to the screen-space
+      // sheet rather than failing, which is what keeps the node harnesses (no
+      // focus controller, no renderer) working. `formMesh` is `form` after
+      // `put()`, i.e. the same object with the room's transform applied — the
+      // pose comes off ITS world normal, so nothing about the camera is typed
+      // here and the desk can move without this following it by hand.
+      surface: {
+        mesh: () => formMesh,
+        // MEASURED, NOT CHOSEN. `crosstown.ts:poseFor` puts the eye a standoff
+        // along the face's own normal, and this face's normal points STRAIGHT
+        // UP — it is a sheet of paper lying on a desk, which is a case that
+        // file already anticipates (`flat.lengthSq() < 1e-6` → "a screen facing
+        // straight up"). So the standoff is a reading distance, not a standing
+        // distance: how far your eyes are from a form you are leaning over.
+        standoff: LOAN_STANDOFF,
+        fov: LOAN_FOV,
+        hot: (x, y) => boxHit(x, y) >= 0 || (signLive() && inRect(SIGN, x, y)),
+        // ONE DISPATCH. A click goes through the same two functions the keys
+        // do, so a pointer and a keyboard cannot drift apart — w41's rule, and
+        // the reason it is a rule is that the drift is invisible until someone
+        // uses the other input.
+        click: (x, y) => {
+          const i = boxHit(x, y);
+          if (i >= 0) { setAmount(i); return; }
+          if (signLive() && inRect(SIGN, x, y)) { submit(); panel.repaint(); }
+        },
+      },
       hint: () => (stamp === 'approved'
         ? 'ESC  step back'
-        : 'W / S  amount   ·   ENTER  submit   ·   ESC  step back'),
+        : 'click an amount, then SIGN   ·   W / S · ENTER   ·   ESC  step back'),
       draw: (g, w, h) => {
         const a = AMOUNTS[amountIdx], rate = RATE[a];
         const owed = owedOn(a), need = cents(a * DOWN), have = ctx.purse.cash;
         const INK = '#2e2a24', DIM = '#6a6458', RED = '#8a2c22';
         g.fillStyle = '#eae5d2'; g.fillRect(0, 0, w, h);
         g.fillStyle = 'rgba(0,0,0,0.06)'; g.fillRect(0, h - 3, w, 3);
-        // the letterhead
-        g.fillStyle = '#1f3a5a'; g.fillRect(0, 0, w, 22);
+        // the letterhead — half again as deep as it was, because on the paper it
+        // is the thing that says which bank you are sitting in
+        g.fillStyle = '#1f3a5a'; g.fillRect(0, 0, w, 34);
         g.textBaseline = 'middle'; g.textAlign = 'left';
         g.font = UI.font(11, true); g.fillStyle = '#e8ecf0';
-        g.fillText('FIRST FEDERAL', 8, 11);
+        g.fillText('FIRST FEDERAL', 8, 17);
         g.font = UI.font(8); g.fillStyle = '#9fb4c8'; g.textAlign = 'right';
-        g.fillText('SAVINGS & LOAN', w - 8, 11);
+        g.fillText('SAVINGS & LOAN', w - 8, 17);
         g.textAlign = 'left'; g.fillStyle = DIM;
-        g.fillText('APPLICATION FOR AN UNSECURED PERSONAL LOAN', 8, 33);
-        g.fillStyle = RED; g.fillRect(8, 41, w - 16, 1);
+        g.fillText('APPLICATION FOR AN UNSECURED PERSONAL LOAN', 8, 50);
+        g.fillStyle = RED; g.fillRect(8, 60, w - 16, 1);
 
-        // The rows. The AMOUNT is the only one you can touch and it says so with a
-        // caret and a tint, not with a colour change nobody reads as interactive.
-        const rows: [string, string, boolean][] = [
-          ['AMOUNT', money(a), true],
-          ['TERM', `${TERM_MONTHS} MONTHS`, false],
-          ['RATE', `${rate.toFixed(2)} % APR`, false],
-          ['MONTHLY', money(cents(owed / TERM_MONTHS)), false],
-          ['TOTAL DUE', money(owed), false],
+        // ── ACT ONE: TICK THE AMOUNT ────────────────────────────────────────
+        g.font = UI.font(8); g.fillStyle = DIM;
+        g.fillText('AMOUNT REQUESTED — TICK ONE', 10, 76);
+        AMOUNTS.forEach((amt, i) => {
+          const r = boxAt(i), on = i === amountIdx;
+          g.fillStyle = on ? '#1f3a5a' : 'rgba(255,255,255,0.55)';
+          g.fillRect(r.x, r.y, r.w, r.h);
+          g.strokeStyle = on ? '#1f3a5a' : 'rgba(106,100,88,0.65)';
+          g.lineWidth = 1;
+          g.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+          g.textAlign = 'center';
+          g.font = UI.font(9, on); g.fillStyle = on ? '#f2efe4' : '#4a4640';
+          g.fillText(`$${amt}`, r.x + r.w / 2, r.y + r.h / 2);
+          g.textAlign = 'left';
+        });
+
+        // The terms the tick decides. None of these is touchable and none of
+        // them pretends to be — they are what the bank says back to you.
+        const rows: [string, string][] = [
+          ['TERM', `${TERM_MONTHS} MONTHS`],
+          ['RATE', `${rate.toFixed(2)} % APR`],
+          ['MONTHLY', money(cents(owed / TERM_MONTHS))],
+          ['TOTAL DUE', money(owed)],
         ];
-        rows.forEach(([k, v, live], i) => {
-          const y = 54 + i * 17;
-          if (live) {
-            g.fillStyle = 'rgba(31,58,90,0.10)'; g.fillRect(6, y - 8, w - 12, 16);
-            g.font = UI.font(9, true); g.fillStyle = '#1f3a5a';
-            g.fillText('>', 8, y);
-          }
-          g.font = UI.font(9, live); g.fillStyle = live ? '#1f3a5a' : DIM;
-          g.fillText(k, live ? 18 : 12, y);
+        rows.forEach(([k, v], i) => {
+          const y = 146 + i * 22;
+          g.font = UI.font(9); g.fillStyle = DIM;
+          g.fillText(k, 12, y);
           // the dotted leader, which is what makes a column of pairs read as a form
           g.fillStyle = 'rgba(106,100,88,0.45)';
           for (let dx = 100; dx < w - 76; dx += 4) g.fillRect(dx, y, 1, 1);
           g.textAlign = 'right'; g.font = UI.font(10, true);
-          g.fillStyle = live ? INK : '#4a4640';
+          g.fillStyle = '#4a4640';
           g.fillText(v, w - 10, y);
           g.textAlign = 'left';
         });
@@ -1508,71 +1687,86 @@ export function buildBankInterior(ctx: CtxBuild): void {
         // What they want off you against what you have. THE COMPARISON IS THE
         // DECISION, so it is on the sheet before you submit rather than only in
         // the refusal afterwards — you can see why the answer will be no.
-        g.fillStyle = 'rgba(106,100,88,0.5)'; g.fillRect(8, 146, w - 16, 1);
+        g.fillStyle = 'rgba(106,100,88,0.5)'; g.fillRect(8, 226, w - 16, 1);
         g.font = UI.font(8); g.fillStyle = DIM;
-        g.fillText(`SECURITY REQUIRED (${Math.round(DOWN * 100)} %)`, 10, 158);
+        g.fillText(`SECURITY REQUIRED (${Math.round(DOWN * 100)} %)`, 10, 238);
         g.textAlign = 'right'; g.font = UI.font(9, true); g.fillStyle = INK;
-        g.fillText(money(need), w - 10, 158);
+        g.fillText(money(need), w - 10, 238);
         g.textAlign = 'left'; g.font = UI.font(8); g.fillStyle = DIM;
-        g.fillText('CASH ON HAND', 10, 172);
+        g.fillText('CASH ON HAND', 10, 254);
         g.textAlign = 'right'; g.font = UI.font(9, true);
         g.fillStyle = have >= need ? '#2f6a3a' : RED;
-        g.fillText(money(have), w - 10, 172);
+        g.fillText(money(have), w - 10, 254);
         g.textAlign = 'left';
+
+        // ── ACT TWO: SIGN IT, WHICH IS HANDING IT OVER ──────────────────────
+        //
+        // The block comment above calls the two-spot aim rule "a genuinely
+        // elegant piece of design" and asks that its SPIRIT survive the move
+        // onto one sheet: reading and handing over should still feel like two
+        // acts. They do — you tick, and then you sign — and the sign box is
+        // deliberately at the foot of the paper, where you have to travel to it.
+        if (signLive()) {
+          g.fillStyle = 'rgba(31,58,90,0.08)';
+          g.fillRect(SIGN.x, SIGN.y, SIGN.w, SIGN.h);
+          g.strokeStyle = '#1f3a5a'; g.lineWidth = 2;
+          g.strokeRect(SIGN.x + 1, SIGN.y + 1, SIGN.w - 2, SIGN.h - 2);
+          g.textAlign = 'center'; g.font = UI.font(13, true); g.fillStyle = '#1f3a5a';
+          g.fillText('SIGN & HAND IT OVER', SIGN.x + SIGN.w / 2, SIGN.y + SIGN.h / 2);
+          g.textAlign = 'left';
+        }
 
         // the signature line with a scrawl on it: a form nobody has signed reads
         // as a form nobody has filled in
-        g.fillStyle = 'rgba(60,52,42,0.55)'; g.fillRect(10, 196, 108, 1);
+        g.fillStyle = 'rgba(60,52,42,0.55)'; g.fillRect(10, 344, 108, 1);
         g.fillStyle = 'rgba(40,36,30,0.75)';
         for (let i = 0; i < 26; i++) {
-          g.fillRect(14 + i * 3.4, 190 + Math.round(Math.sin(i * 0.9) * 3), 3, 1);
+          g.fillRect(14 + i * 3.4, 338 + Math.round(Math.sin(i * 0.9) * 3), 3, 1);
         }
         g.font = UI.font(7); g.fillStyle = DIM;
-        g.fillText('APPLICANT', 10, 206);
-        g.textAlign = 'right'; g.fillText('OFFICER USE ONLY', w - 10, 206);
+        g.fillText('APPLICANT', 10, 360);
+        g.textAlign = 'right'; g.fillText('OFFICER USE ONLY', w - 10, 360);
         g.textAlign = 'left';
 
         // THE STAMP: the answer and the reason, rotated across the middle
         if (stamp !== 'none') {
           const ok = stamp === 'approved';
           const col = ok ? '47,106,58' : '138,44,34';
-          // LEFT OF THE FIGURE COLUMN, not across the middle. Centred, it lay over
-          // "13.50 % APR" — and the rate is the number the whole sheet is about,
-          // so a stamp that hides it is a stamp that hides the point. At 0.40 w
-          // with a 90-wide half it ends at x 210 and the figures start at 240, so
-          // every one of them stays readable under the answer.
+          // ACROSS THE TERMS, not across the figures. On the taller sheet the
+          // clear band is the one between TOTAL DUE and the security block, and
+          // the stamp sits centred there — the rate and the total are the two
+          // numbers the whole sheet is about and a stamp that hides them is a
+          // stamp that hides the point.
           g.save();
-          g.translate(w * 0.40, 126); g.rotate(-0.11);
+          g.translate(w * 0.50, 180); g.rotate(-0.11);
           g.strokeStyle = `rgba(${col},0.85)`; g.lineWidth = 3;
-          g.strokeRect(-90, -21, 180, 42);
+          g.strokeRect(-104, -24, 208, 48);
           g.textAlign = 'center';
           g.font = UI.font(20, true); g.fillStyle = `rgba(${col},0.9)`;
-          g.fillText(ok ? 'APPROVED' : 'DECLINED', 0, -3);
+          g.fillText(ok ? 'APPROVED' : 'DECLINED', 0, -4);
           g.font = UI.font(8, true); g.fillStyle = `rgba(${col},0.95)`;
-          g.fillText(ok ? 'COLLECT AT WINDOW 2' : `SHORT BY ${money(cents(need - have))}`, 0, 13);
+          g.fillText(ok ? 'COLLECT AT WINDOW 2' : `SHORT BY ${money(cents(need - have))}`, 0, 14);
           g.restore();
           g.textAlign = 'left';
         }
       },
+      // THE KEYBOARD IS UNTOUCHED BY GOING DIEGETIC, which is w41's promise to
+      // its tenants and it held: `W`/`S`/`ENTER` do here exactly what they did
+      // when this was a rectangle over the camera. What is new is that they now
+      // go through `setAmount`, the same function the tick boxes call.
       key: (k) => {
         if (stamp === 'approved') return;                  // signed, and done
         if (k === 'w' || k === 'arrowup' || k === 'd' || k === 'arrowright') {
-          amountIdx = Math.min(AMOUNTS.length - 1, amountIdx + 1); stamp = 'none';
+          setAmount(amountIdx + 1);
         } else if (k === 's' || k === 'arrowdown' || k === 'a' || k === 'arrowleft') {
-          amountIdx = Math.max(0, amountIdx - 1); stamp = 'none';
+          setAmount(amountIdx - 1);
         } else if (k === 'enter' || k === ' ') {
-          submit();
-        } else return;
-        panel.repaint();
+          submit(); panel.repaint();
+        }
       },
       // …and the wheel, because the pockets established that the wheel is how you
       // move a selection inside one of these cabinets
-      wheel: (dir) => {
-        if (stamp === 'approved') return;
-        amountIdx = Math.max(0, Math.min(AMOUNTS.length - 1, amountIdx - dir));
-        stamp = 'none';
-        panel.repaint();
-      },
+      wheel: (dir) => setAmount(amountIdx - dir),
     });
 
     /**
