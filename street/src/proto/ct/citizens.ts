@@ -43,6 +43,21 @@ export interface Look {
    *  and ten rooms each applying their own offset is exactly how the 12 cm
    *  float happened. */
   seated?: boolean;
+  /** ONE HAND UP, holding something overhead — an umbrella, today.
+   *
+   *  The user, on the umbrella: *"umbrella looks so janky."* Item 271 fixed the
+   *  canopy and named what it could not reach from `ct/crowd.ts`: **both arms
+   *  still hang at the sides, so nobody appears to be holding the thing.**
+   *
+   *  OPTIONAL AND DEFAULTS TO FALSE, which matters more than the pose does.
+   *  Every caller of this atlas inherits every field on `Look`, and there are
+   *  ten interiors plus the crowd plus the hermit — so an arm that went up by
+   *  default would change the whole world to fix one prop. Omit it and this
+   *  function paints exactly what it painted before, texel for texel.
+   *
+   *  It is a POSE, not a prop: nothing about an umbrella is drawn here, and a
+   *  figure carrying a box or reaching for a shelf would use the same field. */
+  holdUp?: boolean;
 }
 
 /** multiply a hex colour — used so the eyes and the hair shadow stay in the
@@ -74,6 +89,42 @@ export function citizenAtlas(o: Look): THREE.Texture {
    *  Hip row 44 gives (59-44)/64 * 1.9 = 0.445 m, inside half a texel of the
    *  commonest seat. Measured against the world, not reasoned from the sheet. */
   const SEAT_DROP = 6;
+  const holdUp = o.holdUp ?? false;
+  /**
+   * WHERE A RAISED FIST LANDS, in frame rows — DERIVED, then looked at.
+   *
+   * `ct/crowd.ts` hangs the umbrella's hem `UMB_CLEAR = 0.30 m` above this
+   * figure's crown, and paints the grip `UMB_GRIP 30 − UMB_HEM 17 = 13` sheet
+   * rows below that hem at `UMB_M/UMB_PX = 1.14/38 = 0.03 m` a row. So the
+   * grip sits `0.39 − 0.30 = 0.09 m` **below the crown**. This plane is 1.9 m
+   * over `FH` rows — 0.0297 m a row — so 0.09 m is **3 rows**, and the shaft is
+   * in front of rows −2 … 11 with the crown at row 8.
+   *
+   * **A hand on that shaft therefore has to be at head height**, and anywhere
+   * in rows −2…11 is on it. That is not a compromise made to fit the sprite; it
+   * is what holding a canopy 30 cm over your own head looks like.
+   *
+   * ⚠ **ROW 7 WAS WRONG AND THE SHEET SAID SO.** It is on the shaft and it is
+   * level with the temple, so the fist landed in the hair — dark on dark, gone
+   * — and the forearm crossed the cheek. `shots/w107-sheet-salute.png`: it read
+   * as a SALUTE, which is the wrong gesture drawn correctly. Row 3 is still on
+   * the shaft and it is **above the crown** (the skull starts at row 8, the
+   * hair and any cap at row 4), so the fist closes against the sky where it is
+   * legible, and the forearm crosses the top of the head instead of the face.
+   * Found by printing the sheet, not by reasoning — this is the row the item
+   * says to judge by looking.
+   *
+   * ⚠ **CITED, NOT IMPORTED, and it cannot be otherwise.** `ct/crowd.ts:3`
+   * imports THIS file, so importing `UMB_GRIP` back closes a cycle — and
+   * GOTCHAS §28 is that a module in a cycle can be dropped from the **built
+   * bundle only**, which would take the whole crowd out of the artifact while
+   * dev looked perfect. `scripts/probes/w107-hand-on-shaft.mjs` measures the
+   * fist against the shaft in the running world instead, so the two cannot
+   * drift apart in silence.
+   */
+  const HOLD_ROW = 3;
+  /** the crown — below it the raised arm stays OUTSIDE the head's silhouette */
+  const HOLD_CLEAR = 8;
   const build = o.build ?? 0;
   const strideMax = o.stride ?? 3;
   const tw = 7 + build;            // torso half-width: 6, 7 or 8
@@ -224,14 +275,67 @@ export function citizenAtlas(o: Look): THREE.Texture {
         // ── arms ──────────────────────────────────────────────────────
         g.fillStyle = jacket;
         const armBot = fit === 'coat' ? 40 : 36;
-        if (view === 2) {
-          g.fillRect(cx - 2, oy + 21, 4, armBot - 21);
-          g.fillStyle = skin; g.fillRect(cx - 2, oy + armBot, 4, 3);
-        } else {
-          g.fillRect(cx - tw - 3, oy + 21, 3, armBot - 21);
-          g.fillRect(cx + tw, oy + 21, 3, armBot - 21);
+        const SHOULDER = oy + 21;
+        /** An arm that leaves the shoulder at `sx` and closes its fist on the
+         *  shaft, above the head, at `HOLD_ROW`.
+         *
+         *  TWO SEGMENTS, NOT ONE EASED SWEEP, and the sheet is why. A single
+         *  interpolation from shoulder to centre — squared, cubed, any of them
+         *  — has the forearm crossing the FACE, because the hand is inboard of
+         *  the shoulder and the head is in between. Printed at 6x it read as a
+         *  salute (`shots/w107-sheet-salute.png`).
+         *
+         *  So the upper arm goes straight up OUTSIDE the head's silhouette to
+         *  the crown, and only the forearm turns in, above everything. That is
+         *  also what the limb actually does: elbow out, forearm over the head,
+         *  hand on the shaft.
+         *
+         *  Drawn a row at a time so the staircase is hard pixels rather than an
+         *  arc `NearestFilter` would only fight — the same reasoning the
+         *  umbrella's own dome is drawn with. */
+        const reachUp = (sx: number, w: number) => {
+          const endX = cx - Math.floor(w / 2);
+          g.fillStyle = jacket;
+          for (let row = 21; row >= HOLD_ROW; row--) {
+            const t = row > HOLD_CLEAR ? 0
+              : (HOLD_CLEAR - row) / (HOLD_CLEAR - HOLD_ROW);
+            g.fillRect(Math.round(sx + (endX - sx) * t), oy + row, w, 1);
+          }
+          // the fist, closed round the shaft — the same skin block the hanging
+          // hand uses, so a hand is a hand whichever way the arm goes
           g.fillStyle = skin;
-          g.fillRect(cx - tw - 3, oy + armBot, 3, 3); g.fillRect(cx + tw, oy + armBot, 3, 3);
+          g.fillRect(endX, oy + HOLD_ROW - 1, w, 3);
+        };
+        // ⚠ THE RAISED ARM IS DRAWN LAST, NOT HERE. Arms come before the head
+        // in this function, and a hand that finishes at row 7 with a forearm
+        // crossing rows 8-20 would be painted over by the skull, the hair, the
+        // cap brim and the hood in turn — the limb would vanish behind the head
+        // and the fist would lose its bottom row. So the raise is deferred to
+        // the foot of the frame, after everything on the head is down.
+        let raise: (() => void) | null = null;
+        if (view === 2) {
+          if (holdUp) raise = () => reachUp(cx - 2, 4);
+          else {
+            g.fillRect(cx - 2, oy + 21, 4, armBot - 21);
+            g.fillStyle = skin; g.fillRect(cx - 2, oy + armBot, 4, 3);
+          }
+        } else {
+          // ONE ARM GOES UP AND THE OTHER KEEPS HANGING. Both up is surrender,
+          // and it is also wrong: a person under an umbrella has a spare hand.
+          // The +x arm is the raised one — the lit side, and the side the
+          // canopy's own highlight is on (`ct/crowd.ts`'s flanks put the light
+          // on the right), so the two agree about where the sun is. `viewFor`
+          // mirrors this column for the far profile, which turns it into the
+          // −x arm there — the same physical arm seen from the other side,
+          // which is what a mirror is for.
+          g.fillRect(cx - tw - 3, oy + 21, 3, armBot - 21);
+          g.fillStyle = skin; g.fillRect(cx - tw - 3, oy + armBot, 3, 3);
+          if (holdUp) raise = () => reachUp(cx + tw, 3);
+          else {
+            g.fillStyle = jacket;
+            g.fillRect(cx + tw, oy + 21, 3, armBot - 21);
+            g.fillStyle = skin; g.fillRect(cx + tw, oy + armBot, 3, 3);
+          }
         }
         // ── head ──────────────────────────────────────────────────────
         g.fillStyle = skin;
@@ -404,6 +508,9 @@ export function citizenAtlas(o: Look): THREE.Texture {
         else if (view === 1) { g.fillRect(cx - 4, oy + 13, 2, 2); g.fillRect(cx + 1, oy + 13, 2, 2); }
         else if (view === 2) { g.fillRect(cx - 4, oy + 13, 2, 2); g.fillStyle = skin; g.fillRect(cx - 7, oy + 14, 2, 3); }
         if (view <= 1) { g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(cx - 2, oy + 17, 5, 1); }
+        // …and NOW the raised arm, in front of the head and everything on it.
+        // See the note beside `raise` in the arms block for why it waits.
+        raise?.();
         if (seated) g.translate(0, -SEAT_DROP);   // put the frame back
       }
     }
