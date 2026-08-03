@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface, slabTex, BOX_FACE_DIMS } from './paint';
-import { buildRoom } from './interior';
+import { buildRoom, PARTY } from './interior';   // item 267: the rail breaks where the doorway is
 import { type DoorDecl } from './doors';
 // the hard-texel text painter from the casino's facade — one signage hand for
 // both sides of this pair, and it is why the corridor sign is not soft
@@ -1206,8 +1206,41 @@ export function buildHotel(ctx: CtxBuild): void {
 
   // ── a picture rail, chipped ──
   put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.07, 0.04), mahogM), 0, 2.35, -hd + 0.02);
-  put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, room.D), mahogM), -hw + 0.02, 2.35, 0);
-  put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, room.D), mahogM), hw - 0.02, 2.35, 0);
+
+  // ── AND IT STOPS AT THE PARTY DOORWAY. ITEM 267, THE OTHER FLANK. ─────────
+  //
+  // The user reported the CASINO's brass rail cutting across the entrance; the
+  // row asked whether the same band runs on this side, *"and the user is
+  // looking from the casino"*. It does, and it is this one: the picture rail
+  // sits at y = 2.35 and the opening is `h: 2.6`, so it crossed the head of the
+  // doorway. `shots/w105-rail-hotel-head-on-before.png` is that line running
+  // straight through the top of the opening.
+  //
+  // Same construction as `ct/int-casino.ts`'s brass rail and for the same
+  // reasons: the gap comes from `PARTY`, which is what `ct/interior.ts` cuts
+  // the hole from, and the SIDE comes from `PARTY` too because item 268 is open
+  // against this doorway's handedness and may re-hand this wall. `./interior`
+  // is already a runtime import here (line 4, `buildRoom`), so `PARTY` adds no
+  // edge — unlike `ct/doors.ts`, which would have been a cycle and which
+  // GOTCHAS 28 would drop from the built bundle only.
+  const pw = PARTY.find((q) => q.east === 'hotel' || q.west === 'hotel');
+  // this room is WEST of the wall  ->  the wall is on its high-x flank
+  const partySign = pw ? (pw.west === 'hotel' ? 1 : -1) : 0;
+  for (const sign of [-1, 1] as const) {
+    const wallZ = sign * (hw - 0.02);
+    if (!pw || sign !== partySign) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, room.D), mahogM), wallZ, 2.35, 0);
+      continue;
+    }
+    const lo = -room.D / 2, hi = room.D / 2;
+    const gapLo = pw.at - pw.w / 2, gapHi = pw.at + pw.w / 2;
+    for (const [a, c] of [[lo, gapLo], [gapHi, hi]] as [number, number][]) {
+      const len = c - a;
+      if (len <= 0.01) continue;
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, len), mahogM),
+        wallZ, 2.35, (a + c) / 2);
+    }
+  }
 
   // ── the ceiling: a surface, where there was a hole ────────────────────
   //

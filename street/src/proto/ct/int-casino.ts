@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
-import { buildRoom, seatTaken, claimSeat } from './interior';
+import { buildRoom, seatTaken, claimSeat, PARTY } from './interior';   // item 267: the rail breaks where the doorway is
 import { type DoorDecl } from './doors';
 import { citizenSprite } from './citizens';
 import { ORDER as HOOK } from './ctx';
@@ -491,8 +491,61 @@ export function buildCasino(ctx: CtxBuild): void {
   // angles. So it is a solid brass line and nothing else.
   const brassM = new THREE.MeshBasicMaterial({ color: GOLD });
   put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.09, 0.04), brassM), 0, 1.0, -hd + 0.02);
-  put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, room.D), brassM), -hw + 0.02, 1.0, 0);
-  put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, room.D), brassM), hw - 0.02, 1.0, 0);
+
+  // ── AND IT STOPS AT THE PARTY DOORWAY. ITEM 267. ──────────────────────────
+  //
+  // The user: *"theres this here that cuts across the entry way."* This wall's
+  // rail was one box `room.D` long, drawn before item 196 cut an opening
+  // through the flank — **a band drawn before an opening existed will not know
+  // to stop**. At y = 1.0 against a 2.6 m opening it passed straight across the
+  // entrance at waist height, which is exactly what he photographed.
+  //
+  // ⚠ THE GAP IS DERIVED FROM `PARTY`, NOT TYPED. `ct/interior.ts` cuts the
+  // hole from that same declaration (`at: -9.0, w: 2.6`), so the rail's break
+  // and the doorway cannot drift apart — BUILDER-BRIEF §8, and the reason
+  // `bedcavity.mjs` spent a week measuring a truck that no longer existed. If
+  // item 268 re-hands this wall, or the opening moves, the break follows for
+  // free and nobody has to remember this line exists.
+  //
+  // ⚠ NO NEW IMPORT EDGE, WHICH IS THE THING TO CHECK BEFORE COPYING THIS.
+  // `ct/doors.ts` would have been a cycle — it eagerly globs `int-*.ts` and
+  // every one of those imports only `type DoorDecl` precisely so no runtime
+  // edge exists, and GOTCHAS 28 drops such a module from the BUILT BUNDLE ONLY.
+  // `./interior` is different: line 4 of this file already imports `buildRoom`
+  // from it at runtime, so `PARTY` rides an edge that has always been here.
+  //
+  // The rail dies into the JAMB rather than stopping in mid-air: the opening
+  // already carries a gold architrave, and brass meeting brass at the reveal
+  // reads as a rail returning into the frame, which is what a real one does.
+  // ⚠ WHICH FLANK IS THE PARTY WALL IS DERIVED TOO, not assumed to be −x.
+  // Item 268 is open against this very doorway — *"the hotel is right of the
+  // casino outside and left of it inside"* — and its fix may re-hand the wall.
+  // `PARTY` says which room sits on which side, so reading the side from the
+  // declaration means a handedness change moves the break with the opening
+  // instead of leaving a broken rail on the wrong wall and an unbroken one on
+  // the right. The row warned about exactly this collision.
+  const pw = PARTY.find((q) => q.east === 'casino' || q.west === 'casino');
+  // this room is EAST of the wall  ->  the wall is on its low-x flank
+  const partySign = pw ? (pw.east === 'casino' ? -1 : 1) : 0;
+  for (const sign of [-1, 1] as const) {
+    const wallZ = sign * (hw - 0.02);
+    if (!pw || sign !== partySign) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, room.D), brassM), wallZ, 1.0, 0);
+      continue;
+    }
+    // The wall runs the room's whole depth; the opening takes `w` out of it at
+    // `at`. Two remainders, each placed at its own midpoint — written as SPANS
+    // and converted to centre+length once, so there is no second chance to get
+    // a half-length wrong.
+    const lo = -room.D / 2, hi = room.D / 2;
+    const gapLo = pw.at - pw.w / 2, gapHi = pw.at + pw.w / 2;
+    for (const [a, c] of [[lo, gapLo], [gapHi, hi]] as [number, number][]) {
+      const len = c - a;
+      if (len <= 0.01) continue;          // the opening reaches the corner
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, len), brassM),
+        wallZ, 1.0, (a + c) / 2);
+    }
+  }
 
   // ── the slot banks ──
   //
