@@ -3097,3 +3097,15 @@ to one side.
   (item 269, 1.15 m lane) is **DEFERRED at his instruction, not fixed.**
   The calendar is **routed as queue item 270** — SIXTH tenant of the diegetic
   framework.
+
+- **"[screenshot] umbrella looks so janky"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-21-57.png`) → **routed as queue item 271.**
+  The canopy sits directly on the head with no shaft visible and both arms down.
+  Note `ct/crowd.ts:297` already records a first cut at 0.95 m reading "as a HAT
+  rather than a brolly" — it was widened to 1.14 m and still reads as a hat.
+
+- **"[screenshot] people sitting still looks bad because they have no legs??"**
+  (2026-08-03, the diner booths) → **routed as queue item 272.** Torso and head
+  above the seat, nothing below the waist. `ct/citizens.ts:102-103` DOES draw
+  seated legs ("hip 47, knee forward, shin down to the same 59"), so the cause is
+  open: the flag, occlusion by the booth back, or seat height.
