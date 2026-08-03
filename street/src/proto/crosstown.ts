@@ -1488,6 +1488,73 @@ export function makeCrosstown(): Proto {
           clearIn: Math.max(0, 1.2 - Math.hypot(rig.pos.x - landing.x, rig.pos.z - landing.z)) }
       : null),
     hermit: (v: boolean | null) => apt.forceHermit(v),
+    /** THE WALLET, READ-ONLY — cash, pockets, bank balance, card.
+     *
+     *  WHY THIS EXISTS AT ALL (item 261). Until now `__ct` published nothing
+     *  about money, so a check that wanted to assert the player got PAID had to
+     *  reconstruct the number from PROMPT TEXT — `ct/int-bodega.ts:762` words
+     *  its own label off the wallet ("buy cereal — $2.50" above $2.50, "you’re
+     *  short" below it), and `scripts/probes/w103-fence-loop.mjs` drained the
+     *  purse against that threshold and then did arithmetic on a hand-typed
+     *  START_CASH to guess where it stood. That is fragile for the obvious
+     *  reason — two literals copied out of two other files, BUILDER-BRIEF §8 —
+     *  and for a non-obvious one this project has already been bitten by: the
+     *  prompt is a DOM element whose text has outlived its own hiding before
+     *  (GOTCHAS: a check 40 m from the jail still read `[E] into the HOUSE OF
+     *  DETENTION`). A money assertion built on that is one regression away from
+     *  measuring a ghost.
+     *
+     *  ⚠ AND THE PURSE WAS ALREADY PUBLISHED THREE TIMES OVER, once per feature
+     *  that needed it and could not edit this file: `__inv.cash()`
+     *  (ct/inventory.ts:772), `__atm.cash()` (ct/atm.ts) and `__slots.cash()`
+     *  (ct/slots.ts:2421), each with a comment explaining that it is here
+     *  because crosstown.ts belongs to somebody else. Three windows onto one
+     *  object, and every one of them only exists once its own module has run —
+     *  `__inv` is undefined until the pockets are built, so a check that opens
+     *  with a money read is racing a module load. This is the one that does not
+     *  depend on which feature happens to be alive. The three are left in place
+     *  deliberately: they are each other's cross-check, and `__slots.cash()`'s
+     *  own comment is right that "my machine moves THAT money" is best asserted
+     *  through the machine.
+     *
+     *  NUMBERS, NOT THE OBJECT, and `inv` is a fresh copy — same rule as
+     *  `citAvoid()` and `party()` above. `ctx.purse` is the single wallet the
+     *  ATM, the bodega, the bank's loan desk, the slots and the pawn fence all
+     *  spend from, so handing a probe the live object would let it fund its own
+     *  assertions. `account` and `card` are optional on `Purse` (ct/hud.ts:15 —
+     *  `ct/atm.ts` seeds the balance on first use), and they are normalised
+     *  here rather than passed through as `undefined`: `undefined` does not
+     *  survive `page.evaluate`'s serialisation, so a probe reading
+     *  `'account' in purse()` would get a different answer than the world has.
+     *  `null` means "the ATM has never been opened"; `card` defaults to true,
+     *  which is what every reader of the optional field already assumes. */
+    purse: () => ({
+      cash: purse.cash,
+      inv: { ...purse.inv },
+      account: purse.account ?? null,
+      card: purse.card !== false,
+    }),
+    /** debug hook: every landing gets a package (true) / none (false) / roll
+     *  back on the nightly odds (null).
+     *
+     *  `ct/apartment.ts:152` has published this on its own interface since the
+     *  packages landed, and nothing outside the module could reach it: the one
+     *  check that drives it, `scripts/packages.mjs:32`, goes in through
+     *  `scene().userData.packages.force()` — a side door through renderer state
+     *  that works only because the apartment happens to hang a handle there.
+     *
+     *  It matters more since the fence landed (item 180). The theft-and-fence
+     *  loop needs a parcel on a landing, and **a game day is 24 REAL MINUTES**,
+     *  so a probe that waits on the spawn roll either burns hours or proves
+     *  nothing. `w103-fence-loop.mjs` worked around it by calling
+     *  `advanceClock(1440)` up to 40 times looking for a parcel — 40 simulated
+     *  days to test one sale. With this it asks for one and gets one.
+     *
+     *  Named `forcePackages` rather than shortened to `packages` the way
+     *  `hermit` shortens `forceHermit`: `apt.packages()` is a REPORT of what is
+     *  out there, a different question with the same short name, and one of the
+     *  two would have had to be renamed to something worse. */
+    forcePackages: (v: boolean | null) => apt.forcePackages(v),
     atlases: () => crowd.atlases(),
     // test affordance: who is on the block, how big and how fast
     people: () => crowd.people(),
