@@ -1818,6 +1818,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     declareRoom({
       id: 'apt301',
       w: R301_W - WALL_T, d: R301_D - WALL_T,
+      // the same constant the flat's own walls, skins and ceiling are drawn
+      // from a few lines above — not a second copy of 2.55 (BUILDER-BRIEF §8).
+      h: R301_H,
       cx: AX(R301_CX), cz: AZI(R301_CZ),
       // FLOOR 3, the same `2 * ST` the flat's own floor and ceiling are drawn
       // at. It is the only room in the registry that is not at y 0, and a
