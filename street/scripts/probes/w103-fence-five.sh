@@ -11,7 +11,7 @@ while [ "$i" -le 5 ]; do
   st=$?
   score=$(grep -oE '[0-9]+/[0-9]+ passed' "/tmp/w103-run$i.txt")
   goods=$(grep -oE 'sell the [^—]*— \$[0-9.]+' "/tmp/w103-run$i.txt" | head -1)
-  sign=$(grep -oE 'sign exercised: .*' "/tmp/w103-run$i.txt")
+  sign=$(grep -oE 'reached a CROSSING.*|[0-9]+ sale\(s\): .*' "/tmp/w103-run$i.txt" | tail -1)
   echo "run $i  exit=$st  $score  |  $goods  |  $sign"
   i=$((i + 1))
 done

@@ -329,10 +329,33 @@ export function buildPawn(ctx: CtxBuild): void {
     // never told "no" by nothing happening. With nothing he wants, the line
     // says so and says why in his voice rather than going blank — a blank spot
     // and a broken spot look identical.
+    // BOTH WORDINGS NAME THE COUNTER, and that is not decoration — it is what
+    // makes this room PUBLISH A CUSTOMER STATION.
+    //
+    // `interiors-walk.mjs:1431` looks for a spot near the room whose label
+    // matches `/buy|order|serve|till|counter/i` and, finding none, falls back
+    // to the keeper pair authored in this same file — which it then refuses to
+    // trust, correctly: *"a station I authored, checked against a keeper I
+    // authored, in a room I authored, agrees with itself whatever the player
+    // sees. That is not a test, it is a mirror."* pawn is one of the four rooms
+    // item 251 recorded as failing that way.
+    //
+    // ⚠ THE REFUSAL LINE HAS TO CARRY THE WORD TOO, and measuring is how I
+    // learned it. `scripts/probes/w103-pawn-served-spot.mjs` read the room's
+    // published spots with an empty-of-loot purse and found the label was
+    // "the broker doesn’t want anything you’re carrying" — so a station that
+    // only names itself while you happen to be holding stolen goods is a
+    // station the harness sees only sometimes. A prompt's PLACE should not
+    // depend on your pockets.
+    //
+    // This is the world publishing what the check hunts for, NOT the check
+    // being loosened to accept what the world had (BUILDER-BRIEF §7). Nothing
+    // in `interiors-walk.mjs` is touched, and naming the counter is better
+    // player-facing text anyway — it is the house habit ("out to the street").
     label: () => {
       const id = bestFence(ctx.purse);
-      if (!id) return 'the broker doesn’t want anything you’re carrying';
-      return `sell the ${itemOf(id).name} — $${fencePrice(id).toFixed(2)}, no questions`;
+      if (!id) return 'the pawn counter — he doesn’t want anything you’re carrying';
+      return `sell the ${itemOf(id).name} at the counter — $${fencePrice(id).toFixed(2)}, no questions`;
     },
     act: () => {
       const id = bestFence(ctx.purse);
