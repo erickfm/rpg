@@ -2991,3 +2991,11 @@ to one side.
   `ct/inventory.ts:165,247` and have **no consumers anywhere in `src/`**. The
   comment at `:158` records the half-finished handoff: *"builder C is putting
   packages on the walk-up landings."* Builder C never landed it.
+
+- **"trying to hit cancel on the pin keypad doesnt work cause it's also 5? once
+  you enter 4 digits it auto submits please. also the first time you go to the
+  atm it saves your pin"** (2026-08-02) → **routed as queue item 184.** He is
+  right about the collision: `ct/atm.ts:437` consumes any digit as a PIN digit
+  and returns, so the numeric shortcut for the CANCEL fascia button (`:179`)
+  can never fire while the PIN screen is up. Note also that **no PIN is stored
+  anywhere today** — `:442` opens the menu on any four digits.
