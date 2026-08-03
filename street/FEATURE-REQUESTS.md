@@ -3131,3 +3131,30 @@ to one side.
   (`crosstown.ts:2002`) = 54.4° below horizontal, and the pitch clamp is ±1.3 rad
   (`fp.ts:515-516`) = 74.5°, so on paper there are **20° of range**, not "a
   couple". Something makes the effective window far smaller than the gate.
+
+- **"[screenshot] npcs still get stuck"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-31-21.png` — two citizens stationary on the
+  pavement beside the bus bench, with SLEEP CENTER behind them)
+  → **routed as queue item 276.** ⚠ **This looks like the pinch he DEFERRED an
+  hour earlier** (item 269: the walking lane is **1.15 m** there against a sacred
+  2 m; the player stops permanently 3.7 m in; **moving the bench cannot fix it**
+  because the shopfront alone leaves 1.63 m). He deferred it believing it cost
+  only his own passage. **If it is also stranding citizens, the trade has
+  changed and it is his call to reopen 269.**
+
+- **"when i exit overlays my mouse stops working as well"** (2026-08-03)
+  → **routed as queue item 277, top of the queue.** Traced by the desk:
+  opening a diegetic overlay deliberately calls `document.exitPointerLock()`
+  (`ct/hud.ts:1244`) so the pointer can click the screen — correct. But the ONLY
+  `requestPointerLock` in the whole source is `src/main.ts:32`, on a **canvas
+  click**, gated `current?.pointerLock && !input.locked`. **Nothing re-acquires
+  the lock when an overlay closes.** Offered as a lead, not a verdict.
+
+- **"ok for 110, i want you to need to look straight down, it is confused. im
+  asking for that. it isnt that way"** (2026-08-03) → **corrects item 275, which
+  the desk had INVERTED.** His earlier line — *"to look at your watch you need to
+  look straight down (couple deg of tolerance)"* — was **a request describing the
+  behaviour he wants**, not a complaint about the current one. The desk read it
+  as a bug report and wrote a row telling a builder to WIDEN the window. He wants
+  it **narrowed**: essentially straight down, with a couple of degrees of play.
+  The holding worker (onehundredten) was messaged directly.
