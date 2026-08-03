@@ -1,5 +1,14 @@
-// w93 / item 246 — EXACTLY what stops `scripts/interiors-walk.mjs` running on
-// the built bundle, and how much of it is already redundant with `__ct`.
+// w93 / item 246 — EXACTLY what stopped `scripts/interiors-walk.mjs` running on
+// the built bundle, and how much of it was already redundant with `__ct`.
+//
+// ⚠ SPENT — the gap it measured is CLOSED. Item 251 acted on this probe's own
+// count: the three redundant sites went to `__ct.doors()`, the fourth to
+// `__ct.party()`. Re-measured for item 257 on `vite preview`, port 4590:
+// `interiors-walk church` = 29/29, exit 0. Run today this probe reports
+// **0 dev-only import sites**, which is the right answer and not a broken
+// probe. Kept because the counting method — measure the SIZE of a conflict
+// before choosing between "fix it" and "declare it an exemption" — is the part
+// worth copying, and because its own first version lied (see below).
 //
 // The queue row says the harness "CANNOT RUN ON `vite preview` — it imports
 // `ct/doors.ts`, which 404s — and this is in direct conflict with the project's

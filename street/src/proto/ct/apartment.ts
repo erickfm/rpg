@@ -179,11 +179,17 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // is synchronous, so children from here to the end are exactly ours.
   const MARK = scene.children.length;
   // PUBLISHED, so a check can read the spawn without importing source.
-  // interiors-walk reaches into /src/proto/ct/doors.ts and therefore cannot run
-  // against the built bundle at all (af5b68cd); rainAt was published on
-  // scene.userData for exactly this reason (e0c68e46). Same move, same reason:
-  // scripts/door301.mjs asserts this number stays standable on floor 3, and it
-  // has to be able to see it from a preview.
+  // rainAt was published on scene.userData for exactly this reason (e0c68e46).
+  // Same move, same reason: scripts/door301.mjs asserts this number stays
+  // standable on floor 3, and it has to be able to see it from a preview.
+  //
+  // The precedent this comment used to cite has since been FIXED rather than
+  // worked around, which strengthens the rule — corrected item 257. It said
+  // "interiors-walk reaches into /src/proto/ct/doors.ts and therefore cannot
+  // run against the built bundle at all (af5b68cd)". Item 251 converted it to
+  // `__ct.doors()` / `__ct.party()`; re-measured for 257 on `vite preview`,
+  // `interiors-walk church` scores 29/29, exit 0. Publish the value — do not
+  // leave a check reaching for source and call it dev-only.
   scene.userData.spawn = SPAWN;
   const APT_X = APT_X0, APT_Z = APT_Z0, ST = ST0;
   // ── the switchback ───────────────────────────────────────────────────────
