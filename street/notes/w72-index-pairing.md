@@ -190,7 +190,25 @@ movement leg — the sort exists for readable output, not for the arithmetic —
 its own row, and it is the strongest instance of this bug now left in the
 tree.**
 
-### 2. ⚠ MERGING MAINLINE IN TURNED BOTH SUITES RED, AND IT IS ITEM 196
+### 2. ⚠ RETRACTED — see `notes/w72-roomdims-not-slab.md`. THE CHECK WAS STALE, NOT THE WORLD
+
+**I got the direction wrong below and I am leaving it standing rather than
+editing it away.** Item 196 did not leave a contradiction: it **repainted the
+elevation** to the user's own words *"make it a combo orpheus hotel and
+casino"* — `ct/vice.ts` now draws `ORPHEUS` over `CASINO` on the marquee and
+`ORPHEUS` / `HOTEL & CASINO` on the board, so **the word SEVENS is no longer
+painted on that building at all**. The prompt was renamed to match its own
+sign, which is exactly what the leg's name asks for. The `/SEVENS/` regex in
+the two harnesses was the last thing still using the old address, and I fixed
+it under item 212. I reached the wrong conclusion by checking that `ct/vice.ts`
+still contained the STRING `'SEVENS'` — it does, as a **roster key**
+(`VICE_DOOR_X`, `vice.VICE`, the DoorDecl registry), which is not the same
+thing as the painted address. GOTCHAS 7's own lesson: I confirmed a grep, not a
+surface.
+
+The original paragraph follows.
+
+### 2 (as originally filed). MERGING MAINLINE IN TURNED BOTH SUITES RED, AND IT IS ITEM 196
 
 Between my five-run proof (`e540c3723`) and the mainline merge, **item 196
 landed a door-label rename that neither suite can enter the casino through**:
