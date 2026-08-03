@@ -317,17 +317,31 @@ export function makeCrosstown(): Proto {
   // exist before any builder runs. Moved, not changed. (D; flagged.)
   const GROUNDS: { fn: (x: number, z: number) => number | null; order: number }[] = [];
 
+  // solid props the citizens must steer AROUND (never walk/phase through) —
+  // trees, lamp poles, the hydrant, the payphone, and the cars. Declared up
+  // here because every module that builds appends to the same two lists.
+  //
+  // HOISTED ABOVE `buildStreet` (item 198). It used to be declared just below
+  // the call, which is exactly why `ct/street.ts` could not use it: the street
+  // is the FIRST thing built, so `obstacle` was in its temporal dead zone and
+  // the only registration hook the street could be handed was one that pushed
+  // to a local list. That accident is the whole of the bug — `ct/park.ts:91`
+  // and `ct/street.ts:242` were the same function under the same name, and only
+  // the one built after this line called `obstacle`. Three plain `const`
+  // declarations moved up; nothing else about them changed, and nothing between
+  // the old and new positions reads them.
+  const propColliders: AABB[] = [];
+  const citAvoid: AABB[] = [];
+  const obstacle = (b: AABB) => { propColliders.push(b); citAvoid.push(b); return b; };
+
   const street = buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1,
     // so ct/street.ts can register the ATM's own [E] and the alley dish's own
     // floor height — D, additive, flagged
     spot: (sp) => { SPOTS.push(sp); }, purse, refreshWallet: () => hud.refreshWallet(),
+    // …and the same hook `ct/park.ts` has always had, so the street's props are
+    // visible to the crowd and not only to the player. See item 198.
+    obstacle,
     ground: (fn, order = BUILD.PROPS) => { GROUNDS.push({ fn, order }); } });
-  // solid props the citizens must steer AROUND (never walk/phase through) —
-  // trees, lamp poles, the hydrant, the payphone, and the cars. Declared up
-  // here because every module that builds appends to the same two lists.
-  const propColliders: AABB[] = [];
-  const citAvoid: AABB[] = [];
-  const obstacle = (b: AABB) => { propColliders.push(b); citAvoid.push(b); return b; };
   // ── interaction registry ────────────────────────────────────────────────
   // Modules register their own [E] spots; this file no longer enumerates them.
   // `rig` and the teleport are created ~200 lines below, so the accessors are
@@ -688,7 +702,12 @@ export function makeCrosstown(): Proto {
     // building as it places it — following the chamfer, leaving the alley
     // mouth open, and skipping the library entirely so ct/civic.ts's own
     // colliders are the only thing there.
-    ...street.colliders,
+    //
+    // `...street.colliders` USED TO BE HERE and is gone (item 198). It has not
+    // stopped arriving: `ct/street.ts`'s `solid` now calls `obstacle`, so every
+    // one of those boxes comes in through `...propColliders` below — the same
+    // route `ct/park.ts` and `ct/jail.ts` have always used. Spreading both would
+    // have listed 359 boxes twice.
     ...COURT.colliders,
     // The east end of the side street used to be a hand-written rectangle
     // here, standing in for the anonymous filler box that closed the street.
