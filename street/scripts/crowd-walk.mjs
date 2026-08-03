@@ -240,12 +240,28 @@ check(d[2] - e[2] > 4, `and the lane goes somewhere — ${(d[2] - e[2]).toFixed(
 // a units error: a free centre-span of 0.50 m already means a 1.22 m gap, which
 // the player walks through with 0.5 m to spare. Corrected, nothing was sealed
 // at all — so this check exists to hold that, not to report a defect.
+// ⚠ THIS LOOP USED TO RUN FOR 25 SECONDS OF WALL CLOCK, AND THAT IS WHY ITS
+// SAMPLE COUNT CAME BACK 0 / 62 / 317 / 0 / 0 ACROSS FIVE IDENTICAL RUNS.
+//
+// Worker onehundredsix, item 262. The flakiness was NOT the identity/index bug
+// the house cure predicts: `ct/crowd.ts:269` builds `citizens` once and `:400`
+// only ever pushes, so `walkers()[i]` is the same person every frame — measured,
+// the array length never changed once in three runs. What varies is **how many
+// frames fit in a fixed wall-clock window**: 240 / 214 / 203 frames gave
+// 131 / 103 / 92 samples, in proportion. That is GOTCHAS 30 — anything the
+// render loop drives, timed with a stopwatch, measures the machine's load.
+//
+// So budget FRAMES, not milliseconds, with a wall-clock cap left only as a
+// safety net against a stalled rAF. The verdict was stable all along (0 sealed,
+// 1.08 m tightest, every run); it is the POPULATION that moved, and the
+// population is what the floor below is about.
 const lane = await page.evaluate(async () => {
-  const RAD = 0.36, STEP = 0.02;
-  let samples = 0, sealed = 0, tight = 99, where = null, last = null;
+  const RAD = 0.36, STEP = 0.02, WANT_FRAMES = 260;
+  let samples = 0, sealed = 0, tight = 99, where = null, last = null, frames = 0;
   const t0 = performance.now();
-  while (performance.now() - t0 < 25000) {
+  while (frames < WANT_FRAMES && performance.now() - t0 < 40000) {
     await new Promise((r) => requestAnimationFrame(r));
+    frames++;
     const w = window.__ct.walkers(), cols = window.__ct.colliders();
     if (last && w.length === last.length) {
       for (let i = 0; i < w.length; i++) {
@@ -266,15 +282,26 @@ const lane = await page.evaluate(async () => {
     }
     last = w.map((q) => ({ x: q.x, z: q.z }));
   }
-  return { samples, sealed, tight: +tight.toFixed(2), where };
+  return { samples, sealed, frames, tight: +tight.toFixed(2), where };
 });
-if (lane.samples < 40) {
-  console.log(`  ??   only ${lane.samples} stopped-citizen sample(s) in 25 s — nobody paused, so the lane was not tested`);
-} else {
-  check(lane.sealed === 0, `no stopped citizen ever sealed the walk — ${lane.samples} samples, ${lane.sealed} sealed`);
-  check(lane.tight >= 0.95, `the tightest gap past a stopped citizen was ${lane.tight} m at (${lane.where})`
-    + ` — the player is 0.72 m and 0.95 is ct/gap.ts's comfortably-passable line`);
-}
+// THE POPULATION FLOOR IS A CHECK, NOT A COMMENT. This used to print `??` and
+// carry on, so a run that sampled NOTHING scored as "not a failure" — the exact
+// shape of GOTCHAS 34 ("a check can pass because it found nothing to check") and
+// GOTCHAS 65 ("a guard that reports failure in PROSE exits 0"). Two of the five
+// runs behind this row's headline number were that branch, and a reader counting
+// green runs could not tell them from a world that had been measured and was
+// sound.
+//
+// The floor is DERIVED, not predicted: 260 frames yields ~90-130 stopped-citizen
+// samples on this tree (measured, three runs), so 40 is comfortably under the
+// observed minimum while still being far above zero. If it trips, the crowd did
+// not pause where the check could see it — that is a fault in the RUN, and the
+// run must say so rather than shrug.
+check(lane.samples >= 40, `the lane was actually tested — ${lane.samples} stopped-citizen samples`
+  + ` in ${lane.frames} frames (floor 40; under it, nothing below was measured)`);
+check(lane.sealed === 0, `no stopped citizen ever sealed the walk — ${lane.samples} samples, ${lane.sealed} sealed`);
+check(lane.tight >= 0.95, `the tightest gap past a stopped citizen was ${lane.tight} m at (${lane.where})`
+  + ` — the player is 0.72 m and 0.95 is ct/gap.ts's comfortably-passable line`);
 
 console.log(errs.length ? `\npage errors:\n${errs.slice(0, 3).join('\n')}` : '\nno page errors');
 console.log(fails ? `\n${fails} CHECK(S) FAILED` : '\nall crowd checks pass');

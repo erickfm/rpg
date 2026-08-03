@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, declareSurface, dither, slabTex } from './paint';
+import { pixTex, declareSurface, dither, slabTex, slabBox } from './paint';
 import { masonry, WALK_PROJECTION } from './tex-world';
 import { plazaTex, walkTex } from './tex-ground';
 
@@ -577,7 +577,7 @@ export function register(ctx: CtxBuild): void {
   const steelM = new THREE.MeshBasicMaterial({ color: STEEL });
   const steelDkM = new THREE.MeshBasicMaterial({ color: STEEL_DK });
   /** a plain box, in world coordinates */
-  const box = (w: number, h: number, d: number, m: THREE.Material,
+  const box = (w: number, h: number, d: number, m: THREE.Material | THREE.Material[],
                x: number, y: number, z: number) => {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
     b.position.set(x, y, z);
@@ -641,13 +641,33 @@ export function register(ctx: CtxBuild): void {
   }
   // slabTex, not the flat steelDkM: the threshold is walked on and sits right
   // beside the textured portal paving, so a flat quad here is exactly item
-  // 0a's defect class. The box is only 0.05 m tall, so one mapped material
-  // on all six faces (rather than a top-only array) is enough — the sides
-  // are a sliver nobody sees edge-on.
-  const thresholdM = new THREE.MeshBasicMaterial({
-    color: STEEL_DK,
-    map: slabTex({ wMeters: JAIL.RECESS + 0.06, dMeters: JAIL.DOOR_W, base: '#26282c', joint: 0, grain: 0.12 }),
-  });
+  // 0a's defect class.
+  //
+  // ⚠ THIS COMMENT USED TO SAY "the box is only 0.05 m tall, so one mapped
+  // material on all six faces is enough — the sides are a sliver nobody sees
+  // edge-on", AND THE MEASUREMENT DISAGREED. `slabTex` sizes its canvas from
+  // real metres and maps 1:1, so the sheet built for the 0.66 × 2.4 m TOP was
+  // handed unchanged to the 2.4 × 0.05 m EDGE: 20 texels smeared along 2.4 m
+  // and 77 packed into 5 cm, i.e. **8.33 × 1540 px/m**. At 184.8x that was the
+  // single worst face in the world by a factor of five — and it is not a sliver
+  // nobody sees, it is the strip you look straight down at while walking up to
+  // the sally port.
+  //
+  // The sliver argument was about SIZE and the defect is about ASPECT: a face
+  // being small does not make a texture stretched across it any less stretched.
+  //
+  // `slabBox` is the wrapper item 264 built for exactly this, and THIS CALL SITE
+  // IS WHY IT IS NOT SIMPLY "one slabTex per face": the top is 0.625 × 2.4 m and
+  // gets its own 1:1 sheet, but the edges are 0.05 m thin, and a fresh sheet for
+  // those hits `slabTex`'s `Math.max(8, …)` clamp — 32 × 160 px/m, a 5× stretch
+  // that would still be gross. The thin faces borrow the top's sheet with a
+  // derived repeat instead, which lands 32 px/m on both axes. Grain only
+  // (`joint: 0`), so tiling has no joint grid to misalign. Geometry untouched.
+  const thresholdM = slabBox(
+    JAIL.RECESS + 0.06, 0.05, JAIL.DOOR_W,
+    { base: '#26282c', joint: 0, grain: 0.12 },
+    (map) => new THREE.MeshBasicMaterial({ color: STEEL_DK, map }),
+  );
   box(JAIL.RECESS + 0.06, 0.05, JAIL.DOOR_W, thresholdM,
     FX + JAIL.RECESS / 2, SILL + 0.02, CZ);
 

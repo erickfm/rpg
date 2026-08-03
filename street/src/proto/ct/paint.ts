@@ -296,6 +296,106 @@ export function slabTex(o: {
   return declareSurface(t, o.kind ?? 'ground', ppm);
 }
 
+/** The smallest canvas `slabTex` will produce on either axis. It clamps with
+ *  `Math.max(8, …)` because a surface 1–2 texels tall cannot hold detail
+ *  (GOTCHAS 4) — a good rule that becomes a trap the moment you size a canvas
+ *  from a face rather than from a surface. See `slabBox`. */
+const SLAB_MIN_PX = 8;
+
+/**
+ * SIX MATERIALS FOR A `BoxGeometry(w, h, d)`, EACH FACE SLABBED AT ITS OWN SIZE.
+ *
+ * This is the wrapper five hand-fixes asked for. **A box authored `(W, H, D)`
+ * presents `±x = D×H`, `±y = W×D`, `±z = W×H` — three different sizes — and
+ * `slabTex` maps 1:1, so ONE sheet is correct for at most one of them.** Every
+ * time someone hands a single map to a box the other four faces draw at the
+ * wrong scale and nothing complains, because `slabTex` returns a texture with no
+ * idea what geometry it is about to land on.
+ *
+ * Fixed by hand, all the same shape, before this existed: the church treads
+ * (29.8x), the park kerb (**16,363x**, once the worst face in the world), the
+ * bench seat (u and v swapped, 12× the aspect), the hotel upholstery (sized to
+ * the largest face, applied 1:1 to all six — slivers at 250 px/m against a
+ * declared 48), and the jail threshold (**184.8x**, and its call site had
+ * explicitly considered and rejected a per-face array).
+ *
+ *     mesh.material = slabBox(w, h, d, { base: '#26282c', joint: 0, grain: 0.12 });
+ *
+ * ── WHY THIS IS NOT JUST "ONE `slabTex` PER FACE" ──────────────────────────
+ *
+ * That is the obvious implementation and it is silently wrong on thin faces,
+ * which is exactly where this bug lives. `slabTex` clamps its canvas to
+ * `SLAB_MIN_PX` on both axes, so a face thinner than `8 / ppm` metres — 0.25 m
+ * at the default 32, 0.17 m at the upholstery's 48 — gets **8 texels whatever
+ * you ask for**, and its density comes out at `8 / faceMetres` instead of `ppm`.
+ *
+ * Measured, not reasoned: the jail threshold's edge is 2.4 × 0.05 m. A fresh
+ * per-face sheet at 32 ppm is `round(0.05 × 32) = 2 → clamped to 8`, giving
+ * 32 × 160 px/m — a **5× stretch, still gross**, on a face the naive wrapper
+ * would report as fixed. The clamp is right (GOTCHAS 4); sizing a canvas from a
+ * 5 cm face is what is wrong.
+ *
+ * So each distinct face size takes whichever path is correct FOR IT:
+ *
+ *   · **fat enough for its own sheet** → a fresh 1:1 `slabTex` at exactly its
+ *     metres. No tiling, no cropping, exact density. This is the primary path
+ *     and it is what `fabric()` in `ct/int-hotel.ts` does privately.
+ *   · **too thin** → a clone of the largest face's sheet with a derived repeat
+ *     (`fitRepeat`), which lands exactly `ppm` on both axes at any thinness.
+ *     `fitRepeat` sets `RepeatWrapping`, so this does NOT smear the edge texels
+ *     of a `ClampToEdge` sheet — that only happens if you raise `repeat` while
+ *     leaving the wrap mode alone.
+ *
+ * ⚠ **THE THIN PATH TILES, SO IT IS ONLY SAFE WITHOUT JOINTS.** `slabTex` draws
+ * its joint grid from the canvas origin, and the canvas is not generally a whole
+ * number of joints across — so a tiled sheet can show a seam where the grid
+ * restarts. It does not matter for grain (`joint: 0`), and a joint grid on a
+ * sub-0.25 m sliver is meaningless anyway, but if you pass `joint > 0` and have
+ * faces that thin, look at them. Warned rather than forbidden, because refusing
+ * would send callers straight back to the one-sheet-for-six-faces bug.
+ *
+ * Canvases are cached per distinct face size, so a box costs at most three and
+ * usually two.
+ */
+export function slabBox(
+  w: number, h: number, d: number,
+  o: Omit<Parameters<typeof slabTex>[0], 'wMeters' | 'dMeters'>,
+  make: (map: THREE.Texture) => THREE.Material = (map) => new THREE.MeshBasicMaterial({ map }),
+): THREE.Material[] {
+  const ppm = o.ppm ?? 32;
+  const dims = BOX_FACE_DIMS(w, h, d);
+  // The biggest face by area is the one whose sheet a thin face borrows: it has
+  // the most real detail drawn into it, and it is the face the author was
+  // looking at.
+  const [bw, bh] = dims.reduce((a, b) => (a[0] * a[1] >= b[0] * b[1] ? a : b));
+  let borrowed: THREE.Texture | null = null;
+
+  const cache = new Map<string, THREE.Material>();
+  return dims.map(([fw, fh]) => {
+    const key = `${fw.toFixed(4)}x${fh.toFixed(4)}`;
+    let m = cache.get(key);
+    if (!m) {
+      const thin = fw * ppm < SLAB_MIN_PX || fh * ppm < SLAB_MIN_PX;
+      let map: THREE.Texture;
+      if (!thin) {
+        map = slabTex({ ...o, wMeters: fw, dMeters: fh });
+      } else {
+        borrowed ??= slabTex({ ...o, wMeters: bw, dMeters: bh });
+        map = borrowed.clone();
+        map.needsUpdate = true;
+        // `clone()` copies userData BY REFERENCE in three, so spread it — the
+        // audit reads the density declaration off the texture actually on the
+        // face, not off the original.
+        map.userData = { ...borrowed.userData };
+        fitRepeat(map, fw, fh);
+      }
+      m = make(map);
+      cache.set(key, m);
+    }
+    return m;
+  });
+}
+
 export function dither(g: CanvasRenderingContext2D, w: number, h: number, n: number) {
   for (let i = 0; i < n; i++) {
     g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.1)';
