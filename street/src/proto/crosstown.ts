@@ -1796,6 +1796,21 @@ export function makeCrosstown(): Proto {
     groundAt: (x: number, z: number) => groundPick(x, z),
     seated: () => (rig.seated ? rig.seatedOn : null),
     stand: () => rig.stand(),
+    // Test affordance, and the missing half of `stand()` — which has been
+    // published since the seat mechanic shipped, while the only way IN was to
+    // walk up to a seat and press E.
+    //
+    // That asymmetry is why nothing had ever asked all 219 seats what they offer
+    // a player sitting on them: the question costs one warp-and-press per seat,
+    // ten minutes a run, so it got asked of a handful and generalised from. Item
+    // 188 turns the seated `[E]` into a real contest, and the only honest
+    // acceptance test for that is the whole population
+    // (`scripts/probes/w69-seated-offers.mjs`).
+    //
+    // It goes through `rig.sit`, so it inherits the guard that a seated player
+    // cannot hop to another seat; a caller that wants to move must `stand()`
+    // first, exactly as a player must.
+    sit: (pose: { x: number; z: number; yaw: number; h: number }) => rig.sit(pose),
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
     camera: () => cam,    // test affordance: raycast a screen pixel back to the mesh under it
     // test affordance: turn the region cull off, so a check can render the SAME
