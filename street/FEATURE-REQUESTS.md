@@ -3176,3 +3176,26 @@ guard it. But the desk does **not** republish, and artifact/Pages work does not
 get ranked or staffed unless the user raises it again. **The build that matters
 is the live integration world at localhost:5177**, which is what he actually
 playtests. No queue rows were dropped; there were none left to drop.
+
+## 2026-08-03 15:35 — test economics: cheap yes, flaky no, and never longer than the code
+
+> "in general i think we should keep tests that are cheap but stay away from
+> tests that are failure prone. i will be reviewing anyway yknow?"
+
+> "in general tests should not take longer than the work to code itself"
+
+**Routed to: every live builder (onehundrednineteen through onehundredtwentythree,
+messaged directly mid-item) and written into `notes/BUILDER-BRIEF.md` §10a as a
+standing rule.** Not a queue item — it changes how every future item is worked
+and how the desk writes "done when" lines.
+
+The distinction drawn in §10a: **verifying** during your item is unchanged (§10
+stands; movement and collision are still WALKED). **Enshrining** that
+verification as a permanent check now needs justifying. The budget is hard —
+if proving it costs more than building it, do the cheap proof and declare the
+gap honestly rather than leaving a flaky check behind.
+
+**The desk is the main offender and the record says so.** Item 291's fix is
+expected to be a single number in `apartment.ts:3661`; the desk's own "done
+when" demanded five browser walks across three distances. That row was corrected
+and its worker told directly.
