@@ -40,12 +40,12 @@
   @media (max-width:640px){ body{padding:14px} .grid{grid-template-columns:1fr} }
 </style></head><body>
 <h1>Crosstown '97 — the desk</h1>
-<p class="stamp">data as of <b>03/08/2026, 13:09:08</b> · <span id="age">fresh</span> · reloads every 12s.
+<p class="stamp">data as of <b>03/08/2026, 13:11:54</b> · <span id="age">fresh</span> · reloads every 12s.
 If the age keeps climbing past a minute the regenerator has stopped — restart it with <code>./scripts/desk-watch.sh &amp;</code></p>
 
 <div class="tallies">
-  <div><b>4</b>in flight</div>
-  <div><b>14</b>claimable</div>
+  <div><b>3</b>in flight</div>
+  <div><b>15</b>claimable</div>
   <div><b>2</b>your asks open</div>
   <div><b>1</b>deferred by you</div>
   <div><b>0</b>awaiting you</div>
@@ -53,20 +53,6 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
 
 <h2>Agents at work</h2>
 <div class="grid">
-  <article class="card working">
-    <header>
-      <span class="who">onehundrednine</span>
-      <span class="item">item 277</span>
-      <span class="since">claimed 13:06</span>
-    </header>
-    <p class="intent">The user: *&quot;when i exit overlays my mouse stops working as well.&quot;* THIS IS THE HIGHEST-IMPACT BUG ON THE BOARD.</p>
-    <div class="files">EXITING ANY OVERLAY LEAVES THE MOUSE DEAD — nothing re-acquires the pointer lock</div>
-    <footer>
-      <span class="commit">Item 277: default tier, not --slow — measured 73s against a 180s ceiling</span>
-             <span class="meta">16 minutes ago · 11 unlanded · a263dd7d</span>
-    </footer>
-  </article>
-
   <article class="card working">
     <header>
       <span class="who">onehundredfourteen</span>
@@ -77,7 +63,7 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <div class="files">⚠⚠ THE USER HAS DECIDED: **25 DEGREES.** He was given the trade in his own two quotes — 35.5 deg gave *&quot;i sele</div>
     <footer>
       <span class="commit">Item 98: the look-cone ceiling goes to 25 degrees, the user's own number</span>
-             <span class="meta">8 minutes ago · 1 unlanded · a90c4fa6</span>
+             <span class="meta">11 minutes ago · 1 unlanded · a90c4fa6</span>
     </footer>
   </article>
 
@@ -91,15 +77,15 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <div class="files">crosstown.ts:1413-1442 — closing a panel from a chair ejects you from the chair</div>
     <footer>
       <span class="commit">Item 206 released un-actioned: it collides with in-flight 277 in FOCUS.leave()</span>
-             <span class="meta">2 minutes ago · 0 unlanded · a9eef617</span>
+             <span class="meta">4 minutes ago · 0 unlanded · a9eef617</span>
     </footer>
   </article>
 
   <article class="card unknown">
     <header>
-      <span class="who">onehundredseven</span>
+      <span class="who">onehundrednine</span>
       <span class="item">item 216</span>
-      <span class="since">claimed 13:08</span>
+      <span class="since">claimed 13:11</span>
     </header>
     <p class="intent">Two small things left by the builder of item 184 (the ATM PIN screen), neither in its named files.</p>
     <div class="files">ct/atm.ts — Purse wants a `pin?: string`, and the hint line has no width budget</div>
@@ -113,28 +99,28 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <header><span class="who">a1d22e74</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Item 268 note: pin where interiors-walk actually was when I killed it</span>
-            <span class="meta">15 minutes ago · 1 unlanded</span></footer>
+            <span class="meta">18 minutes ago · 1 unlanded</span></footer>
   </article>
 
   <article class="card unmatched">
     <header><span class="who">a25c220e</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Item 280 SCOPED, not shipped: the obvious fix is 2.5 cm from breaking item 93</span>
-            <span class="meta">45 minutes ago · 0 unlanded</span></footer>
+            <span class="meta">48 minutes ago · 0 unlanded</span></footer>
   </article>
 
   <article class="card unmatched">
     <header><span class="who">a5aaa71a</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Item 271: handoff note</span>
-            <span class="meta">60 minutes ago · 0 unlanded</span></footer>
+            <span class="meta">63 minutes ago · 0 unlanded</span></footer>
   </article>
 
   <article class="card unmatched">
     <header><span class="who">a96fc5ac</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Merge branch 'add-stick-and-city98' into worktree-agent-a96fc5aca2ed8481c</span>
-            <span class="meta">56 seconds ago · 4 unlanded</span></footer>
+            <span class="meta">4 minutes ago · 4 unlanded</span></footer>
   </article></div>
 <p class="note">57 dormant worktrees not shown — no commit in 120 minutes. Every builder this session left one behind; <code>git worktree prune</code> only clears entries whose directory is already gone.</p>
 
@@ -152,7 +138,7 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
   // the DATA, not the age of the page, so if the regenerator dies the clock keeps
   // climbing and you can see it has stopped. A silent freeze is the failure mode
   // that would actually mislead.
-  const BORN = 1785787748;
+  const BORN = 1785787914;
   const KEY = 'desk-scroll';
   addEventListener('DOMContentLoaded', () => {
     const y = sessionStorage.getItem(KEY);
