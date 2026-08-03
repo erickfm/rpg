@@ -27,6 +27,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { probeServer } from './lib/server-state.mjs';
 
 const URL = aim('http://localhost:4230/');
 const b = await chromium.launch();
@@ -95,7 +96,14 @@ let frontier = seeds;
 //
 // A BUDGET THAT RUNS OUT IS REPORTED, NOT SWALLOWED. A sweep that stopped early
 // and said "contained" would be the sleeping guard this file exists to replace.
-const DIRS = 8, MS = 1200, ROUNDS = 8, BUDGET = 700;
+// MS IS 900, AND IT IS VALIDATED BY THE MUTATION RATHER THAN BY ARGUMENT.
+// Shortening a leg to make a slow check finish is the exact shape of "loosen it
+// until it passes" that BUILDER-BRIEF §7 forbids, so the setting is only
+// defensible if the check still goes red on the real bug at it: the
+// `jail-forecourt-open` case in canfail.mjs is what says so. 900 ms at the
+// player's 3.3 m/s is 2.97 m per leg, and the fill crosses the 3.9 m forecourt
+// in stages rather than needing one leg to clear it.
+const DIRS = 8, MS = 900, ROUNDS = 4, BUDGET = 320;
 let walks = 0;
 let exhausted = false;
 
@@ -128,6 +136,27 @@ for (let round = 0; round < ROUNDS && frontier.length && !exhausted; round++) {
   frontier = next;
   console.log(`  round ${round + 1}: ${walks} walks so far, ${seen.size} places stood, ${escapes.length} escape(s)`);
 }
+
+// ── DID THE WORLD SURVIVE THE SWEEP? ──────────────────────────────────────
+//
+// This is a ten-minute walk, and it reports "contained" by finding NOTHING —
+// which is exactly the verdict a dead server also produces, because a page that
+// has stopped answering returns the same position for every walk and none of
+// them is outside anything.
+//
+// **It happened to me while building this file.** The preview was reaped
+// mid-sweep and the run carried on happily to round 3, printing `0 escape(s)`
+// about a world that was no longer there. A containment check that goes green
+// when the world disappears is the worst kind of sleeping guard, because the
+// thing it guards is the worst kind of bug.
+//
+// Asked with `probeServer` from `scripts/lib/server-state.mjs` — the classifier
+// written for item 182 — so this distinguishes a killed preview from one whose
+// `dist/` a build has momentarily emptied, rather than calling both "dead".
+const endState = await probeServer(URL);
+report('the world was still serving when the sweep finished', endState === 'ok',
+  endState === 'ok' ? 'the preview answered at the end as well as the start'
+    : `the server went '${endState}' during the run — EVERY result above is unmeasured, not green`);
 
 // A run that ran out of budget has not covered the site, and must not be read
 // as a clean bill of health. Reported as its own line rather than folded into
