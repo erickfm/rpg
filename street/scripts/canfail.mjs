@@ -1249,6 +1249,69 @@ const digest = (t) => (t === null ? null : createHash('sha1').update(t).digest('
 
 const only = process.argv.slice(2).filter((a) => a !== PORT_ARG);
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
+
+// ── A CASE NAME THAT MATCHES NOTHING IS A GREEN CERTIFICATE THAT NOTHING WAS
+//    VERIFIED, IN THE TOOL WHOSE ENTIRE JOB IS CATCHING THAT ─────────────────
+//
+// Item 224, found by worker seventyeight. `node scripts/canfail.mjs crowd`
+// selected zero cases and printed, in full:
+//
+//     0/0 checks caught their mutation
+//     every mutated file restored byte-for-byte
+//
+// exit 0. Both sentences are true and both are about the empty set, and the
+// second one is worse than the first — it is a reassurance about files nobody
+// opened. Reproduced on this tree before the fix and quoted verbatim.
+//
+// This is the vacuous pass (GOTCHAS 34), and it lands here of all places:
+// `canfail` is the instrument the project uses to certify that its OTHER checks
+// can still fail. Ten checks were found this week printing failure and exiting
+// 0, measuring zero faces, or flipping a red to green — and every one of those
+// repairs was signed off with this tool. A mistyped argument therefore does not
+// merely waste a run; it hands back the strongest evidence this repo has, for
+// an empty run.
+//
+// THE FIX IS COPIED, NOT INVENTED. `scripts/checks.mjs:1222-1231` already
+// refuses exactly this for `--only`, and has since somebody hit it there. Two
+// tools, one shape, one behaviour.
+//
+// TWO EXIT CODES, BECAUSE THEY ARE TWO FAULTS (GOTCHAS 32):
+//   2  you named something that is not a case — a USAGE error, your typo,
+//      fixable by typing it again. Same code checks.mjs uses.
+//   3  there was nothing to select from at all — NOTHING WAS MEASURED, which
+//      by house convention is 3. Not reachable today (CASES is 40-odd rows),
+//      and that is the point: a population floor you can only trip by breaking
+//      the table is still the assertion that makes "0/0" impossible to print.
+if (only.length) {
+  const unmatched = only.filter((o) => !CASES.some(([n]) => n === o));
+  if (unmatched.length) {
+    console.error(`\nNOT A MUTATION CASE: ${unmatched.join(', ')}\n`);
+    console.error('  Nothing would have run, and an empty run prints "0/0 checks caught');
+    console.error('  their mutation" and exits 0 — which reads exactly like the guard you');
+    console.error('  named being proven awake.\n');
+    // Matching is EXACT here, unlike checks.mjs's substring `--only`, so the
+    // near-miss list is doing real work: `crowd` is a prefix of three real
+    // cases and is precisely the typo that was reported.
+    for (const o of unmatched) {
+      const near = CASES.map(([n]) => n).filter((n) => n.includes(o) || o.includes(n));
+      if (near.length) console.error(`  did you mean, for "${o}":  ${near.join('  ')}`);
+    }
+    console.error(`\n  the ${CASES.length} cases are:`);
+    const names = CASES.map(([n]) => n).sort();
+    for (let i = 0; i < names.length; i += 3) console.error('    ' + names.slice(i, i + 3).map((n) => n.padEnd(26)).join('').trimEnd());
+    console.error('');
+    process.exit(2);
+  }
+}
+// The population floor proper. Every check in this suite is now required to
+// fail rather than pass when it measured nothing; the tool that imposed that
+// rule has to keep it too.
+if (!run.length) {
+  console.error(`\nNO MUTATION CASES TO RUN — nothing was measured, and nothing is proven.`);
+  console.error(`  CASES holds ${CASES.length} row(s)${only.length ? `, selected by: ${only.join(', ')}` : ''}.\n`);
+  process.exit(3);
+}
+
 const results = [];
 // EVERY CASE WHOSE FILE WE ACTUALLY WROTE TO. The restore check at the foot of
 // this file is about putting back what we took; a case that never matched was
