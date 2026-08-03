@@ -25,6 +25,33 @@ That `npm install` is the part people skip; the hard reset removes the
 `node_modules` symlink and the dev server then fails with an error that looks
 nothing like the cause. (GOTCHAS 54, 13.)
 
+**AND THERE IS NOW A MECHANISM, NOT JUST THIS PARAGRAPH — `scripts/guard-shared-checkout.mjs`.**
+Writing it down had been tried; five workers built or installed in the shared
+checkout anyway. So `preinstall`, `build`, `dev` and `live` in `package.json`
+now run the guard first, and it **refuses with exit 1** when both facts hold:
+you are in the **main checkout** (`--git-dir` equals `--git-common-dir`) and you
+are running under Claude Code. Its message names your worktree and the fix. It
+**fails open** on every uncertain answer, because it sits on `preinstall` and a
+bug there would brick the most-run command on the project.
+
+Three things to know about it:
+
+- **It does not replace the check above.** It covers four `package.json`
+  scripts. **A bare `npx vite --port N` bypasses `package.json` entirely**, and
+  so does any `node scripts/*.mjs`. Run `git log --oneline -3` first anyway.
+- **You should never see it.** If you do, you are in the wrong tree — `cd` to
+  your own worktree and re-run. Do not reach for the override.
+- **`CT_ALLOW_SHARED=1` is the override, and it is not for you.** It exists for
+  the desk, which republishes the artifact from the shared tree. If you use it,
+  say so in your handoff.
+
+**Known defect, item 247: the guard refuses the desk too.** Measured 2026-08-03
+— the desk and every builder it spawns share **one `CLAUDE_CODE_SESSION_ID` and
+one environment** (50 of 50 agent processes carry `CLAUDE_CODE_CHILD_SESSION=1`,
+the desk's own tool shells included), so nothing in the environment can tell
+them apart. Not your problem as a builder; it is why the desk exports
+`CT_ALLOW_SHARED=1`.
+
 ---
 
 ## 1. The loop: take one item, finish it, take the next

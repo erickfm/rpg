@@ -46,17 +46,7 @@
 // worktrees, or a marker file". A marker file cannot work: the marker would live
 // in the worktree, and the mistaken command runs in the SHARED tree, where it is
 // invisible. An env var is right -- and one already exists, so nothing had to be
-// plumbed. Measured by reading `/proc/<pid>/environ` of the live processes:
-//
-//   pid 262802  the desk    (`claude -r`, cwd /home/erick/projects/rpg)
-//                           CLAUDE_CODE_CHILD_SESSION  absent
-//                           AI_AGENT                   absent
-//   pid 282161  the harness host
-//                           CLAUDE_CODE_CHILD_SESSION  absent
-//                           AI_AGENT   claude-code_2-1-220_harness
-//   this process, a spawned builder
-//                           CLAUDE_CODE_CHILD_SESSION  1
-//                           AI_AGENT   claude-code_2-1-220_agent
+// plumbed.
 //
 // The decisive property is that an environment variable is INHERITED BY EVERY
 // CHILD PROCESS. It travels from the agent's shell into `npm`, into `node`, into
@@ -67,6 +57,66 @@
 // (That last one was measured and rejected outright: there are 45 directories
 // under `.claude/worktrees/agent-*` and 40 registered worktrees, nearly all of
 // them dead. Their presence says nothing about whether an agent is running.)
+//
+// ══ ⚠ AND `isSubagent` DOES NOT WORK. CORRECTED 2026-08-03, ITEM 247. ════════
+//
+// **THIS FILE USED TO CARRY A MEASUREMENT TABLE HERE SAYING THE DESK CARRIES
+// NEITHER VARIABLE. IT IS FALSE, AND IT IS WHY THE GUARD REFUSES THE DESK.**
+// The table read `/proc/262802/environ` (the human's `claude -r` process) and
+// `/proc/282161/environ` (the harness host). **Neither of those is a shell that
+// runs a tool command.** A Bash tool call does not execute in the session
+// process; the harness SPAWNS A SHELL, and it injects the agent variables into
+// that shell -- for the desk exactly as for a builder. The two pids were read
+// honestly and they answer a question nobody asked.
+//
+// Re-measured across every process on the box
+// (`scripts/probes/w93-item247-sessions.mjs`, `...-whoisinshared.mjs`):
+//
+//   distinct CLAUDE_CODE_SESSION_ID values alive .......... 1
+//   agent processes carrying CLAUDE_CODE_CHILD_SESSION=1 .. 50 of 50
+//   distinct CLAUDE*/AI_AGENT env signatures .............. 2, differing ONLY
+//        in `CLAUDE_EFFORT` -- which is an effort level, and the signature
+//        lacking it belongs to a BUILDER in a worktree. It does not track
+//        desk-vs-builder in either direction.
+//
+// **The desk and every builder it spawns share ONE session id and one
+// environment.** They are the same OS-level identity. Every candidate item 247
+// listed was measured and is dead:
+//
+//   process ancestry .... every tool shell's parent is the same harness host,
+//                         pid 282161, whose own cwd is the shared checkout.
+//                         And `cd` moves the shell itself, so after a builder
+//                         cd's into the shared tree its whole ancestry reads
+//                         `/home/erick/projects/rpg/street` -- measured.
+//   a variable the desk
+//     sets for itself ... inherited by every builder shell, because they are
+//                         children of the same session.
+//   a claimed queue row
+//     naming the caller . the guard runs inside `npm run build` and has no
+//                         name to check.
+//
+// **So `isSubagent()` cannot be repaired by picking a different variable: the
+// fact it is testing does not exist in the environment.** Anything that lets
+// the desk through will let a wandering builder through, and the reverse.
+//
+// The guard below is therefore LEFT AS IT IS, deliberately -- it is doing the
+// job it was built for and `w94-guard-selftest.mjs` still passes 21/21 -- but
+// know that on this machine it refuses the desk too, and that
+// `CT_ALLOW_SHARED=1` (which works: verified exit 0) is not a hatch the desk
+// forgot to be given, it is the only key that exists. A desk session can set it
+// once with `export CT_ALLOW_SHARED=1` rather than per command.
+//
+// **The real fix is a different question, not a different variable**: stop
+// asking WHO is running and ask WHETHER THE ACT IS DESTRUCTIVE RIGHT NOW --
+// e.g. refuse a `vite build` only while another process is serving this tree's
+// `dist/`. That is a design decision for the desk, and item 247 is released
+// with it rather than guessed at. See notes/ninetythree-item247-*.md.
+//
+// ── ONE MORE HOLE, NAMED BY ITEM 243 AND STILL OPEN ──────────────────────────
+// The guard hangs off `package.json` scripts. **`npx vite --port N` bypasses
+// package.json entirely and is unguarded**, and so is any bare `node
+// scripts/*.mjs`. Nothing in this file can close that; only a wrapper the
+// project agrees to use, or a shell hook, could.
 //
 // ── FAIL OPEN, ALWAYS ────────────────────────────────────────────────────────
 // This runs from `preinstall`, so a bug here would brick `npm install` for every
@@ -127,11 +177,17 @@ export function treeKind(cwd = process.cwd()) {
 /**
  * Is the caller a SPAWNED agent, as opposed to the desk or the human?
  *
- * `CLAUDE_CODE_CHILD_SESSION` is the primary signal and was measured present
- * only in the subagent (see the table in this file's header). `AI_AGENT`'s
- * `_agent` suffix is a second, independent witness of the same fact -- kept so
- * the guard does not rest on one undocumented variable, in the spirit of
- * BUILDER-BRIEF §8: two derivations of the same fact, neither retyped.
+ * ⚠ **IT CANNOT TELL. READ THE ITEM 247 BLOCK IN THIS FILE'S HEADER.** Measured
+ * 2026-08-03: the desk and every builder share one `CLAUDE_CODE_SESSION_ID` and
+ * one environment, so what this returns for a builder it also returns for the
+ * desk. The docstring here used to claim `CLAUDE_CODE_CHILD_SESSION` "was
+ * measured present only in the subagent"; that measurement read the session
+ * process rather than a tool shell and is false.
+ *
+ * What it honestly answers is **"is this process running under Claude Code at
+ * all"** -- true of the desk, true of every builder, false for the human at a
+ * bare terminal. Two witnesses are still better than one for that narrower
+ * fact, so both are kept (BUILDER-BRIEF §8).
  */
 export function isSubagent(env = process.env) {
   if (env[OVERRIDE]) return false;                    // explicit opt-out wins
