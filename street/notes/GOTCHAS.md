@@ -3,6 +3,41 @@
 Things that have cost real time. Read before your first change; most are not
 discoverable from the code alone.
 
+
+## THE FOURTEEN THAT ACTUALLY BITE — read these, skim the rest
+
+There are 93 entries here and **2,800 lines**. A builder that reads all of them
+before claiming spends twenty minutes doing it, and the desk measured that
+overhead directly: five workers, five first commits, all about twenty minutes
+after they started.
+
+So this index is ranked by **how many times each entry was actually cited by a
+builder in the 2026-08-02/03 session** — i.e. how often it really caught someone,
+not how important it sounds. Read these fourteen. Skim the rest, and come back
+to the full list when you touch the area it covers.
+
+| # | cited | what it is |
+|---|---|---|
+| **36** | 70× | Cite commit hashes that are ALREADY MERGED |
+| **79** | 35× | A check that filters on `visible` measures NOTHING, and says so in green |
+| **28** | 35× | `vite dev` and the built bundle resolve circular imports DIFFERENTLY |
+| **34** | 26× | A check can pass because it found NOTHING TO CHECK |
+| **32** | 19× | Exit 3 means the check never ran |
+| **75** | 17× |  |
+| **30** | 15× | A fixed sleep for anything the RENDER LOOP drives fails only under load |
+| **78** | 13× | `__ct` existing is not a picture — ASK THE RENDERER, with `waitPainted` |
+| **48** | 12× | A probe whose STRIDE is longer than the feature reports smooth ground as a cli |
+| **86** | 11× | A room is no longer necessarily CENTRED IN ITS SLAB |
+| **84** | 10× | A builder without an isolated worktree shares the tree the desk commits from |
+| **74** | 10× |  |
+| **41** | 9× | Verify BOTH sides of anything mirrored — the mirror is where the bug hides |
+| **2** | 9× | There is ONE seeded `rnd()` stream and its ORDER is load-bearing |
+
+**The other 79 are not noise** — several were written because one of them cost a
+whole item. But they are area-specific: you meet them when you touch that area,
+and the file is searchable. **Do not let reading this file be the reason your
+first commit is twenty minutes away.**
+
 ## RENUMBERED 2026-08-02 — if you are following a citation, read this first
 
 **§51 and §52 were each used TWICE, and the second §51 appeared *after* the
