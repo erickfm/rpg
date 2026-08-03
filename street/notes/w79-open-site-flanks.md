@@ -99,13 +99,40 @@ lot's north flank, 1.8 s legs, `w` held:
 **The registered check**, `scripts/w75-site-contained.mjs`, on the built bundle
 at build `290782006`:
 
-| site | before (item 215) | after |
-|---|---|---|
-| lot | **10 escapes / 368 walks**, 21 off the site rect | **0 / 392**, 0 off the rect |
-| jail | 0 / 136 | 0 / 136 |
-| park | 0 / 624 | see the run log |
+| site | before (item 215) | after | lane before → after |
+|---|---|---|---|
+| lot | **10 escapes / 368 walks**, 21 off the site rect | **0 / 392**, 0 off the rect | 22.75 → **22.75 m** |
+| jail | 0 / 136 | **0 / 136** | 13.50 → **13.50 m** |
+| park | 0 / 624 | **0 / 592** | 26.75 → **26.75 m** |
 
-Lot lane 22.75 m, jail lane 13.50 m — both unchanged. 0 page errors.
+All three saturated (nothing left queued: 392/1232, 136/720, 592/1792), every
+site entered and stood in (34 / 6 / 43 in-site places), 0 page errors.
+**Not one metre of walkable ground was lost at any site.**
+
+`node scripts/canfail.mjs jail-forecourt-open` — **CAUGHT**, 1/1, every mutated
+file restored byte-for-byte. The retargeted mutation still finds a deliberate
+hole after this change.
+
+### The change moves no geometry, and that is measured, not asserted
+
+`solid()` pushes an AABB; it adds no mesh. Three independent readings agree:
+the floor-mesh census is **359 before and 359 after**; the flank-plane list is
+identical; and `waitPainted` reports **11048 triangles / 82 draw calls** at the
+same pose in both runs. `shots/w79-lot-north-{from-inside,wide}-{before,after}.png`
+are the same scene — which is what a collider-only change should look like, and
+is why `fp` was not the instrument here (GOTCHAS 75 does not bite, but the
+triangle count is the more direct answer).
+
+**My verdict on the after-images, which I looked at:** the lot's north end is
+the same brick party wall with the same TRADE-INS WELCOME banner, the same
+SOLD-tagged cars in front of it. Nothing was walled off, nothing was added; the
+only difference is that you now stop at it.
+
+### Gates
+
+`npm run typecheck` 0 · `npm run build` 0 · `node scripts/health.mjs` 0
+`WORLD OK` · `npm run sweep` **96 shots, 0 STATION MISS, 0 COVERAGE**, no new
+console errors (`[interior:hotel] NO BUILDING NAME` is the known standing one).
 
 ### Two probes that lied, and were caught by their own controls
 
