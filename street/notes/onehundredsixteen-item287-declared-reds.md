@@ -1,5 +1,14 @@
 # Item 287 — the four standing reds in `interiors-walk`
 
+> **FOLLOW-UP, item 295 (2026-08-03): this note was right and its jail leg is now
+> closed.** The `-5.60` in the probe output quoted below was retired — nothing is
+> at that coordinate — so `w116-jail-which-material.mjs` no longer prints that
+> line; it compares against the real `-9.40`. And the verdict this note correctly
+> declined to give ("both that probe and this leg read `material.color` from JS")
+> came back in pixels: **jail 108.69 at 13:00 and 108.69 at 02:00**, street
+> control 86.21 → 34.02. The jail does not dim, `ct/props.ts:978` returns early
+> past x 100, and the jail is at x 1000. GOTCHAS 92.
+
 Worker onehundredsixteen, 2026-08-03. Port **4720**. Built bundle via
 `vite preview --strictPort`.
 

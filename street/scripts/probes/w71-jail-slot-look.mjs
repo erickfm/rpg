@@ -28,16 +28,37 @@ await p.waitForTimeout(800);
 const room = await p.evaluate(() => window.__ct.roomDims().find((d) => d.id === 'jail') ?? null);
 if (!room) { console.error('no jail room'); await b.close(); process.exit(3); }
 
-// The slot the check names is at world (1006.37, 2.42, -5.6) — the back wall of
-// an EAST cell (room half-width is 6.4). The corridor runs along z at local
-// x ~ 0, so stand in the corridor level with that cell and look across at it.
+// The slot is at world (1006.37, 2.42, **-9.40**) — the back wall of an EAST
+// cell (room half-width is 6.4). The corridor runs along z at local x ~ 0, so
+// stand in the corridor level with that cell and look across at it.
+//
+// ⚠ THIS SAID -5.60 AND -5.60 DOES NOT EXIST (item 295, GOTCHAS 92). Workers
+// sixtyfour and eightytwo both quoted that figure; x and y are right to the
+// centimetre and z is out by 3.8 m, one slot window along the same wall. So this
+// probe was photographing the corridor beside the window it claimed to be
+// looking at, which is how a "the slot looks unchanged" frame gets taken of
+// somewhere else entirely.
 // Yaw is swept rather than assumed: worker sixtyeight lost five routes to
 // guessing this convention (`yaw = PI` walked into a wall), so the probe shoots
 // every quarter turn and the pick is made by LOOKING.
 const YAWS = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
 
-// the slot material, found the same way the check finds it: by position, in the
-// world's own scene, not by a name typed here.
+/** the slot's world z, named rather than typed inline at the camera station —
+ *  the whole reason this probe pointed at the wrong window for a session is that
+ *  the figure lived as a bare literal with nothing to check it against. */
+const SLOT_Z = -9.40;
+
+// the slot material, found the same way the check finds it: by GEOMETRY, in the
+// world's own scene, not by a name or a coordinate typed here. That is why the
+// hex below was always the right material's even while the CAMERA was parked at
+// the wrong z — the numbers were right and the picture was of somewhere else,
+// which is the most confusing way for a probe to be broken.
+//
+// ⚠ AND THE HEX IS A `material.color` READ, WHICH CANNOT ANSWER "DOES THE ROOM
+// LOOK DARK" — GOTCHAS 92. It says what value this one material carries. The
+// room's actual verdict is pixels, and it is in:
+// `scripts/probes/w118-item240-jail-pixels.mjs` — jail 108.69 at 13:00 and
+// 108.69 at 02:00. The jail does not dim, and that is correct.
 const slotHex = () => p.evaluate(() => {
   let hex = null;
   window.__ct.scene().traverse((o) => {
@@ -55,7 +76,7 @@ for (const [h, mm, label] of [[13, 20, 'day'], [2, 0, 'night']]) {
   await p.waitForTimeout(900);
   const hex = await slotHex();
   for (let i = 0; i < YAWS.length; i++) {
-    await p.evaluate(([x, z, yaw, y]) => window.__ct.warp(x, z, yaw, y), [room.cx, -5.6, YAWS[i], room.y]);
+    await p.evaluate(([x, z, yaw, y]) => window.__ct.warp(x, z, yaw, y), [room.cx, SLOT_Z, YAWS[i], room.y]);
     await p.waitForTimeout(400);
     const file = `shots/w71-jailslot-${label}-y${i}-${TAG}.png`;
     await p.screenshot({ path: file });

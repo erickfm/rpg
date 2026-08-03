@@ -7,6 +7,14 @@
 //              that NIGHT_STOPS bottomed out too high; it set the floor #6c6f76
 //   eightytwo  re-found one dimmed material at the same coordinate, stable 2/2
 //
+// ⚠ AND THE COORDINATE THEY AGREED ON DOES NOT EXIST (item 295). The two
+// quotations of -5.60 above are kept as the RECORD OF WHAT WAS CLAIMED — that is
+// the point of this list — but the material is at **-9.40**: x and y agree to
+// the centimetre and z is out by 3.8 m, one slot window along the same cell
+// wall. Anywhere -5.60 was still being USED to aim something, it has been
+// retired. GOTCHAS 92 carries the whole story, including the reason the argument
+// ran three times.
+//
 // ⚠ THE ROW'S OWN WARNING IS THE REASON THIS PROBE EXISTS: a fragment shader is
 // invisible to anything reading `material.color` from JS. Every measurement in
 // that argument was a JS colour read. So this one asks the RENDERER: it

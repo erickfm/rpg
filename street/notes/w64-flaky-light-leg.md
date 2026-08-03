@@ -1,5 +1,17 @@
 # w64 — the flaky casino-light leg, and the three places the pattern also lives
 
+> **CORRECTION, item 295 (2026-08-03) — the record below is kept as written, and
+> two of its conclusions did not survive.** The jail coordinate reported here as
+> `(1006.37, 2.42, -5.6)` **does not exist**; the material is at **`-9.40`**,
+> one slot window along the same cell wall (x and y were right to the
+> centimetre). And the finding it supports — that the jail dims after dark — is
+> **false in pixels**: the jail measures 108.69 at 13:00 and 108.69 at 02:00,
+> against a street control going 86.21 → 34.02. Every measurement in that
+> argument, this note's included, was a `material.color` read from JS, which
+> cannot see that `ct/props.ts:978` returns early for anything past x 100 — and
+> the jail is at x 1000. **The jail does not dim and that is correct.** Nothing
+> below is edited; see GOTCHAS 92.
+
 Item 192. Port: **4201** (dev). `interiors-walk` cannot run against a built
 preview at all — it imports `doors.ts` inside the page, which is item 164 and is
 recorded in the file already.

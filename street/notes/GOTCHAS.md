@@ -2841,3 +2841,49 @@ assertion — an absolute assignment anywhere in that window silently voids it.
 This is the same family as GOTCHAS 79/90: a check that cannot fail is green on a
 broken world too. It is the sharpest version yet, because the mutation *did*
 take — the code ran, the value changed, and the world still came out identical.
+
+## 92. `material.color` read from JS is not "is it dark" — three workers, two overturned verdicts
+
+**This one cost three sessions.** Items 210, 240 and 287 all argued about the
+same question — *does the jail interior go dark at night?* — and every
+measurement in that argument was `material.color` read from JavaScript. All of
+them said one material dimmed. **On screen the room never changed at all.**
+
+The pixel answer, worker onehundredeighteen,
+`scripts/probes/w118-item240-jail-pixels.mjs`:
+
+```
+  jail    108.69 at 13:00  ->  108.69 at 02:00     no change whatsoever
+  street   86.21 at 13:00  ->   34.02 at 02:00     60.5% darker (the control)
+```
+
+**Why the JS read cannot see it, and it is one line.** `ct/props.ts:978`:
+
+```ts
+if (Math.abs(wp.x) > 100) return;   // interiors keep their own light
+```
+
+The night grader returns early for anything past x 100, and the jail sits at
+world **x 1000**. So the grader never touches the room — but *one material out
+of 140* carries its own designed night value, and a JS colour read sees exactly
+that one material change and concludes "the jail dims". **The early return is
+invisible to the read: nothing in `material.color` says a grader declined to
+run.** Lamplight living in `POOL_FRAG` is the same trap wearing a shader — a
+fragment shader is not readable from JS at all.
+
+**So: "is this dark on screen" is a PIXEL question. Always.** A `material.color`
+sweep answers *which material carries which value*, which is a different and
+much narrower question — good for finding a mesh, useless for a verdict. Decide
+which one you are asking before you write the probe.
+
+**AND THE COORDINATE IN THAT ARGUMENT WAS WRONG TOO, which is part of why it ran
+three times.** Workers sixtyfour and eightytwo both reported the dimming
+material at `(1006.37, 2.42, -5.60)`. **There is nothing there.** The material
+they meant is at `(1006.37, 2.42, -9.40)` — x and y agree to the centimetre and
+z is out by 3.8 m, so they are sibling slot windows in one run down the cell
+wall, not two findings. It grades to `#6c6f76`, which is **exactly the night
+floor worker seventyone installed** when it called item 210 *"false in every
+clause"*. **Seventyone was right and is upheld.** If you meet `-5.60` in a
+jail-light context anywhere, it is the dead coordinate; the live one is `-9.40`.
+
+**SETTLED. DO NOT REOPEN.** The jail does not dim, and that is correct.
