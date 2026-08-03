@@ -142,9 +142,44 @@ Also run, all against 4230 on build `8c36b6d67`:
 - **Port 4186 currently answers HTTP 404.** That is another builder's preview
   with an empty `dist/` — i.e. this exact bug, live on the fleet right now.
 
-## Shared file
+## Shared file, and the merge
 
 `scripts/checks.mjs` was shared with **worker sixtysix (item 161)**, which
-registers `texdensity.mjs` and `masonry --selftest`. My edits are the pre-flight
-branch, the classifier call sites, the latch and the footers; its edits are the
-`CHECKS` registry array. See the DONE line for whether a conflict was resolved.
+registers `texdensity.mjs` and `masonry --selftest`.
+
+**No conflict occurred in `checks.mjs`, because item 161 had not landed when I
+merged** (mainline's last commit touching the file is `9d446a944`, and
+`texdensity` is still unregistered there — I confirmed by running
+`checks-registered.mjs`, which is red for exactly that reason). Our edits are in
+disjoint regions: mine are the import at line 35, the pre-flight 404 branch, the
+classifier call sites in the loop body and the footers; **its are the `CHECKS`
+array (lines ~143–1010), which I did not touch at all.** They should auto-merge,
+but **sixtysix merges after me, so it is the one that will see the conflict** —
+whoever resolves it should keep both, and the desk should verify `texdensity`
+ends up registered *and* `probeWithRecovery` still called at both sites.
+
+The merge did conflict in **`notes/GOTCHAS.md`**: mainline appended a new §82
+(queue rebuilds must preserve claims) while I was rewriting §81's tail into 81a.
+**Resolved keeping both** — §81 + my 81a retraction, then mainline's §82
+verbatim. Zero conflict markers remain and the section order reads 80, 81, 81a,
+82.
+
+## Verified after the merge, on build `75d0767db`
+
+- `npm run typecheck` exit 0
+- `npm run build` exit 0
+- `scripts/probes/w67-server-state-cases.mjs` **12/12 green**
+- `node scripts/health.mjs` exit 0 — `WORLD OK`
+- `npm run sweep` exit 0 — 96 shots, **0 STATION MISS, 0 COVERAGE**
+- Full fast-tier `npm run checks` (pre-merge, build `8c36b6d67`): **158 rows —
+  91 ✓, 17 ✗, 50 skipped, and ZERO `SERVER DIED` / `dist/ EMPTY` /
+  `BUILD RACE` / `TREE MOVED`.** The change is status-neutral on a healthy
+  world and invents no false positives.
+- **All 17 reds are pre-existing and belong to other items.** I ran the three
+  that could plausibly have been mine: `checks-registered` is red *only* on
+  `texdensity.mjs` being unregistered (that is item 161, sixtysix's job);
+  `checks-can-fail` is red on `w40-bed-vs-door` having no failing path;
+  `mutations-quote-real-source` is red on 4 dead mutation cases in
+  `ct/bank.ts` and `ct/props.ts` — world files I never opened.
+- **My own preview on 4230 survived four `npm run build`s during this session**,
+  which is the finding restated as an accident.
