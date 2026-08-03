@@ -120,6 +120,44 @@ Exit codes, quoted from the command and not from after a pipe:
 All verification is on the **built bundle** (`npx vite preview --port 4750
 --strictPort`), never on dev.
 
+### Registering it broke a guard, which is the guard working
+
+`checks-registered` went red the first time I ran the suite: *"scripts/
+w119-caption-budget.mjs has a --selftest and is in no tier of npm run checks"*.
+Fixed by adding one row at the far end of `CHECKS` in `scripts/checks.mjs` —
+**a file item 216 does not name.** Reported here per §9; the alternative was to
+leave a check the suite can see and never runs, which is the exact fault that
+guard exists for. `checks-registered` is now **exit 0, 171 registered**, and
+`checks-can-fail` counts **149 registered / 128 declaring a failing path** (was
+148/127 — mine declares one). Both new scripts were also routed through
+`lib/aim.mjs`, so the `aimed` pile went **191 → 189** and neither of mine is in
+it.
+
+### The other suite reds are not mine — measured, not assumed
+
+Two checks name the ATM or the panel framework and are red. **Both were red
+before this item**, proved by checking `src/proto/ct/atm.ts` and
+`src/proto/ct/hud.ts` back to `113c6dbd8`, rebuilding, and re-running:
+
+| check | pre-change build | after |
+|---|---|---|
+| `D-walk` | exit **1**, 26 PASS, `and pressing E opens the machine: 3 full-screen panels -> 3` | exit **1**, 26 PASS, **the identical line** |
+| `pointer-returns` | exit **1**, `3 of 76` — library PC/E, slots/E, `12 of 14 exit paths` | exit **1**, **the same 3 of 76** |
+
+`D-walk`'s ATM leg cannot pass on any recent build and the reason is in its own
+filter: it counts fixed/absolute elements over **300×200 px**, and a *diegetic*
+panel sets `cv.style.display='none'` and leaves only the caption — 18.2 px tall
+before this change and 18.2 px tall after. It also uses `page.keyboard.press`
+rather than a held key (§5). Worth a row of its own; not this item's.
+
+Green after the change, run individually: `w67-atm-pin` (0), `K-atm-walk` (0),
+`screenslot` (0), `health` (0), `sweep` (0).
+
+**The first full `npm run checks` run is void and I am not quoting it**: it
+printed `THE TREE MOVED UNDER THIS RUN: 1ca26b6a2 -> aa3cb6b29` and lost 3 of
+148 checks, because I rebuilt underneath it. That is the build race the runner
+now names, not a finding.
+
 ---
 
 ## FOUND AND NOT FIXED — the row's word "overlaps" points at something real, but
