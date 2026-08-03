@@ -531,6 +531,59 @@ export function citizenSprite(look: Look, o: {
   h?: number; w?: number;
   /** steps per second while walking; long legs swing slower */
   cadence?: number;
+  /**
+   * Stand this far FORWARD of the placed origin, along `facing`, in metres.
+   *
+   * ── WHY THIS EXISTS ────────────────────────────────────────────────────
+   * *"people sitting still looks bad because they have no legs??"* — the user,
+   * 2026-08-03. A seated figure is ONE FLAT BILLBOARD whose origin is the hip,
+   * and a room places that hip at the seat's own centre. The legs are then
+   * drawn from the hip down to the floor, which is precisely the volume the
+   * cushion occupies — and because the plane billboards about a vertical axis
+   * through the hip, THERE IS NO HORIZONTAL DIRECTION FROM WHICH THEY ARE
+   * OUTSIDE THE SEAT. Worker onehundredeight proved that with one camera and
+   * two frames (only the furniture's `visible` flipped): furniture shown, the
+   * sitters are cut off dead level with the bench top; furniture hidden, both
+   * have full legs and both feet on the floor.
+   *
+   * So it cannot be fixed by redrawing the atlas — the furthest-forward seated
+   * pixel reaches 0.21 m against a 0.275 m bench half-depth, and every pixel a
+   * single billboard paints is at the hip's depth anyway. It is a PLACEMENT
+   * fault, and this is the placement.
+   *
+   * ── IT IS OPT-IN, AND THAT IS THE WHOLE DESIGN ─────────────────────────
+   * The obvious version of this is one constant applied to every seated sprite.
+   * **That is wrong, and 14 photographs say so.** Of the world's 14 seated
+   * figures, six are occluded by a DESK, TABLE or SLOT MACHINE in front of them
+   * — the bank's loan officer, three library readers, the church's pew sitter,
+   * the casino's slot players — and for those, hiding the legs is CORRECT: it
+   * is what sitting at a table looks like. A blanket offset drives their torsos
+   * into the furniture they are sitting at, which is a regression the user
+   * would see in three more rooms than the one he complained about.
+   *
+   * So the caller opts in, and passes a value DERIVED FROM THE SEAT IT OWNS
+   * (`BENCH_W / 2`, `BENCH_D / 2 - SIT_OFF`, …) rather than a constant typed
+   * here. Only the rooms where the SEAT ITSELF is the occluder pass anything.
+   *
+   * ── AND IT IS APPLIED IN `update()`, WHICH IS THE SAFETY ARGUMENT ──────
+   * Two callers claim an occupied seat by reading `mesh.position` BACK after
+   * placing it (`ct/interior.ts` room.person, `ct/int-casino.ts` sitter), and
+   * `seatTaken`'s tolerance is 0.30 m — deliberately small, because casino
+   * lounge seats are 0.65 m apart. A build-time offset of the natural size
+   * (0.275 m) leaves 2.5 cm of that tolerance and any deeper seat spends it
+   * outright, which would silently undo item 93 and offer the player a stool a
+   * man is already sitting on.
+   *
+   * Both claims happen at BUILD time, immediately after `place()`/`put()`.
+   * `update()` does not run until the first frame, which is strictly later — so
+   * the registry records the TRUE seat exactly as it does today and that 2.5 cm
+   * is never spent. Verified, not assumed: the 219-entry seat-offer vector is
+   * byte-identical before and after this change.
+   *
+   * It cannot accumulate: every frame writes `base + offset`, never
+   * `position += offset`. `base` is captured once, on the first update.
+   */
+  seatFwd?: number;
 } = {}): CitizenSprite {
   const tex = citizenAtlas(look);
   tex.repeat.set(1 / 5, 1 / 2);
@@ -568,6 +621,10 @@ export function citizenSprite(look: Look, o: {
   let sector = -1;
   let anim = 0;
   const cad = o.cadence ?? 5;
+  // see `seatFwd` above. `base` is the position the ROOM placed, captured on
+  // the first update and never written again, so the offset is idempotent.
+  const seatFwd = o.seatFwd ?? 0;
+  let base: THREE.Vector3 | null = null;
   return {
     mesh,
     // kept in step with the closure — a published value that stops updating is
@@ -575,6 +632,14 @@ export function citizenSprite(look: Look, o: {
     setFacing: (rad) => { facing = rad; mesh.userData.citizenFacing = rad; },
     setWalking: (on) => { walking = on; },
     update: (px, pz, dt = 0) => {
+      // FORWARD OF THE SEAT, before anything reads the position — the billboard
+      // must turn about where the figure ENDS UP, not about where it was placed.
+      // `facing` is atan2(vx, vz), so forward is (sin f, 0, cos f).
+      if (seatFwd) {
+        if (!base) base = mesh.position.clone();
+        mesh.position.set(base.x + Math.sin(facing) * seatFwd, base.y,
+          base.z + Math.cos(facing) * seatFwd);
+      }
       const camAng = Math.atan2(px - mesh.position.x, pz - mesh.position.z);
       mesh.rotation.y = camAng;               // the plane turns to face you
       // Hysteresis on the view, and it is not optional: rounding the heading to

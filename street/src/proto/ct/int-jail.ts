@@ -184,6 +184,10 @@ export function buildJail(ctx: CtxBuild): void {
   // Built to be unpleasant to wait in, which is a design brief and not an
   // apology: every object here is bolted down, wipe-clean, or behind glass.
   const BENCH_Y = 0.46;                 // the seat top. `notes/H-seated-sprite.md`
+  // How deep the slat is, front to back. Named because the sitter's forward
+  // offset derives from it (item 280) and a second hand-typed 0.42 is exactly
+  // the habit BUILDER-BRIEF §8 exists to stop.
+  const BENCH_D = 0.42;
                                         // measured 48 of the world's seats at
                                         // this height, and a sitter's origin is
                                         // the hip — so this number has to be the
@@ -207,7 +211,7 @@ export function buildJail(ctx: CtxBuild): void {
    *  the front is the side that faces the room — derived from which wall it is
    *  on, never copied from a sibling (GOTCHAS §33). */
   const bench = (lx: number, lz: number, len: number, along: 'x' | 'z') => {
-    const w = along === 'x' ? len : 0.42, d = along === 'x' ? 0.42 : len;
+    const w = along === 'x' ? len : BENCH_D, d = along === 'x' ? BENCH_D : len;
     const seat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.07, d), woodM);
     put(seat, lx, BENCH_Y, lz);
     const n = Math.max(2, Math.round(len / 1.6));
@@ -238,7 +242,12 @@ export function buildJail(ctx: CtxBuild): void {
     -hw + 0.42, hd - 3.0,
     // facing ACROSS the room toward the counter, which is what you look at
     // when you are waiting to be called. Derived from the thing she faces.
-    { facing: Math.PI / 2, seated: true, y: BENCH_Y },
+    { facing: Math.PI / 2, seated: true, y: BENCH_Y,
+      // …and forward to the front of the slat, or the bench bisects her legs:
+      // the slat passed straight through the middle of them, shins in front and
+      // thighs behind, so she read as embedded in the furniture. Derived from
+      // BENCH_D, which the bench builder above draws from. (Item 280.)
+      seatFwd: BENCH_D / 2 },
   );
 
   // ── the notice board ────────────────────────────────────────────────────
@@ -874,8 +883,12 @@ export function buildJail(ctx: CtxBuild): void {
 
     // ── what is inside, and it is furnished for somebody ──
     const BUNK_Y = 0.46;
+    // Head at the back wall, foot toward the bars: the bunk runs ALONG the
+    // sitter's line of sight, which is why the man on it needs a big forward
+    // offset and the lobby bench needs a small one (item 280).
+    const BUNK_L = 1.92;
     const bunkX = backX + inward * 1.15;         // against the back wall
-    put(new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.10, 0.72), bunkM), bunkX, BUNK_Y, cz + 0.5);
+    put(new THREE.Mesh(new THREE.BoxGeometry(BUNK_L, 0.10, 0.72), bunkM), bunkX, BUNK_Y, cz + 0.5);
     for (const t of [0.30, 2.00]) {
       put(new THREE.Mesh(new THREE.BoxGeometry(0.07, BUNK_Y, 0.07), bunkM),
         backX + inward * t, BUNK_Y / 2, cz + 0.5);
@@ -907,7 +920,7 @@ export function buildJail(ctx: CtxBuild): void {
       put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.44, 0.035), barM),
         backX + inward * 0.07, 2.42, cz - 0.30 + k * 0.20);
     }
-    return { bunkX, cz: cz + 0.5, faceX };
+    return { bunkX, cz: cz + 0.5, faceX, bunkL: BUNK_L };
   };
 
   // Four each side. The two runs are built by the SAME function with a
@@ -935,7 +948,20 @@ export function buildJail(ctx: CtxBuild): void {
     { jacket: '#6a6358', pants: '#4a4640', skin: '#7a4a28', hair: '#22201c',
       fit: 'plain', cut: 'crop', build: 0, stride: 2, grime: 0.55, seated: true },
     occupiedCell.bunkX, occupiedCell.cz,
-    { facing: Math.atan2(occupiedCell.faceX - occupiedCell.bunkX, 0), seated: true, y: 0.595 },
+    { facing: Math.atan2(occupiedCell.faceX - occupiedCell.bunkX, 0), seated: true, y: 0.595,
+      // THE WORST SEATED FIGURE IN THE WORLD BEFORE THIS (item 280): he sat at
+      // the CENTRE of a bunk that runs 0.96 m in the exact direction he faces,
+      // so the mattress swallowed his whole lower body and he read as a torso
+      // floating over the blanket with two shoes poking out of it. Every other
+      // sitter loses its legs to a cushion a quarter of a metre deep; this one
+      // lost them to a bed.
+      //
+      // So he moves to the FOOT of the bunk, which is where a man sitting up
+      // facing the bars actually sits — feet on the floor, blanket behind him.
+      // Half the bunk's own length, less a hip's width so he is ON it and not
+      // perched off the end. Derived from BUNK_L, which the cell above draws
+      // the frame and the mattress from.
+      seatFwd: occupiedCell.bunkL / 2 - 0.26 },
   );
 
   // ── the corridor's own light ───────────────────────────────────────────
