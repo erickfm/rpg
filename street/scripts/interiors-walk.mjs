@@ -75,7 +75,7 @@ import { approachHeading } from './lib/viewof.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { reportEndOfRun } from './lib/server-state.mjs';
 import { entrySpots } from './lib/entry-spot.mjs';
-import { sampleFloors, makeHasFloor, selfTestFloors } from './lib/floors.mjs';
+import { installRayFloorQuery, selfTestRayQuery } from './lib/floors.mjs';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 
@@ -549,15 +549,38 @@ const inRoom = (r, x, z) =>
 // A room rectangle says who OWNS ground, not where the world ENDS.
 // `groundAt()` cannot answer it — `groundPick` never returns null — so the
 // floors come from the scene. See `scripts/lib/floors.mjs`.
-const FLOORS = await sampleFloors(p);
-const hasFloor = makeHasFloor(FLOORS);
+// ── RAYCAST, NOT THE AABB BOX. CONVERTED 2026-08-03, ITEM 250 ─────────────
+//
+// This used to be `makeHasFloor(await sampleFloors(p))` — a bounding-box test
+// over meshes that survive a size filter. Item 238 reconciled the two
+// predicates over all 731,322 grid cells: they agree 97.37%, and **the
+// disagreement is asymmetric in the direction that decides authority** —
+// raycast errors are 92.4% sealed inside colliders and harmless, AABB errors
+// are 88.4% on OPEN WALKABLE GROUND. An over-claiming floor test reports ground
+// where there is none, and for THIS suite — which classifies every interior
+// endpoint — that is the false-GREEN direction. 11,948 cells over-claimed.
+//
+// The real weakness was never boxes-versus-rays. It is the **size filter in
+// front of the box, which hides 7,513 of 7,870 meshes**: item 172 gave the park
+// relief and its ground plane's world box became 0.653 m against a 0.600 m
+// filter — over by 53 mm — so a 32x30 m floor vanished outright and the park
+// read 60 escapes / 624 FAIL. On the raycast it is 0 / 544 PASS.
+//
+// ⚠⚠ **THE QUERY IS ASYNC AND THAT IS THE KILLER — GOTCHAS 90.** `if
+// (!hasFloor(x, z))` on a Promise is ALWAYS FALSE, so every check silently
+// passes forever, and no self-test can catch it: a check that cannot fail is
+// green on a wrong world too. Every call site below is `await`ed, and they were
+// found by grepping the USE (`if (hasFloor(`, `!hasFloor(`) and not the name.
+const RAY = await installRayFloorQuery(p);
+const hasFloor = RAY.query;                      // (x, z, gy) => Promise<boolean>
 {
-  const bad = await selfTestFloors(p, FLOORS, hasFloor);
+  const bad = await selfTestRayQuery(p, hasFloor, RAY.tris);
   if (bad.length) {
     console.log('FLOOR PREDICATE FAILED ITS OWN CONTROLS — nothing measured:\n  ' + bad.join('\n  '));
     await b.close(); process.exit(3);
   }
-  console.log(`floor predicate ok: ${FLOORS.length} floor meshes, road solid, off-world void`);
+  console.log(`floor predicate ok (RAYCAST): ${RAY.tris} triangles from ${RAY.meshes} meshes, `
+    + `${RAY.buckets} buckets, road solid, off-world void`);
 }
 
 // A ROOM MAY DECLARE ITS DOOR BY `face:` AND PUBLISH NO FRONTAGE.
@@ -1070,7 +1093,7 @@ for (room of rooms) {
         }
         continue;
       }
-      if (hasFloor(a[0], a[2], a[3])) {
+      if (await hasFloor(a[0], a[2], a[3])) {          // AWAIT — GOTCHAS 90
         leaks++;
         if (leaks <= 3) check(`walked out of every room going ${key}`, false,
           `from local ${f2(lx)},${f2(lz)} ended at ${f2(a[0])},${f2(a[2])} gy=${f2(a[3])} — `
@@ -1103,9 +1126,13 @@ for (room of rooms) {
   // OUTDOORS. A predicate that could not see interior floors at all would pass
   // those two and then call every endpoint in this room VOID; conversely this
   // is the leg that fails if a room's floor stops being floor-shaped.
+  // Hoisted to ONE awaited value. It used to call the predicate twice inline,
+  // which under the async query would have handed `check` a Promise (truthy —
+  // always green) and then printed a second Promise into the message. GOTCHAS 90.
+  const centreFloored = await hasFloor(cx, cz, built.y);
   check('the floor predicate can see this room\'s own floor',
-    hasFloor(cx, cz, built.y),
-    `room centre ${f2(cx)},${f2(cz)} at y=${f2(built.y)} reads ${hasFloor(cx, cz, built.y) ? 'FLOORED' : 'VOID'}`);
+    centreFloored,
+    `room centre ${f2(cx)},${f2(cz)} at y=${f2(built.y)} reads ${centreFloored ? 'FLOORED' : 'VOID'}`);
 
   // the doorway is the one deliberate gap in the collider line, so it gets
   // walked at head-on as well

@@ -9,7 +9,7 @@
 // a red nobody believes gets loosened, and then it never fires again.
 import { chromium } from 'playwright';
 import { aim } from '../lib/aim.mjs';
-import { sampleFloors, makeHasFloor, selfTestFloors } from '../lib/floors.mjs';
+import { installRayFloorQuery, selfTestRayQuery } from '../lib/floors.mjs';
 
 const RADIUS = 0.36;
 const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
@@ -34,11 +34,20 @@ const DIMS = await p.evaluate(() => window.__ct.roomDims());
 const PARTY = await p.evaluate(async () => (await import('/src/proto/ct/interior.ts')).PARTY);
 console.log('PARTY (read from ct/interior.ts, not copied):', JSON.stringify(PARTY));
 
-const floors = await sampleFloors(p);
-const hasFloor = makeHasFloor(floors);
-const bad = await selfTestFloors(p, floors, hasFloor);
+// ── RAYCAST, NOT THE AABB BOX. CONVERTED 2026-08-03, ITEM 250 ─────────────
+// This probe CLASSIFIES endpoints, so an over-claiming predicate mislabels a
+// VOID as FLOORED and the classification it exists to produce is wrong in the
+// false-green direction. Item 238: the two predicates agree 97.37% over all
+// 731,322 cells, and the 11,948 AABB over-claims are 88.4% on open walkable
+// ground. Measured on this world, the AABB pass kept **357 of 7,866 meshes**;
+// the ray indexes all of them.
+// ⚠⚠ THE QUERY IS ASYNC — GOTCHAS 90. `if (hasFloor(...))` on a Promise is
+// always TRUE, which here would report every endpoint FLOORED and zero VOID.
+const RAY = await installRayFloorQuery(p);
+const hasFloor = RAY.query;                       // (x, z, gy) => Promise<boolean>
+const bad = await selfTestRayQuery(p, hasFloor, RAY.tris);
 if (bad.length) { console.log('FLOOR PREDICATE FAILED ITS CONTROLS:\n  ' + bad.join('\n  ')); await b.close(); process.exit(3); }
-console.log(`floor predicate ok: ${floors.length} floor meshes, road solid, off-world void\n`);
+console.log(`floor predicate ok (RAYCAST): ${RAY.tris} triangles from ${RAY.meshes} meshes, road solid, off-world void\n`);
 
 const T = 0.18 + 0.05;
 const inRoom = (r, x, z) => Math.abs(x - r.cx) <= r.w / 2 + T && Math.abs(z - r.cz) <= r.d / 2 + T;
@@ -77,7 +86,7 @@ for (const built of belt) {
         notes.push(`${k}  ${key} from ${f2(lx)},${f2(lz)} -> ${other.id} at ${f2(a[0])},${f2(a[2])}`);
         continue;
       }
-      if (hasFloor(a[0], a[2], a[3])) {
+      if (await hasFloor(a[0], a[2], a[3])) {        // AWAIT — GOTCHAS 90
         cls.FLOORED++;
         notes.push(`FLOORED ${key} from ${f2(lx)},${f2(lz)} -> ${f2(a[0])},${f2(a[2])} gy=${f2(a[3])}`);
       } else {
