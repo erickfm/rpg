@@ -217,7 +217,7 @@ export function doorRebate(
     // the OUTER face of the shell rather than the inner one, so which side of
     // this plane the player stands on is not a fact this function is told.
     // A flat colour has no handedness, so GOTCHAS 10's mirror does not apply.
-    new THREE.MeshBasicMaterial({ color: 0x15151a }));
+    new THREE.MeshBasicMaterial({ color: 0x15151a, side: THREE.DoubleSide }));
   put(m, dAt, DH / 2, zFace + behind);
 }
 
