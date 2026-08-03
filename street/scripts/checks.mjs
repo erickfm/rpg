@@ -598,7 +598,11 @@ const CHECKS = [
   // the check catches the actual bug rather than a symptom somebody planted.
   ['prop-landing',     'does every dropped prop stand where it was put down?', true, [], false,
     ['litter-self-push']],
-  ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried'], ['probe']],
+  // `glow-park-dark` added by item 257 — the park became glow.mjs's THIRD region
+  // in item 248, and until now the guarantee that made it measurable (every
+  // stamped lamp lands in exactly one region, with a per-region `stamped` bar
+  // under it) was proved only by a builder having run the mutation once by hand.
+  ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried', 'glow-park-dark'], ['probe']],
   // REGISTERED 2026-08-03 (item 150). `ct/hud.ts` cast `mesh.material` to a
   // single material when hanging a panel on a face. `Mesh.material` is legally
   // `Material | Material[]`, and on an array `mat.color` is undefined — so

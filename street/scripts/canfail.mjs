@@ -596,6 +596,31 @@ const CASES = [
     'pool.rotation.x = -Math.PI / 2; pool.position.set(headX, -0.01, headZ); scene.add(pool);',
     'glow.mjs', ['probe'], 'the street lamplight drawn UNDER the road it falls on'],
 
+  // ITEM 248, REGISTERED BY ITEM 257. Removes the park's ten lanterns at the
+  // source: `props.ts:2134` reads `site('park')` and the whole lantern block
+  // sits behind `if (parkSite)`, so a null site builds none of them.
+  //
+  // ⚠ WHAT THIS CASE IS ACTUALLY FOR, AND IT IS NOT WHAT IT LOOKS LIKE. Until
+  // item 248, glow.mjs held TWO regions and neither matched the park — 10 of 21
+  // stamped lamps fell in NO region, and the file printed four green OKs while
+  // never mentioning a third of the world's lamps. **Against that glow.mjs this
+  // mutation would have changed NOTHING it printed**, because the park was
+  // already unmeasured. So this case does not guard the park lanterns so much
+  // as it guards the PER-REGION BARS that made the park measurable.
+  //
+  // ⚠ IT MUST FIRE THE `stamped` BAR, NOT THE COVERAGE ASSERTION, and 248
+  // proved the difference by running it: with the park emptied the coverage
+  // assertion ("every stamped lamp lands in exactly one region") **PASSES** —
+  // there are no lamps left to be unclaimed. A bar derived from the stamped
+  // population cannot see deletion either, which is why `stamped` is declared
+  // per region (park 8) rather than computed. Watched here at registration:
+  // park stamped 0 of 8. **If this case ever starts being CAUGHT by the
+  // coverage line instead, something has moved and the bar has gone to sleep.**
+  ['glow-park-dark', PROPS,
+    "  const parkSite = site('park');",
+    "  const parkSite = null as any;",
+    'glow.mjs', ['probe'], 'the park losing all ten of its lanterns'],
+
   // INSIDE THE HILL. park-buried drops the decal into ct/park.ts's LIFT stack
   // and is caught by the coverage test; this drops it BELOW the terrain, which
   // that test cannot see — it looks for opaque meshes drawn over the decal, and
