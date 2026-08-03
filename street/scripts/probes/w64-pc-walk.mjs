@@ -254,7 +254,7 @@ const after = await p.evaluate(() => {
   return { fov: c.fov, onMesh: window.__librarypc.onMesh(), cursor: document.body.style.cursor };
 });
 check(!after.onMesh, 'the CRT is off the panel again');
-check(after.fov > 60, `the fov is handed back (${after.fov.toFixed(1)}°, not the 42° lock)`);
+check(after.fov > 60, `the fov is handed back (${after.fov.toFixed(1)}°, not the 46° lock)`);
 // FEET ACTUALLY MOVE. A screenshot cannot prove you are not wedged.
 const before = await p.evaluate(() => window.__ct.pos());
 await p.keyboard.down('s'); await p.waitForTimeout(420); await p.keyboard.up('s');
