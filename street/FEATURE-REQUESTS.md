@@ -3058,3 +3058,9 @@ to one side.
   DRAWN. Likely relevant: `:818` states the palette is deliberately *"the
   room's, read off `ct/int-casino.ts` rather than chosen"* — five muted casino
   tones, which is the opposite of lively.
+
+- **"get rid of the trash crate in front of the thrift store. or move it
+  somewhere else"** (2026-08-02) → **routed as queue item 204.** He offers both
+  options, so the builder may choose. THRIFT's frontage is `cz: -61.75`,
+  `w: 12.5`, `side: -1` (`ct/int-thrift.ts:48`). A "milk crate" prop exists in
+  `ct/props.ts` (`:447`, `:1246`).
