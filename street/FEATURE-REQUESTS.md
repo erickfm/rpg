@@ -2817,3 +2817,27 @@ to one side.
   references the church five times, so the check covers it and passes. **The check
   verifies POSITION and reports a match; the user is judging APPEARANCE.** That is the
   whole class, and it is why he keeps seeing what our checks cannot.
+
+- **"[screenshot] the mug is messed up"** (2026-08-02, close-up) → **SECOND report; item
+  108 promoted to the top with the cause found.** `ct/apartment.ts:1906-1912`: the body
+  `CylinderGeometry(0.038, 0.034, 0.095, 8)` and the handle `TorusGeometry(0.026, 0.008,
+  4, 8)` **share one material** (`mugM`, `0xd8d2c4`) — identical colour, so nothing
+  separates them and it reads as one blob. The handle's **4 radial segments** make a
+  square ring rather than a curve. It IS correctly rotated (`rotation.y = PI/2`), so
+  orientation is not the fault.
+
+- **"[screenshot] fix this chair"** (2026-08-02) → **routed as queue item 146.** Back
+  panel appears to float above the seat with a separate rail above it, against a
+  blue-grey wall over a wood floor and a maroon rug — builder to identify the room from
+  the frame.
+
+- **"[screenshot] jail door is still messed up"** (2026-08-02, daylight) → **SECOND
+  report; item 104 promoted with a much stronger lead than the desk's first guess.** The
+  daylight frame shows what the dark one hid: **the door is SEE-THROUGH** — masonry
+  coursing and the stone reveal are visible through the leaves. Not the texture-density
+  problem the desk guessed. Desk found: `ct/interior.ts:924` is a glazing material at
+  **opacity 0.55**; `ct/int-jail.ts:65` declares `glazing: 'none'` and `ct/jail.ts:510`
+  *comments* "Steel, two leaves, no glazing" while pointing at `int-jail.ts` for the
+  declaration. **If the exterior leaf does not read that declaration, the outside door is
+  glazed while the inside is solid** — which is simultaneously this bug and the
+  inside/outside mismatch class of item 105.
