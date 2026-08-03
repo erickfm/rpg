@@ -75,7 +75,7 @@ import { approachHeading } from './lib/viewof.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { reportEndOfRun } from './lib/server-state.mjs';
 import { entrySpots } from './lib/entry-spot.mjs';
-import { installRayFloorQuery, selfTestRayQuery } from './lib/floors.mjs';
+import { sampleFloors, installRayFloorQuery, selfTestRayQuery } from './lib/floors.mjs';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 
@@ -573,6 +573,23 @@ const inRoom = (r, x, z) =>
 // found by grepping the USE (`if (hasFloor(`, `!hasFloor(`) and not the name.
 const RAY = await installRayFloorQuery(p);
 const hasFloor = RAY.query;                      // (x, z, gy) => Promise<boolean>
+// AND `sampleFloors` SURVIVES, FOR A QUESTION THAT IS NOT A FLOOR TEST.
+//
+// The off-belt ceiling derivation (search this file for `const ceil =`) needs
+// the floor MESHES — their x/z extents and their y — so it can take the lowest
+// slab above head height inside a room's footprint. A point predicate cannot
+// answer that, ray or box, because it returns a boolean and not an elevation.
+//
+// The over-claim item 250 is about does not reach it: this is a `Math.min` over
+// slabs, so the AABB size filter can only make it miss one, and missing one is
+// caught loudly by the `Number.isFinite(ceil)` check two lines below the use.
+// The failure direction here is the safe one. **Do not "finish the conversion"
+// by deleting this** — it is not the predicate.
+//
+// (I found it by running the off-belt room and getting `ReferenceError: FLOORS
+// is not defined`. Grepping `hasFloor` by use, as item 250 instructs, does not
+// find a second symbol drawn from the same import. Grep the IMPORT LIST too.)
+const FLOORS = await sampleFloors(p);
 {
   const bad = await selfTestRayQuery(p, hasFloor, RAY.tris);
   if (bad.length) {
