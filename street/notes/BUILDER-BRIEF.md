@@ -405,3 +405,25 @@ so there is nothing to check them against.
 **So: if you create a texture, declare its density. If you apply one, derive the
 repeat.** A surface that cannot state its own px/m is a surface no check can ever
 defend, and the user finds those by eye — he has now done so five times.
+
+## §6b — A ROW'S NUMBERS EXPIRE. ITS QUOTE DOES NOT.
+
+Every queue row now ends with `⟨desk numbers measured YYYY-MM-DD HH:MM⟩`.
+
+**If that stamp is over an hour old, re-measure before you start.** Not as
+diligence theatre — as the first task of the item. In the 2026-08-02/03 session,
+of the rows that commented on the desk's stated cause, **28 said it was wrong
+against 5 that said it was right**, and the commonest failure was a number that
+had rotted rather than a guess that was bad. One row navigated by three figures
+had **all three wrong**: the backlog was 168 not 188, the worst category 14 not
+39, and **the face it named as the place to start no longer existed**.
+
+Three items in that session turned out to be **already satisfied** and were
+closed with no code change at all. Finding that out and saying so is a complete
+contribution — it is cheaper than the work, and it is the only way a stale row
+ever gets retired.
+
+**What does not expire is the user's verbatim quote.** When his words and the
+desk's diagnosis disagree, he is right (§6a). Every time that was tested in that
+session, the row was wrong and he was not.
+

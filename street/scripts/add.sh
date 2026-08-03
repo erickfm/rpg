@@ -45,7 +45,22 @@ until mkdir "$LOCK" 2>/dev/null; do
 done
 trap 'sh "$QB" snapshot "$Q" >/dev/null 2>&1; rm -rf "$LOCK"' EXIT INT TERM
 
-row="| $id | TODO | $files | $what |"
+# EVERY ROW CARRIES THE MINUTE ITS NUMBERS WERE TAKEN. The user asked for this
+# on 2026-08-03, and the measured reason is in the desk's own audit: of the rows
+# that commented on the desk's stated cause, 28 said it was WRONG against 5 that
+# said it was right. The commonest failure was not a bad guess — it was a NUMBER
+# THAT HAD ROTTED. One row navigated by three figures and all three were stale:
+# the backlog was 168 not 188, the worst category 14 not 39, and the single face
+# it told a builder to start with NO LONGER EXISTED. Three other items turned out
+# to be already satisfied.
+#
+# A row's prose ages gracefully; its numbers do not. Five builders can land work
+# in the hour between the desk measuring something and a sixth reading about it.
+# So the stamp is not decoration: it tells a builder which half of the row to
+# trust. See the rule in QUEUE.md's header — numbers older than an hour are a
+# HYPOTHESIS, and re-measuring is the first task, not an optional courtesy.
+stamped=$(date '+%Y-%m-%d %H:%M')
+row="| $id | TODO | $files | $what ⟨desk numbers measured $stamped⟩ |"
 if [ "$top" = 1 ]; then
   # first line that is already a data row; insert above it
   first=$(grep -nE '^\| *[0-9]+[a-z]* *\|' "$Q" | head -1 | cut -d: -f1)
