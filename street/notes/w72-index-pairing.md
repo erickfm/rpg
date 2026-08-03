@@ -190,7 +190,47 @@ movement leg — the sort exists for readable output, not for the arithmetic —
 its own row, and it is the strongest instance of this bug now left in the
 tree.**
 
-### 2. The jail probe reports 1 dimmed material, and it is tagged `selfLit`
+### 2. ⚠ MERGING MAINLINE IN TURNED BOTH SUITES RED, AND IT IS ITEM 196
+
+Between my five-run proof (`e540c3723`) and the mainline merge, **item 196
+landed a door-label rename that neither suite can enter the casino through**:
+
+```
+ae06532ad  Item 196: the two frontages become ONE property from the pavement
+  src/proto/ct/int-casino.ts:134
+  -    label: 'into SEVENS',
+  +    label: 'into the ORPHEUS CASINO',
+```
+
+Post-merge, same server, same commands:
+
+```
+G-vice-walk    17/18   FAIL  SEVENS: the painted entrance and the [E] spot still agree
+                             prompt="[E] into the ORPHEUS CASINO"
+G-rooms-walk   34/41   FAIL  casino: no [E] spot matching /SEVENS/
+                       FAIL  casino: walking up to the door raises the prompt
+                       + a cascade — casino and hotel are never entered, so their
+                         legs report "no floor plane found" and the tax leg reads
+                         a street prompt
+```
+
+**This is not a stale check and I have deliberately not loosened it to pass**
+(BUILDER-BRIEF §7). The assertion is literally *"the painted entrance and the
+[E] spot still agree"*, and they now disagree: `ct/vice.ts` still names the
+building **SEVENS** at :76, :760, :814, :961 and :1950 — the roster, the band,
+the door x and the blade. Only the interior door's prompt was renamed. So the
+marquee over the door reads SEVENS and the prompt under it reads ORPHEUS
+CASINO, which is also the HOTEL's name, and *"instead of calling the casino
+golden aces call it SEVENS"* is the user's own request (LEDGER, CONFIRMED).
+
+**Not mine, and checkable.** My five stability runs at `e540c3723` were
+`113/114` and `18/18`, five for five. My diff on both files touches only the
+night-light leg and the selftest — `git diff 946ccce11 a49f494ae -- scripts/G-rooms-walk.mjs`
+has hunks at :162, :192, :213, :949, :970 and :1033, none of them near the door
+or label legs. **Wants its own row: either item 196 keeps the door named SEVENS,
+or the marquee changes too — but they cannot disagree.**
+
+### 3. The jail probe reports 1 dimmed material, and it is tagged `selfLit`
 
 Post-fix, judging 97 distinct materials with 0 self-animating:
 
@@ -206,7 +246,7 @@ is a finding of the probe, not of this item, and it is one material of 97.
 **Wants its own row.** (It is also a genuine reading now: pre-fix the same probe
 could have attributed it to a mispair.)
 
-### 3. Checked and cleared — the pattern is NOT in these
+### 4. Checked and cleared — the pattern is NOT in these
 
 | site | why it is safe |
 |---|---|
@@ -217,7 +257,7 @@ could have attributed it to a mispair.)
 | `scripts/M-verify-church-lancets.mjs:87` | static lancet geometry, sampled either side of an edit |
 | `scripts/packages.mjs:153` | two HUD strings word-by-word — cosmetic only; the assertion is `gained`, not this line |
 
-### 4. One that is adjacent but not this bug — `scripts/lamplight.mjs:70`
+### 5. One that is adjacent but not this bug — `scripts/lamplight.mjs:70`
 
 `near(x, z)` picks **the nearest GROUP** to a fixed point at each sample and
 traverses it. Index *within* the chosen car is honest, but traffic cars move, so
