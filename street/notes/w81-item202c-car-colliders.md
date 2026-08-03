@@ -83,6 +83,13 @@ and reported a broken world. The SHAPE is shared; the NAME is per instance.
   (all six step-offs, kerb untouched at 0.140 m).
 - **`npm run sweep`: 96 shots, 0 STATION MISS, 0 COVERAGE, 0 console errors.**
   `node scripts/health.mjs`: WORLD OK. `npx tsc --noEmit`: clean.
+- **`scripts/crowd-walk.mjs` is RED, and it is PRE-EXISTING — measured, not
+  assumed.** It fails on *"no stopped citizen ever sealed the walk"* and a 0 m
+  gap at `(6, −50.44)`. I checked out the merge base's `src/proto/` (83987bbfb),
+  rebuilt, and ran it: **the baseline fails the same two assertions at
+  `(6, −50.45)`, 50 sealed of 477 samples against my 54 of 485.** Same defect,
+  same spot, not a regression. It is about citizens sealing the east walk, and
+  no car collider's ground footprint moved in this item.
 - **Looked at**, through the V overlay the user filed this from:
   `shots/w81-main-truck-V.png`, `shots/w81-side-truck-V.png`,
   `shots/w81-side-sedan-V.png`. My verdict: the boxes hug the silhouettes; the
