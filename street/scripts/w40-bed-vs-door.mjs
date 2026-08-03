@@ -117,10 +117,20 @@ await p.waitForTimeout(600);
 // actually built on, so the thresholds this check asserts against are imported
 // from it. A hand-typed 0.36 here would keep passing after someone changed the
 // player's capsule, which is BUILDER-BRIEF §8's whole complaint.
-const K = await p.evaluate(async () => {
-  const m = await import('/src/proto/fp.ts');
-  return { RADIUS: m.RADIUS, TOUCH_MARGIN: m.TOUCH_MARGIN };
-});
+// …AND IT IS READ OFF `__ct`, NOT IMPORTED (item 232). This did
+// `await import('/src/proto/fp.ts')`, which resolves on the dev server and
+// **404s on `vite preview`**: the bundle serves `dist/`, which has no such
+// path. So the very hand-typing this comment objects to was being avoided in a
+// way that produced `undefined` on the build that ships (GOTCHAS 28). Both
+// values are published — `playerRadius()` at `crosstown.ts:1643`,
+// `touchMargin()` at `:1629` — which is the runtime path the note wanted.
+const K = await p.evaluate(() => ({
+  RADIUS: window.__ct.playerRadius(), TOUCH_MARGIN: window.__ct.touchMargin(),
+}));
+if (![K.RADIUS, K.TOUCH_MARGIN].every((v) => typeof v === 'number' && isFinite(v))) {
+  console.error(`ABORT: constants did not resolve off __ct — ${JSON.stringify(K)}`);
+  await b.close(); process.exit(3);
+}
 console.log(`\nfp.ts: RADIUS=${K.RADIUS} TOUCH_MARGIN=${K.TOUCH_MARGIN}`);
 
 const room = await p.evaluate(() => {

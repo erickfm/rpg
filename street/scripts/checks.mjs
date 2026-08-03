@@ -1257,6 +1257,40 @@ const CHECKS = [
   ['w75-site-contained', 'can the player walk out of the world at the jail?', 'jail-forecourt-open', ['jail'], true],
   ['w75-site-contained', 'can the player walk out of the world at the park?', false, ['park'], true],
   ['w75-site-contained', 'can the player walk out of the world at the lot?', false, ['lot'], true],
+  // REGISTERED 2026-08-03 (w85, item 230). THE SAME QUESTION ASKED OF THE WHOLE
+  // WORLD, and it is not a fourth site row — it is the row for everywhere that
+  // is not a site. The three rows above are seeded from a site's frontage, so
+  // ground belonging to no site is never swept by any of them; this one is
+  // seeded from nothing at all (connected components over a grid), and 76.4% of
+  // the reachable ground it covers is outside every site rectangle.
+  //
+  // It also decides floor-versus-void differently, and that difference is the
+  // whole reason it exists: `w75` reads each floor mesh's axis-aligned BOUNDING
+  // BOX, this one raycasts the actual triangles. Over the street region the two
+  // disagree on 11660 cells, all of them boxes covering ground that is not
+  // drawn — which is how the hotel/casino doorway held a 0.36 m slot of open sky
+  // through every check in the project (`scripts/probes/w85-item230-aabb-vs-
+  // raycast.mjs`).
+  //
+  // NO `canfail` CASE: it carries its own `--selftest`, which deletes every
+  // flat street-level mesh and requires the road sentinel to go VOID. Both
+  // halves of that are asserted — including that the mutation removed a
+  // non-zero number of meshes, because the first version removed none and
+  // "passed" by measuring an empty set.
+  ['world-contained', 'is there anywhere in the WHOLE world the player can reach with no floor?', false, [], true],
+  // REGISTERED 2026-08-03 (w85, item 236). `ct/hud.ts` hid `#ct-prompt` without
+  // clearing its text, so the last caption lingered for ever — `[E] into the
+  // HOUSE OF DETENTION` still readable 40 m from the jail door. **77 scripts
+  // read that element and 16 never look at `display`**, so this was a bug in
+  // the instruments, not the world, and it made a correct world look impossible
+  // for an hour.
+  //
+  // The guard asserts the INVARIANT, hidden <=> empty, in BOTH directions: the
+  // mirror case (shown but empty) would catch a future `prompt()` that cleared
+  // the text and forgot to hide the box. Population floors on both — it must
+  // have seen the prompt shown somewhere and hidden somewhere, or it has
+  // measured nothing. Verified to fail: reverting the one line gives 18 ghosts.
+  ['prompt-not-a-ghost', 'is a HIDDEN [E] prompt always an EMPTY one?', false, []],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

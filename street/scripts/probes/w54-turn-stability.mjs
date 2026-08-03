@@ -50,12 +50,16 @@ const tag = (s) => (s == null ? '·' : /sit on the bed/i.test(s) ? 'B'
 // HOW MANY SPOTS IS THIS CELL TOUCHING? A cell touching NOTHING has only
 // aimed-at candidates, so its prompt SHOULD follow the crosshair and a high
 // change count there is the resolver working, not the complaint. Reported so
-// the difference is evidenced rather than argued. `TOUCH_MARGIN` is imported
-// from the world's own fp.ts, never retyped.
-const fp = await p.evaluate(async () => {
-  const m = await import('/src/proto/fp.ts');
-  return { TOUCH_MARGIN: m.TOUCH_MARGIN };
-});
+// the difference is evidenced rather than argued. `TOUCH_MARGIN` comes off the
+// world, never retyped — and it is READ FROM `__ct` rather than imported
+// (item 232). `await import('/src/proto/fp.ts')` resolves on the dev server and
+// **404s on `vite preview`**, which serves `dist/`; GOTCHAS 28 makes the bundle
+// the thing that must be believed. Published at `crosstown.ts:1629`.
+const fp = await p.evaluate(() => ({ TOUCH_MARGIN: window.__ct.touchMargin() }));
+if (typeof fp.TOUCH_MARGIN !== 'number' || !isFinite(fp.TOUCH_MARGIN)) {
+  console.error(`ABORT: touchMargin did not resolve off __ct — ${JSON.stringify(fp)}`);
+  await b.close(); process.exit(3);
+}
 const allSpots = await p.evaluate(() =>
   window.__ct.spots().filter((s) => s.ok && s.x > 190 && s.x < 210 && s.z > -22 && s.z < -10));
 const touchCount = (x, z) =>

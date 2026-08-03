@@ -37,25 +37,30 @@ const URL = process.env.SHOT_URL
   ?? (ARG && /^\d+$/.test(ARG) ? `http://localhost:${ARG}/` : ARG)
   ?? 'http://localhost:4188/';
 
-// THIS IS A COPY, AND IT IS THE ONLY REAL ONE IN THE "DEEP/REACH" ROW.
+// ── THE HAND-TYPED `const REACH = 0.6` THAT STOOD HERE IS GONE (item 232) ───
 //
-// It duplicates `src/proto/fp.ts:486  export const REACH_MARGIN = 0.6`, which
-// is exported and is the world's own value. It cannot be imported from here:
-// this is plain-node .mjs and that is TypeScript, and `crosstown.ts:27` imports
-// REACH_MARGIN but does not republish it on `__ct`, so there is no runtime path
-// to it either.
+// It was a copy of `fp.ts`'s `REACH_MARGIN`, kept with a citation because the
+// note argued no runtime path existed. Three things were wrong with it and all
+// three are now settled by measurement rather than argument:
 //
-// So it is cited rather than silently retyped, which is what BUILDER-BRIEF §8
-// asks for when an import is impossible. THE FIX IS ONE LINE in crosstown.ts's
-// `__ct` surface — `reachMargin: () => REACH_MARGIN` — beside `camY` and `yaw`;
-// then this reads it off the world like every other derived number and the copy
-// goes away. That file is outside this row, so it is queued, not taken.
+//   1. IT WAS DEAD. It was passed into the `p.evaluate` below as a parameter
+//      and never referenced once inside the body — the ring is built from the
+//      explicit distances [5.5, 4.5, 3.5, 2.5], exactly as the comment further
+//      down insists ("RANGE IS 6 m, NOT r + 0.6"). It bound nothing.
+//   2. ITS CITATION WAS DEAD TOO. It named `fp.ts:486`; the constant is at
+//      `fp.ts:771`. A citation the reader cannot follow is not evidence.
+//   3. THE FIX IT ASKED FOR HAS LANDED. The note said "THE FIX IS ONE LINE in
+//      crosstown.ts's `__ct` surface — `reachMargin: () => REACH_MARGIN`".
+//      That line exists (`crosstown.ts:1618`), alongside `touchMargin()`
+//      (`crosstown.ts:1629`), so nothing here needs a copy any more.
 //
-// NOTE the name collision that made this row look bigger than it is: the
-// `REACH = 0.80` in scripts/seat-facing.mjs is a DIFFERENT quantity (how close
-// furniture must be to count as furniture you are sitting at), not a copy of
-// this one.
-const REACH = 0.6;                 // = fp.ts:486 REACH_MARGIN — spot reach, over the spot radius
+// And had it been live it would have been the WRONG constant: for a standing
+// player `fp.ts:991` uses `TOUCH_MARGIN` (0.15), not `REACH_MARGIN` (0.6).
+//
+// The name collision the old note flagged still holds and is worth keeping:
+// `REACH = 0.80` in `scripts/seat-facing.mjs` is a DIFFERENT quantity — how
+// close furniture must be to count as furniture you are sitting at — and is not
+// a copy of this one.
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 620 } });
 await p.goto(URL, { waitUntil: 'networkidle' });
@@ -67,7 +72,7 @@ await reportWorld(p, URL);
 await p.evaluate(() => window.__ct.clock(13));
 await p.waitForTimeout(700);
 
-const recon = await p.evaluate((REACH) => {
+const recon = await p.evaluate(() => {
   const cols = window.__ct.colliders();
   const box = (c) => ({
     x0: Math.min(c.minX ?? c.x0 ?? c.min?.x, c.maxX ?? c.x1 ?? c.max?.x),
@@ -167,7 +172,7 @@ const recon = await p.evaluate((REACH) => {
     if (found) out.push(found);
   }
   return { out, nWalls: grid.size, nCols: boxes.length };
-}, REACH);
+});
 
 const stations = recon.out;
 console.log(`\ncolliders ${recon.nCols}, opaque 0.5 m cells in the 1.1-1.6 m sightline band: ${recon.nWalls}`);
