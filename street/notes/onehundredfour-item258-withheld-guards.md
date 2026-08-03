@@ -40,6 +40,21 @@ So the specific failure w37 feared — a case certifying itself against an
 already-red check — **cannot happen any more**. Worth knowing: it means the bar
 for adding a withheld case back is lower than the withholding comment implies.
 
+**AND IT FIRES — that is the point of the item, so it was run rather than
+declared.** `SHOT_URL=http://localhost:4187/ node scripts/canfail.mjs unstick-off`,
+**13 min 40 s**, against the built bundle:
+
+```
+  OK   unstick-off CAUGHT  the stuck-protection switched off entirely —
+                           both the push and the lastGood rescue
+
+1/1 checks caught their mutation
+every mutated file restored byte-for-byte
+```
+
+The mutated run is *slower* than the green one and that is the mutation working:
+every trap now stalls to the 40-frame limit instead of freeing in ~12.
+
 **The mutation, and the only interesting thing about it.** The rig has TWO
 redundant rescues: `unstick` pushes you out at `UNSTICK_SPEED`, and after
 `PATIENCE` seconds of getting nowhere it teleports you back to `lastGood`. Kill
@@ -187,9 +202,25 @@ and the reasoning was wrong twice on the way there.
    look proven. **Not in item 258's named files** — one line, wants a row.
 3. **`checks-can-fail` is still red on 5 rows, and it was before I started** —
    `w40-bed-vs-door`, `world-contained`, `prompt-not-a-ghost`, and
-   **`w75-site-contained` listed TWICE**. onehundred flagged the duplicate as
-   "worth one minute of somebody's time" and it is still there. Untouched: a
-   different item.
+   `w75-site-contained` **listed twice**. Untouched — a different item — but
+   **onehundred's open question about that duplicate is now answered, and the
+   answer is not what it guessed.** It wondered whether it was "a duplicated
+   registration or a duplicated report". It is **neither**: `checks.mjs:1315-1317`
+   registers the same script **three** times with different args, which is a
+   legitimate pattern —
+
+   ```
+   ['w75-site-contained', '…at the jail?', 'jail-forecourt-open', ['jail'], true],
+   ['w75-site-contained', '…at the park?', false,                 ['park'], true],
+   ['w75-site-contained', '…at the lot?',  false,                 ['lot'],  true],
+   ```
+
+   `checks-can-fail` reports **by name**, so it names the two rows that carry
+   `false` and stays silent about the one that declares `jail-forecourt-open`.
+   The output is correct and the finding is the real one underneath it: **the
+   park and lot variants of the world-containment check have no failing path
+   while the jail variant does.** Whoever takes that row should give those two a
+   case rather than de-duplicate a registration that is not duplicated.
 4. **`scripts/checks.mjs` overlap.** `onehundredthree` held item 257 against this
    same file while I held 258. My edits are two isolated blocks (the
    `unstick-walk` row, and a new `ghosts` row next to `floaters-walk`); 257's are
@@ -201,7 +232,11 @@ and the reasoning was wrong twice on the way there.
 | | |
 |---|---|
 | `unstick-walk` baseline | 543/543, 6/6 driven, **exit 0** |
+| **`canfail unstick-off`** | **CAUGHT, 1/1**, 13 m 40 s, every file restored byte-for-byte |
 | `canfail unstick-off` pre-pass | 1 of 1 green on the unmutated tree |
+| `npm run sweep` | **0 STATION MISS, 0 COVERAGE**, exit 0 |
+| `health.mjs` | WORLD OK, exit 0 |
+| `checks-can-fail` debt register | **15 → 13** (unstick-walk cleared, gaps moved to WITHHELD) |
 | `w104-withheld-selftest` | 10/10, 7 on the red side, **exit 0** — and 2/10 red when the guard is broken |
 | `ghosts --selftest` | 5/5, 2 pass + 3 fail cases, **exit 0** |
 | `ghosts` vs the world | 26.1 s, 0 ghosts, corridor identical, **exit 0** |
