@@ -255,13 +255,17 @@ export function buildHotel(ctx: CtxBuild): void {
     dither(g, 24, 56, 36);
   }), 'detail');
   const hLeafM = new THREE.MeshBasicMaterial({ map: hLeafT, side: THREE.DoubleSide });
-  const OPEN = 0.50, LEAF_GAP = 0.04;
+  const LEAF_GAP = 0.04;
   // THE SAME FAULT WAS HERE. The desk predicted it — "if this one was mirrored
   // wrong, its siblings were authored the same way" — and it is true to the line:
   // same `rotation.y = -sx * OPEN`, same placement arithmetic, same brass pull at
   // texture x 18 of 24, so this pair had its handle on the hinge on one leaf too.
   // Both now go through the one rule in vice.ts.
-  leafPair(put, hLeafM, dAt, DW, DH, hd - 0.13, OPEN, 'hotel', LEAF_GAP);
+  //
+  // AND SO IS THE SWING NOW. This file's own `OPEN = 0.50` was the odd one out
+  // of eight — nobody else used it — and it stood the lobby doors 28.6° open
+  // under a painted street face that is shut. `LEAF_AJAR` owns it.
+  leafPair(put, hLeafM, dAt, DW, DH, hd - 0.13, 'hotel', LEAF_GAP);
   put(new THREE.Mesh(new THREE.BoxGeometry(0.05, DH - 0.06, 0.05),
     new THREE.MeshBasicMaterial({ color: 0x9a7c3a })), dAt, (DH - 0.06) / 2, hd - 0.13);
   const BRASS = 0x9a7c3a, MAHOG = 0x4a2a20;

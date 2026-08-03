@@ -136,6 +136,92 @@ const doorUOf = (b: BldSpec, x0: number) => {
  * A layer is one colour by construction, so it is written back flat.
  */
 /**
+ * HOW FAR AN ENTRANCE LEAF STANDS OPEN — one number, for the whole world.
+ *
+ * The user, twice, about two different buildings: *"jail interior front door
+ * also looks bad and doesnt match outside"* and *"inside door of the church is
+ * still mismatched from the doors outside."* And once more, about the library,
+ * in the words that name the fault exactly: *"the door reads as SHUT-BUT-OPEN —
+ * the leaf is swung in with a dark void behind it"* (quoted at
+ * `ct/int-pawn.ts:177`).
+ *
+ * IT WAS NEVER ONE BUILDING'S BUG. Measured in the built world by
+ * `scripts/probes/w65-leaf-angles.mjs`, every interior front door in CROSSTOWN
+ * stood ajar while its street face was shut, at SIX different angles nobody
+ * ever chose together:
+ *
+ *     bank 31.5°   casino 31.5°   church 31.5°   jail 31.5°
+ *     hotel 28.6°  library 48.7°  pawn 77.3°  ·  the kit's leaf 48.7°
+ *
+ * `int-jail.ts`'s own comment said its 0.55 was *"the casino's and the bank's"*
+ * — copied from a convention, not chosen for the jail. That is one mistake
+ * authored eight times, which is the shape `DoorDecl.leaf` already exists to
+ * stop: *"a single-leaf room door in a double-door building becomes IMPOSSIBLE
+ * rather than something a builder has to remember."*
+ *
+ * THE STREET FACE IS THE TRUTH, and that is a decision rather than a
+ * measurement: the player sees the exterior first, from further away and more
+ * often, and nine of the twelve shopfronts have no door GEOMETRY at all — the
+ * door is painted into the facade, shut, and cannot be anything else. The two
+ * buildings that DO hang real leaves on the street (the jail, the bodega) hang
+ * them shut. So `0` is not a taste call; it is the only value that can agree
+ * with what is already outside.
+ *
+ * `leafPair` takes NO angle argument because of this. A caller that cannot pass
+ * one cannot copy the wrong one, which is the whole reason the eight above
+ * agree on nothing.
+ */
+// Typed `number`, not left to infer the literal `0`: every consumer does real
+// trigonometry with it (`ct/int-jail.ts` places its pull handles along the leaf
+// with `cos`/`sin`), and a literal type invites a reader — or a linter — to
+// treat those as dead arithmetic and simplify them away. Then the day this
+// value changes, the handles stay where a shut door put them.
+export const LEAF_AJAR: number = 0;
+
+/**
+ * THE DARK BEHIND A SHUT DOOR — one plane across the whole opening, behind the
+ * leaves.
+ *
+ * A DOOR THAT SHUTS NEEDS SOMETHING BEHIND IT, and until the leaves shut,
+ * nothing did. Worker sixty measured it and filed it: *"the interior doorway
+ * opens onto nothing. Beyond the jambs there is no mesh at all, so the gap
+ * between the ajar leaves shows a flat pale void … whichever way that goes,
+ * the opening wants something behind it."* (`notes/w60-jail-door-state.md`.)
+ *
+ * It was ALREADY VISIBLE in the first frames of the shut doors: `gap` is
+ * documented as *"the shadow line between the leaves"*, and with the leaves
+ * swung apart it never had to be one — but a shut pair leaves that 2·gap strip
+ * standing open onto the void, so the jail's and the church's meeting stiles
+ * photographed as a bright grey-white slit down the middle of the door. The
+ * 0.06 m above the leaves (`DH - 0.06`) is the same hole lying down.
+ *
+ * So the gap gets what it always claimed to be. Nobody's leaf width changes —
+ * that would be *"folding two rooms into one helper is not a licence to quietly
+ * change one of their leaf widths by a centimetre"*, which `leafPair` already
+ * refuses to do.
+ *
+ * The hotel is the proof this is the right object: it is the one room that
+ * already had a centre mullion (`ct/int-hotel.ts`, a 0.05 m brass box), and it
+ * is the one room whose shut doors photographed with no slit at all.
+ *
+ * 0.012 m behind the leaf plane: far enough that no depth test has to break a
+ * tie (GOTCHAS 6, and `notes/w59-jail-door.md` is what two coplanar opaque
+ * faces cost), near enough to stay inside the reveal.
+ */
+export function doorRebate(
+  put: (m: THREE.Mesh, x: number, y: number, z: number) => unknown,
+  dAt: number, DW: number, DH: number, zFace: number, behind = 0.012,
+): void {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(DW, DH),
+    // DoubleSide because two of the six doors this serves hang their leaves on
+    // the OUTER face of the shell rather than the inner one, so which side of
+    // this plane the player stands on is not a fact this function is told.
+    // A flat colour has no handedness, so GOTCHAS 10's mirror does not apply.
+    new THREE.MeshBasicMaterial({ color: 0x15151a, side: THREE.DoubleSide }));
+  put(m, dAt, DH / 2, zFace + behind);
+}
+
+/**
  * A PAIR OF DOOR LEAVES, and the MIRROR APPLIED ONCE TO A WHOLE LEAF.
  *
  * The user: *"the LEFT leaf is reversed"* on the SEVENS entrance. Measured the
@@ -169,12 +255,18 @@ const doorUOf = (b: BldSpec, x0: number) => {
  *
  * `zFace` is the z of the door plane; the leaves hang just inside it. `gap` is
  * the shadow line between the leaves, per building.
+ *
+ * THE SWING IS `LEAF_AJAR` AND IS NOT A PARAMETER — see its declaration above
+ * for the eight disagreeing angles that cost.
  */
 export function leafPair(
   put: (m: THREE.Mesh, x: number, y: number, z: number) => unknown,
   mat: THREE.Material, dAt: number, DW: number, DH: number,
-  zFace: number, open: number, who: string, gap: number,
+  zFace: number, who: string, gap: number,
 ): void {
+  const open = LEAF_AJAR;
+  // the shadow line `gap` promises, and the dark over the head — see doorRebate
+  doorRebate(put, dAt, DW, DH, zFace);
   // `gap` is the shadow line between the two leaves, and it comes IN rather than
   // being fixed here: the casino was built at 0.03 and the hotel at 0.04, and
   // folding two rooms into one helper is not a licence to quietly change one of
