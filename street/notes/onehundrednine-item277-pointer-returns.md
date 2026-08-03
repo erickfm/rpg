@@ -143,6 +143,8 @@ is the same revert reached from the other end.
 | `node scripts/health.mjs` | `WORLD OK`, exit 0 |
 | `checks-registered.mjs` | exit 0 (170 registered) |
 | item 199's `watch-vs-panel` | still **32/32** after this change to the same file |
+| `npm test` | 17/17 |
+| `interiors-walk` (built bundle, build 9825d1234) | **365/369**, exit 0. The 4 failures are PRE-EXISTING and unrelated: `jail: the room keeps its own light after dark`, and `the customer station comes from the world, not from memory` for casino, hotel and tax. Same count before and after this change; none touches a panel or the pointer. The bank and library — the two rooms holding overlays I drove — are **29/29 each** on their own |
 | console errors | **0** in every non-sandbox run |
 
 Registered as `['pointer-returns', …, ['pointer-never-returns',
