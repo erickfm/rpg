@@ -1,4 +1,10 @@
 import { ROAD_HALF, FACE } from './rng';
+// WHERE THE PAINT IS. Imported from the module that LAYS it, so the graph
+// cannot drift off the stripes again — which is item 201, the user's *"the
+// pedestrians dont cross at the cross walk."* `ct/tex-ground.ts` imports only
+// `./paint` and `./rng`, so this edge creates no cycle (GOTCHAS §28), and
+// `crosstown.ts:18` already imports the same constant for the kerb gaps.
+import { JUNCTION_CROSSINGS } from './tex-ground';
 
 // ── THE WALKABLE NETWORK ───────────────────────────────────────────────────
 //
@@ -93,6 +99,37 @@ export function buildNet(d: NetDims): Net {
     nodes.push({ id, x, z, act });
     return nodes.length - 1;
   };
+  // ── WHERE THE CROSSINGS ARE, TAKEN FROM THE PAINT (item 201) ─────────────
+  //
+  // The user: *"the pedestrians dont cross at the cross walk."* He was right and
+  // it was not a freeze — measured over 240 s, 7144 of 7191 citizen-frames in a
+  // carriageway were MOVING and only 47 were standing still, so people were
+  // walking across the road on purpose, in the wrong place.
+  //
+  // The wrong place was here. These two edges used to be pinned to the corner
+  // NODES — `n-corner`/`w-corner` at z -97, and `n-bodega` (x 8.7) diagonally
+  // down to `s-win1` (x 6) — while `ct/tex-ground.ts` paints its stripes at
+  // z -90.2 and x 10.6. Measured in the built world: the main-street paint spans
+  // z -91.5..-88.9 and the crowd crossed at z -98..-96 in 5386 of 5623 samples,
+  // i.e. NEVER ON IT, about 6.8 m south of the zebra.
+  //
+  // THE PAINT WINS, and the graph moves to it — that is the desk's instruction
+  // and it is the right way round: the paint is what the user can see. The
+  // ground module had already moved BOTH the stripes and the dropped kerbs here
+  // (`pedCut` at tex-ground.ts:1378-1381 cuts the kerb at exactly these two
+  // positions); only this file was left behind.
+  //
+  // DERIVED, NOT RETYPED. `JUNCTION_CROSSINGS` is the paint's own export, so if
+  // the stripes ever move the walkers follow them without anybody remembering
+  // to. That is the whole defect this had.
+  const XMAIN_Z = JUNCTION_CROSSINGS.main.z;   // across the MAIN street, walked E-W
+  const XSIDE_X = JUNCTION_CROSSINGS.side.x;   // across the SIDE street, walked N-S
+  // Three of the four crossing feet sit INSIDE a walk row, because a foot is a
+  // point on that pavement and the rows are chained in order — a node spliced in
+  // out of sequence would link its neighbours through it backwards. So they are
+  // created in place and their indices captured here, rather than being built
+  // first and searched for by name afterwards.
+  let wCross = -1, nCross = -1, sCross = -1;
 
   // ── the ring, anticlockwise from the north end of the west walk ──────────
   //
@@ -110,11 +147,15 @@ export function buildNet(d: NetDims): Net {
     N('w-thrift', WEST_X, -56, 'door'),
     N('w-win2', WEST_X, -70, 'window'),
     N('w-burger', WEST_X, -84, 'door'),
+    // ON THE PAINT — the west foot of the main-street crossing (item 201).
+    (wCross = N('w-cross', WEST_X, XMAIN_Z, 'corner')),
     N('w-corner', WEST_X, NORTH_Z, 'corner'),     // SW of the junction
   ];
   const sw = N('sw-corner', WEST_X, SOUTH_Z);
   const s = [
     N('s-win1', 6, SOUTH_Z, 'window'),
+    // ON THE PAINT — the south foot of the side-street crossing (item 201).
+    (sCross = N('s-cross', XSIDE_X, SOUTH_Z, 'corner')),
     N('s-mid', 22, SOUTH_Z),
     N('s-win2', 38, SOUTH_Z, 'window'),
     N('s-east', EEND_X, SOUTH_Z),
@@ -141,9 +182,13 @@ export function buildNet(d: NetDims): Net {
     N('n-win1', 38, NORTH_Z, 'window'),
     N('n-mid', 22, NORTH_Z),
     N('n-win2', 12, NORTH_Z, 'window'),
+    // ON THE PAINT — the north foot of the side-street crossing (item 201).
+    (nCross = N('n-cross', XSIDE_X, NORTH_Z, 'corner')),
     N('n-bodega', 8.7, NORTH_Z, 'door'),          // the bodega's own doorway
     N('n-corner', EAST_X, NORTH_Z, 'corner'),     // the bodega corner, by the ramp
   ];
+  // the EAST foot of the main-street crossing, on the paint (item 201)
+  const eCross = N('e-cross', EAST_X, XMAIN_Z, 'corner');
   const e = [
     N('e-win1', EAST_X, -84, 'window'),
     N('e-win2', EAST_X, -66, 'window'),
@@ -212,21 +257,30 @@ export function buildNet(d: NetDims): Net {
   // with a building on it should feel like.
   chain([s[s.length - 1], sj, nj, ne]);
   chain([ne, ...n]);
-  link(n[n.length - 1], e[0]);          // the bodega corner into the east walk
+  // The bodega corner into the east walk, THROUGH the east foot of the main
+  // crossing (item 201). `eCross` is declared with the other crossing feet
+  // rather than inside the `e` row because it is not a shopfront stop — it is
+  // the point the crossing lands on, and the row is a list of places people go.
+  chain([n[n.length - 1], eCross, e[0]]);
   chain(e);
 
   // ── the two crossings, and there are only two ───────────────────────────
   //
-  // Both are AT THE JUNCTION, because that is where the kerb has a ramp:
-  // ct/tex-ground.ts flags KRAMP on the bodega corner return only. Anywhere
-  // else, stepping off the kerb would be jaywalking across an unbroken kerb
-  // face, which is both wrong and invisible to the ground module.
-  const crossMain = [n[n.length - 1], w[w.length - 1]];   // across the main street mouth
-  link(crossMain[0], crossMain[1], true);
-  // and across the side street, a few metres east of the corner so the two
-  // crossings do not sit on top of each other
-  const nSide = n[n.length - 2];        // n-bodega, x = 8.7
-  link(nSide, s[0], true);              // s-win1 is at x = 6 on the south walk
+  // ⚠ THE OLD COMMENT HERE SAID both crossings were at the junction "because
+  // that is where the kerb has a ramp: ct/tex-ground.ts flags KRAMP on the
+  // bodega corner return only." THAT IS STALE AND IT IS WHY THIS BUG SURVIVED.
+  // The ground module now cuts a pedestrian ramp at each PAINTED crossing —
+  // `pedCut(-ROAD_HALF, XA_Z, …)`, `pedCut(ROAD_HALF, XA_Z, …)`,
+  // `pedCut(XB_X, SIDE_Z0, …)`, `pedCut(XB_X, SIDE_Z1, …)` at
+  // tex-ground.ts:1378-1381 — so all four feet below have a dropped kerb, and
+  // the corner is no longer the only place you may legally step off.
+  //
+  // Both edges now run FOOT TO FOOT ACROSS THE PAINT, square to the kerb.
+  // Neither is a diagonal any more: the side crossing used to run from
+  // `n-bodega` (x 8.7) to `s-win1` (x 6), drifting 2.7 m sideways while it
+  // crossed, so even the half of it that touched the stripes left them again.
+  link(wCross, eCross, true);           // across the MAIN street, on z = XMAIN_Z
+  link(nCross, sCross, true);           // across the SIDE street, on x = XSIDE_X
 
   const adj: { to: number; edge: number }[][] = nodes.map(() => []);
   edges.forEach((ed, i) => {

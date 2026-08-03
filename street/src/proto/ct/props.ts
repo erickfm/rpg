@@ -1265,7 +1265,35 @@ uniform float uPoolAmb;`)
     const bx3 = new THREE.Box3();
     root.traverse((o) => {
       const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh || !mesh.geometry || o.userData?.litter) return;
+      if (!mesh.isMesh || !mesh.geometry) return;
+      // TEST ANCESTRY, NOT THE NODE. `drop()` tags the GROUP (:3519,
+      // `o.userData.litter = name`) and nothing inside it, so `o.userData
+      // ?.litter` — which is what this line used to read — is false for every
+      // mesh a piece of litter is actually MADE of. A milk crate's four
+      // uprights therefore landed in `solidsNear`, the group's own box overlaps
+      // them by construction, and the pass below shoved each crate clear of its
+      // own sides.
+      //
+      // THAT, NOT THE SHOPFRONT, IS WHAT PUT A CRATE IN THE USER'S DOORWAY, and
+      // the comment at the top of this block blaming the projecting frontage is
+      // wrong — worker seventyseven proved it under item 204 and I re-measured
+      // it here. It bit crates alone because of the `h < 0.25` gate below:
+      // cardboard and newspaper lie flatter and never enter the set at all.
+      // Measured before the fix, `scripts/probes/w78-litter-landed.mjs`: all
+      // three crates carried 4 self-solids each and every one of the eleven
+      // flat pieces carried 0, and the three crates were the only litter in the
+      // world that had moved from where it was authored.
+      //
+      // Worse, the move was AIMED: the `towardRoad` weighting below prefers a
+      // separation toward x 0, so a crate against the west frontage was pushed
+      // out into the walk rather than back against the wall.
+      //
+      // The ancestry walk is the one `scripts/footprint.mjs:113` already uses
+      // for the same question — "is this mesh part of the thing I am placing,
+      // or part of the world it must avoid?" — copied deliberately rather than
+      // invented, so the check and the placer agree about what a clip is.
+      let up: THREE.Object3D | null = o;
+      while (up) { if (up.userData?.litter) return; up = up.parent; }
       bx3.setFromObject(o);
       if (!Number.isFinite(bx3.min.x)) return;
       const h = bx3.max.y - bx3.min.y;
@@ -3566,8 +3594,25 @@ uniform float uPoolAmb;`)
   drop('fountain cup', GUT_R + 0.02, -54.3, 1.92);
   drop('folded newspaper', GUT_L + 0.04, -68.4, 1.80);
   // the alley, round the dumpster — crates live here, not on a sidewalk
-  drop('milk crate', -12.20, -39.60, 0.35, ALLEY_Y);
-  drop('milk crate', -11.55, -40.35, -0.80, ALLEY_Y);
+  //
+  // ⚠ THESE TWO x VALUES ARE STATED, NOT ROUNDED, AND THEY ARE NOT FREE TO
+  // TIDY. They were -12.20 and -11.55 until the self-push bug at :1268 was
+  // fixed, and the bug shoved both of them +0.56 m and +0.53 m east — so what
+  // has actually been standing in the alley for weeks, and what the user has
+  // seen and signed off on, is -11.639 and -11.016.
+  //
+  // `ct/cat.ts:239-300` settled that alley frame over SEVEN iterations against
+  // his own screenshots and names *"both crates"* among the things that must
+  // read from the alley mouth. Fixing the push without this would have silently
+  // slid an approved composition half a metre, which is a regression dressed as
+  // a correction. The desk's ruling on item 219 was explicit: fix the bug, then
+  // place these two deliberately.
+  //
+  // So the composition is now IN THE CODE rather than an accident of a defect —
+  // which is the point. If somebody wants them at round numbers, that is a
+  // conversation with the user about the picture, not a clean-up.
+  drop('milk crate', -11.639, -39.60, 0.35, ALLEY_Y);
+  drop('milk crate', -11.016, -40.35, -0.80, ALLEY_Y);
   drop('flattened cardboard', -10.60, -41.45, 0.90, ALLEY_Y);
   drop('flattened cardboard', -9.40, -42.40, -1.06, ALLEY_Y);   // was the second fountain cup
   drop('folded newspaper', -12.60, -42.05, 0.40, ALLEY_Y);

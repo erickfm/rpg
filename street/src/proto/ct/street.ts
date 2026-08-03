@@ -714,11 +714,54 @@ export function buildStreet(o: {
     const wallTex = (wM: number, hM: number, brick: string, salt: number) =>
       partyWallTex(brick, wM, hM, 0, true, salt);
     const fh = wallHeight(4);
+    // ── AND THE FLANKS ARE SOLID. Item 221. ─────────────────────────────
+    //
+    // These two planes had NO COLLIDER for as long as open sites have existed.
+    // A 13 m brick party wall you walk straight through, and on the lot's
+    // north flank there is **nothing at all behind it** — the sweep walked out
+    // to z 19.00 standing on void (`scripts/w75-site-contained.mjs lot`,
+    // 10 of 368 walks; `shots/w79-lot-north-from-inside-before.png` is the
+    // wall, `shots/w75-escape-z19-look-s.png` is what is past it).
+    //
+    // WHY IT SURVIVED: it only bites where no neighbour happens to stand
+    // behind the flank, and that is a different answer per flank. Three of the
+    // four were accidentally covered by the adjoining shell's own footprint.
+    // The other two were not, and both are real: the lot's north flank is the
+    // block's north END — the cap building at line ~1051 is `CAP_W = 2 * FACE`,
+    // *"exactly the street, no more"*, so it seals x -7…7 and nothing ever
+    // sealed 7…30.2 — and the park's south flank at x -32 walks through into
+    // the void beside the side street.
+    //
+    // **This is the jail forecourt's shape exactly** (item 175): a site closed
+    // on one axis-half, with nothing ever closing the other, which looks
+    // complete in the source and in a screenshot. So the fix is not a patch
+    // over the lot's north end, it is the class: the wall you can SEE is the
+    // wall you HIT, on every flank of every site, including the next one.
+    //
+    // THE BODY GOES BEHIND THE PLANE, not in front of it — the same rule the
+    // frontage rail below was moved for (*"a boundary belongs on its own
+    // land"*). A party wall's thickness belongs to the building that is gone,
+    // so the site keeps every metre of its own ground and the 2 m lane is
+    // untouched.
+    //
+    // The x span is XB…XF ± 8, DERIVED from the back wall's own solid three
+    // lines down rather than retyped, so flank and back meet at the corner
+    // instead of leaving a notch there to squeeze through.
+    const FLANK_T = 0.5;          // ≫ 0.113 m, the distance a running player
+                                  // covers in one frame — cannot be tunnelled
+    const fOut = XF + side * 8;
+    const fLo = Math.min(XB, fOut), fHi = Math.max(XB, fOut);
     for (const [zAt, ry] of [[z1 - 0.01, Math.PI], [z0 + 0.01, 0]] as [number, number][]) {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(o.depth, fh), flat(wallTex(o.depth, fh, o.flank, ry > 1 ? 3 : 7)));
       p.position.set((XF + XB) / 2, fh / 2, zAt);
       p.rotation.y = ry;
       scene.add(p);
+      // ry === Math.PI is the z1 flank, facing back down the site; its body is
+      // at z > z1. The z0 flank's is at z < z0. Written off `ry` rather than a
+      // second literal so the two can never disagree with the loop above.
+      solid(ry > 1
+        ? { minX: fLo, maxX: fHi, minZ: zAt, maxZ: z1 + FLANK_T }
+        : { minX: fLo, maxX: fHi, minZ: z0 - FLANK_T, maxZ: zAt });
     }
     // the back of the site, so the gap opens onto a city and not onto fog.
     //
