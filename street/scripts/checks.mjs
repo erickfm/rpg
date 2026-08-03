@@ -1145,12 +1145,23 @@ const CHECKS = [
   // editing this same array around the `density`/`masonry` rows. One row at the
   // far end is the smallest thing that can conflict with that.
   ['w67-atm-pin', 'does the ATM PIN screen cancel, auto-submit and remember?', 'atm-cancel-shadowed'],
-  // REGISTERED 2026-08-02 (w67, item 175). A CONTAINMENT SWEEP, not a route:
-  // it walks outward from the side street and asserts the player can never end
-  // up outside the jail's own site. Two route-walking checks were green over
-  // this hole twice — see the file's header for why. SLOW tier: it is a walk,
-  // and a real one.
-  ['w67-jail-contained', 'can the player walk out of the world at the jail?', 'jail-forecourt-open', [], true],
+  // REGISTERED 2026-08-02 (w67, item 175), GENERALISED THE SAME DAY (w75, item
+  // 215). A CONTAINMENT SWEEP, not a route: it walks outward from the street
+  // and asserts the player can never end up outside a site's own ground. Two
+  // route-walking checks were green over the jail's hole twice — see the file's
+  // header for why. SLOW tier: it is a walk, and a real one.
+  //
+  // ONE ROW PER SITE, deliberately, rather than one row that sweeps all three.
+  // Three reasons, all of them things this suite has been bitten by: a single
+  // row takes ~25 minutes and blows PER_CHECK/SLOW timeouts, which reads as
+  // TIMED OUT rather than as a verdict; `--only` can then not run just the one
+  // site you are working on; and a table that says which SITE escaped is a
+  // report, where one row saying `FAILED (1)` is a thing you have to go read
+  // stdout for. The script itself still takes any number of sites, and with
+  // none it sweeps every site the world publishes.
+  ['w75-site-contained', 'can the player walk out of the world at the jail?', 'jail-forecourt-open', ['jail'], true],
+  ['w75-site-contained', 'can the player walk out of the world at the park?', false, ['park'], true],
+  ['w75-site-contained', 'can the player walk out of the world at the lot?', false, ['lot'], true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
