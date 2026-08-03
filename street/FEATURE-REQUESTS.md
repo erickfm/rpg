@@ -2864,3 +2864,13 @@ to one side.
 - **"[screenshot] fix this"** (2026-08-02, an office with filing cabinets and a corkboard)
   → **folded into item 93 as the FOURTH room.** A figure and a chair intersect. Previously
   reported in the church pew, a casino stool and the jail bench.
+
+- **"[screenshot] whats going on here with the light reflecting against the invisible
+  wall?"** (2026-08-02, night) → **routed as queue item 156, TOP — likely a regression
+  from today's lighting rewrite (item 95).** A wedge of lamplight on a building face with
+  a HARD EDGE where it stops, reading as light hitting a surface that is not there. Desk
+  hypothesis, offered as a lead only: the lamplight is registered **per material**
+  (`register()` walks meshes and patches each material's shader), so two adjacent faces
+  of the same wall built from different materials — one patched, one not — would give
+  exactly this hard boundary. The desk has been wrong on lighting twice today, so this
+  is explicitly a candidate.
