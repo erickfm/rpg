@@ -339,7 +339,37 @@ export function buildLibrary(ctx: CtxBuild): void {
   // FIVE runs, not six: the sixth stood at x 5.75 and the gallery needs the east
   // strip from 4.3 to the wall. A run of shelving is worth less than a level
   // change — the user named the stair and did not name a sixth bay.
-  for (let i = 0; i < 5; i++) stack(-W / 2 + 2.4 + i * 2.15, zBack, zFront, 0x2a01 + i * 131);
+  //
+  // ── AND A CROSS AISLE THROUGH THEM, 2026-08-03 (item 115) ────────────────
+  //
+  // *"library is crowded in some areas and spacious in others."* Measured, the
+  // stack block is the crowded half: five parallel runs, 7.7 m long, with the
+  // only way between them at the ends. Every aisle is 1.55 m and PASSABLE is
+  // 0.95, so nothing here is a trap and nothing wants widening — the room has
+  // already had one spacing pass and four trap-gap fixes, and the note above
+  // records what happened when the runs were long: median clear aisle 2.10 m,
+  // the narrowest of all ten interiors, because the floor had been cut into
+  // strips. Widening again would undo the fix that shortened them.
+  //
+  // What is actually wrong is that the block has no way THROUGH it. Standing at
+  // the hall end you must commit to a 7.7 m walk down a 1.55 m slot and come
+  // back the same way, because the runs are unbroken from the back wall to the
+  // reading floor. Real stack ranges are broken by a cross aisle for exactly
+  // this reason, and it costs 5 x 1.7 m of shelving to buy a second route
+  // through the densest part of the room.
+  //
+  // The pitch is UNCHANGED and derived rather than retyped, so the aisles it
+  // sets cannot drift: the cross aisle is one notch wider than the aisles it
+  // joins, so the route across is never the tightest thing in the block.
+  const STACK_PITCH = 2.15;
+  const AISLE = STACK_PITCH - (BAY_D + 0.08);   // 1.55 m, collider face to collider face
+  const CROSS = AISLE + 0.15;                   // 1.70 m — wider than what it joins
+  const zMid = (zBack + zFront) / 2;
+  for (let i = 0; i < 5; i++) {
+    const lx = -W / 2 + 2.4 + i * STACK_PITCH;
+    stack(lx, zBack, zMid - CROSS / 2, 0x2a01 + i * 131);
+    stack(lx, zMid + CROSS / 2, zFront, 0x2b07 + i * 131);
+  }
 
   // ── SHELVING AGAINST A WALL, one face of books ───────────────────────────
   //
@@ -819,7 +849,48 @@ export function buildLibrary(ctx: CtxBuild): void {
   // she stands INSIDE it. From the door: behind her counter. From the reading
   // room: behind her back worktop. There is now no angle from which she is
   // standing in the open.
-  const DESK_X = -(W / 2 - 6.5), DESK_Z = D / 2 - 5.8;
+  // ── AND BACK TO THE ENTRANCE END, 2026-08-03 (item 115) ──
+  //
+  // *"library is crowded in some areas and spacious in others. try a different
+  // layout thanks."* Gridded 4 x 4, the room answered in one line: the zone
+  // holding this desk was 47% furniture and the whole entrance third averaged
+  // 5%. The desk and the long reading table were stacked in the SAME zone while
+  // 110 m2 by the doors held a card catalogue and an umbrella stand.
+  //
+  // THE 5.8 WAS CLEARANCE FOR SOMETHING THAT NO LONGER EXISTS. Read the comment
+  // above: the desk was pushed back from D/2 - 2.5 to D/2 - 5.8 because at the
+  // old number "the desk stood inside the vestibule". The vestibule was DELETED
+  // on 2026-07-25 — its piers carried the colliders across the room at z 6.80
+  // and they went with it (see THE VESTIBULE — REMOVED). So this constant has
+  // been holding the desk 3.3 m off the entrance to clear a structure that has
+  // not been in the room for a week. That is the same fault the reading table
+  // hit two hundred lines down and the file names it there: **a constant that
+  // was right stopped being right because a DIFFERENT constant moved**, and
+  // nothing flagged it because both numbers were correct when written.
+  //
+  // So it goes back where a circulation desk belongs — just inside the doors,
+  // the first thing you meet — and the reading hall behind it is one continuous
+  // floor from the desk to the stacks instead of a room with a counter marooned
+  // in the middle of it.
+  //
+  // AND WEST, from 6.5 to 5.0. At 6.5 the collider's east face was 0.60 m off
+  // the door opening's west jamb (the opening is 2.5 m on the door axis); that
+  // was harmless when the desk sat 5.8 m inside, and is a counter in the
+  // doorway once it moves forward. At 5.0 the collider runs x -6.65..-3.35, so
+  // the east face stands 2.10 m off that jamb and centres the desk in the
+  // entrance hall's west half — the stair and the entrance table have the east.
+  //
+  // The returns trolley parks inside that 2.10 m, by derivation and not by
+  // accident: its x is `DESK_EAST + PASSABLE + 0.10 + …`, which leaves exactly
+  // 1.05 m between desk and trolley however the desk moves. So the lane in is
+  // 1.05 m west of the trolley and 4.88 m east of it, and neither is in
+  // gap.ts's 0.40–0.95 trap band.
+  //
+  // WALKED, not eyeballed — scripts/probes/w98-library-relayout-walk.mjs, five
+  // runs on the built bundle: in at the doors and down to the hall 5/5, and
+  // walking up to the counter comes to rest at z 9.22 with a spread of 0.00 m,
+  // which is `VISITOR_Z` (DESK_Z + 0.75 = 9.15) to within a capsule radius.
+  const DESK_X = -(W / 2 - 5.0), DESK_Z = D / 2 - 2.6;
   const DESK_W = 3.2, RETURN_D = 2.0;             // the pocket, front face to back
   const BACK_Z = DESK_Z - RETURN_D;
   // the front counter, facing the door
@@ -1676,7 +1747,13 @@ export function buildLibrary(ctx: CtxBuild): void {
     // `PASSABLE` rather than a bigger literal, so it stays provably clear if
     // the desk's own footprint ever changes.
     const DESK_EAST = DESK_X + (DESK_W + 0.1) / 2;
-    const TR_X = DESK_EAST + PASSABLE + 0.10 + 0.31, TR_Z = 4.2;   // +0.31 = the trolley's own half-width
+    // TR_Z WAS THE LITERAL 4.2 AND IS NOW DERIVED. 4.2 is exactly the desk
+    // collider's own centre `(DESK_Z + BACK_Z) / 2` at the desk's old z — it was
+    // a correct number typed a second time, which is the habit BUILDER-BRIEF §8
+    // names as the most expensive one here. Moving the desk to the entrance
+    // (item 115) would have left the trolley parked 3.2 m away on open floor.
+    const TR_X = DESK_EAST + PASSABLE + 0.10 + 0.31;   // +0.31 = the trolley's own half-width
+    const TR_Z = (DESK_Z + BACK_Z) / 2;
     box(0.52, 0.06, 0.86, wood, TR_X, 0.80, TR_Z);
     box(0.52, 0.06, 0.86, wood, TR_X, 0.42, TR_Z);
     for (const dx of [-0.22, 0.22]) for (const dz of [-0.38, 0.38]) {
@@ -1710,9 +1787,14 @@ export function buildLibrary(ctx: CtxBuild): void {
     gl.rotation.y = 0.6;
     solid(GL_X, GL_Z, 0.46, 0.46);
 
-    // a bin by the desk, and a stand of umbrellas by the doors
-    box(0.32, 0.44, 0.32, metal, -0.9, 0.22, 5.5);
-    box(0.34, 0.03, 0.34, woodDark, -0.9, 0.45, 5.5);
+    // a bin by the desk, and a stand of umbrellas by the doors.
+    // "by the desk" is now TRUE BY CONSTRUCTION rather than by coincidence:
+    // (-0.9, 5.5) is exactly (DESK_X + 2.6, DESK_Z + 0.3) at the desk's old
+    // position, so this was the same retyped-constant fault as the trolley
+    // above and it would have stranded the bin in open floor (item 115).
+    const BIN_X = DESK_X + 2.6, BIN_Z = DESK_Z + 0.3;
+    box(0.32, 0.44, 0.32, metal, BIN_X, 0.22, BIN_Z);
+    box(0.34, 0.03, 0.34, woodDark, BIN_X, 0.45, BIN_Z);
     const UM_X = 2.3, UM_Z = D / 2 - 1.2;
     box(0.30, 0.52, 0.30, metal, UM_X, 0.26, UM_Z);
     for (const [dx, dz, c] of [[-0.06, -0.05, 0x3a3f52], [0.05, 0.04, 0x5a3a34],
