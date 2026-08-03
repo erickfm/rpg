@@ -3199,3 +3199,31 @@ gap honestly rather than leaving a flaky check behind.
 expected to be a single number in `apartment.ts:3661`; the desk's own "done
 when" demanded five browser walks across three distances. That row was corrected
 and its worker told directly.
+
+## 2026-08-03 15:47 — cut the desk's self-generated instrument work down
+
+> "yea cut them down"
+
+Answering the desk's own observation that three of five remaining queue items
+were test-infrastructure the desk had generated itself, with nobody asking for
+them. **Routed to: the desk (ranking change, no builder needed), plus worker
+onehundrednineteen messaged directly because it was already holding 281.**
+
+Judged each against "would he notice this breaking":
+
+- **281 — CUT to a fraction.** The 20-minute `interiors-walk` re-run is dropped:
+  it covers a change already verified 5/5 by direct measurement. What survives
+  is deleting two probes that report success while refusing to measure, and a
+  two-line GOTCHAS note that the harness prints nothing during light legs so a
+  silence is progress, not a stall.
+- **290 — KEPT, narrowed.** A check claims "0 seats trapped" while seating the
+  player through `__ct.sit()`, which bypasses the `[E]` dispatch — it reads green
+  with the bug fully present. **Being unable to stand out of a chair is exactly
+  what he'd notice.** Plus the contrast and lamp-brightness ceilings, both of
+  which he has complained about in his own words. The `takenSeats()` hook is cut.
+- **295 — CUT to its cheap half.** Instrumenting the jail-light leg is dropped;
+  what remains is retiring a coordinate that does not exist and one GOTCHAS entry
+  about the `material.color` misreading that cost three sessions. Text edits only.
+- **282 — KEPT untouched.** Not desk-generated instrument work: it answers his
+  live complaint *"npcs still get stuck"* and found citizens walking a lane the
+  player is blocked from by 0.091 m.
