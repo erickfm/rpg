@@ -747,10 +747,52 @@ export function buildJail(ctx: CtxBuild): void {
 
   // the daylight slot at the back of every cell. It DIMS WITH THE WORLD —
   // a bright window at two in the morning is the tell that a room is a set.
+  //
+  // ── IT WAS NOT ACTUALLY GETTING DARK, AND THIS READ THE WRONG QUANTITY ──
+  //
+  // Measured at 02:00 before the fix: #f0f3f6 -> #b3b7ba. That is a LIGHT GREY
+  // at two in the morning — precisely the tell the line above exists to
+  // prevent. The cause is `f.night`, which is NOT how night it is:
+  //
+  //   f.night                     the hud's raw wash curve. `NIGHT_STOPS`
+  //                               (ct/hud.ts:1225) TOPS OUT AT 0.58, and at
+  //                               02:00 it is flat 0.58 — it never reaches 1.
+  //   scene.userData.nightFactor  "0 broad day … 1 fully night", published by
+  //                               props.ts:1340 for exactly this purpose.
+  //
+  // It reproduces to the byte: 0.87 - 0.72 * 0.58 = 0.4524 linear, which is
+  // sRGB 0xb3 — the measured value. So the slot only ever travelled 58% of the
+  // way to the darkness this code already asked for.
+  //
+  // `ct/int-library.ts:677-686` documents this exact trap — *"two different
+  // quantities with almost the same name … I shipped the wrong one for one
+  // build"* — and its daylight panel is the precedent this now follows.
+  //
+  // AND THE ENDPOINTS ARE sRGB, LERPED, NOT `setRGB` ARITHMETIC. That is the
+  // library's SECOND documented trap at :687: `setRGB` writes a LINEAR value,
+  // so hand-computed coefficients render brighter than they read. The two
+  // constants below are the OLD FORMULA'S OWN ENDPOINTS evaluated properly —
+  // day is n=0 (#f0f3f6, byte-identical to what noon already showed, so
+  // daylight does not move) and night is n=1 (#6c6f76), the darkness the
+  // author asked for and never got. Derived from the code that was here, not
+  // chosen by me.
+  //
+  // `Color.set(hex)` converts sRGB -> working space and `lerp` runs there, so
+  // the interpolation is the same one the library does.
+  const SLOT_DAY = new THREE.Color(0xf0f3f6);
+  const SLOT_NIGHT = new THREE.Color(0x6c6f76);
   const slotM = new THREE.MeshBasicMaterial({ color: 0xdfe6ea });
+  // KEPT, and it is not the defect the queue row supposed. `dimWorld` returns
+  // early for |world x| > 100 (props.ts:977) and this room sits at x ~1006, so
+  // the world grader has never touched this material — `userData.graded` reads
+  // false on it, which is how we know. The flag is inert today and is left as
+  // the standing declaration that this surface grades ITSELF; removing it would
+  // only matter on the day interiors move inside that radius, and then it would
+  // matter a great deal.
   slotM.userData.selfLit = true;
-  ctx.onFrame(({ night }) => {
-    slotM.color.setRGB(0.87 - 0.72 * night, 0.90 - 0.74 * night, 0.92 - 0.74 * night);
+  ctx.onFrame(() => {
+    const n = (ctx.scene.userData.nightFactor as number) ?? 0;
+    slotM.color.copy(SLOT_DAY).lerp(SLOT_NIGHT, n);
   });
 
   /**

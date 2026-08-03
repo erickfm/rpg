@@ -177,8 +177,11 @@ export function buildStreet(o: {
   // relay can then go. `SITES.set` is idempotent and both paths publish the
   // same object, so the overlap while both exist is harmless.
   publishSite?: CtxBuild['publishSite'];
+  /** REGISTER A PROP WITH BOTH THE PLAYER AND THE CROWD — the same hook
+   *  `ct/park.ts` has always been handed. See `solid` below; item 198. */
+  obstacle: CtxBuild['obstacle'];
 }) {
-  const { scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 } = o;
+  const { scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1, obstacle } = o;
   /** the module-scope painter with this build's `flat` bound in — same six
    *  materials as before, same call sites, so nothing in this file changed. */
   const shellMats = (
@@ -238,8 +241,29 @@ export function buildStreet(o: {
     }
   };
   const STREET_MARK = scene.children.length;
-  const colliders: AABB[] = [];
-  const solid = (b: AABB) => { colliders.push(b); return b; };
+  /** REGISTER A PROP AS SOLID — to the player AND to the crowd.
+   *
+   *  This was `(b) => { colliders.push(b); return b; }`, pushing to a local list
+   *  of this module's own, while `ct/park.ts:91` had a function of the SAME NAME
+   *  and the SAME SIGNATURE that also called `obstacle(b)`. `obstacle` is what
+   *  puts a box in `citAvoid`, the list `ct/crowd.ts` steers pedestrians around
+   *  — so every prop this module registered stopped the player and was
+   *  invisible to the crowd. Measured on the built bundle before the fix: **359
+   *  of the world's 508 static player colliders were not in `citAvoid`**, and a
+   *  citizen spent 1007 frames of a 300 s run standing inside the bodega's
+   *  produce crates. That is the user's report — *"pedestrians sometimes clip
+   *  into the fruit in the sidewalk outside the bodega"* — and "sometimes" is
+   *  the crowd's own `bias`, a lateral stray of up to `STRAY` = 0.55 m off the
+   *  walk line: at the line the crates clear a citizen's footprint by 0.03 m,
+   *  and a walker biased toward the shopfront goes straight through them.
+   *
+   *  IT IS NOW ONE FUNCTION, not two that agree. There is no second list to
+   *  drift out of step, so a future building here physically CANNOT register a
+   *  collider the crowd cannot see — which is the actual defect. Two functions
+   *  with one name and different behaviour is what shipped the bug; making them
+   *  merely equal would have left the trap armed for whoever writes the third.
+   *  (Item 198.) */
+  const solid = (b: AABB) => obstacle(b);
   // `kind` takes a building OUT of the shopfront system entirely — a civic
   // building is not a brick box with an awning and a painted name on it, and
   // the two that carry this block get their own builders below.
@@ -1126,5 +1150,11 @@ export function buildStreet(o: {
   }
 
   stampFrom(STREET_MARK, 'street');
-  return { colliders, park: PARK, lot: LOT, jail: JAIL, setWindows };
+  // `colliders` is GONE from this return (item 198). It was a second list of
+  // the same boxes `obstacle` now receives, and returning it made crosstown.ts
+  // spread them into the player's list a second time — 359 duplicates. Deleting
+  // it rather than leaving it unread is deliberate: an unread list is a trap
+  // for whoever next writes `colliders.push(b)` here and wonders why the crowd
+  // ignores their building.
+  return { park: PARK, lot: LOT, jail: JAIL, setWindows };
 }
