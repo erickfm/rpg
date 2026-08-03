@@ -79,10 +79,47 @@ console.log('side street probe:');
 // Taken BEFORE any traffic is spawned, so a moving car cannot be counted as a
 // parked one — they are the same models with the same userData.
 const heights = await page.evaluate(() => {
-  const out = { trees: [], pits: [], cars: [] };
+  const out = { trees: [], pits: [], cars: [], carsHidden: 0 };
   window.__ct.scene().traverse((o) => {
     if (o.position.x < 8 || o.position.x > 60 || o.position.z > -95 || o.position.z < -112) return;
-    if (o.type === 'Group' && o.userData.steer !== undefined && o.visible) out.cars.push(+o.position.y.toFixed(3));
+    // ── A CULLED CAR IS STILL A PARKED CAR ────────────────────────────────
+    //
+    // This clause used to end `&& o.visible`, and it had gone red for a reason
+    // with nothing to do with parked cars: it reported "0 found" against an
+    // expected 3, while all three were sitting in the scene at y=0 exactly
+    // where they belong.
+    //
+    // The `.visible` term was right when it was written and stopped being right
+    // because something else moved — the most common bug in this codebase.
+    // `regionCull` (crosstown.ts:1377) hides EVERY top-level exterior child
+    // whenever the player's x >= REGION_X (=100, crosstown.ts:1340). The player
+    // SPAWNS INSIDE APARTMENT 301 (GOTCHAS 51), which sits at x = 198.4 — so at
+    // the moment this census runs, before anything has warped anywhere, the
+    // whole outdoors is hidden and every object out here reads
+    // `visible === false`. Measured: 3 objects in this box carry `steer`, all 3
+    // are Groups, 0 are visible; warp onto the side street and it goes to 4
+    // (the fourth being a moving car, which is the very thing the early timing
+    // exists to exclude). scripts/probes/w100-sidestreet-cars.mjs.
+    //
+    // Note the trees and pits below never tested `.visible`, which is why this
+    // check failed on exactly one of its three census lines.
+    //
+    // DROPPING IT IS SAFE, and that is measured rather than hoped. The reason
+    // `.visible` was here at all is the traffic POOL: ct/traffic.ts:276 hides a
+    // vehicle when its run ends, and its own comment says "hiding it alone left
+    // it standing wherever its run ended — on the roadway — where a
+    // scene-reading check that ignores `visible` still counts it". That was
+    // fixed at the source: `clear()` now also parks it at IDLE_XZ = 999
+    // (traffic.ts:221), which is far outside this census box of x 8..60. So the
+    // box already excludes every pooled car, and the "before any traffic is
+    // spawned" timing above excludes the active one.
+    //
+    // The hidden count is carried anyway, so that if this ever disagrees again
+    // the message says which of the two populations moved.
+    if (o.type === 'Group' && o.userData.steer !== undefined) {
+      out.cars.push(+o.position.y.toFixed(3));
+      if (!o.visible) out.carsHidden++;
+    }
     // a tree: a 3 m wide billboard. The side street's centre line is also an
     // alphaTest plane down here, which is what the first cut of this counted.
     else if (o.geometry?.parameters?.width === 3 && o.material?.alphaTest === 0.5) out.trees.push(+o.position.y.toFixed(3));
@@ -97,8 +134,15 @@ const heights = await page.evaluate(() => {
 });
 check(heights.trees.length === 4 && heights.trees.every((y) => y === 0.14),
   `4 trees, all planted on the kerb at y=0.14 (${[...new Set(heights.trees)].join(',')})`);
+// The message carries the hidden count and says visibility is not consulted,
+// because the old one printed "0 found at y=" — an empty list and no hint that
+// the population had been filtered by something the reader could not see. A
+// failure message that does not name what it counted costs the next reader the
+// same hour it cost this one.
 check(heights.cars.length === 3 && heights.cars.every((y) => y === 0),
-  `3 parked cars, all on the road at y=0 (${heights.cars.length} found at y=${[...new Set(heights.cars)].join(',')})`);
+  `3 parked cars, all on the road at y=0 (${heights.cars.length} found`
+  + `${heights.cars.length ? ` at y=${[...new Set(heights.cars)].join(',')}` : ''}`
+  + `${heights.carsHidden ? `, ${heights.carsHidden} of them region-culled — not consulted, see the census` : ''})`);
 check(heights.pits.length === 4 && new Set(heights.pits).size === 1,
   `4 dirt pits, all at y=${[...new Set(heights.pits)].join(',')}`);
 
