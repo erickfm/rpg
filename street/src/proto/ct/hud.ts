@@ -526,8 +526,22 @@ export interface ScreenFocus {
    * required to report the loss rather than to sit there hoping.
    */
   enter: (o: { mesh: THREE.Object3D; standoff: number; fov: number; escape: () => void }) => void;
-  /** give the view, the look and the feet back */
-  leave: () => void;
+  /**
+   * Give the view, the look and the feet back.
+   *
+   * **Returns whether it put the player back in a CHAIR THEY ALREADY HELD**
+   * before the screen opened — see `close()`'s `seatedAtOpen` block, which is
+   * the only caller and which must not stand them up again on top of it.
+   *
+   * A boolean rather than nothing, because the two files know different halves
+   * of the question and neither can answer it alone. This one knows the player
+   * was seated when the panel opened; only the focus controller knows whether
+   * that seat was the player's own or one the screen took for itself, because
+   * only it called `rig.sit` and watched it early-return. Item 206 is exactly
+   * the cost of guessing: `leave()` re-seated the chair and this file stood the
+   * player straight back up, so fixing either side alone measured 9/13.
+   */
+  leave: () => boolean;
   /** where on the focused face is this client-space pointer? `null` = off it */
   pick: (clientX: number, clientY: number) => { u: number; v: number } | null;
 }
@@ -1282,6 +1296,11 @@ export function makePanel(spec: PanelSpec): Panel {
     close: () => {
       if (!open) return;
       open = false;
+      // DID THE FOCUS CONTROLLER GIVE THE PLAYER THEIR OWN CHAIR BACK? Item
+      // 206. Set by `FOCUS.leave()` below, read by the `seatedAtOpen` block at
+      // the foot of this function. `false` for a screen-space panel, which has
+      // no focus controller and so restored nothing.
+      let keptTheirChair = false;
       dismissedAt = performance.now();
       wrap!.style.opacity = '0';
       if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(.94)';
@@ -1315,7 +1334,7 @@ export function makePanel(spec: PanelSpec): Panel {
         wrap!.style.top = '50%';
         wrap!.style.bottom = 'auto';
         wrap!.style.transform = frameless ? 'translate(-50%,-50%)' : 'translate(-50%,-50%) scale(.94)';
-        try { FOCUS?.leave(); } catch (err) { console.error(`[panel ${spec.id}] leaving the screen threw:`, err); }
+        try { keptTheirChair = FOCUS?.leave() === true; } catch (err) { console.error(`[panel ${spec.id}] leaving the screen threw:`, err); }
       }
       if (livePanel && livePanel.spec === spec) {
         livePanel = null;
@@ -1328,11 +1347,30 @@ export function makePanel(spec: PanelSpec): Panel {
       // the shape of the bug this exists to prevent, one layer up.
       const undo = exit; exit = null;
       try { undo?.(); } catch (err) { console.error(`[panel ${spec.id}] release threw:`, err); }
+      // ── THE STRUCTURAL STAND-UP, AND THE ONE CASE IT MUST NOT FIRE IN ─────
+      //
+      // The guarantee above still stands: a panel opened from a seat cannot
+      // leave the player somewhere a forgetful `release` stranded them.
+      //
+      // But it was firing on the player's OWN chair too, and that is item 206:
+      // *"you sit and its the loan process as an integrated overlay."* Sitting
+      // down, reading the form, closing it and finding yourself standing up is
+      // not that. `FOCUS.leave()` had already put the chair back by the time
+      // this ran — three lines later this stood them up again, which is why
+      // fixing `crosstown.ts` alone was inert and measured 9/13
+      // (`scripts/probes/w107-seat-keeps-you.mjs`, and it is 13/13 with both).
+      //
+      // ⚠ THE GUARANTEE IS NOT WEAKENED, because the case being skipped is the
+      // one where the player is provably not stranded: they are back on a seat
+      // THEY chose and walked to, whose own `[E]`/`[ESC]` contract stood them
+      // up before any panel existed. Everything else — a machine that seated
+      // you, a screen-space panel with no focus controller at all — still
+      // stands you up exactly as before.
       if (seatedAtOpen) {
         seatedAtOpen = false;
         try {
           const ct = (window as unknown as { __ct?: { seated?: () => unknown; stand?: () => void } }).__ct;
-          if (ct?.seated?.()) ct.stand?.();
+          if (!keptTheirChair && ct?.seated?.()) ct.stand?.();
         } catch (err) { console.error(`[panel ${spec.id}] could not stand the player up:`, err); }
       }
       try { spec.onClose?.(); } catch (err) { console.error(`[panel ${spec.id}] onClose threw:`, err); }
