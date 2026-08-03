@@ -321,6 +321,43 @@ const CASES = [
     // building it was written against and nothing else.
     'w75-site-contained.mjs', ['jail'], 'walking out of the world past the jail forecourt again'],
 
+  // ── item 260: the OTHER TWO SITES had no failing path at all ──────────────
+  //
+  // `checks.mjs:1315-1317` registers `w75-site-contained` three times with
+  // different args, and `jail-forecourt-open` above covers ONE of the three.
+  // Park and lot had been green all night with nothing in this file able to
+  // turn them — a green that nobody has ever watched go red, on two thirds of
+  // the sites the check exists to sweep.
+  //
+  // WHAT THESE REOPEN. Item 221: for as long as open sites had existed, the two
+  // flank party walls of every site had **no collider** — a 13 m brick wall you
+  // walk straight through. `street.ts:816`'s `solid(...)` is the whole fix, and
+  // `openSite` runs once per site with `side = -1` for the park (west) and
+  // `side = +1` for the lot (east). So guarding that one call on `side` reopens
+  // the bug **on exactly one site**, which is what makes these two cases and
+  // not one.
+  //
+  // THE WALL IS LEFT STANDING, deliberately, for the same reason
+  // `jail-forecourt-open` above leaves the jail's: deleting the plane would go
+  // red for a reason anybody would catch in a screenshot. Removing only the
+  // obstacle reproduces the ACTUAL fault — a wall you can see and walk through
+  // — which is the class two green route-walking checks sat over twice. **A
+  // mutation has to break the symptom, not the diagnosis.**
+  //
+  // ⚠ THEY SHARE ONE ANCHOR LINE, which is fine (canfail applies one case at a
+  // time) but means a re-indent of that `solid(` call breaks BOTH at once. If
+  // one of these ever reports "anchor not found", so will the other, and the
+  // fix is the anchor and not the world.
+  ['park-flank-open', STREET,
+    '      solid(ry > 1',
+    "      if (side !== -1) solid(ry > 1   // selftest: the park's flanks stop colliding",
+    'w75-site-contained.mjs', ['park'], "walking out through the park's party walls again"],
+
+  ['lot-flank-open', STREET,
+    '      solid(ry > 1',
+    "      if (side !== 1) solid(ry > 1   // selftest: the lot's flanks stop colliding",
+    'w75-site-contained.mjs', ['lot'], "walking out through the car lot's party walls again"],
+
   // ── item 72: fast-tier checks that had NO declared failing path ────────────
   //
   // Each of these ran on every suite and had never once been watched go red.

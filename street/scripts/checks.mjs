@@ -1313,8 +1313,13 @@ const CHECKS = [
   // stdout for. The script itself still takes any number of sites, and with
   // none it sweeps every site the world publishes.
   ['w75-site-contained', 'can the player walk out of the world at the jail?', 'jail-forecourt-open', ['jail'], true],
-  ['w75-site-contained', 'can the player walk out of the world at the park?', false, ['park'], true],
-  ['w75-site-contained', 'can the player walk out of the world at the lot?', false, ['lot'], true],
+  // ITEM 260: these two carried `false` — no declared failing path — while the
+  // jail line above carried one, so two of the three sites this check sweeps
+  // had been green all night with nothing able to turn them. `park-flank-open`
+  // and `lot-flank-open` (scripts/canfail.mjs) reopen item 221's bug on exactly
+  // one site each, by guarding street.ts's flank `solid(...)` on `side`.
+  ['w75-site-contained', 'can the player walk out of the world at the park?', 'park-flank-open', ['park'], true],
+  ['w75-site-contained', 'can the player walk out of the world at the lot?', 'lot-flank-open', ['lot'], true],
   // REGISTERED 2026-08-03 (w85, item 230). THE SAME QUESTION ASKED OF THE WHOLE
   // WORLD, and it is not a fourth site row — it is the row for everywhere that
   // is not a site. The three rows above are seeded from a site's frontage, so
