@@ -3162,3 +3162,98 @@ to one side.
 - **"just make the door high rank pls"** (2026-08-03) → **decision recorded on
   item 291.** The way out of a room outranks the furniture in it. Applies to the
   calendar and the bed in flat 301, and by extension to any room's exit.
+
+## 2026-08-03 15:05 — the artifact is not a priority
+
+> "idc about the artifacts"
+
+Said in reply to the desk offering to republish after item 293 fixed the packer
+(the published page was packing one chunk of four and could not boot).
+
+**Routing: nobody. Standing deprioritisation, not a task.** The fix already
+landed as part of 293 and stays — it cost nothing to keep and the checks now
+guard it. But the desk does **not** republish, and artifact/Pages work does not
+get ranked or staffed unless the user raises it again. **The build that matters
+is the live integration world at localhost:5177**, which is what he actually
+playtests. No queue rows were dropped; there were none left to drop.
+
+## 2026-08-03 15:35 — test economics: cheap yes, flaky no, and never longer than the code
+
+> "in general i think we should keep tests that are cheap but stay away from
+> tests that are failure prone. i will be reviewing anyway yknow?"
+
+> "in general tests should not take longer than the work to code itself"
+
+**Routed to: every live builder (onehundrednineteen through onehundredtwentythree,
+messaged directly mid-item) and written into `notes/BUILDER-BRIEF.md` §10a as a
+standing rule.** Not a queue item — it changes how every future item is worked
+and how the desk writes "done when" lines.
+
+The distinction drawn in §10a: **verifying** during your item is unchanged (§10
+stands; movement and collision are still WALKED). **Enshrining** that
+verification as a permanent check now needs justifying. The budget is hard —
+if proving it costs more than building it, do the cheap proof and declare the
+gap honestly rather than leaving a flaky check behind.
+
+**The desk is the main offender and the record says so.** Item 291's fix is
+expected to be a single number in `apartment.ts:3661`; the desk's own "done
+when" demanded five browser walks across three distances. That row was corrected
+and its worker told directly.
+
+## 2026-08-03 15:47 — cut the desk's self-generated instrument work down
+
+> "yea cut them down"
+
+Answering the desk's own observation that three of five remaining queue items
+were test-infrastructure the desk had generated itself, with nobody asking for
+them. **Routed to: the desk (ranking change, no builder needed), plus worker
+onehundrednineteen messaged directly because it was already holding 281.**
+
+Judged each against "would he notice this breaking":
+
+- **281 — CUT to a fraction.** The 20-minute `interiors-walk` re-run is dropped:
+  it covers a change already verified 5/5 by direct measurement. What survives
+  is deleting two probes that report success while refusing to measure, and a
+  two-line GOTCHAS note that the harness prints nothing during light legs so a
+  silence is progress, not a stall.
+- **290 — KEPT, narrowed.** A check claims "0 seats trapped" while seating the
+  player through `__ct.sit()`, which bypasses the `[E]` dispatch — it reads green
+  with the bug fully present. **Being unable to stand out of a chair is exactly
+  what he'd notice.** Plus the contrast and lamp-brightness ceilings, both of
+  which he has complained about in his own words. The `takenSeats()` hook is cut.
+- **295 — CUT to its cheap half.** Instrumenting the jail-light leg is dropped;
+  what remains is retiring a coordinate that does not exist and one GOTCHAS entry
+  about the `material.color` misreading that cost three sessions. Text edits only.
+- **282 — KEPT untouched.** Not desk-generated instrument work: it answers his
+  live complaint *"npcs still get stuck"* and found citizens walking a lane the
+  player is blocked from by 0.091 m.
+
+## 2026-08-03 15:55 — speed: five small changes is fifteen minutes, not five hours
+
+> "in general i really care about speed. so speedy implementation allows me to
+> get feedback quickly. if something requires 5 changes. and they're small
+> changes i want to be able to finish that in like 15 min. not 5 hours"
+
+**Routed to: the desk. Structural change, not a queue item.** New `notes/FAST-BRIEF.md`,
+and `BUILDER-BRIEF.md` now opens by redirecting fast-lane work to it.
+
+**The measured cause was the desk's own process, not the builders.** Every worker
+read a 429-line brief plus a 2,800-line gotchas file before its first commit —
+about twenty minutes of fixed tax, paid PER AGENT PER ITEM. Reasonable for a hard
+item; absurd for five one-liners, where it IS the whole budget. On top of that
+the desk ran one item per agent, so the tax was paid five times for five small
+changes, and each item built and previewed separately at 30-40 s a go.
+
+**The fix is batching plus a shorter door.** A FAST LANE item is N small
+independent changes, ONE worker, ONE pass, ONE build, one commit per change so a
+bad one reverts alone. The worker reads a single page instead of 3,200 lines.
+Proof is looking at it — no probes, no harnesses, no suite legs.
+
+**Excluded from the lane, deliberately:** collision, floors, seats, the 2 m
+sidewalk lane, and anything you cannot judge by looking. Those still go the long
+way. One misjudged item in this lane would cost more than the lane saves.
+
+**The desk's own rows are part of the problem and are now capped**: fast-lane rows
+are ONE LINE — symptom, file, the user's words, done-when. A 1,500-character brief
+for a one-number fix costs the desk time to write, the builder time to read, and
+its numbers rot within the hour.

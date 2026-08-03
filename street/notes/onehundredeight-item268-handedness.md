@@ -219,6 +219,15 @@ All in `scripts/probes/`, per BUILDER-BRIEF §7a.
    machine** (other agents). So it is a *throughput* problem, not a hang, and it
    may well pass in a quiet moment.
 
+   **And the kill stack says exactly where it was**, which is worth more than my
+   "no output" description: it died inside `steadyAt`
+   (`interiors-walk.mjs:1612`), called from **`lightLeg`** (`:1626`) out of the
+   room loop at `:1503`. So it had cleared the floor predicate and was working
+   through the **per-room light legs** — a phase that prints nothing until a leg
+   completes, which is why 14 minutes of real progress looked identical to a
+   hang. Anyone re-running it should expect a long silent stretch there and
+   judge liveness by browser CPU, not by output.
+
    **What that leaves uncovered:** the per-room escape/prompt/keeper legs for all
    12 rooms. What covers the same ground for *this* change: `bugsweep` (96 shots,
    12/12 rooms, 3/3 sites, 0 STATION MISS), `w70-orpheus-walk` 13/13 on both

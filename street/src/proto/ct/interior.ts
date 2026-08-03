@@ -276,6 +276,9 @@ interface Slab {
    *  authorings of one number, which is the same defect the door declarations
    *  exist to kill. Published so a harness can ASK. */
   w: number; d: number; cx: number; cz: number;
+  /** the room's RESOLVED clear height (`spec.h ?? 2.9`), published for the same
+   *  reason `w` is — see `RoomDims.h`. */
+  h: number;
   /** WHERE THE DOORWAY ACTUALLY IS, in room-local metres, with the inward
    *  normal. Published because a harness that ASSUMES the front wall cannot
    *  follow a door round a corner: the bodega's belongs in its cut face, and
@@ -374,6 +377,25 @@ export interface RoomDims {
    * have to remember.
    */
   y: number;
+  /**
+   * THE ROOM'S CLEAR HEIGHT, floor to ceiling, in metres.
+   *
+   * Same argument as `w`, `d`, `y` and `door`, and it is the last dimension of
+   * the box that was not published: the room knows it, so nobody else should
+   * have to remember it. Its absence made a builder scoping the flats lighting
+   * derive a ceiling by hand and tighten the bound THREE times before the leg
+   * went green — guesswork against a number the world already had.
+   *
+   * `spec.h ?? 2.9` is where it comes from (2.9 is a shop), so this is the
+   * RESOLVED height, not what the spec asked for — exactly as `w` is
+   * `spec.w ?? roomWidthFor(frontage)`.
+   *
+   * ⚠ IT IS THE SHELL'S HEIGHT, NOT THE HEADROOM AT A POINT. A room with a
+   * `floor` that steps up has less clearance over the dais than this says, and
+   * anything hung from the ceiling eats more — `Slab.gy` is what answers "what
+   * is underfoot here". Use this to reason about the ceiling PLANE.
+   */
+  h: number;
   door: { x: number; z: number; nx: number; nz: number };
   /**
    * IS THIS ROOM A SLAB IN THE INTERIOR BELT, reached by pressing `[E]` at a
@@ -456,7 +478,7 @@ export function interiorRooms(): RoomDims[] {
   // note above `DECLARED`). Deriving it means a new room cannot get the flag
   // wrong by typing it, and a future kit room gets `belt: true` for free.
   return [...SLABS.map((s) => ({
-            id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz, y: 0, door: s.door, belt: true })),
+            id: s.id, w: s.w, d: s.d, h: s.h, cx: s.cx, cz: s.cz, y: 0, door: s.door, belt: true })),
           ...DECLARED.map((r) => ({ ...r, belt: false }))];
 }
 
@@ -1991,7 +2013,7 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     for (const L of f) if (lx >= L.x0 && lx <= L.x1 && lz >= L.z0 && lz <= L.z1) y = L.y;
     return y;                       // later rows win, so a mezzanine can sit over a dais
   };
-  SLABS.push({ id: spec.id, x0, x1, gy: (gx, gz) => levelAt(gx, gz), w: W, d: D, cx, cz,
+  SLABS.push({ id: spec.id, x0, x1, gy: (gx, gz) => levelAt(gx, gz), w: W, d: D, h: H, cx, cz,
     // in the cut face when the door lives there, otherwise mid front wall
     door: CH
       ? { x: chMx, z: chMz, nx: -chSx / Math.SQRT2, nz: -chSz / Math.SQRT2 }

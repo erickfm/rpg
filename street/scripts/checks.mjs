@@ -1457,6 +1457,31 @@ const CHECKS = [
   // watch-vs-panel row above). Putting the guard for the highest-impact bug on
   // the board behind a flag nobody passes is the same failure with extra steps.
   ['pointer-returns', 'does the mouse work the instant an overlay closes?', ['pointer-never-returns', 'pointer-never-locks']],
+  // REGISTERED 2026-08-03 (w122, item 293). THE ONLY ROW HERE THAT MEASURES THE
+  // FILE THE USER IS SENT rather than the world this suite is pointed at.
+  //
+  // `pack-artifact.mjs` inlined `readdirSync('dist/assets')[0]` — sorted, so
+  // `hud-*.js`, 19 kB of the 1,185 kB the page needs — and shipped it as the
+  // artifact. Three chunks and their three `<link rel=modulepreload>` tags were
+  // left pointing at files that do not exist beside a single-file page: on
+  // file:// that is a CORS error, not a 404, and the artifact opened black.
+  // `check-artifact.mjs` catches it in five seconds and NOTHING RAN IT — it hung
+  // off `npm run artifact`, which is only ever run at publish time, by which
+  // point the bad file has already been published. That is the same shape as the
+  // four unregistered guards above it in this array.
+  //
+  // `--pack` builds and packs a scratch copy into `dist/artifact-build/` first,
+  // so the row does not depend on somebody having packed by hand — and does not
+  // touch `dist/`, which the preview every other check is reading is served
+  // from. ~13 s: a 1.4 s single-chunk build and one chromium.
+  //
+  // Its `--selftest` corrupts a COPY of the packed file (a thrown Error injected
+  // into the inline script) and requires this row to go red on it. That is the
+  // real subject — an artifact that packs and does not open — rather than a
+  // mutation of the scene, and its header records the two scene mutations that
+  // were tried first and were repaired by the world before the check could see
+  // them.
+  ['check-artifact', 'does the artifact the user is sent open on its own?', true, ['--pack']],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
