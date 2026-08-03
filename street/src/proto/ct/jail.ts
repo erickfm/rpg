@@ -175,6 +175,69 @@ const BRICK = '#4a3a34';
 const STEEL = 0x3a3c40;
 const STEEL_DK = 0x26282c;
 
+/** the pull handle and the meeting stile, so the room can build its own to
+ *  match without retyping the colour */
+export const JAIL_STEEL = { face: STEEL, dark: STEEL_DK } as const;
+
+/**
+ * THE SALLY PORT LEAF, DRAWN ONCE.
+ *
+ * Item 105, the user on three buildings running: *"jail interior front door
+ * also looks bad and doesnt match outside."* He was right, and the cause was
+ * not position — `JAIL_DOOR` already single-sources that, and
+ * `scripts/doormatch12.mjs` confirmed the two faces agree about WHERE the door
+ * is. The two faces disagreed about WHAT THE DOOR IS: outside, two pressed-
+ * panel steel leaves with a kick plate and rust off the threshold; inside, the
+ * interior kit's fallback leaf, which is a flat fill with one 3-pixel handle
+ * and no panels at all.
+ *
+ * `DoorDecl.leaf` publishes colour and glazing, and `ct/interior.ts` honours
+ * both — but a colour is not an appearance. Panels, kick plate and leaf COUNT
+ * are what the eye actually reads, and none of them survives a `DoorLeaf`.
+ * So the leaf is shared as the DRAWING, not as four adjectives about it.
+ *
+ * MEMOISED, and that is load-bearing twice over. `pixTex`'s rust pass draws 90
+ * `Math.random()` values, and `scripts/scenedump.mjs` seeds `Math.random`
+ * globally so dithering is reproducible (GOTCHAS §2, BUILDER-BRIEF §10) — a
+ * second call would draw 90 more and repaint every dithered texture built
+ * after it. Returning the cached texture means the room's leaf costs ZERO new
+ * draws and the stream is bit-identical to before this existed. It also means
+ * the two faces are the same `THREE.Texture`, which is as single-sourced as
+ * this gets.
+ *
+ * DENSITY (BUILDER-BRIEF §7b): 24x64 px over a leaf that is `DOOR_W/2` =
+ * 1.20 m wide by `DOOR_H` = 3.06 m tall — 20.0 px/m across, 20.9 px/m up. The
+ * room's own leaves are `DW/2 - gap` wide by `DH - 0.06` tall, i.e. the same
+ * face within a centimetre, so the shared canvas lands at the same density on
+ * both sides. That is why one texture is correct here rather than merely
+ * convenient — see §7b's four counter-examples, all of which were one canvas
+ * stretched over a face it was not drawn for.
+ */
+let jailLeafT: THREE.Texture | null = null;
+export function jailLeafTex(): THREE.Texture {
+  if (jailLeafT) return jailLeafT;
+  jailLeafT = declareSurface(pixTex(24, 64, (g) => {
+    g.fillStyle = '#3a3c40'; g.fillRect(0, 0, 24, 64);
+    // pressed panels — two per leaf, the shape every steel service door has
+    for (const [py, ph] of [[6, 22], [34, 22]] as const) {
+      g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(3, py, 18, ph);
+      g.fillStyle = '#42444a'; g.fillRect(4, py + 1, 16, ph - 2);
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(4, py + 1, 16, 1);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(4, py + ph - 2, 16, 1);
+    }
+    // rust creeping up from the threshold, and a kick plate over it
+    for (let i = 0; i < 90; i++) {
+      const x = Math.random() * 24, y = 64 - Math.pow(Math.random(), 2) * 14;
+      g.fillStyle = `rgba(96,58,34,${0.08 + Math.random() * 0.22})`;
+      g.fillRect(x, y, 1, 1);
+    }
+    g.fillStyle = '#4a4c52'; g.fillRect(2, 56, 20, 6);
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(2, 56, 20, 1);
+    dither(g, 24, 64, 60);
+  }), 'detail');
+  return jailLeafT;
+}
+
 export function register(ctx: CtxBuild): void {
   const { scene, flat } = ctx;
 
@@ -524,26 +587,10 @@ export function register(ctx: CtxBuild): void {
   const DOOR_FACE = FX + JAIL.RECESS;                // the leaf plane, 0.6 m back
   const SILL = 0.14;                                 // the kerb; the sill is flush
   const leafW = JAIL.DOOR_W / 2;
-  const doorT = declareSurface(pixTex(24, 64, (g) => {
-    g.fillStyle = '#3a3c40'; g.fillRect(0, 0, 24, 64);
-    // pressed panels — two per leaf, the shape every steel service door has
-    for (const [py, ph] of [[6, 22], [34, 22]] as const) {
-      g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(3, py, 18, ph);
-      g.fillStyle = '#42444a'; g.fillRect(4, py + 1, 16, ph - 2);
-      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(4, py + 1, 16, 1);
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(4, py + ph - 2, 16, 1);
-    }
-    // rust creeping up from the threshold, and a kick plate over it
-    for (let i = 0; i < 90; i++) {
-      const x = Math.random() * 24, y = 64 - Math.pow(Math.random(), 2) * 14;
-      g.fillStyle = `rgba(96,58,34,${0.08 + Math.random() * 0.22})`;
-      g.fillRect(x, y, 1, 1);
-    }
-    g.fillStyle = '#4a4c52'; g.fillRect(2, 56, 20, 6);
-    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(2, 56, 20, 1);
-    dither(g, 24, 64, 60);
-  }), 'detail');
-  const doorM = flat(doorT);
+  // ONE drawing, both faces — see `jailLeafTex` above. `ct/int-jail.ts` asks
+  // the same function for the room's leaves, and because it is memoised the
+  // room gets this very texture rather than a second copy that could drift.
+  const doorM = flat(jailLeafTex());
   for (const s of [-1, 1]) {
     box(0.09, JAIL.DOOR_H - 0.02, leafW - 0.02, doorM,
       DOOR_FACE + 0.045, SILL + (JAIL.DOOR_H - 0.02) / 2 - 0.07, CZ + s * leafW / 2);
