@@ -2468,6 +2468,59 @@ git status --porcelain                          # whose edits are these?
 If a builder must share the tree, tell it explicitly: no `add -A`, small
 complete commits, never leave the tree unbuildable.
 
+### THERE IS NOW A GUARD, AND YOU SHOULD EXPECT IT TO FIRE (item 243, 2026-08-03)
+
+Writing this warning down did not work. **Four separate workers in one day** ran
+commands against the shared checkout while believing they were in their own
+worktree — the worst ran `npm install` **and** `npm run build` there, rebuilt the
+shared `dist/`, and blinded a preview it did not own. In every case it was luck
+or the isolation guard that caught it, never the builder's own care.
+
+So it is now a mechanism rather than a paragraph:
+**`scripts/lib/shared-checkout.mjs`**, fronted by
+**`scripts/guard-shared-checkout.mjs`** and wired into `package.json` at
+`preinstall`, `build`, `dev` and `live`. If you are a spawned agent standing in
+the main checkout, those four refuse to run and tell you to `cd` to your
+worktree.
+
+**Why those four and not everything.** They are the ones that *mutate or serve*:
+`preinstall` and `build` were the actual incident, and `dev`/`live` bind port
+5177, the user's live world. The read-only measurement scripts are deliberately
+left alone — their problem is *reading the wrong world*, which is a different
+failure with its own instrument already (`scripts/lib/which-world.mjs`,
+GOTCHAS 26 and 48). Two warnings on one command blunt both.
+
+**The desk is unaffected, by design.** The trigger is two facts, not one:
+the tree is the main checkout (`--git-dir` equals `--git-common-dir`) **and**
+the caller is a spawned agent (`CLAUDE_CODE_CHILD_SESSION=1`, corroborated by
+`AI_AGENT` ending `_agent`). Measured from the live processes: the desk
+(pid 262802) and the harness host (282161) carry **neither** variable; a spawned
+builder carries both. An env var was the right shape because it is **inherited
+by every child process** — it reaches `npm`, `node` and `vite`, and it travels
+with the agent when it `cd`s into the shared tree, which is the one instant it
+must. A marker file cannot do that: it would live in the worktree, and the
+mistaken command runs somewhere else.
+
+**Two things worth knowing before you argue with it:**
+
+- **It fails open on every uncertainty.** It runs from `preinstall`, the command
+  BUILDER-BRIEF §0 tells every builder to run, so a bug here would brick the
+  whole project. A missing git, a non-repo directory, any thrown error — all
+  ALLOW. It refuses only on a positive determination of both facts.
+- **`CT_ALLOW_SHARED=1` opts out** if you genuinely mean the shared tree. Say so
+  in your handoff; it is not a normal thing for an agent to want.
+
+**The hole it plugs, measured rather than assumed.** The harness's own
+worktree-isolation guard is **git-only**. From inside an isolated worktree,
+`cd /home/erick/projects/rpg/street && git rev-parse --show-toplevel` is refused,
+but `cd /home/erick/projects/rpg/street && ls -d node_modules` runs without
+complaint. Every `npm`, `node` and `vite` invocation went through that gap.
+
+Both signs are demonstrated by `scripts/probes/w94-guard-selftest.mjs` — a real
+`git init` plus a real `git worktree add` in a temp dir, 21 assertions behind a
+population floor, and it has been watched failing under two mutations (a guard
+that never fires, and one that classifies every tree as `main`).
+
 ## 85. Two commits on 2026-08-02 are misattributed — do not trust their messages
 
 A consequence of GOTCHAS 84, recorded because `SESSION-STATE.md` already tracks
