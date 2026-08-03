@@ -245,10 +245,51 @@ export function buildProps(ctx: CtxBuild): Props {
   // was the same storm. There was no intensity axis anywhere in the weather.
   //
   // `stormAt` is that axis. Same murmur3 finalizer as the hour draw, offset so
-  // it is an independent draw rather than a second read of the same bits, and
-  // floored at 0.62 because the complaint on file is that rain is too faint —
-  // the weakest storm in the world should still be plainly rain.
-  const stormAt = (h: number) => 0.62 + 0.38 * ((mixHour(h + 9973) % 1024) / 1023);
+  // it is an independent draw rather than a second read of the same bits.
+  //
+  // TWO SEPARATE KNOBS, AND THE USER'S COMPLAINT SITS AT BOTH ENDS OF THEM.
+  //
+  //   *"rain seems extra intense now. thats fine but i want a drizzle to also
+  //    exist and be more likely than the downpour featured here."*
+  //
+  // This used to be `0.62 + 0.38 * u` — a UNIFORM draw over 0.62…1.00. Sampled
+  // over 20000 hours that is 6607 storms of which **100% were at half strength
+  // or heavier**, mean 0.811, and the bottom twelve histogram bins were empty.
+  // Drizzle was not rare, it was unreachable.
+  //
+  // The obvious move — drop the floor — is half the fix and the dangerous half.
+  // The 0.62 floor is on file against the OPPOSITE complaint, that rain is too
+  // faint, so lowering it alone trades one report for the other. Both knobs
+  // have to move, and they do different jobs:
+  //
+  //   FLOOR  makes drizzle POSSIBLE.  Set to 0.34 by looking, not by taste:
+  //          frames were taken across the new range from street level against a
+  //          bright sky (the hardest case to read), and 0.34 is the lowest
+  //          strength where the drops still plainly read as rain rather than as
+  //          a few specks. `heavy` spends itself on drop COUNT, opacity and
+  //          fall speed at once, so at 0.34 that is ~884 of 2600 drops at 0.24
+  //          alpha coming down at 16 m/s — thinner and slower than the old
+  //          weakest storm, still unmistakably weather.
+  //
+  //   CURVE  makes drizzle LIKELY, which is the half he actually asked for.
+  //          Squaring the uniform is the whole change. It is worth stating why
+  //          it is defensible rather than merely convenient: for u uniform,
+  //          u**2 has density 1/(2*sqrt(x)), which is strictly DECREASING over
+  //          the whole range — so every light band is more common than any
+  //          equally wide heavier band, everywhere, not just on average. The
+  //          mean moves from the midpoint to a third of the way up.
+  //
+  // A distribution is invisible in one frame, so it is checked as a histogram
+  // over thousands of storms by `scripts/probes/w59-storm-dist.mjs`, which
+  // fails if the light half stops outnumbering the heavy half.
+  //
+  // The RATE of rain is deliberately untouched — `rainAt` still says it rains
+  // about a third of hours. Only how hard changed.
+  const STORM_FLOOR = 0.34;
+  const stormAt = (h: number) => {
+    const u = (mixHour(h + 9973) % 1024) / 1023;
+    return STORM_FLOOR + (1 - STORM_FLOOR) * u * u;
+  };
   scene.userData.stormAt = stormAt;
 
   // billboard sprites: trees, hydrant, pigeons
