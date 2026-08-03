@@ -187,6 +187,39 @@ from, `localHead()` moves, and every check from that moment on aborts WRONG
 WORLD. `checks.mjs` says so in its own closing lines and it is right — do not
 commit while a suite is running.
 
+### Sharing `checks.mjs` with item 182
+
+The desk warned mid-item that **worker sixtyseven holds item 182 and is editing
+`scripts/checks.mjs` too** — its job there is the `SERVER DIED (unmeasured)`
+diagnostic. Merged mainline (`f43bb5254`) before finishing: **it merged cleanly
+and there was no conflict to resolve**, because 182 has not landed — mainline's
+`checks.mjs` is still byte-for-byte the version I started from (the whole diff
+between us in that file is my own additions).
+
+**So the conflict is still ahead, and it will be sixtyseven's or the merge
+train's to take.** Where the two of us overlap, precisely:
+
+* my `+canfail` block sits **inside** the `for (const [name, question, …])`
+  loop, a few lines above the `const args = […]` spawn;
+* I changed that loop's **destructuring line** to take a sixth field
+  (`cases = []`) and added an `ONLY` filter as its first statement;
+* 182's subject — the rows pushed as `SERVER DIED (unmeasured)` — sits in the
+  same loop, at its top and in both post-spawn failure branches.
+
+Neither change alters the other's meaning. **Keep both**: the sixth field and
+the `--only` guard are load-bearing for this item's DONE WHEN, and a resolution
+that drops the destructuring line silently disables `masonry-blind` — the row
+would still read as registered and would simply never run its case, which is the
+exact failure class this whole item exists to close.
+
+Re-verified on the merged tree at `f43bb5254`, rebuilt: 7811 meshes · 4477
+textured · **305 stamps** (the baseline holds across the merge), and
+
+```
+(--only masonry, texdensity, checks-registered — 3 of 132 rows; the rest were NOT run)
+✓ masonry   ✓ texdensity   ✓ checks-registered
+```
+
 ---
 
 ## Found and NOT fixed — for the desk to queue
