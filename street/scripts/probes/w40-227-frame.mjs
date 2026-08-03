@@ -9,6 +9,16 @@
 // If the competitor is far and off-axis, a gate keyed on `looked` costs nothing
 // there. If it is squarely aimed at and close, the gate re-opens w9's bug and
 // the shape has to change. This decides which.
+//
+// ── RUNS ON THE BUNDLE NOW (item 237) ────────────────────────────────────────
+// The tier table below used to be built from `await import('/src/proto/fp.ts')`
+// inside the page. That resolves on `vite dev` and **404s on `vite preview`**,
+// and there is no try/catch here, so against the built bundle this probe threw
+// `Failed to fetch dynamically imported module` on its very first pose and
+// measured NOTHING — not a fallback, an uncaught abort. Both values it wanted
+// are published on `__ct` now: `touchMargin()` (item 223) and `lookTolerance()`
+// (item 237). Same arithmetic, same source of truth, and it works on the world
+// the user actually ships.
 import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from '../lib/which-world.mjs';
@@ -26,6 +36,16 @@ const prompt = () => p.evaluate(() => {
   const t = (el?.textContent ?? '').trim();
   return t ? t.replace(/^\s*\[E\]\s*/, '') : null;
 });
+
+// GOTCHAS 32: a missing hook means the check never ran, and that is not the same
+// news as a world that is wrong. Say which, and exit 3.
+const hooks = await p.evaluate(() => ({
+  lookTolerance: typeof window.__ct.lookTolerance, touchMargin: typeof window.__ct.touchMargin,
+}));
+if (hooks.lookTolerance !== 'function' || hooks.touchMargin !== 'function') {
+  console.error(`ABORT: __ct is missing a hook — ${JSON.stringify(hooks)}`);
+  await b.close(); process.exit(3);
+}
 
 const target = await p.evaluate(() => {
   const s = window.__ct.spots().find((q) => /227/.test(q.label));
@@ -49,15 +69,15 @@ for (const off of [0, 1.15]) {
     await p.evaluate(([x, z, y, gy]) => window.__ct.warp(x, z, y, gy, 0), [px, pz, heading, gy]);
     await p.waitForTimeout(200);
     const won = await prompt();
-    const rows = await p.evaluate(async ([x, z, yaw]) => {
-      const m = await import('/src/proto/fp.ts');
+    const rows = await p.evaluate(([x, z, yaw]) => {
       const fx = Math.sin(yaw), fz = -Math.cos(yaw);
+      const TOUCH = window.__ct.touchMargin();
       return window.__ct.spots().filter((s) => s.ok).map((s) => {
         const dx = s.x - x, dz = s.z - z, d = Math.hypot(dx, dz);
         const offAxis = d < 1e-4 ? 0 : Math.abs(Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz));
         return { label: s.label, d, offAxis,
-          near: d < s.r + m.TOUCH_MARGIN,
-          looked: d < 6 && offAxis < m.lookTolerance(s.r, d) };
+          near: d < s.r + TOUCH,
+          looked: d < 6 && offAxis < window.__ct.lookTolerance(s.r, d) };
       }).filter((q) => q.near || q.looked).sort((a, c) => a.d - c.d);
     }, [px, pz, heading]);
     console.log(`  yaw ${(heading * 180 / Math.PI).toFixed(0).padStart(3)}deg -> [E] ${won ?? '(none)'}`);

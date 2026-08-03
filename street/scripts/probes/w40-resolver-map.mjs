@@ -5,16 +5,28 @@
 // a ring of stand-offs, at eight headings each. ~200 spots x 3 offsets x 8
 // headings, and the winning label recorded for each.
 //
-// IT CALLS THE WORLD'S OWN pickSpot. `/src/proto/fp.ts` is imported into the
-// page, so this is the real resolver and not a model of it — a model would go
-// stale the moment I edited the thing it models, which is the whole point of
-// running it.
+// IT CALLS THE WORLD'S OWN pickSpot — through `__ct.pickSpot()` (item 237), so
+// this is the real resolver and not a model of it. A model would go stale the
+// moment I edited the thing it models, which is the whole point of running it.
+//
+// ── IT USED TO REACH IT THE ONE WAY THAT DOES NOT WORK ON THE BUNDLE ─────────
+// This did `await import('/src/proto/fp.ts')` in the page. `vite dev` serves
+// that path; `vite preview` 404s it, and with no try/catch the probe threw
+// `Failed to fetch dynamically imported module` at its first station. So the
+// blast-radius differ for the highest-risk file in the project — the one
+// instrument that says whether a selection change moved the world — could not
+// be pointed at the world the user actually ships (GOTCHAS 28). `__ct.pickSpot`
+// calls the same `pickSpot` over the same live `SPOTS` and returns the winner's
+// index and label as numbers and strings, which is all this differ ever keyed
+// on.
 //
 // The `visible` callback is deliberately NOT supplied: it is a FILTER applied
 // before any tiering and I am not touching it, so leaving it out widens the
 // candidate set (making the diff more sensitive, not less) without changing
 // what is being compared. Live-prompt truth is checked separately by
-// w40-bed-vs-door.mjs; this is a differ, not an oracle.
+// w40-bed-vs-door.mjs; this is a differ, not an oracle. The hook cannot supply
+// it either, and for a stronger reason — `update()`'s raycast starts at the
+// PLAYER'S eye, and every pose below is one the player is not standing in.
 //
 //   SHOT_URL=http://localhost:4188/ node scripts/probes/w40-resolver-map.mjs before
 //   ...edit fp.ts...
@@ -88,6 +100,13 @@ await p.waitForFunction(() => window.__ct !== undefined, { timeout: 30000 });
 await p.waitForTimeout(2000);
 await reportWorld(p, URL);
 
+// GOTCHAS 32: without the hook this measures nothing, and a differ that reports
+// "0 changed" because it visited no poses is the worst possible reading.
+if (await p.evaluate(() => typeof window.__ct.pickSpot) !== 'function') {
+  console.error('ABORT: __ct.pickSpot is not published on this world — nothing was measured.');
+  await b.close(); process.exit(3);
+}
+
 const stations = await p.evaluate(() => window.__ct.spots().map((s, i) => ({ i, x: s.x, z: s.z, label: s.label })));
 console.log(`${stations.length} registered spots to visit`);
 
@@ -99,12 +118,13 @@ for (const st of stations) {
   // the whole pose ring in ONE page call against the world's own resolver
   await p.evaluate(([x, z, gy]) => window.__ct.warp(x, z, 0, gy, 0), [st.x, st.z, gy]);
   await p.waitForTimeout(60);
-  const res = await p.evaluate(async ([sx, sz, si]) => {
-    const m = await import('/src/proto/fp.ts');
-    const live = window.__ct.spots()
-      .map((s, i) => ({ ...s, i }))
-      .filter((s) => s.ok)
-      .map((s) => ({ x: s.x, z: s.z, r: s.r, label: s.label, i: s.i, ok: () => true }));
+  const res = await p.evaluate(([sx, sz, si]) => {
+    // The hook resolves against the world's own live SPOTS with their own
+    // `ok()`. That is what the hand-built `live` list above was reconstructing:
+    // it filtered on `ok` and then flattened every predicate to `() => true`,
+    // which is the same candidate set for as long as the player does not move —
+    // and the player is warped once per station, before this call, precisely so
+    // the room's predicates are live. One fewer copy of the world to keep true.
     const o = {};
     for (const off of [0, 0.5, 1.0]) {
       for (let a = 0; a < 8; a++) {
@@ -112,8 +132,8 @@ for (const st of stations) {
         const px = sx + off * Math.cos(th), pz = sz + off * Math.sin(th);
         for (let h = 0; h < 8; h++) {
           const yaw = (h / 8) * Math.PI * 2;
-          const w = m.pickSpot(live, { x: px, z: pz, yaw, pitch: 0 }, 6);
-          o[`${si}|${off}|${a}|${h}`] = w ? `${w.spot.i}:${w.spot.label}` : null;
+          const w = window.__ct.pickSpot({ x: px, z: pz, yaw, pitch: 0 }, { reach: 6 });
+          o[`${si}|${off}|${a}|${h}`] = w ? `${w.index}:${w.label}` : null;
         }
       }
     }

@@ -1865,19 +1865,25 @@ for (const spec of offBelt) {
 // item 287, build 8bd8ae3a1, `scripts/probes/w116-served-spots.mjs`.
 const DECLARED = [
   ['jail: the room keeps its own light after dark',
-    'ITEM 240 — SAME SUBJECT, AND 240\'s COORDINATE IS OFF BY ONE WINDOW. Measured by '
-    + 'onehundredsixteen with `scripts/probes/w116-jail-which-material.mjs`, which runs this '
-    + 'leg\'s own day/dark comparison but PRINTS the material: the single dimming material sits '
-    + 'at (1006.37, 2.42, -9.40). Item 240 names (1006.37, 2.42, -5.60) — x and y agree TO THE '
-    + 'CENTIMETRE and only z differs by 3.8 m, so these are sibling slot windows in one run down '
-    + 'the cell wall, not two different findings. It goes #f0f3f6 by day -> #6c6f76 after dark, '
-    + 'and #6c6f76 is EXACTLY the night floor worker seventyone installed when it called item 210 '
-    + '"false in every clause". So the material is landing on its DESIGNED night value: the '
-    + 'evidence here favours seventyone, and this leg is asserting `dimmed === 0` in a room that '
-    + 'contains a window meant to dim. NOT SETTLED HERE, because both that probe and this leg read '
-    + '`material.color` from JS, and item 240\'s standing warning is that lamplight moved into '
-    + 'POOL_FRAG where a fragment shader is invisible to exactly that read. Whether the ROOM looks '
-    + 'dim to a player still needs 240\'s pixel measurement. 240 is TODO and unclaimed; leave it there.'],
+    'SETTLED — ITEM 240 IS CLOSED AND THIS LEG IS WRONG, NOT THE WORLD. DO NOT REOPEN. '
+    + 'The jail does NOT dim, and that is correct: `ct/props.ts:978` is '
+    + '`if (Math.abs(wp.x) > 100) return;   // interiors keep their own light`, and the jail sits '
+    + 'at world x 1000, so the night grader never touches the room. Measured IN PIXELS by '
+    + 'onehundredeighteen (`scripts/probes/w118-item240-jail-pixels.mjs`): jail 108.69 at 13:00 '
+    + 'and 108.69 at 02:00 — no change whatsoever — against a street control going 86.21 -> 34.02, '
+    + '60.5% darker. '
+    + 'WHAT THIS LEG IS ACTUALLY REACTING TO is ONE material out of 140 that carries its own '
+    + 'designed night value: (1006.37, 2.42, -9.40), #f0f3f6 by day -> #6c6f76 after dark, and '
+    + '#6c6f76 is EXACTLY the night floor worker seventyone installed when it called item 210 '
+    + '"false in every clause". Seventyone was right and is upheld. So the leg asserts '
+    + '`dimmed === 0` in a room that contains one window meant to dim, and it will keep failing. '
+    + 'THE COORDINATE -5.60, quoted by sixtyfour and by eightytwo and previously repeated here, IS '
+    + 'RETIRED: nothing is at -5.60; x and y were right to the centimetre and z was out by 3.8 m, '
+    + 'one slot window along the same cell wall. '
+    + 'THE STANDING TRAP, because it cost three sessions and two overturned verdicts: every '
+    + 'measurement in that argument — this leg included — was a `material.color` read from JS, '
+    + 'which cannot see a grader that declined to run and cannot see POOL_FRAG at all. '
+    + '"Is it dark on screen" is a PIXEL question. GOTCHAS 92.'],
 
   ['casino: the customer station comes from the world, not from memory',
     'The casino publishes NO spot matching this leg\'s /buy|order|serve|till|counter/i — 0 of 125 '

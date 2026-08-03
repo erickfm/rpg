@@ -1,5 +1,14 @@
 # w72 — the compare-by-array-index pattern in the three remaining sites
 
+> **CORRECTION, item 295 (2026-08-03) — kept as written; one figure in it is
+> dead.** The jail material recorded below at world `(1006.37, 2.42, -5.60)` is
+> at **`-9.40`** — same wall, one slot window along, x and y right to the
+> centimetre. The pairing fix this note is actually about stands; only the
+> coordinate and the "the jail dims" reading around it do not. In pixels the
+> jail is 108.69 at 13:00 and 108.69 at 02:00: it does not dim, and that is
+> correct (`ct/props.ts:978` returns early past x 100; the jail is at x 1000).
+> GOTCHAS 92.
+
 Item 209. Port **4280**, `vite preview` over `dist/` (the BUILT bundle, GOTCHAS
 28), aimed with `SHOT_URL` on every run. Worktree reset from the initial commit
 first — GOTCHAS 54, fourteen for fourteen now.

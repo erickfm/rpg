@@ -819,7 +819,43 @@ export function tube(pts: THREE.Vector3[], radius: number, mat: THREE.Material):
 // metres.** This is the part the highlight depends on: whatever is outlined has
 // to be the thing that fires, and a player reads "selected" as "the thing I am
 // looking at". Proximity only decides it among things you are not looking at.
-export interface Pickable { x: number; z: number; r: number; ok: () => boolean }
+export interface Pickable {
+  x: number; z: number; r: number; ok: () => boolean;
+  /** HOW MUCH THIS SPOT MATTERS when two of them are equally selectable.
+   *
+   *  **THE USER DECIDED THIS, 2026-08-03: *"just make the door high rank pls."***
+   *  The way out of a room outranks the furniture in it. Default 0; `WAY_OUT`
+   *  is the one non-zero value anything declares today.
+   *
+   *  IT ORDERS **WITHIN** A TIER, NEVER ACROSS ONE, and that boundary is the
+   *  whole design. Worker onehundredsixteen measured a cross-tier rank — the
+   *  obvious strong form — and it made things WORSE: a ranked door sitting in
+   *  tier 3 (touched, aimed away) started stealing the press from a bed the
+   *  player was squarely aimed at, so `[E]` on the bed opened the door instead.
+   *  A rank that can beat AIM is not "the door is important", it is "the door is
+   *  the only thing in the room".
+   *
+   *  AND `onIt` STILL COMES FIRST inside tier 1 — see the key below. A spot
+   *  whose centre is inside your own capsule is something you are standing in,
+   *  and the user's own guard rail on this same request is that *standing right
+   *  at a piece of furniture and looking straight at it must still offer that
+   *  furniture*. Rank orders what you are NEAR; it does not overrule what you
+   *  are IN. */
+  rank?: number;
+}
+
+/** The rank a way OUT carries — a door, a threshold, a street entrance.
+ *
+ *  One named constant rather than a `1` typed at each door, because the point
+ *  of item 291 is that this is a PROPERTY OF DOORS and not a fix for flat 301:
+ *  every room has a way out and the next room will need it too. Anything that
+ *  gets you from one place to another declares this; furniture declares
+ *  nothing and gets 0.
+ *
+ *  The value is deliberately the smallest one that works. Rank is compared, not
+ *  summed, so there is nothing to gain from a bigger number and a scale that
+ *  invites tuning is a scale somebody will tune. */
+export const WAY_OUT = 1;
 
 export interface PickView { x: number; z: number; yaw: number; pitch: number }
 
@@ -996,21 +1032,43 @@ export function pickSpot<T extends Pickable>(
    *    a door and opening it is a feature asked for by name. From a chair it is
    *    a bug: you cannot cross the room without getting up, so a spot you can
    *    SEE from a seat is not a spot you can USE from it. The bound is
-   *    `s.r + REACH_MARGIN` — **not a new constant**, but the one this file's own
-   *    comment (see `REACH_MARGIN` above, and the note at `looked` below) has
-   *    always said that margin means: how far outside its radius a spot can be
-   *    selected when you ARE looking at it. Standing deliberately does not apply
-   *    it; sitting is the case where it is the right question.
+   *    `s.r + RADIUS + REACH_MARGIN` — **not a new constant**: `REACH_MARGIN` is
+   *    the one this file's own comment (see `REACH_MARGIN` above, and the note at
+   *    `looked` below) has always said means *how far outside its radius a spot
+   *    can be selected when you ARE looking at it*, and `RADIUS` is the player's
+   *    own collision capsule, already imported at the top of this file. Standing
+   *    deliberately does not apply the margin; sitting is the case where it is
+   *    the right question.
+   *
+   *  · **AND THE GAP IS BETWEEN TWO BODIES, NOT FROM A POINT (item 289).** The
+   *    first cut of this bound was `d < s.r + REACH_MARGIN`, which measures the
+   *    span from the player's *centre* to the spot's edge and so silently
+   *    charges the seated player 0.36 m of his own chest for every reach. That
+   *    is the same error tier 1 below already had and already fixed: `onIt`
+   *    was `d < 1e-4` until it was measured to be false in the world, and it is
+   *    `d < RADIUS` now *because the player has a body*. The seated bound has to
+   *    say it too, so the quantity being compared to `REACH_MARGIN` is the real
+   *    gap `d - s.r - RADIUS` — surface to surface.
    *
    *  Derived against the user's own case rather than tuned: the client chair
    *  sits at (4.40, 2.62) and THE APPLICATION FORM at (3.75, 1.925) —
    *  `ct/int-bank.ts:1191-1197` — so 0.952 m against the form's own
-   *  `0.70 + 0.60 = 1.30`. It clears by 0.35 m rather than by a hair, which
-   *  matters: GOTCHAS 72, a margin the world can absorb is the only kind worth
-   *  writing down. The loan officer, two rows down the same file at r 1.0 and
-   *  1.67 m from the chair, does NOT clear his own 1.60 — so sitting in the
-   *  client chair reaches the paperwork and not the man behind the desk, which
-   *  is also the right answer.
+   *  `0.70 + 0.36 + 0.60 = 1.66`. It clears by 0.71 m rather than by a hair,
+   *  which matters: GOTCHAS 72, a margin the world can absorb is the only kind
+   *  worth writing down.
+   *
+   *  **THE LOAN OFFICER IS WHY THE POINT FORM WAS WRONG.** She is two rows down
+   *  the same file at r 1.0 and 1.67 m from the chair. Against the point form's
+   *  1.60 she missed by **7 cm**, and this docstring used to record that as
+   *  *"also the right answer"* — sit in the chair the user asked for, face the
+   *  woman across the desk square on, and the world offered to stand you up.
+   *  It is not the right answer: `ct/int-bank.ts:1183-1189` builds the whole
+   *  interaction out of reaching both — *"you read the form, then you look up
+   *  and hand it over"* — and the user asked for that chair by name (*"you sit
+   *  and its the loan process as an integrated overlay"*). Against the
+   *  body-to-body form she is inside 1.96 and clears by 0.29 m. **Nothing about
+   *  the officer moved to achieve that**; the rule was 7 cm short of a room that
+   *  was already built right.
    *
    *  **STANDING UP IS NOT DEMOTED INTO THIS CONTEST.** It cannot be — a view you
    *  cannot leave is the worst bug this project ships (BUILDER-BRIEF §11). The
@@ -1024,9 +1082,12 @@ export function pickSpot<T extends Pickable>(
   // THREE TIERS, NOT ONE KEY — and the middle one is the whole of this
   // function's history, because THIS KNOB HAS A USER COMPLAINT AT BOTH ENDS.
   //
-  //   tier 1  STANDING IN IT, OR TOUCHING AND AIMED AT   ranked by distance
-  //   tier 2  AIMED AT                ranked by screen centre, distance breaks ties
-  //   tier 3  TOUCHING, AIMED AWAY    ranked by distance
+  //   tier 1  STANDING IN IT, OR TOUCHING AND AIMED AT   onIt, then rank, then distance
+  //   tier 2  AIMED AT                rank, then screen centre with distance breaking ties
+  //   tier 3  TOUCHING, AIMED AWAY    rank, then distance
+  //
+  // (`rank` arrived with item 291 and orders WITHIN a tier only — see the note
+  // above the keys below, and `Pickable.rank`.)
   //
   // END ONE — *"i dont want to be so far from the bed and the option is still
   // to sit on the bed and watch tv"*. This used to be a single
@@ -1086,12 +1147,38 @@ export function pickSpot<T extends Pickable>(
   // every pose — nothing near it, nothing looked, nothing across the street
   // (scripts/probes/w40-227-frame.mjs). Demoting it costs nothing there
   // because there is nothing to be demoted below.
+  //
+  // ── AND RANK ORDERS EACH TIER, AHEAD OF THAT TIER'S OWN KEY (item 291) ──────
+  //
+  // *"just make the door high rank pls."* The way out of a room outranks the
+  // furniture in it. `Pickable.rank` above carries the derivation; what matters
+  // here is the SHAPE, because two of the three obvious shapes are wrong and
+  // both were measured wrong rather than argued wrong:
+  //
+  //   · RANK ACROSS TIERS — a ranked door beats an aimed-at bed. Measured by
+  //     worker onehundredsixteen: `[E]` on the bed you are looking at opened the
+  //     door instead. Rank must never beat AIM.
+  //   · RANK ABOVE `onIt` — a ranked door beats the calendar you are standing
+  //     nose-to-nose with. That is the user's own guard rail on this request.
+  //
+  // So the comparison inside a tier is LEXICOGRAPHIC, most significant first:
+  //
+  //   tier 1   onIt  >  rank  >  distance
+  //   tier 2   rank  >  offAxis + d*0.02
+  //   tier 3   rank  >  distance
+  //
+  // Rank is a small integer and the keys are metres/radians, so they are
+  // compared as a PAIR rather than folded into one number with a magic
+  // multiplier — a weight big enough to dominate is a weight that silently
+  // becomes a tier, which is the first mistake above wearing a disguise.
+  const better = (rank: number, key: number, bRank: number, bKey: number) =>
+    (rank !== bRank ? rank > bRank : key < bKey);
   let bestNearLooked: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
-  let bestNearLookedKey = Infinity;
+  let bestNearLookedKey = Infinity, bestNearLookedRank = -Infinity, bestNearLookedOnIt = false;
   let bestLooked: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
-  let bestLookedKey = Infinity;
+  let bestLookedKey = Infinity, bestLookedRank = -Infinity;
   let bestNearOnly: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
-  let bestNearOnlyKey = Infinity;
+  let bestNearOnlyKey = Infinity, bestNearOnlyRank = -Infinity;
   const fx = Math.sin(view.yaw), fz = -Math.cos(view.yaw);
   for (const s of spots) {
     if (!s.ok()) continue;
@@ -1135,9 +1222,18 @@ export function pickSpot<T extends Pickable>(
     // SEATED IS THE ONE CASE THAT DOES APPLY IT, and it is an `&&` on top of the
     // standing test rather than a replacement for it, so the seated reach can
     // only ever be SHORTER than the standing one. See `opts.seated` above.
+    //
+    // `+ RADIUS` IS THE PLAYER'S OWN BODY AND IT IS NOT A TUNING KNOB (item
+    // 289). `d` runs from the seat pose — the player's CENTRE — to the spot's
+    // centre, so the span a seated arm actually has to cross is `d - s.r -
+    // RADIUS`, and comparing `d - s.r` to REACH_MARGIN charges him the width of
+    // his own chest. That cost the bank's loan officer by 7 cm: 1.67 m against
+    // an r of 1.0, so a gap of 0.67 m that is really 0.31 m of air. Same lesson
+    // as `onIt` forty lines down, which was `d < 1e-4` until the world proved
+    // the player is not a point. See the derivation in `opts.seated` above.
     const seated = opts?.seated === true;
     const looked = d < reach && offAxis < lookTolerance(s.r, d)
-      && (!seated || d < s.r + REACH_MARGIN);
+      && (!seated || d < s.r + RADIUS + REACH_MARGIN);
     // Seated, the aim-free pass is off entirely: `near` is what hands a sitting
     // player the chair he is already in. `opts` absent -> this line is
     // `near = touching`, exactly as it was, so nothing about a standing player's
@@ -1170,13 +1266,30 @@ export function pickSpot<T extends Pickable>(
     // not the degenerate `d < 1e-4` I tried first.
     const onIt = d < RADIUS;
     const entry = { spot: s, looked, offAxis, dist: d };
+    const rank = s.rank ?? 0;
     if (near && (looked || onIt)) {
-      if (d < bestNearLookedKey) { bestNearLookedKey = d; bestNearLooked = entry; }
+      // `onIt` FIRST, and it is the only place in this function where rank is
+      // outranked by something else. A spot you are standing IN is not competing
+      // for your attention; it is under your feet. Among two spots you are
+      // standing in — which the world does contain, wherever two stand-points
+      // are closer than `2 * RADIUS` — rank then decides, and that is the case
+      // `scripts/standpoint-overlap.mjs` exists to keep rare.
+      if (bestNearLooked === null
+        || (onIt !== bestNearLookedOnIt
+          ? onIt
+          : better(rank, d, bestNearLookedRank, bestNearLookedKey))) {
+        bestNearLookedKey = d; bestNearLookedRank = rank;
+        bestNearLookedOnIt = onIt; bestNearLooked = entry;
+      }
     } else if (looked) {
       const key = offAxis + d * 0.02;
-      if (key < bestLookedKey) { bestLookedKey = key; bestLooked = entry; }
+      if (better(rank, key, bestLookedRank, bestLookedKey)) {
+        bestLookedKey = key; bestLookedRank = rank; bestLooked = entry;
+      }
     } else {
-      if (d < bestNearOnlyKey) { bestNearOnlyKey = d; bestNearOnly = entry; }
+      if (better(rank, d, bestNearOnlyRank, bestNearOnlyKey)) {
+        bestNearOnlyKey = d; bestNearOnlyRank = rank; bestNearOnly = entry;
+      }
     }
   }
   // touching-and-aimed-at, then aimed-at, then touching-but-aimed-away.

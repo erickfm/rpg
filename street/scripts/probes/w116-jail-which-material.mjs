@@ -2,9 +2,15 @@
 //
 // `interiors-walk.mjs` reports `jail: 1/97 interior materials dimmed by the
 // night sweep` but prints no coordinate, so "is this item 240?" cannot be
-// answered from its output. Item 240 names (1006.37, 2.42, -5.60). This runs the
-// same day/dark comparison the leg runs and prints WHERE the dimming material
-// is, so the two can be matched rather than assumed.
+// answered from its output. This runs the same day/dark comparison the leg runs
+// and prints WHERE the dimming material is, so the two can be matched rather
+// than assumed.
+//
+// ⚠ ITEM 240 IS SETTLED AND THE COORDINATE IT NAMED WAS WRONG. This header used
+// to read "Item 240 names (1006.37, 2.42, -5.60)". **Nothing is at -5.60** — the
+// material is at **-9.40**, one slot window along the same cell wall, and it
+// grades to `#6c6f76`, the night floor worker seventyone installed. Retired
+// under item 295; the whole story is GOTCHAS 92.
 //
 // It deliberately reuses the leg's own sampling shape — steady over four
 // samples at each hour, non-transparent materials with a `color`, bounded to the
@@ -70,8 +76,21 @@ for (const u of dimmed) {
   console.log(`  DIMMED  ${day[u].name}  at (${day[u].at.join(', ')})`);
   console.log(`          day #${day[u].hex.toString(16).padStart(6, '0')} -> dark #${dark[u].hex.toString(16).padStart(6, '0')}`);
 }
-const T = [1006.37, 2.42, -5.60];
+// THE LIVE COORDINATE IS -9.40, AND -5.60 IS RETIRED (item 295, GOTCHAS 92).
+// This constant was `[1006.37, 2.42, -5.60]` — the figure workers sixtyfour and
+// eightytwo both quoted for the dimming material — and **there is nothing
+// there**, so this comparison could only ever print "NOT the coordinate item 240
+// names" and reopen the argument a fourth time. x and y were right to the
+// centimetre; only z was out, by one slot window down the cell wall.
+const T = [1006.37, 2.42, -9.40];
 const near = dimmed.filter((u) => day[u].at.every((v, i) => Math.abs(v - T[i]) < 0.5));
-console.log(`\nitem 240 names (${T.join(', ')}) — ${near.length} of ${dimmed.length} dimmed material(s) match it within 0.5 m`);
-console.log(near.length ? 'SAME SUBJECT AS ITEM 240' : 'NOT the coordinate item 240 names');
+console.log(`\nthe settled coordinate is (${T.join(', ')}) — ${near.length} of ${dimmed.length} dimmed material(s) match it within 0.5 m`);
+console.log(near.length ? 'SAME SUBJECT AS ITEM 240' : 'NOT the settled coordinate');
+// AND THE VERDICT THIS PROBE DELIBERATELY CANNOT GIVE IS NOW IN: item 240 was
+// settled IN PIXELS by `scripts/probes/w118-item240-jail-pixels.mjs` — jail
+// 108.69 at 13:00 and 108.69 at 02:00 against a street control going
+// 86.21 -> 34.02. **The jail does not dim and that is correct**
+// (`ct/props.ts:978` returns early past x 100; the jail is at x 1000). This
+// probe still answers only WHICH material carries the value, never whether the
+// room looks dark. GOTCHAS 92.
 await b.close();

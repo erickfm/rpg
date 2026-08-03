@@ -24,7 +24,7 @@ import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
 import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
-import { pickSpot, SpotOutline, REACH_MARGIN, TOUCH_MARGIN } from './fp';
+import { pickSpot, SpotOutline, REACH_MARGIN, TOUCH_MARGIN, lookTolerance } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
 import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
@@ -1879,7 +1879,12 @@ export function makeCrosstown(): Proto {
       point: doorPointFor(d.building), stand: doorStandFor(d.building),
       widthM: d.width ?? null,
     })),
-    spots: () => SPOTS.map((sp) => ({ x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok() })),
+    // `rank` is published alongside the geometry (item 291) because it is now
+    // part of WHY a spot won, and a probe that can see the arithmetic but not
+    // the rank is reading two thirds of the decision.
+    spots: () => SPOTS.map((sp) => ({
+      x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok(), rank: sp.rank ?? 0,
+    })),
     // REACH IS NOT RADIUS, and a script cannot work that out from `spots()`
     // alone: a spot publishes its `r`, but the margin that turns that radius
     // into a selectable disc lives in fp.ts. Two scripts had therefore
@@ -1943,6 +1948,75 @@ export function makeCrosstown(): Proto {
     // the player moves the world and the guard together and neither can drift
     // into agreeing with itself.
     playerRadius: () => RADIUS,
+    /** THE LOOK CONE, as a number — `lookTolerance(r, d)` in radians (item 237).
+     *
+     *  The margins above are constants; this is the one part of the selection
+     *  rule that is a FUNCTION, and it is the part two workers got wrong by
+     *  retyping. `lookTolerance` clamps `atan2(r, d)` between `LOOK_FLOOR` and
+     *  `LOOK_CEILING`, and BOTH previous hand-copies read the value BEFORE the
+     *  clamp — `notes/ninetytwo-item98-the-plateau-is-the-clamp.md` §2 — which
+     *  inverted item 98's premise and cost it a release. A harness cannot get
+     *  this right by copying, because the answer is 25.0° at 2 m and 11.3° at
+     *  6 m for the same spot: it is not a number you can write down once.
+     *
+     *  NUMBERS IN, A NUMBER OUT — the `painted()` precedent. Nothing about the
+     *  world is reachable through it, so it is read-only by construction rather
+     *  than by a defensive copy.
+     *
+     *  `LOOK_CEILING` IS THE USER'S OWN DECISION (25°, 2026-08-03). This hook
+     *  exists so a harness reads whatever he last chose rather than whatever it
+     *  was typed at. */
+    lookTolerance: (r: number, d: number) => lookTolerance(r, d),
+    /** THE RESOLVER ITSELF, asked of the world's own spot list (item 237).
+     *
+     *  `scripts/probes/w40-resolver-map.mjs` is the blast-radius differ for any
+     *  change to `pickSpot`'s tiering, and it could only run by doing
+     *  `await import('/src/proto/fp.ts')` in the page — which resolves on the
+     *  dev server and **404s on `vite preview`**, so the one instrument that
+     *  says whether a selection change moved the world could not be pointed at
+     *  the bundle the user ships (GOTCHAS 28). It did not fail softly either:
+     *  it threw an uncaught `Failed to fetch dynamically imported module` and
+     *  measured nothing at all.
+     *
+     *  RESULT NUMBERS, NOT THE SPOT — `citAvoid()`'s reasoning. `pickSpot`
+     *  returns the live `Spot` object, whose `label` and `ok` are thunks closing
+     *  over world state; handing that to a probe is handing it a lever on the
+     *  world. What comes back instead is the spot's INDEX into `spots()` (so a
+     *  caller can join the two), its evaluated label, its geometry, and the
+     *  three tier numbers the resolver decided on.
+     *
+     *  LINE OF SIGHT IS DELIBERATELY NOT APPLIED, and this is a limit rather
+     *  than an oversight. The `visible` callback in `update()` raycasts from the
+     *  PLAYER'S EYE, so it can only answer for the pose the player is actually
+     *  standing in — while the whole point of this hook is to ask about poses
+     *  the player is not in. Supplying it for an arbitrary `view` would answer a
+     *  different question and look like the same one. `w40-resolver-map.mjs`
+     *  already omitted it on purpose ("a FILTER applied before any tiering…
+     *  leaving it out widens the candidate set"); live-prompt truth, sight
+     *  included, is what `w40-bed-vs-door.mjs` reads off `#ct-prompt`.
+     *
+     *  THE PREDICATES ARE UNTOUCHED. This calls `pickSpot` with the same
+     *  `SPOTS`, the same default reach of 6 and the same `opts.seated` shape the
+     *  frame loop uses; it is a window onto the resolver, not a second copy of
+     *  it. */
+    pickSpot: (
+      view: { x: number; z: number; yaw: number; pitch?: number },
+      opts?: { reach?: number; seated?: boolean },
+    ) => {
+      const won = pickSpot(
+        SPOTS, { x: view.x, z: view.z, yaw: view.yaw, pitch: view.pitch ?? 0 },
+        opts?.reach ?? 6, undefined, opts?.seated ? { seated: true } : undefined,
+      );
+      if (!won) return null;
+      return {
+        // INDEX INTO `spots()`, which is `SPOTS.map(...)` and therefore the same
+        // order — that is the join a caller needs, and it is the identity the
+        // live object cannot carry across `page.evaluate`.
+        index: SPOTS.indexOf(won.spot),
+        label: won.spot.label(), x: won.spot.x, z: won.spot.z, r: won.spot.r,
+        looked: won.looked, offAxis: won.offAxis, dist: won.dist,
+      };
+    },
     // The acceptance test for the selection highlight, asked of the WORLD rather
     // than of a copy of it: every registered [E], whether it names an object,
     // and therefore whether its outline is the real contour or the generic
