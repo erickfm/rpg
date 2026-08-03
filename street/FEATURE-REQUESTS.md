@@ -2970,3 +2970,14 @@ to one side.
   jail walk checks already exist and pass (`scripts/O-jail-walk.mjs`,
   `scripts/w15-jail-walk.mjs`), so this is a blind spot in the checks as much as
   a hole in the world.
+
+- **"make it a combo orpheus hotel and casino. connect them internally and
+  outside. i should be able to walk from one into the other"** (2026-08-02)
+  → **routed as queue item 176.** `HOTEL ORPHEUS` (`ct/street.ts:332`, w 12,
+  5 floors) and `SEVENS` (`:333`, w 11.55, 4 floors) are **already adjacent** —
+  consecutive rows in the EAST roster — which is what makes this feasible
+  without moving anything else on the street.
+
+- **"[screenshot] bodega is a bit crowded and lots of clipping inside"**
+  (2026-08-02, pasted image, the counter end) → **routed as queue item 177.**
+  Same family as the library crowding report (item 115).
