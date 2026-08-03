@@ -115,6 +115,25 @@ export function buildHotel(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'hotel',
     label: 'into the HOTEL ORPHEUS',
+    // NAMED, so this file's own DoorDecl is actually consulted. It was not.
+    //
+    // `bName` (ct/interior.ts:1140) is `spec.building ?? fr?.name ?? null`, and
+    // a CHAMFER room publishes no frontage — so `fr` is null here and the name
+    // had to come from the spec. It did not, `bName` resolved to `null`, `LEAF`
+    // with it, and every reader below took its `??` branch: this lobby has been
+    // wearing **the kit's generic 1.1 m timber leaf** while `DOOR` twelve lines
+    // up declares HOTEL ORPHEUS's own 1.15 m door. The building's declaration
+    // was not wrong, it was thrown away.
+    //
+    // The kit screams about exactly this at ct/interior.ts:1171 and it has been
+    // screaming every load — it is the one `[interior:*]` warning in a clean
+    // 96-shot sweep, and `scripts/interiors-walk.mjs:284` and
+    // `scripts/G-rooms-walk.mjs:210` both fail on that channel.
+    //
+    // Read off `DOOR` rather than typed again: a second hand-typed 'HOTEL
+    // ORPHEUS' here is the two-authorings problem that this file's own header
+    // spends four paragraphs on (BUILDER-BRIEF §8).
+    building: DOOR.building,
     // 3.4 m, the tallest room in the belt so far and deliberately so. The
     // casino two doors down is 2.5 m and presses on you; this one has to do
     // the opposite before it can have fallen from anywhere.
