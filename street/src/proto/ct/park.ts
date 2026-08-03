@@ -830,7 +830,35 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // kerb line and the strip under the party walls are all left at exactly
   // KERB_H — nothing that stands on the site's flat ground has moved, and the
   // paths stay level without being told anything.
-  site.displace?.(relief);
+  //
+  // ── AND IT IS SUNK 30 mm UNDER THE GRASS, WHICH IS NOT COSMETIC ─────────
+  //
+  // The field mesh rides `LIFT * 0.5` — 3 mm — above the site plane, which was
+  // ample while the plane was flat. Once BOTH are curved it is not, because
+  // they are curved at DIFFERENT TESSELLATIONS: the field is
+  // `PlaneGeometry(17.75, 16.5, 27, 25)` at 0.657 m, the site plane
+  // `(32, 30, 48, 45)` at 0.667 m, and neither grid's vertices land on the
+  // other's. A flat facet across a convex crest sits below the true surface by
+  // κh²/8, and the relief's sharpest curvature is 0.093 m⁻¹ where `land` ramps
+  // its slope in — so each mesh sags up to 5.2 mm mid-facet, out of phase with
+  // the other. Where the field sags and the site plane does not, the plane
+  // stands 2.2 mm PROUD OF THE GRASS and the site's grey shows through it in
+  // slivers. That is GOTCHAS §6 with a curve in it, and no screenshot at this
+  // scale would reliably show it.
+  //
+  // 30 mm clears the worst case six times over. It costs nothing: the field
+  // mesh covers `fx0…fx1 x fz0…fz1` exactly, so every millimetre of the sunk
+  // region is under grass, and the sag ramps from zero over the first 0.6 m
+  // INSIDE the boundary — so the two surfaces still meet flush exactly where
+  // the grass ends and the site's own ground takes over.
+  //
+  // The floor picker is untouched by this: it answers `relief`, not the plane.
+  const SAG = 0.03;
+  site.displace?.((x, z) => {
+    const inset = Math.min(x - fx0, fx1 - x, z - fz0, fz1 - z);
+    if (inset <= 0) return 0;
+    return relief(x, z) - SAG * Math.min(1, inset / 0.6);
+  });
 
   if (fW > 0.5 && fD > 0.5) {
     // ── MOWING STRIPES ────────────────────────────────────────────────────
