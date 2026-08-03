@@ -2664,9 +2664,25 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         phone: '555-0199', hours: 'OPEN TIL NINE' },
       { name: 'crosstown sting', fmt: 'sting', secs: 2.0, bg: '#2a2118', ink: '#fff8e0', accent: '#e0a81c',
         head: 'CROSSTOWN' },
-      { name: 'sevens slate', fmt: 'slate', secs: 4.2, bg: '#10203f', ink: '#eaf2ff', accent: '#c8d8f0',
-        lines: ['SEVENS', 'FREE BUFFET', 'MUST BE 21'] },
-      { name: 'sevens quote', fmt: 'quote', secs: 4.4, bg: '#7a1420', ink: '#ffe9a8', accent: '#e8c33a',
+      // THE CASINO IS NOT CALLED SEVENS ANY MORE. Item 196 rebuilt this
+      // elevation as the Orpheus casino wing: the category line on the facade
+      // reads ORPHEUS and the name board reads CASINO (ct/vice.ts:1264), and the
+      // [E] prompt is "into the ORPHEUS CASINO" (ct/int-casino.ts:133). This
+      // slate still said SEVENS, which is an ad for a business the street no
+      // longer has — precisely the fault the user filed when he asked for the
+      // ads to *"actually be representative of the businesses we created thus
+      // far"*. (Item 213.)
+      //
+      // ORPHEUS OVER CASINO, in the facade's own two-line arrangement rather
+      // than as one 14-character line: `tvFit` sizes to fit and 'ORPHEUS CASINO'
+      // only fits at px 3, its documented floor ("below that the glyphs stop
+      // being glyphs"). Stacked, both words draw at px 5 — the size the rest of
+      // this slate uses — and the ad reads the way the building does.
+      // `slate` lays lines at 8 + i*8 and `tvSafeY` clamps the last one, so the
+      // fourth row lands at y 32 against a safe bottom of 46.
+      { name: 'orpheus slate', fmt: 'slate', secs: 4.2, bg: '#10203f', ink: '#eaf2ff', accent: '#c8d8f0',
+        lines: ['ORPHEUS', 'CASINO', 'FREE BUFFET', 'MUST BE 21'] },
+      { name: 'orpheus quote', fmt: 'quote', secs: 4.4, bg: '#7a1420', ink: '#ffe9a8', accent: '#e8c33a',
         lines: ['I WON', 'FOUR DOLLARS'], who: 'DENNIS, A LOCAL' },
       { name: 'first federal legal', fmt: 'legal', secs: 5.0, bg: '#1d3d6b', ink: '#eaf2ff', accent: '#c8d8f0',
         head: 'FIRST FEDERAL', tag: 'APR 29 PERCENT. RATES MAY VARY. FEES APPLY. NOT A COMMITMENT TO LEND.' },

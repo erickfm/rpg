@@ -16,6 +16,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { entrySpots } from './lib/entry-spot.mjs';
 import { setClock } from './lib/clock.mjs';
 
 const KERB_H = 0.14, RADIUS = 0.36;   // the player capsule, for the geometric band
@@ -349,16 +350,35 @@ for (const [nm, x] of [['the porte-cochère', ORPH.px], ['the marquee', SVN.px]]
 }
 
 // ── 3. the doors the facades were redrawn around still work ─────────────
-for (const [nm, x, re] of [
-  ['SEVENS', SVN.px, /SEVENS/],
-  ['HOTEL ORPHEUS', ORPH.px, /ORPHEUS/],
+//
+// THE `re` COLUMN HERE WAS `/SEVENS/` AND `/ORPHEUS/` — the [E] copy, typed out.
+// Item 196 renamed the casino elevation to the Orpheus wing and this check went
+// red on a working door (17/18, `prompt="[E] into the ORPHEUS CASINO"`). The
+// desk's item 213 named three harnesses with this fault; this is the FOURTH, and
+// the only one of the four that was already failing in `npm run checks`.
+//
+// `/ORPHEUS/` was doubly wrong: since the rename it matches the CASINO prompt
+// too, so the hotel row would have gone green standing at the casino door.
+//
+// Now keyed on the DoorDecl roster key, with the expected copy read back from
+// the world (scripts/lib/entry-spot.mjs). `nm` here already IS that key.
+const viceEntry = await entrySpots(p);
+console.log(`entry spots: ${viceEntry.resolved} of ${viceEntry.total} declared doors resolved to an [E] spot`);
+for (const [nm, x] of [
+  ['SEVENS', SVN.px],
+  ['HOTEL ORPHEUS', ORPH.px],
 ]) {
+  const want = viceEntry.byBuilding.get(nm)?.label ?? null;
   await warp(x, FACADE_Z - 1.8, Math.PI, KERB_H);
   await p.waitForTimeout(180);
   await hold('w', 950);
   const pr = await prompt();
+  // POPULATION FLOOR: `want == null` means the door published no [E] spot at
+  // all, which must FAIL here rather than quietly compare against nothing.
   check(`${nm}: the painted entrance and the [E] spot still agree`,
-    re.test(pr ?? ''), `prompt=${JSON.stringify(pr)}`);
+    want != null && pr != null && String(pr).includes(want),
+    want == null ? `NO [E] spot on the door declared by ${nm} — nothing was measured`
+      : `prompt=${JSON.stringify(pr)} vs declared entry ${JSON.stringify(want)}`);
   await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e');
   await p.waitForTimeout(320);
   const inside = await pos();

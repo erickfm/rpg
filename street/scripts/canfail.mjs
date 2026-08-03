@@ -296,7 +296,11 @@ const CASES = [
   ['jail-forecourt-open', JAIL,
     '    ctx.obstacle({ minX: site.minX, maxX: FX, minZ: zLine - SCR_T / 2, maxZ: zLine + SCR_T / 2 });',
     '    void FX;   // selftest: the forecourt flanks stop colliding, hole reopened',
-    'w67-jail-contained.mjs', [], 'walking out of the world past the jail forecourt again'],
+    // RETARGETED at the CLASS version (item 215). `w67-jail-contained.mjs` was
+    // the jail-only sweep; `w75-site-contained.mjs` is the same fill taking a
+    // site name, and it is handed `jail` here so this case still scores the
+    // building it was written against and nothing else.
+    'w75-site-contained.mjs', ['jail'], 'walking out of the world past the jail forecourt again'],
 
   // ── item 72: fast-tier checks that had NO declared failing path ────────────
   //

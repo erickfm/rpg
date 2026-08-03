@@ -3571,9 +3571,82 @@ uniform float uPoolAmb;`)
   drop('flattened cardboard', -10.60, -41.45, 0.90, ALLEY_Y);
   drop('flattened cardboard', -9.40, -42.40, -1.06, ALLEY_Y);   // was the second fountain cup
   drop('folded newspaper', -12.60, -42.05, 0.40, ALLEY_Y);
+  // (the third crate is placed below, in the slot it has always occupied)
   // blown up against the building line, clear of the tree pits (x ±5.0…5.8)
   drop('flattened cardboard', 6.58, -26.5, -0.35);
-  drop('milk crate', -6.74, -58.2, 0.55);
+  // THE THIRD CRATE, MOVED OFF THE THRIFT FRONTAGE AND INTO THE ALLEY.
+  //
+  // THE `drop` CALL STAYS IN THIS SLOT ON PURPOSE — only its arguments moved.
+  // Every maker in CATALOGUE builds a different number of objects, and three's
+  // generateUUID() draws from the same seeded Math.random the dithering uses
+  // (GOTCHAS 75), so re-ordering two drops re-rolls every dithered texture
+  // painted after them. Read that as: this is a coordinate change and nothing
+  // else, and `places` should differ by exactly one entry.
+  //
+  // *"get rid of the trash crate in front of the thrift store. or move it
+  // somewhere else"* (2026-08-02). He offered both; this MOVES it, because
+  // deleting is the one thing the note eighteen lines up rules out — the
+  // population is floored by scripts/footprint.mjs and *"thinning by deletion
+  // would have traded one complaint for another"*. So it goes where this file
+  // already says crates go, three lines up: the alley, round the dumpster.
+  //
+  // ROOT CAUSE — AND IT IS NOT THE SHOPFRONT. The dimWorld note at :1245 blames
+  // the frontage (*"grows into the stallriser … A has since made those
+  // shopfronts project further"*), and that reads plausibly, but it is not what
+  // is happening. Measured with scripts/probes/w77-what-pushed-it.mjs, which
+  // re-runs that pass's own overlap test with its own filters:
+  //
+  //   **A MILK CRATE IS PUSHED OUT OF ITS OWN SIDE PANELS.** :1268 skips a
+  //   solid with `o.userData?.litter`, but only the litter GROUP carries that
+  //   tag — `drop()` sets it at :3519 on `o`, never on the panels inside it. So
+  //   the crate's four uprights land in `solidsNear`, the group's box overlaps
+  //   them by construction, and the pass shoves the group clear of itself.
+  //
+  //   It bites the crate and nothing else because of the :1271 height gate,
+  //   `h < 0.25` — cardboard and newspapers are flatter than that and their
+  //   meshes never enter the set. A crate's panels are 0.25 m exactly.
+  //
+  //   The evidence is the shift being one crate wide, every time: authored
+  //   -12.20 lands at -11.64, -11.55 at -11.02, -6.74 at -6.12. Three crates,
+  //   +0.56 / +0.53 / +0.62, against half-extents of 0.30 / 0.28. The two flat
+  //   types do not move at all. And the spot this line asks for overlaps
+  //   **nothing real** — the probe reports 0 solids there once ancestry is
+  //   tested the way scripts/footprint.mjs:113 already tests it.
+  //
+  //   On the street that push is aimed: `towardRoad` weights a move toward x 0
+  //   at 0.45, so a crate against the west frontage is shoved OUT INTO THE WALK
+  //   — which put it 1.12 m from the THRIFT door spot. Nobody placed a crate in
+  //   his doorway; a repair pass walked it there.
+  //
+  // NOT FIXED HERE, deliberately, and this is the part to read before
+  // "correcting" it: the one-line fix (test the ancestry, not `o.userData`)
+  // moves the two ALLEY crates 0.55 m west, back to where they were authored —
+  // and those two are landmarks in a frame the user signed off. ct/cat.ts:239
+  // records SEVEN placements settled against his own screenshots, listing
+  // *"both crates"* among the things that must read from the alley mouth. So
+  // the fix regresses an approved composition and the two have to move
+  // together. That is a decision, not a tidy-up. Queued for the desk.
+  //
+  // WHERE IT IS NOW — the LANDED position, not this line's argument. The self
+  // -push above moves it +0.42 m east, so it asks for -9.30 and arrives at
+  // **(-8.88, -37.54)**, which is where the clearances below were measured and
+  // where shots/w77-alley-crate-after.png shows it. Compensating for the push
+  // with a magic offset would be a second wrong number, so the request stays
+  // honest and the outcome is recorded.
+  //
+  //   0.90 m  from the dumpster's east face      a crate beside the bin
+  //   0.54 m  from the payphone hood's west jamb
+  //   0.32 m  off the alley's north wall         it leans on the wall
+  //   3.44 m  from the nearest other crate
+  //   4.94 m  from the cat
+  //
+  // AND IT IS BEHIND THE CAT'S CAMERA. The approved frame is taken from
+  // (-8.5, -39.5) at yaw -0.785; the bearing from there to this spot is 124°
+  // off that axis, so it cannot enter the shot. Checked by LOOKING, not by the
+  // trig: shots/w77-cat-frame-before.png and -after.png are the same picture —
+  // KOBRA left, SNAK right of the corner, both crates, the grate below centre,
+  // the cat on the paper.
+  drop('milk crate', -9.30, -37.45, -0.29, ALLEY_Y);
   // cardboard rather than a fourth newspaper: -68.4 is a newspaper 7.6 m up the
   // street and the two would have paired the way the cups did, across the road
   // rather than along it
