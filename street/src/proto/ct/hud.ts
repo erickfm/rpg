@@ -2217,6 +2217,25 @@ export function makeHud(purse: Purse): Hud {
   // ask whether one is running, from outside. `scripts/K-sleep-fade.mjs` reads
   // the OPACITY off the element rather than this flag — a boolean going true is
   // not the same claim as the screen actually being black.
+  // ── `__hud` OWNS THE CHROME OVER THE WORLD, AND NOTHING IN THE WORLD ──────
+  //
+  // Item 249: *"`window.__hud` VERSUS `window.__ct` IS UNDOCUMENTED and cost
+  // ninety three probe detours."* Reaching for the wrong one does not throw — it
+  // hands you `undefined`, and a probe then reasons from it.
+  //
+  // The split, in one line each:
+  //   `__hud`  which cabinet is up, closing it, the fade, the keypress latch.
+  //   `__ct`   the WORLD — the rig, the scene, colliders, floors, spots, seats,
+  //            doors, rooms, the clock. Published by `crosstown.ts`.
+  // Each MACHINE has its own besides: `__atm`, `__slots`, `__blackjack`,
+  // `__librarypc`, `__inv`, `__rent`. **There are eleven surfaces, not two** —
+  // measured, with the full map, in `notes/BUILDER-BRIEF.md` §4a, and
+  // re-enumerable from the running world with
+  // `scripts/probes/w119-249-test-surfaces.mjs`.
+  //
+  // NOTHING ABOUT THE PLAYER GOES HERE. `__hud` deliberately does not know where
+  // he is standing and `__ct` deliberately does not know a panel is open; a
+  // probe that drives a machine needs both, plus the machine's own.
   (window as unknown as { __hud: unknown }).__hud = {
     fade: (o?: Parameters<Hud['fade']>[0]) => hud.fade(o),
     fading: () => hud.fading(),

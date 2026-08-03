@@ -188,6 +188,50 @@ an address you are not measuring.
 
 ---
 
+## 4a. THERE IS NOT ONE TEST SURFACE. THERE ARE ELEVEN.
+
+**Read this before you write a probe.** Reaching for the wrong surface does not
+throw — it hands you `undefined`, and a probe then reasons from it and reports a
+world that does not exist. Worker ninety lost three probe detours to exactly
+this, which is queue item 249.
+
+The row that filed it says *"`window.__hud` versus `window.__ct`"*. **It is
+worse than that.** Enumerated from the running world on 2026-08-03
+(`scripts/probes/w119-249-test-surfaces.mjs` — run it, do not trust this list to
+stay true): **11 surfaces, 162 members.**
+
+| surface | what it OWNS | published by |
+|---|---|---|
+| **`__ct`** (54) | **the WORLD.** The rig and where it is (`warp`, `pos`, `yaw`, `camera`, `seated`, `sit`/`stand`), the scene graph, colliders, ground and floors (`groundAt`, `staticColliders`, `bounds`), everything registered (`spots`, `seats`, `doors`, `rooms`, `sites`, `modules`), the clock, traffic, people, and the debug overlays | `crosstown.ts:1573` |
+| **`__hud`** (8) | **the CHROME OVER the world**, and nothing in it. Which cabinet is up (`panel`, `panels`), closing them (`closePanels`, `openPanel`), the fade, and the keypress latch (`held`, `latched`) | `ct/hud.ts`, in `makeHud` |
+| `__inv` (11) | the pockets: slots, selection, what can be picked up |
+| `__atm` (17) | the cash machine — its screen, its two keypads, the money |
+| `__rent` (17) | rent, the landlord's letters, the mailboxes |
+| `__slots` (11) · `__blackjack` (9) | the two casino games |
+| `__librarypc` (16) | the library terminal, including minesweeper |
+| `__frontages` (16) | the shopfronts, by index — `ct/tex-world.ts:921` |
+| `__lab` (3) | the prototype switcher |
+
+**The rule that follows from it, and the one that would have saved the three
+detours:** if what you want is a fact about **the world** — a position, a
+collider, a floor, a spot, a seat, a door — it is on **`__ct`**. If it is a fact
+about **a panel being up over the world**, it is on **`__hud`**. If it is a fact
+about **one machine**, it is on that machine's own surface, and there is one per
+machine.
+
+**`__ct` is not a superset.** It does not know a panel is open, and `__hud` does
+not know where you are standing. A probe that drives a machine needs all three:
+`__ct.warp` to stand at it, `__hud.panel()` to know the cabinet came up, and
+`__atm.screen()` to know which screen it is on.
+
+**And check, rather than assume it is there:** every one of these is published by
+the module that owns it, at the moment that module is built. A surface for a
+machine in a room you have not entered may not exist yet.
+
+```js
+await p.waitForFunction(() => window.__ct !== undefined);   // never a fixed sleep
+```
+
 ## 5. Interactions need a HELD keypress
 
 ```js

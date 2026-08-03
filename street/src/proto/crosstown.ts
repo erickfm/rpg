@@ -1570,6 +1570,25 @@ export function makeCrosstown(): Proto {
     }
   }
 
+  // ── `__ct` OWNS THE WORLD. IT IS NOT A SUPERSET OF THE OTHER TEN. ─────────
+  //
+  // Item 249: *"`window.__hud` VERSUS `window.__ct` IS UNDOCUMENTED and cost
+  // ninety three probe detours."* Reaching for the wrong surface does not throw
+  // — it hands you `undefined`, and a probe then reasons from it, which is the
+  // same silent-failure shape that had one reasoning from `RADIUS=undefined`.
+  //
+  // What lives HERE: the rig and where it is, the scene graph, colliders, ground
+  // and floors, everything registered (spots, seats, doors, rooms, sites,
+  // modules), the clock, traffic, people, the debug overlays.
+  //
+  // What does NOT: whether a panel is up — that is `__hud`, in `ct/hud.ts` — and
+  // anything about one machine, which is on that machine's own surface (`__atm`,
+  // `__slots`, `__blackjack`, `__librarypc`, `__inv`, `__rent`, `__frontages`).
+  // **Eleven surfaces, 162 members, measured 2026-08-03.** Full map in
+  // `notes/BUILDER-BRIEF.md` §4a; re-enumerate it from the running world with
+  // `scripts/probes/w119-249-test-surfaces.mjs` rather than trusting a list.
+  //
+  // COMMENT ONLY — no member of this object is changed by item 249.
   (window as any).__ct = {
     warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => {
       // A TELEPORT BREAKS THE SIGHT CACHE'S ONE ASSUMPTION — that he cannot have
