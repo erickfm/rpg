@@ -1253,6 +1253,13 @@ if (serverDied) {
 
 const w = Math.max(...rows.map(([n]) => n.length));
 console.log(SELFTEST ? '\nSELFTEST — each check was broken on purpose:' : `\nchecks against ${URL}:`);
+// SAY THAT THE RUN WAS FILTERED, in the summary and not only in the argv the
+// reader cannot see. A short green table is otherwise indistinguishable from a
+// whole suite passing, and this file's own preamble is about exactly that class
+// of sentence — "could not measure" and "measured, and it is fine" being
+// different news that used to print the same.
+if (ONLY.length)
+  console.log(`  (--only ${ONLY.join(', ')} — ${rows.length} of ${CHECKS.length} rows; the rest were NOT run)`);
 for (const [name, question, status, secs] of rows)
   // a skipped row must say WHY, or "·" reads as "passed quietly" — which is
   // how six checks stayed invisible in the first place
