@@ -113,8 +113,15 @@ for (const sp of out.seatSpots) {
 for (const [k, c] of [...clusters].sort((a, z) => a[0] - z[0]))
   console.log(`   x~${k}: ${c.n} registered, ${c.ok} offered, ${c.n - c.ok} suppressed`);
 
-console.log('\nJSON ' + JSON.stringify({
+// Written to a file rather than only printed, so the before/after comparison is
+// a diff of two artefacts and not of two things I read off a terminal.
+const dump = {
   people: out.people.map((q) => [q.x, q.y, q.z, q.facing]),
   seatSpots: out.seatSpots.map((sp) => [+sp.x.toFixed(3), +sp.z.toFixed(3), sp.ok]),
-}));
+};
+if (process.argv[2]) {
+  const f = `shots/w113-280-census-${process.argv[2]}.json`;
+  (await import('node:fs')).writeFileSync(f, JSON.stringify(dump, null, 1));
+  console.log(`\nwrote ${f}`);
+}
 await b.close();

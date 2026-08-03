@@ -958,10 +958,21 @@ export function buildJail(ctx: CtxBuild): void {
       //
       // So he moves to the FOOT of the bunk, which is where a man sitting up
       // facing the bars actually sits — feet on the floor, blanket behind him.
-      // Half the bunk's own length, less a hip's width so he is ON it and not
-      // perched off the end. Derived from BUNK_L, which the cell above draws
-      // the frame and the mattress from.
-      seatFwd: occupiedCell.bunkL / 2 - 0.26 },
+      //
+      // HALF THE BUNK'S OWN LENGTH, and no fudge on top: this is the SAME RULE
+      // every other adopter uses (the diner's BENCH_W / 2, the lobby bench's
+      // BENCH_D / 2, the casino's BENCH_D / 2 - SIT_OFF) — put the hip on the
+      // front lip of the seat, measured along the way the sitter faces.
+      //
+      // I first wrote `- 0.26` here, to keep him visibly ON the mattress, and
+      // the photograph refused it: 0.26 m short of the lip leaves the bunk's own
+      // end face between him and the corridor, which is the ONLY place a player
+      // can stand — the cell is locked. It hid his legs exactly as before, so
+      // the offset bought nothing. A seat you are looking straight down the axis
+      // of is unforgiving that way; anything less than the full half-length is
+      // the same picture. Derived from BUNK_L, which the cell draws its frame
+      // and mattress from.
+      seatFwd: occupiedCell.bunkL / 2 },
   );
 
   // ── the corridor's own light ───────────────────────────────────────────
