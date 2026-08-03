@@ -3109,3 +3109,11 @@ to one side.
   above the seat, nothing below the waist. `ct/citizens.ts:102-103` DOES draw
   seated legs ("hip 47, knee forward, shin down to the same 59"), so the cause is
   open: the flag, occlusion by the booth back, or seat height.
+
+- **"[screenshot] some bookshelves are flat?"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-23-42.png`) → **routed as queue item 273.**
+  In his frame the wall runs read as flat painted boards, and one free-standing
+  unit centre-right is a **completely blank brown panel with no books at all**.
+  `ct/int-library.ts:302-308` records this exact failure — a book plane left at
+  the wrong rotation *"hangs on the END of the bay… while the sides of every
+  stack — the faces you actually walk between — were blank brown board."*
