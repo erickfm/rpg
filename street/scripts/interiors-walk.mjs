@@ -1,44 +1,43 @@
 // ┌───────────────────────────────────────────────────────────────────────┐
-// │  ⚠ THIS ONE CHECK IS DEV-ONLY. IT CANNOT RUN ON `vite preview`.       │
+// │  RUNS ON THE BUILT BUNDLE. It did not, until item 251.                │
 // │                                                                       │
-// │  Everything else in this project is verified on the BUILT BUNDLE —    │
-// │  GOTCHAS 28, and BUILDER-BRIEF §10 tells every builder so. This file  │
-// │  is the documented exception, and the contradiction is stated here    │
-// │  rather than lived with (item 246).                                   │
+// │  For the record, because "why is this file allowed to be odd" is a    │
+// │  question that gets asked again: this was THE ONE CHECK in the        │
+// │  project that could not honour the verify-on-the-built-bundle rule    │
+// │  (GOTCHAS 28, BUILDER-BRIEF §10) — a suite telling every builder to   │
+// │  use the bundle while containing a check that 404'd on it.            │
 // │                                                                       │
-// │  WHY. It reads its declarations out of the TypeScript sources at      │
-// │  runtime — four sites, `import('/src/proto/ct/doors.ts')` x3 and      │
+// │  It read its declarations out of the TypeScript sources at runtime,   │
+// │  four sites: `import('/src/proto/ct/doors.ts')` x3 and                │
 // │  `import('/src/proto/ct/interior.ts')` x1. `vite dev` serves those    │
-// │  transpiled and the app has already imported them, so the ES module   │
-// │  cache hands back the SAME instance: the harness reads the live       │
-// │  declaration and a party wall added tomorrow is understood for free.  │
-// │  `vite preview` serves only `dist/`, so all four 404.                 │
+// │  transpiled; `vite preview` serves only `dist/`, so all four 404.     │
 // │                                                                       │
-// │  WHAT IT WOULD TAKE TO LIFT IT — measured, not guessed, by            │
-// │  `scripts/probes/w93-item246-iw-bundle-gap.mjs` on 2026-08-03:        │
+// │  WHAT IT TOOK — measured, not guessed, by                             │
+// │  `probes/w93-item246-iw-bundle-gap.mjs` and re-measured before the    │
+// │  swap by `probes/w95-item251-source-vs-hook.mjs`:                     │
 // │                                                                       │
-// │    doorStandFor / doorPointFor  ALREADY on `__ct.doors()`, and they   │
-// │                                 agree exactly, 12/12 and 12/12.       │
-// │    roomWidthFor -> `r.W`        DEAD — assigned at one line and read  │
+// │    doorStandFor / doorPointFor  ALREADY on `__ct.doors()`, agreeing   │
+// │                                 12/12 and 12/12. Swapped.             │
+// │    roomWidthFor -> `r.W`        DEAD — assigned at one line, read     │
 // │                                 nowhere. (`inRoom` uses lower-case    │
 // │                                 `r.w`, measured off the colliders.)   │
-// │    declaredDoors().at -> r.at   fallback only, at the `|| { x:        │
-// │                                 room.at … }` arm of DOOR.             │
-// │    interior.ts `PARTY`          NOT published anywhere. 1 declared    │
-// │                                 party wall, and this file exits 3     │
-// │                                 without it, deliberately: a           │
-// │                                 containment run that does not know    │
-// │                                 the party doorways reports the        │
-// │                                 feature as a hole.                    │
+// │                                 Deleted.                              │
+// │    declaredDoors().at -> r.at   DEAD — its only consumer is the       │
+// │                                 `|| { x: room.at … }` arm of DOOR,    │
+// │                                 and 13/13 rooms publish their own     │
+// │                                 `door` via roomDims(), so that arm    │
+// │                                 never fires. Deleted.                 │
+// │    interior.ts `PARTY`          the only one genuinely missing.       │
+// │                                 `crosstown.ts` now publishes it as    │
+// │                                 `__ct.party()`, a per-element copy    │
+// │                                 like `citAvoid()` — a probe must not  │
+// │                                 be able to mutate the world through   │
+// │                                 a test hook.                          │
 // │                                                                       │
-// │  So THREE of the four sites are already redundant and the whole       │
-// │  remaining blocker is publishing `PARTY` on `__ct` — one line in      │
-// │  `src/proto/crosstown.ts`, beside `roomDims()`. That file was not     │
-// │  in item 246's scope, so it is queued, not done.                      │
-// │                                                                       │
-// │  Until then: run this on `vite dev`. The preflight below aborts with  │
-// │  EXIT 3 (nothing measured) rather than the exit 1 it used to give,    │
-// │  which read as twelve failing rooms. (GOTCHAS 32.)                    │
+// │  This file still exits 3 rather than 1 if those hooks are absent: a   │
+// │  containment run that does not know where the party doorways are      │
+// │  reports the feature as a HOLE, and exit 1 would read as twelve       │
+// │  failing rooms when nothing was measured at all. (GOTCHAS 32.)        │
 // └───────────────────────────────────────────────────────────────────────┘
 // ┌───────────────────────────────────────────────────────────────────────┐
 // │  HEADING CONVENTION — atan2(-nx, nz).  NOT atan2(nx, nz).             │
@@ -348,44 +347,37 @@ await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
 
-// ── DEV-SERVER PREFLIGHT (item 246) ───────────────────────────────────────
+// ── HOOK PREFLIGHT (item 246, converted by item 251) ──────────────────────
 //
-// THIS SUITE IS DEV-ONLY, AND UNTIL NOW IT SAID SO BY CRASHING. See the banner
-// at the top of this file for why it is dev-only and what would lift it. This
-// block exists only so the constraint arrives as a sentence rather than as a
-// stack trace with an exit code that means the opposite of the truth:
+// THIS USED TO BE A DEV-SERVER PREFLIGHT, because this suite read its door and
+// party-wall declarations out of the TypeScript sources at runtime and
+// `vite preview` serves only `dist/`. It was the ONE check that could not
+// honour the verify-on-the-built-bundle rule every builder is given
+// (GOTCHAS 28) — a standing contradiction in the suite the rule points at most.
 //
-//   before   page.evaluate: TypeError: Failed to fetch dynamically imported
-//            module: http://localhost:4490/src/proto/ct/doors.ts
-//            ...unhandled, node turns it into  EXIT 1
+// It now reads both from `__ct`, so it runs anywhere the world does. What is
+// left is the same honest abort for the case that actually remains: the hooks
+// not being there.
 //
-// **Exit 1 is "measured, and it is WRONG" (GOTCHAS 32).** Nothing was measured.
-// A builder following the standing verify-on-the-bundle instruction got a red
-// against twelve rooms that are fine, from a check that never started — the
-// exact ambiguity GOTCHAS 32 was written about, in the one suite the rule
-// points at most often.
-//
-// EXIT 3 IS THE HONEST CODE: aborted, wrong world, nothing follows about the
-// interiors. And it is checked HERE, four hundred lines before the first
-// import site, so the answer costs a page load instead of a full launch.
+// EXIT 3, NOT 1, AND THAT DISTINCTION IS THE WHOLE POINT OF THIS BLOCK.
+// **Exit 1 is "measured, and it is WRONG" (GOTCHAS 32).** A missing hook means
+// NOTHING was measured, and the old failure mode — an unhandled "Failed to
+// fetch dynamically imported module" that node turned into exit 1 — read as
+// twelve failing rooms that were all fine. Checked HERE, four hundred lines
+// before first use, so the answer costs a page load instead of a full launch.
 {
-  const devModules = await p.evaluate(async () => {
-    try { await import('/src/proto/ct/doors.ts'); return true; } catch { return false; }
-  });
-  if (!devModules) {
+  const missing = await p.evaluate(() => ['doors', 'roomDims', 'party']
+    .filter((k) => typeof window.__ct?.[k] !== 'function'));
+  if (missing.length) {
     console.log('');
-    console.log('DEV SERVER REQUIRED — nothing measured.');
-    console.log('  This suite reads its door and party-wall declarations from the TypeScript');
-    console.log('  sources at runtime (`import("/src/proto/ct/doors.ts")`, `.../ct/interior.ts`).');
-    console.log('  `vite dev` serves those transpiled; `vite preview` serves only the bundle,');
-    console.log('  so they 404 and every room would be walked against a guess.');
+    console.log(`WORLD HOOKS MISSING (${missing.join(', ')}) — nothing measured.`);
+    console.log('  This suite reads its door declarations from `__ct.doors()` and its');
+    console.log('  party walls from `__ct.party()`. Without them every room would be');
+    console.log('  walked against a guess.');
     console.log('');
-    console.log('  Re-run against a dev server:  npx vite --port <yours> --strictPort');
-    console.log('                                SHOT_URL=http://localhost:<yours>/ node scripts/interiors-walk.mjs');
-    console.log('');
-    console.log('  This is the ONE check in the suite that cannot honour the');
-    console.log('  verify-on-the-built-bundle rule. See notes/BUILDER-BRIEF.md §10 and the');
-    console.log('  banner at the top of this file. Exit 3 = aborted, not failed.');
+    console.log('  `party()` is published in src/proto/crosstown.ts beside roomDims().');
+    console.log('  If you are on an older build, that is what is absent. Exit 3 = aborted,');
+    console.log('  not failed.');
     await b.close();
     process.exit(3);
   }
@@ -418,24 +410,40 @@ const isEntry = (r, txt) => r.entryLabel != null && txt != null && String(txt).i
   if (unresolved.length) console.log(`  note  no entry label resolved for: ${unresolved.join(', ')}`);
 }
 
+// EVERY DOOR THE WORLD PUBLISHES, READ ONCE. `__ct.doors()` already maps
+// `doorPointFor`/`doorStandFor` over `declaredDoors()`, so one call replaces
+// what used to be three source imports spread across two loops — and it is a
+// snapshot, so the two loops below cannot disagree with each other about a door.
+const DOORS = await p.evaluate(() => window.__ct.doors());
+
 for (const r of ROOMS) {
   if (!r.front) continue;
   const [name, w, cz, side] = r.front;
   // From the ROOM's declaration, which is the authority — the facade follows
   // it. Reading `frontageOf` here tested the old direction and failed every
   // room the moment it flipped.
-  const d = await p.evaluate(async ([name, w]) => {
-    const dm = await import('/src/proto/ct/doors.ts');
-    const decl = dm.declaredDoors().find((x) => x.building === name);
-    return { z: dm.doorWorldFor(name), at: decl.at, W: dm.roomWidthFor(w) };
-  }, [name, w]);
-  const stand = await p.evaluate(async ([n]) => {
-    const dm = await import('/src/proto/ct/doors.ts');
-    return dm.doorStandFor(n);
-  }, [name]);
+  // ITEM 251: `__ct.doors()`, NOT `import('/src/proto/ct/doors.ts')`. This was
+  // two page.evaluate round trips into the TypeScript source for three values,
+  // and re-measured on dev before the swap
+  // (`scripts/probes/w95-item251-source-vs-hook.mjs`):
+  //
+  //   doorStandFor  vs __ct.doors().stand   12/12 agree
+  //   doorPointFor  vs __ct.doors().point   12/12 agree
+  //   roomWidthFor  -> `r.W`                DEAD: assigned here, read nowhere
+  //                                         (`inRoom` uses lower-case `r.w`,
+  //                                         measured off the colliders)
+  //   declaredDoors().at -> `r.at`          DEAD: its only consumer is the
+  //                                         `|| { x: room.at … }` arm of DOOR,
+  //                                         and 13/13 rooms publish their own
+  //                                         `door` through roomDims(), so that
+  //                                         arm never fires
+  //
+  // `doorWorldFor` survives only as the fallback for `doorZ` when a room has no
+  // stand, which is why the door row is still read rather than just the stand.
+  const dr = DOORS.find((x) => x.building === name) || null;
+  const stand = dr && dr.stand;
   r.doorX = stand ? stand.x : side * (FACE - 0.75);
-  r.doorZ = stand ? stand.z : d.z;
-  r.at = d.at; if (r.W === undefined) r.W = d.W;
+  r.doorZ = stand ? stand.z : (dr && dr.point ? dr.point.z : cz);
   if (side > 0) r.east = true;
 }
 
@@ -509,21 +517,25 @@ const DIMS = await p.evaluate(() => window.__ct.roomDims());
 // has been failing containment ever since — a KNOWN-GOOD RED that has now cost
 // three separate investigations (items 222, 226).
 //
-// ASK `ct/interior.ts`, DO NOT COPY IT. `PARTY` is the one authoring of the
-// doorway: the pair, the local z, the clear width. Retyping any of it here is
-// the defect BUILDER-BRIEF §8 exists for, and this file has already paid for it
-// once (the pawn shop's `W`, four hundred lines up). vite dev serves TS
-// transpiled and the app has already imported this module, so the ES module
-// cache hands back the same instance — this reads the live declaration, and a
-// second party wall added tomorrow is understood here for free, with no edit.
-const PARTY = await p.evaluate(async () => {
-  const m = await import('/src/proto/ct/interior.ts');
-  return m.PARTY ?? null;
-});
-if (!Array.isArray(PARTY)) {
-  console.log('could not read PARTY from /src/proto/ct/interior.ts — refusing to');
-  console.log('guess which rooms are joined. A containment run that does not know');
-  console.log('about the party doorways reports the feature as a hole.');
+// ASK THE WORLD, DO NOT COPY IT. `PARTY` is the one authoring of the doorway:
+// the pair, the local z, the clear width. Retyping any of it here is the defect
+// BUILDER-BRIEF §8 exists for, and this file has already paid for it once (the
+// pawn shop's `W`, four hundred lines up).
+//
+// ITEM 251: THROUGH `__ct.party()` NOW, NOT `import('/src/proto/ct/interior.ts')`.
+// The import read the live declaration off the ES module cache, which was
+// correct and worked on `vite dev` only — and it was the LAST thing keeping
+// this check off the built bundle. `crosstown.ts` publishes the same array as a
+// per-element copy, so a second party wall added tomorrow is still understood
+// here for free, with no edit, and the harness cannot mutate the world through
+// it (verified both ways in w95-item251-source-vs-hook.mjs: hook matches source,
+// and pushing to / writing through the returned array leaves `party()` at 1 row,
+// at -9).
+const PARTY = await p.evaluate(() => window.__ct.party());
+if (!Array.isArray(PARTY) || !PARTY.length) {
+  console.log('could not read PARTY from __ct.party() — refusing to guess which');
+  console.log('rooms are joined. A containment run that does not know about the');
+  console.log('party doorways reports the feature as a hole.');
   await b.close(); process.exit(3);
 }
 /** are these two rooms joined by a DECLARED opening? */
@@ -614,12 +626,12 @@ const FLOORS = await sampleFloors(p);
 for (const r of ROOMS) {
   if (r.front || r.doorX !== undefined) continue;
   const nm = (r.id || '').toUpperCase();
-  const stand = await p.evaluate(async ([n]) => {
-    const dm = await import('/src/proto/ct/doors.ts');
-    const s = dm.doorStandFor(n);
-    const pt = dm.doorPointFor(n);
-    return s ? { x: s.x, z: s.z, at: pt ? pt.x : 0 } : null;
-  }, [nm]);
+  // ITEM 251: same snapshot as the front path, so a `face:` room and a `front:`
+  // room can never be told different things about the same door. The old
+  // version also read `doorPointFor(n).x` into an `at` field that was then
+  // thrown away — the line below it assigns `r.at = 0` regardless — so that
+  // import was dead on arrival and is not replaced.
+  const stand = (DOORS.find((x) => x.building === nm) || {}).stand || null;
   if (stand) { r.doorX = stand.x; r.doorZ = stand.z; if (r.at === undefined) r.at = 0; }
 }
 

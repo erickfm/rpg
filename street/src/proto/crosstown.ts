@@ -29,7 +29,7 @@ import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, ty
 import { buildApartment, SPAWN } from './ct/apartment';
 import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
-import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
+import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms, PARTY } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
 
 // ═══════════════════════════════ the world ════════════════════════════════
@@ -1599,6 +1599,33 @@ export function makeCrosstown(): Proto {
     rooms: () => interiorRoomIds(),
     // resolved room geometry, so a harness never carries its own copy
     roomDims: () => interiorRooms(),
+    /** Every party wall in the world — the one authoring of it is
+     *  `ct/interior.ts:120` and this is a window onto it, not a second copy.
+     *
+     *  WHY IT IS HERE AT ALL (item 251). `scripts/interiors-walk.mjs` is a
+     *  registered check, and it was the ONE check in this project that could
+     *  not run on the built bundle — it read this declaration by doing
+     *  `import('/src/proto/ct/interior.ts')` at runtime, which `vite dev`
+     *  serves and `vite preview` 404s. So every builder was told to verify on
+     *  the bundle (GOTCHAS 28) by a suite containing a check that could not.
+     *  Worker ninetythree measured the gap and found three of its four source
+     *  imports already redundant against `__ct.doors()`; `PARTY` was the whole
+     *  remaining blocker, and it is one line.
+     *
+     *  AND THE HARNESS CANNOT BE LEFT TO GUESS IT. A containment walk that does
+     *  not know where the party doorways are reports the doorway as a HOLE in
+     *  the wall — the feature reads as the bug. That is why interiors-walk
+     *  refuses to run rather than assuming an empty list.
+     *
+     *  A MAPPED COPY, like `citAvoid()` above and for the same reason: a test
+     *  hook must not be a handle on world state. `PARTY` is `readonly` to
+     *  TypeScript, but a probe reaching it through `__ct` is plain JavaScript
+     *  and `readonly` is erased at runtime — returning the array itself would
+     *  let a harness splice the world's only party wall out from under the
+     *  renderer and then measure the result. The spread is per-element because
+     *  handing back fresh objects in a fresh array is the only version of this
+     *  that is actually read-only. */
+    party: () => PARTY.map((w) => ({ ...w })),
     modules: () => worldRegistrants(),
     // test affordance, like colliders() and seats(): every registered [E], so
     // scripts/spots-walk.mjs can check the whole set rather than the ones
