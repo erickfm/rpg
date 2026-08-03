@@ -50,7 +50,15 @@ const walkers = () => page.evaluate(() => {
       yAt.set(`${o.position.x.toFixed(2)},${o.position.z.toFixed(2)}`, +o.position.y.toFixed(3));
     }
   });
-  return cast.map((c) => ({
+  return cast.map((c, k) => ({
+    // IDENTITY, CARRIED BEFORE THE SORT — the whole point of item 218.
+    // `ct/crowd.ts:751` maps the `citizens` array, and `citizens` is only ever
+    // pushed to, once, inside the build-time `CAST.forEach` at :246–:272 — never
+    // spliced, never sorted. So position k in what walkers() hands back is the
+    // same person on every call, for the life of the world. The `.sort()` at the
+    // bottom of this function then throws that away, so k has to be captured
+    // here, above it.
+    k,
     x: +c.x.toFixed(3), z: +c.z.toFixed(3),
     y: yAt.get(`${c.x.toFixed(2)},${c.z.toFixed(2)}`) ?? null,
     // ASK THE WORLD WHERE ITS FLOOR IS. crosstown.ts publishes groundAt(x, z);
@@ -61,7 +69,12 @@ const walkers = () => page.evaluate(() => {
     // world that is fine. cc2d8bb56 hit exactly this hunting for the lowest
     // plane instead of asking.
     ground: +window.__ct.groundAt(c.x, c.z).toFixed(3),
-  })).sort((a, b) => a.x - b.x || a.z - b.z);
+  }))
+  // THE SORT IS FOR READING, NOT FOR ARITHMETIC. It orders the output
+  // west-to-east so a human eyeballing it sees the block; `x` is `c.lane`, which
+  // `ct/crowd.ts:382` and `:392` move as the crowd routes over the graph. It is
+  // a presentation order, and NOTHING may be paired across it. Pair on `k`.
+    .sort((a, b) => a.x - b.x || a.z - b.z);
 });
 
 let fails = 0;
@@ -73,8 +86,71 @@ const w0 = await walkers();
 await page.waitForTimeout(1500);
 const w1 = await walkers();
 check(w0.length === 6, `the crowd is six (found ${w0.length}) — other modules' people are not counted`);
-const moved = w0.filter((p, i) => Math.abs(p.z - (w1[i]?.z ?? p.z)) > 0.2).length;
-check(moved >= 4, `they are walking — ${moved}/6 moved >0.2 m in 1.5 s`);
+// PAIR BY IDENTITY, NEVER BY ARRAY POSITION (item 218). This line used to read
+//
+//   const moved = w0.filter((p, i) => Math.abs(p.z - (w1[i]?.z ?? p.z)) > 0.2).length;
+//
+// — two samples of a MOVING subject, 1500 ms apart, paired by their position in
+// an array this file has just sorted by a coordinate that moves. Index N is not
+// the same person twice, and the error only ever runs one way: the assertion is
+// `moved >= 4`, so a mispair can only ADD to the count. A frozen crowd could
+// certify as walking.
+//
+// Measured on the built bundle, `scripts/probes/w72-crowdwalk-sort.mjs 90`:
+// **18 of 90 trials reordered** inside this same 1500 ms gap, and the worst
+// disagreement seen was truth 4/6 counted 6/6. w72 recorded a demonstrated false
+// VERDICT — truth 2/6 and 3/6 counted as 4/6 against this bar.
+//
+// ⚠ BUT IT HAS NEVER FIRED IN THE WINDOW THIS CHECK ACTUALLY RUNS IN, and
+// whoever edits this leg next needs to know why, because the protection is
+// accidental. Those trials sample one page continuously; the reorders start
+// after the crowd leaves its six fixed home lanes (`ct/crowd.ts:262`), roughly a
+// minute in. This leg runs ~2.4 s after load. Over **40 independent page loads**
+// (`scripts/probes/w78-crowdwalk-firstwindow.mjs 40`) the sorted order came out
+// `4,2,0,5,3,1` on every single one — 0/40 reorders, 0/40 disagreements, honest
+// 6/6 every time, smallest individual step 0.936 m against this 0.2 m bar.
+//
+// So the fix below changes no verdict today. It stops the leg being one moved
+// line away from lying: put this sample later in the file, or lengthen the gap,
+// and the ~20% reorder rate arrives with it.
+//
+// ONE AUTHORING OF THE JUDGEMENT, called twice — for real just below, and again
+// by the negative case under it. The point of the second call is the population
+// floor: a floor nobody has watched reject anything is the same empty promise as
+// a check nobody has watched fail (GOTCHAS 27), and a floor is exactly the kind
+// of clause that gets written, never exercised, and quietly stops holding.
+const verdict = (a, b) => {
+  const then = new Map(b.map((q) => [q.k, q]));
+  const judged = a.filter((p) => then.has(p.k));
+  const moved = judged.filter((p) => Math.abs(p.z - then.get(p.k).z) > 0.2).length;
+  // POPULATION FLOOR, so "measured nothing" FAILS instead of passing quietly.
+  // The old `?? p.z` fallback is what made that possible: a person missing from
+  // the second sample was silently scored as "did not move", so a leg judging
+  // two people read exactly like a leg judging six. Derived from what was
+  // actually sampled rather than typed (BUILDER-BRIEF §8), with a hard 4 under
+  // it because `moved >= 4` is meaningless over a smaller set than that.
+  const floor = Math.max(4, Math.ceil(a.length * 0.5));
+  return { ok: judged.length >= floor && moved >= 4, moved, judged: judged.length, floor, n: a.length };
+};
+const v = verdict(w0, w1);
+check(v.ok, `they are walking — ${v.moved}/${v.judged} moved >0.2 m in 1.5 s, paired by cast identity`
+  + ` (${v.judged} of ${v.n} present in both samples, floor ${v.floor})`);
+// THE NEGATIVE CASE, run every time rather than behind a flag, because it costs
+// nothing and a negative case you have to remember to ask for is one that rots.
+//
+// IT HAS TO ISOLATE THE FLOOR, which took two goes to get right. Feed the
+// judgement a second sample holding one person and it goes red — but so would
+// `moved >= 4` on its own, since `moved` can never exceed `judged`. That case
+// proves nothing about the floor. So: a cast of TWELVE (the six real ones plus
+// six fresh identities), of which only FIVE come back, and all five have moved
+// 99 m. `moved >= 4` is satisfied outright. The floor — 6, derived from the
+// twelve — is then the ONLY clause that can reject it, and it must.
+const doubled = [...w0, ...w0.map((p) => ({ ...p, k: p.k + 1000 }))];
+const thin = verdict(doubled, w0.slice(0, 5).map((p) => ({ ...p, z: p.z + 99 })));
+check(!thin.ok, `and the population floor rejects a thin sample — ${thin.moved} of ${thin.judged} `
+  + `moved 99 m, so the movement bar of 4 is satisfied, and it is STILL red because only `
+  + `${thin.judged} of ${thin.n} came back against a floor of ${thin.floor} `
+  + '(a leg that judged almost nobody must never read as green)');
 const planted = w0.filter((p) => p.y !== null && Math.abs(p.y - p.ground) < 0.011);
 const worstLift = w0.reduce((m, p) => (p.y === null ? m : Math.max(m, Math.abs(p.y - p.ground))), 0);
 check(planted.length === w0.length,
