@@ -480,23 +480,36 @@ const CASES = [
   // it is read from, now by the shader (`nf(POOL_GAIN)`, ct/props.ts:703) as
   // well as by `poolLit`.
   //
-  // ⚠ THIS CASE CANNOT DISCRIMINATE TODAY, AND SAYING SO IS THE POINT.
-  // `glow.mjs` is RED on this tree BEFORE any mutation is applied — measured on
-  // cd5afdd8f, unmutated, port 4400:
+  // THIS CASE DISCRIMINATES. It did not used to, and the history is worth the
+  // six lines because the repair is the interesting part.
+  //
+  // Until item 234 `glow.mjs` was RED on this tree BEFORE any mutation — so it
+  // went "red" under every mutation and certified nothing, canfail scoring
+  // CAUGHT on any non-zero exit. Measured then, on cd5afdd8f, unmutated:
   //
   //     FAIL main street: under a lamp 0.0450 vs mid-block 0.0450 — 1.0x (59/164)
   //     OK   side street: under a lamp 1.0000 vs mid-block 0.0857 — 11.7x (8/161)
   //
-  // canfail scores CAUGHT on any non-zero exit, so a check that is ALREADY red
-  // goes "red" under every mutation and certifies nothing — the same empty-set
-  // certificate as item 224, one level out. Same cause as the two grade cases
-  // above: `544053b20` moved the pool into POOL_FRAG, and glow.mjs's pool
-  // clause reads `mat.color`, which is now `base * amb` — an ambient that is
-  // per-FLOOR, not per-lamp, so near and far on one floor are identical by
-  // construction and 1.0x is the only answer it can give. Filed for the desk;
-  // `glow.mjs` is outside item 229 (BUILDER-BRIEF §9). Re-pointed rather than
-  // retired because the case is correct and will discriminate the moment the
-  // check reads the pool where the pool now lives.
+  // Both numbers were artefacts of reading `mat.color`, which `544053b20` had
+  // made blind by moving the pool into POOL_FRAG: `base * amb` is per-FLOOR, so
+  // near and far on one floor are identical BY CONSTRUCTION and 1.0x was the
+  // only answer the main street could give — while the side street's 11.7x came
+  // off SELF-LIT neon that reads 1.0000 at noon and at midnight alike.
+  //
+  // `glow.mjs` now reads PIXELS and normalises each spot against its own
+  // daytime luminance, so both halves are honest and the check is green before
+  // mutation. Verified on the built bundle, port 4460, item 241:
+  //
+  //     pre-pass  1 of 1 green before any mutation
+  //     mutated   OK  glow-pool  CAUGHT
+  //
+  // ⚠ AND DO NOT RE-TUNE glow.mjs's BARS EXPECTING THIS MUTATION TO BLACK THE
+  // GROUND OUT. `POOL_GAIN = 0` still leaves ~2.1x of lamplight, because the
+  // per-fragment pool is not the only thing lighting the ground — the painted
+  // 5.6 m ADDITIVE POOL DECAL is separate geometry this constant never touches.
+  // A pixel reading necessarily sees both, so "the gain is dead" reads as a
+  // halving, not a blackout. glow.mjs's bars are set from that measurement; a
+  // bar reasoned from "a dead pool must give 1.0x" SLEPT through this case.
   ['glow-pool', PROPS,
     'const POOL_GAIN = 6.5;',
     'const POOL_GAIN = 0;',

@@ -203,10 +203,10 @@ if (mode === 'probe' || mode === 'all') {
     side: ([x, z]) => x > 9 && z < -94,
   };
   const minLampD = (x, z) => Math.min(...lampXZ.map(([lx, lz]) => Math.hypot(x - lx, z - lz)));
-  /** Mid-block: the NEAREST spot on this lamp's own pavement line that is
-   *  genuinely outside every pool. Same x, walk z, take the smallest offset
-   *  whose nearest lamp is at or past LAMP_R — where `clamp((R-d)/(R-C))` is
-   *  exactly 0, so the control takes provably zero light from any lamp.
+  /** Mid-block candidates: spots genuinely outside every pool, NEAREST FIRST.
+   *  Walk out from the lamp and keep every offset whose nearest lamp is at or
+   *  past LAMP_R — where `clamp((R-d)/(R-C))` is exactly 0, so the control takes
+   *  provably zero light from any lamp.
    *
    *  NEAREST, NOT DARKEST, and that is a correction worth keeping. Maximising
    *  the distance instead sent five of eleven controls 18-20 m away and off the
@@ -214,20 +214,53 @@ if (mode === 'probe' || mode === 'all') {
    *  pavement's 0.28 — the daylight control below caught every one of them, but
    *  the right answer is not to wander off the block in the first place. The
    *  first metre past the pool edge is still mid-block and is still on the
-   *  street the lamp is standing in. */
-  const midBlock = ([lx, lz]) => {
-    let best = null;
-    for (let d = 3; d <= 20; d += 0.25) for (const s of [-1, 1]) {
-      const z = lz + s * d, m = minLampD(lx, z);
-      if (m >= LAMP_R) return { x: lx, z: +z.toFixed(2), m: +m.toFixed(2) };
-      if (!best || m > best.m) best = { x: lx, z: +z.toFixed(2), m: +m.toFixed(2) };
-    }
-    return best;
+   *  street the lamp is standing in.
+   *
+   *  ── BOTH AXES, AND THAT IS ITEM 241's REAL FINDING ──────────────────────
+   *  This used to hold x and walk z ONLY, and return the single first hit. That
+   *  is "walk along the pavement" for the MAIN street purely because the main
+   *  street runs along z (lamps at x = +-4.1, z from -9 to -93). THE SIDE STREET
+   *  RUNS ALONG X — its lamps are (20,-98.9), (34,-107.1), (45,-98.9) — so the
+   *  very same walk went ACROSS it and out onto whatever lay north or south.
+   *
+   *  Measured in `probes/w90-sidestreet-midblock-axis.mjs`, daytime luminance of
+   *  every candidate for all three side lamps:
+   *
+   *      lamp (34,-107.1)  day at the lamp 0.3939
+   *        z- (34,-114.1)  0.5772  0.68x  rejected
+   *        z+ (34,-100.1)  0.2417  1.63x  rejected
+   *        x- (27,-107.1)  0.2120  1.86x  rejected
+   *        x+ (41,-107.1)  0.4075  0.97x  COMPARABLE
+   *
+   *  So that lamp was never un-measurable — the instrument was only ever
+   *  offered one direction, and it was the wrong one for that street. Returning
+   *  a LIST and letting the daylight control pick recovers it and takes the side
+   *  street from 2 usable lamps to 3, which is what gives the per-region floor
+   *  below its headroom.
+   *
+   *  ORDER IS z-, z+, x-, x+ AT EACH RADIUS, DELIBERATELY. z first means every
+   *  main-street lamp keeps the exact control it already had, so the bars
+   *  eightysix measured against are not perturbed by this change; x is reached
+   *  only by a lamp whose z candidates the daylight control has REJECTED. */
+  const midBlockCandidates = ([lx, lz]) => {
+    const out = [], seen = new Set();
+    for (let d = 3; d <= 20; d += 0.25)
+      for (const [ax, s] of [['z', -1], ['z', 1], ['x', -1], ['x', 1]]) {
+        const x = ax === 'x' ? lx + s * d : lx;
+        const z = ax === 'z' ? lz + s * d : lz;
+        const m = minLampD(x, z);
+        if (m < LAMP_R) continue;
+        const key = `${x.toFixed(2)},${z.toFixed(2)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ x: +x.toFixed(2), z: +z.toFixed(2), m: +m.toFixed(2), axis: `${ax}${s > 0 ? '+' : '-'}` });
+      }
+    return out;
   };
 
   const pairs = [];
   for (const [name, inRegion] of Object.entries(REGION))
-    for (const L of lampXZ.filter(inRegion)) pairs.push({ region: name, lamp: L, far: midBlock(L) });
+    for (const L of lampXZ.filter(inRegion)) pairs.push({ region: name, lamp: L, cands: midBlockCandidates(L) });
 
   /** Mean luminance of a crop of GROUND, standing at (x,z) looking steeply down.
    *
@@ -259,56 +292,78 @@ if (mode === 'probe' || mode === 'all') {
     }, buf.toString('base64'));
   };
 
-  // Both hours for every spot, clock set ONCE per hour rather than per spot.
-  for (const hour of [13, 23]) {
-    await page.evaluate((h) => window.__ct.clock(h, 0), hour);
-    await page.waitForTimeout(900);
-    for (const q of pairs) {
-      if (q.far.m < LAMP_R) continue;
-      // one pair per region is kept on disk, because a luminance with no picture
-      // behind it is how a probe reports confidently on a black frame
-      const keep = q === pairs.find((t) => t.region === q.region && t.far.m >= LAMP_R);
-      q[`near${hour}`] = await groundLum(q.lamp[0], q.lamp[1], keep ? `${q.region}-near-${hour}` : null);
-      q[`far${hour}`] = await groundLum(q.far.x, q.far.z, keep ? `${q.region}-far-${hour}` : null);
+  // ── 13:00 FIRST, BECAUSE THIS IS WHERE THE CONTROL IS CHOSEN ──────────────
+  //
+  // THE INSTRUMENT'S OWN CONTROL, AND IT IS NOT OPTIONAL. At 13:00 `night` is 0
+  // and POOL_FRAG's whole body is skipped by its own first line, so there is no
+  // pool anywhere and the two spots must read ALIKE. If they do not they are not
+  // comparable ground — one is over a different surface, or indoors, or off the
+  // map — and any night ratio taken from them describes the paint rather than
+  // the lamp. This caught three bad spots while it was being written: a naive
+  // "6 m along" landed under the NEXT lamp twice and on a different surface once
+  // (day 0.2969 vs 0.1266).
+  //
+  // It used to be applied as a veto on one pre-chosen spot; it is now the
+  // SELECTOR over the candidate list, walking out nearest-first until a spot
+  // passes. Same test, same thresholds — it just gets to say "not that one, the
+  // next one" instead of only "no".
+  await page.evaluate(() => window.__ct.clock(13, 0));
+  await page.waitForTimeout(900);
+  const TRY = 8;   // bounded: 11 lamps x 8 candidates is the worst case, and
+                   // every lamp but one accepts its first or fourth today
+  for (const q of pairs) {
+    q.near13 = await groundLum(q.lamp[0], q.lamp[1], null);
+    q.rejected = [];
+    for (const c of q.cands.slice(0, TRY)) {
+      const lum = await groundLum(c.x, c.z, null);
+      const r = q.near13 / Math.max(lum, 1e-6);
+      if (r > 0.8 && r < 1.25) { q.far = c; q.far13 = lum; q.dayRatio = r; break; }
+      q.rejected.push(`${c.axis} (${c.x},${c.z}) ${r.toFixed(2)}x`);
     }
+  }
+  // one pair per region is kept on disk, because a luminance with no picture
+  // behind it is how a probe reports confidently on a black frame. Taken after
+  // selection, while the clock is still at 13:00.
+  const keeper = {};
+  for (const name of Object.keys(REGION)) {
+    const q = pairs.find((t) => t.region === name && t.far);
+    if (!q) continue;
+    keeper[name] = q;
+    await groundLum(q.lamp[0], q.lamp[1], `${name}-near-13`);
+    await groundLum(q.far.x, q.far.z, `${name}-far-13`);
+  }
+
+  await page.evaluate(() => window.__ct.clock(23, 0));
+  await page.waitForTimeout(900);
+  for (const q of pairs) {
+    if (!q.far) continue;
+    const keep = keeper[q.region] === q;
+    q.near23 = await groundLum(q.lamp[0], q.lamp[1], keep ? `${q.region}-near-23` : null);
+    q.far23 = await groundLum(q.far.x, q.far.z, keep ? `${q.region}-far-23` : null);
   }
 
   console.log('');
   const usable = [];
   for (const q of pairs) {
     const at = `${q.region} lamp (${q.lamp[0]},${q.lamp[1]})`;
-    if (q.far.m < LAMP_R) {
-      console.log(`  skip  ${at} — its darkest pavement spot is still ${q.far.m} m from a lamp,`
-        + ` inside LAMP_R ${LAMP_R}; there is no unlit control here`);
-      continue;
-    }
-    // THE INSTRUMENT'S OWN CONTROL, AND IT IS NOT OPTIONAL. At 13:00 there is no
-    // pool anywhere, so the two spots must read ALIKE. If they do not they are
-    // not comparable ground — one is over a different surface, or indoors, or
-    // off the map — and any night ratio taken from them describes the paint
-    // rather than the lamp. This caught three bad spots while this was being
-    // written: a naive "6 m along" landed under the NEXT lamp twice and on a
-    // different surface once (day 0.2969 vs 0.1266).
-    const dayRatio = q.near13 / Math.max(q.far13, 1e-6);
-    if (!(dayRatio > 0.8 && dayRatio < 1.25)) {
-      console.log(`  skip  ${at} — at 13:00 the pair reads ${q.near13.toFixed(4)} vs `
-        + `${q.far13.toFixed(4)} (${dayRatio.toFixed(2)}x): not comparable ground`);
+    if (!q.far) {
+      console.log(`  skip  ${at} — no spot outside LAMP_R ${LAMP_R} reads as comparable ground`
+        + ` at 13:00; tried ${q.rejected.length}: ${q.rejected.join(', ') || 'none available'}`);
       continue;
     }
     q.gainNear = q.near23 / Math.max(q.near13, 1e-6);
     q.gainFar = q.far23 / Math.max(q.far13, 1e-6);
     q.pool = q.gainNear / Math.max(q.gainFar, 1e-6);
     usable.push(q);
-    console.log(`  ${at} vs mid-block (${q.far.x},${q.far.z}) at ${q.far.m} m — `
+    console.log(`  ${at} vs mid-block ${q.far.axis} (${q.far.x},${q.far.z}) at ${q.far.m} m — `
       + `night/day ${q.gainNear.toFixed(3)} vs ${q.gainFar.toFixed(3)} = ${q.pool.toFixed(2)}x`);
   }
 
   // POPULATION FLOOR. Every verdict below is a comparison, and a comparison over
   // an empty set is free — the exact failure this file already guards against
   // for the halo stamps. Measured at HEAD: 8 main-street lamps and 3 side-street
-  // ones stamp a lens, of which 10 have a mid-block spot outside LAMP_R and
-  // survive the daylight control. The floor is set below that and well above
-  // zero.
+  // ones stamp a lens, and all 11 now find a comparable control. The floor is
+  // set below that and well above zero.
   const FLOOR = 4;
   if (usable.length < FLOOR) {
     console.error(`\n  FAIL only ${usable.length} lamp/mid-block pairs survived the daylight`
@@ -316,6 +371,48 @@ if (mode === 'probe' || mode === 'all') {
     console.error(`  Measuring nothing is not a pass. Has the lens stamp stopped matching,`);
     console.error(`  or has the lamp spacing changed so no spot is outside LAMP_R ${LAMP_R}?`);
     process.exitCode = 1;
+  }
+
+  // ── AND THE FLOOR IS PER REGION, WHICH IS ITEM 241 ────────────────────────
+  //
+  // THE GLOBAL FLOOR ABOVE CANNOT SEE A WHOLE STREET GO DARK. It is 4 against a
+  // population the MAIN street alone contributes 8 to, so every side-street
+  // sample could vanish — the lens stamp stops matching, the lamps move, the
+  // pavement changes under them — and this file would still print four green
+  // OKs having measured NOTHING on that street. Until this item the only
+  // per-region thing here was the `byRegion` console.log at the bottom, which
+  // asserts nothing at all.
+  //
+  // That is the same shape as the two empty-set failures this file already
+  // names: the halo stamps ("ZERO PAIRED OF ZERO IS NOT A PASS") and the tree
+  // pits in footprint.mjs. It is worth stating plainly, because it is the
+  // general lesson and not a fact about lamps:
+  //
+  //     AN AGGREGATE FLOOR OVER A POPULATION MADE OF SUBGROUPS IS NOT A FLOOR
+  //     ON ANY SUBGROUP. The biggest subgroup pays for all of them.
+  //
+  // ITERATED OVER `REGION`, NOT OVER WHAT WAS FOUND — deliberately. Iterating
+  // the results would let a region that produced nothing simply be absent from
+  // the loop and pass by not existing, which is the very hole being closed.
+  //
+  // BAR OF 2, AND IT HAS HEADROOM ONLY BECAUSE OF THE AXIS FIX ABOVE. Measured
+  // on the built bundle: main 8 usable of 8 stamped, side 3 of 3. Before the
+  // axis fix the side street had exactly 2, so a floor of 2 would have sat right
+  // on the measurement with nothing to spare and cried wolf on the first
+  // innocent change. Two is also the smallest number that means anything: one
+  // sample is an anecdote, and "I found a single usable sample" passing is
+  // precisely how the old self-lit green cost nothing to earn.
+  const REGION_FLOOR = 2;
+  for (const name of Object.keys(REGION)) {
+    const n = usable.filter((q) => q.region === name).length;
+    const stamped = pairs.filter((q) => q.region === name).length;
+    if (n < REGION_FLOOR) {
+      console.error(`\n  FAIL the ${name} street contributed only ${n} usable lamp/mid-block`
+        + ` pair(s) of ${stamped} stamped — need at least ${REGION_FLOOR}.`);
+      console.error(`  The verdicts below are medians over ALL regions, so ${name} could be`);
+      console.error(`  measuring nothing while they stay green on the other street's lamps.`);
+      process.exitCode = 1;
+    }
   }
   if (usable.length) {
     const sorted = usable.map((q) => q.pool).sort((a, b) => a - b);
@@ -390,10 +487,12 @@ if (mode === 'probe' || mode === 'all') {
       + `${brightest.toFixed(2)} of its daylight luminance, ceiling ${CEIL.toFixed(2)} `
       + `(WARM ${mWarm[1]}/${mWarm[2]}/${mWarm[3]}, capped by min() in POOL_FRAG)`);
     if (!okMed || !okWorst || !okHeld || !okCeil) process.exitCode = 1;
-    const byRegion = {};
-    for (const q of usable) (byRegion[q.region] ??= []).push(q.pool);
-    for (const [k, v] of Object.entries(byRegion))
-      console.log(`       ${k}: ${v.map((n) => n.toFixed(2) + 'x').join(', ')}`);
+    for (const name of Object.keys(REGION)) {
+      const v = usable.filter((q) => q.region === name);
+      const stamped = pairs.filter((q) => q.region === name).length;
+      console.log(`       ${name}: ${v.length}/${stamped} usable (floor ${REGION_FLOOR})`
+        + `${v.length ? ' — ' + v.map((q) => q.pool.toFixed(2) + 'x').join(', ') : ''}`);
+    }
   }
   console.log(`       ${lampXZ.length} lamps carry a lens or lantern stamp; `
     + `${shotsKept} frames kept at shots/gl-pool-*.png — LOOK at them`);
