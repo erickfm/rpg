@@ -31,6 +31,7 @@ import { chromium } from 'playwright';
 import { flags } from './lib/flags.mjs';
 import { approachHeading } from './lib/viewof.mjs';
 import { reportWorld } from './lib/which-world.mjs';
+import { reportEndOfRun } from './lib/server-state.mjs';
 import { entrySpots } from './lib/entry-spot.mjs';
 import { sampleFloors, makeHasFloor, selfTestFloors } from './lib/floors.mjs';
 
@@ -624,7 +625,14 @@ if (SELFTEST) {
     : `selftest: handed ${lit} interior meshes to the night dimmer — leg 6 MUST now go red\n`);
 }
 
+// ROOMS THAT ACTUALLY GOT WALKED, counted rather than assumed. `results.length`
+// cannot answer this: assertions per room vary from 9 to 30-odd, so a run that
+// lost five rooms and a run that lost one both just print a smaller number, and
+// neither says which. Item 239 asks for legs run against legs REGISTERED, and
+// the room is this file's leg.
+let roomsWalked = 0;
 for (room of rooms) {
+  roomsWalked++;
   const built = DIMS.find((d) => d.id === room.id);
   if (!built) { check('the room was actually built', false, 'no room of that id in __ct.roomDims()'); continue; }
   const W = built.w, D = built.d;
@@ -1512,6 +1520,7 @@ async function lightLeg(built, box = { x: 8, z: 8, yMax: Infinity }) {
 // level and photographing the OUTSIDE of the building. A harness that hardcodes
 // gy 0 here does not test this room, it tests the pavement under it.
 for (const spec of offBelt) {
+  roomsWalked++;
   room = spec;
   const built = DIMS.find((d) => d.id === spec.id);
   check('the room was actually built', !!built, built ? `w=${f2(built.w)} d=${f2(built.d)} y=${f2(built.y)}` : 'no room of that id in __ct.roomDims()');
@@ -1705,5 +1714,29 @@ if (!results.length) {
   process.exit(1);
 }
 if (errs.length) console.log('\npage errors / kit warnings:\n  ' + errs.slice(0, 8).join('\n  '));
+
+// ── DID THE WORLD OUTLIVE THE RUN? (item 239) ──────────────────────────────
+//
+// THE FLOOR ABOVE RUNS AT THE START AND THIS FILE IS THE REASON THAT IS NOT
+// ENOUGH. Its own author wrote the row: *"my dev server was killed mid-run by
+// something outside this worktree, and the suite kept going against the page it
+// had already loaded… I only did so because I happened to notice the
+// notification"* (`notes/w82-item226-containment-classified.md`). The floor
+// counted 359 floor meshes at room 0 and was right to; the server died at room 7.
+//
+// It cannot see it BY CONSTRUCTION. There is exactly one `p.goto` in this file,
+// at the top, and 369 assertions after it are `p.evaluate` against a world that
+// now lives in the browser. Kill the server and the page keeps answering — every
+// remaining leg passes, and the report is full, confident and about nothing.
+//
+// So ask at the END, and ask both halves: is the server still there, and did all
+// 13 rooms actually get walked. The liveness answer is `lib/server-state.mjs`'s,
+// not a fourth one invented here.
+const liveness = await reportEndOfRun(aim('http://localhost:4185/'), {
+  ran: roomsWalked, registered: rooms.length + offBelt.length, leg: 'room',
+});
 await b.close();
-process.exit(bad || errs.length ? 1 : 0);
+// A red outranks an unmeasured: `bad` means this run FOUND something, and a
+// finding survives the server dying afterwards. 3 rather than 1 when there is no
+// finding — GOTCHAS 32, "measured, and it is WRONG" is not what happened here.
+process.exit(bad || errs.length ? 1 : liveness);

@@ -1391,6 +1391,26 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // above derive `BENCH_OFFSET` from, and two copies of it drifting apart is
     // exactly how the clearance went negative (BUILDER-BRIEF §8).
     const L = 1.72, SEAT_Y = 0.45, SEAT_D = BENCH_SEAT_D;
+    // ── WHAT YOU ACTUALLY SIT ON, DERIVED ONCE ──────────────────────────
+    //
+    // The user: *"[screenshot] bench texture is off and **sitting looks
+    // nonsensical**."* Measured, by sitting on all ten
+    // (`probes/w89-item106-sit-on-the-bench.mjs`): the player sank **0.080 m
+    // into the slats on 9 of them**, identically.
+    //
+    // `SEAT_Y` is the height of the FRAME — the leg and the seat rail are built
+    // off it. The slats then sit 0.055 m proud of that and are 0.05 thick, so
+    // the surface a person rests on is 0.08 m higher than `SEAT_Y` and the seat
+    // registered `h: 0.45` — a hand-typed literal that was not even `SEAT_Y`.
+    //
+    // THIS IS A KNOWN FAMILY, third occurrence. `ct/int-church.ts` records a pew
+    // whose top face was 0.50 while `ctx.seat()` registered 0.54, and
+    // `ct/int-casino.ts`'s STOOL_TOP comment says it in capitals: THE SEAT IS
+    // THE TOP FACE, NOT THE CENTRE OF THE CUSHION. So it is derived here and
+    // used by both the slats and the seat, and the two cannot drift again.
+    const SLAT_T = 0.05;
+    const SLAT_Y = SEAT_Y + 0.055;          // the slat's CENTRE
+    const SEAT_TOP = SLAT_Y + SLAT_T / 2;   // …and its top face: what you sit on
     const RECLINE = 0.21, BACK_LEN = 0.44;
     const put = (m: THREE.Object3D, x: number, y: number, z: number) => {
       m.position.set(x, y, z); g.add(m); return m;
@@ -1412,8 +1432,8 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // the seat: three slats, front to back
     for (let i = 0; i < 3; i++) {
       const z = SEAT_D / 2 - 0.09 - i * 0.165;
-      put(new THREE.Mesh(new THREE.BoxGeometry(L, 0.05, 0.15), i % 2 ? woodM2 : woodM),
-        0, SEAT_Y + 0.055, z);
+      put(new THREE.Mesh(new THREE.BoxGeometry(L, SLAT_T, 0.15), i % 2 ? woodM2 : woodM),
+        0, SLAT_Y, z);
     }
     // the back: its own group, origin ON the seat's back edge, then reclined —
     // so the joint cannot open however the angle is chosen
@@ -1484,7 +1504,16 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // it by doing what the user actually asked for - sitting in one and
     // looking. camera = PI - mesh.
     ctx.seat({
-      x: bx, z: bz, yaw: Math.PI - yaw, h: 0.45,
+      // h is SEAT_TOP, not SEAT_Y: see the derivation above. This was `0.45`.
+      //
+      // …PLUS WHERE THE BENCH ITSELF STANDS. `h` is measured from the ground
+      // under the player (`fp.ts:486` adds it to `sgy`), but the bench group is
+      // parked at `y0` — the LOWEST of three ground samples, so that a bench on
+      // a slope rests on the ground rather than hovering at one corner. On flat
+      // grass those agree and this term is 0; on the park's relief they differ
+      // by 0.034 m, and without this the seat is right on nine benches and
+      // wrong on the tenth. Measured both ways rather than assumed.
+      x: bx, z: bz, yaw: Math.PI - yaw, h: SEAT_TOP + y0 - parkY(bx, bz),
       approach: { x: bx + faceX * 0.95, z: bz + faceZ * 0.95 },
       label: 'sit on the bench',
     });

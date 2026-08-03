@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
-import { buildRoom } from './interior';
+import { buildRoom, seatTaken, claimSeat } from './interior';
 import { type DoorDecl } from './doors';
 import { citizenSprite } from './citizens';
 import { ORDER as HOOK } from './ctx';
@@ -307,6 +307,13 @@ export function buildCasino(ctx: CtxBuild): void {
     // every one of those checks while reading as present in the room.
     s.mesh.userData.citizen = true;
     s.mesh.userData.seated = true;
+    // …AND CLAIM THE SEAT, the third thing this bypass has to remember by hand.
+    // Read back off the mesh, because `put` has already resolved local to world
+    // and re-deriving it here is the drift the comment above warns about.
+    // Without this the player is offered the stool a man is already sitting on
+    // and lands inside him — *"you sit where he sits and that just breaks
+    // immersion."*
+    claimSeat(s.mesh.position.x, s.mesh.position.z);
     ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
   };
   const hw = room.W / 2, hd = room.D / 2;
@@ -791,7 +798,9 @@ export function buildCasino(ctx: CtxBuild): void {
           // (scripts/seat-facing.mjs, rule B.)
           x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? 0 : Math.PI, h: STOOL_TOP,
           approach: { x: room.wx(sx2), z: room.wz(sz2 + face * 0.75) },
-          label: 'sit at the slot', ok: () => room.inside(),
+          label: 'sit at the slot',
+          // one of the four slot players may already be on this stool
+          ok: () => room.inside() && !seatTaken(room.wx(sx2), room.wz(sz2)),
         });
       }
     }
@@ -860,7 +869,12 @@ export function buildCasino(ctx: CtxBuild): void {
           yaw: sx > 0 ? -Math.PI / 2 : Math.PI / 2,
           h: SEAT_TOP,
           approach: { x: room.wx(bx2 - sx * 0.9), z: room.wz(LOUNGE_Z + dz) },
-          label: 'sit down', ok: () => room.inside(),
+          label: 'sit down',
+          // The east bench already has somebody on it (just below), at exactly
+          // one of these four places. He claims it through `room.person`; the
+          // other three on that bench and all four opposite stay free.
+          ok: () => room.inside()
+            && !seatTaken(room.wx(bx2 - sx * SIT_OFF), room.wz(LOUNGE_Z + dz)),
         });
       }
     }

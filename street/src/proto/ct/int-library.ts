@@ -1739,33 +1739,39 @@ export function buildLibrary(ctx: CtxBuild): void {
   // librarian and the one on the street outside is nobody's parent; a children's
   // corner with no children in it reads as closed.
   {
-    // FLUSH TO THE WALL, not centred in the strip — item 5g: *"this door is
-    // making it a little too cramped in the back of the library"*. Measured
-    // with `__ct.colliders()` + `ct/gap.ts`'s own corridor() (the exact
-    // function the V overlay paints red with): the reported cause was wrong —
-    // this room's door leaves carry no collider at all and cannot produce a
-    // trap — but the SYMPTOM was real and sat one screen further into the
-    // room, at this stand. `AX = -W/2 + 1.05` put the stand dead centre in the
-    // 2.4 m strip between the wall and the stacks' west end, and its own 0.6 m
-    // footprint left ~0.75 m bare on BOTH sides — under gap.ts's 0.95 m
-    // PASSABLE floor either way you tried to pass it, confirmed as two
-    // separate trap corridors (stand-vs-wall AND stand-vs-stack, both 0.75 m).
+    // ── THE NEWSPAPER STAND IS GONE, ON ITS THIRD REPORT ────────────────────
     //
-    // Nobody reads a wall-mounted rack from behind it — the reading side is
-    // the chair (`CHAIR_X`, derived below), into the room — so there is no
-    // reason to leave floor on the wall side at all. Push it flush (a hair off the
-    // wall, not coplanar with it — GOTCHAS 6) and the same floor that used to
-    // split 0.75/0.75 goes entirely to the stack side, comfortably clear.
-    const STAND_W = 0.6;                    // matches the solid() below
-    const AX = -W / 2 + STAND_W / 2 + 0.05;
-    // THE CHAIR MOVED TOO, and reintroduced the same trap one object over.
-    // It has always sat at `AX + 1.15`; moving AX 0.70 m west to flush the
-    // stand pulled the chair 0.70 m closer to the wall-mounted magazine case
-    // (`wallRun` below) as well — measured with the same colliders()+gap.ts
-    // corridor() check, 0.63 m against the case, the identical trap class in
-    // a new spot. Deriving the chair from the CASE's own known east edge
-    // instead of an offset from AX means it cannot drift out of clearance
-    // again if either one moves independently.
+    // The user: *"remove this weird table in the library."* He said REMOVE, and
+    // this file had already written down the rule that settles it — the stand's
+    // own comment read *"Second attempt at this object. If it misses again it
+    // goes (START-HERE: two failures, then delete)."* This is the miss.
+    //
+    // WHAT HE WAS ACTUALLY LOOKING AT, measured rather than guessed. It is not a
+    // table: it was a raked newspaper stand (a body, a capping rail and a lid at
+    // 12°), and the lid is the angled board he describes jutting out. It stood
+    // flush to the west wall at `AX = -W/2 + 0.35`, spanning x -9.91…-9.39 —
+    // and the wall-mounted magazine case (`wallRun` below) is at x -9.68 and
+    // spans -9.94…-9.42. The two overlapped across nearly their whole depth,
+    // with the stand's z -2.45…-1.35 sitting wholly inside the case's -2.6…2.6.
+    // **The stand was standing inside the shelving**, which is exactly the
+    // "intersects the shelving" in the report. Confirmed in the built world by
+    // AABB overlap before it was touched.
+    //
+    // Being flush to the wall — the fix that resolved the earlier cramping
+    // report (item 5g) — is what pushed it into the case in the first place.
+    // The two constraints could not both be met by moving it, which is the
+    // strongest argument that the object was in the wrong room, not the wrong
+    // place. Removing it returns that strip to the magazine case alone, and the
+    // case already reads (the user said so of the shelves in the same shot), so
+    // the gap is not a hole: what is left there is the object that belongs.
+    //
+    // THE CHAIR STAYS, and its clearance rationale is the part of the old note
+    // worth keeping. It has always been derived from the CASE's own east edge
+    // rather than from an offset to the stand, precisely so it cannot drift out
+    // of clearance if the neighbour moves — and the neighbour has now moved as
+    // far as it can go. Measured then at 0.63 m against the case, the same trap
+    // class gap.ts's corridor() paints red; deriving it is what fixed that.
+    // It now reads as a chair to sit and read the magazines in.
     const caseEastEdge = -W / 2 + BAY_D + 0.06;     // wallRun's own lx + BAY_D / 2
     const CHAIR_X = caseEastEdge + PASSABLE + 0.25 + 0.15;  // +chair half-width (solid w 0.5), +margin
     // ── REBUILT AS A FACE-OUT CASE, 2026-07-25 ──
@@ -1801,19 +1807,11 @@ export function buildLibrary(ctx: CtxBuild): void {
     // Second attempt at this object. If it misses again it goes (START-HERE:
     // two failures, then delete) — but it is not a redraw of the same idea, it
     // is the same idea in a vocabulary that is measured to work.
-    // the newspaper on the one stand that survives. It was five even
-    // horizontal stripes, which is a venetian blind and he said so; a folded
-    // broadsheet is a big masthead, a headline block and a picture.
-    const paperT = declareSurface(pixTex(32, 24, (g) => {
-      g.fillStyle = '#8a8578'; g.fillRect(0, 0, 32, 24);
-      g.fillStyle = '#ddd7c6'; g.fillRect(2, 2, 28, 20);          // the sheet
-      g.fillStyle = '#3a352c'; g.fillRect(4, 4, 24, 2);           // the masthead
-      g.fillStyle = 'rgba(58,53,44,0.55)'; g.fillRect(4, 8, 15, 2);   // the headline
-      g.fillStyle = 'rgba(58,53,44,0.28)';
-      for (let y = 12; y < 21; y += 2) g.fillRect(4, y, 11, 1);   // columns of type
-      g.fillStyle = 'rgba(58,53,44,0.40)'; g.fillRect(18, 11, 10, 9);  // the picture
-      dither(g, 32, 24, 34);
-    }), 'detail');
+    // `paperT`, the folded-broadsheet texture, went with the stand it was drawn
+    // for — it had no other consumer. Its lesson survives in `magT` below, which
+    // was written from the same note: five even horizontal stripes read as a
+    // venetian blind, so a printed thing needs a masthead, a headline block and
+    // a picture, not stripes.
     const magT = (wM: number, hM: number, seed: number) => {
       const r = (() => { let q = seed >>> 0; return () => ((q = (Math.imul(q, 1664525) + 1013904223) >>> 0) / 4294967296); })();
       // 32 px/m, the same as the book spines beside it, so the two cases are
@@ -1846,25 +1844,11 @@ export function buildLibrary(ctx: CtxBuild): void {
     // painter, kick, ends, shelves and back board as the stacks, which is the
     // point: it reads because they read.
     wallRun(-W / 2 + BAY_D / 2 + 0.06, 0.0, 5.2, 'z', 1, 0x4c11, 0, magT);
-    // ONE newspaper stand survives, and only one: a broadsheet on a rake is a
-    // real object in a real branch and the fault was three of them standing in
-    // the open with nothing under them. This one has a BODY, sits at 12°
-    // rather than 24, is no wider than what holds it up, and stands beside a
-    // case that names the corner — so it is read as "the paper next to the
-    // magazines" rather than as an unexplained slab.
-    {
-      const rz = -1.9;
-      box(0.52, 0.86, 1.1, wood, AX, 0.43, rz);                  // the body
-      box(0.56, 0.05, 1.16, woodDark, AX, 0.88, rz);             // its capping rail
-      const lid = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.52, 1.1), woodDark);
-      lid.rotation.x = -0.21; lid.rotation.y = Math.PI / 2;       // 12°, not 24
-      put(lid, AX + 0.14, 1.02, rz);
-      const face = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.52), ctx.flat(paperT));
-      face.rotation.y = Math.PI / 2; face.rotation.x = -0.21;
-      put(face, AX + 0.17, 1.02, rz);
-      solid(AX, rz, STAND_W, 1.2);
-    }
-    // a chair to read them in, turned into the alcove rather than facing the room
+    // The last newspaper stand stood here, at z -1.9, inside the magazine case
+    // above. It is removed — see the note at the top of this block. Its
+    // `solid()` went with it, so the strip in front of the case is now clear
+    // floor rather than a 0.6 m obstruction a metre off the chair.
+    // a chair to sit and read in, turned into the alcove rather than facing the room
     box(0.46, 0.06, 0.46, wood, CHAIR_X, 0.44, 0.9);
     box(0.46, 0.52, 0.06, wood, CHAIR_X, 0.72, 1.12);
     for (const lx of [-0.18, 0.18]) for (const lz of [-0.18, 0.18]) {

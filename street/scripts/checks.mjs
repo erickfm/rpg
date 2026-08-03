@@ -44,7 +44,7 @@ import { aim } from './lib/aim.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { distSha, localHead } from './lib/which-world.mjs';
-import { probeWithRecovery } from './lib/server-state.mjs';
+import { probeWithRecovery, probeServer, reportEndOfRun } from './lib/server-state.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const SLOW = process.argv.includes('--slow');
@@ -1584,6 +1584,53 @@ for (const [name, question, selftest, extra = [], slow = false, cases = []] of C
       continue;
     }
   }
+  // ── A GREEN CHECK IS ALSO A CLAIM ABOUT A SERVER, AND IT WAS NEVER TESTED ──
+  //
+  // Everything above probes the server only when a check FAILED. That covered
+  // the case the probe was written for — a casualty of a death — and missed the
+  // one that matters more, which is item 239.
+  //
+  // A check calls `page.goto` ONCE and then measures the loaded page with
+  // `page.evaluate`. Measured on this tree: **99 of the 141 rows registered
+  // below do exactly one `.goto()`.** So the world lives in the browser's
+  // memory, and killing the server does not stop it answering — the legs keep
+  // passing and the check prints a verdict. Reproduced with
+  // `scripts/probes/w92-does-a-dead-server-show.mjs`: door301, preview
+  // SIGKILLed 6 s into a 12.9 s run, **exit 0 and "the door holds"**.
+  //
+  // Under the old code the suite still caught this eventually — the NEXT check's
+  // goto is refused, and the latch fires. What it could not catch is the check
+  // that was *running* when the server died, whose green is a lie, and it could
+  // not catch anything at all if that check was the last one.
+  //
+  // One extra `probeServer` per row closes both. It is a single fetch on the
+  // healthy path (~1 ms against localhost, against 1-90 s of check), and it only
+  // escalates to the six-second `probeWithRecovery` once something already looks
+  // wrong — so a clean run pays nothing measurable and a dirty one gets the full
+  // three-way classification rather than a boolean.
+  //
+  // Deliberately conservative in ONE direction: if the server dies in the gap
+  // between a check finishing and this probe, that check is marked unmeasured
+  // when it was in fact fine. "Could not measure" is the safe wrong answer here
+  // and "it passed" is the expensive one — that asymmetry is this whole file.
+  if (r.status === 0) {
+    const after = await probeServer(URL);
+    if (after !== 'ok') {
+      const state = await probeWithRecovery(URL);
+      if (state === 'dead' || state === 'empty') {
+        serverDied = state;
+        rows.push([name, question, UNMEASURED[state]]);
+        process.exitCode = 1;
+        continue;
+      }
+      // 'recovered' is NOT counted as a build-race casualty here, though the
+      // failure path above does count it. The difference is real: there, the
+      // check fell over and measured nothing; here it had already returned its
+      // answer, so dist/ blinking afterwards costs it nothing. Adding it to
+      // `buildRaces` would print "N CHECK(S) LOST A RACE ... they measured
+      // nothing" about a row that measured fine.
+    }
+  }
   rows.push([name, question, r.status === 0 ? 'ok' : wrongWorld ? 'WRONG WORLD' : `FAILED (${r.status})`, secs]);
   if (r.status !== 0) process.exitCode = 1;
   // On failure the detail matters more than the summary, so pass it through.
@@ -1657,5 +1704,56 @@ if (headAtStart && headAtEnd && headAtStart !== headAtEnd) {
   console.log('  Everything after the move measured a stale dist/, so any WRONG WORLD');
   console.log('  above is the rebase, not the check. A green here is provisional.');
   console.log('  Re-run: npm run build && npm run checks');
+}
+// ── AND ONE LAST QUESTION, AFTER THE LAST LEG: WAS ANY OF THAT REAL? ────────
+//
+// Item 239. Every guard above is either a startup floor or a reaction to a check
+// that fell over, and neither can speak for the end of a run in which nothing
+// fell over. Two things this catches that nothing above does:
+//
+//   · the server died during or after the FINAL row — there is no next check to
+//     be refused by it, so the latch never fires and the suite signs off green;
+//   · the run is SHORT — fewer rows came back than were registered. The server
+//     can be perfectly healthy and the run still not be about what it claims,
+//     and a short green table reads exactly like a whole one.
+//
+// The liveness answer comes from `lib/server-state.mjs` rather than a fourth
+// notion of "alive" invented here, which is what item 239 asked for and what
+// `probeWithRecovery`'s existence already argued for.
+//
+// `expected` is what this invocation SET OUT to run — `--only` and the slow tier
+// are filters on the registry, so counting the whole registry here would report
+// a deliberate `--only masonry` as 140 lost rows. It counts what the loop was
+// going to push a row for, which is the honest denominator.
+const expected = CHECKS.filter(([name, , selftest, , slow]) => {
+  if (ONLY.length && !ONLY.some((o) => name === o || name.includes(o))) return false;
+  if (SELFTEST && !selftest) return true;   // still pushes a "no selftest" row
+  if (slow && !SLOW) return true;           // still pushes a "walks — use --slow" row
+  return true;
+}).length;
+// WHAT COUNTS AS A CHECK THAT "RAN" IS NOT WHAT COUNTS AS A ROW.
+//
+// The death latch pushes a row for every remaining check, so `rows.length`
+// reaches `expected` on exactly the run this is supposed to describe, and the
+// count would report 0 lost while the table is a wall of `SERVER DIED`. The
+// number a reader wants is how many checks came back with a VERDICT ABOUT THE
+// WORLD, so the unmeasured statuses are subtracted by name.
+//
+// `WRONG WORLD` is in that list on purpose (GOTCHAS 32: exit 3 means the check
+// never ran). `—` is NOT: a slow-tier or no-selftest row is a declared skip that
+// the table already explains, and calling a deliberate omission a loss would
+// make every default run report 20-odd casualties.
+const UNMEASURED_STATUSES = new Set([...Object.values(UNMEASURED), 'BUILD RACE (unmeasured)', 'WRONG WORLD']);
+const unmeasured = rows.filter(([, , s]) => UNMEASURED_STATUSES.has(s)).length;
+// Rows the flag-per-selftest path splits in two would otherwise read as a
+// SURPLUS, which is not a defect and must not be reported as one.
+const ranRows = Math.min(rows.length, expected) - unmeasured;
+const liveness = await reportEndOfRun(URL, { ran: ranRows, registered: expected, leg: 'check' });
+if (liveness !== 0) {
+  // 3, not 1 — GOTCHAS 32. But `process.exitCode` may already be 1 from a real
+  // red, and a real finding outranks the absence of one: a run that found a
+  // genuine defect AND lost its server is still red, because the defect it did
+  // measure is still there.
+  if (!process.exitCode) process.exitCode = liveness;
 }
 if (process.exitCode) console.log('\nSomething above is red. It is not gating the build; it is telling you.');

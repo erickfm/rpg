@@ -199,7 +199,28 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
   const taxi = makeCar('sedan', 0, true);
   const bus = makeBus();
   const fleet = [...plain, taxi, bus];
-  fleet.forEach((c) => { c.visible = false; scene.add(c); o.lit(c); });
+  // ── WHERE A POOLED VEHICLE WAITS, AND WHY IT IS ONE CONSTANT ─────────────
+  //
+  // Item 242. The collider boxes were always parked out at 999 while idle, but
+  // the MESHES were not: `scene.add(c)` left every group at its default
+  // (0, 0, 0) until its first activation, so five car bodies plus their roofs
+  // and sixteen wheels — 44 meshes — sat at the WORLD ORIGIN, hidden.
+  //
+  // Hidden is not absent. `scripts/world-contained.mjs` deliberately ignores
+  // `visible` (GOTCHAS 79, because an authoring fact should not depend on a
+  // runtime flag), so those bodies made (0, 0) read "floored" with every ground
+  // plane deleted, and (0, 0) is the coordinate every probe in this repo reaches
+  // for first as a control or a sentinel. Worker eightyfive found it only
+  // because its road sentinel could not be made to go void no matter what it
+  // did; a check that merely returned a slightly wrong number would have been
+  // believed.
+  //
+  // So the idle position is ONE named constant used by the mesh and the box
+  // alike, and it is applied at construction as well as on release — the two
+  // were previously authored in different places and only one of them was right.
+  const IDLE_XZ = 999;
+  const park = (c: THREE.Group) => { c.position.set(IDLE_XZ, 0, IDLE_XZ); };
+  fleet.forEach((c) => { c.visible = false; park(c); scene.add(c); o.lit(c); });
 
   // ── the two routes, per lane offset ─────────────────────────────────────
   // The bus hugs the centre line (laneX 1.35, it is too wide to share the
@@ -233,7 +254,7 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
   const active: Vehicle[] = [];
   const boxes = new Map<THREE.Group, AABB>();
   for (const c of fleet) {
-    boxes.set(c, o.vehicleBox({ minX: 999, maxX: 999, minZ: 999, maxZ: 999 }));
+    boxes.set(c, o.vehicleBox({ minX: IDLE_XZ, maxX: IDLE_XZ, minZ: IDLE_XZ, maxZ: IDLE_XZ }));
   }
   let wait = 5;                 // gap between vehicles
   let maxActive = 1;            // one on the block at a time — a deliberate choice
@@ -253,7 +274,12 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
   };
   const clear = (v: Vehicle) => {
     v.obj.visible = false;
-    v.box.minX = v.box.maxX = v.box.minZ = v.box.maxZ = 999;
+    // The mesh goes with the box. Hiding it alone left it standing wherever its
+    // run ended — on the roadway — where a scene-reading check that ignores
+    // `visible` still counts it. `pose()` overwrites this outright on the next
+    // activation, so parking cannot affect where a vehicle drives.
+    park(v.obj);
+    v.box.minX = v.box.maxX = v.box.minZ = v.box.maxZ = IDLE_XZ;
     active.splice(active.indexOf(v), 1);
   };
 
