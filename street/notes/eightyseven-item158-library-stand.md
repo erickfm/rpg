@@ -80,35 +80,50 @@ now reads as a chair to sit and read the magazines in.
 ## Verification
 
 - The stand's meshes are **gone from (1070.35, −1.9)** — 0 hits on re-scan.
+- **`interiors-walk library`: 29/29 PASSED.** (Its exit code is 1, from the
+  pre-existing `[interior:hotel] NO BUILDING NAME` kit warning — a documented
+  inherited red about the **hotel**, not this room.)
 - `seat-facing` **green**, 219/219.
-- `npx tsc --noEmit` **clean**; build succeeds.
+- **No phantom collider.** The only two colliders left on the stand's old
+  footprint are the **west wall** (0.18 × 22.36 m) and the **magazine case
+  itself** (0.6 × 5.28 m). The stand's own 0.6 × 1.2 `solid()` is gone, so the
+  removal did not leave an invisible wall — which would have been worse than the
+  object was. (`w87-item158-nophantom.mjs`.)
+- `npm run sweep` **96 shots, 0 STATION MISS, 0 COVERAGE**; `health.mjs`
+  **WORLD OK, exit 0**, build `c015ccd1f`; `npx tsc --noEmit` **clean**.
 - Library re-scan: 481 meshes in the room. The 23 remaining table/shelf AABB
   overlaps my finder reports are **shelf boards inside their own bookcase
   carcasses** — a bookcase's internal structure, present before and after, not
   furniture clashing.
 
-## An instrument fault I caused and caught
+## Two instrument faults I caused and caught
 
-**`roomDims()` returns an ARRAY of `{id, w, d, cx, cz}`, not an object keyed by
-name.** My first finder did `dims.library`, got `undefined`, and **silently fell
-through to sweeping every interior in the world** — 3931 meshes instead of 481 —
-where it surfaced an angled table at x 522.9, in a completely different room,
-550 m away, as the leading suspect. Had I trusted it I would have removed the
-wrong object from a file the item does not name.
-
-It now asks by `id` and **throws** if the library is not found, rather than
-quietly widening its own scope. This is GOTCHAS 86's lesson one field over: ask
-the world, and make the failure loud.
+1. **`roomDims()` returns an ARRAY of `{id, w, d, cx, cz}`, not an object keyed
+   by name.** My first finder did `dims.library`, got `undefined`, and **silently
+   fell through to sweeping every interior in the world** — 3931 meshes instead
+   of 481 — where it surfaced an angled table at x 522.9, in a completely
+   different room **550 m away**, as the leading suspect. Had I trusted it I
+   would have removed the wrong object from a file the item does not name. It now
+   asks by `id` and **throws** if the library is not there, rather than quietly
+   widening its own scope. GOTCHAS 86's lesson one field over: ask the world, and
+   make the failure loud.
+2. **`interiors-walk.mjs`'s room filter is POSITIONAL (`argv[2]`), not an env
+   var.** `ROOM=library node scripts/interiors-walk.mjs` silently swept **all
+   twelve rooms** and blew a 900 s timeout with nothing to show. The file says so
+   at `:281` — *"The room filter is POSITIONAL, so it must skip flags"* — and I
+   had not read it. Correct form: `node scripts/interiors-walk.mjs library`,
+   which finishes the one room quickly.
 
 ## Found and not fixed
 
 - **`scripts/interiors-walk.mjs` cannot run against `vite preview`.** It
-  dynamically imports `src/proto/ct/doors.ts`, which 404s on the preview server —
-  the same class as the documented "`fp.ts` cannot be imported at runtime by a
-  harness". It has to be pointed at a dev server. Pre-existing, not mine, and
-  worth a row because the item asked for it by name and the standing instruction
-  is to verify on the built bundle (GOTCHAS 28). The two requirements are in
-  direct conflict for this one harness.
+  dynamically imports `src/proto/ct/doors.ts`, which **404s on the preview
+  server** — the same class as the documented "`fp.ts` cannot be imported at
+  runtime by a harness". It has to be pointed at a **dev** server, which is what
+  the 29/29 above was run on. Pre-existing and not mine, but worth a row: the
+  item names this check, and the standing instruction is to verify on the **built
+  bundle** (GOTCHAS 28). **The two requirements are in direct conflict for this
+  one harness**, and every builder asked to run it will hit the same wall.
 - Item 115, as above.
 
 ## Derived or copied
