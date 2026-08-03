@@ -133,10 +133,148 @@ else {
     ? `yes — the ring passes ${f(bodyR - reach.lo)} m THROUGH the cup wall`
     : `NO — a ${f(reach.lo - bodyR)} m AIR GAP between cup wall and handle`}`);
   console.log(`  it stands ${f(reach.hi - bodyR)} m proud of the cup — that is the silhouette`);
-  const clear = reach.holeLo >= bodyR;
-  console.log(`  the HOLE spans ${f(reach.holeLo)}…${f(reach.holeHi)} from the axis: `
-    + `${clear ? `clear of the cup wall, ${f(reach.holeHi - reach.holeLo)} m of daylight`
-      : 'PARTLY BEHIND THE CUP — the hole will not read'}`);
+
+  // ── CORRECTED 2026-08-03, item 246 (worker ninetythree) ──────────────────
+  //
+  // THIS BLOCK USED TO PRINT A FALSE CONCLUSION AND IT IS WORTH SAYING WHY,
+  // because the shape of the mistake is commoner than the mistake.
+  //
+  //     const clear = reach.holeLo >= bodyR;
+  //     ... : 'PARTLY BEHIND THE CUP — the hole will not read'
+  //
+  // `holeLo`/`holeHi` are the hole's RADIAL SPAN — the nearest and farthest the
+  // daylight gets from the cup's axis, one number each. `holeLo >= bodyR`
+  // therefore asks "is EVERY LAST MILLIMETRE of the hole clear of the cup", and
+  // any hole overlapping the cup silhouette by a hair failed it. The verdict it
+  // printed was not "some of the hole is behind the cup" — it was **"the hole
+  // will not read"**, a claim about what a player SEES, drawn from a 1-D span
+  // test that cannot see anything. On this world it fires at **76.2% of the
+  // span open** and, by area, **81.7% of the hole open**. That verdict is what
+  // the next builder reads before touching a mug that has already cost three
+  // user reports, and it would have sent them to re-cut a handle that is fine.
+  //
+  // (I first derived 81.7% by hand, against a straight 0.038 m cylinder. The
+  // sampler says 85.9%, and the sampler is right: the cup TAPERS — 0.034 m at
+  // the foot, 0.038 m at the rim — so the lower half of the hole clears more
+  // than a constant-radius sum credits it with. `rAt(y)` interpolates it.)
+  //
+  // The honest measurement is an AREA, and it is taken in the world rather than
+  // argued: sample the hole's disc, and for each sample cast along the hole
+  // axis — the direction you must look to see through a ring — and ask whether
+  // that sightline is blocked by the cup's own cylinder. A number, not a verdict.
+  const HOLE_READS = 0.35;         // declared, and self-tested below in both signs
+  const occ = await p.evaluate((want) => {
+    const s = window.__ct.scene(); s.updateMatrixWorld(true);
+    let out = null;
+    s.traverse((n) => {
+      if (!n.isMesh || n.geometry?.type !== 'TorusGeometry') return;
+      const e = n.matrixWorld.elements;
+      if (Math.hypot(e[12] - want.x, e[13] - want.y, e[14] - want.z) > 0.02) return;
+      const R = n.geometry.parameters.radius, tube = n.geometry.parameters.tube;
+      const rHole = R - tube;                        // the daylight disc's radius
+      if (rHole <= 0) { out = { rHole }; return; }
+      const V = window.__ct.camera().position.constructor;
+      // local +z is the hole axis; in world it is the third basis column
+      const hl = Math.hypot(e[8], e[9], e[10]) || 1;
+      const ax = e[8] / hl, az = e[10] / hl;         // horizontal part of the axis
+      // The cup is a vertical cylinder: radius interpolates radiusBottom→
+      // radiusTop over its height, so a sample near the rim is tested against
+      // the rim's radius and not against a single number typed once.
+      const rAt = (y) => {
+        const t = Math.min(1, Math.max(0, (y - want.y0) / (want.y1 - want.y0)));
+        return want.rBot + (want.rTop - want.rBot) * t;
+      };
+      // AREA-FAIR SAMPLING. A polar grid stepping uniformly in radius
+      // over-weights the middle of the disc, which is exactly the part the cup
+      // hides — so it would flatter or damn the answer depending on which side
+      // the cup is on. r = rHole*sqrt(u) is uniform by area.
+      const N = 20000;
+      let open = 0, seen = 0;
+      for (let i = 0; i < N; i++) {
+        // deterministic low-discrepancy pair, so two runs agree exactly
+        const u = (i + 0.5) / N;
+        const r = rHole * Math.sqrt(u);
+        const th = i * 2.399963229728653;            // golden angle
+        const pt = new V(r * Math.cos(th), r * Math.sin(th), 0).applyMatrix4(n.matrixWorld);
+        seen++;
+        if (pt.y < want.y0 || pt.y > want.y1) { open++; continue; }   // above/below the cup entirely
+        // perpendicular distance, in the horizontal plane, from the cup's axis
+        // to the sightline through `pt` along the hole axis
+        const dx = pt.x - want.bx, dz = pt.z - want.bz;
+        const cross = Math.abs(dx * az - dz * ax);   // |(P−C) × A|, A unit-ish in plane
+        const alen = Math.hypot(ax, az);
+        const perp = alen > 1e-6 ? cross / alen : Math.hypot(dx, dz);
+        if (perp > rAt(pt.y)) open++;
+      }
+      out = { rHole, open, seen, frac: open / seen, scale: want.scale };
+    });
+    return out;
+  }, { x: handle.pos.x, y: handle.pos.y, z: handle.pos.z, bx: body.pos.x, bz: body.pos.z,
+       y0: body.bb.y0, y1: body.bb.y1, rTop: bodyR, rBot: bodyRLo, scale: 1 });
+
+  const spanOpen = (reach.holeHi - Math.max(reach.holeLo, bodyR)) / (reach.holeHi - reach.holeLo);
+  console.log(`  the HOLE spans ${f(reach.holeLo)}…${f(reach.holeHi)} m from the cup axis`);
+  console.log(`    of that RADIAL SPAN, ${(spanOpen * 100).toFixed(1)}% clears the ${f(bodyR)} m cup wall`);
+  if (!occ || occ.seen === undefined) console.log('    could not sample the hole disc');
+  else {
+    console.log(`    of the hole's AREA, ${(occ.frac * 100).toFixed(1)}% has a clear sightline `
+      + `through it (${occ.open}/${occ.seen} samples along the hole axis)`);
+    console.log(`  DOES THE HOLE READ: ${occ.frac >= HOLE_READS
+      ? `YES — ${(occ.frac * 100).toFixed(1)}% open, against a ${(HOLE_READS * 100).toFixed(0)}% bar`
+      : `NO — only ${(occ.frac * 100).toFixed(1)}% open, under the ${(HOLE_READS * 100).toFixed(0)}% bar`}`);
+    // POPULATION FLOOR. An area fraction over an empty sample set is 0/0, and
+    // "the hole does not read" is exactly the wrong thing to say about a hole
+    // nobody looked at. (GOTCHAS 34.)
+    if (occ.seen < 1000) {
+      console.error(`  SAMPLE FLOOR: only ${occ.seen} points on the hole disc — nothing was measured`);
+      await b.close(); process.exit(3);
+    }
+  }
+
+  // ── SELF-TEST, BOTH SIGNS ────────────────────────────────────────────────
+  // §27/§34: a check nobody has watched fail is a check you will argue with,
+  // and an occlusion test is the kind that passes for free when it is looking
+  // at nothing. Re-run the same sampler against a cup swollen to 20x and
+  // against a cup of zero radius. If the fraction does not go to ~0 and ~1,
+  // this probe is not measuring occlusion and its number above means nothing.
+  const trial = async (rTop, rBot) => (await p.evaluate((want) => {
+    const s = window.__ct.scene(); s.updateMatrixWorld(true);
+    let frac = null;
+    s.traverse((n) => {
+      if (!n.isMesh || n.geometry?.type !== 'TorusGeometry') return;
+      const e = n.matrixWorld.elements;
+      if (Math.hypot(e[12] - want.x, e[13] - want.y, e[14] - want.z) > 0.02) return;
+      const R = n.geometry.parameters.radius, tube = n.geometry.parameters.tube;
+      const rHole = R - tube; if (rHole <= 0) return;
+      const V = window.__ct.camera().position.constructor;
+      const hl = Math.hypot(e[8], e[9], e[10]) || 1;
+      const ax = e[8] / hl, az = e[10] / hl;
+      const rAt = (y) => { const t = Math.min(1, Math.max(0, (y - want.y0) / (want.y1 - want.y0)));
+        return want.rBot + (want.rTop - want.rBot) * t; };
+      const N = 20000; let open = 0;
+      for (let i = 0; i < N; i++) {
+        const r = rHole * Math.sqrt((i + 0.5) / N), th = i * 2.399963229728653;
+        const pt = new V(r * Math.cos(th), r * Math.sin(th), 0).applyMatrix4(n.matrixWorld);
+        // the swollen cup is tested over the same y band, extended so a 20x
+        // radius cannot be dodged by stepping above the rim
+        if (pt.y < want.y0 - 1 || pt.y > want.y1 + 1) { open++; continue; }
+        const dx = pt.x - want.bx, dz = pt.z - want.bz;
+        const alen = Math.hypot(ax, az);
+        const perp = alen > 1e-6 ? Math.abs(dx * az - dz * ax) / alen : Math.hypot(dx, dz);
+        if (perp > rAt(pt.y)) open++;
+      }
+      frac = open / N;
+    });
+    return frac;
+  }, { x: handle.pos.x, y: handle.pos.y, z: handle.pos.z, bx: body.pos.x, bz: body.pos.z,
+       y0: body.bb.y0, y1: body.bb.y1, rTop, rBot }));
+  const fat = await trial(bodyR * 20, bodyRLo * 20);
+  const thin = await trial(0, 0);
+  const ok = fat !== null && thin !== null && fat < 0.02 && thin > 0.98;
+  console.log(`  self-test  cup x20 -> ${fat === null ? 'n/a' : (fat * 100).toFixed(1) + '% open'} (want ~0)`
+    + `   cup x0 -> ${thin === null ? 'n/a' : (thin * 100).toFixed(1) + '% open'} (want ~100)`
+    + `   ${ok ? 'PASS' : '*** FAIL — the occlusion number above is not trustworthy ***'}`);
+  if (!ok) { await b.close(); process.exit(2); }
 }
 
 console.log('\n── 4. footing on the sill ─────────────────────────────────');

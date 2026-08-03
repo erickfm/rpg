@@ -46,6 +46,7 @@ const ATM = 'src/proto/ct/atm.ts';            // the cash machine's screens and 
 // header). `rulings-atm` used to quote bank.ts and moved here with them.
 const ATMFACE = 'src/proto/ct/atm-face.ts';
 const JAIL = 'src/proto/ct/jail.ts';          // O's — the building and its screens
+const HUD = 'src/proto/ct/hud.ts';            // the panel framework and its diegetic surfaces
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
 //
@@ -480,27 +481,89 @@ const CASES = [
   // it is read from, now by the shader (`nf(POOL_GAIN)`, ct/props.ts:703) as
   // well as by `poolLit`.
   //
-  // ⚠ THIS CASE CANNOT DISCRIMINATE TODAY, AND SAYING SO IS THE POINT.
-  // `glow.mjs` is RED on this tree BEFORE any mutation is applied — measured on
-  // cd5afdd8f, unmutated, port 4400:
+  // THIS CASE DISCRIMINATES. It did not used to, and the history is worth the
+  // six lines because the repair is the interesting part.
+  //
+  // Until item 234 `glow.mjs` was RED on this tree BEFORE any mutation — so it
+  // went "red" under every mutation and certified nothing, canfail scoring
+  // CAUGHT on any non-zero exit. Measured then, on cd5afdd8f, unmutated:
   //
   //     FAIL main street: under a lamp 0.0450 vs mid-block 0.0450 — 1.0x (59/164)
   //     OK   side street: under a lamp 1.0000 vs mid-block 0.0857 — 11.7x (8/161)
   //
-  // canfail scores CAUGHT on any non-zero exit, so a check that is ALREADY red
-  // goes "red" under every mutation and certifies nothing — the same empty-set
-  // certificate as item 224, one level out. Same cause as the two grade cases
-  // above: `544053b20` moved the pool into POOL_FRAG, and glow.mjs's pool
-  // clause reads `mat.color`, which is now `base * amb` — an ambient that is
-  // per-FLOOR, not per-lamp, so near and far on one floor are identical by
-  // construction and 1.0x is the only answer it can give. Filed for the desk;
-  // `glow.mjs` is outside item 229 (BUILDER-BRIEF §9). Re-pointed rather than
-  // retired because the case is correct and will discriminate the moment the
-  // check reads the pool where the pool now lives.
+  // Both numbers were artefacts of reading `mat.color`, which `544053b20` had
+  // made blind by moving the pool into POOL_FRAG: `base * amb` is per-FLOOR, so
+  // near and far on one floor are identical BY CONSTRUCTION and 1.0x was the
+  // only answer the main street could give — while the side street's 11.7x came
+  // off SELF-LIT neon that reads 1.0000 at noon and at midnight alike.
+  //
+  // `glow.mjs` now reads PIXELS and normalises each spot against its own
+  // daytime luminance, so both halves are honest and the check is green before
+  // mutation. Verified on the built bundle, port 4460, item 241:
+  //
+  //     pre-pass  1 of 1 green before any mutation
+  //     mutated   OK  glow-pool  CAUGHT
+  //
+  // ⚠ AND DO NOT RE-TUNE glow.mjs's BARS EXPECTING THIS MUTATION TO BLACK THE
+  // GROUND OUT. `POOL_GAIN = 0` still leaves ~2.1x of lamplight, because the
+  // per-fragment pool is not the only thing lighting the ground — the painted
+  // 5.6 m ADDITIVE POOL DECAL is separate geometry this constant never touches.
+  // A pixel reading necessarily sees both, so "the gain is dead" reads as a
+  // halving, not a blackout. glow.mjs's bars are set from that measurement; a
+  // bar reasoned from "a dead pool must give 1.0x" SLEPT through this case.
   ['glow-pool', PROPS,
     'const POOL_GAIN = 6.5;',
     'const POOL_GAIN = 0;',
     'glow.mjs', ['probe'], 'lamps that glow but light nothing beneath them'],
+
+  // ── ITEM 150, AND THE TWO WAYS THIS ONE CAN ROT ────────────────────────────
+  //
+  // `screenslot.mjs` asserts two different things, so it gets two cases: that a
+  // multi-material mesh does not CRASH the panel, and that an ambiguous one is
+  // DEGRADED rather than guessed at. A single case would leave half the check
+  // able to sleep.
+  //
+  // Removing the degrade puts the original item-150 crash back: `borrowed` is
+  // null for a mesh the resolver refused, `onMesh` stays set, and `open()`
+  // throws on it — with the movement gate already up, which is the half that
+  // traps the player rather than merely looking wrong.
+  ['screenslot-blind', HUD,
+    'if (!borrowed) onMesh = null;',
+    'if (!borrowed) { /* mutated: do not degrade */ }',
+    'screenslot.mjs', [], 'a panel that throws out of open() on a multi-material mesh'],
+
+  // The other half: GUESS instead of degrading. `m.length === 1` is the whole
+  // of "there is nothing to be ambiguous about"; widening it to `>= 1` makes a
+  // six-face box silently paint the panel onto slot 0, which is a visible bug
+  // in the world that is very hard to trace back to hud.ts.
+  ['screenslot-guess', HUD,
+    '} else if (m.length === 1) {',
+    '} else if (m.length >= 1) {',
+    'screenslot.mjs', [], 'a panel that guesses which face of a box is the screen'],
+
+  // ── AND WHY THERE IS NO `screenslot-freeze` CASE, WHICH IS NOT AN OVERSIGHT ─
+  //
+  // The dangerous half of item 150 was never the picture, it was the player:
+  // `gateUp(true)` raises the gate and captures input BEFORE the surface work,
+  // so a throw after it left the world frozen with NOTHING ON SCREEN —
+  // `panel()` returning the id while the wrapper sat at opacity 0, Escape the
+  // only way out, indistinguishable from a hang. `screenslot.mjs` asserts
+  // exactly that state, and it has been WATCHED FAILING on the real pre-fix
+  // source: `panel()=ct-atm while the wrapper is at opacity 0`.
+  //
+  // I tried to add a mutation for it (`backdropUp(true);` -> `throw err;`,
+  // rethrowing out of the hang's catch) and it **SLEPT**, for a reason worth
+  // recording: after the fix a multi-material mesh never ENTERS the hang —
+  // `screenSlot` returns null and `onMesh` is set to null before it — so the
+  // hang's catch is unreachable and the mutation does not mutate. Reproducing
+  // the freeze now takes TWO independent regressions (something must throw
+  // after the gate AND its guard must be gone), and canfail applies one needle.
+  //
+  // That is the fix working, not a hole in the suite. **Do not "repair" this by
+  // adding a case that goes red for some other reason** — a green CAUGHT bought
+  // that way certifies nothing, which is the failure this whole file exists to
+  // catch. The pre-fix run is the evidence, and `screenslot-blind` already
+  // covers the throw that used to reach the gate.
 
   ['park', PROPS,
     'lens.userData.parkLantern = true;',

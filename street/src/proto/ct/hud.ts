@@ -420,6 +420,92 @@ export interface ScreenSurface {
   hot?: (x: number, y: number) => boolean;
   /** a click landed at this canvas pixel */
   click?: (x: number, y: number) => void;
+  /**
+   * WHICH material slot is the screen, when the mesh carries several.
+   *
+   * `THREE.Mesh.material` is legally `Material | Material[]` — a box whose six
+   * faces are painted separately is an array, and that is the ordinary way to
+   * build a cabinet with a screen on one face. Leave this unset for the normal
+   * single-material case; set it to the slot index when the face you mean is
+   * one of many. See `screenSlot` for what happens when it is unset on a mesh
+   * that needs it.
+   */
+  materialIndex?: number;
+}
+
+/**
+ * The material a diegetic panel should borrow, or `null` to fall back to the
+ * screen-space cabinet.
+ *
+ * WHY THIS EXISTS (item 150). This used to be a bare cast —
+ * `mesh.material as THREE.MeshBasicMaterial` — which is a lie whenever the mesh
+ * is multi-material, and it did not fail politely. `Mesh.material` being an
+ * ARRAY means `mat.color` is `undefined`, so `mat.color.getHex()` threw
+ * **TypeError: Cannot read properties of undefined (reading 'getHex')** out of
+ * `open()` — and it threw AFTER `gateUp(true)`, i.e. after the player's feet
+ * were already frozen. Reproduced on all three diegetic panels in this world
+ * (`ct-atm`, `ct-letter`, `ct-loan`) by wrapping their screen material in a
+ * one-element array, which changes nothing about how they render:
+ * `scripts/probes/w90-item150-multimat-repro.mjs`.
+ *
+ * There was a quieter half too: `mat.map` on an array is **`Array.prototype.map`,
+ * a function**, so `savedMap` captured a function and `close()` then assigned it
+ * back — writing an own `map` property onto the array — before throwing again on
+ * `mat.color.setHex`. A panel that cannot be closed cleanly is the worst bug
+ * this project ships, and this one arrived through a cast.
+ *
+ * THE RULE: pick the slot the caller named; take slot 0 only when there is
+ * nothing to be ambiguous ABOUT; otherwise say which mesh needs a
+ * `materialIndex` and degrade. **Guessing a slot would paint the panel onto the
+ * wrong face of a box** — a visible bug that is hard to trace back to here —
+ * whereas degrading gives the player the screen-space cabinet that panel would
+ * have had anyway, which is exactly the failure mode `mesh()` returning `null`
+ * is already documented to produce.
+ */
+function screenSlot(
+  mesh: THREE.Object3D,
+  surface: ScreenSurface | undefined,
+  panelId: string,
+): THREE.MeshBasicMaterial | null {
+  const m = (mesh as THREE.Mesh).material as
+    THREE.MeshBasicMaterial | THREE.MeshBasicMaterial[] | undefined;
+  const name = mesh.name || '(unnamed)';
+  if (!m) {
+    console.error(`[panel ${panelId}] mesh ${name} has no material; using the screen-space cabinet.`);
+    return null;
+  }
+  let pick: THREE.MeshBasicMaterial | undefined;
+  if (!Array.isArray(m)) {
+    pick = m;
+  } else {
+    const i = surface?.materialIndex;
+    if (i !== undefined) {
+      if (!Number.isInteger(i) || i < 0 || i >= m.length) {
+        console.error(`[panel ${panelId}] mesh ${name} has ${m.length} material slot(s) `
+          + `but surface.materialIndex is ${i}; using the screen-space cabinet.`);
+        return null;
+      }
+      pick = m[i];
+    } else if (m.length === 1) {
+      // Not a guess: with one slot there is only one face to be wrong about.
+      pick = m[0];
+    } else {
+      console.error(`[panel ${panelId}] mesh ${name} carries ${m.length} materials and the `
+        + `surface does not say which slot is the screen. Add `
+        + `\`materialIndex\` to its \`surface\` spec. Using the screen-space cabinet.`);
+      return null;
+    }
+  }
+  // A MATERIAL THIS CODE CANNOT ACTUALLY BORROW IS ALSO A DEGRADE, NOT A THROW.
+  // The two things it goes on to touch are `.map` and `.color`; a material type
+  // that has neither (a depth or shadow material, say) would reproduce the
+  // original crash one level further in.
+  if (!pick || !(pick as THREE.MeshBasicMaterial).color) {
+    console.error(`[panel ${panelId}] mesh ${name}'s screen material has no colour to borrow `
+      + `(type ${pick ? (pick as THREE.Material).type : 'undefined'}); using the screen-space cabinet.`);
+    return null;
+  }
+  return pick;
 }
 
 /**
@@ -911,6 +997,12 @@ export function makePanel(spec: PanelSpec): Panel {
   /** what the mesh was showing before we borrowed it, to be put back exactly */
   let savedMap: THREE.Texture | null = null;
   let savedColor = 0xffffff;
+  /**
+   * WHICH material we borrowed, remembered rather than re-derived on close.
+   * Re-resolving it would re-read `mesh.material`, and the whole reason this
+   * exists is that that value is not guaranteed to be what it was at open.
+   */
+  let borrowed: THREE.MeshBasicMaterial | null = null;
 
   const paint = () => {
     const g = cv.getContext('2d')!;
@@ -1068,17 +1160,55 @@ export function makePanel(spec: PanelSpec): Panel {
       // fails: a surface whose mesh cannot be found, or a world that never
       // registered a focus controller (the prototype harnesses do not), simply
       // gets the screen-space cabinet it would have got anyway.
-      onMesh = spec.surface && FOCUS ? spec.surface.mesh() : null;
+      //
+      // ⚠ AND NOTHING FROM HERE TO THE END OF `open()` MAY THROW PAST THIS
+      // POINT. `gateUp(true)` on the line above is the freeze: it raises the
+      // gate and captures input for a panel that has not been shown yet. A
+      // throw between there and the end therefore leaves the player **frozen,
+      // with input captured, looking at the world, and NO PANEL VISIBLE** —
+      // recoverable only by Escape, and indistinguishable from a hang. That is
+      // §11 territory ("a view you cannot leave"), and it is a strictly worse
+      // failure than the wrong picture on a screen.
+      //
+      // Item 150 arrived exactly this way and the row understated it: the
+      // report was "it throws on a multi-material mesh", but the consequence
+      // was the freeze, because the throw site sat after the gate and outside
+      // any `try`.
+      //
+      // BOTH CALLS IN HERE ARE CALLER CODE. `spec.surface.mesh()` is written by
+      // whichever module owns the machine, and `FOCUS.enter()` below by
+      // `crosstown.ts`. Neither is this file's to trust, so neither is allowed
+      // to freeze the world — every failure lands on the screen-space cabinet,
+      // which is the same place a null `mesh()` has always landed.
+      try {
+        onMesh = spec.surface && FOCUS ? spec.surface.mesh() : null;
+        // AND THE MATERIAL HAS TO BE BORROWABLE, not just the mesh findable —
+        // resolved HERE, before `backdropUp` and `paint` commit to a layout,
+        // because `screenSlot` returning null must land in exactly the same
+        // place a null `mesh()` does. Item 150: this used to be a cast further
+        // down that threw out of `open()` with the movement gate already up.
+        borrowed = onMesh ? screenSlot(onMesh, spec.surface, spec.id) : null;
+        if (!borrowed) onMesh = null;
+      } catch (err) {
+        console.error(`[panel ${spec.id}] resolving the diegetic surface threw; `
+          + `using the screen-space cabinet:`, err);
+        onMesh = null; borrowed = null;
+      }
       // The vignette says "you have stopped looking at the world". A screen you
       // are genuinely standing in front of has not stopped being in the world,
       // and dimming it is the exact tell the user's screenshot is pointing at.
       backdropUp(!onMesh);
       paint();
       if (onMesh) {
+       // `saved` gates the undo below: without it a throw BEFORE the two saves
+       // would restore `savedMap`/`savedColor` left over from the last panel,
+       // and paint some other machine's face onto this one.
+       let saved = false;
+       try {
         // HANG THE CANVAS ON THE OBJECT. The mesh keeps its geometry, its rake
         // and its place in the wall; only what it is showing changes, and it is
         // put back exactly on close.
-        const mat = (onMesh as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        const mat = borrowed!;   // resolved and null-checked above
         if (!tex) {
           tex = new THREE.CanvasTexture(cv);
           tex.magFilter = THREE.NearestFilter;
@@ -1089,6 +1219,7 @@ export function makePanel(spec: PanelSpec): Panel {
         tex.needsUpdate = true;
         savedMap = mat.map ?? null;
         savedColor = mat.color.getHex();
+        saved = true;
         mat.map = tex;
         // A LIT CRT IS NOT DIMMED BY THE EVENING. Whatever tint the material
         // carries belongs to the cabinet, not to the picture on its tube, and
@@ -1121,6 +1252,27 @@ export function makePanel(spec: PanelSpec): Panel {
           fov: spec.surface!.fov ?? 60,
           escape: () => api.close(),
         });
+       } catch (err) {
+        // THE HANG FAILED HALFWAY. Put the mesh back, undo the diegetic layout,
+        // and show the cabinet — the panel the player asked for still appears,
+        // which is the whole difference between a degraded feature and a freeze.
+        console.error(`[panel ${spec.id}] hanging it on the mesh threw; `
+          + `using the screen-space cabinet:`, err);
+        try {
+          if (saved && borrowed) {
+            borrowed.map = savedMap;
+            borrowed.color.setHex(savedColor);
+            borrowed.needsUpdate = true;
+          }
+        } catch { /* best effort: the cabinet still has to come up */ }
+        onMesh = null; borrowed = null;
+        backdropUp(true);
+        cv.style.display = '';
+        wrap!.style.top = '50%';
+        wrap!.style.bottom = 'auto';
+        wrap!.style.opacity = '1';
+        wrap!.style.transform = frameless ? 'translate(-50%,-50%)' : 'translate(-50%,-50%) scale(1)';
+       }
       } else {
         wrap!.style.opacity = '1';
         if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(1)';
@@ -1143,15 +1295,21 @@ export function makePanel(spec: PanelSpec): Panel {
         // throw. A machine left wearing a frozen copy of the last thing it
         // said is the visible half of this failing; a camera left locked is
         // the half that traps somebody.
-        const mesh = onMesh;
         onMesh = null;
         cursorRelease();
         try {
-          const mat = (mesh as THREE.Mesh).material as THREE.MeshBasicMaterial;
-          mat.map = savedMap;
-          mat.color.setHex(savedColor);
-          mat.needsUpdate = true;
+          // THE SLOT WE BORROWED, not whatever `mesh.material` is now. Item 150:
+          // re-casting `mesh.material` here threw `setHex of undefined` on any
+          // multi-material mesh, which is how a panel left a machine wearing a
+          // frozen copy of the last thing it said.
+          const mat = borrowed;
+          if (mat) {
+            mat.map = savedMap;
+            mat.color.setHex(savedColor);
+            mat.needsUpdate = true;
+          }
         } catch (err) { console.error(`[panel ${spec.id}] could not restore the surface:`, err); }
+        borrowed = null;
         // and put the caption back where every other panel's lives
         cv.style.display = '';
         wrap!.style.top = '50%';

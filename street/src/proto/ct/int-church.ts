@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import type { DoorDecl } from './doors';
 import { pixTex, dither, declareSurface, slabTex } from './paint';
-import { buildRoom } from './interior';
+import { buildRoom, seatTaken } from './interior';
 import { leafPair } from './vice';
 
 // ST BRIGID'S — the inside, because the user asked to go in and could not.
@@ -468,6 +468,13 @@ export function buildChurch(ctx: CtxBuild) {
         x: wx(side * PEW_CX), z: wz(pz), yaw: 0, h: PEW_TOP, r: 0.62,
         approach: { x: wx(side * PEW_CX), z: wz(pz - 0.42) },
         label: 'sit in the pew',
+        // *"if you sit in his pew you sit where he sits and that just breaks
+        // immersion."* The praying woman four rows back is placed at exactly
+        // this seat's coordinates, and this row registered it as free. She
+        // claims it through `room.person`; see `seatTaken` in ct/interior.ts.
+        // Every OTHER pew is unaffected — 35 of the 36 are still offered, and
+        // the free half of her own row still is.
+        ok: () => !seatTaken(wx(side * PEW_CX), wz(pz)),
       });
     }
   }
