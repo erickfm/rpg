@@ -3,7 +3,7 @@ import { BUILD, type CtxBuild } from './ctx';
 import { declareSurface, pixTex } from './paint';
 import { APT_X0, APT_Z0, ST0 } from './apartment';
 import { citizenSprite } from './citizens';
-import { UI, makePanel, type Panel } from './hud';
+import { UI, makePanel, screenFocusReady, type Panel } from './hud';
 
 // ── TENANCY ───────────────────────────────────────────────────────────────
 //
@@ -630,6 +630,14 @@ let reading: Letter[] = [];
 /** set by `register`, so the notice can print a live figure */
 let CTX: CtxBuild | null = null;
 let PANEL: Panel | null = null;
+/**
+ * THE PAPER ITSELF, as an object in the lobby — see the block above
+ * `buildPanel`. Built by `register` (it needs the bank's measured face) and
+ * read by the panel's `surface.mesh()` at open time, which is exactly the
+ * indirection `ScreenSurface` was shaped for: the module cannot see this mesh
+ * when it registers the panel, and does not have to.
+ */
+let sheet: THREE.Mesh | null = null;
 
 const fill = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: number, h: number) => {
   g.fillStyle = c; g.fillRect(x, y, w, h);
@@ -697,6 +705,28 @@ function drawLetter(g: CanvasRenderingContext2D, w: number, h: number): void {
   }
 }
 
+// ── AND THE PAPER IS IN THE ROOM, NOT OVER YOUR FACE ──────────────────────
+//
+// *"can we apply the same sort of thing we applied to the atm and apply it to
+// the mail?"* (2026-08-02). What he asked for at the ATM was *"i want when i
+// hit e here to adjust my position and perspective and lock it to be looking at
+// the atm and for the screen on the literal atm be the overlay"* — so the
+// transferable part is NOT "paint it on a machine". It is: LOCK ME IN PLACE AND
+// PUT THE INTERFACE IN THE WORLD INSTEAD OF OVER MY FACE.
+//
+// A letter is the one tenant of this framework that is not a screen — you HOLD
+// it, you do not stand at it — and that changes only WHERE the surface is, not
+// what it is. So the sheet is a plane hanging at reading distance in front of
+// the eye, turned to face the hall, and the framework does the rest: it hangs
+// this same canvas on it, eases the eye onto it, freezes the feet and keeps
+// ESC and `[E]`. `chrome:'none'` and the frameless work below were already
+// half of this — the paper filled its own canvas edge to edge — and this is
+// the other half. This file's own heading has said *"the letter, held open in
+// front of you"* since it was written; nothing had made it literal.
+//
+// IT DEGRADES RATHER THAN FAILS. `mesh()` returning null — a world with no
+// focus controller, which is what the prototype harnesses are — gives back
+// exactly today's screen-space panel.
 function buildPanel(): void {
   if (PANEL) return;
   // FRAMELESS. `drawLetter` already paints a complete sheet of paper — fold
@@ -723,6 +753,39 @@ function buildPanel(): void {
       else return;
       PANEL?.repaint();
     },
+    surface: {
+      mesh: () => sheet,
+      // 0.42 m off the paper is where a person holds something they are
+      // reading. The framework's 0.55 default is a stand-off for a MACHINE you
+      // step up to; this is arm's length, and it is the whole difference
+      // between holding a letter and standing at a kiosk.
+      standoff: 0.42,
+      // and lean in: 55° against the world's 88° resting look is the eye
+      // narrowing onto the page, which is what reading looks like.
+      fov: 55,
+      // CLICKING THE PAGE TURNS IT, right half forward and left half back —
+      // the same two directions the wheel and the arrows already give, so this
+      // adds a gesture and no state. Only when there IS more than one, so the
+      // cursor never offers a press that would do nothing.
+      //
+      // `hot`/`click` arrive in THIS canvas's pixels (`ct/hud.ts:733`), not in
+      // uv and not in client space, so `SHEET.w` is the right thing to halve.
+      hot: () => reading.length > 1,
+      click: (x) => {
+        if (reading.length < 2) return;
+        page = (page + (x > SHEET.w / 2 ? 1 : reading.length - 1)) % reading.length;
+        PANEL?.repaint();
+      },
+    },
+    // THE PAPER IS ONLY THERE WHILE YOU ARE READING IT. Guarded on
+    // `screenFocusReady()` rather than shown unconditionally: that is the exact
+    // predicate `ct/hud.ts:1071` decides diegetic-or-not by, so in a world with
+    // no focus controller the panel falls back to the screen-space cabinet and
+    // this does NOT leave a blank sheet hanging in the lobby behind it.
+    onOpen: () => { if (sheet && screenFocusReady()) sheet.visible = true; },
+    // `onClose` runs on EVERY close — Escape, `[E]`, and the automatic close
+    // when another panel opens — so there is no path that leaves it up.
+    onClose: () => { if (sheet) sheet.visible = false; },
   });
 }
 
@@ -861,6 +924,52 @@ export function register(ctx: CtxBuild): void {
     e.visible = false;
     envs.push(e);
   }
+
+  // ── THE SHEET YOU HOLD UP ───────────────────────────────────────────────
+  //
+  // The surface the letter is painted onto — see the block above `buildPanel`
+  // for why the mail is diegetic at all. Everything here is DERIVED from the
+  // bank this file already measured, so C moving the boxes moves the paper too.
+  //
+  // THE ASPECT IS DERIVED, NOT TYPED. `drawLetter` paints a SHEET.w x SHEET.h
+  // canvas, and a plane of any other ratio stretches the landlord's typewriter.
+  // (BUILDER-BRIEF §7b: a texture's density comes from the face it lands on —
+  // 0.28 m of paper carrying 192 canvas px is 686 px/m, which is the density of
+  // a thing held at arm's length and is meant to be this high.)
+  const SHEET_W = 0.28;
+  sheet = add(new THREE.Mesh(
+    new THREE.PlaneGeometry(SHEET_W, SHEET_W * SHEET.h / SHEET.w),
+    // MeshBasicMaterial, and ONE of them rather than an array: `ct/hud.ts`
+    // reads `mesh.material` as a single material to hang the canvas on, and a
+    // material ARRAY throws there (queue item 150). Unlit is also what a page
+    // wants — the framework forces `color` white on open so the evening wash
+    // cannot dim what you are reading, and an unlit sheet honours that.
+    new THREE.MeshBasicMaterial({ color: 0xffffff })));
+  // NAMED so a probe can find it without inferring it from a geometry size —
+  // an instrument that identifies its subject by guessing is the instrument
+  // half this project's false defects came from.
+  sheet.name = 'tenancy-letter-sheet';
+  // default plane normal is +z; -pi/2 about y turns it to -x, into the hall.
+  // Same rotation as the number plates above, and for the same reason: it
+  // sends u along +z, which is the viewer's right from out here, so the type
+  // reads left to right without the texture being flipped (GOTCHAS §35).
+  sheet.rotation.y = -Math.PI / 2;
+  // A HAND DOES NOT HOLD PAPER SQUARE TO THE WALL. Two degrees of roll is the
+  // difference between a sheet somebody is holding and a poster somebody hung,
+  // and the first frame of this read as the latter.
+  //
+  // `rotateZ` is about the object's LOCAL z, which after the turn above IS the
+  // face's normal — so this rolls the page in its own plane and CANNOT move
+  // where `poseFor` puts the eye (it reads that same normal). Setting
+  // `rotation.z` instead would compose through the Euler order and tilt the
+  // face itself, which is a different and worse thing.
+  sheet.rotateZ(0.035);
+  // Held a little ABOVE the door it came out of, so the open box and the post
+  // still riding in it stay visible under the page rather than being covered
+  // by it. x is arm's length off the face; `poseFor` then puts the eye
+  // `standoff` further back again along the same normal.
+  sheet.position.set(faceX - 0.34, me.y + 0.09, me.z);
+  sheet.visible = false;
 
   // ── the interaction ─────────────────────────────────────────────────────
   //
