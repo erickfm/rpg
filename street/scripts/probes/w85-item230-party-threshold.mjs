@@ -12,6 +12,7 @@ import { reportWorld } from './../lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = aim('http://localhost:4410/');
+const SELFTEST = process.argv.includes('--selftest');
 mkdirSync('shots', { recursive: true });
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1000, height: 640 } });
@@ -62,7 +63,18 @@ const line = await page.evaluate(() => {
       return y >= gy - 0.9 && y <= gy + 1.2;
     });
   };
-  const out = { gaps: {}, inDoor: 0, inDoorFloored: 0, offDoor: 0, offDoorFloored: 0 };
+  // POPULATION, so "measured nothing" can be told from "measured and fine"
+  // (item 281). `tris` is how many horizontal triangles the whole census found;
+  // `nearWall` is how many meshes of any kind sit within 2 m of the party wall,
+  // which is the cheapest possible answer to "are these two rooms even here".
+  let nearWall = 0;
+  scene.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    o.updateWorldMatrix(true, false);
+    if (Math.abs(o.matrixWorld.elements[12] - 880) <= 2) nearWall++;
+  });
+  const out = { gaps: {}, inDoor: 0, inDoorFloored: 0, offDoor: 0, offDoorFloored: 0,
+    tris: T.length, nearWall };
   for (const z of [-10.0, -9.5, -9.0, -8.5, -8.0]) {
     const g = [];
     for (let x = 878; x <= 882.0001; x += 0.02) if (!floored(x, z)) g.push(+x.toFixed(2));
@@ -99,6 +111,60 @@ const line = await page.evaluate(() => {
 });
 console.log('floor gaps on a 0.02 m line across x 878…882:');
 for (const [z, g] of Object.entries(line.gaps)) console.log(`  z ${z}: ${g}`);
+
+// ── MEASURED-NOTHING IS NOT MEASURED-AND-FINE (item 281, GOTCHAS 32) ────────
+//
+// The headline assertion below is `inDoorFloored === inDoor`, and **that is
+// vacuously true when `inDoor` is 0**. It cannot be 0 today, because the sample
+// loop's bounds are typed literals — but the moment anybody derives them from
+// the world (which is the right thing to do, and what this probe's own sill
+// check already does), a world with no party wall in it gives 0 === 0, prints
+// PASS, and exits 0. Every other verdict here has the same shape.
+//
+// So the population is checked FIRST, and a refusal to measure exits **3**, not
+// 0 and not 1 — 1 is what a real hole in the threshold exits with, and telling
+// those two apart is the whole point.
+//
+// It is a pure function of the census so `--selftest` can drive it in
+// milliseconds without a second browser: cheap and deterministic, which is what
+// BUILDER-BRIEF §10a asks for.
+const refusal = (c) => {
+  if (!c) return 'the census returned nothing at all';
+  if (!(c.tris > 0)) return 'no horizontal triangles anywhere in the world';
+  if (!(c.inDoor > 0)) return 'the doorway sample is EMPTY — 0 points, so 0/0 would have "passed"';
+  if (!(c.nearWall > 0)) return 'no mesh of any kind within 2 m of the party wall — the rooms are not in this world';
+  return null;
+};
+if (SELFTEST) {
+  const cases = [
+    ['a null census', null],
+    ['no triangles', { tris: 0, inDoor: 351, nearWall: 40 }],
+    ['an EMPTY doorway sample — the 0/0 hole', { tris: 90000, inDoor: 0, nearWall: 40 }],
+    ['no meshes at the party wall', { tris: 90000, inDoor: 351, nearWall: 0 }],
+  ];
+  let bad = 0;
+  for (const [name, c] of cases) {
+    const r = refusal(c);
+    console.log(`${r ? 'ok  ' : 'FAIL'}  selftest: ${name} -> ${r ?? 'ACCEPTED, which is the bug'}`);
+    if (!r) bad++;
+  }
+  const live = refusal(line);
+  console.log(`${live === null ? 'ok  ' : 'FAIL'}  selftest: the REAL census is accepted -> ${live ?? 'yes'}`);
+  if (live !== null) bad++;
+  await b.close();
+  process.exit(bad ? 2 : 0);
+}
+const why = refusal(line);
+if (why) {
+  console.error(`\nNOTHING WAS MEASURED: ${why}.`);
+  console.error('That is not a pass. Exit 3 — the world is not the one this probe is about,'
+    + '\nwhich is a different thing from the threshold being broken (that exits 1).');
+  await b.close();
+  process.exit(3);
+}
+console.log(`census: ${line.tris} horizontal triangles, ${line.nearWall} meshes within 2 m of the`
+  + ` party wall, ${line.inDoor} sample points in the opening`);
+
 report('the doorway threshold is continuous floor, corner to corner',
   line.inDoorFloored === line.inDoor,
   `${line.inDoorFloored}/${line.inDoor} points across the full 2.6 m opening x 879.7…880.3 have a floor triangle`);

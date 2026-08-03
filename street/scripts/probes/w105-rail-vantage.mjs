@@ -33,18 +33,39 @@ const geo = await p.evaluate(() => {
   const rooms = window.__ct.roomDims();
   const pw = window.__ct.party()[0];
   const by = (id) => rooms.find((r) => r.id === id);
-  return { casino: by(pw.east), hotel: by(pw.west), pw };
+  // ── ITEM 281: THE ROOMS ARE NOT RENAMED HERE ANY MORE ───────────────────
+  //
+  // This used to read `{ casino: by(pw.east), hotel: by(pw.west) }` — i.e. it
+  // TYPED the answer to the question item 268 made the world derive. Measured
+  // on this tree the world says the opposite of what that line assumed:
+  //
+  //     party  {"rooms":["hotel","casino"],"at":-9,"west":"casino","east":"hotel"}
+  //
+  // so `pw.east` is the HOTEL, and every line below it was labelling the hotel
+  // "casino". The camera happened to land in roughly the right place — the
+  // hotel's low-x face IS the party wall — but it stood in the WRONG ROOM and
+  // said so in the log, and `SIDE=hotel` stood in the casino. A shot probe that
+  // photographs the wrong room and prints a confident caption is the exact
+  // "green that means nothing" BUILDER-BRIEF §10a is about.
+  //
+  // So the sides keep the world's own names. Nothing here decides which is
+  // which; `handedness()` already did, and `party()` publishes the result.
+  return { east: by(pw.east), west: by(pw.west), pw };
 });
-console.log('casino', JSON.stringify(geo.casino));
-console.log('hotel ', JSON.stringify(geo.hotel));
-console.log('party ', JSON.stringify(geo.pw));
+const pw = geo.pw;
+console.log(`party  ${JSON.stringify(pw)}`);
+console.log(`  west = ${pw.west}  ${JSON.stringify(geo.west)}`);
+console.log(`  east = ${pw.east}  ${JSON.stringify(geo.east)}`);
 
-// The opening's WORLD point: the party wall is the casino's low-x face, and
-// `at` is a room-local z. Both come from the world, so this is a projection of
-// published numbers rather than a second copy of them.
-const c = geo.casino, pw = geo.pw;
-const openWorldZ = c.cz + pw.at;
-const wallX = c.cx - c.w / 2;
+// THE PARTY WALL, FROM BOTH ROOMS RATHER THAN FROM ONE. It used to be "the
+// casino's low-x face", which is only true for one hand — the other hand puts
+// the wall on that room's HIGH-x face and the camera four metres inside solid
+// masonry. Taking the midpoint of the two rooms' facing edges is true either
+// way, and it agrees with the sills `w85-item230-party-threshold.mjs` finds at
+// x 879.91 / 880.09 to within a millimetre.
+const openWorldZ = geo.east.cz + pw.at;
+const wallX = ((geo.west.cx + geo.west.w / 2) + (geo.east.cx - geo.east.w / 2)) / 2;
+console.log(`  party wall at x ${wallX.toFixed(3)}, opening centre z ${openWorldZ.toFixed(3)}`);
 
 // Stand back in the casino, on the doorway's centreline, looking at the wall —
 // which is what "cuts across the entry way" is a complaint about.
@@ -52,17 +73,33 @@ const wallX = c.cx - c.w / 2;
 // The row asked for it and it was right to: the hotel carries a picture rail at
 // y = 2.35 on the very same wall, and the opening is 2.6 m tall, so that band
 // crosses it too — the user simply happened to be standing in the casino.
-const h = geo.hotel;
-const shots = process.env.SIDE === 'hotel'
-  ? [
-    ['hotel-head-on', h.cx + h.w / 2 - 4.2, h.cz + pw.at, Math.PI / 2],
-    ['hotel-close', h.cx + h.w / 2 - 1.8, h.cz + pw.at, Math.PI / 2],
-  ]
-  : [
-    ['head-on', wallX + 4.2, openWorldZ, -Math.PI / 2],
-    ['oblique', wallX + 3.4, openWorldZ + 3.0, -Math.PI / 2 - 0.55],
-    ['close', wallX + 1.8, openWorldZ, -Math.PI / 2],
-  ];
+//
+// ── SIDE NAMES A ROOM, NOT A COMPASS POINT (item 281) ────────────────────────
+//
+// `SIDE=casino` stands in the casino whichever hand the world is currently
+// solving, because it is resolved against `party()`'s own `west`/`east` ids
+// rather than assumed. `SIDE` defaults to the room the user was standing in
+// when he filed item 267 — the CASINO — which is not what this probe did
+// before: it defaulted to `pw.east`, which is the hotel.
+//
+// Every shot is named for the room it was TAKEN IN, so a frame cannot be filed
+// under the wrong caption again.
+const SIDE = (process.env.SIDE ?? 'casino').toLowerCase();
+if (SIDE !== pw.west && SIDE !== pw.east) {
+  console.error(`SIDE=${SIDE} is not one of this party wall's rooms (${pw.west}, ${pw.east}).`
+    + '\nNothing was measured, so this is not a pass. (GOTCHAS 32.)');
+  await b.close(); process.exit(3);
+}
+// Standing in the WEST room you look east (+x, yaw +π/2); in the EAST room you
+// look west. Derived from which side `SIDE` resolved to, never typed.
+const inWest = SIDE === pw.west;
+const sgn = inWest ? -1 : 1;                 // step back from the wall, into your room
+const yaw = inWest ? Math.PI / 2 : -Math.PI / 2;
+const shots = [
+  [`${SIDE}-head-on`, wallX + sgn * 4.2, openWorldZ, yaw],
+  [`${SIDE}-oblique`, wallX + sgn * 3.4, openWorldZ + 3.0, yaw + sgn * 0.55],
+  [`${SIDE}-close`, wallX + sgn * 1.8, openWorldZ, yaw],
+];
 // ⚠ A WARP INTO AN INTERIOR IS NOT INSTANTLY A PICTURE, and the first run of
 // this probe saved three SOLID BLACK frames. `warp` + a 500 ms timeout gave
 // `painted().triangles = 982`; the casino only renders once the region cull has
