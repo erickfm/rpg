@@ -2853,3 +2853,14 @@ to one side.
   flash would otherwise close whatever panel is open a second later. **Item 144 (the dead
   thanks screen) deleted — it is live again. Item 149 stands: `K-atm-walk` still exits 0
   while printing a failure, which is the real defect there.**
+
+- **"can we apply the same sort of thing we applied to the atm and apply it to the
+  mail?"** (2026-08-02) → **routed as queue item 155.** Third application of the diegetic
+  framework after the ATM (86) and slots (100). **But the mail is NOT a screen** —
+  `ct/tenancy.ts` owns a bank of mailboxes in the walk-up lobby (*"a bank of mailboxes is
+  the one thing in a walk-up lobby"*), and reading mail is holding a letter, not
+  operating a machine. That is a design question, not a port.
+
+- **"[screenshot] fix this"** (2026-08-02, an office with filing cabinets and a corkboard)
+  → **folded into item 93 as the FOURTH room.** A figure and a chair intersect. Previously
+  reported in the church pew, a casino stool and the jail bench.
