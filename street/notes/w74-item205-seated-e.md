@@ -155,8 +155,20 @@ Everything below is against the **BUILT BUNDLE** on `vite preview` :4300
 | `scripts/L-slots-inworld.mjs` | **all checks pass** — including `SITTING DOWN OPENS THE MACHINE`, the assertion the row's "the polls are gone" would have killed. 87 machines, SPACE spins, INSERT moves the one wallet at $0.25/credit, ESC returns 69 credits |
 | `scripts/K-no-panel-traps.mjs` | **all good** — 5 of 7 panels opened, each froze the world, closed on ESCAPE, gave the feet back. slots/blackjack skipped, not failed (unchanged) |
 | `scripts/probes/w69-seated-offers.mjs` | **219/219 seats, 0 with anything else on offer** — identical to w69's own figure. The regression half |
-| `scripts/seats-walk.mjs` | see the table at the foot |
+| `scripts/seats-walk.mjs` | **112/219**, the figure `notes/w69-seated-e.md` records for mainline. 107 FAILs in seven classes — 89 `seated eye is 1.05, expected …`, 5 `sat at X but the seat is at Y`, 5 booth-vs-counter, 4 blackjack `got null`, 2 diner fries, 1 bed, 1 barn burger — **the same seven classes and the same counts as w69's inherited-reds table.** None of them moved |
+| `scripts/probes/w55-mouse-walk.mjs` | **all checks pass, 0 page errors** — the slot machine driven by real page clicks: bill acceptor, BET ONE, MAX BET, SPIN, CASH OUT, and the keyboard path still live beside it |
+| `node scripts/bugsweep.mjs` | 96 shots, **0 STATION MISS, 0 COVERAGE**, no console errors. The only warnings are the known ones — `[interior:hotel] NO BUILDING NAME` and the Canvas2D/`THREE.Clock` noise |
+| `node scripts/health.mjs` | `WORLD OK — __ct initialised`, exit **0** |
+| `npx vitest run` | 17/17 |
 | `npx tsc --noEmit` | clean |
+
+### It is stable, and it has gone red for a real reason
+
+`w74-seated-e.mjs` ran **five times on unchanged source: 18 ok / 0 fail every
+time.** And it is not a check that cannot fail — it caught the centre-vs-face
+bug above with three FAILs on a run where every other gate reported healthy, and
+its first run printed *"only 0 of 2 machines were exercised"* rather than a
+clean sheet when the sit did not take.
 
 ### The check has a population floor and a negative case
 
