@@ -478,6 +478,44 @@ if (SELFTEST) {
     return k;
   });
   console.log(`selftest: walled ${n} declared doors shut — this MUST now go red\n`);
+  // ── …AND TAKE THE ROOMS' LIGHT AWAY, which the door mutation cannot reach ──
+  //
+  // Item 192: leg 6 ("the room keeps its own light after dark") was FLAKY and
+  // had never been watched go red for the right reason. The door mutation above
+  // reddens the entry legs and says nothing about this one, so a rewrite of leg
+  // 6 could pass its selftest while measuring nothing at all — GOTCHAS 34, and
+  // exactly the trap the flake itself was an instance of.
+  //
+  // The mutation is the failure leg 6 exists for: the night sweep reaching
+  // inside and dimming an interior surface. `ct/props.ts` publishes `addLit`,
+  // the one runtime way into the grade, so handing it an interior mesh IS the
+  // real path rather than a simulation of one — and the dimmer's own registry
+  // then owns the material, which is what leg 6 is looking for.
+  // AIMED AT THE ROOMS BEING WALKED, and at the same 8 m box leg 6 samples —
+  // a first cut took the first 40 interior meshes it found anywhere past
+  // x = 300 and the casino stayed green, because those 40 were in somebody
+  // else's room. A mutation that misses the subject is a selftest that passes
+  // having broken nothing.
+  const lit = await p.evaluate(() => {
+    const s = window.__ct.scene();
+    const add = s.userData.addLit;
+    if (typeof add !== 'function') return -1;
+    const centres = window.__ct.roomDims().map((d) => d.cx);
+    let k = 0;
+    s.traverse((o) => {
+      if (!o.isMesh) return;
+      const w = new o.position.constructor(); o.getWorldPosition(w);
+      if (Math.abs(w.z) > 8) return;
+      if (!centres.some((cx) => Math.abs(w.x - cx) <= 8)) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      if (!mats.some((m) => m && m.color && !m.transparent)) return;
+      add(o); k++;
+    });
+    return k;
+  });
+  console.log(lit < 0
+    ? 'selftest: scene.userData.addLit is missing — the light leg was NOT mutated\n'
+    : `selftest: handed ${lit} interior meshes to the night dimmer — leg 6 MUST now go red\n`);
 }
 
 for (room of rooms) {
@@ -1109,27 +1147,86 @@ for (room of rooms) {
   }
 
   // ── 6. the room keeps its light after dark ──
+  //
+  // ⚠ THIS COMPARED BY ARRAY INDEX AND WAS FLAKY, AND A FLAKY CHECK IS WORSE
+  // THAN NO CHECK. It returned 109, 109, 110 and then 0 over four runs of the
+  // SAME source, and worker sixtyfive very nearly reported the 0 as its own
+  // fix. That is GOTCHAS 76 reappearing in this file.
+  //
+  // Two independent reasons index N was not the same material twice:
+  //
+  //   · THE ROOM MOVES. The sample is everything within 8 m of the room's
+  //     centre, and citizens walk in and out of that box between the two
+  //     samples. One extra mesh at the front shifts every index after it, so
+  //     the comparison silently pairs a bulb against a coat.
+  //   · THE BULBS ANIMATE. The casino's marquee chases on its own clock, so a
+  //     lit bulb legitimately differs between two samples taken at the SAME
+  //     hour. Nothing about that is the night sweep.
+  //
+  // So the comparison is BY MATERIAL IDENTITY — three's `uuid`, which is what
+  // makes a material the same material — and only over materials present in
+  // both samples. A citizen who left the room is not a dimmed surface.
+  //
+  // AND THE ANIMATED SET IS DERIVED, NOT LISTED. Several samples are taken at
+  // each clock time with the clock HELD STILL; a material that is not identical
+  // across all of them is moving under its own power and is not judged. No file
+  // here has to know which meshes the casino chases, and the exclusion stays
+  // correct if somebody animates something new.
+  //
+  // FOUR SAMPLES AT EACH HOUR, NOT TWO, AND THAT IS MEASURED. The first fix
+  // took one extra sample 450 ms after the first and it was STILL flaky — three
+  // reds in five runs, always `2/58`, always `0 excluded as self-animating`. Two
+  // samples 450 ms apart can land on the same phase of the marquee chase and
+  // agree, and the check then judges a bulb that was simply lit at a different
+  // moment. Four samples spanning ~1.5 s at each hour catch it: the chase has
+  // to be stationary across the whole span to escape, which it is not.
   const sample = () => p.evaluate((cx) => {
-    const out = [];
+    const out = {};
     window.__ct.scene().traverse((o) => {
       if (!o.isMesh) return;
       const wp = new o.position.constructor();
       o.getWorldPosition(wp);
       if (Math.abs(wp.x - cx) > 8 || Math.abs(wp.z) > 8) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) if (m && m.color && !m.transparent) out.push(m.color.getHex());
+      for (const m of mats) if (m && m.color && !m.transparent) out[m.uuid] = m.color.getHex();
     });
     return out;
   }, cx);
-  await p.evaluate(() => window.__ct.clock(12, 0));
-  await p.waitForTimeout(500);
-  const noon = await sample();
-  await p.evaluate(() => window.__ct.clock(2, 0));
-  await p.waitForTimeout(900);
-  const night = await sample();
-  const dimmed = noon.filter((c, i) => night[i] !== undefined && night[i] !== c).length;
+  /** four samples with the clock held at `h`, and the set that never moved */
+  const steadyAt = async (h, settle) => {
+    await p.evaluate((hh) => window.__ct.clock(hh, 0), h);
+    await p.waitForTimeout(settle);
+    const shots = [];
+    for (let i = 0; i < 4; i++) {
+      shots.push(await sample());
+      if (i < 3) await p.waitForTimeout(500);
+    }
+    const steady = {}, moved = new Set();
+    for (const u of Object.keys(shots[0])) {
+      if (shots.every((s) => s[u] === shots[0][u])) steady[u] = shots[0][u];
+      else moved.add(u);
+    }
+    return { steady, moved };
+  };
+  const day = await steadyAt(12, 500);
+  const dark = await steadyAt(2, 900);
+  // Judged: present and STEADY at both hours. Anything that moved at either
+  // hour is animating, and anything missing from one is a citizen who walked.
+  const judged = Object.keys(day.steady).filter((u) => dark.steady[u] !== undefined);
+  const dimmed = judged.filter((u) => dark.steady[u] !== day.steady[u]).length;
+  const animated = new Set([...day.moved, ...dark.moved]);
   check('the room keeps its own light after dark', dimmed === 0,
-    `${dimmed}/${noon.length} interior materials dimmed by the night sweep`);
+    `${dimmed}/${judged.length} interior materials dimmed by the night sweep`
+    + ` (${animated.size} excluded as self-animating,`
+    + ` ${Object.keys(day.steady).length - judged.length} not steady at both hours)`);
+  // AND IT MUST HAVE JUDGED SOMETHING. Every exclusion above is a way for the
+  // population to shrink, and a leg that passes on an empty set is the failure
+  // this whole row is about — GOTCHAS 34. The floor is a fraction of what was
+  // actually there rather than a typed count, so it scales with the room.
+  const seen = Object.keys(day.steady).length + animated.size;
+  check('…and it judged enough of the room to mean anything',
+    judged.length >= Math.max(8, Math.round(seen * 0.5)),
+    `judged ${judged.length} of the ${seen} materials sampled in the room`);
   await p.evaluate(() => window.__ct.clock(13, 20));
 }
 
