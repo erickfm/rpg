@@ -36,7 +36,7 @@
 // reported things they had not measured.
 
 import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -91,7 +91,22 @@ const worktrees = existsSync(wtDir)
 const notesDir = join(STREET, 'notes');
 const noteNames = existsSync(notesDir) ? readdirSync(notesDir) : [];
 
-const agents = worktrees.map((dir) => {
+// ── POLLING MADE THIS EXPENSIVE, SO STAT BEFORE YOU FORK ────────────────────
+// The user asked for the page to poll. Naively that is ~4 git invocations per
+// worktree per refresh, and there are 62 worktrees — 250 processes every few
+// seconds, to learn that 56 of them are dead. `.git` in a worktree is a FILE
+// whose mtime moves when the branch does, so one `statSync` answers "has this
+// one done anything lately" for a fraction of the cost. Dormant trees are
+// counted from the stat alone and never forked for.
+const STALE_MS = 1000 * 60 * 60 * 3;
+const touched = (dir) => {
+  try { return Date.now() - statSync(join(wtDir, dir, '.git')).mtimeMs < STALE_MS; }
+  catch { return false; }
+};
+const live = worktrees.filter(touched);
+const dormantCount = worktrees.length - live.length;
+
+const agents = live.map((dir) => {
   const path = join(wtDir, dir);
   const branch = sh('git rev-parse --abbrev-ref HEAD', path);
   const subject = sh('git log -1 --format=%s', path);
@@ -160,7 +175,7 @@ const cards = doing.map((d) => {
 // recently enough to plausibly still be running; the rest are counted, not drawn.
 const FRESH_MIN = 120;
 const fresh = (a) => a.iso && (Date.now() / 1000 - a.iso) / 60 < FRESH_MIN;
-const dormant = agents.filter((a) => !a.who && !fresh(a)).length;
+const dormant = dormantCount + agents.filter((a) => !a.who && !fresh(a)).length;
 
 const orphans = agents.filter((a) => !a.who && fresh(a)).map((a) => `
   <article class="card unmatched">
@@ -185,6 +200,7 @@ writeFileSync(OUT, `<!doctype html>
   h1 { font-size:15px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 2px; color:var(--warm) }
   .stamp { color:var(--dim); font-size:12px; margin-bottom:20px }
   .stamp b { color:var(--ink) }
+  #age.stale { color:var(--quiet); font-weight:600 }
   .tallies { display:flex; flex-wrap:wrap; gap:18px; padding:12px 14px; margin-bottom:22px;
              background:var(--card); border:1px solid var(--line); border-radius:6px }
   .tallies div { font-size:12px; color:var(--dim) }
@@ -213,7 +229,8 @@ writeFileSync(OUT, `<!doctype html>
   @media (max-width:640px){ body{padding:14px} .grid{grid-template-columns:1fr} }
 </style></head><body>
 <h1>Crosstown '97 — the desk</h1>
-<p class="stamp">snapshot taken <b>${esc(stamp)}</b> · re-run <code>node scripts/desk-page.mjs</code> to refresh. This page does not poll; it is honest about being a snapshot.</p>
+<p class="stamp">data as of <b>${esc(stamp)}</b> · <span id="age">fresh</span> · reloads every 12s.
+If the age keeps climbing past a minute the regenerator has stopped — restart it with <code>./scripts/desk-watch.sh &amp;</code></p>
 
 <div class="tallies">
   <div><b>${counts.doing}</b>in flight</div>
@@ -232,6 +249,33 @@ ${dormant ? `<p class="note">${dormant} dormant worktree${dormant === 1 ? '' : '
 <h2>Your asks still open</h2>
 <ul>${asks}</ul>
 
+<script>
+  // THE USER ASKED FOR THIS TO POLL: "im not going to ask to rerun all the time".
+  // The desk's first cut was a deliberate snapshot, on the reasoning that a page
+  // pretending to be live is worse than one honestly stale. He overruled it, and
+  // he is right — a dashboard you must ask for is not a dashboard.
+  //
+  // The honesty is kept in a different place instead: the header shows the age of
+  // the DATA, not the age of the page, so if the regenerator dies the clock keeps
+  // climbing and you can see it has stopped. A silent freeze is the failure mode
+  // that would actually mislead.
+  const BORN = ${Math.floor(Date.now() / 1000)};
+  const KEY = 'desk-scroll';
+  addEventListener('DOMContentLoaded', () => {
+    const y = sessionStorage.getItem(KEY);
+    if (y) scrollTo(0, +y);
+    const age = document.getElementById('age');
+    setInterval(() => {
+      const s = Math.floor(Date.now() / 1000) - BORN;
+      age.textContent = s < 60 ? s + 's old' : Math.floor(s / 60) + 'm old';
+      age.className = s > 90 ? 'stale' : '';
+    }, 1000);
+  });
+  setTimeout(() => {
+    sessionStorage.setItem(KEY, String(scrollY));
+    location.reload();
+  }, 12000);
+</script>
 <p class="note">Intent is the first sentence of the queue row the agent claimed. Progress is its worktree's latest commit.
 A card is marked <span style="color:var(--quiet)">quiet</span> after 45 minutes without a commit — long runs are normal here,
 so quiet is a prompt to look, not a verdict.</p>

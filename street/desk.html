@@ -11,6 +11,7 @@
   h1 { font-size:15px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 2px; color:var(--warm) }
   .stamp { color:var(--dim); font-size:12px; margin-bottom:20px }
   .stamp b { color:var(--ink) }
+  #age.stale { color:var(--quiet); font-weight:600 }
   .tallies { display:flex; flex-wrap:wrap; gap:18px; padding:12px 14px; margin-bottom:22px;
              background:var(--card); border:1px solid var(--line); border-radius:6px }
   .tallies div { font-size:12px; color:var(--dim) }
@@ -39,7 +40,8 @@
   @media (max-width:640px){ body{padding:14px} .grid{grid-template-columns:1fr} }
 </style></head><body>
 <h1>Crosstown '97 — the desk</h1>
-<p class="stamp">snapshot taken <b>03/08/2026, 11:41:53</b> · re-run <code>node scripts/desk-page.mjs</code> to refresh. This page does not poll; it is honest about being a snapshot.</p>
+<p class="stamp">data as of <b>03/08/2026, 11:46:03</b> · <span id="age">fresh</span> · reloads every 12s.
+If the age keeps climbing past a minute the regenerator has stopped — restart it with <code>./scripts/desk-watch.sh &amp;</code></p>
 
 <div class="tallies">
   <div><b>5</b>in flight</div>
@@ -77,20 +79,21 @@
     </footer>
   </article>
 
-  <article class="card unknown">
+  <article class="card working">
     <header>
       <span class="who">onehundredeleven</span>
       <span class="item">item 274</span>
-      <span class="since">claimed 11:31</span>
+      <span class="since">claimed 11:43</span>
     </header>
     <p class="intent">The user: *&quot;mug should be empty.&quot;* GOOD NEWS FIRST, and it should shape how you treat this: he does NOT mention the handle.</p>
     <div class="files">ct/apartment.ts:2136 — empty the mug WITHOUT letting it go back to reading as a peg</div>
     <footer>
-      <span class="meta nomatch">no worktree matched — it may not have committed yet</span>
+      <span class="commit">Item 274 handoff: the mug's mouth, measured in his pixels</span>
+             <span class="meta">12 seconds ago · 2 unlanded · a25c220e</span>
     </footer>
   </article>
 
-  <article class="card unknown">
+  <article class="card working">
     <header>
       <span class="who">onehundredseven</span>
       <span class="item">item 270</span>
@@ -99,11 +102,12 @@
     <p class="intent">The user: *&quot;move the calendar a bit to the right, make it bigger, and make it interactable in the same sort of integrated overlay view.&quot;* SIXTH tenant of the diegetic framework — after the ATM (86), slots (100), mail (155), library PC (157) and the loan application (185).</p>
     <div class="files">ct/apartment.ts — the calendar: move it right, make it BIGGER, and make it a diegetic overlay</div>
     <footer>
-      <span class="meta nomatch">no worktree matched — it may not have committed yet</span>
+      <span class="commit">Item 270: the calendar moves right, grows 2.56x, and opens as a diegetic page</span>
+             <span class="meta">3 minutes ago · 3 unlanded · a7bca97d</span>
     </footer>
   </article>
 
-  <article class="card quiet">
+  <article class="card working">
     <header>
       <span class="who">onehundredeight</span>
       <span class="item">item 268</span>
@@ -112,8 +116,8 @@
     <p class="intent">The user, and this is his THIRD report of the interior/exterior mismatch class: *&quot;the hotel is the right of the casino outside but to the left inside.</p>
     <div class="files">THE HOTEL IS RIGHT OF THE CASINO OUTSIDE AND LEFT OF IT INSIDE — the party wall handedness is HAND-TYPED</div>
     <footer>
-      <span class="commit">Item 268 SCOPED, not fixed: the mismatch is real and the cause is a mirror that does not exist</span>
-             <span class="meta">2 hours ago · 0 unlanded · aa805364</span>
+      <span class="commit">Log the watch pitch window; the gate says 20 deg and he reports a couple</span>
+             <span class="meta">17 minutes ago · 0 unlanded · a5aaa71a</span>
     </footer>
   </article></div>
 
@@ -122,72 +126,9 @@
     <header><span class="who">a263dd7d</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Merge branch 'add-stick-and-city98' into worktree-agent-a263dd7da98fa0675</span>
-            <span class="meta">2 minutes ago · 4 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">a4a3d251</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">79 seconds ago · 0 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">a51add5b</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">79 seconds ago · 0 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">a61a8a19</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">79 seconds ago · 0 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">abcf1718</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">80 seconds ago · 0 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">ad0271ea</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">80 seconds ago · 0 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">ae709bd5</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">80 seconds ago · 0 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">afc41ac7</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">80 seconds ago · 0 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">afda6c03</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">80 seconds ago · 0 unlanded</span></footer>
-  </article>
-
-  <article class="card unmatched">
-    <header><span class="who">afedb4cb</span><span class="item">unmatched</span></header>
-    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
-    <footer><span class="commit">Add a desk page: each agent's intent and progress at a glance</span>
-            <span class="meta">80 seconds ago · 0 unlanded</span></footer>
+            <span class="meta">6 minutes ago · 4 unlanded</span></footer>
   </article></div>
-<p class="note">47 dormant worktrees not shown — no commit in 120 minutes. Every builder this session left one behind; <code>git worktree prune</code> only clears entries whose directory is already gone.</p>
+<p class="note">57 dormant worktrees not shown — no commit in 120 minutes. Every builder this session left one behind; <code>git worktree prune</code> only clears entries whose directory is already gone.</p>
 
 <h2>Your asks still open</h2>
 <ul><li><b>276</b> “npcs still get stuck.”</li>
@@ -197,6 +138,33 @@
 <li><b>253</b> “[screenshot] fix the wheels on the trailer”</li>
 <li><b>256</b> “[screenshot] casino sign still a lil janky. maybe we get rid of the one on the side here? ”</li></ul>
 
+<script>
+  // THE USER ASKED FOR THIS TO POLL: "im not going to ask to rerun all the time".
+  // The desk's first cut was a deliberate snapshot, on the reasoning that a page
+  // pretending to be live is worse than one honestly stale. He overruled it, and
+  // he is right — a dashboard you must ask for is not a dashboard.
+  //
+  // The honesty is kept in a different place instead: the header shows the age of
+  // the DATA, not the age of the page, so if the regenerator dies the clock keeps
+  // climbing and you can see it has stopped. A silent freeze is the failure mode
+  // that would actually mislead.
+  const BORN = 1785782763;
+  const KEY = 'desk-scroll';
+  addEventListener('DOMContentLoaded', () => {
+    const y = sessionStorage.getItem(KEY);
+    if (y) scrollTo(0, +y);
+    const age = document.getElementById('age');
+    setInterval(() => {
+      const s = Math.floor(Date.now() / 1000) - BORN;
+      age.textContent = s < 60 ? s + 's old' : Math.floor(s / 60) + 'm old';
+      age.className = s > 90 ? 'stale' : '';
+    }, 1000);
+  });
+  setTimeout(() => {
+    sessionStorage.setItem(KEY, String(scrollY));
+    location.reload();
+  }, 12000);
+</script>
 <p class="note">Intent is the first sentence of the queue row the agent claimed. Progress is its worktree's latest commit.
 A card is marked <span style="color:var(--quiet)">quiet</span> after 45 minutes without a commit — long runs are normal here,
 so quiet is a prompt to look, not a verdict.</p>
