@@ -320,7 +320,7 @@ if (mode === 'probe' || mode === 'all') {
    *  main-street lamp keeps the exact control it already had, so the bars
    *  eightysix measured against are not perturbed by this change; x is reached
    *  only by a lamp whose z candidates the daylight control has REJECTED. */
-  const midBlockCandidates = ([lx, lz]) => {
+  const midBlockCandidates = ([lx, lz], stayIn = null) => {
     const out = [], seen = new Set();
     for (let d = 3; d <= 20; d += 0.25)
       for (const [ax, s] of [['z', -1], ['z', 1], ['x', -1], ['x', 1]]) {
@@ -328,6 +328,10 @@ if (mode === 'probe' || mode === 'all') {
         const z = ax === 'z' ? lz + s * d : lz;
         const m = minLampD(x, z);
         if (m < LAMP_R) continue;
+        // A CONTROL MUST NOT LEAVE THE PLACE IT IS A CONTROL FOR — see the park
+        // note below. Only the park passes this; the streets keep every
+        // candidate they had.
+        if (stayIn && !stayIn([x, z])) continue;
         const key = `${x.toFixed(2)},${z.toFixed(2)}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -336,9 +340,42 @@ if (mode === 'probe' || mode === 'all') {
     return out;
   };
 
+  // ── THE PARK'S CONTROL STAYS IN THE PARK, AND THIS IS ITEM 241 AGAIN ──────
+  //
+  // Item 241 found the side street's control walking ACROSS the street instead
+  // of along it. The park has the same bug wearing a third hat, and it is worse
+  // because the park is a bounded place rather than a corridor: measured over
+  // five runs, park lantern (-9.55,-86.33) chose a control at **x = -1.8, out on
+  // the MAIN STREET**, 7.06 m east of a lamp that stands on grass. Asphalt is
+  // not a control for grass.
+  //
+  // THAT ONE SUBSTITUTION IS WHAT MADE THIS FILE FLAKY. In the run it happened,
+  // the same lamp's own night/day reading came back 1.207 against 0.758 in the
+  // four clean runs, and it breached the "warmed twice" ceiling (1.21 vs 1.11)
+  // — a red that was never about the shader. The daylight control is supposed to
+  // reject non-comparable ground, but it is a luminance test and a transient in
+  // frame can walk a bad spot through it. Geometry is the stronger guard: the
+  // park's ground is bounded and published, so a control outside those bounds is
+  // rejected BY CONSTRUCTION rather than by a threshold that can be fooled.
+  //
+  // NOT APPLIED TO THE STREETS, DELIBERATELY. Their region windows classify
+  // LAMPS, not ground: main's window stops at z >= -96 while two of its lamps
+  // legitimately control against z = -100 past the end of the block. Reusing a
+  // lamp window as a ground bound would reject controls that have been correct
+  // all along, so the streets are left exactly as item 241 left them.
+  //
+  // WHICH AXIS DOES THE PARK WALK? Both, and it must. The loop has legs on each
+  // axis — eight lanterns on the two z-legs (x -9.55 and -34.85), two on the
+  // x-legs (z -95.35 and -70.65) — but the deciding fact is spacing: the
+  // lanterns are 6.64 m apart, TIGHTER THAN LAMP_R (7.0), so no spot ALONG a leg
+  // is ever outside a pool and every along-leg candidate is dropped by the
+  // minLampD filter above. The park's control therefore always walks
+  // PERPENDICULAR to its leg, into the field. The existing z-,z+,x-,x+ list
+  // already offers that; it just needed to stop offering the street as well.
   const pairs = [];
   for (const [name, inRegion] of Object.entries(REGION))
-    for (const L of lampXZ.filter(inRegion)) pairs.push({ region: name, lamp: L, cands: midBlockCandidates(L) });
+    for (const L of lampXZ.filter(inRegion))
+      pairs.push({ region: name, lamp: L, cands: midBlockCandidates(L, name === 'park' ? INPARK : null) });
 
   /** Mean luminance of a crop of GROUND, standing at (x,z) looking steeply down.
    *
@@ -425,8 +462,17 @@ if (mode === 'probe' || mode === 'all') {
   for (const q of pairs) {
     const at = `${q.region} lamp (${q.lamp[0]},${q.lamp[1]})`;
     if (!q.far) {
-      console.log(`  skip  ${at} — no spot outside LAMP_R ${LAMP_R} reads as comparable ground`
-        + ` at 13:00; tried ${q.rejected.length}: ${q.rejected.join(', ') || 'none available'}`);
+      // TWO DIFFERENT SKIPS, AND SAYING "tried 0" WHILE CLAIMING A 13:00 TEST IS
+      // THE PROBE LYING ABOUT ITS OWN WORK. An empty candidate list is a
+      // GEOMETRY result — nowhere outside LAMP_R exists that is still in bounds
+      // — and no luminance was ever read. A non-empty list that all failed is a
+      // GROUND result. They point at different fixes, so they read differently.
+      if (!q.cands.length)
+        console.log(`  skip  ${at} — no spot outside LAMP_R ${LAMP_R} EXISTS within bounds;`
+          + ` nothing was measured at 13:00 (boxed in by neighbouring lamps)`);
+      else
+        console.log(`  skip  ${at} — no spot outside LAMP_R ${LAMP_R} reads as comparable ground`
+          + ` at 13:00; tried ${q.rejected.length}: ${q.rejected.join(', ')}`);
       continue;
     }
     q.gainNear = q.near23 / Math.max(q.near13, 1e-6);
@@ -495,22 +541,34 @@ if (mode === 'probe' || mode === 'all') {
   //               mid-block ground, the daylight control rejecting everything.
   //               This is the failure item 241 found on the side street.
   //
-  // MEASURED ON THE BUILT BUNDLE at f8f215097, port 4510, five runs (spread
-  // 0.00 on every region's count): main 8 stamped / 8 usable, side 3 / 3,
-  // park 10 / 6. Every bar below sits at least 2 under its measurement except
-  // side's, which has 1 and is inherited unchanged from item 241 — see the note
-  // above about a bar that sits on the measurement crying wolf.
+  // MEASURED ON THE BUILT BUNDLE at 27ddf0817, port 4510, five runs each side of
+  // the control fix above. The park is the only region that moves at all:
+  //
+  //            main        side       park
+  //   before   8/8 x5      3/3 x5     6,7,4,5,6   (spread 3, and one run RED)
+  //   after    8/8 x5      3/3 x5     6,5,5,5,6   (spread 1, five runs green)
+  //
+  // The streets are rigid — main's eight ratios repeat to +-0.02 across all ten
+  // runs — so the bars for them are set well under a measurement that does not
+  // move. The park's bar of 4 sits 1 under its post-fix minimum of 5, which is
+  // the same headroom side's bar of 2 has against its 3 and is inherited from
+  // item 241 on the same reasoning.
+  //
+  // I SET THIS BAR AT 4 TWICE, AND THE FIRST TIME IT WAS WRONG. Before the
+  // control fix the park's worst run was exactly 4 — a bar sitting ON the
+  // measurement, which is the thing the item 241 note above warns against, and I
+  // had written it into this file before five runs caught me. It is only
+  // defensible now because the fix moved the minimum to 5.
   //
   // THE PARK'S FOUR SKIPS ARE HONEST AND ARE NOT A DEFECT. Its lanterns are
   // 6.64 m apart — TIGHTER THAN LAMP_R (7.0) — so no spot ALONG a leg is ever
-  // outside a pool, and the control must cross to the field. Four lanterns have
-  // no comparable field to cross to: two sit where the crowned mound changes the
-  // ground under them (0.78x, just under the 0.80 bar), one can only reach the
-  // street (1.71x), and one only the park's own outside edge (0.61x). They are
-  // reported by name, with every candidate tried and its ratio. Widening the
-  // 0.8-1.25 daylight window until they pass would be loosening a check until it
-  // agrees with me (BUILDER-BRIEF §7), and that window is shared with the two
-  // street regions that depend on it.
+  // outside a pool and the control must cross into the field. The four CORNER
+  // lanterns (z -92.97 and -73.03 on both legs) have nowhere to cross to: the
+  // perpendicular lands within 6.13 m of an end lantern, and the other three
+  // directions leave the park. They are boxed in by their own neighbours, report
+  // ZERO candidates, and say so in those words. Widening the 0.8-1.25 daylight
+  // window to recover them would be loosening a check until it agrees with me
+  // (BUILDER-BRIEF §7), and that window is shared with both street regions.
   const REGION_BAR = {
     main: { stamped: 6, usable: 4 },
     side: { stamped: 2, usable: 2 },

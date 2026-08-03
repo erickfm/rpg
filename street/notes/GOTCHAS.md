@@ -2490,36 +2490,114 @@ left alone — their problem is *reading the wrong world*, which is a different
 failure with its own instrument already (`scripts/lib/which-world.mjs`,
 GOTCHAS 26 and 48). Two warnings on one command blunt both.
 
-**The desk is unaffected, by design.** The trigger is two facts, not one:
-the tree is the main checkout (`--git-dir` equals `--git-common-dir`) **and**
-the caller is a spawned agent (`CLAUDE_CODE_CHILD_SESSION=1`, corroborated by
-`AI_AGENT` ending `_agent`). Measured from the live processes: the desk
-(pid 262802) and the harness host (282161) carry **neither** variable; a spawned
-builder carries both. An env var was the right shape because it is **inherited
-by every child process** — it reaches `npm`, `node` and `vite`, and it travels
-with the agent when it `cd`s into the shared tree, which is the one instant it
-must. A marker file cannot do that: it would live in the worktree, and the
-mistaken command runs somewhere else.
+> ### ⚠ THE ENV-VAR TRIGGER BELOW WAS WRONG AND IT REFUSED THE DESK — item 247
+>
+> The paragraph that used to sit here said the trigger was *"the tree is the
+> main checkout **and** the caller is a spawned agent
+> (`CLAUDE_CODE_CHILD_SESSION=1`, corroborated by `AI_AGENT` ending
+> `_agent`)"*, on the strength of reading `/proc/262802/environ` and
+> `/proc/282161/environ` and finding neither variable.
+>
+> **Those are the wrong processes.** The variables are injected by the Bash tool
+> into the *shell it spawns*; they are never on the `claude` process itself. To
+> sample the desk's SHELL you must find something the desk's shell started and
+> read its environ — and there is one, long-lived: **the live world on :5177**,
+> which CLAUDE.md makes the desk's own job. `pid 370039`, `npm run dev`, cwd
+> `/home/erick/projects/rpg/street`.
+>
+> Diffed against a real builder's shell in full, **65 variables each. The only
+> differences were `_`, `OLDPWD`, `PWD` and `SHLVL`** — four bash intrinsics, all
+> a function of *where the shell stands*, none of *who is running*:
+>
+> ```
+> CLAUDE_CODE_CHILD_SESSION=1           on the DESK's shell too
+> AI_AGENT=claude-code_2-1-220_agent    on the DESK's shell too
+> CLAUDE_PID=282161                     the SAME host process
+> CLAUDE_CODE_SESSION_ID=a6835f8b-…     the SAME session
+> ```
+>
+> **Ancestry is falsified the same way.** A builder's shell is pid 4125211,
+> ppid **282161**; the desk's shell is also a direct child of 282161. They are
+> **siblings, not ancestor and descendant.** The desk is not pid 262802 (that is
+> the outer interactive `claude -r`) — it is the background session 282161, and
+> a spawned builder is a *task inside that same process*, inheriting one
+> environment block.
+>
+> **So no env var and no ancestry test can separate them. Do not add one back.**
 
-**Two things worth knowing before you argue with it:**
+**What the trigger is now.** Three facts, and the third is the one that works:
+
+1. the tree is the main checkout (`--git-dir` equals `--git-common-dir`);
+2. the caller is a Claude Code tool shell at all — *necessary, never sufficient,
+   and it matches the desk exactly*; it only keeps the guard off the user's own
+   terminal and off CI;
+3. **the caller came out of an isolated agent worktree.**
+
+**Why (3) is a real fact and not a guess.** The harness **resets an agent's cwd
+to its own worktree before every single Bash call.** So a builder that reaches
+the shared checkout had to *travel*, and the trip is recorded in its own process:
+
+```
+cd /home/erick/projects/rpg/street && npm run build
+  -> OLDPWD=/home/erick/projects/rpg/.claude/worktrees/agent-aae8230d8559acc5d
+```
+
+The desk's shell is not reset and does not live in a worktree, so its OLDPWD is
+the repo root — `/home/erick/projects/rpg`, as sampled from the real :5177
+process above. `OLDPWD` is exported, and `npm run env` confirms it survives into
+npm's script environment, so it reaches the guard through `npm run build`.
+
+A **second, independent witness** for the same fact — *the ancestor processes'
+cwds*, read from `/proc` — catches the shape that never `cd`s at all
+(`npm --prefix /home/erick/projects/rpg/street run build`), where the builder's
+shell is still standing in its worktree while npm builds the shared one. A path
+counts only when it is under `<top>/.claude/worktrees/`, **exists on disk**, and
+(when git can be asked) is a worktree git actually knows about.
+
+**Three things worth knowing before you argue with it:**
 
 - **It fails open on every uncertainty.** It runs from `preinstall`, the command
   BUILDER-BRIEF §0 tells every builder to run, so a bug here would brick the
   whole project. A missing git, a non-repo directory, any thrown error — all
-  ALLOW. It refuses only on a positive determination of both facts.
+  ALLOW. It refuses only on a positive determination of all three facts.
+- **It cannot see an agent that was never given a worktree** — worker
+  seventythree, the incident at the top of this entry. That agent has no
+  worktree to have come from and is identical to the desk in every fact
+  available inside the process. **Fix that at spawn time** (`isolation:
+  "worktree"` on every builder), not here. Said plainly so nobody assumes
+  coverage that does not exist.
 - **`CT_ALLOW_SHARED=1` opts out** if you genuinely mean the shared tree. Say so
-  in your handoff; it is not a normal thing for an agent to want.
+  in your handoff; it is not a normal thing for an agent to want. The desk should
+  no longer need it — item 247 is the record of what an escape-hatch-by-default
+  costs.
 
 **The hole it plugs, measured rather than assumed.** The harness's own
 worktree-isolation guard is **git-only**. From inside an isolated worktree,
 `cd /home/erick/projects/rpg/street && git rev-parse --show-toplevel` is refused,
 but `cd /home/erick/projects/rpg/street && ls -d node_modules` runs without
-complaint. Every `npm`, `node` and `vite` invocation went through that gap.
+complaint (re-confirmed 2026-08-03). Every `npm`, `node` and `vite` invocation
+went through that gap. Since item 247 `vite.config.ts` calls the guard too, so a
+bare **`npx vite --port N`** — which bypasses `package.json` entirely — is
+covered for dev, build and preview alike.
 
 Both signs are demonstrated by `scripts/probes/w94-guard-selftest.mjs` — a real
-`git init` plus a real `git worktree add` in a temp dir, 21 assertions behind a
-population floor, and it has been watched failing under two mutations (a guard
-that never fires, and one that classifies every tree as `main`).
+`git init` plus a real `git worktree add` **under `.claude/worktrees/agent-*`**,
+now **30 assertions** behind a population floor of 29, 5 runs with no spread.
+Its desk case is driven by the **real 65-variable desk environment**, because the
+old one was `isSubagent({}) === false, 'the desk (no vars at all) is NOT an
+agent'` — an assertion about a *model* of the desk, which is exactly how a guard
+that blocked the desk shipped green. `scripts/probes/w97-guard-both-shells.sh`
+runs the real CLI from the real shared checkout in both roles.
+
+**And the probe lied first, as usual.** The first version of
+`w97-guard-both-shells.sh` `cd`-ed into the shared tree *itself* and reported the
+desk REFUSED — because the outer shell was still standing in the agent worktree,
+so the ancestor-cwd witness fired correctly on a fake desk. The caller must `cd`
+in the **real** shell. Likewise the first mutation used to prove the vite hook
+could fire did **not** fire, and would have been a vacuous red-check: forcing
+`kind` alone is not enough, because provenance is still `null` in a worktree and
+`checkHere` short-circuits before the decision. It took mutating the
+short-circuit *and* the provenance to watch `npx vite build` exit 1.
 
 ## 85. Two commits on 2026-08-02 are misattributed — do not trust their messages
 

@@ -1,5 +1,24 @@
 import { defineConfig, type Plugin } from 'vite';
 import { execSync } from 'node:child_process';
+// @ts-expect-error -- plain .mjs, no types, and deliberately so: it must be
+// loadable from `npm preinstall` before anything is built or type-checked.
+import { checkHere } from './scripts/lib/shared-checkout.mjs';
+
+// ── the shared-checkout guard, item 247 ────────────────────────────────────
+//
+// package.json guards `preinstall`, `build`, `dev` and `live`, but a bare
+// `npx vite --port N` bypasses package.json entirely — item 243's author named
+// that gap and left it open. Vite reads this config for dev, build AND preview,
+// so one hook here closes all three at once.
+//
+// `checkHere` never throws (every uncertain answer is ALLOW) — which matters
+// more here than anywhere else, because a config that throws breaks every build
+// in every worktree. It refuses only on a positive determination that this is
+// the main checkout AND the caller travelled here out of its own agent worktree.
+{
+  const refusal = checkHere('vite');
+  if (refusal) { process.stderr.write(`${refusal}\n`); process.exit(1); }
+}
 
 // ── the build stamp ────────────────────────────────────────────────────────
 //

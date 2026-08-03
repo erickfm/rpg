@@ -25,32 +25,52 @@ That `npm install` is the part people skip; the hard reset removes the
 `node_modules` symlink and the dev server then fails with an error that looks
 nothing like the cause. (GOTCHAS 54, 13.)
 
-**AND THERE IS NOW A MECHANISM, NOT JUST THIS PARAGRAPH — `scripts/guard-shared-checkout.mjs`.**
-Writing it down had been tried; five workers built or installed in the shared
-checkout anyway. So `preinstall`, `build`, `dev` and `live` in `package.json`
-now run the guard first, and it **refuses with exit 1** when both facts hold:
-you are in the **main checkout** (`--git-dir` equals `--git-common-dir`) and you
-are running under Claude Code. Its message names your worktree and the fix. It
-**fails open** on every uncertain answer, because it sits on `preinstall` and a
-bug there would brick the most-run command on the project.
+### …and there is a GUARD now, so expect to be refused rather than to be lucky
 
-Three things to know about it:
+The manual check above is the *first* line, not the only one. **`npm install`,
+`npm run build`, `npm run dev`, `npm run live` and even a bare `npx vite` refuse
+to run if you are standing in the SHARED CHECKOUT
+(`/home/erick/projects/rpg/street`) having travelled there out of your own
+worktree.** It prints the worktree it wants you to go back to. Do that; do not
+argue with it.
 
-- **It does not replace the check above.** It covers four `package.json`
-  scripts. **A bare `npx vite --port N` bypasses `package.json` entirely**, and
-  so does any `node scripts/*.mjs`. Run `git log --oneline -3` first anyway.
-- **You should never see it.** If you do, you are in the wrong tree — `cd` to
-  your own worktree and re-run. Do not reach for the override.
-- **`CT_ALLOW_SHARED=1` is the override, and it is not for you.** It exists for
-  the desk, which republishes the artifact from the shared tree. If you use it,
-  say so in your handoff.
+```
+  REFUSED: npm run build in THE SHARED CHECKOUT.
+  ...
+  FIX: go back to YOUR OWN worktree and run it there.
+      cd /home/erick/projects/rpg/.claude/worktrees/agent-<your-id>/street
+```
 
-**Known defect, item 247: the guard refuses the desk too.** Measured 2026-08-03
-— the desk and every builder it spawns share **one `CLAUDE_CODE_SESSION_ID` and
-one environment** (50 of 50 agent processes carry `CLAUDE_CODE_CHILD_SESSION=1`,
-the desk's own tool shells included), so nothing in the environment can tell
-them apart. Not your problem as a builder; it is why the desk exports
-`CT_ALLOW_SHARED=1`.
+`scripts/guard-shared-checkout.mjs` fronts `scripts/lib/shared-checkout.mjs`;
+`scripts/probes/w94-guard-selftest.mjs` is its 30-assertion self-test. Read the
+lib's header before you touch it — in particular, **do not "improve" it back
+into an environment-variable test.** The desk's shell and yours carry byte-
+identical `CLAUDE_CODE_CHILD_SESSION`, `AI_AGENT` and `CLAUDE_PID`; they are the
+same process. That mistake is queue item 247 and it blocked the desk's artifact
+republish for a session.
+
+**Two things it deliberately does not do.** It never touches the read-only
+measurement scripts (`sweep`, `fp`, `checks`, `capture`) — their problem is
+reading the wrong world, which has its own instrument. And it **cannot see an
+agent that was never given a worktree at all**; that agent has no worktree to
+have come from and looks exactly like the desk. If you were spawned without
+isolation, the guard will not save you and §0's manual check is all you have.
+
+**It still does not replace the check above.** It hooks four `package.json`
+scripts plus `vite.config.ts`. **Any bare `node scripts/*.mjs` still goes round
+it.** Run `git log --oneline -3` first anyway.
+
+**It fails open on every uncertain answer**, because it sits on `preinstall` and
+a bug there would brick the most-run command on the project.
+
+`CT_ALLOW_SHARED=1` opts out. It is not a normal thing for a builder to want —
+if you use it, say so in your `done.sh` line. **It is no longer the desk's
+routine escape hatch:** until item 247 the guard refused the desk too, because
+the desk and every builder share **one `CLAUDE_CODE_SESSION_ID` and one
+environment** (worker ninetythree measured **50 of 50** agent processes carrying
+`CLAUDE_CODE_CHILD_SESSION=1`, the desk's own tool shells included). The guard no
+longer asks *who you are* — it asks *where your shell was standing*, which is the
+one thing that does differ.
 
 ---
 
