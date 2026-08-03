@@ -110,6 +110,21 @@ const H_W = 11.0, H_D = 26.0, H_H = 3.4;
 const LAMP_N = 5, LAMP_DEAD = 1;
 const lampZ = (i: number) => -H_D / 2 + H_D * ((i + 0.5) / LAMP_N);
 
+/**
+ * THE PALETTE, HOISTED so the surfaces built below can DERIVE from it.
+ *
+ * It was written inline in the `buildRoom` spec, which was fine while nothing
+ * else needed it. The coffered ceiling does: it is drawn in shades OF `ceil`,
+ * and a second hand-typed `0x2e1c1e` beside it is the two-authorings defect
+ * this file's own header spends four paragraphs on (BUILDER-BRIEF §8). One
+ * authoring; the spec reads it and so does the paint.
+ *
+ * The values are unchanged — these are ct/vice.ts's own constants for this
+ * elevation, brought inside so somebody walking in from that facade recognises
+ * the building. See the note at the spec.
+ */
+const PAL = { floor: 0x5a2430, wall: 0x6d2029, ceil: 0x2e1c1e, trim: 0x8a6a22 };
+
 export function buildHotel(ctx: CtxBuild): void {
   const DOOR_X = 39.51, WALK_Z = -97.0;
   const room = buildRoom(ctx, {
@@ -165,7 +180,7 @@ export function buildHotel(ctx: CtxBuild): void {
     // building. Faded, not municipal: the wall sits between RED and RED_D so it
     // reads as deep red gone dusty, and the ceiling is darker than the wall so
     // the room feels tall and the light hangs IN it.
-    palette: { floor: 0x5a2430, wall: 0x6d2029, ceil: 0x2e1c1e, trim: 0x8a6a22 },
+    palette: PAL,
     door: {
       // From the DECLARATION above, not typed again here. Hand-typing it
       // beside a declaration is the two-authorings problem in miniature, and
@@ -419,6 +434,110 @@ export function buildHotel(ctx: CtxBuild): void {
   const vinyl = new THREE.Mesh(new THREE.PlaneGeometry(RUN_W, DESK_L + 1.0), ctx.flat(vinylT));
   vinyl.rotation.x = -Math.PI / 2;
   put(vinyl, DESK_X + DESK_D / 2 + RUN_W / 2, 0.014, DESK_Z);
+
+  // ── the coffered ceiling ──────────────────────────────────────────────
+  //
+  // MEASURED, then fixed. The row the user opened this with said only "a
+  // near-black ceiling against saturated red walls", and w97's survey could not
+  // decide whether that was a fault or this file's stated intent, because both
+  // readings fit the words. Neither reading was the problem.
+  //
+  // `scripts/probes/w100-ceilings.mjs` puts every room's ceiling side by side:
+  //
+  //     room     H     area    colour     LUM   textured
+  //     hotel   3.4    286m2   #2e1c1e     32      no
+  //     pawn    2.8    110m2   #6e675c  103.7      no
+  //     ...
+  //     casino  3.58   396m2   #ffffff    255     YES
+  //
+  // Twelve ceilings; the hotel's is the darkest in the world by a factor of
+  // **3.24** over the next one, and it is 286 m2 of it. And the kit gives it no
+  // texture at all: ct/interior.ts:889 builds the ceiling as a bare
+  // `MeshBasicMaterial({ color: CEIL })` while the floor eight lines above it
+  // gets `linoT` with a repeat derived from the room's real metres. Nine of the
+  // twelve rooms are in that state; it only becomes a hole in this one, because
+  // this one is both the darkest and the second largest.
+  //
+  // In pixels (`scripts/probes/w100-ceiling-flatness.mjs`, standing in the room
+  // looking across it — the angle the user's own screenshot was taken from):
+  // the ceiling band is 213 px of a 720 px frame and **99.5% of it is one RGB
+  // triple**, four distinct colours in 273,000 pixels. paint.ts:53 already has
+  // the words for what that does: "an untextured quad has no grain for the eye
+  // to attach to and no joints to give it scale". A third of the frame with no
+  // grain and no joint does not read as a dark ceiling. It reads as no ceiling.
+  //
+  // SO THE FIX IS GRAIN AND JOINTS, NOT BRIGHTNESS — and that distinction is
+  // the whole of it. This file's own rule twenty lines up is "the ceiling is
+  // darker than the wall so the room feels tall and the light hangs IN it", and
+  // that rule is right; the wall (#6d2029) is LUM 49.1 and the band must stay
+  // under it. Repainting the ceiling pale would win the flatness number by
+  // destroying the room, which is exactly the mistake w97 warned the next
+  // builder off making with the chairs and the carpet.
+  //
+  // What goes up instead is what a lobby of this date actually had over it: a
+  // coffered plaster ceiling, panels sunk between raised ribs, with a rose in
+  // each. Grand, and gone the same way as everything else in here — the recess
+  // is dirtier than the rib, and the gilding on the rose is down to a trace.
+  // Same argument as every other object in this room: shabbiness drawn as
+  // REPLACEMENT and WEAR, never as dirt (see the header).
+  //
+  // THE PANEL IS SQUARE, AND IT IS SQUARE BY DERIVATION. A coffer that is not
+  // square reads as a mistake from underneath. Picking a target module and
+  // rounding independently in each axis does not give you one — 11.0/1.35 -> 8
+  // panels of 1.375 m across, 26.0/1.35 -> 19 of 1.368 m along, and those two
+  // disagree. So the count across is rounded first, the ACTUAL panel width
+  // falls out of it, and the count along is rounded against THAT: 1.375 m and
+  // 1.368 m, 0.5% apart, which is under a pixel at any angle you can stand at.
+  // Deriving the second number from the first is the only reason it is square;
+  // typing 8 and 19 would be right today and wrong the day the room resizes.
+  {
+    const CEIL_PANEL_M = 1.35;                       // the coffer module I want
+    const NX = Math.max(1, Math.round(room.W / CEIL_PANEL_M));
+    const PANEL_M = room.W / NX;                     // …and the one I actually get
+    const NZ = Math.max(1, Math.round(room.D / PANEL_M));
+    // 32 texels over a 1.375 m coffer is 23.3 px/m, next to the kit floor's ~20
+    // and the casino mirror's 20 — in family, and DECLARED rather than left to
+    // whatever the default repeat happens to be (BUILDER-BRIEF §7b).
+    const CEIL_PX = 32;
+    // Every tone is a multiple OF the palette's own `ceil`, the way the kit's
+    // floor derives its two checker tones from `FLOOR` (ct/interior.ts:872).
+    // Nothing here is a second hand-typed colour.
+    const c = new THREE.Color(PAL.ceil);
+    const sh = (m: number) => '#' + c.clone().multiplyScalar(m).getHexString();
+    const ceilT = declareSurface(pixTex(CEIL_PX, CEIL_PX, (g) => {
+      g.fillStyle = sh(1.55); g.fillRect(0, 0, 32, 32);           // the raised rib
+      g.fillStyle = sh(1.95); g.fillRect(0, 0, 32, 1); g.fillRect(0, 0, 1, 32);
+      g.fillStyle = sh(0.70); g.fillRect(0, 31, 32, 1); g.fillRect(31, 0, 1, 32);
+      g.fillStyle = sh(0.86); g.fillRect(3, 3, 26, 26);           // the sunk panel
+      // THE RELIEF IS THE POINT, and relief is two lines, not one: the moulding
+      // is lit on the side the light comes from and shadowed on the other. A
+      // single-tone border would read as a painted checkerboard.
+      g.fillStyle = sh(1.20); g.fillRect(3, 3, 26, 1); g.fillRect(3, 3, 1, 26);
+      g.fillStyle = sh(0.58); g.fillRect(3, 28, 26, 1); g.fillRect(28, 3, 1, 26);
+      // the rose in the middle of the coffer, gilt worn back to a trace. Alpha
+      // rather than a solid mark: gilding that has gone is a stain of gold in
+      // the plaster, not a gold object sitting on it.
+      const t = new THREE.Color(PAL.trim);
+      g.fillStyle = `rgba(${(t.r * 255) | 0},${(t.g * 255) | 0},${(t.b * 255) | 0},0.30)`;
+      g.fillRect(14, 12, 4, 8); g.fillRect(12, 14, 8, 4);
+      g.fillStyle = `rgba(${(t.r * 255) | 0},${(t.g * 255) | 0},${(t.b * 255) | 0},0.16)`;
+      g.fillRect(13, 13, 6, 6);
+      // and the damp that has come through above the lift bay — one patch per
+      // panel would be a pattern, so it is drawn OFF-CENTRE and small enough
+      // that the repeat does not line it up into a row.
+      g.fillStyle = 'rgba(24,16,10,0.30)'; g.fillRect(5, 22, 7, 5);
+      dither(g, 32, 32, 34);
+    }), 'detail');
+    ceilT.wrapS = ceilT.wrapT = THREE.RepeatWrapping;
+    ceilT.repeat.set(NX, NZ);
+    // 0.02 m under the kit's plane, the same clearance ct/int-casino.ts:484
+    // hangs its mirrored ceiling at. Not a replacement — the kit's plane stays
+    // and is what you see edge-on through the party-wall opening; this is the
+    // finish on the underside of it, which is the only side anybody stands on.
+    const coffers = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(ceilT));
+    coffers.rotation.x = Math.PI / 2;
+    put(coffers, 0, room.H - 0.02, 0);
+  }
 
   // ── THE WORN TRACK, which is the detail that sells the room ───────────
   //
