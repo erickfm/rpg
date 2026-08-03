@@ -63,7 +63,32 @@ const out = await p.evaluate(() => {
   const rows = []; let stamped = 0, meshes = 0, mapped = 0;
   s.traverse(o => {
     if (!o.isMesh || !o.geometry) return; meshes++;
-    for (let q=o;q;q=q.parent) if (q.visible===false) return;
+    // ⚠ THE `visible === false` SKIP THAT USED TO BE HERE MADE THIS CHECK
+    // MEASURE NOTHING AND REPORT GREEN. Removed 2026-08-02 (w62, item 107).
+    //
+    // This file was registered in checks.mjs on the strength of "305 masonry
+    // stamps, 16 disagreements, all 16 explained by whole-texel rounding".
+    // Then 5016d26b5 ("Item 141: region cull — the street is not drawn while
+    // you are indoors") added a culler that switches off every top-level group
+    // west of REGION_X=100 plus every interior nobody has entered. At the
+    // default spawn that is ALL 305 STAMPS IN THE WORLD, and this printed
+    //
+    //     7792 meshes · 1902 textured · 0 carry a masonry stamp
+    //     FACES ACTUALLY AUTHORED AT THE WRONG DENSITY: 0        exit 0
+    //
+    // — a perfectly green guard with nothing behind it, for as long as nobody
+    // read the middle line. `--selftest` had been failing (exit 2) the whole
+    // time and checks.mjs does not pass it.
+    //
+    // The premise was simply wrong: DENSITY IS AN AUTHORING FACT AND
+    // VISIBILITY IS A RENDERING ONE. A wall is painted at whatever density it
+    // was painted at whether or not the culler has it switched on this frame,
+    // and an interior is hidden exactly until the moment the player is stood
+    // in it looking at the thing. Filtering on `visible` guaranteed this check
+    // could never see the one place its own subject matter lives.
+    //
+    // It is also why the user's complaint was about a JAIL INTERIOR. Nothing
+    // was ever going to catch that from out here.
     // EVERY material, with its index — and the index is the whole story on a
     // box. This read `o.material[0]` and then measured `parameters.width`, but
     // material 0 is the +x face, whose dimensions are DEPTH x height. Height is

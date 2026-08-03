@@ -23,7 +23,25 @@ if ! tsc_ok; then
 fi
 
 landed=(); skipped=(); nothing=()
-for wt in "$ROOT"/rpg-*; do
+
+# TWO worktree conventions exist and the train must see BOTH.
+#
+# `$ROOT/rpg-*` is the original one: sibling checkouts, created by hand. It was
+# the only one when this script was written, so the loop below globbed it and
+# stopped there.
+#
+# `.claude/worktrees/agent-*` is where every agent launched with worktree
+# isolation actually lands, and the train was BLIND TO ALL OF THEM. That is not
+# a cosmetic gap: a finished worker's ten commits sat unlanded and invisible
+# while `land.sh --dry` cheerfully reported "NOTHING TO LAND", because the only
+# two directories it could see genuinely had nothing. The desk trusted the
+# report. Discover both, or the train silently strands the fleet's actual work.
+wts=()
+for wt in "$ROOT"/rpg-* "$MAIN"/.claude/worktrees/agent-*; do
+  [ -d "$wt" ] && wts+=("$wt")
+done
+
+for wt in "${wts[@]}"; do
   [ -d "$wt" ] || continue
   case "$(basename "$wt")" in rpg-live) continue;; esac
   b=$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null) || continue
