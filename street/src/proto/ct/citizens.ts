@@ -864,7 +864,42 @@ export function citizenSprite(look: Look, o: {
   // pass and what the option has always meant to them; the reconciliation lives
   // here, in the one file that knows how far the art reaches, so a room that
   // changes its bench depth cannot reintroduce the double count.
-  const seatFwd = Math.max(0, (o.seatFwd ?? 0) - SEATED_KNEE_M);
+  //
+  // ⚠ IT IS A THRESHOLD, NOT A SUBTRACTION, AND I TRIED IT THE OTHER WAY FIRST.
+  //
+  // Subtracting the reach (`halfDepth - 0.356`) leaves the shin EXACTLY coplanar
+  // with the seat's front face — zero clearance — and subtracting the reference
+  // depth (`halfDepth - 0.275`) leaves only 0.081 m. Both are fine on a bench
+  // you pass side-on, where the front face is a thin edge. Both FAILED on the
+  // jail bunk, the one seat in this world a player can only view straight down
+  // its own axis: a 1.92 m mattress slab is then a full-height occluder standing
+  // directly between the sitter and the corridor, and it swallowed the leg
+  // again at 0.604 and still at 0.685. Photographed all three ways from the same
+  // vantage — `shots/w115-bunk-z045-PREFIX.png` (0.960, whole leg and shoe),
+  // `w115-bunk-fixed.png` (0.604, shoe only) and `w115-bunk-z045-v2.png` (0.685,
+  // shoe and a sliver). Item 280's author reached the same wall from the other
+  // side, recording that `- 0.26` "hid his legs exactly as before".
+  //
+  // So the question is not how much to shave off; it is WHETHER THE ART CAN
+  // REACH PAST THIS SEAT'S FRONT FACE AT ALL:
+  //
+  //   · it can (halfDepth <= SEATED_KNEE_M) -> the redraw already does the whole
+  //     job and the body must NOT move, because the offset then spends the same
+  //     half-depth twice and pushes the legs past the furniture into whatever is
+  //     in front of it — in the diner, the opposite sitter.
+  //   · it cannot (halfDepth > SEATED_KNEE_M) -> no 64-row sprite can cross this
+  //     seat, the offset is doing work the art cannot, and the room's placement
+  //     stands untouched.
+  //
+  //   diner        0.275 <= 0.356 -> 0        the redraw clears it
+  //   jail bench   0.210 <= 0.356 -> 0                  "
+  //   casino lounge 0.115 <= 0.356 -> 0                 "
+  //   jail bunk    0.960 >  0.356 -> 0.960    unchanged; 280's fix survives intact
+  //
+  // This keeps BOTH landed fixes doing exactly the thing each was verified for,
+  // and removes only the overlap between them.
+  const askedFwd = o.seatFwd ?? 0;
+  const seatFwd = askedFwd > SEATED_KNEE_M ? askedFwd : 0;
   let base: THREE.Vector3 | null = null;
   return {
     mesh,
