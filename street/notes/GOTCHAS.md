@@ -2216,3 +2216,66 @@ findings — including any that were believed.
 **Wait for something the RENDERER has done**, not for the API to exist. A
 non-black pixel sample, a rendered frame count, or `afterFrames` are all honest;
 `__ct` existing is not.
+
+## 79. A check that filters on `visible` measures NOTHING, and says so in green
+
+`scripts/masonry.mjs` printed `FACES ACTUALLY AUTHORED AT THE WRONG DENSITY: 0`
+and exited 0 for weeks. It was not finding zero problems — it was **examining
+zero faces**.
+
+It skipped meshes with `visible === false`. Then commit `5016d26b5` added the
+region cull, which hides every group west of `REGION_X` **plus every interior
+you are not currently standing in**. At spawn that is *all 305 masonry stamps in
+the world*: `7792 meshes · 1902 textured · 0 carry a masonry stamp`.
+
+**The lesson generalises well beyond this one script. `visible` is a RENDERING
+fact; almost everything a check wants to assert is an AUTHORING fact.** Texture
+density, collider extents, seat facing, material sharing — none of them stop
+being true when the mesh is culled. If your check filters on `visible`,
+`frustumCulled`, or anything a camera position can change, it will quietly stop
+measuring the moment someone adds a culling optimisation, and it will keep
+reporting success while it does.
+
+This is also **why the user's jail-texture complaint was never caught**: the jail
+is an interior, interiors are hidden until you are inside one, and the only
+density guard in the project could not see inside one *by construction*.
+
+Two corollaries, both of which bit here:
+
+- **A selftest that is never invoked is not a selftest.** `masonry --selftest`
+  had been failing with exit 2 the entire time; `checks.mjs` never passed the
+  flag, so nobody found out.
+- **A selftest can pass VACUOUSLY.** `texdensity`'s first selftest mutated a face
+  to 3× against a 4× threshold and asserted `gross.length` — which is 188
+  whatever you do. It now mutates to 5× and asserts *that specific face* appears.
+  Assert the thing you changed shows up, never just that the count is non-zero.
+
+## 80. `afterFrames` does not mean the renderer PAINTED anything
+
+GOTCHAS 78 tells you to wait `afterFrames` before shooting. That advice is not
+sufficient and following it exactly will hand you black screenshots.
+
+**rAF fires whether or not the renderer drew.** Worker sixtyone shot the built
+bundle after the prescribed wait and got **8 solid black frames**, while the very
+same bundle's scene graph read perfectly when queried. The first genuinely
+painted frame did not arrive until **1136 ms**.
+
+Right now you cannot easily do better, because **`crosstown.ts:1339` does not
+publish the renderer on `__ct`**, so a probe has no way to ask how many frames
+have actually been rendered. That is item 181. Until it lands, treat any probe
+that waits only on rAF ticks as suspect, and **look at the image you captured** —
+a black frame is a failure to paint, not evidence about the world.
+
+## 81. `curl` is not a free-port test; only `ss -ltn` is
+
+Builders are told to prove their port is free before binding it. Worker sixtyone
+found port 4183 **answering `000` to curl and then refusing to bind** — another
+builder had taken it in the gap between the two operations.
+
+Use `ss -ltn`. A port that curl says nothing is listening on may still be claimed
+by the time you bind, and with `--strictPort` that is a hard failure partway into
+your run.
+
+Related, same report: **`npm run build` while a preview is serving KILLS the
+preview**, after which every check reports `SERVER DIED (unmeasured)` — which
+looks exactly like you broke the world. You did not. That is item 182.
