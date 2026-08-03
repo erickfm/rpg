@@ -2470,3 +2470,59 @@ queue changes the desk's message refers to were never in any commit because
 History was NOT rewritten: builders branch off mainline continuously and
 rebasing under them costs more than a wrong message. **If you are archaeologising
 `slots.ts`, `95a1beb67` is where item 208 landed.**
+## 86. A room is no longer necessarily CENTRED IN ITS SLAB
+
+`ct/interior.ts` hands every interior an 80 m slab from x = 400 and, until now,
+centred the room in it. Two harnesses learned that number instead of asking:
+
+```js
+scripts/interiors-walk.mjs:676   cx = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+scripts/G-rooms-walk.mjs:424     const CX = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+```
+
+Item 196 broke that assumption on purpose. A **party wall** (`PARTY`, at the top
+of `ct/interior.ts`) puts two rooms in consecutive slabs and **shoves each to
+the shared boundary**, so their flank walls meet back to back and one opening
+can be cut through both — the only way *"i should be able to walk from one into
+the other"* is a walk rather than a teleport. The hotel now stands at **874.32**
+in a slab centred on 840, and the casino at **885.68** in one centred on 920.
+
+**Both harnesses then measured the dead ground beside the room and reported the
+room broken.** Measured on the built bundle, isolating one cause at a time:
+
+```
+G-rooms-walk    party wall OFF   113/114   (1 pre-existing: [interior:hotel] NO BUILDING NAME)
+G-rooms-walk    party wall ON     62/65    2 x "the room reports its own extents — no floor plane found"
+interiors-walk  hotel             17/29    "prompt=null", "pos=840,1.62,19" — the room is at 874.32
+interiors-walk  casino            13/29    "pos=885.68 → slab centre 920"
+interiors-walk  church            25/25    MOVED SLAB in the same change, still centred — untouched
+```
+
+The church is the control and it is the whole finding: **moving a room between
+slabs costs nothing. Assuming where it sits inside one costs everything.**
+
+**`__ct.roomDims()` publishes `cx`, and both files already call it** —
+`interiors-walk.mjs:370` fetches `DIMS` and then computes `cx` from the formula
+anyway. That is `Slab.w`'s own docstring repeating itself one field over: *"Two
+authorings of one number, which is the same defect the door declarations exist
+to kill. Published so a harness can ASK."* The fix in each file is to read the
+published `cx` instead of deriving it, and it is one line. **Not done here:**
+`interiors-walk.mjs` is held by item 192, and `G-rooms-walk.mjs` is outside item
+196's boundary (BUILDER-BRIEF §9).
+
+**So: anything that locates an interior must ASK `roomDims()`.** The formula
+`400 + floor((x-400)/80)*80 + 40` tells you which SLAB a point is in, which is
+still true and still useful — it is simply not where the room is.
+
+### 83a. …and a teleport SUPPRESSES the trigger it dropped you next to
+
+Found while writing the walk for the same item, and it makes a working door look
+dead. You arrive inside a room **0.60 m from the way-out spot**, and the world
+will not offer a spot you are still standing in from the jump that put you
+there — otherwise the E you are already pressing bounces you straight back out
+(`ct/interior.ts`'s `outGap` warning is the same defect on the street side).
+
+The prompt reads **`none`** at that spot, and a probe that warps onto it and
+presses E measures nothing and calls it a failure. A player walks away and comes
+back, so a probe must too: go to the middle of the room, then return. Two runs
+of `w70-orpheus-walk.mjs` were lost to this before the mechanism was named.
