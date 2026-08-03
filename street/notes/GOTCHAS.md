@@ -2326,3 +2326,29 @@ your run.
 Related, same report: **`npm run build` while a preview is serving KILLS the
 preview**, after which every check reports `SERVER DIED (unmeasured)` — which
 looks exactly like you broke the world. You did not. That is item 182.
+
+## 82. Rebuilding the queue MUST preserve in-flight claims
+
+When `notes/QUEUE.md` was destroyed and rebuilt on 2026-08-02, the desk carried
+over only the two `DOING` rows it could see in its own recent output. Every other
+in-flight claim silently became `TODO` again.
+
+The cost was immediate and invisible for about half an hour: **two builders
+independently implemented item 157**, one to WIP and one to completion, and the
+collision only surfaced as seven conflict regions in `ct/library-pc.ts` at merge
+time. Both had done real work; one lot was thrown away.
+
+`claim.sh` is a lock over a FILE. Replace the file and you have released every
+lock in it, whether or not anyone was still holding one. So if the queue ever has
+to be reconstructed again:
+
+- **Enumerate the running agents first** and ask each what it holds, rather than
+  trusting what the desk happens to remember.
+- Re-stamp those rows `DOING <who> <time>` **before** any worker is told the
+  queue is back.
+- Only then unblock anyone.
+
+This is now much less likely to matter, because `scripts/queue-backup.sh` (item
+160) snapshots the queue under the same lock on every `claim`/`done`/`add` — so
+the first move after a loss is **restore the newest snapshot**, which still has
+the claims in it, not rebuild from prose.
