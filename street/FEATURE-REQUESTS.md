@@ -3124,3 +3124,10 @@ to one side.
   and 167 are settled. The dark disc at `ct/apartment.ts:2136-2139`
   (`CircleGeometry(MUG_R - 0.006)`, `0x4a3524`) reads as coffee; he wants the mug
   empty. ⚠ That disc exists on purpose: without it the top reads as a solid peg.
+
+- **"to look at your watch you need to look straight down (couple deg of
+  tolerance)"** (2026-08-03) → **routed as queue item 275.** MEASURED, and the
+  arithmetic disagrees with his experience: the gate is `rig.pitch < -0.95`
+  (`crosstown.ts:2002`) = 54.4° below horizontal, and the pitch clamp is ±1.3 rad
+  (`fp.ts:515-516`) = 74.5°, so on paper there are **20° of range**, not "a
+  couple". Something makes the effective window far smaller than the gate.
