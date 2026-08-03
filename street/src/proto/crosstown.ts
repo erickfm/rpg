@@ -1828,6 +1828,21 @@ export function makeCrosstown(): Proto {
     groundAt: (x: number, z: number) => groundPick(x, z),
     seated: () => (rig.seated ? rig.seatedOn : null),
     stand: () => rig.stand(),
+    // Test affordance, and the missing half of `stand()` — which has been
+    // published since the seat mechanic shipped, while the only way IN was to
+    // walk up to a seat and press E.
+    //
+    // That asymmetry is why nothing had ever asked all 219 seats what they offer
+    // a player sitting on them: the question costs one warp-and-press per seat,
+    // ten minutes a run, so it got asked of a handful and generalised from. Item
+    // 188 turns the seated `[E]` into a real contest, and the only honest
+    // acceptance test for that is the whole population
+    // (`scripts/probes/w69-seated-offers.mjs`).
+    //
+    // It goes through `rig.sit`, so it inherits the guard that a seated player
+    // cannot hop to another seat; a caller that wants to move must `stand()`
+    // first, exactly as a player must.
+    sit: (pose: { x: number; z: number; yaw: number; h: number }) => rig.sit(pose),
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
     camera: () => cam,    // test affordance: raycast a screen pixel back to the mesh under it
     // test affordance: turn the region cull off, so a check can render the SAME
@@ -2114,23 +2129,62 @@ export function makeCrosstown(): Proto {
         }
         return true;
       };
-      const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch }, 6, canSee);
+      // SEATED IS A DIFFERENT PICK, NOT A SUPPRESSED ONE.
+      //
+      // *"you sit and its the loan process as an integrated overlay"*, and of
+      // the library terminal *"like the atm too. intergrated overlay. realistic
+      // setup"* — a PC is a thing you SIT at. Until this line, **no seat in this
+      // world could carry an interaction you use while sitting on it**; the
+      // limit is written down at `ct/int-bank.ts:1414`, found by walking, and it
+      // is why the loan is transacted standing in a room that has a chair for
+      // you.
+      //
+      // The cause named there — *"the stand-up spot is registered at the seat
+      // itself, so while you are seated it is at d 0"* — WAS true and is no
+      // longer: the exit stopped being a spot when it became a state exit (see
+      // `ctx.seat`). What replaced it is this file, right here: the dispatch
+      // below simply did not consult `picked` at all while seated. So the engine
+      // limit was one `if`, in crosstown.ts, not a scoring bug in fp.ts.
+      //
+      // `{ seated: true }` turns off the aim-free proximity pass and shortens
+      // reach to the spot's own `r + REACH_MARGIN` — fp.ts's `opts.seated` has
+      // the derivation. Standing, the call is byte-for-byte the one that was
+      // here before.
+      const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch },
+        6, canSee, rig.seated ? { seated: true } : undefined);
       const active: Spot | null = picked ? picked.spot : null;
-      // WHILE SEATED THE PROMPT IS THE EXIT, and it does not depend on
-      // selection either — the label must not be able to disappear while the
-      // key that works is still E. A state with an invisible exit reads as
-      // being stuck, which is exactly what happened.
-      hud.prompt(rig.seated
-        ? `[E] ${SEAT_EXIT.get(rig.seatedOn!) ?? 'stand up'}`
+      // THE EXIT NEVER LEAVES THE SCREEN. It used to be the whole seated prompt,
+      // for a reason that still holds — *"the label must not be able to
+      // disappear while the key that works is still E. A state with an invisible
+      // exit reads as being stuck"*. So when a seated player is aimed at
+      // something, the exit is not replaced, it is JOINED: the object takes `[E]`
+      // and standing up is named on the same line under `[ESC]`, which is the
+      // key `fp.ts` honours unconditionally from two independent listeners and
+      // which therefore cannot be taken away by anything on offer here.
+      const exit = rig.seated ? (SEAT_EXIT.get(rig.seatedOn!) ?? 'stand up') : null;
+      hud.prompt(exit
+        ? (active ? `[E] ${active.label()}   ·   [ESC] ${exit}` : `[E] ${exit}`)
         : (active ? `[E] ${active.label()}` : null));
       spotOutline.show(scene, debugSpots ? active : null);
       // E dispatch (edge-triggered)
       const feedDown = input.keys.has('e');
       if (feedDown && !feedHeld) {
-        if (rig.seated) {
-          // FIRST, AND UNCONDITIONALLY. Standing up is a state exit, not a
-          // world interaction: it fires regardless of what is near, what is in
-          // front, or where he is looking.
+        if (rig.seated && !active) {
+          // STANDING UP IS THE FALLBACK, AND THE FALLBACK IS THE DEFAULT.
+          //
+          // This used to be unconditional, on the grounds that standing up is a
+          // state exit rather than a world interaction. That is still true of
+          // the STATE — Escape stands you up from anywhere, through two
+          // independent listeners in fp.ts, and nothing here can reach that. It
+          // was not true of the KEY, and paying for it with `[E]` is what made a
+          // seat a dead end: sit down and the only verb left in the world is
+          // getting back up.
+          //
+          // So `[E]` is spent on what you are aiming at IF the seated pick found
+          // anything — which needs real aim and arm's length, so it is empty
+          // almost everywhere — and otherwise on standing up, exactly as before.
+          // Look away from the desk and you get your seat back. Measured across
+          // all 219 registered seats before this landed; see the handoff.
           rig.stand();
         } else if (active) {
           // LATCH ONLY WHAT MOVED YOU. The hysteresis is for TRANSITIONS — a

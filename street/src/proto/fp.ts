@@ -823,6 +823,55 @@ export function pickSpot<T extends Pickable>(
    *  thrift offered itself through its own shopfront and the bed through the
    *  bed. */
   visible?: (s: T) => boolean,
+  /** SEATED: a different rule, because a chair is a different body.
+   *
+   *  *"you sit and its the loan process as an integrated overlay"* and, of the
+   *  library terminal, *"like the atm too. intergrated overlay."* A PC is a
+   *  thing you SIT at, and until this existed **no seat in this world could
+   *  carry an interaction you use while sitting on it** — `ct/int-bank.ts:1414`
+   *  wrote that limit down after walking into it, and it is why the loan is
+   *  transacted standing up in a room that has a chair for you.
+   *
+   *  Two changes, and both of them are removals rather than additions:
+   *
+   *  · **AIM DECIDES, PROXIMITY DOES NOT.** The aim-free `touching` pass exists
+   *    so *"a door you are standing at opens without looking at it"* — it is
+   *    about your FEET, and a seated player's feet are not going anywhere. Worse,
+   *    it is exactly what made the seated case unusable in the first place: the
+   *    thing nearest a sitting man is the chair he is sitting on, at d 0, and
+   *    `offAxis + d * 0.02` handed it every contest before he could aim at
+   *    anything. So tiers 1 and 3 are switched off and only tier 2 — AIMED AT —
+   *    can win.
+   *
+   *  · **REACH SHRINKS TO ARM'S LENGTH.** Standing, `looked` runs to the
+   *    caller's `reach` (6 m, a room's width), because pointing across a room at
+   *    a door and opening it is a feature asked for by name. From a chair it is
+   *    a bug: you cannot cross the room without getting up, so a spot you can
+   *    SEE from a seat is not a spot you can USE from it. The bound is
+   *    `s.r + REACH_MARGIN` — **not a new constant**, but the one this file's own
+   *    comment (see `REACH_MARGIN` above, and the note at `looked` below) has
+   *    always said that margin means: how far outside its radius a spot can be
+   *    selected when you ARE looking at it. Standing deliberately does not apply
+   *    it; sitting is the case where it is the right question.
+   *
+   *  Derived against the user's own case rather than tuned: the client chair
+   *  sits at (4.40, 2.62) and THE APPLICATION FORM at (3.75, 1.925) —
+   *  `ct/int-bank.ts:1191-1197` — so 0.952 m against the form's own
+   *  `0.70 + 0.60 = 1.30`. It clears by 0.35 m rather than by a hair, which
+   *  matters: GOTCHAS 72, a margin the world can absorb is the only kind worth
+   *  writing down. The loan officer, two rows down the same file at r 1.0 and
+   *  1.67 m from the chair, does NOT clear his own 1.60 — so sitting in the
+   *  client chair reaches the paperwork and not the man behind the desk, which
+   *  is also the right answer.
+   *
+   *  **STANDING UP IS NOT DEMOTED INTO THIS CONTEST.** It cannot be — a view you
+   *  cannot leave is the worst bug this project ships (BUILDER-BRIEF §11). The
+   *  caller keeps standing up as the FALLBACK when this returns null, and
+   *  Escape stands you up unconditionally at every level (`update()`'s seated
+   *  branch, and this class's own capture-phase listener above it) whatever this
+   *  function says. This can only ever add an option; it can never take one
+   *  away. */
+  opts?: { seated?: boolean },
 ): { spot: T; looked: boolean; offAxis: number; dist: number } | null {
   // THREE TIERS, NOT ONE KEY — and the middle one is the whole of this
   // function's history, because THIS KNOB HAS A USER COMPLAINT AT BOTH ENDS.
@@ -934,8 +983,18 @@ export function pickSpot<T extends Pickable>(
     // selection at 3 and 5 m — the half of the feature he asked for by name and
     // that D-look-selects exists to hold. Narrowing the AIM-FREE pass is the
     // job; narrowing the aimed one is the opposite of the job.
-    const looked = d < reach && offAxis < lookTolerance(s.r, d);
-    const near = touching;
+    //
+    // SEATED IS THE ONE CASE THAT DOES APPLY IT, and it is an `&&` on top of the
+    // standing test rather than a replacement for it, so the seated reach can
+    // only ever be SHORTER than the standing one. See `opts.seated` above.
+    const seated = opts?.seated === true;
+    const looked = d < reach && offAxis < lookTolerance(s.r, d)
+      && (!seated || d < s.r + REACH_MARGIN);
+    // Seated, the aim-free pass is off entirely: `near` is what hands a sitting
+    // player the chair he is already in. `opts` absent -> this line is
+    // `near = touching`, exactly as it was, so nothing about a standing player's
+    // selection moves by so much as a float.
+    const near = seated ? false : touching;
     if (!near && !looked) continue;
     // WIDE AND VISIBLE, not narrow and blind. The volumes stay generous and the
     // look-at stays forgiving; sight is what gates them. Tested last because it
