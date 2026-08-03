@@ -92,16 +92,39 @@ if (mode === 'door' || mode === 'all') {
   // either way, which is the whole of GOTCHAS 34.
   //
   // The world does publish `spots()`, so ask the real predicate instead: is the
-  // player inside the jail spot's REACH? Reach is not radius — the near test is
-  // `d < r + REACH_MARGIN`, and that margin is ONE global living in fp.ts.
+  // player inside the jail spot's trigger?
   //
   // READ FROM THE WORLD, not retyped. This was `const REACH_MARGIN = 0.6;` with
-  // a comment citing `fp.ts:425`, which is not where the constant is — it is
-  // `fp.ts:486`, and the number was right only by luck of nobody having tuned
-  // it since. BUILDER-BRIEF §8: "if you need a value another module owns, import
-  // it." `crosstown.ts` now publishes `__ct.reachMargin()` for exactly this, so
-  // the day somebody re-tunes the margin this check follows instead of quietly
-  // asserting against a number the world stopped using.
+  // a comment citing `fp.ts:425`, which is not where the constant is. BUILDER-BRIEF
+  // §8: "if you need a value another module owns, import it."
+  //
+  // ── MARGIN CORRECTED 2026-08-03 (item 232) ────────────────────────────────
+  //
+  // This read `__ct.reachMargin()` (0.6) and compared `d < r + REACH_MARGIN`.
+  // THAT IS NOT THE PREDICATE THE WORLD USES HERE. For a STANDING player,
+  // `fp.ts:991` decides the aim-free offer with `d < s.r + TOUCH_MARGIN` (0.15);
+  // `REACH_MARGIN` survives in exactly two places, neither of them this one —
+  // the SEATED clause (`fp.ts:1006`) and the debug ring (`fp.ts:1124`).
+  //
+  // IT ERRED IN THE FALSE-GREEN DIRECTION, and the size of that is measured:
+  // `scripts/probes/w88-margin-population.mjs` stands in the disputed ring
+  // r+0.15 .. r+0.60 at 11 live spots, facing away, and the world offers
+  // **0 of 11** — while a `r + 0.6` test calls all 11 "within reach". A check
+  // certifying reachability the world does not provide is the same class as the
+  // eleven other sleeping guards found this week.
+  //
+  // Today's geometry does not expose it — the walk stops 0.18 m from a spot of
+  // r 1.05, inside BOTH margins — so this correction does not move the verdict
+  // now. It is the case where the door or the stopping point moves 1.2 m that
+  // this was silently ready to pass. `probes/w88-registered-checks-flip.mjs`
+  // stands the player in the band and watches this very predicate flip.
+  const TOUCH_MARGIN = await p.evaluate(() => window.__ct.touchMargin());
+  if (typeof TOUCH_MARGIN !== 'number' || !isFinite(TOUCH_MARGIN)) {
+    console.error('ABORT: __ct.touchMargin() did not return a number — nothing below can be measured.');
+    await b.close(); process.exit(3);                       // GOTCHAS §32
+  }
+  // Still needed further down, for the way-OUT landing bound. See there for why
+  // that one legitimately keeps the larger margin.
   const REACH_MARGIN = await p.evaluate(() => window.__ct.reachMargin());
   if (typeof REACH_MARGIN !== 'number' || !isFinite(REACH_MARGIN)) {
     console.error('ABORT: __ct.reachMargin() did not return a number — nothing below can be measured.');
@@ -115,7 +138,7 @@ if (mode === 'door' || mode === 'all') {
                      d: +Math.hypot(s.x - q[0], s.z - q[2]).toFixed(2),
                      near: Math.hypot(s.x - q[0], s.z - q[2]) < s.r + margin }));
     return hits;
-  }, [REACH_MARGIN]);
+  }, [TOUCH_MARGIN]);
   console.log(`   jail spots in reach: ${JSON.stringify(reachable)}`);
   ok(reachable.some((h) => h.near && h.ok),
     'standing where the walk stopped, the jail\'s [E] is within reach and live');
@@ -206,6 +229,30 @@ if (mode === 'door' || mode === 'all') {
   // would have left this asserting against arithmetic nobody re-did. Both come
   // off the world now: `r` from the spot itself (already read above), the margin
   // from `__ct.reachMargin()`.
+  //
+  // ── AND THIS ONE KEEPS REACH_MARGIN ON PURPOSE (item 232) ─────────────────
+  //
+  // The row that corrected the `near` test above asked for a per-call-site
+  // decision rather than a blanket replace, and this site decides the other way.
+  //
+  // The two assertions point in OPPOSITE directions. `near` asks "is the door
+  // offered?", so a margin that is too big invents reachability — false green,
+  // and it was corrected to TOUCH_MARGIN. This one asks the inverse, "is the
+  // landing far enough away NOT to re-trigger the door", asserting `gap > bound`.
+  // Here a SMALLER bound is the WEAKER test: swapping to TOUCH_MARGIN would drop
+  // the bar from 1.65 m to 1.20 m and pass landings this rejects. That is
+  // BUILDER-BRIEF §7's "never fix a check by loosening it until it passes",
+  // pointed at a check that is not even failing.
+  //
+  // It is also the honest bound on the merits. A player who has just stepped out
+  // is not guaranteed to be facing away, and an AIMED player re-triggers the door
+  // from up to `reach` (6 m, `fp.ts:1005`) with no margin term at all — so the
+  // aim-free 0.15 is a floor on the real re-entry distance, not a description of
+  // it. 0.6 is the conservative choice between them.
+  //
+  // MEASURED: the landing clears 2.20 m against this 1.65 m bound, so the
+  // assertion has 0.55 m in hand and would still pass at the smaller bound. The
+  // larger one is kept because it is stricter, not because it is needed.
   {
     const gap = Math.hypot(out[0] - stand.x, out[2] - stand.z);
     const r = Math.max(...reachable.map((h) => h.r));
