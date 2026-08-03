@@ -134,6 +134,31 @@ capable of producing a dead artifact since then. I have **not** established how
 long the *published* artifact has been affected; the desk should check the live
 URL rather than assume.
 
+### …and the project's OWN instrument already says so — it is just never run
+
+Found afterwards, while working item 287: **`scripts/check-artifact.mjs` catches
+this exactly, from a different angle (`file://` rather than `http://`)**, and
+agrees:
+
+```
+artifact: __ct NEVER APPEARED — it does not open
+  Access to script at 'file:///assets/three.core-erZvyR2f.js' … blocked by CORS
+  Access to script at 'file:///assets/slots-NwGvOLPo.js' … blocked by CORS
+  THE CANVAS IS BLACK. It packs and it does not show the world.        exit 1
+```
+
+So this is not an unguarded area — **the guard exists and nothing invokes it.**
+`scripts/checks-registered.mjs` lists it as one of four deliberate exemptions:
+*"check-artifact — needs dist/artifact.html packed first — it is the second half
+of `npm run artifact`"*. Reasonable on its own terms, and the consequence is that
+the only check that can see a dead artifact runs **only** when someone
+republishes. Worth the desk's attention alongside the one-line packer fix.
+
+Note the second pack named **different** chunks (`slots-NwGvOLPo.js`) than the
+first (`hud-CTaUuEXP.js`): `readdirSync` order is not stable across builds, so
+**which** wrong chunk gets inlined varies run to run. It is never the right one
+except by luck.
+
 **Scope, per BUILDER-BRIEF §9:** item 284 names `src/main.ts` and nothing else,
 so I did not touch `scripts/pack-artifact.mjs`. The fix is one line — select the
 chunk `dist/index.html` actually references, rather than `[0]` — and it wants a
