@@ -98,14 +98,30 @@ if (!cols.declared) { console.log('ABORT no unmapped ceiling plane — cannot fi
 const hex2rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const CEIL = hex2rgb(cols.declared);
 
-for (const [name, lx, lz, yaw, pitch] of VIEWS) {
+// FIVE RUNS, AND THE SPREAD REPORTED. `dither()` and `slabTex`'s speckle use
+// UNSEEDED Math.random on purpose (paint.ts:4), so the grain is different every
+// load and every number below is a sample, not a constant. One run of an
+// after-shot proves nothing about a before-shot one run wide. Each run RELOADS
+// the page, because that is what rebuilds the world's textures — repeating the
+// screenshot inside one page load re-photographs the identical canvas.
+const RUNS = Number(process.env.RUNS ?? 5);
+const acc = new Map(VIEWS.map((v) => [v[0], []]));
+
+for (let run = 0; run < RUNS; run++) {
+ if (run > 0) {
+   await p.goto(URL, { waitUntil: 'load' });
+   await p.waitForFunction(() => window.__ct && window.__ct.roomDims, null, { timeout: 60000 });
+   await waitPainted(p, { quiet: true });
+ }
+ for (const [name, lx, lz, yaw, pitch] of VIEWS) {
   await p.evaluate(([x, z, y, pi, h]) => {
     window.__ct.clock(h, 0);
     window.__ct.warp(x, z, y, undefined, pi);
   }, [room.cx + lx, room.cz + lz, yaw, pitch, HOUR]);
   await waitPainted(p, { quiet: true });
+  // only run 0 keeps its picture; the other four exist for the spread
   const path = `shots/w101-hotel-${name}-${TAG}.png`;
-  const buf = await p.screenshot({ path });
+  const buf = run === 0 ? await p.screenshot({ path }) : await p.screenshot();
   const black = await blackFraction(p, buf);
 
   // decoded IN THE PAGE, the same way lib/painted.mjs's blackFraction does it —
@@ -132,27 +148,57 @@ for (const [name, lx, lz, yaw, pitch] of VIEWS) {
     //             which `wallLum` staying put across the runs is the check on.
     const TIGHT = 26, WIDE = 38;
     const lum = (r, gg, b) => 0.2126 * r + 0.7152 * gg + 0.0722 * b;
+    const W = c.width, Hh = c.height;
+    const inBand = new Uint8Array(W * Hh);
     let n = 0, wide = 0, sum = 0, wallN = 0, wallSum = 0;
     const seen = new Set();
-    for (let i = 0; i < d.length; i += 4) {
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
       const r = d[i], gg = d[i + 1], b = d[i + 2];
       const dist = Math.hypot(r - ceil[0], gg - ceil[1], b - ceil[2]);
       if (dist <= TIGHT) n++;
-      if (dist <= WIDE) { wide++; sum += lum(r, gg, b); seen.add((r << 16) | (gg << 8) | b); }
-      else if (r > 70 && r < 150 && gg < 70 && b < 80) { wallN++; wallSum += lum(r, gg, b); }
+      if (dist <= WIDE) {
+        wide++; sum += lum(r, gg, b); seen.add((r << 16) | (gg << 8) | b); inBand[p] = 1;
+      } else if (r > 70 && r < 150 && gg < 70 && b < 80) { wallN++; wallSum += lum(r, gg, b); }
+    }
+    // EDGE DENSITY INSIDE THE CEILING REGION — this repo's own metric for the
+    // exact question being asked. `paint.ts`'s note on `slabTex` settles the
+    // park-path case with it: "1.2% edge density against 4.9% for the jointed
+    // civic slab", where 1.2% was the tint-over-paving failure. A flat
+    // MeshBasicMaterial scores ~0 by construction; it is the number that says
+    // whether there is anything in the field for the eye to attach to, and
+    // unlike `uniq` it is not inflated by a handful of stray pixels.
+    let edge = 0, edgeN = 0;
+    for (let y = 1; y < Hh - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const p = y * W + x;
+      if (!inBand[p]) continue;
+      edgeN++;
+      const i = p * 4, iR = i + 4, iD = i + W * 4;
+      const g0 = lum(d[i], d[i + 1], d[i + 2]);
+      if (Math.abs(g0 - lum(d[iR], d[iR + 1], d[iR + 2])) > 8
+        || Math.abs(g0 - lum(d[iD], d[iD + 1], d[iD + 2])) > 8) edge++;
     }
     const px = d.length / 4;
     return { cover: 100 * n / px, wide: 100 * wide / px, uniq: seen.size,
+      edge: edgeN ? 100 * edge / edgeN : 0,
       lum: wide ? sum / wide : 0, wallLum: wallN ? wallSum / wallN : 0 };
   }, [buf.toString('base64'), CEIL]);
-  console.log(
-    `${name.padEnd(9)} cover ${m.cover.toFixed(1).padStart(5)}%`
-    + `  wide ${m.wide.toFixed(1).padStart(5)}%`
-    + `  uniq ${String(m.uniq).padStart(5)}`
-    + `  lum ${m.lum.toFixed(1).padStart(5)}`
-    + `  wall-lum ${m.wallLum.toFixed(1).padStart(5)}`
-    + `  black ${black}`
-    + (black > 0.98 ? '   <-- YOU PHOTOGRAPHED THE VOID' : ''));
+  if (black > 0.98) console.log(`${name}: YOU PHOTOGRAPHED THE VOID`);
+  acc.get(name).push(m);
+ }
+ process.stderr.write(`  run ${run + 1}/${RUNS}\n`);
+}
+
+const span = (xs, k, dp = 1) => {
+  const v = xs.map((x) => x[k]).sort((a, c) => a - c);
+  const mean = v.reduce((a, c) => a + c, 0) / v.length;
+  return `${mean.toFixed(dp)} [${v[0].toFixed(dp)}..${v[v.length - 1].toFixed(dp)}]`;
+};
+console.log(`\n${TAG} — ${RUNS} runs, mean [min..max]\n`);
+console.log('vantage    cover%            wide%             uniq                  edge%             lum               wall-lum');
+for (const [name, xs] of acc) {
+  console.log(`${name.padEnd(10)} ${span(xs, 'cover').padEnd(17)} ${span(xs, 'wide').padEnd(17)} `
+    + `${span(xs, 'uniq', 0).padEnd(21)} ${span(xs, 'edge', 2).padEnd(17)} `
+    + `${span(xs, 'lum').padEnd(17)} ${span(xs, 'wallLum')}`);
 }
 if (errs.length) console.log(`\nPAGE ERRORS (${errs.length}):\n  ` + errs.join('\n  '));
 else console.log('\nno page errors');

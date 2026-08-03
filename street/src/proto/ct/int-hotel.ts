@@ -1188,9 +1188,16 @@ export function buildHotel(ctx: CtxBuild): void {
     // panel a person can read the size of; at 5.2 m — the beam bay below — the
     // panels are too big to give the field any scale, which is the failure this
     // is fixing, one size up.
+    //
+    // `grain: 0.055`, and that number was WALKED BACK from 0.11 by looking at
+    // the frame it made. `slabTex` scales its speckle CONTRAST off `grain`
+    // (paint.ts:139), so 0.11 on a near-black base put pale texels at RGB
+    // ~(84,69,68) — and at 11.9 px/m one texel is 8.4 cm, so from underneath
+    // they read as a ceiling with bits MISSING rather than as plaster. Half the
+    // grain is still far clear of the "no grain at all" this exists to fix.
     const CEIL_PPM = 32 / 2.7;
     const ceilT = slabTex({
-      wMeters: room.W, dMeters: room.D, ppm: CEIL_PPM, joint: 1.3, grain: 0.11,
+      wMeters: room.W, dMeters: room.D, ppm: CEIL_PPM, joint: 1.3, grain: 0.055,
       base: '#' + new THREE.Color(H_CEIL).getHexString(), kind: 'detail',
     });
     // 1 cm below the kit's, the same way the carpet is laid 7 mm over the kit
@@ -1203,16 +1210,33 @@ export function buildHotel(ctx: CtxBuild): void {
     // THE PRINCIPAL BEAMS, on the bay joints. Four of them, spanning the width,
     // never on a lamp — see `bayZ`. They are the reason the field can stay dark:
     // a dark recess between beams is a coffer, where a dark plane is a hole.
-    const beamM = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(H_CEIL).lerp(new THREE.Color(H_TRIM), 0.30) });
+    //
+    // A FIFTH OF THE WAY FROM THE CEILING TO THE TRIM — a rib moulded IN the
+    // ceiling, not a sawn timber laid across it. My first try read as a barn
+    // roof, which is a change of the room's character and not the sightline fix
+    // that was asked for.
+    //
+    // ⚠ AND `THREE.Color.lerp` IS NOT THE TOOL FOR THAT, which cost me a round.
+    // `new THREE.Color(hex)` converts sRGB into the LINEAR working space, so a
+    // lerp there is a photometric mix and not the mix the eye reads: dropping
+    // the parameter from 0.30 to 0.17 moved the beams from RGB (85,63,31) to
+    // (72,52,31) — thirteen levels, invisible in the re-shot frame, which is
+    // the only reason I caught it. Every other colour in this file is a
+    // hand-picked sRGB hex, so the blend belongs in the same space they were
+    // chosen in.
+    const mixHex = (a: number, b: number, k: number) => {
+      const ch = (s: number) => Math.round((((a >> s) & 255) * (1 - k) + ((b >> s) & 255) * k));
+      return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+    };
+    const beamM = new THREE.MeshBasicMaterial({ color: mixHex(H_CEIL, H_TRIM, 0.21) });
     for (let i = 1; i < LAMP_N; i++) {
-      put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.17, 0.34), beamM), 0, room.H - 0.085, bayZ(i));
+      put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.15, 0.30), beamM), 0, room.H - 0.075, bayZ(i));
     }
     // …and two down the length, so the coffers are squarish rather than eleven
     // metres of unbroken plank. At ±W/4 they miss the centreline the lamps hang
     // on by 2.75 m.
     for (const bx of [-room.W / 4, room.W / 4]) {
-      put(new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.15, room.D), beamM), bx, room.H - 0.075, 0);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.13, room.D), beamM), bx, room.H - 0.065, 0);
     }
 
     // THE CORNICE — the thing that was actually missing. A moulding capping all
