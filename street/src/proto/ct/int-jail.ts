@@ -752,7 +752,7 @@ export function buildJail(ctx: CtxBuild): void {
   //
   // Measured at 02:00 before the fix: #f0f3f6 -> #b3b7ba. That is a LIGHT GREY
   // at two in the morning — precisely the tell the line above exists to
-  // prevent. The cause is `f.night`, which is NOT how night this is:
+  // prevent. The cause is `f.night`, which is NOT how night it is:
   //
   //   f.night                     the hud's raw wash curve. `NIGHT_STOPS`
   //                               (ct/hud.ts:1225) TOPS OUT AT 0.58, and at
