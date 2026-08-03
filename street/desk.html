@@ -40,13 +40,13 @@
   @media (max-width:640px){ body{padding:14px} .grid{grid-template-columns:1fr} }
 </style></head><body>
 <h1>Crosstown '97 — the desk</h1>
-<p class="stamp">data as of <b>03/08/2026, 14:22:30</b> · <span id="age">fresh</span> · reloads every 12s.
+<p class="stamp">data as of <b>03/08/2026, 14:23:34</b> · <span id="age">fresh</span> · reloads every 12s.
 If the age keeps climbing past a minute the regenerator has stopped — restart it with <code>./scripts/desk-watch.sh &amp;</code></p>
 
 <div class="tallies">
   <div><b>3</b>in flight</div>
-  <div><b>12</b>claimable</div>
-  <div><b>0</b>your asks open</div>
+  <div><b>14</b>claimable</div>
+  <div><b>2</b>your asks open</div>
   <div><b>1</b>deferred by you</div>
   <div><b>0</b>awaiting you</div>
 </div>
@@ -63,7 +63,7 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <div class="files">FOUR standing reds in interiors-walk, now PROVEN pre-existing — fix them or declare them</div>
     <footer>
       <span class="commit">Item 287 note: the first cut reddened single-room runs, and how that was caught</span>
-             <span class="meta">2 minutes ago · 9 unlanded · a80865fe</span>
+             <span class="meta">4 minutes ago · 9 unlanded · a80865fe</span>
     </footer>
   </article>
 
@@ -77,7 +77,7 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <div class="files">ct/atm.ts — Purse wants a `pin?: string`, and the hint line has no width budget</div>
     <footer>
       <span class="commit">Item 216: hoist the ATM PIN onto Purse, and budget the panel caption</span>
-             <span class="meta">10 minutes ago · 1 unlanded · afc27cca</span>
+             <span class="meta">11 minutes ago · 1 unlanded · afc27cca</span>
     </footer>
   </article>
 
@@ -106,40 +106,41 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
     <header><span class="who">a8d0d72f</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Merge branch 'add-stick-and-city98' into worktree-agent-a8d0d72f695c5a082</span>
-            <span class="meta">3 minutes ago · 3 unlanded</span></footer>
+            <span class="meta">4 minutes ago · 3 unlanded</span></footer>
   </article>
 
   <article class="card unmatched">
     <header><span class="who">a8ffce43</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Item 286 handoff: the overlap was exactly 0.275 m, and my first fix was wrong</span>
-            <span class="meta">35 minutes ago · 0 unlanded</span></footer>
+            <span class="meta">36 minutes ago · 0 unlanded</span></footer>
   </article>
 
   <article class="card unmatched">
     <header><span class="who">a90c4fa6</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Item 253 handoff: what I fixed, and the hub I could not reach</span>
-            <span class="meta">3 minutes ago · 8 unlanded</span></footer>
+            <span class="meta">4 minutes ago · 0 unlanded</span></footer>
   </article>
 
   <article class="card unmatched">
     <header><span class="who">a9367609</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Item 288 handoff: two ceilings added, one already existed, one deliberately not</span>
-            <span class="meta">3 minutes ago · 0 unlanded</span></footer>
+            <span class="meta">4 minutes ago · 0 unlanded</span></footer>
   </article>
 
   <article class="card unmatched">
     <header><span class="who">a9eef617</span><span class="item">unmatched</span></header>
     <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
     <footer><span class="commit">Item 206 released un-actioned: it collides with in-flight 277 in FOCUS.leave()</span>
-            <span class="meta">75 minutes ago · 0 unlanded</span></footer>
+            <span class="meta">76 minutes ago · 0 unlanded</span></footer>
   </article></div>
 <p class="note">61 dormant worktrees not shown — no commit in 120 minutes. Every builder this session left one behind; <code>git worktree prune</code> only clears entries whose directory is already gone.</p>
 
 <h2>Your asks still open</h2>
-<ul><li class="none">none open</li></ul>
+<ul><li><b>291</b> “THE CALENDAR NOW OUTRANKS THE BED AND THE DOOR IN THE PLAYER FLAT — mainline is ”</li>
+<li><b>292</b> “[screenshot] fix the wheels on the trailer.”</li></ul>
 
 <script>
   // THE USER ASKED FOR THIS TO POLL: "im not going to ask to rerun all the time".
@@ -151,7 +152,7 @@ If the age keeps climbing past a minute the regenerator has stopped — restart 
   // the DATA, not the age of the page, so if the regenerator dies the clock keeps
   // climbing and you can see it has stopped. A silent freeze is the failure mode
   // that would actually mislead.
-  const BORN = 1785792150;
+  const BORN = 1785792214;
   const KEY = 'desk-scroll';
   addEventListener('DOMContentLoaded', () => {
     const y = sessionStorage.getItem(KEY);
