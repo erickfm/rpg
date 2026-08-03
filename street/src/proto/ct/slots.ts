@@ -2268,10 +2268,6 @@ export function register(ctx: CtxBuild): void {
    * is a panel that flickers" — so a moving machine has to ask, and only while
    * it is actually up.
    */
-  // Registered SYNCHRONOUSLY even though the panel it drives arrives a tick
-  // later: `crosstown.ts` sorts HOOKS by declared ORDER once, at build time, so
-  // a hook pushed after that sort runs last regardless of what it asked for.
-  // It no-ops until the panel exists.
   // ═════════════════════════════════════════════════════════════════════════
   // THE CABINET IS AN `[E]` TARGET NOW — item 205
   // ═════════════════════════════════════════════════════════════════════════
@@ -2367,6 +2363,10 @@ export function register(ctx: CtxBuild): void {
     armedAt = stool;
   };
 
+  // Registered SYNCHRONOUSLY even though the panel it drives arrives a tick
+  // later: `crosstown.ts` sorts HOOKS by declared ORDER once, at build time, so
+  // a hook pushed after that sort runs last regardless of what it asked for.
+  // It no-ops until the panel exists.
   ctx.onFrame((f) => {
     if (!panel) return;
     // THE SEAT IS THE TRIGGER. Sitting down opens it; standing up is impossible
