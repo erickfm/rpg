@@ -3227,3 +3227,33 @@ Judged each against "would he notice this breaking":
 - **282 — KEPT untouched.** Not desk-generated instrument work: it answers his
   live complaint *"npcs still get stuck"* and found citizens walking a lane the
   player is blocked from by 0.091 m.
+
+## 2026-08-03 15:55 — speed: five small changes is fifteen minutes, not five hours
+
+> "in general i really care about speed. so speedy implementation allows me to
+> get feedback quickly. if something requires 5 changes. and they're small
+> changes i want to be able to finish that in like 15 min. not 5 hours"
+
+**Routed to: the desk. Structural change, not a queue item.** New `notes/FAST-BRIEF.md`,
+and `BUILDER-BRIEF.md` now opens by redirecting fast-lane work to it.
+
+**The measured cause was the desk's own process, not the builders.** Every worker
+read a 429-line brief plus a 2,800-line gotchas file before its first commit —
+about twenty minutes of fixed tax, paid PER AGENT PER ITEM. Reasonable for a hard
+item; absurd for five one-liners, where it IS the whole budget. On top of that
+the desk ran one item per agent, so the tax was paid five times for five small
+changes, and each item built and previewed separately at 30-40 s a go.
+
+**The fix is batching plus a shorter door.** A FAST LANE item is N small
+independent changes, ONE worker, ONE pass, ONE build, one commit per change so a
+bad one reverts alone. The worker reads a single page instead of 3,200 lines.
+Proof is looking at it — no probes, no harnesses, no suite legs.
+
+**Excluded from the lane, deliberately:** collision, floors, seats, the 2 m
+sidewalk lane, and anything you cannot judge by looking. Those still go the long
+way. One misjudged item in this lane would cost more than the lane saves.
+
+**The desk's own rows are part of the problem and are now capped**: fast-lane rows
+are ONE LINE — symptom, file, the user's words, done-when. A 1,500-character brief
+for a one-number fix costs the desk time to write, the builder time to read, and
+its numbers rot within the hour.
