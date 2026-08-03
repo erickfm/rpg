@@ -80,6 +80,40 @@ meshes past `x = 300` and the casino stayed green, because those 40 were in
 somebody else's room. It is aimed at the room centres `__ct.roomDims()`
 publishes now, at the same 8 m box leg 6 samples.
 
+## THE FIXED CHECK IMMEDIATELY FOUND A REAL DEFECT — the jail
+
+The full suite is **325/330**, and leg 6 is green on eleven of the twelve rooms.
+**The jail is red at a stable `1/97`** — three separate runs, `0 excluded as
+self-animating, 0 not steady at both hours`, so it is neither a moving object
+nor a chase phase. The population floor passes on all twelve.
+
+`scripts/probes/w64-jail-dimmed.mjs` names it:
+
+```
+#f0f3f6 -> #b3b7ba   at (1006.37, 2.42, -5.6)  BoxGeometry
+    userData.graded=false  selfLit=true
+    geometry: {"width":0.04,"height":0.44,"depth":0.8}
+```
+
+A 0.8 m × 0.44 m panel 40 mm thick at 2.42 m up — a light fitting's diffuser on
+the jail wall. **It carries `userData.selfLit = true`, so it has DECLARED itself
+a light source, and the night sweep dims it to 0.746 anyway.** That is the exact
+class `ct/props.ts` records paying for once already: *"A LIGHT REGISTERED
+THROUGH lit() WAS BEING DIMMED LIKE MASONRY … The payphone's backlit header
+graded to 0.0933 at 23:00 with the enamel beside it, which is the opposite of
+what it is for."*
+
+**The old by-index version could never have reported this.** One material out of
+97 is far below the index-shift noise floor that produced 109 and 110, and the
+run that returned 0 would have called the jail clean. **A flaky check was not
+merely noisy here — it was hiding a defect.** This wants its own row against
+`ct/int-jail.ts`; it is not mine and I have not touched it.
+
+The other four reds are **pre-existing and self-documented** — casino, hotel,
+pawn and tax fail *"the customer station comes from the world, not from
+memory"* with *"no served-spot published in this room … see
+F-keeper-stations-audit.md"*. My diff contains zero lines mentioning that leg.
+
 ## ⚠ THE PATTERN IS IN THREE MORE PLACES, TWO OF THEM REGISTERED CHECKS
 
 The row asks for this explicitly, and it is the real size of the problem.
@@ -108,6 +142,11 @@ its own row; the fix is the one above and it transfers directly.
    its populations are 4x the casino's.
 2. **`interiors-walk` still cannot run against a built preview** (imports
    `doors.ts` in the page). That is item 164, recorded in the file, untouched.
-3. **The suite takes over ten minutes**, so the five-run stability proof was run
-   against the `casino` room alone and the whole suite once. That is the right
-   trade but it is worth saying out loud.
+3. **The jail's self-lit diffuser**, above. `ct/int-jail.ts` and `ct/props.ts`,
+   not mine, and the most valuable thing this row produced.
+4. **The suite takes over twenty minutes on a loaded machine**, so the five-run
+   stability proof was run against the `casino` room alone (and three more
+   against `jail`), with the whole suite run once. That is the right trade but
+   it is worth saying out loud. Note also that redirecting the suite to a file
+   block-buffers its output — the file stays at the header for the whole run and
+   then lands at once, which looks exactly like a hang.
