@@ -32,7 +32,11 @@ const frames = async (n = 8) => { for (let i = 0; i < n; i++) await p.evaluate((
 
 // DAYLIGHT. A game day is 24 REAL MINUTES, so an unset clock lands wherever the
 // wall clock puts it — a black frame at 02:29 is not a defect.
-await p.evaluate(() => window.__ct.clock(12, 30));
+// `CLOCK_H=22` runs the same sweep after dark: the framework forces the
+// material white on open so the night wash cannot dim what you are reading,
+// and that is a PIXEL claim, so it has to be looked at rather than asserted.
+const CLOCK_H = +(process.env.CLOCK_H ?? 12);
+await p.evaluate((h) => window.__ct.clock(h, 30), CLOCK_H);
 await frames(4);
 
 // ── the subject, found by NAME rather than inferred from a size ────────────
@@ -160,6 +164,22 @@ await press('e');
 const shut2 = await state();
 ok(!shut2.visible, '[E] closed it');
 ok(!shut2.seated, 'and stood us back up');
+
+// ── AND YOU CAN WALK AWAY. A panel you cannot leave is the worst bug this ──
+// project ships, and "the panel closed" is not the same claim as "the feet
+// work again" — the focus controller SEATS the rig to freeze them, so a close
+// that failed to unseat would read as closed and still be a trap. Walked, not
+// inferred: BUILDER-BRIEF §10.
+console.log('\n── walking away ──');
+const posBefore = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(3)));
+await p.keyboard.down('w'); await p.waitForTimeout(600); await p.keyboard.up('w');
+await frames(6);
+const posAfter = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(3)));
+const walked = Math.hypot(posAfter[0] - posBefore[0], posAfter[2] - posBefore[2]);
+ok(walked > 0.3, 'the player can walk after closing the letter', `moved ${walked.toFixed(2)} m`);
+// and the sheet did not come back up on its own
+const afterWalk = await state();
+ok(!afterWalk.visible, 'the sheet stayed down while walking');
 
 // ── NEGATIVE CASE: would this probe notice if nothing were diegetic? ──────
 // Assert the thing that is TRUE only on the diegetic path. If a future change
