@@ -2874,3 +2874,21 @@ to one side.
   of the same wall built from different materials — one patched, one not — would give
   exactly this hard boundary. The desk has been wrong on lighting twice today, so this
   is explicitly a candidate.
+
+- **"theres still 2 take card options. it should be take card and then the exit not take
+  card > take card"** (2026-08-02) → **done by the desk directly.** The MENU's TAKE CARD
+  sent you to a screen whose only button is also TAKE CARD. It now goes straight to the
+  farewell. The `card` screen stays for the path that reaches it after a withdrawal
+  (`receipt` → NO → `card`), where the machine really is handing the card back and it is
+  the first time you have been asked.
+
+- **"i need the pc in the library to be like the atm too. intergrated overlay. realistic
+  setup"** (2026-08-02) → **routed as queue item 157.** FOURTH application of the
+  framework. **Carries a known constraint the others did not:** `ct/library-pc.ts:377` is
+  a free-text search field, and item 143 had to add a `PanelSpec.typing` opt-out because a
+  global `[E]`-to-close made the letter *e* untypable — *Emma* and *Frankenstein*
+  unsearchable.
+
+- **"[screenshot] remove this weird table in the library"** (2026-08-02)
+  → **routed as queue item 158.** A table jutting from a shelf end at an angle,
+  intersecting the shelving.

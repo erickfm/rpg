@@ -182,7 +182,17 @@ function rows(p: Purse): Row[] {
         { left: 'BALANCE', act: () => go('balance') },
         { left: 'WITHDRAW', act: () => go('withdraw') },
         {},
-        { right: 'TAKE CARD', actR: () => go('card') },
+        // ONE PRESS, NOT TWO. The user: *"theres still 2 take card options. it
+        // should be take card and then the exit not take card > take card"*.
+        //
+        // This used to `go('card')` — a screen whose ONLY button is also
+        // labelled TAKE CARD, so ending a session meant pressing the same words
+        // twice. The `card` screen still exists and is still right on the path
+        // that reaches it after a withdrawal (`receipt` -> NO -> `card`), where
+        // the machine really is handing your card back and TAKE CARD is the
+        // first time you have been asked. From the MENU there is nothing to
+        // hand back yet, so it goes straight to the farewell.
+        { right: 'TAKE CARD', actR: () => { go('thanks'); after(FAREWELL_MS, endSession); } },
       ];
     case 'balance':
       return [{ right: 'BACK', actR: () => go('menu') }];
