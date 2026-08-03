@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { weedTuft } from './weeds';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
@@ -1931,22 +1931,78 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // ceiling boarding, with a rafter every 0.62 m across them — that pitch is
     // what gives the ceiling scale when you are two metres under it.
     const CEIL = E * 2;
-    const ceilT = pixTex(Math.round(CEIL * 16), Math.round(CEIL * 16), (g) => {
-      const px = Math.round(CEIL * 16), r = clcg(0x5ad13b);
+    // ── THE JOINT WAS A THIRD OF EVERY BOARD ────────────────────────────────
+    //
+    // The user, item 171: *"shelter roof is still bugged in terms of
+    // graphics."* Screenshot from under it, looking up: a dense
+    // high-frequency stripe grid that shimmers instead of reading as boards.
+    // He is right, and the arithmetic says exactly why.
+    //
+    // This canvas was `CEIL * 16` — 16 px/m — with the board pitch written as
+    // `Math.max(3, Math.round(0.16 * 16))`. At 16 px/m a 0.16 m board is
+    // **2.56 px**, so:
+    //
+    //     board  = round(2.56) = 3 px       the `max(3, …)` floor also fired
+    //     face   = board - 1  = 2 px        what you see of the board
+    //     joint  =              1 px        THE SHADOW IS 33% OF THE BOARD
+    //
+    // Two texels of timber and one of shadow is not boarding with a joint in
+    // it, it is a 2:1 stripe — which is precisely the "dense stripe grid" in
+    // his screenshot. The rafters had the same disease one step further on:
+    // `max(2, round(0.07 * 16))` = max(2, **1**) = 2 px = **0.125 m**, against
+    // the 0.07 m the line asks for, 79% over.
+    //
+    // **BOTH `Math.max` FLOORS FIRING IS THE CODE SAYING IT HAS RUN OUT OF
+    // PIXELS.** A floor that is reached is a density that cannot draw its own
+    // content, and it fails silently: every texel stayed perfectly square, so
+    // `scripts/texdensity.mjs` — which judges an undeclared face on texel
+    // ASPECT — never flagged it and never could. See the handoff note.
+    //
+    // ── SO: DECLARE THE DENSITY, DERIVE EVERY PITCH FROM IT (§7b) ───────────
+    //
+    // 32 px/m, an INTEGER multiple of the world's `WALL_PPM` of 8
+    // (`ct/tex-world.ts:34`, and :67 for why the multiple must be integer:
+    // "for surfaces that carry fine content … integer keeps texels square and
+    // the course grid commensurate"). It is also the density B established for
+    // every jointed surface in the world — `ct/civic.ts:404`, *"every other
+    // ground surface here derives its canvas from its real metres at one
+    // density — 32 px/m — and carries aggregate, staining and scoring
+    // joints"* — and a boarded ceiling is a jointed surface.
+    //
+    // Every pitch below is now a WHOLE NUMBER of texels at that density, so
+    // nothing rounds and nothing drifts across the span:
+    //
+    //     board pitch   0.25   m  =  8 px      joint 1 px =  12.5% of a board
+    //     rafter pitch  0.625  m  = 20 px      the 0.62 m the note above asks
+    //                                          for, landed on a texel
+    //     rafter width  0.0625 m  =  2 px      was 0.125 m
+    //
+    // The board goes 0.16 m -> 0.25 m and that is the point, not a side
+    // effect: 0.16 m boarding is finer than any density this world paints at,
+    // and drawing it anyway is what produced the shimmer. Widening it is what
+    // makes it read as boards from two metres underneath.
+    const CEIL_PPM = 32;                       // 4 x WALL_PPM (ct/tex-world.ts:34)
+    const BOARD_M = 0.25, RAFT_M = 0.625, RAFT_W_M = 0.0625;
+    const ceilT = pixTex(Math.round(CEIL * CEIL_PPM), Math.round(CEIL * CEIL_PPM), (g) => {
+      const px = Math.round(CEIL * CEIL_PPM), r = clcg(0x5ad13b);
       g.fillStyle = '#6b5f4a'; g.fillRect(0, 0, px, px);
-      const board = Math.max(3, Math.round(0.16 * 16));
+      const board = Math.round(BOARD_M * CEIL_PPM);
       for (let y = 0; y < px; y += board) {
         g.fillStyle = r() > 0.5 ? '#75684f' : '#635844';
         g.fillRect(0, y, px, board - 1);
         g.fillStyle = 'rgba(38,30,22,0.45)';       // the shadow in each joint
         g.fillRect(0, y + board - 1, px, 1);
       }
-      const raft = Math.max(4, Math.round(0.62 * 16));
+      const raft = Math.round(RAFT_M * CEIL_PPM);
       for (let x = 0; x < px; x += raft) {         // rafters across the boards
-        g.fillStyle = '#584e3d'; g.fillRect(x, 0, Math.max(2, Math.round(0.07 * 16)), px);
+        g.fillStyle = '#584e3d'; g.fillRect(x, 0, Math.round(RAFT_W_M * CEIL_PPM), px);
       }
       dither(g, px, px, Math.round(px * px * 0.01));
     });
+    // DECLARED, so the next density sweep can judge this face instead of
+    // guessing at it. `pixTex` leaves `userData.surface` unset and an
+    // undeclared face is one `texdensity.mjs` can only test for squareness.
+    declareSurface(ceilT, 'detail');
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(CEIL, CEIL), flat(ceilT));
     ceil.rotation.x = Math.PI / 2;                 // facing DOWN, at the player
     ceil.position.set(shX, KERB_H + SH_TOP - (SH_RISE / SH_H) * SH_OVER - SH_SKIRT + 0.005, shZ);
