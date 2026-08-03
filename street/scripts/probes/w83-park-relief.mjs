@@ -71,10 +71,17 @@ page.on('pageerror', (e) => errors.push(String(e.message)));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 
+// SITE=lot sweeps the car lot instead. That is not a curiosity: `openSite` in
+// ct/street.ts is SHARED, and item 172 changed it — its ground plane went from
+// one quad to a subdivided grid so a module could take it over. The lot never
+// calls `displace`, so the lot must still be perfectly flat, and this is the
+// regression guard that says so. A change to a shared builder that is only ever
+// checked on the one site that wanted it is a change nobody checked.
+const SITE = process.env.SITE || 'park';
 const sites = await page.evaluate(() => window.__ct.sites());
-const park = sites.park;
-if (!park) { console.log('ABORT  no park site published'); await browser.close(); process.exit(3); }
-console.log(`park site  x ${park.minX.toFixed(2)}…${park.maxX.toFixed(2)}  z ${park.minZ.toFixed(2)}…${park.maxZ.toFixed(2)}  y ${park.y.toFixed(3)}`);
+const park = sites[SITE];
+if (!park) { console.log(`ABORT  no '${SITE}' site published`); await browser.close(); process.exit(3); }
+console.log(`${SITE} site  x ${park.minX.toFixed(2)}…${park.maxX.toFixed(2)}  z ${park.minZ.toFixed(2)}…${park.maxZ.toFixed(2)}  y ${park.y.toFixed(3)}`);
 
 // The sweep runs IN THE PAGE — 24k round trips over CDP is minutes, one
 // evaluate is milliseconds, and the picker is synchronous so there is nothing
@@ -136,15 +143,28 @@ const sweep = (fnSrc) => page.evaluate(([p, step, src]) => {
 const oneIn = (d) => (d <= 1e-9 ? Infinity : STEP / d);
 /** POPULATION FLOOR — see the header. A thin grid means the site did not
  *  resolve, and every number after it would be a confident statement about
- *  nothing. Returns null rather than throwing so the caller decides. */
-const FLOOR = 10000;
+ *  nothing. Returns null rather than throwing so the caller decides.
+ *
+ *  PROPORTIONAL, NOT ABSOLUTE. This was a flat 10,000 and it was wrong: the
+ *  jail forecourt is 18 x 14 m, so a complete, correct sweep of it is 6,461
+ *  samples and the guard rejected it. An absolute floor is really two
+ *  assertions confused with each other — "the site has extent" and "every
+ *  point in it answered" — so they are separated here. The second is the one
+ *  that catches a picker returning NaN, which is the failure the floor exists
+ *  for; `groundPick` never returns null, so a hole shows up as a missing
+ *  finite value and nothing else. */
 const report = (label, out) => {
   const range = out.max - out.min;
   const g = oneIn(out.worstG);
+  const expect = (out.nx + 1) * (out.nz + 1);
   console.log(`\n── ${label} ──`);
-  console.log(`samples    ${out.n}  (${out.nx + 1} x ${out.nz + 1} at ${STEP} m)`);
-  if (out.n < FLOOR) {
-    console.log(`ABORT  only ${out.n} samples, floor is ${FLOOR} — the site did not resolve`);
+  console.log(`samples    ${out.n} of ${expect}  (${out.nx + 1} x ${out.nz + 1} at ${STEP} m)`);
+  if (expect < 400) {
+    console.log(`ABORT  the site is only ${out.nx * STEP} x ${out.nz * STEP} m — it did not resolve`);
+    return null;
+  }
+  if (out.n < expect) {
+    console.log(`ABORT  ${expect - out.n} of ${expect} points returned a non-finite height`);
     return null;
   }
   console.log(`RANGE      ${range.toFixed(3)} m   (floor ${out.min.toFixed(3)} … ${out.max.toFixed(3)})`);
@@ -180,7 +200,7 @@ if (SELFTEST) {
   process.exit(bad === 0 ? 0 : 1);
 }
 
-const r = report('park, as built', await sweep(null));
+const r = report(`${SITE}, as built`, await sweep(null));
 if (errors.length) console.log(`\nconsole errors: ${errors.length}\n  ${errors.join('\n  ')}`);
 await browser.close();
 process.exit(r ? 0 : 3);

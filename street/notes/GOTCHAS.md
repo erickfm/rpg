@@ -2060,11 +2060,31 @@ should be derived from the registry** (219 seats published) **rather than typed.
 
 ## 72.
 
-**A red without a green is half a measurement, and `canfail` cannot tell the
-difference.** `canfail` scores CAUGHT on *any* non-zero exit (GOTCHAS 32), so a
-case registered against a check that is **already failing on unmutated mainline**
-self-certifies: the mutation is irrelevant, the score is green, and the guard
-proves nothing forever after.
+**A red without a green is half a measurement.** *(FIXED 2026-08-03, item 233 —
+`canfail` now tells the difference. Kept, because the principle outlives the
+tool and the failure it describes was real.)*
+
+`canfail` used to score CAUGHT on *any* non-zero exit (GOTCHAS 32), so a case
+registered against a check that was **already failing on unmutated mainline**
+self-certified: the mutation was irrelevant, the score was green, and the guard
+proved nothing forever after.
+
+**What it does now.** Before any mutation it runs each distinct check once on
+the unmutated tree. **CAUGHT requires green-before AND red-after.** A check
+already red yields **`PRE-RED`** — a distinct status, listed under "could not be
+scored — NOT sleeping guards", non-zero exit — so the guard reads as
+*unverified*, never as proven and never as asleep. `glow-pool` was the live
+instance: it scored CAUGHT over a `glow.mjs` that is red on mainline, and now
+reports PRE-RED by name.
+
+Cost, measured rather than feared: 62 cases share **38** distinct check
+invocations (`node scripts/canfail.mjs <port> --plan`), the pre-pass adds **no
+builds**, and a PRE-RED case skips its mutation entirely — about **+40%**, not
+the +100% a naive green-then-red pair would cost.
+
+**You still watch both, when you register a NEW case by hand** — the harness
+now enforces it, which is better, but the habit is what stops you writing a case
+whose check was never going to discriminate.
 
 A builder nearly shipped exactly this, caught it, and withdrew its own landed
 work. It had watched the mutated run go red and committed on that alone; the

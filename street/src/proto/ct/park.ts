@@ -856,7 +856,35 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // kerb line and the strip under the party walls are all left at exactly
   // KERB_H — nothing that stands on the site's flat ground has moved, and the
   // paths stay level without being told anything.
-  site.displace?.(relief);
+  //
+  // ── AND IT IS SUNK 30 mm UNDER THE GRASS, WHICH IS NOT COSMETIC ─────────
+  //
+  // The field mesh rides `LIFT * 0.5` — 3 mm — above the site plane, which was
+  // ample while the plane was flat. Once BOTH are curved it is not, because
+  // they are curved at DIFFERENT TESSELLATIONS: the field is
+  // `PlaneGeometry(17.75, 16.5, 27, 25)` at 0.657 m, the site plane
+  // `(32, 30, 48, 45)` at 0.667 m, and neither grid's vertices land on the
+  // other's. A flat facet across a convex crest sits below the true surface by
+  // κh²/8, and the relief's sharpest curvature is 0.093 m⁻¹ where `land` ramps
+  // its slope in — so each mesh sags up to 5.2 mm mid-facet, out of phase with
+  // the other. Where the field sags and the site plane does not, the plane
+  // stands 2.2 mm PROUD OF THE GRASS and the site's grey shows through it in
+  // slivers. That is GOTCHAS §6 with a curve in it, and no screenshot at this
+  // scale would reliably show it.
+  //
+  // 30 mm clears the worst case six times over. It costs nothing: the field
+  // mesh covers `fx0…fx1 x fz0…fz1` exactly, so every millimetre of the sunk
+  // region is under grass, and the sag ramps from zero over the first 0.6 m
+  // INSIDE the boundary — so the two surfaces still meet flush exactly where
+  // the grass ends and the site's own ground takes over.
+  //
+  // The floor picker is untouched by this: it answers `relief`, not the plane.
+  const SAG = 0.03;
+  site.displace?.((x, z) => {
+    const inset = Math.min(x - fx0, fx1 - x, z - fz0, fz1 - z);
+    if (inset <= 0) return 0;
+    return relief(x, z) - SAG * Math.min(1, inset / 0.6);
+  });
 
   if (fW > 0.5 && fD > 0.5) {
     // ── MOWING STRIPES ────────────────────────────────────────────────────
@@ -2354,9 +2382,36 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     t.repeat.set(1, 2.2);                               // ~3 m of trunk per tile
     return flat(t);
   })();
+  // ── TREE HEIGHTS: THE ITEM'S CLAIM WAS WRONG, AND WIDENED ANYWAY ─────────
+  //
+  // Item 172's second half says *"the trees are all roughly one canopy height,
+  // the lamps one height, the wall one height — so even once the ground moves,
+  // the silhouette stays a flat band."* MEASURED FIRST
+  // (`scripts/probes/w83-park-canopy.mjs`, 12 trees selected by their 0.3 m
+  // bark trunk rather than by size, which is the only non-circular way to pick
+  // them): canopy tops ran 6.76 m to 9.54 m, a 2.79 m spread with sd 0.97 and
+  // 9 of 12 distinct. They were never one height, and the previous author's
+  // `6.6 + t2()*2.8` says so in the source.
+  //
+  // WIDENED REGARDLESS, because the user's ask is height diversity and this is
+  // the cheapest place left to buy it now the ground is done: 5.6…10.6 m of
+  // tree against 6.6…9.4, so the spread nearly doubles. The party walls are
+  // `wallHeight(4)` = 13.0 m, so the tallest still stands below the skyline the
+  // boundary gives it rather than poking over it.
+  //
+  // THE TRUNK IS NOW A FRACTION OF THE HEIGHT, not an independent draw. It used
+  // to be `2.6 + t2()*1.0` against a height drawn separately, so a short tree
+  // could roll a tall trunk — at the new range that pairs a 5.6 m tree with a
+  // 3.6 m trunk and leaves a 2 m lollipop on a pole. 34–46% is the proportion
+  // the old pair actually produced across its own range, so this keeps the
+  // shape and lets the size move.
+  //
+  // No `rnd()`: `clcg(seed)` is per-tree and the object count is unchanged, so
+  // the seeded stream and every texture downstream of it are untouched
+  // (GOTCHAS §2).
   const tree = (x: number, z: number, seed: number) => {
     const t2 = clcg(seed);
-    const h = 6.6 + t2() * 2.8, spread = 4.4 + t2() * 2.0, trunk = 2.6 + t2() * 1.0;
+    const h = 5.6 + t2() * 5.0, spread = 4.0 + t2() * 2.8, trunk = h * (0.34 + t2() * 0.12);
     const gy = parkY(x, z);                           // a tree on the mound too
     const tk = new THREE.Mesh(new THREE.BoxGeometry(0.3, trunk + 0.6, 0.3), barkM);
     tk.position.set(x, gy + (trunk + 0.6) / 2, z);
