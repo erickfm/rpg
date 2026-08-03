@@ -282,5 +282,45 @@ console.log(fails.length
   : `\nall ${tested} traps release the player`
     + (driven ? `, and all ${driven} driven cross-checks walked away` : ''));
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 5).join('\n  '));
+
+// ── POPULATION FLOORS — BOTH OF THEM ──────────────────────────────────────
+//
+// ITEM 260, and it is the dangerous shape rather than the obvious one. Every
+// verdict above is a FILTER over a population: with no traps found, `fails` is
+// empty and this printed **"all 0 traps release the player"** and exited 0.
+// Green, cheerful, and about nothing — GOTCHAS 79 verbatim.
+//
+// **AND IT NOW CARRIES A CERTIFICATE.** Item 258 gave this check a registered
+// `canfail` case, so `checks-can-fail` reports it as a proven guard. A
+// certificate on an unfloored check is worse than no certificate: it converts
+// "nobody has watched this fail" into "somebody has", while the run that
+// watched it can still be a run over an empty list. The mutation proves the
+// verdict CAN go red; the floor is what proves the verdict was ASKED.
+//
+// Two numbers, because the file already carefully separates two populations
+// (see the note above) and either can collapse on its own:
+//
+//   CANDIDATES  the gaps the seed found at all. Measured at 586 on this world
+//               (item 260's row). A collapse here means the trap-finder broke.
+//   TESTED      the subset that were GENUINELY STUCK and went through the
+//               probe. Measured at 543. A collapse here means every candidate
+//               turned out passable, which is either a fixed world or — far
+//               more likely — a broken `isBlocked`.
+//
+// Set well under the real figures and hugely over the collapse they catch, and
+// they are asserted BEFORE the pass/fail exit so a blinded run can never report
+// green. Exit 2, not 1: this is the instrument failing, not the world.
+const CAND_FLOOR = 200, TESTED_FLOOR = 150;
+if (traps.length < CAND_FLOOR || tested < TESTED_FLOOR) {
+  console.error(`\nTHIS CHECK MEASURED (ALMOST) NOTHING: ${traps.length} candidate gaps`
+    + ` (floor ${CAND_FLOOR}), ${tested} genuinely stuck (floor ${TESTED_FLOOR}).`);
+  console.error('  Every verdict above is a filter over that population, and all of them pass');
+  console.error('  for free at zero — "all 0 traps release the player" is not a pass. This is');
+  console.error('  the trap FINDER failing, or the world no longer publishing colliders; it is');
+  console.error('  not a clean bill of health. Item 258 gave this check a canfail case, so a');
+  console.error('  blinded run would otherwise be reported as a PROVEN guard.');
+  await b.close();
+  process.exit(2);
+}
 await b.close();
 process.exit(fails.length || errs.length ? 1 : 0);

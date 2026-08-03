@@ -167,7 +167,26 @@ for (const s of seats) {
   }
   const before = await pos();
 
+  // START THE EYE SAMPLER BEFORE THE PRESS. `press()` holds E for 90 ms and then
+  // waits another 200 ms, so a trace begun after it returns opens ~290 ms after
+  // the seat is taken — and the focus ease is 340 ms, so it had already missed
+  // almost all of it. Measured: starting after `press()` still failed 81 slots.
+  // Each sample carries whether the rig was seated at the time, so frames from
+  // before you sat (standing eye ~1.62) can never be mistaken for a good one.
+  await p.evaluate(() => {
+    const w = window;
+    w.__eyeTrace = [];
+    const tick = () => {
+      w.__eyeTrace.push([w.__ct.camY(), w.__ct.seated() ? 1 : 0]);
+      w.__eyeRAF = requestAnimationFrame(tick);
+    };
+    tick();
+  });
   await press();
+  const eyeTrace = await p.evaluate(() => {
+    cancelAnimationFrame(window.__eyeRAF);
+    return window.__eyeTrace.filter((r) => r[1]).map((r) => r[0]);
+  });
   const on = await seatedOn();
   if (!on) { fail('E did not seat you'); continue; }
   // ── READ THE EYE AS YOU SIT, NOT 800 ms LATER ───────────────────────────
@@ -195,14 +214,6 @@ for (const s of seats) {
   // where its pan says still fails at every frame in that window. A fixed sleep
   // aimed at the first 50 ms would have been GOTCHAS 30 — right on this machine,
   // wrong under load — so it watches instead of guessing when to look.
-  const eyeTrace = await p.evaluate(() => new Promise((done) => {
-    const out = []; const t0 = performance.now();
-    const tick = () => {
-      out.push(window.__ct.camY());
-      if (performance.now() - t0 < 420) requestAnimationFrame(tick); else done(out);
-    };
-    requestAnimationFrame(tick);
-  }));
   const sat = await pos();
   // You get THE seat you are standing on, not a neighbour.
   //
@@ -319,6 +330,35 @@ for (const s of seats) {
 const bad = results.filter((r) => !r[0]);
 for (const [ok, tag, detail] of results) if (!ok) console.log(`FAIL  ${tag}\n        ${detail}`);
 console.log(`\n${results.length - bad.length}/${results.length} seats sit, lock, and stand clear`);
+
+// ── BREAK THE FAILURES DOWN, SO THE TOTAL CANNOT BE MISQUOTED ───────────────
+//
+// This is the whole lesson of item 255. A bare "109 of 219 FAILURES" was read
+// all week as a backlog of 109 broken seats; it was in fact ONE thing counted 83
+// times. A total with no shape invites exactly that mistake, and no amount of
+// telling people not to quote it works as well as printing the shape next to it.
+if (bad.length) {
+  const kind = (d) => d.startsWith('UNREACHABLE') ? 'unreachable — no standable point in the trigger'
+    : /^no ".*" prompt.*got null/.test(d) ? 'no [E] prompt at all from the standable point'
+    : /^no ".*" prompt/.test(d) ? 'another [E] spot answered instead of the seat'
+    : d.startsWith('sat at') ? 'E seated you on a DIFFERENT seat'
+    : d.startsWith('seated eye') ? 'seated eye height wrong at the moment of sitting'
+    : d.startsWith('seated prompt') ? 'no "stand up" when seated — a MACHINE seat is in its own overlay here'
+    : d.startsWith('moved') ? 'moved while seated'
+    : d.startsWith('stood up at') ? 'stood up somewhere other than where you sat down from'
+    : d.includes('STUCK') ? 'stood up stuck in the furniture'
+    : d.startsWith('E did not seat') ? 'E did not seat you'
+    : d.startsWith('E did not get') ? 'E did not get you up again'
+    : d.startsWith('the PREVIOUS') ? 'cascade from an earlier seat that would not release'
+    : 'other';
+  const by = new Map();
+  for (const [, , d] of bad) by.set(kind(d), (by.get(kind(d)) ?? 0) + 1);
+  console.log(`\n${bad.length} failures, by kind — READ THIS, NOT THE TOTAL:`);
+  for (const [k, n] of [...by].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(n).padStart(4)}  ${k}`);
+  }
+  console.log('\n  ⚠ A large count against ONE kind is one fault repeated, not that many broken seats.');
+}
 
 // ── A POPULATION FLOOR, so a run that judged almost nobody cannot read green ──
 //
