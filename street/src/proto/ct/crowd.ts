@@ -456,10 +456,24 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    *  or two of ordinary jostling, shorter than JAM_GIVE_UP, so the escalation
    *  stays ordered: stand, go round, give ground, reroute. */
   const BACK_AFTER = 0.35;
-  /** s of commitment once retreating. `c.pick` is sticky for exactly this
-   *  reason — re-deciding every frame is what made walkers oscillate — and a
-   *  car's box clearing by a centimetre must not flip the choice back. */
-  const BACK_HOLD = 0.45;
+  /** s the widened look-ahead below survives after the last walled frame. This
+   *  is the anti-oscillation latch and it is the SECOND one I had to write: the
+   *  first latched the RETREAT, which was useless, because what needed latching
+   *  was the decision to stop advancing. */
+  const BACK_HOLD = 0.6;
+  /** Extra metres of look-ahead once a walker is already giving way — a Schmitt
+   *  trigger, and without it this rule jitters instead of yielding.
+   *
+   *  MEASURED, not guessed. With a single threshold a walker parked itself at
+   *  x = -3.18 with the taxi's box edge 3.53 m away and vibrated there for 65
+   *  seconds: at 3.53 m the wall test did not fire so it stepped forward, at
+   *  3.40 m it did so it stepped back, jam pinned at 0.38 s and 21 direction
+   *  reversals. It never "stood still" for a single sample, so a stand-timer
+   *  read it as perfectly healthy — the trace is what showed it
+   *  (scripts/probes/w96-watch-the-retreat.mjs). Engaging at BACK_LOOK and only
+   *  releasing at BACK_LOOK + this makes yielding a decision the walker holds
+   *  until the car has actually gone. */
+  const BACK_HYST = 1.6;
   /** retreat at a fraction of walking pace: nobody walks backwards at a stride */
   const BACK_RATE = 0.7;
   /** m of ground one episode may give up. The road is 10 m wide, so this is
@@ -487,12 +501,12 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    *  genuinely walled in — which on a 2.6 m crossing with a 2.3 m car across it
    *  is the real case. */
   const vehicleWall = (A: { x: number; z: number }, dx: number, dz: number,
-    rx: number, rz: number, t: number, half: number, pick: number) => {
+    rx: number, rz: number, t: number, half: number, pick: number, look: number) => {
     if (!movers.size) return false;                 // no vehicle anywhere: free
     for (const off of [pick, 0, half * 0.9, -half * 0.9]) {
       const o2 = Math.max(-half, Math.min(half, off));
       let hit = false;
-      for (let u = 0.25; u <= BACK_LOOK; u += 0.3) {
+      for (let u = 0.25; u <= look; u += 0.3) {
         if (moverAt(A.x + dx * (t + u) + rx * o2, A.z + dz * (t + u) + rz * o2)) { hit = true; break; }
       }
       if (!hit) return false;                       // this lane is clear: go round
@@ -716,7 +730,14 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         // it at all. Suppressing the forward search — rather than letting it run
         // and retreating only when it fails — is what stops the walker stepping
         // back into the car the moment its own retreat clears the next 0.3 m.
-        const walled = vehicleWall(A, dx, dz, rx, rz, t, half, c.pick);
+        // A walker already giving way looks FURTHER ahead before it will call the
+        // way clear, so resuming is a decision about the car having gone rather
+        // than about a centimetre of geometry. `c.backing` is re-stamped on every
+        // walled frame, standing or retreating, so the widened look survives the
+        // whole yield and not just the frames with motion in them.
+        const walled = vehicleWall(A, dx, dz, rx, rz, t, half, c.pick,
+          c.backing > 0 ? BACK_LOOK + BACK_HYST : BACK_LOOK);
+        if (walled) c.backing = BACK_HOLD;
         let placed = false;
         for (const off of walled ? [] : [c.pick, want, want + 0.4 * k, want - 0.8 * k, 0,
           want + 0.8 * k, want - 0.4 * k]) {
@@ -754,7 +775,11 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         //
         // ONLY FROM SOMETHING THAT WILL LEAVE — see `movers` above.
         let gaveGround = false;
-        if (walled && c.gave < BACK_MAX && (c.backing > 0 || c.jam > BACK_AFTER)) {
+        // `walled` already suppresses the forward step, so jam climbs from zero
+        // the moment the way is blocked and BACK_AFTER is a genuine delay: a
+        // walker pauses, and only then gives ground. It does not need `backing`
+        // in the condition — that is the look-ahead's latch, not this one.
+        if (walled && c.gave < BACK_MAX && c.jam > BACK_AFTER) {
           const bstep = Math.min(c.sp * BACK_RATE * dt, BACK_MAX - c.gave);
           for (const off of [c.pick, 0, c.pick + 0.4 * k, c.pick - 0.4 * k]) {
             const o2 = Math.max(-half, Math.min(half, off));
