@@ -28,17 +28,27 @@
 //     the close, because `leave()` flies the camera back to the standing pose —
 //     without that the watch would be stowed for the honest reason and the
 //     check would prove nothing.
+//   · Phase 5 is the POPULATION FLOOR, added when this file was registered in
+//     `scripts/checks.mjs` (item 199). See its own header below — the four
+//     floors above are per-phase and none of them could tell you that a phase
+//     had stopped covering the world.
 //
 // SHOWN vs STOWED is read off the live element, not asserted from source:
 // `hud.ts`'s `watchTransform` stows with `translateY(140%)` and shows with
 // `translateY(<WATCH_DROP>px)`, so the element's real bounding box against the
 // viewport bottom is the honest question and survives anyone retuning the drop.
 //
-// Usage:  SHOT_URL=http://localhost:4240/ node scripts/probes/w68-watch-vs-panel.mjs [outprefix]
+// REGISTERED in `scripts/checks.mjs` as `watch-vs-panel` on 2026-08-03 (item
+// 199), which is why this file moved out of `scripts/probes/` — the runner
+// spawns `node scripts/<name>.mjs` and refuses to start if a registered name is
+// not on disk there. BUILDER-BRIEF §7a: a probe graduates when something calls
+// it. Its mutation case is `watch-over-panel` in `scripts/canfail.mjs`.
+//
+// Usage:  SHOT_URL=http://localhost:4650/ node scripts/watch-vs-panel.mjs [outprefix]
 import { chromium } from 'playwright';
-import { aim } from '../lib/aim.mjs';
-import { reportWorld } from '../lib/which-world.mjs';
-import { waitPainted } from '../lib/painted.mjs';
+import { aim } from './lib/aim.mjs';
+import { reportWorld } from './lib/which-world.mjs';
+import { waitPainted } from './lib/painted.mjs';
 
 const URL = aim('http://localhost:4240/');
 const OUT = process.argv[2] ?? '/tmp/w68-watch';
@@ -214,7 +224,124 @@ if (ok(opened === true, '3. FLOOR: the screen-space pockets panel opened')) {
   await p.screenshot({ path: `${OUT}-4c-after-selfclose.png` });
 }
 
+// ── PHASE 5 — THE POPULATION FLOOR ────────────────────────────────────────
+//
+// WHY THE FOUR FLOORS ABOVE ARE NOT ONE. Each of phases 1–4 refuses to pass
+// vacuously *about the panel it names*. None of them can tell you that the
+// check has stopped covering the WORLD — and that is the failure this file was
+// written to predict. Its own note (`notes/sixtyeight-watch-vs-panel.md`) says
+// the fault "will hit the mail (155) and the library PC (157)": two panels that
+// did not exist when phases 1–4 were written and that phases 1–4 would never
+// have noticed arriving. Registering a check that names two panels by hand, in
+// a world that grows panels, is how `masonry.mjs` came to examine zero faces.
+//
+// So the population is the world's OWN roster — `__hud.panels()`, which
+// `ct/hud.ts` builds from `everyPanel()` — and every member of it is swept.
+// Nothing here is a typed list of ids: add a panel to the world and this phase
+// starts asserting against it on the next run, with no edit to this file.
+//
+// MEASURED 2026-08-03 on the built bundle at b39f22d6f
+// (`scripts/probes/w109-panel-roster.mjs`): the roster is 7 —
+//   ct-pockets, ct-atm, ct-letter, ct-loan, ct-library-pc   raise from anywhere
+//   ct-slots, ct-blackjack                                  do not
+// The last two are MACHINE-BOUND: `__hud.openPanel` calls `open()` and returns
+// true, but the panel is not up on the very next evaluate and never becomes up
+// (polled at 0 ms, 250 ms and 1000 ms; zero console errors, so it is not the
+// `resolving the diegetic surface threw` path). They are re-closed by their own
+// per-frame "you are up while you are sitting here" hook, which is deliberate
+// and is not this check's business. They are EXCUSED, not skipped, and the
+// excusal is asserted in BOTH directions below so it cannot rot quietly.
+const MACHINE_BOUND = ['ct-slots', 'ct-blackjack'];
+const closeAll = async () => { await p.evaluate(() => window.__hud.closePanels()); await p.waitForTimeout(300); };
+await closeAll();
+const roster = await p.evaluate(() => window.__hud?.panels?.() ?? []);
+console.log(`[5] roster (${roster.length}):`, JSON.stringify(roster));
+ok(roster.length > 0, `5. FLOOR: the world publishes a panel roster at all (${roster.length} panels)`);
+
+// AT RISK IS MEASURED, NOT LISTED. A `STOWED` verdict proves nothing unless the
+// head is genuinely down — phase 2's floor says so, and it is the same argument
+// here. But a panel with a diegetic focus lock does not let you point the head
+// wherever you like: `crosstown.ts` holds the eye on the face's own pose and
+// `__ct.warp`'s pitch argument loses. Measured on this build, with each cabinet
+// up and DOWN (-1.25 rad) requested:
+//
+//     ct-pockets     -1.25     the warp wins  (screen-space, no focus lock)
+//     ct-loan        -1.5707   the POSE is already straight down — the bug's own case
+//     ct-library-pc  -1.25     the warp wins
+//     ct-atm         -0.1419   the lock holds the eye on a near-vertical screen
+//     ct-letter       0        the lock holds the eye level
+//
+// My first cut asserted `pitch < -0.95` for all five and failed ct-atm and
+// ct-letter. That is the CHECK being wrong and the world being right
+// (BUILDER-BRIEF §7): those two cannot put the player's head down while they are
+// up, so the watch was never going to rise over them and there is nothing for
+// this file to defend there. Asserting STOWED on them anyway would pass for the
+// HONEST reason and count as coverage it is not — the vacuous pass this phase
+// exists to prevent, wearing the opposite hat.
+//
+// So each panel is classified by what the world actually did, and only the
+// at-risk ones carry the assertion. Nothing here is a typed id list; a future
+// panel joins whichever set its own pose puts it in.
+const raised = [];
+const refused = [];
+const atRisk = [];
+const poseSafe = [];
+for (const id of roster) {
+  await closeAll();
+  const opened = await p.evaluate((i) => window.__hud.openPanel(i), id);
+  await p.waitForTimeout(500);
+  if (!opened || (await panelNow()) !== id) { refused.push(id); continue; }
+  raised.push(id);
+  await lookDown();
+  const pit = await pitchOf();
+  const w = await watchState();
+  const down = pit !== null && pit < -0.95;
+  console.log(`[5] ${id}  pitch ${pit}  visiblePx ${w.visiblePx}  ${down ? 'AT RISK' : 'pose-safe'}`);
+  if (!down) { poseSafe.push(`${id}@${pit}`); await closeAll(); continue; }
+  atRisk.push(id);
+  ok(!w.shown, `5. ${id}: the watch is STOWED while this cabinet is up, head down at ${pit}`);
+  await closeAll();
+  await lookDown();
+  ok((await watchState()).shown, `5. ${id}: the watch RETURNS when this cabinet closes`);
+}
+await closeAll();
+console.log(`[5] raised ${raised.length}: ${raised.join(', ')}   refused ${refused.length}: ${refused.join(', ') || '—'}`);
+console.log(`[5] at risk ${atRisk.length}: ${atRisk.join(', ') || '—'}   pose-safe ${poseSafe.length}: ${poseSafe.join(', ') || '—'}`);
+
+// THE FLOOR ITSELF, in three assertions that fail for three different reasons.
+//
+// (1) Nothing was skipped: a panel is either swept or excused, never neither.
+// (2) The excused set has not GROWN — a panel that silently stopped raising is
+//     coverage lost, and it looks exactly like coverage that was never there.
+// (3) The excused set has not gone STALE — if slots or blackjack start raising
+//     from anywhere, they must be swept, not carried on this list for ever.
+// (2) and (3) are the two signs of the same fact and they fail apart, which is
+// why they are not one `deepEqual`.
+ok(raised.length + refused.length === roster.length,
+  `5. FLOOR: every panel in the roster was swept or excused (${raised.length}+${refused.length} of ${roster.length})`);
+const surprise = refused.filter((id) => !MACHINE_BOUND.includes(id));
+ok(surprise.length === 0,
+  `5. FLOOR: no panel has silently stopped raising${surprise.length ? ` — ${surprise.join(', ')} did; either it is machine-bound (add it to MACHINE_BOUND with the measurement) or its open() has regressed` : ''}`);
+const stale = MACHINE_BOUND.filter((id) => !refused.includes(id));
+ok(stale.length === 0,
+  `5. FLOOR: the machine-bound excusal is not stale${stale.length ? ` — ${stale.join(', ')} now raises and must be SWEPT, not excused` : ''}`);
+// (4) …and the derived count. Not a typed number: it is the roster the world
+//     just handed us, minus the members it just refused to raise.
+ok(raised.length === roster.length - MACHINE_BOUND.length && raised.length > 0,
+  `5. FLOOR: the sweep raised ${raised.length} panel(s); the roster minus the machine-bound is ${roster.length - MACHINE_BOUND.length}`);
+// (5) THE ONE THAT STOPS THE WHOLE PHASE PASSING VACUOUSLY. Everything above
+//     counts panels; this counts ASSERTIONS THAT COULD HAVE FAILED. If every
+//     panel in the world became pose-safe — or the focus lock started winning
+//     everywhere, or `lookDown` quietly stopped working — the loop would sweep
+//     seven panels, assert nothing, and report green. Measured at 3 today
+//     (ct-pockets, ct-loan, ct-library-pc); the floor is that it is not 0,
+//     because 1 is enough to defend the fix and 0 is enough to hide its loss.
+ok(atRisk.length > 0,
+  `5. FLOOR: ${atRisk.length} panel(s) could actually put the head down while up — 0 would mean this phase asserted nothing`);
+
 console.log('');
+console.log(`population: ${roster.length} panels published, ${raised.length} raised, `
+  + `${refused.length} machine-bound, ${atRisk.length} at risk, ${poseSafe.length} pose-safe`);
 for (const n of notes) console.log('  ', n);
 for (const f of fails) console.log('  ', f);
 console.log('');
