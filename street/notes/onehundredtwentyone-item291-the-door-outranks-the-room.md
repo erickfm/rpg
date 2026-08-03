@@ -203,6 +203,34 @@ or outside that cone. **The check is wrong here, not the world** — it fires fr
 its firing pose instead of bouncing off a collider, and that is a change to a
 registered check which this item does not name — **please queue it.**
 
+## DECLARED GAP — `seats-walk` has no baseline, and I chose not to buy one
+
+`scripts/seats-walk.mjs` is the direct instrument for "did ranking cost a seat
+its press". **I do not have a trustworthy reading of it and I am saying so rather
+than quoting a number I cannot stand behind.**
+
+- Run 1 straddled a preview restart. Void.
+- Run 2 I invalidated myself: I rebuilt `dist/` under it — including the
+  `WAY_OUT = 0` isolation build — while it was running. That is the build-race
+  in BUILDER-BRIEF §10, self-inflicted. Void.
+- Run 3 is clean (build `431c367a0`, nothing rebuilt under it) and takes ~25 min.
+
+**And even a clean run is uninterpretable without a mainline baseline**, which is
+another ~25 min: run 2 reported 115 failures of which **89 were "no stand up when
+seated — a MACHINE seat is in its own overlay"**, and `w69-seated-offers` has
+since shown all 93 machine seats DO name their exit under `[ESC]`. So that
+category is the check's own model of machine seats, not a defect, and telling the
+real residue from the noise needs before-and-after.
+
+**50 minutes of instrument for a question I have already answered three cheaper
+ways** — per-spot win counts across 54,336 poses (nothing lost all its poses,
+worst seat −9%), the 219-seat seated census (0 way-outs stealing an `[E]`), and
+`D-look-selects` 12/12. Under the user's rule that is the wrong trade, so: **the
+gap is declared, not covered.** If the desk wants it closed, the shape is
+`seats-walk` on mainline and on this branch back to back, on builds nobody
+touches, and the only number worth reading is `another [E] spot answered instead
+of the seat` (8 on the void run).
+
 ## Also found and NOT fixed — a second instance of the same defect
 
 `probes/w121-standpoint-overlap.mjs` is the general guard the item asked for, and
