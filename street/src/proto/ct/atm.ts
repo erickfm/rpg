@@ -132,6 +132,68 @@ let pending = 0;              // notes counted out, waiting in the mouth
 let message = '';
 let timer = 0;
 
+/**
+ * THE PIN THE CARD IS ENROLLED WITH. `null` until the first visit sets it.
+ *
+ * *"also the first time you go to the atm it saves your pin."*
+ *
+ * Module state rather than a field on `Purse`, and that is a compromise worth
+ * naming. It BELONGS on the purse, beside `account` and `card` — it is a
+ * property of the card, not of this screen. But `Purse` lives in `ct/hud.ts`,
+ * which this item does not name, and `account`'s own docstring records the same
+ * coordination problem being solved the same way ("`ct/atm.ts` seeds it on first
+ * use"). Behaviourally the two are identical today because `openAtm` is one
+ * module shared by every ATM in the world, so there is exactly one card and one
+ * PIN either way. **Queued rather than taken: hoist `pin?: string` onto `Purse`
+ * when someone is next in `ct/hud.ts`.**
+ */
+let storedPin: string | null = null;
+
+/**
+ * How long the fourth asterisk sits on the tube before the machine acts on it.
+ *
+ * *"once you enter 4 digits it auto submits please."*
+ *
+ * Not zero, and the beat is load-bearing rather than decorative. Submitting on
+ * the keystroke itself would mean the PIN screen is never once observed holding
+ * four digits — and `padActs` gates the ENT key on exactly that
+ * (`pin.length === 4`), so ENT would become a key that can never be live, drawn
+ * unlit, refusing the hand cursor. The item warns against breaking that logic
+ * and it is right to: a real machine takes both, and a dead ENT on a cash
+ * machine's pad is the machine lying about itself.
+ *
+ * So the fourth digit arms a short timer instead. You see the star land, ENT and
+ * CLR are both still live and still meaningful during it, and if you touch
+ * neither the machine goes on by itself. Under a quarter of a second reads as
+ * "it submitted on its own", not as a wait.
+ */
+const SUBMIT_MS = 240;
+
+/**
+ * A SOFT-KEY PRESS, as a token no digit can be mistaken for.
+ *
+ * **This is the fix for the user's first complaint** — *"trying to hit cancel on
+ * the pin keypad doesnt work cause its also 5?"* — and he diagnosed it exactly.
+ *
+ * The eight fascia buttons used to be dispatched by sending `onKey` the STRING
+ * OF THEIR NUMBER: `clickAt` turned a click on the top-right button into
+ * `onKey('5')`. On every screen but one that is unambiguous. On the PIN screen
+ * `onKey`'s first line is `if (/^[0-9]$/.test(k) …) { pin += k; return }` — so
+ * the digit handler shadowed the shortcut and **CANCEL typed a 5 into the PIN**.
+ *
+ * Note what that means for the mouse, which is the part worth being precise
+ * about: because `clickAt` deliberately routes through `onKey` rather than
+ * keeping a second dispatch, **CANCEL was broken by CLICK as well as by key** —
+ * clicking it typed a 5 too. And `hotAt` still offered a hand cursor over it,
+ * because it asks `rows()` whether a label is there, which it is. The machine
+ * showed you a live button that did the wrong thing.
+ *
+ * The single-dispatch principle is right and is kept. What was wrong was the
+ * ENCODING: one namespace doing two jobs. A soft key now says so.
+ */
+const SOFT = 'soft';
+const softKey = (i: number, right: boolean) => `${SOFT}${right ? i + 4 : i}`;
+
 const money = (n: number) => `$${n.toFixed(2)}`;
 const acct = (p: Purse) => (p.account ?? (p.account = OPENING_BALANCE));
 
@@ -176,7 +238,13 @@ function rows(p: Purse): Row[] {
         ? [{ left: 'NO CARD' }]
         : [{ left: 'INSERT CARD', act: () => { pin = ''; go('pin'); } }];
     case 'pin':
-      return [{ right: 'CANCEL', actR: () => go('card') }];
+      // CANCEL DISCARDS THE ENTRY. Caught by the walk: it used to `go('card')`
+      // and leave the half-typed digits sitting in `pin`. Nothing user-visible
+      // depended on it — `INSERT CARD` clears the buffer on the way back in —
+      // but a cancelled PIN that is still in memory is exactly the kind of thing
+      // that becomes a bug the moment anything else reads it, and now that a PIN
+      // can be ENROLLED there is something else that reads it.
+      return [{ right: 'CANCEL', actR: () => { pin = ''; go('card'); } }];
     case 'menu':
       return [
         { left: 'BALANCE', act: () => go('balance') },
@@ -364,11 +432,17 @@ function drawScreen(g: CanvasRenderingContext2D): void {
     // twelve phosphor keys that used to sit under this line were a keypad
     // drawn on a screen six inches above a keypad, and the user asked why.
     // The keys are on the machine; this is the readout.
-    line('ENTER YOUR PIN', HEAD, CAB_TEXT_LIT, 10);
+    // FIRST VISIT ASKS YOU TO CHOOSE ONE; every later visit asks you to enter
+    // it. The machine has to say which of the two it is doing, or enrolment is
+    // a silent event that only announces itself when a later visit rejects you.
+    line(storedPin === null ? 'CHOOSE A PIN' : 'ENTER YOUR PIN', HEAD, CAB_TEXT_LIT, 10);
     line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), BODY, CAB_TEXT_LIT, 22);
-    line('USE THE KEYPAD BELOW', SUB, CAB_TEXT_DIM, 8);
+    if (message) line(message, SUB, '#e06a3c', 8);
+    else if (storedPin === null) line('THIS WILL BE YOUR PIN', SUB, CAB_TEXT_DIM, 8);
+    else line('CLR CANCELS', SUB, CAB_TEXT_DIM, 8);
   } else if (screen === 'menu') {
     line('SELECT A SERVICE', HEAD, CAB_TEXT_LIT, 10);
+    if (message) line(message, SUB, CAB_TEXT_DIM, 8);
   } else if (screen === 'balance') {
     line('AVAILABLE BALANCE', HEAD, CAB_TEXT_DIM, 8);
     line(money(acct(p)), BODY, CAB_TEXT_LIT, 20);
@@ -433,13 +507,46 @@ function drawScreen(g: CanvasRenderingContext2D): void {
 // is up — and it is what makes a PIN pad possible at all.
 function onKey(k: string): void {
   const p = PURSE!;
+  // SOFT KEYS FIRST, AND ON EVERY SCREEN. A fascia button is a fascia button
+  // whatever the tube is showing, and nothing below may shadow one — that
+  // shadowing is the whole of the user's first complaint. See `softKey`.
+  if (k.startsWith(SOFT)) {
+    const n = Number(k.slice(SOFT.length));
+    const r = rows(p);
+    if (n < 4) r[n]?.act?.();
+    else r[n - 4]?.actR?.();
+    return;
+  }
   if (screen === 'pin') {
-    if (/^[0-9]$/.test(k) && pin.length < 4) { pin += k; panel?.repaint(); return; }
-    if (k === 'backspace') { pin = pin.slice(0, -1); panel?.repaint(); return; }
-    // ANY four digits are accepted, and that is deliberate. It is YOUR card and
-    // your PIN; a machine that can reject you turns a piece of texture into a
-    // guessing game with nothing on the other side of it.
-    if (k === 'enter' && pin.length === 4) { go('menu'); return; }
+    if (/^[0-9]$/.test(k) && pin.length < 4) {
+      pin += k;
+      panel?.repaint();
+      // THE FOURTH DIGIT SUBMITS ON ITS OWN, after a beat. See `SUBMIT_MS`.
+      if (pin.length === 4) after(SUBMIT_MS, submitPin);
+      return;
+    }
+    if (k === 'backspace') {
+      // CLR ON AN EMPTY PIN IS THE KEYBOARD'S CANCEL, and it is how this screen
+      // is escaped without a mouse.
+      //
+      // The fascia CANCEL is reachable by CLICK again (see `softKey`), but it
+      // CANNOT be reached by its number here: its number is 5, and 5 is a digit
+      // the PIN screen is entitled to eat. That collision is real and no
+      // encoding fixes it — the user spotted it himself.
+      //
+      // So the escape hatch is the machine's OWN key rather than an invented
+      // one. CLR on an empty entry ending the session is what cash machines of
+      // this vintage do, it is a key the player can see on the pad, and it works
+      // by click and by keyboard through the same path everything else does.
+      // CLR on a part-typed PIN still deletes a digit, exactly as before.
+      if (pin === '') { go('card'); return; }
+      pin = pin.slice(0, -1); panel?.repaint(); return;
+    }
+    // ENT STILL SUBMITS. It is redundant with the auto-submit above by design,
+    // not by accident: during the `SUBMIT_MS` beat the PIN is complete and this
+    // is the key that says "now", which is what the pad's own affordance logic
+    // has always promised.
+    if (k === 'enter' && pin.length === 4) { submitPin(); return; }
     return;
   }
   // A key during the farewell skips the wait rather than being swallowed —
@@ -447,11 +554,39 @@ function onKey(k: string): void {
   // timer would have reset it. Two paths, one teardown; they used to differ,
   // and the version that only closed left the ATM stuck on its farewell.
   if (screen === 'thanks') { endSession(); return; }
+  // A DIGIT ON A MENU SCREEN *IS* A SOFT-KEY PRESS, so it says so and re-enters
+  // above rather than carrying a second copy of the dispatch beside it. The two
+  // used to be written out twice; one namespace, one implementation.
   const i = '12345678'.indexOf(k);
-  if (i < 0) return;
-  const r = rows(p);
-  if (i < 4) r[i]?.act?.();
-  else r[i - 4]?.actR?.();
+  if (i >= 0) onKey(`${SOFT}${i}`);
+}
+
+/**
+ * Read the four digits the player just entered.
+ *
+ * **ENROLMENT, which is new** — *"the first time you go to the atm it saves your
+ * pin."* Read as a request, because it was not what happened: `onKey` used to
+ * open the menu on ANY four digits and no PIN was stored anywhere in the file.
+ * First visit sets the PIN; every later visit has to match it.
+ *
+ * A WRONG PIN SAYS SO AND LETS YOU TRY AGAIN, with no strike count and no
+ * lockout. Three-strikes-and-it-eats-the-card is period-true and tempting, and
+ * it is deliberately not built: nobody asked for a way to lose their card to a
+ * typo, and the same session that added enrolment also added the auto-submit
+ * that makes a typo unfixable once the fourth digit lands.
+ *
+ * GUARDED on `screen` and on length, because the caller may be a wall-clock
+ * timer that knows nothing about the panel — the same reason `endSession` is
+ * guarded. Press ENT during the beat and this runs twice; the second one must
+ * do nothing rather than re-read a PIN that has already been accepted.
+ */
+function submitPin(): void {
+  if (screen !== 'pin' || pin.length !== 4) return;
+  const entered = pin;
+  pin = '';
+  if (storedPin === null) { storedPin = entered; go('menu', 'PIN SET'); return; }
+  if (entered === storedPin) { go('menu'); return; }
+  go('pin', 'INCORRECT PIN');
 }
 
 // ── the mouse ─────────────────────────────────────────────────────────────
@@ -523,7 +658,11 @@ function hotAt(x: number, y: number): boolean {
 function padActs(k: string): boolean {
   if (screen === 'pin') {
     if (/^[0-9]$/.test(k)) return pin.length < 4;
-    if (k === 'CLR') return pin.length > 0;
+    // CLR IS LIVE EVEN ON AN EMPTY PIN NOW, because on an empty PIN it cancels
+    // the session rather than doing nothing. It was `pin.length > 0`, which was
+    // correct while empty-CLR was dead and would now hide the one key that
+    // escapes this screen from the keyboard.
+    if (k === 'CLR') return true;
     if (k === 'ENT') return pin.length === 4;
     return false;
   }
@@ -544,7 +683,9 @@ function clickAt(x: number, y: number): void {
   if (k) { onKey(k === 'CLR' ? 'backspace' : k === 'ENT' ? 'enter' : k); return; }
   const b = buttonAt(x, y);
   if (!b) return;
-  onKey(String(b.right ? b.i + 5 : b.i + 1));
+  // A SOFT-KEY TOKEN, not the string of the button's number. Sending `'5'` here
+  // is what made clicking CANCEL type a 5 into the PIN. See `softKey`.
+  onKey(softKey(b.i, b.right));
 }
 
 // ── the way in ────────────────────────────────────────────────────────────
@@ -644,7 +785,19 @@ export function register(ctx: CtxBuild): void {
     // The mouse is the way in now, so it is what the caption offers; the keys
     // still work and still get a mention, because a player who learned this
     // machine on the keyboard must not be told it stopped listening.
-    hint: () => (screen === 'pin' ? 'click the keys below, or type it' : 'click a button, or press its number'),
+    // The PIN screen's hint names CLR, because it is the one screen where
+    // "press its number" is NOT true of every fascia button — CANCEL's number
+    // is 5 and 5 is a digit this screen eats, so CLR is the keyboard's way out.
+    //
+    // KEPT SHORT ON PURPOSE, and I have looked at it. This line is drawn across
+    // the bottom of the viewport and it already overlaps the `[E] leave` label
+    // and the CLR/0/ENT key row — visible on the MENU screen too, with the
+    // original 34-character text, so the overlap is not mine. A 74-character
+    // version made it markedly worse. CANCEL does not need to be in here: it is
+    // drawn on the tube, against its own lit button.
+    hint: () => (screen === 'pin'
+      ? 'click the keys below, or type it — CLR backs out'
+      : 'click a button, or press its number'),
     draw: (g) => drawScreen(g),
     key: (k) => onKey(k),
     // THE PHYSICAL KEYS BECOME PICKABLE ONLY NOW, and pairing it with `onClose`
@@ -700,6 +853,31 @@ export function register(ctx: CtxBuild): void {
     },
     /** every key face, so a check can sweep all twelve without knowing any */
     padKeys: () => PAD_KEYS.slice(),
+    /**
+     * WHERE A FASCIA SOFT KEY IS, in the same canvas pixels `padPoint` speaks.
+     *
+     * Same argument as `padPoint`'s, and the ATM's CANCEL is the case that
+     * proves it: a harness that wanted to click CANCEL would otherwise re-derive
+     * `BTN_Y`, `BTN_H` and `R_EDGE` by hand, and a second hand-typed copy of a
+     * layout is how `doorside2.mjs` failed a door that was fine
+     * (BUILDER-BRIEF §8). The point returned is the middle of the NUB, which is
+     * inside `buttonAt`'s band by construction.
+     *
+     * `v` is flipped to the mesh's bottom-left origin exactly as `padPoint`
+     * does, so a caller can lerp the screen mesh's own corners with it.
+     */
+    buttonPoint: (i: number, right: boolean) => {
+      if (i < 0 || i > 3) return null;
+      const x = right ? W - BTN_W / 2 - 1 : BTN_W / 2 + 1;
+      const y = BTN_Y[i] + BTN_H / 2;
+      return { x, y, u: x / W, v: 1 - y / H };
+    },
+    /** the mesh a click on the fascia has to be projected onto — the raked
+     *  screen face, which is the panel's own `surface.mesh()`. */
+    surfaceMesh: () => screenMesh(),
+    /** which soft-key row is under this canvas pixel, so a harness can prove the
+     *  point it is about to click really is the button it means */
+    buttonAt: (x: number, y: number) => buttonAt(x, y),
     /** what the machine believes is under this canvas pixel */
     padAt: (x: number, y: number) => padAt(x, y),
     hotAt: (x: number, y: number) => hotAt(x, y),
