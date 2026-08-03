@@ -92,9 +92,13 @@ console.log(`spawn (301)      (${spawn[0].toFixed(2)}, ${spawn[2].toFixed(2)}) g
 
 // The window wall is at -x from inside the room, so facing it is yaw -PI/2
 // (the rig's forward is (sin yaw, 0, -cos yaw)). Facing away is +PI/2.
+// The landing is the user's OTHER phrasing of the same report — "looking into
+// my room from the hall" — and w52 measured it as the worst spot in the
+// building for the previous item, so it is carried here too.
 const STATIONS = [
   ['301 FACING THE WINDOW', [win.x + 2.4, win.z, -Math.PI / 2, spawn[3]]],
   ['301 facing away',       [win.x + 2.4, win.z,  Math.PI / 2, spawn[3]]],
+  ['301 landing/hall',      [spawn[0], spawn[2] + 3.0, -Math.PI / 2, spawn[3]]],
   ['the street',            [0, 0, 0, 0]],
 ];
 
