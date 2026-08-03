@@ -124,7 +124,14 @@ export function buildCasino(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'casino',
     building: 'SEVENS',   // finds the published DoorLeaf above
-    label: 'into SEVENS',
+    // 'into SEVENS' until item 196. The elevation this door is cut into no
+    // longer says SEVENS anywhere — the category line reads ORPHEUS and the
+    // name board reads CASINO — and a prompt that names an address the sign
+    // above it has stopped using is the same class of contradiction as a door
+    // that disagrees with its own facade. `building: 'SEVENS'` above is
+    // UNCHANGED and must stay: it is the key into vice.VICE, VICE_DOOR_X and
+    // the DoorDecl registry, and renaming it is a break dressed as a rename.
+    label: 'into the ORPHEUS CASINO',
     // 2.9, raised from 2.5 on the audit's finding that this was the lowest
     // room in the world by 0.30 m and 0.90 m under the hotel next door
     // (AUDIT-TRIAGE item 4 / interior-audit R18).

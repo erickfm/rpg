@@ -37,11 +37,18 @@ const shot = async (name, x, z, yaw, pitch, hour) => {
   console.log(`  shots/${name}.png   black ${(blk * 100).toFixed(1)}%`);
 };
 
-// THE PAVEMENT. The side street's north walk is z = -97; the combined property
-// runs x 33.45 … 57.00, so stand back down the walk and look along it.
-await shot('w70-pavement-day', 30.0, -97.6, Math.PI / 2 - 0.42, -0.02, 13);
-await shot('w70-pavement-night', 30.0, -97.6, Math.PI / 2 - 0.42, -0.02, 22);
-await shot('w70-pavement-front', 45.4, -99.6, 0.10, 0.06, 21);
+// THE PAVEMENT. HOTEL ORPHEUS runs x 33.45…45.45 and the casino wing
+// 45.45…57.00 on the side street's NORTH side, facades on z = -96; the road is
+// between them and SOUTH2 at z = -111.7. So the property is seen from the road
+// looking +z (yaw π — 0 is -z), from far enough back to hold all 23.55 m.
+// The declared entrances (__ct.doors) stand at z = -96.75, so the walk is
+// ~-97 and the road runs back from there; SOUTH2's facade is around -109.7.
+// -106 is mid-road, which is as far back as the property can be seen from.
+const MID = 45.45;                     // the seam between the two frontages
+await shot('w70-pavement-day', MID, -106.0, Math.PI, 0.30, 13);
+await shot('w70-pavement-night', MID, -106.0, Math.PI, 0.30, 22);
+await shot('w70-pavement-close', MID, -99.8, Math.PI, 0.42, 21);
+await shot('w70-pavement-along', 30.0, -98.4, Math.PI / 2 + 0.55, 0.16, 21);
 
 // THE CONNECTING DOORWAY, from the hotel lobby, looking at it
 await shot('w70-doorway-from-hotel', hotel.cx - 1.0, AT + 3.6, Math.PI / 2 - 0.62, -0.02, 13);
