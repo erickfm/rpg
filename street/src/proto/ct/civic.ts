@@ -429,7 +429,6 @@ export function buildCivic(o: {
       }
       dither(g, ST_PX, ST_PX, Math.round(ST_PX * ST_PX * 0.05));
     });
-  const SCORED = stoneCanvas('#b4aa92', '#a79d86', '#c2b8a0', true);
   const DRESSED = stoneCanvas('#9c9280', '#8d846f', '#aca290', false);
   const RISER = stoneCanvas('#877d69', '#7a715e', '#968c76', false);
   /** a stone material whose grain is at 32 px/m for THIS member's metres */
@@ -440,9 +439,14 @@ export function buildCivic(o: {
     c.repeat.set(Math.max(0.12, wM / ST_TILE), Math.max(0.12, hM / ST_TILE));
     return flat(c);
   };
-  const treadM = stoneFace(SCORED, 1.4, 4.1);
-  const riserM = stoneFace(RISER, 1.4, 0.19);
-  const stepSideM = stoneFace(DRESSED, 1.4, 1.4);
+  // `treadM`/`riserM`/`stepSideM` used to be built here, once, at an assumed
+  // 1.4 m, and shared by every step of every flight. They are gone: `flight`
+  // derives each face's repeat from that face's own metres (see `faces6`).
+  //
+  // The `SCORED` canvas went with them. It only ever fed `treadM`, and
+  // `treadM` had ALREADY been dead before this change — the flights' tops take
+  // `plazaTex` (see the routing note inside `flight`), so nothing had read it
+  // for some time. Verified by grep against the pre-change file, not assumed.
   const flight = (f: {
     axis: 'x' | 'z';
     /** host-frame (x, z) of u = 0, v = 0 — the street line on the centreline */
@@ -484,21 +488,65 @@ export function buildCivic(o: {
     // `ox + dir * u`, so the x span reverses with `dir` and the z span is
     // `oz + v`. Sizing per tread keeps the flags 1.5 m whatever the tread
     // measures, which is the whole point of passing metres.
+    // U AND V SWAP WITH THE AXIS, AND THIS DID NOT.
+    //
+    // `put` maps approach coords to world differently per axis: for 'x' the box
+    // sits at (ox + dir*u, oz + v), for 'z' at (ox + v, oz + dir*u). This took
+    // its x-range from u and its z-range from v unconditionally — right for
+    // 'x', exactly inverted for 'z'. The call site's ternary had two
+    // byte-identical arms, which is where the intended swap went missing.
+    //
+    // Cost, measured on the built bundle: the church forecourt's three tread
+    // tops asked plazaTex for a 27x147 canvas to cover a 4.6 x 0.84 m face and
+    // drew 5.87 x 175 px/m — a 29.8x stretch on paving the player walks over
+    // and looks straight down at. `scripts/probes/w102-flagtop-axis-swap.mjs`
+    // reproduces all three measured canvases from the swap on paper.
     const flagTop = (u0: number, u1: number, v0: number, v1: number) => {
-      const ax = f.ox + f.dir * u0, bx = f.ox + f.dir * u1;
-      const az = f.oz + v0, bz = f.oz + v1;
+      const ax = f.ox + (f.axis === 'x' ? f.dir * u0 : v0);
+      const bx = f.ox + (f.axis === 'x' ? f.dir * u1 : v1);
+      const az = f.oz + (f.axis === 'x' ? v0 : f.dir * u0);
+      const bz = f.oz + (f.axis === 'x' ? v1 : f.dir * u1);
       return new THREE.MeshBasicMaterial({
         map: declareSurface(plazaTex(Math.min(ax, bx), Math.max(ax, bx),
           Math.min(az, bz), Math.max(az, bz)), 'ground'),
       });
     };
+    // ONE MATERIAL CANNOT DRESS SIX FACES AT ONE DENSITY (BUILDER-BRIEF §7b).
+    //
+    // A box authored (W, H, D) gives ±x = D×H, ±y = W×D, ±z = W×H, so a single
+    // `repeat` lands three different densities on it. `treadM`/`riserM`/
+    // `stepSideM` are each built ONCE, at an assumed 1.4 m, and were then
+    // handed to every step of every flight — while the library's five treads
+    // run 2.16, 2.52, 2.88, 3.24 and 3.6 m wide. Same bug as the park kerb
+    // (notes/ninetyfive-item162-kerb-and-the-ratchet.md): a correct number
+    // applied to faces it was not authored for.
+    //
+    // `put` authors (du, h, dv) for axis 'x' and (dv, h, du) for 'z', so the
+    // world extents are named here rather than the approach ones, and each
+    // face's repeat is derived from its OWN metres at the same 32 px/m.
+    // Group order is [+x, −x, +y, −y, +z, −z].
+    const faces6 = (du: number, dv: number, h: number,
+      xT: THREE.Texture, zT: THREE.Texture, underT: THREE.Texture,
+      top: THREE.Material | null): THREE.Material[] => {
+      const ex = f.axis === 'x' ? du : dv;   // world-x extent of the box
+      const ez = f.axis === 'x' ? dv : du;   // world-z extent
+      return [
+        stoneFace(xT, ez, h), stoneFace(xT, ez, h),
+        top ?? stoneFace(underT, ex, ez),
+        stoneFace(underT, ex, ez),
+        stoneFace(zT, ex, h), stoneFace(zT, ex, h),
+      ];
+    };
     for (let k = 0; k < f.n; k++) {          // k = 0 is the lowest step
       const u0 = f.uNose + k * tread, u1 = f.uBack;
-      const top = f.axis === 'x' ? flagTop(u0, u1, -f.width / 2, f.width / 2)
-        : flagTop(u0, u1, -f.width / 2, f.width / 2);
-      put(u0, u1, -f.width / 2, f.width / 2, f.yBase + (k + 1) * rise,
-        f.axis === 'x' ? [riserM, riserM, top, riserM, stepSideM, stepSideM]
-          : [stepSideM, stepSideM, top, riserM, riserM, riserM]);
+      const h = f.yBase + (k + 1) * rise;
+      const top = flagTop(u0, u1, -f.width / 2, f.width / 2);
+      // the faces across the flight are risers; the ones along it are cheek
+      // sides. Which world axis that is flips with `f.axis`.
+      put(u0, u1, -f.width / 2, f.width / 2, h,
+        f.axis === 'x'
+          ? faces6(Math.abs(u1 - u0), f.width, h, RISER, DRESSED, RISER, top)
+          : faces6(Math.abs(u1 - u0), f.width, h, DRESSED, RISER, RISER, top));
     }
     if (f.cheek > 0) {                       // cheeks, stepping down one per tread
       for (const s of [-1, 1]) {
@@ -510,13 +558,18 @@ export function buildCivic(o: {
         // rather than as stone. The treads and risers two lines up were always
         // grained; their own side walls were not, which is why the fault
         // survived a pass that "textured the forecourt".
-        const cheekM = stoneFace(DRESSED, f.cheek, tread);
-        const cheekTopM = stoneFace(DRESSED, f.cheek, Math.max(0.3, f.uBack - f.uTop));
+        // Per-face, for the same reason as the steps above: `cheekM` was one
+        // material sized (cheek × tread) worn by all six faces of a box whose
+        // height climbs a step at a time, so only one of the three face shapes
+        // it met was ever the one it was authored for.
         for (let k = 0; k < f.n; k++) {
+          const h = f.yBase + (k + 1) * rise + 0.5;
           put(f.uNose + k * tread, f.uNose + (k + 1) * tread, vc - f.cheek / 2, vc + f.cheek / 2,
-            f.yBase + (k + 1) * rise + 0.5, cheekM);
+            h, faces6(tread, f.cheek, h, DRESSED, DRESSED, DRESSED, null));
         }
-        put(f.uTop, f.uBack, vc - f.cheek / 2, vc + f.cheek / 2, f.yTop + 0.5, cheekTopM);
+        const hTop = f.yTop + 0.5;
+        put(f.uTop, f.uBack, vc - f.cheek / 2, vc + f.cheek / 2, hTop,
+          faces6(Math.max(0.3, f.uBack - f.uTop), f.cheek, hTop, DRESSED, DRESSED, DRESSED, null));
       }
     }
     return {
