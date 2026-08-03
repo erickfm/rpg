@@ -3088,3 +3088,12 @@ to one side.
   → **routed as queue items 267 (the rail) and 268 (the handedness).** THIRD
   report of the interior/exterior mismatch class — after the jail doors and the
   church door, both of which turned out to be world-wide rather than local.
+
+- **"push everything. yes lets do 25 deg. leave the sidewalk bus stop alone for
+  now. move the calendar a bit to the right, make it bigger, and make it
+  interactable in the same sort of integrated overlay view."** (2026-08-03)
+  → **pushed (748 commits, auto-deploys to Pages).** Aim tolerance **25°**
+  decided — item 98 returns to TODO with the number. The bus-stop pinch
+  (item 269, 1.15 m lane) is **DEFERRED at his instruction, not fixed.**
+  The calendar is **routed as queue item 270** — SIXTH tenant of the diegetic
+  framework.
