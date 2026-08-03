@@ -2830,3 +2830,14 @@ to one side.
   panel appears to float above the seat with a separate rail above it, against a
   blue-grey wall over a wood floor and a maroon rug — builder to identify the room from
   the frame.
+
+- **"[screenshot] jail door is still messed up"** (2026-08-02, daylight) → **SECOND
+  report; item 104 promoted with a much stronger lead than the desk's first guess.** The
+  daylight frame shows what the dark one hid: **the door is SEE-THROUGH** — masonry
+  coursing and the stone reveal are visible through the leaves. Not the texture-density
+  problem the desk guessed. Desk found: `ct/interior.ts:924` is a glazing material at
+  **opacity 0.55**; `ct/int-jail.ts:65` declares `glazing: 'none'` and `ct/jail.ts:510`
+  *comments* "Steel, two leaves, no glazing" while pointing at `int-jail.ts` for the
+  declaration. **If the exterior leaf does not read that declaration, the outside door is
+  glazed while the inside is solid** — which is simultaneously this bug and the
+  inside/outside mismatch class of item 105.
