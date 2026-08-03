@@ -2632,3 +2632,28 @@ FACE you want the player to look at, not at the object's centre.**
 
 Found inside a builder's own change by a look-away negative case in its probe.
 Which is the argument for negative cases: the positive leg passed throughout.
+
+## 89. `pgrep -f <name>` self-matches the shell that runs it
+
+`pgrep -f interiors-walk` matches **your own shell**, because that shell's command
+line contains the string you searched for. So a waiter like
+
+```sh
+until ! pgrep -f interiors-walk; do sleep 5; done     # never exits
+```
+
+spins forever, and a liveness check like `pgrep -af live-integrate` reports the
+process is running when **only your own grep is**. Both happened tonight: a
+builder raised two false alarms about a run that had already finished, and the
+desk briefly concluded a background service was alive when it was not.
+
+Use a bracketed pattern so the literal string never appears in your own command
+line, or match on a PID you captured yourself:
+
+```sh
+pgrep -f 'interiors[-]walk'          # the brackets break the self-match
+kill "$pid"                          # better: keep the pid you started
+```
+
+This is the same family as GOTCHAS 64 (`pkill -f vite` killing your own shell) —
+**your process is in the process table too.**
