@@ -292,7 +292,15 @@ export function buildDiner(ctx: CtxBuild): void {
           : { jacket: '#3a5a7a', pants: '#2e3a48', skin: '#d8b090', hair: '#8a7050',
               fit: 'plain', accent: '#d8d4c8', cut: 'long', build: -1 },
           bx + sx * (TABLE_W / 2 + BENCH_W / 2), BZ - BENCH_L / 2 + 0.22,
-          { seated: true, y: 0.45, facing: sx < 0 ? Math.PI / 2 : -Math.PI / 2 });
+          { seated: true, y: 0.45, facing: sx < 0 ? Math.PI / 2 : -Math.PI / 2,
+            // …AND FORWARD TO THE FRONT LIP OF THE CUSHION. This is the room the
+            // user photographed: *"people sitting still looks bad because they
+            // have no legs??"*. The hip was at the bench's CENTRE, so the legs
+            // were drawn inside the 0.55 m cushion and the vinyl ate them from
+            // every angle. Half the bench's own depth puts the hip at the lip,
+            // which is where somebody leaning to a diner table actually sits.
+            // DERIVED from BENCH_W above, never retyped (BUILDER-BRIEF §8).
+            seatFwd: BENCH_W / 2 });
       }
     }
     const tbl = new THREE.Mesh(new THREE.BoxGeometry(TABLE_W, 0.07, BENCH_L - 0.25), formicaFor(TABLE_W, BENCH_L - 0.25));

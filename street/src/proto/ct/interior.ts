@@ -844,6 +844,23 @@ export interface Room {
     seated?: boolean;
     /** floor-relative height to place at; defaults to 0. Use the seat top. */
     y?: number;
+    /**
+     * Stand the figure this far FORWARD of `lx`/`lz`, along `facing`.
+     *
+     * ONLY FOR SEATS THAT EAT THE LEGS, and pass a value DERIVED FROM YOUR OWN
+     * SEAT (`BENCH_W / 2`, `BENCH_D / 2 - SIT_OFF`), never a typed constant.
+     * `ct/citizens.ts` carries the full argument; the short version is that a
+     * seated billboard's legs occupy exactly the cushion's volume, so a bench
+     * hides them from every angle — but a DESK or TABLE in front of a sitter is
+     * supposed to, and passing this in those rooms drives the torso into it.
+     * The bank, the library and the church deliberately pass nothing.
+     *
+     * The seat is claimed in TAKEN below at BUILD time, from the un-offset
+     * position, and this offset lands on the first FRAME — so item 93's
+     * occupied-seat suppression sees the true seat and its 0.30 m tolerance is
+     * not spent.
+     */
+    seatFwd?: number;
   }) => void;
   /** true while the player is standing in THIS room */
   inside: () => boolean;
@@ -1985,7 +2002,7 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     put: (m, lx, y, lz) => place(m, lx, y, lz),
     person: (look, lx, lz, o = {}) => {
       const s = citizenSprite(o.seated ? { ...look, seated: true } : look,
-        { facing: o.facing ?? 0, h: o.h, w: o.w });
+        { facing: o.facing ?? 0, h: o.h, w: o.w, seatFwd: o.seatFwd });
       // Standing goes on the FLOOR, seated goes on the SEAT TOP: the origin
       // moves with the pose and citizenPlane owns the 0.445 m hip offset.
       place(s.mesh, lx, o.y ?? 0, lz);

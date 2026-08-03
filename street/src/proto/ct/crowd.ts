@@ -220,6 +220,8 @@ interface Citizen {
    *  height of this person's painted head — the canopy hangs off that, so a
    *  short walker's umbrella is not floating over a tall one's */
   umb: THREE.Mesh; umbOpen: number; figTop: number;
+  /** the same figure with a hand up, and which sheet is on the mesh now */
+  texUp: THREE.Texture; holding: boolean;
   /** what the sprite is currently showing — for the feet check, see `views` */
   view?: { col: number; mirror: boolean; yaw: number; moving: boolean } }
 
@@ -439,6 +441,23 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     const { hs, ws } = bodyScale(p);
     const tex = citizenAtlas({ ...p.look, stride: strideFor(p.sp, hs) });
     tex.repeat.set(1 / 5, 1 / 2);
+    // ── AND THE SAME PERSON WITH A HAND UP ───────────────────────────────
+    //
+    // Item 271 fixed the canopy and named what it could not reach: *"both arms
+    // still hang at the sides, so nobody appears to be holding the thing."*
+    //
+    // A SECOND SHEET, not a second field on the live mesh. The pose is painted
+    // into the atlas — that is where arms live — and an atlas is baked once,
+    // so a pose that changes with the weather has to be a second bake and a map
+    // swap. It costs one 160 × 128 canvas per walker, which is the same price
+    // this loop already pays for the first one.
+    //
+    // NO `rnd()` DRAW IS ADDED. That stream's ORDER is load-bearing (GOTCHAS 2)
+    // and one extra draw here would re-grain every texture built after the
+    // crowd; `citizenAtlas` takes all its colour from the `Look` and never
+    // touches the shared LCG, so painting it twice moves nothing.
+    const texUp = citizenAtlas({ ...p.look, stride: strideFor(p.sp, hs), holdUp: true });
+    texUp.repeat.set(1 / 5, 1 / 2);
     // the geometry is translated so the origin is at the FEET, so scaling
     // height never lifts anyone off the pavement or sinks them into it
     const geo = citizenPlane();
@@ -469,7 +488,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     umb.visible = false;
     scene.add(umb);
     citizens.push({
-      umb, umbOpen: 0, figTop: FIG_TOP * hs,
+      umb, umbOpen: 0, figTop: FIG_TOP * hs, texUp, holding: false,
       mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: p.sp,
       ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3,
       cad: 5 * Math.sqrt(p.sp) / hs,     // cadence: long legs swing slower
@@ -1085,6 +1104,24 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       const wantUmb = rainNow > UMB_UP ? 1 : rainNow < UMB_DOWN ? 0 : c.umbOpen;
       c.umbOpen += (wantUmb - c.umbOpen) * Math.min(1, dt * 5);
       c.umb.visible = c.umbOpen > 0.02;
+      // ── AND THE HAND GOES UP WITH IT ─────────────────────────────────
+      //
+      // DERIVED FROM THE UMBRELLA ITSELF, not from a second reading of the
+      // weather. `c.umb.visible` IS the umbrella's open-ness, one line above —
+      // so the arm cannot drift out of step with the thing it is holding, and
+      // there is no second threshold to tune. Rain hysteresis, the storm ramp
+      // and the 0.02 floor are all already inside it.
+      //
+      // A MAP SWAP, not a redraw: both sheets were baked at construction and
+      // this only chooses. `needsUpdate` because three caches the material's
+      // program against what it was compiled with, and the cost is once per
+      // change of weather rather than once per frame.
+      if (c.umb.visible !== c.holding) {
+        c.holding = c.umb.visible;
+        const mat = c.mesh.material as THREE.MeshBasicMaterial;
+        mat.map = c.holding ? c.texUp : c.tex;
+        mat.needsUpdate = true;
+      }
       if (c.umb.visible) {
         // Same position and the SAME billboard rotation as the person, so the
         // two stack as a 2D overlay at every angle — that is the whole reason
@@ -1137,9 +1174,15 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       // when halted, so a stopped person isn't marching in place
       if (moving) c.anim += dt * c.cad;   // per-person cadence, see strideFor
       const row = moving ? Math.floor(c.anim) % 2 : 0;
-      c.tex.repeat.x = mirror ? -1 / 5 : 1 / 5;
-      c.tex.offset.x = mirror ? (col + 1) / 5 : col / 5;
-      c.tex.offset.y = row === 0 ? 0.5 : 0;
+      // THE LIVE SHEET, not `c.tex`. Since the umbrella swaps the mesh's map
+      // between the two bakes, writing the view onto `c.tex` unconditionally
+      // would leave whichever sheet is actually on screen frozen on the column
+      // and frame it wore when the rain started — a walker who turns a corner
+      // under an umbrella and keeps facing the old way.
+      const t = c.holding ? c.texUp : c.tex;
+      t.repeat.x = mirror ? -1 / 5 : 1 / 5;
+      t.offset.x = mirror ? (col + 1) / 5 : col / 5;
+      t.offset.y = row === 0 ? 0.5 : 0;
       c.view = { col, mirror, yaw: c.mesh.rotation.y, moving };
     }
   }, ORDER.LATE);
@@ -1162,7 +1205,10 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     // umbrellas go up?" is to look at a picture — and a picture cannot be a
     // regression test.
       doing: c.doing, jam: +c.jam.toFixed(2), ghost: !!c.ghost, gave: +c.gave.toFixed(3),
-      umb: +c.umbOpen.toFixed(2) })),
+      // …and WHICH SHEET IS ON THE MESH. `umb` says the canopy is up; this says
+      // the person is holding it. They are meant to be the same answer, and a
+      // probe that can only see one of them cannot prove that.
+      umb: +c.umbOpen.toFixed(2), holding: c.holding })),
     // the DIRECTION OF TRAVEL, not a ±1 axis code: since the crowd routes over
     // a graph, people walk east and west too, and the feet check has to compare
     // the painted toe against an arbitrary heading
