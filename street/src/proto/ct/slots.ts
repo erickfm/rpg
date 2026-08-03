@@ -870,7 +870,7 @@ const P = {
 /** The three reel windows, and the row grid inside them. Derived once so the
  *  painter and any check agree on where the payline is. */
 export const GLASS = {
-  x: 22, y: 222, w: 276, h: 108,
+  x: 22, y: 194, w: 276, h: 108,
   reelW: 84, gap: 12, rowH: 36,
 } as const;
 // The face's vertical plan, in one place, because it was not in one place and
@@ -889,10 +889,25 @@ export const GLASS = {
 //
 // The twelve-pixel clearance the note above bought stays bought: the reel
 // glass's own surround ends at 342 and the message band starts at 348.
-const TOPPER = { y: 6, h: 76 } as const;
-const PAYT = { y: 96, h: 112 } as const;
-const SAY_Y = 365, SAY_BAND = [348, 24] as const;
-const METER_Y = 380, METER_H = 40, BTN_Y = 428, BTN_H = 28;
+const TOPPER = { y: 6, h: 66 } as const;
+const PAYT = { y: 82, h: 100 } as const;
+const SAY_Y = 334, SAY_BAND = [318, 22] as const;
+const METER_Y = 346, METER_H = 36, BTN_Y = 412, BTN_H = 26;
+// THE BOTTOM 45 PIXELS OF THIS FACE CARRY NOTHING LIVE, AND THAT IS MEASURED.
+//
+// The eye is stood off along the face's normal and clamped to 1.05 m above the
+// floor (`crosstown.ts`'s `poseFor`), and from there THE STOOL YOU ARE SITTING
+// ON rises into the bottom of the frame — its cushion is a 0.42 m dome 0.68 m
+// from your eye. Shot, cropped and measured rather than reasoned about
+// (`scripts/probes/w55-slot-look.mjs`): the cushion's crest cuts the face at
+// canvas y 454, and the first layout put the bill acceptor at 462-480 and the
+// button deck's lower edge at 456 — the acceptor was invisible and SPIN was
+// clipped.
+//
+// So every band that does anything ends by 438, and what is below it is the
+// underside of the deck, in shadow, which is what a cabinet has there and what
+// a seated player cannot see anyway.
+const DECK_UNDER = 438;
 // THE BILL ACCEPTOR, AND IT EXISTS BECAUSE OF THE MOUSE.
 //
 // The four deck buttons are `BET ONE`, `MAX BET`, `SPIN` and `CASH OUT`. There
@@ -907,7 +922,7 @@ const METER_Y = 380, METER_H = 40, BTN_Y = 428, BTN_H = 28;
 // only the keyboard can take. A 1997 machine has a bill validator in exactly
 // this place, so the affordance the mouse needs and the part the cabinet is
 // missing are the same object.
-const BILL_Y = 462, BILL_H = 18;
+const BILL_Y = 388, BILL_H = 18;
 const REEL_X = [0, 1, 2].map((i) => GLASS.x + i * (GLASS.reelW + GLASS.gap));
 const PAYLINE_Y = GLASS.y + GLASS.h / 2;
 
@@ -1179,8 +1194,8 @@ export function paintMachine(
   g.fillStyle = P.glass; g.fillRect(10, TOPPER.y, 300, TOPPER.h);
   g.fillStyle = P.goldLo;
   g.fillRect(10, TOPPER.y, 300, 1); g.fillRect(10, TOPPER.y + TOPPER.h - 1, 300, 1);
-  g.fillStyle = P.gold; g.font = 'bold 38px monospace'; g.textAlign = 'center';
-  g.fillText('SEVENS', FACE.w / 2, TOPPER.y + 54);
+  g.fillStyle = P.gold; g.font = 'bold 36px monospace'; g.textAlign = 'center';
+  g.fillText('SEVENS', FACE.w / 2, TOPPER.y + 48);
   // bulbs round it, three-phase chase — the same trick the marquee outside uses
   const phase = Math.floor(t * (v.state === 'idle' && v.idleT > FEEL.attract ? 11 : 6)) % 3;
   for (let i = 0; i < 30; i++) {
@@ -1215,7 +1230,7 @@ export function paintMachine(
   g.font = '13px monospace';
   PAYTABLE.forEach((p, i) => {
     const col = i < 4 ? 0 : 1, row = i % 4;
-    const px = 18 + col * 150, py = PAYT.y + 26 + row * 24;
+    const px = 18 + col * 150, py = PAYT.y + 22 + row * 20;
     const winning = v.win?.line === p.line || i === walk;
     g.textAlign = 'left';
     g.fillStyle = winning ? P.lampOn : P.cream;
@@ -1257,10 +1272,10 @@ export function paintMachine(
     // readings to `null` — the check was right and the change was arbitrary.
     // Only the type size and its baselines move here.
     g.fillStyle = P.meterDim; g.font = '10px monospace'; g.textAlign = 'left';
-    g.fillText(label, mx + 4, METER_Y + 14);
+    g.fillText(label, mx + 4, METER_Y + 13);
     g.fillStyle = lit ? P.lampOn : P.meterInk;
     g.font = 'bold 19px monospace'; g.textAlign = 'right';
-    g.fillText(value, mx + mw - 4, METER_Y + 33);
+    g.fillText(value, mx + mw - 4, METER_Y + 30);
   };
   meter(22, 108, 'CREDITS', String(v.credits), false);
   meter(138, 44, 'BET', String(v.bet), false);
@@ -1278,7 +1293,7 @@ export function paintMachine(
     g.fillRect(bx, BTN_Y, bw, 2);
     g.fillStyle = live ? P.ink : '#6a6258';
     g.font = 'bold 12px monospace'; g.textAlign = 'center';
-    g.fillText(label, bx + bw / 2, BTN_Y + 18);
+    g.fillText(label, bx + bw / 2, BTN_Y + 17);
   };
   const idle = v.state === 'idle';
   for (const d of DECK) {
@@ -1301,6 +1316,13 @@ export function paintMachine(
   g.font = 'bold 10px monospace'; g.textAlign = 'center';
   g.fillText('INSERT', 71, BILL_Y + 13);
   g.fillText(`$${BILL}`, 249, BILL_Y + 13);
+
+  // ── the underside of the deck ──
+  // See DECK_UNDER: the stool you are sitting on covers this band, so nothing
+  // that has to be read or pressed is allowed in it. What a cabinet actually has
+  // below its deck is an overhang in shadow, and that is what this is.
+  g.fillStyle = P.caseLo; g.fillRect(0, DECK_UNDER, FACE.w, FACE.h - DECK_UNDER);
+  g.fillStyle = P.case; g.fillRect(0, DECK_UNDER, FACE.w, 2);
 
   // ── what the machine is saying ──
   // ITS OWN LIT STRIP, not text floating over whatever is behind it. Centred on
@@ -1371,6 +1393,7 @@ export function paintMachine(
 //   · and the module reaches the world through `ct/world.ts`'s glob, so there
 //     is no line in `crosstown.ts` to add and none to forget.
 
+import type * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { BUILD, ORDER as HOOK } from './ctx';
 import type { Panel } from './hud';
@@ -1424,8 +1447,15 @@ export const BILL = 5;
  */
 const SLOT_SEAT_LABEL = 'sit at the slot';
 
-interface SeatRow { pose: object; label: string }
-interface CtWindow { __ct?: { seated: () => object | null; seats: () => SeatRow[] } }
+interface SeatPose { x: number; z: number; yaw: number }
+interface SeatRow { pose: SeatPose; label: string }
+interface CtWindow {
+  __ct?: {
+    seated: () => SeatPose | null;
+    seats: () => SeatRow[];
+    yaw: () => number;
+  };
+}
 
 /** The slot stool the player is sitting on, or null.
  *
@@ -1433,13 +1463,183 @@ interface CtWindow { __ct?: { seated: () => object | null; seats: () => SeatRow[
  *  position: `crosstown.ts` hands out the pose itself, so this cannot be
  *  confused by two stools at the same coordinates the way a distance test would,
  *  and the caller can tell one stool from the next one along. */
-function seatedSlot(): object | null {
+function seatedSlot(): SeatPose | null {
   const ct = (globalThis as unknown as CtWindow).__ct;
   if (!ct) return null;
   const pose = ct.seated();
   if (!pose) return null;
   const seat = ct.seats().find((s) => s.pose === pose);
   return seat?.label === SLOT_SEAT_LABEL ? pose : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE SCREEN THIS FACE IS PAINTED ON — item 100.
+//
+// *"slots similarly need to be embedded into the game like i mentioned with the
+// atm. fixed perspective. embedded interactable overlay to make it look
+// realistic and immersion forward."*
+//
+// THE MECHANISM IS `PanelSpec.surface` AND NONE OF IT IS RE-IMPLEMENTED HERE.
+// Hanging the canvas on a mesh, easing the eye onto it, locking the look,
+// freezing the feet, raycasting the pointer back into canvas pixels, the Win98
+// hand, ESC always closing, putting the object's own face back — all of that is
+// `ct/hud.ts` and `crosstown.ts`, built for the ATM by w41 and called here. The
+// only thing this section does is answer the one question the framework asks the
+// caller: WHICH MESH.
+//
+// AND THAT QUESTION IS WHERE THE ATM'S ANSWER STOPS TRANSFERRING.
+//
+// `ct/bank.ts` builds the ATM's raked screen as its own plane with its own
+// single material and tags it `userData.atmPart = 'screen'`, so `ct/atm.ts`
+// finds it in four lines and hands it over. There is no equivalent here, and it
+// is not an oversight — MEASURED (`scripts/probes/w55-slot-mesh.mjs`): the
+// machine you sit at is ONE `BoxGeometry(0.6, 1.45, 0.6)` wearing an ARRAY OF
+// SIX materials, its front being index 4 of that array. It has no screen mesh
+// because until now it had no screen.
+//
+// Two things follow, and the second is the one that decides the design:
+//
+//  1. `ct/hud.ts:899` reads `mesh.material` as a single `MeshBasicMaterial` and
+//     immediately calls `.color.getHex()` on it. Handed a six-material box that
+//     is `undefined.getHex()` — a throw inside `open()`, before the panel is
+//     live. The framework is not wrong to assume this; a surface is a face, and
+//     a six-sided box is six faces.
+//  2. Even if it could, painting this canvas onto material index 4 would repaint
+//     the WHOLE front — including the shadowed body and the coin tray, which
+//     `paintMachine` does not draw and should not have to.
+//
+// So this file supplies a screen: a thin plane, parented to the cabinet, lying
+// 6 mm proud of the face the player is looking at, cut to the canvas's aspect
+// and hung from the cabinet's top edge. The cabinet keeps its body and its tray;
+// the plane is the part that comes alive. That is the same division the ATM has
+// with its niche and its keypad.
+//
+// EVERY NUMBER IN IT IS READ OFF THE WORLD (BUILDER-BRIEF §8). The cabinet is
+// found by casting a ray forward from the stool the player is on; its width and
+// its top come from its own geometry's bounding box; which face to hang on comes
+// from the normal of the face the ray hit. `ct/int-casino.ts` is not imported,
+// not touched, and none of `AVENUE`, `SLOT_PITCH`, `SLOT_N`, `BANK_Z` or
+// `STOOL_TOP` appears here — which is exactly what the note on SLOT_SEAT_LABEL
+// above says the alternative would have cost, on a layout its own comments
+// record moving five separate times.
+//
+// AND IT BUILDS NOTHING UNTIL THE FIRST TIME A PLAYER SITS DOWN. GOTCHAS 75:
+// `scenedump.mjs` seeds `Math.random` globally and three draws four random
+// values per Object3D, so a mesh created at build time would shift the stream
+// and repaint every dithered texture after it — `npm run fp` would report a
+// catastrophe that was not there. A scenedump never opens a panel, so it never
+// sees this, and `fp` stays readable for the next person.
+
+/** three, fetched at register time. See the note on the `./hud` import below —
+ *  same reason, and it keeps this module loadable by the node checks. */
+let T: typeof THREE | null = null;
+/** the one plane, re-parked on whichever cabinet the player is at */
+let plane: THREE.Mesh | null = null;
+let ray: THREE.Raycaster | null = null;
+
+/**
+ * The cabinet in front of the player, and the face of it they are looking at.
+ *
+ * ASKED OF THE WORLD RATHER THAN LOOKED UP. A ray from where the player is,
+ * along the way they are facing, hits the thing they are facing — which is the
+ * definition of the machine they sat down at, and it stays the definition if the
+ * floor is re-laid. `ct/atm.ts` finds its screen by a `userData` tag for the
+ * same reason: neither file knows a coordinate.
+ *
+ * The 2 m limit is the cabinet's own reach from a stool 0.67 m away with room to
+ * spare, and it is what stops a stool at the end of a bank finding the wall
+ * across the aisle.
+ */
+function cabinetAhead(scene: THREE.Scene, from: { x: number; z: number; yaw: number }, gy: number):
+{ mesh: THREE.Mesh; normal: THREE.Vector3 } | null {
+  if (!T || !ray) return null;
+  // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw). Read off the same
+  // line `crosstown.ts`'s own focus controller cites, not re-derived.
+  ray.set(
+    new T.Vector3(from.x, gy + 1.0, from.z),
+    new T.Vector3(Math.sin(from.yaw), 0, -Math.cos(from.yaw)),
+  );
+  ray.far = 2.0;
+  for (const hit of ray.intersectObjects(scene.children, true)) {
+    const o = hit.object as THREE.Mesh;
+    if (o === plane) continue;                       // never find last time's screen
+    // The people on the stools either side are sprites and are not machines; a
+    // ray that finds one would hang the interface on somebody's back.
+    if (o.userData?.citizen) continue;
+    if (!o.isMesh || !hit.face) continue;
+    // Straight-on faces only. A ray that grazes a valance overhead or clips the
+    // corner of the next cabinet along returns a face the player is not square
+    // to, and the pose derived from it would put the eye somewhere sideways.
+    if (Math.abs(hit.face.normal.y) > 0.3) continue;
+    return { mesh: o, normal: hit.face.normal.clone() };
+  }
+  return null;
+}
+
+/**
+ * The plane the panel paints on, resolved fresh on every open.
+ *
+ * Returns `null` when there is no cabinet to find — a prototype harness, a
+ * probe that opened the machine from the street — and the framework then falls
+ * back to the screen-space panel it would have had anyway. That degrade is
+ * `ScreenSurface.mesh`'s stated contract and it is why this was safe to adopt.
+ */
+function screenPlane(scene: THREE.Scene, gy: number): THREE.Object3D | null {
+  if (!T) return null;
+  // THE STOOL'S OWN POSE, which is where the player is standing — `rig.sit` put
+  // them there and `crosstown.ts`'s focus controller cannot move them off it
+  // (`FirstPerson.sit` is a no-op while already seated, fp.ts:230). So the seat
+  // is both the way in and the vantage point, and there is no second source for
+  // either. Not seated means not at a machine, and the framework's screen-space
+  // fallback is the honest answer.
+  const seat = seatedSlot();
+  if (!seat) return null;
+  const found = cabinetAhead(scene, seat, gy);
+  if (!found) return null;
+
+  const geo = found.mesh.geometry;
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox;
+  if (!bb) return null;
+  const n = found.normal;
+  // Which horizontal axis the face looks along, and therefore which one it is
+  // WIDE along. The cabinets are axis-aligned boxes, so this is exact.
+  const alongX = Math.abs(n.x) > Math.abs(n.z);
+  const half = alongX ? (n.x > 0 ? bb.max.x : -bb.min.x) : (n.z > 0 ? bb.max.z : -bb.min.z);
+  const width = alongX ? bb.max.z - bb.min.z : bb.max.x - bb.min.x;
+  // THE ASPECT COMES FROM THE CANVAS AND THE WIDTH COMES FROM THE OBJECT, so
+  // the texels are square whatever size cabinet this is asked about. See FACE.
+  const height = width * (FACE.h / FACE.w);
+
+  if (!plane) {
+    plane = new T.Mesh(
+      new T.PlaneGeometry(1, 1),
+      // White and opaque: the framework multiplies its canvas by this colour and
+      // sets it to white on open anyway, and an untouched canvas on a material
+      // with no `transparent` flag renders as flat black (w41's third bug).
+      new T.MeshBasicMaterial({ color: 0xffffff }),
+    );
+    plane.name = 'ct-slots-screen';
+  }
+  plane.geometry.dispose();
+  plane.geometry = new T.PlaneGeometry(width, height);
+  // PARENTED TO THE CABINET, so it inherits the machine's own place in the room
+  // and travels with it, and so everything above can be worked out in the
+  // cabinet's local space where the box is axis-aligned and centred.
+  if (plane.parent !== found.mesh) found.mesh.add(plane);
+  plane.position.set(
+    alongX ? Math.sign(n.x) * (half + 0.006) : 0,
+    // hung from the TOP edge of the cabinet, which is where a machine's marquee
+    // is; the body and the coin tray keep the rest of the face
+    bb.max.y - height / 2,
+    alongX ? 0 : Math.sign(n.z) * (half + 0.006),
+  );
+  // A PlaneGeometry looks down +z. Turning it to look down `n` puts u running
+  // left-to-right and v bottom-to-top from the player's eye, which is what
+  // `ct/hud.ts`'s `surfaceHit` unflips into canvas pixels.
+  plane.rotation.set(0, Math.atan2(n.x, n.z), 0);
+  plane.visible = true;
+  return plane;
 }
 
 /**
@@ -1519,6 +1719,61 @@ export function register(ctx: CtxBuild): void {
     machine.insert(credits);
   };
 
+  // ── the mouse ─────────────────────────────────────────────────────────────
+  //
+  // The framework raycasts the pointer onto the screen plane and hands the hit
+  // back in THIS canvas's own pixels — the same coordinates `paintMachine` draws
+  // in — so the machine hit-tests the layout it drew and the framework is never
+  // told where a button is. That seam is w41's and this is the whole of using
+  // it: two functions, no registration, no rectangles handed over.
+
+  /** is there something PRESSABLE here? Drives the hand cursor, so it must be
+   *  true only where a click does something — w41's rule, and the reason
+   *  `deckLive` is one answer read by the paint and by this. */
+  const hotAt = (x: number, y: number): boolean => {
+    const d = deckAt(x, y);
+    if (d) return deckLive(d, machine.view());
+    if (billAt(x, y)) return machine.settled() && ctx.purse.cash >= CREDIT;
+    return false;
+  };
+
+  /**
+   * THE ONE DISPATCH, and it is one on purpose.
+   *
+   * `DECK[i].key` is a keystroke, and a click sends that keystroke through here
+   * exactly as the keyboard does. A click on SPIN and a press of SPACE are the
+   * same event as far as this machine is concerned, and the one thing worse than
+   * two input paths is two that disagree about what SPIN does. `ct/atm.ts` routes
+   * its soft keys and its PIN pad the same way for the same reason.
+   */
+  const onKey = (k: string): void => {
+    if (k === ' ' || k === 'enter') machine.play();
+    else if (k === 'b') machine.betUp();
+    else if (k === 'v') machine.betDown();
+    else if (k === 'm') { for (let i = 0; i < 8; i++) machine.betUp(); }
+    else if (k === 'i') insert();
+    else if (k === 'c') cashOut();
+    panel?.repaint();
+  };
+
+  const clickAt = (x: number, y: number): void => {
+    if (!hotAt(x, y)) return;                  // a dead button stays dead
+    const d = deckAt(x, y);
+    if (d) { onKey(d.key); return; }
+    if (billAt(x, y)) onKey('i');
+  };
+
+  // three, on the same dynamic import as the panel and for the second of the two
+  // reasons given below: a static `import * as THREE from 'three'` would make
+  // this module pull the whole renderer into node, where `L-slots-rtp`,
+  // `-feel` and `-glass` import it directly to check the maths, the reels and
+  // the glass without a browser. The type-only import at the top of PART FOUR
+  // is erased and costs nothing.
+  void import('three').then((three) => {
+    T = three;
+    ray = new three.Raycaster();
+  });
+
   void import('./hud').then(({ makePanel }) => {
   panel = makePanel({
     // FRAMELESS. `paintMachine` already draws a complete cabinet — case,
@@ -1531,29 +1786,73 @@ export function register(ctx: CtxBuild): void {
     // (`ct/vice.ts` paints it on the facade); it was never missing from the
     // world, only doubled onto this screen's own frame.
     id: 'ct-slots',
-    w: FACE.w, h: FACE.h, scale: 2,
+    // scale 1, not 2. It only decides the size of the SCREEN-SPACE fallback,
+    // and the portrait face is 483 canvas pixels tall — at 2 that fallback
+    // would be 966 css px and taller than the window it appears in.
+    w: FACE.w, h: FACE.h, scale: 1,
     chrome: 'none',
+    // ON THE MACHINE, not over the camera. *"slots similarly need to be embedded
+    // into the game like i mentioned with the atm. fixed perspective."* Naming
+    // the mesh the canvas belongs on is the whole of the change; `paintMachine`
+    // above draws what it drew before, re-cut to the face it is now on.
+    //
+    // 1.15 m and 58°, against the framework's default 0.55/60 and the ATM's
+    // 0.75/58. The face is 0.906 m tall and 58° covers 1.24 m of world at
+    // 1.15 m, so the machine reads at about 71% of frame height and the
+    // cabinets either side, the lit valance overhead and the cabinet's own body
+    // under the deck are all in the same frame. That surround is the difference
+    // between a screen and a machine in a room, and it is the fault w41 recorded
+    // backing the ATM off 0.20 m to fix.
+    //
+    // 1.35 WAS TRIED AND IS WORSE, WHICH IS NOT WHAT I EXPECTED. Further back
+    // frames more room, but `crosstown.ts`'s focus controller stands the eye off
+    // along the face's normal and clamps it to a minimum of 1.05 m above the
+    // floor — and this face's centre sits at 0.997 m, so the eye takes the
+    // clamp. From 1.05 m looking level, backing off 0.20 m brings the STOOL YOU
+    // ARE SITTING ON up into the shot: at 1.35 its cushion and both neighbours'
+    // rise over the button deck and the bill acceptor and cover them. The reason
+    // I backed off in the first place — that the framework's caption printed
+    // over the bill acceptor — turned out to be wrong when the frame was
+    // measured rather than eyeballed: at 1.15 the face's bottom edge is at 595
+    // of 700 px and the caption band starts at 615. They never touched.
+    surface: {
+      mesh: () => screenPlane(ctx.scene, ctx.player.gy()),
+      standoff: 1.15,
+      fov: 58,
+      hot: hotAt,
+      click: clickAt,
+    },
+    // The mouse is a way in now, so the caption says so — but the keys are named
+    // and in full, because *"the current keyboard shortcuts should keep
+    // working"* and a player who learned this machine on the keyboard must not
+    // be told it stopped listening.
     hint: () => (machine.settled()
       ? (ctx.purse.cash < CREDIT
-        ? 'SPACE spin · B bet · M max · C cash out'      // no I: there is nothing to insert
-        : 'SPACE spin · B bet · M max · I insert $5 · C cash out')
+        ? 'click a button · SPACE spin · B/M bet · C cash out'
+        : 'click a button · SPACE spin · B/M bet · I insert · C cash out')
       : '…'),
     draw: (g, w, h) => paintMachine(g, w, h, machine.view(), clock, ctx.purse.cash),
-    key: (k) => {
-      if (k === ' ' || k === 'enter') machine.play();
-      else if (k === 'b') machine.betUp();
-      else if (k === 'v') machine.betDown();
-      else if (k === 'm') { for (let i = 0; i < 8; i++) machine.betUp(); }
-      else if (k === 'i') insert();
-      else if (k === 'c') cashOut();
-      panel?.repaint();
-    },
+    key: (k) => onKey(k),
     // THE MONEY COMES BACK, ALWAYS. ESC closes every panel in this world without
     // the caller writing a line, which is right and is also the one way a player
     // could have walked away from a full meter. Cashing out on close makes
     // "what you win is in your wallet when you stand up" true by construction
     // rather than by remembering to press a button.
-    onClose: () => { dismissed = seatedSlot(); cashOut(); },
+    // THE SCREEN GOES DARK WHEN YOU LEAVE IT. The framework puts the mesh's own
+    // material back — for the ATM that restores the cabinet's baked texture, but
+    // this plane HAS no other face: it exists only to carry the live canvas, and
+    // restored to `savedMap = null` it is a blank white rectangle stuck to the
+    // front of the machine. Hiding it is the plane's half of the same promise
+    // `ct/hud.ts` keeps for a mesh that was already there.
+    //
+    // Belt and braces on top of the framework's own restore, deliberately: the
+    // one thing worse than a machine you cannot leave is one you left and that
+    // is still wearing your session.
+    onClose: () => {
+      if (plane) plane.visible = false;
+      dismissed = seatedSlot();
+      cashOut();
+    },
   });
   });
 
