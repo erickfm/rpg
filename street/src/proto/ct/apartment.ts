@@ -3754,10 +3754,26 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // 301's leaf, standing open against the wall — a door is solid even
       // when it is open. Safe on every floor: west of AX(0) is only ever
       // reachable through 301's opening, which aptDoorCap gates to floor 3.
-      // it stops SHORT of the opening (3.02 vs the jamb at 3.025) so the
+      // it stops SHORT of the opening (3.98 vs the jamb at 3.975) so the
       // doorway keeps its full 0.95 m clear — the door is solid, but it must
       // not be the thing that narrows the gap you walk through
-      { minX: AX(-0.34), maxX: AX(-0.03), minZ: AZI(2.10), maxZ: AZI(3.02) },
+      //
+      // ⚠ ON THE +z SIDE, BECAUSE THE HINGE IS. This box was AZI(2.10)-AZI(3.02)
+      // and stayed there when the pivot moved to the +z jamb (line ~1233,
+      // `hingeSide('301') = +1`). A collider is not carried by the mesh — it is
+      // typed out here, a second time, in the units of a room rather than of a
+      // door — so mirroring the leaf left the box behind, and neither half
+      // complained. What the player got was a box of solid air a metre south of
+      // his own front door and an open leaf he could walk straight through, in
+      // the flat he spawns in.
+      //
+      // Measured on the built bundle rather than derived: the open leaf's world
+      // AABB is x 199.580-199.932, z -16.011..-15.040 (pivot 199.910,-16.005,
+      // rotation.y 1.3208 = DOOR_A_OPEN); the old box was z -17.900..-16.980,
+      // disjoint from it, on the far side of a doorway that runs -16.975 to
+      // -16.025. Same 0.92 m length and same x band as before — this is the
+      // mirror the hinge move owed, not a new shape.
+      { minX: AX(-0.34), maxX: AX(-0.03), minZ: AZI(3.98), maxZ: AZI(4.90) },
     );
     // ── street side: the walk-up's front door ────────────────────────────
     // The building carries NO name. It never gets a nameplate: the gold 227
