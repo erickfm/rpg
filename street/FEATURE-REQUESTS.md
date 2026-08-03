@@ -3162,3 +3162,17 @@ to one side.
 - **"just make the door high rank pls"** (2026-08-03) → **decision recorded on
   item 291.** The way out of a room outranks the furniture in it. Applies to the
   calendar and the bed in flat 301, and by extension to any room's exit.
+
+## 2026-08-03 15:05 — the artifact is not a priority
+
+> "idc about the artifacts"
+
+Said in reply to the desk offering to republish after item 293 fixed the packer
+(the published page was packing one chunk of four and could not boot).
+
+**Routing: nobody. Standing deprioritisation, not a task.** The fix already
+landed as part of 293 and stays — it cost nothing to keep and the checks now
+guard it. But the desk does **not** republish, and artifact/Pages work does not
+get ranked or staffed unless the user raises it again. **The build that matters
+is the live integration world at localhost:5177**, which is what he actually
+playtests. No queue rows were dropped; there were none left to drop.
