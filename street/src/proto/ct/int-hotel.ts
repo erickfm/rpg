@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface, slabTex, boxFaces } from './paint';
+import { pixTex, dither, declareSurface, slabTex, BOX_FACE_DIMS } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 // the hard-texel text painter from the casino's facade — one signage hand for
@@ -271,42 +271,51 @@ export function buildHotel(ctx: CtxBuild): void {
   // confetti: a velvet sofa wearing gravel. Photographed, then read in the
   // source rather than tuned by eye — BUILDER-BRIEF §7, the source is the answer.
   //
-  // ⚠ SIZED TO THE LARGEST FACE, NOT TO THE TOP. `slabTex` sizes from a w×d and
-  // maps 1:1, and a backrest's TOP face is a 0.1 m sliver — sizing to that and
-  // letting it stretch across the 0.52 × 0.5 face you actually look at is
-  // BUILDER-BRIEF §7b's "0.2 m end caps wearing a 9.65 m run" with the numbers
-  // reversed. So the two biggest dimensions of the box are what the sheet is
-  // built for.
+  // ⚠ ONE SHEET PER FACE, NOT ONE SHEET SIZED TO THE LARGEST FACE (item 259).
   //
-  // ⚠ …AND SIZING THE SHEET IS ONLY HALF THE JOB — THE OTHER FIVE FACES STILL
-  // HAVE TO DERIVE THEIR OWN REPEAT. Picking the largest face is the right
-  // choice of CANVAS and it does nothing about the mapping: three gives a
-  // `BoxGeometry` per-face 0..1 UVs, so a 1:1 sheet stretches independently to
-  // fit each of the six faces, and the sliver faces then draw at whatever
-  // density their own size implies. Measured on the built bundle after item 96
-  // landed: NINE gross faces in this room, `interior:hotel 3 -> 9`, with the
-  // 0.1 m arm ends of the three chairs drawing 250 × 48 px/m against a declared
-  // 48 — and that regression was the only thing holding `texdensity.mjs` red
-  // across three builders' sessions.
+  // The comment that used to stand here named the hazard and then shipped it:
+  // *"SIZED TO THE LARGEST FACE, NOT TO THE TOP… a backrest's TOP face is a
+  // 0.1 m sliver."* Sizing to the two biggest dimensions avoids stretching the
+  // sheet on the face you look at — and hands that same 1:1 sheet to the four
+  // faces that are NOT that size, because `slabTex` maps 1:1 and a material is
+  // shared by all six faces of a box. `texdensity` went red on it the same
+  // night: **`interior:hotel` 3 → 9**, with the slivers drawing **250 px/m**
+  // against a declared 48.
   //
-  // `boxFaces` (ct/paint.ts, item 163) is the fix for exactly this shape, and
-  // `slabTex`'s own docstring names this room as the case it was written for.
-  // It clones the sheet per DISTINCT face size — at most three per box — and
-  // calls `fitRepeat` with that face's own two metres, so every face draws at
-  // FABRIC_PPM regardless of which one the canvas was sized for. The canvas
-  // choice above is unchanged and still correct: it decides how much real
-  // detail exists, not how it is mapped.
+  // Choosing which face to be wrong about was never the choice. A box authored
+  // (W, H, D) has THREE distinct face sizes — `±x = D×H`, `±y = W×D`,
+  // `±z = W×H` — so one map lands three different densities on it whatever you
+  // size it to. That is BUILDER-BRIEF §7b, and item 163 landed
+  // **`BOX_FACE_DIMS`** as the one written copy of that table precisely so
+  // nobody has to rediscover it a fifth time.
   //
-  // `joint: 0` is what makes the tiling safe. A face larger than the sheet on
-  // one axis (the sofa's +y is 0.85 × 2.1 against a 2.1 × 0.85 sheet) repeats
-  // 2.46× — invisible in pure grain, and it would be a visible seam grid on a
-  // jointed surface.
+  // So this returns SIX materials, each with its own 1:1 sheet at the same
+  // px/m. `boxFaces` is the general helper but it is the wrong one here: it
+  // clones ONE texture and sets `repeat`, which is right for a tiling sheet and
+  // wrong for `slabTex`, whose output is `ClampToEdgeWrapping` and 1:1 by
+  // contract. Cached per distinct face size, so a box costs at most three
+  // canvases and usually two.
+  //
+  // NOTHING ABOUT THE LOOK CHANGES. Same `base`, same `ppm`, same `grain`, same
+  // `joint: 0` — item 96's weave was a deliberate improvement the user has not
+  // complained about, and only its per-face sizing was ever wrong.
+  //
+  // ⚠ AND `grain` MUST STILL STAY UNDER 0.14 — see the note above.
   const FABRIC_PPM = 48;      // finer than the ground's 32: you stand next to it
   const fabric = (col: number, w: number, h: number, d: number): THREE.Material[] => {
-    const [a, b] = [w, h, d].sort((x, y) => y - x);
-    const t = slabTex({ wMeters: a, dMeters: b, base: `#${col.toString(16).padStart(6, '0')}`,
-      joint: 0, ppm: FABRIC_PPM, grain: 0.09 });
-    return boxFaces(t, w, h, d);
+    const base = `#${col.toString(16).padStart(6, '0')}`;
+    const cache = new Map<string, THREE.Material>();
+    return BOX_FACE_DIMS(w, h, d).map(([fw, fh]) => {
+      const key = `${fw.toFixed(4)}x${fh.toFixed(4)}`;
+      let m = cache.get(key);
+      if (!m) {
+        m = new THREE.MeshBasicMaterial({
+          map: slabTex({ wMeters: fw, dMeters: fh, base, joint: 0, ppm: FABRIC_PPM, grain: 0.09 }),
+        });
+        cache.set(key, m);
+      }
+      return m;
+    });
   };
 
   // ── the way in, matched to the doorway you came through ───────────────
@@ -622,8 +631,10 @@ export function buildHotel(ctx: CtxBuild): void {
     const plushSeat = fabric(0x3f5449, 0.72, 0.40, 0.72);
     const plushRest = fabric(0x3f5449, 0.72, 0.46, 0.22);
     const paper = new THREE.MeshBasicMaterial({ color: 0xd8d2c0 });
+    // `m` takes a material ARRAY as well as one material, because `fabric` now
+    // returns six — one per face, at each face's own metres (item 259).
     const bx = (w: number, h: number, d: number, m: THREE.Material | THREE.Material[],
-                x: number, y: number, z: number) =>
+      x: number, y: number, z: number) =>
       put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z);
 
     // A SOFA AND TWO ARMCHAIRS ROUND A LOW TABLE, in the east corner
