@@ -1806,6 +1806,43 @@ export function makeCrosstown(): Proto {
     // off" produce the same picture and must not produce the same reading.
     cullInfo: () => ({ on: regionCullOn, hiding: exteriorHidden,
       classified: regionKids ? regionKids.length : -1, topLevel: scene.children.length }),
+    /**
+     * HAS THE RENDERER ACTUALLY DRAWN ANYTHING YET? `null` until it exists.
+     *
+     * GOTCHAS 78 says to wait for "something the RENDERER has done" before
+     * shooting, and then every probe in this tree waits on `afterFrames`, which
+     * is **rAF ticks** — and rAF fires whether or not `renderer.render()` was
+     * called. Worker sixtyone shot the built bundle after the prescribed wait
+     * and got **8 solid black frames** while the same bundle's scene graph read
+     * perfectly; the first genuinely drawn frame did not arrive until 1136 ms.
+     * A probe that shoots on a frame count photographs the void and files it as
+     * evidence, and "I looked at the screenshot" is the only proof we have for
+     * the items where looking is the point.
+     *
+     * The cause is one line above this object: `__ct` is assigned inside
+     * `make()`, and `configure(r)` — which is where `renderer` arrives — is
+     * called by `src/main.ts` AFTERWARDS, with the first `frame()` after that.
+     * So `window.__ct` existing is a statement about this file, not about the
+     * screen. `renderer.info.render.frame` is a statement about the screen: it
+     * is incremented by three inside `render()` and by nothing else.
+     *
+     * THE NUMBERS, NOT THE RENDERER. The item asked to publish `renderer`, and
+     * publishing the object itself would be useless to the callers it is for:
+     * every probe reads this through `page.evaluate`, which serialises, and a
+     * `WebGLRenderer` does not survive that in any form you can assert on. So
+     * this publishes what a probe can actually compare — the same shape as
+     * `cullInfo()` and `busInfo()` beside it.
+     *
+     * `triangles` matters as much as `frames`: a render call that drew nothing
+     * advances the counter and still leaves a black screen, so the honest wait
+     * is "frames advanced AND geometry went through". `scripts/lib/painted.mjs`
+     * does both; use it rather than reading this by hand.
+     */
+    painted: () => (renderer
+      ? { frames: renderer.info.render.frame,
+          triangles: renderer.info.render.triangles,
+          calls: renderer.info.render.calls }
+      : null),
   };
 
   return {
