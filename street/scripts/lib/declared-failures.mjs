@@ -54,8 +54,32 @@ export function classify(results, declared) {
     }
   }
 
-  const missing = declared.map(([n]) => n).filter((n) => !seen.has(n));
+  // MISSING IS ONLY MEANINGFUL FOR A SUBJECT THE RUN ACTUALLY COVERED.
+  //
+  // `interiors-walk` takes a positional room id, and that invocation is how
+  // people debug one room (`checks.mjs:966` documents it). The first cut flagged
+  // every declaration as `missing` there, so `interiors-walk bodega` exited 1
+  // with 30/30 legs green — measured, exit 1 on a clean room. That is the exact
+  // disease this whole mechanism exists to cure: an exit code that is red for a
+  // reason having nothing to do with the world, which trains people to stop
+  // reading it.
+  //
+  // So a declaration is checked for `missing` only if its SUBJECT appears in the
+  // results at all. The subject is the part before the first `: `, which is what
+  // the caller already prefixes — derived from the results themselves rather
+  // than tracked in a second place that can drift (BUILDER-BRIEF §8).
+  //
+  // THIS DOES NOT WEAKEN THE RENAME GUARD, which is the case that matters: if a
+  // leg is renamed, its room is still in the results, so its declaration is
+  // still `missing` and still red. Only a subject the run never touched is
+  // exempt, and about that one the run genuinely has nothing to say.
+  const subject = (n) => n.slice(0, n.indexOf(': ') + 1);
+  const covered = new Set(results.map(([, n]) => subject(n)));
+  const missing = declared.map(([n]) => n)
+    .filter((n) => !seen.has(n) && covered.has(subject(n)));
+  const notCovered = declared.map(([n]) => n)
+    .filter((n) => !seen.has(n) && !covered.has(subject(n)));
   bad += missing.length;
 
-  return { bad, decl, passed, missing, lines };
+  return { bad, decl, passed, missing, notCovered, lines };
 }

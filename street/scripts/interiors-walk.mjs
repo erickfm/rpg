@@ -1914,7 +1914,14 @@ console.log('');
 const verdict = classify(results, DECLARED);
 for (const [tag, name, detail] of verdict.lines) console.log(`${tag}  ${name}\n        ${detail}`);
 for (const m of verdict.missing) {
-  console.log(`MISS  ${m}\n        DECLARED but no leg of that name ran — the declaration is aimed at nothing (GOTCHAS 34).`);
+  console.log(`MISS  ${m}\n        DECLARED, its room WAS walked, and no leg of that name ran — renamed or deleted,`
+    + `\n        so the declaration is aimed at nothing (GOTCHAS 34). This is red.`);
+}
+// Named, never silent, and NOT red — this run simply did not visit that room
+// (`interiors-walk <room>`). Printing them is what stops "not red" turning into
+// "not noticed" if someone quietly narrows what the suite walks.
+for (const m of verdict.notCovered ?? []) {
+  console.log(` --   ${m}\n        DECLARED, but this run did not walk that room — not judged either way.`);
 }
 const bad = verdict.bad;
 console.log(`\n${verdict.passed}/${results.length} passed, ${verdict.decl} declared known-open, ${bad} unaccounted`);
