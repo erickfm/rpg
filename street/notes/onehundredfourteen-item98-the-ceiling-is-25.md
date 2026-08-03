@@ -221,6 +221,44 @@ not. I did not chase it; it is the same unresolved thread as ninetytwo's §5.
 
 ---
 
+## ⚠⚠ AND THEN I MERGED MAINLINE, AND `w40` IS RED THERE WITHOUT ME
+
+**Report this first.** After merging `add-stick-and-city98` the five walks came
+back **0 / 5 green**, and the new failures are not the fire station:
+
+```
+FAIL  END TWO: walking out facing the door, the DOOR is offered at every stride
+      — 4 offered "read the calendar" at 0.41 m
+FAIL  AIM:  walking the SAME band facing the bed, the BED is offered at every stride
+      — 3 offered "read the calendar" at 0.79 m
+```
+
+**It is not mine.** I put **mainline's own `fp.ts` back** on the merged tree —
+ceiling 14.90°, my change entirely removed — rebuilt, and ran it:
+
+```
+EXIT=1
+  0.40 m from the bed, facing the door -> [E] read the calendar
+  0.50 m from the bed, facing the door -> [E] read the calendar
+  0.61 m from the bed, facing the door -> [E] read the calendar
+  0.72 m from the bed, facing the door -> [E] read the calendar
+FAIL  END TWO   FAIL  AIM
+```
+
+**`read the calendar` arrived with `ca59a4857`, "Item 270: the calendar moves
+right, grows 2.56x, and opens as a diegetic page"** (`src/proto/ct/apartment.ts`,
+landed 2026-08-03). The calendar's spot now outranks both the bed and the door
+across the whole contested band in flat 301 — so **mainline currently ships END
+TWO broken**, which is the user's own sentence *"i dont want sit on bed and watch
+tv to be the main option if im facing the door to leave"* failing on a spot that
+is neither.
+
+**This is a separate defect from item 98 and it should be queued as one.** It is
+also why the honest post-merge score for my own change is *unmeasurable by this
+guard until the calendar is dealt with*: on the pre-merge tree it was 5/5 → 3/5,
+which is the number I stand behind; on the merged tree the guard is red on both
+sides of my change.
+
 ## Also left alone
 
 - **`crosstown.ts` is not named by this item** (BUILDER-BRIEF §9), so
