@@ -248,6 +248,69 @@ export function rollPackage(): string {
   return PACKAGE_TABLE[Math.floor(Math.random() * PACKAGE_TABLE.length)];
 }
 
+// ── what the pawn shop pays for it ────────────────────────────────────────
+//
+// *"it should also serve as a fence for the stuff you steal from neighbors."*
+//
+// THE DESIGN CHOICE, stated because the user did not make it and the row asked
+// for a decision rather than a system: **the broker takes stolen goods and only
+// stolen goods, asks nothing, and pays badly.** Of the three games the row
+// listed — pays less than an honest sale, takes only certain goods, pays well
+// but carries risk — this is the first two and deliberately not the third.
+// A risk game needs heat, a chase or a cop, and the row's own instruction is
+// not to build a reputation system nobody asked for. What is left is legible in
+// one prompt line and testable in one keypress.
+//
+// **"Only certain goods" is what makes him a FENCE rather than a shop**, and it
+// costs nothing to express: this table is keyed on `PACKAGE_TABLE` ids, so the
+// question "will he take it?" is exactly "did you steal it?". Your cereal is
+// not in here. Neither is the newspaper you picked up off the pavement.
+//
+// ⚠ THE PRICES ARE THE JOKE AND THEY MUST STAY MEAN. `PACKAGE_TABLE` weights
+// the disappointment by repeating it — SOCKS and CATALOGUE appear twice in
+// eight entries, so **half of everything you steal is worth 25–50 cents**.
+// Pricing that generously kills the gag: the point of stealing a package is
+// that it is a toaster. Nothing here is worth more than a cheap meal, and the
+// two prizes are only prizes next to a pack of tube socks.
+//
+// Derived, not retyped: `int-pawn.ts` imports `fencePrice`/`bestFence` rather
+// than carrying a second copy of these numbers (BUILDER-BRIEF §8).
+const FENCE: Record<string, number> = {
+  CATALOGUE: 0.25,   // he already has a stack of them by the till
+  SOCKS: 0.50,       // six pairs, tube, white
+  VHS: 2.00,         // no label — he cannot know what it is either
+  TOASTER: 4.00,
+  TRAINERS: 5.00,
+  CHEQUES: 8.00,     // the one thing in the table a fence genuinely wants
+};
+
+/** What the broker pays for one `id`, or 0 if he will not take it at all. */
+export function fencePrice(id: string): number {
+  return FENCE[id] ?? 0;
+}
+
+/**
+ * The most valuable thing in your pockets the broker would take, or null.
+ *
+ * ONE item at a time, and one keypress each, on purpose: the row's own note is
+ * that a pawn counter may not need a screen, and a "sell all" would hide the
+ * pricing behind a single total — which is where the joke lives. You watch him
+ * give you fifty cents for the socks.
+ *
+ * Ties break by id so the prompt cannot flicker between two equal items from
+ * one frame to the next; `slots()` returns insertion order, which changes.
+ */
+export function bestFence(p: Purse): string | null {
+  let best: string | null = null;
+  for (const id of slots(p)) {
+    if (fencePrice(id) <= 0) continue;
+    if (best === null) { best = id; continue; }
+    const d = fencePrice(id) - fencePrice(best);
+    if (d > 0 || (d === 0 && id < best)) best = id;
+  }
+  return best;
+}
+
 // ── the pockets themselves ────────────────────────────────────────────────
 
 /**

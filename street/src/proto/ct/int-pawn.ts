@@ -4,6 +4,11 @@ import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { FACE } from './rng';
+// The fence's prices live beside the loot table they price, not here — a second
+// hand-typed copy of a number is this codebase's most expensive habit
+// (BUILDER-BRIEF §8), and these two tables have to stay keyed on the same ids.
+import { bestFence, fencePrice, itemOf, takeOne } from './inventory';
+import { hudNote } from './hud';
 
 // The PAWN SHOP, inside.
 //
@@ -294,6 +299,53 @@ export function buildPawn(ctx: CtxBuild): void {
       accent: '#8a2c22', fit: 'plain', cut: 'bald', build: 1, stride: 2, grime: 0.35 },
     BROKER_X, BROKER_Z,
     { facing: Math.atan2(0, (CTR_ZC + CTR_D) - BROKER_Z), h: 1.0, w: 1.03 });
+
+  // ── …and he fences ────────────────────────────────────────────────────
+  //
+  // *"it should also serve as a fence for the stuff you steal from neighbors."*
+  //
+  // The design choice and the prices are stated where they belong, beside the
+  // loot table they have to stay honest against — `ct/inventory.ts`, under
+  // "what the pawn shop pays for it". Short version: he takes stolen goods and
+  // only stolen goods, asks nothing, and pays badly.
+  //
+  // ⚠ NOTHING IS BUILT HERE. A spot is a trigger, not a mesh — no geometry is
+  // added, no collider, and the counter's `solid()` above is untouched. That
+  // matters twice over: the room's clearances are exactly what they were, and
+  // the user's original complaint about this room was *"i immediately hit a
+  // counter"*, so a fence that put anything else on the customer floor would be
+  // reopening the bug it is built next to.
+  //
+  // DERIVED FROM THE COUNTER, so it cannot strand itself if the counter moves:
+  // the collider spans `CTR_ZC ± CTR_D / 2`, and the player stands 0.55 m clear
+  // of its customer face. `BROKER_X` puts him in front of the man, not in front
+  // of the middle of an empty run.
+  const FENCE_Z = CTR_ZC + CTR_D / 2 + 0.55;
+  ctx.spot({
+    x: room.wx(BROKER_X), z: room.wz(FENCE_Z), r: 1.0,
+    ok: room.inside,
+    // THE PROMPT NAMES THE THING AND THE PRICE BEFORE YOU PRESS, which is this
+    // project's rule for a refusal being honest (`give()`'s own note): you are
+    // never told "no" by nothing happening. With nothing he wants, the line
+    // says so and says why in his voice rather than going blank — a blank spot
+    // and a broken spot look identical.
+    label: () => {
+      const id = bestFence(ctx.purse);
+      if (!id) return 'the broker doesn’t want anything you’re carrying';
+      return `sell the ${itemOf(id).name} — $${fencePrice(id).toFixed(2)}, no questions`;
+    },
+    act: () => {
+      const id = bestFence(ctx.purse);
+      if (!id) return;
+      const paid = fencePrice(id);
+      // Take it out FIRST, and only pay if it actually left the pockets. The
+      // opposite order pays for an item a concurrent change could have removed.
+      if (!takeOne(ctx.purse, id)) return;
+      ctx.purse.cash += paid;
+      ctx.refreshWallet();
+      hudNote(`He doesn’t ask. $${paid.toFixed(2)} for the ${itemOf(id).name}.`);
+    },
+  });
 
   // ── the back wall, which is now what you walk in facing ──
   //
