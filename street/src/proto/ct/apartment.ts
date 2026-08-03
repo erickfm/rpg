@@ -252,6 +252,26 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // radius, so the old 0.80 m gap left 8 cm of daylight and you scraped
   // through it. 0.95 leaves 23 cm.
   const DOOR_W = 1.11, DOOR_GAP = 0.95;
+  // ── THE OPENING, AND THE LEAF THAT COVERS IT — FOR EVERY FLAT ───────────
+  // The user: *"doors in apt are flush with wall on every floor except my
+  // floor."* He was right, and the cause was structural rather than seven
+  // separate oversights: the wall was pierced ONLY between 2*ST and 2*ST+2.1,
+  // so 301 and 302 got a real hole with a reveal down each side and the other
+  // six got a leaf laid on uncut plaster — measured at 10 mm PROUD of the
+  // wall face, which is exactly what flush looks like.
+  //
+  // These three numbers are what an opening IS, so they live here, once, and
+  // every floor reads them. 301 worked two of them out for itself and kept
+  // them private; hoisting them is what stops the other six drifting again.
+  //
+  //   DOOR_HEAD  the head height — floor to the underside of the lintel
+  //   FLAT_LEAF_W  WIDER than the gap: a door closes onto the wall FACE, not
+  //              into the reveal, so it can overlap 0.02 at each jamb. A leaf
+  //              narrower than its hole cannot be shut, only nearly shut
+  //   FLAT_LEAF_H  0.05 over the head, and a 0.03 undercut at the floor kept,
+  //              because a door that seals to the boards was never fitted
+  const DOOR_HEAD = 2.1;
+  const FLAT_LEAF_W = DOOR_GAP + 0.04, FLAT_LEAF_H = 2.12;
   const NIB_D = 1.2;              // how far the landing reaches into the shaft
   const NIB_Z1 = STAIR_Z0 + NIB_D; // its open edge: the railing stands here
   const TOP_Y = 3 * ST;           // floor 3
@@ -340,10 +360,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const west = side === '01';
       DOORS.push({
         num, floor: f,
+        // `x` is the door's HALL-SIDE reference — where a parcel gets left and
+        // where the [E] spot sits. It stays on the hall face; only the leaf
+        // moved back into the reveal. (`packages` at the foot of this file
+        // measures off it: move this and the parcels go inside the wall.)
         x: west ? AX(0.085) : AX(2.315),
         z: AZI(3.5),
         ry: west ? Math.PI / 2 : -Math.PI / 2,
-        wallN: west ? AX(0.005) : AX(2.395),
+        // the wall's TRUE centreline. It used to be 5 mm off it, a fudge whose
+        // only job was to keep the architrave clear of a leaf laid on the wall
+        // face; with the opening actually cut there is nothing to clear, and
+        // being honest here is what lets the flat doors share 301's casing.
+        wallN: west ? AX(0) : AX(2.4),
         hinge: hingeSide(num),
         face: west ? 1 : -1,
         hung: f === 2,
@@ -582,23 +610,45 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       scene.add(m);
       return m;
     };
-    // hall + stairwell shell. West wall leaves 301's doorway gap on floor 3.
+    // hall + stairwell shell. Both walls run full height either side of the
+    // door column; the column itself is cut floor by floor, just below.
     wallMesh(3.025, H, AX(0), H / 2, AZI(1.5125), Math.PI / 2);
     wallMesh(9.225, H, AX(0), H / 2, AZI(8.5875), Math.PI / 2);
-    wallMesh(DOOR_GAP, 2 * ST, AX(0), ST, AZI(3.5), Math.PI / 2);
-    wallMesh(DOOR_GAP, H - 2 * ST - 2.1, AX(0), (H + 2 * ST + 2.1) / 2, AZI(3.5), Math.PI / 2);
-    // the east wall is pierced too: 302 is a real opening now, not a black
-    // quad stuck on the face. Same four pieces as 301's side.
     wallMesh(3.025, H, AX(2.4), H / 2, AZI(1.5125), -Math.PI / 2);
     wallMesh(9.225, H, AX(2.4), H / 2, AZI(8.5875), -Math.PI / 2);
-    wallMesh(DOOR_GAP, 2 * ST, AX(2.4), ST, AZI(3.5), -Math.PI / 2);
-    wallMesh(DOOR_GAP, H - 2 * ST - 2.1, AX(2.4), (H + 2 * ST + 2.1) / 2, AZI(3.5), -Math.PI / 2);
+    // ── THE DOOR COLUMN, PIERCED ONCE PER FLOOR ──────────────────────────
+    // This used to be two pieces per wall — one solid slab from the ground to
+    // 2*ST and one from 2*ST+2.1 to the roof — which cut a hole on floor 3
+    // and left floors 1, 2 and 4 solid behind their door leaves. That single
+    // fact is the whole of *"doors in apt are flush ... except my floor"*.
+    //
+    // Now the only masonry in the column is the SPANDREL over each head, and
+    // it is derived from the storey rather than typed per floor: a doorway
+    // runs from its own floor to DOOR_HEAD, and the wall picks up again there
+    // and carries to the slab above (or, on the top floor, to the roof). Add
+    // a storey and it cuts itself.
+    //
+    // vOff is what keeps the paper lining up across a hole (see wallMesh):
+    // each spandrel is told how far up the wall it sits, or it restarts the
+    // tile at its own bottom edge and the pattern jumps at every lintel. The
+    // old top piece passed 0 from a base of 7.5 and was misaligned by 0.78 of
+    // a tile — nobody had looked, because there was only ever one of them.
+    const WALLS: [number, number][] = [[AX(0), Math.PI / 2], [AX(2.4), -Math.PI / 2]];
+    for (let f = 0; f < 4; f++) {
+      const yb = f * ST + DOOR_HEAD;               // underside of this floor's lintel
+      const yt = f < 3 ? (f + 1) * ST : H;         // the slab above, or the roof
+      for (const [wx, ry] of WALLS) {
+        wallMesh(DOOR_GAP, yt - yb, wx, (yb + yt) / 2, AZI(3.5), ry, wallpaperT, 0, yb);
+      }
+    }
     wallMesh(2.4, H, AX(1.2), H / 2, AZI(0), 0);
     wallMesh(2.4, H, AX(1.2), H / 2, AZI(13.2), Math.PI);
-    // architrave round both flat doorways, on both faces of each
+    // architrave round both flat doorways, on both faces of each — on every
+    // floor now, for the same reason the opening is
     const DOOR_Z0 = AZI(3.5 - DOOR_GAP / 2), DOOR_Z1 = AZI(3.5 + DOOR_GAP / 2);
-    casing(AX(0), DOOR_Z0, DOOR_Z1, 2 * ST, 2 * ST + 2.1);
-    casing(AX(2.4), DOOR_Z0, DOOR_Z1, 2 * ST, 2 * ST + 2.1);
+    for (let f = 0; f < 4; f++) {
+      for (const [wx] of WALLS) casing(wx, DOOR_Z0, DOOR_Z1, f * ST, f * ST + DOOR_HEAD);
+    }
     sevColliders.push(
       { minX: AX(-0.15), maxX: AX(0), minZ: AZI(0), maxZ: AZI(3.5 - DOOR_GAP / 2) },
       { minX: AX(-0.15), maxX: AX(0), minZ: AZI(3.5 + DOOR_GAP / 2), maxZ: AZI(13.2) },
@@ -894,33 +944,71 @@ export function buildApartment(ctx: CtxBuild): Apartment {
                         lz + (axis === 'z' ? dir * 0.076 : 0));
       parent.add(ball);
     };
-    // wallN is the centreline `casing` measures from. It puts its trim at
-    // wallN +- (WALL_T / 2 + T / 2), so it is picked to land a few mm PROUD of
-    // the leaf rather than behind it.
-    const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number,
-                       wallN: number) => {
-      const d = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(doorTexN(num, false)));
-      d.position.set(wx, baseY + 1.05, wz);
-      d.rotation.y = ry;
-      scene.add(d);
+    /** A flat's front door, HUNG IN ITS OPENING rather than laid on the wall.
+     *
+     *  It used to be a plane at the door's hall-side x — 10 mm proud of the
+     *  plaster — with its own architrave a few mm prouder still, on a wall
+     *  that was not pierced at all except on floor 3. That is the whole of the
+     *  user's *"flush with wall on every floor except my floor"*.
+     *
+     *  Where the leaf goes is now DERIVED from the wall it hangs on, and the
+     *  derivation is the one 301 wrote down for itself below: a door closes
+     *  onto the room-side FACE, half a wall thickness to the far side of the
+     *  centreline, plus the leaf's own clearance off the plaster. On this
+     *  building's numbers that lands on AX(-0.09) — the exact x 301's pivot was
+     *  tuned to by hand and by eye. Two independent routes to one number is
+     *  the best evidence available that this is the right rule, so it is
+     *  written as the rule and 301 now reads it too (BUILDER-BRIEF §8).
+     *
+     *  The architrave is NOT drawn here any more: the shell casings every
+     *  opening on every floor, so all eight doors get the identical trim
+     *  instead of six sharing one width and two sharing another. */
+    const doorPlane = (d: WalkupDoor) => {
+      const baseY = d.floor * ST;
+      const lx = d.wallN - d.face * (WALL_T / 2 + 0.02);
+      // Behind a shut door on a floor that has no modelled flat there is
+      // nothing at all, and the leaf's 0.03 undercut at the boards is a real
+      // line of sight to it. Pure black behind a hard edge reads as a hole cut
+      // in the world — the same thing 302's recess was built to stop — so the
+      // dim is a surface, sitting just behind the leaf.
+      const back = new THREE.Mesh(
+        new THREE.PlaneGeometry(DOOR_GAP + 0.12, DOOR_HEAD + 0.1), dimRoomM);
+      back.position.set(lx - d.face * 0.04, baseY + (DOOR_HEAD + 0.1) / 2 - 0.05, d.z);
+      back.rotation.y = d.ry;
+      scene.add(back);
+      // AND THE RECESS NEEDS A FLOOR, which the back panel alone is not.
+      // The undercut is a 0.03 slot at the boards, and an eye at hall distance
+      // looking down through it leaves the building: from 1.05 m back the ray
+      // crosses the panel's plane at y = -0.19, and the panel stops at -0.05.
+      // It showed as a pale blue-grey line under all six doors — sampled at
+      // #8a97a2, which is daylight, seen through a shut front door. A slot you
+      // can see through is not closed by making the thing behind it darker.
+      const sill = new THREE.Mesh(
+        new THREE.PlaneGeometry(WALL_T + 0.14, DOOR_GAP + 0.12), dimRoomM);
+      sill.rotation.x = -Math.PI / 2;
+      // just UNDER the hall carpet (baseY + 0.006), so the carpet still wins
+      // where there is carpet and this only shows inside the reveal
+      sill.position.set(d.wallN - d.face * 0.03, baseY + 0.002, d.z);
+      scene.add(sill);
+      const leaf = new THREE.Mesh(new THREE.PlaneGeometry(FLAT_LEAF_W, FLAT_LEAF_H),
+        texM(doorTexN(d.num, false)));
+      // 0.03 off the boards and 0.05 over the head, same as 301's
+      leaf.position.set(lx, baseY + 0.03 + FLAT_LEAF_H / 2, d.z);
+      leaf.rotation.y = d.ry;
+      scene.add(leaf);
       // A knob is a rose, a stem and a ball. The rose is what actually reads
-      // at hall distance — a knob with no backplate looks stuck on.
-      const nx = Math.sin(ry) < 0 ? -1 : 1;          // which way the door faces
-      const off = -hingeSide(num) * (DOOR_W / 2 - 0.13);   // knob opposite the hinge
-      doorKnob(scene, wx, baseY + 1.02, wz + off, nx, 'x');
-      // Report finding 2, the last of it: these six doors had their casing
-      // PAINTED INTO doorTexN, so beside 301's and 302's real architrave they
-      // read flat — consistent with each other, inconsistent with the two
-      // openings you actually walk through. The painted border stays (it is
-      // the leaf's own stile edge) and real trim goes outside it.
-      casing(wallN, wz - DOOR_W / 2 - 0.015, wz + DOOR_W / 2 + 0.015,
-        baseY, baseY + 2.1);
+      // at hall distance — a knob with no backplate looks stuck on. Its offset
+      // comes off FLAT_LEAF_W, so it stays 0.13 in from the strike edge the way
+      // 301's does rather than from the old painted plane's half-width.
+      const nx = Math.sin(d.ry) < 0 ? -1 : 1;              // which way the door faces
+      const off = -d.hinge * (FLAT_LEAF_W / 2 - 0.13);          // knob opposite the hinge
+      doorKnob(scene, lx, baseY + 1.02, d.z + off, nx, 'x');
     };
     // Built from DOORS rather than from a second copy of the same arithmetic.
     // The desk, on the packages that hang off this: *"the walk-up needs to know
     // how many doors it has — if that is currently hardcoded per floor, derive
     // it."* It was: this loop knew, and nothing else did.
-    for (const d of DOORS) if (!d.hung) doorPlane(d.num, d.x, d.floor * ST, d.z, d.ry, d.wallN);
+    // (Drawn further down, once the dim recess material exists.)
     // ── 302, ajar ────────────────────────────────────────────────────────
     // It was a flat black quad hung on the wall face. Pure black behind a
     // hard edge reads as a hole cut in the wall, not as a dark room — and it
@@ -936,6 +1024,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       dither(g, 32, 32, 60);
     });
     const dimRoomM = new THREE.MeshBasicMaterial({ map: dimRoomT, side: THREE.DoubleSide });
+    // the six flats nobody has modelled — hung now, in real openings. Drawn
+    // here rather than at their declaration because a shut door needs
+    // something dim behind it, and that is the material above.
+    for (const d of DOORS) if (!d.hung) doorPlane(d);
     const recessSurf = (w: number, h: number, cx: number, cy: number, cz: number, ry: number, flat = false) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), dimRoomM);
       m.position.set(cx, cy, cz);
@@ -998,7 +1090,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // hole because it never has to fit inside it, which is exactly how a
       // real door meets a face-fixed stop. 0.99 over a 0.95 opening gives
       // 0.02 of overlap at each jamb and no line of sight at either.
-      const LW = DOOR_GAP + 0.04;                     // 0.99 m leaf over a 0.95 m gap
+      // Hoisted to the top of the module (FLAT_LEAF_W) so the other seven doors are
+      // held to it too — this block is where the rule was worked out, and it
+      // stayed private here while six doors went on being flat panels.
+      const LW = FLAT_LEAF_W;                         // 0.99 m leaf over a 0.95 m gap
       // AND THE SAME AT THE HEAD. Widening the leaf closed both jambs and I
       // stopped there, because the user's report named a VERTICAL strip. It
       // left a horizontal one: the leaf topped out at 7.475 against a doorway
@@ -1009,9 +1104,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       //
       // 2.12 spans 5.43 to 7.55: 0.05 of overlap onto the head, and the 0.03
       // undercut at the floor kept, because a door that seals to the boards is
-      // a door that has never been fitted to a real one.
-      const LEAF_H = 2.12;
-      const g301 = new THREE.BoxGeometry(LW, LEAF_H, 0.045);
+      // a door that has never been fitted to a real one. (Hoisted with FLAT_LEAF_W,
+      // and for the same reason.)
+      const g301 = new THREE.BoxGeometry(LW, FLAT_LEAF_H, 0.045);
       g301.translate(-LW / 2, 0, 0);                  // hinge at the +x edge
       const edgeM = new THREE.MeshBasicMaterial({ color: 0x6b5138 });
       // Face 4 is +z, face 5 is -z. Shut, the leaf is rotated a quarter turn,
