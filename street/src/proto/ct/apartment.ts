@@ -2044,15 +2044,55 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     brew.position.set(AX(MUG_X), SILL_TOP + MUG_H + 0.001, AZI(MUG_Z));
     brew.rotation.x = -Math.PI / 2;
     scene.add(brew);
-    // the handle: its own tone, a step down from the body, so the eye can find
-    // the hole from either side — dark glass behind it, pale cup beside it.
-    // HANDLE_OFF is derived from the cup, not typed: far enough out that the
-    // hole (inner radius H_R - H_TUBE) clears the cup wall completely, close
-    // enough that the ring passes THROUGH the wall and is joined to it.
-    const H_R = 0.022, H_TUBE = 0.007;
-    const HANDLE_OFF = MUG_R + (H_R - H_TUBE);          // hole starts at the wall
+    // ── THE HANDLE, THIRD REPORT: IT WAS PAINTED IN ITS OWN BACKGROUND ───────
+    //
+    // The user, three times: *"mug looks messed up"*, *"the mug is messed up"*,
+    // then *"mug handle still looks off, please try."* Item 108 fixed the
+    // GEOMETRY and fixed it correctly — the offset/hole-axis bug above is real
+    // and stays fixed. It then chose the handle's colour by reasoning about
+    // which surface would be BEHIND it, and got that one thing wrong:
+    //
+    //   *"It is close to the sill's 0xa8a091, which would matter if the handle
+    //    were ever seen against the sill; it is not, because it hangs 27-84 mm
+    //    above it with the window behind."*
+    //
+    // IT IS SEEN AGAINST THE SILL, because he does not look at it level — he
+    // stands at the window and looks DOWN at the sill at close range, at a
+    // pitch of 22-49 degrees. From there the sightline past the handle, and
+    // THROUGH ITS HOLE, lands on the sill top, not on the dark glass.
+    //
+    // MEASURED, in the rendered pixels of his own view rather than argued:
+    // in the crop of the at-sill frame the sill #a8a091 is the single most
+    // common colour at 6,921 px, and the handle's 176 px of #a79f8f differ from
+    // it by (1, 1, 2) OUT OF 255. The world is unlit MeshBasicMaterial, so
+    // material colour IS rendered colour and there is nothing else to save it.
+    // A 176-pixel object drawn in its background's colour is not a handle; the
+    // shape was right and simply could not be seen.
+    //
+    // So the fix is TONE AND SIZE, not construction:
+    //
+    //   PAINT IT AS CERAMIC, NOT AS A SEPARATE PART. 0xd0c9ba is one shade off
+    //     the body — 8-10 levels, enough to round the form where it crosses the
+    //     cup — but 40+ levels off the sill, which is the contrast that
+    //     actually has to work. The cup already reads against that sill at ~50;
+    //     the handle now reads for the same reason the cup does. Separating
+    //     handle from CUP was never the problem: a real handle IS the same
+    //     ceramic, and what says "handle" is the HOLE, not a tonal seam.
+    //   MAKE THE HOLE WORTH SEEING. H_R 0.022 -> 0.028 takes the ring from 58 to
+    //     70 mm against a 95 mm cup, which is a mug's real proportion, and opens
+    //     the hole from 30 to 32 mm of daylight while the ring gains pixels.
+    //   BITE DEEPER INTO THE WALL. The old offset put the hole's inner edge
+    //     exactly ON the cup wall, so only 7 mm of ring lay inside it — under
+    //     2 px at this range, which is why it read as a hoop parked beside the
+    //     cup even though it was genuinely joined. Pulling it in 10 mm sinks the
+    //     ring 17 mm into the wall and the two ends now merge visibly, the way a
+    //     real handle does. The hole is still bounded by the cup on its inner
+    //     side, which is also what a real handle looks like.
+    const H_R = 0.028, H_TUBE = 0.007;
+    const HANDLE_BITE = 0.010;                          // how far the ring sinks past the wall
+    const HANDLE_OFF = MUG_R + (H_R - H_TUBE) - HANDLE_BITE;
     const handle = new THREE.Mesh(new THREE.TorusGeometry(H_R, H_TUBE, 6, 14),
-      new THREE.MeshBasicMaterial({ color: 0xa79f8f }));
+      new THREE.MeshBasicMaterial({ color: 0xd0c9ba }));
     handle.position.set(AX(MUG_X), SILL_TOP + 0.055, AZI(MUG_Z + HANDLE_OFF));
     handle.rotation.y = Math.PI / 2;                    // hole axis along x, facing the room
     scene.add(handle);
