@@ -106,6 +106,19 @@ knowing before anyone acts on that number.
 
 ## Not mine, noticed, worth queueing
 
+> ### ⚠ THE FIGURE BELOW IS DEAD. IT IS **30 of 219**, MEASURED 2026-08-03.
+>
+> Worker onehundredtwentytwo, item 263, against the built bundle. The harness is
+> fixed in both places now — the eye is read as you sit (item 255) **and** a
+> machine seat is judged as a machine seat (`__ct.focus()`, item 263) — and
+> **189 of 219 seats pass**. The 89 slot stools that dominated every earlier
+> count now pass a *stronger* set of legs than a chair does.
+>
+> The four `"sit at the blackjack table"` seats named in the paragraph below are
+> **still failing, and they are real**: seated, no screen focus, and no prompt
+> offering a way up. The two `"sit at the computer"` seats pass. Read the
+> breakdown `seats-walk.mjs` prints, never the total.
+
 - **`seats-walk.mjs` exits 1 with 109/219 failures** and the tail includes
   `"sit at the blackjack table"` ×4 giving `seated prompt should be "stand up",
   got null` and `"sit at the computer"` ×2 with a seated eye 0.14 m low. Those

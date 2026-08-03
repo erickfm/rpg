@@ -38,6 +38,28 @@
 //
 // The honest figure is printed at the bottom of every run. Take it from there.
 //
+// ── …AND NEITHER IS "89". A MACHINE SEAT IS NOT A CHAIR (item 263) ─────────
+//
+// Fixing the eye read did not remove those 83; it moved them. They came back as
+// **89 x `seated prompt should be "stand up", got null`** — the same slot
+// stools, failing one leg later — because all five legs above model a plain
+// chair, and a slot stool is not one. It seats you and hands the machine its
+// screen; while that screen is up the prompt is empty, and the way out is
+// ESCAPE.
+//
+// Nothing here could tell the two apart, because the state was a closure local
+// in `crosstown.ts` with no accessor. **`__ct.focus()` publishes it read-only
+// now** — `null` for a chair, and for a machine seat the ease progress `t`, a
+// `settled` flag, and where the screen is taking the eye.
+//
+// So a machine seat is now judged AS a machine seat, and held to MORE than a
+// chair rather than less:
+//
+//   · its fly-in must SETTLE (waited on, never slept through), and land the eye
+//     on the world's own published focus target;
+//   · ESCAPE must close the screen and leave the player IN THE CHAIR (item 206);
+//   · the seat must then offer a way up, and a second ESCAPE must take it.
+//
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/seats-walk.mjs
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
@@ -101,9 +123,21 @@ const standableNear = (at, r) => p.evaluate(([at, r, RADIUS]) => {
 // Unknown flags are REFUSED, not ignored — a mistyped `--selftest` would
 // otherwise run the ordinary suite and exit 0, reporting a selftest pass for
 // a selftest that never ran (GOTCHAS 34 shape one).
+// ⚠ AND IT COULD NOT CERTIFY ANYTHING, UNTIL NOW (item 263). The selftest
+// buried a seat and required THE RUN to go red — but this check is legitimately
+// red on this world (real defects, see the breakdown at the bottom), so the run
+// was already red before the mutation and "it went red" said nothing. Worse, it
+// exits 1 when it CATCHES, where every other flag-selftest in this suite exits
+// 0 (`masonry.mjs`, `check-artifact.mjs`), so `checks.mjs --selftest` scored the
+// row FAILED whether the mutation was caught or slept through.
+//
+// It now asserts the BURIED SEAT'S OWN verdict, and inverts its exit like the
+// rest. A specific claim survives a red baseline; a total cannot.
 const SELFTEST = flags(['--selftest']).selftest;
+let buried = null;
 if (SELFTEST) {
   const v = seats[0];
+  buried = v;
   await p.evaluate(([x, z]) => window.__ct.colliders().push({
     minX: x - 1.4, maxX: x + 1.4, minZ: z - 1.4, maxZ: z + 1.4 }), [v.pose.x, v.pose.z]);
   console.log(`selftest: buried "${v.label}" at ${v.pose.x.toFixed(2)},${v.pose.z.toFixed(2)}`
@@ -189,6 +223,20 @@ for (const s of seats) {
   });
   const on = await seatedOn();
   if (!on) { fail('E did not seat you'); continue; }
+  // ── IS THIS A CHAIR, OR A MACHINE STATION? ASK THE WORLD (item 263) ──────
+  //
+  // `__ct.focus()` is `null` for a chair and an object for a seat that handed a
+  // screen the camera. Until it was published this file could not tell the two
+  // apart, and every machine station in `__ct.seats()` therefore failed at
+  // whichever of the five chair legs it reached first — 83 identical 0.350 m
+  // "seated eye" errors, which became 89 identical "no stand up" errors the
+  // moment the eye read was fixed. Same stools, one leg later, and the total
+  // was quoted all week as a backlog of broken seats.
+  //
+  // IT IS NOT AN EXEMPTION. A machine seat is held to MORE than a chair below,
+  // not less: its eye must land where the world's own published focus target
+  // says, and Escape must both close the screen and then get the player up.
+  const foc = await p.evaluate(() => window.__ct.focus());
   // ── READ THE EYE AS YOU SIT, NOT 800 ms LATER ───────────────────────────
   //
   // This check used to call `camY()` down at the bottom, AFTER the four 200 ms
@@ -300,13 +348,72 @@ for (const s of seats) {
     fail(`seated eye ${f2(eye)} is barely below standing (${f2(sat[3] + STAND_EYE)}) — that is not sitting`); continue;
   }
 
-  const seatPrompt = await prompt();
-  if (!/stand up/.test(seatPrompt ?? '')) {
-    fail(`seated prompt should be "stand up", got ${JSON.stringify(seatPrompt)}`); continue;
+  // ── AND WHERE THE SCREEN TAKES THE EYE, FOR A MACHINE SEAT ──────────────
+  //
+  // A SETTLED READING, not a sampled one. The fly-in is an ease over
+  // `FOCUS_IN` (0.40 s), so any fixed sleep reads a camera mid-animation and
+  // reports the difference as a seat defect — that is precisely the 0.350 m
+  // that got counted 83 times. `focus().t` reaches 1 when the world has
+  // stopped moving, so this waits for the world to say so rather than guessing
+  // how long it takes (GOTCHAS 30: a fixed sleep for anything the render loop
+  // drives fails only under load).
+  //
+  // Then it asserts the eye against the world's OWN published target rather
+  // than skipping the leg. That is a stronger claim than the chair leg above,
+  // and it is what makes this a re-classification rather than an exemption: a
+  // machine whose fly-in overshoots its screen fails here.
+  if (foc) {
+    try {
+      await p.waitForFunction(() => window.__ct.focus()?.settled === true, { timeout: 4000 });
+    } catch {
+      const t = await p.evaluate(() => window.__ct.focus()?.t ?? null);
+      fail(`the screen focus never settled — t stuck at ${t}`); continue;
+    }
+    const done = await p.evaluate(() => ({ camY: window.__ct.camY(), want: window.__ct.focus().eye.y }));
+    if (Math.abs(done.camY - done.want) > 0.04) {
+      fail(`the screen eased the eye to ${f2(done.camY)} but its own focus target is ${f2(done.want)}`); continue;
+    }
   }
 
-  await press();
-  if (await seatedOn()) { fail('E did not get you up again'); continue; }
+  const seatPrompt = await prompt();
+  if (foc) {
+    // ── A MACHINE STATION EXITS BY ESCAPE, AND THE WORLD SAYS SO ──────────
+    //
+    // Measured on a slot stool (scripts/probes/w122-item263-focus-shape.mjs):
+    // while the overlay is up the prompt is empty, because the screen has the
+    // camera. One Escape closes the screen and LEAVES YOU IN THE CHAIR — item
+    // 206's rule, "you sit and its the loan process as an integrated overlay"
+    // — the eye returns to seat height, and the prompt then reads
+    // `[E] play the slot machine   ·   [ESC] stand up`. A second Escape stands
+    // you up. Both are asserted, in that order, because a screen you can close
+    // and a seat you can leave are two different promises (BUILDER-BRIEF §11).
+    //
+    // A TAPPED Escape, not a held one, and that is not an oversight of
+    // BUILDER-BRIEF §5. That rule is about the `[E]` dispatch specifically —
+    // an edge read ONCE PER RENDERED FRAME, which a tap inside a single frame
+    // never survives. Escape is a plain capture-phase keydown listener
+    // (`fp.ts:252`, `this.forceUp = true`), so one keydown event is enough and
+    // a HELD Escape would risk being read twice: once to close the screen and
+    // again to stand the player up, which would hide the second assertion.
+    await p.keyboard.press('Escape');
+    await p.waitForTimeout(240);
+    const after = await p.evaluate(() => ({ focus: window.__ct.focus(), seated: !!window.__ct.seated() }));
+    if (after.focus !== null) { fail('ESCAPE did not close the screen this seat opened'); continue; }
+    if (!after.seated) { fail('closing the screen also stood the player up — item 206 says the chair is kept'); continue; }
+    const outPrompt = await prompt();
+    if (!/stand up/.test(outPrompt ?? '')) {
+      fail(`screen closed, but the seat then offers no way up: ${JSON.stringify(outPrompt)}`); continue;
+    }
+    await p.keyboard.press('Escape');
+    await p.waitForTimeout(240);
+    if (await seatedOn()) { fail('ESCAPE closed the screen but would not get the player up'); continue; }
+  } else {
+    if (!/stand up/.test(seatPrompt ?? '')) {
+      fail(`seated prompt should be "stand up", got ${JSON.stringify(seatPrompt)}`); continue;
+    }
+    await press();
+    if (await seatedOn()) { fail('E did not get you up again'); continue; }
+  }
   const up = await pos();
   if (Math.hypot(up[0] - before[0], up[2] - before[2]) > 0.01) {
     fail(`stood up at ${f2(up[0])},${f2(up[2])}, not where you sat down from ${f2(before[0])},${f2(before[2])}`); continue;
@@ -343,7 +450,13 @@ if (bad.length) {
     : /^no ".*" prompt/.test(d) ? 'another [E] spot answered instead of the seat'
     : d.startsWith('sat at') ? 'E seated you on a DIFFERENT seat'
     : d.startsWith('seated eye') ? 'seated eye height wrong at the moment of sitting'
-    : d.startsWith('seated prompt') ? 'no "stand up" when seated — a MACHINE seat is in its own overlay here'
+    : d.startsWith('seated prompt') ? 'no "stand up" when seated, and NO screen focus either — nothing offers a way up'
+    : d.startsWith('the screen focus never settled') ? 'a machine seat whose fly-in never finished'
+    : d.startsWith('the screen eased the eye') ? 'a machine seat whose fly-in missed its own focus target'
+    : d.startsWith('ESCAPE did not close') ? 'ESCAPE would not close the screen the seat opened'
+    : d.startsWith('closing the screen also stood') ? 'closing the screen stood the player up (item 206)'
+    : d.startsWith('screen closed, but') ? 'screen closed and the seat then offered no way up'
+    : d.startsWith('ESCAPE closed the screen but') ? 'ESCAPE closed the screen but would not get the player up'
     : d.startsWith('moved') ? 'moved while seated'
     : d.startsWith('stood up at') ? 'stood up somewhere other than where you sat down from'
     : d.includes('STUCK') ? 'stood up stuck in the furniture'
@@ -385,4 +498,24 @@ if (seats.length < SEAT_FLOOR) {
 }
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 5).join('\n  '));
 await b.close();
+
+// ── THE SELFTEST'S OWN VERDICT, ON THE SEAT IT BROKE ────────────────────────
+//
+// Not "did the run go red" — this run is red for real reasons, so that question
+// was already answered before the mutation and could not be failed. The claim
+// is that SEAT 1, whose approach was buried under a 2.8 m box, came back
+// UNREACHABLE. Exit 0 caught / 2 slept, the convention masonry.mjs and
+// check-artifact.mjs already use, so `checks.mjs --selftest` can score the row.
+if (SELFTEST) {
+  const tag1 = results[0];
+  const caught = tag1 && !tag1[0] && /UNREACHABLE/.test(tag1[2]);
+  if (!caught) {
+    console.error(`\nSELFTEST FAILED — "${buried.label}" was buried under a 2.8 m collider and its`
+      + ` verdict is ${tag1 ? (tag1[0] ? 'PASS' : JSON.stringify(tag1[2])) : 'missing entirely'}.`
+      + ' Everything above is decoration.');
+    process.exit(2);
+  }
+  console.log(`\nselftest: caught it — "${buried.label}" came back ${JSON.stringify(tag1[2])}`);
+  process.exit(0);
+}
 process.exit(bad.length || errs.length ? 1 : 0);

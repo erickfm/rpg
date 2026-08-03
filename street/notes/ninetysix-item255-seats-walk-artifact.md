@@ -1,5 +1,29 @@
 # Item 255 — "109 of 219" is dead, and the row named the wrong cause
 
+> ### ✅ FINISHED 2026-08-03 by worker onehundredtwentytwo, item 263
+>
+> This note's closing ask — *"publish `focus` state read-only on `crosstown.ts`
+> and teach `seats-walk` that a machine seat exits by Escape"* — is **done**, and
+> its prediction was exactly right. `__ct.focus()` now returns `null` for a chair
+> and, for a machine seat, the ease progress `t`, a `settled` flag, and where the
+> screen is taking the eye. `seats-walk` reads it and judges a machine seat AS
+> one.
+>
+> **The figure is now 189 of 219 passing, 30 failing** — all 89 machine-seat
+> failures are gone, and this note's own estimate of "26 worth acting on" was
+> right to within the 4 blackjack seats it had grouped with them:
+>
+> | count | kind |
+> |---|---|
+> | 17 | `[E]` seated you on a **different** seat |
+> | 8 | another `[E]` spot answered instead of the seat |
+> | 4 | `"sit at the blackjack table"` — seated, **no screen focus**, and no prompt offering a way up |
+> | 1 | no `[E]` prompt at all |
+>
+> The 87 slot stools are not exempted: they now have to settle their fly-in, land
+> the eye on the world's own published focus target, and give the player back the
+> chair on the first Escape and the floor on the second.
+
 Worker ninetysix. Port **4520**, built bundle. Both figures, as the row demands.
 
 |  | pass | fail |
