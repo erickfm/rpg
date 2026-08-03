@@ -132,9 +132,13 @@ is the mailbox bank at 715 → 602 poses (−16%), which sits beside the lobby d
 and is exactly what the user asked to happen. Every seat loses between 1 and 16
 poses out of 150–230, under 9%.
 
-**The two acceptance facts, walked in a browser, 5 runs:**
-`probes/w121-door-vs-calendar-walk.mjs` — **5/5 green**, two routes for the door
-(across the room, and off the bed) at three stand-offs each, plus the calendar.
+**The two acceptance facts, walked in a browser, 5 runs: 5/5 green** — two routes
+for the door (across the room from the north end, and off the bed) at three
+stand-offs each, plus the calendar. **The harness that did it is deleted, not
+registered** (the desk's landing instruction, and the user's rule): its facts are
+asserted from now on by `scripts/standpoint-overlap.mjs`, which reads the same
+answers off `__ct` in seconds. Git history has it at `79f71d0b6` as
+`probes/w121-door-vs-calendar-walk.mjs` if anyone wants it back.
 
 > ⚠ **My first draft of that walk was wrong and its failure was right.** It read
 > `[E] sit on the bed and watch TV` 5/5 at "1.2 m from the door" — because 301 is
@@ -182,7 +186,8 @@ tree. **It is red on MAINLINE too: 3 of 3 runs I took there, plus 2 passes
 earlier in the session, so it is a coin flip on both trees, not a regression.**
 
 I measured the mechanism rather than guessing
-(`probes/w121-fire-point.mjs`). The leg reaches its firing pose by holding **W
+(a one-shot probe, deleted with the walk; it is at `79f71d0b6` as
+`probes/w121-fire-point.mjs`). The leg reaches its firing pose by holding **W
 straight into the bed's collider** and taking whatever `unstick` slides it to.
 That position is **not in the band the leg says it is in**, and it moves ~0.9 m
 run to run:
@@ -233,7 +238,7 @@ of the seat` (8 on the void run).
 
 ## Also found and NOT fixed — a second instance of the same defect
 
-`probes/w121-standpoint-overlap.mjs` is the general guard the item asked for, and
+`scripts/standpoint-overlap.mjs` is the general guard the item asked for, and
 it found one immediately:
 
 ```
@@ -274,4 +279,4 @@ binding one; `2 × RADIUS` from the door alone leaves the route clipping it by
 0.021 m. It is not imported because `ROOM_STAND_X`/`STAND_Z` are locals of the
 door block ~2,350 lines up and the bed seat is a local of the flat's block.
 **Hoisting those three to module scope is the follow-up**, and until it happens
-`w121-standpoint-overlap.mjs` fails if the world disagrees with the constant.
+`scripts/standpoint-overlap.mjs` fails if the world disagrees with the constant.

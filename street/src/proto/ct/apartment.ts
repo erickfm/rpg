@@ -3710,7 +3710,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // lines above (`ct/apartment.ts:1298`), and the bed seat is a local of the
     // flat's own block. Hoisting the three into module scope is a refactor of a
     // file this item does not otherwise touch, so the figure is derived here
-    // with its citation and `scripts/probes/w121-standpoint-overlap.mjs` fails
+    // with its citation and `scripts/standpoint-overlap.mjs` fails
     // if the world ever disagrees with it. See the handoff note.
     const CAL_STAND_DX = 0.60;
     ctx.spot({

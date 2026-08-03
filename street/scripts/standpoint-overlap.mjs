@@ -38,7 +38,7 @@
 // `pickSpot()`, and answers in milliseconds with no camera, no strides and no
 // render-loop timing. It fails when the geometry actually breaks and at no other
 // time. The five-run walked version of the same facts is
-// `probes/w121-door-vs-calendar-walk.mjs` — a ONE-SHOT probe kept for the
+// The walked version of the same facts was run 5/5 green when this landed and
 // record, run by nothing, exactly as BUILDER-BRIEF §7a intends. It was run 5/5
 // green when the change landed and it is not a suite leg.
 //
@@ -48,13 +48,21 @@
 // samples poses rather than routes. A regression that is purely about occlusion,
 // or purely about how a stride lands, will pass this and needs the walk.
 //
-//   SHOT_URL=http://localhost:4189/ node scripts/probes/w121-standpoint-overlap.mjs
+// ── --selftest: CAN THIS GO RED? ────────────────────────────────────────────
+// It widens the overlap limit to 3x and requires the world to trip it. If the
+// detector still reports "clean" at 2.16 m it is not detecting, and the flag
+// exits non-zero. A guard whose failure path has never executed is a guard
+// nobody has tested (BUILDER-BRIEF §7).
+//
+//   SHOT_URL=http://localhost:4189/ node scripts/standpoint-overlap.mjs
+//   SHOT_URL=http://localhost:4189/ node scripts/standpoint-overlap.mjs --selftest
 //
 // exit 0 clean · 1 a way out is contested, or a pose resolves wrong · 3 nothing measured
-import { aim } from '../lib/aim.mjs';
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
-import { reportWorld } from '../lib/which-world.mjs';
+import { reportWorld } from './lib/which-world.mjs';
 
+const SELFTEST = process.argv.includes('--selftest');
 const URL = aim('http://localhost:4189/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });
@@ -129,7 +137,10 @@ const poses = [];
 }
 await b.close();
 
-const LIMIT = 2 * RADIUS;
+// x3 under --selftest, so the detector has to find something it otherwise would
+// not. The mutation is to the INSTRUMENT's threshold, not to the world — this
+// check only ever reads, so there is nothing in the world for it to break.
+const LIMIT = 2 * RADIUS * (SELFTEST ? 3 : 1);
 const ways = spots.filter((s) => (s.rank ?? 0) > 0);
 console.log(`${spots.length} registered spots, ${ways.length} of them a WAY OUT (rank > 0)`);
 console.log(`RADIUS ${RADIUS} m, so two capsules is ${LIMIT.toFixed(2)} m — the overlap limit\n`);
@@ -202,6 +213,12 @@ console.log('\nflat 301, the two facts item 291 is about:');
 for (const q of poses) console.log(`  ${q.ok ? 'ok  ' : 'FAIL'}  ${q.what} -> [E] ${q.got ?? '(none)'}`);
 const badPoses = poses.filter((q) => !q.ok).length;
 
+if (SELFTEST) {
+  const tripped = unexpected.length > 0 || bad.length > BASELINE;
+  console.log(`\n--selftest: limit widened to ${LIMIT.toFixed(2)} m — detector `
+    + `${tripped ? 'TRIPPED, as it must' : 'STAYED SILENT, so it is not detecting'}`);
+  process.exit(tripped ? 0 : 1);
+}
 const grew = unexpected.length > 0 || bad.length > BASELINE;
 console.log(`\n${bad.length} contested way${bad.length === 1 ? '' : 's'} out `
   + `(baseline ${BASELINE}, all parcels)${grew ? ' — GREW' : ''}, ${badPoses} pose${badPoses === 1 ? '' : 's'} wrong`);

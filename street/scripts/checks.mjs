@@ -903,6 +903,29 @@ const CHECKS = [
   // one would certify half a guard.
   ['w40-bed-vs-door',  'does aim beat proximity in 301 — at BOTH ends of the knob?',
     ['w40-near-outright', 'w40-looked-dominant'], [], true],
+  // REGISTERED 2026-08-03 (w121, item 291). The CHEAP half of *"just make the
+  // door high rank pls"*, and it is registered rather than left in probes/
+  // because the user's rule that day was explicit: *"in general tests should not
+  // take longer than the work to code itself"*. The fix it defends is one
+  // constant — 301's calendar stand-point, which sat 0.036 m off the straight
+  // line from the bed to the door, so you walked THROUGH it on the way out and
+  // `onIt` handed you the calendar for the middle of the room.
+  //
+  // NOT SLOW and NOT A WALK. One page load, `spots()` + `playerRadius()` +
+  // `pickSpot()`, no camera and no strides — seconds, and deterministic. The
+  // five-run walked version of the same facts was measured 5/5 green when this
+  // landed and then DELETED rather than registered, which is the trade the rule
+  // asks for. What it therefore cannot see is declared in its own header: no
+  // line-of-sight (the hook cannot supply one), and poses rather than routes.
+  //
+  // Two claims, not one. The geometric invariant — nothing may plant a
+  // stand-point inside a way out's, because inside an `onIt` overlap no rank and
+  // no aim can separate them — and 301's two acceptance poses. It found a second
+  // instance of the invariant on its first run (the walk-up's four parcels,
+  // 0.410 m) and carries that as a NAMED baseline of 4, so it still reddens on a
+  // fifth.
+  ['standpoint-overlap', 'does any furniture plant its stand-point inside a doorway?',
+    ['--selftest']],
   // The complement of seats-walk: that one asks whether a seat SEATS you, this
   // asks whether you can get OUT of it, which is the half the user reported —
   // "pressing e doesnt get me out of it". It approaches each seat from a pace
