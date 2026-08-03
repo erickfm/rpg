@@ -111,11 +111,37 @@ export interface PartyWall {
  * handedness below can be computed at all.
  *
  * Hoisted out of `buildRoom`'s `spec.arriveYaw ?? 0` so the arrival convention
- * and the code that reasons about it are ONE authoring. If a room ever needs a
- * different default, `handedness` stops being valid for a pair containing it
- * and `assertArrivalConvention` (called from `buildRoom`) says so out loud.
+ * and the code that reasons about it are ONE authoring. If a room that is half
+ * of a party wall ever takes a different heading, `handedness` below stops being
+ * valid for it — and `buildRoom` says so out loud rather than letting a
+ * west/east that quietly means nothing go on being published.
  */
 const ARRIVE_YAW = 0;
+
+/**
+ * Every interior module, eagerly. Hoisted to module scope so `buildAllInteriors`
+ * and `buildingOfRoom` share ONE glob — two globs of the same pattern is two
+ * authorings of the belt's membership, and the second one would be the one that
+ * goes stale. The import edges this creates are the same ones
+ * `buildAllInteriors` has always had; only the READS are new, and they are all
+ * lazy for the reason given over `handedness`.
+ */
+const INT_MODS = import.meta.glob<Record<string, unknown>>('./int-*.ts', { eager: true });
+
+/**
+ * The roster name of the building a belt room sits in — `'hotel'` →
+ * `'HOTEL ORPHEUS'`.
+ *
+ * Read off the room's OWN `DoorDecl`, which is the same object `ct/doors.ts`
+ * keys its registry by, so this cannot name a building the door registry has
+ * never heard of. Not a second table: `int-<id>.ts` builds the room whose id is
+ * `<id>` is a convention `scripts/interiors-wired.mjs` already enforces, so the
+ * filename is the join and there is nothing to keep in step.
+ */
+function buildingOfRoom(id: string): string | null {
+  const d = INT_MODS[`./int-${id}.ts`]?.DOOR as { building?: string } | undefined;
+  return typeof d?.building === 'string' ? d.building : null;
+}
 
 /**
  * WHICH OF A PAIR IS WEST — measured off the street, never typed.
@@ -158,31 +184,6 @@ const ARRIVE_YAW = 0;
  * are getters: nothing reads them until `buildAllInteriors` runs, by which time
  * `publishDeclaredDoors()` has long since collected everything.
  */
-/**
- * Every interior module, eagerly. Hoisted to module scope so `buildAllInteriors`
- * and `buildingOfRoom` share ONE glob — two globs of the same pattern is two
- * authorings of the belt's membership, and the second one would be the one that
- * goes stale. The import edges this creates are the same ones
- * `buildAllInteriors` has always had; only the READS are new, and they are all
- * lazy for the reason given over `handedness`.
- */
-const INT_MODS = import.meta.glob<Record<string, unknown>>('./int-*.ts', { eager: true });
-
-/**
- * The roster name of the building a belt room sits in — `'hotel'` →
- * `'HOTEL ORPHEUS'`.
- *
- * Read off the room's OWN `DoorDecl`, which is the same object `ct/doors.ts`
- * keys its registry by, so this cannot name a building the door registry has
- * never heard of. Not a second table: `int-<id>.ts` builds the room whose id is
- * `<id>` is a convention `scripts/interiors-wired.mjs` already enforces, so the
- * filename is the join and there is nothing to keep in step.
- */
-function buildingOfRoom(id: string): string | null {
-  const d = INT_MODS[`./int-${id}.ts`]?.DOOR as { building?: string } | undefined;
-  return typeof d?.building === 'string' ? d.building : null;
-}
-
 const HANDED = new Map<string, readonly [string, string]>();
 
 function handedness(rooms: readonly [string, string]): readonly [string, string] {
