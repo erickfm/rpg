@@ -272,6 +272,23 @@ const CHECKS = [
   // stripes are 0.09 x 5.0 m planes raked 0.55 rad, and measured as axis-aligned
   // boxes each reads 11.59 m2 instead of 0.45. (I)
   ['I-flatground',     'is any ground surface in the lot flat colour?',      true],
+  // REGISTERED 2026-08-02 (w64, item 186). I-flatground above guards the LOT's
+  // side of B's class; this is the same question asked of the whole world,
+  // indoors and out, and it has existed unregistered since item 0a. Grep for it
+  // in this file before today and there were zero hits — we built the detector
+  // for the class the user has now reported SIX times and never wired it in.
+  // That is the third unregistered-or-blind check found this week, after
+  // masonry.mjs measuring zero faces (GOTCHAS 79) and texdensity.mjs (item 161).
+  //
+  // RATCHETED, not zeroed: 65 meshes / 151 m2 today against B's original
+  // 123 / 454, and the entry gate is "this must not go UP". A check demanding
+  // zero on a historical backlog is one that gets weakened until it passes.
+  // `--selftest` strips the map off the alley floor and both numbers rise.
+  //
+  // It also prints a second, UNGATED census (STEP) for the dark-ground variant
+  // the user actually reported this time. That one is a diagnostic and the
+  // script's header says at length why it could not be made into a check.
+  ['w5-shadow-census',  'is any ground surface in the world still bare flat colour?', true],
   // "the garlands are disconnected". The lot's own file calls the bunting the
   // single most identifying thing about the typology, so it gets a guard. Two
   // clauses because there are two ways it reads as disconnected and they fail
