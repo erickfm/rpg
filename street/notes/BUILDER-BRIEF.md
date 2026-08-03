@@ -322,26 +322,19 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 - **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor.
 - **Press `V` for the collision overlay.** Wireframe boxes, red where a gap under 0.95 m could trap a player. It is how the user found two real bugs on its first day.
 - **Verify on the BUILT bundle** (`npx vite preview`), not only on dev. The panel/keydown class of bug has shipped differently than it renders in dev.
-- **ONE CHECK IS EXEMPT FROM THAT, AND IT IS NAMED: `scripts/interiors-walk.mjs`
-  IS DEV-ONLY.** It reads its declarations out of the TypeScript sources at
-  runtime — four sites, `import('/src/proto/ct/doors.ts')` ×3 and
-  `.../ct/interior.ts` ×1 — which is deliberate: on `vite dev` the ES module
-  cache hands back **the same instance the app is using**, so the harness reads
-  the live door and party-wall declarations and a room added tomorrow is
-  understood with no edit. `vite preview` serves only `dist/`, so all four 404.
-  **Run this one on `vite dev`. It is the only exception, and it is not one you
-  have to remember** — pointed at a bundle it now aborts with **exit 3, nothing
-  measured**, and says so in a sentence. It used to die on an unhandled fetch
-  error, which node turns into **exit 1 — "measured, and it is WRONG"** — so a
-  builder doing exactly what the line above says got a red against twelve rooms
-  that were fine, from a suite that never started (GOTCHAS 32).
-  **What would lift the exemption, measured 2026-08-03 by
-  `scripts/probes/w93-item246-iw-bundle-gap.mjs`:** three of the four sites are
-  already redundant — `doorStandFor` and `doorPointFor` are on `__ct.doors()`
-  and agree **12/12 and 12/12 exactly**, and `roomWidthFor`'s value is assigned
-  to `r.W` and **read nowhere in the file**. The whole remaining blocker is
-  `ct/interior.ts`'s `PARTY`, which nothing publishes. **One line beside
-  `roomDims()` in `src/proto/crosstown.ts` makes this suite bundle-runnable.**
+- **THERE IS NO LONGER AN EXEMPTION. `scripts/interiors-walk.mjs` runs on the
+  built bundle** as of item 251 — it was the one check that could not, and the
+  contradiction of a rule enforced by a suite that broke it is gone. It read its
+  declarations out of the TypeScript sources at runtime (four sites,
+  `import('/src/proto/ct/doors.ts')` ×3 and `.../ct/interior.ts` ×1), which
+  `vite preview` 404s. Three of those were already redundant against
+  `__ct.doors()` — `doorStandFor`/`doorPointFor` agree **12/12 and 12/12**,
+  `roomWidthFor` fed an `r.W` **read nowhere**, and `declaredDoors().at` fed a
+  fallback that **never fires because 13/13 rooms publish their own `door`**.
+  The only real gap was `PARTY`, now published as **`__ct.party()`** — a
+  per-element copy, because a probe must not be able to mutate world state
+  through a test hook. **If it ever aborts with exit 3 it means a hook is
+  missing, not that the rooms are broken** (GOTCHAS 32).
 - **A build against the tree your preview is serving blinds it for about a fifth
   of a second. It does NOT kill it.** `vite build` empties `dist/` before writing
   and `vite preview` serves `dist/` statically, so the healthy server has no page
