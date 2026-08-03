@@ -2848,6 +2848,47 @@ uniform float uPoolAmb;`)
     for (let y = 0; y < 12; y += 4) g.fillRect(0, y, 48, 1);
     dither(g, 48, 12, 40);
   }), 'detail');
+  // `slatT` ABOVE IS THE BACKREST'S BOARD, AND ONLY THE BACKREST'S.
+  //
+  // 48 x 12 over the backrest's 1.80 x 0.44 m face is 26.7 x 27.3 px/m — square
+  // to within 2%, and its gap lines run along the 1.80 m, which is what a
+  // slatted back looks like. It was ALSO handed to the three seat slats, whose
+  // top face is 0.15 x 1.80 m — the same canvas on a face with u and v swapped
+  // AND twelve times the aspect. Measured on the built bundle: 320 x 6.67 px/m,
+  // a 48x stretch, on the three faces the player looks straight down at while
+  // sitting. It also drew cross-bench "slat gaps" onto a board that is itself
+  // one slat, so the seat read as if grooved the wrong way.
+  //
+  // A seat slat gets its own board, drawn for its own proportions: 8 x 96 is
+  // exactly 0.15 : 1.80, so ONE derived repeat lands 32 px/m on both axes, and
+  // the grain runs ALONG the board (the v axis here) as a sawn board's does.
+  const seatSlatT = declareSurface(pixTex(8, 96, (g) => {
+    g.fillStyle = '#6a5a42'; g.fillRect(0, 0, 8, 96);
+    // Deterministic on purpose — NOT rnd(). That is the shared LCG this module
+    // draws prop positions from (see the note at the tree loop), and spending
+    // it here would move every prop placed afterwards.
+    g.fillStyle = 'rgba(0,0,0,0.10)';
+    g.fillRect(1, 0, 1, 96); g.fillRect(5, 0, 1, 96);
+    g.fillStyle = 'rgba(255,255,255,0.08)';
+    g.fillRect(3, 0, 1, 96); g.fillRect(6, 0, 1, 96);
+    g.fillStyle = 'rgba(0,0,0,0.08)';                    // a little lengthwise figure
+    for (let y = 0; y < 96; y += 13) g.fillRect(2, y, 1, 7);
+    for (let y = 6; y < 96; y += 17) g.fillRect(4, y, 1, 9);
+    dither(g, 8, 96, 60);
+  }), 'detail');
+  // 32 px/m is this world's standard density. `tex-ground.ts:181` owns it as a
+  // module-private `WPM` and does not export it, so this is a CITED COPY per
+  // BUILDER-BRIEF §8, not a second source of truth — hoisting it to a shared
+  // export is in my handoff as a follow-up.
+  const PPM = 32;
+  /** a wood material drawing THIS face's own metres at 32 px/m (§7b) */
+  const woodFace = (t: THREE.Texture, cw: number, ch: number, wM: number, hM: number) => {
+    const c = t.clone();
+    c.needsUpdate = true;
+    c.wrapS = THREE.RepeatWrapping; c.wrapT = THREE.RepeatWrapping;
+    c.repeat.set((wM * PPM) / cw, (hM * PPM) / ch);
+    return new THREE.MeshBasicMaterial({ map: c, side: THREE.DoubleSide });
+  };
   // Laid out for the PLATE it now sits on, not for the whole backrest. The copy
   // is unchanged — it was approved — but every element is inset so nothing runs
   // to an edge: the red band stops 5 px short on both sides and starts 3 px
@@ -2986,8 +3027,17 @@ uniform float uPoolAmb;`)
   // seat: three slats with gaps, so it reads as seating rather than a slab
   for (let i = 0; i < 3; i++) {
     const w = 0.15;
-    const slat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, BENCH_L),
-      [benchM, benchM, flatT2(slatT), benchM, flatT2(slatT), flatT2(slatT)]);
+    // Group order [+x, −x, +y, −y, +z, −z] on a box authored (w, 0.05, BENCH_L):
+    // +y is the 0.15 x 1.80 m face you sit on, ±z the 0.15 x 0.05 m sawn ends.
+    // Both take the seat's own board with the repeat derived from their own
+    // metres; the long ±x sides and the underside stay cast iron as before.
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, BENCH_L), [
+      benchM, benchM,
+      woodFace(seatSlatT, 8, 96, w, BENCH_L),
+      benchM,
+      woodFace(seatSlatT, 8, 96, w, 0.05),
+      woodFace(seatSlatT, 8, 96, w, 0.05),
+    ]);
     slat.userData.groundProp = 'bench seat';
     slat.position.set(BX_SEAT0 + w / 2 + i * 0.175, SEAT_Y - 0.025, BENCH_Z);
     scene.add(slat);
