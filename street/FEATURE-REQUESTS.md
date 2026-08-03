@@ -3024,3 +3024,50 @@ to one side.
   cast members with fixed `hs` values (1.09, 0.91, 0.97, 1.05, 0.94, 1.02) and
   **no per-instance jitter**, so a street full of people shows the same six
   heights repeated.
+
+- **"[screenshot] this is inside the bodega as you walk in it is on the left by
+  the coffee"** (2026-08-02, 22:05:46) → clarifies the fixture item 177's builder
+  could not find. It is **not a magazine rack** — it is the front display panel
+  of the unit beside the coffee station. Logged against item 177's follow-up.
+
+- **"the watch angle is a bit too steep. i liked it better before but idk maybe
+  theres a nice middle ground?"** (2026-08-02) → **routed as queue item 200.**
+  Item 165 took `WATCH_TILT` from -5° to -18°; he wants between the two.
+
+- **"[screenshot] the pedestrians dont cross at the cross walk"** (2026-08-02,
+  two citizens standing in the roadway near the corner by RADIO, with the
+  painted zebra clearly visible further up the street) → **routed as queue item
+  201.** The crowd network already has the concept: `ct/crowd.ts:232` — *"`road`
+  on an edge is what 'cross at the crossing, and only at the crossing' comes
+  to"*, and `:239` counts `crossings`.
+
+- **"[screenshot] truck collision isnt accurate to the truck but the other truck
+  is? it seems odd. seems like all trucks should be one object that are all the
+  same no?"** (2026-08-02,
+  `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-02 22-08-24.png`,
+  taken in the V collision-debug view) → **routed as queue item 202, which
+  supersedes 87.** SECOND report of this class, and this time he proposes the
+  fix himself: one collider definition per vehicle kind. `ct/cars.ts` already
+  has a `CarKind` type and `makeCar(kind, …)`.
+
+- **"the look of the slot machine is bad. i want it to look fun and lively and i
+  wantr to have the classic slot machine look and the classic slot machine
+  symbols."** (2026-08-02) → **routed as queue item 203.** The symbols are
+  already the classic set (`ct/slots.ts:45` — SEVEN, TRIPLE BAR, DOUBLE BAR,
+  BAR, CHERRY, BLANK on a real 22-stop reel), so this is about how they are
+  DRAWN. Likely relevant: `:818` states the palette is deliberately *"the
+  room's, read off `ct/int-casino.ts` rather than chosen"* — five muted casino
+  tones, which is the opposite of lively.
+
+- **"get rid of the trash crate in front of the thrift store. or move it
+  somewhere else"** (2026-08-02) → **routed as queue item 204.** He offers both
+  options, so the builder may choose. THRIFT's frontage is `cz: -61.75`,
+  `w: 12.5`, `side: -1` (`ct/int-thrift.ts:48`). A "milk crate" prop exists in
+  `ct/props.ts` (`:447`, `:1246`).
+
+- **"[screenshot] this is what the slot machine looks like to me. it is
+  incredibly ugly and nothing like a classic slot machine. in fact describe the
+  image to me first then edit your code"** (2026-08-02) → **supersedes item 203
+  with item 208, which now carries the desk's actual DESCRIPTION of his frame
+  rather than a guess.** He asked to be shown we looked before we changed
+  anything — a fair demand after two measured-correct fixes he rejected.
