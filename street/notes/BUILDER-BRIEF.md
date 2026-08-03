@@ -25,6 +25,40 @@ That `npm install` is the part people skip; the hard reset removes the
 `node_modules` symlink and the dev server then fails with an error that looks
 nothing like the cause. (GOTCHAS 54, 13.)
 
+### …and there is a GUARD now, so expect to be refused rather than to be lucky
+
+The manual check above is the *first* line, not the only one. **`npm install`,
+`npm run build`, `npm run dev`, `npm run live` and even a bare `npx vite` refuse
+to run if you are standing in the SHARED CHECKOUT
+(`/home/erick/projects/rpg/street`) having travelled there out of your own
+worktree.** It prints the worktree it wants you to go back to. Do that; do not
+argue with it.
+
+```
+  REFUSED: npm run build in THE SHARED CHECKOUT.
+  ...
+  FIX: go back to YOUR OWN worktree and run it there.
+      cd /home/erick/projects/rpg/.claude/worktrees/agent-<your-id>/street
+```
+
+`scripts/guard-shared-checkout.mjs` fronts `scripts/lib/shared-checkout.mjs`;
+`scripts/probes/w94-guard-selftest.mjs` is its 30-assertion self-test. Read the
+lib's header before you touch it — in particular, **do not "improve" it back
+into an environment-variable test.** The desk's shell and yours carry byte-
+identical `CLAUDE_CODE_CHILD_SESSION`, `AI_AGENT` and `CLAUDE_PID`; they are the
+same process. That mistake is queue item 247 and it blocked the desk's artifact
+republish for a session.
+
+**Two things it deliberately does not do.** It never touches the read-only
+measurement scripts (`sweep`, `fp`, `checks`, `capture`) — their problem is
+reading the wrong world, which has its own instrument. And it **cannot see an
+agent that was never given a worktree at all**; that agent has no worktree to
+have come from and looks exactly like the desk. If you were spawned without
+isolation, the guard will not save you and §0's manual check is all you have.
+
+`CT_ALLOW_SHARED=1` opts out. It is not a normal thing for a builder to want —
+if you use it, say so in your `done.sh` line.
+
 ---
 
 ## 1. The loop: take one item, finish it, take the next
