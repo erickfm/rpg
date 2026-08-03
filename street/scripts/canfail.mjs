@@ -1087,6 +1087,44 @@ const CASES = [
     'car.position.set(x + 900, 0, z);   // selftest: drawn cars leave the census box, colliders stay',
     'side-walk.mjs', [], 'the parked-car census counting zero against a fleet of three'],
 
+  // THE USED-CAR LOT'S AISLE, EATEN BY ITS OWN CAR COLLIDERS (item 231).
+  //
+  // The lot's cars now carry their kind's real collider at their real angle,
+  // which makes them LONGER than the single 2.8 x 4.0 box they replace — so the
+  // one thing that can go wrong is them growing into the 6.8 m aisle the lot is
+  // authored around. `LOT_REACH` is the clamp that stops it: no box may reach
+  // further toward the aisle than the old box did, or than the aisle edge,
+  // whichever is more generous.
+  //
+  // THE USED-CAR LOT'S TURNED COLLIDERS (item 231), AND THE EXACT MISTAKE THE
+  // PREVIOUS WORKER WARNED THE NEXT ONE OFF.
+  //
+  // The lot's 11 cars sit at 31.5-65.9 degrees. `AABB.rot` is what lets them
+  // carry their kind's real collider there at all; w81 refused the dominant-axis
+  // `carColliderBoxes()` for this lot precisely because "applied at 31 degrees
+  // it would produce a box aligned to the wrong axis — worse than what is
+  // there". Dropping the `rot` is that mistake, and it is the single most
+  // likely way someone "simplifies" this code back to broken: the boxes stay,
+  // the tags stay, the shapes stay, and every car's collision volume silently
+  // rotates off its car.
+  //
+  // Measured with the mutation in: 11 of 11 bays go unrotated, the aisle between
+  // the rows narrows 7.52 -> 7.22 m and the narrowest span anywhere in it
+  // 5.85 -> 5.27 m. The verdict comes from the turned-collider assertion; the
+  // aisle only drifts, which is itself the reason that assertion has to exist
+  // rather than trusting a width to notice. Exit 1.
+  //
+  // ⚠ AN EARLIER VERSION OF THIS CASE SLEPT, AND THE REASON IS WORTH KEEPING.
+  // It mutated an aisle clamp, and the probe asserted a FLOOR on the aisle's
+  // clear span (>= 6.8 m, the authored width). The real span was 7.52 m, so the
+  // floor had 0.72 m of slack, and the mutation moved it 0.16 m — the whole
+  // south row's noses went into the aisle and the check stayed GREEN. The floor
+  // is a two-sided RANGE now. A floor with slack in it is not a guard.
+  ['lot-colliders-unturned', 'src/proto/ct/lot.ts',
+    '            rot: yaw,',
+    '            rot: 0,   // selftest: the dominant-axis mistake w81 warned about',
+    'probes/w118-item231-lot-colliders.mjs', [], 'lot car colliders no longer turned to their cars'],
+
   // THE WALK LINE MOVED INTO THE ROADWAY. `IN` is "one metre in from the kerb:
   // the middle of a 2 m walk", so every node in the network is derived from it;
   // -1.0 puts the whole pedestrian network a metre INSIDE the road, which is

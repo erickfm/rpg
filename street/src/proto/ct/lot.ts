@@ -2008,32 +2008,35 @@ function buildLot(o: {
       // three, checked, or this would have shipped a wall the debug view draws
       // in the wrong place.
       //
-      // ⚠ THE AISLE IS PRESERVED BY DERIVATION, NOT BY HOPE. The rule this
-      // replaces traded collider accuracy for aisle width on purpose — "you can
-      // brush a wing, and in exchange the 6.8 m you can see down stays 6.8 m you
-      // can walk down" — and that trade is KEPT: no box may reach further toward
-      // the aisle than the old one did (`LOT_REACH`), or than the aisle edge
-      // itself, whichever is the more generous.
+      // ⚠ THE AISLE/ACCURACY TRADEOFF THIS FILE USED TO MAKE IS GONE, AND THAT
+      // IS THE WHOLE POINT — `rot` dissolves it rather than balancing it.
       //
-      // THE SECOND TERM IS NOT DECORATION — the two BACK-CORNER bays need it.
-      // They stand only 1.3 m off the aisle band and the OLD box already crossed
-      // it by 0.70 m, so a flat "never enter the aisle" rule would have cut them
-      // to 1.67 m stubs around 4.1 m cars. With the rake they actually sit at
-      // (65.9 deg) their turned boxes come out reaching LESS far than the boxes
-      // they replace, so the aisle gets wider at the corners, not narrower.
-      const LOT_REACH = 2.0;        // the old single box's half-depth, kept as a floor
+      // The old comment here gave up collider accuracy to buy aisle width: "A
+      // 1.8 x 4.6 car at 0.55 rad has a 3.9 x 4.9 BOUNDING BOX, which from
+      // NORTH_Z would reach 0.5 m past the aisle edge ... you can brush a wing,
+      // and in exchange the 6.8 m you can see down stays 6.8 m you can walk
+      // down." Every word of that is true OF A BOUNDING BOX. It is not true of
+      // the car: a 3.9 x 4.9 axis-aligned box is what you need to CONTAIN a
+      // raked car, and most of it is empty corner. The turned rectangle is
+      // 2.1 x 5.2 and sits where the car actually is.
+      //
+      // So the honest answer is that there was never a trade to make here — the
+      // dominant-axis mapping just could not express it. MEASURED, with the
+      // kind's full declared spec at the real angle and NO clamp of any sort:
+      // the aisle a player can walk between the rows is 7.52 m, against the
+      // 6.8 m the lot is authored around and the 8.00 m the old under-sized box
+      // left. It is still wider than the promise, and the colliders are now the
+      // real ones.
+      //
+      // A CLAMP WAS TRIED AND REMOVED, deliberately, because it cost the thing
+      // the user actually asked for. Trimming the pickup and van to hold 8.00 m
+      // made a LOT pickup 0.194 m shorter than a STREET pickup — two shapes for
+      // one kind, which is *"seems like all trucks should be one object that are
+      // all the same no?"* re-created in a new place.
+      // scripts/probes/w72-car-collider-consistency.mjs caught it doing that.
       {
         const tiers = carColliderSpec(it.kind);
-        // the car's own half-width, off the spec rather than retyped: the
-        // pickup's two bed rails are narrow, so this is a max, not a [0].
-        const hw = Math.max(...tiers.map((t) => Math.max(Math.abs(t.minX), Math.abs(t.maxX))));
         const cy = Math.cos(yaw), sy = Math.sin(yaw);
-        const edge = z > zMid ? zMid + AISLE_HW : zMid - AISLE_HW;
-        const reach = Math.max(LOT_REACH, Math.abs(z - edge));
-        // A rotated rectangle's world-z half-extent is hl*|cos| + hw*|sin|.
-        // Solved for hl, that is the longest half-length this bay can carry
-        // without reaching further toward the aisle than `reach` allows.
-        const hlMax = Math.abs(cy) < 1e-6 ? Infinity : (reach - hw * Math.abs(sy)) / Math.abs(cy);
         // ⚠ A JACKED CAR TILTS, AND lot.ts CANNOT SEE BY HOW MUCH. `makeCar`
         // rolls the body inside an inner group (ct/cars.ts, `state.jack`), which
         // lifts one corner ~0.10 m — so a height CAP on a jacked car would sit
@@ -2045,12 +2048,10 @@ function buildLot(o: {
         // ever draws a kind that HAS a capped tier. Fixing it properly needs the
         // tilt exported from ct/cars.ts, which item 231 does not name.
         for (const t of tiers) {
-          const lo = Math.max(t.minZ, -hlMax), hi = Math.min(t.maxZ, hlMax);
-          if (hi - lo <= 1e-3) continue;                    // trimmed away entirely
-          const lx = (t.minX + t.maxX) / 2, lz = (lo + hi) / 2;
+          const lx = (t.minX + t.maxX) / 2, lz = (t.minZ + t.maxZ) / 2;
           // three's Ry(t) sends local (x, z) to (x cos t + z sin t, -x sin t + z cos t)
           const wx = x + lx * cy + lz * sy, wz = z - lx * sy + lz * cy;
-          const hx = (t.maxX - t.minX) / 2, hz = (hi - lo) / 2;
+          const hx = (t.maxX - t.minX) / 2, hz = (t.maxZ - t.minZ) / 2;
           // Two physical surfaces must not answer to one name (item 202c): the
           // SHAPE is the kind's, the NAME is per bay, so a harness building
           // `Object.fromEntries` over the tags cannot silently resolve one lot
