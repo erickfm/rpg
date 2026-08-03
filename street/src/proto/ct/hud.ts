@@ -228,6 +228,115 @@ function blockInput(): () => void {
   return () => { for (const k of BLOCKED) window.removeEventListener(k, guard, true); };
 }
 
+// ── `[E]` OPENS A MACHINE AND `[E]` CLOSES IT — so one physical key drives ──
+// both edges of a toggle, and the press that does one must never be read as
+// the press that does the other.
+//
+// THE BOUNCE IS REAL IN BOTH DIRECTIONS, and neither is theoretical:
+//
+//   · CLOSING. `crosstown.ts:2038` reads `E` as an edge off a held-keys Set,
+//     once per rendered frame. Closing tears the gate down, so the auto-repeat
+//     `keydown`s of a key the player is STILL HOLDING land in the world and
+//     re-open the machine he just left.
+//   · OPENING. The gate goes up while the opening `E` is still down, and this
+//     file now reads `E` at the gate as "close" — so holding `E` for much over
+//     the system's repeat delay would open a machine and immediately shut it.
+//
+// `dismissedAt` in `makePanel` does not cover either. It is 500 ms, the same
+// order as a typical auto-repeat delay, so it is a race rather than a rule; it
+// guards only the panel's own `open()`, while the spot's `act()` — which may
+// also SEAT the player — runs regardless.
+//
+// THE RULE INSTEAD: THE KEY MUST BE PHYSICALLY RELEASED BEFORE IT ACTS AGAIN.
+// While latched, every `keydown` for that key is swallowed at capture and the
+// real `keyup` disarms it. A timer cannot substitute — `down` → 90 ms → `up`
+// is how the checks drive `[E]`, so a latch that expired on a clock would pass
+// every check and still fail a human leaning on the key.
+let latchedKey: string | null = null;
+let latchTimer = 0;
+
+/** Is this key held down FOR REAL, right now? */
+const physical = new Set<string>();
+function trackPhysical(e: Event): void {
+  // SYNTHETIC RELEASES DO NOT COUNT. `releaseHeld()` fires a `keyup` for every
+  // key in `HELD_KEYS` to clear main.ts's Set, but the player's finger is still
+  // on the button — believing that keyup is how the open-side latch would miss
+  // the very case it exists for. Real input is trusted; ours is not.
+  if (!(e as KeyboardEvent).isTrusted) return;
+  const k = (e as KeyboardEvent).key?.toLowerCase();
+  if (!k) return;
+  if (e.type === 'keydown') physical.add(k); else physical.delete(k);
+}
+if (typeof window !== 'undefined') {
+  // Registered at module load, which puts it AHEAD of every gate in capture
+  // order — listeners on one target in one phase run in registration order, and
+  // the gate stops propagation. It only ever records; it never swallows.
+  const OBS = { capture: true, passive: true } as const;
+  window.addEventListener('keydown', trackPhysical, OBS);
+  window.addEventListener('keyup', trackPhysical, OBS);
+}
+
+function latchSeen(e: Event): void {
+  if (!latchedKey || (e as KeyboardEvent).key?.toLowerCase() !== latchedKey) return;
+  // ONLY A REAL RELEASE DISARMS THIS, and that guard is the whole latch.
+  //
+  // `releaseHeld()` fires a synthetic `keyup` for every key in `HELD_KEYS` — `e`
+  // among them — and it runs immediately AFTER the open-side latch is armed. So
+  // without this line the latch disarmed itself microseconds after arming, the
+  // first auto-repeat sailed through, and a machine opened with a normal human
+  // press shut itself again. Measured, not reasoned: `__hud.latched()` read
+  // `null` one frame after an open that had just called `latch('e')`.
+  if (!(e as KeyboardEvent).isTrusted) return;
+  // THE RELEASE IS NEVER SWALLOWED — see the note on `HELD_KEYS`: eat a keyup
+  // and you strand the key down forever, and the player wakes up walking.
+  if (e.type === 'keyup') { unlatch(); return; }
+  swallow(e);
+}
+
+function unlatch(): void {
+  if (!latchedKey) return;
+  latchedKey = null;
+  clearTimeout(latchTimer);
+  window.removeEventListener('keydown', latchSeen, true);
+  window.removeEventListener('keyup', latchSeen, true);
+}
+
+/**
+ * Hold `k` inert until the player lets go of it.
+ *
+ * The timeout is a LEAK STOP and not the mechanism: if the window loses focus
+ * between the press and the release, the `keyup` is delivered to somebody else
+ * and never arrives, which would otherwise leave `E` dead for the rest of the
+ * session. It is long enough that no held key reaches it in normal play.
+ */
+function latch(k: string): void {
+  unlatch();
+  latchedKey = k;
+  window.addEventListener('keydown', latchSeen, CAP);
+  window.addEventListener('keyup', latchSeen, CAP);
+  latchTimer = window.setTimeout(unlatch, 2000) as unknown as number;
+}
+
+/** The key that leaves a machine. `[E]` got you in; `[E]` gets you out. */
+const EXIT_KEY = 'e';
+/**
+ * WHAT THE CAPTION MAY HONESTLY PROMISE, given what the panel is doing: the bare
+ * key name, for testing whether a hand-written hint already mentions it, and the
+ * player-facing stamp, for drawing.
+ *
+ * THE STAMP IS BRACKETED BECAUSE `[E]` IS ALREADY HOW THIS WORLD NAMES THAT KEY.
+ * `hud.prompt` writes `[E] <label>` over every spot the player can use, so the
+ * caption and the prompt are now the same affordance said the same way.
+ *
+ * The first cut printed a bare `E` and it read badly — judged by looking at it,
+ * not by reasoning about it. The slots strip came out as
+ * `SPACE spin · B bet · M max · I insert $5 · C cash out · E`, where every other
+ * token is a key AND a verb and the last one was neither; it scans as a list
+ * that got cut off rather than as the way out. Hence the bracket and the verb.
+ */
+const exitKey = (spec: PanelSpec): string => (spec.typing?.() ? 'ESC' : 'E');
+const exitStamp = (spec: PanelSpec): string => `[${exitKey(spec)}]`;
+
 // ══ THE PANEL FRAMEWORK ═══════════════════════════════════════════════════
 //
 // THREE full-screen interfaces are being built at once — the slots machine
@@ -402,8 +511,29 @@ export interface PanelSpec {
   hint?: () => string;
   /** paint the screen. Origin is the screen's top left; `w`/`h` are yours. */
   draw: (g: CanvasRenderingContext2D, w: number, h: number) => void;
-  /** a keystroke, already lower-cased. ESC is handled for you. */
+  /** a keystroke, already lower-cased. ESC and `[E]` are handled for you. */
   key?: (k: string, e: KeyboardEvent) => void;
+  /**
+   * "I AM EATING TEXT RIGHT NOW, SO `E` IS A LETTER AND NOT THE EXIT."
+   *
+   * `[E]` closes every machine view by default — the user's instruction, and
+   * the key that opened it is the key that should shut it. That is wrong for
+   * exactly one thing in this world: a field you TYPE into. The library
+   * terminal's catalogue is one (`library-pc.ts:377` takes any single
+   * character), and a framework that stole `e` from it would make *Emma*,
+   * *Frankenstein* and *The Republic* unsearchable while ejecting the player
+   * out of the machine mid-word.
+   *
+   * So a panel that consumes text says so, per FRAME rather than once, because
+   * the terminal only types on one of its three screens. While this returns
+   * true, `e` is passed to `key()` like any other letter and **ESC is the way
+   * out** — which is the whole reason the framework keeps Escape as well as
+   * `[E]`. The caption follows this automatically, so it cannot advertise a
+   * key that will not work.
+   *
+   * Omit it and `[E]` closes, which is what every machine wants.
+   */
+  typing?: () => boolean;
   /** the wheel: +1 forward, −1 back */
   wheel?: (dir: 1 | -1) => void;
   onOpen?: () => void;
@@ -598,10 +728,24 @@ function gate(e: Event): void {
   }
   if (e.type === 'keydown') {
     const k = (e as KeyboardEvent).key.toLowerCase();
+    // A KEY STILL HELD FROM THE PRESS THAT GOT US HERE DOES NOTHING. Checked
+    // here as well as in `latchSeen` so the outcome cannot depend on which of
+    // two capture listeners the browser runs first — both mean "swallow it".
+    if (k === latchedKey) { swallow(e); return; }
     // ESC ALWAYS CLOSES, from every panel, whatever the caller does. A player
     // who cannot get out of a machine is stuck in the world, and no individual
-    // author should be able to forget this.
-    if (k === 'escape') p.close();
+    // author should be able to forget this. It stays even though `[E]` is now
+    // the advertised exit: a second way out costs nothing, and this project's
+    // worst bug is a view you cannot leave.
+    if (k === 'escape') { p.close(); latch(k); }
+    // …AND `[E]`, WHICH IS THE ONE THE PLAYER IS TOLD ABOUT. The user: *"instead
+    // of getting out of the atm view or the slots or literally whatever.
+    // instread of using esc for that lets make it e."* It belongs here, in the
+    // one gate every machine already goes through, rather than in each machine
+    // — the ATM, the slots, blackjack, the bank desk, the letters and the
+    // pockets all get it from this line and none of them had to be edited.
+    // `typing` is the single exception; see `PanelSpec.typing`.
+    else if (k === EXIT_KEY && !p.spec.typing?.()) { p.close(); latch(k); }
     else p.spec.key?.(k, e as KeyboardEvent);
   } else if (e.type === 'wheel') {
     p.spec.wheel?.((e as WheelEvent).deltaY > 0 ? 1 : -1);
@@ -770,7 +914,16 @@ export function makePanel(spec: PanelSpec): Panel {
         // `library-pc.ts` prints 'ESC step back' itself, because it also
         // uses TAB for a second, narrower kind of "back" and wanted the two
         // told apart. Appending a second ESC there would just repeat it.
-        cap.textContent = !label ? 'ESC' : /esc\b/i.test(label) ? label : `${label}   ·   ESC`;
+        // THE CAPTION IS DERIVED FROM THE RULE, never typed beside it, so it
+        // cannot promise a key the gate will not honour: `E` normally, `ESC`
+        // on a panel that is eating text and has therefore given `e` up.
+        // The dedupe tests the BARE KEY, not the decorated stamp: a caller that
+        // already wrote its own `ESC step back` must not be given a second one.
+        const key = exitKey(spec);
+        const way = `${exitStamp(spec)} leave`;
+        cap.textContent = !label ? way
+          : new RegExp(`\\b${key}\\b`, 'i').test(label) ? label
+            : `${label}   ·   ${way}`;
       }
       return;
     }
@@ -828,7 +981,7 @@ export function makePanel(spec: PanelSpec): Panel {
     g.fillText(spec.hint ? spec.hint() : '', SX + 4, cy + 9);
     g.textAlign = 'right';
     g.fillStyle = UI.ink;
-    g.fillText('ESC', SX + spec.w - 4, cy + 9);
+    g.fillText(exitStamp(spec), SX + spec.w - 4, cy + 9);
   };
 
   // WHAT THE PLAYER PRESSED ESCAPE ON, and when. A caller that re-opens its
@@ -880,6 +1033,13 @@ export function makePanel(spec: PanelSpec): Panel {
       // careful.
       seatedAtOpen = !!(window as unknown as { __ct?: { seated?: () => unknown } }).__ct?.seated?.();
       livePanel = { spec, close: () => api.close() };
+      // THE `[E]` THAT OPENED THIS MUST NOT ALSO CLOSE IT. The player is almost
+      // certainly still holding the key that got him here, and it auto-repeats;
+      // the gate below now reads `E` as "leave", so without this a machine
+      // opened with a normal human press would shut itself a few hundred
+      // milliseconds later. Armed only when the key is REALLY down, so opening
+      // by any other route leaves `[E]` live immediately.
+      if (physical.has(EXIT_KEY)) latch(EXIT_KEY);
       releaseHeld();                     // let go of anything already held down
       gateUp(true);                      // …and the gate is the freeze, see above
       // DIEGETIC OR NOT IS DECIDED HERE, per open, and it degrades rather than
@@ -1447,6 +1607,11 @@ export function makeHud(purse: Purse): Hud {
     closePanels: () => closePanels(),
     /** every panel in the world, so a guard cannot miss one. See `everyPanel`. */
     panels: () => everyPanel().map((q) => q.id),
+    /** test affordance: what the latch believes is physically held, and what it
+     *  is currently holding inert. A latch nobody can read is a latch nobody can
+     *  prove — and the open-side arm is invisible from outside without it. */
+    held: () => [...physical],
+    latched: () => latchedKey,
     openPanel: (id: string) => {
       const q = everyPanel().find((r) => r.id === id);
       if (!q) return false;
