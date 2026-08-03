@@ -1,5 +1,28 @@
 # ninetythree / item 247 — the desk and its builders are ONE session
 
+> ## ⚠ SUPERSEDED 2026-08-03 — the item IS done. See `ninetyseven-item247-where-the-shell-stood.md`
+>
+> **Everything in this note about the environment is correct and was
+> independently re-measured**: one session, one env, 50 of 50 processes, and the
+> two pids item 243 read were the wrong subject. Keep reading it for that.
+>
+> **One sentence below is wrong, and it is the load-bearing one:** *"There is no
+> trace of where I started."* There is — **`OLDPWD`**. The ancestry half of that
+> paragraph is right (a `cd` does move the whole shell), but `cd` records the
+> previous directory in the shell's own exported environment, and it survives
+> into `npm` and `node`. Because the harness **resets an agent's cwd to its
+> worktree before every Bash call**, a builder standing in the shared checkout
+> always has its worktree in `OLDPWD`; the desk's is the repo root.
+>
+> So the guard stopped asking *who you are* and now asks *where your shell was
+> standing*. Demonstrated from real shells in the real shared checkout: builder
+> **exit 1**, desk **exit 0**. The two DONE-WHEN clauses called mutually
+> exclusive below are not — they are only mutually exclusive **within the
+> environment**, which is where both of us were looking.
+>
+> The `npx vite` gap this note lists as unclosable is closed too, via
+> `vite.config.ts`.
+
 **RELEASED, not done.** Three of the row's four DONE-WHEN clauses are
 unachievable as written, and I can prove why rather than guess. The fourth, and
 the two "fold in if cheap" gaps, are landed.
