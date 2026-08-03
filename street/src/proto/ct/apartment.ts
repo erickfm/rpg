@@ -320,8 +320,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // The building used to know its own door count in exactly one place — the
   // loop that drew them — so anything else that wanted to reason about doors
   // had to restate the arithmetic and hope. This is that knowledge, hoisted:
-  // eight flats, four landings, two per landing, and the two on floor 2 hung
-  // as real openings rather than drawn as panels.
+  // eight flats, four landings, two per landing, and the two on floor index 2
+  // — the third storey, 301 and 302 — the ones that SWING.
+  //
+  // That last clause used to read "hung as real openings rather than drawn as
+  // panels", which conflated two different things and is why six doors stayed
+  // flat for so long. Every door is a real opening now; `hung` only means the
+  // leaf moves. A door you cannot open still has a hole cut for it.
   //
   // Same argument as F's entry-spot descriptors, which is the precedent the
   // desk named: derive from the declaration and nothing hand-typed can drift
@@ -331,7 +336,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     x: number; z: number; ry: number; wallN: number;
     hinge: number;      // +1 hinges toward +z, -1 toward -z
     face: number;       // which way it opens into the hall: +1 is +x
-    hung: boolean;      // a real swinging opening (301, 302) rather than a panel
+    hung: boolean;      // the leaf SWINGS (301, 302). Every door is a real
+                        // opening; this is only about whether it moves.
   };
   /**
    * WHICH FACE POINTS WHICH WAY — the fourth attribute of a door, and the one

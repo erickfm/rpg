@@ -99,6 +99,38 @@ for (const l of leaves.sort((a, b) => a.x - b.x || a.y - b.y)) {
 }
 
 // ── and a look, from where a person actually stands on each landing ────────
+// GOTCHAS 78, the sharp end of it: `afterFrames` waits for rAF callbacks, and
+// rAF fires whether or not the renderer has put anything on the canvas. On a
+// COLD `vite preview` that is not enough — every one of these eight frames came
+// back solid black from the built bundle while the same bundle's scene graph
+// and walk tests read perfectly. So wait for a PIXEL, which is the only thing
+// that actually proves the world was drawn.
+// The renderer is not published on `__ct` (crosstown.ts:1339 keeps it local),
+// so a probe cannot ask it for a frame count without editing a file this item
+// does not name. What IS available is the encoded frame: a uniformly black
+// 1280x720 PNG compresses to about 6 kB and a drawn one to about 58 kB, so
+// size is a usable PROXY for "something got drawn". It is a proxy and it is
+// labelled as one — the actual proof is the brightness check run over the
+// finished files afterwards, which is what caught the black set to begin with.
+const BLACK_PNG_MAX = 12000;
+const drawn = async (capMs = 45000) => {
+  const t0 = Date.now();
+  for (;;) {
+    const buf = await page.screenshot();
+    if (buf.length > BLACK_PNG_MAX) {
+      console.log(`  [drawn] first painted frame after ${Date.now() - t0} ms `
+        + `(${(buf.length / 1024).toFixed(0)} kB)`);
+      return true;
+    }
+    if (Date.now() - t0 > capMs) {
+      console.warn(`[drawn] canvas still ~black after ${capMs} ms `
+        + `(${buf.length} B) — the shots below are NOT evidence of anything`);
+      return false;
+    }
+    await page.waitForTimeout(400);
+  }
+};
+await drawn();
 const at = (dx, dz) => Math.atan2(dx, -dz);
 for (let f = 0; f < 4; f++) {
   // stand in the hall, north of the doors, looking back at them obliquely —
