@@ -3018,3 +3018,9 @@ to one side.
   than as a piece of paving"*; 123 such surfaces, ~454 m², already named as the
   cause of four earlier complaints. `scripts/w5-shadow-census.mjs` exists and is
   **not registered in `checks.mjs`.**
+
+- **"make people different heights pls"** (2026-08-02) → **routed as queue item
+  187.** Height variation already exists but is coarse: `ct/crowd.ts` has six
+  cast members with fixed `hs` values (1.09, 0.91, 0.97, 1.05, 0.94, 1.02) and
+  **no per-instance jitter**, so a street full of people shows the same six
+  heights repeated.
