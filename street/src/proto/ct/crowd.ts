@@ -70,6 +70,104 @@ const CAST: Person[] = [
 const strideFor = (sp: number, hs: number) =>
   Math.max(2, Math.min(5, Math.round(3.2 * Math.sqrt(sp) * hs)));
 
+// ── HOW TALL IS THE PERSON IN FRONT OF YOU ────────────────────────────────
+//
+// *"make people different heights pls."*
+//
+// MEASURED FIRST (`scripts/probes/w63-heights.mjs`, against the running world),
+// because the answer changed what this fix is:
+//
+//     crowd walkers            6, all six heights distinct, 0.91 … 1.09
+//     citizenSprite figures   26, SIX distinct drawn heights, and 16 of the 26
+//                                 are the SAME 1.900 m — the untouched default
+//
+// So the six here were never the problem. **Twenty of the world's twenty-six
+// people are placed by `citizenSprite()` from shop and interior modules, and
+// most of those callers pass no `h` at all**, which is why he sees a crowd of
+// one height. That fix is in `ct/citizens.ts` and ten `int-*.ts` files, none of
+// which this item names — reported rather than reached for (BUILDER-BRIEF §9).
+//
+// What IS in this file is the six on the street, and two things are wrong with
+// them:
+//
+//   1. **±9% is a narrow band and it sits LOW.** Measured figure heights (see
+//      H_SPREAD_UP below): 1.51 m to 1.78 m — everybody between 5'0" and 5'10",
+//      and nobody tall.
+//   2. **`hs` belongs to the CAST MEMBER, not to the person.** Six roles, six
+//      heights, forever — and the moment anything instances a role twice you get
+//      two identical people.
+//
+/**
+ * ⚠ `hs` IS NOT A HEIGHT IN METRES, AND THAT MISLED ME FIRST TIME ROUND.
+ *
+ * `citizenPlane` is 1.9 m tall and the PERSON is not: four empty rows sit under
+ * the shoe and there is headroom above the hair. Measured — every atlas read
+ * back and its opaque rows counted, `scripts/probes/w63-figure-rows.mjs` —
+ * **the painted figure is 55 or 56 rows of 64, so 1.633–1.662 m at `hs` 1.**
+ *
+ *     hs 0.91  ->  1.51 m        hs 1.09  ->  1.78 m       (as authored)
+ *
+ * So the street was NOT full of tall people, which is what I had assumed from
+ * the 1.805–1.976 m the plane reports. It was full of people between 5'0" and
+ * 5'10", which is a narrow band sitting LOW. A first cut that widened the
+ * deviation symmetrically by 1.45 put the shortest walker at **1.434 m** — a
+ * ten-year-old on the pavement, and exactly what this item's row warns against.
+ * The probe is what caught it; the plane height would have hidden it.
+ *
+ * So the widening is ASYMMETRIC: mostly upward, because that is the end the
+ * street was missing. A real pavement runs about 1.50 m to 1.90 m.
+ */
+/** how far each cast member's deviation above 1 is stretched: 1.09 -> 1.14, so
+ *  the tallest walker reaches about 1.86 m */
+const H_SPREAD_UP = 1.55;
+/** …and below 1, barely: the shortest was already 1.51 m and there is nowhere
+ *  much to go without inventing a child */
+const H_SPREAD_DOWN = 1.10;
+/** Width follows height, but people of one height are not one shape, so it
+ *  widens less than the height does. Symmetric — nothing about the authored
+ *  widths sits wrong. */
+const W_SPREAD = 1.20;
+/** …and then each PERSON differs from their role. Small on purpose: it is there
+ *  so no two figures in a frame can be identical, not to fight the cast. */
+const H_JITTER = 0.032;
+const W_JITTER = 0.030;
+/** how much of a person's height jitter shows up in their width — correlated,
+ *  not locked. Scaling height alone is what makes a sprite look stretched. */
+const W_FOLLOWS_H = 0.55;
+/**
+ * ITS OWN STREAM, NOT `ct/rng.ts`'s.
+ *
+ * GOTCHAS §2: there is ONE seeded `rnd()` and its ORDER is load-bearing —
+ * inserting a draw at BUILD time shifts every tree height and every pigeon
+ * position downstream. This file's own note at the activity picker says its
+ * `rnd()` "runs at RUNTIME only, never during the build", and this runs during
+ * the build, so it cannot use it. Same move `ct/int-library.ts` makes for its
+ * terminal screens, for the same reason.
+ *
+ * Seeded and therefore REPRODUCIBLE: the same six people every load, so a probe
+ * can assert on them and `fp` still has a stable world to fingerprint.
+ */
+const hrnd = (() => {
+  let s = 0x51ed270b;
+  return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+})();
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+/** the finished scale for ONE person: their role, widened, then themselves */
+function bodyScale(p: Person): { hs: number; ws: number } {
+  const jh = (hrnd() - 0.5) * 2 * H_JITTER;
+  const jw = (hrnd() - 0.5) * 2 * W_JITTER;
+  // 0.90 is a floor in METRES wearing a scale's clothes: 0.90 x 1.662 = 1.50 m,
+  // which is a short adult. Anything under it is a child, and there are no
+  // children in this cast — `build` and the garments are all adult silhouettes,
+  // so a scaled-down adult would read as a doll rather than as a kid.
+  const hs = clamp(1 + (p.hs - 1) * (p.hs >= 1 ? H_SPREAD_UP : H_SPREAD_DOWN) + jh, 0.90, 1.19);
+  // 1.12 is the ceiling because the collider is a fixed ±0.25 m box (see the
+  // spawn below) and a body drawn wider than the box it carries is a person you
+  // can walk through the edge of. The widest cast member is 1.10 before jitter.
+  const ws = clamp(1 + (p.ws - 1) * W_SPREAD + jh * W_FOLLOWS_H + jw, 0.86, 1.12);
+  return { hs, ws };
+}
+
 interface Citizen {
   mesh: THREE.Mesh; tex: THREE.Texture; lane: number; home: number; z: number;
   dir: number; sp: number; ph: number; box: AABB; stuck: number; ghost: boolean;
@@ -148,13 +246,18 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   const citizens: Citizen[] = [];
 
   CAST.forEach((p, i) => {
-    const tex = citizenAtlas({ ...p.look, stride: strideFor(p.sp, p.hs) });
+    // THE PERSON'S OWN SIZE, not the role's — and it is worked out BEFORE the
+    // atlas is painted, because stride is drawn into the sprite sheet and a
+    // walker whose legs swing to a height they are not is the "skating" fault
+    // the note on `strideFor` describes.
+    const { hs, ws } = bodyScale(p);
+    const tex = citizenAtlas({ ...p.look, stride: strideFor(p.sp, hs) });
     tex.repeat.set(1 / 5, 1 / 2);
     // the geometry is translated so the origin is at the FEET, so scaling
     // height never lifts anyone off the pavement or sinks them into it
     const geo = citizenPlane();
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }));
-    mesh.scale.set(p.ws, p.hs, 1);
+    mesh.scale.set(ws, hs, 1);
     // home lanes sit in the clear strip between the kerb props and the wall
     const lane = (i % 2 ? 1 : -1) * (ROAD_HALF + 1.05 + (i % 3) * 0.17);
     const z = 4 - i * 16; // spread thin over the whole block
@@ -169,7 +272,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     citizens.push({
       mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: p.sp,
       ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3,
-      cad: 5 * Math.sqrt(p.sp) / p.hs,   // cadence: long legs swing slower
+      cad: 5 * Math.sqrt(p.sp) / hs,     // cadence: long legs swing slower
       route: [], at: -1, wait: 0, doing: 'none', jam: 0, bias: 0, vx: 0, vz: 0,
       was: -1, back: -1, id: i, pick: 0, head: i % 2 ? 0 : Math.PI, sector: -1,
       good: { x: lane, z }, stuckT: 0,
