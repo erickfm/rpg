@@ -1971,10 +1971,18 @@ export function makeCrosstown(): Proto {
     //                            — NO margin term at all
     //
     // So REACH_MARGIN governs exactly two things now, and neither is the one
-    // its name suggests: the SEATED clause (`!seated || d < s.r + REACH_MARGIN`,
-    // which can only ever shorten the seated reach) and the outer ring the
-    // debug volume overlay draws. Anything asking "would this spot be offered
-    // to a player standing here, not looking at it" wants `touchMargin()`.
+    // its name suggests: the SEATED clause (`!seated || d < s.r + RADIUS +
+    // REACH_MARGIN`, which can only ever shorten the seated reach) and the outer
+    // ring the debug volume overlay draws. Anything asking "would this spot be
+    // offered to a player standing here, not looking at it" wants
+    // `touchMargin()`.
+    //
+    // ⚠ THE `+ RADIUS` IS PART OF THE PREDICATE — item 289, `fp.ts:1236`. `d`
+    // runs from the player's CENTRE to the spot's centre, so a bound of
+    // `s.r + REACH_MARGIN` charges a seated player the width of his own chest;
+    // it cost the bank's loan officer 7 cm. Reconstructing the seated reach from
+    // `reachMargin()` alone therefore under-reports it by RADIUS, which is
+    // published two entries below as `playerRadius()`.
     reachMargin: () => REACH_MARGIN,
     // …AND THE ONE THAT ACTUALLY GOVERNS AN UNAIMED PLAYER, published for the
     // first time here (item 223). It was exported from fp.ts and unreachable at

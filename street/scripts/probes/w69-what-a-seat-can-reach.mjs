@@ -1,7 +1,10 @@
 // WHICH SEATS IN THE WORLD HAVE ANYTHING TO REACH FOR?
 //
 // Item 188 gives a seated player `[E]` on what they are aiming at, bounded by
-// the spot's own `r + REACH_MARGIN`. `w69-seated-offers.mjs` reports what each
+// the spot's own `r + RADIUS + REACH_MARGIN` (`fp.ts:1236`; the `+ RADIUS` is
+// the player's own body and landed with item 289 — `d` runs from his CENTRE, so
+// a bound without it charges a seated player the width of his own chest and
+// under-reports the reach by 0.36 m). `w69-seated-offers.mjs` reports what each
 // seat offers with the head STRAIGHT AHEAD, which is 219/219 "stand up" — the
 // regression answer, and the reason the change is safe.
 //
@@ -26,13 +29,17 @@ await p.waitForFunction(() => window.__ct?.seats !== undefined, { timeout: 30000
 await reportWorld(p, URL);
 await p.waitForTimeout(400);
 
-const { seats, spots, margin } = await p.evaluate(() => ({
+const { seats, spots, margin, radius } = await p.evaluate(() => ({
   seats: window.__ct.seats(), spots: window.__ct.spots(),
-  // BUILDER-BRIEF §8: the margin is published (`__ct.reachMargin`) precisely so
-  // no script has to retype fp.ts's 0.6 — two of them used to.
-  margin: window.__ct.reachMargin(),
+  // BUILDER-BRIEF §8: both halves of the bound are published (`__ct.reachMargin`,
+  // `__ct.playerRadius`) precisely so no script has to retype fp.ts's 0.6 or its
+  // 0.36 — two of them used to.
+  margin: window.__ct.reachMargin(), radius: window.__ct.playerRadius(),
 }));
-console.log(`${seats.length} seats, ${spots.length} spots, REACH_MARGIN ${margin}\n`);
+console.log(`${seats.length} seats, ${spots.length} spots, REACH_MARGIN ${margin}, RADIUS ${radius}\n`);
+if (![margin, radius].every((v) => typeof v === 'number' && isFinite(v))) {
+  console.log('REFUSING TO REPORT: the seated bound could not be read'); await b.close(); process.exit(3);
+}
 if (seats.length < 200 || spots.length < 100) {
   console.log('REFUSING TO REPORT: the population collapsed'); await b.close(); process.exit(3);
 }
@@ -43,7 +50,7 @@ for (const s of seats) {
     .map((sp) => ({ sp, d: Math.hypot(sp.x - s.pose.x, sp.z - s.pose.z) }))
     // The seat's OWN sit spot is dead while you are on it (`ctx.seat`'s `ok`
     // is `!rig.seated`), so it can never be a candidate and is not counted.
-    .filter((r) => r.d < r.sp.r + margin && !/^sit |^take a |watch tv/i.test(r.sp.label))
+    .filter((r) => r.d < r.sp.r + radius + margin && !/^sit |^take a |watch tv/i.test(r.sp.label))
     .sort((a, b2) => a.d - b2.d);
   if (near.length) rows.push({ s, near });
 }
