@@ -3571,29 +3571,59 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // clock on frame one regardless.
     const calT = surfTex('detail', CAL_TW, CAL_TH,
       (g) => drawCalendar(g, CAL_TW, CAL_TH, 0, 0));
-    // ── THE CALENDAR HANGS ON THE SOUTH WALL, A LITTLE RIGHT OF WHERE IT WAS ─
+    // ── THE CALENDAR HANGS ABOVE THE FLOOR YOU READ IT FROM ─────────────────
     //
     // It has no `rotation.y`: the south wall faces +z into the room, so its
     // artwork carries none. Leaving a PI on would not hide it, it would show the
     // month page reversed, biro ring and all, and read as a texture bug.
     //
-    // RIGHT IS +x — you stand in this room facing -z to look at this wall, and
-    // a camera looking down -z has +x on its right. 0.25 m of it: *"a bit to the
-    // right"* is a nudge, and it is also as far as it can go. THE LIMIT IS NOT
-    // THE WALL, IT IS 301'S DOOR SPOT, which sits at x 199.36 / z -17.455 —
-    // 0.46 m off this very wall, because the room-side stand-point for the door
-    // is `DOOR_PIV_X - 0.55`. `fp.ts`'s tier 1 is "the spot's centre is inside
-    // your own body" (`d < RADIUS`), and a spot that lands there wins outright
-    // however you are facing. Push the calendar further right than this and the
-    // place you stand to read it falls inside the door's 0.36 m — which is the
-    // bug the bed's own comment records ("door301 pressed E expecting to shut
-    // the door and got 'sleep until morning' instead"), in the same room.
+    // ⚠ IT WAS AT AX(-0.80) AND THE USER COULD NOT OPEN IT (item 298). His
+    // words: *"i can t look at the calendar if im looking right at it."*
+    // Measured on the built bundle, standing square in front of AX(-0.80) and
+    // facing the wall, EVERY distance from 0.40 m to 1.10 m off it resolved to
+    // *"close the door"* — the calendar was unreachable from the one place a
+    // person naturally stands to read it.
     //
-    // Clearance: it spans x 198.96…199.44, so 0.56 m of clear wall to the corner
-    // at AX(0) on the right and 1.21 m to the TV crate's x 198.25 on the left.
-    // The three taped-up snapshots are NOT near it — they are on the NORTH wall
-    // above the bed, with the poster.
-    const CAL_X = AX(-0.80);
+    // WHY, and it is geometry rather than ranking. 301's room-side door
+    // stand-point is at x 199.36 / z -17.455, which is 0.46 m off THIS wall and
+    // 0.16 m right of where the page hung. `fp.ts` tier 1 is "the spot's centre
+    // is inside your own body" (`onIt`, `d < RADIUS`), and that disc covers the
+    // floor from 0.14 m to 0.78 m off the wall at that x — i.e. the whole
+    // approach. Anywhere inside it the door wins outright however you are
+    // facing, and that is deliberate (`w40-bed-vs-door` END ONE(b) exists to
+    // keep it). Outside it the door is still `touching` (r 0.95 + TOUCH_MARGIN
+    // = 1.10 m of reach) and still aimed-at within tolerance, so it takes tier 1
+    // on rank as well. There is no stand-point in front of AX(-0.80) that the
+    // calendar can win, and four ranking cuts before this one could not make one.
+    //
+    // THE DOOR'S STAND-POINT CANNOT MOVE TO MAKE ROOM. Measured off `__ct`:
+    // 301's opening is z -16.975…-16.025 in the east wall, the leaf pivots at
+    // (199.91, -16.005) and sweeps 166° of a 0.95 m disc INTO the room. Every
+    // point in front of the opening is inside that sweep; -17.455 is the nearest
+    // floor clear of it, which is exactly what the door's own comment says it
+    // must be ("a door you can only reach by standing inside its own swing is a
+    // door you can never shut"). So the corner belongs to the door.
+    //
+    // SO THE PAGE MOVES TO THE STAND-POINT INSTEAD OF THE OTHER WAY ROUND.
+    // `CAL_STAND_DX` used to be 0.60 — you stood well to the LEFT of the page
+    // and looked at it sideways. That patch of floor is the only one in this
+    // room that works (it clears the door spot by 0.88 m and the bed-to-door
+    // route by 0.51 m; see the stand-point note below, both figures unchanged
+    // by this item), so the page now hangs over it and the offset is zero.
+    //
+    // ⚠ WHAT THIS COSTS THE USER, said plainly. He asked to *"move the calendar
+    // a bit to the right"* and this puts it 0.60 m LEFT of where that nudge left
+    // it — 0.35 m left of where it hung before he asked. Being able to read it
+    // is the request he made second and the one he is blocked on; the wall to
+    // the right of here is the door's floor and nothing hung on it can be
+    // opened. If he wants it further right, the door's stand-point is what has
+    // to be solved first, not this constant.
+    //
+    // Clearance: it spans x 198.36…198.84. The TV crate is below it (x
+    // 198.25…198.63, and only RY+0.36 tall with the portable on top) so nothing
+    // is hidden — the page's bottom edge is RY+1.23. The three taped-up
+    // snapshots are NOT near it: north wall, above the bed, with the poster.
+    const CAL_X = AX(-1.40);
     const cal = new THREE.Mesh(new THREE.PlaneGeometry(CAL_W, CAL_H), texM(calT));
     cal.position.set(CAL_X, RY + 1.55, SOUTH_Z);
     // NAMED, so a probe can find it by asking rather than by guessing a shape.
@@ -3687,11 +3717,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       }
       calPanel.open();
     };
-    // WHERE YOU STAND TO READ IT — and it is a DIFFERENT PLACE from where the
-    // calendar hangs. The mesh above has not moved: the user asked for that
-    // wall, that size, and *"a bit to the right"*, and it is still exactly
-    // there. This is the patch of floor you stand on, which he has never had an
-    // opinion about.
+    // WHERE YOU STAND TO READ IT — and since item 298 the page hangs directly
+    // above it, so it is also where you stand to LOOK at it. This point has not
+    // moved by a millimetre in either item; what moved is the mesh, up the wall
+    // to meet it. Both derivations below still hold and are still the reason
+    // this x and this z and no others.
     //
     // ── THE COMMENT THAT USED TO BE HERE WAS WRONG BY 0.11 m, AND WORSE ──────
     //
@@ -3710,11 +3740,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the door offered *"read the calendar"*, and so did three consecutive
     // strides facing the BED, which has no door in it at all.
     //
-    // ── SO IT MOVES SIDEWAYS, OFF THE ROUTE. THE 0.90 m DOES NOT CHANGE ──────
+    // ── SO IT MOVES OFF THE ROUTE ───────────────────────────────────────────
     //
-    // The distance off the wall is about READING the calendar and was never the
-    // fault, so it is untouched. The offset along the wall is derived from the
-    // two numbers that actually govern, both imported rather than retyped:
+    // (It moved SIDEWAYS to do that, and item 298 undid the sideways part by
+    // moving the page instead — see `CAL_X` above. The 0.90 m off the wall did
+    // not change either, and the note below it says what happened when I tried.
+    // The two governing numbers are still these:)
     //
     //   · clear of the DOOR'S stand-point by `2 * RADIUS` — two capsules. Below
     //     that the two "standing in it" circles overlap, and inside an overlap
@@ -3730,22 +3761,45 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // The route is the binding one: `2 * RADIUS` from the door alone would put
     // this at x 198.79 and the route would still clip it by 0.021 m.
     //
-    // WHAT IT COSTS, said plainly rather than buried: you now read the calendar
-    // from a little to its LEFT rather than square in front of it. Square in
-    // front of it, 0.5 m off the wall, you are also standing on the open door
-    // leaf's own stand-point — and there the door wins, which is the user's own
-    // instruction for this item (*"just make the door high rank pls"*). The two
-    // objects share about half a square metre of floor and only one of them can
-    // own it.
+    // WHAT IT USED TO COST, AND WHY THAT WAS THE REGRESSION (item 298): with
+    // `CAL_STAND_DX = 0.60` the page hung 0.60 m to the RIGHT of this point, so
+    // reading it meant standing beside it and looking sideways — and a player
+    // who did the obvious thing and walked square up to the page was inside the
+    // door's `onIt` disc, where the door wins outright. *"i can t look at the
+    // calendar if im looking right at it."* The offset is now ZERO and `CAL_X`
+    // above carries the move, so the two are the same column of air by
+    // construction and cannot drift apart again.
     //
-    // ⚠ `CAL_STAND_DX` IS COPIED, NOT IMPORTED, AND THAT IS A REPORTED DEBT.
+    // ⚠ THE FIGURES BELOW ARE COPIED, NOT IMPORTED, AND THAT IS A REPORTED DEBT.
     // `ROOM_STAND_X`/`STAND_Z` are locals of the walk-up's door block ~2,350
     // lines above (`ct/apartment.ts:1298`), and the bed seat is a local of the
     // flat's own block. Hoisting the three into module scope is a refactor of a
-    // file this item does not otherwise touch, so the figure is derived here
-    // with its citation and `scripts/standpoint-overlap.mjs` fails
-    // if the world ever disagrees with it. See the handoff note.
-    const CAL_STAND_DX = 0.60;
+    // file this item does not otherwise touch, so the figures are derived here
+    // with their citation and `scripts/standpoint-overlap.mjs` fails
+    // if the world ever disagrees with them. See the handoff note.
+    const CAL_STAND_DX = 0;
+    // ── THE 0.90 m IS NOT TASTE, IT IS THE NEAREST FLOOR THERE IS ───────────
+    //
+    // I tried 0.55 m first, to cover a pose the grid said was still failing
+    // ("square on, 0.40 m off the wall -> close the door"), and **the walk
+    // proved that pose does not exist.** The TV crate below the page occupies
+    // x 198.25…198.63 / z -17.85…-17.47, and padded by the player's own RADIUS
+    // it forbids everything south of z -17.11 in this column. 0.55 m puts the
+    // stand-point INSIDE that box: nobody can stand on it, and a player holding
+    // W is slid around the crate into the door's corner instead — walked, he
+    // ended at (199.29, -17.64) reading *"close the door"*, which is the very
+    // bug this item is about, reintroduced by the fix for it. A stand-point
+    // inside a collider is worse than one in the wrong place: it fails silently
+    // and the grid still scores it green, because `pickSpot` is asked about
+    // poses and knows nothing about which poses are reachable.
+    //
+    // SO NOTHING CAN BE READ FROM CLOSE TO THIS WALL, and that is a property of
+    // the room rather than of the calendar. Measured off `__ct.colliders()`: the
+    // only standable floor within 0.80 m of the south wall is x 198.99…199.49 —
+    // the strip between the crate and the east wall — and ALL of it is inside
+    // 301's door `onIt` disc (x 199.00…199.72, z -17.82…-17.10). Every other
+    // column is dresser or crate. 0.90 m clears the crate's padded face by
+    // 0.095 m and is the closest this spot can legally come.
     ctx.spot({
       x: CAL_X - CAL_STAND_DX, z: SOUTH_Z + 0.90, r: 0.60, obj: cal,
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
