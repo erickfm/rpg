@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex } from './tex-world';
-import { type CarKind, makeCar } from './cars';
+import { type CarKind, makeCar, CAR_HALF_W, carHalfLen, carColliderBoxes } from './cars';
 import type { CtxBuild } from './ctx';
 import { nudgeClear } from './gap';
 
@@ -119,7 +119,11 @@ export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
   // eastbound lane so cars there face east, the south half faces west — the
   // same rule the main street's east kerb follows by facing south.
   const PARK_SNUG = 3.93;              // off the centre line, as on the main street
-  const carHalf: Record<CarKind, number> = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 };
+  // `carHalf`, a SECOND hand-typed copy of crosstown.ts's own
+  // { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 }, is gone: every entry
+  // was `CAR_SPEC[kind].len / 2 + 0.15` and that derivation lives once in
+  // ct/cars.ts now (item 202c, BUILDER-BRIEF §8 — "a second hand-typed copy of
+  // a number is the single most expensive habit in this codebase").
   // kind, colour, which kerb (+1 north), roughly where. Gaps 11 then 13, and
   // the far end left bare.
   const PARKED: [CarKind, number, 1 | -1, number][] = [
@@ -139,7 +143,8 @@ export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
     // trees above are the ones that bite — a trunk on the walk and a car in the
     // road leave a slot straddling the kerb line (ct/gap.ts).
     const box = (xx: number) => ({
-      minX: xx - carHalf[kind], maxX: xx + carHalf[kind], minZ: z - 1.05, maxZ: z + 1.05,
+      minX: xx - carHalfLen(kind), maxX: xx + carHalfLen(kind),
+      minZ: z - CAR_HALF_W, maxZ: z + CAR_HALF_W,
     });
     const fit = nudgeClear(xDrawn, box, mine);
     if (!fit.ok) console.warn(`[side street] ${kind} at x=${xDrawn.toFixed(2)} leaves a trap-band gap`);
@@ -147,11 +152,32 @@ export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
     const car = makeCar(kind, ci);
     car.position.set(x, 0, z);
     // east is yaw -π/2 (the models are built nose-first down -z)
-    car.rotation.y = (side > 0 ? -1 : 1) * Math.PI / 2 + (rnd() - 0.5) * 0.06;
+    const ry = (side > 0 ? -1 : 1) * Math.PI / 2 + (rnd() - 0.5) * 0.06;
+    car.rotation.y = ry;
     scene.add(car);
     o.lit(car);
-    // the body's long axis runs along X out here, so the collider is the main
-    // street's box with its extents swapped
-    mine.push(obstacle(box(x)));
+    // ── THE SAME COLLIDER THE SAME KIND CARRIES ON THE MAIN STREET ────────
+    //
+    // *"truck collision isnt accurate to the truck but the other truck is? it
+    //  seems odd. seems like all trucks should be one object that are all the
+    //  same no?"*  The user was looking at THIS truck and the one on the main
+    //  street. The other one had five silhouette-hugging, height-capped tiers
+    //  from a hand-written block in crosstown.ts; this one had a single bare
+    //  box with no `maxY`, which `fp.ts` reads as full height. Same kind of
+    //  vehicle, two different colliders, and only because the block that built
+    //  the good one said `.find()`.
+    //
+    // `carColliderBoxes` reads the kind's ONE spec and turns it to this car's
+    // yaw, so the side street cannot drift from the main street again. The
+    // union of the tiers is exactly `box(x)` — a kind's tiers tile its length
+    // end to end — so the nudge above still governs the ground footprint and
+    // the walk past these cars is unchanged.
+    //
+    // `@side` labels every tag: two physical surfaces must not answer to one
+    // name, because scripts/w21-roof-climb.mjs and scripts/stepoff-walk.mjs
+    // look their surfaces up with `Object.fromEntries` over the tags and a
+    // duplicate would silently resolve to whichever was registered last —
+    // walking the harness to a truck on a different street.
+    for (const t of carColliderBoxes(kind, x, z, ry, '@side')) mine.push(obstacle(t));
   }
 }
