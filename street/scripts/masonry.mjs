@@ -136,6 +136,37 @@ const out = await p.evaluate(() => {
   return { meshes, mapped, stamped, rows };
 });
 console.log(`${out.meshes} meshes · ${out.mapped} textured · ${out.stamped} carry a masonry stamp\n`);
+
+// ── THE POPULATION FLOOR — the verdict that would have caught this in the
+//    ORDINARY run, which is the one anybody actually types ────────────────────
+//
+// Removing the `visible === false` skip above fixed the blindness. It did NOT
+// fix the thing that let the blindness go unnoticed for as long as it did:
+// every verdict below this line is an ABSENCE — "no stamp disagrees with its
+// face" — and an absence is FREE over an empty set (GOTCHAS 34, and 79 which
+// was written from this very script). Blind it again by any means and the run
+// still prints `FACES ACTUALLY AUTHORED AT THE WRONG DENSITY: 0` and exits 0.
+//
+// `--selftest` does catch it — with 0 stamps there is no face to double, so it
+// reports SELFTEST FAILED — but that flag only runs under
+// `npm run checks -- --selftest`, which is a whole-suite run measured in hours.
+// The check that ran on 2026-08-02 and reported green while measuring nothing
+// was the PLAIN one. So the floor belongs here, in the plain path.
+//
+// MEASURED, NOT REMEMBERED (GOTCHAS 34's closing line): 305 stamps against
+// build be9340006 on 2026-08-02, the same figure the queue row records as the
+// baseline to preserve. 250 leaves room for the world to lose a wall without
+// crying wolf, and is nowhere near the 0 that blindness produces.
+const STAMP_FLOOR = 250;
+const blind = out.stamped < STAMP_FLOOR;
+if (blind) {
+  console.error(`THIS CHECK MEASURED NOTHING: ${out.stamped} masonry stamps, floor is ${STAMP_FLOOR}.`);
+  console.error(`  ${out.meshes} meshes and ${out.mapped} textured faces were traversed, so the world`);
+  console.error('  built. Either the stamp stopped being applied, or this script has gone blind');
+  console.error('  again — the last time, a `visible === false` skip met the region cull and every');
+  console.error('  one of the 305 stamps in the world was invisible to it at spawn.');
+  console.error('  Every verdict below is an absence and passes for free at zero. Do NOT read them.\n');
+}
 const byPpm = {};
 for (const r of out.rows) byPpm[`${r.declaredPpm} (mult ${r.mult})`] = (byPpm[`${r.declaredPpm} (mult ${r.mult})`]||0)+1;
 console.log('DECLARED densities:');
@@ -200,4 +231,7 @@ if (SELFTEST) {
   console.log('\nselftest: caught it');
   process.exit(0);
 }
-process.exit(wrong.length ? 1 : 0);
+// The floor is a verdict, not a warning, and it comes FIRST: if the population
+// is empty then `wrong.length` is 0 for a reason that has nothing to do with
+// the world, and exiting 0 on it is the whole failure this guard exists for.
+process.exit(blind || wrong.length ? 1 : 0);

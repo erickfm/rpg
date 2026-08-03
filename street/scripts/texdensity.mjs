@@ -226,6 +226,32 @@ const out = await p.evaluate((k) => {
 
 const R = out.rows;
 console.log(`${out.meshes} meshes · ${out.mapped} textured faces · ${R.length} measurable`);
+
+// ── THE POPULATION FLOOR, ON THE CHECK WRITTEN TO REPLACE ONE THAT DIED OF NOT
+//    HAVING ONE ────────────────────────────────────────────────────────────────
+//
+// This file's own header explains why masonry.mjs went blind. It then shipped
+// with the same hole one axis over: the ratchet's verdict is a COMPARISON
+// against per-owner counts, so a run that measures nothing reports `gross = 0`,
+// no owner worse, `IMPROVED since ...` for every owner in the baseline, and
+// exits 0. Green, cheerful, and about nothing — which is GOTCHAS 79 verbatim,
+// in the guard written from GOTCHAS 79.
+//
+// MEASURED, not remembered: 4087 measurable faces of 4457 textured, against
+// build be9340006 on 2026-08-02. 3000 is well below that and hugely above the
+// collapse this catches. It is asserted BEFORE `--bless` too, because blessing
+// a blinded world would write a baseline of zero and make the blindness the new
+// normal — the one way this ratchet can be permanently disarmed by one command.
+const FACE_FLOOR = 3000;
+if (R.length < FACE_FLOOR) {
+  console.error(`\nTHIS CHECK MEASURED NOTHING USABLE: ${R.length} measurable faces, floor is ${FACE_FLOOR}.`);
+  console.error(`  ${out.meshes} meshes and ${out.mapped} textured faces were traversed, so the world`);
+  console.error('  built — this is the AUDIT going blind, not the street disappearing. Every');
+  console.error('  verdict below is a comparison against a population, and all of them pass for');
+  console.error('  free at zero. Nothing here describes the world; do not read it as green.\n');
+  await b.close();
+  process.exit(1);
+}
 console.log(`   ${out.hidden} of those faces are hidden RIGHT NOW by the region culler / unentered interiors`);
 console.log(`   -> masonry.mjs skips exactly those, which is why it sees ${out.stamped - R.filter(r => r.declPpm && !r.hidden).length === out.stamped ? 0 : '?'} of ${out.stamped} stamps\n`);
 
