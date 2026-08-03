@@ -106,6 +106,113 @@ export function buildChurch(ctx: CtxBuild) {
   // cross. On a single low step that matters more, not less — a hard 0.18 at
   // walking pace is a visible hop.
   const CHANCEL_Z = -4.60, CHANCEL_Y = 0.18;
+
+  // ── ITEM 145: THE USER, IN THREE WORDS — *"church could be darker."* ──────
+  //
+  // THE WORLD IS UNLIT, so tone is the only tool there is. `light:` below builds
+  // a fixture and a weak additive halo decal and NOTHING else — ct/interior.ts
+  // :1425 says it outright: *"the room is lit by its flat materials"*. There is
+  // no lamp to turn down. A room's brightness IS its palette.
+  //
+  // MEASURED BEFORE TOUCHING IT (`scripts/probes/w95-interior-tone.mjs`, 16
+  // frames per room — 4 stations x 4 yaws — on the built bundle):
+  //
+  //     hotel 0.191 | casino 0.243 | pawn 0.407 | CHURCH 0.589
+  //                 | library 0.624 | diner 0.645 | thrift 0.675 | bank 0.689
+  //
+  // The church sat between the pawn shop and the LIBRARY READING ROOM, 0.056
+  // off the diner — a nave lit like a sandwich counter. The user is right.
+  //
+  // ⚠ THE FIRST VERSION OF THAT TABLE READ 0.552 AND WAS WRONG, because the
+  // probe that produced it waited on a TIMEOUT instead of a painted frame. A
+  // sibling probe on the identical warp wrote a SOLID WHITE nave, which is what
+  // exposed it (GOTCHAS 78/80). An unpainted frame reads luminance ~1.0, so
+  // every one that slipped through dragged a room's mean toward white — the
+  // instrument was wrong in the direction that MATTERED, understating how bright
+  // this room already was. Both probes now call `waitPainted` and throw on a
+  // void frame rather than averaging it in. Every number in this comment is from
+  // after that fix, five runs a side, with the PAWN SHOP carried through as an
+  // untouched control: it read 0.4065-0.4068 in both states, so the church's
+  // move is the change and not the weather.
+  //
+  // `dim(original, k)` RATHER THAN FOUR RETYPED HEX LITERALS. The colours this
+  // room was authored with stay legible in the source, the amount they are
+  // pulled down is one number per surface, and the desk can retune the room by
+  // moving those numbers instead of re-deriving the palette. Retyping the
+  // literals would have thrown away *why* they were those literals — the
+  // comment under `palette` is about the values below, not about my arithmetic.
+  //
+  // INTEGER CHANNEL MATH, NOT `THREE.Color` MULTIPLICATION. `new THREE.Color()`
+  // takes a hex through colour management into the linear working space, so
+  // scaling there and calling `.getHex()` back is a round trip whose output is
+  // not the plain 74% of the input it reads like. This is deliberately dumb and
+  // does exactly what it says.
+  //
+  // ONE FACTOR ACROSS EVERY STONE SURFACE, AND I TRIED IT GRADED FIRST. The
+  // item's caveat is *"do not let it go so dark the geometry stops reading"*,
+  // and my first pass took that to mean protecting the 9.5 m ceiling — walls
+  // 0.72, ceiling 0.80, floor 0.82, so the vault stayed pale. Pulling the walls
+  // down HARDER than the ceiling and floor squeezed the three together: the
+  // shell's luminance range closed from 106..184 to 87..147. That is the room
+  // going flat as well as dark, arriving by the exact route the caveat warns
+  // about.
+  //
+  // A UNIFORM FACTOR CANNOT DO THAT, because multiplying every surface by the
+  // same k leaves every RATIO between them untouched — the ceiling stays the
+  // brightest thing in the room, the floor the darkest, in the order the
+  // `palette` note intends.
+  //
+  // BUT IT DOES NOT KEEP `sd/lum` FIXED, AND I BRIEFLY WROTE HERE THAT IT
+  // WOULD. Measured, it falls 0.203 -> 0.177. The claim was wrong for a reason
+  // worth keeping: these are FLAT UNLIT materials, so a surface's contribution
+  // to contrast is proportional to its brightness, and scaling the stone by k
+  // scales the differences BETWEEN stone surfaces by k too — while the mean is
+  // held up by everything deliberately NOT dimmed (glass, flames, gold, timber).
+  // Absolute contrast therefore has to fall when an unlit room is darkened; that
+  // is arithmetic, not a defect, and no choice of factors avoids it.
+  //
+  // SO `sd` IS NOT THE LEGIBILITY TEST — SURFACE SEPARATION IS. What "reading"
+  // depends on is whether adjacent planes are still tellable apart, and those
+  // gaps stay large (0-255 luminance):
+  //
+  //                     before   after
+  //       wall - floor    55.9    42.1
+  //       wall - trim     31.4    23.7
+  //       ceil - wall     21.8    16.8
+  //
+  // The smallest is still ~17 levels on flat colour, which is an obvious step.
+  // Confirmed by LOOKING, which is the only thing that can actually answer it:
+  // `shots/church-before-nave.png` against `shots/church-stone076-nave.png`,
+  // and the `-up` pair for the height.
+  // IT IS NOT ENOUGH TO DIM THE PALETTE, AND THE FIRST FRAME I LOOKED AT SAID
+  // SO. `palette.floor` is only the slab under the flagstones — the nave floor
+  // the player actually sees is `flagT`, a texture built from its own hex
+  // literals a hundred lines below, and the narthex, chancel, font and altar
+  // carry another nine. Dimming the shell alone pulled the walls down to ~123
+  // luminance while the flagstones stayed at ~106, and the wall/floor edge
+  // — which was a 56-point step — nearly vanished. The room did get darker and
+  // it also stopped reading, which is precisely the trade the item forbids.
+  //
+  // So the factor is applied to STONE, wherever the stone is declared, and
+  // `dimS` is the same arithmetic for the `'#rrggbb'` strings the canvas
+  // textures are painted with.
+  //
+  // WHAT IS DELIBERATELY *NOT* DIMMED: the stained glass, the candle flames,
+  // the sanctuary lamp and the gold. Those are the light SOURCES — "a church is
+  // lit by its windows" is this file's own line — and scaling them down with the
+  // stone would darken the room by turning its lights off, which is not what
+  // "darker" means and would flatten the contrast the windows provide. Holding
+  // them fixed while the stone drops is what makes the glass read STRONGER
+  // afterwards than before. The altar cloth is left bright for the same reason:
+  // white linen catching window light is what draws the eye up a dim nave.
+  const STONE_DIM = 0.76;
+  const dim = (hex: number, k = STONE_DIM) =>
+    (Math.round(((hex >> 16) & 255) * k) << 16)
+    | (Math.round(((hex >> 8) & 255) * k) << 8)
+    | Math.round((hex & 255) * k);
+  const dimS = (s: string, k = STONE_DIM) =>
+    '#' + dim(parseInt(s.slice(1), 16), k).toString(16).padStart(6, '0');
+
   const room = buildRoom(ctx, {
     id: 'church',
     // THE ONE LINE THAT MAKES THE DECLARATION ABOVE REACHABLE, and its absence
@@ -159,7 +266,10 @@ export function buildChurch(ctx: CtxBuild) {
     // and 6.0, gy 0 at the altar on -5.6. It landed after the altar had been
     // moved to the far end, so the step was under the entrance and the
     // sanctuary was flat. The real one is the `floor` function above.)
-    palette: { floor: 0x6e6a62, wall: 0xa8a294, ceil: 0xbdb8ab, trim: 0x8a8274 },
+    palette: {
+      floor: dim(0x6e6a62, STONE_DIM), wall: dim(0xa8a294, STONE_DIM),
+      ceil: dim(0xbdb8ab, STONE_DIM), trim: dim(0x8a8274, STONE_DIM),
+    },
     door: {
       // 0.75 m off the face — DERIVED, not the literal 8.85 this used to
       // carry beside -79.5 typed a third time. See `CHURCH_FACE`/`standOff`
@@ -283,10 +393,10 @@ export function buildChurch(ctx: CtxBuild) {
 
   // ── the floor is flagstones, not boards ──
   const flagT = declareSurface(pixTex(64, 64, (g) => {
-    g.fillStyle = '#6e6a62'; g.fillRect(0, 0, 64, 64);
+    g.fillStyle = dimS('#6e6a62'); g.fillRect(0, 0, 64, 64);
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
-        g.fillStyle = ['#6a665e', '#726e66', '#67635b', '#757168'][(r * 4 + c) % 4];
+        g.fillStyle = dimS(['#6a665e', '#726e66', '#67635b', '#757168'][(r * 4 + c) % 4]);
         g.fillRect(c * 16 + 1, r * 16 + 1, 14, 14);
       }
     }
@@ -496,7 +606,7 @@ export function buildChurch(ctx: CtxBuild) {
   // deleted here: no `solid()` collider depended on it, no other mesh reads
   // `dais` or the `stoneTop` texture it alone used.
   const altar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.95, 0.75),
-    new THREE.MeshBasicMaterial({ color: 0xb0a894 }));
+    new THREE.MeshBasicMaterial({ color: dim(0xb0a894) }));
   // -hd + 2.4, NOT hd - 2.4. The kit cuts the door into the front wall at local
   // +hd and puts the way-out spot at hd - 0.55, so the FAR end of a room is
   // negative z. At hd - 2.4 this altar stood 2.4 m from the door: you walked in
@@ -537,9 +647,9 @@ export function buildChurch(ctx: CtxBuild) {
     // under it.
     const NAR_D = 2.60, NAR_Y = 4.20;
     const zc = hd - NAR_D / 2, zFace = hd - NAR_D;
-    const stone = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
-    const stoneD = new THREE.MeshBasicMaterial({ color: 0x6e6a60 });
-    const stoneL = new THREE.MeshBasicMaterial({ color: 0x9a9488 });
+    const stone = new THREE.MeshBasicMaterial({ color: dim(0x8a8478) });
+    const stoneD = new THREE.MeshBasicMaterial({ color: dim(0x6e6a60) });
+    const stoneL = new THREE.MeshBasicMaterial({ color: dim(0x9a9488) });
 
     put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.26, NAR_D), stoneD), 0, NAR_Y + 0.13, zc);
 
@@ -631,11 +741,11 @@ export function buildChurch(ctx: CtxBuild) {
     // colour has no joints to give it scale, and a chancel is flagstone.
     const stoneM = new THREE.MeshBasicMaterial({
       map: declareSurface(slabTex({
-        wMeters: room.W, dMeters: CHANCEL_Z - (-hd), base: '#9a9284',
+        wMeters: room.W, dMeters: CHANCEL_Z - (-hd), base: dimS('#9a9284'),
         joint: 0.9, grain: 0.12,
       }), 'detail'),
     });
-    const stoneLM = new THREE.MeshBasicMaterial({ color: 0xa8a094 });
+    const stoneLM = new THREE.MeshBasicMaterial({ color: dim(0xa8a094) });
     const platD = CHANCEL_Z - (-hd);
     // the platform, and a lighter nosing so the step reads as a step rather
     // than as a shadow on the flags
@@ -650,7 +760,7 @@ export function buildChurch(ctx: CtxBuild) {
     // over. The two runs get colliders; the 1.7 m gap on the centreline does
     // not, so you walk up the aisle and onto the sanctuary.
     const railM = new THREE.MeshBasicMaterial({ color: 0x5a4028 });
-    const balM = new THREE.MeshBasicMaterial({ color: 0xb0a894 });
+    const balM = new THREE.MeshBasicMaterial({ color: dim(0xb0a894) });
     for (const sx of [-1, 1]) {
       const x0 = sx * 0.85, x1 = sx * (hw - 0.15), w2 = Math.abs(x1 - x0);
       put(new THREE.Mesh(new THREE.BoxGeometry(w2, 0.09, 0.16), railM),
@@ -687,7 +797,7 @@ export function buildChurch(ctx: CtxBuild) {
 
   // one stone for the sanctuary furniture, so the tabernacle plinth and the font
   // read as the same quarry as the chancel step
-  const stoneMx = new THREE.MeshBasicMaterial({ color: 0x9a9284 });
+  const stoneMx = new THREE.MeshBasicMaterial({ color: dim(0x9a9284) });
 
   // ── THE CRUCIFIX IS FURTHER DOWN, AND THERE IS ONLY ONE ──────────────
   //
@@ -844,7 +954,7 @@ export function buildChurch(ctx: CtxBuild) {
     // measured out from `WALL` in +x, never from the rack's centre. Move the
     // room's width and the shrine stays on its wall.
     const WALL = -hw;
-    const stoneM = new THREE.MeshBasicMaterial({ color: 0x8a8274 });
+    const stoneM = new THREE.MeshBasicMaterial({ color: dim(0x8a8274) });
     // The corbel is three stages, and the two under the shelf are the point:
     // a lone slab is exactly what read as floating. Nothing in this world
     // casts a shadow, so an underside that visibly dies into the plaster is
@@ -1124,7 +1234,7 @@ export function buildChurch(ctx: CtxBuild) {
         }
       }
     }), 'sign');
-    const stoneM = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
+    const stoneM = new THREE.MeshBasicMaterial({ color: dim(0x8a8478) });
     // Spaced along the NAVE only — clear of the narthex at the door end and of
     // the chancel at the altar end, both of which have their own glass.
     const Z0 = -hd + 4.0, Z1 = hd - 5.0;
