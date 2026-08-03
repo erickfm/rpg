@@ -655,14 +655,64 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     for (let f = 0; f < 4; f++) {
       for (const [wx] of WALLS) casing(wx, DOOR_Z0, DOOR_Z1, f * ST, f * ST + DOOR_HEAD);
     }
+    // ── WHAT HOLDS THE SEVEN UNMODELLED FLATS SHUT — READ THIS BEFORE ────────
+    //    TIDYING ANY COLLIDER BELOW.
+    //
+    // Eight flats have doorways off this shaft. **One of them is modelled** —
+    // 301, the player's — and the other seven are painted doors with nothing
+    // behind them. So the two wall lines are treated DIFFERENTLY on purpose,
+    // and the asymmetry is the whole design:
+    //
+    //   WEST, AX(0)   301 is enterable, so the wall collider is SPLIT into two
+    //                 pieces around the doorway and there is a real hole. The
+    //                 other three floors' doors (101, 201, 401) are shut by
+    //                 `aptDoorCap`, which `updateCaps` moves into the gap on
+    //                 every storey except 301's. It MOVES because which floor
+    //                 you are on is the thing that decides.
+    //   EAST, AX(2.4) nobody enters 102, 202, 302 or 402 on ANY floor, so the
+    //                 wall collider is a SINGLE UNSPLIT RUN over the full
+    //                 AZI(0)…AZI(13.2). There is nothing to gate, so nothing
+    //                 moves. **That run is what holds all four east doorways
+    //                 shut, and it is deliberate.**
+    //
+    // ⚠ THE PLUG AT AX(2.25)…AX(2.40) IS NOT WHAT HOLDS THEM SHUT, and item 183
+    // was filed believing it was: *"that collider is the only thing stopping the
+    // player walking into those flats."* **It is not, and it never was.**
+    // Walked on all four floors, twice, `probes/w101-flatdoor-plug.mjs`:
+    //
+    //     with the plug      stopped at local x 1.87  on 4 of 4 floors
+    //     with it removed    stopped at local x 2.04  on 4 of 4 floors
+    //
+    // 2.04 is exactly the wall's inner face at 2.40 less the rig's 0.36 m
+    // radius. **The player never reaches the opening either way**; deleting the
+    // plug opens nothing and moves you 0.17 m. The row's worry was real — a
+    // stray-looking collider doing load-bearing work is a genuine trap — it was
+    // just pointed at the wrong box. The load-bearing one is the unsplit east
+    // wall two lines up, and THAT is the line not to tidy.
+    //
+    // ⚠ AND DO NOT GIVE ANY OF THESE A `maxY`. They are unbounded in y on
+    // purpose, which is how one box serves all four storeys. `fp.ts`'s
+    // `standTop` treats **any collider carrying a `maxY` as a standable
+    // surface**, so bounding these per-floor would let the player stand on a
+    // door head at 2.1 m and walk the building at lintel height.
     sevColliders.push(
       { minX: AX(-0.15), maxX: AX(0), minZ: AZI(0), maxZ: AZI(3.5 - DOOR_GAP / 2) },
       { minX: AX(-0.15), maxX: AX(0), minZ: AZI(3.5 + DOOR_GAP / 2), maxZ: AZI(13.2) },
+      // THE ONE THAT MATTERS: unsplit across the whole east run, because no
+      // east flat is enterable on any floor. Splitting it "to match the west
+      // wall" opens four doorways into nothing.
       { minX: AX(2.4), maxX: AX(2.55), minZ: AZI(0), maxZ: AZI(13.2) },
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(-0.15), maxZ: AZI(0) },
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(13.2), maxZ: AZI(13.35) },
       { minX: AX(1.04), maxX: AX(1.36), minZ: AZI(STAIR_Z0), maxZ: AZI(STAIR_Z1) }, // core wall + the handrails on both its faces
-      { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.5 - DOOR_GAP / 2), maxZ: AZI(3.5 + DOOR_GAP / 2) }, // 302's doorway (and the hermit in it)
+      // THE REVEAL PLUG — justified in place, and it is NOT structural (above).
+      // The east doorways are cut 0.15 m deep into the wall and the hermit
+      // stands in the 302 one. Without this you can walk INTO that reveal and
+      // stand in a doorway you can never pass, shoulder to shoulder with him;
+      // `hermitCap` only makes him solid while he is home, so on his way out it
+      // is this that keeps the doorway his. Derived from the same `DOOR_GAP`
+      // the opening is cut from, so it cannot drift from the hole it fills.
+      { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.5 - DOOR_GAP / 2), maxZ: AZI(3.5 + DOOR_GAP / 2) },
       stairCap, underStairA, underStairB, aptDoorCap, hermitCap, doorShutCap,
     );
     // floors, ceilings
