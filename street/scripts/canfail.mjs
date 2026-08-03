@@ -1398,6 +1398,62 @@ if (!run.length) {
   process.exit(3);
 }
 
+// ── PRE-FLIGHT: EVERY NEEDLE MUST QUOTE LIVE SOURCE, AND YOU LEARN IT NOW ────
+//
+// Item 229. A needle that matches 0x mutates nothing, so the check it is
+// supposed to certify is never tested — the empty-set certificate of item 224,
+// one level down, and it had FOUR live instances: `rulings-atm`, `grade-twice`,
+// `grade-nan` and `glow-pool`, dead for weeks.
+//
+// The scoring below ALREADY called this out honestly — verdict `NEEDLE`, kept
+// out of the caught count, listed by name with its stale quotation, non-zero
+// exit. None of that was wrong and none of it is removed. The defect was WHEN:
+// it arrived at the END of a run that is a build and a browser per case, ~62 of
+// them, so the only way to hear that a quotation had rotted was to spend the
+// hour first — and then read a `????` line in a list people scroll past. That
+// is precisely how four of them sat unfixed while the suite was used all week
+// to certify everybody else's repairs.
+//
+// A needle is a string in a file. It costs milliseconds and no build to answer,
+// so it is answered FIRST, for every selected case, and a rot ABORTS.
+//
+// EXIT 3, NOT 1, AND THE DIFFERENCE IS THE POINT (GOTCHAS 32). 1 means "I
+// measured your guards and one of them is asleep" — a fact about the world.
+// This is "I cannot measure them at all, because MY OWN quotations no longer
+// match", a fault in this file. Reporting the second as the first is what sends
+// somebody to rewrite a check that works.
+//
+// ONE ROTTEN NEEDLE STOPS ALL 62 ON PURPOSE. The cheaper design — skip the
+// stale ones, run the rest — is what the end-of-run report already did in
+// effect, and it is how the count got to four: a suite that mostly works keeps
+// getting run, and the residue is permanent. The quotations are in this file;
+// fixing one is a minute, and `scripts/mutations-quote-real-source.mjs` asks
+// this same question in the fast tier so it should never reach here at all.
+const rotted = [];
+for (const [name, file, needle] of run) {
+  let src = null;
+  try { src = readFileSync(file, 'utf8'); } catch { /* reported as 0 below */ }
+  if (src === null) { rotted.push([name, file, needle, 'the file does not exist']); continue; }
+  const n = src.split(needle).length - 1;
+  // 2x IS A ROT TOO, and a nastier one: `replace` takes the FIRST match, so the
+  // mutation lands somewhere the case never meant and scores whatever it likes.
+  if (n !== 1) rotted.push([name, file, needle, `matched ${n}x, not 1`]);
+}
+if (rotted.length) {
+  console.error(`\n${rotted.length} MUTATION CASE(S) QUOTE SOURCE THAT NO LONGER EXISTS — nothing was run.`);
+  console.error(`  A needle that matches 0x mutates nothing, so the check it certifies is`);
+  console.error(`  never tested. Scoring these as anything but broken would issue this`);
+  console.error(`  suite's strongest evidence over an empty set.\n`);
+  for (const [name, file, needle, why] of rotted) {
+    console.error(`  ${name.padEnd(14)} ${file}  ${why}`);
+    console.error(`      no longer contains: ${JSON.stringify(needle)}`);
+  }
+  console.error(`\n  Re-point each case at the line that replaced it, or retire it WITH A`);
+  console.error(`  COMMENT saying what it used to protect — never delete one silently.`);
+  console.error(`  ${rotted.length} of ${run.length} selected case(s); the other ${run.length - rotted.length} were not run.\n`);
+  process.exit(3);
+}
+
 const results = [];
 // EVERY CASE WHOSE FILE WE ACTUALLY WROTE TO. The restore check at the foot of
 // this file is about putting back what we took; a case that never matched was
