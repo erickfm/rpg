@@ -2393,3 +2393,30 @@ This is now much less likely to matter, because `scripts/queue-backup.sh` (item
 160) snapshots the queue under the same lock on every `claim`/`done`/`add` — so
 the first move after a loss is **restore the newest snapshot**, which still has
 the claims in it, not rebuild from prose.
+
+## 83. A completion notification does NOT mean the agent has exited
+
+The desk closed item 192 as "held by a dead worker" while worker sixtyfour was
+**six minutes into a twenty-minute suite run**. It was alive the whole time. Its
+own `done.sh` then had nothing to write to, and its full report never landed —
+the detail survived only because it had committed a handoff note.
+
+The trap: a task-notification fires **each time an agent stops with no live
+background children**, and the same task-id can notify **more than once**. An
+agent that finishes one item, notifies, and then claims another is indis­tin­guish­able
+from one that has exited, if you read the notification as an ending.
+
+**Before touching a row somebody else holds, check the worktree, not your
+memory of a notification:**
+
+```sh
+git -C .claude/worktrees/agent-<id> log -1 --format='%cr'   # recent commit = alive
+```
+
+A worker mid-suite can be quiet for twenty minutes and be perfectly healthy. The
+reaper in `claim.sh` is set at 150 minutes for exactly this reason — **the desk
+should not be more aggressive than the reaper it wrote.**
+
+If a row genuinely must be taken back, prefer `claim.sh --release` (which returns
+it to TODO honestly) over hand-editing the row to DONE — and never write a cause
+into the row that you have not checked.
