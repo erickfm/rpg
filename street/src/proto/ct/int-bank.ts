@@ -1457,7 +1457,13 @@ export function buildBankInterior(ctx: CtxBuild): void {
     // since asked for the exception, twice over — first for the ATM, and now
     // here — and BUILDER-BRIEF §6a is that his words outrank a note. It is left
     // standing rather than deleted because it still explains why WINDOW 2 is
-    // a separate act in the room, which has not changed.
+    // a separate act in the room, which has not changed: the officer approves
+    // and the TELLER counts it out, so the two halves of the room are still one
+    // system. Only acts (1) and (2) moved onto the paper.
+    //
+    // `notes/w66-loan-diegetic.md` is the whole account, including the one
+    // finding a reader of this file most needs: a diegetic panel on a
+    // HORIZONTAL face raises the player's own wristwatch across its foot.
     //
     // WHAT ACTUALLY CHANGES: one field, `surface`, and the shape of the canvas.
     // Hanging the picture on a mesh, easing the eye onto it, locking the look,
@@ -1515,8 +1521,10 @@ export function buildBankInterior(ctx: CtxBuild): void {
      *  comment above describes, kept on the sheet now that both acts are. */
     // ⚠ AND IT LIVES ABOVE CANVAS y 300, WHICH IS NOT A TASTE DECISION.
     //
-    // MEASURED, in `/tmp/w66-loan-2-open.png`: the player's own forearm and
-    // wristwatch are drawn across the bottom of the frame while this is open,
+    // MEASURED, and written up in `notes/w66-loan-diegetic.md` rather than left
+    // as a screenshot path under /tmp that nobody else can open: the player's
+    // own forearm and wristwatch are drawn across the bottom of the frame while
+    // this is open,
     // and they cover the foot of the sheet completely. The cause is not the
     // panel — it is `crosstown.ts:1891`, `hud.watch(rig.pitch < -0.95, …)`.
     // Checking the time in this world is LOOKING STEEPLY DOWN, and a diegetic
