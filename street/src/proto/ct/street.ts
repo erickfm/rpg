@@ -3,7 +3,7 @@ import { declareSurface, pixTex, dither } from './paint';
 import {
   facadeTex, facadeLitTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
   proud, reveal, glazed, mullions, HI, shopfrontRelief, shopInteriorTex, WALK_PROJECTION,
-  burgerFront, pawnFront, taxFront,
+  burgerFront, pawnFront, taxFront, mattressFront,
 } from './tex-world';
 import { walkTex, floorDrain } from './tex-ground';
 import { buildCatRig } from './cat';
@@ -317,7 +317,13 @@ export function buildStreet(o: {
     // ct/apartment.ts.
     'lot',
     { nm: 'A-1 TAX', col: '#2c4a7a', w: 13, brick: '#7a4a3a', floors: 5, front: 'tax' },
-    { nm: 'LIQUOR', col: '#8a2c42', w: 13, brick: '#835444', floors: 4 },
+    // LIQUOR became a mattress showroom — *"make the liquor store a mattress
+    // store."* An IDENTITY change only: `w` stays 13 because the run before
+    // No. 227 must still total 49.2, and ct/apartment.ts pins the walk-up's
+    // door and interior to a fixed z off that number. The wine red went with
+    // the liquor — it was chosen to say liquor — and the rust is what the
+    // fascia and the projecting mouldings are both painted from.
+    { nm: 'SLEEP CENTER', col: '#b8642c', w: 13, brick: '#835444', floors: 4, front: 'mattress' },
     { nm: '', col: '', w: 18, brick: '#835444', floors: 5, res: true }, // No. 227 — home, across from the alley, a bit off
     // THE SECOND ALLEY, and the width is PAID FOR, not added on the end.
     //
@@ -523,7 +529,8 @@ export function buildStreet(o: {
         : b.front === 'burger' ? burgerFront(b.brick, b.w)
           : b.front === 'pawn' ? pawnFront(b.brick, b.w)
             : b.front === 'tax' ? taxFront(b.brick, b.w)
-              : shopfrontTex(b.brick, b.nm, b.col, b.w));
+              : b.front === 'mattress' ? mattressFront(b.brick, b.w)
+                : shopfrontTex(b.brick, b.nm, b.col, b.w));
     const shopMats = shellMats(side < 0 ? 0 : 1, shopM, dep, gh, b.w, b.brick, 0, false, roofM);
     const shop = new THREE.Mesh(new THREE.BoxGeometry(dep, gh, b.w), shopMats);
     shop.position.set(cx, gh / 2, cz);
