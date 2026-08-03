@@ -93,6 +93,51 @@ const ROCKER = 0.34, BELT = 0.84;
 /** The hood/boot slab's thickness. It sits ON the belt, so its centre is
  *  `BELT + HOOD_T / 2` and its top face is `HOOD_TOP`. */
 const HOOD_T = 0.10;
+
+/** A ROAD WHEEL, PHASED SO IT STANDS ON A VERTEX AND NOT ON A FLAT.
+ *
+ *  **This is the fix for item 252, and it is one argument.** A
+ *  `CylinderGeometry(r, r, w, N)` is an N-gon, not a circle. With the default
+ *  `thetaStart` of 0 and an even N, laying it on its side puts the middle of a
+ *  FLAT at the bottom — so the tyre only reaches down by the apothem
+ *  `r·cos(π/N)`, while every caller seats the hub at `ground + r` because that
+ *  is what a circle would need. The difference is the whole defect:
+ *
+ *      car tyre  r 0.34, 10-gon:  0.34 − 0.34·cos(π/10) = **16.6 mm** of air
+ *      bus tyre  r 0.44, 10-gon:  0.44 − 0.44·cos(π/10) = **21.5 mm** of air
+ *
+ *  Measured, not reasoned: 83 car tyres and 4 bus tyres, one figure each, no
+ *  spread (`scripts/probes/w98-wheels.mjs`, `scripts/probes/w99-tyre-seating.mjs`).
+ *
+ *  **Why phase and not position.** The three other ways to land the tyre all
+ *  cost something this one does not:
+ *
+ *    · drop the wheel to `ground + apothem` — contact, but the tyre's TOP falls
+ *      to 0.6468 with it, and the top is the tyre's only load-bearing number
+ *      (see `userData.tyre`). Half the margin, spent on 16 mm.
+ *    · drop the whole car 16.6 mm — same loss, and it drags the sill, the arch
+ *      and every collider in `crosstown.ts` down with it.
+ *    · grow r to `0.34 / cos(π/10)` so the apothem lands at 0.34 — works, but
+ *      it is a 5 % bigger wheel, and `ARCH_HW`'s clearance was tuned against
+ *      0.34 (see the arch note in `makeCar`).
+ *
+ *  Half a segment of phase moves NO position and NO dimension. It puts a vertex
+ *  at the bottom — and, N being even, another at the top, so the tyre reaches
+ *  down by exactly `r` and up by exactly `r`. The gap closes to 0 **and** the
+ *  top rises from `r + r·cos(π/N)` to `2r`. `userData.tyre` becomes true in both
+ *  directions instead of only across the axis.
+ *
+ *  The world already contained the proof: the trailer's wheels
+ *  (`crosstown.ts`) are the only pair that measured `gap 0.0000`, and the reason
+ *  is that they happen to be phased onto a vertex.
+ *
+ *  **`Math.PI / segs`, derived — never a typed 0.314.** Half a segment is
+ *  `(2π/segs)/2`. Change `segs` and the phase follows; a hand-typed constant
+ *  would silently go stale, which is the single most expensive habit in this
+ *  file (BUILDER-BRIEF §8). */
+function tyreGeo(r: number, width: number, segs: number): THREE.CylinderGeometry {
+  return new THREE.CylinderGeometry(r, r, width, segs, 1, false, Math.PI / segs);
+}
 /** The top face of the hood — the flat panel over the engine, on every kind.
  *  0.94 m: too high to reach from the pavement. A hop gains 0.471-0.558 m
  *  depending on frame time (fp.ts:446's "0.571" is the continuous apex and is
@@ -614,14 +659,18 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     // The width was fixed last time: 0.38 m half-width against a 0.34 m tyre
     // hugs the wheel, and no longer takes its extent from the panel. But the
     // height was 0.27 m, so the arch topped out at y = 0.34 + 0.27 = 0.61 while
-    // THE TYRE'S TOP IS AT 0.663 (see `g.userData.tyre` below for why it is the
-    // apothem and not 0.68). The tyre poked out above the arch — and since it
-    // stands 0.04 m proud of the flank, the disc then covered the arch behind it.
-    // What was left to see was a disc on a flat panel above a straight rocker
-    // line: "discs against a straight sill", which is the report.
+    // THE TYRE'S TOP IS AT 0.68 (0.663 when this was written — see
+    // `g.userData.tyre` below; item 252 phased the decagon onto a vertex, which
+    // put its top back at the full radius). The tyre poked out above the arch —
+    // and since it stands 0.04 m proud of the flank, the disc then covered the
+    // arch behind it. What was left to see was a disc on a flat panel above a
+    // straight rocker line: "discs against a straight sill", which is the report.
     //
-    // 0.38 m of height clears the tyre's top by 6 cm, so a dark rim of arch shows
-    // above and around the wheel — the air between the tyre and the arch line.
+    // 0.38 m of height puts the arch line at 0.72 and so clears the tyre's top by
+    // 4 cm (6 cm before item 252), so a dark rim of arch still shows above and
+    // around the wheel — the air between the tyre and the arch line. The arch is
+    // the one that moved TOWARDS the intent recorded below, not away: the note
+    // wanted "wide and shallow", and the rim got 2 cm shallower.
     // In world terms that is an arch 0.76 m across and 0.38 m tall for a 0.68 m
     // tyre: wide and shallow, which is what a wheel arch is. It looks tall in
     // TEXELS only because they are not square here — 21 across the panel per
@@ -989,7 +1038,9 @@ export function makeBus(): THREE.Group {
   const capM = flatT(hubcapTex());
   const busFront: THREE.Mesh[] = [];
   for (const wx of [-BUS_HW + 0.06, BUS_HW - 0.06]) for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
-    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.28, 10), [tireM, capM, capM]);
+    // tyreGeo, not a bare CylinderGeometry: the bus floated 21.5 mm for the
+    // same reason every car did — a 10-gon laid on its side stands on a flat.
+    const w = new THREE.Mesh(tyreGeo(0.44, 0.28, 10), [tireM, capM, capM]);
     // YZX: the steer angle must turn the wheel about its own VERTICAL, after
     // the cylinder has been laid on its side — with the default XYZ order the
     // Y rotation would apply first and steer about the tilted axle instead.
@@ -1323,8 +1374,10 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // the tyre from the load space, and a top that closes it."
     //
     // Exactly right, and the arithmetic agrees. The bed's side wall spans x
-    // 0.74…0.90. The rear tyre spans 0.70…0.94 and tops out at 0.663 against a
-    // bed floor at 0.50. So the tyre passes clean through the wall, pokes 4 cm
+    // 0.74…0.90. The rear tyre spans 0.70…0.94 and tops out at 0.68 (0.663 when
+    // this was written; item 252) against a bed floor at 0.50 and a WELL_TOP of
+    // 0.72, which it still clears by 4 cm. So the tyre passes clean through the
+    // wall, pokes 4 cm
     // into the cavity and stands 16 cm proud of the floor. On a sedan that is
     // hidden inside a closed body; on an open bed it is in plain sight.
     //
@@ -1419,7 +1472,9 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
     const corner = `${wz < 0 ? 'f' : 'r'}${wx < 0 ? 'l' : 'r'}` as Corner;
     if (off.has(corner)) continue;
-    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10), [tireM, capM, capM]);
+    // tyreGeo phases the decagon onto a VERTEX so `y = 0.34` is real contact.
+    // The hub stays at the radius, where it always was; only the polygon turned.
+    const w = new THREE.Mesh(tyreGeo(0.34, 0.24, 10), [tireM, capM, capM]);
     // see makeBus: YZX so steering turns the wheel about its own vertical.
     // Front is -z (the whole model is built nose-first, see the file header).
     w.rotation.order = 'YZX';
@@ -1443,25 +1498,37 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   g.userData.rocker = ROCKER;
   g.userData.belt = BELT;
   g.userData.hoodTop = HOOD_TOP;         // the hood slab sits ON the belt, HOOD_T thick
-  /** The wheel's RADIUS. **Its top face is NOT at `2 · 0.34 = 0.68`, it is at
-   *  0.6634**, and four comments in this file said 0.68 before w28 measured it.
+  /** The wheel's RADIUS, and since item 252 its true half-height in **both**
+   *  directions: the tyre's bottom is at `hub − 0.34` and its top at
+   *  `hub + 0.34 = 0.68`.
    *
-   *  The reason is that `CylinderGeometry(0.34, 0.34, 0.24, 10)` at line 1141 is
-   *  a DECAGON, not a circle, and laid on its side as a wheel it stands on one
-   *  of its flats — so the highest point is the apothem above the hub, not the
-   *  radius:  `0.34 + 0.34·cos(π/10) = 0.6634`. Across the car's axis you do get
-   *  the full `2r = 0.68`, because two vertices land on that diameter, which is
-   *  why "a tyre 0.68 m across" elsewhere in this file is right and "the tyre's
-   *  top is at 0.68" was wrong.
+   *  **THIS DOCSTRING USED TO SAY 0.6634 AND THAT WAS RIGHT AT THE TIME.** w28
+   *  measured it and was correct: the wheel is a DECAGON, not a circle, and it
+   *  was phased so that laying it on its side stood it on one of its FLATS —
+   *  reaching only `0.34·cos(π/10) = 0.3234` above and below the hub. Four
+   *  comments in this file said 0.68 and w28 was right to correct them.
    *
-   *  It matters by more than 17 mm of pedantry: the tyre is **the only candidate
-   *  first step in the whole fleet** for a sedan/hatch/van climb route
-   *  (`notes/w21-car-roof-climb.md`, `notes/w28-car-climb-route.md`), it clears
-   *  the 0.14 m pavement by **28 mm** at 0.6634 against a guaranteed reach of
-   *  0.551, and it would clear by 45 mm if 0.68 were real. Half the margin, from
-   *  a number nobody had measured. Measured by
-   *  `scripts/probes/w28-tyre-top.mjs`, which prints the prediction and the
-   *  world side by side and agrees to four decimal places on all four kinds. */
+   *  What nobody noticed for another week is that the same fact meant the tyre
+   *  never touched the road: seated at `ground + 0.34` for a circle, a
+   *  flat-bottomed decagon floats `0.34 − 0.3234` = **16.6 mm**, on all four
+   *  wheels of every vehicle on the block. That is what the user saw
+   *  (*"fix the wheel on this cheap car"*). `tyreGeo` now phases the polygon
+   *  onto a vertex, so the flat is gone from the bottom **and** from the top and
+   *  `0.68` is real. Do not "correct" this back to 0.6634 without re-reading
+   *  `tyreGeo`; the number changed because the geometry did.
+   *
+   *  Why the top is worth a docstring at all: it is the candidate first step for
+   *  a sedan/hatch/van climb route (`notes/w21-car-roof-climb.md`,
+   *  `notes/w28-car-climb-route.md`) against a guaranteed standing reach of
+   *  0.551. **Neither shipped climb route actually uses it** — w29's own header
+   *  records that the tyre route proved impossible and the sedan climbs the
+   *  trailer deck instead — so the margin is headroom for a route that is not
+   *  built, not a live constraint. The phase fix moves it the helpful way
+   *  regardless: 0.6634 → 0.68.
+   *
+   *  Measured by `scripts/probes/w28-tyre-top.mjs` (prediction vs world, all
+   *  four kinds) and `scripts/probes/w99-tyre-seating.mjs` (contact, both
+   *  signs, with a self-test). */
   g.userData.tyre = 0.34;
   /** WHAT KIND OF CAR IS THIS? `makeCar` took the answer and dropped it, so
    *  nothing at runtime could ask — a probe had to identify vehicles by their
@@ -1537,13 +1604,41 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     body.rotation.z = -sx * 0.061;
     body.rotation.x = sz * (0.10 / (spec.wheelZ * 2));
     // The lift must leave the two GROUNDED wheels touching down exactly as the
-    // rest of the fleet does. That reference is not the deck: every road wheel
-    // in the world floors 0.017 m above the ground under it (80 of 88 on the
-    // block, one figure, no spread), so 0.017 IS contact here and measuring
-    // against the deck reports a sound car as floating.
-    // At 0.03 the grounded pair measured 0.025 — 8 mm proud of the fleet — so
-    // the lift carries that much more than the tilt takes back.
-    body.position.y = 0.022;
+    // rest of the fleet does. THE TILT IS DELIBERATE AND IS NOT WHAT MOVED HERE;
+    // only the reference did.
+    //
+    // ⚠ THIS VALUE WAS DERIVED FROM A DEFECT THAT NO LONGER EXISTS. It used to
+    // read 0.022, and the comment underneath it explained why: *"every road
+    // wheel in the world floors 0.017 m above the ground under it (80 of 88 on
+    // the block, one figure, no spread), so 0.017 IS contact here"*. That was an
+    // honest reading of the world at the time — but the 0.017 was item 252's
+    // bug, not a convention, and `tyreGeo` has now taken it to 0.000. Left
+    // alone, 0.022 would have held the jacked car's two grounded wheels 8.4 mm
+    // in the air against a fleet that had just come down to the road: the
+    // classic marooned constant, still correct arithmetic against a thing that
+    // moved.
+    //
+    // So it is re-derived against the new reference — and derived from a
+    // MEASUREMENT, which took two goes. The first attempt read "8 mm proud" out
+    // of the comment above and subtracted it, giving 0.0136; w99-tyre-seating
+    // then measured the grounded pair at **−7.2 mm, sunk into the tarmac**. That
+    // 8 mm was itself stale — it described an abandoned trial at lift 0.03, and
+    // the shipped 0.022 actually left the pair 0.6 mm proud of the fleet
+    // (+0.0172 against +0.0166). Reading it as current turned a 1.2 mm
+    // correction into an 8.4 mm one. The measured figure is 1.2 mm:
+    //
+    //     0.022 − 0.0012 = 0.0208     grounded pair → gap 0.0000, both corners
+    //
+    // AND THE JACKED CORNER COMES RIGHT AS A CONSEQUENCE. It used to stand
+    // 0.1171 m proud where the line above says the design is "0.10 m of lift";
+    // the extra 17 mm was the float, counted twice. It now measures ~0.0993 —
+    // the documented intent, reached for the first time. The tilt angles are
+    // untouched; nothing here levels the car.
+    //
+    // `scripts/probes/w99-tyre-seating.mjs` fails if this goes stale again: the
+    // grounded pair is measured as part of the fleet, so a wrong lift shows up
+    // as SINK or FLOAT rather than hiding behind the jacked corner.
+    body.position.y = 0.0208;
     g.add(body);
 
     const jm = new THREE.MeshBasicMaterial({ color: 0x24262a });
