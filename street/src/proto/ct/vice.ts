@@ -179,6 +179,49 @@ const doorUOf = (b: BldSpec, x0: number) => {
 export const LEAF_AJAR: number = 0;
 
 /**
+ * THE DARK BEHIND A SHUT DOOR — one plane across the whole opening, behind the
+ * leaves.
+ *
+ * A DOOR THAT SHUTS NEEDS SOMETHING BEHIND IT, and until the leaves shut,
+ * nothing did. Worker sixty measured it and filed it: *"the interior doorway
+ * opens onto nothing. Beyond the jambs there is no mesh at all, so the gap
+ * between the ajar leaves shows a flat pale void … whichever way that goes,
+ * the opening wants something behind it."* (`notes/w60-jail-door-state.md`.)
+ *
+ * It was ALREADY VISIBLE in the first frames of the shut doors: `gap` is
+ * documented as *"the shadow line between the leaves"*, and with the leaves
+ * swung apart it never had to be one — but a shut pair leaves that 2·gap strip
+ * standing open onto the void, so the jail's and the church's meeting stiles
+ * photographed as a bright grey-white slit down the middle of the door. The
+ * 0.06 m above the leaves (`DH - 0.06`) is the same hole lying down.
+ *
+ * So the gap gets what it always claimed to be. Nobody's leaf width changes —
+ * that would be *"folding two rooms into one helper is not a licence to quietly
+ * change one of their leaf widths by a centimetre"*, which `leafPair` already
+ * refuses to do.
+ *
+ * The hotel is the proof this is the right object: it is the one room that
+ * already had a centre mullion (`ct/int-hotel.ts`, a 0.05 m brass box), and it
+ * is the one room whose shut doors photographed with no slit at all.
+ *
+ * 0.012 m behind the leaf plane: far enough that no depth test has to break a
+ * tie (GOTCHAS 6, and `notes/w59-jail-door.md` is what two coplanar opaque
+ * faces cost), near enough to stay inside the reveal.
+ */
+export function doorRebate(
+  put: (m: THREE.Mesh, x: number, y: number, z: number) => unknown,
+  dAt: number, DW: number, DH: number, zFace: number, behind = 0.012,
+): void {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(DW, DH),
+    // DoubleSide because two of the six doors this serves hang their leaves on
+    // the OUTER face of the shell rather than the inner one, so which side of
+    // this plane the player stands on is not a fact this function is told.
+    // A flat colour has no handedness, so GOTCHAS 10's mirror does not apply.
+    new THREE.MeshBasicMaterial({ color: 0x15151a }));
+  put(m, dAt, DH / 2, zFace + behind);
+}
+
+/**
  * A PAIR OF DOOR LEAVES, and the MIRROR APPLIED ONCE TO A WHOLE LEAF.
  *
  * The user: *"the LEFT leaf is reversed"* on the SEVENS entrance. Measured the
@@ -222,6 +265,8 @@ export function leafPair(
   zFace: number, who: string, gap: number,
 ): void {
   const open = LEAF_AJAR;
+  // the shadow line `gap` promises, and the dark over the head — see doorRebate
+  doorRebate(put, dAt, DW, DH, zFace);
   // `gap` is the shadow line between the two leaves, and it comes IN rather than
   // being fixed here: the casino was built at 0.03 and the hotel at 0.04, and
   // folding two rooms into one helper is not a licence to quietly change one of
