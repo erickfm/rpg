@@ -1003,6 +1003,36 @@ export function makeCrosstown(): Proto {
     // street; a room deeper than 26 m reaches past it and the player was
     // clamped short of its own front wall, unable to reach the way-out spot at
     // `hd - 0.55`. Measured by G on the casino at d 30 (BLOCKED-G 1b).
+    //
+    // ── THIS ONE RECTANGLE HAS NOW BEEN QUEUED AS A DEFECT TWICE. IT IS NOT
+    //    ONE. DO NOT MAKE IT REGIONAL WITHOUT RE-MEASURING THE BELOW.
+    //
+    // The complaint, both times, is that ONE bounds rectangle covers the street
+    // AND the interior belt 600 m east, so `Math.max(13, interiorMaxZ())` hands
+    // the STREET 6 m of north walking it has no geometry for. The arithmetic is
+    // right: the clamp really does sit at z 19 while the street's own end is 13.
+    //
+    // **It buys the player nothing, because a collider stops him first
+    // everywhere he can stand.** Walked, not reasoned about (w85, item 230,
+    // `scripts/probes/w85-item230-walk-the-claims.mjs`): held `w` northward from
+    // twelve starting points swept across x 8…30, plus the road at x -6…6, and
+    // the furthest north ANY of them reached is **z 13.83** — the north end wall
+    // at 14.20 less the player's 0.36 radius. That is 5.17 m short of the clamp,
+    // so the clamp is never the thing that stops him.
+    //
+    // And there is nothing out there to reach: north of the car lot the drawn
+    // floor ends at z 14.0 (exact triangle raycast; `w75-site-contained`'s
+    // bounding-box predicate claims floor out to 16.5 and its header's "real
+    // pavement out to z 16.75" is that over-reach, not pavement — photographed
+    // at `shots/w85-north-z16-down.png`, where the ground ends in a hard edge
+    // and the rest of the frame is sky). The strip beyond is a separate open
+    // component with ZERO floor cells in it, unreachable from any component that
+    // has any.
+    //
+    // So a regional bound would be a change to `fp.ts` — the world's movement
+    // core — that moves the player's reachable set by exactly nothing. The
+    // standing check is `scripts/world-contained.mjs`: if it ever reports a
+    // reachable cell north of z 13, this reasoning has expired.
     bounds: WORLD_BOUNDS,
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
     // THE ONE COMMITTING CALL. FPRig asks this only at `this.pos.x/z` (fp.ts
