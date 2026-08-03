@@ -7,6 +7,18 @@
 //   npm run checks               # against $SHOT_URL, or the default preview
 //   npm run checks -- --selftest # break each one on purpose, require it to fail
 //   npm run checks -- --slow     # include the WALKING suites (minutes, not seconds)
+//   npm run checks -- --only masonry --only texdensity   # just these rows
+//
+// `--only` exists because of what it costs NOT to have it, and item 161 is the
+// bill. `--selftest` over the whole registry is 120-odd checks, most of them
+// with a full `npm run build` and a browser per mutation — hours. So in practice
+// nobody ran it, and a check whose selftest had been failing with exit 2 the
+// entire time went unnoticed for as long as it did. A flag that turns "prove
+// this one check can still go red" from an afternoon into four seconds is the
+// difference between a selftest that is run and a selftest that is merely
+// registered. It matches a row by exact name or substring, and it is a FILTER on
+// what runs — never on what is reported as passing, so a filtered run still says
+// plainly which rows it looked at.
 //
 // NOT A GATE. `npm run build` stays `tsc --noEmit && vite build`; the desk stood
 // wiring down as a gate deliberately and that reasoning holds for all of these.
@@ -32,9 +44,15 @@ import { aim } from './lib/aim.mjs';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { distSha, localHead } from './lib/which-world.mjs';
+import { probeWithRecovery } from './lib/server-state.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const SLOW = process.argv.includes('--slow');
+// `--only <name>`, repeatable. Read positionally rather than as `--only=x` for
+// the same reason lib/modes.mjs exists: a spelling this does not recognise must
+// not silently select nothing, so an unmatched name is refused below rather than
+// producing an empty, green, entirely vacuous run (GOTCHAS 34).
+const ONLY = process.argv.reduce((a, v, i, all) => (v === '--only' && all[i + 1] ? [...a, all[i + 1]] : a), []);
 const URL = aim('http://localhost:4177/');
 
 // Is anything actually there? One request, before thirty browsers start.
@@ -72,6 +90,36 @@ let bodyAtStart = null;
     console.error('  fetch nor Chrome will ever open it, so no check here can measure it.\n');
     console.error('  Fix: restart your preview on another port and pass it through');
     console.error('  SHOT_URL. Avoid 4045, 4190, 6000, 6665-6669 in particular.\n');
+    process.exit(2);
+  }
+  // A FOURTH THING, and it is the one item 182 was filed about.
+  //
+  // `vite preview` serves `dist/` as static files. `vite build` EMPTIES `dist/`
+  // before it writes — so a preview whose process is perfectly healthy answers
+  // **HTTP 404** for the window in which dist/ is gone, and answers it forever
+  // if the build then failed and never refilled it.
+  //
+  // Measured on this tree, 2026-08-02, polling a live preview on 4230 flat out
+  // through one `npm run build`
+  // (`scripts/probes/w67-does-build-kill-preview.mjs`):
+  //
+  //     HTTP 200   5760 polls   0.03s .. 2.44s
+  //     HTTP 404   1175 polls   0.67s .. 0.89s
+  //
+  // The port never stopped accepting connections. **A build does not kill the
+  // preview — it blinds it for about 220 ms.** Reporting that as "nothing is
+  // serving" sends a builder to start a server they already have running, which
+  // is the same wrong-sentence problem as everything else in this pre-flight.
+  if (!live && /^HTTP [45]/.test(why)) {
+    console.error(`\n${URL} IS SERVING, BUT dist/ IS NOT THERE  (${why})\n`);
+    console.error('  The preview process is alive — it accepted the connection. What it');
+    console.error('  could not find is the page, because a preview serves dist/ and dist/');
+    console.error('  is empty or mid-write.\n');
+    console.error('  Almost always one of two things:');
+    console.error('    · a `npm run build` is running RIGHT NOW against this same tree');
+    console.error('      (it empties dist/ first — ~220 ms of 404s). Wait, re-run.');
+    console.error('    · the last build FAILED after emptying dist/. Re-run: npm run build\n');
+    console.error('  Do NOT start a second preview — the port is already taken by a live one.\n');
     process.exit(2);
   }
   if (!live) {
@@ -179,7 +227,38 @@ const CHECKS = [
   // explained by whole-texel canvas rounding, 0 faces actually authored wrong.
   // 2.9 s, and it does not walk, so it is default tier by this file's own rule.
   // `--selftest` breaks one stamp at RUNTIME and it goes red: "selftest: caught it".
-  ['masonry',          'does each masonry stamp agree with the face it is on?', true],
+  ['masonry',          'does each masonry stamp agree with the face it is on?', true, [], false,
+    ['masonry-blind']],
+  // REGISTERED 2026-08-02 (item 161), and it is the OTHER 84% of the world.
+  //
+  // `masonry` above judges the 303 faces carrying `userData.masonry`. Measured
+  // on this build: the world has 4457 textured faces, so a pillar, a door, a
+  // bench, a floor tile — anything that is not brick — had no density guard even
+  // in principle. That is what BUILDER-BRIEF §7b's four fixed-by-hand defects
+  // all were, and it is why the fifth reached the user by eye.
+  //
+  // It needs no declaration to judge one, which is the trick worth knowing: on a
+  // correctly mapped face a TEXEL IS SQUARE, and ppmX and ppmY are derived
+  // independently from the face's own two dimensions. A face whose two densities
+  // disagree by 4x is drawing a stretched texture whatever it is and whoever
+  // failed to declare it.
+  //
+  // RATCHETED, not thresholded. It lands on a backlog of 188 gross faces, so it
+  // fails on a REGRESSION per owner against `notes/texdensity-baseline.json`
+  // rather than on the backlog — a check that is red on day one and stays red is
+  // noise, and one tuned until it is green is GOTCHAS 58. `--bless` is the only
+  // way the baseline moves and it is a reviewable commit.
+  //
+  // FAST tier, measured not guessed: 3.0 s plain and 3.1 s selftesting against a
+  // preview on this tree, against the 36 s that moved lotwalk to slow. Run by
+  // hand first, as item 71's precedent requires: 305 stamps / 16 disagreements /
+  // 0 authored wrong from `masonry`, and 4087 measurable faces / 0 stamped faces
+  // drawing wrong / 188 gross / "no owner got worse" from this — the four
+  // figures item 161 names as the baseline to preserve. Its `--selftest` gives
+  // one square face a 5x repeat and requires THAT FACE by name in the gross
+  // list, not merely a non-zero count, because the 188-deep backlog would
+  // satisfy a count no matter what the mutation did.
+  ['texdensity',       'is any textured face in the world drawing a stretched texture?', true],
   ['nightgrade',       'does everything the dimmer touched actually dim?',  true],
   ['seampairs',        'do two faces that should draw the same brick?',     true],
   // SLOW TIER, moved 2026-07-25. lotwalk WALKS — 28 held-W samples — and costs
@@ -272,6 +351,23 @@ const CHECKS = [
   // stripes are 0.09 x 5.0 m planes raked 0.55 rad, and measured as axis-aligned
   // boxes each reads 11.59 m2 instead of 0.45. (I)
   ['I-flatground',     'is any ground surface in the lot flat colour?',      true],
+  // REGISTERED 2026-08-02 (w64, item 186). I-flatground above guards the LOT's
+  // side of B's class; this is the same question asked of the whole world,
+  // indoors and out, and it has existed unregistered since item 0a. Grep for it
+  // in this file before today and there were zero hits — we built the detector
+  // for the class the user has now reported SIX times and never wired it in.
+  // That is the third unregistered-or-blind check found this week, after
+  // masonry.mjs measuring zero faces (GOTCHAS 79) and texdensity.mjs (item 161).
+  //
+  // RATCHETED, not zeroed: 65 meshes / 151 m2 today against B's original
+  // 123 / 454, and the entry gate is "this must not go UP". A check demanding
+  // zero on a historical backlog is one that gets weakened until it passes.
+  // `--selftest` strips the map off the alley floor and both numbers rise.
+  //
+  // It also prints a second, UNGATED census (STEP) for the dark-ground variant
+  // the user actually reported this time. That one is a diagnostic and the
+  // script's header says at length why it could not be made into a check.
+  ['w5-shadow-census',  'is any ground surface in the world still bare flat colour?', true],
   // "the garlands are disconnected". The lot's own file calls the bunting the
   // single most identifying thing about the typology, so it gets a guard. Two
   // clauses because there are two ways it reads as disconnected and they fail
@@ -1061,6 +1157,20 @@ const SLOW_MS = 1_500_000;
   }
 }
 
+// A `--only` THAT MATCHES NOTHING IS THE VACUOUS PASS THIS FILE KEEPS FINDING IN
+// OTHER PEOPLE'S SCRIPTS. Mistype it and every row is filtered out, the summary
+// prints an empty table, the exit code is 0, and the caller reads that as the
+// check they named being green. Same shape as GOTCHAS 34's mode word.
+if (ONLY.length) {
+  const unmatched = ONLY.filter((o) => !CHECKS.some(([n]) => n === o || n.includes(o)));
+  if (unmatched.length) {
+    console.error(`\n--only MATCHED NO REGISTERED CHECK: ${unmatched.join(', ')}\n`);
+    console.error('  Nothing would have run, and an empty run exits 0 — which reads exactly');
+    console.error('  like the check you named having passed.\n');
+    process.exit(2);
+  }
+}
+
 // DID THE SERVER SURVIVE THE LAST CHECK? Measured (not fixed by fiat — see
 // `notes/archive/K-check-artefacts.md`, which ran the suite eight times
 // against a live preview and could not make it die from the checks
@@ -1081,17 +1191,65 @@ const SLOW_MS = 1_500_000;
 // triggered the death, which the item this exists for explicitly warns
 // against. It only stops trusting results once the server is confirmed
 // gone, and says so once rather than fifty times.
-async function serverAlive() {
-  try { return (await fetch(URL, { signal: AbortSignal.timeout(3000) })).ok; }
-  catch { return false; }
-}
+//
+// ── AND "THE SERVER IS GONE" IS TWO DIFFERENT ACCIDENTS ────────────────────
+//
+// That probe used to be a local `serverAlive()` returning a boolean off
+// `response.ok`, and that boolean is the bug queue item 182 was filed about: a
+// preview whose `dist/` has momentarily been emptied by `vite build` answers
+// **404**, `r.ok` is false for a 404 exactly as it is for ECONNREFUSED, and the
+// `serverDied` latch below was never re-tested — so **one 220 ms blink
+// condemned every remaining check of a twelve-minute run to
+// `SERVER DIED (unmeasured)`**, and the builder went looking at their own
+// change. The item's stated cause ("the build KILLS the preview") is wrong; the
+// measurements that show why, and the three-way classification that replaces
+// the boolean, are in `scripts/lib/server-state.mjs`.
+//
+// It lives in lib/ rather than here so `scripts/probes/w67-server-state-cases.mjs`
+// can drive the real classifier through all four answers instead of a copy.
 
 const rows = [];
-let serverDied = false;
-for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
+
+// null | 'dead' | 'empty' — WHY we stopped trusting results, not merely that we
+// did. The footer needs the reason to name a cause, and the two causes have
+// different fixes.
+let serverDied = null;
+// The row text for each reason. Both say "unmeasured" in the same voice, because
+// the reader's first job is to stop reading them as defects; the footer then
+// says which of the two happened and what to do about it.
+const UNMEASURED = {
+  dead: 'SERVER DIED (unmeasured)',
+  empty: 'dist/ EMPTY — NO SERVER DEATH (unmeasured)',
+};
+
+// One check fell over, the server was momentarily 404, and it came back. That is
+// a build race and NOT a reason to stop trusting the run: the world is still
+// there, this one check just happened to reach for it during the ~220 ms in
+// which `vite build` had emptied dist/. Report the casualty, keep going.
+//
+// Counted, so the footer can say it happened at all — a run with four of these
+// is telling you something (somebody is building against your tree in a loop)
+// even though every one of them is individually harmless.
+let buildRaces = 0;
+
+// SIXTH FIELD: canfail case names for a row that ALSO carries a --selftest flag.
+//
+// The third column is an either/or — `true` runs the script's own flag, a
+// string or array runs canfail cases instead — and for most rows that is the
+// right shape, because the two are alternative ways of saying the same thing.
+// For `masonry` they are not, and item 161 is why. Its flag doubles one face's
+// repeat and proves the "wrong density" VERDICT can go red; the `masonry-blind`
+// case empties its POPULATION and proves the floor under that verdict can go
+// red. Those fail apart — the flag sailed through the whole period this check
+// was measuring zero faces, because with no faces there was nothing to double
+// and it reported SELFTEST FAILED to a runner nobody was running. Registering
+// only one of them would certify half a guard, which is the argument the
+// `footprint` and `seat-facing` rows above already make for multiple cases.
+for (const [name, question, selftest, extra = [], slow = false, cases = []] of CHECKS) {
+  if (ONLY.length && !ONLY.some((o) => name === o || name.includes(o))) continue;
   if (slow && !SLOW) { rows.push([name, 'walks — use --slow', '—']); continue; }
   if (SELFTEST && !selftest) { rows.push([name, 'no selftest', '—']); continue; }
-  if (serverDied) { rows.push([name, question, 'SERVER DIED (unmeasured)']); continue; }
+  if (serverDied) { rows.push([name, question, UNMEASURED[serverDied]]); continue; }
   process.stderr.write(`  … ${name}\n`);
   const t0 = Date.now();
   // A string names a case in scripts/canfail.mjs: the mutation lives there,
@@ -1110,6 +1268,24 @@ for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
     if (rc.status !== 0) { process.exitCode = 1; console.log(`${rc.stdout ?? ''}${rc.stderr ?? ''}`.trimEnd() + '\n'); }
     continue;
   }
+  // …and the sixth field, for a row that carries BOTH. Reported on its own line
+  // rather than folded into the row above, because "the verdict can go red" and
+  // "the population under it can go red" are two claims and a reader who is told
+  // one number cannot tell which one was proved.
+  if (SELFTEST && cases.length) {
+    const ct0 = Date.now();
+    process.stderr.write(`  … ${name} (canfail: ${cases.join(', ')})\n`);
+    const rc = spawnSync('node', ['scripts/canfail.mjs', ...cases],
+      { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: PER_CHECK_MS * cases.length });
+    const csecs = ((Date.now() - ct0) / 1000).toFixed(0);
+    const timedOut = rc.error?.code === 'ETIMEDOUT' || rc.signal === 'SIGTERM';
+    rows.push([`${name} +canfail`, question,
+      timedOut ? `TIMED OUT after ${csecs}s` : rc.status === 0 ? 'ok' : `FAILED (${rc.status})`, csecs]);
+    if (timedOut || rc.status !== 0) {
+      process.exitCode = 1;
+      if (!timedOut) console.log(`${rc.stdout ?? ''}${rc.stderr ?? ''}`.trimEnd() + '\n');
+    }
+  }
   const args = [`scripts/${name}.mjs`, ...extra, ...(SELFTEST ? ['--selftest'] : [])];
   const r = spawnSync('node', args, { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: slow ? SLOW_MS : PER_CHECK_MS });
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
@@ -1117,9 +1293,16 @@ for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
     // A timeout is exactly the shape a dead-server casualty takes (GOTCHAS
     // §32's discriminator: non-zero with nothing measured) — check now,
     // before deciding this one check is the fault rather than the server.
-    if (!(await serverAlive())) {
-      serverDied = true;
-      rows.push([name, question, 'SERVER DIED (unmeasured)']);
+    const state = await probeWithRecovery(URL);
+    if (state === 'dead' || state === 'empty') {
+      serverDied = state;
+      rows.push([name, question, UNMEASURED[state]]);
+      process.exitCode = 1;
+      continue;
+    }
+    if (state === 'recovered') {
+      buildRaces++;
+      rows.push([name, question, 'BUILD RACE (unmeasured)', secs]);
       process.exitCode = 1;
       continue;
     }
@@ -1132,23 +1315,37 @@ for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
   // (BLOCKED-H), which is a status this runner can trust; the string match stays
   // as a fallback for any check that predates it or prints without exiting.
   const wrongWorld = r.status === 3 || out.includes('MEASURING THE WRONG WORLD');
-  if (r.status !== 0 && !wrongWorld && !(await serverAlive())) {
-    // The check exited non-zero AND the server that was supposed to answer it
-    // is gone. Attributing this (and everything after it) to the check would
+  if (r.status !== 0 && !wrongWorld) {
+    // The check exited non-zero. Was the server that was supposed to answer it
+    // even there? Attributing this (and everything after it) to the check would
     // be exactly the "~half its 52 failures are that rather than real
-    // faults" this item exists to stop.
-    serverDied = true;
-    rows.push([name, question, 'SERVER DIED (unmeasured)']);
-    process.exitCode = 1;
-    continue;
+    // faults" this item exists to stop — but so would attributing it to a
+    // server that never actually went anywhere, which is what the old boolean
+    // did every time somebody ran a build against the same tree.
+    const state = await probeWithRecovery(URL);
+    if (state === 'dead' || state === 'empty') {
+      serverDied = state;
+      rows.push([name, question, UNMEASURED[state]]);
+      process.exitCode = 1;
+      continue;
+    }
+    if (state === 'recovered') {
+      buildRaces++;
+      rows.push([name, question, 'BUILD RACE (unmeasured)', secs]);
+      process.exitCode = 1;
+      console.log(out.trimEnd() + '\n');
+      continue;
+    }
   }
   rows.push([name, question, r.status === 0 ? 'ok' : wrongWorld ? 'WRONG WORLD' : `FAILED (${r.status})`, secs]);
   if (r.status !== 0) process.exitCode = 1;
   // On failure the detail matters more than the summary, so pass it through.
   if (r.status !== 0) console.log(out.trimEnd() + '\n');
 }
-if (serverDied) {
+if (serverDied === 'dead') {
   console.log(`\nTHE SERVER AT ${URL} DIED PARTWAY THROUGH THIS RUN.`);
+  console.log('  Nothing is listening on that port any more — the connection was refused,');
+  console.log('  which is a different thing from the 404 case below and from a build.');
   console.log('  Everything above SERVER DIED is real; everything from there down was');
   console.log('  never measured, not FAILED. `notes/archive/K-check-artefacts.md` could');
   console.log('  not reproduce this from the checks themselves (8/8 survived, sequential,');
@@ -1156,9 +1353,42 @@ if (serverDied) {
   console.log('  what else in the environment is reaping processes, not this file.');
   console.log('  Re-run once the server is back up.');
 }
+if (serverDied === 'empty') {
+  console.log(`\nYOUR PREVIEW IS ALIVE. dist/ IS NOT.`);
+  console.log(`  ${URL} accepted the connection and answered — it just has no page to`);
+  console.log('  serve, for more than six seconds. A preview serves dist/, and dist/ is');
+  console.log('  empty or half-written.\n');
+  console.log('  THE CAUSE IS ALMOST CERTAINLY A BUILD AGAINST THIS SAME TREE.');
+  console.log('  `vite build` empties dist/ before it writes. Measured here: a healthy');
+  console.log('  preview answers 404 for ~220 ms of every build and never stops listening');
+  console.log('  (scripts/probes/w67-does-build-kill-preview.mjs). Six seconds of 404 means');
+  console.log('  the build is still going, or it FAILED after emptying dist/ and never');
+  console.log('  refilled it.\n');
+  console.log('  DO NOT go looking at your own change for this — nothing below the first');
+  console.log('  such row measured anything at all.');
+  console.log('  Fix: wait for the build, or re-run `npm run build`, then re-run the checks.');
+  console.log('  Do NOT start a second preview; the port is already held by a live one.');
+}
+if (buildRaces) {
+  console.log(`\n${buildRaces} CHECK(S) LOST A RACE WITH A BUILD, and are marked BUILD RACE.`);
+  console.log('  dist/ was momentarily gone when they reached for it and was back a second');
+  console.log('  later, so the server was never in trouble and neither, probably, are they.');
+  console.log('  They measured nothing — re-run them individually rather than reading them:');
+  for (const [n, , s] of rows) if (s === 'BUILD RACE (unmeasured)') console.log(`    SHOT_URL=${URL} node scripts/${n}.mjs`);
+  console.log('  If this keeps happening, something is building against your tree in a loop');
+  console.log('  (live-integrate.sh does exactly that, every 15 s — point SHOT_URL at your');
+  console.log('  own preview, not the integration world).');
+}
 
 const w = Math.max(...rows.map(([n]) => n.length));
 console.log(SELFTEST ? '\nSELFTEST — each check was broken on purpose:' : `\nchecks against ${URL}:`);
+// SAY THAT THE RUN WAS FILTERED, in the summary and not only in the argv the
+// reader cannot see. A short green table is otherwise indistinguishable from a
+// whole suite passing, and this file's own preamble is about exactly that class
+// of sentence — "could not measure" and "measured, and it is fine" being
+// different news that used to print the same.
+if (ONLY.length)
+  console.log(`  (--only ${ONLY.join(', ')} — ${rows.length} of ${CHECKS.length} rows; the rest were NOT run)`);
 for (const [name, question, status, secs] of rows)
   // a skipped row must say WHY, or "·" reads as "passed quietly" — which is
   // how six checks stayed invisible in the first place

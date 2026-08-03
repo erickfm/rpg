@@ -4,7 +4,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { JAIL, JAIL_DOOR, JAIL_STEEL, jailLeafTex } from './jail';
-import { leafPair } from './vice';
+import { leafPair, LEAF_AJAR } from './vice';
 
 // ── INSIDE THE HOUSE OF DETENTION ─────────────────────────────────────────
 //
@@ -315,8 +315,13 @@ export function buildJail(ctx: CtxBuild): void {
   // `ct/jail.ts`. Two faces, one drawing, and no arithmetic in between that
   // could drift.
   const jailLeafM = new THREE.MeshBasicMaterial({ map: jailLeafTex(), side: THREE.DoubleSide });
-  const OPEN = 0.55, GAP = 0.03;                 // the casino's and the bank's
-  leafPair(put, jailLeafM, dAt, DW, DH, hd - 0.12, OPEN, 'jail', GAP);
+  // `OPEN = 0.55` used to live here, and its own comment said what was wrong
+  // with it: *"the casino's and the bank's"*. It was copied, and it left the
+  // sally port 31.5° open from the lobby while the street pair — the SAME
+  // `jailLeafTex()`, 565 m away — stood shut. The angle is `LEAF_AJAR` now and
+  // there is no argument to copy.
+  const GAP = 0.03;
+  leafPair(put, jailLeafM, dAt, DW, DH, hd - 0.12, 'jail', GAP);
   // The pull handle, at the FREE edge of each leaf — the outside has one and a
   // door without one is the "single tiny handle" complaint wearing the other hat.
   //
@@ -332,11 +337,11 @@ export function buildJail(ctx: CtxBuild): void {
   for (const sx of [-1, 1] as const) {
     const hx = dAt + sx * DW / 2;
     const t = 0.86;                              // along the leaf, hinge -> free edge
-    const px = hx - sx * Math.cos(OPEN) * LW * t;
-    const pz = hd - 0.12 - Math.sin(OPEN) * LW * t;
+    const px = hx - sx * Math.cos(LEAF_AJAR) * LW * t;
+    const pz = hd - 0.12 - Math.sin(LEAF_AJAR) * LW * t;
     const pull = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.34, 0.05),
       new THREE.MeshBasicMaterial({ color: JAIL_STEEL.dark }));
-    pull.rotation.y = -sx * OPEN;
+    pull.rotation.y = -sx * LEAF_AJAR;
     put(pull, px, 1.02, pz);
   }
 
