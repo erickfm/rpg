@@ -60,10 +60,19 @@ if (bed) {
   }
 }
 
-const fp = await p.evaluate(async () => {
-  const m = await import('/src/proto/fp.ts');
-  return { TOUCH_MARGIN: m.TOUCH_MARGIN, REACH_MARGIN: m.REACH_MARGIN };
-});
+// READ OFF `__ct`, NOT IMPORTED (item 232). `await import('/src/proto/fp.ts')`
+// works on the dev server and 404s on `vite preview`, where the bundle serves
+// `dist/` and that path does not exist — so on the build the user actually
+// ships, this read returned nothing. Published at `crosstown.ts:1618`/`:1629`.
+// This probe deliberately reads BOTH constants, which is still right: it
+// compares the two predicates against each other.
+const fp = await p.evaluate(() => ({
+  TOUCH_MARGIN: window.__ct.touchMargin(), REACH_MARGIN: window.__ct.reachMargin(),
+}));
+if (![fp.TOUCH_MARGIN, fp.REACH_MARGIN].every((v) => typeof v === 'number' && isFinite(v))) {
+  console.error(`ABORT: margins did not resolve off __ct — ${JSON.stringify(fp)}`);
+  await b.close(); process.exit(3);
+}
 console.log(`\nfp.ts: TOUCH_MARGIN=${fp.TOUCH_MARGIN} REACH_MARGIN=${fp.REACH_MARGIN}`);
 
 let worstSwaps = 0;

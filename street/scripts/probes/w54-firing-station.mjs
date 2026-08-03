@@ -59,10 +59,17 @@ async function walkUntil(done) {
   return await pos();
 }
 
-const K = await p.evaluate(async () => {
-  const m = await import('/src/proto/fp.ts');
-  return { TOUCH_MARGIN: m.TOUCH_MARGIN, RADIUS: m.RADIUS };
-});
+// READ OFF `__ct`, NOT IMPORTED (item 232). `await import('/src/proto/fp.ts')`
+// 404s on `vite preview` — the bundle serves `dist/` and that path is not in
+// it — so this returned nothing on the build that ships. Both are published:
+// `touchMargin()` at `crosstown.ts:1629`, `playerRadius()` at `:1643`.
+const K = await p.evaluate(() => ({
+  TOUCH_MARGIN: window.__ct.touchMargin(), RADIUS: window.__ct.playerRadius(),
+}));
+if (![K.TOUCH_MARGIN, K.RADIUS].every((v) => typeof v === 'number' && isFinite(v))) {
+  console.error(`ABORT: constants did not resolve off __ct — ${JSON.stringify(K)}`);
+  await b.close(); process.exit(3);
+}
 const gy = await p.evaluate(() => window.__ct.groundAt(199.36, -15.545));
 await p.evaluate(([gy]) => window.__ct.warp(199.36, -15.545, 0, gy, 0), [gy]);
 await p.waitForTimeout(700);

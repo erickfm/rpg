@@ -94,10 +94,24 @@ if (mode === 'door' || mode === 'all') {
   // either way, which is the whole of GOTCHAS 34.
   //
   // The world does publish `spots()`, so ask the real predicate instead: is the
-  // player inside the jail spot's REACH? Reach is not radius — the near test is
-  // `d < r + REACH_MARGIN`, and that margin is ONE global living in fp.ts.
-  // Read from the world (`__ct.reachMargin()`) rather than retyped; the copy
-  // that used to sit here cited `fp.ts:425`, which is not where it lives.
+  // player inside the jail spot's trigger? Read from the world rather than
+  // retyped; the copy that used to sit here cited `fp.ts:425`, which is not
+  // where it lives.
+  //
+  // AND IT IS TOUCH, NOT REACH (item 232). This read `__ct.reachMargin()` (0.6)
+  // and compared `d < r + REACH_MARGIN`, which is not the predicate the world
+  // uses for a STANDING player — `fp.ts:991` uses `TOUCH_MARGIN` (0.15), and
+  // `REACH_MARGIN` governs only the seated clause (`fp.ts:1006`) and the debug
+  // ring (`fp.ts:1124`). Corrected to match `scripts/O-jail-walk.mjs`, the
+  // registered check this file is a diagnostic copy of; the two must model the
+  // same predicate or the diagnostic explains a check that does not exist.
+  const TOUCH_MARGIN = await p.evaluate(() => window.__ct.touchMargin());
+  if (typeof TOUCH_MARGIN !== 'number' || !isFinite(TOUCH_MARGIN)) {
+    console.error('ABORT: __ct.touchMargin() did not return a number.');
+    await b.close(); process.exit(3);                       // GOTCHAS §32
+  }
+  // Still needed for the way-OUT landing bound further down, which legitimately
+  // keeps the larger margin — see the note there.
   const REACH_MARGIN = await p.evaluate(() => window.__ct.reachMargin());
   if (typeof REACH_MARGIN !== 'number' || !isFinite(REACH_MARGIN)) {
     console.error('ABORT: __ct.reachMargin() did not return a number.');
@@ -111,7 +125,7 @@ if (mode === 'door' || mode === 'all') {
                      d: +Math.hypot(s.x - q[0], s.z - q[2]).toFixed(2),
                      near: Math.hypot(s.x - q[0], s.z - q[2]) < s.r + margin }));
     return hits;
-  }, [REACH_MARGIN]);
+  }, [TOUCH_MARGIN]);
   console.log(`   jail spots in reach: ${JSON.stringify(reachable)}`);
   ok(reachable.some((h) => h.near && h.ok),
     'standing where the walk stopped, the jail\'s [E] is within reach and live');
@@ -195,6 +209,16 @@ if (mode === 'door' || mode === 'all') {
   ok(out[0] < 100, `E from inside puts you back on the STREET — (${out[0]}, ${out[2]})`);
   ok(out[0] > KERB && out[0] < FX, `and on the PAVEMENT, not in the road — ${KERB} < ${out[0]} < ${FX}`);
   // the way out must clear the way in, or a second E bounces you straight back
+  //
+  // KEEPS REACH_MARGIN ON PURPOSE (item 232), unlike the `near` test above.
+  // The two assertions point opposite ways: `near` asks "is the door offered?",
+  // where too big a margin invents reachability, so it was corrected to
+  // TOUCH_MARGIN. This asserts `gap > bound`, where a SMALLER margin is the
+  // WEAKER test — swapping it would drop the bar from 1.65 m to 1.20 m and pass
+  // landings this rejects, which is BUILDER-BRIEF §7's "never loosen a check".
+  // An AIMED player re-triggers from up to 6 m with no margin at all
+  // (`fp.ts:1005`), so 0.15 is a floor on the real re-entry distance rather
+  // than a description of it, and 0.6 is the conservative choice between them.
   {
     const gap = Math.hypot(out[0] - stand.x, out[2] - stand.z);
     const r = Math.max(...reachable.map((h) => h.r));

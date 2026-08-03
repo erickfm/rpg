@@ -48,11 +48,20 @@ const reach = await p.evaluate(() => {
   // READ, not retyped — the margin is one global in fp.ts and the world
   // publishes it. A hand-typed 0.6 here asserted against a number that would
   // stop being true the day anyone re-tuned reach. (BUILDER-BRIEF §8)
-  const REACH_MARGIN = window.__ct.reachMargin();
+  //
+  // AND IT IS THE TOUCH MARGIN, NOT THE REACH ONE (item 232). This read
+  // `reachMargin()` (0.6). The player is STANDING at the jail door and
+  // `fp.ts:991` decides an unaimed standing offer with `d < s.r + TOUCH_MARGIN`
+  // (0.15); `REACH_MARGIN` survives only in the seated clause (`fp.ts:1006`)
+  // and the debug ring (`fp.ts:1124`). Corrected here to match
+  // `scripts/O-jail-walk.mjs`, the registered check this probe diagnoses — a
+  // diagnostic that models a different predicate from the check it explains is
+  // worse than none.
+  const TOUCH_MARGIN = window.__ct.touchMargin();
   return window.__ct.spots()
     .filter((s) => /DETENTION/i.test(s.label ?? ''))
     .map((s) => ({ label: s.label, d: +Math.hypot(s.x - q[0], s.z - q[2]).toFixed(2), ok: s.ok, r: s.r }))
-    .map((s) => ({ ...s, near: s.d < s.r + REACH_MARGIN }));
+    .map((s) => ({ ...s, near: s.d < s.r + TOUCH_MARGIN }));
 });
 console.log('   jail spots in reach:', JSON.stringify(reach));
 console.log(`   ${reach.some((r) => r.near && r.ok) ? 'OK ' : 'FAIL'} the door prompt is live from where the walk stopped`);

@@ -43,7 +43,15 @@ for (const [LABEL, STATION, RX] of [
     return {
       spot, seated: !!window.__ct.seated(), yaw: +yaw.toFixed(3),
       d: +d.toFixed(3), offAxis: +offAxis.toFixed(3), cone: +cone.toFixed(3),
-      lookedByReach: d < spot.r + 0.6,
+      // SEATED, so REACH_MARGIN is the right constant — `fp.ts:1006`'s
+      // `(!seated || d < s.r + REACH_MARGIN)` is one of the only two places it
+      // still governs anything, and `seated` is reported on the line above.
+      // Read off the world rather than the hand-typed 0.6 that stood here, which
+      // would have gone on asserting 0.6 after any re-tune (item 232,
+      // BUILDER-BRIEF §8). For a STANDING player the predicate is
+      // `d < r + TOUCH_MARGIN` (0.15) instead — hence the second field.
+      lookedByReach: d < spot.r + window.__ct.reachMargin(),
+      touchingIfStanding: d < spot.r + window.__ct.touchMargin(),
       eyeY: +cam.position.y.toFixed(3),
       targetY: +(window.__ct.groundAt(spot.x, spot.z) + 1.1).toFixed(3),
       three: !!THREE,
