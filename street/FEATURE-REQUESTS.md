@@ -2981,3 +2981,13 @@ to one side.
 - **"[screenshot] bodega is a bit crowded and lots of clipping inside"**
   (2026-08-02, pasted image, the counter end) → **routed as queue item 177.**
   Same family as the library crowding report (item 115).
+
+- **"pawn shop should contain, knives, bolt cutters, guns, on top of the regular
+  stuff. it should also serve as a fence for the stuff you steal from neighbors.
+  speaking of, i havent seen a single package outside my neighbors doors?"**
+  (2026-08-02) → **routed as queue items 178 (packages), 179 (pawn stock) and
+  180 (fencing).** ANSWER TO HIS QUESTION: he has not seen a package because
+  **none is ever placed.** `PACKAGE_TABLE` and `rollPackage()` exist in
+  `ct/inventory.ts:165,247` and have **no consumers anywhere in `src/`**. The
+  comment at `:158` records the half-finished handoff: *"builder C is putting
+  packages on the walk-up landings."* Builder C never landed it.
