@@ -65,10 +65,19 @@ done
 [ "$DRY" = 1 ] && { echo "(dry run — spared $spared)"; exit 0; }
 echo "reaped $killed; spared $spared"
 
+# `ss -ltn`, NOT curl. This loop used to read `curl … %{http_code}` = 000 as
+# "free", and 000 only means NOTHING SPOKE HTTP TO ME — a socket can be bound
+# and listening without answering, e.g. a vite server still coming up. So the
+# old count reported ports as free that a builder then could not bind, which is
+# the failure this whole script exists to prevent, committed by the script's own
+# report. Demonstrated on a bare TCP listener at 4239: `ss` says
+# `LISTEN 0 511 127.0.0.1:4239`, `curl` says `000`. (GOTCHAS 81.)
+#
+# One `ss` call, not twenty curls: it also drops ~20 s of timeouts off the run.
+listening=$(ss -ltn 2>/dev/null | awk '{print $4}' | grep -oE '[0-9]+$' | sort -u)
 free=0
 for p in $(seq 4180 4199); do
-  c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 1 "http://localhost:$p/" 2>/dev/null)
-  [ "$c" = "000" ] && free=$((free + 1))
+  printf '%s\n' "$listening" | grep -qx "$p" || free=$((free + 1))
 done
 echo "free ports in 4180-4199: $free of 20"
 [ "$free" -lt 4 ] && echo "WARNING: the next builders will struggle — check for servers outside agent worktrees"

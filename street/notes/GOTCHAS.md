@@ -2319,13 +2319,54 @@ Builders are told to prove their port is free before binding it. Worker sixtyone
 found port 4183 **answering `000` to curl and then refusing to bind** — another
 builder had taken it in the gap between the two operations.
 
-Use `ss -ltn`. A port that curl says nothing is listening on may still be claimed
-by the time you bind, and with `--strictPort` that is a hard failure partway into
-your run.
+Use `ss -ltn`. **`000` does not mean "free" — it means "nothing spoke HTTP to
+me", and a socket can be bound and LISTENING without doing that** (a vite server
+still starting up is the common case). Demonstrated on a bare TCP listener that
+never answers:
 
-Related, same report: **`npm run build` while a preview is serving KILLS the
-preview**, after which every check reports `SERVER DIED (unmeasured)` — which
-looks exactly like you broke the world. You did not. That is item 182.
+```
+ss  : LISTEN 0  511  127.0.0.1:4239  0.0.0.0:*
+curl: 000                                        ← "free", said the old recipe
+```
+
+`ss -ltn` reads the kernel's listen table, so it sees the socket either way. It
+is still a race — a port free when you look can be taken before you bind — so
+bind with `--strictPort` and let it fail loudly rather than let vite walk to the
+next port and hand you a world at an address you are not measuring.
+
+### 81a. …and the build does NOT kill your preview. **RETRACTED, measured 2026-08-02.**
+
+The same report added: *"`npm run build` while a preview is serving KILLS the
+preview, after which every check reports `SERVER DIED (unmeasured)`."* **The
+symptom is real. The cause is wrong, and it is wrong in the expensive
+direction** — it sends you to restart a server that never stopped.
+
+Polled a live `vite preview` flat out through one `npm run build`
+(`scripts/probes/w67-does-build-kill-preview.mjs`):
+
+```
+HTTP 200   5760 polls   0.03s .. 2.44s
+HTTP 404   1175 polls   0.67s .. 0.89s
+           zero refused connections; still listening afterwards
+```
+
+**`vite build` empties `dist/` before it writes, and `vite preview` serves
+`dist/` statically — so a perfectly healthy server has no page to hand back for
+about 220 ms.** `checks.mjs` asked `response.ok`, which is false for that 404
+exactly as it is false for ECONNREFUSED, and `serverDied` was a latch that was
+never re-tested. **One 220 ms blink condemned every remaining check of a
+twelve-minute run.**
+
+Fixed (item 182): `scripts/lib/server-state.mjs` classifies three ways instead
+of asserting a boolean, and the runner now prints which one you are in —
+`BUILD RACE` (it healed; re-run that one check), `dist/ EMPTY` (the build is
+still running, or it failed after emptying dist/; re-run `npm run build`),
+`SERVER DIED` (the port really is refusing connections). Cases in
+`scripts/probes/w67-server-state-cases.mjs`.
+
+**The general lesson is the one this file keeps relearning: a 4xx and a refused
+connection are not the same news, and `response.ok` cannot tell you which you
+have.**
 
 ## 82. Rebuilding the queue MUST preserve in-flight claims
 
