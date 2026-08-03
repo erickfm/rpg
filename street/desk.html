@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CROSSTOWN desk — agents</title>
+<style>
+  :root { color-scheme: dark; --bg:#141317; --card:#1c1b21; --line:#2c2a33;
+          --ink:#e8e2d0; --dim:#8d8798; --warm:#d8a83a; --good:#7fb069; --quiet:#c9683f; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; padding:24px }
+  h1 { font-size:15px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 2px; color:var(--warm) }
+  .stamp { color:var(--dim); font-size:12px; margin-bottom:20px }
+  .stamp b { color:var(--ink) }
+  .tallies { display:flex; flex-wrap:wrap; gap:18px; padding:12px 14px; margin-bottom:22px;
+             background:var(--card); border:1px solid var(--line); border-radius:6px }
+  .tallies div { font-size:12px; color:var(--dim) }
+  .tallies b { display:block; font-size:22px; color:var(--ink); font-weight:600 }
+  h2 { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim);
+       margin:26px 0 10px; border-bottom:1px solid var(--line); padding-bottom:6px }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)) }
+  .card { background:var(--card); border:1px solid var(--line); border-left:3px solid var(--dim);
+          border-radius:6px; padding:13px 15px }
+  .card.working { border-left-color:var(--good) }
+  .card.quiet   { border-left-color:var(--quiet) }
+  .card.unmatched { opacity:.62 }
+  header { display:flex; flex-wrap:wrap; gap:10px; align-items:baseline; margin-bottom:8px }
+  .who { font-weight:600; color:var(--warm) }
+  .item { font-size:12px; color:var(--dim) }
+  .since { font-size:12px; color:var(--dim); margin-left:auto }
+  .intent { margin:0 0 8px; color:var(--ink) }
+  .files { font-size:12px; color:var(--dim); margin-bottom:10px; word-break:break-word }
+  footer { border-top:1px solid var(--line); padding-top:8px; display:grid; gap:3px }
+  .commit { font-size:12px }
+  .meta { font-size:11px; color:var(--dim) }
+  .nomatch { color:var(--quiet) }
+  ul { margin:0; padding-left:20px } li { margin-bottom:5px }
+  li.none { list-style:none; color:var(--dim); padding-left:0 }
+  .note { color:var(--dim); font-size:12px; margin-top:26px; border-top:1px solid var(--line); padding-top:12px }
+  @media (max-width:640px){ body{padding:14px} .grid{grid-template-columns:1fr} }
+</style></head><body>
+<h1>Crosstown '97 — the desk</h1>
+<p class="stamp">snapshot taken <b>03/08/2026, 11:40:33</b> · re-run <code>node scripts/desk-page.mjs</code> to refresh. This page does not poll; it is honest about being a snapshot.</p>
+
+<div class="tallies">
+  <div><b>5</b>in flight</div>
+  <div><b>19</b>claimable</div>
+  <div><b>6</b>your asks open</div>
+  <div><b>1</b>deferred by you</div>
+  <div><b>0</b>awaiting you</div>
+</div>
+
+<h2>Agents at work</h2>
+<div class="grid">
+  <article class="card unknown">
+    <header>
+      <span class="who">onehundrednine</span>
+      <span class="item">item 277</span>
+      <span class="since">claimed 11:40</span>
+    </header>
+    <p class="intent">The user: *&quot;when i exit overlays my mouse stops working as well.&quot;* THIS IS THE HIGHEST-IMPACT BUG ON THE BOARD.</p>
+    <div class="files">EXITING ANY OVERLAY LEAVES THE MOUSE DEAD — nothing re-acquires the pointer lock</div>
+    <footer>
+      <span class="meta nomatch">no worktree matched — it may not have committed yet</span>
+    </footer>
+  </article>
+
+  <article class="card unknown">
+    <header>
+      <span class="who">onehundredten</span>
+      <span class="item">item 275</span>
+      <span class="since">claimed 11:31</span>
+    </header>
+    <p class="intent">The user: *&quot;to look at your watch you need to look straight down (couple deg of tolerance).&quot;*  THE INTERESTING PART IS THAT THE NUMBERS DISAGREE WITH HIM, WHICH MEANS THE GATE IS NOT THE WHOLE STORY.</p>
+    <div class="files">the watch needs you to look almost straight down — and the ARITHMETIC SAYS IT SHOULD NOT</div>
+    <footer>
+      <span class="meta nomatch">no worktree matched — it may not have committed yet</span>
+    </footer>
+  </article>
+
+  <article class="card unknown">
+    <header>
+      <span class="who">onehundredeleven</span>
+      <span class="item">item 274</span>
+      <span class="since">claimed 11:31</span>
+    </header>
+    <p class="intent">The user: *&quot;mug should be empty.&quot;* GOOD NEWS FIRST, and it should shape how you treat this: he does NOT mention the handle.</p>
+    <div class="files">ct/apartment.ts:2136 — empty the mug WITHOUT letting it go back to reading as a peg</div>
+    <footer>
+      <span class="meta nomatch">no worktree matched — it may not have committed yet</span>
+    </footer>
+  </article>
+
+  <article class="card unknown">
+    <header>
+      <span class="who">onehundredseven</span>
+      <span class="item">item 270</span>
+      <span class="since">claimed 11:22</span>
+    </header>
+    <p class="intent">The user: *&quot;move the calendar a bit to the right, make it bigger, and make it interactable in the same sort of integrated overlay view.&quot;* SIXTH tenant of the diegetic framework — after the ATM (86), slots (100), mail (155), library PC (157) and the loan application (185).</p>
+    <div class="files">ct/apartment.ts — the calendar: move it right, make it BIGGER, and make it a diegetic overlay</div>
+    <footer>
+      <span class="meta nomatch">no worktree matched — it may not have committed yet</span>
+    </footer>
+  </article>
+
+  <article class="card working">
+    <header>
+      <span class="who">onehundredeight</span>
+      <span class="item">item 268</span>
+      <span class="since">claimed 11:18</span>
+    </header>
+    <p class="intent">The user, and this is his THIRD report of the interior/exterior mismatch class: *&quot;the hotel is the right of the casino outside but to the left inside.</p>
+    <div class="files">THE HOTEL IS RIGHT OF THE CASINO OUTSIDE AND LEFT OF IT INSIDE — the party wall handedness is HAND-TYPED</div>
+    <footer>
+      <span class="commit">Log: exiting an overlay leaves the mouse dead — nothing re-acquires pointer lock</span>
+             <span class="meta">6 minutes ago · 0 unlanded · afedb4cb</span>
+    </footer>
+  </article></div>
+
+<h2>Recently active, no matched claim</h2><div class="grid">
+  <article class="card unmatched">
+    <header><span class="who">a263dd7d</span><span class="item">unmatched</span></header>
+    <p class="intent">Holds no claimed row the desk could match. Either between items, or finished and not yet reaped.</p>
+    <footer><span class="commit">Merge branch 'add-stick-and-city98' into worktree-agent-a263dd7da98fa0675</span>
+            <span class="meta">27 seconds ago · 4 unlanded</span></footer>
+  </article></div>
+<p class="note">47 dormant worktrees not shown — no commit in 120 minutes. Every builder this session left one behind; <code>git worktree prune</code> only clears entries whose directory is already gone.</p>
+
+<h2>Your asks still open</h2>
+<ul><li><b>276</b> “npcs still get stuck.”</li>
+<li><b>273</b> “some bookshelves are flat?”</li>
+<li><b>271</b> “umbrella looks so janky.”</li>
+<li><b>272</b> “people sitting still looks bad because they have no legs??”</li>
+<li><b>253</b> “[screenshot] fix the wheels on the trailer”</li>
+<li><b>256</b> “[screenshot] casino sign still a lil janky. maybe we get rid of the one on the side here? ”</li></ul>
+
+<p class="note">Intent is the first sentence of the queue row the agent claimed. Progress is its worktree's latest commit.
+A card is marked <span style="color:var(--quiet)">quiet</span> after 45 minutes without a commit — long runs are normal here,
+so quiet is a prompt to look, not a verdict.</p>
+</body></html>
