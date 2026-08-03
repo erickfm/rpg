@@ -1718,9 +1718,23 @@ const expected = CHECKS.filter(([name, , selftest, , slow]) => {
   if (slow && !SLOW) return true;           // still pushes a "walks — use --slow" row
   return true;
 }).length;
+// WHAT COUNTS AS A CHECK THAT "RAN" IS NOT WHAT COUNTS AS A ROW.
+//
+// The death latch pushes a row for every remaining check, so `rows.length`
+// reaches `expected` on exactly the run this is supposed to describe, and the
+// count would report 0 lost while the table is a wall of `SERVER DIED`. The
+// number a reader wants is how many checks came back with a VERDICT ABOUT THE
+// WORLD, so the unmeasured statuses are subtracted by name.
+//
+// `WRONG WORLD` is in that list on purpose (GOTCHAS 32: exit 3 means the check
+// never ran). `—` is NOT: a slow-tier or no-selftest row is a declared skip that
+// the table already explains, and calling a deliberate omission a loss would
+// make every default run report 20-odd casualties.
+const UNMEASURED_STATUSES = new Set([...Object.values(UNMEASURED), 'BUILD RACE (unmeasured)', 'WRONG WORLD']);
+const unmeasured = rows.filter(([, , s]) => UNMEASURED_STATUSES.has(s)).length;
 // Rows the flag-per-selftest path splits in two would otherwise read as a
 // SURPLUS, which is not a defect and must not be reported as one.
-const ranRows = Math.min(rows.length, expected);
+const ranRows = Math.min(rows.length, expected) - unmeasured;
 const liveness = await reportEndOfRun(URL, { ran: ranRows, registered: expected, leg: 'check' });
 if (liveness !== 0) {
   // 3, not 1 — GOTCHAS 32. But `process.exitCode` may already be 1 from a real
