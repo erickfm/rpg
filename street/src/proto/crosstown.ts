@@ -309,6 +309,20 @@ export function makeCrosstown(): Proto {
   // arrived on. One rule, no per-spot bookkeeping, and it cannot be defeated by
   // two spots sharing a doorway.
   let landing: { x: number; z: number } | null = null;
+  // THE TWO HALVES OF THE LATCH, NAMED — because the bug in them was a
+  // RELATIONSHIP, not a value, and a relationship you cannot see is one nobody
+  // checks. `LATCH_ARM` is "that act moved me, so it was a transition";
+  // `LATCH_CLEAR` is "I have walked far enough away to re-arm". Both were typed
+  // literals — 1.0 here, and 1.2 in TWO places (the per-frame clear below and
+  // `__ct.landing()`'s `clearIn`) — so the only statement of how they relate
+  // lived in prose. Three copies of a number that must agree is BUILDER-BRIEF
+  // §8's habit, and `__ct.landing().clearIn` is the reading a harness trusts.
+  //
+  // ARM < CLEAR ON PURPOSE. The gap is the hysteresis: arming at the same
+  // distance it clears at would let a spot re-fire the instant you drifted back
+  // over the line, which is the yo-yo this whole mechanism exists to stop.
+  const LATCH_ARM = 1.0;
+  const LATCH_CLEAR = 1.2;
   // ── LINE-OF-SIGHT CACHE ───────────────────────────────────────────────────
   // *"i get awful performance drops in my room not sure why."* Flat 301.
   //
@@ -1594,7 +1608,7 @@ export function makeCrosstown(): Proto {
     // you must walk to re-arm.
     landing: () => (landing
       ? { x: landing.x, z: landing.z,
-          clearIn: Math.max(0, 1.2 - Math.hypot(rig.pos.x - landing.x, rig.pos.z - landing.z)) }
+          clearIn: Math.max(0, LATCH_CLEAR - Math.hypot(rig.pos.x - landing.x, rig.pos.z - landing.z)) }
       : null),
     hermit: (v: boolean | null) => apt.forceHermit(v),
     /** THE WALLET, READ-ONLY — cash, pockets, bank balance, card.
@@ -2152,7 +2166,7 @@ export function makeCrosstown(): Proto {
       // Lines are skipped so the debug volume cannot occlude the world, and the
       // held watch and wrist are DOM rather than scene, so they never can.
       // everything re-arms once you have stepped away from where you arrived
-      if (landing && Math.hypot(px - landing.x, pz - landing.z) > 1.2) landing = null;
+      if (landing && Math.hypot(px - landing.x, pz - landing.z) > LATCH_CLEAR) landing = null;
       // THE EYE IS ON WHATEVER STOREY THE PLAYER IS, and this line was 1.6
       // flat, which killed every `[E]` above the ground floor.
       //
@@ -2288,7 +2302,43 @@ export function makeCrosstown(): Proto {
           // a TRANSITION is an act that moved you. Only those latch: latching
           // everything would stop the ATM re-offering "check balance" after one
           // press, and a seat re-offering "stand up".
-          if (Math.hypot(rig.pos.x - wasX, rig.pos.z - wasZ) > 1.0) {
+          //
+          // ── AND ONLY IF YOU STILL HAVE LEGS TO CLEAR IT WITH (item 283) ──
+          //
+          // THE ARM CONDITION IS A DISTANCE; THE CLEAR CONDITION IS A WALK.
+          // That asymmetry is the whole bug. `landing` is discharged by exactly
+          // one thing — the per-frame `> LATCH_CLEAR` test above, which reads
+          // the player's own x/z — and `fp.ts`'s seated branch returns before
+          // any movement is integrated. So a seated player's x/z is frozen at
+          // the seat, and a latch armed by SITTING DOWN can never discharge:
+          // `canSee` is false for every spot in the world until you stand.
+          //
+          // That is not a hypothetical. `ctx.seat` lets a seat declare an
+          // `approach` away from the pose — the bank's client chair is taken
+          // from its right so the player does not stand on the loan officer
+          // (`ct/int-bank.ts:1421`) — and `hypot(1.10, 0.25) = 1.13 m` clears
+          // LATCH_ARM by 13 cm. Measured on the built bundle: 2 of 219 seats
+          // are over the line ("sit in the client chair", "sit in the shelter"),
+          // and in both the seated `[E]` item 188 landed was dead on arrival.
+          // The user asked for that chair by name — *"you sit and its the loan
+          // process as an integrated overlay"* — so it was dead exactly where
+          // he was going to look for it.
+          //
+          // NOT FIXED BY MOVING EITHER NUMBER. Raising LATCH_ARM past 1.13
+          // rescues these two seats and breaks at the next `approach` somebody
+          // writes; lowering it arms the latch on more of them. The defect is
+          // that a latch whose only discharge is locomotion was being armed on
+          // a player who cannot locomote, so the guard is that condition
+          // itself, derived from `rig.seated` rather than from any distance.
+          //
+          // Safe to read `rig.seated` AFTER the act rather than before: the act
+          // is what changes it, and both directions come out right. Sit down —
+          // still seated, no latch, which is the fix. Use something from a
+          // chair that stands you up and moves you (item 188 made that
+          // reachable) — not seated, latch arms, exactly as a door does. And
+          // `landing` is provably null on entry here, because `canSee` gates
+          // `picked`, so this cannot be masking an older latch.
+          if (!rig.seated && Math.hypot(rig.pos.x - wasX, rig.pos.z - wasZ) > LATCH_ARM) {
             landing = { x: rig.pos.x, z: rig.pos.z };
           }
         } else if ((purse.inv.CEREAL ?? 0) > 0 && px < 100) {
