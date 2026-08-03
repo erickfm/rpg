@@ -196,12 +196,90 @@ if (mode === 'probe' || mode === 'all') {
     });
     return out;
   });
+  // ── THE PARK IS THE THIRD REGION, AND ITS WINDOW IS DERIVED ───────────────
+  //
+  // ITEM 248, AND IT WAS AN ABSENCE RATHER THAN A FALSE GREEN. With two regions
+  // this file measured 11 of the world's 21 stamped lamps; the park's TEN
+  // lanterns matched no predicate, so they entered no pair, no floor and no
+  // verdict. Nothing was wrong with what it printed — it simply never mentioned
+  // that a third of the world's lamps existed. **The park is where the user has
+  // been looking most** (the flat terrain, the bench clearance, the shelter
+  // roof, the path corner all came from there) and its lighting was the one
+  // lighting nobody measured.
+  //
+  // DERIVED FROM THE SITE, NOT TYPED (BUILDER-BRIEF §8). ct/props.ts:2135 places
+  // these ten lanterns from `site('park')` for exactly this reason — the park
+  // has been re-cut twice — so the region that measures them reads the same
+  // publication. crosstown.ts:1598 publishes `sites()` as an OBJECT keyed by
+  // name (`Object.fromEntries(SITES)`), not an array; `roomDims()` being an
+  // array is what once let `dims.library` sweep the whole world, so the shape is
+  // stated here rather than assumed.
+  const parkSite = await page.evaluate(() => {
+    const s = window.__ct.sites?.();
+    const p = s && s.park;
+    return p ? { minX: p.minX, maxX: p.maxX, minZ: p.minZ, maxZ: p.maxZ } : null;
+  });
+  if (!parkSite) {
+    console.error('\n  FAIL window.__ct.sites() publishes no `park` — the park region is');
+    console.error('  derived from it and I will not guess it. Ten lanterns would go');
+    console.error('  unmeasured again, which is the whole of item 248.');
+    process.exit(1);
+  }
   // The same two windows the old clause used, kept so the regions this reports
   // on do not silently change along with the method.
+  const MAIN = ([x, z]) => Math.abs(x) <= 9 && z <= 2 && z >= -96;
+  const SIDE = ([x, z]) => x > 9 && z < -94;
+  const INPARK = ([x, z]) => x >= parkSite.minX && x <= parkSite.maxX
+                          && z >= parkSite.minZ && z <= parkSite.maxZ;
   const REGION = {
-    main: ([x, z]) => Math.abs(x) <= 9 && z <= 2 && z >= -96,
-    side: ([x, z]) => x > 9 && z < -94,
+    main: MAIN,
+    side: SIDE,
+    // EXCLUSIVE BY CONSTRUCTION, and not because today's lamps happen to miss
+    // each other. The park site's east edge is maxX -7, which reaches 2 m INTO
+    // main's |x| <= 9 window, so the overlap strip is real geometry and not a
+    // hypothetical: a lamp placed there would join two regions, be counted
+    // twice, and credit BOTH per-region floors with one sample. The nearest
+    // park lantern to that strip stands at x = -9.55 — 0.55 m outside it — so
+    // this is a live margin, not a comfortable one.
+    park: (L) => INPARK(L) && !MAIN(L) && !SIDE(L),
   };
+
+  // ── EVERY STAMPED LAMP LANDS IN EXACTLY ONE REGION ────────────────────────
+  //
+  // THIS IS THE ACTUAL FIX FOR ITEM 248, one level up from adding the park.
+  // Adding a third region measures the park *today*; this makes the failure
+  // that hid it IMPOSSIBLE TO REPEAT. A lamp outside every window was previously
+  // dropped in silence — `lampXZ.filter(inRegion)` simply never selected it, and
+  // a lamp that is in no pair is in no floor and in no verdict. So the fourth
+  // region, whenever someone lights the car lot or the churchyard, cannot go
+  // unmeasured without this failing and NAMING the coordinates.
+  //
+  // Both directions, because they are different bugs. UNCLAIMED is the item 248
+  // hole: real lamps nobody measures. DOUBLE-CLAIMED is its mirror and it
+  // matters to the per-region floors below — one lamp satisfying two floors
+  // means a region can pass on another region's sample, which is exactly the
+  // "aggregate floor is not a floor on any subgroup" failure the floors exist to
+  // prevent, wearing a different hat.
+  const claims = lampXZ.map((L) => [L, Object.entries(REGION).filter(([, f]) => f(L)).map(([n]) => n)]);
+  const unclaimed = claims.filter(([, r]) => r.length === 0);
+  const doubled = claims.filter(([, r]) => r.length > 1);
+  if (unclaimed.length) {
+    console.error(`\n  FAIL ${unclaimed.length} of ${lampXZ.length} stamped lamps fall in NO region,`
+      + ` so nothing measures them:`);
+    for (const [L] of unclaimed) console.error(`    (${L[0]}, ${L[1]})`);
+    console.error('  Add a region covering them, or this file reports green on a world whose');
+    console.error('  lighting it has not looked at. (Item 248: the park sat here for weeks.)');
+    process.exitCode = 1;
+  }
+  if (doubled.length) {
+    console.error(`\n  FAIL ${doubled.length} stamped lamp(s) fall in MORE THAN ONE region, so one`
+      + ` sample credits two per-region floors:`);
+    for (const [L, r] of doubled) console.error(`    (${L[0]}, ${L[1]}) -> ${r.join(' + ')}`);
+    process.exitCode = 1;
+  }
+  if (!unclaimed.length && !doubled.length)
+    console.log(`  ok    all ${lampXZ.length} stamped lamps fall in exactly one region`
+      + ` (${Object.keys(REGION).join(', ')})`);
   const minLampD = (x, z) => Math.min(...lampXZ.map(([lx, lz]) => Math.hypot(x - lx, z - lz)));
   /** Mid-block candidates: spots genuinely outside every pool, NEAREST FIRST.
    *  Walk out from the lamp and keep every offset whose nearest lamp is at or
@@ -361,9 +439,13 @@ if (mode === 'probe' || mode === 'all') {
 
   // POPULATION FLOOR. Every verdict below is a comparison, and a comparison over
   // an empty set is free — the exact failure this file already guards against
-  // for the halo stamps. Measured at HEAD: 8 main-street lamps and 3 side-street
-  // ones stamp a lens, and all 11 now find a comparable control. The floor is
-  // set below that and well above zero.
+  // for the halo stamps. Measured at HEAD: 21 lamps stamp a lens or lantern
+  // (8 main, 3 side, 10 park) and 17 find a comparable control.
+  //
+  // THIS AGGREGATE BAR IS THE WEAKEST ONE IN THE FILE AND IS KEPT ONLY AS A
+  // BACKSTOP — the per-region bars below are what actually defend each region,
+  // and they sum to 10. A global 4 against a population of 17 could not see the
+  // whole park go dark; that is precisely what item 248 was.
   const FLOOR = 4;
   if (usable.length < FLOOR) {
     console.error(`\n  FAIL only ${usable.length} lamp/mid-block pairs survived the daylight`
@@ -395,22 +477,70 @@ if (mode === 'probe' || mode === 'all') {
   // the results would let a region that produced nothing simply be absent from
   // the loop and pass by not existing, which is the very hole being closed.
   //
-  // BAR OF 2, AND IT HAS HEADROOM ONLY BECAUSE OF THE AXIS FIX ABOVE. Measured
-  // on the built bundle: main 8 usable of 8 stamped, side 3 of 3. Before the
-  // axis fix the side street had exactly 2, so a floor of 2 would have sat right
-  // on the measurement with nothing to spare and cried wolf on the first
-  // innocent change. Two is also the smallest number that means anything: one
-  // sample is an anecdote, and "I found a single usable sample" passing is
-  // precisely how the old self-lit green cost nothing to earn.
-  const REGION_FLOOR = 2;
+  // A FLAT BAR OF 2 IS NOT A FLOOR ON A REGION OF TEN — ITEM 248. The bar used
+  // to be a single 2 for every region, which was right when the largest region
+  // held 8 and is wrong now the park holds 10: six park lanterns could stop
+  // being measurable and a bar of 2 would still pass, which is the SAME
+  // "aggregate floor" mistake one scale down. The subgroup does not stop being a
+  // population just because it is itself a subgroup.
+  //
+  // SO EACH REGION DECLARES BOTH ITS BARS, and there are two because they catch
+  // two different failures:
+  //
+  //   `stamped` — the lamps STOPPED EXISTING (or stopped carrying the stamp).
+  //               A usable-bar alone cannot see this: delete lanterns and the
+  //               stamped population falls with them, so any bar derived from
+  //               that population falls too and passes on a darker park.
+  //   `usable`  — the lamps exist but NOTHING CAN MEASURE THEM: no comparable
+  //               mid-block ground, the daylight control rejecting everything.
+  //               This is the failure item 241 found on the side street.
+  //
+  // MEASURED ON THE BUILT BUNDLE at f8f215097, port 4510, five runs (spread
+  // 0.00 on every region's count): main 8 stamped / 8 usable, side 3 / 3,
+  // park 10 / 6. Every bar below sits at least 2 under its measurement except
+  // side's, which has 1 and is inherited unchanged from item 241 — see the note
+  // above about a bar that sits on the measurement crying wolf.
+  //
+  // THE PARK'S FOUR SKIPS ARE HONEST AND ARE NOT A DEFECT. Its lanterns are
+  // 6.64 m apart — TIGHTER THAN LAMP_R (7.0) — so no spot ALONG a leg is ever
+  // outside a pool, and the control must cross to the field. Four lanterns have
+  // no comparable field to cross to: two sit where the crowned mound changes the
+  // ground under them (0.78x, just under the 0.80 bar), one can only reach the
+  // street (1.71x), and one only the park's own outside edge (0.61x). They are
+  // reported by name, with every candidate tried and its ratio. Widening the
+  // 0.8-1.25 daylight window until they pass would be loosening a check until it
+  // agrees with me (BUILDER-BRIEF §7), and that window is shared with the two
+  // street regions that depend on it.
+  const REGION_BAR = {
+    main: { stamped: 6, usable: 4 },
+    side: { stamped: 2, usable: 2 },
+    park: { stamped: 8, usable: 4 },
+  };
   for (const name of Object.keys(REGION)) {
+    // A NEW REGION CANNOT BE ADDED WITHOUT BARS. Same hole as item 248 itself:
+    // something present in the world but absent from the guard passes by not
+    // being looked at. Adding a region here forces you to say what it must hold.
+    const bar = REGION_BAR[name];
+    if (!bar) {
+      console.error(`\n  FAIL region '${name}' has no entry in REGION_BAR, so nothing constrains`);
+      console.error(`  how much of it must stay measurable. Declare its stamped/usable bars.`);
+      process.exitCode = 1;
+      continue;
+    }
     const n = usable.filter((q) => q.region === name).length;
     const stamped = pairs.filter((q) => q.region === name).length;
-    if (n < REGION_FLOOR) {
-      console.error(`\n  FAIL the ${name} street contributed only ${n} usable lamp/mid-block`
-        + ` pair(s) of ${stamped} stamped — need at least ${REGION_FLOOR}.`);
+    if (stamped < bar.stamped) {
+      console.error(`\n  FAIL the ${name} region stamps only ${stamped} lamp(s) — need at least`
+        + ` ${bar.stamped}. Lamps have been REMOVED, or have stopped carrying the`);
+      console.error(`  lens/lantern stamp. Either way this file is now measuring a smaller`);
+      console.error(`  world than the one it was calibrated against.`);
+      process.exitCode = 1;
+    }
+    if (n < bar.usable) {
+      console.error(`\n  FAIL the ${name} region contributed only ${n} usable lamp/mid-block`
+        + ` pair(s) of ${stamped} stamped — need at least ${bar.usable}.`);
       console.error(`  The verdicts below are medians over ALL regions, so ${name} could be`);
-      console.error(`  measuring nothing while they stay green on the other street's lamps.`);
+      console.error(`  measuring nothing while they stay green on another region's lamps.`);
       process.exitCode = 1;
     }
   }
@@ -490,7 +620,9 @@ if (mode === 'probe' || mode === 'all') {
     for (const name of Object.keys(REGION)) {
       const v = usable.filter((q) => q.region === name);
       const stamped = pairs.filter((q) => q.region === name).length;
-      console.log(`       ${name}: ${v.length}/${stamped} usable (floor ${REGION_FLOOR})`
+      const bar = REGION_BAR[name];
+      console.log(`       ${name}: ${v.length}/${stamped} usable`
+        + `${bar ? ` (bars: ${bar.stamped} stamped, ${bar.usable} usable)` : ' (NO BAR DECLARED)'}`
         + `${v.length ? ' — ' + v.map((q) => q.pool.toFixed(2) + 'x').join(', ') : ''}`);
     }
   }
