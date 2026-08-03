@@ -3064,3 +3064,10 @@ to one side.
   options, so the builder may choose. THRIFT's frontage is `cz: -61.75`,
   `w: 12.5`, `side: -1` (`ct/int-thrift.ts:48`). A "milk crate" prop exists in
   `ct/props.ts` (`:447`, `:1246`).
+
+- **"[screenshot] this is what the slot machine looks like to me. it is
+  incredibly ugly and nothing like a classic slot machine. in fact describe the
+  image to me first then edit your code"** (2026-08-02) → **supersedes item 203
+  with item 208, which now carries the desk's actual DESCRIPTION of his frame
+  rather than a guess.** He asked to be shown we looked before we changed
+  anything — a fair demand after two measured-correct fixes he rejected.
