@@ -285,8 +285,9 @@ if (mode === 'probe' || mode === 'all') {
   // POPULATION FLOOR. Every verdict below is a comparison, and a comparison over
   // an empty set is free — the exact failure this file already guards against
   // for the halo stamps. Measured at HEAD: 8 main-street lamps and 3 side-street
-  // ones stamp a lens, of which 6 have a mid-block spot outside LAMP_R. The floor
-  // is set below that and well above zero.
+  // ones stamp a lens, of which 10 have a mid-block spot outside LAMP_R and
+  // survive the daylight control. The floor is set below that and well above
+  // zero.
   const FLOOR = 4;
   if (usable.length < FLOOR) {
     console.error(`\n  FAIL only ${usable.length} lamp/mid-block pairs survived the daylight`
@@ -299,20 +300,46 @@ if (mode === 'probe' || mode === 'all') {
     const sorted = usable.map((q) => q.pool).sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
     const worst = sorted[0];
-    // THE BAR. Measured at HEAD over the six usable pairs: 2.31x-2.45x, median
-    // 2.43x. A world with the pool switched off gives exactly 1.00x, because the
-    // ratio of ratios cancels everything else — that is the mutation case
-    // `pool-dead` in scripts/canfail.mjs. 1.5 sits well clear of both.
-    const BAR = 1.5;
-    // WORST AS WELL AS MEDIAN, so one dark lamp cannot hide behind five bright
-    // ones. This is what the old clause's per-region split was reaching for, and
-    // it is strictly stronger: it is per LAMP, not per street.
-    const okMed = median > BAR, okWorst = worst > BAR;
+    const heldMed = usable.map((q) => q.gainNear).sort((a, b) => a - b)[Math.floor(usable.length / 2)];
+    // ── THE BARS, AND WHERE THEY COME FROM ──────────────────────────────────
+    //
+    // Set against the `glow-pool` mutation in scripts/canfail.mjs, which is the
+    // only honest way to choose them: it puts `POOL_GAIN = 0` and the check must
+    // separate that world from this one. Measured on the built bundle, ten
+    // usable pairs, three runs of each:
+    //
+    //                        ratio median   ratio worst   night/day under lamp
+    //     HEAD                  4.56x          3.33x            0.686-0.718
+    //     POOL_GAIN = 0         2.10-2.11x     2.08x            0.316-0.336
+    //
+    // ⚠ AND THE MUTANT IS NOT 1.0x, WHICH IS A FINDING ABOUT THE WORLD RATHER
+    // THAN ABOUT THE BAR. `POOL_GAIN = 0` leaves 2.1x of lamplight still on the
+    // ground, because the per-fragment pool is NOT the only thing lighting it:
+    // the painted 5.6 m ADDITIVE POOL DECAL is separate geometry that POOL_GAIN
+    // never touches. So a pixel reading of the ground necessarily sees both
+    // mechanisms, and "the pool gain is dead" reads as a halving rather than as
+    // a blackout. That is why the first bar written here (1.5x, reasoned from
+    // "the ratio of ratios cancels everything, so a dead pool must give 1.00x")
+    // was wrong, and why the mutation SLEPT through it on the first run.
+    const BAR = 3.0;          // 34% under HEAD's median, 42% over the mutant's
+    // WORST AS WELL AS MEDIAN, so one dark lamp cannot hide behind nine bright
+    // ones. This is what the old clause's per-region split was reaching for and
+    // it is strictly stronger: per LAMP, not per street.
+    const BAR_WORST = 2.6;    // 22% under HEAD's dimmest, 25% over the mutant's
+    // A SECOND LEG ON A DIFFERENT QUANTITY. The ratio asks "is it brighter here
+    // than mid-block"; this asks "how much of its own daylight does the ground
+    // under a lamp keep after dark" — an absolute, and the one that moved
+    // furthest under mutation (0.69 -> 0.32). Two legs on two quantities, so a
+    // world that games one still has to get past the other.
+    const BAR_HELD = 0.50;    // 27% under HEAD's 0.69, 49% over the mutant's 0.33
+    const okMed = median > BAR, okWorst = worst > BAR_WORST, okHeld = heldMed > BAR_HELD;
     console.log('');
     console.log(`  ${okMed ? 'OK  ' : 'FAIL'} the ground under a lamp is held up against mid-block — `
       + `median ${median.toFixed(2)}x over ${usable.length} lamps (bar ${BAR}x)`);
-    console.log(`  ${okWorst ? 'OK  ' : 'FAIL'} and EVERY lamp does it — dimmest ${worst.toFixed(2)}x`);
-    if (!okMed || !okWorst) process.exitCode = 1;
+    console.log(`  ${okWorst ? 'OK  ' : 'FAIL'} and EVERY lamp does it — dimmest ${worst.toFixed(2)}x (bar ${BAR_WORST}x)`);
+    console.log(`  ${okHeld ? 'OK  ' : 'FAIL'} lit ground keeps ${(heldMed * 100).toFixed(0)}% of its daylight `
+      + `luminance at 23:00, against ${(usable.map((q) => q.gainFar).sort((a, b) => a - b)[Math.floor(usable.length / 2)] * 100).toFixed(0)}% mid-block (bar ${(BAR_HELD * 100).toFixed(0)}%)`);
+    if (!okMed || !okWorst || !okHeld) process.exitCode = 1;
     const byRegion = {};
     for (const q of usable) (byRegion[q.region] ??= []).push(q.pool);
     for (const [k, v] of Object.entries(byRegion))
