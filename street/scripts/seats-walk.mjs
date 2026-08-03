@@ -237,6 +237,43 @@ for (const s of seats) {
   // not less: its eye must land where the world's own published focus target
   // says, and Escape must both close the screen and then get the player up.
   const foc = await p.evaluate(() => window.__ct.focus());
+  // ── …AND A SCREEN CAN TAKE THE WORLD WITHOUT TAKING THE CAMERA (item 297) ─
+  //
+  // `focus()` is the camera's state, so it catches only the machine seats whose
+  // screen is a MESH the eye flies onto — the slot stools, the loan desk. The
+  // felt table's screen is a frameless PANEL laid over the view: it never
+  // touches the camera, so `focus()` is null and this file called the four
+  // blackjack seats plain chairs and required `[E] stand up` of them.
+  //
+  // They cannot offer it. `hud.ts:2082` hides `#ct-prompt` outright while any
+  // panel is up, deliberately — item 0c gave frameless panels their own caption
+  // and two captions landed on top of each other — so the world prompt this
+  // file reads is null BY CONSTRUCTION at every overlay seat in the world, and
+  // the way out is named in the panel's own caption instead. Walked on the
+  // built bundle at all four seats: the caption reads `SPACE deal · +/- bet ·
+  // I buy in $20 · C cash out   ·   [E] leave`, and `[E]` does leave.
+  //
+  // That is item 263's phantom one class further out, and it is read the same
+  // way — ask the world what is up (`__hud.panel()`, published since item 0c)
+  // rather than infer it. Held to MORE than a chair below, not less: the
+  // caption must NAME a key, that key must actually get the player out, and the
+  // screen must be gone afterwards.
+  //
+  // A PANEL LEFT OVER FROM THE PREVIOUS SEAT CANNOT SNEAK IN HERE. The standing
+  // leg above (`no "<label>" prompt from the one standable point`) reads the
+  // same `#ct-prompt` a live panel suppresses, so a seat approached with a
+  // screen already up fails there, before this ever runs.
+  const ovl = foc ? null : await p.evaluate(() => {
+    const id = window.__hud?.panel?.() ?? null;
+    if (!id) return null;
+    const wrap = document.getElementById(id);
+    // hud.ts builds a frameless panel as [canvas, caption]; a framed one is the
+    // canvas alone and prints its caption INSIDE the glass, where nothing can
+    // read it. `null` here therefore means "this panel names no way out that a
+    // player can be shown to have seen", which is a failure, not a skip.
+    const cap = wrap && wrap.lastChild !== wrap.firstChild ? wrap.lastChild : null;
+    return { id, caption: cap ? cap.textContent : null };
+  });
   // ── READ THE EYE AS YOU SIT, NOT 800 ms LATER ───────────────────────────
   //
   // This check used to call `camY()` down at the bottom, AFTER the four 200 ms
@@ -407,6 +444,35 @@ for (const s of seats) {
     await p.keyboard.press('Escape');
     await p.waitForTimeout(240);
     if (await seatedOn()) { fail('ESCAPE closed the screen but would not get the player up'); continue; }
+  } else if (ovl) {
+    // ── AN OVERLAY SEAT EXITS BY THE KEY ITS OWN CAPTION PRINTS ───────────
+    //
+    // Read off the caption rather than assumed, because `hud.ts:339` DERIVES
+    // that stamp from what the panel is doing — `[E]` normally, `[ESC]` for a
+    // panel that is eating text and has given `e` up — and a check that
+    // hardcoded one of them would go red the day a panel started taking typing.
+    // The caption is the whole promise made to the player here, so the test is
+    // exactly "it promises a key, and that key works".
+    const key = /\bESC\b/i.test(ovl.caption ?? '') ? 'Escape' : 'e';
+    if (!/\[(E|ESC)\]/i.test(ovl.caption ?? '')) {
+      fail(`sitting raised the ${ovl.id} screen and its caption names no way out: `
+        + JSON.stringify(ovl.caption)); continue;
+    }
+    // AND THE WORLD MUST NOT BE SAYING IT TOO. `hud.prompt` suppresses itself
+    // while a panel is up; if both are on screen the player is reading two
+    // captions stacked on each other, which is the bug item 0c fixed.
+    if (seatPrompt !== null) {
+      fail(`the ${ovl.id} screen is up AND the world prompt is still on screen: `
+        + `${JSON.stringify(seatPrompt)} over ${JSON.stringify(ovl.caption)}`); continue;
+    }
+    if (key === 'Escape') { await p.keyboard.press('Escape'); await p.waitForTimeout(240); }
+    else await press();
+    const stillUp = await p.evaluate(() => window.__hud?.panel?.() ?? null);
+    if (stillUp) { fail(`the ${ovl.id} caption promises ${key}, but it left ${stillUp} on screen`); continue; }
+    if (await seatedOn()) {
+      fail(`the ${ovl.id} caption promises ${key} and it closed the screen, `
+        + 'but the player is still in the chair with nothing left saying how to get out'); continue;
+    }
   } else {
     if (!/stand up/.test(seatPrompt ?? '')) {
       fail(`seated prompt should be "stand up", got ${JSON.stringify(seatPrompt)}`); continue;
@@ -450,7 +516,10 @@ if (bad.length) {
     : /^no ".*" prompt/.test(d) ? 'another [E] spot answered instead of the seat'
     : d.startsWith('sat at') ? 'E seated you on a DIFFERENT seat'
     : d.startsWith('seated eye') ? 'seated eye height wrong at the moment of sitting'
-    : d.startsWith('seated prompt') ? 'no "stand up" when seated, and NO screen focus either — nothing offers a way up'
+    : d.startsWith('seated prompt') ? 'no "stand up" when seated, and no screen of EITHER kind — nothing offers a way up'
+    : d.startsWith('sitting raised') ? 'an overlay screen whose caption names no way out'
+    : /^the .* screen is up AND/.test(d) ? 'an overlay screen and the world prompt, both on screen at once'
+    : /^the .* caption promises/.test(d) ? 'an overlay screen whose caption promises a key that does not work'
     : d.startsWith('the screen focus never settled') ? 'a machine seat whose fly-in never finished'
     : d.startsWith('the screen eased the eye') ? 'a machine seat whose fly-in missed its own focus target'
     : d.startsWith('ESCAPE did not close') ? 'ESCAPE would not close the screen the seat opened'
