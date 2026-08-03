@@ -18,9 +18,22 @@ import { ORDER, type CtxBuild } from './ctx';
 
 /** What the crowd needs from the world that the build context does not carry. */
 export interface CrowdOpts {
-  /** solid props people steer AROUND — trees, lamps, parked cars, and the
-   *  moving cruiser's box, which follows it. Read live every frame, so the
-   *  list may still be appended to after the crowd is built. */
+  /** Solid things people steer AROUND. Read live every frame, so the list may
+   *  still be appended to after the crowd is built.
+   *
+   *  ⚠ "parked cars, and the moving cruiser's box" WAS WRONG AND IT COST A
+   *  DIAGNOSIS (item 207). It reads as "moving traffic is not in here, except
+   *  the cruiser", and the desk built a lead on exactly that. **Every moving
+   *  vehicle is in this list**: `crosstown.ts:615` registers them and
+   *  `traffic.ts:236/308` rewrite their extents every frame. So a citizen
+   *  pinned by a car is NOT pinned because the car is invisible to steering —
+   *  the car is visible, and the seven candidates in `walk()` simply have
+   *  nowhere forward to go.
+   *
+   *  Since item 198 this is also most of the world's static geometry, not a
+   *  handful of props: `solid()` and `obstacle()` became one function, moving
+   *  **359 of 508 static player colliders** into this list. Anything tuned
+   *  against the old, much sparser set is tuned against a world that is gone. */
   citAvoid: AABB[];
   /** register a person's footprint as solid to the PLAYER. People are not in
    *  `citAvoid`, so they phase each other but never a tree. */

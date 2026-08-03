@@ -2657,3 +2657,29 @@ kill "$pid"                          # better: keep the pid you started
 
 This is the same family as GOTCHAS 64 (`pkill -f vite` killing your own shell) —
 **your process is in the process table too.**
+
+## 90. `if (!maybePromise(...))` is ALWAYS false — an async predicate silently unfails a check
+
+Worker ninetyone nearly shipped this while making the floor predicate exact:
+
+```js
+if (!hasFloor(x, z)) escapes.push(...)      // hasFloor is now async
+```
+
+`hasFloor(...)` returns a **Promise**, and a Promise is truthy, so `!Promise` is
+**always false**. Every escape check silently passes, forever. **The file's own
+selftest would not have caught it** — the mutation it injects makes the world
+wrong, and a check that can never fail is green on a wrong world too.
+
+This is the same family as the vacuous passes hunted all week, with a new cause:
+**making a predicate `async` retroactively breaks every synchronous caller**, and
+breaks them in the direction that passes. `await` is not optional decoration.
+
+Two habits that catch it:
+
+- **After converting anything to `async`, grep every call site** — not for the
+  name, for the *use*: `!fn(`, `if (fn(`, `fn(...) ?`, `&& fn(`.
+- **Re-run the negative case, not just the positive one.** A check that can no
+  longer fail still passes its happy path. It was the deliberate break-case that
+  would have exposed this, had the selftest injected a *world* fault rather than
+  a *predicate* fault.
