@@ -3033,3 +3033,10 @@ to one side.
 - **"the watch angle is a bit too steep. i liked it better before but idk maybe
   theres a nice middle ground?"** (2026-08-02) → **routed as queue item 200.**
   Item 165 took `WATCH_TILT` from -5° to -18°; he wants between the two.
+
+- **"[screenshot] the pedestrians dont cross at the cross walk"** (2026-08-02,
+  two citizens standing in the roadway near the corner by RADIO, with the
+  painted zebra clearly visible further up the street) → **routed as queue item
+  201.** The crowd network already has the concept: `ct/crowd.ts:232` — *"`road`
+  on an edge is what 'cross at the crossing, and only at the crossing' comes
+  to"*, and `:239` counts `crossings`.
