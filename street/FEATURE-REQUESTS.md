@@ -3141,3 +3141,11 @@ to one side.
   because the shopfront alone leaves 1.63 m). He deferred it believing it cost
   only his own passage. **If it is also stranding citizens, the trade has
   changed and it is his call to reopen 269.**
+
+- **"when i exit overlays my mouse stops working as well"** (2026-08-03)
+  → **routed as queue item 277, top of the queue.** Traced by the desk:
+  opening a diegetic overlay deliberately calls `document.exitPointerLock()`
+  (`ct/hud.ts:1244`) so the pointer can click the screen — correct. But the ONLY
+  `requestPointerLock` in the whole source is `src/main.ts:32`, on a **canvas
+  click**, gated `current?.pointerLock && !input.locked`. **Nothing re-acquires
+  the lock when an overlay closes.** Offered as a lead, not a verdict.
