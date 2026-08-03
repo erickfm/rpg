@@ -344,12 +344,41 @@ for (let r = 0.75; r <= 3.75 && !found; r += 0.75) {
 say(!!found, 'the cereal counter is findable from the door',
   found ? `at (${found[0].toFixed(1)}, ${found[1].toFixed(1)}), ${JSON.stringify(await prompt())}` : 'not found within 3.75 m', 1);
 if (found) {
-  // $14.50 to start and cereal is $2.50, so the money runs out on the sixth.
   // BUY UNTIL REFUSED rather than pressing exactly five times: a dropped
   // keystroke made this fail once in four runs, and a proof that cries wolf is
-  // worse than no proof. The assertion is no weaker — it still only holds if
-  // ctx.purse is the object the HUD was built on, and the SECOND line pins the
-  // count, so a purse that never decremented would still fail.
+  // worse than no proof.
+  //
+  // ── CONVERTED 2026-08-03, ITEM 261 ────────────────────────────────────────
+  // This used to end on `bought >= 5 && bought <= 6` with the comment "$14.50
+  // to start and cereal is $2.50, so the money runs out on the sixth" — TWO
+  // hand-typed copies of numbers owned by `crosstown.ts:309` and
+  // `int-bodega.ts:773`, and the check was a count of keystrokes standing in
+  // for a measurement of money. It would have gone red for a reason that is not
+  // a defect the day anybody changed the opening purse, and it could not tell a
+  // till that charges the wrong amount from one that charges nothing: five
+  // presses is five presses either way.
+  //
+  // `__ct.purse()` publishes the number, so the claim can be the real one — the
+  // wallet went DOWN by the price the till itself states, once per press, and
+  // it stops exactly when what is left will not cover another. Nothing below is
+  // typed; both figures come out of the world.
+  //
+  // ⚠ COUNT THE BOXES, NOT THE KEYSTROKES. The obvious conversion — assert
+  // `opening − left === bought × price` — is WRONG and I only found out by
+  // running it against a world whose opening purse had been moved to $20.00.
+  // `bought` counts key presses, and the prompt is repainted a frame behind the
+  // wallet, so with the money landing on exactly $0.00 the loop got one press
+  // past the refusal: 9 presses, 8 boxes, and the assertion went red on a
+  // healthy world. Keystrokes are the harness's own bookkeeping; the boxes in
+  // your pockets are the world's. `purse().inv` publishes those, so the count
+  // and the money now come from the same read and a dropped or duplicated press
+  // cannot desynchronise them. (This is the flake the note above was already
+  // worried about, in a new place.)
+  const wallet = () => page.evaluate(() => window.__ct.purse());
+  const price = Number(/\$(\d+\.\d\d)/.exec(await prompt() ?? '')?.[1] ?? NaN);
+  say(Number.isFinite(price), 'the till states its own price, so nothing is retyped here',
+    `prompt ${JSON.stringify(await prompt())} -> $${price.toFixed(2)}`, 1);
+  const w0 = await wallet();
   let bought = 0;
   for (let i = 0; i < 12; i++) {
     if ((await prompt()).includes('you')) break;
@@ -357,10 +386,25 @@ if (found) {
     await page.waitForTimeout(300);
     bought++;
   }
+  const w1 = await wallet();
+  const left = w1.cash;
+  const boxes = (w1.inv.CEREAL ?? 0) - (w0.inv.CEREAL ?? 0);
   say((await prompt()).includes('you'), 'the money runs out',
-    `refused after ${bought} bought — ${JSON.stringify(await prompt())}`, 1);
-  say(bought >= 5 && bought <= 6, 'and it runs out where $14.50 says it should',
-    `${bought} x $2.50 against $14.50`, 1);
+    `refused after ${bought} presses — ${JSON.stringify(await prompt())}`, 1);
+  // THE MEASUREMENT: the wallet fell by exactly the stated price per box that
+  // actually arrived. A till wired to charge nothing, or half, or twice, fails
+  // here on any run — the old keystroke count could not see it at all, and a
+  // till that charged you for a box it never handed over now fails too.
+  say(Number.isFinite(price) && boxes > 0
+    && Math.abs((w0.cash - left) - boxes * price) < 0.005,
+    'and every box that arrived cost exactly the price on the label',
+    `$${w0.cash.toFixed(2)} -> $${left.toFixed(2)} for ${boxes} box${boxes === 1 ? '' : 'es'}`
+    + ` × $${price.toFixed(2)}  (${bought} presses)`, 1);
+  // AND IT STOPS AT THE RIGHT MOMENT, by the number rather than by a count:
+  // what is left must not cover another box.
+  say(Number.isFinite(price) && left < price && left >= 0,
+    'and it stops exactly when what is left will not cover another',
+    `$${left.toFixed(2)} left against a $${price.toFixed(2)} box`, 1);
 }
 
 // ── the ATM answers, and answers with real money ──────────────────────────
