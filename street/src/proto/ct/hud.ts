@@ -1423,10 +1423,29 @@ export function makePanel(spec: PanelSpec): Panel {
       // throws where nobody is listening.
       if (pendingLock && !livePanel && !raising && pendingLock.isConnected) {
         const el = pendingLock as HTMLElement; pendingLock = null;
-        // Same catch, and the same reason, as `main.ts:32`: a sandboxed iframe
-        // refuses pointer lock outright and the artifact falls back to
+        // A SANDBOXED IFRAME REFUSES THE LOCK, and the artifact falls back to
         // drag-look. Failing to re-lock there is correct and must stay silent.
-        try { el.requestPointerLock?.(); } catch { /* sandboxed iframe: drag-look still works */ }
+        //
+        // ⚠ THE SYNCHRONOUS `catch` ALONE IS NOT ENOUGH, AND `main.ts:32` HAS
+        // THE SAME HOLE. Measured in a frame sandboxed without
+        // `allow-pointer-lock` (`scripts/probes/w109-lock-returns-promise.mjs`):
+        // `requestPointerLock()` returns a **Promise** and throws NOTHING
+        // synchronously, so `try { … } catch {}` catches nothing and the
+        // rejection surfaces as an UNCAUGHT pageerror —
+        //
+        //     try/catch only        2 errors, one of them PAGEERROR: Failed to
+        //                           execute 'requestPointerLock' … Blocked
+        //     try/catch + .catch()  1 error, the browser's own console note
+        //
+        // — every single time an overlay closed in the published artifact. This
+        // is `close()`, the callback that un-traps the player, so an uncaught
+        // throw here is §11 territory rather than a log line. The older DOM
+        // signature returns `undefined`, hence the `typeof` test rather than an
+        // assumption either way.
+        try {
+          const r = el.requestPointerLock?.() as unknown as Promise<void> | undefined;
+          if (r && typeof r.catch === 'function') r.catch(() => { /* refused: drag-look still works */ });
+        } catch { /* sandboxed iframe: drag-look still works */ }
       }
       // RELEASE BEFORE onClose, and inside a try, because THIS is the callback
       // that un-traps the player. A caller whose release throws must not be
