@@ -3088,3 +3088,73 @@ to one side.
   → **routed as queue items 267 (the rail) and 268 (the handedness).** THIRD
   report of the interior/exterior mismatch class — after the jail doors and the
   church door, both of which turned out to be world-wide rather than local.
+
+- **"push everything. yes lets do 25 deg. leave the sidewalk bus stop alone for
+  now. move the calendar a bit to the right, make it bigger, and make it
+  interactable in the same sort of integrated overlay view."** (2026-08-03)
+  → **pushed (748 commits, auto-deploys to Pages).** Aim tolerance **25°**
+  decided — item 98 returns to TODO with the number. The bus-stop pinch
+  (item 269, 1.15 m lane) is **DEFERRED at his instruction, not fixed.**
+  The calendar is **routed as queue item 270** — SIXTH tenant of the diegetic
+  framework.
+
+- **"[screenshot] umbrella looks so janky"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-21-57.png`) → **routed as queue item 271.**
+  The canopy sits directly on the head with no shaft visible and both arms down.
+  Note `ct/crowd.ts:297` already records a first cut at 0.95 m reading "as a HAT
+  rather than a brolly" — it was widened to 1.14 m and still reads as a hat.
+
+- **"[screenshot] people sitting still looks bad because they have no legs??"**
+  (2026-08-03, the diner booths) → **routed as queue item 272.** Torso and head
+  above the seat, nothing below the waist. `ct/citizens.ts:102-103` DOES draw
+  seated legs ("hip 47, knee forward, shin down to the same 59"), so the cause is
+  open: the flag, occlusion by the booth back, or seat height.
+
+- **"[screenshot] some bookshelves are flat?"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-23-42.png`) → **routed as queue item 273.**
+  In his frame the wall runs read as flat painted boards, and one free-standing
+  unit centre-right is a **completely blank brown panel with no books at all**.
+  `ct/int-library.ts:302-308` records this exact failure — a book plane left at
+  the wrong rotation *"hangs on the END of the bay… while the sides of every
+  stack — the faces you actually walk between — were blank brown board."*
+
+- **"[screenshot] mug should be empty"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-26-55.png`) → **routed as queue item 274.**
+  FOURTH mug report — and notably he does NOT mention the handle, so items 108
+  and 167 are settled. The dark disc at `ct/apartment.ts:2136-2139`
+  (`CircleGeometry(MUG_R - 0.006)`, `0x4a3524`) reads as coffee; he wants the mug
+  empty. ⚠ That disc exists on purpose: without it the top reads as a solid peg.
+
+- **"to look at your watch you need to look straight down (couple deg of
+  tolerance)"** (2026-08-03) → **routed as queue item 275.** MEASURED, and the
+  arithmetic disagrees with his experience: the gate is `rig.pitch < -0.95`
+  (`crosstown.ts:2002`) = 54.4° below horizontal, and the pitch clamp is ±1.3 rad
+  (`fp.ts:515-516`) = 74.5°, so on paper there are **20° of range**, not "a
+  couple". Something makes the effective window far smaller than the gate.
+
+- **"[screenshot] npcs still get stuck"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-31-21.png` — two citizens stationary on the
+  pavement beside the bus bench, with SLEEP CENTER behind them)
+  → **routed as queue item 276.** ⚠ **This looks like the pinch he DEFERRED an
+  hour earlier** (item 269: the walking lane is **1.15 m** there against a sacred
+  2 m; the player stops permanently 3.7 m in; **moving the bench cannot fix it**
+  because the shopfront alone leaves 1.63 m). He deferred it believing it cost
+  only his own passage. **If it is also stranding citizens, the trade has
+  changed and it is his call to reopen 269.**
+
+- **"when i exit overlays my mouse stops working as well"** (2026-08-03)
+  → **routed as queue item 277, top of the queue.** Traced by the desk:
+  opening a diegetic overlay deliberately calls `document.exitPointerLock()`
+  (`ct/hud.ts:1244`) so the pointer can click the screen — correct. But the ONLY
+  `requestPointerLock` in the whole source is `src/main.ts:32`, on a **canvas
+  click**, gated `current?.pointerLock && !input.locked`. **Nothing re-acquires
+  the lock when an overlay closes.** Offered as a lead, not a verdict.
+
+- **"ok for 110, i want you to need to look straight down, it is confused. im
+  asking for that. it isnt that way"** (2026-08-03) → **corrects item 275, which
+  the desk had INVERTED.** His earlier line — *"to look at your watch you need to
+  look straight down (couple deg of tolerance)"* — was **a request describing the
+  behaviour he wants**, not a complaint about the current one. The desk read it
+  as a bug report and wrote a row telling a builder to WIDEN the window. He wants
+  it **narrowed**: essentially straight down, with a couple of degrees of play.
+  The holding worker (onehundredten) was messaged directly.
