@@ -16,7 +16,7 @@ import { ROAD_HALF, WALK, FACE, PARK_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng'
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
 import { buildGround, JUNCTION_CROSSINGS } from './ct/tex-ground';
-import { type CarKind, makeCar, PICKUP_BED, PICKUP_CAB, PICKUP_COWL_Z, HOOD_TOP } from './ct/cars';
+import { type CarKind, makeCar, PICKUP_BED, CAR_HALF_W, carHalfLen, carColliderBoxes } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
 import { nudgeClear, corridor, ENTERABLE, PASSABLE } from './ct/gap';
@@ -512,8 +512,11 @@ export function makeCrosstown(): Proto {
   // …and the fleet itself, because the gap rule cannot be finished here: half the
   // things a car might trap you against are registered by modules built LATER.
   // See settleParking() at the bottom of the build.
-  const parkedFleet: { car: THREE.Group; cb: AABB; half: number; kind: CarKind }[] = [];
-  const carHalf: Record<CarKind, number> = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 };
+  const parkedFleet: { car: THREE.Group; cb: AABB; half: number; kind: CarKind; ry: number }[] = [];
+  // `carHalf`, a hand-typed { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 }
+  // that was ALSO typed out identically in ct/sidestreet.ts, is gone: every
+  // entry was `CAR_SPEC[kind].len / 2 + 0.15`, and that derivation now lives
+  // once in ct/cars.ts as `carHalfLen` (item 202c, BUILDER-BRIEF §8).
   // ── nobody parks across an alley mouth ──────────────────────────────────
   //
   // The truck stood on the west kerb at z0 = -33, and the draw below spreads
@@ -528,7 +531,7 @@ export function makeCrosstown(): Proto {
   // would just be a different fixed arrangement.
   const ALLEY_SIGHT = 2.5;                      // clear space off the mouth
   const PARK_SPREAD = 2.4;                      // the ±1.2 m the draw applies
-  const truckZ0 = AZ0 + ALLEY_SIGHT + carHalf.pickup + PARK_SPREAD / 2;
+  const truckZ0 = AZ0 + ALLEY_SIGHT + carHalfLen('pickup') + PARK_SPREAD / 2;
   // kind, colour, which kerb, roughly where
   const parked: [CarKind, number, number, number][] = [
     // -13 -> -11: the user, looking at it broadside from the walk by the lamp
@@ -562,7 +565,8 @@ export function makeCrosstown(): Proto {
     // hand-placing a fixed offset back would just be a different arrangement,
     // and the trap moves with the draw anyway.
     const box = (zz: number) => ({
-      minX: x - 1.05, maxX: x + 1.05, minZ: zz - carHalf[kind], maxZ: zz + carHalf[kind],
+      minX: x - CAR_HALF_W, maxX: x + CAR_HALF_W,
+      minZ: zz - carHalfLen(kind), maxZ: zz + carHalfLen(kind),
     });
     // reach 4.5 m, not the 3 m default: a kerb prop's z-span has to be cleared
     // ENTIRELY to remove an x-corridor between it and the car beside it, and a
@@ -595,7 +599,7 @@ export function makeCrosstown(): Proto {
     props.lit(car);          // parked in a lamp pool? then it catches it
     const cb = box(z);
     carColliders.push(cb); citAvoid.push(cb);
-    parkedFleet.push({ car, cb, half: carHalf[kind], kind });
+    parkedFleet.push({ car, cb, half: carHalfLen(kind), kind, ry });
   });
   // ── the traffic, and the road network it drives ─────────────────────────
   //
@@ -775,420 +779,178 @@ export function makeCrosstown(): Proto {
     }
   }
 
-  // ── item 29: A ROUTE ONTO THE ROOF, NOT A ROOF NOBODY CAN REACH ─────────
+  // ── items 29, 54 AND 202c: ONE COLLIDER PER KIND, ON EVERY INSTANCE ─────
   //
   // *"i want the collision to be a bit more accurate to the objects. the cars
-  // for instance. we should be able to jump on the cars."*
+  // for instance. we should be able to jump on the cars."*   (items 29, 54)
+  // *"truck collision isnt accurate to the truck but the other truck is? it
+  //  seems odd. seems like all trucks should be one object that are all the
+  //  same no?"*                                                   (item 202c)
   //
-  // Item 1 (notes/w13-collider-volume.md) made the pickup's bed floor
-  // standable and stopped there, because 0.50 m is the ONLY flat surface on
-  // the whole fleet a standing jump can gain. A roof at 1.50 m was left alone
-  // — correctly, because a collider nothing can reach is a collider nobody
-  // meets.
+  // THIS USED TO BE TWO BLOCKS OF NINETY LINES, one opening
+  // `parkedFleet.find((p) => p.kind === 'pickup')` and the other
+  // `parkedFleet.find((p) => p.kind === 'sedan')`. Each built a correct,
+  // silhouette-hugging, height-capped collider — for THE FIRST MATCH, which is
+  // all `.find()` ever returns. Every other vehicle in the world kept the bare
+  // box `box()` gave it, with no `maxY` at all, and `fp.ts:40` makes `maxY`
+  // optional so absent means FULL HEIGHT. That is exactly what the user was
+  // looking at through the V overlay: two pickups, one hugging its silhouette
+  // and one a full-height slab. The tiers were never wrong; they were applied
+  // once each.
   //
-  // HOW HIGH A HOP ACTUALLY IS, because it is the number every height below
-  // is chosen against and the obvious source for it is WRONG. fp.ts:446's
-  // comment says 0.571 m; that is the apex of the CONTINUOUS system, and the
-  // world never reaches it. `fp.ts:455-456` steps semi-implicit Euler — `vy`
-  // is decremented before the position update — which costs v0·dt/2 of height
-  // every frame, and `main.ts:107` clamps dt at 0.05. So the apex runs from
-  // **0.471 m at the clamp (the worst frame the engine can ever take) to
-  // 0.558 m at 144 fps**, and `standTop` adds `TOP_EPS` (0.08 m) on top of
-  // whichever you get. **Worst-case reach is 0.551 m, not 0.651.** Measured,
-  // not derived: scripts/probes/w21-apex.mjs samples it per animation frame
-  // under CDP CPU throttling and gets 0.475 m at every throttle, which is the
-  // dt clamp holding.
+  // The shapes now live in `ct/cars.ts` as `carColliderSpec(kind)`, beside the
+  // panel constants they are derived from, and this loop applies them to every
+  // parked car. Not one number moved — the measured reasons behind each tier's
+  // height are recorded there rather than repeated here.
   //
-  // The answer is not a bigger jump (that is fp.ts, the 2 m lane, and every
-  // tuned spot in scripts/jump-walk.mjs). It is that a pickup ALREADY has a
-  // staircase, and it was one box pretending to be a wall:
+  // PLACED HERE, AFTER settleParking, AND MUTATING `p.cb` RATHER THAN
+  // REGISTERING THE SPLIT FROM THE START, because settleParking's own gap check
+  // (`others = colliders.filter((b) => b !== p.cb)`, a few lines up) excludes
+  // the car's box by REFERENCE — a second box registered before that loop ran
+  // would not be excluded, and the truck would read as trapped against its own
+  // tailgate.
   //
-  //                        rise   worst-case margin
-  //     pavement  0.14 ─┐
-  //     bed floor 0.50  │  0.36        +0.191   PICKUP_BED.floorY  (item 1's)
-  //     bed rail  0.97  │  0.47        +0.081   PICKUP_BED.railY   ← the missing step
-  //     cab roof  1.50  │  0.53        +0.021   PICKUP_CAB.roofY   ← what was asked for
-  //     hood      0.94  │  (down)               HOOD_TOP           ← and the way back
-  //
-  // THE ROOF HOP CLEARS BY 21 mm on the engine's worst possible frame, and by
-  // ~88 mm for a 60 fps player. It is the tightest thing in this file and the
-  // first thing that breaks if anyone retunes `vy`, gravity or `TOP_EPS` —
-  // scripts/w21-roof-climb.mjs is what will catch that. There is no
-  // intermediate surface between the rail and the roof to spend the slack on;
-  // the truck simply has nothing there.
-  //
-  // Every gap in that column is under the 0.551 m worst case, so every step
-  // is a real jump
-  // from a real surface. Nothing here changes movement: the tops are opt-in
-  // `maxY` values on boxes that already existed, and the union of their
-  // FOOTPRINTS is exactly the footprint the truck had before — so the lane
-  // you walk past a parked truck in is untouched, at ground level, to the
-  // millimetre.
-  //
-  // WHY NO TAILGATE COLLIDER, when the tailgate is right there in the mesh:
-  // the bed is entered over it. Adding a wall at railY across the tail would
-  // put the bed floor behind a 0.97 m step reachable only from 0.32 m up, and
-  // the one thing that already worked would stop working. The side rails are
-  // added and the tail is left open, so entry is exactly as item 1 proved it
-  // and the rails are what you climb. Same for the headboard: it lies wholly
-  // inside the cab box's own RADIUS padding, so no player can ever stand on
-  // it, and a collider nobody can meet is the thing this item forbids.
-  //
-  // Placed HERE, after settleParking, and mutates `p.cb` rather than
-  // registering the split from the start, because settleParking's own gap
-  // check (`others = colliders.filter(b => b !== p.cb)`, a few lines up)
-  // excludes the truck's box by REFERENCE — a second box registered before
-  // that loop ran would not be excluded, and the truck would read as trapped
-  // against its own tailgate. Every other car is untouched, and that is
-  // deliberate: see notes/w21-car-roof-climb.md for the measured reason a
-  // sedan, hatch and van still have no first step, and what one would cost.
-  const truck = parkedFleet.find((p) => p.kind === 'pickup');
-  if (truck) {
-    const tz = truck.car.position.z, tx = truck.car.position.x;
-    // Every OTHER car collider in this file ignores rotation entirely —
-    // `box()` above is a fixed ±1.05 x ±carHalf box at any yaw — so this
-    // matches that convention rather than inventing real oriented-box math
-    // for one object (item 1's rotation stage is not this stage). `dir` only
-    // has to answer "which world end is the bed", which needs the SIGN of
-    // cos(ry), not its value; parkYaw()'s few degrees of jitter never get
-    // near flipping that sign.
-    const dir = Math.cos(truck.car.rotation.y) >= 0 ? 1 : -1;
+  // AND THE GROUND FOOTPRINT DOES NOT MOVE, which is what makes it safe to
+  // split a box the trap-band rule has already been run against: a kind's tiers
+  // tile its length end to end (nose … cowl … bed front … tail) and the bed
+  // rails lie inside that, so the union of every tier is exactly the box
+  // `nudgeClear` saw. The lane you walk past a parked car in is untouched, at
+  // ground level, to the millimetre.
+  type Top = AABB & { tag: string };
+  let hitched = false;
+  for (const p of parkedFleet) {
+    const tiers = carColliderBoxes(p.kind, p.car.position.x, p.car.position.z, p.ry);
+    // Tier 0 is written INTO the box that already exists, so every reference
+    // already held to it — `carColliders`, `colliders`, `citAvoid` and
+    // settleParking's own `p.cb` — keeps pointing at a live tier. The rest go
+    // to `colliders`/`citAvoid` directly and NOT to `carColliders`, which was
+    // spread into `colliders` hundreds of lines above: pushing there would not
+    // reach FPRig, colliderDebug or ctx.colliders().
+    Object.assign(p.cb, tiers[0]);
+    for (const t of tiers.slice(1)) { colliders.push(t); citAvoid.push(t); }
+
+    // ── item 54's TRAILER, which is a VEHICLE and not a kind of car ─────────
+    //
+    // *"i love the car with the trailer thing btw keep that tysm."*
+    //
+    // Hitched to the one sedan parked on this block, and deliberately NOT part
+    // of `carColliderSpec('sedan')`: a trailer is a second vehicle that happens
+    // to be attached to this one, so folding it into the KIND would hitch a
+    // flatbed to every sedan in the world — the side street's, the lot's, and
+    // the four in the traffic pool. What the kind owns is the boot lid; what
+    // this particular car owns is the trailer behind it.
+    //
+    // The deck at 0.50 m is the step a sedan's own body cannot provide: it is
+    // the height the pickup's bed floor has shipped at since item 1, imported
+    // from `PICKUP_BED.floorY` rather than retyped, because "the one flat
+    // height on this street a standing jump gains from the road" is exactly the
+    // property both surfaces are for.
+    //
+    //   road 0.00 → trailer deck 0.50 → boot lid 0.93
+    //
+    // The roof is deliberately NOT on that list: a boot-lid → roof hop is a
+    // 0.53 m rise, which at the dt clamp leaves two frames of travel (0.330 m)
+    // against the 0.36 m of RADIUS `blocked()` pads the roof by, so it lands on
+    // a coin flip. scripts/w29-sedan-climb.mjs asserts that ABSENCE.
+    if (p.kind !== 'sedan' || hitched) continue;
+    hitched = true;
+    const sz = p.car.position.z;
+    // Same convention as `carColliderBoxes`: every parked car collider in this
+    // world is axis-aligned, so `dir` only has to answer "which world end is
+    // the boot", which needs the SIGN of cos(ry), not its value. parkYaw()'s
+    // few degrees of jitter never get near flipping that sign.
+    const dir = Math.cos(p.ry) >= 0 ? 1 : -1;
     const localZ = (a: number, b: number): [number, number] =>
-      dir === 1 ? [tz + a, tz + b] : [tz - b, tz - a];
-    // The collider's own half-width, READ BACK off the box the parking pass
-    // built rather than retyped as 1.05. Every top below uses it, so all four
-    // tiers are exactly as wide as the box they replace and none of them can
-    // drift from `box()` above if that ±1.05 ever changes.
-    const halfW = truck.cb.maxX - tx;
-    /** A standable top, carrying the name of the surface it is. `tag` is not
-     *  read by fp.ts — `AABB` has no such field and that file is not this
-     *  item's to change — but `__ct.colliders()` serialises it, which is how
-     *  scripts/w21-roof-climb.mjs asserts against THE ROOF rather than
-     *  against "the first collider that happens to have a maxY". Five boxes
-     *  now carry a `maxY`; `find(c => c.maxY !== undefined)` used to be
-     *  unambiguous and is not any more. */
-    type Top = AABB & { tag: string };
-    const tops: Top[] = [];
-    const top = (tag: string, minX: number, maxX: number,
-      z: [number, number], maxY: number): Top => {
-      const t: Top = { tag, minX, maxX, minZ: z[0], maxZ: z[1], maxY };
-      tops.push(t);
-      return t;
+      (dir === 1 ? [sz + a, sz + b] : [sz - b, sz - a]);
+    const DECK_Y = PICKUP_BED.floorY;         // 0.50 — imported, not retyped
+    const DRAW_L = 0.30;                      // drawbar seen between car and deck
+    const DECK_L = 1.50;
+    const deckZ0 = p.half + DRAW_L, deckZ1 = deckZ0 + DECK_L;
+    // The deck collider starts at the car's own tail, not at the deck plank, so
+    // the car and the trailer present ONE continuous solid at ground level. A
+    // gap here would be 0.65 m of exactly the 0.40–0.95 m band `ct/gap.ts`
+    // calls a trap, manufactured between two things added on purpose.
+    const deckZ = localZ(p.half, deckZ1);
+    const deckBox: Top = {
+      tag: 'sedan-trailer-deck', minX: p.cb.minX, maxX: p.cb.maxX,
+      minZ: deckZ[0], maxZ: deckZ[1], maxY: DECK_Y,
     };
 
-    // ── tier 1: the hood, and the cab it stops short of ───────────────────
+    // ── the trailer itself, as a child of the car it is hitched to ──────────
     //
-    // The truck's front box becomes the HOOD, standing at `HOOD_TOP`, and it
-    // runs from the nose back to `PICKUP_COWL_Z` — the point where the
-    // windscreen rises past the hood's own top. Stopping there is the whole
-    // reason that constant is derived in ct/cars.ts rather than eyeballed: a
-    // hood tier that ran to the roof plate's front edge would put a standable
-    // shelf at 0.94 m INSIDE the cab, under the glass.
-    const [hoodMinZ, hoodMaxZ] = localZ(-carHalf.pickup, PICKUP_COWL_Z);
-    truck.cb.minZ = hoodMinZ; truck.cb.maxZ = hoodMaxZ;
-    truck.cb.maxY = HOOD_TOP;
-    (truck.cb as Top).tag = 'pickup-hood';
-    tops.push(truck.cb as Top);
-
-    // ── tier 2: the cab, whose top IS the roof ────────────────────────────
-    //
-    // One box over the greenhouse, standing at the roof plate's own height.
-    // A box over a sloped screen always overfills it: this one floats up to
-    // 0.47 m above the glass at the windscreen's foot, and reaches 0.31 m
-    // wider than the roof plate on each side (the plate is ±0.74, the box is
-    // the body's ±1.05). Both are the price of an axis-aligned box on a
-    // welded loft, and both are the SAME 0.15 m collision skin the bed floor
-    // has shipped with since item 1 — widened only because the roof plate is
-    // inset from the body it sits on. A tighter roof would need either the
-    // oriented-collider type queued in notes/w13-collider-volume.md, or a
-    // narrower box, and a narrower box cannot be done safely here: it would
-    // notch the truck's ground footprint, and the trap-band rule above
-    // (`nudgeClear`) was already run against the wide one.
-    top('pickup-cab-roof', truck.cb.minX, truck.cb.maxX,
-      localZ(PICKUP_COWL_Z, PICKUP_BED.z0), PICKUP_CAB.roofY);
-
-    // ── tier 3: the bed floor, exactly as item 1 shipped it ───────────────
-    top('pickup-bed-floor', truck.cb.minX, truck.cb.maxX,
-      localZ(PICKUP_BED.z0, carHalf.pickup), PICKUP_BED.floorY);
-
-    // ── tier 4: the two bed rails — the step from the bed to the roof ─────
-    //
-    // The wall itself is `PICKUP_BED.wallT` (0.16 m) thick, which is a hard
-    // landing to hit at walking speed. The box runs from the wall's INNER
-    // face out to the collider's own side instead, so the standable band is
-    // 0.31 m: the extra 0.15 m is the skin the box already claimed at bed-
-    // floor height, so this adds no reach the truck did not already have and
-    // removes the sliver where overshooting the rail used to drop you onto
-    // the bed box while standing outside the truck's body.
-    const railZ = localZ(PICKUP_BED.z0, PICKUP_BED.half);
-    const railIn = PICKUP_BED.halfW - PICKUP_BED.wallT;
+    // A child, so it inherits the car's placement and yaw and cannot drift from
+    // it — and so it is built in the car's own local frame, which is the frame
+    // every number above is already in. Added AFTER settleParking, like the
+    // tiers, so the car's final z is known.
+    const trailer = new THREE.Group();
+    const steelM = new THREE.MeshBasicMaterial({ color: 0x3c4046 });
+    const tyreM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+    // A weathered plank deck, painted at the same nearest-neighbour density as
+    // everything else on the block.
+    const plankT = pixTex(32, 48, (g) => {
+      g.fillStyle = '#6b5c46'; g.fillRect(0, 0, 32, 48);
+      for (let i = 0; i < 6; i++) {
+        g.fillStyle = ['#7a6a52', '#63553f', '#71624b', '#5c4f3a', '#75664e', '#685a44'][i];
+        g.fillRect(0, i * 8, 32, 7);
+        g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, i * 8 + 7, 32, 1);
+      }
+      g.fillStyle = 'rgba(0,0,0,0.18)';
+      for (let i = 0; i < 24; i++) g.fillRect((i * 11) % 32, (i * 7) % 48, 2, 1);
+    });
+    const deckM = new THREE.MeshBasicMaterial({ map: plankT });
+    const DECK_T = 0.06, DECK_HW = 0.9;
+    const deck = new THREE.Mesh(
+      new THREE.BoxGeometry(DECK_HW * 2, DECK_T, DECK_L),
+      [steelM, steelM, deckM, steelM, steelM, steelM],
+    );
+    deck.position.set(0, DECK_Y - DECK_T / 2, deckZ0 + DECK_L / 2);
+    trailer.add(deck);
+    // the A-frame drawbar, reaching from under the deck to the car's tail
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, DRAW_L + 0.35), steelM);
+    bar.position.set(0, DECK_Y - 0.14, p.half - 0.05 + (DRAW_L + 0.35) / 2);
+    trailer.add(bar);
+    // the axle, and two wheels tucked under the deck (top 0.44, below it)
+    const axle = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.06), steelM);
+    axle.position.set(0, 0.22, deckZ0 + DECK_L * 0.5);
+    trailer.add(axle);
     for (const s of [-1, 1]) {
-      const a = tx + s * railIn, b = tx + s * halfW;
-      top(s < 0 ? 'pickup-rail-left' : 'pickup-rail-right',
-        Math.min(a, b), Math.max(a, b), railZ, PICKUP_BED.railY);
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 12), tyreM);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(s * 0.95, 0.22, deckZ0 + DECK_L * 0.5);
+      trailer.add(w);
     }
-
-    // `colliders`/`citAvoid` are pushed to directly, not `carColliders` —
-    // `colliders` was already spread from `carColliders` above, so pushing
-    // there instead would not reach FPRig, colliderDebug or ctx.colliders().
-    // `truck.cb` is already in both, by reference, so it is skipped here.
-    for (const t of tops) {
-      if (t === (truck.cb as Top)) continue;
-      colliders.push(t); citAvoid.push(t);
+    // a low tail board with the lamps, at the very back so it shadows none of
+    // the standing band. NO collider, for the pickup tailgate's reason: a wall
+    // here would be a 0.12 m lip you cannot see and can only trip on.
+    const board = new THREE.Mesh(new THREE.BoxGeometry(DECK_HW * 2, 0.12, 0.05), steelM);
+    board.position.set(0, DECK_Y + 0.06, deckZ1 - 0.03);
+    trailer.add(board);
+    for (const s of [-1, 1]) {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.04),
+        new THREE.MeshBasicMaterial({ color: 0x8e2a24 }));
+      lamp.position.set(s * 0.7, DECK_Y + 0.06, deckZ1 - 0.005);
+      trailer.add(lamp);
     }
-  }
+    if (dir < 0) trailer.rotation.y = Math.PI;   // local +z is the boot end
+    p.car.add(trailer);
+    props.lit(trailer);          // hitched in a lamp pool? then it catches it
 
-  // ── item 54: A SECOND ROUTE, ON A CAR THAT HAS NO BED ───────────────────
-  //
-  // *"i want the collision to be a bit more accurate to the objects. the cars
-  // for instance. we should be able to jump on the cars."*
-  //
-  // Item 29 tiered the pickup. The other three kinds got nothing, and w21 said
-  // why: between the pavement at 0.14 and the beltline at 0.84 a sedan, hatch
-  // and van have no flat panel at all. Its follow-up costed a route off the
-  // TYRE (top 0.663) at a 28 mm first step, and the desk killed that for being
-  // tighter than the pickup's 21 mm.
-  //
-  // MEASURED, THE TYRE ROUTE IS NOT TIGHT — IT IS IMPOSSIBLE, and the reason is
-  // a rule neither pass had looked at. `blocked()` pads every collider by
-  // RADIUS; `standTop()` pads by NOTHING and says so on purpose (fp.ts:249, "a
-  // roof does not extend past its own edges"). So to stand on a tier you must
-  // be inside its own footprint AND RADIUS clear of the face of every tier
-  // still walling you at that height. The tyre spans |x| 0.78..1.02 under a
-  // body whose collider is ±1.05 and solid to 0.94, so a standing centre would
-  // have to be at |x| ≥ 1.41 — 0.39 m OUTSIDE the tyre it is meant to be
-  // standing on. No height tuning reaches that. (Derived from the world's own
-  // RADIUS by scripts/probes/w29-ledge-band.mjs, which reproduces all five of
-  // the pickup's tiers as a control.)
-  //
-  // The same rule is why the sedan cannot simply be given a chunkier bumper: a
-  // ledge abutting the nose loses RADIUS = 0.36 m of itself to the hood tier
-  // standing over it, so it would have to jut two-thirds of a metre out of the
-  // front of the car before there was anything left to stand on. The step has
-  // to be somewhere the body is not — and behind the tail is the one such
-  // place that is neither the road nor the sacred 2 m sidewalk lane.
-  //
-  // So: a hitched flatbed TRAILER, deck at 0.50 m. That is not a number picked
-  // to be reachable — it is the same deck height the pickup's bed floor has
-  // shipped at since item 1, and it is imported from `PICKUP_BED.floorY` below
-  // rather than retyped, because "the one flat height on this street a standing
-  // jump gains from the road" is exactly the property both surfaces are for.
-  //
-  //   road 0.00 → trailer deck 0.50 → boot lid 0.93
-  //
-  // ── AND THE ROOF IS DELIBERATELY NOT ON THAT LIST ───────────────────────
-  //
-  // The item asked for "at least the pickup's 21 mm margin at the dt clamp",
-  // and a boot-lid → roof hop has EXACTLY that: both are a 0.53 m rise. I built
-  // it, walked it, and it failed three times out of three — so I measured the
-  // hop frame by frame (scripts/probes/w29-roof-hop.mjs) instead of retrying,
-  // and 21 mm turns out not to be a margin at all.
-  //
-  // Height is only half of a hop. To LAND on a tier you must also cross RADIUS
-  // (0.36 m) of ground horizontally while you are above `maxY - TOP_EPS`,
-  // because `blocked()` pads that tier by RADIUS until you are over it. At the
-  // dt clamp every frame is 0.05 s and a walk covers 0.165 m, so what actually
-  // decides a hop is HOW MANY FRAMES clear the threshold:
-  //
-  //     rise ≤ 0.52   3 frames   0.495 m of travel   clears 0.36 ✓
-  //     rise = 0.53   2 frames   0.330 m of travel   does NOT clear ✗
-  //
-  // 0.53 sits exactly on the boundary — the fourth frame's apex is 0.450 and
-  // the threshold it must beat is 0.450 — so which side it falls on is decided
-  // by floating-point rounding rather than by design. THE PICKUP'S ROOF HOP IS
-  // THE SAME 0.53 AND WINS THAT TIE BY LUCK: its heights are exact doubles
-  // (`PICKUP_CAB.roofY` 1.5, `PICKUP_BED.railY` 0.97) and 0.97 + 0.45 === 1.42
-  // exactly. The sedan's come off the mesh's Float32 bounding box (1.46 stored
-  // as 1.4600000381), which moves the threshold 38 nanometres the wrong way and
-  // costs the whole frame. That is a real, queueable finding about work that
-  // already shipped, not a reason to nudge a number until it passes.
-  //
-  // A roof route WOULD be robust off the hood (1.46 − 0.94 = 0.52, three
-  // frames), but the hood cannot be reached: its own first step would have to
-  // jut ~0.5 m out of the nose to leave RADIUS of standing band, into the road.
-  // So the honest set is the two hops below, which clear by 4 and 5 frames, and
-  // the greenhouse stays a plain wall — nobody stands on sloping glass, and a
-  // standable roof reachable only on a coin flip is a collider nobody meets.
-  // scripts/w29-sedan-climb.mjs is what catches all of this if anyone retunes
-  // the jump, RADIUS or TOP_EPS.
-  const sedan = parkedFleet.find((p) => p.kind === 'sedan');
-  if (sedan) {
-    const sz = sedan.car.position.z, sx = sedan.car.position.x;
-    // Same convention as the truck above: every car collider in this file is a
-    // fixed ±1.05 × ±carHalf box at any yaw, so `dir` only has to answer "which
-    // world end is the boot", which needs the SIGN of cos(ry), not its value.
-    const dir = Math.cos(sedan.car.rotation.y) >= 0 ? 1 : -1;
-    const localZ = (a: number, b: number): [number, number] =>
-      dir === 1 ? [sz + a, sz + b] : [sz - b, sz - a];
-    const halfW = sedan.cb.maxX - sx;      // read back off the box, never retyped
-
-    // ── the panels, READ OFF THE DRAWN MESH ───────────────────────────────
+    // ── does the trailer manufacture a trap anywhere? ──────────────────────
     //
-    // The pickup could import `PICKUP_CAB`/`PICKUP_BED` because item 29 hoisted
-    // them. The sedan's equivalents — roof 1.46, screen foot -1.0, boot lid
-    // -1.32 — are still LOCALS inside `makeCar`'s sedan branch (ct/cars.ts:849-
-    // 857), and that file is held by another builder (queue item 46), so I
-    // cannot hoist them. Copying them here with a citation is the sanctioned
-    // fallback (BUILDER-BRIEF §8) and I did not take it, because reading them
-    // off the geometry that was actually built is strictly better: it is the
-    // panel itself, not a second description of it, so it cannot drift if the
-    // loft is ever retuned. A follow-up to hoist a `SEDAN_CAB` the way
-    // `PICKUP_CAB` was hoisted is still worth having; this does not need it.
-    const belt = sedan.car.userData.belt as number;
-    const bbOf = (m: THREE.Mesh) => {
-      m.updateMatrix();
-      m.geometry.computeBoundingBox();
-      return m.geometry.boundingBox!.clone().applyMatrix4(m.matrix);
-    };
-    const parts = sedan.car.children
-      .filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true && !!(c as THREE.Mesh).geometry)
-      .map((m) => ({ m, bb: bbOf(m) }));
-    // A LID ON THE BELT is a flat panel whose top sits just above the beltline:
-    // the hood and the boot lid, and on this body nothing else — the slab tops
-    // out exactly AT the belt, the greenhouse runs far above it and the wheels
-    // are well below. Verified against all four kinds by
-    // scripts/probes/w29-sedan-panels.mjs, which is also the guard if a future
-    // kind grows a third one.
-    const lids = parts.filter((p) => p.bb.max.y > belt + 0.02 && p.bb.max.y < belt + 0.20)
-      .sort((a, b) => a.bb.min.z - b.bb.min.z);
-
-    if (lids.length !== 2) {
-      // Refuse rather than guess. A tier seamed off the wrong panel is a
-      // standable shelf inside the cabin, which is the exact defect
-      // PICKUP_COWL_Z exists to prevent.
-      console.warn(`[sedan-climb] expected 2 belt lids, found ${lids.length} — no tiers built`);
-    } else {
-      // lids[0] is the hood (front is -z), lids[1] the boot lid. Only the boot
-      // lid is used — the hood is unreachable, see the block comment above —
-      // but both are still REQUIRED to be found, because "there are exactly two
-      // lids and the rear one is the boot" is the assumption the seam rests on.
-      const bootLid = lids[1].bb;
-      type Top = AABB & { tag: string };
-      const tops: Top[] = [];
-      const top = (tag: string, z: [number, number], maxY: number): Top => {
-        const t: Top = { tag, minX: sedan.cb.minX, maxX: sedan.cb.maxX, minZ: z[0], maxZ: z[1], maxY };
-        tops.push(t);
-        return t;
-      };
-
-      // ── tier 1: the body forward of the boot lid, STILL A PLAIN WALL ────
-      //
-      // The car's own box is kept, only shortened, so the nose, engine bay and
-      // greenhouse behave exactly as every other car in the world does: solid
-      // at every height. It carries no `maxY`, which is what makes that true —
-      // `blocked()`'s `c.maxY !== undefined` guard means an untagged box is a
-      // wall forever (fp.ts:236). It is tagged anyway, so the acceptance test
-      // can assert "still a wall" against THIS box rather than against
-      // whichever collider it happens to find first.
-      sedan.cb.minZ = Math.min(...localZ(-sedan.half, bootLid.min.z));
-      sedan.cb.maxZ = Math.max(...localZ(-sedan.half, bootLid.min.z));
-      (sedan.cb as Top).tag = 'sedan-body';
-
-      // ── tier 2: the boot lid — the one panel on this body worth standing on ─
-      //
-      // Seamed at the lid's OWN front edge, which is where the rear glass
-      // starts to rise. A tier that ran any further forward would be a
-      // standable shelf at 0.93 m inside the cabin, under the back window —
-      // exactly the defect PICKUP_COWL_Z had to be derived to avoid, obtained
-      // here straight from the panel instead.
-      top('sedan-boot-lid', localZ(bootLid.min.z, sedan.half), bootLid.max.y);
-
-      // ── tier 3: the trailer deck — the step the body cannot provide ─────
-      //
-      // Deck collider starts at the car's own tail, not at the deck plank, so
-      // the car and the trailer present ONE continuous solid at ground level.
-      // A gap here would be 0.65 m of exactly the 0.40–0.95 m band `ct/gap.ts`
-      // calls a trap, manufactured between two things I am adding on purpose.
-      // The 0.30 m of tier that overhangs the drawbar is the same wart as the
-      // pickup's hood tier covering its own 0.15 m skin, and it is under the
-      // A-frame rather than over thin air.
-      const DECK_Y = PICKUP_BED.floorY;         // 0.50 — imported, not retyped
-      const DRAW_L = 0.30;                      // drawbar seen between car and deck
-      const DECK_L = 1.50;
-      const deckZ0 = sedan.half + DRAW_L, deckZ1 = deckZ0 + DECK_L;
-      top('sedan-trailer-deck', localZ(sedan.half, deckZ1), DECK_Y);
-
-      // ── the trailer itself, as a child of the car it is hitched to ──────
-      //
-      // A child, so it inherits the car's placement and yaw and cannot drift
-      // from it — and so it is built in the car's own local frame, which is the
-      // frame every number above is already in. Added AFTER settleParking, like
-      // the truck's tiers, so the car's final z is known.
-      const trailer = new THREE.Group();
-      const steelM = new THREE.MeshBasicMaterial({ color: 0x3c4046 });
-      const tyreM = new THREE.MeshBasicMaterial({ color: 0x101114 });
-      // A weathered plank deck, painted at the same nearest-neighbour density
-      // as everything else on the block.
-      const plankT = pixTex(32, 48, (g) => {
-        g.fillStyle = '#6b5c46'; g.fillRect(0, 0, 32, 48);
-        for (let i = 0; i < 6; i++) {
-          g.fillStyle = ['#7a6a52', '#63553f', '#71624b', '#5c4f3a', '#75664e', '#685a44'][i];
-          g.fillRect(0, i * 8, 32, 7);
-          g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, i * 8 + 7, 32, 1);
-        }
-        g.fillStyle = 'rgba(0,0,0,0.18)';
-        for (let i = 0; i < 24; i++) g.fillRect((i * 11) % 32, (i * 7) % 48, 2, 1);
-      });
-      const deckM = new THREE.MeshBasicMaterial({ map: plankT });
-      const DECK_T = 0.06, DECK_HW = 0.9;
-      const deck = new THREE.Mesh(
-        new THREE.BoxGeometry(DECK_HW * 2, DECK_T, DECK_L),
-        [steelM, steelM, deckM, steelM, steelM, steelM],
-      );
-      deck.position.set(0, DECK_Y - DECK_T / 2, deckZ0 + DECK_L / 2);
-      trailer.add(deck);
-      // the A-frame drawbar, reaching from under the deck to the car's tail
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, DRAW_L + 0.35), steelM);
-      bar.position.set(0, DECK_Y - 0.14, sedan.half - 0.05 + (DRAW_L + 0.35) / 2);
-      trailer.add(bar);
-      // the axle, and two wheels tucked under the deck (top 0.44, below it)
-      const axle = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.06), steelM);
-      axle.position.set(0, 0.22, deckZ0 + DECK_L * 0.5);
-      trailer.add(axle);
-      for (const s of [-1, 1]) {
-        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 12), tyreM);
-        w.rotation.z = Math.PI / 2;
-        w.position.set(s * 0.95, 0.22, deckZ0 + DECK_L * 0.5);
-        trailer.add(w);
-      }
-      // a low tail board with the lamps, at the very back so it shadows none of
-      // the standing band. NO collider, for the pickup tailgate's reason: a
-      // wall here would be a 0.12 m lip you cannot see and can only trip on.
-      const board = new THREE.Mesh(new THREE.BoxGeometry(DECK_HW * 2, 0.12, 0.05), steelM);
-      board.position.set(0, DECK_Y + 0.06, deckZ1 - 0.03);
-      trailer.add(board);
-      for (const s of [-1, 1]) {
-        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.04),
-          new THREE.MeshBasicMaterial({ color: 0x8e2a24 }));
-        lamp.position.set(s * 0.7, DECK_Y + 0.06, deckZ1 - 0.005);
-        trailer.add(lamp);
-      }
-      if (dir < 0) trailer.rotation.y = Math.PI;   // local +z is the boot end
-      sedan.car.add(trailer);
-      props.lit(trailer);          // hitched in a lamp pool? then it catches it
-
-      // ── does the trailer manufacture a trap anywhere? ───────────────────
-      //
-      // It lengthens this car's ground footprint by 1.8 m, and `nudgeClear`
-      // (settleParking, above) already ran and cannot see it. So the trap rule
-      // runs again HERE, against the finished world, using ct/gap.ts's own
-      // `corridor()` rather than a second copy of the band — a warning, because
-      // the seed does not put anything within reach of it today and a silent
-      // pass is how the first version of settleParking shipped a trap.
-      const deckBox = tops[tops.length - 1];
-      for (const c of colliders) {
-        if (c === deckBox || c === sedan.cb) continue;
-        const w = corridor(deckBox, c);
-        if (w !== null && w > ENTERABLE && w < PASSABLE) {
-          console.warn(`[sedan-climb] trailer leaves a ${w.toFixed(2)} m trap-band gap`);
-        }
-      }
-
-      for (const t of tops) {
-        if (t === (sedan.cb as Top)) continue;
-        colliders.push(t); citAvoid.push(t);
+    // It lengthens this car's ground footprint by 1.8 m, and `nudgeClear`
+    // (settleParking, above) already ran and cannot see it. So the trap rule
+    // runs again HERE, against the finished world, using ct/gap.ts's own
+    // `corridor()` rather than a second copy of the band — a warning, because
+    // the seed does not put anything within reach of it today and a silent pass
+    // is how the first version of settleParking shipped a trap.
+    for (const c of colliders) {
+      if (c === deckBox || c === p.cb) continue;
+      const w = corridor(deckBox, c);
+      if (w !== null && w > ENTERABLE && w < PASSABLE) {
+        console.warn(`[sedan-climb] trailer leaves a ${w.toFixed(2)} m trap-band gap`);
       }
     }
+    colliders.push(deckBox); citAvoid.push(deckBox);
   }
 
   props.dimWorld(scene);

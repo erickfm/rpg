@@ -1,0 +1,174 @@
+  // ── items 29, 54 AND 202c: ONE COLLIDER PER KIND, ON EVERY INSTANCE ─────
+  //
+  // *"i want the collision to be a bit more accurate to the objects. the cars
+  // for instance. we should be able to jump on the cars."*   (items 29, 54)
+  // *"truck collision isnt accurate to the truck but the other truck is? it
+  //  seems odd. seems like all trucks should be one object that are all the
+  //  same no?"*                                                   (item 202c)
+  //
+  // THIS USED TO BE TWO BLOCKS OF NINETY LINES, one opening
+  // `parkedFleet.find((p) => p.kind === 'pickup')` and the other
+  // `parkedFleet.find((p) => p.kind === 'sedan')`. Each built a correct,
+  // silhouette-hugging, height-capped collider — for THE FIRST MATCH, which is
+  // all `.find()` ever returns. Every other vehicle in the world kept the bare
+  // box `box()` gave it, with no `maxY` at all, and `fp.ts:40` makes `maxY`
+  // optional so absent means FULL HEIGHT. That is exactly what the user was
+  // looking at through the V overlay: two pickups, one hugging its silhouette
+  // and one a full-height slab. The tiers were never wrong; they were applied
+  // once each.
+  //
+  // The shapes now live in `ct/cars.ts` as `carColliderSpec(kind)`, beside the
+  // panel constants they are derived from, and this loop applies them to every
+  // parked car. Not one number moved — the measured reasons behind each tier's
+  // height are recorded there rather than repeated here.
+  //
+  // PLACED HERE, AFTER settleParking, AND MUTATING `p.cb` RATHER THAN
+  // REGISTERING THE SPLIT FROM THE START, because settleParking's own gap check
+  // (`others = colliders.filter((b) => b !== p.cb)`, a few lines up) excludes
+  // the car's box by REFERENCE — a second box registered before that loop ran
+  // would not be excluded, and the truck would read as trapped against its own
+  // tailgate.
+  //
+  // AND THE GROUND FOOTPRINT DOES NOT MOVE, which is what makes it safe to
+  // split a box the trap-band rule has already been run against: a kind's tiers
+  // tile its length end to end (nose … cowl … bed front … tail) and the bed
+  // rails lie inside that, so the union of every tier is exactly the box
+  // `nudgeClear` saw. The lane you walk past a parked car in is untouched, at
+  // ground level, to the millimetre.
+  type Top = AABB & { tag: string };
+  let hitched = false;
+  for (const p of parkedFleet) {
+    const tiers = carColliderBoxes(p.kind, p.car.position.x, p.car.position.z, p.ry);
+    // Tier 0 is written INTO the box that already exists, so every reference
+    // already held to it — `carColliders`, `colliders`, `citAvoid` and
+    // settleParking's own `p.cb` — keeps pointing at a live tier. The rest go
+    // to `colliders`/`citAvoid` directly and NOT to `carColliders`, which was
+    // spread into `colliders` hundreds of lines above: pushing there would not
+    // reach FPRig, colliderDebug or ctx.colliders().
+    Object.assign(p.cb, tiers[0]);
+    for (const t of tiers.slice(1)) { colliders.push(t); citAvoid.push(t); }
+
+    // ── item 54's TRAILER, which is a VEHICLE and not a kind of car ─────────
+    //
+    // *"i love the car with the trailer thing btw keep that tysm."*
+    //
+    // Hitched to the one sedan parked on this block, and deliberately NOT part
+    // of `carColliderSpec('sedan')`: a trailer is a second vehicle that happens
+    // to be attached to this one, so folding it into the KIND would hitch a
+    // flatbed to every sedan in the world — the side street's, the lot's, and
+    // the four in the traffic pool. What the kind owns is the boot lid; what
+    // this particular car owns is the trailer behind it.
+    //
+    // The deck at 0.50 m is the step a sedan's own body cannot provide: it is
+    // the height the pickup's bed floor has shipped at since item 1, imported
+    // from `PICKUP_BED.floorY` rather than retyped, because "the one flat
+    // height on this street a standing jump gains from the road" is exactly the
+    // property both surfaces are for.
+    //
+    //   road 0.00 → trailer deck 0.50 → boot lid 0.93
+    //
+    // The roof is deliberately NOT on that list: a boot-lid → roof hop is a
+    // 0.53 m rise, which at the dt clamp leaves two frames of travel (0.330 m)
+    // against the 0.36 m of RADIUS `blocked()` pads the roof by, so it lands on
+    // a coin flip. scripts/w29-sedan-climb.mjs asserts that ABSENCE.
+    if (p.kind !== 'sedan' || hitched) continue;
+    hitched = true;
+    const sz = p.car.position.z;
+    // Same convention as `carColliderBoxes`: every parked car collider in this
+    // world is axis-aligned, so `dir` only has to answer "which world end is
+    // the boot", which needs the SIGN of cos(ry), not its value. parkYaw()'s
+    // few degrees of jitter never get near flipping that sign.
+    const dir = Math.cos(p.ry) >= 0 ? 1 : -1;
+    const localZ = (a: number, b: number): [number, number] =>
+      (dir === 1 ? [sz + a, sz + b] : [sz - b, sz - a]);
+    const DECK_Y = PICKUP_BED.floorY;         // 0.50 — imported, not retyped
+    const DRAW_L = 0.30;                      // drawbar seen between car and deck
+    const DECK_L = 1.50;
+    const deckZ0 = p.half + DRAW_L, deckZ1 = deckZ0 + DECK_L;
+    // The deck collider starts at the car's own tail, not at the deck plank, so
+    // the car and the trailer present ONE continuous solid at ground level. A
+    // gap here would be 0.65 m of exactly the 0.40–0.95 m band `ct/gap.ts`
+    // calls a trap, manufactured between two things added on purpose.
+    const deckZ = localZ(p.half, deckZ1);
+    const deckBox: Top = {
+      tag: 'sedan-trailer-deck', minX: p.cb.minX, maxX: p.cb.maxX,
+      minZ: deckZ[0], maxZ: deckZ[1], maxY: DECK_Y,
+    };
+
+    // ── the trailer itself, as a child of the car it is hitched to ──────────
+    //
+    // A child, so it inherits the car's placement and yaw and cannot drift from
+    // it — and so it is built in the car's own local frame, which is the frame
+    // every number above is already in. Added AFTER settleParking, like the
+    // tiers, so the car's final z is known.
+    const trailer = new THREE.Group();
+    const steelM = new THREE.MeshBasicMaterial({ color: 0x3c4046 });
+    const tyreM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+    // A weathered plank deck, painted at the same nearest-neighbour density as
+    // everything else on the block.
+    const plankT = pixTex(32, 48, (g) => {
+      g.fillStyle = '#6b5c46'; g.fillRect(0, 0, 32, 48);
+      for (let i = 0; i < 6; i++) {
+        g.fillStyle = ['#7a6a52', '#63553f', '#71624b', '#5c4f3a', '#75664e', '#685a44'][i];
+        g.fillRect(0, i * 8, 32, 7);
+        g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, i * 8 + 7, 32, 1);
+      }
+      g.fillStyle = 'rgba(0,0,0,0.18)';
+      for (let i = 0; i < 24; i++) g.fillRect((i * 11) % 32, (i * 7) % 48, 2, 1);
+    });
+    const deckM = new THREE.MeshBasicMaterial({ map: plankT });
+    const DECK_T = 0.06, DECK_HW = 0.9;
+    const deck = new THREE.Mesh(
+      new THREE.BoxGeometry(DECK_HW * 2, DECK_T, DECK_L),
+      [steelM, steelM, deckM, steelM, steelM, steelM],
+    );
+    deck.position.set(0, DECK_Y - DECK_T / 2, deckZ0 + DECK_L / 2);
+    trailer.add(deck);
+    // the A-frame drawbar, reaching from under the deck to the car's tail
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, DRAW_L + 0.35), steelM);
+    bar.position.set(0, DECK_Y - 0.14, p.half - 0.05 + (DRAW_L + 0.35) / 2);
+    trailer.add(bar);
+    // the axle, and two wheels tucked under the deck (top 0.44, below it)
+    const axle = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.06), steelM);
+    axle.position.set(0, 0.22, deckZ0 + DECK_L * 0.5);
+    trailer.add(axle);
+    for (const s of [-1, 1]) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 12), tyreM);
+      w.rotation.z = Math.PI / 2;
+      w.position.set(s * 0.95, 0.22, deckZ0 + DECK_L * 0.5);
+      trailer.add(w);
+    }
+    // a low tail board with the lamps, at the very back so it shadows none of
+    // the standing band. NO collider, for the pickup tailgate's reason: a wall
+    // here would be a 0.12 m lip you cannot see and can only trip on.
+    const board = new THREE.Mesh(new THREE.BoxGeometry(DECK_HW * 2, 0.12, 0.05), steelM);
+    board.position.set(0, DECK_Y + 0.06, deckZ1 - 0.03);
+    trailer.add(board);
+    for (const s of [-1, 1]) {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.04),
+        new THREE.MeshBasicMaterial({ color: 0x8e2a24 }));
+      lamp.position.set(s * 0.7, DECK_Y + 0.06, deckZ1 - 0.005);
+      trailer.add(lamp);
+    }
+    if (dir < 0) trailer.rotation.y = Math.PI;   // local +z is the boot end
+    p.car.add(trailer);
+    props.lit(trailer);          // hitched in a lamp pool? then it catches it
+
+    // ── does the trailer manufacture a trap anywhere? ──────────────────────
+    //
+    // It lengthens this car's ground footprint by 1.8 m, and `nudgeClear`
+    // (settleParking, above) already ran and cannot see it. So the trap rule
+    // runs again HERE, against the finished world, using ct/gap.ts's own
+    // `corridor()` rather than a second copy of the band — a warning, because
+    // the seed does not put anything within reach of it today and a silent pass
+    // is how the first version of settleParking shipped a trap.
+    for (const c of colliders) {
+      if (c === deckBox || c === p.cb) continue;
+      const w = corridor(deckBox, c);
+      if (w !== null && w > ENTERABLE && w < PASSABLE) {
+        console.warn(`[sedan-climb] trailer leaves a ${w.toFixed(2)} m trap-band gap`);
+      }
+    }
+    colliders.push(deckBox); citAvoid.push(deckBox);
+  }
+
