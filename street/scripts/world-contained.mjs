@@ -66,6 +66,18 @@ const MAP = ARGV.includes('--map');
 // It is also the right scale for the floor question: the player is 0.72 m wide,
 // so a hole narrower than half a metre is not somewhere anyone falls.
 const GRID = 0.5;
+// THE ROAD SENTINEL IS NOT (0, 0), AND THAT IS NOT FUSSINESS.
+//
+// The world origin is the worst point in the world to ask about. Sitting on it,
+// found while making the mutation below actually bite:
+//   - the road CENTRE-LINE plane (0.5 x 124.9 m at y 0.03), and
+//   - FIVE car-body boxes (1.8 x 4.5 m, y 0.34…0.84) whose world bbox is
+//     centred on x 0, z 0 — pooled traffic meshes parked at the origin.
+// So (0, 0) reports "floored" off a lane marking and a car that is not on the
+// road, and it would keep reporting it with every ground plane in the world
+// deleted. A sentinel that cannot go void is not a sentinel.
+// Plain carriageway, 30 m south, clear of both.
+const ROAD = [3.2, -30.3];
 // The band a floor may sit in relative to the height the picker names, before
 // it is a different storey. Same numbers as w75-site-contained, deliberately —
 // the two checks must not disagree because they drew their bands differently.
@@ -118,7 +130,34 @@ const sweep = await page.evaluate(([GRID, FLOOR_LO, FLOOR_HI, drop]) => {
     // interior you are not standing in and everything west of REGION_X, and a
     // floor does not stop being a floor when the camera is not looking at it.
     // Filtering on it here would examine almost nothing and report green.
-    if (drop && drop.some((d) => (o.name || '').includes(d))) { dropped++; return; }
+    // --selftest's mutation. IT IS GEOMETRIC, NOT BY NAME: the first version
+    // dropped meshes whose `name` contained "ground"/"road"/"pave" and removed
+    // exactly ZERO of them, because almost nothing in this scene is named. It
+    // reported "the road still reads floored with its own ground removed" —
+    // which was true, and about nothing. A mutation that mutates nothing is the
+    // empty-set certificate this project keeps paying for (item 224), so the
+    // count is asserted below.
+    if (drop) {
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      const bb0 = o.geometry.boundingBox;
+      if (bb0) {
+        const e0 = o.matrixWorld.elements;
+        let ax = Infinity, ay = Infinity, az = Infinity, bx = -Infinity, by = -Infinity, bz = -Infinity;
+        for (let i = 0; i < 8; i++) {
+          const vx = i & 1 ? bb0.max.x : bb0.min.x, vy = i & 2 ? bb0.max.y : bb0.min.y, vz = i & 4 ? bb0.max.z : bb0.min.z;
+          const X = e0[0] * vx + e0[4] * vy + e0[8] * vz + e0[12];
+          const Y = e0[1] * vx + e0[5] * vy + e0[9] * vz + e0[13];
+          const Z = e0[2] * vx + e0[6] * vy + e0[10] * vz + e0[14];
+          ax = Math.min(ax, X); bx = Math.max(bx, X); ay = Math.min(ay, Y);
+          by = Math.max(by, Y); az = Math.min(az, Z); bz = Math.max(bz, Z);
+        }
+        // FLAT AND AT STREET LEVEL. The size test that was here (">5 m across
+        // in both axes") left the 0.5 m road centre-line plane behind, and the
+        // sentinel went on reading floored off a lane marking. Drop anything
+        // thin and near the ground, whatever its footprint.
+        if (by - ay < 0.6 && by > -0.5 && by < 0.5) { dropped++; return; }
+      }
+    }
     const pos = o.geometry.getAttribute && o.geometry.getAttribute('position');
     if (!pos) return;
     meshes++;
@@ -173,7 +212,7 @@ const sweep = await page.evaluate(([GRID, FLOOR_LO, FLOOR_HI, drop]) => {
     floor: Array.from(floor),
     gy: Array.from(gy, (v) => +v.toFixed(3)),
   };
-}, [GRID, FLOOR_LO, FLOOR_HI, SELFTEST ? ['ground', 'road', 'walk', 'pave'] : null]);
+}, [GRID, FLOOR_LO, FLOOR_HI, SELFTEST]);
 
 const { x0, z0, NX, NZ, B } = sweep;
 const at = (i, j) => i * NZ + j;
@@ -200,19 +239,24 @@ console.log(`scene   ${sweep.meshes} meshes, ${sweep.tris} triangles, ${sweep.hi
 {
   const bad = [];
   if (sweep.tris < 10000) bad.push(`only ${sweep.tris} triangles in the whole scene — nothing was read`);
-  if (!SELFTEST && !floorAt(0, 0)) bad.push('the middle of the road reads as VOID — the raycaster finds no floors');
+  if (!SELFTEST && !floorAt(ROAD[0], ROAD[1])) bad.push(`the road at (${ROAD}) reads as VOID — the raycaster finds no floors`);
   if (floorAt(0, -170)) bad.push('a point 60 m past the world clamp reads as FLOORED — the raycaster cannot say no');
   if (bad.length) {
     console.log(`RAYCASTER FAILED ITS OWN CONTROLS — nothing measured:\n  ${bad.join('\n  ')}`);
     await b.close(); process.exit(3);
   }
-  console.log('raycaster ok: road solid, 60 m off-world void');
+  console.log(`raycaster ok: road at (${ROAD}) solid, 60 m off-world void`);
 }
 
 // --selftest: the mutation. With the ground meshes dropped, the road MUST read
 // void. If it still reads floor, this file cannot fail and is worthless.
 if (SELFTEST) {
-  const roadVoid = !floorAt(0, 0);
+  // POPULATION FLOOR ON THE MUTATION ITSELF. "The road went void" means nothing
+  // if the mutation removed nothing, and it means nothing either if it removed
+  // the whole world.
+  report('the mutation actually removed ground planes', sweep.dropped >= 5,
+    `${sweep.dropped} big flat street-level meshes dropped`);
+  const roadVoid = !floorAt(ROAD[0], ROAD[1]);
   report('dropping the ground meshes makes the road read VOID', roadVoid,
     roadVoid ? 'the raycaster reports what it is shown, not what it expects'
       : 'THE ROAD STILL READS FLOORED WITH ITS OWN GROUND REMOVED — this check cannot fail');
