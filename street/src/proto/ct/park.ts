@@ -374,8 +374,57 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   kerbT.wrapS = kerbT.wrapT = THREE.RepeatWrapping;
   kerbT.repeat.set(1, W / 2);
   const KERB_TOP = 0.08;                            // how proud it stands
-  const kerb = new THREE.Mesh(new THREE.BoxGeometry(KERB_W - 0.01, KERB_H + KERB_TOP, W),
-    wet(flat(kerbT)));
+  const KERB_D = KERB_W - 0.01, KERB_H_TOT = KERB_H + KERB_TOP;
+  // ── ITEM 162: ONE MATERIAL CANNOT DRESS SIX FACES OF DIFFERENT SHAPES ─────
+  //
+  // This was **the single worst face in the world** — 16363x texel aspect,
+  // 0.27 x 4363 px/m on a 30 x 0.22 m face, roughly four thousand times coarser
+  // along its length than the room standard. It was not a badly chosen number;
+  // it was a correct number applied to the wrong faces.
+  //
+  // `kerbT` is authored for the TOP: an 8 x 64 canvas standing for 0.25 m of
+  // width and 2 m of length, with `repeat(1, W/2)`. On the top face that is
+  // 0.24 m over 8 px = 33 px/m across and 30 m over 15x64 px = 32 px/m along —
+  // square, and the 32 px/m is where this kerb's density is declared. But a
+  // BoxGeometry with ONE material hands that same mapping to the ±x faces,
+  // whose axes are the 30 m LENGTH and the 0.22 m HEIGHT, so `u` spread 8 texels
+  // over 30 m and `v` packed 960 into 0.22 m.
+  //
+  // So each pair of faces gets a material whose repeat is DERIVED FROM THAT
+  // FACE'S OWN DIMENSIONS at the same 32 px/m (BUILDER-BRIEF §7b). The top is
+  // untouched — its numbers were already right and are now simply written as
+  // the derivation they always were.
+  //
+  // BoxGeometry group order is [+x, -x, +y, -y, +z, -z].
+  const KERB_PPM = 32;                              // = the canvas: 8 px over KERB_W
+  /** a granite face at KERB_PPM, tiled from its own metres */
+  const kerbFace = (wm: number, hm: number) => {
+    const t = pixTex(64, 16, (g) => {
+      const r = clcg(0x9e31b2);
+      g.fillStyle = '#8e8b83'; g.fillRect(0, 0, 64, 16);
+      for (let i = 0; i < 180; i++) {
+        const k = r();
+        g.fillStyle = k > 0.7 ? '#9c998f' : k > 0.35 ? '#84817a' : '#77746d';
+        g.fillRect(Math.floor(r() * 64), Math.floor(r() * 16), 1, 1);
+      }
+      // a joint every 1 m ALONG THE RUN, which on this canvas is u — the top's
+      // joints run the other way because on the top face the run is v. Reusing
+      // one canvas for both is what would put the joints across the kerb.
+      g.fillStyle = 'rgba(40,38,34,0.4)';
+      for (let x = 0; x < 64; x += 32) g.fillRect(x, 0, 1, 16);
+      g.fillStyle = 'rgba(74,86,58,0.35)';          // moss, at the grass side
+      for (let i = 0; i < 18; i++) g.fillRect(Math.floor(r() * 64), 16 - 1 - Math.floor(r() * 3), 1 + Math.floor(r() * 2), 1);
+    });
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    // DERIVED: metres x px/m, over the canvas that carries them.
+    t.repeat.set(wm * KERB_PPM / 64, hm * KERB_PPM / 16);
+    return wet(flat(t));
+  };
+  const sideM = kerbFace(W, KERB_H_TOT);            // the 30 m runs
+  const endM = kerbFace(KERB_D, KERB_H_TOT);        // the two little end caps
+  const topM = wet(flat(kerbT));                    // unchanged, already square
+  const kerb = new THREE.Mesh(new THREE.BoxGeometry(KERB_D, KERB_H_TOT, W),
+    [sideM, sideM, topM, topM, endM, endM]);
   kerb.position.set(EDGE_X + (KERB_W - 0.01) / 2 - 0.005, (KERB_H + KERB_TOP) / 2, (site.minZ + site.maxZ) / 2);
   scene.add(kerb);
 
