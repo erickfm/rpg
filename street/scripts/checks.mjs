@@ -1315,10 +1315,21 @@ const CHECKS = [
   ['w75-site-contained', 'can the player walk out of the world at the jail?', 'jail-forecourt-open', ['jail'], true],
   // ITEM 260: these two carried `false` — no declared failing path — while the
   // jail line above carried one, so two of the three sites this check sweeps
-  // had been green all night with nothing able to turn them. `park-flank-open`
-  // and `lot-flank-open` (scripts/canfail.mjs) reopen item 221's bug on exactly
-  // one site each, by guarding street.ts's flank `solid(...)` on `side`.
-  ['w75-site-contained', 'can the player walk out of the world at the park?', 'park-flank-open', ['park'], true],
+  // had been green all night with nothing able to turn them.
+  //
+  // THE LOT NOW HAS ONE. `lot-flank-open` guards street.ts's flank `solid(...)`
+  // on `side`, which removes the collider from the lot's party walls and leaves
+  // the park's alone; watched red at 6 of 368 walks ending on no floor.
+  //
+  // ⚠ THE PARK STILL CARRIES `false`, AND THAT IS NOW A MEASURED FACT RATHER
+  // THAN A GAP NOBODY GOT TO. The mirror-image mutation was written, proven to
+  // take effect (colliders 537 → 535, the park's two flank boxes) and run:
+  // **616 walks, 0 escapes, all contained.** The park's containment does not
+  // depend on its flank colliders. Putting a case name here for a mutation the
+  // check sleeps through would be worse than the `false` — it is the precise
+  // failure this item was raised about. See scripts/canfail.mjs beside
+  // `lot-flank-open` for what a real one would have to do.
+  ['w75-site-contained', 'can the player walk out of the world at the park?', false, ['park'], true],
   ['w75-site-contained', 'can the player walk out of the world at the lot?', 'lot-flank-open', ['lot'], true],
   // REGISTERED 2026-08-03 (w85, item 230). THE SAME QUESTION ASKED OF THE WHOLE
   // WORLD, and it is not a fourth site row — it is the row for everywhere that

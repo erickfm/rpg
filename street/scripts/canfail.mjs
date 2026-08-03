@@ -344,15 +344,30 @@ const CASES = [
   // — which is the class two green route-walking checks sat over twice. **A
   // mutation has to break the symptom, not the diagnosis.**
   //
-  // ⚠ THEY SHARE ONE ANCHOR LINE, which is fine (canfail applies one case at a
-  // time) but means a re-indent of that `solid(` call breaks BOTH at once. If
-  // one of these ever reports "anchor not found", so will the other, and the
-  // fix is the anchor and not the world.
-  ['park-flank-open', STREET,
-    '      solid(ry > 1',
-    "      if (side !== -1) solid(ry > 1   // selftest: the park's flanks stop colliding",
-    'w75-site-contained.mjs', ['park'], "walking out through the park's party walls again"],
-
+  // WATCHED RED, which is the only reason it is here: on the mutated build
+  // `w75-site-contained.mjs lot` reported **6 of 368 walks ended ON NO FLOOR,
+  // x 9.23…15.65 z 15.07…16.82** — the lot's north end, which is exactly the
+  // hole street.ts:783 describes ("the sweep walked out to z 19.00 standing on
+  // void").
+  // ⚠ AND THERE IS NO `park-flank-open`, WHICH IS A MEASUREMENT AND NOT AN
+  // OVERSIGHT. I wrote one, ran it, and it DID NOT TURN THE CHECK RED.
+  //
+  //   mutation applied and proven to take: colliders 537 -> 535, exactly the
+  //   park's two flank boxes gone
+  //   `w75-site-contained.mjs park` on that build: 616 walks from 77 reachable
+  //   places, **0 escapes, all contained**
+  //
+  // So the park's containment does not depend on its flank colliders at all —
+  // whatever is past them has floor. Registering that case would have put a
+  // certificate on a mutation the check sleeps through, which is the exact
+  // disease item 260 exists to remove and the reason this file's header says a
+  // mutation the check sleeps through IS the finding.
+  //
+  // **The park therefore still has no declared failing path**, and it is worse
+  // than "nobody wrote one": the obvious one has now been tried and does not
+  // work. A real one has to reach ground with NO FLOOR MESH under it, since
+  // that is what this check calls an escape — see the lot's numbers below for
+  // the shape of a hole that qualifies.
   ['lot-flank-open', STREET,
     '      solid(ry > 1',
     "      if (side !== 1) solid(ry > 1   // selftest: the lot's flanks stop colliding",
