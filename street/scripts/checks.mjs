@@ -650,6 +650,28 @@ const CHECKS = [
   // Reports the hanging signs, FAILS on furniture-height floats — see the note
   // at the foot of the script for why only half of it is a verdict.
   ['floaters-walk',    'is anything resting on nothing at furniture height?', false],
+  // WRITTEN 2026-07-2x AND IN NO TIER UNTIL ITEM 258 — the FIFTH script found in
+  // exactly the state item 199 describes for four others. It is the instrument
+  // that validates the 1.5 s mover filter that lane3, lanewalk and corridor all
+  // decide "is this furniture" with, so nothing else in the suite covers what it
+  // covers. onehundred gave it a verdict, an exit code and a --selftest (item 84)
+  // and could not register it: scripts/checks.mjs was held by another item.
+  //
+  // DEFAULT TIER, MEASURED NOT GUESSED: 26.1 s against a preview on this tree,
+  // and it does not walk — so default by this file's own two rules. The 36 s that
+  // moved lotwalk to slow is the nearest precedent above it and jump-walk sits
+  // here at 20 s. Nearly all 26 s is the deliberate 22 s long sampling window
+  // (LONG_MS), which is the measurement itself and not overhead to trim.
+  //
+  // ITS VERDICT IS THE CORRIDOR ANSWER MOVING, NOT GHOSTS EXISTING. Failing on
+  // ghost count would be permanently red whenever a citizen pauses for 1.5 s —
+  // see the long comment on `verdict()` in the script. And it does NOT need to
+  // warp despite reading from the spawn point inside apartment 301: measured on
+  // 5 round trips, the 18 static boxes in its two corridor bands are identical
+  // box-for-box from the flat and from the street, because colliders() is an
+  // authoring read and the cull is a rendering fact
+  // (scripts/probes/w104-ghosts-sees-the-street.mjs).
+  ['ghosts',           'is the 1.5 s mover filter long enough, or does it call a stopped citizen furniture?', true],
   // 20 s, so default tier. Guards "make the jump a tiny bit higher AND gravity a
   // tiny bit stronger" — a feel request, which is the kind most easily undone by
   // an unrelated edit to fp.ts because nothing about it looks like a constant.
@@ -872,7 +894,12 @@ const CHECKS = [
   // what the user's "im literally stuck here" request cost to guard properly.
   // Asserted since it was written and registered nowhere until now, so those
   // 177 escapes have been proving themselves to nobody.
-  ['unstick-walk',     'can the player still always get out of a trap?',      false, [], true],
+  // Its canfail case `unstick-off` was WITHHELD for six days — w37 had it
+  // working and would not register it while the check was red on unmutated
+  // mainline, because canfail scores CAUGHT on any non-zero exit. The world was
+  // fixed and nobody came back for it (item 258). Baseline re-measured green
+  // three times before this column moved off `false`.
+  ['unstick-walk',     'can the player still always get out of a trap?',      ['unstick-off'], [], true],
   // G's two suites, 132 checks the runner has never seen. Both walk, so both are
   // SLOW by the rule above — a runtime tier, not an importance tier. Measured on
   // an idle dev server: G-vice-walk 47 s, G-rooms-walk 158 s. The second is the
