@@ -29,7 +29,30 @@ window.addEventListener('keyup', (e) => {
 });
 renderer.domElement.addEventListener('click', () => {
   if (current?.pointerLock && !input.locked) {
-    try { renderer.domElement.requestPointerLock(); } catch { /* sandboxed iframe: drag-look still works */ }
+    // A SANDBOXED IFRAME REFUSES THE LOCK OUTRIGHT, and the artifact falls back
+    // to drag-look below. Failing here is correct and must stay silent.
+    //
+    // ⚠ THE SYNCHRONOUS `catch` ALONE IS NOT ENOUGH. `requestPointerLock()`
+    // returns a **Promise** in modern Chrome and throws NOTHING synchronously,
+    // so `try { … } catch {}` caught nothing and the rejection surfaced as an
+    // UNCAUGHT pageerror on EVERY canvas click — worst in the PUBLISHED
+    // ARTIFACT, the copy the user hands to other people, where the console fills
+    // with errors that are not the game's fault and will be blamed on it.
+    // Measured on the built bundle in a frame sandboxed without
+    // `allow-pointer-lock` (`scripts/probes/w116-canvas-click-uncaught.mjs`):
+    //
+    //     try/catch only        5 clicks -> 5 uncaught pageerrors
+    //     try/catch + .catch()  5 clicks -> 0
+    //
+    // `ct/hud.ts`'s `close()` carries the identical shape for the identical
+    // reason (item 277); this was the other of the two call sites. The `try`
+    // stays because an older browser can still throw synchronously, and the
+    // older DOM signature returns `undefined` — hence the `typeof` test rather
+    // than an assumption either way.
+    try {
+      const r = renderer.domElement.requestPointerLock() as unknown as Promise<void> | undefined;
+      if (r && typeof r.catch === 'function') r.catch(() => { /* refused: drag-look still works */ });
+    } catch { /* sandboxed iframe: drag-look still works */ }
   }
 });
 document.addEventListener('pointerlockchange', () => { input.locked = document.pointerLockElement === renderer.domElement; });
