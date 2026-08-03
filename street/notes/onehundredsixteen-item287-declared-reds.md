@@ -126,11 +126,39 @@ for whoever takes it, not a verdict.
 3. **The hotel reception desk publishes no interaction.** A clerk stands there and there is nothing to do. That is a world gap, and it is the only one of the three that is not the check's fault.
 4. Item 240's coordinate should be corrected to **z −9.40**, and the `#6c6f76` evidence added to it.
 
+## The first cut was wrong, and the real script caught it
+
+`interiors-walk <room>` is how people debug one room — `checks.mjs:966`
+documents the invocation. With the first cut, **`interiors-walk bodega` exited 1
+on 30/30 green legs**, purely because the other rooms' declarations matched
+nothing in a single-room run. That is precisely the disease this mechanism
+exists to cure: an exit code red for a reason that has nothing to do with the
+world. It was found by running the real script, not by reading the code.
+
+So `missing` is now only counted for a subject the run actually **covered**,
+derived from the results themselves rather than tracked separately. **The rename
+guard is untouched**, which is the case that matters — a renamed leg whose room
+*was* walked is still `MISS` and still red. Uncovered rooms are printed as ` -- `
+rather than dropped, so "not red" cannot quietly become "not noticed".
+
+Both proven against the real script, not only in the unit test:
+
+```
+interiors-walk bodega                          30/30 passed, 0 unaccounted   EXIT=0
+  -- jail/casino/tax/hotel: declared, room not walked, not judged
+
+interiors-walk bodega  + a bogus declaration
+  ['bodega: A LEG THAT DOES NOT EXIST', …]      30/30 passed, 1 unaccounted   EXIT=1
+  MISS  bodega: A LEG THAT DOES NOT EXIST
+```
+
+The mutation was reverted; the tree is clean.
+
 ## Verification
 
 - baseline, before any change: **365/369, exit 1**, four named failures
-- `--selftest-declared`: **5/5, 3 red cases**, exit 0
-- full run after the change: see below
+- `--selftest-declared`: **6/6, 3 of them red cases**, exit 0
+- full run with declarations: **365/369 passed, 4 declared known-open, 0 unaccounted — `EXIT=0`**, taken from the command and not after a pipe
 
 Derived, not retyped: every room coordinate and spot label is read out of
 `__ct.roomDims()` and `__ct.spots()` at runtime; the `#6c6f76` value is read from
