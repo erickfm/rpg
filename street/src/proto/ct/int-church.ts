@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
+import type { DoorDecl } from './doors';
 import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
+import { leafPair } from './vice';
 
 // ST BRIGID'S — the inside, because the user asked to go in and could not.
 //
@@ -53,13 +55,45 @@ const CHURCH_FACE = { x: 9.6, z: -79.5, nx: -1, nz: 0 } as const;
 const standOff = (standoff: number) =>
   ({ x: CHURCH_FACE.x + CHURCH_FACE.nx * standoff, z: CHURCH_FACE.z + CHURCH_FACE.nz * standoff });
 
-export const DOOR = {
+export const DOOR: DoorDecl = {
   building: 'ST BRIGID',
   // A CUT FACE, like the bodega's: the church sits back behind its own forecourt
   // rather than on the shopfront line, so its door is not on the building band
   // at all.
-  w: 12, cz: CHURCH_FACE.z, side: 1, at: 0, width: 1.4,
+  w: 12, cz: CHURCH_FACE.z, side: 1, at: 0,
   face: CHURCH_FACE,
+  /**
+   * WHAT THE DOOR IS. The user, twice, and it is his most-repeated complaint in
+   * a different building each time: outside is a **5.5 m pointed arch in three
+   * recessed orders with two tall timber leaves and brass ring handles**;
+   * inside was a **1.4 m brown domestic door with a grey pane** — a back door
+   * on the front of a church.
+   *
+   * The 1.4 was the `width` that used to sit on this line, and it was never the
+   * fault. `width` is deprecated in favour of this object precisely because it
+   * says how WIDE and not what it IS; and neither of them was ever read,
+   * because `buildRoom` could not find this declaration at all (see the
+   * `building:` line in the spec below).
+   *
+   * **MEASURED OFF THE FACADE, NOT CHOSEN.** `ct/civic.ts:1179-1185` paints the
+   * leaves inline, cut to the innermost order by `archHW` after two roundings,
+   * so re-running that arithmetic by hand is exactly the retyping
+   * BUILDER-BRIEF §8 is about. `scripts/probes/w57-church-leaf.mjs` reads the
+   * block of leaf timber straight off the west front's own canvas and converts
+   * with the density `masonry()` stamped on it: **2.750 m across both leaves,
+   * 3.750 m tall**, sill 0.625 m, head 4.250 m. `glazing: 'none'` because there
+   * is no glass in it — the detail is two straps and a ring, not a window.
+   *
+   * COPIED, AND SAYING SO: `0x4a3524` is `ct/civic.ts:1181`'s own leaf timber,
+   * cited rather than matched by eye. **FOLLOW-UP FOR THE DESK:** that painter
+   * should read `doorLeafFor('ST BRIGID')` instead of carrying its own
+   * literals, the way `ct/int-jail.ts` and `ct/jail.ts` now share one texture.
+   * That edits `ct/civic.ts`, which this item does not name.
+   */
+  leaf: {
+    clearW: 2.75, h: 3.75, leaves: 2,
+    frame: { colour: 0x4a3524, material: 'timber' }, glazing: 'none',
+  },
 };
 
 export function buildChurch(ctx: CtxBuild) {
@@ -74,6 +108,21 @@ export function buildChurch(ctx: CtxBuild) {
   const CHANCEL_Z = -4.60, CHANCEL_Y = 0.18;
   const room = buildRoom(ctx, {
     id: 'church',
+    // THE ONE LINE THAT MAKES THE DECLARATION ABOVE REACHABLE, and its absence
+    // is the whole of item 147. `buildRoom` finds a room's `DoorDecl` by
+    // building name, and it has exactly two ways to learn one: this field, or
+    // the frontage the room sits on. **A room on a cut face publishes no
+    // frontage** — the church stands behind its own forecourt, not on the
+    // shopfront line — so with this missing there was nothing to look up,
+    // `LEAF` came back `null`, and every reader in the kit took its `??`
+    // branch: the generic 1.1 m timber leaf with a vision panel. `ST BRIGID`
+    // had a perfectly good door declared four lines above and it was never
+    // consulted, silently, for as long as this room has existed.
+    //
+    // `ct/interior.ts` now says so out loud when it happens (`[interior:<id>]
+    // NO BUILDING NAME`), which two registered walks already fail on — so the
+    // next room to lose its door cannot do it quietly.
+    building: 'ST BRIGID',
     floor: (lx, lz) => {
       if (lz > CHANCEL_Z) return null;                       // the nave, flat
       if (lz > CHANCEL_Z - 0.36) return CHANCEL_Y * (CHANCEL_Z - lz) / 0.36;
@@ -131,7 +180,13 @@ export function buildChurch(ctx: CtxBuild) {
       // flight, facing down the steps toward the street. The way back in is
       // one step forward, which is what a door should cost.
       outX: standOff(2.4).x, outZ: standOff(2.4).z, outYaw: -Math.PI / 2,
-      at: 0, width: 1.4,
+      // `width` REMOVED, and that removal is load-bearing. `spec.door.width`
+      // beats the declaration by design — six rooms predate `DoorLeaf` and an
+      // unconverted one must be unchanged rather than broken — so leaving 1.4
+      // here would have kept the domestic opening even with `building` set, and
+      // the fix would have looked like it did nothing. The opening is
+      // `DOOR.leaf.clearW` now, which is the facade's own measurement.
+      at: 0,
     },
     // ONE light source, and it is not a fitting. A church is lit by its
     // windows; a strip of fluorescents would undo the room in a single frame.
@@ -144,6 +199,83 @@ export function buildChurch(ctx: CtxBuild) {
   // every fitting behind. Same two-authorings fault the door declarations exist
   // to kill, in the room's own file.
   const hw = room.W / 2, hd = room.D / 2;
+
+  // ── the door, which is the half a `DoorLeaf` cannot carry ───────────────
+  //
+  // Naming the building (above) fixes the OPENING — 2.75 m wide and 3.75 m
+  // tall instead of 1.4 x 2.15 — and it fixes the leaf's colour and glazing,
+  // because `ct/interior.ts` reads both off the declaration. It cannot fix the
+  // leaf COUNT: the kit's own note (`ct/interior.ts:1327`) records that drawing
+  // a second mesh there gave three other rooms two stacked doors, and points
+  // any room that declares `leaves: 2` at this one-file recipe instead — hide
+  // the kit's single leaf, hang the room's own pair. Bank, casino, hotel,
+  // library, pawn and now jail all do exactly this.
+  //
+  // A CHURCH DOOR IS TWO LEAVES OR IT IS NOT A CHURCH DOOR. One 2.75 m slab
+  // swinging on one hinge is a garage.
+  const DW = DOOR.leaf!.clearW, DH = Math.min(DOOR.leaf!.h, room.H - 0.2);
+  const dAt = room.doorAt;
+  {
+    // The 32x64 signature is the kit's leaf, and it is how five other rooms
+    // find it — `ct/int-bank.ts:203-210` first. Hidden rather than removed, so
+    // nothing downstream that counts meshes changes its mind about the room.
+    const hits: THREE.Mesh[] = [];
+    room.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.geometry?.type !== 'PlaneGeometry') return;
+      const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshBasicMaterial;
+      const img = mat?.map?.image as HTMLCanvasElement | undefined;
+      if (img && img.width === 32 && img.height === 64) hits.push(m);
+    });
+    if (hits.length === 1) hits[0].visible = false;
+    else console.warn(`[interior:church] expected 1 kit door leaf to hide, found ${hits.length}`
+      + ' — the nave now has both the kit door and its own. ct/interior.ts changed shape.');
+  }
+  // THE LEAF, PAINTED FROM THE DECLARATION rather than from a second set of
+  // colours. `frame.colour` is the timber `ct/civic.ts:1181` puts on the west
+  // front; the straps and the ring are that painter's `#8a7a4a` and `#c9a45e`,
+  // copied with the citation because they are drawn inline into a facade canvas
+  // and there is nothing to import (BUILDER-BRIEF §8 — the follow-up to hoist a
+  // `churchLeafTex()`, the way `ct/jail.ts` hoisted `jailLeafTex()`, is in the
+  // handoff note).
+  //
+  // DENSITY, DECLARED AND DERIVED (§7b). One leaf is `DW/2 - gap` = 1.345 m
+  // across and `DH - 0.06` = 3.69 m up. A 28 x 76 canvas over that is
+  // 20.8 px/m across and 20.6 px/m up — square within 1%, and deliberately the
+  // same order as the jail's shared leaf (20.0 / 20.9) so the two entrances in
+  // this world that have real leaves are drawn at the same scale.
+  const LEAF_PPM = 20.7;
+  const LW_M = DW / 2 - 0.03, LH_M = DH - 0.06;
+  const LT_W = Math.round(LW_M * LEAF_PPM), LT_H = Math.round(LH_M * LEAF_PPM);
+  const churchLeafT = declareSurface(pixTex(LT_W, LT_H, (g) => {
+    const m = (v: number) => Math.max(1, Math.round(v * LEAF_PPM));
+    g.fillStyle = '#' + DOOR.leaf!.frame.colour.toString(16).padStart(6, '0');
+    g.fillRect(0, 0, LT_W, LT_H);
+    // vertical boards, which is what a church door is made of and what reads at
+    // this distance. The shadow line is one texel and the pitch is derived, so
+    // a wider leaf gets MORE boards rather than wider ones.
+    const boards = Math.max(3, Math.round(LW_M / 0.22));
+    g.fillStyle = 'rgba(0,0,0,0.30)';
+    for (let i = 1; i < boards; i++) g.fillRect(Math.round(i * LT_W / boards), 0, 1, LT_H);
+    // two iron straps across, at the heights the facade draws them: the painter
+    // puts them at church-frame y 2.2 and 3.4 over a leaf running 0.625 -> 4.25,
+    // so they sit 43% and 76% up the leaf.
+    g.fillStyle = '#8a7a4a';
+    for (const t of [0.43, 0.76]) g.fillRect(0, Math.round((1 - t) * LT_H), LT_W, m(0.05));
+    g.fillStyle = 'rgba(0,0,0,0.35)';
+    for (const t of [0.43, 0.76]) g.fillRect(0, Math.round((1 - t) * LT_H) + m(0.05), LT_W, 1);
+    // the ring handle, on the FREE edge — `leafPair` mirrors the whole leaf, so
+    // local +x is the free edge on both and one drawing serves both.
+    g.fillStyle = '#c9a45e';
+    const rx = LT_W - m(0.20), ry = Math.round(LT_H * (1 - 0.32));
+    g.fillRect(rx - m(0.06), ry, m(0.12), m(0.03));
+    g.fillRect(rx - m(0.06), ry + m(0.10), m(0.12), m(0.03));
+    g.fillRect(rx - m(0.07), ry, m(0.02), m(0.13));
+    g.fillRect(rx + m(0.05), ry, m(0.02), m(0.13));
+    dither(g, LT_W, LT_H, Math.round(LW_M * LH_M * 30));
+  }), 'detail');
+  leafPair(put, new THREE.MeshBasicMaterial({ map: churchLeafT, side: THREE.DoubleSide }),
+    dAt, DW, DH, hd - 0.12, 0.55, 'church', 0.03);
 
   // ── the floor is flagstones, not boards ──
   const flagT = declareSurface(pixTex(64, 64, (g) => {

@@ -834,6 +834,42 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   // all, and those are exactly the rooms whose doors were disagreeing.
   const bName = spec.building ?? fr?.name ?? null;
   const LEAF = bName ? doorLeafFor(bName) : null;
+  // ── AND IF THERE IS NOTHING TO ASK, SAY SO. THE SILENCE WAS THE BUG. ──────
+  //
+  // The user, twice, about the church: outside is a 5.5 m pointed arch with two
+  // timber leaves; inside was a 1.4 m brown domestic door with a grey pane.
+  //
+  // The cause was not a wrong value anywhere. `bName` above is the ONLY way
+  // into the declaration, and it has two sources: the spec's `building`, and
+  // the frontage's name. **A chamfer room publishes no frontage**, so a chamfer
+  // room that also omits `building` resolves `bName` to `null`, `LEAF` to
+  // `null`, and every reader below silently takes its `??` branch — the kit's
+  // generic 1.1 m timber leaf with a vision panel. `ST BRIGID` declares a
+  // perfectly good `DoorDecl` in `ct/int-church.ts` and **it was never
+  // consulted**, and nothing anywhere said a word.
+  //
+  // That is the same class as the two faults `ct/doors.ts` already screams
+  // about at collection time — an undefined namespace in the glob, and two
+  // rooms claiming one building — and it deserves the same treatment. A room
+  // that declared nothing and a room whose declaration was thrown away look
+  // identical from outside, and telling them apart is exactly what a check
+  // cannot do for itself.
+  //
+  // `bad()` is the kit's own channel for this and two registered checks already
+  // read it — `scripts/interiors-walk.mjs:284` and `scripts/G-rooms-walk.mjs:210`
+  // both collect `[interior:<id>]` warnings and fail on them — so a room that
+  // loses its door declaration now fails a check rather than merely looking
+  // wrong to whoever walks in. Declared here rather than reusing the `bad` at
+  // :881 because that one is defined forty lines further down; same format, and
+  // the checks match on the prefix.
+  if (!bName) {
+    console.warn(`[interior:${spec.id}] NO BUILDING NAME, so no DoorDecl was consulted and `
+      + `this room is getting the kit's generic timber leaf. A chamfer room publishes no `
+      + `frontage, so it must name its building itself: add \`building: '<roster name>'\` to `
+      + `its buildRoom spec. If the room really has no declaration, that is fine — but it `
+      + `has to be visible either way, because a thrown-away declaration and no declaration `
+      + `look the same from here.`);
+  }
   const dW = spec.door.width ?? LEAF?.clearW ?? F?.doorWidthM ?? 1.1;
   // CLAMPED TO THE ROOM. A declared leaf describes the door the BUILDING has,
   // and a building's entrance can legitimately be taller than the room behind
