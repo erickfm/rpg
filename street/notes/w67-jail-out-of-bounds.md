@@ -2,6 +2,15 @@
 
 Worker sixtyseven, 2026-08-02. Port **4230**.
 
+> **`scripts/w67-jail-contained.mjs` NO LONGER EXISTS.** The last section of this
+> note asked for it to be made a class; item 215 did that, and it is
+> **`scripts/w75-site-contained.mjs`** now — same fill, taking site names, and
+> sweeping every published site when given none. Everywhere below that names the
+> old file, read the new one. **Its escape predicate also changed, and this note
+> is why:** "past the frontage and off the site's z span" is true of the jail and
+> false of the car lot, where the street carries on north past `maxZ`. See
+> `notes/w75-containment-is-a-class.md`.
+
 > *"side of the jail are still bugged and allow for out of bounds."*
 
 ---
