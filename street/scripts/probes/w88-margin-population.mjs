@@ -85,9 +85,13 @@ for (const s of live) {
   }, [px, pz, away]);
   await p.waitForTimeout(140);
   const got = await p.evaluate(() => {
+    // `#ct-prompt`.textContent IS A GHOST — `ct/hud.ts:1715` hides the element
+    // with display:none and never clears its text, so it keeps the last offer
+    // forever. `display` is the truth. See probes/w88-does-prompt-clear.mjs.
     const el = document.getElementById('ct-prompt');
+    const shown = !!el && getComputedStyle(el).display !== 'none';
     const v = window.__ct.pos();
-    return { prompt: (el?.textContent ?? '').trim() || null, x: v[0], z: v[2] };
+    return { prompt: shown ? ((el.textContent ?? '').trim() || null) : null, x: v[0], z: v[2] };
   });
   // did the warp actually land us where we asked? a collider may have stopped it
   const landed = Math.hypot(got.x - px, got.z - pz);
@@ -113,9 +117,13 @@ for (const s of live) {
   await p.evaluate(([x, z, yaw]) => { window.__ct.warp(x, z, yaw); }, [px, pz, toward]);
   await p.waitForTimeout(140);
   const got = await p.evaluate(() => {
+    // `#ct-prompt`.textContent IS A GHOST — `ct/hud.ts:1715` hides the element
+    // with display:none and never clears its text, so it keeps the last offer
+    // forever. `display` is the truth. See probes/w88-does-prompt-clear.mjs.
     const el = document.getElementById('ct-prompt');
+    const shown = !!el && getComputedStyle(el).display !== 'none';
     const v = window.__ct.pos();
-    return { prompt: (el?.textContent ?? '').trim() || null, x: v[0], z: v[2] };
+    return { prompt: shown ? ((el.textContent ?? '').trim() || null) : null, x: v[0], z: v[2] };
   });
   if (Math.hypot(got.x - px, got.z - pz) > 0.35) continue;
   controlTested++;
