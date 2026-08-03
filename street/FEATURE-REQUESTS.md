@@ -3131,3 +3131,13 @@ to one side.
   (`crosstown.ts:2002`) = 54.4° below horizontal, and the pitch clamp is ±1.3 rad
   (`fp.ts:515-516`) = 74.5°, so on paper there are **20° of range**, not "a
   couple". Something makes the effective window far smaller than the gate.
+
+- **"[screenshot] npcs still get stuck"** (2026-08-03,
+  `Screenshot from 2026-08-03 11-31-21.png` — two citizens stationary on the
+  pavement beside the bus bench, with SLEEP CENTER behind them)
+  → **routed as queue item 276.** ⚠ **This looks like the pinch he DEFERRED an
+  hour earlier** (item 269: the walking lane is **1.15 m** there against a sacred
+  2 m; the player stops permanently 3.7 m in; **moving the bench cannot fix it**
+  because the shopfront alone leaves 1.63 m). He deferred it believing it cost
+  only his own passage. **If it is also stranding citizens, the trade has
+  changed and it is his call to reopen 269.**
