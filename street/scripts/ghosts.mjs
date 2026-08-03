@@ -19,7 +19,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 const LONG_MS = Number(process.env.LONG_MS ?? 22000);
 
@@ -185,6 +185,16 @@ console.log(`  long  window:                           ${f(out.longResult)}`);
 const bad = verdict(out);
 console.log(`\ncorridor answer ${bad.length ? '** DIFFERS **' : 'IDENTICAL under both windows'}`);
 for (const b of bad) console.log(`  FAIL  ${b}`);
+// `shots/` IS GITIGNORED, so a fresh worktree does not have one — and this
+// write is the last thing before the exit code. Without the mkdir, ghosts.mjs
+// dies on ENOENT and node returns 1, which from the suite is indistinguishable
+// from "the corridor answer differs": a missing DIRECTORY reported as a defect
+// in the world. Measured, not assumed — `mv shots /tmp && node scripts/ghosts.mjs`
+// exits 1 with `ENOENT open 'shots/ghosts.json'` and no verdict line at all.
+// This is GOTCHAS 65's distinction (could not measure ≠ measured and broken)
+// arriving through the back door, and it was found while registering the file
+// in a tier for the first time — nothing had ever run it from a clean checkout.
+mkdirSync('shots', { recursive: true });
 writeFileSync('shots/ghosts.json', JSON.stringify(out, null, 2));
 await b.close();
 // AND IT NOW SAYS SO IN ITS EXIT CODE. See `verdict`.
