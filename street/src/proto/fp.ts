@@ -819,31 +819,7 @@ export function tube(pts: THREE.Vector3[], radius: number, mat: THREE.Material):
 // metres.** This is the part the highlight depends on: whatever is outlined has
 // to be the thing that fires, and a player reads "selected" as "the thing I am
 // looking at". Proximity only decides it among things you are not looking at.
-export interface Pickable { x: number; z: number; r: number; ok: () => boolean; rank?: number }
-
-/**
- * THE WAY OUT OF A ROOM OUTRANKS THE FURNITURE IN IT.
- *
- * The user, item 291, after the calendar he asked for started winning the `[E]`
- * contest everywhere in flat 301: *"just make the door high rank pls."*
- *
- * It is a PROPERTY OF DOORS, not a special case for one flat. Every room has a
- * way out and the same contest exists in all of them — a seat and the door it
- * faces are close together everywhere in this world, and the previous two
- * rounds of this argument (`w40-bed-vs-door`'s END ONE and END TWO) were the
- * same collision with different furniture. Ranking the exit is the general
- * answer; moving the furniture is not, and he has already said so twice.
- *
- * ⚠ IT APPLIES IN TIER 2 ONLY, AND THAT BOUND IS THE WHOLE SAFETY ARGUMENT.
- * His other sentence in the same breath: *"standing right at a piece of
- * furniture and looking straight at it must still offer that furniture"* — he
- * asked for that calendar and wants to read it. Standing at the calendar and
- * facing it puts the calendar in TIER 1 (touching AND aimed at), which no
- * amount of rank can reach, because rank never crosses a tier. A door that wins
- * from across the room is right; a door that wins while he is nose-to-nose with
- * the calendar is not, and tier 1 is what tells those two poses apart.
- */
-export const DOOR_RANK = 1;
+export interface Pickable { x: number; z: number; r: number; ok: () => boolean }
 
 export interface PickView { x: number; z: number; yaw: number; pitch: number }
 
@@ -1114,12 +1090,6 @@ export function pickSpot<T extends Pickable>(
   let bestNearLookedKey = Infinity;
   let bestLooked: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
   let bestLookedKey = Infinity;
-  // -Infinity, not 0: an unranked spot is rank 0, and it must be able to become
-  // the best-so-far on the first candidate it sees. Seeded at 0 this would
-  // still work today by the `key <` clause, but only by accident, and it would
-  // break the moment anything wanted a NEGATIVE rank (a spot that should lose
-  // to ordinary furniture — the obvious next request).
-  let bestLookedRank = -Infinity;
   let bestNearOnly: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
   let bestNearOnlyKey = Infinity;
   const fx = Math.sin(view.yaw), fz = -Math.cos(view.yaw);
@@ -1203,31 +1173,8 @@ export function pickSpot<T extends Pickable>(
     if (near && (looked || onIt)) {
       if (d < bestNearLookedKey) { bestNearLookedKey = d; bestNearLooked = entry; }
     } else if (looked) {
-      // RANK FIRST, THEN THE SCREEN-CENTRE KEY. *"just make the door high rank
-      // pls."* — item 291, after `read the calendar` (item 270, which he also
-      // asked for) started winning this tier across the whole band in flat 301,
-      // including while he was walking out facing the door.
-      //
-      // WHY HERE AND NOWHERE ELSE. This is the tier where "what am I pointed
-      // at?" is the only question, so it is the one place a preference between
-      // two aimed-at things is meaningful. Tier 1 is "the spot is inside my own
-      // body, or I am touching it AND aimed at it" — rank must not reach that,
-      // or standing at the calendar and reading it would hand him the door
-      // instead, which is the one thing he said must not break. Tier 3 is
-      // "touching, aimed away", where the winner is whatever your feet are at
-      // and aim has already been said not to matter.
-      //
-      // NOT A DISTANCE, NOT A WEIGHT, NOT A BONUS SUBTRACTED FROM THE KEY. A
-      // bonus is a tuning knob with no correct value, and it decays into
-      // exactly the distance-tweaking he told us not to do. A strict
-      // lexicographic order has no value to choose: among aimed-at candidates,
-      // the highest rank wins outright, and equal ranks fall through to the key
-      // this tier has always used, unchanged.
-      const rank = s.rank ?? 0;
       const key = offAxis + d * 0.02;
-      if (rank > bestLookedRank || (rank === bestLookedRank && key < bestLookedKey)) {
-        bestLookedRank = rank; bestLookedKey = key; bestLooked = entry;
-      }
+      if (key < bestLookedKey) { bestLookedKey = key; bestLooked = entry; }
     } else {
       if (d < bestNearOnlyKey) { bestNearOnlyKey = d; bestNearOnly = entry; }
     }

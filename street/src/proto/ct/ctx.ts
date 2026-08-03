@@ -39,22 +39,6 @@ export interface Spot {
    * confident wrong answer is not.
    */
   obj?: THREE.Object3D;
-  /**
-   * HOW HARD THIS SPOT ARGUES AMONG THINGS YOU ARE AIMED AT. Default 0.
-   *
-   * The user, item 291: *"just make the door high rank pls."* Use
-   * `rank: DOOR_RANK` (from `proto/fp.ts`) on a way OUT of a room — the exit
-   * outranks the furniture, everywhere, because a seat and the door it faces
-   * are close together in every room in this world.
-   *
-   * It only decides between candidates you are AIMED AT (`pickSpot`'s tier 2).
-   * A spot you are touching and looking straight at still wins on its own
-   * merits, so ranking the door does not stop him reading the calendar he is
-   * standing at. Do not reach for this to fix a spot that is merely hard to
-   * select — that is a radius or a position, and rank will paper over it
-   * everywhere else in the room.
-   */
-  rank?: number;
   /** what the prompt says when you are in range */
   label: () => string;
   /** is this spot live right now (right floor, right side of a door…) */

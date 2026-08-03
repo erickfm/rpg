@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import { DOOR_RANK } from '../fp';
 import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf, frontageWorld, alongU } from './tex-world';
@@ -1825,13 +1824,6 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     // ~1.1 m from the spot, which a 1.0 m trigger misses by a hand's breadth.
     // Measured: prompt=null at (2.05, 3.15) against a spot at (2.83, 3.93).
     x: spotX, z: spotZ, r: CH ? 1.4 : 1.0,
-    // `rank: DOOR_RANK` — *"just make the door high rank pls."* (item 291), and
-    // *"Apply it as a PROPERTY OF DOORS, not a special case for flat 301"*.
-    // THIS ONE LINE IS THE GENERAL CASE: every interior in the world gets its
-    // way out from here, so all twelve rooms are covered by ranking it once
-    // rather than by twelve edits that could each be forgotten. He hit this in
-    // his flat; the same seat-versus-exit contest exists in every shop.
-    rank: DOOR_RANK,
     ok: () => player.x() >= x0 && player.x() < x1,
     label: () => 'out to the street',
     act: () => player.jumpTo(outAt.x, outAt.z, outAt.yaw, outAt.gy),
