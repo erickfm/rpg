@@ -71,3 +71,28 @@ than leaving it half-done.
 ## Nothing in this repo was changed by me for item 207
 
 No edit to `ct/crowd.ts` or anything else it names. The item is released clean.
+
+---
+
+## DESK CORRECTION, 2026-08-03 — the "stranded commit" claim is FALSE
+
+This note tells you that worker ninety's `ct/crowd.ts` fix is stranded on an
+unmerged branch and that mainline still carries the stale `citAvoid` comment.
+**Both were true when this note was written and are not true now.** The desk
+verified it directly:
+
+```
+git merge-base --is-ancestor f8f215097 HEAD   ->   IN MAINLINE
+```
+
+`f8f215097` ("Item 207: correct the stale citAvoid comment, and record that 198
+has LANDED") is an ancestor of mainline. The merge train landed it in the gap
+between ninetyone's check and its report — the same shape as GOTCHAS 83, where a
+snapshot of another agent's state goes stale while you are still writing about it.
+
+**So do NOT re-correct the comment, and do not treat 198 as a live blocker.**
+198 has landed; `ct/street.ts` describes it in the past tense. What remains of
+item 207 is the part nobody has done: **a dwell repro that pins a citizen against
+a vehicle, and a steering change that must be WALKED** — `ct/crowd.ts:614`'s
+`nt = t + step` is constant across all seven candidates, so nothing in the file
+can move a citizen backwards, which is the verb the user asked for.
