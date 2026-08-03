@@ -66,6 +66,35 @@ await until(() => {
 await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e');
 await until(() => window.__hud.panel() === 'ct-slots', 'the machine to open');
 
+// WAIT FOR THE FLY-IN TO STOP MOVING, AND THIS IS NOT A COURTESY.
+//
+// `crosstown.ts` eases the eye onto the screen over FOCUS_IN (0.40 s), and this
+// probe works by computing a page coordinate for a canvas pixel and then
+// clicking it. Those are two different instants: `at()` projects through the
+// camera as it is NOW, and the click arrives ~100 ms later through a camera that
+// has moved. During the ease that is enough to slide a target a whole band down
+// the face.
+//
+// It cost an hour. The bill acceptor sat 28 px above SPIN on screen; the cursor
+// read HAND (measured against the camera at the move) and the click then landed
+// on SPIN, which is dead at an empty meter, so nothing happened and every verdict
+// after it fell over. The machine was correct at every instant — `hot` and
+// `click` each raycast the live camera — and the instrument was comparing two
+// frames. GOTCHAS §30 in the probe rather than in the thing probed, and the
+// third time on this item that a red turned out to be the harness.
+//
+// Polled rather than slept: two consecutive frames with the camera and fov
+// unmoved is the ease having finished, whatever the frame rate (BUILDER-BRIEF
+// §5's argument, applied to a camera instead of a keypress).
+await until(() => {
+  const c = window.__ct.camera();
+  const k = `${c.position.x.toFixed(4)},${c.position.y.toFixed(4)},`
+    + `${c.position.z.toFixed(4)},${c.fov.toFixed(3)}`;
+  const same = window.__w55cam === k;
+  window.__w55cam = k;
+  return same;
+}, 'the fly-in to settle');
+
 const diegetic = await p.evaluate(() => {
   let m = null;
   window.__ct.scene().traverse((o) => { if (o.name === 'ct-slots-screen') m = o; });

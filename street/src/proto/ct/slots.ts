@@ -1393,7 +1393,7 @@ export function paintMachine(
 //   · and the module reaches the world through `ct/world.ts`'s glob, so there
 //     is no line in `crosstown.ts` to add and none to forget.
 
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { BUILD, ORDER as HOOK } from './ctx';
 import type { Panel } from './hud';
@@ -1525,17 +1525,55 @@ function seatedSlot(): SeatPose | null {
 //
 // AND IT BUILDS NOTHING UNTIL THE FIRST TIME A PLAYER SITS DOWN. GOTCHAS 75:
 // `scenedump.mjs` seeds `Math.random` globally and three draws four random
-// values per Object3D, so a mesh created at build time would shift the stream
+// values per Object3D, so a mesh created at build time would shift that stream
 // and repaint every dithered texture after it — `npm run fp` would report a
 // catastrophe that was not there. A scenedump never opens a panel, so it never
-// sees this, and `fp` stays readable for the next person.
+// sees this: measured, `objects` is 8415 either way and no `ct-slots-screen`
+// exists in a freshly loaded world.
+//
+// (The stream DOES shift in this commit all the same, for an unrelated reason
+// that took isolating to find. See the block on the `three` import below — it is
+// the import, not the plane, and the plane's laziness is still worth having.)
 
-/** three, fetched at register time. See the note on the `./hud` import below —
- *  same reason, and it keeps this module loadable by the node checks. */
-let T: typeof THREE | null = null;
+// THREE IS IMPORTED STATICALLY, AND THE COST OF THAT IS MEASURED AND REPORTED.
+//
+// The panel comes in by a dynamic import (see the note below `SLOT_SEAT_LABEL`)
+// because `ct/hud.ts` reaches `virtual:build-stamp`, which does not exist
+// outside the bundler, and because it is in the glob's cycle. NEITHER APPLIES TO
+// THREE: it is not in `ct/world.ts`'s glob, `crosstown.ts` already imports it
+// statically, and node loads it perfectly well — checked, not assumed, by
+// running `L-slots-rtp`, `-feel` and `-glass` against this file with the static
+// import in place.
+//
+// Static also removes a real hazard the dynamic version had: a window, a few
+// milliseconds wide after the world builds, in which `three` had not resolved
+// yet and a player sitting down would silently get the screen-space fallback.
+//
+// WHAT IT COSTS, MEASURED (`npm run fp`, against mainline's `ct/slots.ts`):
+// 1018 of 1458 textures and 2069 structure entries hash differently, with the
+// object count, the dimensions and every tint IDENTICAL. That is GOTCHAS 75's
+// signature, not a change to the world — `scenedump.mjs` seeds `Math.random`
+// globally so a dump is reproducible, three draws four random values per
+// Object3D for its uuid, and slots.ts taking an edge on three at all reorders
+// the bundle's module graph enough to shift that stream. Everything built after
+// the shift re-dithers.
+//
+// PROVED BY ISOLATION rather than argued: with this one import removed and every
+// other line of item 100 in place — the whole portrait re-cut, the screen plane,
+// the hit test — `fpdiff` reports textures IDENTICAL, structure IDENTICAL, tints
+// IDENTICAL and 7 pigeons drifted, which is the noise floor. So the face and the
+// surface move nothing, and the dither reseed is the import's alone.
+//
+// It is also invisible in the game. `dither()` calls `Math.random` unseeded at
+// build time in the real world (GOTCHAS §1), so the noise on those textures is
+// already different on every page load; only a SEEDED dump has a pattern to
+// change. What it costs is `fp`'s readability across this one commit, which is
+// why it is written down here instead of being left for the next person to
+// rediscover as a catastrophe.
+
 /** the one plane, re-parked on whichever cabinet the player is at */
 let plane: THREE.Mesh | null = null;
-let ray: THREE.Raycaster | null = null;
+const RAY = new THREE.Raycaster();
 
 /**
  * The cabinet in front of the player, and the face of it they are looking at.
@@ -1552,15 +1590,14 @@ let ray: THREE.Raycaster | null = null;
  */
 function cabinetAhead(scene: THREE.Scene, from: { x: number; z: number; yaw: number }, gy: number):
 { mesh: THREE.Mesh; normal: THREE.Vector3 } | null {
-  if (!T || !ray) return null;
   // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw). Read off the same
   // line `crosstown.ts`'s own focus controller cites, not re-derived.
-  ray.set(
-    new T.Vector3(from.x, gy + 1.0, from.z),
-    new T.Vector3(Math.sin(from.yaw), 0, -Math.cos(from.yaw)),
+  RAY.set(
+    new THREE.Vector3(from.x, gy + 1.0, from.z),
+    new THREE.Vector3(Math.sin(from.yaw), 0, -Math.cos(from.yaw)),
   );
-  ray.far = 2.0;
-  for (const hit of ray.intersectObjects(scene.children, true)) {
+  RAY.far = 2.0;
+  for (const hit of RAY.intersectObjects(scene.children, true)) {
     const o = hit.object as THREE.Mesh;
     if (o === plane) continue;                       // never find last time's screen
     // The people on the stools either side are sprites and are not machines; a
@@ -1585,7 +1622,6 @@ function cabinetAhead(scene: THREE.Scene, from: { x: number; z: number; yaw: num
  * `ScreenSurface.mesh`'s stated contract and it is why this was safe to adopt.
  */
 function screenPlane(scene: THREE.Scene, gy: number): THREE.Object3D | null {
-  if (!T) return null;
   // THE STOOL'S OWN POSE, which is where the player is standing — `rig.sit` put
   // them there and `crosstown.ts`'s focus controller cannot move them off it
   // (`FirstPerson.sit` is a no-op while already seated, fp.ts:230). So the seat
@@ -1612,17 +1648,17 @@ function screenPlane(scene: THREE.Scene, gy: number): THREE.Object3D | null {
   const height = width * (FACE.h / FACE.w);
 
   if (!plane) {
-    plane = new T.Mesh(
-      new T.PlaneGeometry(1, 1),
+    plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
       // White and opaque: the framework multiplies its canvas by this colour and
       // sets it to white on open anyway, and an untouched canvas on a material
       // with no `transparent` flag renders as flat black (w41's third bug).
-      new T.MeshBasicMaterial({ color: 0xffffff }),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
     );
     plane.name = 'ct-slots-screen';
   }
   plane.geometry.dispose();
-  plane.geometry = new T.PlaneGeometry(width, height);
+  plane.geometry = new THREE.PlaneGeometry(width, height);
   // PARENTED TO THE CABINET, so it inherits the machine's own place in the room
   // and travels with it, and so everything above can be worked out in the
   // cabinet's local space where the box is axis-aligned and centred.
@@ -1769,10 +1805,6 @@ export function register(ctx: CtxBuild): void {
   // `-feel` and `-glass` import it directly to check the maths, the reels and
   // the glass without a browser. The type-only import at the top of PART FOUR
   // is erased and costs nothing.
-  void import('three').then((three) => {
-    T = three;
-    ray = new three.Raycaster();
-  });
 
   void import('./hud').then(({ makePanel }) => {
   panel = makePanel({
