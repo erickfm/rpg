@@ -32,6 +32,10 @@ floor like the other three, or the same rename breaks it again.)
 | `G-vice-walk.mjs` (registered) | **17/18**, exit 1 | **18/18**, exit 0 |
 | `casinodoor.mjs` | printed `SEVENS spots registered: 0` and **exited 0** | 6/6, exit 0 |
 
+Full `interiors-walk` over all 12 rooms after the change: **307/336**,
+**12 of 12 declared doors resolved to an [E] spot**, and **not one prompt or
+entry leg red in any room**. Every remaining failure is finding 1 or 2 below.
+
 `__ct.spots()` returns **0 spots matching `/SEVENS/`**. The casino's prompt has
 read `into the ORPHEUS CASINO` since item 196. The failure the item predicted —
 "they will fail in a way that looks like the casino door broke" — had already
@@ -194,26 +198,33 @@ affects any slate line of 11+ characters.
 
 ## NOT MINE, NOT FIXED — for the desk to queue
 
-### 1. The casino leaks. 8 escapes in 24 containment runs.
+### 1. BOTH `ct/vice.ts` ROOMS LEAK — 17 escapes in 48 containment runs
 
-`interiors-walk casino`, both before and after my change, identical numbers:
+**This is the biggest thing I found and it is not item 213.** From the full
+`interiors-walk` run (all 12 rooms + apt301, 336 assertions, 307 passed):
 
-```
-FAIL  casino: walked OUT of the room going -x
-        from local -5.14,-17.64 ended at -11.15,-17.64 — room is 5.5 x 18
-FAIL  casino: walked OUT of the room going -z
-        from local -5.14,-17.64 ended at -5.14,-23.64 — room is 5.5 x 18
-FAIL  casino: the room holds you in, from every direction, everywhere in it
-        24 runs from 6 spread points, 8 escapes
-FAIL  casino: you cannot walk out through the doorway onto dead ground
-        walking at the door reached z=19 (front wall at 18)
-```
+| room | escapes / 24 runs | walked past the front wall to |
+|---|---|---|
+| **casino** | **8** | z = 19, front wall at **18** |
+| **hotel** | **9** | z = 19, front wall at **13** — six metres out |
+| the other ten rooms | **0** each | inside the wall, every one |
 
-`__ct.roomDims()` publishes the casino at **w 11, d 36**. `ct/int-casino.ts`'s
-own comments describe a depth that was bisected to 26 because 30 broke the way
-out. **The room grew to 36 and the walls did not follow.** The player walks
-6 m past the side wall. This is a live containment hole, it is red in a
-registered slow-tier check, and it is nothing to do with item 213.
+Ten rooms at 0 escapes is the population floor: the check works, and these two
+are genuinely broken. Identical failure sets on both — `walked OUT going -x`
+(twice each), `walked OUT going -z`, `holds you in`, `walking to the inside of
+the door raises the way-out prompt` (prompt=null), `E at the inside door puts
+you back on the street`, `you land on the raised walk`.
+
+`__ct.roomDims()` publishes casino **w 11 × d 36** and hotel **w 11 × d 26**.
+`ct/int-casino.ts`'s own comments describe a depth bisected down to 26 *because
+30 broke the way out*. **The rooms grew and the walls did not follow.** The
+player walks ~6 m past the side wall from local −5.14 to −11.15.
+
+Identical before and after my change — I did not cause it and I did not touch
+it. It is red in a registered slow-tier check and has been.
+
+**Note it is the two rooms `ct/vice.ts` builds, and that they are the same two
+in finding 2 below.** Whatever is wrong is probably one thing, not two.
 
 ### 2. Two suites report a floor the casino and hotel both have
 
