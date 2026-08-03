@@ -97,6 +97,11 @@ const setup = await p.evaluate((fruit) => {
       path: 0, x: NaN, z: NaN, clipSeen: 0, clipBlind: 0, fruit: 0,
       stall: 0, worstStall: 0, samples: 0,
     })),
+    // HOW CLOSE DID ANYBODY GET TO THE FRUIT? Without this, "0 frames inside
+    // the crates" is indistinguishable from "nobody walked down that street" —
+    // and a 60 s run on the UNFIXED world scores 0 for exactly that reason.
+    // This is what makes the zero mean something.
+    nearFruit: Infinity,
     countMismatch: 0,
     fruitBoxes: fruitBoxes.map((f) => f.box),
     // where the crowd actually GOES. A clip count of 0 means "no clips" only if
@@ -133,6 +138,10 @@ const setup = await p.evaluate((fruit) => {
       if (cs) r.clipSeen++;
       if (cb) r.clipBlind++;
       if (inAny(S.fruitBoxes, x, z)) r.fruit++;
+      for (const f of S.fruitBoxes) {
+        const d = Math.hypot(x - (f.minX + f.maxX) / 2, z - (f.minZ + f.maxZ) / 2);
+        if (d < S.nearFruit) S.nearFruit = d;
+      }
       if ((cs || cb) && S.where.length < 400) {
         S.where.push({ i, x: +x.toFixed(2), z: +z.toFixed(2), k: cs ? 'known' : 'blind' });
       }
@@ -165,7 +174,7 @@ const r = await p.evaluate(() => {
   const S = window.__w71;
   return {
     frames: S.frames, secs: (performance.now() - S.t0) / 1000, countMismatch: S.countMismatch,
-    roam: S.roam, where: S.where,
+    roam: S.roam, where: S.where, nearFruit: S.nearFruit,
     per: S.per.map((q) => ({
       path: +q.path.toFixed(2), clipSeen: q.clipSeen, clipBlind: q.clipBlind,
       fruit: q.fruit, worstStall: +q.worstStall.toFixed(2), samples: q.samples,
@@ -204,6 +213,17 @@ if (r.where.length) {
 ok(r.frames > SECS * 10, `FLOOR: the sim actually ran (${r.frames} frames over ${r.secs.toFixed(1)} s) — a frozen page reports zero clips`);
 ok(r.countMismatch === 0, `the citizen population never changed under the sampler (${r.countMismatch} mismatched frames)`);
 ok(path > SECS * 1.0, `FLOOR: the crowd COVERED GROUND (${path.toFixed(1)} m over ${r.secs.toFixed(1)} s) — a pinned crowd would clip nothing and pass every clip assertion below`);
+
+// ── ITEM 198'S OWN VERDICT ────────────────────────────────────────────────
+// The first of these is the load-bearing one and it is DETERMINISTIC: it does
+// not depend on anybody walking anywhere, so reverting ct/street.ts:242 turns
+// it red on the spot. The rest are the sim agreeing with it.
+ok(setup.fruit.every((f) => f.avoided),
+  `the produce crates outside the bodega are in citAvoid — the crowd is TOLD about them (${setup.fruit.map((f) => f.avoided).join(', ')})`);
+console.log(`  closest any citizen came to a crate: ${r.nearFruit.toFixed(2)} m`);
+ok(r.nearFruit < 3.0,
+  `FLOOR: somebody actually walked past the crates (closest approach ${r.nearFruit.toFixed(2)} m) — without this, "0 frames inside them" only means nobody went there, which is how a 60 s run scores 0 on the BROKEN world`);
+ok(fruit === 0, `nobody stood inside the crates (${fruit} frames) — the user's report: "pedestrians sometimes clip into the fruit in the sidewalk outside the bodega"`);
 
 console.log('');
 for (const n of notes) console.log('  ', n);
