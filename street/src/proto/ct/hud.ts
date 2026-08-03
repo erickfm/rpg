@@ -1310,11 +1310,61 @@ export function makeHud(purse: Purse): Hud {
   // over to the left a little bit?"* (2026-08-02). It was `52%`. Untouched.
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
   const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
+  /**
+   * HOW STEEPLY THE FOREARM GOES DOWN AND AWAY. His third report on this object:
+   *
+   *   *"too much arm here i think it shou;ld have a bit of a steeper angle
+   *   maybe?"*  (2026-08-02, with a screenshot)
+   *
+   * READ THAT AGAINST HIS SECOND — *"i would like the rest of the arm (to the
+   * left) rendered as well"* — because they pull opposite ways and the
+   * resolution is the whole item. He is not taking the continuation back. He is
+   * saying it was added along the wrong axis: at 5° the forearm lay across the
+   * ENTIRE bottom of the frame as one flat slab of one tone, and a limb seen
+   * from your own eyes does not do that. It goes down and away, so it occupies a
+   * CORNER. Steepening shortens its apparent length without removing a pixel of
+   * what he asked for, which is why his own suggested fix is the right one.
+   *
+   * MEASURED, not chosen (`scripts/probes/w63-arm-angle.mjs`, 1280 x 958, his
+   * posture and his room):
+   *
+   *     tilt    bottom edge covered    HUD area of frame
+   *      -5°           65.5%                 11.5%     <- his screenshot
+   *     -18°           40.8%                  6.6%
+   *
+   * THIS IS ALSO THE ONE NUMBER, AND IT WAS THREE. `WRAP_CSS` said `-6deg` and
+   * `hud.watch()` wrote `-5deg` twice; the CSS one had been dead since the day
+   * it was written, because `watch()` overwrites `transform` on the first frame
+   * the player looks down. Nothing said so and both readings looked deliberate.
+   * (BUILDER-BRIEF §8.)
+   */
+  const WATCH_TILT = -18;
   const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${72 * WATCH_S}px;image-rendering:pixelated;display:block;`;
+  /**
+   * AND THE DROP THAT PAYS FOR THE TILT.
+   *
+   * Rotating about a pivot at the wrist swings the far end DOWN, which is the
+   * point — but it swings the HAND end up by the same rule, and at 5° that was
+   * 21 px and at 18° it is 75. The fist then leaves the bottom-right corner and
+   * stands in the middle of the floor as a squared-off block with world on three
+   * sides of it, which reads worse than the flat arm did. Looked at, not
+   * reasoned: `/tmp/w63-arm-t18.png` is the frame where I saw it.
+   *
+   * So the element goes down by what the rotation lifted the hand end by —
+   * `WATCH_PIVOT x sin(tilt)`, DERIVED so it stays right if the tilt is ever
+   * tuned again — and the hand is cut by the bottom of the frame the way it
+   * always was.
+   */
+  const WATCH_DROP = 30;
+  /** shown, and stowed below the frame. Same tilt: the arm must not swing as it
+   *  comes up, only slide. */
+  const watchTransform = (shown: boolean) => (shown
+    ? `translateX(-50%) translateY(${WATCH_DROP}px) rotate(${WATCH_TILT}deg)`
+    : `translateX(-50%) translateY(140%) rotate(${WATCH_TILT}deg)`);
   const WRAP_CSS = 'position:fixed;'
     + `left:calc(46% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
     + `transform-origin:calc(100% - ${WATCH_PIVOT}px) 50%;`
-    + 'transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
+    + `transform:${watchTransform(false)};transition:transform .18s ease-out;`;
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
@@ -1351,7 +1401,27 @@ export function makeHud(purse: Purse): Hud {
     // ONE BAND, the same skin tone and the same y 6…72 as the wrist, so there is
     // no seam to see: the wrist below is drawn by the identical `fillRect` it
     // always was, just further along the same band.
-    g.fillStyle = '#c9946a'; g.fillRect(0, 6, WATCH_ARM, 66);
+    // …AND IT NARROWS AS IT GOES BACK. A limb receding from your own eye
+    // foreshortens; a band of one thickness for its whole length is the other
+    // half of why the flat version read as a plank rather than an arm, and the
+    // taper is what stops the top edge being a ruler line. It is anatomically
+    // backwards — a real forearm is THICKER at the elbow — and perspective wins
+    // by a mile at this range: the elbow is roughly three times as far from the
+    // eye as the wrist.
+    //
+    // DRAWN COLUMN BY COLUMN, so the slope is a texel STAIRCASE. This canvas is
+    // upscaled 2.75x with `image-rendering:pixelated`; a `lineTo` diagonal would
+    // be antialiased first and then magnified, which is the one soft edge in a
+    // world drawn entirely in hard texels. 600 one-pixel fillRects, twice, on a
+    // canvas repainted once a minute.
+    const ARM_TAPER = 26;        // canvas px thinner at the far end
+    const ARM_TAPER_RUN = 300;   // over which it narrows, then holds
+    const armTop = (x: number) =>
+      6 + Math.round(ARM_TAPER * Math.min(1, (WATCH_ARM - x) / ARM_TAPER_RUN));
+    const armColumns = () => {
+      for (let x = 0; x < WATCH_ARM; x++) { const t = armTop(x); g.fillRect(x, t, 1, 72 - t); }
+    };
+    g.fillStyle = '#c9946a'; armColumns();
     // …and it RECEDES. The wrist's shading is "light from the right", carried by
     // a 10 px `rgba(0,0,0,0.15)` cap that used to sit at the cut end and would
     // now be a dark stripe across the middle of a limb, which is exactly the
@@ -1372,11 +1442,20 @@ export function makeHud(purse: Purse): Hud {
     // 242 that reach the left edge of a 1280 frame; past that the gradient
     // clamps to its end stop and the arm simply stays in shadow, which is what
     // a limb going back out of the light does.
+    //
+    // THE RAMP GOT DEEPER WHEN THE ARM GOT STEEPER, and that is not a taste
+    // change. At 5° the visible forearm ran the whole width of the frame and
+    // 0.18 was spread over all of it; at 18° it leaves the bottom edge after
+    // about 250 canvas px, so the same ramp now has a quarter of the frame to
+    // work in and read as flat there. 0.32 over the same 240 px is what makes
+    // the far end look further away rather than merely darker.
     const RECEDE = 240;
     const recede = g.createLinearGradient(WATCH_ARM - RECEDE, 0, WATCH_ARM, 0);
-    recede.addColorStop(0, 'rgba(0,0,0,0.18)');
+    recede.addColorStop(0, 'rgba(0,0,0,0.32)');
     recede.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = recede; g.fillRect(0, 6, WATCH_ARM, 66);
+    // the SAME columns, so the shading cannot land where the limb is not — a
+    // gradient is in canvas space, so it spans the separate fills correctly
+    g.fillStyle = recede; armColumns();
     // EVERYTHING BELOW IS THE OLD DRAWING, MOVED — not redrawn. The wrist, the
     // fist, the strap, the case and the LCD keep their own coordinates and their
     // own order; the translate is the whole of the change, so the thing the user
@@ -1580,9 +1659,10 @@ export function makeHud(purse: Purse): Hud {
     // canonical "how night is it" curve that drives the lamps.
     setNight: (v) => { nightDiv!.style.opacity = String(v * 0.28); },
     watch: (want, mins) => {
-      watchWrap!.style.transform = want
-        ? 'translateX(-50%) translateY(0) rotate(-5deg)'
-        : 'translateX(-50%) translateY(140%) rotate(-5deg)';
+      // ONE SOURCE FOR THE TILT — see WATCH_TILT. These two strings used to
+      // carry their own `-5deg` while WRAP_CSS carried a `-6deg` that never
+      // reached the screen.
+      watchWrap!.style.transform = watchTransform(want);
       if (want && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
     },
     setFps: (text: string | null) => {
