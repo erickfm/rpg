@@ -189,7 +189,15 @@ console.log('\ncanfail refuses what it cannot honour\n');
         out = execFileSync('node', [copy, 'argrot-selftest'],
           { env: { ...process.env, SHOT_URL: DEAD }, encoding: 'utf8', stdio: 'pipe' });
       } catch (e) { code = e.status; out = String(e.stdout ?? '') + String(e.stderr ?? ''); }
-      check('a case quoting source that does not exist aborts, exit 3', code === 3, `exit was ${code}`);
+      // EXIT 3 ALONE DOES NOT DISCRIMINATE HERE, and the mutation run proved it:
+      // blinding the pre-flight let the run fall through to the dead port, which
+      // ALSO exits 3, so this leg stayed green over a gate that had been
+      // removed. The code and the reason are asserted together for that reason —
+      // "it exited 3" and "it exited 3 BECAUSE the needle had rotted" are two
+      // claims, and only the second one is this leg's.
+      check('a case quoting source that does not exist aborts, exit 3 — for THAT reason',
+        code === 3 && /QUOTE SOURCE THAT NO LONGER EXISTS/.test(out),
+        `exit was ${code}`);
       check('…and says so, naming the case and its dead quotation',
         /QUOTE SOURCE THAT NO LONGER EXISTS/.test(out) && /argrot-selftest/.test(out));
       check('…and scores nothing — no case is certified on the way out',
