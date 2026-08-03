@@ -231,7 +231,7 @@ for (const t of traps) {
 
 // Cross-check: for a handful, actually DRIVE the rig away, so the cheap
 // predicate above is never trusted on its own.
-let driven = 0, drivenOk = 0;
+let driven = 0, drivenOk = 0, drivenFails = 0;
 for (const t of traps.slice(0, 6)) {
   if (!(await isBlocked(t.x, t.z))) continue;
   await warp(t.x, t.z, 0);
@@ -248,7 +248,10 @@ for (const t of traps.slice(0, 6)) {
   }
   driven++;
   if (best > 0.25) drivenOk++;
-  else fails.push(`DRIVEN ${t.kind} @ ${t.x.toFixed(2)},${t.z.toFixed(2)} — rig could not walk away (${best.toFixed(2)} m)`);
+  else {
+    drivenFails++;
+    fails.push(`DRIVEN ${t.kind} @ ${t.x.toFixed(2)},${t.z.toFixed(2)} — rig could not walk away (${best.toFixed(2)} m)`);
+  }
 }
 console.log(`${driven} of them also driven for real: ${drivenOk} walked away under their own steam`);
 console.log(`${tested} were genuinely stuck; ${freedBy.push} freed themselves`);
@@ -256,9 +259,28 @@ console.log(`   (${frameTotal} rendered frames across ${tested} probes, ${tested
   + ` the fixed wait this replaced was ~66 frames every time)`);
 console.log(`${freedBy.alreadyOut} candidate gaps turned out to be passable already\n`);
 for (const f of fails) console.log(`  FAIL  ${f}`);
+// ── TWO POPULATIONS, TWO NUMBERS ──────────────────────────────────────────
+//
+// This read `${fails.length}/${tested}` and printed **537/531** on a real run —
+// a verdict line that reads as nonsense, recorded by w37 in
+// notes/archive/w37-walking-tier-failpaths.md and left as "cosmetic".
+//
+// It is not quite cosmetic: it is a ratio taken across two different
+// populations. `tested` counts the traps that were GENUINELY STUCK and went
+// through the cheap predicate; `fails` holds those failures PLUS the `DRIVEN`
+// ones from the cross-check loop above, which walks `traps.slice(0, 6)` — a
+// different sample, counted after `tested` has stopped moving. So the numerator
+// could exceed the denominator, and a reader trying to work out how bad a run
+// was got a fraction greater than one.
+//
+// Reported separately, each against the sample it actually came from. The exit
+// code is unchanged and still covers both.
+const stuckFails = fails.length - drivenFails;
 console.log(fails.length
-  ? `\n${fails.length}/${tested} traps are still traps`
-  : `\nall ${tested} traps release the player`);
+  ? `\n${stuckFails}/${tested} traps are still traps`
+    + (drivenFails ? `, and ${drivenFails}/${driven} of the driven cross-checks could not walk away` : '')
+  : `\nall ${tested} traps release the player`
+    + (driven ? `, and all ${driven} driven cross-checks walked away` : ''));
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 5).join('\n  '));
 await b.close();
 process.exit(fails.length || errs.length ? 1 : 0);

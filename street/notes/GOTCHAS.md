@@ -2761,3 +2761,29 @@ Two habits that catch it:
   longer fail still passes its happy path. It was the deliberate break-case that
   would have exposed this, had the selftest injected a *world* fault rather than
   a *predicate* fault.
+
+## 79b. …and it happened AGAIN: `side-walk.mjs`, "3 parked cars, 0 found"
+
+GOTCHAS 79 says a check that filters on `visible` measures nothing after the
+region cull. That was `masonry.mjs`. **The same bug was still live in
+`scripts/side-walk.mjs` a full day later**, reporting *"3 parked cars, 0 found"*
+while all three sat plainly at y = 0.
+
+The mechanism is worth stating precisely, because it is not obvious:
+
+- `regionCull` hides the **entire exterior** while the player's `x >= 100`.
+- **The player spawns in apartment 301, at x = 198.**
+- So at spawn, `o.visible` is **false for everything outdoors** — and a census of
+  street furniture run from a fresh page finds nothing at all.
+
+**Any check that reads the world from the spawn position is reading it from
+INSIDE A FLAT, 98 m past the cull boundary.** That is the default state of every
+probe that does not warp first.
+
+Dropping the `visible` term was safe here because pooled cars park at
+`IDLE_XZ = 999`, outside the census box — but **the general fix is not to filter
+on `visible` at all.** Visibility is a rendering fact; a census, a density sweep
+and a collider audit are all authoring facts.
+
+**When a check reports zero of something you can see with your own eyes, suspect
+the cull before you suspect the world.**
