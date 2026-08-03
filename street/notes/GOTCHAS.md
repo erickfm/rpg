@@ -2249,3 +2249,33 @@ Two corollaries, both of which bit here:
   to 3× against a 4× threshold and asserted `gross.length` — which is 188
   whatever you do. It now mutates to 5× and asserts *that specific face* appears.
   Assert the thing you changed shows up, never just that the count is non-zero.
+
+## 80. `afterFrames` does not mean the renderer PAINTED anything
+
+GOTCHAS 78 tells you to wait `afterFrames` before shooting. That advice is not
+sufficient and following it exactly will hand you black screenshots.
+
+**rAF fires whether or not the renderer drew.** Worker sixtyone shot the built
+bundle after the prescribed wait and got **8 solid black frames**, while the very
+same bundle's scene graph read perfectly when queried. The first genuinely
+painted frame did not arrive until **1136 ms**.
+
+Right now you cannot easily do better, because **`crosstown.ts:1339` does not
+publish the renderer on `__ct`**, so a probe has no way to ask how many frames
+have actually been rendered. That is item 181. Until it lands, treat any probe
+that waits only on rAF ticks as suspect, and **look at the image you captured** —
+a black frame is a failure to paint, not evidence about the world.
+
+## 81. `curl` is not a free-port test; only `ss -ltn` is
+
+Builders are told to prove their port is free before binding it. Worker sixtyone
+found port 4183 **answering `000` to curl and then refusing to bind** — another
+builder had taken it in the gap between the two operations.
+
+Use `ss -ltn`. A port that curl says nothing is listening on may still be claimed
+by the time you bind, and with `--strictPort` that is a hard failure partway into
+your run.
+
+Related, same report: **`npm run build` while a preview is serving KILLS the
+preview**, after which every check reports `SERVER DIED (unmeasured)` — which
+looks exactly like you broke the world. You did not. That is item 182.

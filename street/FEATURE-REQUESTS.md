@@ -2892,3 +2892,102 @@ to one side.
 - **"[screenshot] remove this weird table in the library"** (2026-08-02)
   → **routed as queue item 158.** A table jutting from a shelf end at an angle,
   intersecting the shelving.
+
+- **"[screenshot] too much arm here i think it shou;ld have a bit of a steeper
+  angle maybe?"** (2026-08-02,
+  `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-02 20-29-35.png`)
+  → **routed as queue item 165, which supersedes 111.** THIRD report on the watch
+  arm. In the frame the forearm runs almost perfectly horizontally across the
+  full width of the bottom of the screen — a long flat slab. He proposes the fix
+  himself: a steeper angle.
+
+- **"make the liquor store a mattress store"** (2026-08-02) → **routed as queue
+  item 166.** The liquor store is facade-only — one row in `ct/street.ts:296`,
+  no interior module, no `[E]` spot, no ad references — so this is a signage and
+  frontage change, not a new building.
+
+- **"[screenshot] mug handle still looks off, please try"** (2026-08-02, pasted
+  image, close-up from the doorway) → **routed as queue item 167.** THIRD report
+  on the mug, and the SECOND after a fix that measured correct by construction.
+  Item 108's fix joined the handle to the cup and proved it with numbers; he is
+  still telling us it reads wrong.
+
+- **"put the calendar where the poster is and the poster where the calendar
+  is"** (2026-08-02) → **routed as queue item 168.** Both are in the player's own
+  room, `ct/apartment.ts`: the gig-flyer poster on the south wall at
+  `AX(-1.05), RY + 1.55, AZI(2.085)` (0.52 × 0.70, unrotated), the 1997 calendar
+  on the north wall at `AX(-2.45), RY + 1.66, NORTH_Z` (0.30 × 0.40,
+  `rotation.y = PI`). A straight swap of two wall hangings.
+
+- **"[screenshot] what is this weird grass on the ground"** (2026-08-02, pasted
+  image, looking down at the floorboards indoors) → **routed as queue item 169.**
+  A small pale horizontal sliver lying flat on the apartment's wooden floor.
+  `ct/apartment.ts` contains no grass or weed geometry of its own; seven other
+  modules produce some (`props.ts`, `tex-world.ts`, `street.ts`, `weeds.ts`,
+  `lot.ts`, `park.ts`, `civic.ts`).
+
+- **"[screenshot] benches need space away from the path"** (2026-08-02,
+  `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-02 20-33-21.png`)
+  → **routed as queue item 170, which supersedes 88.** SECOND report. The first
+  was *"bench is a lil too close to the path. also the path looks awful"* and
+  named one bench; this one says **benches**, plural — a clearance rule for every
+  bench in the park, not a nudge to one.
+
+- **"[screenshot] shelter roof is still bugged in terms of graphics"**
+  (2026-08-02, pasted image, standing under the park shelter in rain) →
+  **routed as queue item 171.** The underside of the shelter roof reads as a
+  dense high-frequency stripe grid. "Still" — the shelter's timber has been
+  through a density fix before (`ct/civic.ts:403` refers back to it) and
+  `ct/park.ts:1715` already warns about scale changing between two pieces of
+  the same shelter.
+
+- **"[screenshot] try to add some y diversity here. the height is soooo flat."**
+  (2026-08-02, pasted image, the park seen from the street) → **routed as queue
+  item 172.** The park already has a gaussian relief system (crown +0.10, mound
+  +0.30 over σ 3.1, dish -0.09, corner -0.10) but it is capped by a hard
+  constraint its own author documented: *"The park site is floored by one flat
+  32 × 30 m plane at KERB_H, drawn by `openSite` in ct/street.ts, and it is not
+  mine and does not move."* The same comment names the fix: *"If ct/street.ts
+  ever lets a module own its site's ground, the crown can come off and the
+  hollows can be real."*
+
+- **"[screenshot] people still get stuck. they should back up and allow the car
+  to pass"** (2026-08-02, a citizen pinned between the taxi and the kerb) →
+  **routed as queue item 173.** "Still" — a repeat. `ct/crowd.ts:21-26` describes
+  `citAvoid` as *"solid props people steer AROUND — trees, lamps, parked cars"*,
+  and `:197` already mentions people *"frozen on the carriageway either side of
+  a parked car."*
+
+- **"pedestrians sometimes clip into the fruit in the sidewalk outside the
+  bodega"** (2026-08-02) → **routed as queue item 174.** The produce crates are
+  built in `ct/bodega-corner.ts` (~439-473) and that module registers player
+  collision through a `solid()` callback; whether the crates are also added to
+  the crowd's separate `citAvoid` list is the thing to check first.
+
+- **"[screenshot] side of the jail are still bugged and allow for out of
+  bounds"** (2026-08-02, night, a gap of open sky between the jail and the brick
+  building west of it) → **routed as queue item 175.** "Still" — a repeat. Two
+  jail walk checks already exist and pass (`scripts/O-jail-walk.mjs`,
+  `scripts/w15-jail-walk.mjs`), so this is a blind spot in the checks as much as
+  a hole in the world.
+
+- **"make it a combo orpheus hotel and casino. connect them internally and
+  outside. i should be able to walk from one into the other"** (2026-08-02)
+  → **routed as queue item 176.** `HOTEL ORPHEUS` (`ct/street.ts:332`, w 12,
+  5 floors) and `SEVENS` (`:333`, w 11.55, 4 floors) are **already adjacent** —
+  consecutive rows in the EAST roster — which is what makes this feasible
+  without moving anything else on the street.
+
+- **"[screenshot] bodega is a bit crowded and lots of clipping inside"**
+  (2026-08-02, pasted image, the counter end) → **routed as queue item 177.**
+  Same family as the library crowding report (item 115).
+
+- **"pawn shop should contain, knives, bolt cutters, guns, on top of the regular
+  stuff. it should also serve as a fence for the stuff you steal from neighbors.
+  speaking of, i havent seen a single package outside my neighbors doors?"**
+  (2026-08-02) → **routed as queue items 178 (packages), 179 (pawn stock) and
+  180 (fencing).** ANSWER TO HIS QUESTION: he has not seen a package because
+  **none is ever placed.** `PACKAGE_TABLE` and `rollPackage()` exist in
+  `ct/inventory.ts:165,247` and have **no consumers anywhere in `src/`**. The
+  comment at `:158` records the half-finished handoff: *"builder C is putting
+  packages on the walk-up landings."* Builder C never landed it.
