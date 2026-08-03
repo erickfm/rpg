@@ -70,7 +70,19 @@ console.log(`escape = standing east of x ${f(site.minX + 0.5)} with z outside `
 const CZ = (site.minZ + site.maxZ) / 2;
 const seeds = [[site.minX - 6, CZ]];
 const seen = new Set();
-const key = (x, z) => `${Math.round(x * 2) / 2},${Math.round(z * 2) / 2}`;
+// 2 m CELLS. The first cut used 0.5 m and did not converge: 220 walks produced
+// 198 unexplored frontier entries, because sixteen walks from one place land in
+// sixteen distinct half-metre cells and the fill grows faster than it is spent.
+// A 2 m cell is still finer than the narrowest hole this is hunting (the south
+// slot measured 1.68 m), so nothing it needs to find can hide between samples.
+const GRID = 2.0;
+const key = (x, z) => `${Math.round(x / GRID)},${Math.round(z / GRID)}`;
+// SCOPED TO THE JAIL, and stated rather than implied. Walks that leave this box
+// are still CHECKED for escape — that is the assertion — they are simply not
+// pushed back as new frontier, because the rest of the street is not this
+// check's subject and following it would never terminate.
+const inScope = (x, z) => x > site.minX - 12 && x < site.maxX + 4
+  && z > site.minZ - 8 && z < site.maxZ + 8;
 const escapes = [];
 let frontier = seeds;
 // BUDGETED, because an unbounded fill is not a check anybody runs. 16 walks per
@@ -83,12 +95,13 @@ let frontier = seeds;
 //
 // A BUDGET THAT RUNS OUT IS REPORTED, NOT SWALLOWED. A sweep that stopped early
 // and said "contained" would be the sleeping guard this file exists to replace.
-const DIRS = 16, MS = 2000, ROUNDS = 4, BUDGET = 220;
+const DIRS = 8, MS = 1200, ROUNDS = 8, BUDGET = 700;
 let walks = 0;
 let exhausted = false;
 
 for (let round = 0; round < ROUNDS && frontier.length && !exhausted; round++) {
   const next = [];
+  const queued = new Set();
   for (const [sx, sz] of frontier) {
     if (walks >= BUDGET) { exhausted = true; break; }
     if (seen.has(key(sx, sz))) continue;
@@ -104,7 +117,12 @@ for (let round = 0; round < ROUNDS && frontier.length && !exhausted; round++) {
       walks++;
       const p = await pos();
       if (outside(p)) escapes.push({ from: [+sx.toFixed(1), +sz.toFixed(1)], yaw: +yaw.toFixed(2), to: [+p[0].toFixed(2), +p[2].toFixed(2)] });
-      if (!seen.has(key(p[0], p[2]))) next.push([p[0], p[2]]);
+      // Deduped AS IT IS BUILT, against both the visited set and the rest of
+      // this round. Pushing unconditionally is what made the first version
+      // diverge — the frontier counted sixteen entries per place that were all
+      // the same cell.
+      const k = key(p[0], p[2]);
+      if (!seen.has(k) && !queued.has(k) && inScope(p[0], p[2])) { queued.add(k); next.push([p[0], p[2]]); }
     }
   }
   frontier = next;

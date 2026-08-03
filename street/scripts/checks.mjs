@@ -1114,6 +1114,12 @@ const CHECKS = [
   // editing this same array around the `density`/`masonry` rows. One row at the
   // far end is the smallest thing that can conflict with that.
   ['w67-atm-pin', 'does the ATM PIN screen cancel, auto-submit and remember?', 'atm-cancel-shadowed'],
+  // REGISTERED 2026-08-02 (w67, item 175). A CONTAINMENT SWEEP, not a route:
+  // it walks outward from the side street and asserts the player can never end
+  // up outside the jail's own site. Two route-walking checks were green over
+  // this hole twice — see the file's header for why. SLOW tier: it is a walk,
+  // and a real one.
+  ['w67-jail-contained', 'can the player walk out of the world at the jail?', 'jail-forecourt-open', [], true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
