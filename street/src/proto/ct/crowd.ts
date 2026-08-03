@@ -210,6 +210,11 @@ interface Citizen {
   /** the last position known to be legal, and how long we have been illegal —
    *  the crowd's half of what ct/fp.ts does for the player rig */
   good: { x: number; z: number }; stuckT: number;
+  /** GIVING GROUND to a vehicle: seconds still committed to stepping backwards,
+   *  and metres given up in this episode. The commitment is the anti-oscillation
+   *  latch (`c.pick` is sticky for the same reason); the budget is what stops a
+   *  walker retreating down the block if the car never leaves. */
+  backing: number; gave: number;
   /** what the sprite is currently showing — for the feet check, see `views` */
   view?: { col: number; mirror: boolean; yaw: number; moving: boolean } }
 
@@ -288,7 +293,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       cad: 5 * Math.sqrt(p.sp) / hs,     // cadence: long legs swing slower
       route: [], at: -1, wait: 0, doing: 'none', jam: 0, bias: 0, vx: 0, vz: 0,
       was: -1, back: -1, id: i, pick: 0, head: i % 2 ? 0 : Math.PI, sector: -1,
-      good: { x: lane, z }, stuckT: 0,
+      good: { x: lane, z }, stuckT: 0, backing: 0, gave: 0,
     });
   });
 
@@ -304,6 +309,43 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    *  after 0.8 s, which is walking through somebody politely. */
   const clearOfPeople = (x: number, z: number, self: Citizen) =>
     !citizens.some((q) => q !== self && !q.ghost && Math.hypot(q.lane - x, q.z - z) < 0.46);
+
+  // ── WHICH OBSTACLES WILL GO AWAY IF YOU WAIT? ───────────────────────────
+  //
+  // Backing off a TREE is not patience, it is a walker reversing down the
+  // street. Backing off a car is what the user asked for. Nothing in the AABB
+  // itself says which is which — `citAvoid` is one flat list, and since item 198
+  // it is most of the world's static geometry (359 of 508 player colliders) with
+  // the handful of vehicle boxes mixed in.
+  //
+  // So the list is not asked what a box IS, it is watched for what a box DOES: a
+  // box seen at two different positions has moved, and only a vehicle ever does.
+  // That is a fact this module can establish for itself, without importing
+  // traffic's internals or trusting a flag somebody has to remember to set.
+  //
+  // IT MUST BE "HAS EVER MOVED", NOT "MOVED THIS FRAME" — and that distinction
+  // is the whole point. The case this exists for is a taxi DWELLING at the kerb,
+  // which by definition is not moving right now. A frame-to-frame test would go
+  // blind at exactly the moment the walker needs it. Vehicles are parked off the
+  // map at x = 999 (ct/traffic.ts:221) and driven in, so one is marked the
+  // instant it reaches the block and stays marked.
+  const boxAt = new Map<AABB, { x: number; z: number }>();
+  const movers = new Set<AABB>();
+  const trackMovers = () => {
+    for (const a of o.citAvoid) {
+      const was = boxAt.get(a);
+      if (!was) { boxAt.set(a, { x: a.minX, z: a.minZ }); continue; }
+      if (was.x !== a.minX || was.z !== a.minZ) { was.x = a.minX; was.z = a.minZ; movers.add(a); }
+    }
+  };
+  /** the MOVING obstacle covering this spot, if any — same footprint `clearAt`
+   *  refuses on, so "this candidate failed" and "a vehicle is why" agree. */
+  const moverAt = (x: number, z: number) => {
+    for (const a of movers) {
+      if (x + 0.28 > a.minX && x - 0.28 < a.maxX && z + 0.28 > a.minZ && z - 0.28 < a.maxZ) return a;
+    }
+    return null;
+  };
 
   // ── being somewhere illegal, and leaving ────────────────────────────────
   //
@@ -409,6 +451,54 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
 
   /** seconds of getting nowhere before a walker stops waiting and goes round */
   const JAM_GIVE_UP = 2.0;
+  // ── giving ground, and the four numbers that bound it ────────────────────
+  /** s of getting nowhere before a walker will step BACK. Longer than a frame
+   *  or two of ordinary jostling, shorter than JAM_GIVE_UP, so the escalation
+   *  stays ordered: stand, go round, give ground, reroute. */
+  const BACK_AFTER = 0.35;
+  /** s of commitment once retreating. `c.pick` is sticky for exactly this
+   *  reason — re-deciding every frame is what made walkers oscillate — and a
+   *  car's box clearing by a centimetre must not flip the choice back. */
+  const BACK_HOLD = 0.45;
+  /** retreat at a fraction of walking pace: nobody walks backwards at a stride */
+  const BACK_RATE = 0.7;
+  /** m of ground one episode may give up. The road is 10 m wide, so this is
+   *  enough to get off a crossing and back to the kerb it was entered from, and
+   *  not enough to walk anybody down the block if the car never leaves. */
+  const BACK_MAX = 2.5;
+  /** m of route ahead scanned for a vehicle. MUST EXCEED `BACK_MAX`, and that
+   *  is not a taste call — it is the whole difference between giving way and
+   *  oscillating. The first cut tested ONE point, at `t + step`. A walker that
+   *  had retreated even a few centimetres found that point clear, stepped
+   *  forward into the car again, was blocked again, and retreated again: a limit
+   *  cycle at the box's edge. It measured as a triumph — nobody stood for more
+   *  than 0.9 s and 21.78 m of ground was "given" — while walker-frames in the
+   *  roadway went from 592 to 5787, i.e. the crowd now LIVED in the road,
+   *  shuttling. Scanning past the retreat budget means the car is still in sight
+   *  when the walker has backed off as far as it will go, so it waits there
+   *  instead of walking back into it. */
+  const BACK_LOOK = 3.4;
+  /** Is a vehicle across the way ahead with NO lateral room to pass it?
+   *
+   *  Every offset the placement search would try is scanned, not just the
+   *  committed one, so this cannot suppress a manoeuvre that would have worked:
+   *  if any lane of the walk is clear the answer is no, and the ordinary "go
+   *  round it" search runs untouched. It says yes only when a walker is
+   *  genuinely walled in — which on a 2.6 m crossing with a 2.3 m car across it
+   *  is the real case. */
+  const vehicleWall = (A: { x: number; z: number }, dx: number, dz: number,
+    rx: number, rz: number, t: number, half: number, pick: number) => {
+    if (!movers.size) return false;                 // no vehicle anywhere: free
+    for (const off of [pick, 0, half * 0.9, -half * 0.9]) {
+      const o2 = Math.max(-half, Math.min(half, off));
+      let hit = false;
+      for (let u = 0.25; u <= BACK_LOOK; u += 0.3) {
+        if (moverAt(A.x + dx * (t + u) + rx * o2, A.z + dz * (t + u) + rz * o2)) { hit = true; break; }
+      }
+      if (!hit) return false;                       // this lane is clear: go round
+    }
+    return true;
+  };
 
   // ── having somewhere to be ──────────────────────────────────────────────
   //
@@ -513,7 +603,9 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   // LATE: the crowd reads the world's finished state — including the moving
   // car's box, which the traffic pass writes at the end of the frame.
   ctx.onFrame(({ dt, px, pz }) => {
+    trackMovers();          // which boxes have been seen in two places — vehicles
     for (const c of citizens) {
+      if (c.backing > 0) c.backing = Math.max(0, c.backing - dt);
       const dist = Math.hypot(px - c.lane, pz - c.z);
       if (dist < 1.05) c.stuck += dt; else c.stuck = Math.max(0, c.stuck - dt * 2);
       if (!c.ghost && c.stuck > 1.4) c.ghost = true;       // fed up → push past YOU
@@ -620,8 +712,13 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         const half = net.halfOf(ai, c.route[0]);
         const k = half / STRAY;
         const want = (ahead ? Math.max(0.3, c.bias) : c.bias) * k;
+        // A vehicle across the way with no room to pass it: do not advance into
+        // it at all. Suppressing the forward search — rather than letting it run
+        // and retreating only when it fails — is what stops the walker stepping
+        // back into the car the moment its own retreat clears the next 0.3 m.
+        const walled = vehicleWall(A, dx, dz, rx, rz, t, half, c.pick);
         let placed = false;
-        for (const off of [c.pick, want, want + 0.4 * k, want - 0.8 * k, 0,
+        for (const off of walled ? [] : [c.pick, want, want + 0.4 * k, want - 0.8 * k, 0,
           want + 0.8 * k, want - 0.4 * k]) {
           const o2 = Math.max(-half, Math.min(half, off));
           const nt = t + step;
@@ -633,6 +730,46 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
             c.pick = o2;                              // committed until it fails
             placed = true;
             break;
+          }
+        }
+        // ── GIVING GROUND: the one manoeuvre this loop never had ──────────
+        //
+        // The user, twice: *"people still get stuck. they should back up and
+        // allow the car to pass."* Every candidate above advances by `t + step`
+        // — only the lateral offset varies — so a walker whose way is covered by
+        // something wider than the lane could stand, or after JAM_GIVE_UP
+        // reroute FROM WHERE IT STANDS, and if the obstacle still covers that
+        // spot the new route's first step is blocked too. Measured on the
+        // shipped world with a taxi parked on the crossing: 10 blocked
+        // episodes, 10 of them pinned, longest stand 5.6 s, and **0.00 m of
+        // ground given in every one** (scripts/probes/w96-dwell-pin.mjs).
+        //
+        // The retreat runs BACK ALONG THE ROUTE EDGE, not down a raw heading.
+        // That is what keeps it safe: the edge is the crossing the walker
+        // stepped onto, so backing up walks it back toward the kerb it came
+        // from rather than sideways into the traffic lane. `clearAt` and
+        // `clearOfPeople` vet the candidate exactly as they do a forward one,
+        // so a retreat can no more end up inside a wall or inside another
+        // walker than a step can.
+        //
+        // ONLY FROM SOMETHING THAT WILL LEAVE — see `movers` above.
+        let gaveGround = false;
+        if (walled && c.gave < BACK_MAX && (c.backing > 0 || c.jam > BACK_AFTER)) {
+          const bstep = Math.min(c.sp * BACK_RATE * dt, BACK_MAX - c.gave);
+          for (const off of [c.pick, 0, c.pick + 0.4 * k, c.pick - 0.4 * k]) {
+            const o2 = Math.max(-half, Math.min(half, off));
+            const nt = t - bstep;                    // ← BACKWARDS. The whole item.
+            const nx = A.x + dx * nt + rx * o2;
+            const nz2 = A.z + dz * nt + rz * o2;
+            if (clearAt(nx, nz2) && clearOfPeople(nx, nz2, c)) {
+              vx = nx - c.lane; vz = nz2 - c.z;
+              c.lane = nx; c.z = nz2;
+              c.pick = o2;
+              c.gave += bstep;
+              c.backing = BACK_HOLD;                 // latched: cannot chatter
+              gaveGround = placed = true;
+              break;
+            }
           }
         }
         // ── did this frame actually get anywhere? ─────────────────────────
@@ -650,11 +787,21 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         // that is still getting nowhere take a different path entirely. Firing
         // the last two together would reroute a walker on the very frame it
         // first tried to step round somebody, which throws away the cheap fix.
-        const got = Math.hypot(vx, vz);
+        //
+        // RETREATING IS NOT PROGRESS, and forcing that is what keeps the ladder
+        // ordered. If giving ground reset the jam timer, a walker would retreat
+        // for ever against a car that never leaves instead of escalating to
+        // `reroute`; zeroing it bounds this rule's worst case at BACK_MAX metres
+        // and JAM_GIVE_UP seconds, after which the walker takes another path
+        // exactly as it does today.
+        const got = gaveGround ? 0 : Math.hypot(vx, vz);
         if (got < c.sp * dt * 0.35) {
           c.jam += dt;
           if (c.jam > JAM_GIVE_UP) reroute(c);
-        } else c.jam = Math.max(0, c.jam - dt * 2);
+        } else {
+          c.jam = Math.max(0, c.jam - dt * 2);
+          c.gave = 0; c.backing = 0;        // walking again: the episode is over
+        }
         // ── ARRIVING IS MEASURED ALONG THE EDGE, NOT AS THE CROW FLIES ────
         //
         // THIS WAS MY BUG AND IT IS THE ONE THAT PUT PEOPLE IN THE ROAD.
@@ -761,8 +908,13 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       sp: c.sp, cad: c.cad, hs: c.mesh.scale.y, ws: c.mesh.scale.x,
       footY: c.mesh.position.y,
     })),
+    // `gave` is metres of ground given up to a vehicle in the CURRENT episode,
+    // published so a probe can tell "the walker got out of the way" from "the
+    // walker happened to drift" — the two look identical in a position trace,
+    // and the first cut of w96-dwell-pin.mjs scored a normal crossing as a 3.93 m
+    // retreat for exactly that reason.
     walkers: () => citizens.map((c) => ({ x: c.lane, z: c.z, wait: +c.wait.toFixed(2),
-      doing: c.doing, jam: +c.jam.toFixed(2), ghost: !!c.ghost })),
+      doing: c.doing, jam: +c.jam.toFixed(2), ghost: !!c.ghost, gave: +c.gave.toFixed(3) })),
     // the DIRECTION OF TRAVEL, not a ±1 axis code: since the crowd routes over
     // a graph, people walk east and west too, and the feet check has to compare
     // the painted toe against an arbitrary heading
