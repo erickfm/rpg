@@ -150,6 +150,49 @@ if (SELFTEST) {
   if (!hit) { console.error('SELFTEST could not find a square face to break'); await b.close(); process.exit(3); }
   console.log(`selftest: x5 repeat.x on a ${hit.face.join('×')} m face (${hit.name}) — THIS FACE must appear below\n`);
   globalThis.__selftestFace = hit;
+
+  // ── AND THE SAME AGAIN FOR THE ITEM-163 VERDICT ───────────────────────────
+  //
+  // A second verdict needs a second mutation. The aspect mutation above CANNOT
+  // exercise the declared-density one: it multiplies `repeat.x` only, so it
+  // makes a face non-square — and a declared face can be perfectly square and
+  // still wrongly dense, which is the entire reason the declaration exists. A
+  // verdict with no mutation behind it is a verdict nobody has proved can go
+  // red, and this file's own header is about exactly that failure.
+  //
+  // BOTH axes by 6x, on a face that currently draws close to what it declared,
+  // and the assertion is on THAT FACE by identity — not on `declWrong.length`,
+  // which is 19 on this world whatever the mutation does.
+  const dhit = await p.evaluate((gross) => {
+    let done = null;
+    window.__ct.scene().traverse((o) => {
+      if (done || !o.isMesh || !o.geometry) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m, mi) => {
+        if (done || !m || !m.map || !m.map.image) return;
+        const ppm = m.map.userData && m.map.userData.ppm;
+        if (!(ppm > 0) || m.map.userData.masonry) return;
+        const { fw, fh } = window.__faceLib.dims(o, mi);
+        if (!(fw > 0.3 && fh > 0.3)) return;
+        const rx = Math.abs(m.map.repeat.x) || 1, ry = Math.abs(m.map.repeat.y) || 1;
+        const dx = (m.map.image.width * rx) / fw, dy = (m.map.image.height * ry) / fh;
+        const off = (v) => (v > ppm ? v / ppm : ppm / v);
+        if (off(dx) > 1.5 || off(dy) > 1.5) return;      // start from a face that is RIGHT
+        m.map.repeat.x = rx * gross * 1.5;
+        m.map.repeat.y = ry * gross * 1.5;
+        done = { mi, face: [+fw.toFixed(3), +fh.toFixed(3)], ppm };
+      });
+    });
+    return done;
+  }, GROSS);
+  if (!dhit) {
+    console.error('SELFTEST could not find a correctly-dense DECLARED face to break —'
+      + ' the item-163 verdict is unproven, which is not a pass (GOTCHAS §32)');
+    await b.close(); process.exit(3);
+  }
+  console.log(`selftest: x${(GROSS * 1.5).toFixed(1)} repeat on a ${dhit.face.join('×')} m face`
+    + ` declaring ${dhit.ppm} px/m — THIS FACE must appear in the DECLARED verdict too\n`);
+  globalThis.__selftestDecl = dhit;
 }
 
 const out = await p.evaluate((k) => {
@@ -210,6 +253,13 @@ const out = await p.evaluate((k) => {
         hidden: isHidden,
         declPpm: ms ? ms.ppm : null,
         achPpm: ms && ms.ppmW != null ? [ms.ppmW, ms.ppmH] : null,
+        // ITEM 163: a density any surface can state, not just brick.
+        // `declareSurface(t, kind, ppm)` writes it; `masonry().paint()` keeps
+        // its own richer `userData.masonry` stamp and is read above. Two stamps
+        // rather than one migration, because retrofitting 305 masonry faces to
+        // prove a new field works is exactly the 3,782-call-site retrofit the
+        // item says not to do.
+        ppmDecl: typeof u.ppm === 'number' && u.ppm > 0 ? u.ppm : null,
         ppm: [+ppmX.toFixed(2), +ppmY.toFixed(2)],
         aspect: +(ppmX > ppmY ? ppmX / ppmY : ppmY / ppmX).toFixed(3),
         face: [+fw.toFixed(3), +fh.toFixed(3)],
@@ -257,15 +307,47 @@ console.log(`   -> masonry.mjs skips exactly those, which is why it sees ${out.s
 
 // ── CATEGORY: what declares anything at all ─────────────────────────────────
 const withStamp = R.filter((r) => r.achPpm);
-const noStamp = R.filter((r) => !r.achPpm);
+const withDecl = R.filter((r) => !r.achPpm && r.ppmDecl);
+const noStamp = R.filter((r) => !r.achPpm && !r.ppmDecl);
 console.log('DECLARATION COVERAGE');
-console.log(`   ${String(withStamp.length).padStart(5)}  faces carry a DENSITY declaration (userData.masonry)`);
+console.log(`   ${String(withStamp.length).padStart(5)}  faces carry a MASONRY density stamp (userData.masonry)`);
+console.log(`   ${String(withDecl.length).padStart(5)}  faces carry a declareSurface() density (userData.ppm)   <-- item 163`);
 console.log(`   ${String(noStamp.length).padStart(5)}  faces DECLARE NO DENSITY AT ALL  <-- the invisible ones`);
 const byKind = {};
 for (const r of noStamp) byKind[r.kind || '(no kind either)'] = (byKind[r.kind || '(no kind either)'] || 0) + 1;
 for (const [k, v] of Object.entries(byKind).sort((a, c) => c[1] - a[1]))
   console.log(`          ${String(v).padStart(5)} of them declare kind '${k}'`);
-console.log(`   ${((withStamp.length / R.length) * 100).toFixed(1)}% of the world's textured faces have a checkable density.\n`);
+console.log(`   ${(((withStamp.length + withDecl.length) / R.length) * 100).toFixed(1)}% of the world's`
+  + ` textured faces have a checkable density`
+  + ` (masonry ${((withStamp.length / R.length) * 100).toFixed(1)}%`
+  + ` + declared ${((withDecl.length / R.length) * 100).toFixed(1)}%).\n`);
+
+// ── VERDICT A2: a DECLARED face that does not draw its declared density ─────
+//
+// ITEM 163, and this is the assertion the square-texel invariant can never
+// make. A face can have perfectly square texels and be uniformly, squarely,
+// WRONGLY dense — a 4 px/m wall and a 200 px/m sill both pass the aspect test
+// with 1.00. Both of those are in BUILDER-BRIEF §7b's list of what has actually
+// reached the user. Only a declaration can catch them, and until this there was
+// no way for a non-masonry surface to make one.
+//
+// The tolerance is a RATIO and generous, deliberately. A canvas is a whole
+// number of texels, so a surface asking for 11.85 px/m on a 0.31 m face gets
+// `round(3.67) = 4` texels and draws 12.9 — 8.9% off, and no change to the
+// world can make it exact. That is the same whole-texel rounding the desk ruled
+// on for masonry (2026-07-25). What this is for is the 4x-and-up mistakes, so
+// it is set at GROSS, not at a hair: a face drawing 4x its DECLARED density is
+// somebody handing a sheet to the wrong surface.
+const declWrong = withDecl.filter((r) => {
+  const off = (v) => (v > r.ppmDecl ? v / r.ppmDecl : r.ppmDecl / v);
+  return off(r.ppm[0]) >= GROSS || off(r.ppm[1]) >= GROSS;
+});
+console.log(`DECLARED FACES DRAWING >= ${GROSS}x THEIR DECLARED DENSITY: ${declWrong.length} of ${withDecl.length}`);
+for (const r of declWrong.slice(0, ALL ? 999 : 8))
+  console.log(`   declared ${r.ppmDecl.toFixed(2)}, draws ${r.ppm.join('×')} px/m`
+    + `  face ${r.face.join('×')} m  canvas ${r.canvas.join('×')}  rep ${r.repeat.join('×')}`
+    + `  ${r.type}/${r.mi}  ${r.owner}  at (${r.at.join(', ')})`);
+console.log('');
 
 // ── VERDICT A: a stamped face that does not draw what its canvas achieved ───
 const stampWrong = withStamp.filter((r) =>
@@ -327,6 +409,17 @@ if (SELFTEST) {
     process.exit(2);
   }
   console.log(`\nselftest: caught it — that face is in the list at ${found.aspect}x`);
+
+  const d = globalThis.__selftestDecl;
+  const dfound = declWrong.find((r) => r.mi === d.mi
+    && Math.abs(r.face[0] - d.face[0]) < 0.005 && Math.abs(r.face[1] - d.face[1]) < 0.005);
+  if (!dfound) {
+    console.error(`\nSELFTEST FAILED — the ${d.face.join('×')} m face declaring ${d.ppm} px/m was`
+      + ` made to draw ${(GROSS * 1.5).toFixed(1)}x that and does NOT appear in the declared-density`
+      + ' verdict. That verdict is decoration.');
+    process.exit(2);
+  }
+  console.log(`selftest: caught it — declared ${dfound.ppmDecl}, drew ${dfound.ppm.join('×')} px/m`);
   process.exit(0);
 }
 
