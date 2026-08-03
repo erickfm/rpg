@@ -626,6 +626,28 @@ export function makeCrosstown(): Proto {
    *  are exactly two places an actor box enters `colliders`, and both are the
    *  registration hooks right here, so the set cannot drift from the world. */
   const actorBoxes = new Set<AABB>();
+  // ⚠ THE "EXACTLY TWO PLACES" ABOVE WAS FALSE, AND ITEM 260 IS THE BILL FOR
+  // IT. There is a THIRD way in — `...apt.colliders` a few dozen lines below is
+  // a plain spread, so every moving cap the walk-up owns arrived in `colliders`
+  // without passing either hook. Two of them move:
+  //
+  //   · `hermitCap`  — (999, 999) while he is out; at his doorway from hour 17,
+  //                    drifting x 202.26 → 202.04 by 23:00
+  //   · package caps — the nightly `pkgRoll(num, day, 7)` flips which side of
+  //                    the door a parcel sits on, so a 0.28 × 0.34 m cap jumps
+  //                    1.63 m in z between game days
+  //
+  // Neither shows up in a probe that samples seconds apart — a game day is 24
+  // REAL MINUTES — which is why they sat in `staticColliders()` unnoticed.
+  // Measured with `scripts/probes/w105-moving-static.mjs` (`DAYS=6` for the
+  // parcels, the default 24-hour sweep for the hermit).
+  //
+  // The invariant is restored by making the third way in DECLARE itself:
+  // `ct/apartment.ts` publishes `actorColliders`, the moving subset of its own
+  // `colliders`, and it is drained into this set at the spread below. A module
+  // that adds a moving cap and forgets to declare it is still a way to drift —
+  // but it is now a one-line omission in the module that owns the box, rather
+  // than an unstated assumption in a file its author never opens.
   const vehicleBoxes: AABB[] = [];   // one per vehicle in the pool, parked at 999 while idle
   const traffic = buildTraffic(ctx, {
     SIDE_Z0, SIDE_X1,
@@ -724,7 +746,7 @@ export function makeCrosstown(): Proto {
     // the jail's door out of reach (GOTCHAS §8).
     ...propColliders,
     ...carColliders,
-    ...apt.colliders,
+    ...apt.colliders,   // its MOVING subset is drained into actorBoxes below
     // The east edge of the OLD world, which used to be the `maxX: 260` bound.
     //
     // Moving that bound out to the interior belt quietly un-hid a hole: the
@@ -740,6 +762,13 @@ export function makeCrosstown(): Proto {
     // vehicle, parked at x=999 while idle (see ct/traffic.ts)
     ...vehicleBoxes,
   ];
+  // ITEM 260 — THE THIRD WAY IN, now declared. `ct/apartment.ts` is the one
+  // module that hands back its collider list as a plain array rather than
+  // through `vehicleBox`/`solid`, and two of the caps in it move. Draining its
+  // own declaration here keeps `staticColliders()` meaning "geometry", which is
+  // the only thing `ct/gap.ts`'s `trapAgainst` and every red-dump probe are
+  // entitled to assume. See the note beside `actorBoxes` above.
+  for (const box of apt.actorColliders) actorBoxes.add(box);
   // Everything is built by now, so sweep the block into the night registry:
   // the buildings, the ground, the furniture. Anything already registered for
   // the lamplight (cars, people, kerb props) or owned by the rain keeps its

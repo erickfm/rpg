@@ -134,6 +134,33 @@ export interface Apartment {
   /** hall/stair/room walls, plus the floor-aware caps kept up to date inside
    *  this module's own per-frame hook */
   colliders: AABB[];
+  /** The subset of `colliders` that MOVES — this building's actors.
+   *
+   *  ITEM 260. `crosstown.ts` builds `actorBoxes` so that
+   *  `__ct.staticColliders()` can mean "geometry", and its own comment claimed
+   *  *"there are exactly two places an actor box enters `colliders`, and both
+   *  are the registration hooks right here, so the set cannot drift from the
+   *  world."* **There was a third, and it is this array.** Everything in
+   *  `colliders` above arrives by a plain spread, so two moving caps in here
+   *  were published to every check as furniture:
+   *
+   *   · `hermitCap` — idle at (999, 999) and at his own doorway from hour 17,
+   *     drifting x 202.26 → 202.04 over hours 17–23 as he settles.
+   *   · every **package cap** — `pkgRoll(num, day, 7)` flips which SIDE of the
+   *     door a parcel sits on each night, so a cap jumps 1.63 m in z between
+   *     game days without anything touching this file.
+   *
+   *  Both are real colliders and both should stop the player; neither is
+   *  geometry. A red-dump reading a moving box out of `colliders` and calling
+   *  it a static prop is what cost a queue item once already, and a builder
+   *  reading 257/258/259 across a round trip nearly filed "ghosts.mjs is
+   *  culled" on the back of it.
+   *
+   *  Published as a SEPARATE array rather than a flag on each box because
+   *  `AABB` is a plain `{minX,maxX,minZ,maxZ}` shared with `fp.ts`, and the
+   *  membership test upstream is by IDENTITY — `actorBoxes` is a `Set<AABB>` —
+   *  which is exactly what a shape or a flag cannot express. */
+  actorColliders: AABB[];
   /** The floor picker: world x/z → ground height, with hysteresis.
    *
    *  **A PURE READ unless you pass `commit`.** The hysteresis reads the
@@ -465,6 +492,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // hall. Same convention the street citizens use for `facing`: 0 is +z.
   const HERMIT_FACING = -Math.PI / 2;
   const sevColliders: AABB[] = [];
+  /** ITEM 260 — the moving members of `sevColliders`, by identity. See the
+   *  `actorColliders` doc on the `Apartment` interface for why this exists and
+   *  what it cost when it did not. Anything pushed here MUST also be in
+   *  `sevColliders`; it is a marker set, not a second population. */
+  const sevActors: AABB[] = [];
   {
     const texM = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });
     // tired beige stripes; the tile is one 2.7 m story so baseboards land on
@@ -721,6 +753,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.5 - DOOR_GAP / 2), maxZ: AZI(3.5 + DOOR_GAP / 2) },
       stairCap, underStairA, underStairB, aptDoorCap, hermitCap, doorShutCap,
     );
+    // ITEM 260: `hermitCap` MOVES — parked at (999, 999) while he is out, at
+    // his own doorway from hour 17, and drifting x 202.26 → 202.04 through the
+    // evening. It has been in `colliders` since the hermit shipped and in the
+    // static list the whole time. The other five caps in that spread are
+    // switched on and off but never relocated, so they stay geometry.
+    sevActors.push(hermitCap);
     // floors, ceilings
     for (let f = 0; f < 4; f++) {
       floorMesh(f * ST + 0.006, 2.4, 8.4, AX(1.2), AZI(4.2));
@@ -2352,6 +2390,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       scene.add(mesh);
       const cap = mkCap();
       sevColliders.push(cap);
+      // ITEM 260: a parcel cap MOVES. `pkgRoll(q.d.num, day, 7)` picks which
+      // SIDE of the door it sits on and re-rolls every night, so this box jumps
+      // 1.63 m in z between game days — measured, `scripts/probes/
+      // w105-moving-static.mjs DAYS=6`. Invisible to any probe sampling within
+      // one day, which is why it sat in the static list unnoticed.
+      sevActors.push(cap);
       return { d, mesh, cap, side: 1, present: false };
     });
     /** where the parcel stands for a given door and side — never the threshold */
@@ -3794,6 +3838,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
 
   return {
     colliders: sevColliders,
+    actorColliders: sevActors,
     ground: aptGround,
     // WHY gy() ONCE LIED AT THE KERB EDGE, and what now stops it. It reported
     // 0.00 while the ground there was 0.14 and the camera — which was right —
