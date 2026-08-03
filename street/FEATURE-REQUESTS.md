@@ -2963,3 +2963,10 @@ to one side.
   built in `ct/bodega-corner.ts` (~439-473) and that module registers player
   collision through a `solid()` callback; whether the crates are also added to
   the crowd's separate `citAvoid` list is the thing to check first.
+
+- **"[screenshot] side of the jail are still bugged and allow for out of
+  bounds"** (2026-08-02, night, a gap of open sky between the jail and the brick
+  building west of it) → **routed as queue item 175.** "Still" — a repeat. Two
+  jail walk checks already exist and pass (`scripts/O-jail-walk.mjs`,
+  `scripts/w15-jail-walk.mjs`), so this is a blind spot in the checks as much as
+  a hole in the world.
