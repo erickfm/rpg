@@ -548,7 +548,29 @@ function cursorUrl(art: string[]): string {
  *  canvas would run in every harness that only imports this file for `UI`. */
 let ARROW_URL: string | null = null;
 let HAND_URL: string | null = null;
-/** hovering something pressable, or not */
+/**
+ * hovering something pressable, or not
+ *
+ * THE TWO HOTSPOTS BELOW ARE IN THE PIXELS OF THE 32 x 32 PNG, NOT THE 16 x 16
+ * SOURCE GRID — they are already doubled, and the obvious "bug" of a
+ * source-grid coordinate left undoubled is not present. Verified against the
+ * raster rather than reasoned about, by `scripts/probes/w60-cursor-hotspot.mjs`,
+ * which parses this file, re-rasterises both cursors the way `cursorUrl` does
+ * and marks the declared hotspot pixel:
+ *
+ *   · the arrow's point is source cell (0,0)   = PNG px x 0…1,  y 0…1  → `0 0` lands on it
+ *   · the hand's fingertip is cells x 4…5, y 0 = PNG px x 8…11, y 0…1  → `9 0` lands on it
+ *
+ * And end to end, by `scripts/probes/w60-cursor-lands.mjs`: at the ATM's PIN
+ * pad the cursor turns into the hand within **0.33 texels** of the drawn edge
+ * of a key horizontally and 0.31 vertically, and a click 2 px inside that edge
+ * enters a digit. So where the pointer POINTS and where the click LANDS agree.
+ *
+ * Do not "correct" either number without re-running those two. A cursor is one
+ * of the few things in this project that cannot be photographed — a CSS cursor
+ * is composited by the browser and never appears in a page screenshot — so the
+ * raster and the hit-test are the whole of the available evidence.
+ */
 function cursorHand(over: boolean): void {
   if (over) {
     HAND_URL ??= cursorUrl(HAND_ART);
