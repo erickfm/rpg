@@ -815,12 +815,33 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
 // diffed — which is the only reason `scripts/L-slots-glass.mjs` can assert
 // anything about it without a browser.
 //
-// The palette is the room's, read off `ct/int-casino.ts` rather than chosen to
-// look similar: #d8a83a gold and #8a6a22 its shadow are the entrance portal,
-// #d8d0c0 is the reel cream on the cabinet fronts, #4a1f24 is the carpet,
-// #241e22 the cabinet body. A machine you walk up to and a machine you sit at
-// should not be two designs — the same argument `int-casino.ts` makes for
-// importing `tube` from `ct/vice.ts` instead of drawing its own letters.
+// THE PALETTE WAS THE ROOM'S. THE USER OVERRULED THAT, AND HE IS RIGHT.
+//
+// It used to read: "the palette is the room's, read off `ct/int-casino.ts`
+// rather than chosen to look similar — #d8a83a gold and #8a6a22 its shadow are
+// the entrance portal, #d8d0c0 is the reel cream on the cabinet fronts, #4a1f24
+// the carpet, #241e22 the cabinet body. A machine you walk up to and a machine
+// you sit at should not be two designs."
+//
+// The reasoning is sound and the result was wrong, which is the interesting
+// case. Dressing the machine in the ROOM's palette dressed it in the CARPET's:
+// a near-black body (#241e22) under a muted gold. The user, 2026-08-02, with a
+// screenshot: *"this is what the slot machine looks like to me. it is
+// incredibly ugly and nothing like a classic slot machine."*
+//
+// The proof is in his own frame and it is not a matter of taste. The cabinets
+// FLANKING the one he is sitting at — baked textures out of `int-casino.ts` —
+// are red and blue bodies under bright gold marquee bars, and they are visibly
+// BRIGHTER THAN THE LIVE FACE BETWEEN THEM. Sitting down at this machine made
+// it duller than the scenery. `shots/w73-before/1-standing.png` and
+// `2-seated.png`, side by side, are the whole argument.
+//
+// A slot machine is the brightest object on a casino floor. It is built to
+// FIGHT the room, not to match it. So the body is red, the trim is a hotter
+// gold, the reel cream is nearly white so the symbols can carry black outlines
+// against it, and the marquee is lit. What stays shared with `int-casino.ts` is
+// the IDIOM — flat fills, no gradients, pixel type — which is the part that
+// actually kept the world coherent; the hues were never doing that work.
 
 /**
  * The logical size everything below is drawn at. The caller scales.
@@ -855,17 +876,34 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
 export const FACE = { w: 320, h: 483 } as const;
 
 const P = {
-  case: '#241e22', caseHi: '#3a3038', caseLo: '#15111a',
-  gold: '#d8a83a', goldLo: '#8a6a22', goldHi: '#f0d68a',
-  glass: '#141014',
-  reel: '#d8d0c0', reelLo: '#b0a898',
-  red: '#c8342c', redLo: '#8a2c32', redHi: '#f0a08a',
-  green: '#2c6a4a', greenHi: '#4a9a6a',
-  cream: '#e8e2d0', ink: '#2a2018',
-  lampOn: '#fff0bc', lampOff: '#7a6438',
-  meter: '#12180f', meterInk: '#7ae05a', meterDim: '#2c4a24',
+  // the cabinet: a red upright with gold trim, not a black one
+  case: '#a8161c', caseHi: '#e0503e', caseLo: '#560a10',
+  gold: '#ffc426', goldLo: '#9c6a0e', goldHi: '#fff4a6',
+  glass: '#100a12',
+  // nearly white, so a black outline round a symbol has something to bite on
+  reel: '#f7f2e4', reelLo: '#c4bca8',
+  red: '#ec2a1e', redLo: '#8c0e12', redHi: '#ff9c84',
+  green: '#1e7c3c', greenHi: '#54d46a',
+  cream: '#f4eeda', ink: '#12090c',
+  // the pay table's captions, deliberately quieter than its pictures — the words
+  // are there so the odds stay legible, not so they are the first thing you read
+  label: '#b0a48a',
+  // a bulb is a warm core with a halo and a dark socket round it. Three colours,
+  // because two made a square that read as a hole punched in the panel.
+  lampOn: '#fff8d2', lampGlow: '#ffcc4a', lampOff: '#7a5a20', socket: '#2a1408',
+  meter: '#0c1408', meterInk: '#84f060', meterDim: '#2c5426',
   carpet: '#4a1f24',
+  // the button deck is a metal plate; the buttons are objects sitting on it
+  chrome: '#a8a49c', chromeHi: '#e4e0d8', chromeLo: '#4e4a44',
 } as const;
+
+/** Full turn, for the arcs. Named because `Math.PI * 2` appeared eleven times. */
+const TAU = Math.PI * 2;
+
+/** The line this machine shouts about when nobody is sitting at it — whichever
+ *  one pays most, read off the table rather than named, so re-ordering the pay
+ *  table cannot leave the attract advertising the second-best prize. */
+const TOP_PAY = PAYTABLE.reduce((a, b) => (b.pays > a.pays ? b : a));
 
 /** The three reel windows, and the row grid inside them. Derived once so the
  *  painter and any check agree on where the payline is. */
@@ -889,8 +927,22 @@ export const GLASS = {
 //
 // The twelve-pixel clearance the note above bought stays bought: the reel
 // glass's own surround ends at 342 and the message band starts at 348.
-const TOPPER = { y: 6, h: 66 } as const;
-const PAYT = { y: 82, h: 100 } as const;
+// RE-CUT AGAIN FOR ITEM 208, and the two bands that moved both moved for the
+// same reason: the things in them stopped being TYPE and started being OBJECTS.
+//
+// The topper loses 14 px (66 -> 52) and gives them to two BULB BANDS, 2..14 and
+// 66..78. The old bulbs were 4 x 4 px squares laid straight on the cabinet at a
+// 10 px pitch, which is a dotted rule, not a marquee — the user's frame reads
+// them as a perforated stamp edge round the name. A bulb needs a dark ground to
+// be bright against, a socket, and room for a halo; 12 px of band buys all
+// three, and the name is still 34 px type in the 52 that are left.
+//
+// The pay table gains 4 (100 -> 104) and starts 2 px higher, because each row is
+// now a PICTURE of the three symbols plus its pay, with the line's name demoted
+// to an 8 px caption under it. Four rows of 25 px, two columns.
+const TOPPER = { y: 14, h: 52 } as const;
+const BULB_BAND = { top: 2, bottom: 66, h: 12 } as const;
+const PAYT = { y: 80, h: 104 } as const;
 const SAY_Y = 334, SAY_BAND = [318, 22] as const;
 const METER_Y = 346, METER_H = 36, BTN_Y = 412, BTN_H = 26;
 // THE BOTTOM 45 PIXELS OF THIS FACE CARRY NOTHING LIVE, AND THAT IS MEASURED.
@@ -907,7 +959,11 @@ const METER_Y = 346, METER_H = 36, BTN_Y = 412, BTN_H = 26;
 // So every band that does anything ends by 438, and what is below it is the
 // underside of the deck, in shadow, which is what a cabinet has there and what
 // a seated player cannot see anyway.
-const DECK_UNDER = 438;
+// 438 -> 444: the buttons grew a 3 px chrome bezel and a raised cap, so the
+// object that ends at 438 now casts to 441. The number that actually matters is
+// unchanged and is still measured, not guessed — the stool's crest cuts the face
+// at 454, and 444 is nine pixels clear of it.
+const DECK_UNDER = 444;
 // THE BILL ACCEPTOR, AND IT EXISTS BECAUSE OF THE MOUSE.
 //
 // The four deck buttons are `BET ONE`, `MAX BET`, `SPIN` and `CASH OUT`. There
@@ -1021,6 +1077,28 @@ export interface Paint2D {
 // cherries are the only round thing. That ordering is the same reason
 // `ct/int-casino.ts` gives roulette, craps and poker three different shapes.
 
+// EVERY SYMBOL IS OUTLINED IN INK, AND THAT IS THE SINGLE BIGGEST CHANGE HERE.
+//
+// The user's frame, read back at 1:1 (the face is 320 canvas px across and lands
+// on ~320 screen px from the stool, so a canvas pixel IS a screen pixel): the
+// bars are "stacks of flat mustard rectangles" and the seven is a thin red mark.
+// Both were drawn as a flat fill with a one-pixel drop shadow onto a cream that
+// is only two steps darker than the gold. Nothing separated the symbol from the
+// reel, so the eye read a coloured area rather than an object.
+//
+// A printed reel strip has ink round every glyph. That outline is what makes a
+// bar a BAR instead of a rectangle, and it costs one extra `fillRect` per mark.
+//
+// THE SIZE IS CAPPED BY THE CHECK, NOT BY TASTE. `scripts/L-slots-glass.mjs`
+// isolates a symbol from its neighbours by taking only the marks with
+// |x - cx| < reelW/2 (42), |y - cy| < rowH/2 (18), w < reelW * 0.7 (58.8) and
+// h < rowH (36) — see its own note at the filter. So every mark's TOP EDGE has
+// to stay inside cy +/- 18 and nothing may be wider than 58.8. The outlines are
+// 2 px horizontally and 1 px vertically for exactly that reason: 2 px all round
+// would put the widest bar at 56 (fine) but the tallest stack's outline at
+// cy - 17, which clears an 18 px bound by one pixel. Vertical outlines of 1 px
+// keep it at cy - 15 and leave the check three pixels of room.
+
 const bars = (g: Paint2D, cx: number, cy: number, n: number) => {
   // One, two or three stacked bars — the count IS the symbol, so the stack is
   // sized to fill the same height whatever n is. A player reads "how many" from
@@ -1043,14 +1121,26 @@ const bars = (g: Paint2D, cx: number, cy: number, n: number) => {
   // neighbours by requiring it to be under `GLASS.reelW * 0.7` = 58.8 px. 52
   // clears that by 6.8 px; 57 would clear it by 1.8, which is a check passing
   // on a fingernail.
-  const w = 50, gap = 4;
-  const h = (28 - (n - 1) * gap) / n;
+  const w = 52, gap = 4;
+  const h = (28 - (n - 1) * gap) / n;                 // 28, 12, 6.67
+  const lip = Math.max(1, Math.min(3, h * 0.22));
   for (let i = 0; i < n; i++) {
     const y = cy - 14 + i * (h + gap);
-    g.fillStyle = P.ink; g.fillRect(cx - w / 2 - 1, y - 1, w + 2, h + 2);
+    g.fillStyle = P.ink; g.fillRect(cx - w / 2 - 2, y - 1, w + 4, h + 2);
     g.fillStyle = P.gold; g.fillRect(cx - w / 2, y, w, h);
-    g.fillStyle = P.goldHi; g.fillRect(cx - w / 2, y, w, 1);
-    g.fillStyle = P.goldLo; g.fillRect(cx - w / 2, y + h - 1, w, 1);
+    g.fillStyle = P.goldHi; g.fillRect(cx - w / 2, y, w, lip);
+    g.fillStyle = P.goldLo; g.fillRect(cx - w / 2, y + h - lip, w, lip);
+  }
+  // THE WORD, ON THE ONE BAR THAT CAN HOLD IT.
+  //
+  // A single bar is 28 px tall and a real single-bar glyph has BAR written
+  // across it — it is the only reason anybody calls the symbol a bar. The double
+  // is 12 px and the triple 6.67, where 14 px type is not a caption, it is a
+  // smudge; and stacking plain bars for 2x and 3x is what a real strip does
+  // anyway, so the count stays the thing you read them by.
+  if (n === 1) {
+    g.fillStyle = P.ink; g.font = 'bold 15px monospace'; g.textAlign = 'center';
+    g.fillText('BAR', cx, cy + 6);
   }
 };
 
@@ -1067,32 +1157,56 @@ const seven = (g: Paint2D, cx: number, cy: number) => {
   // cannot PROVE anything, not that you should not look.
   // Grown with the reel row alongside `bars` — see the note there for why the
   // numbers move rather than a scale wrapping the call.
-  const top = cy - 15, W = 26, STEM = 7;
-  const strokes: [number, number, number, number][] = [[cx - W / 2, top, W, 6]];
+  // FATTENED AND OUTLINED (item 208). It was 26 px wide with a 7 px stem and a
+  // one-pixel shadow, which at play size is a red squiggle on cream — the user's
+  // frame reads it as "a thin typographic red 7 with no outline, bevel or
+  // shadow". 34 wide, a 10 px stem, ink all round it and a lit top edge.
+  const top = cy - 15, W = 34, STEM = 10;
+  const strokes: [number, number, number, number][] = [[cx - W / 2, top, W, 7]];
   for (let i = 0; i < 11; i++) {
-    strokes.push([cx + W / 2 - STEM - i * 1.3, top + 6 + i * 2, STEM, 2]);
+    strokes.push([cx + W / 2 - STEM - i * 1.6, top + 7 + i * 2, STEM, 2]);
   }
-  g.fillStyle = P.redLo;
-  for (const [x, y, w2, h2] of strokes) g.fillRect(x + 1, y + 1, w2, h2);
-  g.fillStyle = P.red;
+  g.fillStyle = P.ink;                                              // the outline
+  for (const [x, y, w2, h2] of strokes) g.fillRect(x - 2, y - 1, w2 + 4, h2 + 2);
+  g.fillStyle = P.redLo;                                            // the shaded side
   for (const [x, y, w2, h2] of strokes) g.fillRect(x, y, w2, h2);
-  g.fillStyle = P.redHi; g.fillRect(cx - W / 2, top, W, 1);         // lit top edge
+  g.fillStyle = P.red;                                              // the face, inset
+  for (const [x, y, w2, h2] of strokes) g.fillRect(x, y, w2 - 1.5, h2);
+  g.fillStyle = P.redHi; g.fillRect(cx - W / 2, top, W - 1.5, 2);   // lit top edge
+  g.fillStyle = P.goldHi; g.fillRect(cx - W / 2, top + 7, W, 1);    // the bevel under the bar
 };
 
 const cherry = (g: Paint2D, cx: number, cy: number) => {
-  // Grown with the reel row alongside `bars` — see the note there.
-  g.fillStyle = P.green;                                            // the stems
-  g.fillRect(cx - 1, cy - 14, 2, 8);
-  g.fillRect(cx - 8, cy - 7, 8, 2);
-  g.fillRect(cx + 1, cy - 8, 8, 2);
-  g.fillStyle = P.greenHi; g.fillRect(cx + 1, cy - 15, 9, 3);       // the leaf
-  for (const [dx, dy] of [[-9, 4], [8, 6]] as const) {
+  // THE ONE SYMBOL EVERYBODY CAN NAME, AND IT READ AS TWO DOTS.
+  //
+  // The desk's brief said no cherry was visible in the user's frame and inferred
+  // there wasn't one. There is — `4-settled.png` in the before shots has it on
+  // reel 1 — so that observation is wrong and the real defect is different: two
+  // 7 px berries with no outline in an 84 x 36 cell are a pair of red pips. The
+  // berries go to 8.5 with an ink ring, the stems get ink, the leaf gets a
+  // midrib, and there is a white specular so they read as round and wet.
+  g.fillStyle = P.ink;                                              // stems, outlined
+  g.fillRect(cx - 2, cy - 16, 4, 10);
+  g.fillRect(cx - 11, cy - 9, 11, 4);
+  g.fillRect(cx + 1, cy - 10, 12, 4);
+  g.fillStyle = P.green;
+  g.fillRect(cx - 1, cy - 15, 2, 8);
+  g.fillRect(cx - 10, cy - 8, 9, 2);
+  g.fillRect(cx + 2, cy - 9, 10, 2);
+  g.fillStyle = P.ink; g.fillRect(cx, cy - 17, 13, 6);              // the leaf, outlined
+  g.fillStyle = P.greenHi; g.fillRect(cx + 1, cy - 16, 11, 4);
+  g.fillStyle = P.green; g.fillRect(cx + 2, cy - 15, 9, 1);         // its midrib
+  for (const [dx, dy] of [[-10, 5], [9, 7]] as const) {
+    g.fillStyle = P.ink;
+    g.beginPath(); g.arc(cx + dx, cy + dy, 9.5, 0, TAU); g.fill();
     g.fillStyle = P.redLo;
-    g.beginPath(); g.arc(cx + dx, cy + dy + 1, 7, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(cx + dx, cy + dy, 8, 0, TAU); g.fill();
     g.fillStyle = P.red;
-    g.beginPath(); g.arc(cx + dx, cy + dy, 7, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(cx + dx - 1, cy + dy - 1, 7, 0, TAU); g.fill();
     g.fillStyle = P.redHi;
-    g.beginPath(); g.arc(cx + dx - 2, cy + dy - 2, 1.8, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(cx + dx - 3, cy + dy - 3, 2.4, 0, TAU); g.fill();
+    g.fillStyle = P.cream;
+    g.beginPath(); g.arc(cx + dx - 3.5, cy + dy - 3.5, 1.1, 0, TAU); g.fill();
   }
 };
 
@@ -1144,22 +1258,141 @@ const paintReel = (g: Paint2D, i: number, r: ReelView, flash: boolean) => {
     g.globalAlpha = 1;
   }
 
-  // the drum curving away at top and bottom — what makes it read as a cylinder
-  // rather than as a list scrolling in a box
-  g.globalAlpha = 0.55;
+  // THE DRUM, AND THE GLASS OVER IT.
+  //
+  // The desk's brief said the windows have "no curvature, no top/bottom
+  // shading, nothing suggesting a drum behind glass". THE SHADING WAS ALREADY
+  // HERE — nine rows of ink at up to 0.5 alpha, top and bottom. The observation
+  // is wrong; the complaint behind it is not. Nine rows of a 108 px window is
+  // 8% of its height at half strength, which at play size is a smudge you have
+  // to be told about. So this is not "add shading", it is "make the shading that
+  // exists actually read", which is a different edit and a smaller one.
+  //
+  // 16 rows, to 0.78, squared so it falls off like a cylinder rather than like a
+  // ramp. Then the part that was genuinely missing: a SHEEN. A drum behind glass
+  // has a bright horizontal band where the room reflects in it, and two dark
+  // edges where the glass turns away. Every mark here spans the full window
+  // width, which is also what keeps it invisible to the symbol check — that
+  // filter drops anything wider than 58.8 px, and 84 > 58.8.
   g.fillStyle = P.ink;
-  for (let d = 0; d < 9; d++) {
-    g.globalAlpha = 0.5 * (1 - d / 9);
+  for (let d = 0; d < 16; d++) {
+    const k = 1 - d / 16;
+    g.globalAlpha = 0.78 * k * k;
     g.fillRect(x, y + d, w, 1);
     g.fillRect(x, y + h - 1 - d, w, 1);
   }
+  g.fillStyle = P.cream;                                     // the reflected room
+  g.globalAlpha = 0.20; g.fillRect(x, y + h * 0.20, w, 3);
+  g.globalAlpha = 0.11; g.fillRect(x, y + h * 0.20 + 3, w, 5);
+  g.globalAlpha = 0.07; g.fillRect(x, y + h * 0.62, w, 4);
+  // and the glass turning away at each side — h is 108, so the symbol check
+  // drops these on `h < rowH` before it ever looks at the width
+  g.fillStyle = P.ink;
+  g.globalAlpha = 0.30; g.fillRect(x, y, 3, h); g.fillRect(x + w - 3, y, 3, h);
+  g.globalAlpha = 0.16; g.fillRect(x + 3, y, 2, h); g.fillRect(x + w - 5, y, 2, h);
   g.globalAlpha = 1;
   g.restore();
 
-  // the window's own frame, gold, lit when this reel is part of a win
+  // the window's own frame, gold, lit when this reel is part of a win.
+  // EXACTLY ONE strokeRect PER WINDOW AT reelW+2 x h+2 — `L-slots-glass.mjs`
+  // counts them to find the three windows, so the chrome surround below is cut
+  // at +6 rather than being a second frame at the same size.
   g.strokeStyle = flash ? P.goldHi : P.goldLo;
   g.lineWidth = 2;
   g.strokeRect(x - 1, y - 1, w + 2, h + 2);
+  g.strokeStyle = flash ? P.lampOn : P.chrome;
+  g.lineWidth = 1;
+  g.strokeRect(x - 3.5, y - 3.5, w + 7, h + 7);
+};
+
+// ── the marquee bulbs ────────────────────────────────────────────────────────
+//
+// THE OLD ONES WERE NOT BULBS AND THE USER'S FRAME SAYS SO: 30 squares, 4 x 4
+// px, at a 10 px pitch, laid straight onto the cabinet in two straight lines.
+// The desk read them off his screenshot as "a perforated stamp edge", which is
+// exactly what a row of same-sized dots at an even pitch on a flat ground is.
+//
+// Three things were missing and all three are cheap:
+//
+//   · A SOCKET. A bulb is mounted in something dark. Without it the lit state
+//     is a pale square on a pale-ish panel and the chase has no contrast to
+//     move through — which is why nobody could see that it was already running.
+//   · A HALO. Light spills. One extra arc at 0.45 alpha is the whole effect.
+//   · A RING, not two lines. The bulbs now go round all four sides of the name,
+//     ordered along the ring, so `i % 3` makes the chase TRAVEL round it
+//     instead of flashing two rows in place.
+//
+// The ring is built once as an ordered list, because the order IS the animation
+// and recovering it any other way is GOTCHAS 76's second lesson ("never recover
+// ordered classes by material reference — recover order physically").
+const BULB_R = 3.4;
+const bulbRing = (): readonly (readonly [number, number])[] => {
+  const pts: [number, number][] = [];
+  // 18 + 3 + 18 + 3 = 42, which BOTH chase moduli divide (3 idle, 2 on a win) —
+  // otherwise the wrap-around leaves a permanent seam in the travelling light.
+  const x0 = 14, x1 = 306, N = 18;
+  const yTop = BULB_BAND.top + BULB_BAND.h / 2;          // 8
+  const yBot = BULB_BAND.bottom + BULB_BAND.h / 2;       // 72
+  const ys = [26, 40, 54];                               // beside the name
+  for (let i = 0; i < N; i++) pts.push([x0 + (i * (x1 - x0)) / (N - 1), yTop]);
+  for (const y of ys) pts.push([x1, y]);
+  for (let i = N - 1; i >= 0; i--) pts.push([x0 + (i * (x1 - x0)) / (N - 1), yBot]);
+  for (let i = ys.length - 1; i >= 0; i--) pts.push([x0, ys[i]]);
+  return pts;
+};
+const BULBS = bulbRing();
+
+const bulb = (g: Paint2D, x: number, y: number, on: boolean) => {
+  g.fillStyle = P.socket;
+  g.beginPath(); g.arc(x, y, BULB_R + 1.6, 0, TAU); g.fill();
+  if (on) {
+    g.globalAlpha = 0.45; g.fillStyle = P.lampGlow;
+    g.beginPath(); g.arc(x, y, BULB_R + 2.6, 0, TAU); g.fill();
+    g.globalAlpha = 1;
+  }
+  g.fillStyle = on ? P.lampGlow : P.lampOff;
+  g.beginPath(); g.arc(x, y, BULB_R, 0, TAU); g.fill();
+  if (on) {
+    g.fillStyle = P.lampOn;
+    g.beginPath(); g.arc(x - 0.6, y - 0.6, BULB_R - 1.3, 0, TAU); g.fill();
+  }
+};
+
+/**
+ * A symbol drawn small, for the pay table.
+ *
+ * Draws through `paintSym` under a uniform scale rather than re-authoring the
+ * glyphs at a second size, which is BUILDER-BRIEF §8 applied to a picture: two
+ * hand-drawn cherries would drift apart the first time either was touched, and
+ * the pay table's whole job is to show you the thing that is on the reel.
+ *
+ * The scale is uniform because `L-slots-glass.mjs`'s recorder models only
+ * uniform scale and throws on anything else — a real deterrent, deliberately
+ * kept.
+ */
+const miniSym = (g: Paint2D, s: Sym, cx: number, cy: number, k: number) => {
+  g.save(); g.translate(cx, cy); g.scale(k, k); paintSym(g, s, 0, 0); g.restore();
+};
+
+/**
+ * WHAT EACH PAY LINE LOOKS LIKE. Presentation only — `PAYTABLE` is the maths and
+ * is not touched, this is the picture beside it.
+ *
+ * Derived from the line's own text rather than typed as a second table: the
+ * names already say what they are ("3 DOUBLE BARS"), so reading them is one
+ * authoring of the mapping instead of two that can disagree (§8 again). A line
+ * this cannot read draws nothing rather than drawing something wrong.
+ */
+const payArt = (line: string): readonly (Sym | null)[] => {
+  const n = line.startsWith('1 ') ? 1 : line.startsWith('2 ') ? 2 : 3;
+  const of = (s: Sym): (Sym | null)[] => [0, 1, 2].map((i) => (i < n ? s : null));
+  if (line.includes('SEVEN')) return of('SEVEN');
+  if (line.includes('CHERR')) return of('CHERRY');
+  if (line.includes('TRIPLE')) return of('BAR3');
+  if (line.includes('DOUBLE')) return of('BAR2');
+  if (line.startsWith('ANY')) return ['BAR1', 'BAR2', 'BAR3'];   // any mix pays
+  if (line.includes('BAR')) return of('BAR1');
+  return [null, null, null];
 };
 
 // ── the whole face ───────────────────────────────────────────────────────────
@@ -1190,19 +1423,50 @@ export function paintMachine(
   g.fillStyle = P.caseHi; g.fillRect(0, 0, FACE.w, 2);
   g.fillStyle = P.caseLo; g.fillRect(0, FACE.h - 3, FACE.w, 3);
 
+  // gold pinstripes down the sides, so the red body reads as a trimmed cabinet
+  // rather than as a red rectangle with things printed on it
+  g.fillStyle = P.goldLo; g.fillRect(4, 0, 3, FACE.h); g.fillRect(313, 0, 3, FACE.h);
+  g.fillStyle = P.gold; g.fillRect(4, 0, 1, FACE.h); g.fillRect(313, 0, 1, FACE.h);
+
   // ── the topper ──
-  g.fillStyle = P.glass; g.fillRect(10, TOPPER.y, 300, TOPPER.h);
+  //
+  // The bulb bands are DARK, and that is the point of them. A lit bulb on the
+  // red body was a pale mark on a bright ground; on near-black it is a light.
+  const win = !!v.win;
+  g.fillStyle = P.glass;
+  g.fillRect(8, BULB_BAND.top, 304, BULB_BAND.h);
+  g.fillRect(8, BULB_BAND.bottom, 304, BULB_BAND.h);
+  g.fillRect(8, TOPPER.y, 12, TOPPER.h); g.fillRect(300, TOPPER.y, 12, TOPPER.h);
+  // the name panel: deep red under gold, not black under muted gold
+  g.fillStyle = P.caseLo; g.fillRect(20, TOPPER.y, 280, TOPPER.h);
+  g.fillStyle = P.gold;
+  g.fillRect(20, TOPPER.y, 280, 2); g.fillRect(20, TOPPER.y + TOPPER.h - 2, 280, 2);
   g.fillStyle = P.goldLo;
-  g.fillRect(10, TOPPER.y, 300, 1); g.fillRect(10, TOPPER.y + TOPPER.h - 1, 300, 1);
-  g.fillStyle = P.gold; g.font = 'bold 36px monospace'; g.textAlign = 'center';
-  g.fillText('SEVENS', FACE.w / 2, TOPPER.y + 48);
-  // bulbs round it, three-phase chase — the same trick the marquee outside uses
-  const phase = Math.floor(t * (v.state === 'idle' && v.idleT > FEEL.attract ? 11 : 6)) % 3;
-  for (let i = 0; i < 30; i++) {
-    g.fillStyle = i % 3 === phase ? P.lampOn : P.lampOff;
-    g.fillRect(12 + i * 10, TOPPER.y - 5, 4, 4);
-    g.fillRect(12 + i * 10, TOPPER.y + TOPPER.h + 1, 4, 4);
-  }
+  g.fillRect(20, TOPPER.y + 2, 280, 1); g.fillRect(20, TOPPER.y + TOPPER.h - 3, 280, 1);
+  // SEVENS, with an ink shadow and a lit top-left edge — the pixel-art way of
+  // getting a bevel without a gradient, and the same idiom `ct/vice.ts` uses
+  const nameY = TOPPER.y + 37;
+  g.font = 'bold 34px monospace'; g.textAlign = 'center';
+  g.fillStyle = P.ink; g.fillText('SEVENS', FACE.w / 2 + 2, nameY + 2);
+  g.fillStyle = P.goldHi; g.fillText('SEVENS', FACE.w / 2 - 1, nameY - 1);
+  g.fillStyle = win ? P.lampOn : P.gold; g.fillText('SEVENS', FACE.w / 2, nameY);
+  // the ring chases, and it travels round the ring because `BULBS` is ordered
+  // along it. Faster in attract, faster still on a win — a machine that has just
+  // paid should be shouting about it.
+  //
+  // ON A WIN IT CHASES HARDER, IT DOES NOT BLINK. The first version of this had
+  // the whole ring flash on and off with the payline at 8 Hz, and
+  // `L-slots-glass.mjs` caught it in one line: it compares the face at t = 0 and
+  // t = 0.34 and demands they differ, and floor(0 * 8) and floor(0.34 * 8) are
+  // both even — so a paying machine painted two identical frames a third of a
+  // second apart. The check was right and the design was worse anyway: a ring
+  // that blinks in unison is one lamp, and the point of 42 of them is that
+  // something travels. On a win the chase goes to every OTHER bulb at 16 steps a
+  // second, which lights half the ring instead of a third and moves it faster.
+  const rate = win ? 16 : v.state === 'idle' && v.idleT > FEEL.attract ? 11 : 6;
+  const mod = win ? 2 : 3;                     // 42 bulbs, so both divide evenly
+  const phase = Math.floor(t * rate) % mod;
+  for (let i = 0; i < BULBS.length; i++) bulb(g, BULBS[i][0], BULBS[i][1], i % mod === phase);
 
   // ── the pay table, printed on the glass above the reels ──
   //
@@ -1210,8 +1474,12 @@ export function paintMachine(
   // a triple bar is worth without leaving the game, and it is the only thing on
   // the face that makes the odds legible at all.
   g.fillStyle = P.glass; g.fillRect(10, PAYT.y, 300, PAYT.h);
-  g.strokeStyle = P.goldLo; g.lineWidth = 1;
-  g.strokeRect(10.5, PAYT.y + 0.5, 299, PAYT.h - 1);
+  // ONE frame, not two. The inner rule looked better empty and cost 7 px of the
+  // band's 104 — which is a third of a row, and the bottom row's caption was
+  // landing on it. Four rows of 25 need 100 and the band has exactly 100 inside
+  // a single 2 px frame.
+  g.strokeStyle = P.gold; g.lineWidth = 2;
+  g.strokeRect(11, PAYT.y + 1, 298, PAYT.h - 2);
   // ATTRACT: with nobody touching it, the machine walks a highlight down its own
   // pay lines. It is the cheapest possible animation and it is exactly what a
   // real floor looks like from the door — a room of cabinets all quietly
@@ -1227,17 +1495,47 @@ export function paintMachine(
   // the pays column is right-aligned 132 px from the line's own left edge. At
   // 14 px the label runs to 109 and a three-digit pay starts at 107 — they
   // touch. At 13 the label ends at 101 and there are eight clear pixels.
-  g.font = '13px monospace';
+  // IT IS PICTURES NOW, NOT A WORD TABLE — item 208, and the user's frame is the
+  // reason: eight lines of small text in two columns "reads as a spreadsheet",
+  // and it was the LARGEST element on the machine. On a real cabinet the pay
+  // table is glass ART: what the symbols look like, and what they pay.
+  //
+  // The line's name survives as an 8 px caption under its picture, and that is
+  // not a hedge — a 1997 cabinet captions its glass, and `L-slots-glass.mjs`
+  // asserts that every `PAYTABLE` line is printed at YOUR bet's value, which is
+  // a requirement about whether the odds are legible and is still exactly right.
+  // What changed is which of the two the eye lands on first. Loosening that
+  // check to let the words go would have been BUILDER-BRIEF §7's forbidden move.
+  // THE ROW'S 25 PIXELS ARE SPENT TO THE PIXEL, AND THE FIRST CUT GOT IT WRONG.
+  //
+  // At 0.5 scale a symbol is 17 px tall, so a picture centred at py + 9 reached
+  // py + 17.5 and the caption's 8 px glyphs started at py + 16 — the words ran
+  // into the artwork above them and the whole band read as a tangle. Looked at,
+  // not reasoned about: `shots/w73-face/maxbet.png` from the first pass.
+  //
+  // 0.45 scale is 15.3 px tall about py + 8, ending py + 15.7; a 7 px caption on
+  // a py + 23 baseline starts at py + 17.5. 1.8 px of clear air, which is what
+  // the band has to give.
+  const ROW_H = 25, COL_W = 148, MINI = 0.45, PITCH = 26;
   PAYTABLE.forEach((p, i) => {
     const col = i < 4 ? 0 : 1, row = i % 4;
-    const px = 18 + col * 150, py = PAYT.y + 22 + row * 20;
+    const px = 18 + col * COL_W, py = PAYT.y + 2 + row * ROW_H;
     const winning = v.win?.line === p.line || i === walk;
-    g.textAlign = 'left';
-    g.fillStyle = winning ? P.lampOn : P.cream;
-    g.fillText(p.line, px, py);
+    if (winning) {                                   // the walking attract highlight
+      g.globalAlpha = 0.18; g.fillStyle = P.lampOn;
+      g.fillRect(px - 4, py - 1, COL_W - 4, ROW_H - 1); g.globalAlpha = 1;
+    }
+    payArt(p.line).forEach((s, k) => {
+      if (s) miniSym(g, s, px + 12 + k * PITCH, py + 8, MINI);
+    });
     g.textAlign = 'right';
     g.fillStyle = winning ? P.lampOn : P.gold;
-    g.fillText(String(p.pays * v.bet), px + 132, py);
+    g.font = 'bold 14px monospace';
+    g.fillText(String(p.pays * v.bet), px + 134, py + 13);
+    g.textAlign = 'left';
+    g.fillStyle = winning ? P.lampOn : P.label;
+    g.font = '7px monospace';
+    g.fillText(p.line, px, py + 23);
   });
 
   // ── the reels ──
@@ -1249,10 +1547,27 @@ export function paintMachine(
   // THE PAYLINE. One line across the middle, with a pointer either side, and it
   // is the thing that tells you which of the three rows you are being paid for.
   // Drawn OVER the reels, because on the real machine it is painted on the glass.
+  // The 1 px core at exactly `GLASS.w` is how `L-slots-glass.mjs` finds the
+  // payline (it looks for `w === GLASS.w && h <= 1`), so the glow is drawn at
+  // GLASS.w + 4 and 3 px tall — it cannot be mistaken for the line, and the
+  // check goes on measuring the thing it was written for.
+  if (flash) {
+    g.globalAlpha = 0.5; g.fillStyle = P.lampOn;
+    g.fillRect(GLASS.x - 2, PAYLINE_Y - 2, GLASS.w + 4, 4);
+    g.globalAlpha = 0.22;
+    g.fillRect(GLASS.x - 2, PAYLINE_Y - 5, GLASS.w + 4, 10);
+    g.globalAlpha = 1;
+  }
   g.fillStyle = flash ? P.lampOn : P.red;
   g.fillRect(GLASS.x, PAYLINE_Y - 0.5, GLASS.w, 1);
-  for (const px of [GLASS.x - 8, GLASS.x + GLASS.w + 2]) {
-    for (let k = 0; k < 5; k++) g.fillRect(px + (px < GLASS.x ? k : 5 - k), PAYLINE_Y - k, 1, k * 2 + 1);
+  // Fatter pointers than the two hairline pips that were here, and they POINT AT
+  // THE LINE: the tip (k = 0, one pixel tall) is the end nearest the glass and
+  // the triangle widens away from it. The old pair widened towards the glass, so
+  // they read as two arrows fleeing the reels.
+  for (const [px, dir] of [[GLASS.x - 4, -1], [GLASS.x + GLASS.w + 4, 1]] as const) {
+    for (let k = 0; k < 7; k++) {
+      g.fillRect(px + dir * k - (dir < 0 ? 1.6 : 0), PAYLINE_Y - k, 1.6, k * 2 + 1);
+    }
   }
 
   // ── the meters ──
@@ -1286,18 +1601,40 @@ export function paintMachine(
   // Positions and labels come from `DECK`, the one declaration the hit-test
   // reads too — a button drawn where a click does not land is the fault this
   // file already cites `ct/int-casino.ts`'s SLOT_N for.
-  const btn = (bx: number, bw: number, label: string, live: boolean) => {
-    g.fillStyle = live ? P.gold : P.caseHi;
-    g.fillRect(bx, BTN_Y, bw, BTN_H);
-    g.fillStyle = live ? P.goldHi : P.case;
-    g.fillRect(bx, BTN_Y, bw, 2);
-    g.fillStyle = live ? P.ink : '#6a6258';
+  // A PRESSABLE BUTTON IS A CAP SITTING IN A BEZEL. The four here were a flat
+  // fill with a 2 px light on top, which the user's frame reads as "web buttons,
+  // not chunky physical casino buttons" — and that is exactly what a single
+  // top-edge highlight makes: a rectangle with a line on it.
+  //
+  // Four marks buy the object: a recessed metal bezel it sits IN, ink round the
+  // cap so it has an edge, light on the top and left, shadow on the bottom and
+  // right. The lit/dead distinction is unchanged and still comes from
+  // `deckLive`, the one answer the hand cursor and the click also read.
+  g.fillStyle = P.chromeLo; g.fillRect(14, BTN_Y - 6, 292, BTN_H + 12);
+  g.fillStyle = P.chrome; g.fillRect(14, BTN_Y - 6, 292, 1);
+  g.fillStyle = P.caseLo; g.fillRect(14, BTN_Y + BTN_H + 5, 292, 1);
+  const btn = (bx: number, bw: number, label: string, live: boolean, hot: boolean) => {
+    const face = !live ? '#5e5a54' : hot ? P.red : P.gold;
+    const hi = !live ? '#7a766e' : hot ? P.redHi : P.goldHi;
+    const lo = !live ? '#3a3630' : hot ? P.redLo : P.goldLo;
+    g.fillStyle = P.chromeHi; g.fillRect(bx - 3, BTN_Y - 3, bw + 6, BTN_H + 6);
+    g.fillStyle = P.chromeLo; g.fillRect(bx - 3, BTN_Y - 3, bw + 6, 2);
+    g.fillStyle = P.ink; g.fillRect(bx - 1, BTN_Y - 1, bw + 2, BTN_H + 2);
+    g.fillStyle = face; g.fillRect(bx, BTN_Y, bw, BTN_H);
+    g.fillStyle = hi; g.fillRect(bx, BTN_Y, bw, 3); g.fillRect(bx, BTN_Y, 3, BTN_H);
+    g.fillStyle = lo;
+    g.fillRect(bx, BTN_Y + BTN_H - 3, bw, 3); g.fillRect(bx + bw - 3, BTN_Y, 3, BTN_H);
     g.font = 'bold 12px monospace'; g.textAlign = 'center';
+    g.fillStyle = live ? P.ink : '#8e8a82';
+    g.fillText(label, bx + bw / 2 + 1, BTN_Y + 18);
+    g.fillStyle = live ? (hot ? P.goldHi : P.cream) : '#a6a29a';
     g.fillText(label, bx + bw / 2, BTN_Y + 17);
   };
   const idle = v.state === 'idle';
   for (const d of DECK) {
-    btn(d.x, d.w, deckLabel(d, v), deckLive(d, v));
+    // SPIN is red because it is the one you press; the classic cabinet gives its
+    // primary action its own colour and everything else the house gold.
+    btn(d.x, d.w, deckLabel(d, v), deckLive(d, v), d.key === ' ');
   }
 
   // ── the bill acceptor ──
@@ -1306,16 +1643,29 @@ export function paintMachine(
   // bill validator exactly here. Drawn as a slot mouth with a lit throat when it
   // will take a note and a dead one when your pockets cannot fill it, so the
   // hand cursor and the paint agree about whether pressing it does anything.
+  // Dressed as a validator rather than as a stripe (item 208): a steel faceplate
+  // with a routed black mouth in it, a lit throat when it will take a note, and
+  // two guide arrows pointing into the slot. It was a flat bar with a darker bar
+  // inside it, which on the seated shot read as a rule between the meters and
+  // the buttons rather than as a thing you can put money in.
   const canFeed = idle && cash !== undefined && cash >= CREDIT;
-  g.fillStyle = P.caseLo; g.fillRect(22, BILL_Y, 276, BILL_H);
-  g.fillStyle = canFeed ? P.gold : '#6a6258'; g.fillRect(22, BILL_Y, 276, 1);
-  g.fillStyle = P.glass; g.fillRect(120, BILL_Y + 4, 80, BILL_H - 8);   // the mouth
-  g.fillStyle = canFeed ? P.lampOn : P.lampOff;
-  g.fillRect(120, BILL_Y + 4, 80, 1);
-  g.fillStyle = canFeed ? P.gold : '#6a6258';
+  g.fillStyle = P.chromeLo; g.fillRect(22, BILL_Y, 276, BILL_H);
+  g.fillStyle = P.chrome; g.fillRect(22, BILL_Y, 276, 2);
+  g.fillStyle = P.caseLo; g.fillRect(22, BILL_Y + BILL_H - 2, 276, 2);
+  g.fillStyle = P.ink; g.fillRect(118, BILL_Y + 3, 84, BILL_H - 6);      // the mouth
+  g.fillStyle = canFeed ? P.lampOn : P.lampOff;                          // its throat
+  g.fillRect(120, BILL_Y + 5, 80, 2);
+  g.fillStyle = canFeed ? P.gold : '#7e7a72';
+  for (const [ax, dir] of [[110, -1], [210, 1]] as const) {              // guide arrows
+    // tip (k = 0) nearest the mouth, widening away from it — an arrow pointing
+    // IN. Drawn the other way up first, which is the same mistake the payline
+    // pointers had, so it is worth stating: k is distance from the slot.
+    for (let k = 0; k < 4; k++) g.fillRect(ax + dir * k, BILL_Y + 8 - k, 2, 2 + k * 2);
+  }
+  g.fillStyle = canFeed ? P.goldHi : '#7e7a72';
   g.font = 'bold 10px monospace'; g.textAlign = 'center';
-  g.fillText('INSERT', 71, BILL_Y + 13);
-  g.fillText(`$${BILL}`, 249, BILL_Y + 13);
+  g.fillText('INSERT', 66, BILL_Y + 13);
+  g.fillText(`$${BILL}`, 254, BILL_Y + 13);
 
   // ── the underside of the deck ──
   // See DECK_UNDER: the stool you are sitting on covers this band, so nothing
@@ -1346,8 +1696,22 @@ export function paintMachine(
       : v.credits < v.bet
         ? (cash !== undefined && cash < CREDIT ? 'NO CASH IN YOUR POCKETS' : 'INSERT COIN')
         : attract
-          // the three things a machine shouts at an empty stool
-          ? ['PLAY 1 TO 5 CREDITS', 'SEVENS PAY 250', 'GOOD LUCK'][walk % 3]
+          // The three things a machine shouts at an empty stool.
+          //
+          // THE MIDDLE ONE WAS A LIE AT ANY BET ABOVE ONE. It was the literal
+          // string 'SEVENS PAY 250', so a player staking 5 — whose pay table two
+          // bands up correctly reads 1250 — was told 250 by the same face. That
+          // is precisely the fault `L-slots-glass.mjs` devotes a section to
+          // ("misinformed by the machine while being paid correctly by it"); the
+          // check only ever looked at the pay table, so the say band said it
+          // freely. Found by looking at `shots/w73-face/attract.png` at bet 5.
+          //
+          // Derived now, and from the table rather than from its index: the top
+          // line is whichever pays most, which stays true if the pay table is
+          // ever re-ordered. No maths changed — `PAYTABLE` is untouched.
+          ? ['PLAY 1 TO 5 CREDITS',
+            `${TOP_PAY.line} PAY ${TOP_PAY.pays * v.bet}`,
+            'GOOD LUCK'][walk % 3]
           : 'PLACE YOUR BET';
   if (say) g.fillText(say, FACE.w / 2, SAY_Y);
 
@@ -1394,7 +1758,7 @@ export function paintMachine(
 //     is no line in `crosstown.ts` to add and none to forget.
 
 import * as THREE from 'three';
-import type { CtxBuild } from './ctx';
+import type { CtxBuild, Spot } from './ctx';
 import { BUILD, ORDER as HOOK } from './ctx';
 import type { Panel } from './hud';
 
@@ -1908,12 +2272,108 @@ export function register(ctx: CtxBuild): void {
   // later: `crosstown.ts` sorts HOOKS by declared ORDER once, at build time, so
   // a hook pushed after that sort runs last regardless of what it asked for.
   // It no-ops until the panel exists.
+  // ═════════════════════════════════════════════════════════════════════════
+  // THE CABINET IS AN `[E]` TARGET NOW — item 205
+  // ═════════════════════════════════════════════════════════════════════════
+  //
+  // The row asks for the poll below to be DELETED in favour of this spot. **Only
+  // the spot is added.** The poll is not a workaround here, it is the feature:
+  //
+  //   *"add a slots interface and game where WHEN I SIT DOWN I ENTER THE SLOTS
+  //    INTERFACE and i can play slots."*  — FEATURE-REQUESTS.md:281
+  //
+  // and it works today — measured before anything was touched
+  // (`scripts/probes/w74-does-the-poll-fire.mjs`): sitting on a stool opens
+  // `ct-slots` with `__slots.screen()` live, i.e. on the cabinet's own face.
+  // BUILDER-BRIEF §6a: where the row and his words disagree, his words win.
+  //
+  // WHAT THE SPOT IS FOR is the state `dismissed` above already describes at
+  // length: dismissed, and still on the stool. That state is unreachable today
+  // only because `crosstown.ts:1440` stands you up on every diegetic close —
+  // the exact "unreachability that lives in OTHER PEOPLE'S files" the comment on
+  // `dismissed` refuses to depend on. w69 has queued the removal of that line
+  // (`notes/w69-seated-e.md`, "WHAT I DID NOT DO" §2). This is the way back in
+  // when it goes, and it is the world's own dispatch rather than a fourth
+  // private notion of what the player is doing.
+  //
+  // ONE SPOT, RE-AIMED. There are 87 stools; registering one spot each would put
+  // 87 extra `ok()` calls inside `pickSpot`'s per-frame loop, each running a
+  // 219-entry `find`. Only one machine can ever be the one you are sitting at,
+  // so one registration is re-aimed at the cabinet in front of whichever stool
+  // you took, and `ok()` compares two references.
+  //
+  // THE NUMBERS COME OFF THE CABINET, via the same `cabinetAhead` ray the panel
+  // uses to find its screen — not from `AVENUE`/`SLOT_PITCH`/`BANK_Z`, which are
+  // G's and have moved five times (see SLOT_SEAT_LABEL). The radius is the
+  // measured stool-to-cabinet distance, so the circle reaches exactly the stool
+  // it was found from whatever the casino does to its layout.
+  let useSpot: (Spot & { obj?: THREE.Object3D }) | null = null;
+  let armedAt: SeatPose | null = null;
+  /** `cabinetAhead` is a raycast against the whole scene; this stops it running
+   *  every frame in the one case that would otherwise do so — sitting on a stool
+   *  whose cabinet cannot be found. */
+  let nextLook = -1;
+
+  const FACE_AT = new THREE.Vector3();
+  const aimSpot = (stool: SeatPose, t: number): void => {
+    if (armedAt === stool || t < nextLook) return;
+    nextLook = t + 0.5;
+    const found = cabinetAhead(ctx.scene, stool, ctx.player.gy());
+    if (!found) return;
+    // THE FACE, NOT THE CENTRE — and this is not a preference, it is what
+    // `canSee` requires. `crosstown.ts:2119` raycasts eye -> spot and stops
+    // `dist - 0.35` short so the thing itself is not counted as its own
+    // occluder. A cabinet is 0.6 m deep, so a spot at its CENTRE puts 0.30 m of
+    // solid machine inside that margin: measured, the ray ran 0.382 m at a front
+    // face 0.364 m away and the machine blocked the line to itself. Every leg
+    // downstream passed — `ok()` true, off-axis 0.000, inside the seated reach —
+    // and the prompt still never appeared, which is exactly the silent shape
+    // `crosstown.ts:2076` records for the apartment door.
+    //
+    // The offset is the same `half` `screenPlane` below derives for the panel's
+    // own plane, off the same bounding box and the same face normal, so the spot
+    // and the picture cannot end up on different sides of the machine.
+    const geo = found.mesh.geometry;
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox;
+    if (!bb) return;
+    const n = found.normal;
+    const alongX = Math.abs(n.x) > Math.abs(n.z);
+    const half = alongX ? (n.x > 0 ? bb.max.x : -bb.min.x) : (n.z > 0 ? bb.max.z : -bb.min.z);
+    FACE_AT.set(
+      alongX ? Math.sign(n.x) * half : 0,
+      0,
+      alongX ? 0 : Math.sign(n.z) * half,
+    );
+    found.mesh.updateWorldMatrix(true, false);
+    FACE_AT.applyMatrix4(found.mesh.matrixWorld);
+    const x = FACE_AT.x, z = FACE_AT.z;
+    const r = Math.hypot(x - stool.x, z - stool.z);
+    if (!useSpot) {
+      useSpot = {
+        x, z, r, obj: found.mesh,
+        // O(1): ask the rig which pose it is on and compare references. `armedAt`
+        // is only ever set to a stool that already carried SLOT_SEAT_LABEL, so
+        // this and `seatedSlot()` have the same answer without the search.
+        ok: () => armedAt !== null
+          && (globalThis as unknown as CtWindow).__ct?.seated() === armedAt,
+        label: () => 'play the slot machine',
+        act: () => panel?.open(),
+      };
+      ctx.spot(useSpot);
+    } else {
+      useSpot.x = x; useSpot.z = z; useSpot.r = r; useSpot.obj = found.mesh;
+    }
+    armedAt = stool;
+  };
+
   ctx.onFrame((f) => {
     if (!panel) return;
     // THE SEAT IS THE TRIGGER. Sitting down opens it; standing up is impossible
     // while it is open, because the panel has the keyboard.
     const stool = seatedSlot();
-    if (stool === null) dismissed = null;          // off the stool: offer it again
+    if (stool === null) { dismissed = null; armedAt = null; nextLook = -1; } // off the stool: offer it again
+    else aimSpot(stool, f.t);
     if (!panel!.isOpen()) {
       lastT = -1;
       if (stool !== null && stool !== dismissed) { lastT = f.t; clock = 0; panel!.open(); }
@@ -1936,6 +2396,19 @@ export function register(ctx: CtxBuild): void {
   (globalThis as unknown as Record<string, unknown>).__slots = {
     open: () => panel?.open(),
     close: () => panel?.close(),
+    /**
+     * TEST AFFORDANCE — the DISMISSED-BUT-STILL-ON-THE-STOOL state, which
+     * `useSpot` exists for and which nothing in the UI can reach today. The
+     * comment on `dismissed` above sets out why: `crosstown.ts:1440` stands you
+     * up on every diegetic close, so the frame hook clears the latch a frame
+     * later. `ct/library-pc.ts` carries the same affordance for the same reason.
+     *
+     * A capability nobody can exercise is a capability nobody can prove
+     * (GOTCHAS 79). Write `dismissed` AFTER the close — `onClose` overwrites it
+     * with `seatedSlot()`, null by then — and re-seat in the SAME turn, or the
+     * next frame clears it: `__slots.dismissHere(); __ct.sit(pose)`.
+     */
+    dismissHere: () => { const s = seatedSlot(); panel?.close(); dismissed = s; },
     view: () => machine.view(),
     insert: (n: number) => machine.insert(n),
     play: () => machine.play(),

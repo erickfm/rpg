@@ -368,6 +368,37 @@ const CHECKS = [
   // the user actually reported this time. That one is a diagnostic and the
   // script's header says at length why it could not be made into a check.
   ['w5-shadow-census',  'is any ground surface in the world still bare flat colour?', true],
+  // …AND THE DARK VARIANT, which is the one he actually keeps photographing.
+  //
+  // The same script with `--shadetest`, registered separately because the two
+  // gates need DIFFERENT mutations: BARE's strips the alley floor's map, and a
+  // surface with no map has no mean, so it drops out of SHADE's population
+  // altogether. `--shadetest` therefore suppresses BARE's mutation (see the
+  // note at the top of that branch) and darkens-and-flattens the floor instead,
+  // then asserts SHADE names that exact surface — not merely that a count moved
+  // (GOTCHAS 79's second corollary).
+  //
+  // Item 211. SHADE is "darker than 0.45 of ground it touches AND carrying less
+  // grain than it". The grain clause is what separates the road — approved,
+  // and DARKER than the alley floor the user rejected, 39.4 against 43.2 — from
+  // a painted shadow: the road carries 4.9x the sidewalk's structure and the
+  // alley floor carried 0.69x. Two earlier predicates that could not do this
+  // are written up in the script's header; do not re-try them.
+  //
+  // NOT A SECOND ROW, and the reason is worth knowing before anyone adds one.
+  // The row above already gates SHADE — it is the same process and the same
+  // exit code. What is NOT wired here is SHADE's own MUTATION: `--shadetest`
+  // darkens and flattens the alley floor and requires SHADE to name that exact
+  // surface, and it is proven (exit 1, "SHADETEST CAUGHT IT: street at
+  // -10.3, -40.3, ratio 0.173, grain 0.07"). It cannot ride the row above,
+  // because `--selftest` is appended to EVERY row (:1306) and BARE's mutation
+  // strips the same floor's map — a surface with no map has no mean, so it
+  // leaves SHADE's population and the shade assertion fails for the wrong
+  // reason. And it cannot be its own row with `selftest: false`, because such a
+  // row still runs NORMALLY, and a mutation that runs in a normal sweep is a
+  // permanent false red. The right home is a `canfail` case (see the masonry /
+  // masonry-blind pair below), which is not built. Until then run it by hand:
+  //   SHOT_URL=… node scripts/w5-shadow-census.mjs --shadetest    # must exit 1
   // "the garlands are disconnected". The lot's own file calls the bunting the
   // single most identifying thing about the typology, so it gets a guard. Two
   // clauses because there are two ways it reads as disconnected and they fail
@@ -1114,6 +1145,12 @@ const CHECKS = [
   // editing this same array around the `density`/`masonry` rows. One row at the
   // far end is the smallest thing that can conflict with that.
   ['w67-atm-pin', 'does the ATM PIN screen cancel, auto-submit and remember?', 'atm-cancel-shadowed'],
+  // REGISTERED 2026-08-02 (w67, item 175). A CONTAINMENT SWEEP, not a route:
+  // it walks outward from the side street and asserts the player can never end
+  // up outside the jail's own site. Two route-walking checks were green over
+  // this hole twice — see the file's header for why. SLOW tier: it is a walk,
+  // and a real one.
+  ['w67-jail-contained', 'can the player walk out of the world at the jail?', 'jail-forecourt-open', [], true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

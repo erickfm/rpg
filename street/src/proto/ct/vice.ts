@@ -945,6 +945,50 @@ export function buildVice(o: {
     const FACE_Z = -96.0;                        // the facade plane
     let driverHost: THREE.Mesh | null = null;
 
+    // ── the canopy datum, hoisted, because it is now ONE canopy ────────────
+    //
+    // The user: *"make it a combo orpheus hotel and casino."* A combined
+    // property is read from the pavement at STREET level long before anyone
+    // gets close enough to read a sign — a hotel and a casino that share a
+    // building share one canopy line, and that is the whole tell. So the
+    // porte-cochère's section and the marquee's are no longer private to their
+    // own blocks: the "one property" run at the bottom of this function fills
+    // the gaps between them from the SAME numbers, which is what makes it come
+    // out flush rather than nearly flush. (BUILDER-BRIEF §8 — the alternative
+    // is typing 4.3 and 4.78 a second time and finding out later.)
+    const PC_W = 7.8, PC_Y0 = 4.3, PC_Y1 = 4.78, PC_Z1 = -98.05;
+    const MQ_W = 6.0, MQ_Y0 = 3.7, MQ_Y1 = 5.35;
+    const HOTEL_DOOR_X = VICE_DOOR_X['HOTEL ORPHEUS'], CASINO_DOOR_X = VICE_DOOR_X['SEVENS'];
+
+    /**
+     * The canopy fascia, at a DECLARED density rather than a remembered canvas.
+     *
+     * BUILDER-BRIEF §7b: a texture's density comes from the face it lands on.
+     * This band is painted for four different lengths (three link runs and the
+     * porte-cochère itself), so the canvas is derived from the run — 24 px/m
+     * both ways — and every socket comes out the same size along the whole
+     * 23.55 m. A fixed 112 x 14 canvas reused for a 2.16 m run would have drawn
+     * those sockets at 52 px/m next to the porte-cochère's 14.
+     */
+    const FASCIA_PPM = 24;
+    const canopyFascia = (lenM: number) => {
+      const w = Math.max(8, Math.round(lenM * FASCIA_PPM));
+      const h = Math.round((PC_Y1 - PC_Y0) * FASCIA_PPM);
+      return declareSurface(pixTex(w, h, (g) => {
+        g.fillStyle = '#4a3a20'; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#7a5f26'; g.fillRect(0, 1, w, h - 3);
+        g.fillStyle = GOLD_D; g.fillRect(0, 0, w, 1); g.fillRect(0, h - 2, w, 2);
+        g.fillStyle = GOLD; g.fillRect(0, 1, w, 1);
+        // the socket run along the bottom of the fascia, on the texel grid, at
+        // one pitch for the whole property — 0.38 m, the porte-cochère's own
+        for (let x = Math.round(0.19 * FASCIA_PPM); x < w; x += Math.round(0.38 * FASCIA_PPM)) {
+          g.fillStyle = '#4e3f22'; g.fillRect(x - 2, h - 8, 5, 5);
+          g.fillStyle = '#f6e2a2'; g.fillRect(x - 1, h - 7, 3, 3);
+        }
+        grime(g, w, 1, Math.round(w / 14), 22);
+      }), 'detail');
+    };
+
     // ═══ THE CASINO ═════════════════════════════════════════════════════
     if (casino) {
       const cxm = (casino[0] + casino[1]) / 2;
@@ -973,7 +1017,9 @@ export function buildVice(o: {
       // you walk under it — the eye is at 1.62. No collider: it is entirely
       // overhead, and an unnecessary box on this pavement would close a 1 m
       // walking lane (GOTCHAS §8/§9).
-      const MQ_W = 6.0, MQ_Y0 = 3.7, MQ_Y1 = 5.35, MQ_Z1 = FACE_Z - 1.7;
+      // MQ_W/MQ_Y0/MQ_Y1 are hoisted to the top of placeSigns now — the "one
+      // property" canopy run has to butt this marquee exactly.
+      const MQ_Z1 = FACE_Z - 1.7;
       const mqCz = (FACE_Z + MQ_Z1) / 2, mqD = FACE_Z - MQ_Z1;
 
       // the fascia artwork: changeable copy, the way a real marquee carries it
@@ -1215,7 +1261,20 @@ export function buildVice(o: {
 
           rule(1);
           socketRow(9, 4, W - 4, 5.4);
-          track(g, 'CASINO', W / 2, 19, Math.round(W * 0.66), 10, '#e0b84e');
+          // ORPHEUS OVER CASINO, NOT CASINO OVER SEVENS — the category line and
+          // the name board have swapped jobs, and that swap is the whole of the
+          // user's ask on this elevation. *"make it a combo orpheus hotel and
+          // casino"*: the property is ORPHEUS and this wing is its CASINO, so
+          // the subordinate line carries the house name and the dominant board
+          // carries what the wing IS. SEVENS is gone as an address.
+          //
+          // 'HOTEL ORPHEUS' does not fit here and that is a resolution fact, not
+          // taste: this canvas is 92 texels for 11.55 m (8 px/m), the tracked
+          // span is W*0.66 = 61, and 13 letters is a 5.1-texel pitch under a
+          // 6-texel glyph — the letters would overlap. 7 letters sit at 10.2.
+          // The word HOTEL is carried by the hotel wing's own fascia and by the
+          // pylon, which are the two places it can be read.
+          track(g, 'ORPHEUS', W / 2, 19, Math.round(W * 0.66), 10, '#e0b84e');
           rule(27);
 
           // the name board: the name stops being paint on a wall and becomes a
@@ -1229,7 +1288,10 @@ export function buildVice(o: {
             socketRow(by + bh - 3, 4, W - 4, 5.4);
             // W - 8 leaves the sockets clear at both ends; the fitter puts the
             // casing inside that, so the S at each end keeps its glass
-            fitTube(g, 'SEVENS', Math.round(W / 2), by + Math.round(bh / 2) + 1, W - 8,
+            // CASINO, six letters exactly as SEVENS was, so `fitTube` derives
+            // the same cap height from the same W - 8 and nothing about the
+            // board's proportion changes with the rename.
+            fitTube(g, 'CASINO', Math.round(W / 2), by + Math.round(bh / 2) + 1, W - 8,
               '#e8b93a', '#f7e6b0', '#3a1016');
           }
           rule(72);
@@ -1416,16 +1478,15 @@ export function buildVice(o: {
       // leaves 0.68 m of clear band between column and building for a 0.72 m
       // capsule to pass through, and the road side is open. Walked, not
       // eyeballed (GOTCHAS §9).
-      const PC_W = 7.8, PC_Y0 = 4.3, PC_Y1 = 4.78, PC_Z1 = -98.05;
+      // PC_W/PC_Y0/PC_Y1/PC_Z1 are hoisted to the top of placeSigns now.
       const pcCz = (FACE_Z + PC_Z1) / 2, pcD = FACE_Z - PC_Z1;
-      const fasciaT = pixTex(112, 14, (g) => {
-        g.fillStyle = '#3a3630'; g.fillRect(0, 0, 112, 14);
-        g.fillStyle = '#4a453c'; g.fillRect(0, 1, 112, 10);
-        g.fillStyle = '#8a8478'; g.fillRect(0, 0, 112, 1);
-        g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 11, 112, 3);
-        grime(g, 112, 1, 8, 22);
-      });
-      const pcFasciaM = flat(fasciaT);
+      // THE FASCIA IS THE PROPERTY'S, NOT THIS BUILDING'S, and that is the
+      // change. It was its own grey-green painter — deliberately quieter than
+      // the casino, "the older building still pretending to be respectable".
+      // That reasoning was right while these were two addresses; the user has
+      // now asked for one, and a canopy that changes material halfway along its
+      // own length is the single clearest way to say they are still two.
+      const pcFasciaM = flat(canopyFascia(PC_W));
       const pcBody = new THREE.MeshBasicMaterial({ color: 0x3f3a34 });
       const canopy = new THREE.Mesh(new THREE.BoxGeometry(PC_W, PC_Y1 - PC_Y0, pcD),
         [pcBody, pcBody, pcBody, pcBody, pcBody, pcFasciaM]);
@@ -1663,6 +1724,70 @@ export function buildVice(o: {
       ticks.push((n) => { hazeM.opacity = 0.30 * n; lowM.opacity = 0.22 * n; });
     }
 
+    // ═══ ONE PROPERTY: the canopy that runs the whole 23.55 m ══════════
+    //
+    // The user: *"make it a combo orpheus hotel and casino. connect them
+    // internally and outside."* The inside half is `PARTY` in ct/interior.ts.
+    // THIS is the outside half, and it is deliberately the cheapest true thing
+    // rather than a facade rewrite.
+    //
+    // Two adjacent buildings read as one ESTABLISHMENT when something crosses
+    // the party line at the height a person's eye is at. Signs do not do it —
+    // both of these already had signs and both read as separate addresses in
+    // every shot. A canopy does: a hotel and a casino that share a building
+    // share one soffit you walk under from end to end, and the break in it is
+    // exactly what says "two addresses".
+    //
+    // So the porte-cochère (7.8 m, over the hotel door) and the marquee (6.0 m,
+    // over the casino door) are joined up. Three runs fill what is left, at the
+    // porte-cochère's own section, from the same hoisted constants:
+    //
+    //   33.45 ─── PORTE-COCHÈRE ─── 43.41 ─ link ─ 48.29 ─ MARQUEE ─ 54.29 ─┐
+    //     └ link ┘                                                     link ─┘ 57.00
+    //
+    // The marquee is 0.6 m lower and 0.57 m taller than the canopy, so it stands
+    // THROUGH the run rather than in line with it — which is what a real
+    // entrance marquee does, and it means nothing here has to move.
+    //
+    // NO COLLIDER, deliberately. The soffit is at 4.30 m and the eye is at 1.62;
+    // a box on this pavement would close the walking lane the porte-cochère's
+    // own columns were carefully sized around (GOTCHAS §8/§9). Nothing this
+    // block adds touches the ground.
+    if (casino && hotel) {
+      const pcCz = (FACE_Z + PC_Z1) / 2, pcD = FACE_Z - PC_Z1;
+      const under = new THREE.MeshBasicMaterial({ color: 0xd8c49a });
+      const body = new THREE.MeshBasicMaterial({ color: 0x4a3a20 });
+      const run = (x0: number, x1: number) => {
+        const len = x1 - x0;
+        if (len < 0.25) return;                  // nothing worth building
+        const cxr = (x0 + x1) / 2;
+        const fascia = flat(canopyFascia(len));
+        const box = new THREE.Mesh(new THREE.BoxGeometry(len, PC_Y1 - PC_Y0, pcD),
+          [body, body, body, under, body, fascia]);
+        box.position.set(cxr, (PC_Y0 + PC_Y1) / 2, pcCz);
+        scene.add(box);
+        // the bulb run along the front bottom edge, on the SAME chase as the
+        // marquee and the porte-cochère — two runs blinking out of step read as
+        // two buildings, which is the thing this whole block is undoing
+        bulbRun(sockets(x0 + 0.19, x1 - 0.19, 0.38).map((bx) =>
+          [bx, PC_Y0 + 0.12, PC_Z1 - 0.03] as [number, number, number]), 23);
+        // and what it throws down onto the pavement, so the lit band is
+        // continuous on the ground too
+        // 0.34 at night, not 0.20. G-vice-walk's ground-spill check requires
+        // EVERY sheet on this pair to reach 0.25 after dark, and caught these
+        // three at 0.20 — a real find rather than a threshold to loosen: a
+        // stretch of canopy that throws visibly less light than the two
+        // entrances either side of it reads as the canopy being a different
+        // building's, which is the whole thing this run exists to undo. 0.34 is
+        // the dimmest sheet the pair already had.
+        spill(cxr, PC_Z1 + 0.5, len, 3.0, KERB_H + 0.012, 0xffd8a0, 0.03, 0.34);
+      };
+      run(hotel[0], HOTEL_DOOR_X - PC_W / 2);
+      run(HOTEL_DOOR_X + PC_W / 2, CASINO_DOOR_X - MQ_W / 2);
+      run(CASINO_DOOR_X + MQ_W / 2, casino[1]);
+      void MQ_Y0; void MQ_Y1;
+    }
+
     // ═══ the rooftop pylon — kept, and still the skyline mark ═══════════
     //
     // Unchanged from the version street.ts carried, comment and all. It is the
@@ -1792,13 +1917,21 @@ export function buildVice(o: {
         g.textAlign = 'center'; g.textBaseline = 'middle';
         hardLayer(g, '#e8c25a', (h) => {
           h.textAlign = 'center'; h.textBaseline = 'middle';
+          // ORPHEUS, and the second line names the combination. This is the
+          // SKYLINE mark — the thing you pick out of the haze from the far end
+          // of the block — so it is the one sign that has to say what the whole
+          // property is rather than what one wing sells. TEXT ONLY: the board,
+          // the pylon and its bulb run are untouched, because item 121 owns the
+          // decision about this sign's GEOMETRY and a rename must not pre-empt
+          // it. 7 letters at 34 px monospace advance 143 texels of a 184 canvas,
+          // centred at 92, so it clears the edge bulb runs at 4..10 / 174..180.
           h.font = 'bold 34px monospace';
-          h.fillText('SEVENS', 92, 58);
+          h.fillText('ORPHEUS', 92, 58);
         });
         hardLayer(g, '#e8574a', (h) => {
           h.textAlign = 'center'; h.textBaseline = 'middle';
           h.font = 'bold 15px monospace';
-          h.fillText('OPEN ALL NITE', 92, 108);
+          h.fillText('HOTEL & CASINO', 92, 108);
         });
         // the bulb run round the edge, on the texel grid
         g.fillStyle = '#f2d98a';

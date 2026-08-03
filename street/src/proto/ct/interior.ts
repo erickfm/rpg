@@ -44,6 +44,88 @@ import { FACE } from './rng';
 // teleport landing you in the wrong shop.
 const SLAB_X0 = 400, SLAB_W = 80;
 
+/** wall thickness. A wall is a BOX, not a plane — see "walls, with THICKNESS"
+ *  in `buildRoom`. Hoisted out of that function because the party-wall
+ *  addressing below has to know it before a room is built: two rooms meet by
+ *  each leaving exactly one wall's worth of slab on the shared side. */
+const WALL_T = 0.18;
+
+// ── party walls: the ONE case where two rooms are not alone in the world ──
+//
+// The user: *"make it a combo orpheus hotel and casino. connect them internally
+// and outside. i should be able to walk from one into the other."*
+//
+// Everything above is built on rooms being ISLANDS — a slab each, 80 m wide,
+// 69 m of dead ground between the nearest walls of neighbours, which is exactly
+// what makes a stray collider harmless. A room you can walk out of into another
+// room is the one thing that arrangement cannot express, and worker sixtythree
+// measured the consequence: the hotel and the casino were 229 m apart with the
+// church and the diner parked between them, so "walk from one into the other"
+// had no geometry to happen in at all.
+//
+// This is the smallest thing that makes it real, and it is deliberately a
+// PAIRING rather than a per-room setting:
+//
+//   1. the two rooms are given CONSECUTIVE slabs (`buildAllInteriors` reorders
+//      for it), so there is a slab boundary between them and nothing else;
+//   2. each is SHOVED to that boundary instead of sitting centred in its slab,
+//      leaving exactly `WALL_T` — so their flank walls meet back to back and
+//      the party wall is one 0.36 m thickness standing ON the boundary;
+//   3. one opening is cut through BOTH flanks, at one declared z.
+//
+// Point 3 is why this is a pairing. An opening is a single fact shared by two
+// rooms; authored once in each file it is the two-authorings defect this
+// project has paid for over and over (BUILDER-BRIEF §8) — and the failure mode
+// is a hole in one room facing solid plaster in the other. Declared here, the
+// rooms say nothing and cannot disagree.
+//
+// The boundary lands INSIDE the party wall, which matters for one thing that is
+// not obvious: `interiorGround` dispatches on the slab a point falls in, so the
+// two rooms answer for their own floors right up to the wall and the seam is
+// buried in masonry — except in the doorway itself, where the player crosses
+// it. Both rooms in this pair are flat, so the crossing is level; a pair where
+// one room has `floor` levels must match heights at the opening.
+export interface PartyWall {
+  /** the room in the LOWER slab — its EAST flank carries the opening */
+  west: string;
+  /** the room in the NEXT slab up — its WEST flank carries the opening */
+  east: string;
+  /** centre of the opening in ROOM-LOCAL z. Both rooms sit on cz = 0, so one
+   *  number addresses both of them. */
+  at: number;
+  /** clear width of the opening */
+  w: number;
+  /** clear height. Clamped per room to `H - 0.2`, so the shorter of the two
+   *  ceilings wins on its own side without the taller room losing its head. */
+  h: number;
+}
+
+/**
+ * Every party wall in the world. There is one.
+ *
+ * `hotel` west of `casino` is not arbitrary. On the pavement, HOTEL ORPHEUS
+ * runs x 33.45…45.45 and the casino wing 45.45…57.00, so facing the property
+ * the casino is on your LEFT — and a room is its facade seen from behind, so
+ * what is on your left outside is on your right once you are inside (the
+ * `localOf` mirror, forty lines down). The casino therefore has to sit on the
+ * hotel's +x side in the belt for the connection to be on the side the street
+ * promised. Getting this backwards is invisible in a screenshot and wrong in
+ * the way the user has complained about four times.
+ *
+ * `at: -9.0` is measured, not chosen: `scripts/probes/w70-party-wall-clearance.mjs`
+ * projects every collider within 1.6 m of each flank onto z and intersects the
+ * gaps. The only run clear in BOTH rooms wide enough for a doorway and a 2 m
+ * lane either side is local z −13.00 … −4.85, and −9.0 is its middle.
+ */
+export const PARTY: readonly PartyWall[] = [
+  { west: 'hotel', east: 'casino', at: -9.0, w: 2.6, h: 2.6 },
+];
+
+/** the party wall this room is half of, if any */
+function partyFor(id: string): PartyWall | null {
+  return PARTY.find((p) => p.west === id || p.east === id) ?? null;
+}
+
 interface Slab {
   id: string; x0: number; x1: number; gy: (x: number, z: number) => number | null;
   /** the room's RESOLVED size and centre — not what the spec asked for.
@@ -272,9 +354,36 @@ export const ORDER = BUILD.INTERIOR;
  *  `scripts/interiors-wired.mjs` enforces. */
 export function register(ctx: CtxBuild): void { buildAllInteriors(ctx); }
 
+/**
+ * The order rooms are built in, which is the order they take slabs in.
+ *
+ * Path sort, then ONE adjustment: the two halves of a party wall must land in
+ * consecutive slabs or there is no shared boundary for them to meet on, so the
+ * east room is lifted out and re-inserted directly after its partner. Nothing
+ * else moves relative to anything else, and the result is still a pure function
+ * of the file names plus the `PARTY` declaration — a room does not change slab
+ * between builds, which is the property the path sort was there for.
+ *
+ * Exported so `scripts/probes/w70-*.mjs` can assert the pairing is consecutive
+ * without starting a browser.
+ */
+export function beltOrder(paths: string[]): string[] {
+  const idOf = (p: string) => (p.match(/int-(.+)\.ts$/) ?? [, p])[1] as string;
+  const order = [...paths].sort();
+  for (const pw of PARTY) {
+    const ei = order.findIndex((p) => idOf(p) === pw.east);
+    if (ei < 0) continue;
+    const [east] = order.splice(ei, 1);
+    const wi = order.findIndex((p) => idOf(p) === pw.west);
+    // partner absent — put it back where it was rather than inventing an order
+    order.splice(wi < 0 ? ei : wi + 1, 0, east);
+  }
+  return order;
+}
+
 export function buildAllInteriors(ctx: CtxBuild): void {
   const mods = import.meta.glob<Record<string, unknown>>('./int-*.ts', { eager: true });
-  for (const path of Object.keys(mods).sort()) {
+  for (const path of beltOrder(Object.keys(mods))) {
     const mod = mods[path];
     const entry = Object.entries(mod).find(
       ([k, v]) => k.startsWith('build') && typeof v === 'function');
@@ -674,7 +783,14 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // a few metres runs into dead space rather than into somebody else's shop.
   const idx = slabN++;
   const x0 = SLAB_X0 + idx * SLAB_W, x1 = x0 + SLAB_W;
-  const cx = x0 + SLAB_W / 2, cz = 0;
+  // …EXCEPT half of a party wall, which is shoved to the shared slab boundary
+  // so its flank wall stands ON it. See `PartyWall` at the top of this file.
+  // Derived, never typed: the shove is whatever is left of the half-slab once
+  // the room's own half-width and its own wall thickness are taken off it, so a
+  // room that changes width stays joined.
+  const PW = partyFor(spec.id);
+  const shove = PW ? SLAB_W / 2 - W / 2 - WALL_T : 0;
+  const cx = x0 + SLAB_W / 2 + (PW ? (PW.west === spec.id ? shove : -shove) : 0), cz = 0;
   const wx = (lx: number) => cx + lx;
   const wz = (lz: number) => cz + lz;
 
@@ -719,7 +835,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // gives every opening a reveal: you see the depth of the jamb as you walk
   // through, the header casts the doorway as a hole in something solid, and
   // the room stops reading as a cardboard set.
-  const T = 0.18;
+  const T = WALL_T;
   // One plaster tile is TILE_M wide and the full height of the room, so the
   // canvas has to be sized off H — a fixed 32×54 gave ~12 px/m across and
   // ~18 px/m up, and texels half again as tall as they are wide turn every
@@ -846,10 +962,50 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   };
 
   const hw = W / 2, hd = D / 2;
-  // back and both flanks are solid
+  // back is solid
   wallRun(0, -hd - T / 2, W + T * 2, 'x', 0, H);
-  wallRun(-hw - T / 2, 0, D + T * 2, 'z', 0, H);
-  wallRun(hw + T / 2, 0, D + T * 2, 'z', 0, H);
+
+  // ── the flanks ──
+  //
+  // Solid, unless this room is half of a party wall — then the shared flank is
+  // built in pieces around the opening, exactly the way the front wall is built
+  // around its door, and for the same reason: a hole in a box is a box with the
+  // hole's runs left out, not a plane with a decal on it.
+  //
+  // `PW_OPEN` is the opening in this room's own terms, or null. Both rooms of a
+  // pair read the same declaration, so the two holes are the same hole.
+  const partySide = PW ? (PW.west === spec.id ? 1 : -1) : 0;   // +1 = my east flank
+  const PW_OPEN = PW
+    ? { z0: PW.at - PW.w / 2, z1: PW.at + PW.w / 2, h: Math.min(PW.h, H - 0.2) }
+    : null;
+  const flank = (sx: 1 | -1) => {
+    const lx = sx * (hw + T / 2);
+    if (!PW_OPEN || sx !== partySide) { wallRun(lx, 0, D + T * 2, 'z', 0, H); return; }
+    const { z0, z1, h } = PW_OPEN;
+    const e0 = -hd - T, e1 = hd + T;                     // the flank's own extent
+    if (z0 <= e0 || z1 >= e1) {
+      // console.warn with the `[interior:<id>]` prefix rather than the `bad`
+      // helper further down: that one is a `const` and this runs before it.
+      // Two registered checks match on the prefix, so this still fails a check.
+      console.warn(`[interior:${spec.id}] the party-wall opening spans `
+        + `${z0.toFixed(2)}…${z1.toFixed(2)} but the flank only runs `
+        + `${e0.toFixed(2)}…${e1.toFixed(2)} — built solid instead`);
+      wallRun(lx, 0, D + T * 2, 'z', 0, H);
+      return;
+    }
+    wallRun(lx, (e0 + z0) / 2, z0 - e0, 'z', 0, H);      // beyond the opening, one way
+    wallRun(lx, (z1 + e1) / 2, e1 - z1, 'z', 0, H);      // …and the other
+    wallRun(lx, (z0 + z1) / 2, z1 - z0, 'z', h, H);      // the header over it
+    // the reveal's own trim, the flank equivalent of `jamb` below
+    for (const jz of [z0, z1]) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(T + 0.02, h, 0.06), trimM);
+      place(m, lx, h / 2, jz);
+    }
+    const head = new THREE.Mesh(new THREE.BoxGeometry(T + 0.02, 0.07, z1 - z0 + 0.12), trimM);
+    place(head, lx, h + 0.035, (z0 + z1) / 2);
+  };
+  flank(-1);
+  flank(1);
 
   // the front wall carries the door and the window, so it is built in pieces
   // Where the door sits along the room's front wall, and how wide it is —
@@ -1041,8 +1197,18 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     return b;
   };
   wall(-hw - T, hw + T, -hd - T, -hd);            // back
-  wall(-hw - T, -hw, -hd - T, hd + T);            // left
-  wall(hw, hw + T, -hd - T, hd + T);              // right
+  // The flanks, split around the party-wall opening on the shared side, from
+  // the SAME numbers the mesh above used — so what you see and what stops you
+  // are one authoring. A hole you can see and cannot walk through is the exact
+  // defect the cut-corner note twenty lines down was written about.
+  const flankWall = (sx: 1 | -1) => {
+    const mnx = sx > 0 ? hw : -hw - T, mxx = sx > 0 ? hw + T : -hw;
+    if (!PW_OPEN || sx !== partySide) { wall(mnx, mxx, -hd - T, hd + T); return; }
+    wall(mnx, mxx, -hd - T, PW_OPEN.z0);
+    wall(mnx, mxx, PW_OPEN.z1, hd + T);
+  };
+  flankWall(-1);                                  // left
+  flankWall(1);                                   // right
   wall(-hw - T, dAt - dW / 2, hd, hd + T);        // front, left of the door
   wall(dAt + dW / 2, hw + T, hd, hd + T);         // front, right of the door
 
