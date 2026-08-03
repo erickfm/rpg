@@ -1520,12 +1520,56 @@ uniform float uPoolAmb;`)
 
   // light spilling onto the wall behind each lamp, so the brick beside a
   // lamp isn't as flat-black as the brick mid-block
+  //
+  // ── ITEM 156: THIS GRADIENT USED TO BE CUT OFF BY ITS OWN CANVAS ─────────
+  //
+  // The user, at night: *"whats going on here with the light reflecting against
+  // the invisible wall?"* — and he was looking at this quad's EDGE.
+  //
+  // It was `createRadialGradient(16, 17, 1, 16, 17, 26)` painted onto a canvas
+  // **32 px wide**. A radial gradient reaches its last colour stop at its outer
+  // RADIUS, and 26 is well outside this canvas's half-width of 16: the farthest
+  // any pixel gets from the centre horizontally is 16, which is only 0.615 of
+  // the way along the ramp, where the stops still interpolate to **alpha 0.14**
+  // — a quarter of the 0.55 peak. So the falloff never reached zero before the
+  // texture ran out, and an ADDITIVE 3.4 m quad ended mid-gradient: a straight
+  // vertical edge of light down a brick wall, exactly as if the light had
+  // stopped against something that is not there. The top edge (distance 17)
+  // was truncated the same way; only the bottom (distance 30, past 26) ever
+  // faded out properly, which is why the artifact reads as a panel of light
+  // with a soft lower hem and hard sides.
+  //
+  // MEASURED, not inferred, before it was touched: at z -50 looking east the
+  // night/day luminance ratio jumps **0.303 between two adjacent pixel columns**
+  // against a same-camera noise floor of 0.030 — a signal-to-noise of 10.1, the
+  // only station on the street to clear the bar
+  // (`scripts/probes/w87-item156-lightedge.mjs`).
+  //
+  // THE FIX IS TO MAKE THE FALLOFF REACH ZERO AT EVERY EDGE OF ITS OWN CANVAS,
+  // which a circular gradient cannot do on a non-square texture whose centre is
+  // off-centre. So the falloff is drawn per pixel against a distance normalised
+  // SEPARATELY in each direction — the centre sits 17 px down a 48 px canvas, so
+  // "up" has 17 px to fade in and "down" has 31 — and clamped to 0 at 1. That
+  // is zero along all four edges by construction, whatever the canvas aspect or
+  // where the centre sits, so this cannot silently come back if either changes.
   const wallSplashT = declareSurface(pixTex(32, 48, (g) => {
-    const gr = g.createRadialGradient(16, 17, 1, 16, 17, 26);
-    gr.addColorStop(0, 'rgba(255,192,116,0.55)');
-    gr.addColorStop(0.45, 'rgba(255,176,96,0.20)');
-    gr.addColorStop(1, 'rgba(255,176,96,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, 32, 48);
+    const CX = 16, CY = 17, PEAK = 0.55;
+    for (let y = 0; y < 48; y++) {
+      for (let x = 0; x < 32; x++) {
+        const dx = (x + 0.5 - CX) / CX;                       // 0 at centre, 1 at either side
+        const ey = y + 0.5 < CY ? CY : 48 - CY;               // 17 above, 31 below
+        const dy = (y + 0.5 - CY) / ey;
+        const d = Math.min(1, Math.hypot(dx, dy));
+        // same shape as the old stops (0.55 core, ~0.15 at 45%), but it lands
+        // on exactly 0 at d = 1 instead of being clipped at 0.14
+        const a = PEAK * Math.pow(1 - d, 2.2);
+        if (a < 0.002) continue;
+        // warm at the core, cooling slightly outward, as the stops did
+        const r = 255, gg = Math.round(192 - 16 * d), bl = Math.round(116 - 20 * d);
+        g.fillStyle = `rgba(${r},${gg},${bl},${a.toFixed(3)})`;
+        g.fillRect(x, y, 1, 1);
+      }
+    }
   }), 'detail');
 
   // street trees — the sprite cutouts are back (they belong here): fixed
