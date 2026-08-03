@@ -2800,3 +2800,9 @@ to one side.
   the close for that screen lives inside the KEY HANDLER, so the machine sat on THANK YOU
   until you pressed another key. It now resets to idle and closes on the spot. Left the
   now-dead `thanks` screen queued as item 144 rather than deleting it blind.
+
+- **"slots overlay is not embedded like atm? is it still in flight? its been a while"**
+  (2026-08-02) → **it was NOT in flight. Desk error: item 100 was correctly gated on item
+  86 landing, the gate cleared hours ago, and the desk never promoted it — it sat 21st
+  while every later report was ranked above it.** Now top of the queue with the framework
+  seam guide cited.
