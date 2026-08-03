@@ -44,6 +44,18 @@ export interface Spot {
   /** is this spot live right now (right floor, right side of a door…) */
   ok: () => boolean;
   act: () => void;
+  /** HOW MUCH THIS SPOT MATTERS against another one you could equally pick.
+   *
+   *  **The user, 2026-08-03: *"just make the door high rank pls."*** The way out
+   *  of a room outranks the furniture in it. Import `WAY_OUT` from `../fp` and
+   *  declare it on anything that gets you from one place to another — a door, a
+   *  threshold, a street entrance. **Furniture declares nothing.**
+   *
+   *  Omitted means 0, so nothing that exists today changes by adding the field.
+   *  `fp.ts`'s `pickSpot` compares it WITHIN a tier and never across one, and
+   *  `onIt` still outranks it: the full derivation, including the two shapes
+   *  that were measured wrong first, is on `Pickable.rank` in `fp.ts`. */
+  rank?: number;
 }
 
 /**

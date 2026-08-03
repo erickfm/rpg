@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+import { WAY_OUT } from '../fp';
 import { pixTex, dither, declareSurface, type SurfaceKind } from './paint';
 
 /** `pixTex` + `declareSurface` in one call — see the twin in ct/lot.ts.
@@ -1291,7 +1292,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // by the same code that handles a collider appearing under them
       // anywhere else. One rule, not two.
       const ROOM_STAND_X = DOOR_PIV_X - 0.55, STAND_Z = DOOR_PIV_Z - H301 * 1.45;
-      ctx.spot({ x: ROOM_STAND_X, z: STAND_Z, r: 0.95, ok: doorOk, label: doorLabel, act: doorAct });
+      // A WAY OUT, on both sides (item 291) — *"just make the door high rank
+      // pls."* `WAY_OUT` is declared on the pair, not on one of them, for the
+      // same reason their ok/label/act are shared: a door is one piece of state
+      // with two thresholds.
+      ctx.spot({ x: ROOM_STAND_X, z: STAND_Z, r: 0.95, rank: WAY_OUT, ok: doorOk, label: doorLabel, act: doorAct });
       // AND ITS MIRROR, on the hall side. Reflected about the wall's own
       // centreline (AX(0)) rather than a second hand-typed x, so the two
       // stand-points keep the same 0.57 m offset off their own wall face by
@@ -1301,7 +1306,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // the wall itself falls inside either circle, so both are reachable
       // whichever side of a shut door you are standing on.
       const HALL_STAND_X = 2 * AX(0) - ROOM_STAND_X;
-      ctx.spot({ x: HALL_STAND_X, z: STAND_Z, r: 0.95, ok: doorOk, label: doorLabel, act: doorAct });
+      ctx.spot({ x: HALL_STAND_X, z: STAND_Z, r: 0.95, rank: WAY_OUT, ok: doorOk, label: doorLabel, act: doorAct });
     }
     // the hermit — a big quiet man; you only ever catch him at his door.
     //
@@ -3649,13 +3654,67 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       }
       calPanel.open();
     };
-    // WHERE YOU STAND TO READ IT — 0.90 m out from the wall, not against it.
-    // Derived from the door spot rather than chosen: at 0.90 m the door's centre
-    // is 0.58 m away, outside `fp.ts`'s RADIUS 0.36, so it can only reach tier 3
-    // while the calendar (dead ahead, inside its own radius) holds tier 1.
-    // Walked both ways before and after; see the handoff note.
+    // WHERE YOU STAND TO READ IT — and it is a DIFFERENT PLACE from where the
+    // calendar hangs. The mesh above has not moved: the user asked for that
+    // wall, that size, and *"a bit to the right"*, and it is still exactly
+    // there. This is the patch of floor you stand on, which he has never had an
+    // opinion about.
+    //
+    // ── THE COMMENT THAT USED TO BE HERE WAS WRONG BY 0.11 m, AND WORSE ──────
+    //
+    // It read: *"Derived from the door spot rather than chosen: at 0.90 m the
+    // door's centre is 0.58 m away, outside `fp.ts`'s RADIUS 0.36, so it can
+    // only reach tier 3."* Measured on the running world
+    // (`probes/w116-calendar-vs-door-spots.mjs`, re-run today), **the door's
+    // stand-point is 0.468 m away, not 0.58 m** — and both numbers miss the
+    // point, because the thing that broke was never the DOOR.
+    //
+    // `SOUTH_Z + 0.90` at `CAL_X` put this stand-point **on the straight line
+    // from the bed to the door**: 0.036 m off it, 0.79 m along it. So a player
+    // walking out of 301 walked THROUGH it, and `onIt` — the spot's centre
+    // inside your own capsule — handed him the calendar for the whole middle of
+    // the room. Measured, `w40-bed-vs-door`: three consecutive strides facing
+    // the door offered *"read the calendar"*, and so did three consecutive
+    // strides facing the BED, which has no door in it at all.
+    //
+    // ── SO IT MOVES SIDEWAYS, OFF THE ROUTE. THE 0.90 m DOES NOT CHANGE ──────
+    //
+    // The distance off the wall is about READING the calendar and was never the
+    // fault, so it is untouched. The offset along the wall is derived from the
+    // two numbers that actually govern, both imported rather than retyped:
+    //
+    //   · clear of the DOOR'S stand-point by `2 * RADIUS` — two capsules. Below
+    //     that the two "standing in it" circles overlap, and inside an overlap
+    //     neither rank nor aim can decide, which is worker onehundredsixteen's
+    //     measured finding and the reason four ranking cuts could not fix this.
+    //   · clear of the ROUTE OUT — the bed-seat-to-door segment — by
+    //     `RADIUS + TOUCH_MARGIN`. `RADIUS` alone is the bare condition (the
+    //     centre stays outside the walking capsule); the extra `TOUCH_MARGIN` is
+    //     so a stride that wanders a hand's breadth does not put it back,
+    //     GOTCHAS 72 — a margin the world can absorb is the only kind worth
+    //     writing down.
+    //
+    // The route is the binding one: `2 * RADIUS` from the door alone would put
+    // this at x 198.79 and the route would still clip it by 0.021 m.
+    //
+    // WHAT IT COSTS, said plainly rather than buried: you now read the calendar
+    // from a little to its LEFT rather than square in front of it. Square in
+    // front of it, 0.5 m off the wall, you are also standing on the open door
+    // leaf's own stand-point — and there the door wins, which is the user's own
+    // instruction for this item (*"just make the door high rank pls"*). The two
+    // objects share about half a square metre of floor and only one of them can
+    // own it.
+    //
+    // ⚠ `CAL_STAND_DX` IS COPIED, NOT IMPORTED, AND THAT IS A REPORTED DEBT.
+    // `ROOM_STAND_X`/`STAND_Z` are locals of the walk-up's door block ~2,350
+    // lines above (`ct/apartment.ts:1298`), and the bed seat is a local of the
+    // flat's own block. Hoisting the three into module scope is a refactor of a
+    // file this item does not otherwise touch, so the figure is derived here
+    // with its citation and `scripts/probes/w121-standpoint-overlap.mjs` fails
+    // if the world ever disagrees with it. See the handoff note.
+    const CAL_STAND_DX = 0.60;
     ctx.spot({
-      x: CAL_X, z: SOUTH_Z + 0.90, r: 0.60, obj: cal,
+      x: CAL_X - CAL_STAND_DX, z: SOUTH_Z + 0.90, r: 0.60, obj: cal,
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: () => 'read the calendar',
       act: openCalendar,
@@ -3823,7 +3882,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // that accessor routes back through this module anyway.
     const ENTER_X = FACE - 0.45, ENTER_R = 1.05;
     ctx.spot({
-      x: ENTER_X, z: DOOR_Z, r: ENTER_R,
+      x: ENTER_X, z: DOOR_Z, r: ENTER_R, rank: WAY_OUT,
       ok: () => ctx.player.x() < 100 && lastGy < 1,
       // The building has no name — the gold 227 on the transom is its only
       // identification, so the prompt says that rather than the long-dead
@@ -3838,7 +3897,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       act: () => ctx.player.jumpTo(AX(FLIGHT_A_X), AZI(1.3), Math.PI, 0),
     });
     ctx.spot({
-      x: AX(1.2), z: AZI(0.4), r: 0.95,
+      x: AX(1.2), z: AZI(0.4), r: 0.95, rank: WAY_OUT,
       ok: () => ctx.player.x() > 100 && ctx.player.x() < 230 && lastGy < 0.5,
       label: () => 'out to the street',
       // Land WELL OUTSIDE the enter spot's radius. It used to drop you at

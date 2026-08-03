@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+import { WAY_OUT } from '../fp';
 import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf, frontageWorld, alongU } from './tex-world';
@@ -1832,8 +1833,13 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       + `yaw ${arriveYaw}, not the belt's ${ARRIVE_YAW}. The west/east handedness in `
       + `ct/interior.ts is derived from that heading and is NOT valid for this pair.`);
   }
+  // BOTH OF THESE ARE A WAY OUT, so both declare `WAY_OUT` (item 291). Declared
+  // HERE, in the kit, rather than in thirteen rooms: *"just make the door high
+  // rank pls"* is a statement about doors, and every room this kit builds gets
+  // it without its author knowing the field exists. That is the difference
+  // between fixing flat 301 and fixing the world.
   ctx.spot({
-    x: spotOnStreet.x, z: spotOnStreet.z, r: doorR,
+    x: spotOnStreet.x, z: spotOnStreet.z, r: doorR, rank: WAY_OUT,
     ok: () => (spec.door.ok ? spec.door.ok() : player.x() < 100),
     label: () => spec.label,
     // yaw 0 is fwd = (0,0,-1). The door is in the +z wall, so facing away from
@@ -1845,7 +1851,7 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     // diagonally and from a wider arc — the natural standing point works out
     // ~1.1 m from the spot, which a 1.0 m trigger misses by a hand's breadth.
     // Measured: prompt=null at (2.05, 3.15) against a spot at (2.83, 3.93).
-    x: spotX, z: spotZ, r: CH ? 1.4 : 1.0,
+    x: spotX, z: spotZ, r: CH ? 1.4 : 1.0, rank: WAY_OUT,
     ok: () => player.x() >= x0 && player.x() < x1,
     label: () => 'out to the street',
     act: () => player.jumpTo(outAt.x, outAt.z, outAt.yaw, outAt.gy),

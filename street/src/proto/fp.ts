@@ -819,7 +819,43 @@ export function tube(pts: THREE.Vector3[], radius: number, mat: THREE.Material):
 // metres.** This is the part the highlight depends on: whatever is outlined has
 // to be the thing that fires, and a player reads "selected" as "the thing I am
 // looking at". Proximity only decides it among things you are not looking at.
-export interface Pickable { x: number; z: number; r: number; ok: () => boolean }
+export interface Pickable {
+  x: number; z: number; r: number; ok: () => boolean;
+  /** HOW MUCH THIS SPOT MATTERS when two of them are equally selectable.
+   *
+   *  **THE USER DECIDED THIS, 2026-08-03: *"just make the door high rank pls."***
+   *  The way out of a room outranks the furniture in it. Default 0; `WAY_OUT`
+   *  is the one non-zero value anything declares today.
+   *
+   *  IT ORDERS **WITHIN** A TIER, NEVER ACROSS ONE, and that boundary is the
+   *  whole design. Worker onehundredsixteen measured a cross-tier rank — the
+   *  obvious strong form — and it made things WORSE: a ranked door sitting in
+   *  tier 3 (touched, aimed away) started stealing the press from a bed the
+   *  player was squarely aimed at, so `[E]` on the bed opened the door instead.
+   *  A rank that can beat AIM is not "the door is important", it is "the door is
+   *  the only thing in the room".
+   *
+   *  AND `onIt` STILL COMES FIRST inside tier 1 — see the key below. A spot
+   *  whose centre is inside your own capsule is something you are standing in,
+   *  and the user's own guard rail on this same request is that *standing right
+   *  at a piece of furniture and looking straight at it must still offer that
+   *  furniture*. Rank orders what you are NEAR; it does not overrule what you
+   *  are IN. */
+  rank?: number;
+}
+
+/** The rank a way OUT carries — a door, a threshold, a street entrance.
+ *
+ *  One named constant rather than a `1` typed at each door, because the point
+ *  of item 291 is that this is a PROPERTY OF DOORS and not a fix for flat 301:
+ *  every room has a way out and the next room will need it too. Anything that
+ *  gets you from one place to another declares this; furniture declares
+ *  nothing and gets 0.
+ *
+ *  The value is deliberately the smallest one that works. Rank is compared, not
+ *  summed, so there is nothing to gain from a bigger number and a scale that
+ *  invites tuning is a scale somebody will tune. */
+export const WAY_OUT = 1;
 
 export interface PickView { x: number; z: number; yaw: number; pitch: number }
 
@@ -1046,9 +1082,12 @@ export function pickSpot<T extends Pickable>(
   // THREE TIERS, NOT ONE KEY — and the middle one is the whole of this
   // function's history, because THIS KNOB HAS A USER COMPLAINT AT BOTH ENDS.
   //
-  //   tier 1  STANDING IN IT, OR TOUCHING AND AIMED AT   ranked by distance
-  //   tier 2  AIMED AT                ranked by screen centre, distance breaks ties
-  //   tier 3  TOUCHING, AIMED AWAY    ranked by distance
+  //   tier 1  STANDING IN IT, OR TOUCHING AND AIMED AT   onIt, then rank, then distance
+  //   tier 2  AIMED AT                rank, then screen centre with distance breaking ties
+  //   tier 3  TOUCHING, AIMED AWAY    rank, then distance
+  //
+  // (`rank` arrived with item 291 and orders WITHIN a tier only — see the note
+  // above the keys below, and `Pickable.rank`.)
   //
   // END ONE — *"i dont want to be so far from the bed and the option is still
   // to sit on the bed and watch tv"*. This used to be a single
@@ -1108,12 +1147,38 @@ export function pickSpot<T extends Pickable>(
   // every pose — nothing near it, nothing looked, nothing across the street
   // (scripts/probes/w40-227-frame.mjs). Demoting it costs nothing there
   // because there is nothing to be demoted below.
+  //
+  // ── AND RANK ORDERS EACH TIER, AHEAD OF THAT TIER'S OWN KEY (item 291) ──────
+  //
+  // *"just make the door high rank pls."* The way out of a room outranks the
+  // furniture in it. `Pickable.rank` above carries the derivation; what matters
+  // here is the SHAPE, because two of the three obvious shapes are wrong and
+  // both were measured wrong rather than argued wrong:
+  //
+  //   · RANK ACROSS TIERS — a ranked door beats an aimed-at bed. Measured by
+  //     worker onehundredsixteen: `[E]` on the bed you are looking at opened the
+  //     door instead. Rank must never beat AIM.
+  //   · RANK ABOVE `onIt` — a ranked door beats the calendar you are standing
+  //     nose-to-nose with. That is the user's own guard rail on this request.
+  //
+  // So the comparison inside a tier is LEXICOGRAPHIC, most significant first:
+  //
+  //   tier 1   onIt  >  rank  >  distance
+  //   tier 2   rank  >  offAxis + d*0.02
+  //   tier 3   rank  >  distance
+  //
+  // Rank is a small integer and the keys are metres/radians, so they are
+  // compared as a PAIR rather than folded into one number with a magic
+  // multiplier — a weight big enough to dominate is a weight that silently
+  // becomes a tier, which is the first mistake above wearing a disguise.
+  const better = (rank: number, key: number, bRank: number, bKey: number) =>
+    (rank !== bRank ? rank > bRank : key < bKey);
   let bestNearLooked: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
-  let bestNearLookedKey = Infinity;
+  let bestNearLookedKey = Infinity, bestNearLookedRank = -Infinity, bestNearLookedOnIt = false;
   let bestLooked: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
-  let bestLookedKey = Infinity;
+  let bestLookedKey = Infinity, bestLookedRank = -Infinity;
   let bestNearOnly: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
-  let bestNearOnlyKey = Infinity;
+  let bestNearOnlyKey = Infinity, bestNearOnlyRank = -Infinity;
   const fx = Math.sin(view.yaw), fz = -Math.cos(view.yaw);
   for (const s of spots) {
     if (!s.ok()) continue;
@@ -1201,13 +1266,30 @@ export function pickSpot<T extends Pickable>(
     // not the degenerate `d < 1e-4` I tried first.
     const onIt = d < RADIUS;
     const entry = { spot: s, looked, offAxis, dist: d };
+    const rank = s.rank ?? 0;
     if (near && (looked || onIt)) {
-      if (d < bestNearLookedKey) { bestNearLookedKey = d; bestNearLooked = entry; }
+      // `onIt` FIRST, and it is the only place in this function where rank is
+      // outranked by something else. A spot you are standing IN is not competing
+      // for your attention; it is under your feet. Among two spots you are
+      // standing in — which the world does contain, wherever two stand-points
+      // are closer than `2 * RADIUS` — rank then decides, and that is the case
+      // `scripts/probes/w121-standpoint-overlap.mjs` exists to keep rare.
+      if (bestNearLooked === null
+        || (onIt !== bestNearLookedOnIt
+          ? onIt
+          : better(rank, d, bestNearLookedRank, bestNearLookedKey))) {
+        bestNearLookedKey = d; bestNearLookedRank = rank;
+        bestNearLookedOnIt = onIt; bestNearLooked = entry;
+      }
     } else if (looked) {
       const key = offAxis + d * 0.02;
-      if (key < bestLookedKey) { bestLookedKey = key; bestLooked = entry; }
+      if (better(rank, key, bestLookedRank, bestLookedKey)) {
+        bestLookedKey = key; bestLookedRank = rank; bestLooked = entry;
+      }
     } else {
-      if (d < bestNearOnlyKey) { bestNearOnlyKey = d; bestNearOnly = entry; }
+      if (better(rank, d, bestNearOnlyRank, bestNearOnlyKey)) {
+        bestNearOnlyKey = d; bestNearOnlyRank = rank; bestNearOnly = entry;
+      }
     }
   }
   // touching-and-aimed-at, then aimed-at, then touching-but-aimed-away.

@@ -1879,7 +1879,12 @@ export function makeCrosstown(): Proto {
       point: doorPointFor(d.building), stand: doorStandFor(d.building),
       widthM: d.width ?? null,
     })),
-    spots: () => SPOTS.map((sp) => ({ x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok() })),
+    // `rank` is published alongside the geometry (item 291) because it is now
+    // part of WHY a spot won, and a probe that can see the arithmetic but not
+    // the rank is reading two thirds of the decision.
+    spots: () => SPOTS.map((sp) => ({
+      x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok(), rank: sp.rank ?? 0,
+    })),
     // REACH IS NOT RADIUS, and a script cannot work that out from `spots()`
     // alone: a spot publishes its `r`, but the margin that turns that radius
     // into a selectable disc lives in fp.ts. Two scripts had therefore
