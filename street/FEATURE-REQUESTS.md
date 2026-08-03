@@ -3080,3 +3080,11 @@ to one side.
   delete it, because the row's "DONE WHEN: the floor of 301 is clear" would have
   destroyed the rent-letter system. The desk's leak hypothesis is discarded:
   zero outdoor-module meshes in any of the 13 rooms.
+
+- **"[screenshot] theres this here that cuts across the entry way. also the hotel
+  is the right of the casino outside but to the left inside. again these interior
+  exterior mismatch."** (2026-08-03,
+  `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-03 09-15-18.png`)
+  → **routed as queue items 267 (the rail) and 268 (the handedness).** THIRD
+  report of the interior/exterior mismatch class — after the jail doors and the
+  church door, both of which turned out to be world-wide rather than local.
