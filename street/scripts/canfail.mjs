@@ -599,6 +599,29 @@ const CASES = [
     "pit.userData.groundProp = 'tree pit renamed by selftest';",
     'footprint.mjs', [], 'the tree pits still there but invisible to the check that guards them'],
 
+  // ITEM 219, PUT BACK. This is the bug verbatim, one word of it: the obstacle
+  // test in `dimWorld` reads the NODE instead of walking the parent chain, so a
+  // milk crate's four uprights land in its own `solidsNear` set, the group's box
+  // overlaps them by construction, and the push-out pass shoves each crate clear
+  // of its own sides. The scatter is weighted toward the road, which is how a
+  // crate walked into the user's thrift-shop doorway.
+  //
+  // `up === o &&` is the whole mutation: the loop still runs, it just stops
+  // being able to see anything above the node — the pre-fix `o.userData?.litter`
+  // test exactly, expressed as a change to the line the fix added rather than a
+  // rewrite of it, so the needle sits on the code under test.
+  //
+  // WHY THIS CASE HAD TO WAIT FOR A CHECK. Worker seventyeight fixed the bug and
+  // wrote in its own note that nothing guarded the fix: `footprint.mjs`'s "no
+  // litter is inside a building or a prop" leg would NOT have caught it and was
+  // right not to — the crate was pushed OUT into clear pavement, which is a
+  // legal place for a crate. The mutation had nothing to point at until
+  // `prop-landing.mjs` existed. That is item 225 and this is its second half.
+  ['litter-self-push', PROPS,
+    'while (up) { if (up.userData?.litter) return; up = up.parent; }',
+    'while (up) { if (up === o && up.userData?.litter) return; up = up.parent; }',
+    'prop-landing.mjs', [], 'three milk crates shoved out of their own side panels'],
+
   // Aimed at PIT_CLEAR first and footprint.mjs slept — but the check was
   // right and the MUTATION was inert: PIT_CLEAR is derived from PIT_X for the
   // record and positions nothing, so zeroing it changes no geometry. A

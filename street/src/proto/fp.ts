@@ -748,12 +748,26 @@ export interface PickView { x: number; z: number; yaw: number; pitch: number }
 /** Angular half-width, in radians, that counts as "looking at" a spot of
  *  radius `r` seen from `d` metres. Measured rather than guessed: at the
  *  apartment door (r 1.2) this gives 31° at 2 m and 11° at 6 m. */
-/** How far OUTSIDE its own registered radius a spot still counts as "standing
- *  at it". MEASURED, not chosen: the tightest case a player must reach is the
- *  No. 227 entry at r 1.05, and the door frame stands 1.15 m from it because the
- *  facade cushion pushes you off the wall — so anything under 0.10 fails the
- *  user's own example. 0.60 clears it and is still under half the sacred 2 m
- *  walk, so it cannot make two spots across a pavement both live. */
+/** How far outside its registered radius a SEATED player can still reach a spot
+ *  — and the radius of the outer ring the debug volume overlay draws. Those two
+ *  are all it does now; see `pickSpot` below, where the standing aim-free test
+ *  is `TOUCH_MARGIN` and the aimed test carries no margin term at all.
+ *
+ *  DOCSTRING CORRECTED 2026-08-03 (item 223). It used to read "how far OUTSIDE
+ *  its own registered radius a spot still counts as *standing at it*", which
+ *  was true until the aim-free pass was cut to `TOUCH_MARGIN` on the user's
+ *  *"i feel like i select stuff without even looking at it"*. The sentence
+ *  outlived the predicate, and `crosstown.ts` repeated it to every harness
+ *  through `__ct.reachMargin()`: `casinodoor.mjs` predicted a 3.11 m trigger
+ *  band on that authority and the world gave 2.13 m. Five harness call sites
+ *  are still comparing against this constant where the world uses the other one.
+ *
+ *  THE VALUE IS UNCHANGED AND SO IS EVERY PREDICATE. MEASURED, not chosen: the
+ *  tightest case a player must reach is the No. 227 entry at r 1.05, and the
+ *  door frame stands 1.15 m from it because the facade cushion pushes you off
+ *  the wall — so anything under 0.10 fails the user's own example. 0.60 clears
+ *  it and is still under half the sacred 2 m walk, so it cannot make two spots
+ *  across a pavement both live. */
 export const REACH_MARGIN = 0.6;
 
 /** How far outside its radius a spot is still "being touched" — the only case

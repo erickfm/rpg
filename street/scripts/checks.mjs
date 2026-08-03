@@ -316,6 +316,41 @@ const CHECKS = [
   // EXEMPT list rather than staying quiet about it.
   ['checks-can-fail',  'does every registered check declare a way to go red?', false],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
+  // REGISTERED 2026-08-03 (item 223), and this row is the whole point of that
+  // item: item 213 rebuilt casinodoor.mjs into a real check — 6 assertions, 3
+  // population floors, two mutation cases watched red — and then NOTHING RAN IT.
+  // Before 213 it printed `SEVENS spots registered: 0` (a clean statement that
+  // the casino has no door at all) and exited 0; being unregistered on top of
+  // that is the same disease one level up, and it is the disease
+  // `checks-registered` exists to catch. It could not: that guard greps for the
+  // literal `argv.includes('--selftest')` and this script declares its flags
+  // through `lib/flags.mjs`, the blindspot `notes/M-selftest-blindspot.md`
+  // records and `M-bank-int-walk` was lost to for seven commits.
+  //
+  // It asks what `doors-declared` above cannot. That one checks the roster; this
+  // one walks the side street and asks whether the [E] actually fires over a
+  // band a player can stop in, and whether pressing it puts you inside. The
+  // casino's door has broken in exactly that gap before — mainline e6c08482, a
+  // circular-import namespace resolving undefined, declaration painted, trigger
+  // absent, nothing looking wrong.
+  //
+  // Run by hand first on this build: 8/8, ~5 s, 4 of 25 sample points fire
+  // "into the ORPHEUS CASINO" over x 50.5…52 — exactly the four the aim-free
+  // touch disc predicts. Under 20 s and it does not walk, so default tier by
+  // this file's own rule.
+  //
+  // TWO FLAGS, NOT ONE — see the fourth-shape branch in the runner below. Both
+  // measured: `--selftest` reddens 1 of 6 legs (the targeted E-press), and
+  // `--selftest-gone` reddens 4 of 6 (both targeted legs plus two downstream).
+  //
+  // ON ONE LINE ON PURPOSE, AND THAT IS A BUG IN A GUARD, NOT A STYLE CHOICE.
+  // `checks-can-fail.mjs:95` parses this registry with a per-LINE regex, so a
+  // row whose selftest column wrapped onto a continuation line reads as an empty
+  // column and is accused of having no way to go red. It already accuses
+  // `w40-bed-vs-door` — which declares two canfail cases, on its second line —
+  // and wrapping this row made it the second false accusation. Reported for a
+  // follow-up row; until the parser is fixed, keep the column on line one.
+  ['casinodoor',       'can you get into the casino from the side street?', ['--selftest', '--selftest-gone']],
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   ['lot-kerb-seam',    'does the kerb cut line up with the lot gate?',       true],
   ['lot-clearance',    'do any cars clip each other or the furniture?',      true],
@@ -538,6 +573,31 @@ const CHECKS = [
   // the failure this column exists to make visible.
   ['footprint',        'does anything on the pavement clip the kerb?',     ['footprint', 'footprint-pits', 'footprint-water', 'footprint-blind', 'course-across']],
   ['trash',            'is the APPROVED litter set placed, seated, varied?', ['trash', 'trash-set'], ['probe']],
+  // REGISTERED 2026-08-03 (item 225). The guard over item 219, which was a prop
+  // pushing itself out of its own side panels — the litter tag sat on the GROUP
+  // while `dimWorld`'s obstacle test read the NODE, so a milk crate found its own
+  // four uprights and shoved itself clear, toward the road, which is how a crate
+  // walked into the user's thrift-shop doorway.
+  //
+  // THE TWO ROWS ABOVE WOULD NOT HAVE CAUGHT IT AND WERE RIGHT NOT TO. The crate
+  // was pushed OUT into clear pavement: `footprint` asks whether anything clips
+  // the kerb or sits inside a building and the answer was correctly no; `trash`
+  // asks whether the approved SET is placed and it was. Nothing anywhere asserted
+  // that a prop LANDS WHERE IT WAS PUT DOWN, so the repair was one careless edit
+  // from reverting in silence.
+  //
+  // Run by hand first: 5/5 in 1.6 s, no browser walking, so default tier. 14
+  // dropped props, 3 of them able to push themselves (the crates — flat litter
+  // never clears dimWorld's 0.25 m solid gate, which is why crates alone
+  // suffered), and 3 movers matching a recorded displacement baseline.
+  //
+  // BOTH KINDS OF PROOF, and they fail apart, which is the `masonry`/
+  // `masonry-blind` argument again. Its own `--selftest` displaces a crate at
+  // RUNTIME and proves the verdict can go red. The `litter-self-push` canfail
+  // case puts item 219 back in SOURCE — one `up === o &&` — rebuilds, and proves
+  // the check catches the actual bug rather than a symptom somebody planted.
+  ['prop-landing',     'does every dropped prop stand where it was put down?', true, [], false,
+    ['litter-self-push']],
   ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried'], ['probe']],
   ['park',             'is EVERY park lantern lit, and the loop walkable?', ['park', 'park-partial', 'park-walk', 'park-buried', 'park-sunk']],
   ['wetness',          'are puddles darker than the road they sit in?',    ['wetness', 'wet-blind'],  ['probe']],
@@ -1311,6 +1371,52 @@ for (const [name, question, selftest, extra = [], slow = false, cases = []] of C
   if (serverDied) { rows.push([name, question, UNMEASURED[serverDied]]); continue; }
   process.stderr.write(`  … ${name}\n`);
   const t0 = Date.now();
+  // A FOURTH SHAPE FOR THE SELFTEST COLUMN: entries that begin with `--` are the
+  // check's OWN flags, and each one is a separate invocation.
+  //
+  // Registered 2026-08-03 (item 223) for casinodoor, the only check in the suite
+  // that carries TWO mutation flags — `--selftest` walls the door shut and
+  // reddens the E-press leg, `--selftest-gone` drops the casino out of
+  // `__ct.doors()` and reddens the declaration and sweep legs. They fail apart
+  // by construction: the sampling sweep uses `warp`, which does no collision, so
+  // a collider mutation cannot reach legs 1-4, and its author recorded that
+  // limitation rather than letting one case certify four legs it never touched.
+  // The same argument the `masonry`/`masonry-blind` and `footprint` rows already
+  // make — registering one of two cases certifies half a guard.
+  //
+  // `true` could only ever have run the first of them, because the runner
+  // appends the literal `--selftest` and nothing else. Discriminating on the
+  // leading `--` is unambiguous: no canfail case is named that way (canfail's
+  // own registry is checked below), so no existing row changes shape.
+  if (SELFTEST && Array.isArray(selftest) && selftest.some((s) => String(s).startsWith('--'))) {
+    // MIXED IS A TYPO, NOT A FEATURE. Half a flag list handed to canfail.mjs
+    // becomes "unknown case: --selftest", which exits non-zero and reads as the
+    // WORLD being broken. Refuse to guess.
+    if (!selftest.every((s) => String(s).startsWith('--'))) {
+      console.error(`\n${name}: its selftest column mixes flags and canfail case names: ${selftest.join(', ')}`);
+      console.error('  A row is one or the other. Flags run the script; bare names run scripts/canfail.mjs.\n');
+      process.exit(2);
+    }
+    for (const flag of selftest) {
+      const ft0 = Date.now();
+      process.stderr.write(`  … ${name} ${flag}\n`);
+      const rc = spawnSync('node', [`scripts/${name}.mjs`, ...extra, flag],
+        { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: slow ? SLOW_MS : PER_CHECK_MS });
+      const secs = ((Date.now() - ft0) / 1000).toFixed(0);
+      const timedOut = rc.error?.code === 'ETIMEDOUT' || rc.signal === 'SIGTERM';
+      const ok = !timedOut && rc.status === 0;
+      // Each flag gets its OWN row. One line saying "casinodoor: ok" cannot tell
+      // a reader WHICH mutation was watched go red, and this row exists precisely
+      // because the two are different claims.
+      rows.push([`${name} ${flag}`, question,
+        timedOut ? `TIMED OUT after ${secs}s` : ok ? 'ok' : `FAILED (${rc.status})`, secs]);
+      if (!ok) {
+        process.exitCode = 1;
+        if (!timedOut) console.log(`${rc.stdout ?? ''}${rc.stderr ?? ''}`.trimEnd() + '\n');
+      }
+    }
+    continue;
+  }
   // A string names a case in scripts/canfail.mjs: the mutation lives there,
   // in source, rather than as a --selftest flag inside the check itself.
   if (SELFTEST && typeof selftest !== 'boolean') {

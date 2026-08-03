@@ -24,7 +24,7 @@ import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
 import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
-import { pickSpot, SpotOutline, REACH_MARGIN } from './fp';
+import { pickSpot, SpotOutline, REACH_MARGIN, TOUCH_MARGIN } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
 import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
@@ -1810,19 +1810,54 @@ export function makeCrosstown(): Proto {
     })),
     spots: () => SPOTS.map((sp) => ({ x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok() })),
     // REACH IS NOT RADIUS, and a script cannot work that out from `spots()`
-    // alone: a spot publishes its `r`, but whether you are standing AT it is
-    // `d < r + REACH_MARGIN`, and that margin lives in fp.ts. Two scripts had
-    // therefore hand-typed `const REACH_MARGIN = 0.6` to reconstruct the
-    // predicate — BUILDER-BRIEF §8's "a second hand-typed copy of a number is
-    // the single most expensive habit in this codebase", and the reason
-    // `bedcavity.mjs` spent a week measuring a truck that no longer existed.
+    // alone: a spot publishes its `r`, but the margin that turns that radius
+    // into a selectable disc lives in fp.ts. Two scripts had therefore
+    // hand-typed `const REACH_MARGIN = 0.6` to reconstruct the predicate —
+    // BUILDER-BRIEF §8's "a second hand-typed copy of a number is the single
+    // most expensive habit in this codebase", and the reason `bedcavity.mjs`
+    // spent a week measuring a truck that no longer existed.
     //
-    // Published rather than folded into `spots()` as a `reach` field: the
-    // margin is ONE global (fp.ts:486), not a property of each spot, and giving
-    // every row its own copy would put 200 duplicates in the payload where the
-    // duplication is exactly what this exists to remove. It is imported from
+    // Published rather than folded into `spots()` as a `reach` field: each
+    // margin is ONE global, not a property of each spot, and giving every row
+    // its own copy would put 200 duplicates in the payload where the
+    // duplication is exactly what this exists to remove. Both are imported from
     // fp.ts at the top of this file, so there is no copy here either.
+    //
+    // ── WHICH MARGIN GOVERNS WHICH CASE. CORRECTED 2026-08-03 (item 223) ─────
+    //
+    // THIS DOCSTRING USED TO SAY "whether you are standing AT it is
+    // `d < r + REACH_MARGIN`", AND THAT PREDICATE NO LONGER EXISTS. It was true
+    // when the margin was published and it stopped being true when `pickSpot`
+    // was retuned on the user's *"i feel like i select stuff without even
+    // looking at it"* — the aim-free pass was cut to a quarter of the old slack
+    // and `fp.ts` has read `const touching = d < s.r + TOUCH_MARGIN` since. A
+    // published constant with a stale docstring is worse than an unpublished
+    // one: `casinodoor.mjs` predicted a 3.11 m band on this file's authority,
+    // the world gave 2.13 m, and the script was right to disbelieve the comment.
+    //
+    // As the code stands (fp.ts `pickSpot`), for a STANDING player:
+    //
+    //   aim-free ("touching")   `d < r + TOUCH_MARGIN`   — fp.ts's `touching`
+    //   aimed     ("looked")    `d < reach (6 m)` and inside `lookTolerance`
+    //                            — NO margin term at all
+    //
+    // So REACH_MARGIN governs exactly two things now, and neither is the one
+    // its name suggests: the SEATED clause (`!seated || d < s.r + REACH_MARGIN`,
+    // which can only ever shorten the seated reach) and the outer ring the
+    // debug volume overlay draws. Anything asking "would this spot be offered
+    // to a player standing here, not looking at it" wants `touchMargin()`.
     reachMargin: () => REACH_MARGIN,
+    // …AND THE ONE THAT ACTUALLY GOVERNS AN UNAIMED PLAYER, published for the
+    // first time here (item 223). It was exported from fp.ts and unreachable at
+    // runtime, so a harness had two choices and both are on the record:
+    // hand-copy `0.15` (`probes/w47-band-model.mjs:25`), or `await
+    // import('/src/proto/fp.ts')` inside the page — which SEVEN harnesses do and
+    // which works on the dev server ONLY. Measured against `vite preview` on the
+    // built bundle: `Failed to fetch dynamically imported module:
+    // /src/proto/fp.ts` (`scripts/probes/w80-touchmargin-reachable.mjs`). So on
+    // the bundle the user actually ships, this number had no runtime path at all
+    // — and GOTCHAS 28 says the bundle is where a check must be believed.
+    touchMargin: () => TOUCH_MARGIN,
     // The acceptance test for the selection highlight, asked of the WORLD rather
     // than of a copy of it: every registered [E], whether it names an object,
     // and therefore whether its outline is the real contour or the generic
