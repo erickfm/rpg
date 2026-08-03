@@ -319,7 +319,7 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
   inflates them. **If your change adds or removes geometry, `fp`/`fpdiff` will report a catastrophe that
   is not there.** Compare `places` as a multiset instead (`scripts/probes/w44-placediff.mjs` does this),
   or diff only what you did not touch. Use `fp` as proof ONLY when you changed no geometry at all.
-- **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor.
+- **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor — **and the real figure is now measured: dumping the SAME build twice differs on 5 of 8,612 entries, and they are PUDDLE PLANES drifting 1–3 cm, not pigeons. So the floor is 5.** Assert on the geometry-signature multiset rather than on a `places` hash, which will never reproduce (worker onehundredtwo, 2026-08-03)..
 - **Press `V` for the collision overlay.** Wireframe boxes, red where a gap under 0.95 m could trap a player. It is how the user found two real bugs on its first day.
 - **Verify on the BUILT bundle** (`npx vite preview`), not only on dev. The panel/keydown class of bug has shipped differently than it renders in dev.
 - **THERE IS NO LONGER AN EXEMPTION. `scripts/interiors-walk.mjs` runs on the

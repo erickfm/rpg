@@ -598,7 +598,11 @@ const CHECKS = [
   // the check catches the actual bug rather than a symptom somebody planted.
   ['prop-landing',     'does every dropped prop stand where it was put down?', true, [], false,
     ['litter-self-push']],
-  ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried'], ['probe']],
+  // `glow-park-dark` added by item 257 — the park became glow.mjs's THIRD region
+  // in item 248, and until now the guarantee that made it measurable (every
+  // stamped lamp lands in exactly one region, with a per-region `stamped` bar
+  // under it) was proved only by a builder having run the mutation once by hand.
+  ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried', 'glow-park-dark'], ['probe']],
   // REGISTERED 2026-08-03 (item 150). `ct/hud.ts` cast `mesh.material` to a
   // single material when hanging a panel on a face. `Mesh.material` is legally
   // `Material | Material[]`, and on an array `mat.color` is undefined — so
@@ -646,6 +650,28 @@ const CHECKS = [
   // Reports the hanging signs, FAILS on furniture-height floats — see the note
   // at the foot of the script for why only half of it is a verdict.
   ['floaters-walk',    'is anything resting on nothing at furniture height?', false],
+  // WRITTEN 2026-07-2x AND IN NO TIER UNTIL ITEM 258 — the FIFTH script found in
+  // exactly the state item 199 describes for four others. It is the instrument
+  // that validates the 1.5 s mover filter that lane3, lanewalk and corridor all
+  // decide "is this furniture" with, so nothing else in the suite covers what it
+  // covers. onehundred gave it a verdict, an exit code and a --selftest (item 84)
+  // and could not register it: scripts/checks.mjs was held by another item.
+  //
+  // DEFAULT TIER, MEASURED NOT GUESSED: 26.1 s against a preview on this tree,
+  // and it does not walk — so default by this file's own two rules. The 36 s that
+  // moved lotwalk to slow is the nearest precedent above it and jump-walk sits
+  // here at 20 s. Nearly all 26 s is the deliberate 22 s long sampling window
+  // (LONG_MS), which is the measurement itself and not overhead to trim.
+  //
+  // ITS VERDICT IS THE CORRIDOR ANSWER MOVING, NOT GHOSTS EXISTING. Failing on
+  // ghost count would be permanently red whenever a citizen pauses for 1.5 s —
+  // see the long comment on `verdict()` in the script. And it does NOT need to
+  // warp despite reading from the spawn point inside apartment 301: measured on
+  // 5 round trips, the 18 static boxes in its two corridor bands are identical
+  // box-for-box from the flat and from the street, because colliders() is an
+  // authoring read and the cull is a rendering fact
+  // (scripts/probes/w104-ghosts-sees-the-street.mjs).
+  ['ghosts',           'is the 1.5 s mover filter long enough, or does it call a stopped citizen furniture?', true],
   // 20 s, so default tier. Guards "make the jump a tiny bit higher AND gravity a
   // tiny bit stronger" — a feel request, which is the kind most easily undone by
   // an unrelated edit to fp.ts because nothing about it looks like a constant.
@@ -868,7 +894,12 @@ const CHECKS = [
   // what the user's "im literally stuck here" request cost to guard properly.
   // Asserted since it was written and registered nowhere until now, so those
   // 177 escapes have been proving themselves to nobody.
-  ['unstick-walk',     'can the player still always get out of a trap?',      false, [], true],
+  // Its canfail case `unstick-off` was WITHHELD for six days — w37 had it
+  // working and would not register it while the check was red on unmutated
+  // mainline, because canfail scores CAUGHT on any non-zero exit. The world was
+  // fixed and nobody came back for it (item 258). Baseline re-measured green
+  // three times before this column moved off `false`.
+  ['unstick-walk',     'can the player still always get out of a trap?',      ['unstick-off'], [], true],
   // G's two suites, 132 checks the runner has never seen. Both walk, so both are
   // SLOW by the rule above — a runtime tier, not an importance tier. Measured on
   // an idle dev server: G-vice-walk 47 s, G-rooms-walk 158 s. The second is the
@@ -899,9 +930,23 @@ const CHECKS = [
   // of E's fourteen that has one — so the audit built to catch invisible
   // checks is itself blind to the other thirteen. (D)
   ['E-walk',           'is the library courtyard walkable, in and out and up the steps?', true, [], true],
-  // The ONLY check that walks into a room in a BUILT BUNDLE. interiors-walk
-  // above cannot: it imports a source path no bundle serves. Run the slow tier
-  // with PINNED_MODE=preview and this is what covers the artefact.
+  // NO LONGER THE ONLY BUNDLE-CAPABLE ROOM WALK — corrected item 257. This
+  // comment used to say "the ONLY check that walks into a room in a BUILT
+  // BUNDLE", because `interiors-walk` above imported `/src/proto/ct/doors.ts`
+  // and `ct/interior.ts` at runtime and `vite preview` serves only `dist/`.
+  // **Item 251 retired that.** Three of those four import sites were already
+  // redundant against `__ct.doors()`, the fourth (`PARTY`) is published as
+  // `__ct.party()`, and `interiors-walk` reads nothing but `__ct` now.
+  // Re-measured on the bundle for item 257 rather than taken on trust:
+  // `SHOT_URL=http://localhost:4590/ node scripts/interiors-walk.mjs church`
+  // scores **29/29, exit 0** against `vite preview`, identical to dev.
+  //
+  // So this is a SECOND room walk on the bundle, and it earns its place on a
+  // different claim, not on a limitation: it is the only one that can be aimed
+  // at the INTEGRATED world (:5177) — mainline plus every builder in flight —
+  // because it walks eight doors with no per-room assertions to go stale. Read
+  // its header for why that use must stay out of `reportWorld`.
+  // Run the slow tier with PINNED_MODE=preview to get both against the artefact.
   ['integration-doors', 'can you get into all eight rooms in the BUNDLE?',    ['door-standoff'], [], true],
   // H's walking and watching suites. These drive or watch in real time, so they
   // belong in the SLOW tier for the reason stated above — a runtime tier, not an

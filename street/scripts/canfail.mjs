@@ -596,6 +596,31 @@ const CASES = [
     'pool.rotation.x = -Math.PI / 2; pool.position.set(headX, -0.01, headZ); scene.add(pool);',
     'glow.mjs', ['probe'], 'the street lamplight drawn UNDER the road it falls on'],
 
+  // ITEM 248, REGISTERED BY ITEM 257. Removes the park's ten lanterns at the
+  // source: `props.ts:2134` reads `site('park')` and the whole lantern block
+  // sits behind `if (parkSite)`, so a null site builds none of them.
+  //
+  // ⚠ WHAT THIS CASE IS ACTUALLY FOR, AND IT IS NOT WHAT IT LOOKS LIKE. Until
+  // item 248, glow.mjs held TWO regions and neither matched the park — 10 of 21
+  // stamped lamps fell in NO region, and the file printed four green OKs while
+  // never mentioning a third of the world's lamps. **Against that glow.mjs this
+  // mutation would have changed NOTHING it printed**, because the park was
+  // already unmeasured. So this case does not guard the park lanterns so much
+  // as it guards the PER-REGION BARS that made the park measurable.
+  //
+  // ⚠ IT MUST FIRE THE `stamped` BAR, NOT THE COVERAGE ASSERTION, and 248
+  // proved the difference by running it: with the park emptied the coverage
+  // assertion ("every stamped lamp lands in exactly one region") **PASSES** —
+  // there are no lamps left to be unclaimed. A bar derived from the stamped
+  // population cannot see deletion either, which is why `stamped` is declared
+  // per region (park 8) rather than computed. Watched here at registration:
+  // park stamped 0 of 8. **If this case ever starts being CAUGHT by the
+  // coverage line instead, something has moved and the bar has gone to sleep.**
+  ['glow-park-dark', PROPS,
+    "  const parkSite = site('park');",
+    "  const parkSite = null as any;",
+    'glow.mjs', ['probe'], 'the park losing all ten of its lanterns'],
+
   // INSIDE THE HILL. park-buried drops the decal into ct/park.ts's LIFT stack
   // and is caught by the coverage test; this drops it BELOW the terrain, which
   // that test cannot see — it looks for opaque meshes drawn over the decal, and
@@ -1015,28 +1040,44 @@ const CASES = [
     'const lean = THREE.MathUtils.clamp(p.turn * a * LEAN_PER_A, -LEAN_MAX, LEAN_MAX);',
     'corner-traffic.mjs', [], 'cars leaning INTO the corner, like a motorcycle'],
 
-  // NO `unstick-off` CASE, AND THE REASON IS WORTH MORE THAN THE CASE.
+  // `unstick-off` — WITHHELD FOR 6 DAYS BY A BLOCKER THAT EXPIRED, ADDED NOW.
   //
-  // I wrote one, ran it, and it went red exactly as designed: switching the
-  // stuck protection off (`UNSTICK_SPEED = 0` AND `PATIENCE = 1e9` — both, since
-  // either alone still frees the player) gave `537/531 traps are still traps`
-  // and `rig could not walk away (0.00 m)` on all six the DRIVEN leg drove.
+  // The history is the point, and item 258 exists because of it. w37 (item 77)
+  // wrote this exact mutation, ran it, watched it go red — and then DID NOT
+  // REGISTER IT, correctly: `unstick-walk` was red on unmutated mainline at the
+  // time (`1/531 traps are still traps`, on the phantom at 8.50,-94.50), and
+  // canfail scores CAUGHT on ANY non-zero exit (GOTCHAS §32), so the case would
+  // have certified itself whatever the mutation did. A false green is the most
+  // expensive kind here because nobody looks at it twice.
   //
-  // Then the clean baseline landed, and `unstick-walk` is **already red on
-  // unmutated mainline**: `1/531 traps are still traps`, exit 1, on
+  // THEN THE WORLD WAS FIXED AND NOBODY CAME BACK. That phantom was diagnosed
+  // as this file's own rotation-blindness (unstick-walk.mjs:25-32,
+  // notes/w38-chamfer-trap-premise.md) and the check has been green ever since —
+  // but the withheld case lived only in an English comment, so no instrument
+  // could notice the reason had expired. That is what the `WITHHELD:` markers in
+  // checks-can-fail.mjs now exist for.
   //
-  //     FAIL  inside @ 8.50,-94.50 — still inside a collider after 1.1 s
+  // THE PRECONDITION, MEASURED BEFORE ADDING THIS, THREE TIMES ON TWO BUILDS.
+  // A canfail case is only meaningful against a baseline that is GREEN, so:
+  // onehundred twice on 210891b5f, and onehundredfour on 415dafdb1 —
+  // `586 traps found · 543 genuinely stuck · 543 freed themselves · 6/6 driven
+  // walked away · exit 0`. If you ever re-derive this case, re-derive that first.
   //
-  // canfail scores CAUGHT on ANY non-zero exit (GOTCHAS §32), so a case against
-  // a check that already exits 1 would certify itself no matter what the
-  // mutation did — a FALSE GREEN, and the most expensive kind here because
-  // nobody looks twice at one. Registering it would have been worse than
-  // registering nothing.
-  //
-  // So the case is withheld until the world is fixed, and the trap above is the
-  // thing to fix — it is a real one the player can reach. Recorded here rather
-  // than dropped quietly, because a case silently missing from this list is
-  // exactly what giving up looks like. See notes/w37-walking-tier-failpaths.md.
+  // WHY BOTH CONSTANTS, WHICH IS THE ONLY interesting THING ABOUT THE MUTATION.
+  // The rig has TWO redundant rescues: `unstick` pushes you out at
+  // UNSTICK_SPEED, and after PATIENCE seconds of getting nowhere it teleports
+  // you back to `lastGood`. Kill only the push and the timer still frees the
+  // player, so the check stays GREEN on a world with no push at all — a mutation
+  // that breaks one of two redundant mechanisms proves nothing. The needle spans
+  // all three lines (PASSES unchanged) because canfail applies exactly one.
+  ['unstick-off', FP,
+    `    const UNSTICK_SPEED = 3.0;              // m/s, comparable to walking
+    const PASSES = 4;                       // ample for a corner of two boxes
+    const PATIENCE = 0.45;                  // s of getting nowhere before we give up and jump`,
+    `    const UNSTICK_SPEED = 0.0;              // canfail unstick-off: the push, gone
+    const PASSES = 4;                       // ample for a corner of two boxes
+    const PATIENCE = 1e9;                   // canfail unstick-off: the lastGood rescue, never`,
+    'unstick-walk.mjs', [], 'the stuck-protection switched off entirely — both the push and the lastGood rescue'],
 
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
