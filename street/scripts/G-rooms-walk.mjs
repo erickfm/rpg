@@ -16,6 +16,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { entrySpots } from './lib/entry-spot.mjs';
 import { setClock } from './lib/clock.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -45,7 +46,12 @@ const ROOMS = [
     // `building: 'SEVENS'` below is UNCHANGED and must stay: it is the key into
     // `vice.VICE`, `VICE_DOOR_X` and the DoorDecl registry. The address changed;
     // the roster key did not.
-    id: 'casino', label: /ORPHEUS CASINO/,
+    // NO `label` — the room is identified by `building` below, and its [E] text
+    // is read back from the world at runtime. `label: /SEVENS/` lived here until
+    // item 213: item 196 renamed the elevation to the Orpheus casino wing, the
+    // prompt became `into the ORPHEUS CASINO`, and this suite went 3/6 red on a
+    // door that works. See scripts/lib/entry-spot.mjs.
+    id: 'casino',
     keeper: [-2.6, -12.2],   // across the felt from the dealer, in the pit
 
     building: 'SEVENS', at: 0, hasWindow: false,
@@ -80,7 +86,7 @@ const ROOMS = [
     ],
   },
   {
-    id: 'hotel', label: /ORPHEUS/,
+    id: 'hotel',
     keeper: [-4.0, 8.75],    // the guest side of the reception desk, near the door
     // "One lamp out" — the queue's own words, and the last line of the brief
     // that built this room. Fittings at ceiling height, one a different colour
@@ -120,7 +126,7 @@ const ROOMS = [
     // = -15.5 + (-4.2 / 0.9077) = -20.13. Confirmed by scanning the walk for the
     // prompt: it runs -19.2 to -21.0, centre -20.10. Typing -15.25 here — which
     // is what this row said — is exactly what the descriptor exists to stop.
-    id: 'tax', label: /A-1 TAX/,
+    id: 'tax',
     keeper: [-2.6, -0.75],   // the client chair
 
     building: 'A-1 TAX', at: -4.2, hasWindow: true,
@@ -139,7 +145,7 @@ const ROOMS = [
   {
     // Likewise derived: roomWidthFor(15) = 13.8, door declared at local 0 so it
     // lands on the building centre, cz = -60.5. Scanned: -59.5 to -61.3.
-    id: 'pawn', label: /PAWN/,
+    id: 'pawn',
     keeper: [1.6, -1.6],     // the customer side of the counter
 
     building: 'PAWN', at: 0, hasWindow: true,
@@ -314,7 +320,22 @@ const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout
 // is checking. `doorStandFor` is where a player is meant to stand, published by
 // the same declaration the room and the facade both read, so this cannot go
 // stale and cannot disagree with them.
+//
+// AND ASK IT WHAT EACH DOOR CALLS ITSELF, never type that either (item 213).
+// These rows used to carry a `label` regex over the [E] text — `/SEVENS/`,
+// `/ORPHEUS/`, `/A-1 TAX/`, `/PAWN/`. That is user-facing copy, and the user
+// asks for renames: item 196 moved the casino to the Orpheus wing and this
+// suite went red on a working door. `/ORPHEUS/` was worse than fragile, it was
+// already AMBIGUOUS — since the rename it matches BOTH street spots, the hotel
+// at (39.51, -96.75) and the casino at (51.29, -96.75), so `spots.find` was
+// picking the hotel only because it happens to be registered first.
+const entryIndex = await entrySpots(p);
+console.log(`entry spots: ${entryIndex.resolved} of ${entryIndex.total} declared doors resolved to an [E] spot`);
+// The room is its DECLARATION; its label is whatever the world says today.
+const isEntry = (r, txt) => r.entryLabel != null && txt != null && String(txt).includes(r.entryLabel);
+
 for (const r of ROOMS) {
+  r.entryLabel = entryIndex.byBuilding.get(r.building)?.label ?? null;
   // Through `__ct.doors()`, NOT `import('/src/proto/ct/doors.ts')`. That source
   // path exists only on the dev server, which is what made this whole suite
   // dev-only — and dev is exactly where the door-drop bug (1e49295b) cannot be
@@ -353,8 +374,12 @@ const f2 = (n) => +n.toFixed(2);
   const spots = await p.evaluate(() => (window.__ct.spots ? window.__ct.spots() : []));
   const bad = [];
   for (const r of ROOMS) {
-    const s = spots.find((q) => r.label.test(q.label ?? ''));
-    if (!s) { bad.push(`${r.id}: no [E] spot matching ${r.label}`); continue; }
+    // The spot is found by its DECLARATION, not by its copy: `entrySpots` joins
+    // `__ct.doors()[building].stand` to `__ct.spots()` on coordinates, exact to
+    // 0.000 m on all 12 doors. So this row no longer needs a name at all.
+    const e = entryIndex.byBuilding.get(r.building);
+    const s = e && e.label != null ? e : null;
+    if (!s) { bad.push(`${r.id}: no [E] spot on the door declared by ${r.building}`); continue; }
     const off = Math.hypot(s.x - r.doorX, s.z - r.doorZ);
     if (off > 0.01) bad.push(`${r.id}: spot ${f2(s.x)},${f2(s.z)} is ${off.toFixed(3)} m off the published door ${f2(r.doorX)},${f2(r.doorZ)}`);
   }
@@ -495,12 +520,13 @@ for (room of rooms) {
   await warp(room.doorX, room.doorZ - 1.3, Math.PI, KERB_H);
   await p.waitForTimeout(200);
   let promptOut = null;
-  for (let i = 0; i < 10 && !room.label.test(promptOut ?? ''); i++) {
+  for (let i = 0; i < 10 && !isEntry(room, promptOut); i++) {
     await hold('w', 140);
     promptOut = await prompt();
   }
   check('walking up to the door on the street raises the prompt',
-    room.label.test(promptOut ?? ''), `prompt=${JSON.stringify(promptOut)}`);
+    isEntry(room, promptOut),
+    `prompt=${JSON.stringify(promptOut)} vs declared entry ${JSON.stringify(room.entryLabel)}`);
 
   await press();
   const inside = await pos();
@@ -976,8 +1002,14 @@ for (room of rooms) {
   // as the player crosses, and the way-in trigger has not re-evaluated yet
   await p.waitForTimeout(400);
   const afterPrompt = await prompt();
+  // NEGATIVE ASSERTION — so it needs the resolution to have WORKED, or it passes
+  // by measuring nothing. `room.entryLabel != null` is the population floor:
+  // without it, an unresolvable door makes `isEntry` false and this row green.
   check('you are NOT standing in the re-entry trigger after stepping out',
-    !room.label.test(afterPrompt ?? ''), `prompt=${JSON.stringify(afterPrompt)}`);
+    room.entryLabel != null && !isEntry(room, afterPrompt),
+    room.entryLabel == null
+      ? 'NO entry label resolved for this room — nothing was measured'
+      : `prompt=${JSON.stringify(afterPrompt)}`);
   await press();
   await p.waitForTimeout(400);             // it must NOT cross; give it time to try
   const sucked = await pos();
