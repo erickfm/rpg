@@ -19,7 +19,7 @@ const surfTex = (kind: SurfaceKind, w: number, h: number,
                  draw: (g: CanvasRenderingContext2D) => void) =>
   declareSurface(pixTex(w, h, draw), kind);
 import { FACE } from './rng';
-import { makeCar, type CarKind, type CarState } from './cars';
+import { makeCar, carColliderSpec, type CarKind, type CarState } from './cars';
 import { citizenSprite } from './citizens';
 import { weedTuft } from './weeds';
 
@@ -1978,12 +1978,94 @@ function buildLot(o: {
       // reaches this line first, because it is now above every branch rather
       // than after all of them.
       //
-      // A 1.8 x 4.6 car at 0.55 rad has a 3.9 x 4.9 bounding box, which from
-      // NORTH_Z would reach 0.5 m past the aisle edge, so this is
-      // deliberately tighter than the true footprint: you can brush a wing,
+      // ── THE KIND'S OWN COLLIDER, AT THE ANGLE THIS CAR ACTUALLY SITS AT ──
+      //
+      // *"not all car and object collidable boxes are consistent. some cars
+      //  have full height others are aligned with the vehicle."*
+      //
+      // This lot was the last place in the world where that was still true.
+      // Every car here got ONE untagged 2.8 x 4.0 box, full height, square to
+      // the world — whatever kind it was and whatever angle it sat at. Measured
+      // on the built bundle: 11 cars, 11 identical boxes, 1.12 m SHORTER than
+      // the pickup one of them wrapped, and square to the world while the car
+      // inside it was raked 31.5 degrees.
+      //
+      // Item 202c gave every `CarKind` ONE declared spec (`carColliderSpec`).
+      // This is that spec applied HERE too, so a lot pickup and a street pickup
+      // are finally the same object. Nothing about the shapes is new or local:
+      // they are the kind's tiers, and a hatch/van body is a full-height wall
+      // BY DECLARATION — "no flat panel between the pavement and the beltline,
+      // so there is nothing on them a standing jump can gain" (ct/cars.ts).
+      // Consistency here means every instance of a kind gets that kind's box,
+      // NOT that every car in the world ends up height-capped.
+      //
+      // `AABB.rot` is what makes this possible at all, and w81 was right to
+      // refuse the dominant-axis `carColliderBoxes()` for this lot: at 31.5 deg
+      // it snaps the box to the wrong world axis, which is worse than the bare
+      // box it would replace. A TURNED box is honoured by collision
+      // (`fp.ts` inFrame/outOfFrame), by the trap-band rule (`ct/gap.ts`) and by
+      // the V overlay the user filed this from (`ct/debug-collision.ts`) — all
+      // three, checked, or this would have shipped a wall the debug view draws
+      // in the wrong place.
+      //
+      // ⚠ THE AISLE/ACCURACY TRADEOFF THIS FILE USED TO MAKE IS GONE, AND THAT
+      // IS THE WHOLE POINT — `rot` dissolves it rather than balancing it.
+      //
+      // The old comment here gave up collider accuracy to buy aisle width: "A
+      // 1.8 x 4.6 car at 0.55 rad has a 3.9 x 4.9 BOUNDING BOX, which from
+      // NORTH_Z would reach 0.5 m past the aisle edge ... you can brush a wing,
       // and in exchange the 6.8 m you can see down stays 6.8 m you can walk
-      // down.
-      solid({ minX: x - 1.4, maxX: x + 1.4, minZ: z - 2.0, maxZ: z + 2.0 });
+      // down." Every word of that is true OF A BOUNDING BOX. It is not true of
+      // the car: a 3.9 x 4.9 axis-aligned box is what you need to CONTAIN a
+      // raked car, and most of it is empty corner. The turned rectangle is
+      // 2.1 x 5.2 and sits where the car actually is.
+      //
+      // So the honest answer is that there was never a trade to make here — the
+      // dominant-axis mapping just could not express it. MEASURED, with the
+      // kind's full declared spec at the real angle and NO clamp of any sort:
+      // the aisle a player can walk between the rows is 7.52 m, against the
+      // 6.8 m the lot is authored around and the 8.00 m the old under-sized box
+      // left. It is still wider than the promise, and the colliders are now the
+      // real ones.
+      //
+      // A CLAMP WAS TRIED AND REMOVED, deliberately, because it cost the thing
+      // the user actually asked for. Trimming the pickup and van to hold 8.00 m
+      // made a LOT pickup 0.194 m shorter than a STREET pickup — two shapes for
+      // one kind, which is *"seems like all trucks should be one object that are
+      // all the same no?"* re-created in a new place.
+      // scripts/probes/w72-car-collider-consistency.mjs caught it doing that.
+      {
+        const tiers = carColliderSpec(it.kind);
+        const cy = Math.cos(yaw), sy = Math.sin(yaw);
+        // ⚠ A JACKED CAR TILTS, AND lot.ts CANNOT SEE BY HOW MUCH. `makeCar`
+        // rolls the body inside an inner group (ct/cars.ts, `state.jack`), which
+        // lifts one corner ~0.10 m — so a height CAP on a jacked car would sit
+        // that much too low on the raised side. Today's jacked bay is a HATCH,
+        // whose spec is a full-height wall with no cap at all, so there is no
+        // cap here to be wrong. That is a fact about the current stock list, not
+        // a guarantee, so it is asserted rather than assumed:
+        // scripts/probes/w118-item231-lot-colliders.mjs fails if a jacked bay
+        // ever draws a kind that HAS a capped tier. Fixing it properly needs the
+        // tilt exported from ct/cars.ts, which item 231 does not name.
+        for (const t of tiers) {
+          const lx = (t.minX + t.maxX) / 2, lz = (t.minZ + t.maxZ) / 2;
+          // three's Ry(t) sends local (x, z) to (x cos t + z sin t, -x sin t + z cos t)
+          const wx = x + lx * cy + lz * sy, wz = z - lx * sy + lz * cy;
+          const hx = (t.maxX - t.minX) / 2, hz = (t.maxZ - t.minZ) / 2;
+          // Two physical surfaces must not answer to one name (item 202c): the
+          // SHAPE is the kind's, the NAME is per bay, so a harness building
+          // `Object.fromEntries` over the tags cannot silently resolve one lot
+          // car's roof to another's.
+          const box: AABB & { tag: string } = {
+            tag: `${t.tag}@lot${b}`,
+            minX: wx - hx, maxX: wx + hx,
+            minZ: wz - hz, maxZ: wz + hz,
+            rot: yaw,
+          };
+          if (t.maxY !== undefined) box.maxY = t.maxY;
+          solid(box);
+        }
+      }
       const g0 = new THREE.Group();
       g0.add(makeCar(it.kind, it.col, false, NOT_PARKED.get(b)));
       buyersGuide(g0);                                  // every car, by law
