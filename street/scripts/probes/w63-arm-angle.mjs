@@ -22,6 +22,7 @@
 //
 //   SHOT_URL=http://localhost:4190/ node scripts/probes/w63-arm-angle.mjs <tag>
 import { chromium } from 'playwright';
+import { waitPainted, blackFraction } from '../lib/painted.mjs';
 
 const URL = process.env.SHOT_URL;
 if (!URL) { console.error('set SHOT_URL to YOUR OWN server'); process.exit(3); }
@@ -46,7 +47,18 @@ await page.evaluate(() => {
   window.__ct.warp(p[0], p[2], 0, window.__ct.groundAt(p[0], p[2]), -1.25);
 });
 await page.waitForTimeout(900);
-await page.screenshot({ path: `/tmp/w63-arm-${TAG}.png` });
+// ITEM 181: WAIT FOR A FRAME THE RENDERER DREW, not for rAF. This item is one
+// of the two the desk named where LOOKING is the only proof available, so a
+// black frame here would not be a missing measurement — it would be a wrong
+// one, judged by eye and written into a handoff.
+await waitPainted(page, { quiet: true });
+const shotBuf = await page.screenshot({ path: `/tmp/w63-arm-${TAG}.png` });
+const voidFrac = await blackFraction(page, shotBuf);
+if (voidFrac > 0.9) {
+  console.error(`\n  the frame is ${(voidFrac * 100).toFixed(1)}% black — that is the void, `
+    + 'not the world. Nothing below describes anything.\n');
+  process.exit(3);      // measured NOTHING, which is not the same as measured BAD
+}
 
 // ── now hide the world and measure what is left ───────────────────────────
 await page.evaluate(() => {
