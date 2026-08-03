@@ -3551,6 +3551,26 @@ uniform float uPoolAmb;`)
     o.userData.litter = name;
     o.userData.groundY = gy;
     o.userData.halfX = hx;
+    // WHERE THIS PIECE WAS ASKED FOR, AND WHERE THIS FUNCTION PUT IT — recorded
+    // for item 225, which is the guard over item 219.
+    //
+    // A prop's final position is set in TWO places and they answer different
+    // questions. `authored*` is the literal argument at the call site below.
+    // `placed*` is where this function leaves it, after `clearOfKerb` and the
+    // building-line clamp above have had their deterministic say. Anything
+    // further is `dimWorld`'s push-out pass (:1240), which runs much later, and
+    // THAT is the stage that shoved three crates out of their own side panels.
+    //
+    // Published rather than re-derived by the check, because the alternative is
+    // fourteen hand-typed coordinate pairs in a harness — BUILDER-BRIEF §8's
+    // "a second hand-typed copy of a number is the single most expensive habit
+    // in this codebase", and a copy that would silently stop matching the day
+    // somebody nudges a piece. Two numbers per group, on a group that already
+    // carries four other fields, and nothing reads them at runtime.
+    o.userData.authoredX = x;
+    o.userData.authoredZ = z;
+    o.userData.placedX = cx;
+    o.userData.placedZ = z;
     // whether groundY came from surfaceY (street) or was handed in (the alley
     // slab). Only a street piece may have its height re-resolved if something
     // later nudges it — surfaceY would put an alley piece 13 cm in the air.

@@ -573,6 +573,31 @@ const CHECKS = [
   // the failure this column exists to make visible.
   ['footprint',        'does anything on the pavement clip the kerb?',     ['footprint', 'footprint-pits', 'footprint-water', 'footprint-blind', 'course-across']],
   ['trash',            'is the APPROVED litter set placed, seated, varied?', ['trash', 'trash-set'], ['probe']],
+  // REGISTERED 2026-08-03 (item 225). The guard over item 219, which was a prop
+  // pushing itself out of its own side panels — the litter tag sat on the GROUP
+  // while `dimWorld`'s obstacle test read the NODE, so a milk crate found its own
+  // four uprights and shoved itself clear, toward the road, which is how a crate
+  // walked into the user's thrift-shop doorway.
+  //
+  // THE TWO ROWS ABOVE WOULD NOT HAVE CAUGHT IT AND WERE RIGHT NOT TO. The crate
+  // was pushed OUT into clear pavement: `footprint` asks whether anything clips
+  // the kerb or sits inside a building and the answer was correctly no; `trash`
+  // asks whether the approved SET is placed and it was. Nothing anywhere asserted
+  // that a prop LANDS WHERE IT WAS PUT DOWN, so the repair was one careless edit
+  // from reverting in silence.
+  //
+  // Run by hand first: 5/5 in 1.6 s, no browser walking, so default tier. 14
+  // dropped props, 3 of them able to push themselves (the crates — flat litter
+  // never clears dimWorld's 0.25 m solid gate, which is why crates alone
+  // suffered), and 3 movers matching a recorded displacement baseline.
+  //
+  // BOTH KINDS OF PROOF, and they fail apart, which is the `masonry`/
+  // `masonry-blind` argument again. Its own `--selftest` displaces a crate at
+  // RUNTIME and proves the verdict can go red. The `litter-self-push` canfail
+  // case puts item 219 back in SOURCE — one `up === o &&` — rebuilds, and proves
+  // the check catches the actual bug rather than a symptom somebody planted.
+  ['prop-landing',     'does every dropped prop stand where it was put down?', true, [], false,
+    ['litter-self-push']],
   ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried'], ['probe']],
   ['park',             'is EVERY park lantern lit, and the loop walkable?', ['park', 'park-partial', 'park-walk', 'park-buried', 'park-sunk']],
   ['wetness',          'are puddles darker than the road they sit in?',    ['wetness', 'wet-blind'],  ['probe']],
