@@ -2785,3 +2785,12 @@ to one side.
   project never recovers them — but it now has no observable effect, so it drops below
   everything the user has actually reported. Kept because any future long frame
   resurfaces it.
+
+- **"for the atm why do we not use the number button at the bottom?"** (2026-08-02)
+  → **item 123 promoted to the top of the queue on his eye.** Answer: the 12-key pad is
+  drawn by `ct/bank.ts` (it is the cabinet, not the ATM software) with its layout as
+  literals inside a closure, so the diegetic work could not hit-test it and drew a PIN
+  pad on the CRT as a stand-in — flagged at the time rather than hidden. The obvious fix
+  closes an import cycle (`ct/bank.ts:8` imports `openAtm` from `ct/atm.ts`), which
+  GOTCHAS 28 records as silently dropping a module **from the built bundle only**: dev
+  perfect, ATM absent from the published artifact. Needs a third module.
