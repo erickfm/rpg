@@ -3257,3 +3257,27 @@ way. One misjudged item in this lane would cost more than the lane saves.
 are ONE LINE — symptom, file, the user's words, done-when. A 1,500-character brief
 for a one-number fix costs the desk time to write, the builder time to read, and
 its numbers rot within the hour.
+
+## 2026-08-03 16:20 — REGRESSION: the calendar will not open
+
+> "i can't look at the calendar if im looking right at it"
+
+**Routed to: worker onehundredtwentyfive, rank 0, spawned immediately.**
+
+**Caused by the desk's own item 291, landed 20 minutes earlier (`cafcb877c`).**
+That item did two things at once — moved the calendar's stand-point in
+`ct/apartment.ts` AND made the way-out outrank furniture in `fp.ts` /
+`crosstown.ts`. Which half broke it is for the builder to find; the desk is not
+guessing again.
+
+**The uncomfortable part: this is the exact case the desk wrote in as the guard
+rail, and item 291 reported it PROVEN — "stand at the calendar and face it, 5/5
+runs."** The user hit it on his first try. So the measurement is suspect as well
+as the change: whatever pose that probe stood in is not where a player actually
+ends up. Worker instructed to reproduce it the way he plays it — spawn, walk,
+look, press E — and explicitly NOT to re-run the old probe and call it fine.
+
+**Standing lesson for the desk:** 291 shipped two independent changes under one
+item because the desk wrote them into one row. A single-cause item would have
+been bisectable in seconds. Do not bundle a mechanism change with a coordinate
+change again.
