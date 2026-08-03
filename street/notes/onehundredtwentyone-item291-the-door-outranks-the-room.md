@@ -151,6 +151,25 @@ poses out of 150–230, under 9%.
 - `END ONE(a)`, `END ONE(b)`, both walk-happened legs, the bed-fires leg — ok
 - **the door-fires leg — 1/5.** See below.
 
+**The seated case, which is the one real hazard in ranking tier 2.** A seated
+player has NO tier 1 (`near` is switched off by `opts.seated`), so tier 2 is the
+whole contest — and rank now orders tier 2 ahead of aim-centredness. If a way out
+took a seated `[E]`, the press would fire a `jumpTo` out of the chair, which is
+BUILDER-BRIEF §11 territory. Measured across the whole population,
+`probes/w69-seated-offers.mjs` on the shipped build:
+
+```
+only standing up on offer : 126      something ALSO on offer : 0
+opened a machine, [ESC] out: 93      NO WAY OUT              : 0
+                            (219 of 219 accounted for)
+ok — every seat in the world names its exit while you are on it
+```
+
+**Zero seats anywhere offer a way out while you are sitting on them**, and the
+exit is named on all 219. The hazard is real in the code and absent in the world,
+because a seated `looked` is bounded by `s.r + REACH_MARGIN` and no threshold in
+this world is that close to a seat.
+
 **Other suites, on the built bundle:** `D-look-selects` 12 pass / 0 fail ·
 `interiors-walk` 365/369, 4 declared known-open, 0 unaccounted (apt301's clear
 run 2.2 m, the sacred lane intact) · `bugsweep` 96 shots, **0 STATION MISS, 0
