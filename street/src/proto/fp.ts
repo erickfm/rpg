@@ -141,6 +141,20 @@ const FALL_MIN_DROP = 0;
  *  0.45 m bench this puts you at 1.17, on a 0.71 m stool at 1.43. */
 export const SIT_EYE = 0.72;
 
+/** HOW FAR UP AND DOWN YOU CAN LOOK, radians off the horizon. 1.3 rad = 74.48°,
+ *  so you can never quite look at your own feet — the last 15.5° is the neck
+ *  you do not have.
+ *
+ *  EXPORTED BECAUSE SOMETHING OUTSIDE MEASURES BACK FROM IT. `crosstown.ts`
+ *  raises the wristwatch a couple of degrees off the bottom of this range
+ *  (*"to look at your watch you need to look straight down (couple deg of
+ *  tolerance)"*, 2026-08-03), and that gate has to be `PITCH_LIMIT` minus the
+ *  tolerance rather than a second hand-typed 1.3 — otherwise the day this
+ *  clamp moves, the watch silently stops being reachable at all, or opens
+ *  wide. BUILDER-BRIEF §8. It was three literals in this file alone before
+ *  this line existed. */
+export const PITCH_LIMIT = 1.3;
+
 /** Where a seat puts you. Modules describe seats through `ctx.seat()`; this is
  *  what the rig is actually handed. */
 export interface SeatPose {
@@ -508,12 +522,12 @@ export class FPRig {
     // convention: fwd = (sin yaw, 0, -cos yaw), so mouse-right = yaw INCREASES.
     if (input.mouseDX !== 0 || input.mouseDY !== 0) {
       this.yaw += input.mouseDX * 0.0022;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - input.mouseDY * 0.0022, -1.3, 1.3);
+      this.pitch = THREE.MathUtils.clamp(this.pitch - input.mouseDY * 0.0022, -PITCH_LIMIT, PITCH_LIMIT);
     }
     if (input.keys.has('arrowleft')) this.yaw -= dt * 1.7;
     if (input.keys.has('arrowright')) this.yaw += dt * 1.7;
-    if (input.keys.has('arrowup')) this.pitch = Math.min(1.3, this.pitch + dt * 1.2);
-    if (input.keys.has('arrowdown')) this.pitch = Math.max(-1.3, this.pitch - dt * 1.2);
+    if (input.keys.has('arrowup')) this.pitch = Math.min(PITCH_LIMIT, this.pitch + dt * 1.2);
+    if (input.keys.has('arrowdown')) this.pitch = Math.max(-PITCH_LIMIT, this.pitch - dt * 1.2);
 
     // ── seated: you can look, and that is all ──
     //
