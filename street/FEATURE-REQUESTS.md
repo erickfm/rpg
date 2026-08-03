@@ -3049,3 +3049,12 @@ to one side.
   supersedes 87.** SECOND report of this class, and this time he proposes the
   fix himself: one collider definition per vehicle kind. `ct/cars.ts` already
   has a `CarKind` type and `makeCar(kind, …)`.
+
+- **"the look of the slot machine is bad. i want it to look fun and lively and i
+  wantr to have the classic slot machine look and the classic slot machine
+  symbols."** (2026-08-02) → **routed as queue item 203.** The symbols are
+  already the classic set (`ct/slots.ts:45` — SEVEN, TRIPLE BAR, DOUBLE BAR,
+  BAR, CHERRY, BLANK on a real 22-stop reel), so this is about how they are
+  DRAWN. Likely relevant: `:818` states the palette is deliberately *"the
+  room's, read off `ct/int-casino.ts` rather than chosen"* — five muted casino
+  tones, which is the opposite of lively.
