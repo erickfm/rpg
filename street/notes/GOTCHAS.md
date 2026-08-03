@@ -2420,3 +2420,30 @@ should not be more aggressive than the reaper it wrote.**
 If a row genuinely must be taken back, prefer `claim.sh --release` (which returns
 it to TODO honestly) over hand-editing the row to DONE — and never write a cause
 into the row that you have not checked.
+
+## 84. A builder without an isolated worktree shares the tree the desk commits from
+
+The desk spawned worker `seventythree` and forgot the worktree isolation every
+other builder gets. It worked directly in `/home/erick/projects/rpg` — **the same
+tree the desk commits from, and the same one the user's live world serves.**
+
+Two ways that bites, and the desk was doing the first one:
+
+- **`git add -A` from the desk sweeps a builder's half-finished work into a desk
+  commit.** The desk had been staging with `git add -A` all session. It was pure
+  luck that the only files present at the time were untracked notes rather than a
+  half-edited `slots.ts`. **Stage explicit paths, always** — `git add
+  street/src/proto/ct/slots.ts`, never `-A`.
+- **The user plays this tree.** An isolated builder can leave a broken
+  intermediate state for twenty minutes; a shared-tree builder cannot, because
+  the live world at :5177 serves it immediately.
+
+Check before assuming isolation:
+
+```sh
+git -C .claude/worktrees/agent-<id> log -1     # no such directory => shared tree
+git status --porcelain                          # whose edits are these?
+```
+
+If a builder must share the tree, tell it explicitly: no `add -A`, small
+complete commits, never leave the tree unbuildable.
