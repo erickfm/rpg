@@ -743,6 +743,19 @@ const CHECKS = [
   // somebody's source; it is the one kind of test that a REFACTOR breaks
   // silently and a bug never does." (D)
   ['mutations-quote-real-source', 'do the mutation cases still quote source that exists?', true],
+  // And the other half of the same tool: does canfail REFUSE a selection it
+  // cannot honour? Costs no browser and one ~0.7 s build.
+  //
+  // The row above reads canfail's CASES table. A bad argument never reaches the
+  // table, so it cannot see the failure worker seventyeight found — `node
+  // scripts/canfail.mjs crowd` selecting zero cases and printing "0/0 checks
+  // caught their mutation", exit 0, in the one tool whose job is catching
+  // vacuous passes. That was fixed as item 224 and the fix was UNGUARDED;
+  // seventynine filed exactly that, and this is the row it asked for.
+  //
+  // It also guards item 229's needle pre-flight, which refuses a case whose
+  // quotation has rotted. Four had, for weeks. (eightyfour)
+  ['canfail-args', 'does canfail refuse a selection it cannot honour?', false],
   // The sibling of hashes-resolve, one axis over: every `file.ts:123` pointer we
   // write into a note or a comment still lands inside the file it names. Costs
   // no browser and no build.
