@@ -3181,7 +3181,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // x -1.15 and the chair is 0.45 wide, which leaves 0.01 m of margin, so
     // north to the wall was the only direction with room in it.
     const chairM = new THREE.MeshBasicMaterial({ color: 0x6b5033 });
-    box(0.42, 0.04, 0.40, -0.72, RY + 0.44, 5.12, chairM);
+    // THE SEAT PAN, named rather than left as four literals — the garment below
+    // has to land ON it, and item 249 is what happens when that relationship is
+    // arithmetic in someone's head instead of in the file (BUILDER-BRIEF §8).
+    const PAN_Y = RY + 0.44, PAN_T = 0.04;
+    const PAN_TOP = PAN_Y + PAN_T / 2;
+    box(0.42, PAN_T, 0.40, -0.72, PAN_Y, 5.12, chairM);
     for (const [lx, lz] of [[-0.54, 4.95], [-0.90, 4.95], [-0.54, 5.29], [-0.90, 5.29]] as [number, number][]) {
       box(0.05, 0.44, 0.05, lx, RY + 0.22, lz, chairM);
     }
@@ -3215,7 +3220,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // shirt's 0.26 m already reaches z 5.37 toward the wall; moving it back to
     // centre on the panel would spend clearance this chair does not have.
     box(0.40, 0.22, 0.26, -0.74, RY + 0.90, 5.24, new THREE.MeshBasicMaterial({ color: 0x3f5a6b }), 0.1);
-    box(0.34, 0.14, 0.22, -0.70, RY + 0.50, 5.08, new THREE.MeshBasicMaterial({ color: 0x7a5a4a }), -0.3);
+    // ── THE SECOND GARMENT (item 249) ────────────────────────────────────────
+    //
+    // Same family of fault as the shirt above, in the other direction: it was
+    // EMBEDDED rather than floating. Measured on the built world before touching
+    // it (`scripts/probes/w119-249-garment-vs-pan.mjs`):
+    //
+    //     seat pan     5.827 .. 5.867
+    //     garment      5.837 .. 5.977     bottom 0.030 m BELOW the pan's top
+    //
+    // So 3 cm of a 14 cm bundle was buried in a 4 cm pan — three quarters of the
+    // pan's whole thickness — and the frame is worse than the number: the pan
+    // disappears behind it and what is left reads as a loose brown flap hanging
+    // off the front of the chair, which is the same "separate rail" mistake the
+    // user photographed in item 146 wearing different clothes.
+    //
+    // DERIVED FROM THE PAN, not renumbered: its underside sits exactly on
+    // `PAN_TOP`. A hand-typed `RY + 0.53` would be the second copy of a number
+    // the pan already owns, and the next person to move the seat would leave
+    // this behind — which is precisely how it got 0.03 m out in the first place.
+    //
+    // x, z, SIZE AND YAW ARE ALL UNCHANGED, deliberately. The only thing wrong
+    // was the height, and this chair has 0.01 m of margin against the dresser
+    // collider and a door arc to clear (see the block above) — nudging it in
+    // plan to "drape" it over the front lip would spend clearance it does not
+    // have, and a solid box overhanging an edge is the FLOATING fault, which is
+    // the one the user has already reported twice.
+    const GARMENT_H = 0.14;
+    box(0.34, GARMENT_H, 0.22, -0.70, PAN_TOP + GARMENT_H / 2, 5.08,
+      new THREE.MeshBasicMaterial({ color: 0x7a5a4a }), -0.3);
     // ── the poster ───────────────────────────────────────────────────────
     // The user: *"what is this poster on the wall?"* — which on this project
     // has meant the same thing four times now: the object is drawn but it is
