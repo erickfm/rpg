@@ -17,10 +17,41 @@ It is not closed; it is insufficient on its own. Measured on `w40-bed-vs-door`:
 | rank only | **2** — the 0.42 m stride flipped from *"read the calendar"* to *"close the door"* |
 | rank + stand-point | **1**, and that one is red on mainline too |
 
-So rank is not the no-op the row supposed, and it is not the whole answer
-either. Ranking cannot win inside an `onIt` overlap — that part of worker
-onehundredsixteen's finding is correct and I re-derived it — but the overlap
-covers a 0.36 m ball, and rank decides everything outside it.
+So rank is not the no-op the row supposed. Ranking cannot win inside an `onIt`
+overlap — that part of worker onehundredsixteen's finding is correct and I
+re-derived it — but the overlap covers a 0.36 m ball, and rank decides everything
+outside it.
+
+### …AND THEN I TESTED THE FOURTH CELL, WHICH NOBODY HAD, AND IT CHANGES THE STORY
+
+I isolated rank by setting `WAY_OUT = 1 -> 0` and rebuilding — every declaration
+still in place, the ordering code still running, just nothing outranking anything.
+
+| tree | w40 red legs | the 301 acceptance poses |
+|---|---|---|
+| **stand-point only, no rank** | **1** (the flake) | **all green, 1/1 walked** |
+| stand-point + rank | 1 (the flake) | all green, 5/5 walked |
+
+**For flat 301, the stand-point move alone is sufficient. The desk was right that
+the fix is one number, and I should say so plainly rather than let the size of my
+diff imply otherwise.**
+
+Rank is therefore justified on its own terms, not as part of the 301 repair:
+
+- it is the user's **explicit, literal instruction**, and §6a says his words
+  outrank a diagnosis — including mine;
+- it is what makes the answer **general**. The stand-point move fixes one
+  calendar in one flat; `WAY_OUT` on the interior kit means the next room's door
+  outranks the next room's furniture without anyone measuring anything. The item
+  asked for exactly that;
+- it does real work elsewhere: **196 poses** across the world now offer the way
+  out where they offered a mailbox, a stool or a booth.
+
+If the desk wants the smallest possible change to 301, `apartment.ts` alone is
+it and the rank commit can be reverted independently (`0b0908ad6` is the only
+commit touching `fp.ts`/`ctx.ts`/`interior.ts`). I do not recommend that — the
+user asked for the rank in as many words — but it is a clean seam and somebody
+should know it is there.
 
 ## Where the desk's account and mine differ, with the source
 
