@@ -5,7 +5,8 @@
 //   WEST  z:  DINER 14.2..5.0 · MERIDIAN 5.0..-5.0 · LIBRARY -5..-21 ·
 //             BURGER BARN -21..-37 · [alley -37..-43.5] · LAUNDRY -43.5..-55.5 ·
 //             BARBER -55.5..-68 · THRIFT -68..-82 · GROCERY -82..-98
-//   EAST  z:  CAFE 14.2..3 · HARDWARE 3..-9 · A-1 TAX -9..-22 · LIQUOR -22..-35 ·
+//   EAST  z:  CAFE 14.2..3 · HARDWARE 3..-9 · A-1 TAX -9..-22 · SLEEP CENTER -22..-35 ·
+//   (the -22..-35 slot was LIQUOR until item 166 — same 13 m width, new identity)
 //             No.227 -35..-53 · PAWN -53..-65 · DELI -65..-76 · RECORDS -76..-86 ·
 //             BODEGA -86..-96
 //   NORTH2 x: FLOWERS 16.45..22.45 · CHOP SUEY 22.45..33.45 ·
@@ -69,7 +70,7 @@ const SHOTS = [
   // ── re-verify the standing findings against the re-cast world ──────────
   ['V-shopband-seam',     -2.0, -70.5, look(-2.0, -70.5, 7, -70.5), 0, 0.30],   // DELI, shop band top now y=4.2
   ['V-res-band-step',     -1.0, -53,   look(-1.0, -53, 7, -53),     0, 0.30],   // No.227(3.2) meets PAWN(4.2)
-  ['V-res-band-step-2',   -1.0, -35,   look(-1.0, -35, 7, -35),     0, 0.30],   // LIQUOR(4.2) meets No.227(3.2)
+  ['V-res-band-step-2',   -1.0, -35,   look(-1.0, -35, 7, -35),     0, 0.30],   // SLEEP CENTER(4.2), was LIQUOR, meets No.227(3.2)
   ['V-res-band-graze',     6.3, -30,   look(6.3, -30, 6.9, -60),    0.14, 0.20],
   ['V-endcap-east',       -1.5, -65,   look(-1.5, -65, 7, -65),     0, 0.35],   // PAWN 5fl vs DELI 3fl
   ['V-endcap-west',        1.5, -82,   look(1.5, -82, -7, -82),     0, 0.35],   // GROCERY 5fl vs THRIFT 4fl

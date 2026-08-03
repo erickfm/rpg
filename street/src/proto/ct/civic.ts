@@ -26,7 +26,7 @@ import { masonry } from './tex-world';
 // value. See the courtyard note in placeLibrary for why this appeared.
 export interface BldSpec {
   nm: string; col: string; w: number; brick: string; floors: number;
-  res?: boolean; kind?: 'library' | 'church'; front?: 'burger' | 'pawn' | 'tax';
+  res?: boolean; kind?: 'library' | 'church'; front?: 'burger' | 'pawn' | 'tax' | 'mattress';
 }
 
 /** The library forecourt, in world coordinates, filled in when the library is
