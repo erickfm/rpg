@@ -939,12 +939,62 @@ export function buildChurch(ctx: CtxBuild) {
   const roseT = declareSurface(pixTex(48, 72, (g) => {
     g.fillStyle = '#14120f'; g.fillRect(0, 0, 48, 72);
     const cols = ['#2f4a7a', '#7a2f38', '#8a6a2a', '#2f6a4a', '#5a2f6a'];
-    for (let y = 2; y < 70; y += 5) {
-      for (let x = 2; x < 46; x += 5) {
-        const dx = (x - 24) / 22, dy = (y - 36) / 34;
+    // ── THE MISALIGNMENT THE USER SAW. FIXED 2026-08-03, ITEM 92. ─────────
+    //
+    // *"[screenshot] would love more detail here, also the window is
+    // misaligned?"* — and the mesh was never the problem. Every one of the 14
+    // meshes on this wall measures dx = 0.0000 from the room's centre line, the
+    // rose plane and the crucifix included (`w93-item92-eastwall.mjs`). The
+    // window was off-centre INSIDE ITS OWN TEXTURE.
+    //
+    // The loop tested the ellipse against `(x, y)` — the tile's TOP-LEFT
+    // CORNER — and then drew the tile DOWN AND RIGHT of it with
+    // `fillRect(x, y, CELL, CELL)`. So a tile whose corner was just inside the
+    // rim got painted 4 px further out on the +x/+y side, and one whose corner
+    // was just outside was dropped even where most of its body lay within.
+    // The painted disc lands half a tile off centre, in both axes at once.
+    //
+    // Measured off the running texture (`w93-item92-rose-centroid.mjs`), and
+    // this is a 48 px canvas stretched over 2.4 m, so a pixel is 50 mm:
+    //
+    //     glass centroid   26.308, 38.780      canvas centre  24, 36
+    //     offset           +2.308, +2.780 px = +115 mm across, +139 mm up
+    //
+    // 115 mm of drift against a crucifix that is dead centre, on a 2.4 m
+    // window, seen head-on down the nave. He was right.
+    //
+    // The fix is to ask the ellipse about the tile's CENTRE, which is where the
+    // tile actually is. HALF is derived from CELL rather than typed, so a
+    // change of cell size cannot re-open this. Synthetic control in the probe:
+    // corner test -> centroid +2.308 px, centre test -> +0.000 px.
+    // ── AND THE ROSE WAS PAINTING IN ONE COLOUR. ITEM 92, 2026-08-03. ─────
+    //
+    // The other half of *"would love more detail here"*, and it was hiding in
+    // the same four lines. The colour index was `(x * 7 + y * 3) % cols.length`
+    // — and **x and y both step by 5 from a start of 2, so both are congruent
+    // to 2 (mod 5) at every single tile**:
+    //
+    //     x*7 mod 5 = 14 mod 5 = 4      constant
+    //     y*3 mod 5 =  6 mod 5 = 1      constant
+    //     (4 + 1) mod 5 = 0             ALWAYS cols[0], the blue
+    //
+    // Five jewel colours are declared above and exactly one of them was ever
+    // drawn. The comment eight lines up promises *"a rose reads as jewels in a
+    // dark room, which is exactly what it is for"*, and what shipped was a flat
+    // blue disc. A hash over coordinates that share the loop's own stride is
+    // not a hash — it is a constant, and this is the second time in this one
+    // texture that a pixel coordinate was used where a tile index was meant.
+    //
+    // So index by the TILE, `i` and `j`, which cannot alias with the stride.
+    // Coprime multipliers (3, 7) against 5 colours so neither rows nor columns
+    // fall into stripes.
+    const CELL = 4, HALF = CELL / 2;
+    for (let y = 2, j = 0; y < 70; y += 5, j++) {
+      for (let x = 2, i = 0; x < 46; x += 5, i++) {
+        const dx = (x + HALF - 24) / 22, dy = (y + HALF - 36) / 34;
         if (dx * dx + dy * dy > 1) continue;
-        g.fillStyle = cols[(x * 7 + y * 3) % cols.length];
-        g.fillRect(x, y, 4, 4);
+        g.fillStyle = cols[(i * 3 + j * 7) % cols.length];
+        g.fillRect(x, y, CELL, CELL);
       }
     }
   }), 'sign');
@@ -959,6 +1009,76 @@ export function buildChurch(ctx: CtxBuild) {
   // altar, cross, light, which is the order the crucifix comment below asks for
   // and could not have while the two overlapped.
   room.sign(roseT, 2.4, 3.6, 0, 6.6, -hd + 0.09);
+
+  // ── DRESSED STONE ON THE SANCTUARY WALL ──────────────────────────────
+  //
+  // The other half of item 92: *"would love more detail HERE"*, said of this
+  // wall. It was 13 m x 9.5 m of one flat plaster tone carrying three objects —
+  // rose, crucifix, lamp — with nothing between them and nothing to give the
+  // height a scale. A blank field that large reads as unfinished however good
+  // the things hung on it are.
+  //
+  // Everything below is DECORATION AND NOTHING ELSE: no `solid()`, so no
+  // collider, and the lowest piece sits at y 1.44 flat against a wall you
+  // cannot walk into anyway. Nothing here can trap anyone, which is the bar
+  // this project cares about.
+  //
+  // NO NEW TEXTURES, DELIBERATELY. Every piece takes one of the stone tones
+  // this file already mixes for the sanctuary furniture, so there is no canvas
+  // to declare a density for and nothing that can end up at the wrong px/m
+  // (BUILDER-BRIEF §7b). Dressed stone against plaster is a tone change, not a
+  // pattern.
+  {
+    // TONES PICKED BY LOOKING, NOT BY REASONING. My first pass used the
+    // sanctuary's `stoneLM` 0xa8a094 for the hood mould, on the argument that
+    // dressed stone is paler than plaster. In the frame the head and both jambs
+    // were INVISIBLE — 0xa8a094 against this wall's plaster is a difference the
+    // eye cannot find, and only the darker sill read at all. This world is
+    // unlit `MeshBasicMaterial`, so material colour IS rendered colour and
+    // there is no shading to rescue a near-miss; it is the same trap that hid
+    // the flat-301 mug handle by painting it the colour of the sill behind it
+    // (notes/eightyseven-item167-mug-handle.md). So the mould is the DARKER
+    // stone, which reads, and the lancet lights are paler than the plaster
+    // rather than paler than the mould.
+    const dressed = new THREE.MeshBasicMaterial({ color: 0x8a8478 });   // as the narthex stone
+    const dressedD = new THREE.MeshBasicMaterial({ color: 0x6e6a60 });  // as stoneD, for shadowed edges
+    const pale = new THREE.MeshBasicMaterial({ color: 0xc6c0b2 });      // paler than the plaster
+    const WZ = -hd + 0.12;            // proud of the rose's 0.09, behind the cross's 0.16
+    const slab = (m: THREE.Material, w: number, h: number, d: number,
+      lx: number, y: number) =>
+      put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), lx, y, WZ);
+
+    // A HOOD MOULD ROUND THE ROSE, and it is not only ornament: a window with a
+    // frame states its own centre, so the eye has something to check the
+    // crucifix against. The band is 0.20 m on every side of the 2.4 x 3.6
+    // opening, DERIVED from those two numbers rather than typed, so the frame
+    // cannot drift off the glass the way the glass drifted off the plane.
+    const RW = 2.4, RH = 3.6, RY = 6.6, BAND = 0.20;
+    slab(dressed, RW + 2 * BAND, BAND, 0.09, 0, RY + RH / 2 + BAND / 2);   // head
+    slab(dressed, RW + 2 * BAND, BAND, 0.09, 0, RY - RH / 2 - BAND / 2);   // sill
+    slab(dressed, BAND, RH, 0.09, -(RW / 2 + BAND / 2), RY);               // jamb, west
+    slab(dressed, BAND, RH, 0.09, +(RW / 2 + BAND / 2), RY);               // jamb, east
+    // the sill sticks out a little further, because a sill does
+    slab(dressedD, RW + 2 * BAND + 0.16, 0.08, 0.16, 0, RY - RH / 2 - BAND);
+
+    // A STRING COURSE, threaded UNDER the crucifix rather than through it. The
+    // cross runs y 1.745 to 4.355 and the tabernacle tops out at 1.27, so the
+    // one clear band on this wall is between them; 1.50 sits in the middle of
+    // it. A course at the more natural 2.6 m would have cut the corpus in half,
+    // which is the sort of thing that only shows up once it is built.
+    slab(dressedD, 12.6, 0.14, 0.10, 0, 1.50);
+
+    // FOUR BLIND LANCETS, two a side, answering the real lancets in E's facade
+    // outside — the same idiom the rose was painted in rather than glazed for.
+    // Kept clear of the crucifix, whose arms reach x +-0.75: the innermost pair
+    // stands at 2.0, so there is 1.0 m of plaster between cross and stone.
+    for (const sx of [-1, 1]) for (const [lx, top] of [[2.0, 4.15], [3.5, 3.85]] as const) {
+      const H = top - 2.05;
+      slab(dressed, 0.62, H, 0.05, sx * lx, 2.05 + H / 2);           // the surround
+      slab(pale, 0.46, H - 0.30, 0.07, sx * lx, 2.05 + (H - 0.30) / 2);     // its light
+      slab(dressedD, 0.30, 0.22, 0.08, sx * lx, 2.05 + H - 0.04);    // the head, squared off
+    }
+  }
 
   // ── …and the light it throws on the stone ─────────────────────────────
   //
