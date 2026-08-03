@@ -1005,12 +1005,21 @@ export function buildCivic(o: {
         end.position.set(bx + ex, KERB_H + 0.22, bz);
         scene.add(end);
       }
+      // THE SEAT IS THE TOP FACE, NOT THE CENTRE OF THE SLAT. `SLAT_MID` is
+      // where the slat's middle sits above the courtyard floor; you rest on
+      // half a thickness higher, and `seatLocal` below is handed THAT. This
+      // bench was registering the middle (a bare `h: 0.45`), which sat the
+      // player 0.025 m inside the woodwork — the same defect and the same fix
+      // as the park's benches, which were out by 0.080 m. Measured by sitting
+      // on all ten (`probes/w89-item106-sit-on-the-bench.mjs`), not reasoned.
+      const SLAT_T = 0.05, SLAT_MID = 0.45;
       for (let i = 0; i < 3; i++) {
-        const sl = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.05, 0.13),
+        const sl = new THREE.Mesh(new THREE.BoxGeometry(1.9, SLAT_T, 0.13),
           new THREE.MeshBasicMaterial({ color: SLAT[i % 2] }));
-        sl.position.set(bx, KERB_H + 0.45, bz - 0.17 + i * 0.17);
+        sl.position.set(bx, KERB_H + SLAT_MID, bz - 0.17 + i * 0.17);
         scene.add(sl);
       }
+      const SEAT_TOP = SLAT_MID + SLAT_T / 2;   // floor-relative, what fp.ts wants
       solid({ minX: bx - 0.95, maxX: bx + 0.95, minZ: bz - 0.28, maxZ: bz + 0.28 });
       // …and you can sit on it. The facing is the whole point of a courtyard
       // bench: its back is to the party wall, so it seats you looking INTO
@@ -1018,7 +1027,7 @@ export function buildCivic(o: {
       // s < 0 is the south bench, which faces north (+z) — and the reverse.
       const yaw = s < 0 ? Math.PI : 0;
       seatLocal({
-        x: bx, z: bz, yaw, h: 0.45,
+        x: bx, z: bz, yaw, h: SEAT_TOP,
         approach: { x: bx + Math.sin(yaw) * 0.95, z: bz - Math.cos(yaw) * 0.95 },
         label: 'sit on the bench',
       });
