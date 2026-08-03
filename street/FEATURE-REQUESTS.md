@@ -2806,3 +2806,14 @@ to one side.
   86 landing, the gate cleared hours ago, and the desk never promoted it — it sat 21st
   while every later report was ranked above it.** Now top of the queue with the framework
   seam guide cited.
+
+- **"church could be darker"** (2026-08-02) → **routed as queue item 145.**
+
+- **"inside door of the church is still mismatched from the doors outside"** (2026-08-02)
+  → **folded into item 105 as the decisive evidence.** THIRD door-match report (bank,
+  church, jail) and the SECOND on this door. Desk found why the earlier "fix" did not
+  take: `db8322269` hoisted `CHURCH_FACE` so five literals agreed about **where the door
+  is** — it never touched what the leaf **looks like**. And `scripts/doormatch12.mjs`
+  references the church five times, so the check covers it and passes. **The check
+  verifies POSITION and reports a match; the user is judging APPEARANCE.** That is the
+  whole class, and it is why he keeps seeing what our checks cannot.
