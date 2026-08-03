@@ -1865,14 +1865,19 @@ for (const spec of offBelt) {
 // item 287, build 8bd8ae3a1, `scripts/probes/w116-served-spots.mjs`.
 const DECLARED = [
   ['jail: the room keeps its own light after dark',
-    'ITEM 240, still TODO and unclaimed in the shared queue — NOT this suite\'s to settle. '
-    + '240 exists precisely because two workers reached OPPOSITE conclusions about this same '
-    + 'coordinate (1006.37, 2.42, -5.60): sixtyfour found 1/97 dimming stable over three runs, '
-    + 'seventyone called the row "false in every clause" (the cell daylight slot window, which '
-    + 'is MEANT to dim), and eightytwo then reproduced it 2/2 with a repaired sampler. '
-    + '240\'s own DONE WHEN requires a PIXEL measurement, because lamplight moved into POOL_FRAG '
-    + 'and a fragment shader is invisible to the `material.color` read this leg performs — so '
-    + 'this leg CANNOT be the instrument that settles it, in either direction.'],
+    'ITEM 240 — SAME SUBJECT, AND 240\'s COORDINATE IS OFF BY ONE WINDOW. Measured by '
+    + 'onehundredsixteen with `scripts/probes/w116-jail-which-material.mjs`, which runs this '
+    + 'leg\'s own day/dark comparison but PRINTS the material: the single dimming material sits '
+    + 'at (1006.37, 2.42, -9.40). Item 240 names (1006.37, 2.42, -5.60) — x and y agree TO THE '
+    + 'CENTIMETRE and only z differs by 3.8 m, so these are sibling slot windows in one run down '
+    + 'the cell wall, not two different findings. It goes #f0f3f6 by day -> #6c6f76 after dark, '
+    + 'and #6c6f76 is EXACTLY the night floor worker seventyone installed when it called item 210 '
+    + '"false in every clause". So the material is landing on its DESIGNED night value: the '
+    + 'evidence here favours seventyone, and this leg is asserting `dimmed === 0` in a room that '
+    + 'contains a window meant to dim. NOT SETTLED HERE, because both that probe and this leg read '
+    + '`material.color` from JS, and item 240\'s standing warning is that lamplight moved into '
+    + 'POOL_FRAG where a fragment shader is invisible to exactly that read. Whether the ROOM looks '
+    + 'dim to a player still needs 240\'s pixel measurement. 240 is TODO and unclaimed; leave it there.'],
 
   ['casino: the customer station comes from the world, not from memory',
     'The casino publishes NO spot matching this leg\'s /buy|order|serve|till|counter/i — 0 of 125 '
