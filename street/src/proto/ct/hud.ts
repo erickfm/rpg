@@ -1712,7 +1712,27 @@ export function makeHud(purse: Purse): Hud {
       // leave", one owned by the world and one by the machine. `panelUp()` is
       // this same module's own registry of what is open; nothing outside
       // hud.ts needs to know the fix happened.
-      if (text === null || panelUp()) { promptDiv!.style.display = 'none'; return; }
+      // AND IT CLEARS THE TEXT, NOT JUST THE DISPLAY. Hiding without clearing
+      // left the last caption in `textContent` indefinitely: worker eightyeight
+      // measured `[E] into the HOUSE OF DETENTION` still readable **40 m from
+      // the jail door**, after a real `w` nudge, with the element hidden.
+      //
+      // That is an instrument bug, and it contaminated instruments — 77 scripts
+      // read this element and 16 of them never look at `display`, so every one
+      // could report that the world was offering an interaction it was not.
+      // It cost eightyeight an hour of "making a correct world look
+      // impossible".
+      //
+      // Fixed HERE rather than in the readers deliberately: one line repairs
+      // all 77, where patching the 16 leaves the next reader to be written
+      // holding exactly the same loaded gun. Checked before changing it that
+      // nothing depends on the stale value — the only `#ct-prompt` mentions
+      // anywhere in `src/` outside this block are three comments.
+      if (text === null || panelUp()) {
+        promptDiv!.style.display = 'none';
+        promptDiv!.textContent = '';
+        return;
+      }
       promptDiv!.textContent = text;
       promptDiv!.style.display = 'block';
     },

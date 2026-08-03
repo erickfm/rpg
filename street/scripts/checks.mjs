@@ -1278,6 +1278,19 @@ const CHECKS = [
   // non-zero number of meshes, because the first version removed none and
   // "passed" by measuring an empty set.
   ['world-contained', 'is there anywhere in the WHOLE world the player can reach with no floor?', false, [], true],
+  // REGISTERED 2026-08-03 (w85, item 236). `ct/hud.ts` hid `#ct-prompt` without
+  // clearing its text, so the last caption lingered for ever — `[E] into the
+  // HOUSE OF DETENTION` still readable 40 m from the jail door. **77 scripts
+  // read that element and 16 never look at `display`**, so this was a bug in
+  // the instruments, not the world, and it made a correct world look impossible
+  // for an hour.
+  //
+  // The guard asserts the INVARIANT, hidden <=> empty, in BOTH directions: the
+  // mirror case (shown but empty) would catch a future `prompt()` that cleared
+  // the text and forgot to hide the box. Population floors on both — it must
+  // have seen the prompt shown somewhere and hidden somewhere, or it has
+  // measured nothing. Verified to fail: reverting the one line gives 18 ghosts.
+  ['prompt-not-a-ghost', 'is a HIDDEN [E] prompt always an EMPTY one?', false, []],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
