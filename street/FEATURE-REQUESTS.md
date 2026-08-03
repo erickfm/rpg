@@ -2950,3 +2950,16 @@ to one side.
   mine and does not move."* The same comment names the fix: *"If ct/street.ts
   ever lets a module own its site's ground, the crown can come off and the
   hollows can be real."*
+
+- **"[screenshot] people still get stuck. they should back up and allow the car
+  to pass"** (2026-08-02, a citizen pinned between the taxi and the kerb) →
+  **routed as queue item 173.** "Still" — a repeat. `ct/crowd.ts:21-26` describes
+  `citAvoid` as *"solid props people steer AROUND — trees, lamps, parked cars"*,
+  and `:197` already mentions people *"frozen on the carriageway either side of
+  a parked car."*
+
+- **"pedestrians sometimes clip into the fruit in the sidewalk outside the
+  bodega"** (2026-08-02) → **routed as queue item 174.** The produce crates are
+  built in `ct/bodega-corner.ts` (~439-473) and that module registers player
+  collision through a `solid()` callback; whether the crates are also added to
+  the crowd's separate `citAvoid` list is the thing to check first.
