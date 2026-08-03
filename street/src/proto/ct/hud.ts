@@ -526,8 +526,22 @@ export interface ScreenFocus {
    * required to report the loss rather than to sit there hoping.
    */
   enter: (o: { mesh: THREE.Object3D; standoff: number; fov: number; escape: () => void }) => void;
-  /** give the view, the look and the feet back */
-  leave: () => void;
+  /**
+   * Give the view, the look and the feet back.
+   *
+   * **Returns whether it put the player back in a CHAIR THEY ALREADY HELD**
+   * before the screen opened — see `close()`'s `seatedAtOpen` block, which is
+   * the only caller and which must not stand them up again on top of it.
+   *
+   * A boolean rather than nothing, because the two files know different halves
+   * of the question and neither can answer it alone. This one knows the player
+   * was seated when the panel opened; only the focus controller knows whether
+   * that seat was the player's own or one the screen took for itself, because
+   * only it called `rig.sit` and watched it early-return. Item 206 is exactly
+   * the cost of guessing: `leave()` re-seated the chair and this file stood the
+   * player straight back up, so fixing either side alone measured 9/13.
+   */
+  leave: () => boolean;
   /** where on the focused face is this client-space pointer? `null` = off it */
   pick: (clientX: number, clientY: number) => { u: number; v: number } | null;
 }
@@ -663,6 +677,48 @@ export interface Panel {
 
 const BEZEL = 14, CAPTION = 18, TITLE_H = 14;
 let livePanel: { spec: PanelSpec; close: () => void } | null = null;
+/**
+ * THE POINTER LOCK THE PANEL SYSTEM TOOK, AND OWES BACK.
+ *
+ * The user, item 277: *"when i exit overlays my mouse stops working as well."*
+ * Opening a diegetic panel calls `exitPointerLock()` — correct, you cannot click
+ * a screen with a pointer the browser has hidden and pinned to the middle of the
+ * canvas. **The half that was missing is the other one:** the entire source
+ * holds exactly one `requestPointerLock` (`main.ts:32`) and it hangs off a canvas
+ * CLICK, so nothing gave the lock back and the player had to work out for
+ * himself that he must click the world to get his camera back.
+ *
+ * MODULE-LEVEL, NOT PER PANEL, and that is the whole design. `open()` calls
+ * `closePanels()` before it raises anything, so a panel closing is routinely a
+ * panel being REPLACED — and the debt is owed by the SYSTEM, not by whichever
+ * cabinet happened to be up when the pointer was taken. Held per panel, a
+ * diegetic panel replaced by a screen-space one either re-locks the pointer
+ * underneath the new cabinet (measured: leg 10 of `scripts/pointer-returns.mjs`
+ * fails exactly this way) or drops the debt on the floor and leaves the mouse
+ * dead once the replacement closes. One slot, handed on, does neither.
+ *
+ * THE ELEMENT, NOT A BOOLEAN: this file has no idea which canvas the renderer
+ * owns and should not learn. `document.pointerLockElement` names it at the
+ * moment we take it, so giving it back is a call on the very thing that was
+ * locked — derived from the browser rather than a second copy of something
+ * `main.ts` owns (BUILDER-BRIEF §8).
+ *
+ * NULL MEANS "HE NEVER GAVE US ONE" — a player who has not clicked into the
+ * world, or a sandboxed artifact iframe where locking is refused outright. That
+ * case must never re-lock: seizing a pointer the player never surrendered is a
+ * worse bug than the one this fixes.
+ */
+let pendingLock: Element | null = null;
+/**
+ * Non-zero while a panel is CLEARING THE WAY for itself.
+ *
+ * `open()`'s prologue closes whatever is up before raising the new cabinet, so
+ * a `close()` running inside it is a hand-over rather than an exit. The pointer
+ * must NOT come back there: the player is not returning to the world, he is
+ * being shown a different screen. Without this the swap re-locks between the two
+ * and the pointer ends up hidden under the incoming cabinet.
+ */
+let raising = 0;
 let gateOn = false;
 let backdrop: HTMLDivElement | null = null;
 
@@ -1122,9 +1178,18 @@ export function makePanel(spec: PanelSpec): Panel {
       // objects that predate this framework. The wallet and the pockets sit at
       // the bottom of the same frame a cabinet fills; stepping up to a machine
       // with your wallet still out is not a state this world should have.
-      closePanels();
-      LIVE?.closeWallet();
-      closeHeld();
+      // CLEARING THE WAY IS NOT AN EXIT. Everything in here can close something,
+      // and a close that happens because a new cabinet is coming up is a
+      // hand-over: the player is not being returned to the world, he is being
+      // shown a different screen. `raising` is what lets `close()` tell the two
+      // apart, so the pointer is not handed back between them and re-taken
+      // underneath the incoming panel. See `pendingLock`.
+      raising++;
+      try {
+        closePanels();
+        LIVE?.closeWallet();
+        closeHeld();
+      } finally { raising--; }
       open = true;
       // THE WAY OUT IS RECORDED AT THE MOMENT THE WAY IN HAPPENS. `release` on
       // the spec is the standing one; `open({ release })` is for a caller whose
@@ -1241,6 +1306,17 @@ export function makePanel(spec: PanelSpec): Panel {
         wrap!.style.opacity = '1';
         // GIVE THE MOUSE BACK. You cannot click a screen with a pointer the
         // browser has hidden and pinned to the middle of the canvas.
+        //
+        // REMEMBERED BEFORE IT IS RELEASED, because after the call
+        // `document.pointerLockElement` is null and the answer is gone. `close()`
+        // hands it back — see `pendingLock`.
+        //
+        // ONLY IF THERE IS ONE TO RECORD. A second diegetic panel opening over
+        // the first finds the pointer ALREADY released, and `?? null` here would
+        // overwrite a real debt with nothing — the mouse would then stay dead
+        // after the replacement closed, which is the user's complaint reached by
+        // a different road.
+        if (document.pointerLockElement) pendingLock = document.pointerLockElement;
         try { document.exitPointerLock?.(); } catch { /* never locked */ }
         cursorHand(false);
         // THE WAY OUT, handed to the controller at the moment the way in
@@ -1282,6 +1358,11 @@ export function makePanel(spec: PanelSpec): Panel {
     close: () => {
       if (!open) return;
       open = false;
+      // DID THE FOCUS CONTROLLER GIVE THE PLAYER THEIR OWN CHAIR BACK? Item
+      // 206. Set by `FOCUS.leave()` below, read by the `seatedAtOpen` block at
+      // the foot of this function. `false` for a screen-space panel, which has
+      // no focus controller and so restored nothing.
+      let keptTheirChair = false;
       dismissedAt = performance.now();
       wrap!.style.opacity = '0';
       if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(.94)';
@@ -1315,12 +1396,75 @@ export function makePanel(spec: PanelSpec): Panel {
         wrap!.style.top = '50%';
         wrap!.style.bottom = 'auto';
         wrap!.style.transform = frameless ? 'translate(-50%,-50%)' : 'translate(-50%,-50%) scale(.94)';
-        try { FOCUS?.leave(); } catch (err) { console.error(`[panel ${spec.id}] leaving the screen threw:`, err); }
+        try { keptTheirChair = FOCUS?.leave() === true; } catch (err) { console.error(`[panel ${spec.id}] leaving the screen threw:`, err); }
       }
       if (livePanel && livePanel.spec === spec) {
         livePanel = null;
         gateUp(false);
         backdropUp(false);
+      }
+      // ── GIVE THE POINTER BACK, the other half of the release in `open()` ──
+      //
+      // Item 277. Placed HERE, immediately after the gate comes down and before
+      // any caller code runs, for three reasons:
+      //
+      //  · `gateUp(false)` has just stopped swallowing clicks, so the world is
+      //    ready to be looked at again; re-locking any earlier would fight the
+      //    gate that exists to keep the world from hearing anything.
+      //  · It is ahead of `undo()`, `stand()` and `onClose()`, all of which are
+      //    CALLER code that can throw. Those three are individually wrapped
+      //    precisely because a caller must not be able to leave the player
+      //    trapped — and a dead mouse is exactly that trap in a quieter form.
+      //  · Every exit path in this world funnels through `close()`: `[E]`,
+      //    Escape, the ATM's own farewell timeout, and closing while seated.
+      //    Putting the re-lock on the one path they share is why it cannot be
+      //    forgotten by one of them, which is how the release came to have no
+      //    partner in the first place.
+      //
+      // BOTH GUARDS ARE LOAD-BEARING AND THEY CATCH DIFFERENT THINGS.
+      //
+      // `!livePanel` — some other cabinet already took the gate over while this
+      //   one was closing. Handing the pointer back would pin it under an
+      //   interface the player is being asked to read.
+      // `!raising`  — a new cabinet is being raised RIGHT NOW, inside `open()`'s
+      //   prologue, and has not claimed `livePanel` yet. This is the one that
+      //   was missing: without it, closing a diegetic panel to open a
+      //   SCREEN-SPACE one re-locks in the gap between the two, and the pointer
+      //   ends up hidden and pinned under the incoming cabinet. Measured — it is
+      //   leg 10 of `scripts/pointer-returns.mjs`, which failed on the first cut
+      //   of this fix and is why the debt moved to a module-level slot.
+      //
+      // The debt is NOT cleared when it is not paid: `pendingLock` survives the
+      // hand-over so whichever cabinet is last to close gives the pointer back.
+      //
+      // `isConnected`, because interiors are rebuilt as the player moves and a
+      // canvas detached from the document cannot take a lock; asking anyway
+      // throws where nobody is listening.
+      if (pendingLock && !livePanel && !raising && pendingLock.isConnected) {
+        const el = pendingLock as HTMLElement; pendingLock = null;
+        // A SANDBOXED IFRAME REFUSES THE LOCK, and the artifact falls back to
+        // drag-look. Failing to re-lock there is correct and must stay silent.
+        //
+        // ⚠ THE SYNCHRONOUS `catch` ALONE IS NOT ENOUGH, AND `main.ts:32` HAS
+        // THE SAME HOLE. Measured in a frame sandboxed without
+        // `allow-pointer-lock` (`scripts/probes/w109-lock-returns-promise.mjs`):
+        // `requestPointerLock()` returns a **Promise** and throws NOTHING
+        // synchronously, so `try { … } catch {}` catches nothing and the
+        // rejection surfaces as an UNCAUGHT pageerror —
+        //
+        //     try/catch only        2 errors, one of them PAGEERROR: Failed to
+        //                           execute 'requestPointerLock' … Blocked
+        //     try/catch + .catch()  1 error, the browser's own console note
+        //
+        // — every single time an overlay closed in the published artifact. This
+        // is `close()`, the callback that un-traps the player, so an uncaught
+        // throw here is §11 territory rather than a log line. The older DOM
+        // signature returns `undefined`, hence the `typeof` test rather than an
+        // assumption either way.
+        try {
+          const r = el.requestPointerLock?.() as unknown as Promise<void> | undefined;
+          if (r && typeof r.catch === 'function') r.catch(() => { /* refused: drag-look still works */ });
+        } catch { /* sandboxed iframe: drag-look still works */ }
       }
       // RELEASE BEFORE onClose, and inside a try, because THIS is the callback
       // that un-traps the player. A caller whose release throws must not be
@@ -1328,11 +1472,30 @@ export function makePanel(spec: PanelSpec): Panel {
       // the shape of the bug this exists to prevent, one layer up.
       const undo = exit; exit = null;
       try { undo?.(); } catch (err) { console.error(`[panel ${spec.id}] release threw:`, err); }
+      // ── THE STRUCTURAL STAND-UP, AND THE ONE CASE IT MUST NOT FIRE IN ─────
+      //
+      // The guarantee above still stands: a panel opened from a seat cannot
+      // leave the player somewhere a forgetful `release` stranded them.
+      //
+      // But it was firing on the player's OWN chair too, and that is item 206:
+      // *"you sit and its the loan process as an integrated overlay."* Sitting
+      // down, reading the form, closing it and finding yourself standing up is
+      // not that. `FOCUS.leave()` had already put the chair back by the time
+      // this ran — three lines later this stood them up again, which is why
+      // fixing `crosstown.ts` alone was inert and measured 9/13
+      // (`scripts/probes/w107-seat-keeps-you.mjs`, and it is 13/13 with both).
+      //
+      // ⚠ THE GUARANTEE IS NOT WEAKENED, because the case being skipped is the
+      // one where the player is provably not stranded: they are back on a seat
+      // THEY chose and walked to, whose own `[E]`/`[ESC]` contract stood them
+      // up before any panel existed. Everything else — a machine that seated
+      // you, a screen-space panel with no focus controller at all — still
+      // stands you up exactly as before.
       if (seatedAtOpen) {
         seatedAtOpen = false;
         try {
           const ct = (window as unknown as { __ct?: { seated?: () => unknown; stand?: () => void } }).__ct;
-          if (ct?.seated?.()) ct.stand?.();
+          if (!keptTheirChair && ct?.seated?.()) ct.stand?.();
         } catch (err) { console.error(`[panel ${spec.id}] could not stand the player up:`, err); }
       }
       try { spec.onClose?.(); } catch (err) { console.error(`[panel ${spec.id}] onClose threw:`, err); }

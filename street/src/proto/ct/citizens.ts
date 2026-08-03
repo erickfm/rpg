@@ -12,6 +12,27 @@ import { pixTex } from './paint';
 // Everyone is drawn the same way: same rim shading, same face, same care.
 
 export const FW = 32, FH = 64;
+
+/** The sprite plane's height in metres. Was a local `const H = 1.9` inside
+ *  `citizenPlane` and a hand-typed `1.9` in three comments; hoisted because the
+ *  seated knee below has to convert texels to metres with the SAME number. */
+export const SPRITE_H_M = 1.9;
+
+/**
+ * HOW FAR FORWARD OF THE HIP THE SEATED ART ITSELF REACHES.
+ *
+ * The profile shin is drawn at `cx - KNEE`, so a seated figure's leg already
+ * extends this far ahead of wherever its origin was placed. **This is the whole
+ * reason `seatFwd` must not also move the body forward by the seat's depth** —
+ * see the derivation on `seatFwd` in `CitizenSprite`'s options.
+ *
+ * 12 texels was chosen (item 272) so the shin clears a diner bench's front face,
+ * which stands `0.55 / 2 = 0.275 m` ahead of a sitter placed at the bench
+ * CENTRE. A knee at 8 (0.238 m) would not clear it; 12 gives 0.356 m.
+ */
+export const SEATED_KNEE_TEXELS = 12;
+/** …the same reach in metres, derived rather than retyped (BUILDER-BRIEF §8). */
+export const SEATED_KNEE_M = SEATED_KNEE_TEXELS * SPRITE_H_M / FH;   // 0.356 m
 export type Fit = 'plain' | 'cap' | 'dress' | 'hoodie' | 'coat';
 export type HairCut = 'short' | 'crop' | 'long' | 'tied' | 'bald';
 
@@ -43,6 +64,21 @@ export interface Look {
    *  and ten rooms each applying their own offset is exactly how the 12 cm
    *  float happened. */
   seated?: boolean;
+  /** ONE HAND UP, holding something overhead — an umbrella, today.
+   *
+   *  The user, on the umbrella: *"umbrella looks so janky."* Item 271 fixed the
+   *  canopy and named what it could not reach from `ct/crowd.ts`: **both arms
+   *  still hang at the sides, so nobody appears to be holding the thing.**
+   *
+   *  OPTIONAL AND DEFAULTS TO FALSE, which matters more than the pose does.
+   *  Every caller of this atlas inherits every field on `Look`, and there are
+   *  ten interiors plus the crowd plus the hermit — so an arm that went up by
+   *  default would change the whole world to fix one prop. Omit it and this
+   *  function paints exactly what it painted before, texel for texel.
+   *
+   *  It is a POSE, not a prop: nothing about an umbrella is drawn here, and a
+   *  figure carrying a box or reaching for a shelf would use the same field. */
+  holdUp?: boolean;
 }
 
 /** multiply a hex colour — used so the eyes and the hair shadow stay in the
@@ -74,6 +110,42 @@ export function citizenAtlas(o: Look): THREE.Texture {
    *  Hip row 44 gives (59-44)/64 * 1.9 = 0.445 m, inside half a texel of the
    *  commonest seat. Measured against the world, not reasoned from the sheet. */
   const SEAT_DROP = 6;
+  const holdUp = o.holdUp ?? false;
+  /**
+   * WHERE A RAISED FIST LANDS, in frame rows — DERIVED, then looked at.
+   *
+   * `ct/crowd.ts` hangs the umbrella's hem `UMB_CLEAR = 0.30 m` above this
+   * figure's crown, and paints the grip `UMB_GRIP 30 − UMB_HEM 17 = 13` sheet
+   * rows below that hem at `UMB_M/UMB_PX = 1.14/38 = 0.03 m` a row. So the
+   * grip sits `0.39 − 0.30 = 0.09 m` **below the crown**. This plane is 1.9 m
+   * over `FH` rows — 0.0297 m a row — so 0.09 m is **3 rows**, and the shaft is
+   * in front of rows −2 … 11 with the crown at row 8.
+   *
+   * **A hand on that shaft therefore has to be at head height**, and anywhere
+   * in rows −2…11 is on it. That is not a compromise made to fit the sprite; it
+   * is what holding a canopy 30 cm over your own head looks like.
+   *
+   * ⚠ **ROW 7 WAS WRONG AND THE SHEET SAID SO.** It is on the shaft and it is
+   * level with the temple, so the fist landed in the hair — dark on dark, gone
+   * — and the forearm crossed the cheek. `shots/w107-sheet-salute.png`: it read
+   * as a SALUTE, which is the wrong gesture drawn correctly. Row 3 is still on
+   * the shaft and it is **above the crown** (the skull starts at row 8, the
+   * hair and any cap at row 4), so the fist closes against the sky where it is
+   * legible, and the forearm crosses the top of the head instead of the face.
+   * Found by printing the sheet, not by reasoning — this is the row the item
+   * says to judge by looking.
+   *
+   * ⚠ **CITED, NOT IMPORTED, and it cannot be otherwise.** `ct/crowd.ts:3`
+   * imports THIS file, so importing `UMB_GRIP` back closes a cycle — and
+   * GOTCHAS §28 is that a module in a cycle can be dropped from the **built
+   * bundle only**, which would take the whole crowd out of the artifact while
+   * dev looked perfect. `scripts/probes/w107-hand-on-shaft.mjs` measures the
+   * fist against the shaft in the running world instead, so the two cannot
+   * drift apart in silence.
+   */
+  const HOLD_ROW = 3;
+  /** the crown — below it the raised arm stays OUTSIDE the head's silhouette */
+  const HOLD_CLEAR = 8;
   const build = o.build ?? 0;
   const strideMax = o.stride ?? 3;
   const tw = 7 + build;            // torso half-width: 6, 7 or 8
@@ -98,35 +170,66 @@ export function citizenAtlas(o: Look): THREE.Texture {
         // fix for a STANDING profile having exactly one leg: at stride 0 the two
         // legs were both drawn at cx-2, i.e. on top of each other.
         const legOff = stride + 1;
+        // ── WHERE A SEATED LEG GOES, AND WHY IT IS NOT WHERE IT WAS ──────────
+        //
+        // Item 272. The user: *"people sitting still looks bad because they
+        // have no legs??"* **The legs were painted the whole time.** What was
+        // wrong is WHICH ROWS they were painted on.
+        //
+        // `citizenPlane` puts the seated origin at the HIP, and a room places
+        // that origin on the SEAT TOP it already registered. So the origin row
+        // IS the seat's top face, and every row this block drew *below* it was
+        // inside the furniture. The old block drew rows 44…59 — i.e. all of it,
+        // 100%, under the seat line.
+        //
+        // Measured in the diner rather than reasoned from the sheet
+        // (`scripts/probes/w112-seated-legs-census.mjs`): the sprite's leg band
+        // ran y −0.144 … 0.450 against a bench whose top face is at 0.450 and
+        // whose front face stands **0.22 m nearer the aisle than the sprite
+        // plane**. Hiding just those two bench boxes at runtime brought the
+        // legs straight back (`w112-is-it-occlusion.mjs`), which is what makes
+        // this OCCLUSION and not missing art — and rules out the two cheaper
+        // hypotheses, that the `seated` flag was unset or the figure too high.
+        //
+        // So the thigh now goes ABOVE the origin row, resting on the seat where
+        // a sitter's thigh is, and the shin drops FORWARD of the seat's front
+        // edge, where a sitter's shin is. The sizing is derived from the seats
+        // that exist, the same way SEAT_DROP was: a booth bench is 0.55 m deep,
+        // so its front face is 0.275 m ahead of a sitter placed at the bench
+        // centre, and 0.275 m is 9.3 texels at this sprite's 1.9 m / 64 rows.
+        // A knee at 12 clears it; a knee at 8 would not.
+        //
+        // AND THE PROFILE POINTED OUT OF HIS BACK. The unmirrored profile faces
+        // LEFT — the nose at cx−7, the eye at cx−4, the standing shoe's toe at
+        // ankle−7 all say so — and the old thigh ran from cx−2 to cx+8, to the
+        // RIGHT. GOTCHAS 33 again: anything with a front ends up backwards.
+        const SEAT = oy + 38 + SEAT_DROP;   // the origin row: the seat's top face
+        const FOOT_Y = oy + 59;             // the floor. Unchanged — feet still land
+        const THIGH = 6;                    // rows of thigh above the seat, ~0.18 m
+        const KNEE = SEATED_KNEE_TEXELS;    // texels FORWARD of the hip, ~0.36 m
         g.fillStyle = pantsC;
         if (seated) {
-          // ── SEATED LEGS: hip 47, knee forward, shin down to the same 59 ──
-          //
-          // Drawn BEFORE the upper body's translate, so these rows are the
-          // frame's own. The feet do not move: a seated person's shoes are on
-          // the floor, which is why the sprite still reaches row 59 and why
-          // nothing about the standing figure's footprint changes.
-          const HIP = oy + 38 + SEAT_DROP, KNEE_Y = HIP, FOOT = oy + 59;
           if (view === 2) {
-            // side on: the whole thigh shows, running forward from the hip
+            // Side on, and this is the view the aisle actually gives you: the
+            // thigh runs forward along the seat, the shin drops in front of it.
             g.fillStyle = shade(pantsC, 0.62);
-            g.fillRect(cx - 2, HIP, 10, 6);              // far thigh
+            g.fillRect(cx - KNEE, SEAT - THIGH, KNEE + 2, THIGH);        // far thigh
+            g.fillRect(cx - KNEE, SEAT, 4, FOOT_Y - SEAT);               // far shin
             g.fillStyle = pantsC;
-            g.fillRect(cx - 3, HIP + 1, 10, 6);          // near thigh, over it
-            g.fillStyle = shade(pantsC, 0.62);
-            g.fillRect(cx + 4, KNEE_Y + 6, 4, FOOT - KNEE_Y - 6);
-            g.fillStyle = pantsC;
-            g.fillRect(cx + 3, KNEE_Y + 7, 4, FOOT - KNEE_Y - 7);
+            g.fillRect(cx - KNEE - 1, SEAT - THIGH + 1, KNEE + 2, THIGH); // near thigh, over it
+            g.fillRect(cx - KNEE - 1, SEAT + 1, 4, FOOT_Y - SEAT - 1);    // near shin
           } else {
             // FORESHORTENED, and this is the half the leg-only attempt got
             // wrong: from the front a lap is a WIDE SHORT MASS at hip height,
             // not two verticals. The knees are the nearest thing to the
-            // viewer, so the thigh reads as width rather than length.
-            const lapW = tw * 2 - 2;
-            g.fillRect(cx - Math.floor(lapW / 2), HIP, lapW, 6);
+            // viewer, so the thigh reads as width rather than length — and it
+            // has to be WIDER than the torso or the torso paints over all of
+            // it, which is what happens at `tw * 2 - 2`.
+            const lapW = tw * 2 + 6;
+            g.fillRect(cx - Math.floor(lapW / 2), SEAT - THIGH, lapW, THIGH);
             g.fillStyle = shade(pantsC, view >= 3 ? 0.72 : 0.9);
-            g.fillRect(cx - 5, KNEE_Y + 6, 4, FOOT - KNEE_Y - 6);
-            g.fillRect(cx + 1, KNEE_Y + 6, 4, FOOT - KNEE_Y - 6);
+            g.fillRect(cx - 6, SEAT, 5, FOOT_Y - SEAT);
+            g.fillRect(cx + 1, SEAT, 5, FOOT_Y - SEAT);
           }
           g.fillStyle = pantsC;
         } else if (view === 2) {
@@ -145,7 +248,24 @@ export function citizenAtlas(o: Look): THREE.Texture {
           g.fillRect(cx + 1 + stride, oy + 38, 4, 21);
         }
         g.fillStyle = '#16161a';
-        if (view === 2) {
+        if (seated) {
+          // A SEATED SHOE GOES UNDER ITS OWN SHIN, not under the body. The old
+          // block fell through to the standing cases below and put both shoes
+          // beneath the hip while the shins were somewhere else entirely —
+          // which is why the sheet read as a standing figure with its legs
+          // lopped off. Same rows (57…59) either way, so the sprite still
+          // reaches the floor and nothing about its footprint changes.
+          if (view === 2) {
+            // 6 texels rather than the standing 8: the profile shoe is now at
+            // cx − KNEE − 4 and 8 would start at cx − 17, one texel INTO THE
+            // NEIGHBOURING FRAME of the atlas. A 0.18 m shoe seen slightly
+            // foreshortened is the honest thing to draw in the room that is left.
+            g.fillRect(cx - KNEE - 4, oy + 57, 6, 3);
+          } else {
+            g.fillRect(cx - 7, oy + 57, 6, 3);
+            g.fillRect(cx + 1, oy + 57, 6, 3);
+          }
+        } else if (view === 2) {
           // PROFILE FEET, third attempt. The shape is what was wrong, not the
           // placement: it spanned cx-5 … cx+6 around a leg at cx-2 … cx+2, so
           // it stuck out about as far behind the ankle as in front of it. A
@@ -185,7 +305,21 @@ export function citizenAtlas(o: Look): THREE.Texture {
         // already drawn above. The leg-only attempt failed precisely here: the
         // profile read as sitting and the other four did not, because the head
         // stayed at standing height (shots/seated.png, before this).
-        if (seated) g.translate(0, SEAT_DROP);
+        //
+        // …AND IN PROFILE IT ALSO COMES BACK. `SEAT_BACK` is the other half of
+        // the leg fix and it is not decoration: the profile torso is drawn
+        // `tw * 2` wide — the SHOULDER width, 12-16 texels — so a knee 12
+        // texels forward of the hip pokes out by only `12 − tw`, i.e. 4 texels
+        // on a broad build. The thigh then lands in the same columns as the
+        // shin below it and the whole leg reads as one vertical bar, which is
+        // exactly what the broad coated customer looked like on the first pass
+        // (`shots/w112-zoom-0-try2.png`, kept: it is the failure this fixes).
+        // Setting the upper body 3 texels back — 0.09 m, and a sitter does lean
+        // back — buys the thigh 3 more texels of daylight and turns the bar
+        // into an L. Profile only: in the other four views the horizontal axis
+        // is not the direction he faces, so a shift there would just move him.
+        const SEAT_BACK = 3;
+        if (seated) g.translate(view === 2 ? SEAT_BACK : 0, SEAT_DROP);
         // ── torso ─────────────────────────────────────────────────────
         const torsoBot = fit === 'coat' ? 45 : 39;
         g.fillStyle = jacket;
@@ -223,15 +357,76 @@ export function citizenAtlas(o: Look): THREE.Texture {
         }
         // ── arms ──────────────────────────────────────────────────────
         g.fillStyle = jacket;
-        const armBot = fit === 'coat' ? 40 : 36;
-        if (view === 2) {
-          g.fillRect(cx - 2, oy + 21, 4, armBot - 21);
-          g.fillStyle = skin; g.fillRect(cx - 2, oy + armBot, 4, 3);
-        } else {
-          g.fillRect(cx - tw - 3, oy + 21, 3, armBot - 21);
-          g.fillRect(cx + tw, oy + 21, 3, armBot - 21);
+        // A SEATED ARM DOES NOT HANG TO THE SEAT. It was the arms, not the
+        // torso, that hid the seated lap: jacket runs from row 21 to `armBot`
+        // and the hand three rows past that, at cx±(tw…tw+3) — the exact texels
+        // a thigh has to protrude through. Standing, that is right. Seated at a
+        // table it is not: the forearm comes up and forward onto the table, and
+        // 31 puts the hand at rows 37-40, clear of the seat line at 44 with the
+        // lap showing under it. Every seated figure in the world is at a table,
+        // a desk, a counter or a pew rail. (Item 272.)
+        const armBot = seated ? 31 : (fit === 'coat' ? 40 : 36);
+        const SHOULDER = oy + 21;
+        /** An arm that leaves the shoulder at `sx` and closes its fist on the
+         *  shaft, above the head, at `HOLD_ROW`.
+         *
+         *  TWO SEGMENTS, NOT ONE EASED SWEEP, and the sheet is why. A single
+         *  interpolation from shoulder to centre — squared, cubed, any of them
+         *  — has the forearm crossing the FACE, because the hand is inboard of
+         *  the shoulder and the head is in between. Printed at 6x it read as a
+         *  salute (`shots/w107-sheet-salute.png`).
+         *
+         *  So the upper arm goes straight up OUTSIDE the head's silhouette to
+         *  the crown, and only the forearm turns in, above everything. That is
+         *  also what the limb actually does: elbow out, forearm over the head,
+         *  hand on the shaft.
+         *
+         *  Drawn a row at a time so the staircase is hard pixels rather than an
+         *  arc `NearestFilter` would only fight — the same reasoning the
+         *  umbrella's own dome is drawn with. */
+        const reachUp = (sx: number, w: number) => {
+          const endX = cx - Math.floor(w / 2);
+          g.fillStyle = jacket;
+          for (let row = 21; row >= HOLD_ROW; row--) {
+            const t = row > HOLD_CLEAR ? 0
+              : (HOLD_CLEAR - row) / (HOLD_CLEAR - HOLD_ROW);
+            g.fillRect(Math.round(sx + (endX - sx) * t), oy + row, w, 1);
+          }
+          // the fist, closed round the shaft — the same skin block the hanging
+          // hand uses, so a hand is a hand whichever way the arm goes
           g.fillStyle = skin;
-          g.fillRect(cx - tw - 3, oy + armBot, 3, 3); g.fillRect(cx + tw, oy + armBot, 3, 3);
+          g.fillRect(endX, oy + HOLD_ROW - 1, w, 3);
+        };
+        // ⚠ THE RAISED ARM IS DRAWN LAST, NOT HERE. Arms come before the head
+        // in this function, and a hand that finishes at row 7 with a forearm
+        // crossing rows 8-20 would be painted over by the skull, the hair, the
+        // cap brim and the hood in turn — the limb would vanish behind the head
+        // and the fist would lose its bottom row. So the raise is deferred to
+        // the foot of the frame, after everything on the head is down.
+        let raise: (() => void) | null = null;
+        if (view === 2) {
+          if (holdUp) raise = () => reachUp(cx - 2, 4);
+          else {
+            g.fillRect(cx - 2, oy + 21, 4, armBot - 21);
+            g.fillStyle = skin; g.fillRect(cx - 2, oy + armBot, 4, 3);
+          }
+        } else {
+          // ONE ARM GOES UP AND THE OTHER KEEPS HANGING. Both up is surrender,
+          // and it is also wrong: a person under an umbrella has a spare hand.
+          // The +x arm is the raised one — the lit side, and the side the
+          // canopy's own highlight is on (`ct/crowd.ts`'s flanks put the light
+          // on the right), so the two agree about where the sun is. `viewFor`
+          // mirrors this column for the far profile, which turns it into the
+          // −x arm there — the same physical arm seen from the other side,
+          // which is what a mirror is for.
+          g.fillRect(cx - tw - 3, oy + 21, 3, armBot - 21);
+          g.fillStyle = skin; g.fillRect(cx - tw - 3, oy + armBot, 3, 3);
+          if (holdUp) raise = () => reachUp(cx + tw, 3);
+          else {
+            g.fillStyle = jacket;
+            g.fillRect(cx + tw, oy + 21, 3, armBot - 21);
+            g.fillStyle = skin; g.fillRect(cx + tw, oy + armBot, 3, 3);
+          }
         }
         // ── head ──────────────────────────────────────────────────────
         g.fillStyle = skin;
@@ -404,7 +599,15 @@ export function citizenAtlas(o: Look): THREE.Texture {
         else if (view === 1) { g.fillRect(cx - 4, oy + 13, 2, 2); g.fillRect(cx + 1, oy + 13, 2, 2); }
         else if (view === 2) { g.fillRect(cx - 4, oy + 13, 2, 2); g.fillStyle = skin; g.fillRect(cx - 7, oy + 14, 2, 3); }
         if (view <= 1) { g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(cx - 2, oy + 17, 5, 1); }
-        if (seated) g.translate(0, -SEAT_DROP);   // put the frame back
+        // …and NOW the raised arm, in front of the head and everything on it.
+        // See the note beside `raise` in the arms block for why it waits.
+        raise?.();
+        // put the frame back — BOTH axes, and the x term must mirror the one
+        // above exactly. There is no save()/restore() in this loop; the next
+        // view would inherit whatever is left here, and 10 frames of creeping
+        // offset is a defect that looks like a paint bug rather than a
+        // bookkeeping one.
+        if (seated) g.translate(view === 2 ? -SEAT_BACK : 0, -SEAT_DROP);
       }
     }
   });
@@ -450,7 +653,7 @@ export function viewFor(rel: number): [number, boolean] {
  *  separately would have left the street and the interiors 12 cm apart.
  */
 export function citizenPlane(seated = false): THREE.PlaneGeometry {
-  const H = 1.9;
+  const H = SPRITE_H_M;
   const PAD_ROWS = 4;                        // empty rows under the shoe
   const geo = new THREE.PlaneGeometry(0.95, H);
   // ── WHERE THE ORIGIN SITS, AND WHY IT MOVES WHEN SEATED ────────────────
@@ -531,6 +734,59 @@ export function citizenSprite(look: Look, o: {
   h?: number; w?: number;
   /** steps per second while walking; long legs swing slower */
   cadence?: number;
+  /**
+   * Stand this far FORWARD of the placed origin, along `facing`, in metres.
+   *
+   * ── WHY THIS EXISTS ────────────────────────────────────────────────────
+   * *"people sitting still looks bad because they have no legs??"* — the user,
+   * 2026-08-03. A seated figure is ONE FLAT BILLBOARD whose origin is the hip,
+   * and a room places that hip at the seat's own centre. The legs are then
+   * drawn from the hip down to the floor, which is precisely the volume the
+   * cushion occupies — and because the plane billboards about a vertical axis
+   * through the hip, THERE IS NO HORIZONTAL DIRECTION FROM WHICH THEY ARE
+   * OUTSIDE THE SEAT. Worker onehundredeight proved that with one camera and
+   * two frames (only the furniture's `visible` flipped): furniture shown, the
+   * sitters are cut off dead level with the bench top; furniture hidden, both
+   * have full legs and both feet on the floor.
+   *
+   * So it cannot be fixed by redrawing the atlas — the furthest-forward seated
+   * pixel reaches 0.21 m against a 0.275 m bench half-depth, and every pixel a
+   * single billboard paints is at the hip's depth anyway. It is a PLACEMENT
+   * fault, and this is the placement.
+   *
+   * ── IT IS OPT-IN, AND THAT IS THE WHOLE DESIGN ─────────────────────────
+   * The obvious version of this is one constant applied to every seated sprite.
+   * **That is wrong, and 14 photographs say so.** Of the world's 14 seated
+   * figures, six are occluded by a DESK, TABLE or SLOT MACHINE in front of them
+   * — the bank's loan officer, three library readers, the church's pew sitter,
+   * the casino's slot players — and for those, hiding the legs is CORRECT: it
+   * is what sitting at a table looks like. A blanket offset drives their torsos
+   * into the furniture they are sitting at, which is a regression the user
+   * would see in three more rooms than the one he complained about.
+   *
+   * So the caller opts in, and passes a value DERIVED FROM THE SEAT IT OWNS
+   * (`BENCH_W / 2`, `BENCH_D / 2 - SIT_OFF`, …) rather than a constant typed
+   * here. Only the rooms where the SEAT ITSELF is the occluder pass anything.
+   *
+   * ── AND IT IS APPLIED IN `update()`, WHICH IS THE SAFETY ARGUMENT ──────
+   * Two callers claim an occupied seat by reading `mesh.position` BACK after
+   * placing it (`ct/interior.ts` room.person, `ct/int-casino.ts` sitter), and
+   * `seatTaken`'s tolerance is 0.30 m — deliberately small, because casino
+   * lounge seats are 0.65 m apart. A build-time offset of the natural size
+   * (0.275 m) leaves 2.5 cm of that tolerance and any deeper seat spends it
+   * outright, which would silently undo item 93 and offer the player a stool a
+   * man is already sitting on.
+   *
+   * Both claims happen at BUILD time, immediately after `place()`/`put()`.
+   * `update()` does not run until the first frame, which is strictly later — so
+   * the registry records the TRUE seat exactly as it does today and that 2.5 cm
+   * is never spent. Verified, not assumed: the 219-entry seat-offer vector is
+   * byte-identical before and after this change.
+   *
+   * It cannot accumulate: every frame writes `base + offset`, never
+   * `position += offset`. `base` is captured once, on the first update.
+   */
+  seatFwd?: number;
 } = {}): CitizenSprite {
   const tex = citizenAtlas(look);
   tex.repeat.set(1 / 5, 1 / 2);
@@ -568,6 +824,83 @@ export function citizenSprite(look: Look, o: {
   let sector = -1;
   let anim = 0;
   const cad = o.cadence ?? 5;
+  // see `seatFwd` above. `base` is the position the ROOM placed, captured on
+  // the first update and never written again, so the offset is idempotent.
+  //
+  // ── THE SAME 0.275 m WAS BEING CORRECTED TWICE (item 286) ─────────────────
+  //
+  // Items 272 and 280 were two fixes for ONE user complaint — *"people sitting
+  // still looks bad because they have no legs??"* — written by different people
+  // and landed within a day of each other. Each was verified alone; neither was
+  // verified against the other, and they overlap EXACTLY:
+  //
+  //   · 280 (this option) moves the BODY forward by half the seat's depth —
+  //     "put the hip on the front lip of the seat", the rule every adopter
+  //     states verbatim (int-diner `BENCH_W/2`, int-jail `BENCH_D/2` and
+  //     `bunkL/2`, int-casino `BENCH_D/2 - SIT_OFF`).
+  //   · 272 draws the SHIN `SEATED_KNEE_M` (0.356 m) forward of the hip — and
+  //     that 12-texel knee was sized, in this file's own words above, to clear a
+  //     bench front face "0.275 m ahead of a sitter placed at the bench CENTRE".
+  //
+  // So the art already assumes the hip is at the seat's centre and reaches past
+  // the lip on its own. Adding the body offset on top spent the same half-depth
+  // a second time: in the diner it put both sitters' hips exactly on the table
+  // edge (bench centre ±0.655 → ±0.38, and the table spans ±0.38) and their
+  // shins at ±0.02 — i.e. both pairs of legs interpenetrating on the booth
+  // centreline, under the middle of the table.
+  //
+  // THE FIX IS NOT TO PICK A WINNER. Both are right about something: the redraw
+  // is right that the legs belong in front of the cushion, and the offset is
+  // right that SOME seats are too deep for any 64-row sprite to reach across.
+  // So the offset now supplies only what the ART CANNOT — the seat's half-depth
+  // MINUS the knee's own reach, clamped at zero:
+  //
+  //   diner        0.275 - 0.356 -> 0        the redraw already clears it
+  //   jail bench   0.210 - 0.356 -> 0                    "
+  //   casino lounge 0.115 - 0.356 -> 0                   "
+  //   jail bunk    0.960 - 0.356 -> 0.604    a 1.92 m bunk genuinely needs it
+  //
+  // Rooms keep passing the seat's half-depth, which is what all four already
+  // pass and what the option has always meant to them; the reconciliation lives
+  // here, in the one file that knows how far the art reaches, so a room that
+  // changes its bench depth cannot reintroduce the double count.
+  //
+  // ⚠ IT IS A THRESHOLD, NOT A SUBTRACTION, AND I TRIED IT THE OTHER WAY FIRST.
+  //
+  // Subtracting the reach (`halfDepth - 0.356`) leaves the shin EXACTLY coplanar
+  // with the seat's front face — zero clearance — and subtracting the reference
+  // depth (`halfDepth - 0.275`) leaves only 0.081 m. Both are fine on a bench
+  // you pass side-on, where the front face is a thin edge. Both FAILED on the
+  // jail bunk, the one seat in this world a player can only view straight down
+  // its own axis: a 1.92 m mattress slab is then a full-height occluder standing
+  // directly between the sitter and the corridor, and it swallowed the leg
+  // again at 0.604 and still at 0.685. Photographed all three ways from the same
+  // vantage — `shots/w115-bunk-z045-PREFIX.png` (0.960, whole leg and shoe),
+  // `w115-bunk-fixed.png` (0.604, shoe only) and `w115-bunk-z045-v2.png` (0.685,
+  // shoe and a sliver). Item 280's author reached the same wall from the other
+  // side, recording that `- 0.26` "hid his legs exactly as before".
+  //
+  // So the question is not how much to shave off; it is WHETHER THE ART CAN
+  // REACH PAST THIS SEAT'S FRONT FACE AT ALL:
+  //
+  //   · it can (halfDepth <= SEATED_KNEE_M) -> the redraw already does the whole
+  //     job and the body must NOT move, because the offset then spends the same
+  //     half-depth twice and pushes the legs past the furniture into whatever is
+  //     in front of it — in the diner, the opposite sitter.
+  //   · it cannot (halfDepth > SEATED_KNEE_M) -> no 64-row sprite can cross this
+  //     seat, the offset is doing work the art cannot, and the room's placement
+  //     stands untouched.
+  //
+  //   diner        0.275 <= 0.356 -> 0        the redraw clears it
+  //   jail bench   0.210 <= 0.356 -> 0                  "
+  //   casino lounge 0.115 <= 0.356 -> 0                 "
+  //   jail bunk    0.960 >  0.356 -> 0.960    unchanged; 280's fix survives intact
+  //
+  // This keeps BOTH landed fixes doing exactly the thing each was verified for,
+  // and removes only the overlap between them.
+  const askedFwd = o.seatFwd ?? 0;
+  const seatFwd = askedFwd > SEATED_KNEE_M ? askedFwd : 0;
+  let base: THREE.Vector3 | null = null;
   return {
     mesh,
     // kept in step with the closure — a published value that stops updating is
@@ -575,6 +908,14 @@ export function citizenSprite(look: Look, o: {
     setFacing: (rad) => { facing = rad; mesh.userData.citizenFacing = rad; },
     setWalking: (on) => { walking = on; },
     update: (px, pz, dt = 0) => {
+      // FORWARD OF THE SEAT, before anything reads the position — the billboard
+      // must turn about where the figure ENDS UP, not about where it was placed.
+      // `facing` is atan2(vx, vz), so forward is (sin f, 0, cos f).
+      if (seatFwd) {
+        if (!base) base = mesh.position.clone();
+        mesh.position.set(base.x + Math.sin(facing) * seatFwd, base.y,
+          base.z + Math.cos(facing) * seatFwd);
+      }
       const camAng = Math.atan2(px - mesh.position.x, pz - mesh.position.z);
       mesh.rotation.y = camAng;               // the plane turns to face you
       // Hysteresis on the view, and it is not optional: rounding the heading to

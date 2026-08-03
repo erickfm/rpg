@@ -295,9 +295,14 @@ export function buildCasino(ctx: CtxBuild): void {
   // registered, never a hand offset", because five modules each applying their
   // own is how the 12 cm float happened. The number below is the stool top this
   // file already draws at, not a nudge.
+  // `seatFwd` is the fourth thing this bypass has to pass through by hand, and
+  // it is OPT-IN for a reason: the four slot players sit at MACHINES, which are
+  // supposed to hide their legs, and only the lounge bench eats them. See
+  // ct/citizens.ts. (Item 280.)
   const sitter = (look: Parameters<typeof citizenSprite>[0],
-                  lx: number, lz: number, seatTop: number, facing: number) => {
-    const s = citizenSprite({ ...look, seated: true }, { facing, h: 1.0, w: 1.0 });
+                  lx: number, lz: number, seatTop: number, facing: number,
+                  seatFwd = 0) => {
+    const s = citizenSprite({ ...look, seated: true }, { facing, h: 1.0, w: 1.0, seatFwd });
     put(s.mesh, lx, seatTop, lz);
     // TAG IT, same as room.person() does (ct/interior.ts). This bypasses the
     // kit wrapper on purpose — a sitter needs the SEAT TOP, not the floor —
@@ -936,7 +941,14 @@ export function buildCasino(ctx: CtxBuild): void {
     // Look, placed at the seat top this block already declares, no y fudge.
     sitter({ jacket: '#3a3a44', pants: '#2a2830', skin: '#c9a184', hair: '#3a2a1e',
       fit: 'coat', cut: 'short', build: 1 },
-    BX - SIT_OFF, LOUNGE_Z - 0.325, SEAT_TOP, -Math.PI / 2);
+    BX - SIT_OFF, LOUNGE_Z - 0.325, SEAT_TOP, -Math.PI / 2,
+    // …forward to the front lip of the bench. He is already SIT_OFF in from the
+    // centre, so what is left is the rest of the half-depth — 0.115 m, the
+    // smallest offset in the world and still the difference between a man on a
+    // bench and a torso behind one. DERIVED from the two constants this block
+    // already declares; the census measured exactly this number off the built
+    // world, which is the check that they agree. (Item 280.)
+    BENCH_D / 2 - SIT_OFF);
     // a standing ashtray between the benches and the door, against the wall
     for (const sx of [-1, 1]) {
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.62, 8),

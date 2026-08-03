@@ -183,7 +183,12 @@ export function buildLibrary(ctx: CtxBuild): void {
   const metal = new THREE.MeshBasicMaterial({ color: 0x6e6f6a });
 
   /** a box, in local coordinates, sized in metres */
-  const box = (w: number, h: number, d: number, m: THREE.Material,
+  // `m` takes an ARRAY as well as a single material, which is what
+  // `THREE.Mesh` has always accepted — `boxFace` below already had to build its
+  // own `new THREE.Mesh` purely because this signature refused one. A bay end
+  // needs grain on TWO opposite faces (item 273), which is one face more than
+  // `boxFace` can express and no reason at all for a third helper.
+  const box = (w: number, h: number, d: number, m: THREE.Material | THREE.Material[],
     lx: number, y: number, lz: number) =>
     put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), lx, y, lz);
 
@@ -287,11 +292,99 @@ export function buildLibrary(ctx: CtxBuild): void {
   // the desk and the catalogue have the room, and short of the back wall so
   // the aisle returns.
   const BAY_H = 1.95, BAY_D = 0.52;
-  const stack = (lx: number, lz0: number, lz1: number, seed: number) => {
+
+  // ══ THE END PANELS — *"some bookshelves are flat?"* (item 273) ═══════════
+  //
+  // MEASURED FIRST, because the row's stated cause is wrong and it matters
+  // which. The row points at ct/int-library.ts:302-308, the ±π/2 book-plane
+  // rotation this file has been bitten by once already. **Every book plane in
+  // this room is oriented correctly** — `scripts/probes/w107-library-blank.mjs`
+  // reads all of them and the only planes whose normal runs along z are the
+  // BACK-WALL run's, which is where its books belong. Not one is on the end of
+  // a bay pointing down an aisle. That bug is fixed and stayed fixed.
+  //
+  // WHAT HE IS ACTUALLY LOOKING AT is the bay END: `BoxGeometry(0.52, 1.95,
+  // 0.06)` in flat `wood`, **1.01 m² of untextured colour**, standing square
+  // across the mouth of every aisle. The census finds **twenty** of them,
+  // 20.2 m² in total, and they are the largest blank thing in the room after
+  // the gallery deck.
+  //
+  // AND ITEM 115 DOUBLED THEM HOURS AGO. It cut a 1.70 m cross aisle through
+  // the stacks — the right fix, and its own measurements hold — but splitting
+  // five runs into ten stacks turns 10 end panels into 20, and puts ten of them
+  // square across the new route. `shots/w107-lib-before-cross.png` is that: two
+  // slabs of flat brown filling the frame down a corridor built to be walked.
+  //
+  // THE FIX IS NOT DEPTH AND NOT A BOX. The row is explicit and so is the
+  // previous author: the books are planes on purpose and stay planes. What is
+  // wrong is that a face nothing painted was left to be read as a face. Two
+  // things, both of which this file already owns the tools for:
+  //
+  //   · GRAIN, from A's `slabTex`, on the two big faces — the room's own note
+  //     at :218 says *"any large blank surface left in the room takes A's
+  //     slabTex"* and the end panels are the surfaces it was written about.
+  //     One material, shared: every end panel in the room is the same
+  //     0.52 × 1.95 m face, so 40 faces need one texture, not forty.
+  //   · A RANGE PLATE. Grain alone makes it a nicer blank panel. A stack end
+  //     in a real branch library carries the Dewey band it holds, and that is
+  //     what makes the object read as *the end of the 800s* rather than as a
+  //     board — and it tells the player which way to walk, which is the whole
+  //     point of the cross aisle item 115 cut.
+  //
+  // Nothing here touches an aisle. STACK_PITCH, AISLE and CROSS are unchanged,
+  // the panel is the same 0.06 m board it was, and the plate stands 8 mm proud
+  // of it — 1.55 m stays 1.55 m, as item 115's note requires.
+  const END_T = 0.06;
+  const endGrain = grained(BAY_D, BAY_H, '#6b5334');
+  /** face order is [+x, −x, +y, −y, +z, −z]; a ±z face of a (w, h, d) box
+   *  presents (w, h) = (0.52, 1.95), which is what `endGrain` was cut for. */
+  const endMatsZ: THREE.Material[] = [wood, wood, wood, wood, endGrain, endGrain];
+  /** …and a ±x face of a (d, h, w) box presents the same two metres. */
+  const endMatsX: THREE.Material[] = [endGrain, endGrain, wood, wood, wood, wood];
+
+  // The plate: a cream card in a dark holder, 0.36 × 0.22 m on a 54 × 33 canvas
+  // — exactly 150 px/m on BOTH axes, derived from the metres rather than
+  // accepted from a default (§7b). It is denser than the room's 32 px/m walls
+  // on purpose and for the same reason `shelfTex` is: this is read from a metre
+  // away, and a Dewey band nobody can spell is not a sign.
+  const PLATE_W = 0.36, PLATE_H = 0.22, PLATE_PPM = 150;
+  const plateTex = (band: string, name: string) => {
+    const Wp = Math.round(PLATE_W * PLATE_PPM), Hp = Math.round(PLATE_H * PLATE_PPM);
+    return declareSurface(pixTex(Wp, Hp, (g) => {
+      g.fillStyle = '#3a352c'; g.fillRect(0, 0, Wp, Hp);              // the holder
+      g.fillStyle = '#ded8c4'; g.fillRect(2, 2, Wp - 4, Hp - 4);      // the card
+      g.fillStyle = '#c9c2ac'; g.fillRect(2, Hp - 5, Wp - 4, 3);      // a shadow in the holder
+      hardLayerLib(g, '#2b2a26', (h) => {
+        h.fillStyle = '#2b2a26';
+        h.textAlign = 'center'; h.textBaseline = 'middle';
+        h.font = 'bold 13px monospace'; h.fillText(band, Wp / 2, 12);
+        h.font = 'bold 8px monospace'; h.fillText(name, Wp / 2, 25);
+      });
+      dither(g, Wp, Hp, 24);
+    }), 'sign');
+  };
+
+  const stack = (lx: number, lz0: number, lz1: number, seed: number,
+    band: string, name: string) => {
     const len = lz1 - lz0, cz = (lz0 + lz1) / 2;
     box(BAY_D, 0.1, len, woodDark, lx, 0.05, cz);                       // the kick
-    box(BAY_D, BAY_H, 0.06, wood, lx, BAY_H / 2, lz0);                  // the ends
-    box(BAY_D, BAY_H, 0.06, wood, lx, BAY_H / 2, lz1);
+    // THE TWO ENDS, and their plates. `out` is which way this end looks, so the
+    // plate's rotation is derived from it rather than written twice — GOTCHAS
+    // §41: a mirrored pair is where the bug hides, and `ctx.flat` is not
+    // double-sided, so getting it wrong here leaves an INVISIBLE plate rather
+    // than a backwards one, which is worse to spot.
+    for (const [lz, out] of [[lz0, -1], [lz1, 1]] as [number, number][]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(BAY_D, BAY_H, END_T), endMatsZ),
+        lx, BAY_H / 2, lz);
+      const plate = new THREE.Mesh(new THREE.PlaneGeometry(PLATE_W, PLATE_H),
+        ctx.flat(plateTex(band, name)));
+      plate.rotation.y = out > 0 ? 0 : Math.PI;
+      plate.userData.stackPlate = band;
+      // 1.50 m: above the top shelf's books (1.76 is their top edge, 1.56 the
+      // board) would put it on the crown; a real end-panel holder sits at the
+      // height you read standing, and this is it.
+      put(plate, lx, 1.50, lz + out * (END_T / 2 + 0.008));
+    }
     box(0.06, BAY_H, len, wood, lx, BAY_H / 2, cz);                     // the spine board
     for (let i = 0; i < 4; i++) {                                       // four shelves a side
       // 0.42 apart, not 0.45: at 0.45 the top shelf's books stood at 2.05 m
@@ -365,10 +458,29 @@ export function buildLibrary(ctx: CtxBuild): void {
   const AISLE = STACK_PITCH - (BAY_D + 0.08);   // 1.55 m, collider face to collider face
   const CROSS = AISLE + 0.15;                   // 1.70 m — wider than what it joins
   const zMid = (zBack + zFront) / 2;
+  // WHAT IS ON EACH STACK, so the end plates say something true. The Dewey
+  // hundreds, ten bands over ten stacks, ascending west to east and — within a
+  // run — from the half you meet first walking in from the hall to the half
+  // behind the cross aisle. That is how a branch actually numbers its ranges,
+  // and it means the plates are a route as well as a label: the cross aisle
+  // item 115 cut is now something you can navigate BY rather than merely walk
+  // through. Ten entries for ten stacks; the loop indexes them, so a sixth run
+  // would fail to compile rather than silently repeat the 800s.
+  const DEWEY: [string, string][] = [
+    ['000-099', 'GENERAL'],    ['100-199', 'PHILOSOPHY'],
+    ['200-299', 'RELIGION'],   ['300-399', 'SOCIAL SCI'],
+    ['400-499', 'LANGUAGE'],   ['500-599', 'SCIENCE'],
+    ['600-699', 'TECHNOLOGY'], ['700-799', 'THE ARTS'],
+    ['800-899', 'LITERATURE'], ['900-999', 'HISTORY'],
+  ];
   for (let i = 0; i < 5; i++) {
     const lx = -W / 2 + 2.4 + i * STACK_PITCH;
-    stack(lx, zBack, zMid - CROSS / 2, 0x2a01 + i * 131);
-    stack(lx, zMid + CROSS / 2, zFront, 0x2b07 + i * 131);
+    const [frontBand, frontName] = DEWEY[i * 2];
+    const [backBand, backName] = DEWEY[i * 2 + 1];
+    // zFront is the hall end, zBack the back wall — so the FRONT half takes the
+    // lower band of the pair.
+    stack(lx, zBack, zMid - CROSS / 2, 0x2a01 + i * 131, backBand, backName);
+    stack(lx, zMid + CROSS / 2, zFront, 0x2b07 + i * 131, frontBand, frontName);
   }
 
   // ── SHELVING AGAINST A WALL, one face of books ───────────────────────────
@@ -396,7 +508,14 @@ export function buildLibrary(ctx: CtxBuild): void {
     for (const e of [-len / 2, len / 2]) {                             // the ends
       const [ew, ed] = size(0.06, BAY_D);
       const [e0, e1] = at(e, 0);
-      box(ew, BAY_H, ed, wood, e0, base + BAY_H / 2, e1);
+      // The same 0.52 × 1.95 blank face as the free-standing stacks' ends, and
+      // it takes the same shared grain. WHICH FACE PAIR depends on the run's
+      // axis: a run along x is a (0.06, 1.95, 0.52) box whose big faces are ±x;
+      // along z it is (0.52, 1.95, 0.06) and they are ±z. Both present the same
+      // two metres, which is why one texture serves. No range plate here — a
+      // wall run is not a range you walk into, and a sign on one would be a
+      // label on a wall rather than a way through a block.
+      box(ew, BAY_H, ed, ax ? endMatsX : endMatsZ, e0, base + BAY_H / 2, e1);
     }
     const [bw, bd] = size(len, 0.06);                                  // the back board
     const [b0, b1] = at(0, -face * (BAY_D / 2 - 0.03));

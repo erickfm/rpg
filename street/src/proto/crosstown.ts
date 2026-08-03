@@ -1232,7 +1232,12 @@ export function makeCrosstown(): Proto {
    *  can; a person leans in to read a screen and their shoes do not follow. */
   const FOCUS_FEET = 0.95;
   type FocusPose = { pos: THREE.Vector3; yaw: number; pitch: number; fov: number; feetX: number; feetZ: number };
-  let focus: { mesh: THREE.Object3D; escape: () => void; from: FocusPose; to: FocusPose; t: number } | null = null;
+  let focus: {
+    mesh: THREE.Object3D; escape: () => void; from: FocusPose; to: FocusPose; t: number;
+    /** THE CHAIR THE PLAYER WAS ALREADY IN when this screen opened, or null if
+     *  they walked up to it standing. See `leave`. */
+    chair: SeatPose | null;
+  } | null = null;
   const wrapPi = (a: number) => {
     while (a > Math.PI) a -= Math.PI * 2;
     while (a < -Math.PI) a += Math.PI * 2;
@@ -1314,8 +1319,15 @@ export function makeCrosstown(): Proto {
       // both fail. `h` is set from the eye height the player is standing at
       // RIGHT NOW, so nothing about the pose reads as sitting down.
       const eyeNow = cam.position.y - groundPick(rig.pos.x, rig.pos.z);
+      // WERE THEY ALREADY SITTING? `rig.sit` early-returns when `seat` is set
+      // (`fp.ts:285`), so opening a screen from a chair does NOT overwrite the
+      // chair's pose — which is right, and is also why `leave` could not tell
+      // the two cases apart and stood everybody up. Remember the chair, so it
+      // can be given back. Null when they walked up to the screen standing, and
+      // then `leave` behaves exactly as it always did.
+      const chair = rig.seatedOn;
       rig.sit({ x: to.feetX, z: to.feetZ, yaw: to.yaw, h: Math.max(0, eyeNow - SIT_EYE) });
-      focus = { mesh, escape, from, to, t: 0 };
+      focus = { mesh, escape, from, to, t: 0, chair };
     },
     // INSTANT, deliberately, where entering is eased. An ease OUT would go on
     // owning the camera for a fifth of a second after the player asked to
@@ -1324,10 +1336,50 @@ export function makeCrosstown(): Proto {
     // `rig.yaw`/`rig.pitch` in step every frame — so what actually snaps is
     // the half-metre lean, and the fov, back to the player's own zoom.
     leave: () => {
-      if (!focus) return;
+      // NOTHING FOCUSED MEANS NOTHING RESTORED — `false`, not `undefined`. The
+      // caller reads this to decide whether to stand the player up, and a
+      // falsy-by-accident return is the shape of bug this whole item is.
+      if (!focus) return false;
+      const { chair } = focus;
       focus = null;
       if (Math.abs(cam.fov - fovTarget) > 0.001) { cam.fov = fovTarget; cam.updateProjectionMatrix(); }
-      if (rig.seated) rig.stand();
+      // ── CLOSING A SCREEN FROM A CHAIR LEAVES YOU IN THE CHAIR (item 206) ──
+      //
+      // *"you sit and its the loan process as an integrated overlay."* Sitting
+      // down, reading the form, closing it and finding yourself standing up is
+      // not that. It was never a trap — you always had a way out — it was the
+      // wrong feel for the one thing the user asked for by name.
+      //
+      // ⚠ `stand()` THEN `sit()` IS NOT A ROUNDABOUT WAY OF DOING NOTHING, and
+      // simply skipping the `stand()` does not work. `fp.ts:251` registers a
+      // CAPTURE-phase Escape listener that sets `forceUp` whenever Escape is
+      // pressed while seated — it fires before `ct/hud.ts`'s gate can swallow
+      // the key, deliberately, because that gate is the thing it exists to
+      // survive. `forceUp` is private and is consumed by `update()`'s seated
+      // branch on the NEXT frame. So leaving the player seated without clearing
+      // it stands them up one frame later instead of immediately, which is the
+      // same bug wearing a delay.
+      //
+      // `stand()` clears `forceUp` unconditionally — its own comment says that
+      // is the point of doing it there — and `sit()` puts the chair back. The
+      // round trip is exact: `stand()` returns the player to `standFrom`, and
+      // `sit()` re-records `standFrom` from that same position, so nothing
+      // about getting up afterwards moves. Both are public API on the rig;
+      // `fp.ts` is not touched, and it is not this item's file to touch.
+      //
+      // AND SAY SO, because `ct/hud.ts`'s `close()` runs a SECOND, unconditional
+      // stand-up three lines after this returns — the structural anti-trap that
+      // fires whenever the player was seated as a panel came up. It cannot tell
+      // the player's own chair from one a machine took for them; only this
+      // function can, because only this function called `rig.sit` and watched it
+      // early-return. Returning the answer is what makes the two halves one fix:
+      // either alone measures 9/13 on `scripts/probes/w107-seat-keeps-you.mjs`.
+      let kept = false;
+      if (rig.seated) {
+        rig.stand();
+        if (chair) { rig.sit(chair); kept = rig.seated; }
+      }
+      return kept;
     },
     pick: (clientX, clientY) => {
       if (!focus || !renderer) return null;
