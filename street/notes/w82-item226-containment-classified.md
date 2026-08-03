@@ -163,6 +163,44 @@ GOTCHAS 86, one field over.
 
 ---
 
+## Verified
+
+Full suite, 13 rooms, against dev on 4380 (`interiors-walk` cannot run on a built
+preview — item 164):
+
+```
+364/369 passed          (before this item: 362/368)
+288 containment runs over 12 belt rooms — 0 ended with no floor
+  11 rooms  "24 runs from 6 spread points, 0 ended with no floor"
+   1 room   "…0 ended with no floor, 1 crossed a declared party doorway"  (casino)
+apt301      9/9 — 0/64 materials dimmed, judged 64 of 64
+```
+
+- `npm run typecheck` — **0**
+- `node scripts/health.mjs` — **0, `WORLD OK — __ct initialised`**
+- `npm run sweep` — **`sweep findings: none (0 STATION MISS, 0 COVERAGE)`**
+- `git status src/proto/` — **clean; no world file was changed**
+
+**The 5 remaining failures are all pre-existing and none is containment:**
+`jail: the room keeps its own light after dark` (below), and
+`the customer station comes from the world, not from memory` at casino, hotel,
+pawn and tax — the fallback that `notes/w71-vice-escape-is-a-doorway.md` already
+records as pre-existing and unrelated. Exit 1 on any single-room run is the
+standing `[interior:hotel] NO BUILDING NAME` kit warning.
+
+### A caution about this run, and about mine generally
+
+**My dev server was killed mid-run by something outside this worktree**, and the
+suite kept going against the page it had already loaded. I discarded that run and
+re-ran from a fresh server — but I only did so because I happened to notice the
+notification. **The floor predicate's population floor cannot catch this**: it
+runs once at startup, so a world that dies at room 7 still had 359 floor meshes
+at room 0. A run that loses its server midway currently produces a full,
+confident, green-looking report. Worth a row; it is the desk's own fourth
+concern and the honest answer is that the floor does **not** make it impossible.
+
+---
+
 ## FOR THE DESK — found and not fixed
 
 1. **`w75-site-contained.mjs` should import `scripts/lib/floors.mjs`.** It holds
@@ -173,8 +211,20 @@ GOTCHAS 86, one field over.
 2. **`RoomDims` should publish the room's HEIGHT**, the way item 192 made it
    publish `cx`. It is the missing number that would let leg 6 bound its sample
    box per storey instead of not bounding it. `ct/interior.ts`, not named by 226.
-3. **`casino: the customer station comes from the world, not from memory` FAILS**
+3. **THE JAIL DIMS ONE MATERIAL AT NIGHT — a real red, and NOT mine.**
+   `jail: the room keeps its own light after dark` reports `1/97`, stably (2 runs
+   of 2, `0 excluded as self-animating`). Located
+   (`scripts/probes/w82-which-material-dims.mjs`): a mesh at
+   **(1006.37, 2.42, −5.60)**, `#f0f3f6 → #6c6f76`. That is **inside the jail's
+   own published footprint** (cx 1000, half-width 6.40 — the mesh is 6.37 out),
+   so unlike apt301's two candidates this one really is the room's.
+   **My changes cannot have caused it**: the jail takes the belt path, whose box
+   is unchanged at 8 × 8 with no y bound, and whose only edit is `wp.z - cz` with
+   `cz === 0` for every belt room. This is the night sweep reaching an interior,
+   which is exactly what the leg exists to catch. **Worth its own row.**
+4. **A run whose server dies midway still reports green.** See the caution above.
+5. **`casino: the customer station comes from the world, not from memory` FAILS**
    — pre-existing, unrelated to containment, and already named as such in
    `notes/w71-vice-escape-is-a-doorway.md`. Not mine, not touched.
-4. **`[interior:hotel] NO BUILDING NAME`** — the standing kit warning the builder
+6. **`[interior:hotel] NO BUILDING NAME`** — the standing kit warning the builder
    brief already lists as expected.
