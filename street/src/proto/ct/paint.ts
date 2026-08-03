@@ -31,9 +31,129 @@ import * as THREE from 'three';
  */
 export type SurfaceKind = 'brick' | 'sign' | 'foliage' | 'ground' | 'detail';
 
-export function declareSurface<T extends THREE.Texture>(t: T, kind: SurfaceKind): T {
+export function declareSurface<T extends THREE.Texture>(t: T, kind: SurfaceKind, ppm?: number): T {
   t.userData.surface = kind;
+  if (ppm !== undefined) {
+    if (!(ppm > 0) || !isFinite(ppm)) {
+      console.warn(`[paint] declareSurface got ppm=${ppm}; a density must be a positive`
+        + ' number of texels per metre. Ignoring it, which leaves this surface UNDECLARED'
+        + ' — that is worse than not calling it, so fix the caller.');
+    } else t.userData.ppm = ppm;
+  }
   return t;
+}
+
+/**
+ * SAY HOW DENSE A SURFACE IS, and then never type a repeat again.
+ *
+ * ── the gap this closes ────────────────────────────────────────────────────
+ *
+ * The user, on the jail, 2026-08-02: *"why aren't we catching these? what's
+ * causing them and do we need to set a rule against them so they aren't
+ * created?"* BUILDER-BRIEF §7b is the rule he asked for — *"every textured
+ * surface DECLARES its density and DERIVES its repeat from its own
+ * dimensions"* — and until now **there was no way to obey the first half.**
+ * `declareSurface` declared a KIND. `masonry().paint()` is the only thing in
+ * the world that stamps a px/m, and it only paints brick. Measured by worker
+ * sixtytwo: **7.4% of the world's textured faces can declare a density at all;
+ * 3,782 have no API to state one even if the author wanted to** (item 163).
+ *
+ * So every density guard has had to fall back on an invariant that needs no
+ * declaration — *on a correctly mapped face a texel is square* — which catches
+ * a stretched face and **cannot** catch a face that is uniformly, squarely,
+ * wrongly dense. A 4 px/m wall and a 200 px/m sill both pass it.
+ *
+ * ── the three calls, smallest first ────────────────────────────────────────
+ *
+ *     declareSurface(t, 'detail', 12)      // I painted this at 12 px/m
+ *     fitRepeat(t, 2.4, 0.8)               // …so on a 2.4 x 0.8 m face, this repeat
+ *     boxFaces(t, w, h, d)                 // …and on a BOX, one per face
+ *
+ * `slabTex` stamps its own — it is sized from real metres and already knows.
+ *
+ * ── why `boxFaces` is the one that matters ─────────────────────────────────
+ *
+ * **Almost every gross face in this world is a box wearing ONE material on all
+ * six sides**, with a repeat computed for whichever side the author was looking
+ * at. Of civic's 39, the biggest cluster is a single 48x48 canvas on boxes whose
+ * six faces span 0.15 m to 4.1 m. `ct/interior.ts`'s `boxMats` already solved
+ * exactly this for the interior kit and its author left the trap written at the
+ * call site — **`±x` is DEPTH across, `±z` is WIDTH** — because all three of its
+ * callers had got it wrong. This is that solution, hoisted so it is not the
+ * interior kit's private property.
+ */
+
+/** THREE's material order for a BoxGeometry, and the two real dimensions each
+ *  face spans. Written once, here, because getting it wrong is this repo's most
+ *  expensive recurring mistake: it produced two retracted findings (42
+ *  "off-density" faces, 135 "disagreeing" junctions) and `scripts/lib/faces.mjs`
+ *  exists solely because of it. */
+export const BOX_FACE_DIMS = (w: number, h: number, d: number): [number, number][] => [
+  [d, h],   // 0  +x
+  [d, h],   // 1  -x
+  [w, d],   // 2  +y
+  [w, d],   // 3  -y
+  [w, h],   // 4  +z
+  [w, h],   // 5  -z
+];
+
+/**
+ * Set `t`'s repeat so it draws at its DECLARED density on a `w` x `h` m face.
+ *
+ * Returns `t` unchanged and warns if nothing declared a density — silently
+ * doing nothing would make this the second way to get an undeclared surface,
+ * and the whole point is that there is no longer any excuse for one.
+ */
+export function fitRepeat<T extends THREE.Texture>(t: T, wMeters: number, hMeters: number): T {
+  const ppm = t.userData.ppm as number | undefined;
+  const img = t.image as { width: number; height: number } | undefined;
+  if (!(ppm && ppm > 0)) {
+    console.warn('[paint] fitRepeat on a texture with no declared density — call'
+      + " declareSurface(t, kind, ppm) first. Repeat left alone.");
+    return t;
+  }
+  if (!img || !img.width || !img.height) {
+    console.warn('[paint] fitRepeat before the canvas exists — repeat left alone.');
+    return t;
+  }
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set((wMeters * ppm) / img.width, (hMeters * ppm) / img.height);
+  return t;
+}
+
+/**
+ * Six materials for a `BoxGeometry(w, h, d)`, each face's repeat derived from
+ * ITS OWN two dimensions at `t`'s declared density.
+ *
+ * One texture cannot serve six differently-sized faces — `repeat` lives on the
+ * texture, not on the face — so this CLONES per distinct face size. A box has
+ * at most three distinct sizes, so it is at most three clones and usually
+ * fewer; they are cached by size so a cube costs one.
+ *
+ * `make` builds the material from a texture, so a caller keeps whatever
+ * material options it already had. The default is the plain opaque one.
+ */
+export function boxFaces(
+  t: THREE.Texture, w: number, h: number, d: number,
+  make: (map: THREE.Texture) => THREE.Material = (map) => new THREE.MeshBasicMaterial({ map }),
+): THREE.Material[] {
+  const cache = new Map<string, THREE.Material>();
+  return BOX_FACE_DIMS(w, h, d).map(([fw, fh]) => {
+    const key = `${fw.toFixed(4)}x${fh.toFixed(4)}`;
+    let m = cache.get(key);
+    if (!m) {
+      const c = t.clone();
+      c.needsUpdate = true;
+      // `clone()` copies `userData` by reference in three, so the density
+      // declaration survives — which matters, because the audit reads it off
+      // the texture that is actually on the face, not off the original.
+      c.userData = { ...t.userData };
+      fitRepeat(c, fw, fh);
+      m = make(c);
+      cache.set(key, m);
+    }
+    return m;
+  });
 }
 
 export function pixTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void): THREE.Texture {
@@ -161,7 +281,19 @@ export function slabTex(o: {
     }
   });
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;             // 1:1, no repeat
-  return declareSurface(t, o.kind ?? 'ground');
+  // …AND IT DECLARES ITS OWN DENSITY, for free. This function is sized from
+  // real metres at a stated `ppm`, so it is the one painter in the world that
+  // already knows the answer §7b asks every surface for. One argument, and
+  // every existing `slabTex` call site in the world becomes a declared surface
+  // without being touched.
+  //
+  // It is also where the need showed up in the wild: the hotel's upholstery was
+  // converted to `slabTex` on 2026-08-03 (item 96) — correctly, it is this
+  // file's own doctrine — and the conversion added SIX gross faces, because a
+  // 1:1 sheet sized for a chair's front was handed to its 0.1 m arm ends
+  // unchanged. `boxFaces` is the fix for that shape and this stamp is what
+  // lets the audit see it.
+  return declareSurface(t, o.kind ?? 'ground', ppm);
 }
 
 export function dither(g: CanvasRenderingContext2D, w: number, h: number, n: number) {

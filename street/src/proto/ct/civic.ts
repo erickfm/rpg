@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
 import type { Seat } from './ctx';
-import { pixTex, dither, declareSurface, slabTex } from './paint';
+import { pixTex, dither, declareSurface, slabTex, fitRepeat, BOX_FACE_DIMS } from './paint';
 import { FACE } from './rng';
 import { plazaTex } from './tex-ground';
 import { masonry } from './tex-world';
@@ -432,17 +432,29 @@ export function buildCivic(o: {
   const SCORED = stoneCanvas('#b4aa92', '#a79d86', '#c2b8a0', true);
   const DRESSED = stoneCanvas('#9c9280', '#8d846f', '#aca290', false);
   const RISER = stoneCanvas('#877d69', '#7a715e', '#968c76', false);
-  /** a stone material whose grain is at 32 px/m for THIS member's metres */
+  /**
+   * A stone material whose grain is at `ST_PPM` for THIS member's metres.
+   *
+   * ITEM 163: it now DECLARES that density and DERIVES the repeat from it,
+   * instead of hand-computing `wM / ST_TILE`. Same arithmetic — `fitRepeat` is
+   * `metres * ppm / canvasPx` and the canvas is `ST_TILE * ST_PPM` px — but the
+   * number is now stated on the texture where `scripts/texdensity.mjs` can read
+   * it, so a member wearing the wrong one is a finding rather than a guess.
+   *
+   * The old `Math.max(0.12, …)` floor is gone deliberately. It clamped the
+   * repeat on any member under 0.18 m, which is precisely how an 0.152 m
+   * pilaster ended up drawing 399 px/m against a declared 32 — the clamp was
+   * making the defect, quietly, on the smallest members. A repeat below 0.12 is
+   * not a problem; a texture drawing 12x its declared density is.
+   */
+  const ST_PPM = 32;
   const stoneFace = (t: THREE.Texture, wM: number, hM: number) => {
     const c = t.clone();
     c.needsUpdate = true;
-    c.wrapS = THREE.RepeatWrapping; c.wrapT = THREE.RepeatWrapping;
-    c.repeat.set(Math.max(0.12, wM / ST_TILE), Math.max(0.12, hM / ST_TILE));
-    return flat(c);
+    c.userData = { ...t.userData };
+    declareSurface(c, 'brick', ST_PPM);
+    return flat(fitRepeat(c, wM, hM));
   };
-  const treadM = stoneFace(SCORED, 1.4, 4.1);
-  const riserM = stoneFace(RISER, 1.4, 0.19);
-  const stepSideM = stoneFace(DRESSED, 1.4, 1.4);
   const flight = (f: {
     axis: 'x' | 'z';
     /** host-frame (x, z) of u = 0, v = 0 — the street line on the centreline */
@@ -492,13 +504,39 @@ export function buildCivic(o: {
           Math.min(az, bz), Math.max(az, bz)), 'ground'),
       });
     };
-    for (let k = 0; k < f.n; k++) {          // k = 0 is the lowest step
+    // ITEM 163 — PER STEP, FROM THAT STEP'S OWN FACES.
+    //
+    // These three materials used to be built ONCE, above, at `(1.4, 0.19)` for
+    // the riser and `(1.4, 1.4)` for the sides — a nominal riser and a guess.
+    // But the steps are NESTED boxes: each one runs from the ground up to its
+    // own tread, so its side faces are `f.yBase + (k+1)*rise` TALL, which on the
+    // library flight reaches **4.1 m**. A texture painted for 0.19 m on a 4.1 m
+    // face drew **1.48 px/m against a declared 32** — the largest single cluster
+    // in civic's backlog, eight faces of it, and invisible to the eye because
+    // only the top `rise` of each box is not buried behind the step below.
+    //
+    // Nothing about the LOOK changes: the visible strip is the top 0.19 m
+    // either way, and it now draws at 32 px/m instead of 1.48, which is what
+    // "the grain is at 32 px/m" was always claiming.
+    //
+    // ⚠ `±x` IS DEPTH ACROSS, `±z` IS WIDTH. `put` builds
+    // `BoxGeometry(du, h, dv)` for axis 'x' and `(dv, h, du)` for 'z', and the
+    // material order is [+x, -x, +y, -y, +z, -z] — so which of `du`/`dv` a face
+    // spans flips with the axis. `BOX_FACE_DIMS` in ct/paint.ts is the one
+    // written copy of that table; getting it wrong is this repo's most
+    // expensive recurring mistake.
+    for (let k = 0; k < f.n; k++) {
       const u0 = f.uNose + k * tread, u1 = f.uBack;
-      const top = f.axis === 'x' ? flagTop(u0, u1, -f.width / 2, f.width / 2)
-        : flagTop(u0, u1, -f.width / 2, f.width / 2);
-      put(u0, u1, -f.width / 2, f.width / 2, f.yBase + (k + 1) * rise,
-        f.axis === 'x' ? [riserM, riserM, top, riserM, stepSideM, stepSideM]
-          : [stepSideM, stepSideM, top, riserM, riserM, riserM]);
+      const top = flagTop(u0, u1, -f.width / 2, f.width / 2);
+      const h = f.yBase + (k + 1) * rise;
+      const du = Math.abs(u1 - u0), dv = f.width;
+      const [bw, bd] = f.axis === 'x' ? [du, dv] : [dv, du];
+      const dims = BOX_FACE_DIMS(bw, h, bd);
+      const side = (i: number, t: THREE.Texture) => stoneFace(t, dims[i][0], dims[i][1]);
+      put(u0, u1, -f.width / 2, f.width / 2, h,
+        f.axis === 'x'
+          ? [side(0, RISER), side(1, RISER), top, side(3, RISER), side(4, DRESSED), side(5, DRESSED)]
+          : [side(0, DRESSED), side(1, DRESSED), top, side(3, RISER), side(4, RISER), side(5, RISER)]);
     }
     if (f.cheek > 0) {                       // cheeks, stepping down one per tread
       for (const s of [-1, 1]) {
@@ -1306,9 +1344,18 @@ export function buildCivic(o: {
     // world contrast is PAINTED, not lit. So each one oversails the stage
     // sideways, and its UNDERSIDE is dark: from the pavement you are looking
     // up at these, and the shadow line under the slab is the whole cue.
-    const wTop = stoneFace(DRESSED, 1.9, 0.36);
-    const wUnder = stoneFace(RISER, 1.9, 0.1);
-    const wSide = stoneFace(DRESSED, 1.9, 0.36);
+    // ITEM 163 — these three were built ONCE here at a nominal `(1.9, 0.36)`
+    // and handed to every set-off on the buttress whatever its real size. The
+    // box is `(w, 0.18, ~0.30)`, so its ±x faces are **0.152 × 0.18 m** wearing
+    // a sheet painted for 1.9 × 0.36: **399 px/m against a declared 32**, and
+    // the single worst cluster left in civic after the steps. They are built
+    // per set-off now, each face from its own two metres.
+    //
+    // NOT `boxFaces` here, deliberately: this box wants THREE different
+    // canvases (dressed sides, dressed top, a dark RISER underside — the
+    // shadow line the comment above says carries the whole read), and
+    // `boxFaces` maps ONE texture over six faces. `BOX_FACE_DIMS` is the shared
+    // half of it and this is what it is for.
     const setOff = (bx: number, y: number, w: number, pFrom: number, pTo: number, drop: number) => {
       const run = Math.max(0.05, pFrom - pTo), T = 0.18;
       const th = Math.atan2(drop, run);
@@ -1317,8 +1364,12 @@ export function buildCivic(o: {
       // set-off is 0.08 m. That is the difference between living inside the
       // 0.3 m the facade reserves and hanging over the pavement, so the whole
       // slab is pulled back by exactly that. Nothing here reaches past 0.30.
-      const wm = new THREE.Mesh(new THREE.BoxGeometry(w, T, Math.hypot(run, drop)),
-        [wSide, wSide, wTop, wUnder, wSide, wSide]);
+      const dep = Math.hypot(run, drop);
+      const dims = BOX_FACE_DIMS(w, T, dep);
+      const face = (i: number, t: THREE.Texture) => stoneFace(t, dims[i][0], dims[i][1]);
+      const wm = new THREE.Mesh(new THREE.BoxGeometry(w, T, dep),
+        [face(0, DRESSED), face(1, DRESSED), face(2, DRESSED), face(3, RISER),
+          face(4, DRESSED), face(5, DRESSED)]);
       wm.position.set(bx, y + drop / 2, zFront + (pFrom + pTo) / 2 - (T / 2) * Math.sin(th));
       wm.rotation.x = -th;
       scene.add(wm);
