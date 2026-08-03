@@ -19,15 +19,48 @@
 // same class of wrong as saying "fine" about a world that is broken.
 //
 //   node scripts/check-artifact.mjs            # dist/artifact.html
+//   node scripts/check-artifact.mjs --pack     # build+pack a scratch copy first
 //   node scripts/check-artifact.mjs --selftest # prove it can fail
+//
+// ── WHY `--pack` EXISTS (item 293) ──────────────────────────────────────────
+//
+// This check catches a packed artifact that does not open — and it was wired
+// only into `npm run artifact`, which nobody runs except when publishing. So
+// pack-artifact.mjs shipped a page built from ONE of the build's four chunks,
+// 20 kB instead of 1.2 MB, and the only thing that would have said so was a
+// script nothing called. It is registered in `npm run checks` now, and a
+// registered row cannot depend on somebody having packed by hand first.
+//
+// It packs into `dist/artifact-build/` rather than `dist/`, DELIBERATELY: the
+// suite's preview is serving `dist/`, and `vite build` empties its outDir
+// before writing it. Packing into dist/ mid-suite would blank the world every
+// other check is measuring (BUILDER-BRIEF §10's BUILD RACE) — a scratch outDir
+// touches nothing anyone is reading.
 import { chromium } from 'playwright';
 import { resolve } from 'node:path';
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 
 const SELFTEST = process.argv.includes('--selftest');
+const PACK = process.argv.includes('--pack');
+const SCRATCH = 'dist/artifact-build';
+
 let FILE = resolve('dist/artifact.html');
+if (PACK) {
+  const rc = spawnSync('node', ['scripts/pack-artifact.mjs', '--out-dir', SCRATCH],
+    { encoding: 'utf8' });
+  if (rc.status !== 0) {
+    // The packer refusing IS this check failing. It only refuses on a build it
+    // cannot make self-contained, which is the defect this row exists for.
+    console.log(`${rc.stdout ?? ''}${rc.stderr ?? ''}`.trimEnd());
+    console.error('\nartifact: IT DID NOT PACK — see above. Nothing was opened.');
+    process.exit(1);
+  }
+  process.stdout.write(rc.stdout ?? '');
+  FILE = resolve(`${SCRATCH}/artifact.html`);
+}
 if (!existsSync(FILE)) {
-  console.error('no dist/artifact.html — run: node scripts/pack-artifact.mjs');
+  console.error(`no ${FILE} — run: node scripts/pack-artifact.mjs`);
   process.exit(2);
 }
 
