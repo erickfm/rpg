@@ -47,6 +47,9 @@ const ATM = 'src/proto/ct/atm.ts';            // the cash machine's screens and 
 const ATMFACE = 'src/proto/ct/atm-face.ts';
 const JAIL = 'src/proto/ct/jail.ts';          // O's — the building and its screens
 const HUD = 'src/proto/ct/hud.ts';            // the panel framework and its diegetic surfaces
+// The harness, not a world module: input, the render loop and the ONE
+// `requestPointerLock` in the whole source (item 277).
+const MAIN = 'src/main.ts';
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
 //
@@ -1326,6 +1329,97 @@ const CASES = [
     'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: 0, h: 0.47,',
     'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: Math.PI, h: 0.47,   // selftest: the row turned into the wall',
     'seat-facing.mjs', [], 'the waiting row facing plaster 0.58 m away'],
+
+  // ITEM 189, PUT BACK. `scripts/watch-vs-panel.mjs` was written to prove that
+  // fix and then sat in `scripts/probes/` unregistered for a day — the fourth
+  // guard this week that nobody ran (after masonry measuring zero faces,
+  // texdensity unregistered and w5-shadow-census unregistered). Item 199
+  // registered it; this is the mutation that makes the registration mean
+  // something.
+  //
+  // The whole fix is the second term. `poseFor` takes the eye along the target
+  // face's own normal, so reading a form that lies FLAT on a desk means looking
+  // straight down (-1.5707 rad at the loan, measured), and looking down is the
+  // gesture the wristwatch rises on. Drop `&& !panelUp()` and the player's own
+  // watch sits over the bottom edge of the document he is reading — 14,897 px²
+  // of the loan form obscured, which is the picture worker sixtysix
+  // photographed while building item 185.
+  //
+  // WHY THE NEEDLE IS THE WHOLE CALL and not just the term: `rig.pitch < -0.95`
+  // appears once, but a bare `&& !panelUp()` is the kind of fragment a refactor
+  // re-wraps onto its own line, and a needle that stops matching guards NOTHING
+  // while looking exactly as green as one that does (five stale needles this
+  // week — see the `density` row above). canfail's own RESTORE FAILED check is
+  // what catches that, and quoting the full statement gives it the most to hold.
+  ['watch-over-panel', TOWN,
+    'hud.watch(rig.pitch < -0.95 && !panelUp(), Math.floor(clockMin));',
+    'hud.watch(rig.pitch < -0.95, Math.floor(clockMin));   // selftest: item 189 reverted, the watch rides over the form',
+    'watch-vs-panel.mjs', [], "the player's wristwatch over a panel laid on a desk"],
+
+  // BLIND THE CHECK, NOT THE WORLD — the fourth of its kind here, after
+  // `footprint-blind`, `glow-blind` and `masonry-blind`, and it is owed for the
+  // same reason all three were. `watch-over-panel` above proves the VERDICT can
+  // go red. It cannot prove the POPULATION UNDER the verdict can, and those two
+  // fail apart: `masonry.mjs`'s own flag sailed through the entire period it was
+  // examining zero faces, because with no faces there was nothing to break.
+  //
+  // This empties the roster that `scripts/watch-vs-panel.mjs`'s phase 5 sweeps —
+  // ONLY the test hook, so the seven panels are all still there and all still
+  // open; the check simply cannot see that they exist. Every assertion about the
+  // watch still passes, which is the point: a check that measured nothing would
+  // report exactly that, and phase 5's floors are the only thing between the
+  // suite and a green certificate over an empty set.
+  //
+  // WATCHED RED, and watched red for the RIGHT ROWS: 4 failures, all of them
+  // `5. FLOOR:` — the roster is empty, the sweep raised 0 of an expected 5, the
+  // machine-bound excusal reads stale because nothing refused, and 0 panels
+  // could be driven head-down. Phases 1-4 stay green throughout, so this case
+  // and the one above cannot cover for each other.
+  ['watch-panel-blind', HUD,
+    '    panels: () => everyPanel().map((q) => q.id),',
+    '    panels: () => [],   // selftest: the roster the guard sweeps, emptied',
+    'watch-vs-panel.mjs', [], 'a watch guard with no panels left to guard'],
+
+  // ITEM 277, PUT BACK — the user's *"when i exit overlays my mouse stops
+  // working as well."* `open()` calls `exitPointerLock()` to let the player
+  // click a diegetic screen, and until this item NOTHING gave the lock back:
+  // one `requestPointerLock` in the whole source, on a canvas click. Six
+  // overlays, and each one left him unable to look around until he worked out
+  // he had to click the world.
+  //
+  // The mutation drops the hand-back. Every `RETURNED` leg goes red — Escape,
+  // `[E]`, the ATM's self-close, and the seated close — while every `RELEASED`
+  // and `NOT STOLEN` leg stays green, which is the shape that says the guard is
+  // reading the right quantity rather than falling over generally.
+  // IT MUTATES THE RECORD, NOT THE `if`. Gating the hand-back with `if (false &&
+  // …)` was the obvious mutation and it does not COMPILE — the block goes
+  // unreachable and `tsc` rejects it, which canfail scores `BUILD  mutation did
+  // not compile — rewrite it` rather than letting a case certify nothing.
+  // Never recording the debt is the same revert reached from the other end: with
+  // `pendingLock` permanently null the guard below can never fire, which is
+  // precisely the world the user complained about.
+  ['pointer-never-returns', HUD,
+    'if (document.pointerLockElement) pendingLock = document.pointerLockElement;',
+    'pendingLock = null;   // selftest: item 277 reverted, the debt is never recorded',
+    'pointer-returns.mjs', [], 'overlays that give the mouse back to nobody'],
+
+  // …AND THE POPULATION UNDER IT. Same argument as `watch-panel-blind` above and
+  // `masonry-blind` before it: `pointer-never-returns` proves the VERDICT can go
+  // red, and cannot prove the guard would notice it had measured nothing.
+  //
+  // Every leg of `pointer-returns.mjs` rests on the player HOLDING the pointer
+  // before an overlay opens. Take locking away and `RELEASED` becomes free,
+  // `RETURNED` becomes impossible, and a guard without floors would report the
+  // world broken — or, if it had been written the other way round, perfect. This
+  // makes the world unable to lock at all; the FLOORS must be what goes red, not
+  // the verdicts.
+  //
+  // It mutates the release rather than the re-lock, so it cannot be the same
+  // mutation as the case above wearing a different name.
+  ['pointer-never-locks', MAIN,
+    '    try { renderer.domElement.requestPointerLock(); } catch { /* sandboxed iframe: drag-look still works */ }',
+    '    void renderer;   // selftest: the world can no longer take the pointer at all',
+    'pointer-returns.mjs', [], 'a world that can never lock the pointer in the first place'],
 
 ];
 
