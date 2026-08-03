@@ -968,6 +968,15 @@ export function makeCrosstown(): Proto {
   // x/z and fall through to the ground floor. Seeding the picker means the
   // hysteresis starts settled on the floor you are actually standing on.
   apt.setGy(SPAWN.gy);
+  // ONE object, held so it can be both CLAMPED AGAINST and PUBLISHED. A probe
+  // that needs the world's edges had no way to ask for them, so the only
+  // alternatives were retyping `-110.6` into a script (BUILDER-BRIEF §8, the
+  // single most expensive habit here) or inferring the edge by walking into it
+  // — which reports a COLLIDER wherever one stands in front of the clamp.
+  // Published below as `__ct.bounds()`. The literal lives here rather than at
+  // the call site so that the two readings can never disagree.
+  const WORLD_BOUNDS = { minX: westBound(), maxX: interiorMaxX(),
+    minZ: -110.6, maxZ: Math.max(13, interiorMaxZ()) };
   rig = new FPRig(cam, { x: SPAWN.x, z: SPAWN.z, yaw: SPAWN.yaw }, {
     // maxX reaches only as far as the interiors actually built — every room
     // is constructed by now, so this is the real east edge, not a reservation
@@ -994,8 +1003,7 @@ export function makeCrosstown(): Proto {
     // street; a room deeper than 26 m reaches past it and the player was
     // clamped short of its own front wall, unable to reach the way-out spot at
     // `hd - 0.55`. Measured by G on the casino at d 30 (BLOCKED-G 1b).
-    bounds: { minX: westBound(), maxX: interiorMaxX(), minZ: -110.6,
-      maxZ: Math.max(13, interiorMaxZ()) },
+    bounds: WORLD_BOUNDS,
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
     // THE ONE COMMITTING CALL. FPRig asks this only at `this.pos.x/z` (fp.ts
     // 146, 390, 495) — it is the player's own position, every frame — so this
@@ -1663,6 +1671,14 @@ export function makeCrosstown(): Proto {
     // road while standing on the pavement moved the player's own bookkeeping
     // to road level for one frame.
     groundAt: (x: number, z: number) => groundPick(x, z),
+    // test affordance: the rectangle `fp.ts` CLAMPS the player into — the same
+    // object it was handed, never a restatement of it. A containment sweep has
+    // to know where the world is allowed to end, and until this existed its
+    // only options were to retype `-110.6` or to infer the edge by walking at
+    // it, which finds a collider long before it finds the clamp nearly
+    // everywhere. Read-only on purpose: nothing may move the world's edges from
+    // a probe.
+    bounds: () => ({ ...WORLD_BOUNDS }),
     seated: () => (rig.seated ? rig.seatedOn : null),
     stand: () => rig.stand(),
     // Test affordance, and the missing half of `stand()` — which has been

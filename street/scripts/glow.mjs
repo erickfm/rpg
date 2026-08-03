@@ -164,6 +164,27 @@ if (mode === 'probe' || mode === 'all') {
     process.exit(1);
   }
   const LAMP_R = +mLamp[1];
+  // THE GRADE'S CEILING, AND WHY IT IS ASSERTED HERE. `grade-sane.mjs` owns the
+  // question "is anything warmed twice" and reads `m.color` from JS to answer
+  // it. Since `544053b20` the warm term is applied in POOL_FRAG, so the half of
+  // that question which concerns LAMPLIGHT is invisible to it — a fragment
+  // shader cannot be seen from `material.color`. It is answerable here, where
+  // pixels are already being read, and it is one line of arithmetic:
+  //
+  //   POOL_FRAG caps `w45mul` at 1.0, and the CPU pass has already written
+  //   `base * amb`, so the shader's output is `base * w45mul * warm` <= `base *
+  //   warm`. A surface at noon reads `base`. **So the ground under a lamp can
+  //   never be brighter at night than it is at midday, beyond the warm term's
+  //   own luminance.** Anything above that is the ceiling breached on the GPU:
+  //   an uncapped pool gain, or a warm term applied to an already-warmed colour
+  //   — the same two causes grade-sane.mjs names for the CPU side.
+  const mWarm = propsSrc.match(/const WARM_R = ([\d.]+), WARM_G = ([\d.]+), WARM_B = ([\d.]+);/);
+  if (!mWarm) {
+    console.error('\n  FAIL cannot find WARM_R/WARM_G/WARM_B in ct/props.ts — the ceiling');
+    console.error('  below is derived from them and I will not guess it.');
+    process.exit(1);
+  }
+  const WARM_LUM = 0.299 * +mWarm[1] + 0.587 * +mWarm[2] + 0.114 * +mWarm[3];
 
   const lampXZ = await page.evaluate(() => {
     const S = window.__ct.scene(); S.updateMatrixWorld(true);
@@ -339,7 +360,36 @@ if (mode === 'probe' || mode === 'all') {
     console.log(`  ${okWorst ? 'OK  ' : 'FAIL'} and EVERY lamp does it — dimmest ${worst.toFixed(2)}x (bar ${BAR_WORST}x)`);
     console.log(`  ${okHeld ? 'OK  ' : 'FAIL'} lit ground keeps ${(heldMed * 100).toFixed(0)}% of its daylight `
       + `luminance at 23:00, against ${(usable.map((q) => q.gainFar).sort((a, b) => a - b)[Math.floor(usable.length / 2)] * 100).toFixed(0)}% mid-block (bar ${(BAR_HELD * 100).toFixed(0)}%)`);
-    if (!okMed || !okWorst || !okHeld) process.exitCode = 1;
+    // ── AND THE CEILING, ON THE SIDE grade-sane.mjs CANNOT SEE ──────────────
+    // 5% over the derived factor, for the crop's own noise. Measured at HEAD the
+    // brightest lamp holds 0.72 against a 1.11 ceiling, so this is nowhere near
+    // firing on a healthy world — which is what a ceiling should look like.
+    //
+    // WATCHED FAILING, and the two attempts are worth keeping because the first
+    // one is the more instructive:
+    //
+    //   POOL_FRAG's `min(1.0, ...)` REMOVED      no change at all, 0.72
+    //   POOL_FRAG's multiply applied TWICE       1.63 vs 1.11 — FAIL
+    //
+    // Uncapping moves nothing because the cap is not binding at these pixels in
+    // the first place: the crop averages a whole patch of ground, only part of
+    // which is in the lamp's core, so the mean gain is 0.69 and never near the
+    // 1.0 the min() clamps. A mutation that changes no observable is not a
+    // failed check, it is a mutation that does not mutate — and telling those
+    // two apart is the entire job of running it.
+    //
+    // The doubled multiply is the real analogue of canfail's `grade-twice`, and
+    // it is the case FOR this leg: under it the other three verdicts go GREENER
+    // (median 4.56x -> 10.43x, held 69% -> 158%) because twice the light is
+    // still light. A floor cannot catch too much of a good thing. Only a
+    // ceiling can, and grade-sane.mjs's ceiling cannot see the GPU.
+    const CEIL = WARM_LUM * 1.05;
+    const brightest = usable.map((q) => q.gainNear).sort((a, b) => b - a)[0];
+    const okCeil = brightest <= CEIL;
+    console.log(`  ${okCeil ? 'OK  ' : 'FAIL'} and none of it is warmed twice — brightest lamp holds `
+      + `${brightest.toFixed(2)} of its daylight luminance, ceiling ${CEIL.toFixed(2)} `
+      + `(WARM ${mWarm[1]}/${mWarm[2]}/${mWarm[3]}, capped by min() in POOL_FRAG)`);
+    if (!okMed || !okWorst || !okHeld || !okCeil) process.exitCode = 1;
     const byRegion = {};
     for (const q of usable) (byRegion[q.region] ??= []).push(q.pool);
     for (const [k, v] of Object.entries(byRegion))
