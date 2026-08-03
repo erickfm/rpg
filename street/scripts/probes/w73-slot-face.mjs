@@ -61,8 +61,14 @@ await p.waitForTimeout(9000); await grab('attract');
 
 // Spin until something pays, so the win state gets looked at too. Bounded, and
 // it reports how many it took rather than looping forever pretending.
+// TOP THE METER UP EVERY SPIN. The first version inserted 60 once and then
+// pressed MAX BET, which is 5 a spin — so it went broke after 12 and reported
+// "no win in 60 spins" about a machine that was fine. A loop that keeps
+// pressing a button the machine is refusing measures nothing and says so in a
+// sentence that sounds like a finding.
 let spins = 0, paid = false;
 for (; spins < 60 && !paid; spins++) {
+  await p.evaluate(() => window.__slots.insert(20));
   await p.keyboard.press(' ');
   await p.waitForFunction(() => window.__slots.view().state === 'idle', { timeout: 8000 });
   paid = await p.evaluate(() => !!window.__slots.view().win);
