@@ -194,13 +194,119 @@ if (mode === 'sit' || mode === 'all') {
   await press(' ');
   await until(() => window.__slots.view().state === 'spinning', 'the reels to start');
   const a = await view();
-  await p.waitForTimeout(220);
-  const c = await view();
-  const moved = a && c && a.reels.some((r, i) => Math.abs(r.pos - c.reels[i].pos) > 1);
-  console.log(`  reel 1 moved ${a && c ? Math.abs(c.reels[0].pos - a.reels[0].pos).toFixed(1) : '?'} stops`
-    + ' in 220 ms of real frames\n');
   check(a?.state === 'spinning', 'SPACE sets it spinning');
-  check(moved, 'and the reels are actually turning on the world\'s own clock');
+
+  // ══ THIS BLOCK WAS THE FLAKE (item 214), AND THE FILE ALREADY KNEW WHY ═════
+  //
+  // It was:
+  //
+  //     const a = await view();
+  //     await p.waitForTimeout(220);              // <- a fixed wall-clock sleep
+  //     const c = await view();
+  //     moved = |c.pos - a.pos| > 1               // <- against a typed threshold
+  //
+  // and it returned, on FIVE runs of unchanged source: **1.9, 1.3, 1.3, 0.7,
+  // 0.9 stops — three green, two red.** Worker seventy reported 0.5 against 1.4;
+  // this is the same spread, reproduced.
+  //
+  // THE CAUSE IS NAMED ELEVEN LINES BELOW, IN THIS FILE, ABOUT THE NEXT WAIT:
+  // *"never by sleeping a fixed time — GOTCHAS §30: a spin is driven by frames
+  // and one frame is 17 ms idle and over a second under load, so any constant
+  // here is a bet on how busy the machine is."* That is exactly right and this
+  // check was the one place the file did not follow it. 220 ms is 13 frames on
+  // an idle machine and 3 on a busy one, and 3 frames of a reel is under a stop.
+  // **Nothing about the world changed between the green runs and the red ones.**
+  //
+  // It is NOT the three causes the row offered (index-matching, a moving box, an
+  // animation beating against the sample rate). It is a duration measured in
+  // milliseconds against a thing that advances in frames.
+  //
+  // ── SO: COUNT FRAMES, AND ASK THE MACHINE WHAT IT EXPECTED TO DO ──────────
+  //
+  // Sampled on N consecutive RENDERED frames, driven by `requestAnimationFrame`
+  // inside the page, so the window is a frame count and cannot shrink when the
+  // machine is busy — it only takes longer.
+  //
+  // And the threshold is DERIVED, not typed: `view()` publishes each reel's own
+  // `speed` in stops a second (`ct/slots.ts:396`), so the distance the reel
+  // SHOULD have covered is that speed integrated over the sample times by
+  // trapezoid. The assertion is that the position it actually reached agrees
+  // with the speed it reported. That is the real claim — *the reels are turning
+  // on the world's own clock* — it is self-calibrating at any frame rate, and it
+  // reddens if the reel freezes, stutters, or lies about its speed.
+  // ── THE NEGATIVE CASE, AND IT RUNS THE REAL CHECK ────────────────────────
+  //
+  // `CT_FREEZE_REELS=1` makes the world LIE in the one way this assertion is
+  // supposed to catch: `view()` keeps reporting the speed it is running at while
+  // the positions stop advancing. Nothing else about the run changes and the
+  // code under it is not a copy — this is the shipped check, measuring a broken
+  // machine. A guard nobody has watched fail is a guard you will argue with
+  // (GOTCHAS §27), and this project has a documented family of them that slept.
+  if (process.env.CT_FREEZE_REELS === '1') {
+    console.log('  [CT_FREEZE_REELS] the reels are frozen but still report their speed\n');
+    await p.evaluate(() => {
+      const real = window.__slots.view.bind(window.__slots);
+      const held = real().reels.map((r) => r.pos);
+      window.__slots.view = () => {
+        const v = real();
+        return { ...v, reels: v.reels.map((r, i) => ({ ...r, pos: held[i] })) };
+      };
+    });
+  }
+  const FRAMES = 30;
+  const trace = await p.evaluate(async (n) => {
+    const s = [];
+    await new Promise((res) => {
+      let k = 0;
+      const tick = () => {
+        const v = window.__slots.view();
+        s.push({ t: performance.now(), state: v.state,
+          pos: v.reels.map((r) => r.pos), sp: v.reels.map((r) => r.speed) });
+        if (++k >= n) return res();
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    return s;
+  }, FRAMES);
+
+  // only the frames where it was actually spinning — the brake and the rest are
+  // measured by the two checks below this one and must not be averaged into it
+  const spin = trace.filter((s) => s.state === 'spinning');
+  let observed = 0, expected = 0;
+  for (let i = 1; i < spin.length; i++) {
+    const dt = (spin[i].t - spin[i - 1].t) / 1000;
+    // POSITIVE DELTAS ONLY. A reel position wraps, and a wrap shows up as one
+    // large negative step; the modulus is not published, so rather than guess it
+    // this drops that single frame. It can only ever UNDER-count, so it cannot
+    // manufacture a pass.
+    const d = spin[i].pos[0] - spin[i - 1].pos[0];
+    if (d > 0) observed += d;
+    expected += ((spin[i].sp[0] + spin[i - 1].sp[0]) / 2) * dt;
+  }
+  const ms = spin.length > 1 ? spin[spin.length - 1].t - spin[0].t : 0;
+  console.log(`  reel 1 advanced ${observed.toFixed(2)} stops over ${spin.length} rendered frames`
+    + ` (${ms.toFixed(0)} ms); the machine's own speed says it should have moved`
+    + ` ${expected.toFixed(2)}\n`);
+
+  // ── THE POPULATION FLOOR ─────────────────────────────────────────────────
+  //
+  // A check that examined nothing must not be green and must not be red — it
+  // must say so and abort (GOTCHAS §32, §34). Two ways this can measure nothing:
+  // the browser rendered almost no frames, or the window happened to land where
+  // the machine was barely moving. Both are aborts, not verdicts.
+  if (spin.length < 12 || expected < 1) {
+    console.log('ABORTED: not enough of a spin to judge —'
+      + ` ${spin.length} spinning frames (floor 12), expected travel ${expected.toFixed(2)} stops (floor 1).`);
+    console.log('That is NOT a pass and NOT a failure: nothing was measured.');
+    await b.close();
+    process.exit(3);
+  }
+  const ratio = observed / expected;
+  console.log(`  observed / expected = ${ratio.toFixed(2)}\n`);
+  check(ratio > 0.6 && ratio < 1.6,
+    'and the reels are actually turning on the world\'s own clock —'
+    + ` the position they reach agrees with the speed they publish (ratio ${ratio.toFixed(2)})`);
 
   // Wait for the spin to finish by POLLING THE MACHINE, never by sleeping a
   // fixed time — GOTCHAS §30: a spin is driven by frames and one frame is 17 ms
