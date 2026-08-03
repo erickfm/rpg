@@ -3710,8 +3710,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // ── SO IT MOVES OFF THE ROUTE ───────────────────────────────────────────
     //
     // (It moved SIDEWAYS to do that, and item 298 undid the sideways part by
-    // moving the page instead — see `CAL_X` above and the note on the 0.55 m
-    // below. The two governing numbers did not change and are still these:)
+    // moving the page instead — see `CAL_X` above. The 0.90 m off the wall did
+    // not change either, and the note below it says what happened when I tried.
+    // The two governing numbers are still these:)
     //
     //   · clear of the DOOR'S stand-point by `2 * RADIUS` — two capsules. Below
     //     that the two "standing in it" circles overlap, and inside an overlap
@@ -3744,33 +3745,30 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // with their citation and `scripts/standpoint-overlap.mjs` fails
     // if the world ever disagrees with them. See the handoff note.
     const CAL_STAND_DX = 0;
-    // ── AND IT COMES IN OFF THE WALL, from 0.90 m to 0.55 m (item 298) ───────
+    // ── THE 0.90 m IS NOT TASTE, IT IS THE NEAREST FLOOR THERE IS ───────────
     //
-    // Moving the page over this point fixed the middle of the approach and NOT
-    // the end of it: measured square-on at 0.40 m off the wall the prompt was
-    // still *"close the door"*, because at that range the stand-point is 0.50 m
-    // BEHIND you — `looked` is impossible, `onIt` is out of reach, and both
-    // spots fall to tier 3, where the door's `WAY_OUT` rank decides. A player
-    // who walks up until he cannot walk further is at 0.275 m off the page (the
-    // wall collider at z -18.00 plus his own RADIUS), so the band that failed is
-    // exactly the one he ends up in.
+    // I tried 0.55 m first, to cover a pose the grid said was still failing
+    // ("square on, 0.40 m off the wall -> close the door"), and **the walk
+    // proved that pose does not exist.** The TV crate below the page occupies
+    // x 198.25…198.63 / z -17.85…-17.47, and padded by the player's own RADIUS
+    // it forbids everything south of z -17.11 in this column. 0.55 m puts the
+    // stand-point INSIDE that box: nobody can stand on it, and a player holding
+    // W is slid around the crate into the door's corner instead — walked, he
+    // ended at (199.29, -17.64) reading *"close the door"*, which is the very
+    // bug this item is about, reintroduced by the fix for it. A stand-point
+    // inside a collider is worse than one in the wrong place: it fails silently
+    // and the grid still scores it green, because `pickSpot` is asked about
+    // poses and knows nothing about which poses are reachable.
     //
-    // 0.55 m puts the `onIt` disc over 0.19…0.91 m off the page — nose against
-    // the wall through to arm's length — so the whole approach is tier 1 by
-    // standing on it, and beyond 0.91 m the same spot is straight ahead of him
-    // and carries on winning as `near && looked`.
-    //
-    // BOTH GUARDS GET MORE ROOM, NOT LESS, which is why this is safe to move:
-    // clear of the door's stand-point by 0.765 m (was 0.878; the rule wants
-    // 2 * RADIUS = 0.72) and clear of the bed-to-door route by 0.656 m (was
-    // 0.512; the rule wants RADIUS + TOUCH_MARGIN = 0.51). Coming toward the
-    // wall moves this point AWAY from the route, which runs across the room.
-    //
-    // It does not change how the page READS. The focus pose is absolute — the
-    // 0.73 m in `standoff` is where the CAMERA goes, derived from the page's
-    // height and the vertical fov — so standing nearer only shortens the ease.
+    // SO NOTHING CAN BE READ FROM CLOSE TO THIS WALL, and that is a property of
+    // the room rather than of the calendar. Measured off `__ct.colliders()`: the
+    // only standable floor within 0.80 m of the south wall is x 198.99…199.49 —
+    // the strip between the crate and the east wall — and ALL of it is inside
+    // 301's door `onIt` disc (x 199.00…199.72, z -17.82…-17.10). Every other
+    // column is dresser or crate. 0.90 m clears the crate's padded face by
+    // 0.095 m and is the closest this spot can legally come.
     ctx.spot({
-      x: CAL_X - CAL_STAND_DX, z: SOUTH_Z + 0.55, r: 0.60, obj: cal,
+      x: CAL_X - CAL_STAND_DX, z: SOUTH_Z + 0.90, r: 0.60, obj: cal,
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: () => 'read the calendar',
       act: openCalendar,
