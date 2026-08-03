@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { AABB } from '../fp';
 import { pixTex, dither } from './paint';
 
 // ---- the fleet: sedan / hatch / pickup / van, welded greenhouses ---------
@@ -20,6 +21,35 @@ export const CAR_SPEC: Record<CarKind, { len: number; wheelZ: number }> = {
   pickup: { len: 4.9, wheelZ: 1.65 },
   van: { len: 4.6, wheelZ: 1.5 },
 };
+
+/** ── THE COLLISION SKIN, AND THE ONLY NUMBER ANYONE SHOULD TYPE ──────────
+ *
+ *  Every vehicle collider in this world is its body plus a uniform 0.15 m of
+ *  slack. It is deliberate and it has shipped since item 1 — crosstown.ts's
+ *  item-29 block calls it *"the SAME 0.15 m collision skin the bed floor has
+ *  shipped with since item 1"*.
+ *
+ *  It is hoisted here because the LENGTH it produces was a hand-typed table,
+ *  and it was typed TWICE, identically, in two different files:
+ *
+ *      crosstown.ts:516   const carHalf = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 }
+ *      sidestreet.ts:122  const carHalf = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 }
+ *
+ *  Every entry is exactly `CAR_SPEC[kind].len / 2 + 0.15`, so both tables were
+ *  a second hand-written copy of a number `CAR_SPEC` already owns — BUILDER-
+ *  BRIEF §8's single most expensive habit, and the reason the shipped boxes
+ *  were 0.18-0.29 m longer than the bodies they wrapped with nothing tying
+ *  the two together. Both tables are gone; this is the derivation. */
+export const CAR_SKIN = 0.15;
+/** The half-WIDTH every vehicle collider in the world has carried: the 1.8 m
+ *  body slab plus the same skin on each side, hence the ±1.05 that
+ *  `crosstown.ts` and `sidestreet.ts` both wrote out by hand. */
+export const CAR_HALF_W = 0.9 + CAR_SKIN;
+/** Half the collider's length for a kind — the body's own half-length plus the
+ *  skin. This replaces both `carHalf` tables. */
+export function carHalfLen(kind: CarKind): number {
+  return CAR_SPEC[kind].len / 2 + CAR_SKIN;
+}
 
 /** The pickup's open bed, in the vehicle's own LOCAL frame (front is -z).
  *  Exported so the world's collider system can build a standable-top box
@@ -72,6 +102,41 @@ const HOOD_T = 0.10;
  *  off the kerb. Which is why on the pickup this is only ever met on the way
  *  DOWN off the cab roof. */
 export const HOOD_TOP = BELT + HOOD_T;
+
+/** The SEDAN's boot lid, in the car's own LOCAL frame (front is -z). Same
+ *  contract as `PICKUP_BED`/`PICKUP_CAB`: the `trunk` mesh in `makeCar`'s sedan
+ *  branch READS these fields rather than restating them, so the standable tier
+ *  the world builds from them cannot drift from the panel it describes.
+ *
+ *  WHY IT IS HOISTED NOW. `crosstown.ts` used to recover this panel by walking
+ *  the drawn meshes of ONE car and picking the two whose tops sat just above
+ *  the beltline — a good workaround, written when this file was held by another
+ *  builder and these numbers were locals. It cannot be applied to a SECOND
+ *  sedan without re-walking that car's meshes, and "every sedan carries the
+ *  same collider" is exactly what item 202c is for. A constant both the mesh
+ *  and the collider read is strictly better than a mesh the collider measures:
+ *  there is one number, not two that agree today.
+ *
+ *  `topY` is the lid's top face — 0.93 m, the one panel on a sedan worth
+ *  standing on, and the reason the trailer deck below it exists at 0.50. */
+const SEDAN_HALF = CAR_SPEC.sedan.len / 2;
+const SEDAN_LID_T = 0.09;
+const SEDAN_LID_LEN = SEDAN_HALF - 1.32;
+const SEDAN_LID_MID = (SEDAN_HALF + 1.35) / 2;
+export const SEDAN_BOOT = {
+  /** the lid's own thickness */
+  t: SEDAN_LID_T,
+  /** the panel's length and centre, in car-local metres */
+  len: SEDAN_LID_LEN,
+  midZ: SEDAN_LID_MID,
+  /** the lid's own FRONT edge — where the rear glass starts to rise. A tier
+   *  running any further forward would be a standable shelf inside the cabin,
+   *  which is the defect `PICKUP_COWL_Z` is derived to prevent. */
+  z0: SEDAN_LID_MID - SEDAN_LID_LEN / 2,
+  z1: SEDAN_LID_MID + SEDAN_LID_LEN / 2,
+  /** the lid's top face */
+  topY: BELT + SEDAN_LID_T,
+};
 
 /** The pickup's CAB, in the vehicle's own LOCAL frame (front is -z). Same
  *  contract as `PICKUP_BED`: the `loftCabin` call in `makeCar`'s pickup branch
@@ -167,6 +232,156 @@ export const PICKUP_CAB = {
 export const PICKUP_COWL_Z = PICKUP_CAB.baseZ0
   + (HOOD_TOP - PICKUP_CAB.baseY) / (PICKUP_CAB.roofY - PICKUP_CAB.baseY)
   * (PICKUP_CAB.roofZ0 - PICKUP_CAB.baseZ0);
+
+// ══ ONE COLLIDER PER CarKind ═══════════════════════════════════════════════
+//
+// THE USER, twice, the second time with the V collision-debug view on and
+// diagnosing it himself:
+//
+//   *"also not all car and object collidable boxes are consistent. some cars
+//    have full height others are aligned with the vehicle."*
+//   *"truck collision isnt accurate to the truck but the other truck is? it
+//    seems odd. seems like all trucks should be one object that are all the
+//    same no?"*
+//
+// He was right and so was his proposed fix. WHAT HE WAS LOOKING AT: there were
+// TWO hand-written ONE-INSTANCE special cases in `crosstown.ts` —
+//
+//     const truck = parkedFleet.find((p) => p.kind === 'pickup');
+//     const sedan = parkedFleet.find((p) => p.kind === 'sedan');
+//
+// — and `.find()` returns THE FIRST MATCH. So exactly one pickup and exactly
+// one sedan in the whole world carried the tiered, silhouette-hugging,
+// height-capped collider. Every other vehicle got one bare box with no `maxY`
+// at all, and `fp.ts:40` makes `maxY` optional, so absent means FULL HEIGHT —
+// his sentence word for word. Measured on the built bundle before this landed
+// (scripts/probes/w72-car-collider-consistency.mjs): 10 car-shaped groups, ONE
+// carrying a `maxY`, FOUR carrying none, FIVE distinct collider signatures.
+//
+// So the spec lives HERE, next to the panels it is derived from, stated ONCE
+// per kind in the car's own local frame, and every caller applies the same one.
+// There is no way left to give one instance of a kind a different box from
+// another: the two special cases are gone and the sites just ask for the kind.
+
+/** One collision tier, in the car's OWN LOCAL FRAME — front is -z, +x is the
+ *  car's right, y is world-up (a car never pitches or rolls when parked).
+ *  `maxY` absent means a wall at every height, which is what `fp.ts` means by
+ *  an `AABB` with no `maxY` and is deliberate on the parts you must not be able
+ *  to stand on. `tag` is not read by `fp.ts`; `__ct.colliders()` serialises it,
+ *  which is how the acceptance walks assert against THE ROOF rather than
+ *  against "the first collider that happens to have a maxY". */
+export interface CarTier {
+  tag: string;
+  minX: number; maxX: number;
+  minZ: number; maxZ: number;
+  maxY?: number;
+}
+
+/** THE collider for a kind of car — every instance of that kind, everywhere in
+ *  the world, is this shape.
+ *
+ *  The pickup's five tiers and the sedan's two are NOT new: they are the two
+ *  hand-written blocks from `crosstown.ts` items 29 and 54, moved here
+ *  unchanged so that they apply to every instance instead of to one. They were
+ *  correct; they were just applied once each. Every number is read from the
+ *  panel constants above rather than retyped, so a tier cannot drift from the
+ *  surface it describes.
+ *
+ *  ⚠ THE TOPS ARE STANDABLE ON PURPOSE. The user jumps on these
+ *  (`notes/w13-collider-volume.md`, `notes/w21-car-roof-climb.md`); do not
+ *  flatten them, and do not "tidy" the hatch and van into having a first step —
+ *  w21 measured why they have none and w29 measured why the tyre route is
+ *  impossible rather than merely tight. */
+export function carColliderSpec(kind: CarKind): CarTier[] {
+  const hl = carHalfLen(kind), hw = CAR_HALF_W;
+  if (kind === 'pickup') {
+    // tier 1, the hood: nose back to the point where the windscreen rises past
+    // the hood's own top. Stopping at PICKUP_COWL_Z is why that constant is
+    // derived — a hood tier running to the roof plate would put a standable
+    // shelf at 0.94 m INSIDE the cab, under the glass.
+    // tier 2, the cab, whose top IS the roof plate.
+    // tier 3, the bed floor, exactly as item 1 shipped it.
+    // tier 4, the two bed rails — the step from the bed floor to the roof. The
+    // wall is only `wallT` thick, which is a hard landing at walking speed, so
+    // the band runs from the wall's INNER face out to the collider's own side;
+    // the extra is the skin the box already claimed at bed-floor height.
+    const railIn = PICKUP_BED.halfW - PICKUP_BED.wallT;
+    return [
+      { tag: 'pickup-hood', minX: -hw, maxX: hw, minZ: -hl, maxZ: PICKUP_COWL_Z, maxY: HOOD_TOP },
+      { tag: 'pickup-cab-roof', minX: -hw, maxX: hw, minZ: PICKUP_COWL_Z, maxZ: PICKUP_BED.z0, maxY: PICKUP_CAB.roofY },
+      { tag: 'pickup-bed-floor', minX: -hw, maxX: hw, minZ: PICKUP_BED.z0, maxZ: hl, maxY: PICKUP_BED.floorY },
+      { tag: 'pickup-rail-left', minX: -hw, maxX: -railIn, minZ: PICKUP_BED.z0, maxZ: PICKUP_BED.half, maxY: PICKUP_BED.railY },
+      { tag: 'pickup-rail-right', minX: railIn, maxX: hw, minZ: PICKUP_BED.z0, maxZ: PICKUP_BED.half, maxY: PICKUP_BED.railY },
+    ];
+  }
+  if (kind === 'sedan') {
+    // The body forward of the boot lid stays a PLAIN WALL — no `maxY` — so the
+    // nose, the engine bay and the greenhouse behave as every other car does:
+    // solid at every height. That absence is asserted by
+    // scripts/w29-sedan-climb.mjs, because a boot-lid -> roof hop lands only on
+    // a coin flip and a standable roof nobody can reliably reach is a collider
+    // nobody meets. It is tagged anyway so the walk can assert "still a wall"
+    // against THIS box rather than whichever it finds first.
+    return [
+      { tag: 'sedan-body', minX: -hw, maxX: hw, minZ: -hl, maxZ: SEDAN_BOOT.z0 },
+      { tag: 'sedan-boot-lid', minX: -hw, maxX: hw, minZ: SEDAN_BOOT.z0, maxZ: hl, maxY: SEDAN_BOOT.topY },
+    ];
+  }
+  // The hatch and the van have no flat panel between the pavement at 0.14 and
+  // the beltline at 0.84, so there is nothing on them a standing jump can gain
+  // and nothing to tier. One box, the body plus its skin, solid at every
+  // height — which is what they have always had. The point of this branch is
+  // that they now have it CONSISTENTLY, from the same derivation.
+  return [{ tag: `${kind}-body`, minX: -hw, maxX: hw, minZ: -hl, maxZ: hl }];
+}
+
+/** The kind's tiers placed in the world at `(x, z)` and turned to `yaw`, as
+ *  colliders `fp.ts` can use.
+ *
+ *  AXIS-ALIGNED, ON THE CAR'S DOMINANT AXIS, WHICH IS WHAT EVERY CAR COLLIDER
+ *  IN THIS WORLD HAS ALWAYS BEEN. A parked car is drawn within a few degrees of
+ *  its kerb — `parkYaw()` jitters it by at most 0.1 rad — and both hand-written
+ *  blocks this replaces resolved that the same way: take the SIGN of cos(yaw)
+ *  and ignore the rest, because the only question is which world end the bed is
+ *  at. Blending the box through the jitter instead would INFLATE it (0.1 rad on
+ *  a 2.6 m half-length adds 0.26 m of width), which would change the ground
+ *  footprint every car has shipped with and could manufacture the very
+ *  trap-band gaps `ct/gap.ts` exists to remove.
+ *
+ *  The short axis is NOT mirrored, deliberately. Every tier is symmetric across
+ *  the car's centre line except the two bed rails, which are a symmetric PAIR —
+ *  so the set of boxes is identical either way, and leaving the mapping alone
+ *  keeps `pickup-rail-left` naming the same physical rail it has always named
+ *  (scripts/stepoff-walk.mjs:175 looks it up by that name).
+ *
+ *  `site` is an instance label appended to every tag, e.g. `@side`. Two
+ *  physical surfaces must not answer to one name: `w21-roof-climb.mjs` and
+ *  `w29-sedan-climb.mjs` both build `Object.fromEntries(...)` over the tags, so
+ *  a duplicate would silently resolve to whichever was registered last and walk
+ *  the harness to a different truck. The SHAPE is shared; the NAME is per
+ *  instance, and `tagBase()` below strips the label back off. */
+export function carColliderBoxes(
+  kind: CarKind, x: number, z: number, yaw: number, site = '',
+): (AABB & { tag: string })[] {
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  const longIsZ = Math.abs(c) >= Math.abs(s);
+  const nose = longIsZ ? c : s;                 // which way the car's own +z runs
+  return carColliderSpec(kind).map((t) => {
+    const [lo, hi] = nose >= 0 ? [t.minZ, t.maxZ] : [-t.maxZ, -t.minZ];
+    const b: AABB & { tag: string } = longIsZ
+      ? { tag: t.tag + site, minX: x + t.minX, maxX: x + t.maxX, minZ: z + lo, maxZ: z + hi }
+      : { tag: t.tag + site, minX: x + lo, maxX: x + hi, minZ: z + t.minX, maxZ: z + t.maxX };
+    if (t.maxY !== undefined) b.maxY = t.maxY;
+    return b;
+  });
+}
+
+/** The surface name inside an instance-labelled tag: `pickup-hood@side` ->
+ *  `pickup-hood`. One place, so a check comparing two instances of a kind and
+ *  the world stamping the tags cannot disagree about the separator. */
+export function tagBase(tag: string): string {
+  return tag.split('@')[0];
+}
 
 // ── DOORS ────────────────────────────────────────────────────────────────
 //
@@ -912,9 +1127,13 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.9), hoodM(40 / 48, 1.7, half - 0.9));
     hood.position.set(0, BELT + 0.05, -(half + 0.95) / 2 + 0.02);
     hoodPanel = hood; g.add(hood);
-    const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.09, half - 1.32), hoodM(8 / 48, 1.7, half - 1.32));
-    // 0.885 is BELT plus half the lid thickness, same disguise as the hood
-    trunk.position.set(0, BELT + 0.045, (half + 1.35) / 2);
+    // Every number here is READ from SEDAN_BOOT rather than typed twice — the
+    // world builds this lid's standable collider from that same object
+    // (carColliderSpec above), exactly as the pickup's cab reads PICKUP_CAB.
+    const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.7, SEDAN_BOOT.t, SEDAN_BOOT.len),
+      hoodM(8 / 48, 1.7, SEDAN_BOOT.len));
+    // BELT plus half the lid thickness, same disguise as the hood
+    trunk.position.set(0, BELT + SEDAN_BOOT.t / 2, SEDAN_BOOT.midZ);
     g.add(trunk);
     g.add(loftCabin(0.81, 0.74, BELT, 1.46, -1.0, 1.4, -0.35, 0.9, glassM, roofOf(1.48, 1.25), flatT(cabinSideTex(plan.glass, -1.0, 1.4))));
   } else if (kind === 'hatch') {
@@ -1244,6 +1463,19 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
    *  `scripts/probes/w28-tyre-top.mjs`, which prints the prediction and the
    *  world side by side and agrees to four decimal places on all four kinds. */
   g.userData.tyre = 0.34;
+  /** WHAT KIND OF CAR IS THIS? `makeCar` took the answer and dropped it, so
+   *  nothing at runtime could ask — a probe had to identify vehicles by their
+   *  geometry, and every caller that wanted a per-kind collider had to know the
+   *  kind from its own call site instead of from the object. One line, and it
+   *  is the enabler `carColliderSpec` needs at every site. */
+  g.userData.carKind = kind;
+  /** Half the collider's length for this kind. `ct/traffic.ts` reads exactly
+   *  this off the group (`userData.halfLen ?? 2.5`) to size a moving vehicle's
+   *  box, to space one car behind another, and to decide whether it is short
+   *  enough to take the corner — and until now only `makeBus` set it, so every
+   *  CAR fell through to that hard-coded 2.5 whatever kind it was. A hatch was
+   *  driving inside a 5 m box and a pickup inside one 0.2 m short of it. */
+  g.userData.halfLen = carHalfLen(kind);
   g.userData.wheelbase = spec.wheelZ * 2;
   g.userData.steer = (a: number) => { for (const w of front) w.rotation.y = a; };
 
