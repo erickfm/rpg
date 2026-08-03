@@ -59,37 +59,37 @@ const between = (src, a, b) => {
 };
 const libSrc = readFileSync(join(import.meta.dirname, '../lib/floors.mjs'), 'utf8');
 const w75Src = readFileSync(join(import.meta.dirname, '../w75-site-contained.mjs'), 'utf8');
-// the mesh-selection pass, from each file, as source text to be RUN in the page
+const wcSrc = readFileSync(join(import.meta.dirname, '../world-contained.mjs'), 'utf8');
 const libSel = between(libSrc, 'const out = [];', 'return out;');
-const w75Sel = between(w75Src, 'const out = [];', 'return out;');
-// the point test
-const libTest = between(libSrc, '(x, z, gy) => floors.some', 'FLOOR_HI);');
-const w75Test = between(w75Src, '(x, z, gy) => floors.some', 'FLOOR_HI);');
+
+// ── LEG 2 AND LEG 3 NO LONGER CARRY THEIR OWN COPIES ──────────────────────
+//
+// This is the item's actual deliverable and it is asserted rather than
+// asserted-in-prose: neither caller may re-declare the predicate. If somebody
+// pastes an inline AABB pass back into either file, these go red.
 {
-  const got = [libSel, w75Sel, libTest, w75Test].every(Boolean);
-  report('leg 1 and leg 2 were both located in their files', got,
-    got ? 'mesh filter and point test found in each' : 'COULD NOT LOCATE — the equivalence below proves nothing');
-  if (!got) { console.log('cannot compare legs 1 and 2'); process.exit(3); }
-
-  // THE POINT TEST IS COMPARED AS TEXT because it is one expression and it is
-  // genuinely character-identical. THE MESH FILTER IS NOT — the two files
-  // declare the same six accumulators differently (`let a, b, c;` on two lines
-  // against one), which is a formatting difference and not a behavioural one.
-  // Asserting on the text there would go red on whitespace and teach everyone
-  // to ignore it, so the mesh filter is compared by RUNNING BOTH instead, a few
-  // lines below, once the page is up.
-  report('leg 2 IS leg 1 — the point test, character for character', norm(libTest) === norm(w75Test),
-    norm(libTest) === norm(w75Test) ? 'w75-site-contained.mjs:178-180 == lib/floors.mjs:67-70'
-      : 'THEY HAVE DIVERGED — one was edited and the other was not');
-
-  // and the constants, read from each file rather than retyped here
+  const w75Own = w75Src.includes('const out = [];') || /floors\.some/.test(w75Src);
+  report('leg 2 (w75-site-contained) has NO predicate of its own', !w75Own,
+    w75Own ? 'it has re-grown an inline floor predicate — three answers again'
+      : 'it imports installRayFloorQuery from lib/floors.mjs and declares nothing');
+  const w75Imports = /import\s*\{[^}]*installRayFloorQuery[^}]*\}\s*from\s*'\.\/lib\/floors\.mjs'/.test(w75Src);
+  report('leg 2 calls the authoritative predicate', w75Imports,
+    w75Imports ? 'installRayFloorQuery + selfTestRayQuery' : 'NOT IMPORTED');
+  const wcOwn = /const sweep = await page\.evaluate/.test(wcSrc);
+  const wcImports = /import\s*\{[^}]*sweepFloorsRay[^}]*\}\s*from\s*'\.\/lib\/floors\.mjs'/.test(wcSrc);
+  report('leg 3 (world-contained) has NO sweep of its own', !wcOwn && wcImports,
+    !wcOwn && wcImports ? 'it imports sweepFloorsRay from lib/floors.mjs'
+      : 'it has re-grown an inline sweep');
+  report('leg 1 is still located, so the comparison below has something to compare', !!libSel,
+    libSel ? 'lib/floors.mjs mesh filter found' : 'COULD NOT LOCATE — nothing below proves anything');
+  if (!libSel) { console.log('cannot run the comparison'); process.exit(3); }
+  // one definition of each constant, in one file
   const constOf = (src, name) => {
     const m = src.match(new RegExp(`${name}\\s*=\\s*(-?[0-9.]+)`));
     return m ? +m[1] : null;
   };
-  const same = ['EDGE', 'FLOOR_LO', 'FLOOR_HI'].filter((k) => constOf(libSrc, k) === constOf(w75Src, k));
-  report('leg 1 and leg 2 carry the same three constants', same.length === 3,
-    `${same.join(', ')} agree (EDGE ${constOf(libSrc, 'EDGE')}, LO ${constOf(libSrc, 'FLOOR_LO')}, HI ${constOf(libSrc, 'FLOOR_HI')})`);
+  console.log(`  lib/floors.mjs constants: EDGE ${constOf(libSrc, 'EDGE')}, `
+    + `FLOOR_LO ${constOf(libSrc, 'FLOOR_LO')}, FLOOR_HI ${constOf(libSrc, 'FLOOR_HI')}`);
 }
 
 const b = await chromium.launch();
@@ -100,24 +100,6 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, URL);
 await page.evaluate(() => window.__ct.clock(13, 0));
-
-// ── LEG 2 IS LEG 1, PROVED BY RUNNING BOTH ────────────────────────────────
-//
-// Each file's own mesh-filter source is lifted out and executed against the
-// same live scene. If the two arrays match element for element, the two files
-// select the same meshes and compute the same boxes — which is the only sense
-// of "the same predicate" that matters. This CAN fail: change a threshold in
-// one file and the arrays diverge.
-{
-  const run = (body) => page.evaluate(`(() => { ${body} return out; })()`);
-  const [a, c] = [await run(libSel), await run(w75Sel)];
-  const same = a.length === c.length && JSON.stringify(a) === JSON.stringify(c);
-  report('leg 2 IS leg 1 — both files\' mesh filters, run on the same scene', same,
-    same ? `both selected the identical ${a.length} floor boxes`
-      : `leg 1 selected ${a.length} boxes, leg 2 selected ${c.length} — THEY HAVE DIVERGED`);
-  report('the mesh-filter comparison had a population to compare', a.length >= 100,
-    `${a.length} floor-shaped meshes (want >= 100)`);
-}
 
 // ── the two predicates, from the shared library ───────────────────────────
 const floors = await sampleFloors(page);
@@ -209,15 +191,77 @@ console.log(`  agreement             ${((both + neither) / total * 100).toFixed(
 if (boxOnlyPts.length) console.log(`  e.g. AABB-only: ${JSON.stringify(boxOnlyPts)}`);
 if (rayOnlyPts.length) console.log(`  e.g. ray-only:  ${JSON.stringify(rayOnlyPts)}`);
 
-// THE SIGN OF THE DISAGREEMENT IS THE WHOLE ARGUMENT FOR WHICH ONE WINS.
-// A bounding box always contains the mesh it was computed from, so it can
-// over-claim and can never under-claim. If `rayOnly` is non-zero the raycast is
-// missing geometry the boxes can see, and that argument collapses.
-report('the disagreement is one-signed — boxes over-claim, never under-claim', rayOnly === 0,
-  rayOnly === 0 ? `${boxOnly} cells claimed by the boxes alone, 0 by the raycast alone`
-    : `${rayOnly} cells the RAYCAST alone claims — it is missing geometry, the authority argument fails`);
-report('the two predicates measurably disagree', boxOnly > 0,
-  `${boxOnly} cells (${(boxOnly / total * 100).toFixed(2)}% of the grid) — at least one containment check is wrong about them`);
+// ── THE DISAGREEMENT IS TWO-SIGNED, AND THAT CORRECTS THE PRIOR FINDING ───
+//
+// `w85-item230-aabb-vs-raycast.mjs:6-8` states: *"a bounding box can only ever
+// cover MORE than the mesh in it, so AABB can say 'floor' where there is none
+// and can never say 'void' where there is floor."* **The first half is right
+// and the second half is false**, and this run is how it was caught — the
+// assertion here originally demanded `rayOnly === 0` and went red.
+//
+// The reason is not the box, it is the FILTER in front of it. `makeHasFloor`
+// only ever sees meshes that survive `lib/floors.mjs:56-57` — thin in Y (<=
+// 0.6 m) and at least 1 m across. The raycast filters nothing. So every mesh
+// that is thick or small is floor to one predicate and does not exist to the
+// other, and no reasoning about bounding boxes can reach that.
+//
+// It is not academic: item 172 gave the park real relief on 2026-08-03, its
+// ground plane's world box is now 0.653 m tall, and 0.653 > 0.6.
+report('the disagreement runs in BOTH directions — the boxes are not merely generous',
+  boxOnly > 0 && rayOnly > 0,
+  `${boxOnly} cells the boxes alone claim, ${rayOnly} the raycast alone claims`);
+report('the over-claim is real: boxes cover ground that is not drawn', boxOnly > 0,
+  `${boxOnly} cells (${(boxOnly / total * 100).toFixed(2)}% of the grid) — this is what makes a containment check green over a hole`);
+report('the under-claim is real: the size filter hides drawn ground from the boxes', rayOnly > 0,
+  `${rayOnly} cells (${(rayOnly / total * 100).toFixed(2)}%) — this is what makes a containment check red on solid floor`);
+
+// ── WHERE THE RAY-ONLY CELLS ARE, MEASURED RATHER THAN GUESSED ────────────
+//
+// ⚠ I GUESSED THIS WRONG AND THE ASSERTION CAUGHT ME. The first version of
+// this block demanded that >= 90% of the ray-only cells lie in the park, on the
+// theory that item 172's 0.653 m relief explained the whole under-claim. **It
+// went red at 15.8%**, and attributing every cell to the mesh that floors it
+// (`w91-where-is-the-underclaim.mjs`) showed why: 7232 of 7289 are floored by
+// meshes the AABB pass drops as THICK, and most of those are `BoxGeometry`
+// blocks **4.20 m tall** — BUILDINGS. The raycast is reading the *underside* of
+// a solid building as something to stand on.
+//
+// So NEITHER predicate is clean, and the authority argument is not "the raycast
+// is right". It is that **their errors land in different places**: the
+// raycast's are sealed inside buildings where no body can be, the boxes' are on
+// open ground the player walks over. That asymmetry is measured, as a check
+// that can fail, in `w91-can-anyone-stand-there.mjs`:
+//
+//   ray-only cells inside a padded collider   6738 / 7289   92.4%
+//   box-only cells inside a padded collider   1388 / 11948  11.6%
+//
+// The park is the part of the under-claim that IS reachable, and it is the part
+// that matters: a registered check was about to call a walkable park void.
+{
+  const park = await page.evaluate(() => window.__ct.sites().park || null);
+  if (!park) {
+    report('the park site is published, so the under-claim can be attributed', false, 'sites().park missing');
+  } else {
+    let inPark = 0;
+    for (let i = 0; i < NX; i++) {
+      for (let j = 0; j < NZ; j++) {
+        const k = i * NZ + j;
+        if (sweep.floor[k] !== 1) continue;
+        const x = x0 + i * GRID, z = z0 + j * GRID;
+        if (hasFloorFast(x, z, sweep.gy[k])) continue;
+        if (x >= park.minX && x <= park.maxX && z >= park.minZ && z <= park.maxZ) inPark++;
+      }
+    }
+    console.log(`\npark site x ${park.minX}…${park.maxX}  z ${park.minZ}…${park.maxZ}`);
+    // The park's ground plane is 32 x 30 m = 64 x 60 = 3840 cells; paths and
+    // other kept meshes cover some of it, so the whole site is not expected.
+    // A thousand cells of walkable park invisible to a containment predicate is
+    // the finding, and it is bounded below so it cannot pass vacuously.
+    report('a real, reachable slab of the PARK is invisible to the AABB predicate', inPark >= 500,
+      `${inPark} cells of the park site read FLOOR to the raycast and VOID to the boxes `
+      + `(${(inPark / rayOnly * 100).toFixed(1)}% of all ray-only cells; the rest are building undersides)`);
+  }
+}
 
 // ── THE 0.36 m DOORWAY eightytwo NAMED ────────────────────────────────────
 //
