@@ -1464,6 +1464,123 @@ export function makeCrosstown(): Proto {
   // two were the bodega's counters, and they went home to ct/bodega.ts once
   // ctx started carrying the purse.
 
+  // ── REGION CULL: the exterior does not exist while you are indoors ───────
+  //
+  // The user, 2026-08-02: *"facing the window in my room makes the game feel
+  // slow. like my mouse moving across the screen feels like it drags."*
+  //
+  // MEASURED FIRST, AND IT IS NOT SUBTLE. Standing still in 301 and turning on
+  // the spot to face the window takes the frame from 223 GPU draw calls to
+  // 4,007 — more than standing in the middle of the street (3,742) — and the
+  // frustum-visible renderable count from 102 to 2,784. Of those 2,784,
+  // **2,691 are street geometry**. Counts, not timings, and both are the same
+  // number on the user's machine as on this one: `scripts/probes/w53-drawcount.mjs`
+  // wraps `drawElements`/`drawArrays` on the GL context, and
+  // `scripts/probes/w53-bands.mjs` buckets the frustum set by world x.
+  //
+  // WHY IT HAPPENS. `ct/interior.ts:22-25`: "Interiors are not inside their
+  // buildings — they are rooms parked far out along +x that you teleport to."
+  // 301 sits at x ~199; the street ends at x 100. Its window wall faces -x
+  // with the entire city behind it, and three.js's only culling is a per-object
+  // frustum test that knows nothing about walls. So every building, every
+  // citizen and every parked car is submitted to the driver and then thrown
+  // away by the depth buffer. Face the other way and the city leaves the
+  // frustum, which is exactly the shape of his report — and why the STREET is
+  // fine: nothing is parked behind him out there.
+  //
+  // AND NOT ONE PIXEL OF IT IS VISIBLE. 301's window does not look at the
+  // street. It looks into a light well the user asked for in those words —
+  // *"a bit of a gap out of the window and then just a brick wall, almost like
+  // a little room outside the window that is just brick"* — which
+  // `ct/apartment.ts` builds as a closed brick box 1.2 m from the glass, with
+  // returns down both sides and a floor. The 2,691 are drawn behind a wall you
+  // cannot see past at any angle, from anywhere in the room.
+  //
+  // THE RULE. x 100 is not a number invented here. `ct/interior.ts:40` states
+  // the world's address map — "x < 100 is the street" — and this file already
+  // uses `px < 100` as "am I outdoors" to decide whether feeding the birds
+  // works. A top-level scene child whose whole extent lies west of it is
+  // street geometry; while the player stands east of it, it is not drawn.
+  //
+  // WHAT IT DELIBERATELY REFUSES TO TOUCH, because a room whose window goes
+  // black is worse than a slow one:
+  //   · anything that STRADDLES the boundary. The test is "entirely west of
+  //     100", so the sky, or anything world-spanning, fails it and stays. If a
+  //     thing might be visible from both sides, it is never hidden.
+  //   · any subtree containing a Light — hiding a parent takes its lights out
+  //     of the render, and this scene's two are global (line 90).
+  //   · anything added to the scene after the first frame: a spot outline, a
+  //     probe's car. Unclassified is never hidden.
+  //
+  // It constructs no object of any kind, deliberately. `scenedump.mjs` seeds
+  // `Math.random` globally and three draws four random values per Object3D, so
+  // one new mesh, geometry or material here would repaint every dithered
+  // texture built after it and make `fp` unreadable (GOTCHAS 75). Box3 and
+  // Vector3 are plain math and carry no uuid — which is why, unusually for a
+  // performance change, `fp` IS a valid proof for this one.
+  const REGION_X = 100;
+  let regionKids: THREE.Object3D[] | null = null;
+  const regionWas: boolean[] = [];
+  let exteriorHidden = false;
+  let regionCullOn = true;
+
+  /** Sort the scene's top-level children into "entirely street" and everything
+   *  else, once, on the first frame — by which point every module has built and
+   *  nothing further is added at construction time. */
+  function classifyRegions(): void {
+    scene.updateMatrixWorld(true);
+    const kids: THREE.Object3D[] = [];
+    for (const child of scene.children) {
+      let hasLight = false, hasDrawable = false, maxX = -Infinity;
+      child.traverse((o) => {
+        if ((o as unknown as { isLight?: boolean }).isLight) hasLight = true;
+        const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+        if (!g) return;
+        if (!g.boundingSphere) g.computeBoundingSphere();
+        const bs = g.boundingSphere;
+        if (!bs) return;
+        hasDrawable = true;
+        const e = o.matrixWorld.elements;
+        // the sphere's centre through the world matrix (column-major: the x row
+        // is e0/e4/e8/e12), plus its radius under the largest axis scale. Both
+        // conservative, so a wrong answer errs towards KEEPING the object.
+        const cx = bs.center.x * e[0] + bs.center.y * e[4] + bs.center.z * e[8] + e[12];
+        const s = Math.max(Math.hypot(e[0], e[1], e[2]),
+          Math.hypot(e[4], e[5], e[6]), Math.hypot(e[8], e[9], e[10]));
+        maxX = Math.max(maxX, cx + bs.radius * s);
+      });
+      if (hasLight || !hasDrawable) continue;      // never a candidate
+      if (maxX < REGION_X) kids.push(child);
+    }
+    regionKids = kids;
+  }
+
+  function regionCull(px: number): void {
+    if (!regionKids) classifyRegions();
+    const kids = regionKids!;
+    const hide = regionCullOn && px >= REGION_X;
+    if (hide !== exteriorHidden) {
+      if (hide) {
+        // REMEMBER WHAT THE OWNER WANTED. Restoring a blanket `true` would put
+        // the rain on for a frame on a dry afternoon, and switch on every
+        // vehicle in the pool that traffic.ts is holding in reserve.
+        regionWas.length = kids.length;
+        for (let i = 0; i < kids.length; i++) { regionWas[i] = kids[i].visible; kids[i].visible = false; }
+      } else {
+        for (let i = 0; i < kids.length; i++) kids[i].visible = regionWas[i] ?? true;
+      }
+      exteriorHidden = hide;
+    } else if (hide) {
+      // RE-ASSERT, because some top-level children are written every frame by
+      // the module that owns them — the traffic fleet (ct/traffic.ts adds each
+      // car to the scene directly), the rain and the star dome. A one-shot hide
+      // is undone by the next hook to run, so this runs LAST in the frame and
+      // has the final word. A boolean compare over the classified set, against
+      // ~3,800 draw calls.
+      for (let i = 0; i < kids.length; i++) if (kids[i].visible) kids[i].visible = false;
+    }
+  }
+
   (window as any).__ct = {
     warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => {
       // A TELEPORT BREAKS THE SIGHT CACHE'S ONE ASSUMPTION — that he cannot have
@@ -1681,6 +1798,14 @@ export function makeCrosstown(): Proto {
     stand: () => rig.stand(),
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
     camera: () => cam,    // test affordance: raycast a screen pixel back to the mesh under it
+    // test affordance: turn the region cull off, so a check can render the SAME
+    // station both ways and compare. An A/B that has to compare two BUILDS is
+    // comparing two worlds; this compares two frames of one.
+    cullRegions: (on: boolean) => { regionCullOn = on; },
+    // …and read its state back, because "nothing was hidden" and "the cull is
+    // off" produce the same picture and must not produce the same reading.
+    cullInfo: () => ({ on: regionCullOn, hiding: exteriorHidden,
+      classified: regionKids ? regionKids.length : -1, topLevel: scene.children.length }),
   };
 
   return {
@@ -1970,6 +2095,12 @@ export function makeCrosstown(): Proto {
       // false (the ColliderDebug instance builds no geometry until the first
       // `on: true` call, and tears it down again the moment it goes false).
       colliderDebug.update(scene, colliders, apt.gy(), { x: px, z: pz, radius: RADIUS }, debugCollision, actorBoxes);
+      // REGION CULL, LAST IN THE FRAME AND FOR THAT REASON. Every hook above
+      // has now had its say about what is visible, including the three modules
+      // that write `visible` on their own top-level objects every frame; this
+      // gets the final word, the same way the focus lock gets the last word on
+      // the camera at the top of this function. See the block by `__ct`.
+      regionCull(px);
     },
     dispose() {
       // the zoom listener is added once per `makeCrosstown()` call; `main.ts`
