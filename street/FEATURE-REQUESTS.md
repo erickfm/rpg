@@ -2794,3 +2794,9 @@ to one side.
   closes an import cycle (`ct/bank.ts:8` imports `openAtm` from `ct/atm.ts`), which
   GOTCHAS 28 records as silently dropping a module **from the built bundle only**: dev
   perfect, ATM absent from the published artifact. Needs a third module.
+
+- **"take card from atm should immediately get us out of the menu"** (2026-08-02)
+  → **done by the desk directly.** `ct/atm.ts` — TAKE CARD used to `go('thanks')`, and
+  the close for that screen lives inside the KEY HANDLER, so the machine sat on THANK YOU
+  until you pressed another key. It now resets to idle and closes on the spot. Left the
+  now-dead `thanks` screen queued as item 144 rather than deleting it blind.

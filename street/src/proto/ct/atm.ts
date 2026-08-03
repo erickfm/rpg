@@ -187,7 +187,21 @@ function rows(p: Purse): Row[] {
         right: 'NO', actR: () => go('card'),
       }];
     case 'card':
-      return [{ left: 'TAKE CARD', act: () => go('thanks') }];
+      // TAKING YOUR CARD ENDS THE TRANSACTION AND THE VIEW WITH IT.
+      //
+      // The user: *"take card from atm should immediately get us out of the
+      // menu"*. It used to `go('thanks')`, and the close for that screen lives
+      // inside the KEY HANDLER (`if (screen === 'thanks') panel?.close()`) —
+      // so the machine sat on THANK YOU until you pressed another key. Taking
+      // your card back is the one unambiguous "I am done" a cash machine has,
+      // and making it wait for a further keypress is the machine asking a
+      // question nobody has.
+      //
+      // `screen` is reset to 'idle' so the next player finds a fresh machine
+      // rather than the tail of somebody else's transaction — `go('thanks')`
+      // used to be what did that, and dropping it silently would have left the
+      // ATM on its farewell screen forever.
+      return [{ left: 'TAKE CARD', act: () => { screen = 'idle'; pin = ''; panel?.close(); } }];
     default:
       return [];
   }
