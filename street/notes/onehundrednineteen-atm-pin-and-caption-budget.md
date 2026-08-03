@@ -153,10 +153,33 @@ rather than a held key (§5). Worth a row of its own; not this item's.
 Green after the change, run individually: `w67-atm-pin` (0), `K-atm-walk` (0),
 `screenslot` (0), `health` (0), `sweep` (0).
 
-**The first full `npm run checks` run is void and I am not quoting it**: it
-printed `THE TREE MOVED UNDER THIS RUN: 1ca26b6a2 -> aa3cb6b29` and lost 3 of
-148 checks, because I rebuilt underneath it. That is the build race the runner
-now names, not a finding.
+### The full suite, run clean
+
+`npm run checks` was run twice and **only the second run counts**. The first
+printed `THE TREE MOVED UNDER THIS RUN` and lost 3 of 148 checks, because I
+rebuilt and committed underneath it — that is the build race the runner now
+names, not a finding. (Committing during a run is enough to trigger it: the SHA
+baked into `dist/` no longer matches HEAD, and three checks in a row reported
+`MEASURING THE WRONG WORLD`.)
+
+The clean run, tree frozen at the handoff commit, `dist/` rebuilt first:
+**148 of 149 registered checks ran, 0 `WRONG WORLD` from a moved tree,
+20 red.**
+
+**`w119-caption-budget` is ✓ in that run** — the new row works from inside the
+runner, not only by hand.
+
+**Every one of the 20 reds is pre-existing**, and none is in a file this item
+touched: `door301`, `mirror-walk`, `checks-can-fail` (3 rows with no failing
+path, all named above and none mine), `I-clip`, `w5-shadow-census`,
+`note-hashes` (*0 commit citations across 2 notes* — it finds nothing to check,
+GOTCHAS 34), `D-walk`, `park`, `spot-coverage`, `floaters-walk`, `aimed` (189,
+down from 191), `hashes-resolve`, `mutations-quote-real-source` (`jitter-
+reversals` in `ct/crowd.ts` and `watch-over-panel` in `crosstown.ts`),
+`canfail-args`, `J-library-room`, `K-pocket-loop`, `K-tyre-has-arch`,
+`N-post-waiting`, `L-slots-inworld`, `pointer-returns`. The same set appears in
+the void first run, and the two that name the ATM or the panel framework were
+rebuilt at `113c6dbd8` and shown identical (table above).
 
 ---
 
