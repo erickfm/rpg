@@ -672,7 +672,10 @@ export function buildStreet(o: {
   //
   // `side` is -1 for the west run and +1 for the east, and every x below is
   // written through it so neither case is a special case.
-  interface Site { minX: number; maxX: number; minZ: number; maxZ: number; y: number }
+  interface Site {
+    minX: number; maxX: number; minZ: number; maxZ: number; y: number;
+    displace?: (fill: (x: number, z: number) => number) => void;
+  }
   const openSite = (
     side: -1 | 1, z: number, w: number,
     o: { depth: number; ground: string; grain: string; back: string; flank: string; gate: number },
@@ -691,10 +694,54 @@ export function buildStreet(o: {
     }), 'ground');
     groundT.wrapS = groundT.wrapT = THREE.RepeatWrapping;
     groundT.repeat.set(o.depth / 2, w / 2);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(o.depth, w), wet(flat(groundT)));
+    // SUBDIVIDED, so the module that fills this site can own its ground.
+    //
+    // This was one quad. One quad cannot be given a shape, and that is not a
+    // detail — it is why `ct/park.ts` spent months carrying a +0.10 m
+    // artificial crown: its dish and its corner had to be cut out of a raised
+    // dome purely so neither sank below THIS PLANE, which is opaque and which
+    // the park could not move. Its own comment named the fix and could not
+    // reach it: *"If ct/street.ts ever lets a module own its site's ground, the
+    // crown can come off and the hollows can be real."*
+    //
+    // 1.5 vertices per metre, which is not a number picked here: it is the
+    // density `ct/park.ts:771` already builds its field mesh at, and the two
+    // surfaces are within LIFT/2 of each other over the whole field. A coarser
+    // ground under a finer field cuts the chord beneath it and pokes through on
+    // the crests — two tessellations of one curve only agree at shared
+    // vertices. Derived from the consumer, in other words, rather than guessed
+    // and then tuned until nothing showed.
+    //
+    // It costs 48 x 45 quads on the park and 35 x 35 on the lot, on meshes that
+    // are already drawn, and it creates NO new object — see `displace` below
+    // for why that last point is load-bearing.
+    const GSEG = 1.5;
+    const floorGeo = new THREE.PlaneGeometry(o.depth, w,
+      Math.max(1, Math.round(o.depth * GSEG)), Math.max(1, Math.round(w * GSEG)));
+    const floor = new THREE.Mesh(floorGeo, wet(flat(groundT)));
     floor.rotation.x = -Math.PI / 2;
     floor.position.set((XF + XB) / 2, KERB_H, (z0 + z1) / 2);
     scene.add(floor);
+    /** Hand this site's ground to the module that fills it. See `Site.displace`
+     *  in ct/ctx.ts for the contract and for why it moves vertices in place
+     *  rather than rebuilding the geometry (GOTCHAS §2: a new object costs four
+     *  `Math.random()` calls and moves every tree built after it). */
+    const displace = (fill: (x: number, z: number) => number) => {
+      // The plane is still in its own local frame — `rotation.x` is on the MESH,
+      // not baked — so local +y runs along world -z and local x along world x.
+      // Displacing therefore writes local Z, which the mesh rotation then
+      // stands up into world Y. Getting this wrong is silent: you get a plane
+      // that is bent along the ground instead of lifted off it.
+      const cx = (XF + XB) / 2, cz = (z0 + z1) / 2;
+      const pos = floorGeo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const wx = pos.getX(i) + cx, wz = cz - pos.getY(i);
+        pos.setZ(i, fill(wx, wz));
+      }
+      pos.needsUpdate = true;
+      floorGeo.computeVertexNormals();
+      floorGeo.computeBoundingSphere();     // or it culls at the old flat extent
+    };
     // the two party walls the site has just exposed, given a finished face.
     // masonry() phases its courses off world Y, so they run level with the
     // brick on the street elevation either side instead of starting again —
@@ -808,7 +855,7 @@ export function buildStreet(o: {
       scene.add(wall);
       solid({ minX: Math.min(XB, XB + side * 0.36), maxX: Math.max(XB, XB + side * 0.36), minZ: rz0, maxZ: rz1 });
     }
-    return { minX: lo, maxX: hi, minZ: z0, maxZ: z1, y: KERB_H };
+    return { minX: lo, maxX: hi, minZ: z0, maxZ: z1, y: KERB_H, displace };
   };
   // 30 m of the west side, where BARBER and GROCERY stood. Contents: E, in
   // ct/park.ts.

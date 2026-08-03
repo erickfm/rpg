@@ -108,7 +108,41 @@ export interface Seat {
  * relay never happened, and the car lot sat finished and unplaced waiting on
  * the same number.
  */
-export interface Site { minX: number; maxX: number; minZ: number; maxZ: number; y: number }
+export interface Site {
+  minX: number; maxX: number; minZ: number; maxZ: number; y: number;
+  /**
+   * TAKE OWNERSHIP OF THIS SITE'S GROUND.
+   *
+   * A site is floored by one flat plane at `y`, laid by whoever opened it. That
+   * plane is opaque, so for as long as a module could not move it, **any relief
+   * a module drew below `y` was invisible while the floor picker still lowered
+   * the player into it** — you walk down into a dip that is not there. The park
+   * carried a +0.10 m artificial CROWN for months purely so its two hollows had
+   * somewhere to be cut from, which is why its total relief was 0.366 m across
+   * 32 x 30 m and the user's verdict was *"the height is soooo flat"*.
+   *
+   * `displace` is the way out. Hand it a height field in WORLD coordinates,
+   * returning metres relative to `y`, and the site's own ground takes that
+   * shape — so a module's relief and the plane under it are the same surface
+   * and negative relief is finally allowed to exist.
+   *
+   * THREE RULES, all of them paid for:
+   *
+   *  - **It moves vertices; it does not build anything.** The plane is already
+   *    subdivided when the site is opened. Replacing the geometry here would
+   *    create a `BufferGeometry`, and three spends four `Math.random()` calls
+   *    per object on `generateUUID` — under the seeded stream (GOTCHAS §2) that
+   *    moves every tree and pigeon built afterwards. Nothing is constructed.
+   *  - **Call it during your build, before the first frame.** It is a
+   *    build-time verb, not an animation one.
+   *  - **The fill must reach zero at the site's edge.** The plane abuts the
+   *    kerb and the party walls; lifting its rim would open a gap under them.
+   *
+   * Optional — a site whose module never calls it keeps the flat plane it
+   * always had, which is what the car lot and the jail forecourt want.
+   */
+  displace?: (fill: (x: number, z: number) => number) => void;
+}
 
 /**
  * When a module builds, relative to the others.
