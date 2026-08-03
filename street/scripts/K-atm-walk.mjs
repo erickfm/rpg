@@ -153,14 +153,39 @@ const paper = await page.evaluate(() => window.__atm.screen());
 ok(paper === 'receipt', 'asking for a receipt keeps you on the receipt screen…');
 await press('5', 'card');
 ok((await st()).screen === 'card', '…and NO gives you your card back');
-await press('1', 'thanks');
-ok((await st()).screen === 'thanks', 'taking the card ends the session');
+// TAKE CARD ENDS THE VIEW, NOT JUST THE SESSION — and there is no farewell
+// screen to land on any more. The user: *"take card from atm should immediately
+// get us out of the menu"*, so `card`'s row now closes the panel outright and
+// resets `screen` to `idle` for the next player (`ct/atm.ts`, the `case 'card'`
+// row). This check expected `thanks`, which that change retired; it has been
+// failing honestly ever since, and the fix is to assert the NEW behaviour
+// rather than to soften the assertion.
+await press('1');
+await page.waitForFunction(() => window.__hud.panel() === null, null, { timeout: 8000 }).catch(() => {});
+const ended = await st();
+ok(ended.panel === null, 'taking the card ends the session AND closes the view — no farewell screen');
+ok(ended.screen === 'idle', 'and the machine is left fresh for the next player, not on somebody else\'s tail');
 
 // ── walking away never costs you anything ────────────────────────────────
 //
 // A 1997 machine really would keep a card you left in it. That is a good detail
 // and a bad rule: the framework promises ESC always works, so ESC must never be
 // the expensive choice.
+//
+// REOPENED FIRST, because TAKE CARD now leaves the view already closed. Testing
+// ESC against a panel that is not up asserts nothing — it would pass whether or
+// not ESC works, which is the "guard that slept" shape this project keeps
+// paying for.
+// …and WAIT OUT THE DISMISS LOCKOUT before reopening. `makePanel` refuses to
+// re-open a panel within 500 ms of it being dismissed (`DISMISS_LOCKOUT` in
+// `ct/hud.ts`) — that guard is what stops a caller re-opening from a frame hook
+// the instant the player closes it. A reopen inside that window silently does
+// nothing, which reads as "the machine is broken" rather than "the test was
+// impatient".
+await page.waitForTimeout(560);
+await page.evaluate(() => window.__atm.open());
+await page.waitForTimeout(200);
+ok((await st()).panel !== null, 'CONTROL: the machine is up again, so the next line means something');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(250);
 ok((await st()).panel === null, 'ESC closes it');
