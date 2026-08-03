@@ -269,10 +269,36 @@ export function buildTax(ctx: CtxBuild): void {
   // pose is not one of its five views, so he is on his feet beside the chair —
   // a preparer who has got up to file something. Faking a sit by sinking the
   // sprite into the floor would cut his legs off at the shin.
-  const PREP_X = LAMP_DX, PREP_Z = PREP_CZ - 0.30;      // stood behind his chair
+  // ── HOW FAR BEHIND THE CHAIR, AND WHY IT IS NOT 0.30 (item 150b) ────────
+  //
+  // The user, on a screenshot of this room: *"fix this"* — the figure clipping
+  // the chair. It was standing 0.30 m behind the chair's centre, and **a
+  // citizen is a BILLBOARD**: `ct/citizens.ts:579` sets `mesh.rotation.y =
+  // camAng` every frame, so the plane is not a fixed slab you can tuck behind
+  // furniture — it sweeps a CYLINDER of radius half its own width about its
+  // centre, and it will present that full width to the chair from some angle no
+  // matter which way the room is entered from.
+  //
+  // Measured before it was moved (`scripts/probes/w99-item150b-office-clip.mjs`):
+  // the 0.012 m plane sat INSIDE the seat pan, the backrest and a leg — three
+  // solid intersections, the chair rendering straight through the man.
+  //
+  // So the clearance is DERIVED from the two things that decide it, not typed:
+  // the sprite's own half-width, and how far the chair reaches back behind the
+  // centre `chair()` is called with. Change the sprite width or the backrest
+  // offset and this follows; that is the whole point, because a hand-typed 0.30
+  // is exactly what went stale here.
+  const PREP_W = 0.98;                                  // his sprite width, below
+  //  `chair()` puts the backrest at `cz - 0.2` for a desk-side chair and makes
+  //  it 0.07 deep, so the chair's rearmost face is 0.235 behind its centre.
+  const CHAIR_BACK_REACH = 0.2 + 0.07 / 2;
+  const PREP_GAP = PREP_W / 2 + CHAIR_BACK_REACH + 0.02;   // 0.745, +2 cm of air
+  const PREP_X = LAMP_DX, PREP_Z = PREP_CZ - PREP_GAP;  // stood CLEAR behind his chair
   room.person({ jacket: '#5a6470', pants: '#4a4a44', skin: '#e6bb92', hair: '#4a4038',
       fit: 'plain', cut: 'short', build: 0, stride: 2 }, PREP_X, PREP_Z,
-    { facing: Math.atan2(LAMP_DX - PREP_X, CLIENT_CZ - PREP_Z), h: 0.99, w: 0.98 });
+    // w is PREP_W, the same constant the clearance above is derived from — so
+    // widening him cannot silently push him back into the chair.
+    { facing: Math.atan2(LAMP_DX - PREP_X, CLIENT_CZ - PREP_Z), h: 0.99, w: PREP_W });
 
   // ── the pinboard ──
   //
