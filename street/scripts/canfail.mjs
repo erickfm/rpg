@@ -541,6 +541,30 @@ const CASES = [
     '} else if (m.length >= 1) {',
     'screenslot.mjs', [], 'a panel that guesses which face of a box is the screen'],
 
+  // ── AND WHY THERE IS NO `screenslot-freeze` CASE, WHICH IS NOT AN OVERSIGHT ─
+  //
+  // The dangerous half of item 150 was never the picture, it was the player:
+  // `gateUp(true)` raises the gate and captures input BEFORE the surface work,
+  // so a throw after it left the world frozen with NOTHING ON SCREEN —
+  // `panel()` returning the id while the wrapper sat at opacity 0, Escape the
+  // only way out, indistinguishable from a hang. `screenslot.mjs` asserts
+  // exactly that state, and it has been WATCHED FAILING on the real pre-fix
+  // source: `panel()=ct-atm while the wrapper is at opacity 0`.
+  //
+  // I tried to add a mutation for it (`backdropUp(true);` -> `throw err;`,
+  // rethrowing out of the hang's catch) and it **SLEPT**, for a reason worth
+  // recording: after the fix a multi-material mesh never ENTERS the hang —
+  // `screenSlot` returns null and `onMesh` is set to null before it — so the
+  // hang's catch is unreachable and the mutation does not mutate. Reproducing
+  // the freeze now takes TWO independent regressions (something must throw
+  // after the gate AND its guard must be gone), and canfail applies one needle.
+  //
+  // That is the fix working, not a hole in the suite. **Do not "repair" this by
+  // adding a case that goes red for some other reason** — a green CAUGHT bought
+  // that way certifies nothing, which is the failure this whole file exists to
+  // catch. The pre-fix run is the evidence, and `screenslot-blind` already
+  // covers the throw that used to reach the gate.
+
   ['park', PROPS,
     'lens.userData.parkLantern = true;',
     '',

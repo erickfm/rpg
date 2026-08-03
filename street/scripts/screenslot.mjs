@@ -10,7 +10,7 @@
 // bug this project ships.
 //
 // A box with a screen on one face is the ORDINARY way to build a cabinet, so
-// this is not an exotic input — items 155 and 157 were both blocked on it.
+// this is not an exotic input.
 //
 // WHAT THIS ASSERTS, and both legs would have caught the original bug because
 // the original THREW on both:
@@ -20,7 +20,15 @@
 //   2. a MULTI-slot array with no `materialIndex` DEGRADES: no throw, the panel
 //      opens as the screen-space cabinet, and the console says which mesh needs
 //      the index
-//   3. in every case the panel still CLOSES, and no case leaves a page error
+//   3. a SIX-slot box carcass does not FREEZE THE WORLD WITH NO PANEL UP —
+//      the leg that matters most, and the one the row understated. The throw
+//      site sat after `gateUp(true)` and outside any `try`, so the failure was
+//      not "a check throws", it was the player frozen with input captured and
+//      nothing on screen, Escape the only way out
+//   4. in every case the panel still CLOSES, and no case leaves a page error
+//
+// Watched failing on the real pre-fix `hud.ts`: 13 assertions red, including
+// `panel()=ct-atm while the wrapper is at opacity 0`.
 //
 // Usage: SHOT_URL=http://localhost:4460/ node scripts/screenslot.mjs
 import { aim } from './lib/aim.mjs';
@@ -114,23 +122,45 @@ for (const id of diegetic) {
     };
     const run = async (material) => {
       mesh.material = material;
-      let threw = null, diegetic = null, closed = null;
+      let threw = null, diegetic = null, closed = null, up = null, opacity = null;
       try {
         window.__hud.openPanel(id); await nap(250);
-        diegetic = isDiegetic();
       } catch (e) { threw = String((e && e.message) || e); }
+      // ⚠ READ THE STATE OUTSIDE THE `try`, AND THIS IS THE WHOLE POINT.
+      //
+      // These three reads used to sit INSIDE it. When `open()` threw — which is
+      // precisely the case this is here to catch — they never ran, `up` stayed
+      // null, and `frozenBlind` was false BY ABSENCE. The freeze assertion then
+      // printed OK against the pre-fix source, which is a check that cannot
+      // fail. Watched: 12 other assertions went red on that run and this one
+      // stayed green.
+      //
+      // THE FREEZE OBSERVABLE. `gateUp(true)` runs BEFORE the surface work, so a
+      // throw after it leaves the panel logically OPEN (`panel() === id`, input
+      // captured, feet frozen) while the wrapper is still at opacity 0 from the
+      // last close — the player frozen, looking at the world, nothing on screen.
+      diegetic = isDiegetic();
+      up = window.__hud.panel();
+      opacity = document.getElementById(id)?.style.opacity ?? null;
       try { window.__hud.closePanels(); await nap(700); } catch (e) { closed = String((e && e.message) || e); }
-      return { threw, diegetic, closedThrew: closed, panelAfter: window.__hud.panel() };
+      return { threw, diegetic, closedThrew: closed, upWhileOpen: up, opacity,
+               frozenBlind: !!up && opacity !== '1', panelAfter: window.__hud.panel() };
     };
 
     // 1. ONE slot — unambiguous, must still hang on the mesh
     const one = await run([original]);
     // 2. TWO slots, no materialIndex — must degrade, not throw
     const two = await run([original, original.clone()]);
+    // 3. SIX slots — a real box carcass. `ct/apartment.ts:1534` builds the
+    //    mailbox bank exactly like this, and its own comment names face 1 as
+    //    the one turned into the hall, so this is the shape a future diegetic
+    //    surface will actually meet.
+    const six = await run([original, original.clone(), original.clone(),
+                           original.clone(), original.clone(), original.clone()]);
 
     mesh.material = original;                   // put the world back
     window.__hud.closePanels(); await nap(300);
-    return { found: true, name: mesh.name || '(unnamed)', one, two };
+    return { found: true, name: mesh.name || '(unnamed)', one, two, six };
   }, id);
 
   if (!r.found) { say(false, `could not identify the mesh ${id} hangs on`); continue; }
@@ -145,14 +175,29 @@ for (const id of diegetic) {
   say(r.two.diegetic === false, `a TWO-slot array with no materialIndex degrades to the cabinet`,
     `diegetic=${r.two.diegetic} — it guessed a slot instead of degrading`);
   say(r.two.panelAfter === null, `and it closes`, `panel still up: ${r.two.panelAfter}`);
+
+  // ── THE FREEZE, WHICH IS THE REAL DANGER (desk escalation on item 150) ────
+  // The row said "it throws rather than degrading". The consequence was worse:
+  // the throw sat after `gateUp(true)` and outside any try, so the world froze
+  // with input captured and NOTHING ON SCREEN. Asserting "did not throw" does
+  // not cover that — a future refactor could swallow the throw and still leave
+  // the panel invisible. So this asserts the state directly.
+  say(r.six.threw === null, `a SIX-slot box carcass does not throw`, `threw: ${r.six.threw}`);
+  say(r.six.frozenBlind === false,
+    `a SIX-slot box carcass does not FREEZE THE WORLD WITH NO PANEL UP`,
+    `panel()=${r.six.upWhileOpen} while the wrapper is at opacity ${r.six.opacity} — `
+    + `input is captured and there is nothing on screen`);
+  say(r.six.diegetic === false, `and it degrades to the cabinet rather than guessing a face`,
+    `diegetic=${r.six.diegetic}`);
+  say(r.six.panelAfter === null, `and it closes`, `panel still up: ${r.six.panelAfter}`);
 }
 
 // The degrade must SAY which mesh needs the index — a silent fallback is how a
 // screen quietly stops being diegetic and nobody finds out for a month.
 const named = errors.filter((e) => /does not say which slot is the screen/.test(e));
 console.log('');
-say(named.length >= diegetic.length,
-  `each degrade names the mesh and asks for materialIndex (${named.length} of ${diegetic.length})`,
+say(named.length >= diegetic.length * 2,
+  `each degrade names the mesh and asks for materialIndex (${named.length} of ${diegetic.length * 2})`,
   'expected one console.error per degraded panel');
 
 // Everything else on the console is a real fault. The degrade messages above are
