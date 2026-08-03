@@ -16,7 +16,7 @@ import { ROAD_HALF, WALK, FACE, PARK_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng'
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
 import { buildGround, JUNCTION_CROSSINGS } from './ct/tex-ground';
-import { type CarKind, makeCar, PICKUP_BED, CAR_HALF_W, carHalfLen, carColliderBoxes } from './ct/cars';
+import { type CarKind, makeCar, PICKUP_BED, CAR_HALF_W, carHalfLen, carColliderBoxes, carColliderSpec } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
 import { nudgeClear, corridor, ENTERABLE, PASSABLE } from './ct/gap';
@@ -1422,6 +1422,13 @@ export function makeCrosstown(): Proto {
       scene.add(c);
       return c;                    // the OBJECT: a count tells a probe nothing it can check
     },
+    // test affordance: THE DECLARED COLLIDER FOR A KIND OF CAR, in the car's own
+    // local frame (item 202c). Published so a check can ask "does every sedan in
+    // this world carry the sedan's collider?" against the SPEC rather than
+    // against another instance — instance-vs-instance goes green the moment two
+    // instances are wrong the same way, and it cannot tell a tier of the kind
+    // apart from something hitched to one particular car (the sedan's trailer).
+    carSpec: (kind: CarKind = 'sedan') => carColliderSpec(kind),
     // test affordance: IS THE RE-ENTRY HYSTERESIS HOLDING RIGHT NOW, and how
     // far must you walk to clear it?
     //
