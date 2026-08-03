@@ -220,6 +220,8 @@ interface Citizen {
    *  height of this person's painted head — the canopy hangs off that, so a
    *  short walker's umbrella is not floating over a tall one's */
   umb: THREE.Mesh; umbOpen: number; figTop: number;
+  /** the same figure with a hand up, and which sheet is on the mesh now */
+  texUp: THREE.Texture; holding: boolean;
   /** what the sprite is currently showing — for the feet check, see `views` */
   view?: { col: number; mirror: boolean; yaw: number; moving: boolean } }
 
@@ -304,7 +306,13 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   // Rows are FRACTIONS of UMB_PX, not literals. The first cut hard-coded them
   // for a 32 px sheet, so changing the canopy's size would have silently moved
   // the hem into the wearer's face — which is the fault it already had.
-  const UMB_HEM = Math.round(UMB_PX * 0.37);     // last row of canopy
+  // 0.37 -> 0.46. *"umbrella looks so janky."* At 0.37 the dome was 13 rows for
+  // 36 texels of width — an aspect of 0.36, which is a PLATE. Photographed at
+  // 4 m (`shots/w110-umb-before-0-4m.png`) it reads as a flat dark brim and not
+  // as a canopy, and no amount of hem scalloping rescues a silhouette that
+  // shallow. 17 rows takes the aspect to 0.47, which is about what a real
+  // 8-rib canopy does. It costs the shaft two rows and the shaft has plenty.
+  const UMB_HEM = Math.round(UMB_PX * 0.46);     // last row of canopy
   const UMB_GRIP = Math.round(UMB_PX * 0.79);    // where the hand is
   const umbrellaTex = (canopy: string) => pixTex(UMB_PX, UMB_PX, (g) => {
     const cx = UMB_PX / 2, top = 2, wide = UMB_PX / 2 - 1;
@@ -328,12 +336,48 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         g.fillRect(cx + Math.round(f * hw), y, 1, 1);
       }
     }
-    // a scalloped hem, so it reads as fabric stretched between those ribs
-    for (const f of [-0.88, -0.5, 0.5, 0.88]) {
-      g.clearRect(cx + Math.round(f * halfAt(UMB_HEM)) - 1, UMB_HEM, 2, 1);
+    // ── FORM, so the dome is not a flat cut-out ──────────────────────────
+    //
+    // *"umbrella looks so janky."* The canopy was ONE flat colour with four
+    // one-texel ribs, and a shape with no light on it has no volume — at 4 m
+    // that is most of why it read as a hat rather than as something arched
+    // over a head. Two broad areas, not bands: the sun in this world comes
+    // from the RIGHT (the same reading `ct/hud.ts` uses for the wrist), so the
+    // right flank catches it and the left falls away.
+    //
+    // AND THESE ARE AREAS ON PURPOSE, which is the opposite of the rule two
+    // comments up. That rule is about RIBS — a rib is a line, and a 2-texel
+    // line stops being one. Shading is not a line, and drawing it one texel at
+    // a time is what left the canopy flat.
+    const flank = (from: number, to: number, style: string) => {
+      g.fillStyle = style;
+      for (let y = top + 1; y <= UMB_HEM; y++) {
+        const hw = halfAt(y);
+        const a = Math.round(from * hw), c2 = Math.round(to * hw);
+        g.fillRect(cx + Math.min(a, c2), y, Math.abs(c2 - a), 1);
+      }
+    };
+    flank(0.40, 1.0, 'rgba(255,255,255,0.09)');   // lit flank
+    flank(-1.0, -0.44, 'rgba(0,0,0,0.16)');       // shadowed flank
+    // …AND THE UNDERSIDE. A canopy is a shell: from eye level you see the last
+    // of its inner face turning away from you, and that face gets no sky at
+    // all. Without it the hem was a hard bright edge, which is exactly the
+    // silhouette of a brim.
+    g.fillStyle = 'rgba(0,0,0,0.22)';
+    for (let y = UMB_HEM - 1; y <= UMB_HEM; y++) {
+      const hw = Math.round(halfAt(y));
+      g.fillRect(cx - hw, y, hw * 2, 1);
     }
     g.fillStyle = 'rgba(255,255,255,0.10)';      // a little sky on the crown
     g.fillRect(cx - 4, top + 1, 8, 1);
+    // A SCALLOPED HEM, so it reads as fabric stretched between those ribs —
+    // AND IT MUST BE THE LAST THING DRAWN ON THE CANOPY. It cuts holes with
+    // `clearRect`, so any shading painted after it fills the notches back in
+    // with a translucent pixel. It used to sit above the crown highlight and
+    // the flanks below would have quietly undone it.
+    for (const f of [-0.88, -0.5, 0.5, 0.88]) {
+      g.clearRect(cx + Math.round(f * halfAt(UMB_HEM)) - 1, UMB_HEM, 2, 1);
+    }
     // ferrule, shaft and a wooden crook — all one texel wide
     g.fillStyle = '#4a4a52';
     g.fillRect(cx, 0, 1, top);                   // the spike above the dome
@@ -352,8 +396,37 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   // a lift chosen by eye. `citizenPlane` is 1.9 m tall and the painted figure
   // fills 56 of its 64 rows (CITIZEN-STYLE.md), so the crown is 1.9 · 56/64 · hs.
   const FIG_TOP = 1.9 * (56 / 64);
-  /** how far the hem clears the crown */
-  const UMB_CLEAR = 0.10;
+  /**
+   * HOW FAR THE HEM CLEARS THE CROWN — 0.10 -> 0.30, and this is the change
+   * that does most of the work.
+   *
+   * *"umbrella looks so janky."* (2026-08-03.) The previous fix widened the
+   * canopy, on the reading that *"a canopy has to be wider than the shoulders
+   * it is keeping dry"* — true, and it did not cure it, because WIDTH was
+   * never what made it a hat. **HEIGHT IS.** A hat sits ON the head; an
+   * umbrella floats above it on a stick, and the thing your eye actually reads
+   * is the DAYLIGHT in between.
+   *
+   * At 0.10 m there was no daylight to read. Photographed at 1.6, 4 and 8 m in
+   * rain (`shots/w110-umb-before-0-*.png`): at 4 m — normal walking distance,
+   * which is the distance the item is judged at — the 10 cm gap is **1.4° of
+   * arc, about 12 screen px**, and both the hair and the canopy are dark, so
+   * the two silhouettes fuse into one dark mass sitting on the shoulders. The
+   * shaft that should have separated them is ONE texel of `#4a4a52` drawn
+   * straight down over dark brown hair, so it contributed nothing.
+   *
+   * 0.30 m puts a clear third of a metre of sky between crown and hem, and —
+   * this is the part that matters more than the number — **it moves the shaft
+   * off the head and into open air**, where a one-texel dark line against the
+   * street reads immediately. Nothing about the shaft's drawing changed.
+   *
+   * A LOOKED-AT VALUE, AND SAID SO. There is no quantity in this file it can
+   * be derived from: it is how much air a person reads as "held above", and
+   * the only instrument for that is the frame. Do not dress it up in a formula
+   * — the constant next door in `ct/hud.ts` spent a session wearing one that
+   * was arithmetically wrong. Before/after frames are `shots/w110-umb-*.png`.
+   */
+  const UMB_CLEAR = 0.30;
   /** hem's distance below the plane's top edge, in metres */
   const UMB_HEM_M = (UMB_HEM / UMB_PX) * UMB_M;
   const umbGeo = new THREE.PlaneGeometry(UMB_M, UMB_M);
@@ -368,6 +441,23 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     const { hs, ws } = bodyScale(p);
     const tex = citizenAtlas({ ...p.look, stride: strideFor(p.sp, hs) });
     tex.repeat.set(1 / 5, 1 / 2);
+    // ── AND THE SAME PERSON WITH A HAND UP ───────────────────────────────
+    //
+    // Item 271 fixed the canopy and named what it could not reach: *"both arms
+    // still hang at the sides, so nobody appears to be holding the thing."*
+    //
+    // A SECOND SHEET, not a second field on the live mesh. The pose is painted
+    // into the atlas — that is where arms live — and an atlas is baked once,
+    // so a pose that changes with the weather has to be a second bake and a map
+    // swap. It costs one 160 × 128 canvas per walker, which is the same price
+    // this loop already pays for the first one.
+    //
+    // NO `rnd()` DRAW IS ADDED. That stream's ORDER is load-bearing (GOTCHAS 2)
+    // and one extra draw here would re-grain every texture built after the
+    // crowd; `citizenAtlas` takes all its colour from the `Look` and never
+    // touches the shared LCG, so painting it twice moves nothing.
+    const texUp = citizenAtlas({ ...p.look, stride: strideFor(p.sp, hs), holdUp: true });
+    texUp.repeat.set(1 / 5, 1 / 2);
     // the geometry is translated so the origin is at the FEET, so scaling
     // height never lifts anyone off the pavement or sinks them into it
     const geo = citizenPlane();
@@ -398,7 +488,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     umb.visible = false;
     scene.add(umb);
     citizens.push({
-      umb, umbOpen: 0, figTop: FIG_TOP * hs,
+      umb, umbOpen: 0, figTop: FIG_TOP * hs, texUp, holding: false,
       mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: p.sp,
       ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3,
       cad: 5 * Math.sqrt(p.sp) / hs,     // cadence: long legs swing slower
@@ -1014,6 +1104,24 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       const wantUmb = rainNow > UMB_UP ? 1 : rainNow < UMB_DOWN ? 0 : c.umbOpen;
       c.umbOpen += (wantUmb - c.umbOpen) * Math.min(1, dt * 5);
       c.umb.visible = c.umbOpen > 0.02;
+      // ── AND THE HAND GOES UP WITH IT ─────────────────────────────────
+      //
+      // DERIVED FROM THE UMBRELLA ITSELF, not from a second reading of the
+      // weather. `c.umb.visible` IS the umbrella's open-ness, one line above —
+      // so the arm cannot drift out of step with the thing it is holding, and
+      // there is no second threshold to tune. Rain hysteresis, the storm ramp
+      // and the 0.02 floor are all already inside it.
+      //
+      // A MAP SWAP, not a redraw: both sheets were baked at construction and
+      // this only chooses. `needsUpdate` because three caches the material's
+      // program against what it was compiled with, and the cost is once per
+      // change of weather rather than once per frame.
+      if (c.umb.visible !== c.holding) {
+        c.holding = c.umb.visible;
+        const mat = c.mesh.material as THREE.MeshBasicMaterial;
+        mat.map = c.holding ? c.texUp : c.tex;
+        mat.needsUpdate = true;
+      }
       if (c.umb.visible) {
         // Same position and the SAME billboard rotation as the person, so the
         // two stack as a 2D overlay at every angle — that is the whole reason
@@ -1066,9 +1174,15 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       // when halted, so a stopped person isn't marching in place
       if (moving) c.anim += dt * c.cad;   // per-person cadence, see strideFor
       const row = moving ? Math.floor(c.anim) % 2 : 0;
-      c.tex.repeat.x = mirror ? -1 / 5 : 1 / 5;
-      c.tex.offset.x = mirror ? (col + 1) / 5 : col / 5;
-      c.tex.offset.y = row === 0 ? 0.5 : 0;
+      // THE LIVE SHEET, not `c.tex`. Since the umbrella swaps the mesh's map
+      // between the two bakes, writing the view onto `c.tex` unconditionally
+      // would leave whichever sheet is actually on screen frozen on the column
+      // and frame it wore when the rain started — a walker who turns a corner
+      // under an umbrella and keeps facing the old way.
+      const t = c.holding ? c.texUp : c.tex;
+      t.repeat.x = mirror ? -1 / 5 : 1 / 5;
+      t.offset.x = mirror ? (col + 1) / 5 : col / 5;
+      t.offset.y = row === 0 ? 0.5 : 0;
       c.view = { col, mirror, yaw: c.mesh.rotation.y, moving };
     }
   }, ORDER.LATE);
@@ -1091,7 +1205,10 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     // umbrellas go up?" is to look at a picture — and a picture cannot be a
     // regression test.
       doing: c.doing, jam: +c.jam.toFixed(2), ghost: !!c.ghost, gave: +c.gave.toFixed(3),
-      umb: +c.umbOpen.toFixed(2) })),
+      // …and WHICH SHEET IS ON THE MESH. `umb` says the canopy is up; this says
+      // the person is holding it. They are meant to be the same answer, and a
+      // probe that can only see one of them cannot prove that.
+      umb: +c.umbOpen.toFixed(2), holding: c.holding })),
     // the DIRECTION OF TRAVEL, not a ±1 axis code: since the crowd routes over
     // a graph, people walk east and west too, and the feet check has to compare
     // the painted toe against an arbitrary heading

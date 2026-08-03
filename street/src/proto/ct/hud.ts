@@ -1633,10 +1633,40 @@ export function makeHud(purse: Purse): Hud {
    * sides of it, which reads worse than the flat arm did. Looked at, not
    * reasoned: `/tmp/w63-arm-t18.png` is the frame where I saw it.
    *
-   * So the element goes down by what the rotation lifted the hand end by —
-   * `WATCH_PIVOT x sin(tilt)`, DERIVED so it stays right if the tilt is ever
-   * tuned again — and the hand is cut by the bottom of the frame the way it
-   * always was.
+   * So the element goes down by roughly what the rotation lifted the hand end
+   * by, and the hand is cut by the bottom of the frame the way it always was.
+   *
+   * ⚠ THIS COMMENT USED TO CLAIM THE 30 WAS `WATCH_PIVOT x sin(tilt)`,
+   * "DERIVED so it stays right if the tilt is ever tuned again". **IT IS NOT,
+   * AND THAT FORMULA IS NOT THE RIGHT ONE EITHER — do not go and "restore" it.**
+   * `WATCH_PIVOT x sin(18°)` = 242 x 0.309 = **74.8**, two and a half times
+   * this number, and implementing it would push the whole face 45 px further
+   * down. Measured on the built bundle at 1280 x 958
+   * (`scripts/probes/w110-lcd-pixels.mjs`, marker divs parented INSIDE the
+   * wrapper so the browser applies the drop and the rotation — a hand-written
+   * matrix got this wrong first time and reported the STOWED watch as 99% on
+   * screen):
+   *
+   *            client box y      cut by the frame
+   *   case      845.5…1002.9        44.9 px   (71.5% on screen)
+   *   LCD       868.9… 966.4         8.4 px   (91.4%)
+   *   digits    891.4… 951.8         0.0 px   (100%, 6.2 px of clearance)
+   *   caption   931.6… 987.3        29.3 px   (47.4%)
+   *
+   * **The digits clear the bottom edge by 6.2 px.** At a drop of 74.8 they
+   * would be 39 px under it — the clock would be unreadable, which is the exact
+   * thing item 275 was about. So 30 is a LOOKED-AT value and this comment now
+   * says so rather than dressing it up.
+   *
+   * WHAT IT IS ACTUALLY BUYING, so the next person has the constraint rather
+   * than the number: the fist's inner bottom corner must stay BELOW the frame,
+   * or the hand floats in the middle of the road. At drop 30 it sits **26.5 px
+   * below**; its outer corner is 34.7 px above, so the bottom edge crosses the
+   * frame diagonally and reads as cut. Seating the whole case on the bottom
+   * edge would need drop ≈ -15, which floats the fist by 19.5 px — the failure
+   * the paragraph above describes. The two wants pull opposite ways and 30 is
+   * where they were balanced by eye. **If you retune the tilt, re-measure both
+   * corners; there is no formula waiting to be found here.**
    */
   const WATCH_DROP = 30;
   /** shown, and stowed below the frame. Same tilt: the arm must not swing as it

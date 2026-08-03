@@ -22,7 +22,7 @@ import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
 import { giveRandom, pocketsFull } from './inventory';
-import { screenFade } from './hud';
+import { screenFade, makePanel, type Panel } from './hud';
 
 // ── No. 227 — the player's walk-up ────────────────────────────────────────
 // Four stories, a switchback stair, your place (301) on the third floor,
@@ -2126,15 +2126,39 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const mug = new THREE.Mesh(new THREE.CylinderGeometry(MUG_R, 0.034, MUG_H, 12), mugM);
     mug.position.set(AX(MUG_X), SILL_TOP + MUG_H / 2, AZI(MUG_Z));
     scene.add(mug);
-    // what is left in it. Without this the top is a disc of the body colour
-    // and the whole thing reads as a peg — the player looks DOWN at this from
-    // 22°, so the top face is a third of what he sees of it. It rides 1 mm
-    // ABOVE the cylinder's own top cap rather than at coffee level inside it:
-    // the cap is solid, so a disc sunk into the cup would simply be hidden by
-    // it, and 1 mm is clear of the z-fighting the reveal corners cost us.
-    // What is left is a 6 mm ring of rim around a dark disc — an open vessel.
+    // ── THE MUG'S MOUTH. IT IS AN EMPTY VESSEL, NOT A CUP OF COFFEE ──────────
+    //
+    // The user, item 274: *"mug should be empty."*
+    //
+    // The disc that was here is NOT deleted, and the reason is worth keeping:
+    // the cylinder has a SOLID top cap, so with nothing dark up there the top
+    // is a disc of the body colour and the whole thing reads as a peg — the
+    // older complaint, and he looks DOWN at this from 22°, so the top face is
+    // a third of what he sees of it. A disc sunk to coffee level INSIDE the
+    // cup would simply be hidden by that cap, which is why it rides 1 mm proud
+    // (1 mm is also clear of the z-fighting the reveal corners cost us).
+    //
+    // SO THE FIX IS TONE, NOT GEOMETRY. An empty mug still has a dark mouth —
+    // but it is the SHADOW OF WHITE CERAMIC, not the brown of coffee. 0x4a3524
+    // is (74, 53, 36): warm by +38 R-over-B and dark at value 54. That is a
+    // liquid. 0x6b7078 is (107, 112, 120) — the body tone taken down to ~53%
+    // and rotated cool, so B sits ABOVE R and it reads as shade rather than as
+    // something poured.
+    //
+    // MEASURED IN HIS OWN PIXELS, not reasoned about, because that is exactly
+    // how the handle failed twice — item 167 found it drawn (1, 1, 2) out of
+    // 255 from the sill behind it. From his spot (inside the bed prompt,
+    // 22° down, `scripts/probes/w111-mug-empty.mjs`), channel-sum contrast:
+    //
+    //     interior vs RIM   459 -> 283      still nothing like a peg
+    //     interior vs SILL  310 -> 134      above the 122 item 167 accepted
+    //
+    // The interior LOST contrast against both and that is the point: it had
+    // far too much, because it was a different material, not a shadow. 283 and
+    // 134 are both comfortably clear — the cup's own body only manages 149
+    // against that sill and reads fine.
     const brew = new THREE.Mesh(new THREE.CircleGeometry(MUG_R - 0.006, 12),
-      new THREE.MeshBasicMaterial({ color: 0x4a3524 }));
+      new THREE.MeshBasicMaterial({ color: 0x6d6e6f }));
     brew.position.set(AX(MUG_X), SILL_TOP + MUG_H + 0.001, AZI(MUG_Z));
     brew.rotation.x = -Math.PI / 2;
     scene.add(brew);
@@ -3299,33 +3323,340 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     // THE CALENDAR HAS LEFT THIS WALL for the south one, at the user's request.
     // What remains above the bed is the poster and the three snapshots.
-    const calT = surfTex('detail', 30, 40, (g) => {
-      g.fillStyle = '#8c3a2e'; g.fillRect(0, 0, 30, 12);            // the month block
-      stampNum(g, '1997', 5, 3, '#e8dcb8');
-      g.fillStyle = '#e8e0cc'; g.fillRect(0, 12, 30, 28);           // the grid page
-      g.fillStyle = '#5a5348';
-      for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) g.fillRect(2 + c * 4, 15 + r * 5, 2, 2);
-      // one day ringed in biro, which is the whole reason a calendar is on a
-      // wall rather than in a drawer
-      g.fillStyle = '#2f4f8c';
-      g.fillRect(9, 24, 6, 1); g.fillRect(9, 29, 6, 1);
-      g.fillRect(9, 24, 1, 6); g.fillRect(14, 24, 1, 6);
-      dither(g, 30, 40, 26);
-    });
-    // ── THE CALENDAR NOW HANGS ON THE SOUTH WALL ─────────────────────────────
+    // ══ THE CALENDAR — bigger, a little right, and a thing you can READ ══════
     //
-    // It takes the poster's former x and y verbatim, and — the half of the swap
-    // that is easy to forget — it loses its `rotation.y`. The south wall faces
-    // +z into the room, so its artwork carries NO rotation. Leaving the PI on
-    // would not hide it; it would show the month page reversed, biro ring and
-    // all, and it would look like a texture bug rather than a placement one.
+    // The user: *"move the calendar a bit to the right, make it bigger, and make
+    // it interactable in the same sort of integrated overlay view."* Three asks,
+    // and the third decides the other two: an object you are meant to walk up to
+    // and read has to be big enough to be worth walking to.
     //
-    // No clearance check is owed in this direction: at 0.30 x 0.40 the calendar
-    // fits strictly inside the 0.52 x 0.70 footprint the poster vacated, and the
-    // south wall carries nothing else.
-    const cal = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.40), texM(calT));
-    cal.position.set(AX(-1.05), RY + 1.55, SOUTH_Z);
+    // WHAT THE RING MEANS, which is the only interesting question here. A biro
+    // ring has been drawn on this calendar since it was written — *"the whole
+    // reason a calendar is on a wall rather than in a drawer"* — and it referred
+    // to nothing. It refers to RENT DAY now, because `ct/tenancy.ts` already
+    // runs a lease and rent is the one recurring dated event this world has.
+    // Nothing new is scheduled and there is NO scheduling UI: a wall calendar's
+    // only real affordance is turning the page, so that is the only thing this
+    // one offers. Days behind you are crossed off in the same biro, which is
+    // what somebody waiting on a rent day actually does to a wall calendar.
+    //
+    // ── THE LEASE, COPIED WITH A CITATION AND NOT IMPORTED ───────────────────
+    //
+    // These four values are `ct/tenancy.ts:74-87`'s `RENT`, value for value.
+    // BUILDER-BRIEF §8 says import rather than retype, and I cannot: `ct/
+    // tenancy.ts:4` imports `APT_X0/APT_Z0/ST0` FROM THIS FILE, so importing it
+    // back closes an import cycle — and GOTCHAS §28 is that a module in a cycle
+    // can be silently dropped from the BUILT BUNDLE ONLY. Dev would look
+    // perfect and the calendar (or the mailbox) would not exist in the artifact.
+    // That is the same trap `ct/atm.ts` hit and left alone for the same reason.
+    //
+    // So: cited copy, and a CHECK rather than a promise —
+    // `scripts/probes/w107-lease-copy-agrees.mjs` reads both files and fails if
+    // these four drift from tenancy's. The follow-up for the desk is to hoist
+    // `RENT` into a leaf module that neither file imports, which is the fix
+    // `ct/atm.ts`'s note asks for as well.
+    const LEASE = { firstDay: 2, everyDays: 7, amount: 45, landlord: 'V. OKONKWO' } as const;
+    /**
+     * DAY 0 OF THE GAME IS MONDAY 1 SEPTEMBER 1997 — derived, not picked.
+     *
+     * `ct/tenancy.ts:278` is `noDelivery(day) { return day % 7 === 6; }` with
+     * the comment "Sunday. No delivery." That fixes the world's week: day 6 is
+     * a Sunday, so DAY 0 IS A MONDAY, and any calendar drawn here has to start
+     * on one or it will disagree with the post. 1 September 1997 is a Monday
+     * (`new Date(Date.UTC(1997,8,1)).getUTCDay() === 1`) and it makes the first
+     * rent day — day 2 — Wednesday 3 September, weekly on a Wednesday after
+     * that. This is the only date this world has ever authored; nothing else
+     * names a month.
+     */
+    const CAL_EPOCH = Date.UTC(1997, 8, 1);
+    const CAL_MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY',
+      'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+    const CAL_WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];   // Monday first, per above
+    /** what day it is, the same expression `ct/tenancy.ts:42` uses. A game day
+     *  is 1440 game-minutes, which is 24 real ones. */
+    const calToday = () => Math.floor(ctx.clock.now().totalMin / 1440);
+    const isRentDay = (d: number) =>
+      d >= LEASE.firstDay && (d - LEASE.firstDay) % LEASE.everyDays === 0;
+    /** the next rent day on or after `d` */
+    const nextRentDay = (d: number) => (d <= LEASE.firstDay ? LEASE.firstDay
+      : LEASE.firstDay + Math.ceil((d - LEASE.firstDay) / LEASE.everyDays) * LEASE.everyDays);
+
+    // ── SIZE AND DENSITY (§7b) ───────────────────────────────────────────────
+    //
+    // 0.30 x 0.40 -> 0.48 x 0.64. That is 2.56x the area, against the 0.52 x
+    // 0.70 flyer that used to hang in this slot — so it is visibly bigger and
+    // still not the biggest thing on a wall in a rented room.
+    //
+    // THE ASPECT IS DELIBERATELY UNCHANGED at 3:4. The art is a month block over
+    // a seven-column grid and it is drawn for a portrait page; re-cutting to a
+    // new aspect would mean redrawing the grid to gain nothing. What DOES get
+    // re-cut is the canvas, and that is the part that matters: 30 x 40 stretched
+    // over 0.48 x 0.64 would be 62.5 px/m, and this surface has always been
+    // 100 px/m (30 px / 0.30 m). So the canvas is DERIVED from the metres at the
+    // density it already had, and the wall texture is unchanged in density and
+    // in look. Both canvases below are 3:4, so neither is stretched on the plane.
+    const CAL_W = 0.48, CAL_H = 0.64;
+    const CAL_PPM = 100;                                    // px/m, as it always was
+    const CAL_TW = Math.round(CAL_W * CAL_PPM);             // 48
+    const CAL_TH = Math.round(CAL_H * CAL_PPM);             // 64
+    // and the overlay is the SAME PAGE at six times the density, because you
+    // read it from 0.42 m instead of from across the room. One drawing routine
+    // lays out both, in 48 x 64 design units scaled by S — so the object cannot
+    // re-arrange when you step up to it, which is exactly the fault the ATM's
+    // handoff note logged against `ct/bank.ts` (notes/archive/w41, finding 1).
+    const CAL_PW = CAL_TW * 6, CAL_PH = CAL_TH * 6;         // 288 x 384, 600 px/m
+    // where the eye settles to read it — see the panel below for the derivation
+    const CAL_FOV = 55;
+    const CAL_STANDOFF = (CAL_H / 2) / Math.tan((CAL_FOV * Math.PI) / 360) * 1.18;
+
+    /**
+     * The month page, at any canvas size that is 3:4.
+     *
+     * `day` is the game day; `offset` is how many months forward or back of the
+     * one containing it. Everything below is in 48 x 64 DESIGN UNITS and lands
+     * on whole pixels through `u()`, so it is crisp at S = 1 and at S = 6.
+     */
+    const drawCalendar = (g: CanvasRenderingContext2D, W: number, H: number,
+                          day: number, offset: number) => {
+      const S = W / 48;
+      const u = (v: number) => Math.round(v * S);
+      const box = (x: number, y: number, w: number, h: number, fill: string) => {
+        g.fillStyle = fill;
+        g.fillRect(u(x), u(y), u(x + w) - u(x), u(y + h) - u(y));
+      };
+      const text = (s: string, cx: number, cy: number, size: number, fill: string) => {
+        g.fillStyle = fill;
+        g.font = `bold ${u(size)}px ui-monospace, Menlo, monospace`;
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(s, u(cx), u(cy));
+      };
+      const biro = (lw: number) => {
+        g.strokeStyle = '#2f4f8c';
+        g.lineWidth = Math.max(1, u(lw));
+      };
+
+      // which month is on the page, and where it sits in game days
+      const base = new Date(CAL_EPOCH + day * 86400000);
+      const first = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + offset, 1));
+      const after = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1));
+      const nDays = Math.round((after.getTime() - first.getTime()) / 86400000);
+      const lead = (first.getUTCDay() + 6) % 7;              // 0 = Monday
+      const day0 = Math.round((first.getTime() - CAL_EPOCH) / 86400000);
+      const weeks = Math.ceil((lead + nDays) / 7);
+
+      // the month block, and the page under it
+      box(0, 0, 48, 16, '#8c3a2e');
+      box(0, 16, 48, 1, '#5e2820');
+      text(CAL_MONTHS[first.getUTCMonth()], 24, 5.5, 4.6, '#e8dcb8');
+      // the year keeps the 4x5 pixel font this calendar has always used, scaled
+      // rather than replaced — at S = 1 it is the identical stamp it was.
+      g.save();
+      g.translate(u(24 - 9.5), u(9)); g.scale(S, S);
+      stampNum(g, String(first.getUTCFullYear()), 0, 0, '#e8dcb8');
+      g.restore();
+      box(0, 17, 48, 47, '#e8e0cc');
+      for (let c = 0; c < 7; c++) text(CAL_WEEK[c], 3 + c * 6 + 2.5, 21, 3.6, '#8a8272');
+
+      // the grid
+      const GRID_T = 24, GRID_B = 55, COL_W = 6, X0 = 3;
+      const rowH = (GRID_B - GRID_T) / weeks;
+      for (let n = 1; n <= nDays; n++) {
+        const idx = lead + n - 1;
+        const cx = X0 + (idx % 7) * COL_W + COL_W / 2;
+        const cy = GRID_T + Math.floor(idx / 7) * rowH + rowH / 2;
+        const gd = day0 + n - 1;                             // the game day of this cell
+        if (gd === day) box(cx - 2.4, cy - rowH / 2 + 0.4, 4.8, rowH - 0.8, '#8c3a2e');
+        // NUMERALS ONLY WHERE THEY FIT. A two-digit number is 9 design units in
+        // the pixel font and a cell is 5, so at S = 1 this stays the grid of
+        // marks it has always been. The cell positions, the ring, the crossings
+        // and today's block are identical at both scales, so stepping up to it
+        // resolves the same page rather than showing a different one.
+        if (S >= 3) text(String(n), cx, cy + 0.2, 3.4, gd === day ? '#f2e8cc' : '#4a443a');
+        else box(cx - 1.5, cy - 1.5, 3, 3, gd === day ? '#f2e8cc' : '#5a5348');
+        if (gd < day) {                                      // crossed off
+          biro(0.4);
+          g.beginPath();
+          g.moveTo(u(cx - 2.1), u(cy - rowH / 2 + 0.9));
+          g.lineTo(u(cx + 2.1), u(cy + rowH / 2 - 0.9));
+          g.stroke();
+        }
+        if (isRentDay(gd)) {                                 // ringed
+          biro(0.42);
+          g.beginPath();
+          // ry pulled well inside the row: at `rowH/2 - 0.3` consecutive rent
+          // days ring into one another and a month of Wednesdays reads as a
+          // chain down the page rather than as four circled dates.
+          g.ellipse(u(cx), u(cy), u(2.7), u(rowH / 2 - 1.0), 0, 0, Math.PI * 2);
+          g.stroke();
+        }
+      }
+
+      // and what the ring is, written under it in the same biro
+      const due = nextRentDay(day) - day;
+      text(`RENT $${LEASE.amount}  ${LEASE.landlord}`, 24, 58, 3.2, '#2f4f8c');
+      text(due === 0 ? 'DUE TODAY' : `DUE IN ${due} DAY${due === 1 ? '' : 'S'}`,
+        24, 62, 3.2, '#2f4f8c');
+
+      // Paper grain. The two inks and the 26-specks-per-30x40 density are
+      // `ct/paint.ts:399`'s `dither`, and at S = 1 this loop IS `dither` — same
+      // speck size, same count, so the wall texture's look is unchanged.
+      //
+      // AT S = 6 A ONE-UNIT SPECK IS A 6 px BLOCK and reads as damage rather
+      // than as paper: the first overlay screenshot had grey squares scattered
+      // over the month grid like blotches. So the speck halves with the scale
+      // and the count rises to keep the inked AREA identical — same amount of
+      // grain, finer, which is what paper does when you get closer to it.
+      const sp = Math.max(1, Math.round(S / 2));
+      const specks = Math.round(((48 * 64 * 26) / (30 * 40)) * (S / sp) ** 2);
+      for (let i = 0; i < specks; i++) {
+        g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.1)';
+        g.fillRect(Math.floor(Math.random() * (W - sp)), Math.floor(Math.random() * (H - sp)), sp, sp);
+      }
+    };
+
+    // ⚠ THE FIRST PAINT MAY NOT ASK THE CLOCK, AND THIS COST A DEAD WORLD.
+    //
+    // `surfTex` draws IMMEDIATELY, i.e. during `buildApartment(ctx)` — and
+    // `crosstown.ts:434` calls that on the line BEFORE `let totalMin` is
+    // declared at :437. So `ctx.clock.now()` at build time reads a `let` in its
+    // temporal dead zone and throws `ReferenceError: Cannot access 'totalMin'
+    // before initialization` out of module init: no `__ct`, no world, a black
+    // page, and a stack that points at the clock rather than at the caller.
+    // Measured on the built bundle, not reasoned about.
+    //
+    // `ctx.clock` is a VERB YOU MAY CALL PER FRAME, NOT AT BUILD TIME. So the
+    // first paint is day 0 — which is also where the game starts — and
+    // `calShownDay = -1` guarantees the frame hook below repaints from the real
+    // clock on frame one regardless.
+    const calT = surfTex('detail', CAL_TW, CAL_TH,
+      (g) => drawCalendar(g, CAL_TW, CAL_TH, 0, 0));
+    // ── THE CALENDAR HANGS ON THE SOUTH WALL, A LITTLE RIGHT OF WHERE IT WAS ─
+    //
+    // It has no `rotation.y`: the south wall faces +z into the room, so its
+    // artwork carries none. Leaving a PI on would not hide it, it would show the
+    // month page reversed, biro ring and all, and read as a texture bug.
+    //
+    // RIGHT IS +x — you stand in this room facing -z to look at this wall, and
+    // a camera looking down -z has +x on its right. 0.25 m of it: *"a bit to the
+    // right"* is a nudge, and it is also as far as it can go. THE LIMIT IS NOT
+    // THE WALL, IT IS 301'S DOOR SPOT, which sits at x 199.36 / z -17.455 —
+    // 0.46 m off this very wall, because the room-side stand-point for the door
+    // is `DOOR_PIV_X - 0.55`. `fp.ts`'s tier 1 is "the spot's centre is inside
+    // your own body" (`d < RADIUS`), and a spot that lands there wins outright
+    // however you are facing. Push the calendar further right than this and the
+    // place you stand to read it falls inside the door's 0.36 m — which is the
+    // bug the bed's own comment records ("door301 pressed E expecting to shut
+    // the door and got 'sleep until morning' instead"), in the same room.
+    //
+    // Clearance: it spans x 198.96…199.44, so 0.56 m of clear wall to the corner
+    // at AX(0) on the right and 1.21 m to the TV crate's x 198.25 on the left.
+    // The three taped-up snapshots are NOT near it — they are on the NORTH wall
+    // above the bed, with the poster.
+    const CAL_X = AX(-0.80);
+    const cal = new THREE.Mesh(new THREE.PlaneGeometry(CAL_W, CAL_H), texM(calT));
+    cal.position.set(CAL_X, RY + 1.55, SOUTH_Z);
+    // NAMED, so a probe can find it by asking rather than by guessing a shape.
+    // The ATM's ad panel went missing from an audit for exactly this reason:
+    // a failed SEARCH cannot tell "not there" from "not shaped how I guessed".
+    cal.userData.calendar = 'page';
     scene.add(cal);
+    // The wall page is redrawn when the DAY turns, not every frame: today's
+    // block and the crossings-off are the only things on it that move, and they
+    // move once per 1440 game-minutes. Nothing here accumulates — the same rule
+    // `ct/tenancy.ts:36` sets out, and the reason sleeping through a week and
+    // walking through a week are the same code path.
+    let calShownDay = -1;                  // never a real day: frame 1 repaints
+    ctx.onFrame(() => {
+      const d = calToday();
+      if (d === calShownDay) return;
+      calShownDay = d;
+      const cv = calT.image as HTMLCanvasElement;
+      const cg = cv.getContext('2d');
+      if (!cg) return;
+      cg.clearRect(0, 0, CAL_TW, CAL_TH);
+      drawCalendar(cg, CAL_TW, CAL_TH, d, 0);
+      calT.needsUpdate = true;
+    });
+
+    // ── AND YOU CAN READ IT: the sixth tenant of the diegetic framework ──────
+    //
+    // `PanelSpec.surface` hangs this panel's own canvas on the calendar's own
+    // mesh and eases the eye onto it — no new mechanism, one extra field, and
+    // the framework keeps Escape, `[E]`, the freeze and one-at-a-time. It
+    // degrades rather than fails: `mesh()` returning null gives back the
+    // screen-space panel, which is what a harness with no focus controller gets.
+    //
+    // ⚠ THE STAND-OFF IS DERIVED, AND THE LETTER'S 0.42 DOES NOT TRANSFER.
+    //
+    // I took `standoff: 0.42` from `ct/tenancy.ts`'s letter — "arm's length,
+    // where a person holds something they are reading" — and the first overlay
+    // shot came out with the month name off the top of the screen and the biro
+    // line off the bottom. A letter is a small sheet; this page is 0.64 m tall.
+    // `crosstown.ts:1227` puts `fov` straight onto `cam.fov`, which is VERTICAL,
+    // so the HEIGHT is the binding dimension and the distance that fits it is
+    // arithmetic, not taste: d = (H/2) / tan(fov/2), plus 18% so the page does
+    // not touch the top and bottom edges. 0.73 m — which is also just about
+    // where you would really stand to read a calendar on a wall, as opposed to
+    // where you hold a letter.
+    //
+    // Item 189 (a panel on a HORIZONTAL surface put the wristwatch over its
+    // bottom edge) cannot bite here — this face is vertical and the watch is
+    // screen-space furniture. Item 150 (a multi-material mesh froze the world
+    // before throwing) cannot bite either: `texM` gives this plane ONE
+    // `MeshBasicMaterial`, so `screenSlot` has nothing to be ambiguous about.
+    let calPage = 0;
+    let calPanel: Panel | null = null;
+    const openCalendar = () => {
+      if (!calPanel) {
+        calPanel = makePanel({
+          id: 'ct-calendar', w: CAL_PW, h: CAL_PH, chrome: 'none', scale: 1,
+          // `chrome:'none'` because `drawCalendar` IS the whole object, edge to
+          // edge — a framework bezel here would be a plastic case drawn round a
+          // picture of a piece of card.
+          hint: () => 'scroll to turn the page',
+          draw: (g, w, h) => drawCalendar(g, w, h, calToday(), calPage),
+          wheel: (d) => { calPage += d; calPanel?.repaint(); },
+          key: (k) => {
+            if (k === 'arrowright' || k === 'arrowdown') calPage++;
+            else if (k === 'arrowleft' || k === 'arrowup') calPage--;
+            else return;
+            calPanel?.repaint();
+          },
+          surface: {
+            mesh: () => cal,
+            standoff: CAL_STANDOFF,
+            fov: CAL_FOV,
+            // `hot`/`click` arrive in THIS canvas's own pixels. Turning the page
+            // is the only thing a wall calendar does, so it is the only thing
+            // offered: the outer fifth of each side, the same left-back /
+            // right-forward gesture the wheel and the arrows already give.
+            hot: (x) => x < CAL_PW * 0.2 || x > CAL_PW * 0.8,
+            click: (x) => {
+              if (x < CAL_PW * 0.2) calPage--;
+              else if (x > CAL_PW * 0.8) calPage++;
+              else return;
+              calPanel?.repaint();
+            },
+          },
+          // back to this month every time you walk up to it — a page you left
+          // turned three months forward is a state the player cannot see the
+          // cause of.
+          onOpen: () => { calPage = 0; },
+        });
+      }
+      calPanel.open();
+    };
+    // WHERE YOU STAND TO READ IT — 0.90 m out from the wall, not against it.
+    // Derived from the door spot rather than chosen: at 0.90 m the door's centre
+    // is 0.58 m away, outside `fp.ts`'s RADIUS 0.36, so it can only reach tier 3
+    // while the calendar (dead ahead, inside its own radius) holds tier 1.
+    // Walked both ways before and after; see the handoff note.
+    ctx.spot({
+      x: CAL_X, z: SOUTH_Z + 0.90, r: 0.60, obj: cal,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      label: () => 'read the calendar',
+      act: openCalendar,
+    });
     // three snapshots taped up in a row, curling at one corner. Alpha outside
     // them so it is three photographs and not a photograph-coloured rectangle.
     const snapT = surfTex('detail', 34, 13, (g) => {
