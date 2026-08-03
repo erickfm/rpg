@@ -136,11 +136,21 @@ about, sitting inside the file's own coverage guard.
 Leg 6 is now a function called by **both** loops, and its sampler asks the
 registry for `cz` the way it already asked for `cx`.
 
-**I deliberately did NOT add a storey bound, having tried it first.** It looks
-obviously right — 301's ±8 m box takes in the flats above and below — and there
-is no constant that does not break something else
-(`scripts/probes/w82-storey-extent.mjs`, mesh origins relative to each room's
-own floor):
+### …and running it immediately reported a red that was NOT the flat
+
+First run for apt301: **`1/156 materials dimmed`**. That is the moment this item
+could have shipped a false accusation against a room, so I located the material
+before believing the count (`scripts/probes/w82-which-material-dims.mjs`). It was
+at **y 8.23 — 2.83 m above 301's floor, and 12 cm above the floor slab at 8.11
+that is the next storey.** It is in 302.
+
+The cause is the sample box: the belt samples a hardcoded **±8 m**, which is
+roughly room-sized for a shop and **five times** a flat measuring 3.06 × 3.36.
+It was judging the whole walk-up.
+
+**A single storey constant cannot fix it**, which I measured rather than assumed
+(`scripts/probes/w82-storey-extent.mjs`, mesh origins relative to each room's own
+floor):
 
 ```
 ten belt rooms   0.00 .. +3.60      church  0.01 .. +9.50
@@ -148,10 +158,39 @@ library          0.00 .. +6.40      apt301  -7.90 .. +5.25
 ```
 
 Any bound tight enough to isolate one flat of a 2.7 m stack throws away the
-church's nave and the library's upper floor — reddening two rooms that are fine
-to sharpen a third. And not bounding is cheap here: the leg asserts *no interior
-material dims after dark*, so judging the neighbours' materials **broadens** the
-population rather than corrupting it.
+church's nave and the library's upper floor.
+
+**So the box is DERIVED, and only for off-belt rooms:**
+
+- **x/z** — the room's own published half-extent, capped at the belt's 8 so no
+  room can lose coverage it has today. **No margin**, and that is the point: a
+  first cut allowed half-extent + 0.5 m and the leg then judged a box at
+  x 200.25, which is 1.85 m from a centre whose room reaches 1.53 m — 0.32 m
+  **outside** the flat, on the landing. The margin was mine; the extent is the
+  room's.
+- **y** — the lowest floor-shaped mesh above **head height** (floor + 1.6 m) in
+  the room's own footprint. For a stacked building that is the ceiling. The
+  1.6 m cut is what stops a table qualifying: the casino has floor-shaped meshes
+  at 0.83 m, so bounding a *belt* room this way would clip it at knee height —
+  which is exactly why this is off-belt only. Derivability is itself asserted
+  (`the room's own ceiling is derivable…`), so a room where it cannot be found
+  says so instead of silently sampling the building.
+
+**The belt passes no box at all and is byte-for-byte unchanged.** A room-sized
+box measurably moves what twelve passing rooms judge — the hotel goes 58 → 39
+materials — and this item has no business moving that. Full 13-room comparison in
+`scripts/probes/w82-sample-box-rules.mjs`.
+
+Result: **apt301 9/9, `0/64 materials dimmed`, judged 64 of 64.** Inside the
+flat's own published footprint, below its own derived ceiling, nothing dims.
+
+> **A reviewer should check this rather than take it.** I tightened a leg's
+> scope three times and it went green on the third. Each tightening was to a
+> value the room publishes rather than one I chose, and I identified the exact
+> material each rule excluded and where it was — both were provably outside the
+> flat. But the shape of "narrow the scope until it passes" is the shape of a
+> loosened check, and the two are told apart only by whether the excluded things
+> really were outside. Both coordinates are above; they are checkable.
 
 ## Also fixed, same class
 
