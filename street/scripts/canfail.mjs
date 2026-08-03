@@ -46,6 +46,7 @@ const ATM = 'src/proto/ct/atm.ts';            // the cash machine's screens and 
 // header). `rulings-atm` used to quote bank.ts and moved here with them.
 const ATMFACE = 'src/proto/ct/atm-face.ts';
 const JAIL = 'src/proto/ct/jail.ts';          // O's — the building and its screens
+const HUD = 'src/proto/ct/hud.ts';            // the panel framework and its diegetic surfaces
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
 //
@@ -514,6 +515,31 @@ const CASES = [
     'const POOL_GAIN = 6.5;',
     'const POOL_GAIN = 0;',
     'glow.mjs', ['probe'], 'lamps that glow but light nothing beneath them'],
+
+  // ── ITEM 150, AND THE TWO WAYS THIS ONE CAN ROT ────────────────────────────
+  //
+  // `screenslot.mjs` asserts two different things, so it gets two cases: that a
+  // multi-material mesh does not CRASH the panel, and that an ambiguous one is
+  // DEGRADED rather than guessed at. A single case would leave half the check
+  // able to sleep.
+  //
+  // Removing the degrade puts the original item-150 crash back: `borrowed` is
+  // null for a mesh the resolver refused, `onMesh` stays set, and `open()`
+  // throws on it — with the movement gate already up, which is the half that
+  // traps the player rather than merely looking wrong.
+  ['screenslot-blind', HUD,
+    'if (!borrowed) onMesh = null;',
+    'if (!borrowed) { /* mutated: do not degrade */ }',
+    'screenslot.mjs', [], 'a panel that throws out of open() on a multi-material mesh'],
+
+  // The other half: GUESS instead of degrading. `m.length === 1` is the whole
+  // of "there is nothing to be ambiguous about"; widening it to `>= 1` makes a
+  // six-face box silently paint the panel onto slot 0, which is a visible bug
+  // in the world that is very hard to trace back to hud.ts.
+  ['screenslot-guess', HUD,
+    '} else if (m.length === 1) {',
+    '} else if (m.length >= 1) {',
+    'screenslot.mjs', [], 'a panel that guesses which face of a box is the screen'],
 
   ['park', PROPS,
     'lens.userData.parkLantern = true;',
