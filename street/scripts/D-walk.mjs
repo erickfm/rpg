@@ -440,25 +440,79 @@ if (found) {
   // wallet already says"*. So the numbers are supposed to differ, and a check
   // demanding they match would be arguing with a decision rather than guarding
   // a fault. It is deleted rather than adjusted.
-  const before2 = await page.evaluate(() => [...document.querySelectorAll('canvas,div')]
-    .filter((e) => { const r = e.getBoundingClientRect(), st = getComputedStyle(e);
-      return r.width > 300 && r.height > 200 && st.display !== 'none' && st.visibility !== 'hidden'
-        && +st.opacity !== 0 && (st.position === 'fixed' || st.position === 'absolute'); }).length);
-  await page.keyboard.press('e');
+  // ── AND IT OPENS ON THE MACHINE, WHICH IS WHY THIS LEG WENT RED (item 279) ──
+  //
+  // It read `3 full-screen panels -> 3` and had done since before this file was
+  // last touched. **THE CHECK WAS WRONG AND THE WORLD WAS RIGHT**, and the
+  // reason is one the old assertion could not have survived: it counted
+  // full-screen DOM overlays, and the ATM stopped being one.
+  //
+  // `ct/atm.ts:775` gives its panel `surface: { mesh: screenMesh, … }` on the
+  // user's own words — *"i want … the screen on the literal atm be the
+  // overlay"*, and item 0c, *"i never want there to be menus popping up unless
+  // they are embedded to look as if they are in the actual game"*. So opening
+  // it paints the panel's canvas onto the cabinet's raked screen face IN THE
+  // WORLD. Measured on the built bundle
+  // (`scripts/probes/w123-item279-on-the-machine.mjs`): the `#ct-atm` wrapper
+  // goes to opacity 1, but its CANVAS collapses to **0×0** because the framework
+  // hands the pixels to the mesh instead. The old predicate wants >300×200, so
+  // it can never see it — the count is 3 before and 3 after, for ever, and
+  // `ESC gets you back out of it: 3 -> 3` passed while measuring NOTHING.
+  //
+  // So the leg now states the CURRENT contract, positively and two-sidedly, and
+  // the "no screen-space menu" clause below means a revert to a pop-up panel
+  // reddens this rather than greening it.
+  const atmState = () => page.evaluate(() => {
+    const m = window.__atm?.surfaceMesh?.();
+    const mat = m && (Array.isArray(m.material) ? m.material[0] : m.material);
+    const cv = document.getElementById('ct-atm')?.querySelector('canvas') ?? null;
+    return {
+      up: window.__hud?.panel() ?? null,
+      known: window.__hud?.panels?.() ?? [],
+      // THE IDENTITY, and it retypes no number: makePanel's CanvasTexture is a
+      // VIEW onto the panel's own canvas, so while the machine is wearing the
+      // panel its `map.image` IS that DOM canvas element. False when the mesh
+      // is back on its own baked 99x68 fascia.
+      onMachine: !!mat?.map?.image && !!cv && mat.map.image === cv,
+      // only `onOpen`/`onClose` move this, so it proves the framework really
+      // ran the open rather than something merely looking open
+      padLive: window.__atm?.padLive?.() ?? null,
+      // the OLD reading, kept as the "no menu popped up" clause
+      overlays: [...document.querySelectorAll('canvas,div')]
+        .filter((e) => { const r = e.getBoundingClientRect(), st = getComputedStyle(e);
+          return r.width > 300 && r.height > 200 && st.display !== 'none' && st.visibility !== 'hidden'
+            && +st.opacity !== 0 && (st.position === 'fixed' || st.position === 'absolute'); }).length,
+    };
+  });
+  const a0 = await atmState();
+  // POPULATION FLOOR. A leg that measures nothing must fail: if the world has no
+  // ATM panel registered, or one is already up, everything below is meaningless.
+  say(a0.known.includes('ct-atm') && a0.up === null && a0.onMachine === false && a0.padLive === false,
+    'the ATM cabinet is registered and nothing is up yet',
+    `panels ${JSON.stringify(a0.known)}, up ${JSON.stringify(a0.up)},`
+    + ` onMachine ${a0.onMachine}, padLive ${a0.padLive}`, 1);
+  // HELD, not tapped. Measured: a bare `press('e')` opens it once the world is
+  // warm but NOT on a cold page — the [E] edge is read once per rendered frame
+  // (BUILDER-BRIEF §5), and this leg must not depend on how long the run before
+  // it took. `hold` is the helper this file already has.
+  await hold('e', 120);
   await page.waitForTimeout(900);
-  const after2 = await page.evaluate(() => [...document.querySelectorAll('canvas,div')]
-    .filter((e) => { const r = e.getBoundingClientRect(), st = getComputedStyle(e);
-      return r.width > 300 && r.height > 200 && st.display !== 'none' && st.visibility !== 'hidden'
-        && +st.opacity !== 0 && (st.position === 'fixed' || st.position === 'absolute'); }).length);
-  say(after2 > before2, 'and pressing E opens the machine',
-    `${before2} full-screen panels -> ${after2}`, 1);
+  const a1 = await atmState();
+  say(a1.up === 'ct-atm' && a1.padLive === true, 'and pressing E opens the machine',
+    `${JSON.stringify(a0.up)} -> ${JSON.stringify(a1.up)}, padLive ${a0.padLive} -> ${a1.padLive}`, 1);
+  say(a0.onMachine === false && a1.onMachine === true,
+    'and it opens ON THE CABINET — the screen face wears the panel canvas',
+    `onMachine ${a0.onMachine} -> ${a1.onMachine}`, 1);
+  say(a1.overlays === a0.overlays,
+    'and NOTHING popped up over the camera — no new full-screen overlay',
+    `${a0.overlays} full-screen overlays -> ${a1.overlays}`, 1);
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
-  const closed = await page.evaluate(() => [...document.querySelectorAll('canvas,div')]
-    .filter((e) => { const r = e.getBoundingClientRect(), st = getComputedStyle(e);
-      return r.width > 300 && r.height > 200 && st.display !== 'none' && st.visibility !== 'hidden'
-        && +st.opacity !== 0 && (st.position === 'fixed' || st.position === 'absolute'); }).length);
-  say(closed === before2, 'and ESC gets you back out of it', `${after2} -> ${closed}`, 1);
+  await page.waitForTimeout(700);
+  const a2 = await atmState();
+  say(a2.up === null && a2.onMachine === false && a2.padLive === false && a2.overlays === a0.overlays,
+    'and ESC gets you back out of it',
+    `up ${JSON.stringify(a1.up)} -> ${JSON.stringify(a2.up)},`
+    + ` onMachine ${a1.onMachine} -> ${a2.onMachine}, padLive ${a1.padLive} -> ${a2.padLive}`, 1);
 }
 
 await browser.close();
