@@ -2216,3 +2216,36 @@ findings — including any that were believed.
 **Wait for something the RENDERER has done**, not for the API to exist. A
 non-black pixel sample, a rendered frame count, or `afterFrames` are all honest;
 `__ct` existing is not.
+
+## 79. A check that filters on `visible` measures NOTHING, and says so in green
+
+`scripts/masonry.mjs` printed `FACES ACTUALLY AUTHORED AT THE WRONG DENSITY: 0`
+and exited 0 for weeks. It was not finding zero problems — it was **examining
+zero faces**.
+
+It skipped meshes with `visible === false`. Then commit `5016d26b5` added the
+region cull, which hides every group west of `REGION_X` **plus every interior
+you are not currently standing in**. At spawn that is *all 305 masonry stamps in
+the world*: `7792 meshes · 1902 textured · 0 carry a masonry stamp`.
+
+**The lesson generalises well beyond this one script. `visible` is a RENDERING
+fact; almost everything a check wants to assert is an AUTHORING fact.** Texture
+density, collider extents, seat facing, material sharing — none of them stop
+being true when the mesh is culled. If your check filters on `visible`,
+`frustumCulled`, or anything a camera position can change, it will quietly stop
+measuring the moment someone adds a culling optimisation, and it will keep
+reporting success while it does.
+
+This is also **why the user's jail-texture complaint was never caught**: the jail
+is an interior, interiors are hidden until you are inside one, and the only
+density guard in the project could not see inside one *by construction*.
+
+Two corollaries, both of which bit here:
+
+- **A selftest that is never invoked is not a selftest.** `masonry --selftest`
+  had been failing with exit 2 the entire time; `checks.mjs` never passed the
+  flag, so nobody found out.
+- **A selftest can pass VACUOUSLY.** `texdensity`'s first selftest mutated a face
+  to 3× against a 4× threshold and asserted `gross.length` — which is 188
+  whatever you do. It now mutates to 5× and asserts *that specific face* appears.
+  Assert the thing you changed shows up, never just that the count is non-zero.
