@@ -2841,3 +2841,15 @@ to one side.
   declaration. **If the exterior leaf does not read that declaration, the outside door is
   glazed while the inside is solid** — which is simultaneously this bug and the
   inside/outside mismatch class of item 105.
+
+- **"im just saying after we click the first take card, just flash thank you farewell
+  screen and release the player"** (2026-08-02) → **done by the desk directly.** The
+  screen was right and *waiting for input* was the fault — the desk had removed it
+  entirely on the previous instruction rather than putting it on a timer. TAKE CARD now
+  shows the farewell and releases after **1100 ms** via the file's existing `after()`
+  helper (*"a step the machine takes on its own"*). A keypress skips the wait. Both paths
+  go through one `endSession()` so the machine is reset identically, and it is **guarded
+  on `screen === 'thanks'`** — the timer fires on a wall clock, so leaving during the
+  flash would otherwise close whatever panel is open a second later. **Item 144 (the dead
+  thanks screen) deleted — it is live again. Item 149 stands: `K-atm-walk` still exits 0
+  while printing a failure, which is the real defect there.**
