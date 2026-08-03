@@ -1,5 +1,5 @@
 // Is this command about to mutate THE SHARED CHECKOUT, run by an agent that
-// believes it is somewhere else?
+// belongs in a worktree somewhere else?
 //
 // ── WHY THIS EXISTS (item 243) ────────────────────────────────────────────────
 // Four workers in one day ran commands against `/home/erick/projects/rpg/street`
@@ -12,8 +12,8 @@
 // Writing it down has been tried. This is the mechanism.
 //
 // ── WHAT THE HARNESS ALREADY COVERS, AND WHAT IT DOES NOT ────────────────────
-// Measured 2026-08-03 from inside an isolated worktree agent. The Claude Code
-// worktree-isolation guard refuses this:
+// Re-measured 2026-08-03 by worker ninetyseven, from inside an isolated worktree
+// agent. The Claude Code worktree-isolation guard refuses this:
 //
 //     cd /home/erick/projects/rpg/street && git rev-parse --show-toplevel
 //     -> "Refusing to run it - a worktree-isolated agent's git operations
@@ -22,120 +22,124 @@
 // and allows this:
 //
 //     cd /home/erick/projects/rpg/street && ls -d node_modules
-//     -> node_modules            (ran, no complaint)
+//     -> node_modules            (ran, no complaint -- re-confirmed 2026-08-03)
 //
 // **The isolation guard is git-only.** `npm install`, `npm run build`, `vite`
 // and every `node scripts/*.mjs` run in the shared checkout unopposed. That gap
 // is exactly the hole all four incidents went through, and it is what this
 // module closes.
 //
-// ── THE TWO QUESTIONS, AND WHY BOTH ARE NEEDED ───────────────────────────────
-// The desk legitimately builds, installs, lands and archives from the shared
-// tree all session (CLAUDE.md: "Republish the artifact with `cd street && npm
-// run build`"). So "am I in the shared checkout" ALONE is the wrong trigger --
-// a blanket refusal breaks the desk, which item 243 forbids in bold. The guard
-// must also answer "and am I someone who should not be here".
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ⚠ THE ENVIRONMENT CANNOT TELL THE DESK FROM A BUILDER. MEASURED. ─────────
+// ══════════════════════════════════════════════════════════════════════════════
 //
-//   1. treeKind()   -- main checkout, or a linked worktree?
-//   2. isSubagent() -- is this a spawned agent, or the desk / the user?
+// The first version of this file refused on `CLAUDE_CODE_CHILD_SESSION=1`,
+// corroborated by `AI_AGENT` ending `_agent`, on the strength of reading
+// `/proc/<pid>/environ` for pids 262802 and 282161 and finding neither variable.
+// **It refused the desk**, which is what item 247 is. Here is why, measured
+// (worker ninetyseven, 2026-08-03):
 //
-// Refuse only when BOTH say yes.
+// Those two pids are the WRONG PROCESSES. The variables are injected by the
+// Bash tool into the shell it spawns; they are not on the `claude` process. To
+// sample the desk's SHELL you have to find a process the desk's shell started
+// and read ITS environ. There is one, and it is long-lived: the live world on
+// :5177, which CLAUDE.md makes the desk's own job.
 //
-// ── HOW `isSubagent` IS DECIDED, AND WHY IT NEEDED NO PLUMBING ───────────────
-// Item 243 guessed the answer would be "an environment variable set in builder
-// worktrees, or a marker file". A marker file cannot work: the marker would live
-// in the worktree, and the mistaken command runs in the SHARED tree, where it is
-// invisible. An env var is right -- and one already exists, so nothing had to be
-// plumbed.
+//     pid 370039  `npm run dev`, cwd /home/erick/projects/rpg/street
+//                 -- started from the DESK's shell, so it carries the desk's env
+//     pid 4125211 this builder's shell
 //
-// The decisive property is that an environment variable is INHERITED BY EVERY
-// CHILD PROCESS. It travels from the agent's shell into `npm`, into `node`, into
-// `vite` -- and it travels with the agent when it `cd`s into the shared tree,
-// which is the one moment we need it to. A marker file, a lock, or a check of
-// "are any agent worktrees present" all fail that test.
+// Diffed in full, 65 variables each. The ONLY differences:
 //
-// (That last one was measured and rejected outright: there are 45 directories
-// under `.claude/worktrees/agent-*` and 40 registered worktrees, nearly all of
-// them dead. Their presence says nothing about whether an agent is running.)
+//     _        /home/erick/.nvm/.../npm        vs  /usr/bin/env
+//     OLDPWD   /home/erick/projects/rpg        vs  /home/erick/projects
+//     PWD      .../rpg/street                  vs  .../worktrees/agent-aae82...
+//     SHLVL    1                               vs  2
 //
-// ══ ⚠ AND `isSubagent` DOES NOT WORK. CORRECTED 2026-08-03, ITEM 247. ════════
+// Four bash intrinsics, all a function of WHERE the shell stands, none of WHO
+// is running. Every CLAUDE_* variable is byte-identical, including:
 //
-// **THIS FILE USED TO CARRY A MEASUREMENT TABLE HERE SAYING THE DESK CARRIES
-// NEITHER VARIABLE. IT IS FALSE, AND IT IS WHY THE GUARD REFUSES THE DESK.**
-// The table read `/proc/262802/environ` (the human's `claude -r` process) and
-// `/proc/282161/environ` (the harness host). **Neither of those is a shell that
-// runs a tool command.** A Bash tool call does not execute in the session
-// process; the harness SPAWNS A SHELL, and it injects the agent variables into
-// that shell -- for the desk exactly as for a builder. The two pids were read
-// honestly and they answer a question nobody asked.
+//     CLAUDE_CODE_CHILD_SESSION=1          <- on the DESK's shell too
+//     AI_AGENT=claude-code_2-1-220_agent   <- on the DESK's shell too
+//     CLAUDE_PID=282161                    <- the SAME host process
+//     CLAUDE_CODE_SESSION_ID=a6835f8b-...  <- the SAME session
 //
-// Re-measured across every process on the box
-// (`scripts/probes/w93-item247-sessions.mjs`, `...-whoisinshared.mjs`):
+// And process ancestry -- item 247's other candidate -- is falsified the same
+// way. This builder's shell is pid 4125211, ppid **282161**; the desk's shell is
+// also a direct child of 282161. They are SIBLINGS, not ancestor and descendant:
 //
-//   distinct CLAUDE_CODE_SESSION_ID values alive .......... 1
-//   agent processes carrying CLAUDE_CODE_CHILD_SESSION=1 .. 50 of 50
-//   distinct CLAUDE*/AI_AGENT env signatures .............. 2, differing ONLY
-//        in `CLAUDE_EFFORT` -- which is an effort level, and the signature
-//        lacking it belongs to a BUILDER in a worktree. It does not track
-//        desk-vs-builder in either direction.
+//     4125211 bash      <- 282161 (the claude host)  <- 282115 <- 282080
+//             ^ builder      ^ ALSO the desk's shell's parent
 //
-// **The desk and every builder it spawns share ONE session id and one
-// environment.** They are the same OS-level identity. Every candidate item 247
-// listed was measured and is dead:
+// The desk is not pid 262802 (that is the outer interactive `claude -r`). The
+// desk is the background session 282161 — `$CLAUDE_JOB_DIR/state.json` lists
+// this very worker in its `fan` array — and a spawned builder is a TASK INSIDE
+// THAT SAME PROCESS. It inherits one environment block.
 //
-//   process ancestry .... every tool shell's parent is the same harness host,
-//                         pid 282161, whose own cwd is the shared checkout.
-//                         And `cd` moves the shell itself, so after a builder
-//                         cd's into the shared tree its whole ancestry reads
-//                         `/home/erick/projects/rpg/street` -- measured.
-//   a variable the desk
-//     sets for itself ... inherited by every builder shell, because they are
-//                         children of the same session.
-//   a claimed queue row
-//     naming the caller . the guard runs inside `npm run build` and has no
-//                         name to check.
+// **So no environment variable and no ancestry test can ever separate them, and
+// none should be added back.** That also kills item 247's third candidate, "a
+// variable the desk sets for itself at session start": Bash-tool shell state
+// does not persist between calls, so it would have to be re-set every time —
+// which is the escape hatch we are removing.
 //
-// **So `isSubagent()` cannot be repaired by picking a different variable: the
-// fact it is testing does not exist in the environment.** Anything that lets
-// the desk through will let a wandering builder through, and the reverse.
+// ── THE FACT THAT DOES SEPARATE THEM: WHERE THE SHELL WAS STANDING ───────────
+// A spawned builder is worktree-isolated, and **the harness resets its cwd to
+// its own worktree before every single Bash call.** So when a builder reaches
+// the shared checkout it must travel, and the trip leaves a trace in its own
+// process:
 //
-// The guard below is therefore LEFT AS IT IS, deliberately -- it is doing the
-// job it was built for and `w94-guard-selftest.mjs` still passes 21/21 -- but
-// know that on this machine it refuses the desk too, and that
-// `CT_ALLOW_SHARED=1` (which works: verified exit 0) is not a hatch the desk
-// forgot to be given, it is the only key that exists. A desk session can set it
-// once with `export CT_ALLOW_SHARED=1` rather than per command.
+//     cd /home/erick/projects/rpg/street && npm run build
+//     -> OLDPWD=/home/erick/projects/rpg/.claude/worktrees/agent-aae8230d8559acc5d
 //
-// **The real fix is a different question, not a different variable**: stop
-// asking WHO is running and ask WHETHER THE ACT IS DESTRUCTIVE RIGHT NOW --
-// e.g. refuse a `vite build` only while another process is serving this tree's
-// `dist/`. That is a design decision for the desk, and item 247 is released
-// with it rather than guessed at. See notes/ninetythree-item247-*.md.
+// Measured, and measured to SURVIVE the hop into npm and node (`npm exec` was
+// used to confirm the variable is exported, not shell-local). The desk's shell
+// is not reset and does not live in a worktree, so its OLDPWD is the repo root:
+// `/home/erick/projects/rpg`, as sampled above from the real :5177 process.
 //
-// ── ONE MORE HOLE, NAMED BY ITEM 243 AND STILL OPEN ──────────────────────────
-// The guard hangs off `package.json` scripts. **`npx vite --port N` bypasses
-// package.json entirely and is unguarded**, and so is any bare `node
-// scripts/*.mjs`. Nothing in this file can close that; only a wrapper the
-// project agrees to use, or a shell hook, could.
+// A second, independent witness for the same fact, which catches the shape that
+// never cds at all (`npm --prefix /home/erick/projects/rpg/street run build`):
+// **the ancestor processes' own cwds**, read from /proc. In that shape the
+// builder's shell is still standing in its worktree while npm builds the shared
+// one.
+//
+// Both witnesses answer one question -- *did this caller come out of an agent
+// worktree?* -- and a path only counts when it is under `<repo>/.claude/
+// worktrees/`, exists, and (when git can be asked) is a REGISTERED worktree.
+//
+// ── WHAT THIS DELIBERATELY DOES NOT CATCH, SO NOBODY THINKS IT DOES ──────────
+// **A spawned agent that was never given a worktree at all** — worker
+// seventythree, the incident in GOTCHAS 84 — is indistinguishable from the desk
+// by every fact available in this process. It has no worktree to have come from,
+// the same env, the same parent. This guard cannot see it and neither can any
+// other guard that runs here. That case is fixed at spawn time (give every
+// builder `isolation: "worktree"`), not here.
 //
 // ── FAIL OPEN, ALWAYS ────────────────────────────────────────────────────────
 // This runs from `preinstall`, so a bug here would brick `npm install` for every
 // builder following BUILDER-BRIEF §0 -- the single most-run command on the
 // project. Every uncertain answer is therefore ALLOW. We refuse only on a
-// positive determination of both facts, and `treeKind` returns 'unknown' rather
-// than guessing when git is unavailable, when there is no repo, or when the
-// command fails for any reason at all.
+// positive determination of all three facts, and `treeKind` returns 'unknown'
+// rather than guessing when git is unavailable, when there is no repo, or when
+// the command fails for any reason at all.
 //
-// Both signs are demonstrated by `scripts/probes/w94-guard-selftest.mjs`, which
-// builds a real throwaway repo with a real linked worktree in a temp dir and
-// runs the classifier in each.
+// All of it is demonstrated by `scripts/probes/w94-guard-selftest.mjs`, which
+// builds a real throwaway repo with a real linked worktree in a temp dir, runs
+// the real classifier and the real CLI in each, and drives the desk case with
+// **the 65-variable environment captured from the desk's own live shell** rather
+// than with an invented empty object. (The old self-test asserted
+// `isSubagent({}) === false, 'the desk (no vars at all) is NOT an agent'` — it
+// passed by asserting the model instead of the world, and the model was wrong.)
 import { execFileSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 
-/** The env var that opts out. For the rare case where a subagent is genuinely
- *  meant to act on the shared tree -- and it should be rare, because doing so is
- *  what GOTCHAS 84 is about. */
+/** The env var that opts out. Retained as a LAST RESORT only -- the desk should
+ *  no longer need it, and item 247 is the record of what happens when it does:
+ *  an escape hatch the desk must remember every time is a guard that eventually
+ *  gets disabled wholesale. */
 export const OVERRIDE = 'CT_ALLOW_SHARED';
+
+/** Where isolated agent worktrees live, relative to the repo toplevel. */
+export const WORKTREE_DIR = '.claude/worktrees';
 
 const resolve = (p) => { try { return realpathSync(p); } catch { return p; } };
 
@@ -149,7 +153,7 @@ const resolve = (p) => { try { return realpathSync(p); } catch { return p; } };
  * former is `<main>/.git/worktrees/<name>` and only the latter is `<main>/.git`.
  * Measured in this very worktree:
  *
- *   git-dir:        /home/erick/projects/rpg/.git/worktrees/agent-a160fbb7920ab449c
+ *   git-dir:        /home/erick/projects/rpg/.git/worktrees/agent-aae8230d8559acc5d
  *   git-common-dir: /home/erick/projects/rpg/.git
  *
  * Item 243 suggested comparing `--show-toplevel` with `--git-common-dir`
@@ -175,51 +179,143 @@ export function treeKind(cwd = process.cwd()) {
 }
 
 /**
- * Is the caller a SPAWNED agent, as opposed to the desk or the human?
+ * Is the caller a Claude Code tool shell at all (as opposed to the human at a
+ * terminal, or CI)?
  *
- * ⚠ **IT CANNOT TELL. READ THE ITEM 247 BLOCK IN THIS FILE'S HEADER.** Measured
- * 2026-08-03: the desk and every builder share one `CLAUDE_CODE_SESSION_ID` and
- * one environment, so what this returns for a builder it also returns for the
- * desk. The docstring here used to claim `CLAUDE_CODE_CHILD_SESSION` "was
- * measured present only in the subagent"; that measurement read the session
- * process rather than a tool shell and is false.
- *
- * What it honestly answers is **"is this process running under Claude Code at
- * all"** -- true of the desk, true of every builder, false for the human at a
- * bare terminal. Two witnesses are still better than one for that narrower
- * fact, so both are kept (BUILDER-BRIEF §8).
+ * THIS IS NOT AN AGENT TEST. It was called `isSubagent` and used as one, and
+ * that is precisely the bug item 247 records: the desk's shell carries these
+ * variables too, byte for byte (see this file's header). It survives only as a
+ * NECESSARY condition -- it keeps the guard off the user's own terminal -- and
+ * is never sufficient on its own.
  */
-export function isSubagent(env = process.env) {
+export function isClaudeShell(env = process.env) {
   if (env[OVERRIDE]) return false;                    // explicit opt-out wins
   if (env.CLAUDE_CODE_CHILD_SESSION === '1') return true;
   return /_agent$/.test(env.AI_AGENT || '');
 }
 
+/** Read a process's cwd. Linux /proc only; anything else is simply no witness. */
+function procCwd(pid) {
+  try { return realpathSync(readlinkSync(`/proc/${pid}/cwd`)); } catch { return null; }
+}
+
+/** Parent pid from /proc/<pid>/stat, parsed after the last ')' so a comm
+ *  containing spaces or brackets cannot shift the fields. */
+function procPpid(pid) {
+  try {
+    const st = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const rest = st.slice(st.lastIndexOf(')') + 2).split(' ');
+    const ppid = Number(rest[1]);
+    return Number.isFinite(ppid) && ppid > 1 ? ppid : null;
+  } catch { return null; }
+}
+
+/** The cwds of this process and its ancestors, nearest first, depth-capped. */
+function ancestorCwds(pid = process.pid, depth = 6) {
+  const out = [];
+  let p = pid;
+  for (let i = 0; i < depth && p; i++) {
+    const c = procCwd(p);
+    if (c) out.push(c);
+    p = procPpid(p);
+  }
+  return out;
+}
+
+/** Every worktree git currently has registered, as absolute real paths.
+ *  Returns null (not []) when git could not be asked, so callers can tell
+ *  "no worktrees" from "no answer". */
+function registeredWorktrees(cwd) {
+  try {
+    const out = execFileSync('git', ['worktree', 'list', '--porcelain'],
+      { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return out.split('\n')
+      .filter((l) => l.startsWith('worktree '))
+      .map((l) => resolve(l.slice('worktree '.length).trim()));
+  } catch { return null; }
+}
+
 /**
- * The whole decision, as a pure function of two facts, so the truth table can be
- * tested without spawning agents or vandalising the shared tree.
+ * Did this caller come out of an isolated agent worktree?
+ *
+ * Returns the worktree path, or null. Null means "cannot show that it did",
+ * which every caller must treat as ALLOW -- the desk lands here, and so does a
+ * spawned agent that was never given a worktree (see the header: that case is
+ * not detectable from inside this process by any means).
+ *
+ * Witnesses, both answering the same question, neither retyped from the other:
+ *   1. OLDPWD -- where the shell stood one `cd` ago. An agent's cwd is reset to
+ *      its worktree before every Bash call, so travelling to the shared tree
+ *      always leaves the worktree here.
+ *   2. the cwds of this process and its ancestors -- catches the shape that
+ *      never cds (`npm --prefix <shared> run build`), where the agent's shell is
+ *      still standing in its worktree.
+ *
+ * A candidate counts only when it is under `<top>/.claude/worktrees/`, exists on
+ * disk, and -- when git can be asked -- is a worktree git actually knows about.
+ */
+export function worktreeProvenance({ env = process.env, top, pid = process.pid } = {}) {
+  if (!top) return null;
+  const base = resolve(`${top}/${WORKTREE_DIR}`);
+  const registry = registeredWorktrees(top);
+
+  const candidates = [env.OLDPWD, ...ancestorCwds(pid)].filter(Boolean).map(resolve);
+  for (const c of candidates) {
+    if (c !== base && !c.startsWith(`${base}/`)) continue;   // not an agent worktree path
+    if (!existsSync(c)) continue;                            // stale string, no such tree
+    // Corroborate with git when it answered: the candidate must be at or under
+    // some registered worktree. If git could not be asked we still accept the
+    // path shape -- `<repo>/.claude/worktrees/...` is unambiguous by construction.
+    if (registry && !registry.some((w) => c === w || c.startsWith(`${w}/`))) continue;
+    return c;
+  }
+  return null;
+}
+
+/**
+ * The whole decision, as a pure function of three facts, so the truth table can
+ * be tested without spawning agents or vandalising the shared tree.
  *
  * Returns `null` to allow, or a string to print and die with.
  */
-export function verdict({ kind, subagent, top, what }) {
-  if (kind !== 'main' || !subagent) return null;
+export function verdict({ kind, claudeShell, provenance, top, what }) {
+  if (kind !== 'main') return null;          // a worktree, or git said nothing
+  if (!claudeShell) return null;             // the human's own terminal, or CI
+  if (!provenance) return null;              // cannot show it owns a worktree -> the desk
   return [
     '',
     `  REFUSED: ${what} in THE SHARED CHECKOUT.`,
     '',
-    `  You are a spawned agent and this is the main checkout, not a worktree:`,
+    `  This is the main checkout, not a worktree:`,
     `      ${top || '(unknown)'}`,
+    `  and you came here from your own worktree:`,
+    `      ${provenance}`,
     '',
     '  This is the tree the desk commits from and the tree the user plays.',
     '  Four workers have done this by accident; one rebuilt the shared dist/',
-    '  and killed a preview it did not own. (GOTCHAS 54, 84; queue item 243.)',
+    '  and killed a preview it did not own. (GOTCHAS 54, 84; queue items 243, 247.)',
     '',
-    '  FIX: cd to YOUR OWN worktree and run it there.',
-    '      cd .claude/worktrees/agent-<your-id>/street',
+    '  FIX: go back to YOUR OWN worktree and run it there.',
+    `      cd ${provenance}/street`,
     '  Confirm with `git rev-parse --show-toplevel` before you re-run.',
     '',
     `  If you really do mean the shared tree, set ${OVERRIDE}=1 and say so in`,
     '  your handoff -- it is not a normal thing for an agent to want.',
     '',
   ].join('\n');
+}
+
+/** Everything above, wired together, for the CLI and for vite.config.ts.
+ *  Never throws: every failure path is ALLOW. */
+export function checkHere(what = 'this command', cwd = process.cwd(), env = process.env) {
+  try {
+    const { kind, top } = treeKind(cwd);
+    if (kind !== 'main') return null;                     // cheap exit, no /proc walk
+    const claudeShell = isClaudeShell(env);
+    if (!claudeShell) return null;
+    const provenance = worktreeProvenance({ env, top });
+    return verdict({ kind, claudeShell, provenance, top, what });
+  } catch {
+    return null;                                          // fail open, always
+  }
 }

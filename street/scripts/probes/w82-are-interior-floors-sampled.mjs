@@ -1,3 +1,18 @@
+// -- LEFT ON THE AABB BOX ON PURPOSE. ITEM 250, 2026-08-03. ----------------
+// Item 250 converted the world's floor CLASSIFIERS to the raycast query
+// (`installRayFloorQuery`), because the AABB pass over-claims 11,948 cells and
+// 88.4% of those are on open walkable ground -- the false-green direction. On
+// this world the AABB pass keeps **357 of 7,866 meshes**; the ray reads all of
+// them (93,493 triangles).
+//
+// THIS FILE IS NOT A CLASSIFIER AND WAS DELIBERATELY NOT CONVERTED.
+// It asks whether `sampleFloors`/`makeHasFloor` can see interior floors at all,
+// before and after entering a room. The AABB pass is the thing under test.
+// Converting it would delete the question it exists to ask. If you are here
+// looking for a floor predicate to USE, use the raycast -- see
+// scripts/interiors-walk.mjs for the converted call sites, and mind GOTCHAS 90:
+// the ray query is ASYNC and an un-awaited call is always truthy.
+// --------------------------------------------------------------------------
 // Item 226. My own instrument nearly shipped with a hole in it.
 //
 // The classification probe sampled floors ONCE at startup, before entering any
