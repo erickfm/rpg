@@ -1336,7 +1336,10 @@ export function makeCrosstown(): Proto {
     // `rig.yaw`/`rig.pitch` in step every frame — so what actually snaps is
     // the half-metre lean, and the fov, back to the player's own zoom.
     leave: () => {
-      if (!focus) return;
+      // NOTHING FOCUSED MEANS NOTHING RESTORED — `false`, not `undefined`. The
+      // caller reads this to decide whether to stand the player up, and a
+      // falsy-by-accident return is the shape of bug this whole item is.
+      if (!focus) return false;
       const { chair } = focus;
       focus = null;
       if (Math.abs(cam.fov - fovTarget) > 0.001) { cam.fov = fovTarget; cam.updateProjectionMatrix(); }
@@ -1363,10 +1366,20 @@ export function makeCrosstown(): Proto {
       // `sit()` re-records `standFrom` from that same position, so nothing
       // about getting up afterwards moves. Both are public API on the rig;
       // `fp.ts` is not touched, and it is not this item's file to touch.
+      //
+      // AND SAY SO, because `ct/hud.ts`'s `close()` runs a SECOND, unconditional
+      // stand-up three lines after this returns — the structural anti-trap that
+      // fires whenever the player was seated as a panel came up. It cannot tell
+      // the player's own chair from one a machine took for them; only this
+      // function can, because only this function called `rig.sit` and watched it
+      // early-return. Returning the answer is what makes the two halves one fix:
+      // either alone measures 9/13 on `scripts/probes/w107-seat-keeps-you.mjs`.
+      let kept = false;
       if (rig.seated) {
         rig.stand();
-        if (chair) rig.sit(chair);
+        if (chair) { rig.sit(chair); kept = rig.seated; }
       }
+      return kept;
     },
     pick: (clientX, clientY) => {
       if (!focus || !renderer) return null;
