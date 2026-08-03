@@ -146,8 +146,12 @@ is the same revert reached from the other end.
 | console errors | **0** in every non-sandbox run |
 
 Registered as `['pointer-returns', …, ['pointer-never-returns',
-'pointer-never-locks'], [], true]` — **`--slow`**, because it drives fourteen
-exits at five machines in real time (~3 min).
+'pointer-never-locks']]` — **default tier**. It drives fourteen exits at five
+machines in real time, which sounds like `--slow`, but measured through the
+runner it is **73 s / 76 s** against this file's 180 s default-tier ceiling. The
+tie-breaker: four guards this week were found correct and registered nowhere, so
+putting the guard for the highest-impact bug on the board behind a flag nobody
+passes is the same failure with extra steps.
 
 ## Found and NOT fixed — for the desk to queue
 

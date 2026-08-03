@@ -1446,9 +1446,17 @@ const CHECKS = [
   // failed on the first cut of the fix and is why the debt is a module-level
   // slot handed on rather than per-panel state.
   //
-  // `--slow`: it warps to five machines and drives fourteen exits in real time,
-  // ~3 min, which is what this file's own rule means by walking.
-  ['pointer-returns', 'does the mouse work the instant an overlay closes?', ['pointer-never-returns', 'pointer-never-locks'], [], true],
+  // DEFAULT TIER, and that is a decision rather than an oversight. It warps to
+  // five machines and drives fourteen exits in real time, which sounds like
+  // `--slow` — but measured through this runner it is **73 s**, against the
+  // 180 s ceiling this file sets for the default tier. 2.5x headroom.
+  //
+  // The tie-breaker is what keeps going wrong here: FOUR guards this week were
+  // found written, correct, and registered nowhere, so they never ran at all
+  // (masonry measuring zero faces, texdensity, w5-shadow-census, and the
+  // watch-vs-panel row above). Putting the guard for the highest-impact bug on
+  // the board behind a flag nobody passes is the same failure with extra steps.
+  ['pointer-returns', 'does the mouse work the instant an overlay closes?', ['pointer-never-returns', 'pointer-never-locks']],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
