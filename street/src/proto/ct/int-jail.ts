@@ -3,7 +3,8 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
-import { JAIL, JAIL_DOOR } from './jail';
+import { JAIL, JAIL_DOOR, JAIL_STEEL, jailLeafTex } from './jail';
+import { leafPair } from './vice';
 
 // ── INSIDE THE HOUSE OF DETENTION ─────────────────────────────────────────
 //
@@ -273,6 +274,72 @@ export function buildJail(ctx: CtxBuild): void {
     b.rotation.y = -Math.PI / 2;
   }
 
+  // ── THE SALLY PORT, FROM THE INSIDE ───────────────────────────────────────
+  //
+  // Item 105. The user: *"jail interior front door also looks bad and doesnt
+  // match outside."* He was right, and it was the third building he had said it
+  // about. What he was looking at is in `shots/w56/jail-inside.png`: one flat
+  // blue-grey slab with a single 3-pixel handle, against the two pressed-panel
+  // steel leaves in `shots/w56/jail-outside.png`.
+  //
+  // THE POSITION WAS NEVER WRONG. `JAIL_DOOR` single-sources it and
+  // `scripts/doormatch12.mjs` agreed the two faces line up — which is why three
+  // reports of this survived a check that claimed 12 of 12. The two faces
+  // disagreed about WHAT THE DOOR IS. `DoorDecl.leaf` publishes `frame.colour`
+  // and `glazing`, `ct/interior.ts` honours both, and this room already declared
+  // `steel` / `'none'` — so the kit painted the slab the right COLOUR and it
+  // still did not match, because panels, kick plate and leaf COUNT are what the
+  // eye reads and a `DoorLeaf` cannot carry any of them.
+  //
+  // So: the recipe `ct/interior.ts:1343` names for exactly this room, and which
+  // bank, casino, hotel, library and pawn already use — hide the kit's one leaf,
+  // hang the room's own pair. The kit's own note says its `leaves: 2` is
+  // unimplemented and that closing it inside the kit gave three other rooms two
+  // stacked doors; this is the one-file version it recommends instead.
+  const DW = JAIL.DOOR_W, DH = Math.min(JAIL.DOOR_H, room.H - 0.2), dAt = room.doorAt;
+  {
+    const hits: THREE.Mesh[] = [];
+    room.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.geometry?.type !== 'PlaneGeometry') return;
+      const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshBasicMaterial;
+      const img = mat?.map?.image as HTMLCanvasElement | undefined;
+      if (img && img.width === 32 && img.height === 64) hits.push(m);
+    });
+    if (hits.length === 1) hits[0].visible = false;
+    else console.warn(`[interior:jail] expected 1 kit door leaf to hide, found ${hits.length}`
+      + ' — the jail now has both the kit door and its own. ct/interior.ts changed shape.');
+  }
+  // The leaves themselves: `jailLeafTex()` is the SAME `THREE.Texture` the
+  // facade hangs outside, not a copy of it — see the note on that function in
+  // `ct/jail.ts`. Two faces, one drawing, and no arithmetic in between that
+  // could drift.
+  const jailLeafM = new THREE.MeshBasicMaterial({ map: jailLeafTex(), side: THREE.DoubleSide });
+  const OPEN = 0.55, GAP = 0.03;                 // the casino's and the bank's
+  leafPair(put, jailLeafM, dAt, DW, DH, hd - 0.12, OPEN, 'jail', GAP);
+  // The pull handle, at the FREE edge of each leaf — the outside has one and a
+  // door without one is the "single tiny handle" complaint wearing the other hat.
+  //
+  // COPIED ARITHMETIC, DECLARED AS SUCH (BUILDER-BRIEF §8). These four lines are
+  // `leafPair`'s own leaf placement, `ct/vice.ts:181-190`: hinge at
+  // `dAt + sx*DW/2`, leaf `LW = DW/2 - gap` long, swung `open` into the room.
+  // `leafPair` builds its leaves and returns nothing, so there is no transform
+  // to read back and no way to hang these as children without the LOCAL-position
+  // dimming `ct/interior.ts` warns about. FOLLOW-UP FOR THE DESK: have
+  // `leafPair` return its two meshes, and this block reads them instead — that
+  // edits `ct/vice.ts`, which this item does not name.
+  const LW = DW / 2 - GAP;
+  for (const sx of [-1, 1] as const) {
+    const hx = dAt + sx * DW / 2;
+    const t = 0.86;                              // along the leaf, hinge -> free edge
+    const px = hx - sx * Math.cos(OPEN) * LW * t;
+    const pz = hd - 0.12 - Math.sin(OPEN) * LW * t;
+    const pull = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.34, 0.05),
+      new THREE.MeshBasicMaterial({ color: JAIL_STEEL.dark }));
+    pull.rotation.y = -sx * OPEN;
+    put(pull, px, 1.02, pz);
+  }
+
   // ── the clock ───────────────────────────────────────────────────────────
   //
   // Through the kit, not hand-rolled. The user asked for this by name — *"make
@@ -282,7 +349,19 @@ export function buildJail(ctx: CtxBuild): void {
   // time anybody touches it. `ct/interior.ts:406`.
   //
   // A lobby you wait in needs a clock more than any other room in this game.
-  room.clock({ lx: 0, y: 2.55, lz: hd - 0.14, r: 0.24, rotY: Math.PI,
+  //
+  // NOT AT lx 0, and that was the second half of item 105 — *"a clock appears to
+  // hang ON the door."* It did, and it was not a trick of the angle: the clock
+  // sat at lx 0, which is `door.at`, on the front wall, spanning y 2.31…2.79
+  // inside a door opening that runs y 0…3.06. It was a disc floating in the
+  // doorway. Nothing was parented wrongly — it was placed dead centre over a
+  // door whose head it could not clear.
+  //
+  // It cannot go ABOVE the head either: this room is 3.3 m and the opening is
+  // 3.06, so there are 0.24 m of wall over it and the clock is 0.48 across. So
+  // it moves along the wall instead, clear of the reveal:
+  // 2.20 − DOOR_W/2 (1.20) − r (0.24) = 0.76 m of daylight.
+  room.clock({ lx: -2.2, y: 2.55, lz: hd - 0.14, r: 0.24, rotY: Math.PI,
     face: 0xe8e6d8, rim: 0x3a3c3a, hands: 0x22201c });
 
   // ── the payphone ────────────────────────────────────────────────────────

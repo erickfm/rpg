@@ -116,24 +116,100 @@ await hike('south walk, back west', 46, -109.2, WEST, 11, 12);
 // canvas, not in the DOM, so "did the prompt appear" is not readable from here
 // — but "did the player get inside the trigger radius without being stopped"
 // is the mechanical question anyway, and it is the one the seam audit asked.
-const DOOR = { x: 8.7, z: -96.85, r: 1.05 };
-await page.evaluate(() => window.__ct.warp(14, -97.0, -Math.PI / 2, 0.14, 0));
-await afterFrames(page);   // GOTCHAS 30: the warp lands on a FRAME, not after 150 ms
-const track = await page.evaluate(async () => {
-  const out = [];
-  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
-  const t0 = performance.now();
-  while (performance.now() - t0 < 3000) {
-    await new Promise((r) => requestAnimationFrame(r));
-    const p = window.__ct.pos();
-    out.push([p[0], p[2]]);
-  }
-  window.dispatchEvent(new KeyboardEvent('keyup', { key: 'w' }));
-  return out;
+//
+// THE DOOR IS ASKED FOR, NOT TYPED IN. This read `DOOR = {x: 8.7, z: -96.85,
+// r: 1.05}` and failed at 3.53 m for as long as anyone remembers, filed as a
+// "pre-existing failure at the bodega door". There is no door there. The world's
+// spot is `into the BODEGA` at (7.47, -95.53) with r=1.80 — 1.8 m away and with
+// a radius nearly twice as big, so the constant was failing against a point the
+// world does not have. That is BUILDER-BRIEF §8 exactly: a second hand-typed
+// copy of a value another module owns. Section 5 below has always read
+// `__ct.spots()`; this half simply never did.
+const DOOR = await page.evaluate(() => {
+  const sp = window.__ct.spots().find((s) => /BODEGA/i.test(s.label));
+  return sp ? { label: sp.label, x: sp.x, z: sp.z, r: sp.r } : null;
 });
-const closestDoor = Math.min(...track.map(([x, z]) => Math.hypot(x - DOOR.x, z - DOOR.z)));
-check(closestDoor < DOOR.r,
-  `bodega door still reachable along the north walk — got within ${closestDoor.toFixed(2)} m of the trigger (r=${DOOR.r})`);
+// AND IT REFUSES TO PASS WHEN IT CANNOT FIND ONE. A missing spot must be a
+// FAIL, never a skip: the whole point of the check is that the bodega door has
+// not been eaten, and "no bodega spot in this world" is that defect in its
+// worst form (GOTCHAS 71 — a check proving an absence must prove it looked).
+check(!!DOOR, `the world publishes a BODEGA [E] spot to walk at`
+  + (DOOR ? ` — "${DOOR.label}" at (${DOOR.x.toFixed(2)}, ${DOOR.z.toFixed(2)}) r=${DOOR.r}` : ''));
+if (DOOR) {
+  // WHY THIS IS NO LONGER ONE STRAIGHT LINE. The old walk held W due west along
+  // z=-97.0 with a fixed yaw and stopped dead at x=12.2 — against the bodega's
+  // two produce crates (x 10.44..11.76, z -96.69..-96.13; ct/bodega-corner.ts
+  // :511-512), which the user asked to be tucked against that wall and which
+  // leave a 3.18 m lane beside them. The walk itself is fine: swept over
+  // x 8..20 the clear lane never drops below 1.40 m.
+  //
+  // But the clear lane is not STRAIGHT — it is centred z -97.10 east of the
+  // crates and z -98.29 beside them, so the widest z that is free at every x
+  // from 14 down to 8 is a band about 0.10 m across. Threading a 10 cm slot is
+  // not what a player does and a hard-coded lane tuned until it passes is what
+  // this check is being repaired FOR, so the straight line is gone.
+  //
+  // The invariant that actually matters is the one the seam audit asked for:
+  // CAN A PLAYER ON FOOT GET INSIDE THE TRIGGER. So walk in at it from eight
+  // headings, one player-radius grid out at 4 m, and require the pavement side
+  // to work. No tuned number, and it still fails the moment the door is walled
+  // in or a collider is parked on it.
+  const START = 4.0;
+  const approaches = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const sx = DOOR.x + Math.cos(a) * START, sz = DOOR.z + Math.sin(a) * START;
+    // forward is (sin yaw, -cos yaw); aim it back down the radius at the door
+    const yaw = Math.atan2(DOOR.x - sx, -(DOOR.z - sz));
+    // A START INSIDE THE SHOPFRONT IS NOT AN APPROACH. Three of the eight land
+    // in the bodega's own masonry — it is a corner building — and warping into
+    // a wall would measure `unstick`, not the doorway.
+    const inWall = await page.evaluate(([x, z]) => {
+      const R = 0.36;
+      return window.__ct.staticColliders().some((c) => {
+        let px = x, pz = z;
+        if (c.rot) {   // fp.ts:55 inFrame — a turned box's extents are its OWN frame
+          const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+          const s = Math.sin(c.rot), k = Math.cos(c.rot), dx = x - cx, dz = z - cz;
+          px = cx + dx * k - dz * s; pz = cz + dx * s + dz * k;
+        }
+        return px > c.minX - R && px < c.maxX + R && pz > c.minZ - R && pz < c.maxZ + R;
+      });
+    }, [sx, sz]);
+    if (inWall) { approaches.push({ i, sx, sz, near: null }); continue; }
+    await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [sx, sz, yaw]);
+    await afterFrames(page);   // GOTCHAS 30: the warp lands on a FRAME, not after 150 ms
+    let near = 99;
+    await page.keyboard.down('w');
+    for (let k = 0; k < 10; k++) {
+      await page.waitForTimeout(250);
+      const q = await pos();
+      near = Math.min(near, Math.hypot(q[0] - DOOR.x, q[2] - DOOR.z));
+    }
+    await page.keyboard.up('w');
+    await page.waitForTimeout(60);
+    approaches.push({ i, sx, sz, near });
+  }
+  const walked = approaches.filter((a) => a.near !== null);
+  const reached = walked.filter((a) => a.near < DOOR.r);
+  const best = walked.length ? Math.min(...walked.map((a) => a.near)) : 99;
+  for (const a of approaches) {
+    console.log(`       ${a.near === null ? 'start inside the shopfront, skipped'
+      : `${a.near < DOOR.r ? 'IN ' : '   '} ${a.near.toFixed(2)} m`}`
+      + `   from (${a.sx.toFixed(2)}, ${a.sz.toFixed(2)})`);
+  }
+  check(walked.length >= 4, `the bodega door can be walked at from ${walked.length} of 8 headings `
+    + `(the rest start inside its own masonry)`);
+  check(reached.length > 0, `bodega door still reachable on foot — ${reached.length}/${walked.length} approaches `
+    + `got inside the trigger, closest ${best.toFixed(2)} m (r=${DOOR.r})`);
+  // …AND FROM THE PAVEMENT, which is the half GOTCHAS §8 is about: the walk is
+  // the way a player arrives, and a door reachable only by stepping into the
+  // road is a door the walk has lost. Headings 5-7 are the south/south-east
+  // quadrant, i.e. the north walk.
+  const fromWalk = reached.filter((a) => a.i >= 5);
+  check(fromWalk.length > 0, `and from the north walk itself — ${fromWalk.length} of the pavement-side `
+    + `approaches got inside the trigger`);
+}
 
 // ── 3. the parked cars are off the travel lane ────────────────────────────
 // drive the side street west→north and check it never has to brake for them
