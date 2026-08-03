@@ -104,11 +104,17 @@ side street all read floored (`scripts/probes/w75-floor-under.mjs`).
 
 ## Results, per site
 
-| site | walks | places (in-site) | **escapes** | off the site rect | verdict |
-|---|---|---|---|---|---|
-| jail | 136 / 720 | 17 (7) | **0** | 0 | contained |
-| lot | 368 / 1232 | 46 (27) | **10** | 21 | **RED — real hole** |
-| park | — | — | — | — | see below |
+All three fills **saturated** — none hit its budget, none left a place queued.
+
+| site | walks / budget | places (in-site) | **escapes** | off the site rect | lane | time | verdict |
+|---|---|---|---|---|---|---|---|
+| jail | 136 / 720 | 17 (7) | **0** | 0 | 13.50 m | 2m47s | contained |
+| park | 624 / 1792 | 78 (47) | **0** | 0 | 26.75 m | 12m52s | contained |
+| lot | 368 / 1232 | 46 (27) | **10** | 21 | 22.75 m | 7m25s | **RED — real hole** |
+
+Note the two right-hand columns disagreeing at the lot: **21 walks left the
+site's rectangle, 10 of them were actually off the world.** That gap is the
+finding of this item in one line.
 
 ### THE LOT IS OUT OF BOUNDS AT ITS NORTH END — a new, real defect
 
@@ -217,3 +223,37 @@ does not name (BUILDER-BRIEF §9). **It needs its own queue row** — see below.
 
 3. **`O-jail-walk.mjs` and `w15-jail-walk.mjs` are still route-based.** Item 175
    left them and so did I; they are not wrong, they are narrow.
+
+4. **`checks.mjs`'s summary table prints three rows all reading
+   `w75-site-contained`** and does not show which site each one is. The `extra`
+   args are what distinguish them and the table never shows `extra`. A one-line
+   fix exists — use `extra.length ? `${name} ${extra.join(' ')}` : name` as the
+   row LABEL while `name` keeps resolving the file — but it is inside the shared
+   loop over all 137 rows, which item 215 does not name, so I left it.
+   `--only` matching is unaffected either way.
+
+5. **The jail's fill stands in only 7 in-site places** against the park's 47.
+   The jail's building occupies most of its own site, so there is genuinely
+   little to stand on — and the `jail-forecourt-open` mutation is still CAUGHT
+   at that coverage, which is what licenses it (settings validated by mutation,
+   not by argument). Worth knowing before anyone reads 7 as thin.
+
+---
+
+## Verified
+
+- `scripts/w75-site-contained.mjs jail` — **all contained**, 0 escapes / 136 walks.
+- `scripts/w75-site-contained.mjs park` — **all contained**, 0 escapes / 624 walks.
+- `scripts/w75-site-contained.mjs lot` — **1 FAILED**, 10 escapes / 368 walks.
+  The check is right; the world is wrong. See item 1 above.
+- `canfail jail-forecourt-open` — **CAUGHT**, file restored byte-for-byte.
+  Run **twice**: once against the site-rect predicate and again after the
+  predicate was replaced, because a rewritten assertion that is no longer able
+  to see the bug it inherited is the whole risk of this item.
+- `scripts/reap-servers.sh --dry` from this worktree, both signs — pre-fix names
+  our own two vite pids as reapable, post-fix prints `… is US`.
+- `npm run typecheck` 0 · `npm run build` 0 · `node scripts/health.mjs` 0
+  `WORLD OK` · `npm run sweep` **96 shots, 0 STATION MISS, 0 COVERAGE**, no new
+  console errors (the `[interior:hotel] NO BUILDING NAME` warning is the known
+  standing one).
+- `node scripts/checks.mjs --only w75-site-contained` resolves **3 of 137 rows**.
