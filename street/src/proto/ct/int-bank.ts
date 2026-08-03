@@ -534,10 +534,32 @@ export function buildBankInterior(ctx: CtxBuild): void {
     t.needsUpdate = true;
     return ctx.flat(t);
   };
-  // Small incidental faces (the safe-deposit nest's end caps, top and bottom —
-  // never more than ~0.2 m of any one, never what a player is looking at) keep
-  // the plain unrepeated material; they are not the surfaces the row is about.
-  const concreteM = ctx.flat(concreteT);
+  // ── THE SAME CONCRETE, AT AN EXACT FRACTIONAL TILE (item 266) ─────────────
+  //
+  // `concreteMat` above ROUNDS to whole repeats and floors at 1, and that is
+  // deliberate on a wall: whole repeats make the form-board pattern CLOSE at the
+  // top and bottom of the run instead of cutting a board in half at the ceiling
+  // line. It is the right rule for a 3 m wall and the wrong one for a 16 cm
+  // edge, where `Math.max(1, …)` forces one whole 48-texel canvas across
+  // 0.16 m — 300 px/m.
+  //
+  // So there are two, and the choice is per surface rather than per module:
+  //   `concreteMat`  a WALL. Whole repeats; the bands close.
+  //   `concreteFit`  an EDGE. Exact fractional repeat; the density is right and
+  //                  there is no band pattern on a 16 cm strip to close.
+  const concreteFit = (wMeters: number, hMeters: number) => {
+    const t = concreteT.clone();
+    t.userData = { ...concreteT.userData };     // clone() shares userData by ref
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(wMeters / CONCRETE_TILE_M, hMeters / CONCRETE_TILE_M);
+    t.needsUpdate = true;
+    return ctx.flat(t);
+  };
+  // There is no `concreteM` any more. It existed only for the safe-deposit
+  // nest, on the claim that those faces were "never more than ~0.2 m of any
+  // one" — which was false by an order of magnitude and is what item 266 is.
+  // A surface with no derived repeat has no honest use here; if you want one,
+  // you want `concreteFit`.
 
   // the east wall, full height of the strongroom
   const eastWallLen = V_Z1 - (-hd);
@@ -804,10 +826,35 @@ export function buildBankInterior(ctx: CtxBuild): void {
   const sdbNest = (lx: number, lz: number, len: number, along: 'x' | 'z') => {
     const geo = along === 'x'
       ? new THREE.BoxGeometry(len, 1.95, 0.16) : new THREE.BoxGeometry(0.16, 1.95, len);
-    // the painted face goes on the two faces that point along the OTHER axis
+    // The painted face goes on the two faces that point along the OTHER axis.
+    //
+    // ── ITEM 266: THE OTHER FOUR ARE 12 OF THE BANK'S 32 GROSS FACES ─────────
+    //
+    // The queue row says the bank's cluster is `concreteMat`'s clamp. **It is
+    // not, for most of it.** Measured with `texdensity --all`: 15 of the 32 are
+    // this 48x40 concrete canvas, and **12 of those 15 came through here** —
+    // `concreteM`, the plain UNREPEATED material — not through `concreteMat` at
+    // all. Its comment claimed these faces were "never more than ~0.2 m of any
+    // one"; the ±y faces of this box are `len` long, and `len` is up to 2.92 m.
+    // One 48x40 canvas stretched across that draws
+    //
+    //     0.16 x 1.95 m  ->  300    x  20.51 px/m   14.6x
+    //     2.92 x 0.16 m  ->   16.44 x 250    px/m   15.2x
+    //
+    // `concreteFit` gives each face its own exact tile, which lands all four at
+    // 36.9 x 30.77 px/m — the density the wall next to them draws. **The
+    // material order is the trap here** and it is the one this repo has paid for
+    // twice: `[+x, -x, +y, -y, +z, -z]`, and **+x spans DEPTH x HEIGHT while +y
+    // spans WIDTH x DEPTH** (`BOX_FACE_DIMS`, `ct/paint.ts:136`). Each call
+    // below is that table read off, not the box's own w/h/d retyped.
     const m = along === 'x'
-      ? [concreteM, concreteM, concreteM, concreteM, sdbM, sdbM]
-      : [sdbM, sdbM, concreteM, concreteM, concreteM, concreteM];
+      // Box(len, 1.95, 0.16): ±x is 0.16 x 1.95, ±y is len x 0.16
+      ? [concreteFit(0.16, 1.95), concreteFit(0.16, 1.95),
+         concreteFit(len, 0.16), concreteFit(len, 0.16), sdbM, sdbM]
+      // Box(0.16, 1.95, len): ±y is 0.16 x len, ±z is 0.16 x 1.95
+      : [sdbM, sdbM,
+         concreteFit(0.16, len), concreteFit(0.16, len),
+         concreteFit(0.16, 1.95), concreteFit(0.16, 1.95)];
     skin(put(new THREE.Mesh(geo, m), lx, 1.02, lz), 'safe-deposit boxes');
     if (along === 'x') solid(lx, lz, len, 0.16); else solid(lx, lz, 0.16, len);
   };
