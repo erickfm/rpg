@@ -117,6 +117,13 @@ by pay rather than by index. Found in `shots/w73-face/attract.png`.
   `L-slots-inworld` all green.
 - The verdict shot is `shots/w73-after/2-seated.png` against
   `shots/w73-before/2-seated.png`, same vantage, same seat.
+- **Verified on the BUILT BUNDLE** (GOTCHAS 28), `vite preview` on 4291:
+  `L-slots-inworld` 19/19, the pointer check 8/8 with the same four hot runs,
+  `health.mjs` **WORLD OK** (exit 0), `bugsweep` 96 shots / **0 STATION MISS** /
+  0 COVERAGE and only the known pre-existing `[interior:hotel] NO BUILDING NAME`.
+  `shots/w73-built/2-seated.png` is the built bundle's own frame and matches dev.
+  The first attempt exited **3** — "measuring the wrong world", a stale `dist/`
+  from before the last commit. The guard was right; rebuilt and re-ran.
 
 **One check caught a real regression and it is worth naming.** My first version
 had the whole ring blink on and off with the payline at 8 Hz. `L-slots-glass`
@@ -136,6 +143,35 @@ taller than 36) or it will corrupt a signature. There must be **exactly three**
 `strokeRect`s at `reelW+2 x h+2`, and **exactly one** `fillRect` at
 `w === GLASS.w, h <= 1` — the check finds the windows and the payline by those.
 Nothing may have a local y outside `[0, 483]`.
+
+## 6a. WHERE THIS WORK ACTUALLY LANDED — the SHA is not the obvious one
+
+**I was run without worktree isolation, in the desk's own tree, and the two of
+us collided.** The desk spotted the risk mid-item and warned me off `git add -A`.
+By then it had already fired, in the direction it did not expect: **the desk's
+commit swept up my work, not the other way round.**
+
+| SHA | what its message says | what is actually in it |
+|---|---|---|
+| `95a1beb67` | "Queue the missing dark-ground detector; pin the jail diffuser's exact coordinates" | **532 lines of `ct/slots.ts` and 76 of `w73-slot-face.mjs` — the entire item-208 rebuild.** Nothing about a detector or a diffuser |
+| `e61c26448` | "208: the slot machine, described from the user's frame then rebuilt" | **6 lines of a probe.** Everything it describes had already been committed by the line above |
+| `65e568f37` | "208: a pointer check for the slot deck…" | correct — the new pointer probe and this note |
+
+**Nothing was lost and the tree is right**; only the attribution is. But
+SESSION-STATE already records that 31% of AUDIT's cited SHAs do not resolve for
+the reader, and this is how that happens: anyone following `e61c26448` to see
+what changed about the slot machine finds a six-line probe edit. **The reasoning
+for this item is in `e61c26448`'s message; the code is in `95a1beb67`.**
+
+My commits after the warning staged explicit paths only, and the audit is above
+— my one `git add` with `-A` was pathspec-scoped, so it took nothing of the
+desk's. Verified: `git show --stat` on both, and `git status` clean throughout.
+
+**Answering the desk's question: sharing the tree is workable but it cost this.**
+Two agents committing from one index cannot keep their changes apart, because
+`git add -A` is a statement about the whole index and neither of us can see the
+other's in-flight edits. If item 208 had needed a revert, reverting `95a1beb67`
+would have taken the desk's queue edits with it.
 
 ## 7. Found and not fixed
 
