@@ -7,9 +7,10 @@
 //
 // Usage: SHOT_URL=http://localhost:4750/ node scripts/probes/w119-216-hint-budget.mjs
 import { chromium } from 'playwright';
+import { aim } from '../lib/aim.mjs';
 import { waitPainted } from '../lib/painted.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4750/';
+const URL = aim('http://localhost:4750/');
 const SIZES = (process.env.SIZES ?? '1280x800,1920x1080,1024x640,800x600').split(',')
   .map((s) => s.split('x').map(Number));
 

@@ -25,10 +25,11 @@
 // Exit code is the verdict. Six checks in this repo printed a failure and exited
 // 0; this one does not.
 import { chromium } from 'playwright';
+import { aim } from './lib/aim.mjs';
 import { waitPainted } from './lib/painted.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4750/';
+const URL = aim('http://localhost:4750/');
 const SELFTEST = process.argv.includes('--selftest');
 // The default sweep straddles the point where the ATM's own longest caption
 // (487.6 px measured) stops fitting in the OLD half-the-viewport limit, which is

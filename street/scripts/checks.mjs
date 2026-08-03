@@ -1457,6 +1457,32 @@ const CHECKS = [
   // watch-vs-panel row above). Putting the guard for the highest-impact bug on
   // the board behind a flag nobody passes is the same failure with extra steps.
   ['pointer-returns', 'does the mouse work the instant an overlay closes?', ['pointer-never-returns', 'pointer-never-locks']],
+  // REGISTERED 2026-08-03 (w119, item 216). THE PANEL CAPTION'S WIDTH BUDGET,
+  // and the ATM PIN now living on `purse.pin` rather than in a module `let`.
+  //
+  // The caption had no budget of its own: `hud.ts`'s `wrap` is fixed at
+  // `left:50%` with no `right`, so an auto-width child shrink-to-fits against
+  // HALF the viewport — a limit that moves with the window and has nothing to do
+  // with the panel. The ATM's PIN caption is 520 px of ink and broke onto two
+  // lines in any window under ~976 px. It now takes `CW * scale`, published on
+  // `cap.dataset.budget`, and this check reads that number rather than keeping a
+  // second copy of it.
+  //
+  // Registered rather than left in `probes/` because the caption is FRAMEWORK
+  // chrome — mail 155, library PC 157, loan 185 and slots 208 all inherit it, and
+  // item 216's own words are that a text-overflow bug here gets copied.
+  //
+  // `--selftest` overwrites the caption with a 145-character string and requires
+  // the check to go red (1154 px over a 600 px budget, 2 lines), then restores it
+  // and requires the original figure back to within 0.5 px. The mutation lands
+  // AFTER `paint()`'s last write to `cap.textContent`, which is GOTCHAS 91.
+  //
+  // The purse half was mutation-tested against a real code change rather than a
+  // DOM poke: `submitPin` put back to module state, rebuilt, and this check went
+  // exit 1 on exactly the two purse assertions and no caption assertion.
+  //
+  // APPENDED AT THE END, same reasoning as the `w67-atm-pin` row above.
+  ['w119-caption-budget', 'does a panel caption fit its stated budget at every window size?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
