@@ -3149,3 +3149,12 @@ to one side.
   `requestPointerLock` in the whole source is `src/main.ts:32`, on a **canvas
   click**, gated `current?.pointerLock && !input.locked`. **Nothing re-acquires
   the lock when an overlay closes.** Offered as a lead, not a verdict.
+
+- **"ok for 110, i want you to need to look straight down, it is confused. im
+  asking for that. it isnt that way"** (2026-08-03) → **corrects item 275, which
+  the desk had INVERTED.** His earlier line — *"to look at your watch you need to
+  look straight down (couple deg of tolerance)"* — was **a request describing the
+  behaviour he wants**, not a complaint about the current one. The desk read it
+  as a bug report and wrote a row telling a builder to WIDEN the window. He wants
+  it **narrowed**: essentially straight down, with a couple of degrees of play.
+  The holding worker (onehundredten) was messaged directly.
