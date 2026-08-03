@@ -41,6 +41,10 @@ const CASINO = 'src/proto/ct/int-casino.ts';  // the 96 slot stools
 const FP = 'src/proto/fp.ts';                 // the player rig — eye height, reach
 const TAX = 'src/proto/ct/int-tax.ts';        // the waiting row the user reported
 const ATM = 'src/proto/ct/atm.ts';            // the cash machine's screens and keys
+// The fascia METRICS, hoisted out of ct/bank.ts so ct/atm.ts can hit-test the
+// keys ct/bank.ts draws without closing an import cycle (see the file's own
+// header). `rulings-atm` used to quote bank.ts and moved here with them.
+const ATMFACE = 'src/proto/ct/atm-face.ts';
 const JAIL = 'src/proto/ct/jail.ts';          // O's — the building and its screens
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
@@ -256,9 +260,23 @@ const CASES = [
     'D-rulings-hold.mjs', [], 'the awning sloping up and hiding the sign again'],
 
   // The fascia bottom the user named three times.
-  ['rulings-atm', BANK,
-    '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;',
-    '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.90;  // selftest: pre-ruling',
+  //
+  // NEEDLE RE-QUOTED AND RE-FILED, not redesigned — item 229. It quoted
+  // `ct/bank.ts`'s `const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;`
+  // and matched 0x from the ATM fascia dispatch rewrite onward. Nothing about
+  // the machine changed: `ct/atm-face.ts` was added as a third module importing
+  // neither `ct/bank.ts` nor `ct/atm.ts`, and the eight fascia numbers moved
+  // into its `ATM_FACE` declaration so both halves read ONE authoring instead
+  // of two. `ct/bank.ts:250` now says `KERB_H + ATM_FACE.bot` — the ruling is
+  // still there, it is simply no longer a literal in that file.
+  //
+  // So the case follows the NUMBER, which is what it was always about. `bot`
+  // is one of the two rulings `ct/atm-face.ts` names as such in its own comment,
+  // and 0.90 is the pre-ruling value `ct/bank.ts:230` records the user moving
+  // it off ("M_BOT 0.90 -> 0.68 -> 0.75", asked for twice).
+  ['rulings-atm', ATMFACE,
+    '  top: 1.58, screenBot: 1.16, keysBot: 1.04, bot: 0.75,',
+    '  top: 1.58, screenBot: 1.16, keysBot: 1.04, bot: 0.90,  // selftest: pre-ruling',
     'D-rulings-hold.mjs', [], 'the fascia bottom back where the ruling moved it from'],
 
   // ── item 184: the ATM's PIN screen ────────────────────────────────────────
@@ -363,24 +381,6 @@ const CASES = [
     'halo.position.set(headX + 1.4, sidewalkY + LAMP_H - 0.31, headZ);',
     'glow.mjs', ['probe'], 'the glow floating 1.4 m off its lamp head'],
 
-  // Switches the lamp pool off at the source. The halo SHEET still hangs in
-  // exactly the right place, so the anchoring half of glow.mjs stays green —
-  // which is the point: for weeks that was the only half there was, and the
-  // user's actual request was "light around the light posts to show up on the
-  // objects and entities under the lights".
-  // A NaN IN THE GRADE, which is the failure grade-sane.mjs exists for: it does
-  // not throw, does not log, and three.js uploads it happily — you get a black
-  // or white mesh and no clue where from. POOL_GAIN feeds the multiplier every
-  // lit material takes, so poisoning it poisons the colours without touching
-  // any geometry. Every other check on this shelf stays green through it, which
-  // is the point.
-  // WARMED TWICE. The grade's ceiling is exactly WARM_R: `mul` is capped at 1
-  // and `base` is an authored colour, so 1.15 is the most it can produce and
-  // grade-sane reads that number out of props.ts rather than repeating it.
-  // Applying the warm term a second time — which is what a second writer on one
-  // of these materials would look like, or an uncapped pool gain — takes it to
-  // 1.32 and nothing else in the suite would notice: it is not NaN, not
-  // negative, and clamps at render, so the frame merely looks slightly hotter.
   // `wet-blind` STOOD HERE AND IS GONE, not retargeted. It retextured the
   // puddle sheet so wetness.mjs's predicate stopped recognising it — a
   // blinding case against the pool population floor. Both the sheet and the
@@ -390,14 +390,70 @@ const CASES = [
   // case disappearing from this list is exactly what it would look like if
   // someone had simply given up on it.
 
+  // ── item 229: BOTH grade cases had to MOVE BRANCHES, and the reason is a
+  //    finding, not a rename ────────────────────────────────────────────────
+  //
+  // Both quoted the CPU pool branch and both matched 0x. `544053b20`
+  // ("lamplight per fragment, so a surface is lit because of where it is")
+  // moved the warm term AND the gain into `POOL_FRAG`, and the CPU pass now
+  // owes a pooled material only its ambient — `ct/props.ts:1494` is the whole
+  // of it: `e.m.color.setRGB(e.base.r * amb, e.base.g * amb, e.base.b * amb)`.
+  //
+  // THAT IS NOT A MOVED LINE, IT IS A MOVED LANGUAGE. `grade-sane.mjs` reads
+  // `m.color` out of JS; a fragment shader is invisible to it. So the warm
+  // overshoot it was written to catch cannot occur on the surface it reads any
+  // more, and its own header is now out of date by the same event — it records
+  // "20 of 5536 through the night, 156-166 at the four ramp hours, worst
+  // 1.1497 at 23:00", and measured on cd5afdd8f the world gives:
+  //
+  //     swept 24 hours, 10962 materials each — 0 impossible values
+  //     deliberately over 1.0: 0 material-hours, peak 0.0000 — none
+  //
+  // Zero, not twenty. **The ceiling clause is now green over a population in
+  // which nothing can approach the ceiling** — a vacuous pass in a check whose
+  // header is an argument against vacuous passes. Filed for the desk rather
+  // than fixed here: `grade-sane.mjs` is outside item 229 (BUILDER-BRIEF §9).
+  //
+  // Both cases are therefore re-pointed at the writes the CPU pass STILL owns,
+  // which is what the check can still see. That keeps each one's original
+  // question — "would grade-sane notice an impossible colour" — answerable,
+  // and it is deliberately NOT a loosening: the mutation still has to travel
+  // through the real grade to a real material to be caught.
+
+  // WARMED TWICE. The grade's ceiling is exactly WARM_R: `mul` is capped at 1
+  // and `base` is an authored colour, so 1.15 is the most it can produce and
+  // grade-sane reads that number out of props.ts rather than repeating it.
+  // Applying the warm term a second time — which is what a second writer on one
+  // of these materials would look like, or an uncapped pool gain — takes it
+  // over the ceiling and nothing else in the suite would notice: it is not NaN,
+  // not negative, and clamps at render, so the frame merely looks hotter.
+  //
+  // It now lands on the NON-pool branch (world geometry, the larger population
+  // and the brighter one), because that branch still multiplies a base colour
+  // by an ambient in JS. WARM_R twice is 1.3225 against a 1.155 ceiling —
+  // chosen over a single application on purpose: `base * amb * WARM_R` tops out
+  // at 1.15, which is UNDER the 1.155 bar, so the obvious one-term mutation
+  // would have been INERT and certified nothing. Measured, not assumed.
   ['grade-twice', PROPS,
-    '        e.base.r * mul * (1 + (WARM_R - 1) * k),',
-    '        e.base.r * mul * (1 + (WARM_R - 1) * k) * (1 + (WARM_R - 1) * k),',
+    '        let r = e.base.r * amb, g2 = e.base.g * amb, b2 = e.base.b * amb;',
+    '        let r = e.base.r * amb * WARM_R * WARM_R, g2 = e.base.g * amb * WARM_G * WARM_G, b2 = e.base.b * amb * WARM_B * WARM_B;',
     'grade-sane.mjs', [], 'a material warmed twice — over the ceiling the grade can produce'],
 
+  // A NaN IN THE GRADE, which is the failure grade-sane.mjs exists for: it does
+  // not throw, does not log, and three.js uploads it happily — you get a black
+  // or white mesh and no clue where from.
+  //
+  // It used to poison POOL_GAIN. POOL_GAIN is still a live constant, but since
+  // `544053b20` its only CPU consumer is `mul`, and `mul` no longer reaches a
+  // colour — it survives solely to set the `poolLit` flag (ct/props.ts:1479).
+  // Poisoning it now produces NaN in a boolean comparison, which is `false`,
+  // and a perfectly finite frame. The case would have been INERT even once
+  // re-quoted, which is why it is aimed one level up instead: `ambient()`
+  // (ct/props.ts:580) is multiplied into EVERY lit material's colour on both
+  // branches, so poisoning it is the same blast radius the original had.
   ['grade-nan', PROPS,
-    'const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor',
-    'const POOL_GAIN = NaN;       // selftest: poison the grade',
+    '  const ambient = (floor: number) => 1 - nightNow * (1 - floor);',
+    '  const ambient = (floor: number) => (1 - nightNow * (1 - floor)) * NaN;  // selftest: poison the grade',
     'grade-sane.mjs', [], 'a NaN quietly poisoning every lit material'],
 
   // BLIND THE CHECK, not the world — the sibling of footprint-blind. The lamps
@@ -411,8 +467,38 @@ const CASES = [
     "    halo.userData.lampPart = 'halo-selftest';\n    halo.position.set(headX,",
     'glow.mjs', ['probe'], 'the lamps glowing but their halos invisible to the check'],
 
+  // Switches the lamp pool off at the source. The halo SHEET still hangs in
+  // exactly the right place, so the anchoring half of glow.mjs stays green —
+  // which is the point: for weeks that was the only half there was, and the
+  // user's actual request was "light around the light posts to show up on the
+  // objects and entities under the lights".
+  //
+  // NEEDLE RE-QUOTED — item 229. It quoted `const POOL_GAIN = 12;` and matched
+  // 0x: the constant is now 6.5 (ct/props.ts:561), rewritten with the
+  // per-fragment lamplight. The mutation itself is unchanged in meaning — 0 is
+  // still "the lamps light nothing" — and POOL_GAIN is still the single source
+  // it is read from, now by the shader (`nf(POOL_GAIN)`, ct/props.ts:703) as
+  // well as by `poolLit`.
+  //
+  // ⚠ THIS CASE CANNOT DISCRIMINATE TODAY, AND SAYING SO IS THE POINT.
+  // `glow.mjs` is RED on this tree BEFORE any mutation is applied — measured on
+  // cd5afdd8f, unmutated, port 4400:
+  //
+  //     FAIL main street: under a lamp 0.0450 vs mid-block 0.0450 — 1.0x (59/164)
+  //     OK   side street: under a lamp 1.0000 vs mid-block 0.0857 — 11.7x (8/161)
+  //
+  // canfail scores CAUGHT on any non-zero exit, so a check that is ALREADY red
+  // goes "red" under every mutation and certifies nothing — the same empty-set
+  // certificate as item 224, one level out. Same cause as the two grade cases
+  // above: `544053b20` moved the pool into POOL_FRAG, and glow.mjs's pool
+  // clause reads `mat.color`, which is now `base * amb` — an ambient that is
+  // per-FLOOR, not per-lamp, so near and far on one floor are identical by
+  // construction and 1.0x is the only answer it can give. Filed for the desk;
+  // `glow.mjs` is outside item 229 (BUILDER-BRIEF §9). Re-pointed rather than
+  // retired because the case is correct and will discriminate the moment the
+  // check reads the pool where the pool now lives.
   ['glow-pool', PROPS,
-    'const POOL_GAIN = 12;',
+    'const POOL_GAIN = 6.5;',
     'const POOL_GAIN = 0;',
     'glow.mjs', ['probe'], 'lamps that glow but light nothing beneath them'],
 
@@ -598,6 +684,29 @@ const CASES = [
     "pit.userData.groundProp = 'tree pit';",
     "pit.userData.groundProp = 'tree pit renamed by selftest';",
     'footprint.mjs', [], 'the tree pits still there but invisible to the check that guards them'],
+
+  // ITEM 219, PUT BACK. This is the bug verbatim, one word of it: the obstacle
+  // test in `dimWorld` reads the NODE instead of walking the parent chain, so a
+  // milk crate's four uprights land in its own `solidsNear` set, the group's box
+  // overlaps them by construction, and the push-out pass shoves each crate clear
+  // of its own sides. The scatter is weighted toward the road, which is how a
+  // crate walked into the user's thrift-shop doorway.
+  //
+  // `up === o &&` is the whole mutation: the loop still runs, it just stops
+  // being able to see anything above the node — the pre-fix `o.userData?.litter`
+  // test exactly, expressed as a change to the line the fix added rather than a
+  // rewrite of it, so the needle sits on the code under test.
+  //
+  // WHY THIS CASE HAD TO WAIT FOR A CHECK. Worker seventyeight fixed the bug and
+  // wrote in its own note that nothing guarded the fix: `footprint.mjs`'s "no
+  // litter is inside a building or a prop" leg would NOT have caught it and was
+  // right not to — the crate was pushed OUT into clear pavement, which is a
+  // legal place for a crate. The mutation had nothing to point at until
+  // `prop-landing.mjs` existed. That is item 225 and this is its second half.
+  ['litter-self-push', PROPS,
+    'while (up) { if (up.userData?.litter) return; up = up.parent; }',
+    'while (up) { if (up === o && up.userData?.litter) return; up = up.parent; }',
+    'prop-landing.mjs', [], 'three milk crates shoved out of their own side panels'],
 
   // Aimed at PIT_CLEAR first and footprint.mjs slept — but the check was
   // right and the MUTATION was inert: PIT_CLEAR is derived from PIT_X for the
@@ -1224,8 +1333,150 @@ const servedModule = async (file) => {
 };
 const digest = (t) => (t === null ? null : createHash('sha1').update(t).digest('hex').slice(0, 12));
 
-const only = process.argv.slice(2).filter((a) => a !== PORT_ARG);
+const only = process.argv.slice(2).filter((a) => a !== PORT_ARG && a !== '--plan');
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
+
+// `--plan` — what WOULD this run cost, without spending it.
+//
+// Item 233 asks for the price of the green-before leg to be measured and
+// stated rather than estimated in a comment. The leg is keyed on the CHECK, not
+// on the case, so the only number that matters is how many distinct check
+// invocations the selected cases share between them — and that is knowable in
+// milliseconds, before any build. Printing it costs nothing and stops the next
+// person from having to re-derive it.
+if (process.argv.includes('--plan')) {
+  const seen = new Map();
+  for (const c of run) {
+    const k = `${c[4]} ${c[5].join(' ')}`.trim();
+    seen.set(k, (seen.get(k) ?? 0) + 1);
+  }
+  console.log(`\ncases selected:              ${run.length}`);
+  console.log(`distinct check invocations:  ${seen.size}   <- the pre-pass runs this many, with NO build`);
+  console.log(`per-case builds:             ${run.length}   <- unchanged by the pre-pass\n`);
+  for (const [k, n] of [...seen].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(n).padStart(2)}x  ${k}`);
+  }
+  process.exit(0);
+}
+
+// ── A CASE NAME THAT MATCHES NOTHING IS A GREEN CERTIFICATE THAT NOTHING WAS
+//    VERIFIED, IN THE TOOL WHOSE ENTIRE JOB IS CATCHING THAT ─────────────────
+//
+// Item 224, found by worker seventyeight. `node scripts/canfail.mjs crowd`
+// selected zero cases and printed, in full:
+//
+//     0/0 checks caught their mutation
+//     every mutated file restored byte-for-byte
+//
+// exit 0. Both sentences are true and both are about the empty set, and the
+// second one is worse than the first — it is a reassurance about files nobody
+// opened. Reproduced on this tree before the fix and quoted verbatim.
+//
+// This is the vacuous pass (GOTCHAS 34), and it lands here of all places:
+// `canfail` is the instrument the project uses to certify that its OTHER checks
+// can still fail. Ten checks were found this week printing failure and exiting
+// 0, measuring zero faces, or flipping a red to green — and every one of those
+// repairs was signed off with this tool. A mistyped argument therefore does not
+// merely waste a run; it hands back the strongest evidence this repo has, for
+// an empty run.
+//
+// THE FIX IS COPIED, NOT INVENTED. `scripts/checks.mjs:1222-1231` already
+// refuses exactly this for `--only`, and has since somebody hit it there. Two
+// tools, one shape, one behaviour.
+//
+// TWO EXIT CODES, BECAUSE THEY ARE TWO FAULTS (GOTCHAS 32):
+//   2  you named something that is not a case — a USAGE error, your typo,
+//      fixable by typing it again. Same code checks.mjs uses.
+//   3  there was nothing to select from at all — NOTHING WAS MEASURED, which
+//      by house convention is 3. Not reachable today (CASES is 40-odd rows),
+//      and that is the point: a population floor you can only trip by breaking
+//      the table is still the assertion that makes "0/0" impossible to print.
+if (only.length) {
+  const unmatched = only.filter((o) => !CASES.some(([n]) => n === o));
+  if (unmatched.length) {
+    console.error(`\nNOT A MUTATION CASE: ${unmatched.join(', ')}\n`);
+    console.error('  Nothing would have run, and an empty run prints "0/0 checks caught');
+    console.error('  their mutation" and exits 0 — which reads exactly like the guard you');
+    console.error('  named being proven awake.\n');
+    // Matching is EXACT here, unlike checks.mjs's substring `--only`, so the
+    // near-miss list is doing real work: `crowd` is a prefix of three real
+    // cases and is precisely the typo that was reported.
+    for (const o of unmatched) {
+      const near = CASES.map(([n]) => n).filter((n) => n.includes(o) || o.includes(n));
+      if (near.length) console.error(`  did you mean, for "${o}":  ${near.join('  ')}`);
+    }
+    console.error(`\n  the ${CASES.length} cases are:`);
+    const names = CASES.map(([n]) => n).sort();
+    for (let i = 0; i < names.length; i += 3) console.error('    ' + names.slice(i, i + 3).map((n) => n.padEnd(26)).join('').trimEnd());
+    console.error('');
+    process.exit(2);
+  }
+}
+// The population floor proper. Every check in this suite is now required to
+// fail rather than pass when it measured nothing; the tool that imposed that
+// rule has to keep it too.
+if (!run.length) {
+  console.error(`\nNO MUTATION CASES TO RUN — nothing was measured, and nothing is proven.`);
+  console.error(`  CASES holds ${CASES.length} row(s)${only.length ? `, selected by: ${only.join(', ')}` : ''}.\n`);
+  process.exit(3);
+}
+
+// ── PRE-FLIGHT: EVERY NEEDLE MUST QUOTE LIVE SOURCE, AND YOU LEARN IT NOW ────
+//
+// Item 229. A needle that matches 0x mutates nothing, so the check it is
+// supposed to certify is never tested — the empty-set certificate of item 224,
+// one level down, and it had FOUR live instances: `rulings-atm`, `grade-twice`,
+// `grade-nan` and `glow-pool`, dead for weeks.
+//
+// The scoring below ALREADY called this out honestly — verdict `NEEDLE`, kept
+// out of the caught count, listed by name with its stale quotation, non-zero
+// exit. None of that was wrong and none of it is removed. The defect was WHEN:
+// it arrived at the END of a run that is a build and a browser per case, ~62 of
+// them, so the only way to hear that a quotation had rotted was to spend the
+// hour first — and then read a `????` line in a list people scroll past. That
+// is precisely how four of them sat unfixed while the suite was used all week
+// to certify everybody else's repairs.
+//
+// A needle is a string in a file. It costs milliseconds and no build to answer,
+// so it is answered FIRST, for every selected case, and a rot ABORTS.
+//
+// EXIT 3, NOT 1, AND THE DIFFERENCE IS THE POINT (GOTCHAS 32). 1 means "I
+// measured your guards and one of them is asleep" — a fact about the world.
+// This is "I cannot measure them at all, because MY OWN quotations no longer
+// match", a fault in this file. Reporting the second as the first is what sends
+// somebody to rewrite a check that works.
+//
+// ONE ROTTEN NEEDLE STOPS ALL 62 ON PURPOSE. The cheaper design — skip the
+// stale ones, run the rest — is what the end-of-run report already did in
+// effect, and it is how the count got to four: a suite that mostly works keeps
+// getting run, and the residue is permanent. The quotations are in this file;
+// fixing one is a minute, and `scripts/mutations-quote-real-source.mjs` asks
+// this same question in the fast tier so it should never reach here at all.
+const rotted = [];
+for (const [name, file, needle] of run) {
+  let src = null;
+  try { src = readFileSync(file, 'utf8'); } catch { /* reported as 0 below */ }
+  if (src === null) { rotted.push([name, file, needle, 'the file does not exist']); continue; }
+  const n = src.split(needle).length - 1;
+  // 2x IS A ROT TOO, and a nastier one: `replace` takes the FIRST match, so the
+  // mutation lands somewhere the case never meant and scores whatever it likes.
+  if (n !== 1) rotted.push([name, file, needle, `matched ${n}x, not 1`]);
+}
+if (rotted.length) {
+  console.error(`\n${rotted.length} MUTATION CASE(S) QUOTE SOURCE THAT NO LONGER EXISTS — nothing was run.`);
+  console.error(`  A needle that matches 0x mutates nothing, so the check it certifies is`);
+  console.error(`  never tested. Scoring these as anything but broken would issue this`);
+  console.error(`  suite's strongest evidence over an empty set.\n`);
+  for (const [name, file, needle, why] of rotted) {
+    console.error(`  ${name.padEnd(14)} ${file}  ${why}`);
+    console.error(`      no longer contains: ${JSON.stringify(needle)}`);
+  }
+  console.error(`\n  Re-point each case at the line that replaced it, or retire it WITH A`);
+  console.error(`  COMMENT saying what it used to protect — never delete one silently.`);
+  console.error(`  ${rotted.length} of ${run.length} selected case(s); the other ${run.length - rotted.length} were not run.\n`);
+  process.exit(3);
+}
+
 const results = [];
 // EVERY CASE WHOSE FILE WE ACTUALLY WROTE TO. The restore check at the foot of
 // this file is about putting back what we took; a case that never matched was
@@ -1273,7 +1524,92 @@ for (const f of [...new Set(run.map((c) => c[1]))]) PRIS[f] = digest(await serve
 const ORIGINAL = {};
 for (const f of [...new Set(run.map((c) => c[1]))]) ORIGINAL[f] = digest(readFileSync(f, 'utf8'));
 
+// ── RUNNING A CHECK, AND DECIDING IT IS RED. One definition, two callers. ────
+//
+// This logic used to exist only inside the scoring loop. The pre-pass below has
+// to ask the identical question of the identical script, and a second copy that
+// drifted by one regex would make the before and after legs incomparable —
+// which is the exact failure this whole item is about.
+const checkRed = (script, args) => {
+  let red = false, out = '';
+  try { out = sh(`SHOT_URL=${URL} node scripts/${script} ${args.join(' ')}`); }
+  catch (e) { red = true; out = String(e.stdout || '') + String(e.stderr || ''); }
+  if (!red && /^FAIL/m.test(out)) red = true;
+  return { red, out };
+};
+
+// ── CAUGHT MUST MEAN "RED *BECAUSE OF* THE MUTATION" ────────────────────────
+//
+// Item 233. This file proves a check can fail by breaking the source and
+// requiring the check to go red — but it scored CAUGHT on ANY non-zero exit.
+// **So a case pointed at a check that was ALREADY RED for an unrelated reason
+// passed while proving nothing.** The mutation was never shown to be what
+// caused the failure; the case certified air, and it certified it in the tool
+// this project has used all week to certify twelve repairs to lying checks.
+//
+// That is the empty-set defect of item 224 one level out, and it is the same
+// discipline every probe here now follows: SELF-TEST BOTH SIGNS. A guard that
+// is red on a healthy world and red on a broken one has a colour uncorrelated
+// with the mutation, which the `wetness` note further down describes from the
+// other direction. One-sided evidence is not evidence.
+//
+// So: every distinct check is run ONCE on the unmutated tree first. Green
+// before + red after is CAUGHT. Already red is `PRE-RED` — a distinct status,
+// scored as unprovable, named in the report, non-zero exit — never CAUGHT and
+// never a silent pass.
+//
+// ── WHAT IT COSTS, MEASURED (2026-08-03, `node scripts/canfail.mjs <port>
+//    --plan` plus `time` on the two components) ───────────────────────────────
+//
+// The item's warning was that a green-then-red pair doubles a run that is
+// already a build and a browser per case. Measured, it does not:
+//
+//   62 cases  ->  38 DISTINCT check invocations. The pass is keyed on
+//     `script + args`, not on cases, because five cases share `footprint.mjs`,
+//     five share `park.mjs` and four share `glow.mjs probe`. `--plan` prints
+//     this for any selection, so the ratio is a fact in the log.
+//   NO BUILD IS DUPLICATED. The pristine bundle is built ~15 lines above and
+//     the pre-pass runs against it unmutated. On this tree `npm run build` is
+//     0.49 s and one browser check is ~1.9 s, so the pass is browser time only.
+//   IT REFUNDS. A PRE-RED case skips its mutation entirely — no build, no
+//     browser. `glow.mjs probe` is red today and carries FOUR cases, so four
+//     builds and four checks come straight back off the bill.
+//
+//   62 x (0.49 + 1.9) = 148 s before;  + 38 x 1.9 - 4 x 2.4 = 62 s net.
+//   About +40%, not +100%. Check durations vary, so treat this as the shape.
+//
+// WHICH DESIGN, AND WHY NOT THE OTHER ONE. The item offered running the before
+// leg only for checks NOT in a known-red set. That is cheaper and it is the
+// wrong trade: a hand-maintained list of known-red checks is exactly the kind
+// of state that rots, and a rotted entry would silently restore the very bug
+// this item is about — a case certifying air, now with a comment saying it was
+// considered. The measured pass has no list to go stale.
+const ckey = (script, args) => `${script} ${args.join(' ')}`;
+const BASE = new Map();
+{
+  const distinct = [...new Map(run.map((c) => [ckey(c[4], c[5]), [c[4], c[5]]])).values()];
+  console.log(`\n  pre-pass: ${distinct.length} distinct check invocation(s) across ${run.length} case(s),`);
+  console.log(`  on the UNMUTATED tree — a check already red here cannot certify anything.`);
+  for (const [script, args] of distinct) {
+    const r = checkRed(script, args);
+    BASE.set(ckey(script, args), r);
+    if (r.red) console.log(`    ALREADY RED  scripts/${ckey(script, args)}`);
+  }
+  const reds = [...BASE.values()].filter((r) => r.red).length;
+  console.log(`  ${BASE.size - reds} of ${BASE.size} green before any mutation.\n`);
+}
+
 for (const [name, file, needle, repl, script, args, expect] of run) {
+  // THE BEFORE LEG. A check that is red on the unmutated tree is not evidence
+  // of anything, so the mutation is not even attempted — which is also why this
+  // sits above the build rather than beside the scoring.
+  const base = BASE.get(ckey(script, args));
+  if (base && base.red) {
+    results.push([name, 'PRE-RED',
+      `${expect} — scripts/${ckey(script, args)} is ALREADY RED on the unmutated tree, `
+      + `so this case proves nothing; fix that check before trusting this guard`]);
+    continue;
+  }
   const src = readFileSync(file, 'utf8');
   const n = src.split(needle).length - 1;
   if (n !== 1) { results.push([name, 'NEEDLE', `matched ${n}x, not 1 — mutation not applied`]); continue; }
@@ -1296,10 +1632,10 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
         restore(); continue;
       }
     }
-    let red = false, out = '';
-    try { out = sh(`SHOT_URL=${URL} node scripts/${script} ${args.join(' ')}`); }
-    catch (e) { red = true; out = String(e.stdout || '') + String(e.stderr || ''); }
-    if (!red && /^FAIL/m.test(out)) red = true;
+    // THE AFTER LEG. Same helper, same regex, same idea of red as the pre-pass
+    // — see `checkRed`. The before leg already ran and was green, or this case
+    // would have been scored PRE-RED and never reached here.
+    let { red, out } = checkRed(script, args);
     // Only a mutation that CHANGED THE WORLD can be slept through. Without
     // this, "the server is not ours" and "the mutation does nothing" both wore
     // the SLEPT badge, and neither is a fault in the check.
@@ -1341,6 +1677,9 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
     // sleep HERE and nowhere else, because nowhere else is the box this busy.
     // A SLEPT that will not reproduce on an idle machine is this, until proven
     // otherwise — count frames, or measure the world's own state.
+    // CAUGHT now carries BOTH legs: the pre-pass found this check green on the
+    // unmutated tree, and it is red now. That is what makes the mutation the
+    // cause rather than a coincidence.
     results.push([name, red ? 'CAUGHT' : 'SLEPT', expect]);
   } finally { restore(); }
 }
@@ -1367,7 +1706,11 @@ const bad = results.filter((r) => r[1] !== 'CAUGHT');
 //
 // `bad` still contains it, so the exit code is unchanged and non-zero. This adds
 // a sentence; it does not forgive anything.
-const unprovable = results.filter((r) => ['INERT', 'NOT-RUN', 'NEEDLE'].includes(r[1]));
+// PRE-RED JOINS THIS LIST for exactly the reason the other three are on it: the
+// case was not scored. It is emphatically NOT a sleeping guard — the guard was
+// never given a fair test — and calling it one would send a builder to rewrite
+// a check whose only sin is standing downstream of a different broken one.
+const unprovable = results.filter((r) => ['INERT', 'NOT-RUN', 'NEEDLE', 'PRE-RED'].includes(r[1]));
 if (unprovable.length) {
   console.log(`\n${unprovable.length} case(s) could not be scored — NOT sleeping guards:`);
   for (const [n, v, why] of unprovable) console.log(`  ${v.padEnd(8)} ${n} — ${why}`);

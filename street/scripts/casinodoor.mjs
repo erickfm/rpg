@@ -28,8 +28,23 @@
 // rename"), and reads the expected copy back from the world.
 // See scripts/lib/entry-spot.mjs.
 //
-// Usage:  SHOT_URL=http://localhost:4320/ node scripts/casinodoor.mjs [--selftest]
-// Exit:   0 the door is declared, triggered, reachable over a usable band, opens
+// ── AND WHY IT WAS TIGHTENED (item 223) ─────────────────────────────────────
+//
+// REGISTERED IN scripts/checks.mjs AT LAST. Item 213 turned this into a real
+// check and nothing ran it for a day; being unregistered is the same disease as
+// exiting 0 on `SEVENS spots registered: 0`, one level up. Its row carries BOTH
+// mutation flags, which needed a new shape in the runner's selftest column.
+//
+// The band leg used to be a LOWER BOUND against the spot's own radius, because
+// the constant the band is really made of — `TOUCH_MARGIN` — had no runtime
+// path. `crosstown.ts` now publishes `__ct.touchMargin()`, so the bound is an
+// equality: the exact set of sample points inside the aim-free disc, predicted
+// from `r` and the margin, both read off the world. Watched red by hand with
+// `touchMargin()` wired to REACH_MARGIN instead — it predicts 6 points against
+// the 4 the world fires, which is the 3.11 m band the stale docstring implied.
+//
+// Usage:  SHOT_URL=http://localhost:4320/ node scripts/casinodoor.mjs [--selftest|--selftest-gone]
+// Exit:   0 the door is declared, triggered, reachable over the predicted band, opens
 //         1 one or more of those is false
 //         2 the world could not be measured, or no assertion ran — never a pass
 import { aim } from './lib/aim.mjs';
@@ -171,7 +186,14 @@ const out = await p.evaluate(async ([want, x0, x1, step, z]) => {
     const s = read();
     if (s) { hits.push({ x: +x.toFixed(1), s }); if (want && s.includes(want)) mine.push(+x.toFixed(1)); }
   }
-  return { hits, mine, sampled: n, reachMargin: window.__ct.reachMargin ? window.__ct.reachMargin() : null };
+  return {
+    hits, mine, sampled: n,
+    reachMargin: window.__ct.reachMargin ? window.__ct.reachMargin() : null,
+    // THE MARGIN THIS SWEEP IS ACTUALLY ON, published by item 223. Read, never
+    // typed — and read as `null` rather than defaulted, so an old bundle that
+    // does not publish it is a MEASUREMENT FAILURE below and not a silent 0.15.
+    touchMargin: window.__ct.touchMargin ? window.__ct.touchMargin() : null,
+  };
 }, [WANT, X0, X1, STEP, WALK_Z]);
 
 console.log(`\nsampling the side street x ${X0}…${X1} at ${STEP} m, z=${WALK_Z}: `
@@ -210,23 +232,77 @@ check('the casino prompt comes up on the side street',
 // warps at yaw 0, facing away, so it is on the `touching` path. r + 0.15 = 1.20
 // predicts a 2.13 m chord and exactly the 4 hits observed.
 //
-// So `__ct.reachMargin()`'s docstring describes a predicate the world stopped
+// So `__ct.reachMargin()`'s docstring described a predicate the world stopped
 // using, and TOUCH_MARGIN — the one that actually governs an unaimed player —
-// is exported from fp.ts but NOT published on `__ct`. A harness cannot derive
-// it without hand-copying 0.15, which §8 forbids. Hence the bound: the trigger
-// must fire across at least the chord of its OWN published radius, which needs
-// no margin constant at all and cannot over-claim. Tighten it to an equality
-// once `__ct` publishes the touch margin — queued in the handoff note.
-let minBand = 2, bandWhy = 'no spot to derive from — falling back to 2';
+// was exported from fp.ts and NOT published on `__ct`, so this file could only
+// bound the band from below by the chord of the spot's OWN radius: a bound that
+// needs no margin constant and therefore cannot over-claim. The note ended
+// "tighten it to an equality once `__ct` publishes the touch margin".
+//
+// IT DOES NOW (item 223, `crosstown.ts` `touchMargin: () => TOUCH_MARGIN`), so
+// the loose bound is gone and the two legs below are exact instead.
+//
+// WHY AN EQUALITY IS HONEST HERE AND NOT A GUESS. The sweep warps to yaw 0 at
+// z -97.3 with the spot at z -96.75, i.e. the door is roughly BEHIND the walker,
+// so `looked` cannot fire and `touching` is the only path in. `touching` is a
+// disc of radius `r + TOUCH_MARGIN` about the spot, the sweep is a straight line
+// `dz` from its centre, and the samples are a known grid — so exactly which
+// sample points fall inside is arithmetic, not a threshold anybody chose. Both
+// numbers come off the world: `r` from `__ct.spots()`, the margin from
+// `__ct.touchMargin()`.
+//
+// THE MEASUREMENT FLOOR IS SEPARATE ON PURPOSE. A bundle that does not publish
+// the margin cannot answer this, and "I could not measure" must not print as
+// "the band is fine" — that is the vacuous-pass family this file was rewritten
+// out of (GOTCHAS 79). It exits 2, not 1.
+if (entry?.label != null && out.touchMargin == null) {
+  console.error('CANNOT MEASURE: __ct.touchMargin() is not published by this build.');
+  console.error('  The aim-free band cannot be predicted without it, and the old own-radius');
+  console.error('  bound under-claimed by 0.45 m. Rebuild, or check you are on item 223.');
+  await b.close();
+  process.exit(2);
+}
+let wantBand = null, bandWhy = 'no spot to derive from';
 if (entry?.label != null) {
   const dz = Math.abs(WALK_Z - entry.z);
-  const chord = 2 * Math.sqrt(Math.max(0, entry.r * entry.r - dz * dz));
-  minBand = Math.max(2, Math.floor(chord / STEP) - 1);
-  bandWhy = `r ${entry.r}, dz ${f2(dz)} → own-radius chord ${f2(chord)} m → ${minBand} samples minimum`;
+  const R = entry.r + out.touchMargin;
+  const half = Math.sqrt(Math.max(0, R * R - dz * dz));
+  // the sample grid this sweep actually walked, filtered by the touch disc
+  wantBand = [];
+  for (let i = 0; i < SAMPLES; i++) {
+    const x = X0 + i * STEP;
+    if (Math.abs(x - entry.x) < half) wantBand.push(+x.toFixed(1));
+  }
+  bandWhy = `r ${entry.r} + touchMargin ${out.touchMargin} = ${f2(R)}, dz ${f2(dz)}`
+    + ` → touch chord ${f2(2 * half)} m → x ${wantBand.join(', ')}`;
 }
-check('…over a band a player can actually stop in',
-  out.mine.length >= minBand,
-  `${out.mine.length} hits, need ${minBand} (${bandWhy})`);
+
+// POPULATION FLOOR ON THE PREDICTION ITSELF. A geometry that predicts an empty
+// band would make the equality below true by measuring nothing.
+check('the touch disc predicts a band at all',
+  wantBand != null && wantBand.length >= 2,
+  wantBand == null ? bandWhy : `${wantBand.length} sample points predicted (${bandWhy})`);
+
+check('…over exactly the band the touch disc predicts',
+  wantBand != null && wantBand.length >= 2
+    && out.mine.length === wantBand.length
+    && out.mine.every((x, i) => Math.abs(x - wantBand[i]) < 1e-9),
+  `fired at x [${out.mine.join(', ')}], predicted [${(wantBand ?? []).join(', ')}]`);
+
+// AND NOTHING OUTSIDE IT. The leg above would also go red if the trigger got
+// NARROWER; this one is the direction that matters to the user's own complaint
+// — *"i feel like i select stuff without even looking at it"* — because a prompt
+// firing outside the touch disc, with the door behind him, is that complaint
+// coming back. It is a separate claim from "the count matches", so it is a
+// separate row.
+{
+  const R = entry?.label != null ? entry.r + out.touchMargin : null;
+  const strays = R == null ? [] : out.mine.filter((x) => Math.hypot(x - entry.x, WALK_Z - entry.z) >= R);
+  check('…and never fires from outside the aim-free disc',
+    R != null && strays.length === 0,
+    R == null ? 'no spot to measure against'
+      : `${strays.length} of ${out.mine.length} hits outside ${f2(R)} m${strays.length ? `: x ${strays.join(', ')}` : ''}`);
+}
 
 // ── 4. and it opens ─────────────────────────────────────────────────────────
 await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0.14, 0), [entry?.x ?? 51.29, WALK_Z]);

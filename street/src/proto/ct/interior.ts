@@ -1003,6 +1003,41 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
     }
     const head = new THREE.Mesh(new THREE.BoxGeometry(T + 0.02, 0.07, z1 - z0 + 0.12), trimM);
     place(head, lx, h + 0.035, (z0 + z1) / 2);
+
+    // ── THE THRESHOLD, AND WHY THE OPENING NEEDED ONE ─────────────────────
+    //
+    // `floor` is a `PlaneGeometry(W, D)` centred on the room, so it stops dead
+    // at the room's own inner face — and the party wall stands on the T metres
+    // BEYOND that, ground which neither room floors. Along the rest of the wall
+    // that strip is buried in masonry and nobody can ever see it. **In the
+    // opening it is a slot of open sky in the floor**, 2 x WALL_T = 0.36 m
+    // wide, exactly where the user asked to be able to *"walk from one into the
+    // other"*.
+    //
+    // It was invisible to every check in the project. `w75-site-contained`
+    // decides floor-versus-void from each mesh's axis-aligned BOUNDING BOX, and
+    // the two rooms' floor boxes are 0.36 m apart in a 20 m room, so their
+    // 0.25 m EDGE tolerances very nearly close the gap on paper; `groundAt`
+    // names a height across it either way. It took the exact triangle raycast
+    // in `scripts/world-contained.mjs` to see it — the world's ONLY reachable
+    // hole, 3 cells at x 880.00, z -9.5…-8.5 — and then a photograph to
+    // believe it (`shots/w85-party-880-down.png`, a grey band of sky between
+    // two carpets).
+    //
+    // Each room lays the half under its OWN flank, so the two halves meet on
+    // the slab boundary exactly as the wall bases do, and neither room has to
+    // know the other's width. Same y as `floor`.
+    const sillT = linoT.clone();
+    sillT.needsUpdate = true;
+    sillT.wrapS = sillT.wrapT = THREE.RepeatWrapping;
+    // THE DENSITY IS DERIVED FROM THE FLOOR IT CONTINUES, not typed
+    // (BUILDER-BRIEF §7b): the floor's own repeat over the floor's own metres
+    // is its px/m, and this strip asks for the same px/m over its own metres.
+    // Accepting the default repeat would put a whole lino tile in 0.18 m.
+    sillT.repeat.set((linoT.repeat.x / W) * T, (linoT.repeat.y / D) * (z1 - z0));
+    const sill = new THREE.Mesh(new THREE.PlaneGeometry(T, z1 - z0), flat(sillT));
+    sill.rotation.x = -Math.PI / 2;
+    place(sill, lx, 0.005, (z0 + z1) / 2);
   };
   flank(-1);
   flank(1);
