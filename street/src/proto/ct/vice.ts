@@ -1773,7 +1773,14 @@ export function buildVice(o: {
           [bx, PC_Y0 + 0.12, PC_Z1 - 0.03] as [number, number, number]), 23);
         // and what it throws down onto the pavement, so the lit band is
         // continuous on the ground too
-        spill(cxr, PC_Z1 + 0.5, len, 3.0, KERB_H + 0.012, 0xffd8a0, 0.03, 0.20);
+        // 0.34 at night, not 0.20. G-vice-walk's ground-spill check requires
+        // EVERY sheet on this pair to reach 0.25 after dark, and caught these
+        // three at 0.20 — a real find rather than a threshold to loosen: a
+        // stretch of canopy that throws visibly less light than the two
+        // entrances either side of it reads as the canopy being a different
+        // building's, which is the whole thing this run exists to undo. 0.34 is
+        // the dimmest sheet the pair already had.
+        spill(cxr, PC_Z1 + 0.5, len, 3.0, KERB_H + 0.012, 0xffd8a0, 0.03, 0.34);
       };
       run(hotel[0], HOTEL_DOOR_X - PC_W / 2);
       run(HOTEL_DOOR_X + PC_W / 2, CASINO_DOOR_X - MQ_W / 2);

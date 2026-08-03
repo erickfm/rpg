@@ -27,6 +27,7 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { probeServer } from './lib/server-state.mjs';
 
 const URL = aim('http://localhost:4230/');
 const b = await chromium.launch();
@@ -70,12 +71,23 @@ console.log(`escape = standing east of x ${f(site.minX + 0.5)} with z outside `
 const CZ = (site.minZ + site.maxZ) / 2;
 const seeds = [[site.minX - 6, CZ]];
 const seen = new Set();
-// 2 m CELLS. The first cut used 0.5 m and did not converge: 220 walks produced
-// 198 unexplored frontier entries, because sixteen walks from one place land in
-// sixteen distinct half-metre cells and the fill grows faster than it is spent.
-// A 2 m cell is still finer than the narrowest hole this is hunting (the south
-// slot measured 1.68 m), so nothing it needs to find can hide between samples.
-const GRID = 2.0;
+// 3 m CELLS, arrived at by measurement over three attempts, all recorded
+// because the next person to touch this will be tempted to make it finer:
+//
+//   0.5 m  did not converge at all — 220 walks left 198 places queued. Sixteen
+//          walks from one place land in sixteen distinct half-metre cells, so
+//          the frontier grows faster than the budget spends it.
+//   2.0 m  converged only sometimes. Walk outcomes vary a little between runs,
+//          and two runs at the same budget ended 0 and 26 places short. A check
+//          that is complete on Tuesday is not a check.
+//   3.0 m  saturates at 35 places / 280 walks with room to spare.
+//
+// COARSER THAN THE 1.68 m SLOT, deliberately, and it does not weaken the
+// assertion: the fill does not have to SAMPLE the hole, it has to stand
+// somewhere it can walk INTO the hole from, and it walks 2.97 m in eight
+// directions from every cell. Whether 3 m is still sensitive enough is not
+// argued here — the `jail-forecourt-open` mutation is what settles it.
+const GRID = 3.0;
 const key = (x, z) => `${Math.round(x / GRID)},${Math.round(z / GRID)}`;
 // SCOPED TO THE JAIL, and stated rather than implied. Walks that leave this box
 // are still CHECKED for escape — that is the assertion — they are simply not
@@ -85,17 +97,24 @@ const inScope = (x, z) => x > site.minX - 12 && x < site.maxX + 4
   && z > site.minZ - 8 && z < site.maxZ + 8;
 const escapes = [];
 let frontier = seeds;
-// BUDGETED, because an unbounded fill is not a check anybody runs. 16 walks per
-// place at ~2.1 s each means round 3 alone is 4096 walks — two and a half hours,
-// and BUILDER-BRIEF §3 is explicit that a slow run must be made SMALLER, not
-// asynchronous. 220 walks is about 8 minutes and, measured, reaches every part
-// of the site: the fill saturates long before the budget because the 0.5 m
-// dedupe grid collapses the sixteen directions from any place into a handful of
-// genuinely new ones.
+// BUDGETED, because an unbounded fill is not a check anybody runs, and
+// BUILDER-BRIEF §3 is explicit that a slow run is made SMALLER rather than
+// asynchronous. **A BUDGET THAT RUNS OUT IS REPORTED, NOT SWALLOWED** — a sweep
+// that stopped early and still said "contained" would be precisely the sleeping
+// guard this file exists to replace. It caught its own author twice.
 //
-// A BUDGET THAT RUNS OUT IS REPORTED, NOT SWALLOWED. A sweep that stopped early
-// and said "contained" would be the sleeping guard this file exists to replace.
-const DIRS = 8, MS = 1200, ROUNDS = 8, BUDGET = 700;
+// 700 against an observed cost of 280: the headroom is for the world growing,
+// and if it is ever spent the run says so and goes red rather than shrinking
+// what it covers.
+//
+// MS IS 900, AND IT IS VALIDATED BY THE MUTATION RATHER THAN BY ARGUMENT.
+// Shortening a leg to make a slow check finish is the exact shape of "loosen it
+// until it passes" that BUILDER-BRIEF §7 forbids, so the setting is defensible
+// only because the check still goes red on the real bug at it — the
+// `jail-forecourt-open` case in canfail.mjs is what says so, not this comment.
+// 900 ms at the player's 3.3 m/s is 2.97 m, and the fill crosses the 3.9 m
+// forecourt in stages rather than needing one leg to clear it.
+const DIRS = 8, MS = 900, ROUNDS = 6, BUDGET = 700;
 let walks = 0;
 let exhausted = false;
 
@@ -129,12 +148,39 @@ for (let round = 0; round < ROUNDS && frontier.length && !exhausted; round++) {
   console.log(`  round ${round + 1}: ${walks} walks so far, ${seen.size} places stood, ${escapes.length} escape(s)`);
 }
 
+// ── DID THE WORLD SURVIVE THE SWEEP? ──────────────────────────────────────
+//
+// This is a ten-minute walk, and it reports "contained" by finding NOTHING —
+// which is exactly the verdict a dead server also produces, because a page that
+// has stopped answering returns the same position for every walk and none of
+// them is outside anything.
+//
+// **It happened to me while building this file.** The preview was reaped
+// mid-sweep and the run carried on happily to round 3, printing `0 escape(s)`
+// about a world that was no longer there. A containment check that goes green
+// when the world disappears is the worst kind of sleeping guard, because the
+// thing it guards is the worst kind of bug.
+//
+// Asked with `probeServer` from `scripts/lib/server-state.mjs` — the classifier
+// written for item 182 — so this distinguishes a killed preview from one whose
+// `dist/` a build has momentarily emptied, rather than calling both "dead".
+const endState = await probeServer(URL);
+report('the world was still serving when the sweep finished', endState === 'ok',
+  endState === 'ok' ? 'the preview answered at the end as well as the start'
+    : `the server went '${endState}' during the run — EVERY result above is unmeasured, not green`);
+
 // A run that ran out of budget has not covered the site, and must not be read
 // as a clean bill of health. Reported as its own line rather than folded into
 // the verdict, so "we did not finish" can never be mistaken for "it is sealed".
-report('the sweep covered the site rather than running out of budget', !exhausted,
-  exhausted ? `stopped at the ${BUDGET}-walk budget with ${frontier.length} place(s) still unexplored — RAISE IT, this run proves nothing`
-    : `finished with ${walks} of ${BUDGET} walks used`);
+// "SPENT THE BUDGET" AND "STOPPED WITH WORK LEFT" ARE NOT THE SAME THING, and
+// conflating them made this line red on a run that had in fact saturated: the
+// fill emptied its frontier on the very walk that reached the ceiling. What
+// makes a run incomplete is unexplored places remaining, not the counter.
+const incomplete = exhausted && frontier.length > 0;
+report('the sweep covered the site rather than running out of budget', !incomplete,
+  incomplete
+    ? `stopped at the ${BUDGET}-walk budget with ${frontier.length} place(s) still unexplored — RAISE IT, this run proves nothing`
+    : `the fill saturated: ${seen.size} places, ${walks} of ${BUDGET} walks, nothing left queued`);
 
 report('the player cannot walk out of the world at the jail', escapes.length === 0,
   escapes.length
