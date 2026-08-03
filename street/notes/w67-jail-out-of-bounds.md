@@ -91,6 +91,27 @@ rather than implied.
 see and walk through — rather than deleting geometry, which would be a fault any
 screenshot catches. A mutation has to break the symptom, not the diagnosis.
 
+## Verified
+
+- `scripts/w67-jail-contained.mjs` — **all contained.** The fill **saturated**
+  (35 places, 280 of 700 walks, nothing left queued), **0 escapes**, the world
+  was still serving at the end, and the forecourt still has **13.50 m** of
+  unobstructed z.
+- `canfail jail-forecourt-open` — **CAUGHT**, file restored byte-for-byte. This
+  is what licenses the 3 m / 900 ms tuning: the settings are validated by the
+  mutation rather than by my argument about them.
+- `scripts/w15-jail-walk.mjs` — **all legs passed.** The new walls did not
+  narrow anything the existing routes rely on.
+- `npm run typecheck` 0 · `npm run build` 0 · `node scripts/health.mjs` 0
+  `WORLD OK` · `npm run sweep` 0, **96 shots, 0 STATION MISS, 0 COVERAGE**.
+
+**A trap I hit and fixed, which is now a guard.** My preview was reaped
+mid-sweep and the run carried on to round 3 printing `0 escape(s)` about a world
+that was no longer there. **A containment check reports success by finding
+nothing, which is exactly what a dead server produces.** It now asks
+`probeServer` — the classifier I wrote for item 182, reused rather than
+retyped — and calls the entire run unmeasured if the world went away.
+
 ## Found and NOT fixed — for the desk
 
 - **`O-jail-walk.mjs` and `w15-jail-walk.mjs` are still route-based and I left
