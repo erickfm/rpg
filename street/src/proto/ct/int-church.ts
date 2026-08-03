@@ -274,8 +274,12 @@ export function buildChurch(ctx: CtxBuild) {
     g.fillRect(rx + m(0.05), ry, m(0.02), m(0.13));
     dither(g, LT_W, LT_H, Math.round(LW_M * LH_M * 30));
   }), 'detail');
+  // SHUT, like the pair painted into the west front's innermost order
+  // (`ct/civic.ts:1178-1181` draws one timber rectangle with a meeting-stile
+  // shadow down the middle — a closed door, and a painted facade cannot show
+  // any other state). The swing is `LEAF_AJAR` and is not this file's to pick.
   leafPair(put, new THREE.MeshBasicMaterial({ map: churchLeafT, side: THREE.DoubleSide }),
-    dAt, DW, DH, hd - 0.12, 0.55, 'church', 0.03);
+    dAt, DW, DH, hd - 0.12, 'church', 0.03);
 
   // ── the floor is flagstones, not boards ──
   const flagT = declareSurface(pixTex(64, 64, (g) => {

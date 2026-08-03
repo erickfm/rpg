@@ -136,6 +136,49 @@ const doorUOf = (b: BldSpec, x0: number) => {
  * A layer is one colour by construction, so it is written back flat.
  */
 /**
+ * HOW FAR AN ENTRANCE LEAF STANDS OPEN — one number, for the whole world.
+ *
+ * The user, twice, about two different buildings: *"jail interior front door
+ * also looks bad and doesnt match outside"* and *"inside door of the church is
+ * still mismatched from the doors outside."* And once more, about the library,
+ * in the words that name the fault exactly: *"the door reads as SHUT-BUT-OPEN —
+ * the leaf is swung in with a dark void behind it"* (quoted at
+ * `ct/int-pawn.ts:177`).
+ *
+ * IT WAS NEVER ONE BUILDING'S BUG. Measured in the built world by
+ * `scripts/probes/w65-leaf-angles.mjs`, every interior front door in CROSSTOWN
+ * stood ajar while its street face was shut, at SIX different angles nobody
+ * ever chose together:
+ *
+ *     bank 31.5°   casino 31.5°   church 31.5°   jail 31.5°
+ *     hotel 28.6°  library 48.7°  pawn 77.3°  ·  the kit's leaf 48.7°
+ *
+ * `int-jail.ts`'s own comment said its 0.55 was *"the casino's and the bank's"*
+ * — copied from a convention, not chosen for the jail. That is one mistake
+ * authored eight times, which is the shape `DoorDecl.leaf` already exists to
+ * stop: *"a single-leaf room door in a double-door building becomes IMPOSSIBLE
+ * rather than something a builder has to remember."*
+ *
+ * THE STREET FACE IS THE TRUTH, and that is a decision rather than a
+ * measurement: the player sees the exterior first, from further away and more
+ * often, and nine of the twelve shopfronts have no door GEOMETRY at all — the
+ * door is painted into the facade, shut, and cannot be anything else. The two
+ * buildings that DO hang real leaves on the street (the jail, the bodega) hang
+ * them shut. So `0` is not a taste call; it is the only value that can agree
+ * with what is already outside.
+ *
+ * `leafPair` takes NO angle argument because of this. A caller that cannot pass
+ * one cannot copy the wrong one, which is the whole reason the eight above
+ * agree on nothing.
+ */
+// Typed `number`, not left to infer the literal `0`: every consumer does real
+// trigonometry with it (`ct/int-jail.ts` places its pull handles along the leaf
+// with `cos`/`sin`), and a literal type invites a reader — or a linter — to
+// treat those as dead arithmetic and simplify them away. Then the day this
+// value changes, the handles stay where a shut door put them.
+export const LEAF_AJAR: number = 0;
+
+/**
  * A PAIR OF DOOR LEAVES, and the MIRROR APPLIED ONCE TO A WHOLE LEAF.
  *
  * The user: *"the LEFT leaf is reversed"* on the SEVENS entrance. Measured the
@@ -169,12 +212,16 @@ const doorUOf = (b: BldSpec, x0: number) => {
  *
  * `zFace` is the z of the door plane; the leaves hang just inside it. `gap` is
  * the shadow line between the leaves, per building.
+ *
+ * THE SWING IS `LEAF_AJAR` AND IS NOT A PARAMETER — see its declaration above
+ * for the eight disagreeing angles that cost.
  */
 export function leafPair(
   put: (m: THREE.Mesh, x: number, y: number, z: number) => unknown,
   mat: THREE.Material, dAt: number, DW: number, DH: number,
-  zFace: number, open: number, who: string, gap: number,
+  zFace: number, who: string, gap: number,
 ): void {
+  const open = LEAF_AJAR;
   // `gap` is the shadow line between the two leaves, and it comes IN rather than
   // being fixed here: the casino was built at 0.03 and the hotel at 0.04, and
   // folding two rooms into one helper is not a licence to quietly change one of

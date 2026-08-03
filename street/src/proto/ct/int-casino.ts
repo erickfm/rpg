@@ -379,7 +379,8 @@ export function buildCasino(ctx: CtxBuild): void {
   // u = 1 lands on the +x side for BOTH leaves after their rotation, and the free
   // edge is the side away from the hinge — so on one leaf the pull sat exactly ON
   // the hinge. Hinge edge, swing and face were all already right. See vice.ts.
-  leafPair(put, leafM, dAt, DW, DH, hd - 0.12, 0.55, 'casino', 0.03);
+  // The swing is no longer this file's to choose — see `LEAF_AJAR` in vice.ts.
+  leafPair(put, leafM, dAt, DW, DH, hd - 0.12, 'casino', 0.03);
 
   const GOLD = 0xa8863a, DARKWOOD = 0x2e1e20;
 
