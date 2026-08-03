@@ -3024,3 +3024,12 @@ to one side.
   cast members with fixed `hs` values (1.09, 0.91, 0.97, 1.05, 0.94, 1.02) and
   **no per-instance jitter**, so a street full of people shows the same six
   heights repeated.
+
+- **"[screenshot] this is inside the bodega as you walk in it is on the left by
+  the coffee"** (2026-08-02, 22:05:46) → clarifies the fixture item 177's builder
+  could not find. It is **not a magazine rack** — it is the front display panel
+  of the unit beside the coffee station. Logged against item 177's follow-up.
+
+- **"the watch angle is a bit too steep. i liked it better before but idk maybe
+  theres a nice middle ground?"** (2026-08-02) → **routed as queue item 200.**
+  Item 165 took `WATCH_TILT` from -5° to -18°; he wants between the two.
