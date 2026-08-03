@@ -239,7 +239,25 @@ builder may hold it. Suggested row (fast tier, ~15 s, does not walk):
   ['casinodoor-walled', 'casinodoor-gone']],
 ```
 
-### 4. `reportWorld(p)` was called with no URL
+### 4. Three hand-typed door positions in `interiors-walk.mjs` are 0.25 m stale
+
+The nine rooms with a `front:` tuple derive `doorX/doorZ` from
+`doorStandFor()`. The three side-street rooms do not — they carry literals:
+
+```js
+id: 'church', … doorX: 8.85,  doorZ: -79.5,  at: 0,    sideStreet: true,
+id: 'casino', … doorX: 51.29, doorZ: -97.0,  at: -3.2, sideStreet: true,
+id: 'hotel',  … doorX: 39.51, doorZ: -97.0,  at: -3.4, sideStreet: true,
+```
+
+The world publishes the casino and hotel stands at **z = -96.75**, so both are
+**0.25 m off the declaration** they are meant to be testing. They pass only
+because the trigger radius swallows it — which is the exact failure
+`G-rooms-walk`'s own header describes at commit `095c7d63` and the reason that
+file stopped typing them. BUILDER-BRIEF §8. Not fixed here: changing a walk's
+start point changes what the walk measures, and that is not item 213.
+
+### 5. `reportWorld(p)` was called with no URL
 
 `casinodoor.mjs:12` printed `measuring undefined`. Fixed here in passing. Worth
 grepping the other 796 scripts for the same call shape — it is GOTCHAS 48
