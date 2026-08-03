@@ -598,7 +598,11 @@ const CHECKS = [
   // the check catches the actual bug rather than a symptom somebody planted.
   ['prop-landing',     'does every dropped prop stand where it was put down?', true, [], false,
     ['litter-self-push']],
-  ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried'], ['probe']],
+  // `glow-park-dark` added by item 257 — the park became glow.mjs's THIRD region
+  // in item 248, and until now the guarantee that made it measurable (every
+  // stamped lamp lands in exactly one region, with a per-region `stamped` bar
+  // under it) was proved only by a builder having run the mutation once by hand.
+  ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried', 'glow-park-dark'], ['probe']],
   // REGISTERED 2026-08-03 (item 150). `ct/hud.ts` cast `mesh.material` to a
   // single material when hanging a panel on a face. `Mesh.material` is legally
   // `Material | Material[]`, and on an array `mat.color` is undefined — so
@@ -899,9 +903,23 @@ const CHECKS = [
   // of E's fourteen that has one — so the audit built to catch invisible
   // checks is itself blind to the other thirteen. (D)
   ['E-walk',           'is the library courtyard walkable, in and out and up the steps?', true, [], true],
-  // The ONLY check that walks into a room in a BUILT BUNDLE. interiors-walk
-  // above cannot: it imports a source path no bundle serves. Run the slow tier
-  // with PINNED_MODE=preview and this is what covers the artefact.
+  // NO LONGER THE ONLY BUNDLE-CAPABLE ROOM WALK — corrected item 257. This
+  // comment used to say "the ONLY check that walks into a room in a BUILT
+  // BUNDLE", because `interiors-walk` above imported `/src/proto/ct/doors.ts`
+  // and `ct/interior.ts` at runtime and `vite preview` serves only `dist/`.
+  // **Item 251 retired that.** Three of those four import sites were already
+  // redundant against `__ct.doors()`, the fourth (`PARTY`) is published as
+  // `__ct.party()`, and `interiors-walk` reads nothing but `__ct` now.
+  // Re-measured on the bundle for item 257 rather than taken on trust:
+  // `SHOT_URL=http://localhost:4590/ node scripts/interiors-walk.mjs church`
+  // scores **29/29, exit 0** against `vite preview`, identical to dev.
+  //
+  // So this is a SECOND room walk on the bundle, and it earns its place on a
+  // different claim, not on a limitation: it is the only one that can be aimed
+  // at the INTEGRATED world (:5177) — mainline plus every builder in flight —
+  // because it walks eight doors with no per-room assertions to go stale. Read
+  // its header for why that use must stay out of `reportWorld`.
+  // Run the slow tier with PINNED_MODE=preview to get both against the artefact.
   ['integration-doors', 'can you get into all eight rooms in the BUNDLE?',    ['door-standoff'], [], true],
   // H's walking and watching suites. These drive or watch in real time, so they
   // belong in the SLOW tier for the reason stated above — a runtime tier, not an
