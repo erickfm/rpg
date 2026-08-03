@@ -12,6 +12,27 @@ import { pixTex } from './paint';
 // Everyone is drawn the same way: same rim shading, same face, same care.
 
 export const FW = 32, FH = 64;
+
+/** The sprite plane's height in metres. Was a local `const H = 1.9` inside
+ *  `citizenPlane` and a hand-typed `1.9` in three comments; hoisted because the
+ *  seated knee below has to convert texels to metres with the SAME number. */
+export const SPRITE_H_M = 1.9;
+
+/**
+ * HOW FAR FORWARD OF THE HIP THE SEATED ART ITSELF REACHES.
+ *
+ * The profile shin is drawn at `cx - KNEE`, so a seated figure's leg already
+ * extends this far ahead of wherever its origin was placed. **This is the whole
+ * reason `seatFwd` must not also move the body forward by the seat's depth** —
+ * see the derivation on `seatFwd` in `CitizenSprite`'s options.
+ *
+ * 12 texels was chosen (item 272) so the shin clears a diner bench's front face,
+ * which stands `0.55 / 2 = 0.275 m` ahead of a sitter placed at the bench
+ * CENTRE. A knee at 8 (0.238 m) would not clear it; 12 gives 0.356 m.
+ */
+export const SEATED_KNEE_TEXELS = 12;
+/** …the same reach in metres, derived rather than retyped (BUILDER-BRIEF §8). */
+export const SEATED_KNEE_M = SEATED_KNEE_TEXELS * SPRITE_H_M / FH;   // 0.356 m
 export type Fit = 'plain' | 'cap' | 'dress' | 'hoodie' | 'coat';
 export type HairCut = 'short' | 'crop' | 'long' | 'tied' | 'bald';
 
@@ -185,7 +206,7 @@ export function citizenAtlas(o: Look): THREE.Texture {
         const SEAT = oy + 38 + SEAT_DROP;   // the origin row: the seat's top face
         const FOOT_Y = oy + 59;             // the floor. Unchanged — feet still land
         const THIGH = 6;                    // rows of thigh above the seat, ~0.18 m
-        const KNEE = 12;                    // texels FORWARD of the hip, ~0.36 m
+        const KNEE = SEATED_KNEE_TEXELS;    // texels FORWARD of the hip, ~0.36 m
         g.fillStyle = pantsC;
         if (seated) {
           if (view === 2) {
@@ -632,7 +653,7 @@ export function viewFor(rel: number): [number, boolean] {
  *  separately would have left the street and the interiors 12 cm apart.
  */
 export function citizenPlane(seated = false): THREE.PlaneGeometry {
-  const H = 1.9;
+  const H = SPRITE_H_M;
   const PAD_ROWS = 4;                        // empty rows under the shoe
   const geo = new THREE.PlaneGeometry(0.95, H);
   // ── WHERE THE ORIGIN SITS, AND WHY IT MOVES WHEN SEATED ────────────────
@@ -805,7 +826,45 @@ export function citizenSprite(look: Look, o: {
   const cad = o.cadence ?? 5;
   // see `seatFwd` above. `base` is the position the ROOM placed, captured on
   // the first update and never written again, so the offset is idempotent.
-  const seatFwd = o.seatFwd ?? 0;
+  //
+  // ── THE SAME 0.275 m WAS BEING CORRECTED TWICE (item 286) ─────────────────
+  //
+  // Items 272 and 280 were two fixes for ONE user complaint — *"people sitting
+  // still looks bad because they have no legs??"* — written by different people
+  // and landed within a day of each other. Each was verified alone; neither was
+  // verified against the other, and they overlap EXACTLY:
+  //
+  //   · 280 (this option) moves the BODY forward by half the seat's depth —
+  //     "put the hip on the front lip of the seat", the rule every adopter
+  //     states verbatim (int-diner `BENCH_W/2`, int-jail `BENCH_D/2` and
+  //     `bunkL/2`, int-casino `BENCH_D/2 - SIT_OFF`).
+  //   · 272 draws the SHIN `SEATED_KNEE_M` (0.356 m) forward of the hip — and
+  //     that 12-texel knee was sized, in this file's own words above, to clear a
+  //     bench front face "0.275 m ahead of a sitter placed at the bench CENTRE".
+  //
+  // So the art already assumes the hip is at the seat's centre and reaches past
+  // the lip on its own. Adding the body offset on top spent the same half-depth
+  // a second time: in the diner it put both sitters' hips exactly on the table
+  // edge (bench centre ±0.655 → ±0.38, and the table spans ±0.38) and their
+  // shins at ±0.02 — i.e. both pairs of legs interpenetrating on the booth
+  // centreline, under the middle of the table.
+  //
+  // THE FIX IS NOT TO PICK A WINNER. Both are right about something: the redraw
+  // is right that the legs belong in front of the cushion, and the offset is
+  // right that SOME seats are too deep for any 64-row sprite to reach across.
+  // So the offset now supplies only what the ART CANNOT — the seat's half-depth
+  // MINUS the knee's own reach, clamped at zero:
+  //
+  //   diner        0.275 - 0.356 -> 0        the redraw already clears it
+  //   jail bench   0.210 - 0.356 -> 0                    "
+  //   casino lounge 0.115 - 0.356 -> 0                   "
+  //   jail bunk    0.960 - 0.356 -> 0.604    a 1.92 m bunk genuinely needs it
+  //
+  // Rooms keep passing the seat's half-depth, which is what all four already
+  // pass and what the option has always meant to them; the reconciliation lives
+  // here, in the one file that knows how far the art reaches, so a room that
+  // changes its bench depth cannot reintroduce the double count.
+  const seatFwd = Math.max(0, (o.seatFwd ?? 0) - SEATED_KNEE_M);
   let base: THREE.Vector3 | null = null;
   return {
     mesh,
