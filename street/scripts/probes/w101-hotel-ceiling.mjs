@@ -1,0 +1,205 @@
+// ITEM 254 — IS THE HOTEL CEILING A SURFACE, OR A HOLE?
+//
+// The row says the one real defect in the lobby is the dark ceiling, and that
+// it "only reads badly in frames looking ACROSS the 11 x 26 m room". That is a
+// claim about PIXELS, so this measures pixels rather than reading a hex out of
+// the palette — `int-hotel.ts:168` says `ceil: 0x2e1c1e` and that number tells
+// you nothing about how much of a frame it fills or whether anything in it
+// varies.
+//
+// Three numbers per vantage, all off the same screenshot:
+//
+//   cover    fraction of the frame whose pixel is within CEIL_TOL of the
+//            declared ceiling colour. "How much of the view is ceiling."
+//   uniq     distinct RGB values inside that region. A textured surface in this
+//            world is DITHERED, so it has tens of them; a bare
+//            MeshBasicMaterial has ONE. This is the number that separates
+//            "a dark ceiling" from "a hole where the ceiling should be".
+//   lum      mean 0-255 luminance of the region, and the wall's, for the ratio
+//            the file's own rationale rests on ("the ceiling is darker than
+//            the wall so the room feels tall").
+//
+// The clock is PINNED (`__ct.clock(13, 0)`): a game day is 24 real minutes, so
+// two runs eight minutes apart are two different times of day and the sky
+// through the lobby glazing moves with it. Same hour, always.
+//
+// Usage: SHOT_URL=http://localhost:4191/ node scripts/probes/w101-hotel-ceiling.mjs <tag>
+import { chromium } from 'playwright';
+import { aim } from '../lib/aim.mjs';
+import { waitPainted, blackFraction } from '../lib/painted.mjs';
+import { mkdirSync } from 'node:fs';
+
+const URL = aim('http://localhost:4191/');
+const TAG = process.argv[2] ?? 'now';
+const HOUR = 13;
+mkdirSync('shots', { recursive: true });
+
+// Vantages, in the room's LOCAL frame (x across, z along, +z = away from the
+// door). Yaw 0 is -z in this world (crosstown.ts:544), so PI is "back at the
+// door" and +/-PI/2 are the two ACROSS-the-room looks the row is about.
+// Pitch is up where a ceiling complaint needs it: the user's own frame
+// (shots/user-hotelspace.png) is a standing eye looking very slightly up.
+const VIEWS = [
+  ['across-e', 0.0, 2.0, Math.PI / 2, 0.10],   // mid-room, looking east across
+  ['across-w', 0.0, 2.0, -Math.PI / 2, 0.10],  // mid-room, looking west across
+  ['along', 0.0, 9.0, Math.PI, 0.06],          // deep in, looking back down the length
+  ['entry', 0.0, -10.0, 0.0, 0.06],            // at the door, looking in
+];
+
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
+const errs = [];
+p.on('pageerror', (e) => errs.push(String(e)));
+await p.goto(URL, { waitUntil: 'load' });
+await p.waitForFunction(() => window.__ct && window.__ct.roomDims, null, { timeout: 60000 });
+await waitPainted(p, { quiet: true });
+
+const room = await p.evaluate(() => window.__ct.roomDims().find((r) => /hotel/i.test(r.id)));
+if (!room) { console.log('ABORT no hotel room — hook missing, NOT a world fault'); await b.close(); process.exit(3); }
+console.log(`hotel  cx ${room.cx}  cz ${room.cz}  w ${room.w}  d ${room.d}  h ${room.h ?? '?'}`);
+
+// The two colours are READ OFF THE LIVE MATERIALS, never retyped from the
+// palette literal — that is the whole of BUILDER-BRIEF §8, and it is also the
+// only way this probe keeps working after somebody changes the palette.
+// ⚠ SELF-CAUGHT, AND THE REASON THIS IS SPELLED OUT. The first version took
+// "the room-sized plane up high" and read `material.color` off it. The moment a
+// second, MAPPED ceiling plane was laid under the kit's, it matched the same
+// filter, and `material.color` on a mapped MeshBasicMaterial is the white tint
+// multiplier — so the reference colour became #ffffff and the probe reported
+// `cover 0.0%, lum 252.7` for a room that had got DARKER in no place at all.
+// A probe that changes its own reference between the before and the after run
+// is not measuring a change, and this one would have printed a triumphant
+// number either way.
+//
+// So: the reference tone comes off the plane with NO MAP — the kit's own, which
+// this file never touches and which therefore still carries the declared
+// palette. The mapped one is reported separately, as a fact about the world.
+const cols = await p.evaluate(([cx, cz, w, d]) => {
+  const out = { declared: null, mapped: 0, unmapped: 0 };
+  const x0 = cx - w / 2 - 1, x1 = cx + w / 2 + 1, z0 = cz - d / 2 - 1, z1 = cz + d / 2 + 1;
+  window.__ct.scene().traverse((o) => {
+    if (!o.isMesh || !o.material || !o.geometry) return;
+    // no THREE on window in the built bundle — borrow the Vector3 constructor
+    // off the object's own position rather than importing anything.
+    const q = o.getWorldPosition(new o.position.constructor());
+    if (q.x < x0 || q.x > x1 || q.z < z0 || q.z > z1) return;
+    const g = o.geometry.parameters ?? {};
+    if (o.geometry.type !== 'PlaneGeometry' || q.y < 1.5) return;
+    if (Math.abs((g.width ?? 0) - w) > 0.01 || Math.abs((g.height ?? 0) - d) > 0.01) return;
+    if (o.material.map) out.mapped++;
+    else { out.unmapped++; out.declared = '#' + o.material.color.getHexString(); }
+  });
+  return out;
+}, [room.cx, room.cz, room.w, room.d]);
+console.log(`ceiling planes: ${cols.unmapped} unmapped (declared tone ${cols.declared})`
+  + `, ${cols.mapped} mapped`);
+if (!cols.declared) { console.log('ABORT no unmapped ceiling plane — cannot fix a reference tone'); await b.close(); process.exit(3); }
+
+const hex2rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const CEIL = hex2rgb(cols.declared);
+
+// FIVE RUNS, AND THE SPREAD REPORTED. `dither()` and `slabTex`'s speckle use
+// UNSEEDED Math.random on purpose (paint.ts:4), so the grain is different every
+// load and every number below is a sample, not a constant. One run of an
+// after-shot proves nothing about a before-shot one run wide. Each run RELOADS
+// the page, because that is what rebuilds the world's textures — repeating the
+// screenshot inside one page load re-photographs the identical canvas.
+const RUNS = Number(process.env.RUNS ?? 5);
+const acc = new Map(VIEWS.map((v) => [v[0], []]));
+
+for (let run = 0; run < RUNS; run++) {
+ if (run > 0) {
+   await p.goto(URL, { waitUntil: 'load' });
+   await p.waitForFunction(() => window.__ct && window.__ct.roomDims, null, { timeout: 60000 });
+   await waitPainted(p, { quiet: true });
+ }
+ for (const [name, lx, lz, yaw, pitch] of VIEWS) {
+  await p.evaluate(([x, z, y, pi, h]) => {
+    window.__ct.clock(h, 0);
+    window.__ct.warp(x, z, y, undefined, pi);
+  }, [room.cx + lx, room.cz + lz, yaw, pitch, HOUR]);
+  await waitPainted(p, { quiet: true });
+  // only run 0 keeps its picture; the other four exist for the spread
+  const path = `shots/w101-hotel-${name}-${TAG}.png`;
+  const buf = run === 0 ? await p.screenshot({ path }) : await p.screenshot();
+  const black = await blackFraction(p, buf);
+
+  // decoded IN THE PAGE, the same way lib/painted.mjs's blackFraction does it —
+  // this repo has no pngjs and adding a dependency for one histogram is not
+  // worth it.
+  const m = await p.evaluate(async ([b64, ceil]) => {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = 'data:image/png;base64,' + b64; });
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    // TWO tolerances on purpose, because the whole change under test is that
+    // the ceiling stops being ONE colour. A tight band measures the flat
+    // version honestly and undercounts a textured one; a wide band counts the
+    // textured field but must not reach the wall.
+    //
+    //   TIGHT 26  the original band. Comparable across the change only as a
+    //             LOWER bound on the after run.
+    //   WIDE  38  the region either version occupies. The ox-blood wall is at
+    //             distance 64 from the ceiling tone and its own darkest dither
+    //             at 46, so 38 leaves 8 levels of margin and no wall leaks in —
+    //             which `wallLum` staying put across the runs is the check on.
+    const TIGHT = 26, WIDE = 38;
+    const lum = (r, gg, b) => 0.2126 * r + 0.7152 * gg + 0.0722 * b;
+    const W = c.width, Hh = c.height;
+    const inBand = new Uint8Array(W * Hh);
+    let n = 0, wide = 0, sum = 0, wallN = 0, wallSum = 0;
+    const seen = new Set();
+    for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+      const r = d[i], gg = d[i + 1], b = d[i + 2];
+      const dist = Math.hypot(r - ceil[0], gg - ceil[1], b - ceil[2]);
+      if (dist <= TIGHT) n++;
+      if (dist <= WIDE) {
+        wide++; sum += lum(r, gg, b); seen.add((r << 16) | (gg << 8) | b); inBand[p] = 1;
+      } else if (r > 70 && r < 150 && gg < 70 && b < 80) { wallN++; wallSum += lum(r, gg, b); }
+    }
+    // EDGE DENSITY INSIDE THE CEILING REGION — this repo's own metric for the
+    // exact question being asked. `paint.ts`'s note on `slabTex` settles the
+    // park-path case with it: "1.2% edge density against 4.9% for the jointed
+    // civic slab", where 1.2% was the tint-over-paving failure. A flat
+    // MeshBasicMaterial scores ~0 by construction; it is the number that says
+    // whether there is anything in the field for the eye to attach to, and
+    // unlike `uniq` it is not inflated by a handful of stray pixels.
+    let edge = 0, edgeN = 0;
+    for (let y = 1; y < Hh - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const p = y * W + x;
+      if (!inBand[p]) continue;
+      edgeN++;
+      const i = p * 4, iR = i + 4, iD = i + W * 4;
+      const g0 = lum(d[i], d[i + 1], d[i + 2]);
+      if (Math.abs(g0 - lum(d[iR], d[iR + 1], d[iR + 2])) > 8
+        || Math.abs(g0 - lum(d[iD], d[iD + 1], d[iD + 2])) > 8) edge++;
+    }
+    const px = d.length / 4;
+    return { cover: 100 * n / px, wide: 100 * wide / px, uniq: seen.size,
+      edge: edgeN ? 100 * edge / edgeN : 0,
+      lum: wide ? sum / wide : 0, wallLum: wallN ? wallSum / wallN : 0 };
+  }, [buf.toString('base64'), CEIL]);
+  if (black > 0.98) console.log(`${name}: YOU PHOTOGRAPHED THE VOID`);
+  acc.get(name).push(m);
+ }
+ process.stderr.write(`  run ${run + 1}/${RUNS}\n`);
+}
+
+const span = (xs, k, dp = 1) => {
+  const v = xs.map((x) => x[k]).sort((a, c) => a - c);
+  const mean = v.reduce((a, c) => a + c, 0) / v.length;
+  return `${mean.toFixed(dp)} [${v[0].toFixed(dp)}..${v[v.length - 1].toFixed(dp)}]`;
+};
+console.log(`\n${TAG} — ${RUNS} runs, mean [min..max]\n`);
+console.log('vantage    cover%            wide%             uniq                  edge%             lum               wall-lum');
+for (const [name, xs] of acc) {
+  console.log(`${name.padEnd(10)} ${span(xs, 'cover').padEnd(17)} ${span(xs, 'wide').padEnd(17)} `
+    + `${span(xs, 'uniq', 0).padEnd(21)} ${span(xs, 'edge', 2).padEnd(17)} `
+    + `${span(xs, 'lum').padEnd(17)} ${span(xs, 'wallLum')}`);
+}
+if (errs.length) console.log(`\nPAGE ERRORS (${errs.length}):\n  ` + errs.join('\n  '));
+else console.log('\nno page errors');
+await b.close();
