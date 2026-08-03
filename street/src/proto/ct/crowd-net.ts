@@ -39,6 +39,53 @@ const IN = 1.0;
 /** the north end, where the walk disappears into the fog */
 const FOG_Z = 10;
 
+// ── THE 42 STOP'S BENCH, AND WHY THESE THREE NUMBERS ARE COPIED (item 282) ──
+//
+// `e-bench` below used to read `N('e-bench', EAST_X, -36.6, 'bench')`, and that
+// −36.6 was not a placed number — it was the bench's own z, correct on the day
+// this file was written. **`git show 7c93e47ad:…/props.ts` has
+// `BENCH_Z = -36.6`.** Commit `114675e62` ("The bus bench faces the road, sits
+// at the kerb, and stands beside its pole") moved the bench to −35.0 and the
+// graph did not follow, so for the whole time since, the one node in the world
+// whose `act` is `'bench'` has stood **1.60 m down-street of the bench**. Same
+// class as the library desk holding clearance for a vestibule deleted a week
+// earlier: a constant that stopped being right when its neighbour moved.
+//
+// ⚠ THESE ARE COPIES WITH CITATIONS, NOT IMPORTS, AND THAT IS A REPORTED GAP.
+// BUILDER-BRIEF §8 asks for an import and settles for a cited copy plus a
+// queued hoist when the import would mean editing a file this item does not
+// name. Both are true here: the three values live INSIDE `buildProps()` as
+// function locals (`ct/props.ts:2806`, `:3093`, `:3122`), so publishing them is
+// not an `export` keyword — it is hoisting bench geometry to module scope in
+// `ct/props.ts`, plus a new `crowd-net → props` import edge into a module that
+// documents its own edges precisely because of GOTCHAS §28. **Follow-up: hoist
+// the stop's geometry to a shared owner and delete these three.**
+//
+// Every one of them was CHECKED against the built world rather than read out of
+// the source and trusted — `scripts/probes/w123-item282-stop-geometry.mjs`
+// reports the bench's registered collider as `x 5.07 … 5.731, z −35.92 … −34.08`.
+/** `ct/props.ts:2806` — the bench's centre line, down-street of the flag pole */
+const BENCH_Z = -35.0;
+/** `ct/props.ts:3093` — the reclined backrest's top-back corner, the furthest
+ *  point on the bench from the kerb, as `ROAD_HALF + this`. Measured back off
+ *  the collider (`maxX 5.731`) rather than re-deriving the recline trigonometry,
+ *  which would be four more copied numbers for one value. */
+const BENCH_OUT = 0.781;
+/**
+ * Where somebody waiting at this bench STANDS — and it is the bench's own
+ * answer, not a second one. `ct/props.ts:3122` gives both its seat spots
+ * `approach: { x: BENCH_MAX_X + 0.42, z: BENCH_Z }`, so a walker sent here
+ * stands exactly where the player is offered "sit at the stop".
+ *
+ * IT MUST NOT BE `EAST_X`. Every other east node sits on the walk lane, but the
+ * lane is `ROAD_HALF + 1.0 = 5.95` and a walker's footprint is ±0.28
+ * (`ct/crowd.ts:504`), so a node there at the bench's z is **0.061 m inside the
+ * bench's collider** — the graph would be telling people to stand in the
+ * furniture, and `scripts/crowd-net.mjs`'s third assertion exists for that.
+ * 6.151 clears the bench by 0.14 m and the shopfronts by 0.45 m.
+ */
+const BENCH_STAND_X = ROAD_HALF + BENCH_OUT + 0.42;
+
 /** The side street's dimensions are crosstown.ts's, not ct/rng.ts's, so they
  *  come in as arguments rather than being imported — same as ct/traffic.ts and
  *  ct/sidestreet.ts take them. */
@@ -135,7 +182,8 @@ export function buildNet(d: NetDims): Net {
   //
   // The `act` marks are the reason anybody goes anywhere: a window to look in,
   // the bus bench to wait at, a doorway to hesitate in. Positions are the
-  // world's own — the bench is where ct/props.ts stands it (BENCH_Z = -36.6),
+  // world's own — the bench is where ct/props.ts stands it (`BENCH_Z` above:
+  // -35.0 since commit 114675e62, and this line said -36.6 until item 282),
   // the bodega door where crosstown.ts registers its [E] spot (8.7, -96.85).
   // A citizen pausing at a window does not need to line up with a door to the
   // centimetre, so the window marks are spread along the shopfronts.
@@ -193,7 +241,7 @@ export function buildNet(d: NetDims): Net {
     N('e-win1', EAST_X, -84, 'window'),
     N('e-win2', EAST_X, -66, 'window'),
     N('e-pawn', EAST_X, -50, 'door'),
-    N('e-bench', EAST_X, -36.6, 'bench'),         // the 42 stop's bench
+    N('e-bench', BENCH_STAND_X, BENCH_Z, 'bench'),   // the 42 stop's bench
     N('e-tax', EAST_X, -22, 'door'),
     N('e-fog', EAST_X, FOG_Z),
   ];
