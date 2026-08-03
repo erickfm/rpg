@@ -51,8 +51,13 @@ const promptNow = () => p.evaluate(() => {
 // observed — BUILDER-BRIEF §5, three false failures.
 const tap = async (k) => { await p.keyboard.down(k); await p.waitForTimeout(90); await p.keyboard.up(k); await p.waitForTimeout(260); };
 
-const seat = (await p.evaluate(() => window.__ct.seats())).find((s) => s.label === SEAT);
-if (!seat) { console.log(`REFUSING TO REPORT: no seat labelled "${SEAT}"`); await b.close(); process.exit(3); }
+// The INDEX is what gets carried, not the seat. `page.evaluate` serialises, so
+// the object read out here is a copy and can never be sat on by identity — see
+// the `sit` call below. `seat` is used only for its numbers (warping, distances,
+// headings), which serialise perfectly well. (Item 217.)
+const seatIx = await p.evaluate((l) => window.__ct.seats().findIndex((s) => s.label === l), SEAT);
+if (seatIx < 0) { console.log(`REFUSING TO REPORT: no seat labelled "${SEAT}"`); await b.close(); process.exit(3); }
+const seat = (await p.evaluate(() => window.__ct.seats()))[seatIx];
 
 // Stand the player in the room first, so the interior's own `ok()` and the
 // storey-aware sight lines are answering about the room they are in.
@@ -67,8 +72,12 @@ console.log(`chair (${seat.pose.x.toFixed(2)}, ${seat.pose.z.toFixed(2)}) yaw ${
 console.log(`form  (${form.x.toFixed(2)}, ${form.z.toFixed(2)}) r ${form.r}  ->  ${d.toFixed(3)} m, bound r+0.6 = ${(form.r + 0.6).toFixed(2)}\n`);
 
 // ── sits ───────────────────────────────────────────────────────────────────
-await p.evaluate(([x, z, yaw, h]) => window.__ct.sit({ x, z, yaw, h }),
-  [seat.pose.x, seat.pose.z, seat.pose.yaw, seat.pose.h]);
+// BY IDENTITY, LOOKED UP IN THE PAGE (item 217). `crosstown.ts:1864` stores the
+// caller's own object and `ct/int-bank.ts`'s chair is matched the same way the
+// two machine seats are, so a fresh literal sits on a pose no seat owns and the
+// seated behaviour silently never fires. A copy passed in from node is a fresh
+// literal — identity is exactly what `page.evaluate` destroys.
+await p.evaluate((k) => window.__ct.sit(window.__ct.seats()[k].pose), seatIx);
 await p.waitForTimeout(200);
 if (!(await p.evaluate(() => window.__ct.seated()))) { fail('could not take the client chair'); }
 else ok('sits in the client chair');
