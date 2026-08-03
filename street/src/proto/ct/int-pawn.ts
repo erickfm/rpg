@@ -359,6 +359,166 @@ export function buildPawn(ctx: CtxBuild): void {
   put(new THREE.Mesh(new THREE.PlaneGeometry(0.95, 1.42),
     new THREE.MeshBasicMaterial({ map: brassT, alphaTest: 0.5 })), 3.9, 2.05, -hd + 0.08);
 
+  // ── THE HARD STOCK: knives, bolt cutters, guns ────────────────────────
+  //
+  // The user: *"pawn shop should contain, knives, bolt cutters, guns, on top of
+  // the regular stuff."* **ON TOP OF.** Nothing above this line is touched —
+  // the tools, the guitars, the brass, the TV stack, the island case and the
+  // west cabinet are all exactly where they were. This adds three fittings to
+  // wall that was empty.
+  //
+  // WHERE, AND WHY THERE. A real shop puts this stock behind glass, behind the
+  // counter, on the wall the customer cannot reach — which is both period-true
+  // and how you say "not for browsing" without a word of text. The counter
+  // already runs wall to wall at 1.26 m, so anything hung above it is visible
+  // and unreachable at the same time, and the three gaps in the back wall are
+  // the only places in the room where that is true:
+  //
+  //     x  -6.9 .. -4.75   west of the TV stack   -> the knife case
+  //     x   2.60 ..  3.42  between guitars and brass -> the bolt cutters
+  //     x   4.38 ..  6.9   east of the brass      -> the gun cabinet
+  //
+  // Those bounds are the existing art's own extents, not free numbers: the
+  // tool board is 3.2 m at x −3.1, the guitars 4.4 m at 0.4, the brass 0.95 m
+  // at 3.9. Everything below is placed against `hw`, so a change to the
+  // frontage moves the new fittings with the old ones.
+  //
+  // ALL THREE ARE BOXES WITH ONE DRAWN FACE, the TV stack's own pattern —
+  // material index 4 is +z, the face you look at. A case with 0.14 m of depth
+  // reads as a case; a bare plane reads as a poster of one.
+  //
+  // DENSITY: every canvas below is sized `metres × HARD_PPM` on BOTH axes, and
+  // declares it. That is item 163's `declareSurface(t, kind, ppm)` — the third
+  // argument did not exist until today, and §7b's rule could not be obeyed
+  // without it. The item's own instruction was "do not add to the gross count";
+  // sizing both axes off one px/m makes every one of these faces exactly
+  // square by construction rather than by luck, which is what the count is.
+  const HARD_PPM = 40;
+  const hardCanvas = (wM: number, hM: number, draw: (g: CanvasRenderingContext2D) => void) =>
+    declareSurface(pixTex(Math.round(wM * HARD_PPM), Math.round(hM * HARD_PPM), draw), 'detail', HARD_PPM);
+  const caseSideM = new THREE.MeshBasicMaterial({ color: 0x2e2a24 });
+  /** a glazed wall case: dark carcass, one drawn face looking at the customer */
+  const wallCase = (x: number, y: number, wM: number, hM: number, map: THREE.Texture) => {
+    const m = new THREE.MeshBasicMaterial({ map });
+    put(new THREE.Mesh(new THREE.BoxGeometry(wM, hM, 0.14),
+      [caseSideM, caseSideM, caseSideM, caseSideM, m, caseSideM]),
+      x, y, -hd + 0.16);
+  };
+
+  // THE KNIFE CASE — "a row of bright verticals under glass" is the whole read.
+  // Blades point UP and are the palest thing in the room, on a felt back that is
+  // the darkest; at this pixel scale that contrast IS the object, because a
+  // knife drawn as a knife is four texels of nothing. Two shelves, because one
+  // row of anything reads as a sample and two reads as stock.
+  const KN_W = 2.0, KN_H = 1.0;
+  const knifeT = hardCanvas(KN_W, KN_H, (g) => {
+    const W = KN_W * HARD_PPM, H = KN_H * HARD_PPM;
+    g.fillStyle = '#2e2a24'; g.fillRect(0, 0, W, H);                  // the carcass
+    g.fillStyle = '#3a2a2e'; g.fillRect(3, 3, W - 6, H - 6);          // oxblood felt
+    for (const [row, n, len] of [[8, 13, 17], [24, 11, 13]] as [number, number, number][]) {
+      const step = (W - 12) / n;
+      for (let i = 0; i < n; i++) {
+        const x = 6 + Math.round(i * step);
+        // the blade: pale, tapering, one texel of edge-light down its spine
+        g.fillStyle = '#b8bec4'; g.fillRect(x, row, 3, len);
+        g.fillStyle = '#d8dee4'; g.fillRect(x, row + 1, 1, len - 2);
+        g.fillStyle = '#8a9098'; g.fillRect(x + 2, row, 1, len);
+        // the handle, below it, in one of three horn/bone/black colours
+        g.fillStyle = ['#3a2a1e', '#c8bca0', '#1e1c1a'][i % 3];
+        g.fillRect(x - 1, row + len, 5, 6);
+        g.fillStyle = '#8a8478'; g.fillRect(x, row + len + 2, 3, 1);  // the bolster
+      }
+      g.fillStyle = '#4a443c'; g.fillRect(3, row + len + 7, W - 6, 1);  // the shelf lip
+    }
+    tag(g, W - 14, H - 9);
+    g.fillStyle = 'rgba(190,215,225,0.14)'; g.fillRect(3, 3, W - 6, Math.round(H * 0.42));
+    g.fillStyle = '#8a8478'; g.fillRect(2, 2, W - 4, 1); g.fillRect(2, H - 3, W - 4, 1);
+    dither(g, W, H, 60);
+  });
+  wallCase(-5.8, 1.95, KN_W, KN_H, knifeT);
+
+  // THE GUN CABINET — "a dark angular silhouette against a pale pegboard".
+  // Long guns racked upright because that is how they are stored and because a
+  // vertical is the only way a 1.1 m object fits a 1.25 m case; two handguns on
+  // the bottom shelf so the silhouettes are not all one shape. The pegboard is
+  // the palest surface in the room, which is what makes the silhouettes read.
+  const GN_W = 2.4, GN_H = 1.25;
+  const gunT = hardCanvas(GN_W, GN_H, (g) => {
+    const W = GN_W * HARD_PPM, H = GN_H * HARD_PPM;
+    g.fillStyle = '#2e2a24'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#b0a892'; g.fillRect(3, 3, W - 6, H - 6);          // pale pegboard
+    g.fillStyle = 'rgba(0,0,0,0.16)';
+    for (let y = 7; y < H - 8; y += 4) for (let x = 7; x < W - 8; x += 4) g.fillRect(x, y, 1, 1);
+    const SHELF = H - 17;
+    // five long guns, upright, alternating rifle and shotgun silhouettes
+    for (let i = 0; i < 5; i++) {
+      const x = 10 + i * Math.round((W - 26) / 5), rifle = i % 2 === 0;
+      g.fillStyle = '#23201c';                                        // barrel
+      g.fillRect(x + 2, 8, rifle ? 2 : 3, SHELF - 24);
+      if (!rifle) g.fillRect(x + 5, 8, 2, SHELF - 24);                // the second bore
+      g.fillStyle = '#3a2a1e';                                        // stock, walnut
+      g.fillRect(x, SHELF - 18, 6, 14);
+      g.fillRect(x + 1, SHELF - 5, 4, 4);
+      g.fillStyle = '#23201c';                                        // trigger guard
+      g.fillRect(x + 4, SHELF - 12, 3, 2);
+      if (rifle) { g.fillStyle = '#4a453c'; g.fillRect(x + 1, 12, 4, 3); }   // a scope
+    }
+    g.fillStyle = '#5a5348'; g.fillRect(3, SHELF, W - 6, 2);          // the shelf
+    // two handguns lying on it, angled by being drawn as two blocks not one
+    for (const hx of [12, W - 34]) {
+      g.fillStyle = '#23201c'; g.fillRect(hx, SHELF + 5, 15, 4);
+      g.fillRect(hx + 10, SHELF + 8, 4, 6);
+      g.fillStyle = '#3a2a1e'; g.fillRect(hx + 10, SHELF + 9, 4, 5);
+      tag(g, hx + 1, SHELF + 10);
+    }
+    // the glass, and the lock that says this one is not open
+    g.fillStyle = 'rgba(190,215,225,0.13)'; g.fillRect(3, 3, W - 6, Math.round(H * 0.5));
+    g.fillStyle = '#8a8478'; g.fillRect(Math.round(W / 2) - 1, 3, 2, H - 6);   // the mullion
+    g.fillStyle = '#c9a45e'; g.fillRect(Math.round(W / 2) - 3, Math.round(H / 2), 6, 5);
+    g.fillStyle = '#2e2a24'; g.fillRect(Math.round(W / 2) - 1, Math.round(H / 2) + 2, 2, 2);
+    g.fillStyle = '#8a8478'; g.fillRect(2, 2, W - 4, 1); g.fillRect(2, H - 3, W - 4, 1);
+    dither(g, W, H, 70);
+  });
+  wallCase(5.6, 2.08, GN_W, GN_H, gunT);
+
+  // THE BOLT CUTTERS — "one long shape with red grips, and the red is what
+  // sells them". So they hang OUTSIDE the glass, on a board of their own in the
+  // 0.8 m gap between the guitars and the brass: they are hardware, not
+  // treasure, and a shop that locks its bolt cutters up is telling a different
+  // story from the one this street tells. Three pairs, descending, because a
+  // size run is what a rack of tools looks like.
+  //
+  // He named a burglary tool between knives and guns and I have taken that as
+  // deliberate — see the DONE line about making them a real item.
+  const BC_W = 0.8, BC_H = 1.2;
+  const cutterT = hardCanvas(BC_W, BC_H, (g) => {
+    const W = BC_W * HARD_PPM, H = BC_H * HARD_PPM;
+    g.fillStyle = '#4a453c'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#3a3630'; g.fillRect(2, 2, W - 4, H - 4);
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    for (let y = 4; y < H - 4; y += 3) for (let x = 4; x < W - 4; x += 3) g.fillRect(x, y, 1, 1);
+    const LEN = [34, 28, 22];
+    for (let i = 0; i < 3; i++) {
+      const x = 5 + i * 10, top = 6;
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(x + 1, top + 1, 6, LEN[i]);
+      g.fillStyle = '#8a8478'; g.fillRect(x + 2, top, 3, 9);            // the jaws
+      g.fillStyle = '#b8bec4'; g.fillRect(x + 2, top, 1, 7);
+      g.fillStyle = '#5a5348';                                          // the compound head
+      g.fillRect(x + 1, top + 9, 5, 5);
+      g.fillStyle = '#6a6058'; g.fillRect(x + 1, top + 14, 2, LEN[i] - 22);   // the shafts
+      g.fillRect(x + 4, top + 14, 2, LEN[i] - 22);
+      g.fillStyle = '#a8261e';                                          // THE GRIPS
+      g.fillRect(x, top + LEN[i] - 8, 3, 8);
+      g.fillRect(x + 4, top + LEN[i] - 8, 3, 8);
+      g.fillStyle = '#c8362a'; g.fillRect(x, top + LEN[i] - 8, 1, 8);
+      g.fillRect(x + 4, top + LEN[i] - 8, 1, 8);
+      tag(g, x + 1, top + LEN[i] + 1);
+    }
+    g.fillStyle = '#5a5348'; g.fillRect(2, 4, W - 4, 1);                // the rail they hang on
+    dither(g, W, H, 30);
+  });
+  wallCase(3.0, 2.05, BC_W, BC_H, cutterT);
+
   // ── the TV stack, standing in the staff strip behind the counter ──
   //
   // Four sets of four different vintages, none of them on. A pawn shop's TV

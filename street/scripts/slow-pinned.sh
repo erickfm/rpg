@@ -80,11 +80,23 @@ git worktree add --detach --quiet "$PIN" HEAD
 ln -s "$ROOT/node_modules" "$PIN/$PREFIX/node_modules"
 
 cd "$PIN/$PREFIX"
-# MODE. Default `dev`, because four harnesses — interiors-walk, mirror-walk and
-# two of G's — do `await import('/src/proto/ct/doors.ts')`, a source path that
-# only a dev server serves. Against `vite preview` they die with "Failed to
-# fetch dynamically imported module", so those checks are DEV-ONLY and cannot
-# measure the bundle at all.
+# MODE. Default `dev`.
+#
+# ⚠ THE REASON THIS DEFAULT WAS CHOSEN IS GONE — corrected item 257, and the
+# DEFAULT ITSELF IS NOT. This comment used to say four harnesses (interiors-walk,
+# mirror-walk and two of G's) do `await import('/src/proto/ct/doors.ts')`, a
+# source path only a dev server serves, so they were DEV-ONLY and could not
+# measure the bundle at all. **All four now read `__ct` and none does a runtime
+# source import** — G's two and mirror-walk were converted earlier, and
+# interiors-walk by item 251. Counted rather than assumed:
+# `grep -n "import('/src/" scripts/{interiors-walk,mirror-walk,G-rooms-walk,G-vice-walk}.mjs`
+# returns 7 hits and **every one is a comment**. Measured rather than assumed
+# too: `interiors-walk church` against `vite preview` scores **29/29, exit 0**.
+#
+# So `dev` is now a default with no stated justification behind it. Flipping it
+# is a COVERAGE decision — it changes what the standard slow run measures for
+# every builder — so item 257 corrected the claim and deliberately did NOT move
+# the default. That is the desk's call, and it is queued as such.
 #
 # `PINNED_MODE=preview` serves the built bundle instead, which is the only way
 # to see bundle-specific behaviour — and it matters: circular imports resolve

@@ -190,6 +190,28 @@ for (const s of STATIONS) {
   if (!mask) { console.log(`${s.id}: could not build a ceiling mask — nothing measured`); continue; }
   const m = Uint8Array.from(mask);
   const st = statsMasked(data, px.w, px.h, m);
+
+  // ── AND THE FRAME HAS TO HAVE SOMETHING IN IT ─────────────────────────
+  //
+  // THE SECOND TIME THIS PROBE LIED. Pointed at a freshly-started `vite
+  // preview`, the FIRST station came back 1280x720 of pure #000000 — the page
+  // had not drawn yet — and every number above was computed over it perfectly
+  // happily: mask 272,640 px, "29.6% of frame", distinct=1, modal%=100. Read
+  // without looking at the image that is indistinguishable from "the ceiling is
+  // a flat black hole", which is the exact finding this probe exists to make.
+  // The two stations after it, on the same run, were fine.
+  //
+  // A blank frame is not a measurement, so it is not reported as one. Note the
+  // check is on the WHOLE FRAME, not on the mask: a genuinely black ceiling
+  // over a lit room is a real and interesting result and must still be
+  // reportable. Only an entirely black frame is the instrument failing.
+  const whole = statsMasked(data, px.w, px.h, new Uint8Array(px.w * px.h).fill(1));
+  if (whole.distinct <= 2 && whole.meanLum < 1) {
+    console.log(`${s.id.padEnd(6)} FRAME IS BLANK (distinct=${whole.distinct}, meanLUM=${whole.meanLum})`
+      + ' — the page had not drawn. NOTHING MEASURED; re-run this station.');
+    continue;
+  }
+
   const pct = (100 * st.n / (px.w * px.h)).toFixed(1);
   console.log(`${s.id.padEnd(6)} ceiling mask ${String(st.n).padStart(7)}px (${String(pct).padStart(4)}% of frame)  `
     + `distinct=${String(st.distinct).padStart(5)}  modal%=${String(st.modalPct).padStart(5)} `

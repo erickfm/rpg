@@ -97,6 +97,46 @@ export const RADIUS = 0.36;   // was 0.42
 // still tight enough that you cannot stand on a roof from a metre below it.
 const TOP_EPS = 0.08;
 
+/**
+ * HOW FAR THE FLOOR HAS TO DROP IN ONE FRAME BEFORE IT COUNTS AS A FALL, in
+ * metres. **THIS IS THE ONE NUMBER TO TURN.**
+ *
+ * The user, 2026-08-02: *"i think just make all drops falls then we can work
+ * back from there."* (`FEATURE-REQUESTS.md:2715`, item 130.) So it is **0**:
+ * every drop, kerbs included, at any height. It exists as a named constant
+ * rather than as a literal because *"work back from there"* says out loud that
+ * he expects to tune it by feel, and tuning must be one number rather than a
+ * re-implementation.
+ *
+ * ── WHAT 0 COSTS, MEASURED, so the next value is a choice and not a guess ──
+ *
+ * `groundPick` is a CONTINUOUS function, not a set of steps: `ct/civic.ts:98`
+ * and `ct/apartment.ts` both ramp a flight of stairs deliberately — *"the picker
+ * does not know about treads. It walks you up a smooth ramp at the flight's own
+ * gradient"* — and the road has a crown. So at 0, **walking down any slope drops
+ * the floor every single frame**, `airY` never returns to 0, and the two things
+ * that read `airY === 0` in `update()` both switch off: **head bob, and the
+ * jump gate.** You cannot hop while walking downhill.
+ *
+ * That is not a defect in the rule, it is the rule's price, and these are the
+ * two numbers that price it (`scripts/probes/w101-descend-walk.mjs`, walking
+ * rather than warping, 3 runs each):
+ *
+ *     the walk-up ramp, the steepest slope you can walk   0.040 m per frame
+ *     the kerb, the shallowest discrete step in the world 0.140 m
+ *
+ * **Any value strictly between 0.040 and 0.140 makes every real step fall while
+ * leaving every slope underfoot.** 0.06 is the middle of that gap. It is not set
+ * here because he asked for 0 first and this is his call, not mine.
+ *
+ * The desk's ruling also flagged a risk — *"a staircase is a sequence of small
+ * drops and could become a bouncing descent"* — and **that cannot happen**, for
+ * the reason above: a staircase is not a sequence of drops to this code, it is a
+ * ramp. Measured on the walk-up: 0 bounces in 3 runs, biggest mid-descent rise
+ * 0.000 m.
+ */
+const FALL_MIN_DROP = 0;
+
 /** How far your eye sits above the seat pan. Standing eye is 1.62; on a
  *  0.45 m bench this puts you at 1.17, on a 0.71 m stool at 1.43. */
 export const SIT_EYE = 0.72;
@@ -139,18 +179,19 @@ export class FPRig {
   // ── what was holding you up at the end of last frame ──────────────────────
   //
   // `support` is the floor height the camera actually stood on — `gy` AFTER the
-  // collider-top pick below, not the raw terrain — and `heldByTop` says whether
-  // a COLLIDER TOP was what put it there rather than the terrain. Together they
-  // are what lets the step-off convert a floor that drops away into a real fall
-  // (see the block that reads them in update()).
+  // collider-top pick below, not the raw terrain. It is what lets the step-off
+  // convert a floor that dropped away into a real fall (see the block that
+  // reads it in update()).
   //
-  // `heldByTop` is the whole reason the kerb is untouched by that block: a kerb,
-  // a stoop, a stair and a storey change are all `groundY` terrain, so
-  // `heldByTop` is false across every one of them and the conversion never runs.
-  // Only car roofs, beds, rails and boot lids — things with a `maxY` collider —
-  // can start a fall.
+  // IT USED TO BE PAIRED WITH A `heldByTop` FLAG and it no longer is. That flag
+  // said "a collider top put you here rather than the terrain", and gating the
+  // fall on it meant only car roofs, beds, rails and boot lids could start one —
+  // every kerb, stoop, stair and storey change stayed instant. The user's ruling
+  // (FEATURE-REQUESTS.md:2715) removed that distinction outright:
+  // *"i think just make all drops falls then we can work back from there."*
+  // Where the source of the floor came from is now nobody's business; only how
+  // far it fell is, and that is `FALL_MIN_DROP`.
   private support = 0;
-  private heldByTop = false;
   // Where you were standing, so the step-off can tell "the floor fell away from
   // under my feet" (a fall) from "I was moved somewhere the floor is lower" (a
   // teleport — `__ct.warp`, a door, a seat exit). Without this a probe that
@@ -234,9 +275,18 @@ export class FPRig {
     this.yaw = pose.yaw;
     // cancel anything mid-flight, or you land after standing up
     this.airY = 0; this.vy = 0; this.jumpHeld = false;
-    // A chair is not a surface you stepped off — forget whatever was holding you
-    // up, so standing back up cannot read it as a floor that dropped away.
-    this.heldByTop = false;
+    // A chair is not a surface you stepped off — RE-BASE whatever was holding
+    // you up onto where you now are, so standing back up cannot read it as a
+    // floor that dropped away.
+    //
+    // This used to be `heldByTop = false`, which was enough while only collider
+    // tops could start a fall. It is not any more: under item 130 the terrain
+    // starts one too, and sitting MOVES you (`pose.x/z`), so a stale `support`
+    // from wherever you were standing is now a phantom fall waiting for you to
+    // get up. Re-basing `support` is the same protection stated in the terms
+    // the rule actually uses.
+    this.support = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
+    this.lastX = this.pos.x; this.lastZ = this.pos.z;
   }
 
   /**
@@ -291,8 +341,9 @@ export class FPRig {
     this.standFrom = null;
     // Getting up MOVES you, by up to the 1.4 m search ring above. Re-base the
     // step-off state on where you now are, or the first frame back on your feet
-    // compares this spot's floor against the one you sat down from.
-    this.heldByTop = false;
+    // compares this spot's floor against the one you sat down from — which
+    // under item 130 is a fall out of a chair rather than a no-op.
+    this.support = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
     this.lastX = this.pos.x; this.lastZ = this.pos.z;
   }
 
@@ -592,7 +643,9 @@ export class FPRig {
     // standable top under the terrain (there is no such case today, but
     // nothing here assumes there cannot be) must not sink you into the
     // ground.
-    const terrain = gy;
+    // (`const terrain = gy` used to be taken here, purely to set `heldByTop`
+    // below. Item 130 deleted that flag, and an unread local is how a reader
+    // concludes a distinction still matters when it does not.)
     const top = this.standTop(this.pos.x, this.pos.z, atY);
     if (top !== null && top > gy) gy = top;
 
@@ -625,23 +678,34 @@ export class FPRig {
     // as `airY` runs out. Subtracting on the way up would re-time every climb in
     // scripts/w21-roof-climb.mjs for no defect anyone has reported.
     //
-    // ONLY OFF A COLLIDER TOP, NEVER OFF TERRAIN — which is what keeps the kerb
-    // feeling exactly as it does today, bit for bit: `heldByTop` is false for
-    // every kerb, stoop, stair and storey change, so this block does not run for
-    // any of them. That is the item's "walking off a kerb still feels as it does
-    // now", satisfied by not touching the path at all rather than by re-tuning it.
+    // ── EVERY DROP, NOT JUST THE ONES OFF A CAR ────────────────────────────
     //
-    // AND ONLY IF YOU WALKED THERE. `this.run` is 42 m/s, so the most any legal
-    // frame can carry you is `run * dt` — derived here rather than typed, so it
-    // still holds if the speed is ever retuned. Anything further is a teleport
+    // This block used to carry `this.heldByTop &&`, so it ran only when a
+    // COLLIDER TOP had been holding you up — the pickup's five tops and the
+    // sedan's two, and nothing else in the world (`probes/w50-tops.mjs`). Every
+    // kerb, stoop, stair and storey change is `groundY` terrain, so all of them
+    // stayed instant. Item 112 chose that on purpose and said so; item 130 is
+    // the user overruling it: *"i think just make all drops falls then we can
+    // work back from there."*
+    //
+    // So the gate is now the height alone, against `FALL_MIN_DROP` — read its
+    // comment before changing it, including what 0 costs and the two measured
+    // numbers that bound the next value.
+    //
+    // AND ONLY IF YOU WALKED THERE — unchanged, and now carrying much more
+    // weight than it used to. `this.run` is 42 m/s, so the most any legal frame
+    // can carry you is `run * dt`, derived here rather than typed so it still
+    // holds if the speed is retuned. Anything further is a teleport
     // (`__ct.warp`, a door, a seat exit), where the floor changing is the point
-    // and a fall would be a phantom.
+    // and a fall would be a phantom. **With the collider-top gate gone this is
+    // the ONLY thing standing between a warp and a fabricated fall**, and every
+    // warp in the world now passes through terrain the picker answers for.
     const walked = Math.hypot(this.pos.x - this.lastX, this.pos.z - this.lastZ);
-    if (this.heldByTop && gy < this.support - 1e-6 && walked <= this.run * dt + 1e-3) {
-      this.airY += this.support - gy;
+    const dropped = this.support - gy;
+    if (dropped > FALL_MIN_DROP && walked <= this.run * dt + 1e-3) {
+      this.airY += dropped;
     }
     this.support = gy;
-    this.heldByTop = top !== null && top > terrain;
     this.lastX = this.pos.x; this.lastZ = this.pos.z;
 
     const grounded = this.airY === 0;

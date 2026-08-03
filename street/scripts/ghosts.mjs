@@ -19,14 +19,108 @@
 import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 const LONG_MS = Number(process.env.LONG_MS ?? 22000);
+
+/**
+ * THE VERDICT, AND WHY THIS SCRIPT HAD NONE.
+ *
+ * Until now this file printed `** DIFFERS **` and exited 0. Not "exited 0 by an
+ * accident of control flow" — it contained no `process.exit` and no
+ * `process.exitCode` **anywhere**, so there was no input, real or imagined, that
+ * could make it non-zero. Anything that ran it in a suite and read its status
+ * was reading a constant.
+ *
+ * It is separated out as a pure function of the measurement so that
+ * `--selftest` can drive it with synthetic input, both signs, with no browser
+ * and no world. A red check nobody has ever seen go red is a check nobody
+ * should trust (GOTCHAS 58), and the failing case here is not one you can
+ * arrange on demand — it needs a citizen to stand still through the whole
+ * window.
+ *
+ * WHAT COUNTS AS FAILURE IS **THE CORRIDOR ANSWER DIFFERING**, NOT THE PRESENCE
+ * OF GHOSTS, and that is this file's own reasoning rather than a judgement I
+ * added. The header states the monotonicity: the long-window static set is a
+ * SUBSET of the short-window one, so dropping ghosts can only ever make a
+ * passage WIDER, and a ghost can therefore only manufacture a falsely NARROW
+ * finding — never a falsely clear one. A ghost is conservative. It is only
+ * evidence of a problem when it actually moves the answer, and then the answer
+ * moving is the thing to report.
+ *
+ * Failing on ghost COUNT instead would have made this permanently red for a
+ * reason nobody can act on: any citizen who happens to pause for 1.5 s is a
+ * ghost, and "never fix a failing check by loosening it until it passes"
+ * (BUILDER-BRIEF §7) cuts both ways — a check that is red on correct behaviour
+ * gets ignored just as fast as one that cannot go red at all.
+ */
+export function verdict(out) {
+  const bad = [];
+  const s = out.shortResult, l = out.longResult;
+  if (s.nTight !== l.nTight) {
+    bad.push(`the 1.5 s mover filter changes the corridor answer: ${s.nTight} stretches`
+      + ` under 1.00 m with it, ${l.nTight} without. lane3/lanewalk/corridor all use the`
+      + ' short window, so their findings are the ones in doubt.');
+  }
+  if (s.worst !== l.worst) {
+    bad.push(`the narrowest point differs by window: ${s.worst} m at ${s.worstAt}`
+      + ` (1.5 s) vs ${l.worst} m at ${l.worstAt} (long).`);
+  }
+  return bad;
+}
+
+// ── --selftest: prove the verdict goes BOTH ways, with no world ───────────
+//
+// POPULATION FLOOR FIRST. A self-test that runs zero cases and prints nothing
+// is the vacuous green this whole item is about, so the case count is asserted
+// before the cases are.
+if (process.argv.includes('--selftest')) {
+  const R = (nTight, worst, worstAt = 'east z -85.75') => ({ nTight, worst, worstAt });
+  const cases = [
+    ['clean — identical answers, no ghosts',
+      { ghosts: [], shortResult: R(0, 1.12), longResult: R(0, 1.12) }, 0],
+    ['ghosts present but the answer did not move — NOT a failure, see verdict()',
+      { ghosts: [{ w: 0.4, d: 0.4, x: 1, z: -20 }], shortResult: R(0, 1.12), longResult: R(0, 1.12) }, 0],
+    // ONE FIELD AT A TIME. This case first read `R(3, 0.88)` against
+    // `R(0, 1.12)` — which moves BOTH fields and so raises two complaints, and
+    // the self-test caught it on its first run. Worth keeping as a note rather
+    // than quietly correcting: a fixture that varies two things cannot tell you
+    // which one the code responded to, and it was my test that was wrong, not
+    // the verdict.
+    ['the count of tight stretches differs, and only that',
+      { ghosts: [], shortResult: R(3, 1.12), longResult: R(0, 1.12) }, 1],
+    ['the narrowest point differs',
+      { ghosts: [], shortResult: R(0, 0.94), longResult: R(0, 1.12) }, 1],
+    ['both differ — two distinct complaints, not one',
+      { ghosts: [], shortResult: R(2, 0.90), longResult: R(0, 1.12) }, 2],
+  ];
+  if (cases.length < 5) { console.log(`SELFTEST FAILED — only ${cases.length} cases`); process.exit(1); }
+  let bad = 0;
+  for (const [name, out, want] of cases) {
+    const got = verdict(out).length;
+    const ok = got === want;
+    if (!ok) bad++;
+    console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${name} — expected ${want} complaint(s), got ${got}`);
+  }
+  // BOTH SIGNS, asserted rather than eyeballed: at least one case that must
+  // pass and at least one that must fail, or the suite proves nothing.
+  const greens = cases.filter((c) => c[2] === 0).length, reds = cases.filter((c) => c[2] > 0).length;
+  if (!greens || !reds) { console.log('SELFTEST FAILED — needs cases of BOTH signs'); process.exit(1); }
+  console.log(`\n${cases.length} cases, ${greens} that must pass and ${reds} that must fail`
+    + ` — ${bad ? `${bad} WRONG` : 'all correct'}`);
+  process.exit(bad ? 1 : 0);
+}
+
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(aim('http://localhost:4184/'), { waitUntil: 'networkidle' });
+const URL = aim('http://localhost:4184/');
+await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p);
+// `reportWorld(page, url)` takes the url and this passed only the page, so the
+// one line whose whole job is saying WHICH WORLD was measured printed
+// "measuring undefined" — the banner that exists for GOTCHAS 48 naming no port
+// at all. Two arguments, not one.
+await reportWorld(p, URL);
 await p.waitForTimeout(800);
 
 const out = await p.evaluate(async (LONG_MS) => {
@@ -88,7 +182,20 @@ console.log();
 const f = r => `${r.nTight} stretches under 1.00 m · narrowest ${r.worst} m at ${r.worstAt}`;
 console.log(`  short window (what corridor.mjs uses):  ${f(out.shortResult)}`);
 console.log(`  long  window:                           ${f(out.longResult)}`);
-console.log(`\ncorridor answer ${out.shortResult.nTight === out.longResult.nTight
-  && out.shortResult.worst === out.longResult.worst ? 'IDENTICAL under both windows' : '** DIFFERS **'}`);
+const bad = verdict(out);
+console.log(`\ncorridor answer ${bad.length ? '** DIFFERS **' : 'IDENTICAL under both windows'}`);
+for (const b of bad) console.log(`  FAIL  ${b}`);
+// `shots/` IS GITIGNORED, so a fresh worktree does not have one — and this
+// write is the last thing before the exit code. Without the mkdir, ghosts.mjs
+// dies on ENOENT and node returns 1, which from the suite is indistinguishable
+// from "the corridor answer differs": a missing DIRECTORY reported as a defect
+// in the world. Measured, not assumed — `mv shots /tmp && node scripts/ghosts.mjs`
+// exits 1 with `ENOENT open 'shots/ghosts.json'` and no verdict line at all.
+// This is GOTCHAS 65's distinction (could not measure ≠ measured and broken)
+// arriving through the back door, and it was found while registering the file
+// in a tier for the first time — nothing had ever run it from a clean checkout.
+mkdirSync('shots', { recursive: true });
 writeFileSync('shots/ghosts.json', JSON.stringify(out, null, 2));
 await b.close();
+// AND IT NOW SAYS SO IN ITS EXIT CODE. See `verdict`.
+process.exit(bad.length ? 1 : 0);

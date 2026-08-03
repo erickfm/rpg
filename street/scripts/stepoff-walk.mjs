@@ -30,13 +30,25 @@
 // walking off the 0.50 m bed floor lost 0.514 m in a single frame, where the
 // bound for that frame is about 0.19 m.
 //
-// THE KERB CASE ASSERTS THE OPPOSITE, ON PURPOSE. A kerb is terrain, not a
-// collider top, and the item requires it to feel exactly as it does today — so
-// this file pins the CURRENT behaviour (a single-frame snap down the 0.14 m
-// kerb) rather than an ideal one. It is a change detector, not an endorsement:
-// if someone later decides terrain drops should fall too, this case fails and
-// makes them say so out loud instead of changing the feel of every pavement in
-// the world silently.
+// THE KERB CASE USED TO ASSERT THE OPPOSITE, ON PURPOSE — AND IT HAS NOW BEEN
+// FLIPPED, WHICH IS THE OUTCOME IT WAS BUILT FOR.
+//
+// Item 112 required the kerb to feel exactly as it did, so this case pinned the
+// CURRENT behaviour (a single-frame snap down the 0.14 m kerb) rather than an
+// ideal one, and its author wrote down why: *"a change detector, not an
+// endorsement: if someone later decides terrain drops should fall too, this case
+// fails and makes them say so out loud instead of changing the feel of every
+// pavement in the world silently."*
+//
+// SO, OUT LOUD. The user, 2026-08-02, item 130: *"i think just make all drops
+// falls then we can work back from there."* (`FEATURE-REQUESTS.md:2715`; the
+// desk's ruling on it is *"no threshold: every drop becomes a fall, kerbs
+// included"*.) The detector fired on the first build of that change, exactly as
+// designed, and this is the answer to it rather than a suppression of it.
+//
+// It is still a detector, now pointed the other way: the kerb must be EASED, and
+// if anyone sets `FALL_MIN_DROP` above a kerb's height this goes red and makes
+// them say so in turn.
 //
 // Usage: SHOT_URL=http://localhost:<port>/ node scripts/stepoff-walk.mjs
 import { chromium } from 'playwright';
@@ -44,6 +56,15 @@ import { chromium } from 'playwright';
 const EYE = 1.62;          // fp.ts's standing eye height
 const G = 14;              // fp.ts's gravity
 const TOL = 0.06;          // how close to a surface's own maxY counts as on it
+// src/main.ts:107 — `Math.min(clock.getDelta(), 0.05)`. The physics NEVER
+// integrates a step longer than this however long the wall clock says the frame
+// took, so a gravity bound computed on raw wall-clock dt is too generous on a
+// slow frame. Case 6 measured a 57.1 ms frame on this machine, where the
+// difference is a 0.136 m bound against a 0.113 m one — and it is the second
+// that is true. Cases 1-5 predate this and still use raw dt; they pass by a
+// wide enough margin that it has never mattered, but it is the same latent
+// hole and it is written down here rather than left for someone to rediscover.
+const DT_CLAMP = 0.05;
 
 const browser = await chromium.launch();
 const p = await browser.newPage({ viewport: { width: 900, height: 600 } });
@@ -307,11 +328,11 @@ if (!await climbBoot()) {
   mustFall('5. walked off the SEDAN BOOT LID', await leave('w'), boot.maxY);
 }
 
-// ── 6. THE KERB IS UNCHANGED — pinned, not endorsed (see the header) ───────
+// ── 6. THE KERB FALLS TOO — flipped for item 130 (see the header) ──────────
 //
-// A kerb is `groundY` terrain, so `heldByTop` is false and the step-off block
-// never runs for it. The pavement is 0.14 m; stepping into the road must still
-// be the immediate snap it has always been, in ONE frame.
+// A kerb is `groundY` terrain. It used to be exempt because the step-off block
+// was gated on `heldByTop`; item 130 removed that gate, so the 0.14 m pavement
+// step is now eased by gravity like every other drop in the world.
 // FIND A REAL KERB FIRST, and measure against the KERB'S OWN HEIGHT — never
 // against the total descent. The first version of this case asked only for "a
 // drop over 0.05 m in some direction" and was answered by the HEAD BOB: `bob`
@@ -341,21 +362,29 @@ if (!kerb) {
       + ` expected the pavement at ${kerb.hi}`);
   } else {
     const t = await leave('w', { budget: 2000 });
-    let biggest = 0;
-    for (let i = 1; i < t.length; i++) biggest = Math.max(biggest, t[i - 1][0] - t[i][0]);
+    let biggest = 0, worstDt = 0;
+    for (let i = 1; i < t.length; i++) {
+      const d = t[i - 1][0] - t[i][0];
+      if (d > biggest) { biggest = d; worstDt = t[i][1]; }
+    }
     const height = kerb.hi - kerb.lo;
-    // A SNAP, as it has always been: one frame carries essentially the whole
-    // kerb. Judged against the kerb's own height, so head bob (0.017 per frame,
-    // measured) cannot satisfy it and cannot break it either.
-    if (biggest < 0.6 * height) {
-      fails.push(`6. THE KERB CHANGED. The ${height.toFixed(3)} m kerb at`
-        + ` (${kerb.x}, ${kerb.z}) used to go down in a single frame; the biggest`
-        + ` frame is now ${biggest.toFixed(3)} m, so it is being eased instead.`
-        + ` Terrain drops are meant to be untouched by the step-off fix — if this`
-        + ` is deliberate, say so and update this case.`);
+    // JUDGED THE SAME WAY CASES 1-5 ARE: against the gravity budget for the
+    // frame that actually happened, never against a nominal 16 ms. A body
+    // leaving a step of height h cannot lose more than sqrt(2gh)*dt + g*dt^2/2
+    // in one frame. Reusing the existing bound rather than inventing a second
+    // rule for the kerb is the point — it is not a special case any more.
+    const dtP = Math.min(worstDt, DT_CLAMP);
+    const bound = Math.sqrt(2 * G * height) * dtP + (G / 2) * dtP * dtP;
+    if (biggest > bound + 1e-6) {
+      fails.push(`6. THE KERB IS STILL A SNAP. The ${height.toFixed(3)} m kerb at`
+        + ` (${kerb.x}, ${kerb.z}) lost ${biggest.toFixed(3)} m in one`
+        + ` ${(worstDt * 1000).toFixed(1)} ms frame, against a gravity bound of`
+        + ` ${bound.toFixed(3)} m. Item 130 requires every drop to fall — check`
+        + ` FALL_MIN_DROP in fp.ts, which must be below a kerb's height.`);
     } else {
-      notes.push(`  OK   6. kerb unchanged — the ${height.toFixed(3)} m kerb at`
-        + ` (${kerb.x}, ${kerb.z}) still goes down in one ${biggest.toFixed(3)} m frame`);
+      notes.push(`  OK   6. the kerb FALLS — the ${height.toFixed(3)} m kerb at`
+        + ` (${kerb.x}, ${kerb.z}) came down at ${biggest.toFixed(3)} m in its`
+        + ` biggest frame, inside a ${bound.toFixed(3)} m gravity bound`);
     }
   }
 }
@@ -372,6 +401,6 @@ if (fails.length) {
   await browser.close();
   process.exit(1);
 }
-console.log('\nok — every raised surface is left as a fall, and the kerb is untouched');
+console.log('\nok — every drop is left as a fall, the kerb included (item 130)');
 await browser.close();
 process.exit(0);

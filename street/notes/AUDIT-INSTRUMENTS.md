@@ -671,6 +671,16 @@ existing. That is `ct/props.ts`'s call, not mine.
 
 ## Why `interiors-walk` failed six times: it needs a DEV server, not a preview
 
+> **⚠ NO LONGER TRUE — retired by item 251, marked here by item 257.** The
+> six failures below really happened and the diagnosis was right at the time.
+> `interiors-walk.mjs` now reads `__ct` only — `__ct.doors()` for the three
+> door sites, `__ct.party()` for `PARTY` — and **runs on the built bundle**:
+> re-measured for item 257 at `vite preview` on port 4590, `interiors-walk
+> church` = **29/29, exit 0**, identical to dev. Kept rather than deleted
+> because the *shape* of the failure (an instrument dying on a world it cannot
+> read, blamed on the port and on another builder's worktree) is the lesson.
+> **Do not act on the "so the rule is … never `vite preview`" line below.**
+
 Worth writing down plainly, because it cost six attempts and I twice blamed the
 wrong thing (the port, then another builder's worktree). Against a preview server
 it dies with:
@@ -1347,6 +1357,15 @@ any night hour is 3 hours" was computed from the stale formula and I am not
 restating it. The periodicity finding belongs to `e0c68e46` and `cd37b59b`, who
 measured it against the real one.
 ## The room suite cannot measure the bundle → `notes/F-room-suite-bundle.md`
+
+> **⚠ CLOSED — all four converted; marked by item 257.** `grep -n
+> "import('/src/"` over those four files returns **7 hits, every one a
+> comment**: none does a runtime source import any more. G's two and
+> `mirror-walk` were converted earlier, `interiors-walk` by item 251, and it
+> scores **29/29, exit 0** on `vite preview`. `notes/F-room-suite-bundle.md`
+> is now history — it explains why the conversion was not a one-line swap,
+> which is worth reading before a similar conversion and worth nothing as a
+> statement about today's world.
 
 `interiors-walk`, `mirror-walk`, `G-rooms-walk` and `G-vice-walk` import a
 SOURCE path and so cannot run against a build. Why that matters, and why

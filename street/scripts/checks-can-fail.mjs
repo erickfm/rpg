@@ -52,17 +52,23 @@ const EXEMPT = {
 // not typed from memory.
 const NO_PROOF_YET = [
   'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
-  'jump-walk', 'gaps', 'feet-check', 'side-night',
+  'jump-walk', 'feet-check', 'side-night',
+  // 'gaps' — MOVED to WITHHELD below. It was never "nobody has looked": w37
+  //   looked, tried, and wrote down why a case cannot be expressed. That reason
+  //   belongs somewhere a reader can see it expire.
   // 'corner-traffic' — CLEARED by w37, item 77: canfail case `corner-lean-into`.
   //
-  // 'unstick-walk' STAYS ON THIS REGISTER, and w37 (item 77) had a working
-  // mutation for it and withheld it deliberately. The check is **already red on
-  // unmutated mainline** — `1/531 traps are still traps`, exit 1, on a real trap
-  // at (8.50, -94.50) the player can reach. canfail scores CAUGHT on any
-  // non-zero exit (GOTCHAS §32), so a case here would certify itself whatever
-  // the mutation did. FIX THE WORLD FIRST; the mutation is written up in
-  // notes/w37-walking-tier-failpaths.md and takes a minute to re-add.
-  'unstick-walk',
+  // 'unstick-walk' — CLEARED by onehundredfour, item 258: canfail case
+  //   `unstick-off`. IT WAS ON THIS REGISTER FOR SIX DAYS FOR A REASON THAT HAD
+  //   EXPIRED. w37 (item 77) had a working mutation and withheld it deliberately
+  //   and correctly — the check was red on unmutated mainline at a phantom trap
+  //   at (8.50, -94.50), and canfail scores CAUGHT on any non-zero exit
+  //   (GOTCHAS §32), so a case would have certified itself whatever it did.
+  //   Then the phantom was diagnosed as unstick-walk.mjs's own rotation-
+  //   blindness and the check went green — and nothing anywhere could notice,
+  //   because the deferral existed only as English prose. That is the whole
+  //   reason WITHHELD below exists. Baseline re-measured green three times
+  //   across two builds before the case was added.
   // 'crowd-net' — CLEARED by w37, item 77: canfail case `crowd-net-inroad`.
   // 'side-walk' — CLEARED by w37, item 77: canfail case `sidewalk-sealed`. It
   // already had a working failing path; nothing had watched it use one.
@@ -87,6 +93,46 @@ const NO_PROOF_YET = [
   'K-seat-lets-you-up', 'O-jail-door-agree',
   'L-slots-inworld', 'L-every-stool-seats-you', 'L-blackjack-inworld',
 ];
+
+// ── guards we CHOSE NOT TO WRITE, and the reason that would end the choice ───
+//
+// ITEM 258, AND THE ONE THING THIS FILE COULD NOT SEE. `unstick-walk` sat on the
+// register above for six days carrying a deferral that had already expired.
+// w37 had a working mutation for it and withheld it — correctly, because the
+// check was red on unmutated mainline and canfail scores CAUGHT on any non-zero
+// exit, so the case would have certified itself. Then the world was fixed. The
+// check went green. Nobody came back.
+//
+// **Nothing could have told them to.** This file reports whether a row DECLARES
+// a failing path. It cannot know a case was written, tested, and held back for
+// a temporary reason — that fact lived in an English comment in canfail.mjs,
+// where no instrument reads. A withheld guard therefore stays withheld for ever,
+// silently, after its reason evaporates. NO_PROOF_YET above cannot carry it
+// either: that list means "nobody has looked yet", which is the opposite claim.
+//
+// So: a name here is a guard somebody looked at, decided against, and wrote down
+// WHY and WHAT WOULD CHANGE THE ANSWER. The suite prints the block below on
+// every run, green or red, with the age of each deferral in days — because the
+// failure this fixes is not a wrong entry, it is an entry nobody re-reads. Six
+// days was enough to lose one. Deliberately no automatic expiry: a machine
+// cannot tell that a phantom trap was diagnosed away. A human reading
+// "withheld 41 days ago because X" can, in about four seconds.
+//
+// KEEP IT SMALL. If you are tempted to add a name here because writing the case
+// is tedious, it belongs in NO_PROOF_YET instead — this list is for cases that
+// are IMPOSSIBLE or MISLEADING to write, not merely unwritten.
+const WITHHELD = {
+  gaps: {
+    since: '2026-07-25',
+    why: 'no single find/replace can express it — putting a vehicle on an [E] spot '
+       + 'takes TWO coordinates (x from PARK_SNUG, z from the seeded stream), and '
+       + 'w37\'s one-coordinate attempt correctly stayed green with the car 2.6 m '
+       + 'away on the carriageway. A case that does not break the thing tests nothing.',
+    expiresWhen: 'canfail can apply more than one edit per case, or the parking draw '
+       + 'takes its spot from a single constant',
+    where: 'scripts/canfail.mjs, above the carstate-bay case',
+  },
+};
 
 const src = readFileSync('scripts/checks.mjs', 'utf8');
 const body = src.slice(src.indexOf('const CHECKS = ['));
@@ -121,19 +167,55 @@ if (!rows.length) {
   process.exit(2);
 }
 
-const known = new Set([...Object.keys(EXEMPT), ...NO_PROOF_YET]);
+const WITHHELD_NAMES = Object.keys(WITHHELD);
+const known = new Set([...Object.keys(EXEMPT), ...NO_PROOF_YET, ...WITHHELD_NAMES]);
 const undeclared = rows.filter((r) => !r.declares && !known.has(r.name)).map((r) => r.name);
 // …and the debt register must not rot either: a name that has since been given a
 // selftest, or removed from the suite, should come off the list.
 const registry = new Set(rows.map((r) => r.name));
-const stale = NO_PROOF_YET.filter((n) => !registry.has(n) || rows.find((r) => r.name === n)?.declares);
+const settled = (n) => !registry.has(n) || rows.find((r) => r.name === n)?.declares;
+const stale = NO_PROOF_YET.filter(settled);
+// THE SAME ROT TEST FOR WITHHELD, and it is the load-bearing half of the new
+// convention. A withheld guard that has since been WRITTEN — the row now
+// declares a path — must come off this list, or the next reader is told a case
+// is missing that is sitting right there. That is precisely the state
+// `unstick-walk` would have been left in had item 258 only added the case.
+const staleWithheld = WITHHELD_NAMES.filter(settled);
+// …and a deferral with no reason is the prose comment all over again, wearing a
+// data structure. Refuse it rather than print a blank line.
+const thin = WITHHELD_NAMES.filter((n) => !WITHHELD[n]?.why || !WITHHELD[n]?.since || !WITHHELD[n]?.expiresWhen);
+// A name cannot be both "nobody has looked" and "somebody looked and declined".
+const doubleCounted = WITHHELD_NAMES.filter((n) => NO_PROOF_YET.includes(n));
 
 for (const [name, why] of Object.entries(EXEMPT)) console.log(`  exempt  ${name} — ${why}`);
 console.log(`\n  ${rows.length} registered checks; ${rows.filter((r) => r.declares).length} declare a failing path`);
 console.log(`  ${NO_PROOF_YET.length} on the item-70 debt register (no proof yet)`);
+console.log(`  ${WITHHELD_NAMES.length} WITHHELD — a guard somebody decided not to write`);
 
-if (!undeclared.length && !stale.length) {
-  console.log('\nchecks-can-fail: every registered check declares a failing path, is exempt, or is on the register');
+// ── the WITHHELD block, printed on EVERY run, green or red ──────────────────
+//
+// Not gated on failure, and that is the entire mechanism. A deferral that only
+// surfaces when something else is already broken is a deferral nobody reads —
+// which is how six days passed on `unstick-walk`. The age in days is the part a
+// human acts on: "withheld 9 days ago because the check was red" invites exactly
+// the question "is it still red?", and that question is thirty seconds to
+// answer. Derived from `since` rather than typed, so it cannot go stale itself.
+if (WITHHELD_NAMES.length) {
+  console.log('\nWITHHELD — guards deliberately not written. Re-read these; a reason can expire:\n');
+  const today = Date.now();
+  for (const n of WITHHELD_NAMES) {
+    const w = WITHHELD[n];
+    const days = Math.floor((today - Date.parse(w.since)) / 86400000);
+    console.log(`  ${n}  (withheld ${w.since}, ${days} day${days === 1 ? '' : 's'} ago — ${w.where})`);
+    console.log(`      why:  ${w.why}`);
+    console.log(`      ends: ${w.expiresWhen}\n`);
+  }
+  console.log('  If one of those reasons no longer holds, WRITE THE CASE and delete the entry.');
+  console.log('  A withheld guard is invisible to every other instrument here — that is why it is printed.');
+}
+
+if (!undeclared.length && !stale.length && !staleWithheld.length && !thin.length && !doubleCounted.length) {
+  console.log('\nchecks-can-fail: every registered check declares a failing path, is exempt, is on the register, or is WITHHELD with a reason');
   process.exit(0);
 }
 if (undeclared.length) {
@@ -143,12 +225,28 @@ if (undeclared.length) {
 Give it a failing path, or say why it has none:
   · a --selftest in the script, and \`true\` in its CHECKS row, or
   · a named mutation in scripts/canfail.mjs, and \`['case']\` in the row, or
-  · a line in EXEMPT in this file, WITH A REASON.
+  · a line in EXEMPT in this file, WITH A REASON, or
+  · a line in WITHHELD in this file, with a reason AND what would end it.
 A check nothing has watched fail is indistinguishable from one that works.`);
 }
 if (stale.length) {
   console.error('\nTHE DEBT REGISTER IN THIS FILE HAS GONE STALE — these no longer belong on it:\n');
   for (const n of stale) console.error(`  ${n} — now declares a failing path, or is no longer registered`);
   console.error('\nRemove it from NO_PROOF_YET. A register that keeps names it has settled stops being read.');
+}
+if (staleWithheld.length) {
+  console.error('\nA WITHHELD GUARD HAS SINCE BEEN WRITTEN — the deferral is over:\n');
+  for (const n of staleWithheld) console.error(`  ${n} — now declares a failing path, or is no longer registered`);
+  console.error('\nDelete it from WITHHELD. Leaving it says a case is missing that is sitting right there.');
+}
+if (thin.length) {
+  console.error('\nA WITHHELD ENTRY WITH NO REASON IS THE PROSE COMMENT AGAIN:\n');
+  for (const n of thin) console.error(`  ${n} — needs all three of since, why, expiresWhen`);
+  console.error('\nThe point of this list is that a reader can tell when a reason has expired.');
+}
+if (doubleCounted.length) {
+  console.error('\nBOTH WITHHELD AND ON THE DEBT REGISTER — these are opposite claims:\n');
+  for (const n of doubleCounted) console.error(`  ${n} — "nobody has looked" and "somebody looked and declined"`);
+  console.error('\nPick one. NO_PROOF_YET is unexamined debt; WITHHELD is an examined decision.');
 }
 process.exit(1);
