@@ -112,6 +112,34 @@ knowing before anyone acts on that number.
   are outside the diner and I did not investigate them. Given the yaw artifact
   above, **nobody should quote 109 as a defect count until the harness is
   fixed.**
+
+  > ### ⚠ CORRECTED 2026-08-03 by worker ninetysix, item 255
+  >
+  > **The conclusion is right and the cause named here is wrong, so the fix
+  > proposed above would not have moved the number.** Measured before changing
+  > anything:
+  >
+  > - **The approach yaw is not the cause.** Four headings over 28 seats: `yaw 0`
+  >   — the constant blamed here — raised the seat's own prompt **27/28 (96%)**,
+  >   the *same* as aiming at the seat
+  >   (`scripts/probes/w96-seat-aim-convention.mjs`).
+  > - **The 109 are dominated by one thing.** 85 are `seated eye is N`, and **83
+  >   of those are off by an identical 0.350 m — every one of them "sit at the
+  >   slot"**. An identical constant across 83 seats is never 83 broken seats.
+  > - **It is a READ-TOO-LATE, not a defect.** The harness called `camY()` after
+  >   its four 200 ms movement holds — 800 ms after sitting. A slot stool is
+  >   *correct* on the first frame (1.369 against a wanted 1.395) and then sinks
+  >   to 1.050 over ~340 ms: the world's FOCUS pass easing the camera onto the
+  >   machine's screen (`crosstown.ts:1234-1247`), which is the integrated
+  >   overlay the user asked for. A plain chair never moves
+  >   (`scripts/probes/w96-seat-eye-settles.mjs`).
+  >
+  > Also: the heading proposed above, `atan2(dx, -(dz))`, is **the wrong
+  > convention** — this world uses `atan2(dx, dz)`, 0 facing +z — and aiming at
+  > `at` rather than `pose` is noise, because the standing point is chosen inside
+  > `at`'s own radius and averages 0.18 m from it.
+  >
+  > The corrected figure is in `notes/ninetysix-item255-seats-walk-artifact.md`.
 - The diner booths sit behind a documented dispatch history in
   `seats-walk.mjs:131-147` (back-to-back booths 0.67 m apart, overlapping
   triggers, "nearest live spot wins"). That fix is holding — my [E] test landed
