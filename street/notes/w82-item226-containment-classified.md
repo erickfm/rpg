@@ -136,11 +136,21 @@ about, sitting inside the file's own coverage guard.
 Leg 6 is now a function called by **both** loops, and its sampler asks the
 registry for `cz` the way it already asked for `cx`.
 
-**I deliberately did NOT add a storey bound, having tried it first.** It looks
-obviously right — 301's ±8 m box takes in the flats above and below — and there
-is no constant that does not break something else
-(`scripts/probes/w82-storey-extent.mjs`, mesh origins relative to each room's
-own floor):
+### …and running it immediately reported a red that was NOT the flat
+
+First run for apt301: **`1/156 materials dimmed`**. That is the moment this item
+could have shipped a false accusation against a room, so I located the material
+before believing the count (`scripts/probes/w82-which-material-dims.mjs`). It was
+at **y 8.23 — 2.83 m above 301's floor, and 12 cm above the floor slab at 8.11
+that is the next storey.** It is in 302.
+
+The cause is the sample box: the belt samples a hardcoded **±8 m**, which is
+roughly room-sized for a shop and **five times** a flat measuring 3.06 × 3.36.
+It was judging the whole walk-up.
+
+**A single storey constant cannot fix it**, which I measured rather than assumed
+(`scripts/probes/w82-storey-extent.mjs`, mesh origins relative to each room's own
+floor):
 
 ```
 ten belt rooms   0.00 .. +3.60      church  0.01 .. +9.50
@@ -148,10 +158,39 @@ library          0.00 .. +6.40      apt301  -7.90 .. +5.25
 ```
 
 Any bound tight enough to isolate one flat of a 2.7 m stack throws away the
-church's nave and the library's upper floor — reddening two rooms that are fine
-to sharpen a third. And not bounding is cheap here: the leg asserts *no interior
-material dims after dark*, so judging the neighbours' materials **broadens** the
-population rather than corrupting it.
+church's nave and the library's upper floor.
+
+**So the box is DERIVED, and only for off-belt rooms:**
+
+- **x/z** — the room's own published half-extent, capped at the belt's 8 so no
+  room can lose coverage it has today. **No margin**, and that is the point: a
+  first cut allowed half-extent + 0.5 m and the leg then judged a box at
+  x 200.25, which is 1.85 m from a centre whose room reaches 1.53 m — 0.32 m
+  **outside** the flat, on the landing. The margin was mine; the extent is the
+  room's.
+- **y** — the lowest floor-shaped mesh above **head height** (floor + 1.6 m) in
+  the room's own footprint. For a stacked building that is the ceiling. The
+  1.6 m cut is what stops a table qualifying: the casino has floor-shaped meshes
+  at 0.83 m, so bounding a *belt* room this way would clip it at knee height —
+  which is exactly why this is off-belt only. Derivability is itself asserted
+  (`the room's own ceiling is derivable…`), so a room where it cannot be found
+  says so instead of silently sampling the building.
+
+**The belt passes no box at all and is byte-for-byte unchanged.** A room-sized
+box measurably moves what twelve passing rooms judge — the hotel goes 58 → 39
+materials — and this item has no business moving that. Full 13-room comparison in
+`scripts/probes/w82-sample-box-rules.mjs`.
+
+Result: **apt301 9/9, `0/64 materials dimmed`, judged 64 of 64.** Inside the
+flat's own published footprint, below its own derived ceiling, nothing dims.
+
+> **A reviewer should check this rather than take it.** I tightened a leg's
+> scope three times and it went green on the third. Each tightening was to a
+> value the room publishes rather than one I chose, and I identified the exact
+> material each rule excluded and where it was — both were provably outside the
+> flat. But the shape of "narrow the scope until it passes" is the shape of a
+> loosened check, and the two are told apart only by whether the excluded things
+> really were outside. Both coordinates are above; they are checkable.
 
 ## Also fixed, same class
 
@@ -163,18 +202,82 @@ GOTCHAS 86, one field over.
 
 ---
 
+## Verified
+
+Full suite, 13 rooms, against dev on 4380 (`interiors-walk` cannot run on a built
+preview — item 164):
+
+```
+364/369 passed          (before this item: 362/368)
+288 containment runs over 12 belt rooms — 0 ended with no floor
+  11 rooms  "24 runs from 6 spread points, 0 ended with no floor"
+   1 room   "…0 ended with no floor, 1 crossed a declared party doorway"  (casino)
+apt301      9/9 — 0/64 materials dimmed, judged 64 of 64
+```
+
+- `npm run typecheck` — **0**
+- `node scripts/health.mjs` — **0, `WORLD OK — __ct initialised`**
+- `npm run sweep` — **`sweep findings: none (0 STATION MISS, 0 COVERAGE)`**
+- `git status src/proto/` — **clean; no world file was changed**
+
+**The 5 remaining failures are all pre-existing and none is containment:**
+`jail: the room keeps its own light after dark` (below), and
+`the customer station comes from the world, not from memory` at casino, hotel,
+pawn and tax — the fallback that `notes/w71-vice-escape-is-a-doorway.md` already
+records as pre-existing and unrelated. Exit 1 on any single-room run is the
+standing `[interior:hotel] NO BUILDING NAME` kit warning.
+
+### A caution about this run, and about mine generally
+
+**My dev server was killed mid-run by something outside this worktree**, and the
+suite kept going against the page it had already loaded. I discarded that run and
+re-ran from a fresh server — but I only did so because I happened to notice the
+notification. **The floor predicate's population floor cannot catch this**: it
+runs once at startup, so a world that dies at room 7 still had 359 floor meshes
+at room 0. A run that loses its server midway currently produces a full,
+confident, green-looking report. Worth a row; it is the desk's own fourth
+concern and the honest answer is that the floor does **not** make it impossible.
+
+---
+
 ## FOR THE DESK — found and not fixed
 
-1. **`w75-site-contained.mjs` should import `scripts/lib/floors.mjs`.** It holds
-   the inline original of that predicate; there are now two copies, which is the
-   defect BUILDER-BRIEF §8 names. One-line change, but to a registered check that
-   is correctly RED at the lot and outside item 226 (§9). **Do not let anyone
-   "fix" that red while doing it.**
+1. **THERE ARE NOW THREE ANSWERS TO "IS THERE A FLOOR HERE", AND THEY SHOULD BE
+   ONE.** Merging mainline after this item landed item 230's
+   `scripts/world-contained.mjs`, so the world now holds:
+
+   | where | how it decides |
+   |---|---|
+   | `scripts/w75-site-contained.mjs` (item 215) | mesh bounding boxes, inline |
+   | `scripts/lib/floors.mjs` (this item) | the same, hoisted |
+   | `scripts/world-contained.mjs` (item 230) | **a raycast** |
+
+   The first two are the same code twice, which is the defect BUILDER-BRIEF §8
+   names — pointing w75 at the lib is one line. The third is a **different
+   method**, and that is the more interesting one: nobody has checked that a
+   raycast and a bounding-box test agree about the same point. If they disagree
+   anywhere, one of the three containment checks is wrong and we do not know
+   which. **Worth a row: run both predicates over the same point set and diff.**
+   I did not do it — `w75-site-contained.mjs` is correctly RED at the lot and
+   outside item 226 (§9), and **do not let anyone "fix" that red while doing
+   this.**
 2. **`RoomDims` should publish the room's HEIGHT**, the way item 192 made it
    publish `cx`. It is the missing number that would let leg 6 bound its sample
    box per storey instead of not bounding it. `ct/interior.ts`, not named by 226.
-3. **`casino: the customer station comes from the world, not from memory` FAILS**
+3. **THE JAIL DIMS ONE MATERIAL AT NIGHT — a real red, and NOT mine.**
+   `jail: the room keeps its own light after dark` reports `1/97`, stably (2 runs
+   of 2, `0 excluded as self-animating`). Located
+   (`scripts/probes/w82-which-material-dims.mjs`): a mesh at
+   **(1006.37, 2.42, −5.60)**, `#f0f3f6 → #6c6f76`. That is **inside the jail's
+   own published footprint** (cx 1000, half-width 6.40 — the mesh is 6.37 out),
+   so unlike apt301's two candidates this one really is the room's.
+   **My changes cannot have caused it**: the jail takes the belt path, whose box
+   is unchanged at 8 × 8 with no y bound, and whose only edit is `wp.z - cz` with
+   `cz === 0` for every belt room. This is the night sweep reaching an interior,
+   which is exactly what the leg exists to catch. **Worth its own row.**
+4. **A run whose server dies midway still reports green.** See the caution above.
+5. **`casino: the customer station comes from the world, not from memory` FAILS**
    — pre-existing, unrelated to containment, and already named as such in
    `notes/w71-vice-escape-is-a-doorway.md`. Not mine, not touched.
-4. **`[interior:hotel] NO BUILDING NAME`** — the standing kit warning the builder
+6. **`[interior:hotel] NO BUILDING NAME`** — the standing kit warning the builder
    brief already lists as expected.
