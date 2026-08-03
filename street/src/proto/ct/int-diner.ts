@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
-import { buildRoom } from './interior';
+import { buildRoom, seatTaken } from './interior';
 import { type DoorDecl } from './doors';
 
 // The DINER, inside.
@@ -273,15 +273,31 @@ export function buildDiner(ctx: CtxBuild): void {
       const backr = new THREE.Mesh(new THREE.BoxGeometry(BACK_T, 0.62, BENCH_L), vinylM);
       put(backr, bx + sx * (HALF + BACK_T / 2), 0.76, BZ);
       // …and you can sit on it, facing your companion across the table
+      //
+      // Hard against the aisle end, and the margin is thin: the bank's
+      // collider pads out to 1.38 and a seat at +0.45 sits 0.87 from it
+      // against a 0.85 trigger — two centimetres short, and the prompt
+      // never appears. +0.22 gives 0.64.
+      //
+      // The SAME expressions the customer below is placed from, so the two can
+      // never drift apart: `seatTaken` matches on world coordinates, and a seat
+      // registered anywhere else would stop suppressing the moment the booth
+      // geometry moved.
+      const seatWx = room.wx(bx + sx * (TABLE_W / 2 + BENCH_W / 2));
+      const seatWz = room.wz(BZ - BENCH_L / 2 + 0.22);
       ctx.seat({
-        x: room.wx(bx + sx * (TABLE_W / 2 + BENCH_W / 2)),
-        // Hard against the aisle end, and the margin is thin: the bank's
-        // collider pads out to 1.38 and a seat at +0.45 sits 0.87 from it
-        // against a 0.85 trigger — two centimetres short, and the prompt
-        // never appears. +0.22 gives 0.64.
-        z: room.wz(BZ - BENCH_L / 2 + 0.22),
+        x: seatWx,
+        z: seatWz,
         yaw: sx < 0 ? Math.PI / 2 : -Math.PI / 2,   // across the table
-        h: 0.45, r: 0.85, ok: room.inside, label: 'take a booth seat',
+        h: 0.45, r: 0.85, label: 'take a booth seat',
+        // …AND NOT ON TOP OF THE CUSTOMER. Both figures below sit at 0.00 m
+        // from one of these places, and the seat used to offer itself anyway:
+        // `ok` tested only `room.inside`. The user, of the church:  *"if you sit
+        // in his pew you sit where he sits and that just breaks immersion."*
+        // Same shape as `int-jail.ts` — resolved through `ok` at QUERY time, not
+        // filtered here, because this loop runs BEFORE `room.person` claims the
+        // seat and a registration-time test would read an empty registry.
+        ok: () => room.inside() && !seatTaken(seatWx, seatWz),
       });
       if (bx === OCCUPIED) {
         // seat top is the bench's 0.45; the hip origin goes there, and
