@@ -228,6 +228,115 @@ function blockInput(): () => void {
   return () => { for (const k of BLOCKED) window.removeEventListener(k, guard, true); };
 }
 
+// ── `[E]` OPENS A MACHINE AND `[E]` CLOSES IT — so one physical key drives ──
+// both edges of a toggle, and the press that does one must never be read as
+// the press that does the other.
+//
+// THE BOUNCE IS REAL IN BOTH DIRECTIONS, and neither is theoretical:
+//
+//   · CLOSING. `crosstown.ts:2038` reads `E` as an edge off a held-keys Set,
+//     once per rendered frame. Closing tears the gate down, so the auto-repeat
+//     `keydown`s of a key the player is STILL HOLDING land in the world and
+//     re-open the machine he just left.
+//   · OPENING. The gate goes up while the opening `E` is still down, and this
+//     file now reads `E` at the gate as "close" — so holding `E` for much over
+//     the system's repeat delay would open a machine and immediately shut it.
+//
+// `dismissedAt` in `makePanel` does not cover either. It is 500 ms, the same
+// order as a typical auto-repeat delay, so it is a race rather than a rule; it
+// guards only the panel's own `open()`, while the spot's `act()` — which may
+// also SEAT the player — runs regardless.
+//
+// THE RULE INSTEAD: THE KEY MUST BE PHYSICALLY RELEASED BEFORE IT ACTS AGAIN.
+// While latched, every `keydown` for that key is swallowed at capture and the
+// real `keyup` disarms it. A timer cannot substitute — `down` → 90 ms → `up`
+// is how the checks drive `[E]`, so a latch that expired on a clock would pass
+// every check and still fail a human leaning on the key.
+let latchedKey: string | null = null;
+let latchTimer = 0;
+
+/** Is this key held down FOR REAL, right now? */
+const physical = new Set<string>();
+function trackPhysical(e: Event): void {
+  // SYNTHETIC RELEASES DO NOT COUNT. `releaseHeld()` fires a `keyup` for every
+  // key in `HELD_KEYS` to clear main.ts's Set, but the player's finger is still
+  // on the button — believing that keyup is how the open-side latch would miss
+  // the very case it exists for. Real input is trusted; ours is not.
+  if (!(e as KeyboardEvent).isTrusted) return;
+  const k = (e as KeyboardEvent).key?.toLowerCase();
+  if (!k) return;
+  if (e.type === 'keydown') physical.add(k); else physical.delete(k);
+}
+if (typeof window !== 'undefined') {
+  // Registered at module load, which puts it AHEAD of every gate in capture
+  // order — listeners on one target in one phase run in registration order, and
+  // the gate stops propagation. It only ever records; it never swallows.
+  const OBS = { capture: true, passive: true } as const;
+  window.addEventListener('keydown', trackPhysical, OBS);
+  window.addEventListener('keyup', trackPhysical, OBS);
+}
+
+function latchSeen(e: Event): void {
+  if (!latchedKey || (e as KeyboardEvent).key?.toLowerCase() !== latchedKey) return;
+  // ONLY A REAL RELEASE DISARMS THIS, and that guard is the whole latch.
+  //
+  // `releaseHeld()` fires a synthetic `keyup` for every key in `HELD_KEYS` — `e`
+  // among them — and it runs immediately AFTER the open-side latch is armed. So
+  // without this line the latch disarmed itself microseconds after arming, the
+  // first auto-repeat sailed through, and a machine opened with a normal human
+  // press shut itself again. Measured, not reasoned: `__hud.latched()` read
+  // `null` one frame after an open that had just called `latch('e')`.
+  if (!(e as KeyboardEvent).isTrusted) return;
+  // THE RELEASE IS NEVER SWALLOWED — see the note on `HELD_KEYS`: eat a keyup
+  // and you strand the key down forever, and the player wakes up walking.
+  if (e.type === 'keyup') { unlatch(); return; }
+  swallow(e);
+}
+
+function unlatch(): void {
+  if (!latchedKey) return;
+  latchedKey = null;
+  clearTimeout(latchTimer);
+  window.removeEventListener('keydown', latchSeen, true);
+  window.removeEventListener('keyup', latchSeen, true);
+}
+
+/**
+ * Hold `k` inert until the player lets go of it.
+ *
+ * The timeout is a LEAK STOP and not the mechanism: if the window loses focus
+ * between the press and the release, the `keyup` is delivered to somebody else
+ * and never arrives, which would otherwise leave `E` dead for the rest of the
+ * session. It is long enough that no held key reaches it in normal play.
+ */
+function latch(k: string): void {
+  unlatch();
+  latchedKey = k;
+  window.addEventListener('keydown', latchSeen, CAP);
+  window.addEventListener('keyup', latchSeen, CAP);
+  latchTimer = window.setTimeout(unlatch, 2000) as unknown as number;
+}
+
+/** The key that leaves a machine. `[E]` got you in; `[E]` gets you out. */
+const EXIT_KEY = 'e';
+/**
+ * WHAT THE CAPTION MAY HONESTLY PROMISE, given what the panel is doing: the bare
+ * key name, for testing whether a hand-written hint already mentions it, and the
+ * player-facing stamp, for drawing.
+ *
+ * THE STAMP IS BRACKETED BECAUSE `[E]` IS ALREADY HOW THIS WORLD NAMES THAT KEY.
+ * `hud.prompt` writes `[E] <label>` over every spot the player can use, so the
+ * caption and the prompt are now the same affordance said the same way.
+ *
+ * The first cut printed a bare `E` and it read badly — judged by looking at it,
+ * not by reasoning about it. The slots strip came out as
+ * `SPACE spin · B bet · M max · I insert $5 · C cash out · E`, where every other
+ * token is a key AND a verb and the last one was neither; it scans as a list
+ * that got cut off rather than as the way out. Hence the bracket and the verb.
+ */
+const exitKey = (spec: PanelSpec): string => (spec.typing?.() ? 'ESC' : 'E');
+const exitStamp = (spec: PanelSpec): string => `[${exitKey(spec)}]`;
+
 // ══ THE PANEL FRAMEWORK ═══════════════════════════════════════════════════
 //
 // THREE full-screen interfaces are being built at once — the slots machine
@@ -402,8 +511,29 @@ export interface PanelSpec {
   hint?: () => string;
   /** paint the screen. Origin is the screen's top left; `w`/`h` are yours. */
   draw: (g: CanvasRenderingContext2D, w: number, h: number) => void;
-  /** a keystroke, already lower-cased. ESC is handled for you. */
+  /** a keystroke, already lower-cased. ESC and `[E]` are handled for you. */
   key?: (k: string, e: KeyboardEvent) => void;
+  /**
+   * "I AM EATING TEXT RIGHT NOW, SO `E` IS A LETTER AND NOT THE EXIT."
+   *
+   * `[E]` closes every machine view by default — the user's instruction, and
+   * the key that opened it is the key that should shut it. That is wrong for
+   * exactly one thing in this world: a field you TYPE into. The library
+   * terminal's catalogue is one (`library-pc.ts:377` takes any single
+   * character), and a framework that stole `e` from it would make *Emma*,
+   * *Frankenstein* and *The Republic* unsearchable while ejecting the player
+   * out of the machine mid-word.
+   *
+   * So a panel that consumes text says so, per FRAME rather than once, because
+   * the terminal only types on one of its three screens. While this returns
+   * true, `e` is passed to `key()` like any other letter and **ESC is the way
+   * out** — which is the whole reason the framework keeps Escape as well as
+   * `[E]`. The caption follows this automatically, so it cannot advertise a
+   * key that will not work.
+   *
+   * Omit it and `[E]` closes, which is what every machine wants.
+   */
+  typing?: () => boolean;
   /** the wheel: +1 forward, −1 back */
   wheel?: (dir: 1 | -1) => void;
   onOpen?: () => void;
@@ -620,10 +750,24 @@ function gate(e: Event): void {
   }
   if (e.type === 'keydown') {
     const k = (e as KeyboardEvent).key.toLowerCase();
+    // A KEY STILL HELD FROM THE PRESS THAT GOT US HERE DOES NOTHING. Checked
+    // here as well as in `latchSeen` so the outcome cannot depend on which of
+    // two capture listeners the browser runs first — both mean "swallow it".
+    if (k === latchedKey) { swallow(e); return; }
     // ESC ALWAYS CLOSES, from every panel, whatever the caller does. A player
     // who cannot get out of a machine is stuck in the world, and no individual
-    // author should be able to forget this.
-    if (k === 'escape') p.close();
+    // author should be able to forget this. It stays even though `[E]` is now
+    // the advertised exit: a second way out costs nothing, and this project's
+    // worst bug is a view you cannot leave.
+    if (k === 'escape') { p.close(); latch(k); }
+    // …AND `[E]`, WHICH IS THE ONE THE PLAYER IS TOLD ABOUT. The user: *"instead
+    // of getting out of the atm view or the slots or literally whatever.
+    // instread of using esc for that lets make it e."* It belongs here, in the
+    // one gate every machine already goes through, rather than in each machine
+    // — the ATM, the slots, blackjack, the bank desk, the letters and the
+    // pockets all get it from this line and none of them had to be edited.
+    // `typing` is the single exception; see `PanelSpec.typing`.
+    else if (k === EXIT_KEY && !p.spec.typing?.()) { p.close(); latch(k); }
     else p.spec.key?.(k, e as KeyboardEvent);
   } else if (e.type === 'wheel') {
     p.spec.wheel?.((e as WheelEvent).deltaY > 0 ? 1 : -1);
@@ -792,7 +936,16 @@ export function makePanel(spec: PanelSpec): Panel {
         // `library-pc.ts` prints 'ESC step back' itself, because it also
         // uses TAB for a second, narrower kind of "back" and wanted the two
         // told apart. Appending a second ESC there would just repeat it.
-        cap.textContent = !label ? 'ESC' : /esc\b/i.test(label) ? label : `${label}   ·   ESC`;
+        // THE CAPTION IS DERIVED FROM THE RULE, never typed beside it, so it
+        // cannot promise a key the gate will not honour: `E` normally, `ESC`
+        // on a panel that is eating text and has therefore given `e` up.
+        // The dedupe tests the BARE KEY, not the decorated stamp: a caller that
+        // already wrote its own `ESC step back` must not be given a second one.
+        const key = exitKey(spec);
+        const way = `${exitStamp(spec)} leave`;
+        cap.textContent = !label ? way
+          : new RegExp(`\\b${key}\\b`, 'i').test(label) ? label
+            : `${label}   ·   ${way}`;
       }
       return;
     }
@@ -850,7 +1003,7 @@ export function makePanel(spec: PanelSpec): Panel {
     g.fillText(spec.hint ? spec.hint() : '', SX + 4, cy + 9);
     g.textAlign = 'right';
     g.fillStyle = UI.ink;
-    g.fillText('ESC', SX + spec.w - 4, cy + 9);
+    g.fillText(exitStamp(spec), SX + spec.w - 4, cy + 9);
   };
 
   // WHAT THE PLAYER PRESSED ESCAPE ON, and when. A caller that re-opens its
@@ -902,6 +1055,13 @@ export function makePanel(spec: PanelSpec): Panel {
       // careful.
       seatedAtOpen = !!(window as unknown as { __ct?: { seated?: () => unknown } }).__ct?.seated?.();
       livePanel = { spec, close: () => api.close() };
+      // THE `[E]` THAT OPENED THIS MUST NOT ALSO CLOSE IT. The player is almost
+      // certainly still holding the key that got him here, and it auto-repeats;
+      // the gate below now reads `E` as "leave", so without this a machine
+      // opened with a normal human press would shut itself a few hundred
+      // milliseconds later. Armed only when the key is REALLY down, so opening
+      // by any other route leaves `[E]` live immediately.
+      if (physical.has(EXIT_KEY)) latch(EXIT_KEY);
       releaseHeld();                     // let go of anything already held down
       gateUp(true);                      // …and the gate is the freeze, see above
       // DIEGETIC OR NOT IS DECIDED HERE, per open, and it degrades rather than
@@ -1091,46 +1251,139 @@ export function makeHud(purse: Purse): Hud {
   // `sleeve` is the forearm covering (a sweater here); a tee would just leave
   // the forearm as `skin`. The first-person hands (watch + wallet) read from it.
   const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', sleeve: '#3f4a5c', cuff: '#333c4a' };
-  /** canvas width. 176 rather than 120 since the fist arrived: the wrist ends at
-   *  x 104 and the hand needs 72 px beyond it. Height is unchanged — the arm is
-   *  cut by the bottom of the frame, which is what makes it read as YOUR arm. */
-  const WATCH_W = 176;
+  // ── THE ARM, AND THE FOUR NUMBERS THAT HOLD IT IN PLACE ──────────────────
+  //
+  // *"for the watch i would like the rest of the arm (to the left) rendered as
+  // well. should be simple. just a continuation of the arm."*
+  //
+  // It is simple, and it was previously impossible to do safely because the
+  // scale was HIDDEN. The canvas was 176 px wide and displayed at a literal
+  // `width:484px`; 484/176 = 2.75 is the size of a watch pixel on screen and it
+  // appeared in neither number. Widen the canvas and every pixel silently
+  // shrinks. `left: calc(46% + 77px)` carried the same problem — the 77 is
+  // `(176-120)/2 x 2.75`, the compensation for the last time this canvas grew,
+  // and nothing said so.
+  //
+  // So the scale is named, and the two positioning numbers are DERIVED from it.
+  const WATCH_S = 2.75;                    // CSS px per canvas px
+  /** the wrist-and-fist, unchanged: the wrist ends at x 104 and the hand needs
+   *  72 px beyond it. Every pixel of what the user already has is in here. */
+  const WATCH_HAND = 176;
+  /**
+   * The forearm added to the LEFT, in canvas px. Nothing is drawn to the right.
+   *
+   * DERIVED FROM THE ONE THING IT HAS TO DO — reach the edge of the frame. The
+   * canvas's left edge lands at `0.46V - 165 - WATCH_S x WATCH_ARM` for a
+   * viewport `V` wide (the `46%`, the two halves of `translateX(-50%)`, and the
+   * `left` compensation below all fold into that), so
+   *
+   *     WATCH_ARM >= (0.46 V - 165) / 2.75      →  1280: 155   1920: 262
+   *                                                2560: 369   3840: 583
+   *
+   * 600 covers every viewport up to 3840 with room over. It costs a 776 x 72
+   * canvas — 224 kB, repainted once a minute — and anything past the frame edge
+   * is simply clipped by the viewport, which is what "runs off the edge" means.
+   * Overflow to the LEFT never produces a scrollbar; the probe asserts it.
+   */
+  const WATCH_ARM = 600;
+  const WATCH_W = WATCH_ARM + WATCH_HAND;
+  // GROWING LEFT MOVES TWO THINGS, AND BOTH ARE CANCELLED HERE. The element is
+  // centred by `translateX(-50%)` and rotated about its own middle, so adding
+  // `WATCH_ARM` canvas px on the left would (a) slide everything right by half
+  // the added width and (b) swing the watch UP, because the fist would suddenly
+  // be a metre from the pivot instead of a hand's breadth. (b) is the one that
+  // is easy to miss: it is silent in the CSS and it moves the exact thing the
+  // user said not to move.
+  //
+  //   · `left` gives back `WATCH_ARM x WATCH_S / 2`, which is (a) exactly.
+  //   · `transform-origin` pins the pivot to where the element's middle USED to
+  //     be. Only the left side grew, so that point is a fixed `WATCH_HAND/2`
+  //     canvas px in from the RIGHT edge — hence `calc(100% - …)`, which stays
+  //     true whatever `WATCH_ARM` becomes.
+  //
+  // Work the algebra through and every term in `x` and `y` cancels: a pixel that
+  // existed before lands on the same screen pixel after. That is checked rather
+  // than argued — `scripts/probes/w57-watch.mjs` reads the LCD's bounding box
+  // off the live element both ways round.
+  //
+  // The `46%` is the user's own: *"can we move the watch arm thing as a whole
+  // over to the left a little bit?"* (2026-08-02). It was `52%`. Untouched.
+  const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
+  const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
+  const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${72 * WATCH_S}px;image-rendering:pixelated;display:block;`;
+  const WRAP_CSS = 'position:fixed;'
+    + `left:calc(46% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
+    + `transform-origin:calc(100% - ${WATCH_PIVOT}px) 50%;`
+    + 'transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
     watchWrap = document.createElement('div');
     watchWrap.id = 'ct-watch';
-    // WIDER CANVAS, SAME WATCH POSITION. The canvas grew 120 -> 176 to make room
-    // for the hand; the element is centred with translateX(-50%), so growing it
-    // to the right would have slid the watch 77 px to the LEFT. `left` moves the
-    // same 77 px the other way to cancel it exactly, so the watch face lands
-    // where it has always landed and only the hand is new.
-    // LEFT OF CENTRE, on the user's own eye: *"can we move the watch arm thing
-    // as a whole over to the left a little bit?"* (2026-08-02). It sat at
-    // `52% + 77px` — right of centre by half a screen-width's worth of offset,
-    // so the wrist crowded the middle of the frame. 46% keeps it clearly on the
-    // near arm without reaching the edge. One number, and the whole arm moves
-    // because the cuff, the strap and the face are all inside `watchWrap`.
-    watchWrap.style.cssText = 'position:fixed;left:calc(46% + 77px);bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
+    watchWrap.style.cssText = WRAP_CSS;
     watchCv = document.createElement('canvas');
     watchCv.width = WATCH_W; watchCv.height = 72;
-    watchCv.style.cssText = 'width:484px;height:198px;image-rendering:pixelated;display:block;';
+    watchCv.style.cssText = WATCH_CSS;
     watchWrap.appendChild(watchCv);
     document.body.appendChild(watchWrap);
   } else {
+    // A HUD BUILT OVER AN EXISTING ONE MUST NOT KEEP THE OLD GEOMETRY. This
+    // branch used to resize the canvas and leave the wrapper's `left`, its
+    // pivot and the canvas's displayed size at whatever the previous build set
+    // — so a rebuild would have shown the new arm at the old scale, in the old
+    // place, which is three bugs that only appear on the second build.
+    watchWrap.style.cssText = WRAP_CSS;
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
     watchCv.width = WATCH_W; watchCv.height = 72;
+    watchCv.style.cssText = WATCH_CSS;
   }
   // the wrist-and-watch close-up (the good one — arm version was reverted)
   const drawWatch = (mins: number) => {
     const g = watchCv.getContext('2d')!;
     g.clearRect(0, 0, WATCH_W, 72);
-    // STEP 1 of an incremental rebuild (an all-at-once redraw was rejected).
-    // Only change so far: the forearm runs OFF THE LEFT EDGE instead of
-    // floating with a gap either side. A limb cut by the frame reads as your
-    // own arm; a band with air around it reads as a disembodied cuff.
+    // ── THE FOREARM ───────────────────────────────────────────────────────
+    //
+    // STEP 2 of an incremental rebuild (an all-at-once redraw was rejected, and
+    // an earlier arm was tried and reverted — so this adds LENGTH and changes
+    // nothing else). Step 1 ran the wrist off the left edge of its own canvas;
+    // the canvas simply ended there, which is the stub the user is looking at.
+    //
+    // ONE BAND, the same skin tone and the same y 6…72 as the wrist, so there is
+    // no seam to see: the wrist below is drawn by the identical `fillRect` it
+    // always was, just further along the same band.
+    g.fillStyle = '#c9946a'; g.fillRect(0, 6, WATCH_ARM, 66);
+    // …and it RECEDES. The wrist's shading is "light from the right", carried by
+    // a 10 px `rgba(0,0,0,0.15)` cap that used to sit at the cut end and would
+    // now be a dark stripe across the middle of a limb, which is exactly the
+    // "two limbs" failure to avoid — so it is gone, and the same tone is spread
+    // over the whole new length instead, deepest at the elbow end.
+    //
+    // A GRADIENT, not bands, and the pixel art survives it: the canvas is
+    // painted at 1x and upscaled `image-rendering:pixelated`, so this resolves
+    // to 600 one-texel steps shown 2.75 px wide — banded at the texel scale like
+    // everything else here, with no step big enough to read as an edge. The
+    // stop at the wrist end is fully transparent, so the join is not a join.
+    //
+    // THE RAMP IS A RATE, NOT A FRACTION OF THE CANVAS, and the first cut got
+    // that wrong: spread over all 600 px it reached only 0.07 by the edge of a
+    // 1280-wide frame and the arm read dead flat. `WATCH_ARM` is sized for a
+    // 3840 viewport, so on any normal screen most of it is off-frame — the
+    // shading has to be spent where the player can see it. 240 canvas px is the
+    // 242 that reach the left edge of a 1280 frame; past that the gradient
+    // clamps to its end stop and the arm simply stays in shadow, which is what
+    // a limb going back out of the light does.
+    const RECEDE = 240;
+    const recede = g.createLinearGradient(WATCH_ARM - RECEDE, 0, WATCH_ARM, 0);
+    recede.addColorStop(0, 'rgba(0,0,0,0.18)');
+    recede.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = recede; g.fillRect(0, 6, WATCH_ARM, 66);
+    // EVERYTHING BELOW IS THE OLD DRAWING, MOVED — not redrawn. The wrist, the
+    // fist, the strap, the case and the LCD keep their own coordinates and their
+    // own order; the translate is the whole of the change, so the thing the user
+    // said he liked cannot have drifted by a pixel.
+    g.save();
+    g.translate(WATCH_ARM, 0);
     g.fillStyle = '#c9946a'; g.fillRect(0, 6, 104, 66);          // wrist, cut by the frame
-    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(0, 6, 10, 66);
     g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
     // ── THE FIST ──────────────────────────────────────────────────────────
     //
@@ -1167,6 +1420,7 @@ export function makeHud(purse: Purse): Hud {
     g.fillText(`${hh}:${m2}`, 60, 38);
     g.fillStyle = '#8a8d95'; g.font = '5px monospace';
     g.fillText('CROSSTOWN QUARTZ', 60, 50);
+    g.restore();
   };
   const WALLET_W = 180, WALLET_H = 140;
   let walletWrap = document.getElementById('ct-wallet') as HTMLDivElement | null;
@@ -1469,6 +1723,11 @@ export function makeHud(purse: Purse): Hud {
     closePanels: () => closePanels(),
     /** every panel in the world, so a guard cannot miss one. See `everyPanel`. */
     panels: () => everyPanel().map((q) => q.id),
+    /** test affordance: what the latch believes is physically held, and what it
+     *  is currently holding inert. A latch nobody can read is a latch nobody can
+     *  prove — and the open-side arm is invisible from outside without it. */
+    held: () => [...physical],
+    latched: () => latchedKey,
     openPanel: (id: string) => {
       const q = everyPanel().find((r) => r.id === id);
       if (!q) return false;

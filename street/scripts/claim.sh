@@ -372,7 +372,32 @@ done
 # are holding. That is a good scheme and this pattern could not see any of them:
 # eleven TODO items, all lettered, and claim.sh reported the queue EMPTY. Four
 # builders were spawned onto nothing. Match a digit-run with an optional letter.
-row=$(grep -n '^| *[0-9]*[a-z]* *| *TODO *|' "$Q" | head -1)
+# ── --skip: TAKE THE NEXT ONE DOWN, NOT THE SAME ONE AGAIN ────────────────
+#
+# BUILDER-BRIEF §9 tells a builder to skip an item whose file another builder
+# already holds — "skip it, take the next". **That was not performable.** This
+# script always returns the TOP TODO row, so releasing a colliding item and
+# claiming again handed back the identical row, forever. A builder hit it today,
+# could not follow the rule, and kept the item while working ~500 lines away
+# from the other agent's region — which worked, and was luck rather than design.
+#
+#   ./scripts/claim.sh w61 --skip 111,133
+#
+# Skipped ids are passed over and the next unclaimed row is taken. They are NOT
+# marked or mutated in any way: another builder must still be able to claim
+# them, and a skip is this caller's opinion, not a change to the queue.
+SKIP=''
+if [ "${2:-}" = "--skip" ]; then SKIP=$(printf '%s' "${3:-}" | tr ',' ' '); fi
+
+row=''
+for _cand in $(grep -n '^| *[0-9]*[a-z]* *| *TODO *|' "$Q" | cut -d: -f1); do
+  _id=$(sed -n "${_cand}p" "$Q" | sed 's/^| *\([0-9a-z]*\) *|.*/\1/')
+  _skip=0
+  for _s in $SKIP; do [ "$_id" = "$_s" ] && _skip=1; done
+  [ "$_skip" = 1 ] && { echo "skipping item $_id, as asked"; continue; }
+  row=$(sed -n "${_cand}p" "$Q" | sed "s/^/$_cand:/")
+  break
+done
 if [ -z "$row" ]; then
   held=$(grep -c '^| *[0-9]*[a-z]* *| *DOING' "$Q" 2>/dev/null); held=${held:-0}
   echo "QUEUE EMPTY — nothing unclaimed."

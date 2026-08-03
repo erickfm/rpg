@@ -6,6 +6,12 @@ import { type BldSpec } from './civic';
 import type { AABB } from '../fp';
 import type { CtxBuild, Spot } from './ctx';
 import { openAtm } from './atm';
+// THE FASCIA'S NUMBERS AND THE KEYPAD'S GRID, hoisted out of the closure below
+// so `ct/atm.ts` can hit-test the keys this file paints. It lives in a THIRD
+// module because line 8 above imports `openAtm`, so anything `ct/atm.ts`
+// imports back from here would close a cycle — and GOTCHAS §28 is that a module
+// in a cycle can be dropped from the BUILT BUNDLE ONLY. See `ct/atm-face.ts`.
+import { ATM_FACE, PAD_KEYS, padCells, panelLen, linkPadPick } from './atm-face';
 
 /**
  * THE BANK DOOR, DECLARED ONCE — READ BY BOTH FACES.
@@ -232,14 +238,22 @@ export function buildBank(k: {
   // over my reading of the target and the fascia is 0.83 m rather than 0.90.
   // The 7 cm that comes off is apron — the blank panel below the cash slot —
   // and nothing pinned moves: screen 1.37, keypad 1.10, both rakes, recess.
-  const M_W = 0.62;
-  const M_TOP = KERB_H + 1.58, M_SCREEN_BOT = KERB_H + 1.16;
-  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;
+  //
+  // THE NUMBERS THEMSELVES NOW LIVE IN `ct/atm-face.ts` and are read from there
+  // rather than typed here. The argument for each one stays above, beside the
+  // cabinet it is about; the declaration moved because `ct/atm.ts` has to agree
+  // with it exactly to hit-test the keys this file draws, and it cannot import
+  // this file without closing a cycle. Nothing about the machine changed in the
+  // move — same eight numbers, one authoring.
+  const M_W = ATM_FACE.w;
+  const M_TOP = KERB_H + ATM_FACE.top, M_SCREEN_BOT = KERB_H + ATM_FACE.screenBot;
+  const M_KEYS_BOT = KERB_H + ATM_FACE.keysBot, M_BOT = KERB_H + ATM_FACE.bot;
   const ATM_SCREEN_Y = (M_TOP + M_SCREEN_BOT) / 2;      // 1.37 above the walk
   const ATM_KEYS_Y = (M_SCREEN_BOT + M_KEYS_BOT) / 2;   // 1.10 above the walk
   // depths, from the facade plane. Top deepest, keypad front edge shallowest,
   // then the apron runs back to the wall underneath.
-  const D_TOP = 0.15, D_SCREEN_BOT = 0.09, D_KEYS_BOT = 0.01, D_BOT = 0.15;
+  const D_TOP = ATM_FACE.dTop, D_SCREEN_BOT = ATM_FACE.dScreenBot;
+  const D_KEYS_BOT = ATM_FACE.dKeysBot, D_BOT = ATM_FACE.dBot;
   const bankBand = (wM: number) => {
     const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
     const { W, H, ppm } = surf;
@@ -378,7 +392,16 @@ export function buildBank(k: {
    *  those are what made attempt two ugly.
    */
   const atmPanelTex = (which: 'screen' | 'keys' | 'apron', wM: number, hM: number, v = 0) => {
-    const PXM = 160;
+    // DENSITY IS DECLARED PER FACE AND DERIVED FROM IT (BUILDER-BRIEF §7b).
+    // 160 px/m is the fascia's rate and it stays that everywhere except the
+    // keypad. A key face is 72 x 26 mm, which at 160 is 12 x 4 texels — you
+    // cannot print a digit in four rows, which is exactly why the physical pad
+    // has never had numbers on it. The user's words are *"the number button"*,
+    // so the keys have to carry numbers, so the shelf is painted at 640: a key
+    // face becomes 46 x 17 texels and a 10 px digit is legible from the pose
+    // `[E]` puts you in. The whole shelf is 397 x 92 px — four times the rate
+    // over 0.089 m² of face.
+    const PXM = which === 'keys' ? 640 : 160;
     const W = Math.max(2, Math.round(wM * PXM)), H = Math.max(2, Math.round(hM * PXM));
     const px = (v: number) => Math.max(1, Math.round(v * PXM));
     return declareSurface(pixTex(W, H, (g) => {
@@ -424,17 +447,38 @@ export function buildBank(k: {
         // SEPARATE KEYS, not one grey block: each in its own well with a lit
         // top edge and a shadow under it, which is what makes them read as keys
         // on a shelf you are looking down at.
+        //
+        // THE GRID IS NO LONGER TYPED HERE. `padCells()` is the one authoring,
+        // and `ct/atm.ts` hit-tests the same rectangles this loop paints, so a
+        // key can never be drawn somewhere a click does not land. It also fixed
+        // a bug nothing was watching: the old typed pitch asked for 0.152 m of
+        // shelf on a 0.1442 m panel, so the bottom row ran off the edge and was
+        // clipped — visible in every frame of the machine as three and a bit
+        // rows of keys.
         g.fillStyle = ATM_PALETTE.shelf; g.fillRect(0, 0, W, H);   // shelf, under the body tone
-        const kw = px(0.072), kh = px(0.026), gx = px(0.022), gy = px(0.012);
-        const k0x = W / 2 - (3 * kw + 2 * gx) / 2, k0y = px(0.012);
-        for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
-          const x = k0x + c * (kw + gx), y = k0y + r * (kh + gy);
+        const cells = padCells();
+        for (let i = 0; i < cells.length; i++) {
+          const c = cells[i];
+          const x = c.u * W, y = c.v * H, kw = c.w * W, kh = c.h * H;
           g.fillStyle = '#31363c'; g.fillRect(x - px(0.005), y - px(0.004), kw + px(0.01), kh + px(0.008));
           // wear falls where the hand rests, and not identically on two machines
-          g.fillStyle = c === (v === 0 ? 1 : 2) ? ATM_PALETTE.keyHi : ATM_PALETTE.keyLo;
+          g.fillStyle = (i % 3) === (v === 0 ? 1 : 2) ? ATM_PALETTE.keyHi : ATM_PALETTE.keyLo;
           g.fillRect(x, y, kw, kh);
           g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(x, y, kw, px(0.005));
           g.fillStyle = 'rgba(0,0,0,0.38)'; g.fillRect(x, y + kh - px(0.005), kw, px(0.005));
+          // THE NUMBERS, which is what he asked about. Moulded into the key
+          // rather than printed on it: a dark face with a one-texel highlight
+          // under it, the way a light from above catches a sunken character.
+          // `CLR` and `ENT` are three letters in the same box, so they get a
+          // smaller size derived from the same key height rather than a second
+          // hand-typed one.
+          const label = PAD_KEYS[i];
+          const size = Math.max(4, Math.round(kh * (label.length > 1 ? 0.52 : 0.72)));
+          g.font = `bold ${size}px monospace`;
+          g.textAlign = 'center'; g.textBaseline = 'middle';
+          const cx = Math.round(x + kw / 2), cy = Math.round(y + kh / 2);
+          g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillText(label, cx, cy + 1);
+          g.fillStyle = '#3b4147'; g.fillText(label, cx, cy);
         }
       } else {
         // CASH SLOT with a shutter LIP standing proud of the mouth, and a
@@ -508,7 +552,7 @@ export function buildBank(k: {
      */
     const panel = (which: 'screen' | 'keys' | 'apron', yTop: number, yBot: number, dTop: number, dBot: number, v = 0) => {
       const dy = yTop - yBot, dd = dTop - dBot;
-      const len = Math.hypot(dy, dd), theta = Math.atan2(dd, dy);
+      const len = panelLen(dy, dd), theta = Math.atan2(dd, dy);
       const geo = new THREE.PlaneGeometry(M_W, len);
       geo.rotateX(-theta);
       geo.rotateY(Math.PI / 2);
@@ -517,10 +561,18 @@ export function buildBank(k: {
       mesh.userData.atmPart = which;
       mesh.userData.atmTilt = +(theta * 180 / Math.PI).toFixed(1);
       atmGroup.add(mesh);
+      return mesh;
     };
-    panel('screen', M_TOP, M_SCREEN_BOT, D_TOP, D_SCREEN_BOT, v);
-    panel('keys', M_SCREEN_BOT, M_KEYS_BOT, D_SCREEN_BOT, D_KEYS_BOT, v);
+    const scr = panel('screen', M_TOP, M_SCREEN_BOT, D_TOP, D_SCREEN_BOT, v);
+    const keys = panel('keys', M_SCREEN_BOT, M_KEYS_BOT, D_SCREEN_BOT, D_KEYS_BOT, v);
     panel('apron', M_KEYS_BOT, M_BOT, D_KEYS_BOT, D_BOT, v);
+    // THE POINTER REACHES THE PHYSICAL KEYS THROUGH THE CRT. The panel
+    // framework picks exactly one mesh and it picks the screen; this makes the
+    // screen answer for the shelf below it as well, but only while somebody is
+    // standing at the machine. `ct/atm-face.ts` explains the whole of it — the
+    // short version is that the keys are a different mesh at a different rake,
+    // and without this the interface cannot see a click on them at all.
+    linkPadPick(scr, keys);
     return atmGroup;
   };
 

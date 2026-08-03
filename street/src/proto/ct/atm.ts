@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { BUILD } from './ctx';
 import { makePanel, UI, type Panel, type Purse } from './hud';
+// THE PHYSICAL KEYPAD'S GRID, published by a module neither this file nor
+// `ct/bank.ts` imports the other through. `ct/bank.ts:8` imports `openAtm` from
+// here, so importing the layout back from there would close a cycle, and
+// GOTCHAS §28 is that a module in a cycle can be dropped from the BUILT BUNDLE
+// ONLY — dev perfect, no ATM in the artifact.
+import { PAD_KEYS, padCells, padKeyAtUV, PAD_V_SCALE, setPadPickable, padPickable } from './atm-face';
 
 // ── FIRST FEDERAL, the machine you actually use ───────────────────────────
 //
@@ -140,6 +146,29 @@ function after(ms: number, then: () => void): void {
   timer = setTimeout(then, ms) as unknown as number;
 }
 
+/** Long enough to read two words, short enough that nobody waits for it. */
+const FAREWELL_MS = 1100;
+
+/**
+ * Hand the machine back: close the view and leave a FRESH ATM behind.
+ *
+ * Resetting `screen` matters as much as closing. `go('thanks')` used to be the
+ * last thing that ran, so without this the machine would sit on its farewell
+ * screen forever and the next player would walk up to the tail of somebody
+ * else's transaction.
+ *
+ * GUARDED, because `after()` fires on a wall clock that knows nothing about the
+ * panel. If the player leaves during the flash — Escape, or walking away — the
+ * timer is still armed, and an unguarded close would fire into whatever is open
+ * a second later. Only close if we are still standing on the farewell.
+ */
+function endSession(): void {
+  if (screen !== 'thanks') return;
+  screen = 'idle';
+  pin = '';
+  panel?.close();
+}
+
 function rows(p: Purse): Row[] {
   switch (screen) {
     case 'idle':
@@ -187,21 +216,22 @@ function rows(p: Purse): Row[] {
         right: 'NO', actR: () => go('card'),
       }];
     case 'card':
-      // TAKING YOUR CARD ENDS THE TRANSACTION AND THE VIEW WITH IT.
+      // TAKE CARD: FLASH THE FAREWELL, THEN LET GO ON ITS OWN.
       //
-      // The user: *"take card from atm should immediately get us out of the
-      // menu"*. It used to `go('thanks')`, and the close for that screen lives
-      // inside the KEY HANDLER (`if (screen === 'thanks') panel?.close()`) —
-      // so the machine sat on THANK YOU until you pressed another key. Taking
-      // your card back is the one unambiguous "I am done" a cash machine has,
-      // and making it wait for a further keypress is the machine asking a
-      // question nobody has.
+      // Two rounds with the user. First: *"take card from atm should
+      // immediately get us out of the menu"* — because the farewell screen sat
+      // there until you pressed ANOTHER key, the close for it living inside the
+      // key handler. That was the machine asking a question nobody has.
       //
-      // `screen` is reset to 'idle' so the next player finds a fresh machine
-      // rather than the tail of somebody else's transaction — `go('thanks')`
-      // used to be what did that, and dropping it silently would have left the
-      // ATM on its farewell screen forever.
-      return [{ left: 'TAKE CARD', act: () => { screen = 'idle'; pin = ''; panel?.close(); } }];
+      // Then, on seeing it skipped entirely: *"im just saying after we click the
+      // first take card, just flash thank you farewell screen and release the
+      // player"*. So the screen is right and WAITING FOR INPUT was the fault.
+      // `after()` already exists for exactly this — "a step the machine takes on
+      // its own, because a real one makes you wait".
+      return [{ left: 'TAKE CARD', act: () => {
+        go('thanks');
+        after(FAREWELL_MS, endSession);
+      } }];
     default:
       return [];
   }
@@ -235,35 +265,31 @@ const BTN_Y = [56, 92, 128, 164], BTN_H = 15, BTN_W = 26;
 /** the three horizontal bands every screen lays out on */
 const HEAD = 39, BODY = 115, SUB = 141;
 
-// ── the PIN pad, which exists because of the MOUSE ────────────────────────
+// ── the PIN pad: THE REAL ONE, on the machine ─────────────────────────────
 //
-// *"the screen on the literal atm be the overlay that i can use my mouse to
-// click through"* — CLICK THROUGH, all of it. Every other screen this machine
-// has is worked with the eight soft keys down the sides, which a pointer can
-// reach; the PIN screen was digits-only, so a player using the mouse got two
-// steps in and hit a wall he could only pass by putting his hand back on the
-// keyboard.
+// *"for the atm why do we not use the number button at the bottom?"* — and he
+// is right, there were two keypads. The machine has a real twelve-key pad in
+// 3-D directly below the tube; this file used to draw a SECOND one in phosphor
+// on the tube, because that was the only surface the pointer could reach.
 //
-// The machine has a real twelve-key pad in 3-D right below the tube and clicking
-// THAT would be the prettier answer. It is a different mesh with a different
-// texture, and its key layout is a set of literals inside a closure in
-// `ct/bank.ts` — so hit-testing it would mean a second hand-typed copy of
-// somebody else's geometry, which is BUILDER-BRIEF §8 and the single most
-// expensive habit in this codebase. Queued as a follow-up instead; see the
-// handoff note.
+// The reason was honest and is now gone. The framework picks one mesh, the
+// keypad is a different mesh at a different rake, and the pad's layout was
+// twelve literals inside a closure in `ct/bank.ts` — invisible here. Both halves
+// now read `ct/atm-face.ts`: `ct/bank.ts` paints the keys from `padCells()`,
+// this file hit-tests the same rectangles, and `linkPadPick` is what lets a
+// pointer over a physical key arrive here at all.
 //
-// ONE SOURCE FOR THE CELLS, used by both the painting and the hit-test, so a
-// key can never be drawn somewhere the click does not land.
-const PAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLR', '0', 'ENT'];
-const PAD = { w: 40, h: 24, gx: 5, gy: 5, x: 52, y: 72 };
-/** cell `i` of the pad, in CANVAS pixels — the same space clicks arrive in */
-function padCell(i: number): { x: number; y: number; w: number; h: number } {
-  return {
-    x: CRT.x + PAD.x + (i % 3) * (PAD.w + PAD.gx),
-    y: CRT.y + PAD.y + Math.floor(i / 3) * (PAD.h + PAD.gy),
-    w: PAD.w, h: PAD.h,
-  };
-}
+// SO THE DRAWN PAD IS RETIRED and the PIN screen shows only what a real machine
+// shows: the prompt and the four asterisks filling in as you press keys you can
+// see. The keyboard still works and still gets a mention in the caption.
+//
+// WHERE THE PHYSICAL KEYS ARRIVE. `ct/hud.ts` hands clicks over in this canvas's
+// own pixels; `ct/atm-face.ts` maps the shelf into the SAME pixel space,
+// immediately below the tube — `H` .. `H * (1 + PAD_V_SCALE)`, about 70 rows,
+// which is what 0.1442 m of shelf measures at this canvas's 484 px/m. Nothing
+// is ever painted down there. The canvas is `H` tall and the strip is hit-test
+// only, which is why `drawScreen` never mentions it.
+const PAD_STRIP = H * PAD_V_SCALE;
 
 function drawScreen(g: CanvasRenderingContext2D): void {
   const p = PURSE!;
@@ -324,24 +350,13 @@ function drawScreen(g: CanvasRenderingContext2D): void {
     line(p.card === false ? 'NO CARD' : 'WELCOME', BODY, CAB_TEXT_LIT, 15);
     line(p.card === false ? 'SEE YOUR BRANCH FOR A NEW ONE' : 'PLEASE INSERT YOUR CARD', SUB, CAB_TEXT_LIT, 8);
   } else if (screen === 'pin') {
-    line('ENTER YOUR PIN', 32, CAB_TEXT_LIT, 10);
-    line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), 60, CAB_TEXT_LIT, 18);
-    // the pad. Drawn in CANVAS space, so it steps outside the CRT translation
-    // the rest of this block works in — and back in again afterwards.
-    g.save();
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    for (let i = 0; i < PAD_KEYS.length; i++) {
-      const c = padCell(i);
-      const k = PAD_KEYS[i];
-      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(c.x, c.y, c.w, c.h);
-      g.strokeStyle = CAB_TEXT_DIM; g.lineWidth = 1;
-      g.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1);
-      g.fillStyle = CAB_TEXT_LIT;
-      g.font = UI.font(k.length > 1 ? 8 : 11, true);
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(k, c.x + c.w / 2, c.y + c.h / 2);
-    }
-    g.restore();
+    // THE TUBE SHOWS WHAT A CASH MACHINE'S TUBE SHOWS, and nothing else. The
+    // twelve phosphor keys that used to sit under this line were a keypad
+    // drawn on a screen six inches above a keypad, and the user asked why.
+    // The keys are on the machine; this is the readout.
+    line('ENTER YOUR PIN', HEAD, CAB_TEXT_LIT, 10);
+    line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), BODY, CAB_TEXT_LIT, 22);
+    line('USE THE KEYPAD BELOW', SUB, CAB_TEXT_DIM, 8);
   } else if (screen === 'menu') {
     line('SELECT A SERVICE', HEAD, CAB_TEXT_LIT, 10);
   } else if (screen === 'balance') {
@@ -417,7 +432,11 @@ function onKey(k: string): void {
     if (k === 'enter' && pin.length === 4) { go('menu'); return; }
     return;
   }
-  if (screen === 'thanks') { panel?.close(); return; }
+  // A key during the farewell skips the wait rather than being swallowed —
+  // and goes through `endSession` so the machine is reset the same way the
+  // timer would have reset it. Two paths, one teardown; they used to differ,
+  // and the version that only closed left the ATM stuck on its farewell.
+  if (screen === 'thanks') { endSession(); return; }
   const i = '12345678'.indexOf(k);
   if (i < 0) return;
   const r = rows(p);
@@ -452,13 +471,17 @@ function buttonAt(x: number, y: number): { i: number; right: boolean } | null {
   return null;
 }
 
+/** which physical key is under this canvas pixel? `null` anywhere on the tube,
+ *  and `null` on the shelf between the keys — that is metal, not a button.
+ *
+ *  NOT GATED ON `screen === 'pin'` any more, and that is deliberate: these are
+ *  keys the player can SEE on the machine at every screen, and a real key that
+ *  does nothing must at least not claim it will (see `hotAt`). What each key
+ *  does is `onKey`'s business, exactly as it is for the keyboard. */
 function padAt(x: number, y: number): string | null {
-  if (screen !== 'pin') return null;
-  for (let i = 0; i < PAD_KEYS.length; i++) {
-    const c = padCell(i);
-    if (x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h) return PAD_KEYS[i];
-  }
-  return null;
+  const dy = y - H;
+  if (dy < 0 || dy > PAD_STRIP) return null;
+  return padKeyAtUV(x / W, dy / PAD_STRIP);
 }
 
 /** is there something PRESSABLE here? Drives the hand cursor, so it must be
@@ -471,11 +494,33 @@ function hotAt(x: number, y: number): boolean {
   // last screen of the session must not be the one person who has to hunt for
   // the way out of it.
   if (screen === 'thanks') return true;
-  if (padAt(x, y)) return true;
+  const k = padAt(x, y);
+  if (k) return padActs(k);
   const b = buttonAt(x, y);
   if (!b) return false;
   const r = rows(PURSE);
   return b.right ? !!r[b.i]?.right : !!r[b.i]?.left;
+}
+
+/** would pressing this physical key do anything on the screen that is up?
+ *
+ *  ASKED OF `onKey`'s OWN RULES, not of a second table beside them. The pad is
+ *  live on every screen — `1`-`8` pick the soft-key rows exactly as the number
+ *  row on the keyboard always has, which is how a real machine with a numeric
+ *  pad and a `1) BALANCE` menu works — but `9`, `0`, `CLR` and `ENT` mean
+ *  nothing outside the PIN screen, and the hand cursor must not appear over
+ *  them there. Same for `ENT` on a half-typed PIN, and `CLR` on an empty one. */
+function padActs(k: string): boolean {
+  if (screen === 'pin') {
+    if (/^[0-9]$/.test(k)) return pin.length < 4;
+    if (k === 'CLR') return pin.length > 0;
+    if (k === 'ENT') return pin.length === 4;
+    return false;
+  }
+  const i = '12345678'.indexOf(k);
+  if (i < 0) return false;
+  const r = rows(PURSE!);
+  return i < 4 ? !!r[i]?.act : !!r[i - 4]?.actR;
 }
 
 /** ROUTED THROUGH `onKey`, not through a second copy of the dispatch. A click
@@ -589,11 +634,23 @@ export function register(ctx: CtxBuild): void {
     // The mouse is the way in now, so it is what the caption offers; the keys
     // still work and still get a mention, because a player who learned this
     // machine on the keyboard must not be told it stopped listening.
-    hint: () => (screen === 'pin' ? 'click the pad, or type it' : 'click a button, or press its number'),
+    hint: () => (screen === 'pin' ? 'click the keys below, or type it' : 'click a button, or press its number'),
     draw: (g) => drawScreen(g),
     key: (k) => onKey(k),
+    // THE PHYSICAL KEYS BECOME PICKABLE ONLY NOW, and pairing it with `onClose`
+    // is the whole point. `openAtm` is the wrong place and I put it there first
+    // and the walk caught it: `panel.open()` DECLINES in two documented cases —
+    // a panel already up, and the 500 ms lockout that stops a just-dismissed
+    // panel springing back — so a caller that raises the flag before asking
+    // leaves the CRT answering for a shelf nobody is standing at, with no close
+    // coming to lower it. The framework only calls this if it really opened.
+    onOpen: () => setPadPickable(true),
     onClose: () => {
       clearTimeout(timer);
+      // THE CRT STOPS ANSWERING FOR THE KEYPAD. First line of the handler, and
+      // before anything that could throw: leaving this up would put a phantom
+      // hit 20 cm below the tube into every scene-wide raycast in the world.
+      setPadPickable(false);
       // WALKING AWAY DOES NOT EAT YOUR CARD, and it does not eat notes it has
       // already counted out either. A 1997 machine really would keep both, and
       // that is a good detail and a bad rule: the framework promises ESC always
@@ -611,6 +668,34 @@ export function register(ctx: CtxBuild): void {
   (window as unknown as { __atm: unknown }).__atm = {
     open: () => openAtm(),
     screen: () => screen,
+    /**
+     * WHERE A PHYSICAL KEY IS, in the canvas pixels clicks arrive in.
+     *
+     * A harness that wanted to click `7` on the real pad would otherwise have
+     * to re-derive the grid and the shelf's place under the tube — a second
+     * hand-typed copy of the very thing this change exists to stop having two
+     * of (BUILDER-BRIEF §8). It asks the machine instead, and a check built on
+     * it fails when the pad moves, which is exactly what it is for.
+     */
+    padPoint: (k: string) => {
+      const i = (PAD_KEYS as readonly string[]).indexOf(k);
+      if (i < 0) return null;
+      const c = padCells()[i];
+      const u = c.u + c.w / 2, vTop = c.v + c.h / 2;
+      // `x`/`y` are canvas pixels, which is what `hot`/`click` speak. `u`/`v`
+      // are the KEYPAD MESH's own uv (origin bottom-left, three's convention),
+      // which is what a harness needs to turn a key into a point on the glass
+      // it can actually move a real mouse to.
+      return { x: u * W, y: H + vTop * PAD_STRIP, u, v: 1 - vTop };
+    },
+    /** every key face, so a check can sweep all twelve without knowing any */
+    padKeys: () => PAD_KEYS.slice(),
+    /** what the machine believes is under this canvas pixel */
+    padAt: (x: number, y: number) => padAt(x, y),
+    hotAt: (x: number, y: number) => hotAt(x, y),
+    /** is the CRT answering for the keypad right now? Must be false whenever
+     *  the panel is shut, or every raycast in the world sees a phantom. */
+    padLive: () => padPickable(),
     /** how many digits are in, so a harness can tell "the pad did nothing" from
      *  "the pad worked and ENTER did nothing" — two failures that look identical
      *  from outside and cost a debugging round to tell apart */

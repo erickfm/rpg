@@ -1604,7 +1604,50 @@ export function buildVice(o: {
       const tie = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 2.8), steel);
       tie.position.set(cxm, BOT - 0.2, -94.3);
       scene.add(tie);
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6.6, 7.2), boardM);
+      // THE CABINET'S RETURNS ARE PAINTED METAL, NOT BOARD BLACK — and this is
+      // the DAYLIGHT half of the fix, which three rounds of bulbs could not be.
+      //
+      // The board's art is on its two ±x faces. From the user's own station
+      // (x 53.6, z −103.2, looking down −z) you are square onto its 0.5 m −z
+      // RETURN, so the only thing this sign ever shows the street is that edge.
+      // In `boardM` it is #24222a against a pale grey sky: at noon, with every
+      // socket on it unlit, that is a black wedge over the middle of the
+      // frontage and there is nothing left to say it is a sign at all. The row
+      // is right that it is WORSE BY DAY, and that is exactly why more bulbs
+      // was never going to answer it — bulbs are the night half, and the night
+      // half was already done (`notes/archive/w51-…`).
+      //
+      // So the returns get their own material instead of the art faces'. A real
+      // rooftop sign is a painted sheet-metal box with dark faces; this is that
+      // box, and by day it now reads as a lit-side-on cabinet with a top rail
+      // rather than a hole in the sky. No geometry is added or moved — the same
+      // BoxGeometry, with its six face groups given three materials — so the
+      // silhouette the user framed is unchanged and only its VALUE changes.
+      //
+      // DERIVED, NOT PICKED. Both are the sign's own gold `#e8c25a` (the riser
+      // and the lettering, below) scaled down to a painted rather than lit
+      // value: 45% for the returns, 58% for the top cap, which is the one face
+      // the sky actually falls on. Nothing here is a new colour in this world.
+      const goldMul = (f: number) => (
+        ((Math.round(0xe8 * f) << 16) | (Math.round(0xc2 * f) << 8) | Math.round(0x5a * f)) >>> 0);
+      const boardTrim = new THREE.MeshBasicMaterial({ color: goldMul(0.45) });
+      const boardCap = new THREE.MeshBasicMaterial({ color: goldMul(0.58) });
+      // BoxGeometry's groups are +x, −x, +y, −y, +z, −z. Only the ±x pair keeps
+      // `boardM`, because the artwork planes sit just off them and that black is
+      // what the lettering is drawn against.
+      //
+      // THE SOFFIT (−y) IS IN THE TRIM TOO, AND IT IS THE FACE THAT MATTERS.
+      // First cut left it black on the reasoning that its two bulb runs already
+      // dressed it — which is the night argument again. Measured from the
+      // geometry: the board's near edge is z −97.9 at y 19.4, and his eye is
+      // z −103.2 at y ~1.7, so he is 5.3 m out and ~18 m below it. At that angle
+      // the 0.5 × 7.2 m UNDERSIDE is most of what he can see of this object and
+      // the 0.5 × 6.6 m front return is the sliver. Repainting the return and
+      // leaving the soffit black moved almost nothing in the after-frame — which
+      // is what the frame showed, and why this line changed after looking rather
+      // than before.
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6.6, 7.2),
+        [boardM, boardM, boardCap, boardTrim, boardTrim, boardTrim]);
       frame.position.set(cxm, BOT + 3.3, -94.3);
       scene.add(frame);
       // THE SAME DEAD LEADING EDGE AS THE BLADE, AND THE SAME ANSWER.
