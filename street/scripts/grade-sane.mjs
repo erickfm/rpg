@@ -20,9 +20,36 @@
 // texel toward brown and read as a graphics bug. A near-white tint times 1.15
 // is 1.15, and clips at render. That is the accepted cost of the technique.
 //
-// Measured across 24 hours: nothing over 1.0 between 09:00 and 17:00, 20 of
+// ⚠ THOSE NUMBERS MOVED TO THE GPU — RE-MEASURED 2026-08-03, ITEM 234.
+//
+// This header used to record "nothing over 1.0 between 09:00 and 17:00, 20 of
 // 5536 through the night, and 156-166 at the four ramp hours where a full
-// ambient and a warm lamp term are both live. Worst 1.1497 at 23:00.
+// ambient and a warm lamp term are both live. Worst 1.1497 at 23:00." **Every
+// one of those is now zero**, measured on the built bundle at 45ecf9316:
+//
+//     swept 24 hours, 10962 materials each — 0 impossible values
+//     deliberately over 1.0: 0 material-hours, peak 0.0000 — none
+//
+// `544053b20` ("lamplight per fragment") moved the warm term AND the gain into
+// POOL_FRAG, so `ct/props.ts:1494` writes a pooled material only `base * amb`
+// with `amb <= 1`. The warm multiply that used to push a colour over 1.0 no
+// longer happens in JS at all, and **a fragment shader is invisible to anything
+// reading `material.color`.** The overshoot did not stop; it moved out of view.
+//
+// THE CEILING CLAUSE BELOW IS NOT VACUOUS, AND THAT WAS WORTH CHECKING RATHER
+// THAN ASSUMING. The dead statistic is the `deliberately over 1.0` COUNT, which
+// is reporting rather than asserting. The assertion — nothing may exceed
+// WARM_R — still guards the branch the CPU pass still owns, over a population
+// of 10962 materials with a floor under it, and it is watched failing:
+// `canfail grade-twice` was run on 2026-08-03 and CAUGHT, as was `grade-nan`.
+//
+// WHAT IS GENUINELY UNCOVERED IS THE GPU SIDE, and it is asserted in
+// `scripts/glow.mjs` instead of duplicated here — that check already reads
+// pixels, and this one owns no screenshot machinery. POOL_FRAG caps its
+// multiplier at 1.0, so the ground under a lamp can never be brighter at night
+// than at midday beyond the warm term's own luminance (1.0571 for the WARM_*
+// below). glow.mjs measures 0.72 against a 1.11 ceiling and goes red at 1.63
+// when POOL_FRAG's multiply is applied twice.
 //
 // SO ASSERT THE BOUND THAT ACTUALLY EXISTS. `mul` is capped at 1 and `base` is
 // captured at build time from an authored colour, so the most the grade can
@@ -44,12 +71,20 @@
 // component or an opacity outside 0..1. All of them are silent, and silent is
 // the class this project keeps being bitten by.
 //
-// NOT A CHECK ON THE OVERSHOOT. Sweeping 24 hours also found 739 material-hours
-// with a colour component above 1.0 — zero in full day, 9 at night, 91-94 at
-// each of 07, 08, 18 and 19. That is real and it is NOT asserted here, because
-// 1.08 clamps at render and is pixel-identical to 1.0: it would be a red line
-// for something nobody can see. It is recorded in notes/B-routed-to-others.md with the
-// numbers, and if tone mapping ever arrives it becomes a defect that day.
+// NOT A CHECK ON THE OVERSHOOT. Sweeping 24 hours used to find 739
+// material-hours with a colour component above 1.0 — zero in full day, 9 at
+// night, 91-94 at each of 07, 08, 18 and 19. That was real and it was NOT
+// asserted here, because 1.08 clamps at render and is pixel-identical to 1.0:
+// it would be a red line for something nobody can see. It is recorded in
+// notes/B-routed-to-others.md with the numbers, and if tone mapping ever
+// arrives it becomes a defect that day.
+//
+// **That figure is 0 today, for the same reason as the ceiling numbers above:
+// the warm term left JS at `544053b20`.** The line that prints it is kept
+// deliberately — a permanent, honest zero with an explanation beside it is what
+// a moved subsystem should look like from here, and if it ever goes non-zero
+// again something has started warming colours on the CPU once more, which is
+// exactly the news worth having.
 //
 //   SHOT_URL=http://localhost:4279/ node scripts/grade-sane.mjs
 import { aim } from './lib/aim.mjs';
@@ -146,6 +181,9 @@ console.log(`\n  swept 24 hours, ${materials} materials each — ${bad.length} i
 for (const line of bad.slice(0, 10)) console.log(`      ${line}`);
 if (bad.length > 10) console.log(`      … and ${bad.length - 10} more`);
 console.log(`  deliberately over 1.0: ${overs} material-hours, peak ${peak.toFixed(4)} — ${peakWho || 'none'}`);
+if (!overs) console.log(`      (0 is expected since 544053b20 — the warm term is applied in POOL_FRAG`);
+if (!overs) console.log(`       and cannot be seen from material.color. The GPU ceiling is asserted`);
+if (!overs) console.log(`       in scripts/glow.mjs. Non-zero here means the CPU is warming again.)`);
 console.log(`\n  ${!bad.length ? 'OK  ' : 'FAIL'} every material colour is a real number, never negative, at every hour`);
 console.log(`  ${!bad.length ? 'OK  ' : 'FAIL'} nothing exceeds the ${CEIL.toFixed(3)} the grade can produce — nothing is warmed twice`);
 console.log(`  ${!bad.length ? 'OK  ' : 'FAIL'} every opacity is in 0..1 (where an upper bound DOES mean something)`);
