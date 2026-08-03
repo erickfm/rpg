@@ -1,6 +1,17 @@
 import { BUILD, ORDER as HOOK } from './ctx';
 import type { CtxBuild } from './ctx';
 import type { Panel } from './hud';
+// TYPE-ONLY, and that is load-bearing rather than tidy. `ct/slots.ts` takes a
+// RUNTIME edge on `three` (it has to — it builds a plane of its own) and paid
+// for it: any static or dynamic edge on `three` reorders the bundle's module
+// graph enough to shift the `generateUUID` stream `scripts/scenedump.mjs`
+// seeds, so every dithered texture built after the shift repaints and
+// `npm run fpdiff` reports a catastrophe that is not there (w55, and GOTCHAS
+// §1/§2 behind it). This file builds NO geometry — it repaints a plane
+// `ct/int-library.ts` already put in the room — so it needs three's TYPES and
+// none of its code, and `import type` is erased before the bundler ever sees
+// it. That is what keeps `fp` a usable proof for this change.
+import type * as THREE from 'three';
 
 // ── THE LIBRARY TERMINALS, MADE TO ACTUALLY WORK ───────────────────────────
 //
@@ -37,14 +48,82 @@ export const ORDER = BUILD.INTERIOR + 7;   // after slots (+5), after blackjack 
 // the pose the player is CURRENTLY sitting in is one that carries our label,
 // rather than keeping a second, private notion of "sat down" that could
 // disagree with the one the framework already tracks.
-interface SeatRow { pose: object; label: string }
-interface CtWindow { __ct?: { seated: () => object | null; seats: () => SeatRow[] } }
-function seatedAtComputer(): object | null {
+interface SeatPose { x: number; z: number; yaw: number }
+interface SeatRow { pose: SeatPose; label: string }
+interface CtWindow { __ct?: { seated: () => SeatPose | null; seats: () => SeatRow[] } }
+function seatedAtComputer(): SeatPose | null {
   const ct = (globalThis as unknown as CtWindow).__ct;
   if (!ct) return null;
   const pose = ct.seated();
   if (!pose) return null;
   return ct.seats().find((s) => s.pose === pose)?.label === SEAT_LABEL ? pose : null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WHICH CRT AM I SITTING AT?
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// ASKED OF THE WORLD, NOT LOOKED UP — the same rule `ct/atm.ts` follows with a
+// `userData` tag and `ct/slots.ts` follows with a ray. Nothing from
+// `ct/int-library.ts` is copied here: not `BX`, not `BZ0`, not `TERM_CX`, not
+// the 1.05 m pitch of the bank. The chair's own pose is the origin, the way it
+// faces is the direction, and the answer is whatever plane is in front of it.
+// That stays true if the bank of terminals is re-laid, which is exactly what
+// the second-authoring rule in BUILDER-BRIEF §8 is about.
+//
+// MEASURED BEFORE IT WAS WRITTEN (`scripts/probes/w63-pc-mesh.mjs`, against
+// the running world): each chair has exactly ONE PlaneGeometry directly ahead
+// of it — 0.30 x 0.24 m, at 1.02 m, side offset 0.000 — carrying ONE
+// `MeshBasicMaterial` with a map. The neighbouring terminals' screens are the
+// same plane at side ±1.05, and the reader sitting at the third machine is a
+// 0.95 x 1.9 billboard at side +1.05 wearing `userData.citizen`. So the gates
+// below are not guesses: 0.35 m of side is a quarter of the real pitch, and
+// the citizen test is there because a ray or a sweep that finds a person hangs
+// the interface on their back.
+const REACH = 1.6;        // m ahead of the chair. The screen measures at 1.02.
+const HALF_LANE = 0.35;   // m to either side. The terminals stand 1.05 apart.
+
+/**
+ * The terminal screen this chair faces, or `null`.
+ *
+ * `null` is a first-class answer, not a failure: `ScreenSurface.mesh`'s
+ * contract is that a surface which cannot be found falls back to the
+ * screen-space cabinet, so a harness that opens this machine from the street
+ * gets the panel it would have got anyway. That degrade is what made the
+ * framework safe to adopt twice already.
+ */
+function crtAhead(scene: THREE.Scene, seat: SeatPose, gy: number): THREE.Object3D | null {
+  // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw). Read off the same
+  // line `crosstown.ts`'s own focus controller cites, not re-derived.
+  const fx = Math.sin(seat.yaw), fz = -Math.cos(seat.yaw);
+  let best: THREE.Object3D | null = null;
+  let bestAhead = Infinity;
+  scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    if (o.userData?.citizen) return;                       // a person is not a screen
+    if ((m.geometry as { type?: string })?.type !== 'PlaneGeometry') return;
+    // A MULTI-MATERIAL MESH WOULD THROW, so decline it and take the fallback.
+    // `ct/hud.ts:1059` casts `mesh.material` to a single `MeshBasicMaterial`
+    // and calls `.color.getHex()` on it a few lines later; on an array that is
+    // `undefined.getHex()`, INSIDE `open()`, with the gate half-installed — it
+    // presents as "the panel stopped opening". w55 filed it as item 150 and it
+    // is still open. This tenant does not trip it (measured: one material), but
+    // declining is one line and turns a future throw into a worse-looking panel
+    // rather than a broken one.
+    if (Array.isArray(m.material)) return;
+    o.updateWorldMatrix(true, false);
+    const e = o.matrixWorld.elements;
+    const dx = e[12] - seat.x, dz = e[14] - seat.z;
+    const ahead = dx * fx + dz * fz;
+    const side = dx * fz - dz * fx;
+    if (ahead <= 0.1 || ahead > REACH) return;
+    if (Math.abs(side) > HALF_LANE) return;
+    // and it is on a DESK, not on the floor or up a wall
+    if (e[13] < gy + 0.4 || e[13] > gy + 1.8) return;
+    if (ahead < bestAhead) { bestAhead = ahead; best = o; }
+  });
+  return best;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -90,6 +169,26 @@ const CATALOG: BookRow[] = [
   { title: 'The Count of Monte Cristo', author: 'Alexandre Dumas', year: 1844, subject: 'adventure' },
   { title: 'Twenty Thousand Leagues Under the Sea', author: 'Jules Verne', year: 1870, subject: 'science fiction' },
 ];
+
+// ── THE RECORD BEHIND THE ROW ─────────────────────────────────────────────
+//
+// Clicking a result pulls its card, which is what a card catalogue is FOR and
+// what the mouse buys over the keyboard-only list. Both fields are DERIVED
+// from the row rather than typed into a second table (BUILDER-BRIEF §8): the
+// call number the way a branch actually shelves fiction — the first three
+// letters of the author's surname — and the loan status from a hash of the
+// title, so the same book says the same thing every time you open it and no
+// draw from `ct/rng.ts`'s one seeded stream is disturbed (GOTCHAS §2).
+function callNo(b: BookRow): string {
+  const surname = b.author.trim().split(/\s+/).slice(-1)[0].toUpperCase();
+  return `F ${surname.slice(0, 3)}`;
+}
+const STATUS = ['ON SHELF', 'ON SHELF', 'ON SHELF', 'ON LOAN', 'REFERENCE ONLY'];
+function status(b: BookRow): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < b.title.length; i++) h = Math.imul(h ^ b.title.charCodeAt(i), 0x01000193) >>> 0;
+  return STATUS[h % STATUS.length];
+}
 
 /** matches on title, author or subject — a card catalog answers all three */
 function search(q: string): BookRow[] {
@@ -200,8 +299,51 @@ function msCheckWin(s: MsState): void {
 // ═══════════════════════════════════════════════════════════════════════════
 // THE MACHINE — one screen, three faces
 // ═══════════════════════════════════════════════════════════════════════════
-const W = 320, H = 220;
-const TASKBAR_H = 16;
+// THE CANVAS IS CUT TO THE TUBE, NOT TO A WINDOW. The terminal's screen is a
+// 0.30 x 0.24 m plane (`scripts/probes/w63-pc-mesh.mjs`, and `int-library.ts`
+// draws it at that size), so its aspect is 1.25:1. The old 320 x 220 was
+// 1.4545:1 — free for a rectangle floating in front of the camera and wrong the
+// moment it lands on an object, where it is a 16% horizontal smear. 320 x 256
+// is 1066.7 px/m along BOTH axes: square texels, which is BUILDER-BRIEF §7b's
+// rule stated for a canvas. Only ONE of the two numbers is a choice — the
+// width — and the height follows from the tube.
+const W = 320, H = 256;
+const TASKBAR_H = 18;
+
+// ── EVERY CONTROL, DECLARED ONCE ──────────────────────────────────────────
+//
+// The painter and the hit test read the SAME rectangles, so a button cannot be
+// drawn where a click does not land, or lit while pressing it does nothing.
+// That is `ct/slots.ts`'s `DECK` lesson, and it is the only structural thing
+// this file borrows from that tenant.
+type Rect = { x: number; y: number; w: number; h: number };
+const inRect = (r: Rect, x: number, y: number) =>
+  x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+
+/** the title-bar close box every window in this era has, top right */
+const CLOSE: Rect = { x: W - 15, y: 3, w: 12, h: 10 };
+/** the desktop's icons */
+const ICON_G = { x: 14, y0: 20, dy: 48, w: 26, h: 20, labelDy: 32 };
+const iconRect = (i: number): Rect =>
+  ({ x: ICON_G.x - 6, y: ICON_G.y0 + i * ICON_G.dy - 6, w: ICON_G.w + 12, h: ICON_G.h + 26 });
+/** the taskbar's START button */
+const START: Rect = { x: 4, y: H - TASKBAR_H + 4, w: 44, h: 11 };
+/** the catalogue */
+const CAT = {
+  field: { x: 6, y: 18, w: W - 50, h: 12 } as Rect,
+  clear: { x: W - 42, y: 18, w: 36, h: 12 } as Rect,
+  up: { x: W - 32, y: 36, w: 13, h: 11 } as Rect,
+  down: { x: W - 17, y: 36, w: 13, h: 11 } as Rect,
+  top: 50, rowH: 13, detailH: 22,
+};
+const CAT_ROWS = Math.floor((H - CAT.top - CAT.detailH - 2) / CAT.rowH);
+const catRowRect = (i: number): Rect => ({ x: 6, y: CAT.top + i * CAT.rowH, w: W - 12, h: CAT.rowH });
+/** minesweeper */
+const MS_CELL = 22;
+const MS_X0 = Math.round((W - MS_COLS * MS_CELL) / 2);
+const MS_Y0 = 32;
+const MS_FLAG_BTN: Rect = { x: 6, y: 17, w: 46, h: 12 };
+const MS_NEW_BTN: Rect = { x: 56, y: 17, w: 34, h: 12 };
 /** Not `UI.font` from `./hud` — see the note on the dynamic import of
  *  `makePanel` below. Plain `monospace`, the same fallback `blackjack.ts`
  *  and `slots.ts` draw their own screens in for the identical reason. */
@@ -220,9 +362,34 @@ export function register(ctx: CtxBuild): void {
   let iconSel = 0;
   let query = '';
   let ms: MsState = msBlank();
+  // THE MOUSE'S OWN STATE. None of it changes what the keyboard does; each is a
+  // thing a pointer can express that a key already could (scroll, pick a
+  // record) or that a pointer cannot express at all on this framework
+  // (flagging — `ct/hud.ts` forwards a click as `(x, y)` with no button, so
+  // there is no right-click to give minesweeper, and a mode toggle is the
+  // affordance every touch port of this game settled on for the same reason).
+  let catTop = 0;              // first visible result row
+  let catSel = -1;             // which record the reader has pulled, -1 = none
+  let msFlagMode = false;      // clicks plant flags instead of digging
   const clockNow = () => ctx.clock.now();
 
   const toDesktop = () => { screen = 'desktop'; panel?.repaint(); };
+  /** keep the window on the selected row, and the selection inside the results */
+  const catClamp = () => {
+    const n = search(query).length;
+    if (catSel >= n) catSel = n - 1;
+    const maxTop = Math.max(0, n - CAT_ROWS);
+    if (catTop > maxTop) catTop = maxTop;
+    if (catSel >= 0) {
+      if (catSel < catTop) catTop = catSel;
+      if (catSel >= catTop + CAT_ROWS) catTop = catSel - CAT_ROWS + 1;
+    }
+    if (catTop < 0) catTop = 0;
+  };
+  const catScroll = (d: number) => {
+    const n = search(query).length;
+    catTop = Math.max(0, Math.min(Math.max(0, n - CAT_ROWS), catTop + d));
+  };
 
   // ── DRAW: the desktop ──
   const drawDesktop = (g: CanvasRenderingContext2D) => {
@@ -233,70 +400,120 @@ export function register(ctx: CtxBuild): void {
     for (let y = 0; y < H - TASKBAR_H; y += 2) g.fillRect(0, y, W, 1);
 
     ICONS.forEach((icon, i) => {
-      const x = 12, y = 14 + i * 40;
+      const x = ICON_G.x, y = ICON_G.y0 + i * ICON_G.dy;
       const sel = i === iconSel;
-      if (sel) { g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(x - 3, y - 3, 30, 36); }
+      if (sel) { const r = iconRect(i); g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(r.x, r.y, r.w, r.h); }
       // a plain BEVELLED SQUARE, not a drawn glyph — a wrong icon reads worse
       // than an abstract one, and the label under it is what actually tells
       // you what it opens
-      g.fillStyle = '#d8d4c0'; g.fillRect(x, y, 24, 20);
-      g.fillStyle = '#8a8578'; g.fillRect(x, y + 20, 24, 3);
+      g.fillStyle = '#d8d4c0'; g.fillRect(x, y, ICON_G.w, ICON_G.h);
+      g.fillStyle = '#8a8578'; g.fillRect(x, y + ICON_G.h, ICON_G.w, 3);
       g.fillStyle = icon.key === 'catalog' ? '#7a3b30' : '#4a4a4a';
-      g.fillRect(x + 3, y + 3, 18, 14);
+      g.fillRect(x + 3, y + 3, ICON_G.w - 6, ICON_G.h - 6);
       g.fillStyle = sel ? '#ffffff' : '#e8e2d0';
-      g.font = font(6, sel); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-      g.fillText(icon.label, x + 12, y + 32);
+      g.font = font(7, sel); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+      g.fillText(icon.label, x + ICON_G.w / 2, y + ICON_G.labelDy);
     });
 
     // taskbar
     g.fillStyle = '#c3c0b4'; g.fillRect(0, H - TASKBAR_H, W, TASKBAR_H);
     g.fillStyle = '#e8e4d4'; g.fillRect(0, H - TASKBAR_H, W, 1);
-    g.fillStyle = '#3a3830'; g.fillRect(4, H - TASKBAR_H + 3, 40, 10);
-    g.fillStyle = '#e8e2d0'; g.font = font(6, true); g.textAlign = 'left';
-    g.fillText('START', 8, H - TASKBAR_H + 10);
+    g.fillStyle = '#3a3830'; g.fillRect(START.x, START.y, START.w, START.h);
+    g.fillStyle = '#e8e2d0'; g.font = font(7, true); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillText('START', START.x + 4, START.y + 8);
     const t = clockNow();
     const hh = String(((t.hour + 11) % 12) + 1).padStart(2, '0');
     const mm = String(t.minute).padStart(2, '0');
     g.fillStyle = '#2a2820'; g.textAlign = 'right';
-    g.fillText(`${hh}:${mm} ${t.hour < 12 ? 'AM' : 'PM'}`, W - 6, H - TASKBAR_H + 10);
+    g.fillText(`${hh}:${mm} ${t.hour < 12 ? 'AM' : 'PM'}`, W - 6, START.y + 8);
+  };
+
+  /** the bevelled push-button this era draws everywhere. `down` sinks it. */
+  const button = (g: CanvasRenderingContext2D, r: Rect, label: string, down = false) => {
+    g.fillStyle = down ? '#a9a599' : '#c3c0b4'; g.fillRect(r.x, r.y, r.w, r.h);
+    g.fillStyle = down ? '#8a8578' : '#e8e4d4'; g.fillRect(r.x, r.y, r.w, 1); g.fillRect(r.x, r.y, 1, r.h);
+    g.fillStyle = down ? '#e8e4d4' : '#8a8578';
+    g.fillRect(r.x, r.y + r.h - 1, r.w, 1); g.fillRect(r.x + r.w - 1, r.y, 1, r.h);
+    g.fillStyle = '#1a1a1a'; g.font = font(7, true);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
+    g.textBaseline = 'alphabetic';
+  };
+
+  /** the window title bar, with the close box that takes you back to the desktop */
+  const titleBar = (g: CanvasRenderingContext2D, name: string) => {
+    g.fillStyle = '#000078'; g.fillRect(2, 2, W - 4, 12);
+    g.fillStyle = '#ffffff'; g.font = font(7, true); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillText(name, 6, 11);
+    g.fillStyle = '#c3c0b4'; g.fillRect(CLOSE.x, CLOSE.y, CLOSE.w, CLOSE.h);
+    g.fillStyle = '#e8e4d4'; g.fillRect(CLOSE.x, CLOSE.y, CLOSE.w, 1);
+    g.fillStyle = '#8a8578'; g.fillRect(CLOSE.x, CLOSE.y + CLOSE.h - 1, CLOSE.w, 1);
+    g.fillStyle = '#1a1a1a'; g.font = font(8, true);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('x', CLOSE.x + CLOSE.w / 2, CLOSE.y + CLOSE.h / 2 + 1);
+    g.textBaseline = 'alphabetic';
   };
 
   // ── DRAW: the catalog ──
   const drawCatalog = (g: CanvasRenderingContext2D) => {
     g.fillStyle = '#c3c0b4'; g.fillRect(0, 0, W, H);
-    // title bar, Windows-blue
-    g.fillStyle = '#000078'; g.fillRect(2, 2, W - 4, 12);
-    g.fillStyle = '#ffffff'; g.font = font(7, true); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-    g.fillText('CARD CATALOG.EXE', 6, 11);
-    // search field
-    g.fillStyle = '#ffffff'; g.fillRect(6, 18, W - 12, 12);
-    g.strokeStyle = '#5a5850'; g.strokeRect(6.5, 18.5, W - 13, 11);
-    g.fillStyle = '#111'; g.font = font(7); g.textAlign = 'left';
+    titleBar(g, 'CARD CATALOG.EXE');
+    // search field — sunk, the way an edit control is drawn in this era
+    g.fillStyle = '#ffffff'; g.fillRect(CAT.field.x, CAT.field.y, CAT.field.w, CAT.field.h);
+    g.fillStyle = '#8a8578'; g.fillRect(CAT.field.x, CAT.field.y, CAT.field.w, 1);
+    g.fillRect(CAT.field.x, CAT.field.y, 1, CAT.field.h);
+    g.fillStyle = '#111'; g.font = font(7); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
     const cursorOn = Math.floor(clockNow().totalMin / 1) % 2 === 0; // blinks with the game clock, not a second RAF
-    g.fillText(`> ${query}${cursorOn ? '_' : ' '}`, 10, 27);
+    g.fillText(`> ${query}${cursorOn ? '_' : ' '}`, CAT.field.x + 4, CAT.field.y + 9);
+    button(g, CAT.clear, 'CLEAR');
 
     const results = search(query);
-    g.fillStyle = '#5a5850'; g.font = font(6);
-    g.fillText(`${results.length} of ${CATALOG.length} book${CATALOG.length === 1 ? '' : 's'}`, 6, 40);
-    const rowH = 12, top = 46, maxRows = Math.floor((H - top - 4) / rowH);
-    for (let i = 0; i < Math.min(results.length, maxRows); i++) {
-      const b = results[i];
-      const y = top + i * rowH;
-      if (i % 2 === 0) { g.fillStyle = 'rgba(0,0,0,0.04)'; g.fillRect(6, y, W - 12, rowH); }
-      g.fillStyle = '#1a1a1a'; g.font = font(6, true); g.textAlign = 'left';
-      g.fillText(b.title, 8, y + 9);
-      g.fillStyle = '#5a5850'; g.font = font(6);
-      const yearS = b.year < 0 ? `${-b.year} BC` : String(b.year);
-      const tail = `${b.author} · ${yearS}`;
-      g.textAlign = 'right';
-      g.fillText(tail, W - 8, y + 9);
+    catClamp();
+    g.fillStyle = '#5a5850'; g.font = font(7); g.textAlign = 'left';
+    g.fillText(`${results.length} of ${CATALOG.length} book${CATALOG.length === 1 ? '' : 's'}`, 6, CAT.up.y + 8);
+    if (results.length > CAT_ROWS) {
+      button(g, CAT.up, '▲', catTop === 0);
+      button(g, CAT.down, '▼', catTop >= results.length - CAT_ROWS);
     }
-    if (results.length > maxRows) {
-      g.fillStyle = '#5a5850'; g.font = font(6); g.textAlign = 'center';
-      g.fillText(`… ${results.length - maxRows} more — narrow your search`, W / 2, H - 6);
-    } else if (results.length === 0) {
-      g.fillStyle = '#5a5850'; g.font = font(7); g.textAlign = 'center';
-      g.fillText('no matches', W / 2, top + 20);
+
+    const shown = Math.min(results.length - catTop, CAT_ROWS);
+    for (let i = 0; i < shown; i++) {
+      const idx = catTop + i;
+      const b = results[idx];
+      const r = catRowRect(i);
+      if (idx === catSel) { g.fillStyle = '#000078'; g.fillRect(r.x, r.y, r.w, r.h); }
+      else if (idx % 2 === 0) { g.fillStyle = 'rgba(0,0,0,0.05)'; g.fillRect(r.x, r.y, r.w, r.h); }
+      g.fillStyle = idx === catSel ? '#ffffff' : '#1a1a1a';
+      g.font = font(7, true); g.textAlign = 'left';
+      g.fillText(b.title, r.x + 3, r.y + 9);
+      g.fillStyle = idx === catSel ? '#c8d4e8' : '#5a5850'; g.font = font(7);
+      const yearS = b.year < 0 ? `${-b.year} BC` : String(b.year);
+      g.textAlign = 'right';
+      g.fillText(`${b.author} · ${yearS}`, r.x + r.w - 3, r.y + 9);
+    }
+    if (results.length === 0) {
+      g.fillStyle = '#5a5850'; g.font = font(8); g.textAlign = 'center';
+      g.fillText('no matches', W / 2, CAT.top + 22);
+    }
+
+    // THE RECORD STRIP. A catalogue that only lists titles is an index; the
+    // card is the thing you came to the terminal for, and it is what the mouse
+    // buys — click a row and its shelf mark and loan status are there.
+    const sy = H - CAT.detailH;
+    g.fillStyle = '#b3b0a4'; g.fillRect(0, sy, W, CAT.detailH);
+    g.fillStyle = '#8a8578'; g.fillRect(0, sy, W, 1);
+    g.font = font(7); g.textBaseline = 'alphabetic';
+    if (catSel >= 0 && catSel < results.length) {
+      const b = results[catSel];
+      g.fillStyle = '#1a1a1a'; g.textAlign = 'left';
+      g.fillText(`${callNo(b)}  ${b.subject}`, 6, sy + 9);
+      g.fillText(b.title, 6, sy + 18);
+      g.fillStyle = status(b) === 'ON SHELF' ? '#106010' : '#8a4010';
+      g.textAlign = 'right';
+      g.fillText(status(b), W - 6, sy + 14);
+    } else {
+      g.fillStyle = '#6a6760'; g.textAlign = 'center';
+      g.fillText('type to search · click a title for its card', W / 2, sy + 14);
     }
   };
 
