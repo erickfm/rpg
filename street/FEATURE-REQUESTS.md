@@ -2772,3 +2772,16 @@ to one side.
   including "looking into my room from the hall" — the window is in view from there too.
   **Item 128 (the [E] raycast, 7,832 tests/frame) was real and worth fixing, but it was
   not the thing he is feeling.**
+
+- **"instead of getting out of the atm view or the slots or literally whatever. instread
+  of using esc for that lets make it e"** (2026-08-02) → **routed as queue item 143.**
+  Applies to every machine — ATM, slots, blackjack, library PC — so it belongs in the
+  panel framework, not per-machine.
+
+- **"nah i havent noticed the mouse dragging anywhere else"** (2026-08-02)
+  → **item 135 (getCoalescedEvents) DEMOTED, not closed.** The drag was a symptom of the
+  long frames in 301, and item 141 removed those (4,012 draw calls → 182). The
+  coalescing bug is REAL — the browser merges mouse samples during long frames and the
+  project never recovers them — but it now has no observable effect, so it drops below
+  everything the user has actually reported. Kept because any future long frame
+  resurfaces it.
