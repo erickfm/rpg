@@ -51,14 +51,66 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+const SELFTEST = process.argv.includes('--selftest');
 for (const a of process.argv.slice(2)) {
   // The same strictness this file is about, applied to itself. A guard that
   // accepts an argument it then ignores is the bug one level up.
-  console.error(`unknown argument ${JSON.stringify(a)} — this script takes none`);
+  if (a === '--selftest') continue;
+  console.error(`unknown argument ${JSON.stringify(a)} — this script takes --selftest and nothing else`);
   process.exit(2);
 }
 
-const CANFAIL = 'scripts/canfail.mjs';
+// ── THE FAILING PATH, AND WHY IT IS A COPY RATHER THAN AN EXEMPTION ─────────
+//
+// `checks-can-fail.mjs` requires every registered check to have been WATCHED
+// fail, and it caught this file with none — "a check nothing has watched fail
+// is indistinguishable from one that works". Its EXEMPT list would have taken
+// this one on the usual grounds (a guard over `scripts/` with no world state to
+// mutate, like `checks-registered` and `no-silent-pass`), and that would have
+// been the weaker answer, because **this guard demonstrably CAN be watched
+// fail** — the two mutations below are the ones item 229 ran by hand.
+//
+// So `--selftest` blinds a COPY of canfail.mjs and runs every leg against it.
+// A copy, not the real file: a selftest that edits `scripts/canfail.mjs` in
+// place is one crash away from leaving the suite's guard-of-guards blinded on
+// disk, and `canfail.mjs`'s own header spends thirty lines on what a
+// source-editing tool costs when it does not put things back.
+//
+// BOTH MUTATIONS AT ONCE, because they blind different legs and the point is
+// that SOMETHING goes red: removing item 224's refusal reddens 6 of 17,
+// removing item 229's pre-flight reddens 3 of 17.
+function blinded() {
+  const src = readFileSync('scripts/canfail.mjs', 'utf8');
+  // EACH SUBSTITUTION IS ASSERTED. A selftest whose mutation quietly stopped
+  // applying would run the legs against an UNBLINDED copy, see them all pass,
+  // and report "the guard noticed" — the vacuous pass, rebuilt inside the guard
+  // against vacuous passes. This is the same trap the rotted-needle injection
+  // in leg 4 is written around, and it is the entire subject of item 229.
+  const edits = [
+    ['  const unmatched = only.filter((o) => !CASES.some(([n]) => n === o));',
+     '  const unmatched = [];   // selftest: item 224 refusal removed'],
+    ['  if (n !== 1) rotted.push([name, file, needle, `matched ${n}x, not 1`]);',
+     '  if (false) rotted.push([name, file, needle, `matched ${n}x, not 1`]);  // selftest: item 229 pre-flight blinded'],
+  ];
+  let out = src;
+  for (const [from, to] of edits) {
+    if (out.split(from).length - 1 !== 1) {
+      console.error(`\n  SELFTEST CANNOT AIM — canfail.mjs no longer contains, exactly once:`);
+      console.error(`    ${from}`);
+      console.error(`  Nothing was blinded, so a green run below would prove nothing.`);
+      console.error(`  Re-point this mutation at the line that replaced it.\n`);
+      process.exit(2);   // usage/aim fault in THIS file, not a failing guard
+    }
+    out = out.replace(from, to);
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'canfail-args-selftest-'));
+  const path = join(dir, 'canfail-blinded.mjs');
+  writeFileSync(path, out);
+  return path;
+}
+
+const CANFAIL = SELFTEST ? blinded() : 'scripts/canfail.mjs';
+if (SELFTEST) console.log(`\nSELFTEST — driving a canfail.mjs with BOTH front-door refusals removed.`);
 
 // A PORT WITH NOTHING ON IT, and it has to be nothing. Every leg below asserts
 // that a refusal beats the server check, which is only evidence if the server
@@ -231,6 +283,29 @@ console.log('\ncanfail refuses what it cannot honour\n');
 if (ran < 5) {
   console.log(`\n  FAIL only ${ran} invocation(s) of canfail — this file drives 5.`);
   fails.push('invocation floor');
+}
+
+// ── THE VERDICT, WHICH INVERTS UNDER --selftest ────────────────────────────
+if (SELFTEST) {
+  // The legs were driven against a canfail with BOTH refusals removed, so a
+  // red here is the PASS: it means this file would notice if either fix were
+  // reverted. Green would mean the guard is blind, which is the only outcome
+  // worth failing on.
+  console.log(`\n  ${fails.length} of the assertions went red against the blinded copy:`);
+  for (const f of fails) console.log(`    ${f}`);
+  // A FLOOR, NOT MERELY "> 0". Measured: removing item 224's refusal reddens 6
+  // legs, removing item 229's pre-flight reddens 3 — 9 between them, and the
+  // aggregate verdict makes 10. A floor of 6 leaves room for the wording of a
+  // leg to change while still refusing to certify on one lucky red.
+  const ok = fails.length >= 6;
+  console.log(`\n  ${ok ? 'OK  ' : 'FAIL'} SELFTEST: this guard notices when canfail's front door is `
+    + `removed (${fails.length} red, floor 6)`);
+  if (!ok) {
+    console.log('\n  A guard that stays green over a tool with its argument validation and');
+    console.log('  its needle pre-flight BOTH deleted is not watching anything.');
+    process.exit(1);
+  }
+  process.exit(0);
 }
 
 console.log(`\n  ${fails.length ? 'FAIL' : 'OK  '} canfail's front door refuses `

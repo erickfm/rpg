@@ -737,7 +737,11 @@ const CHECKS = [
   //
   // It also guards item 229's needle pre-flight, which refuses a case whose
   // quotation has rotted. Four had, for weeks. (eightyfour)
-  ['canfail-args', 'does canfail refuse a selection it cannot honour?', false],
+  // Its --selftest blinds a COPY of canfail.mjs with BOTH front-door refusals
+  // removed and requires its own legs to go red — 9 of them do, measured.
+  // `checks-can-fail.mjs` caught this row registered with no failing path at
+  // all, which is exactly the debt that check exists to collect.
+  ['canfail-args', 'does canfail refuse a selection it cannot honour?', true],
   // The sibling of hashes-resolve, one axis over: every `file.ts:123` pointer we
   // write into a note or a comment still lands inside the file it names. Costs
   // no browser and no build.
