@@ -51,6 +51,12 @@ MAIN_STREET=$(dirname "$SHARED")
 # and stall the fleet.
 Q="${CLAIM_QUEUE:-$SHARED/QUEUE.md}"
 LOCK="$(dirname "$Q")/.queue.lock"
+# THE SNAPSHOT, HUNG OFF THE LOCK RELEASE. See scripts/queue-backup.sh for why
+# it is here rather than at each exit: this file has a dozen ways out and the
+# trap below is the only thing all of them go through. Absolute, because the
+# `cd` above means a relative path would resolve against whatever the caller's
+# shell was sitting in.
+QB="$PWD/scripts/queue-backup.sh"
 [ -f "$Q" ] || { echo "no queue at $Q"; exit 1; }
 
 mode=${1:-}
@@ -210,7 +216,7 @@ until mkdir "$LOCK" 2>/dev/null; do
   fi
   sleep 1
 done
-trap 'rm -rf "$LOCK"' EXIT INT TERM
+trap 'sh "$QB" snapshot "$Q" >/dev/null 2>&1; rm -rf "$LOCK"' EXIT INT TERM
 
 # ── --stale: report every DOING row and its age, flag anything over the ────
 # threshold (default 90 minutes — BUILDER-BRIEF's own items run smaller than

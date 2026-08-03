@@ -16,8 +16,12 @@ cd "$(dirname "$0")/.." || exit 1
 COMMON=$(git rev-parse --git-common-dir 2>/dev/null) || COMMON=.git
 case "$COMMON" in /*) ;; *) COMMON="$PWD/$COMMON";; esac
 SHARED=$(dirname "$COMMON")/street/notes
-Q="$SHARED/QUEUE.md"
-LOCK="$SHARED/.queue.lock"
+# CLAIM_QUEUE is claim.sh's test hook; see the same block in done.sh for why
+# this file now honours it too.
+Q="${CLAIM_QUEUE:-$SHARED/QUEUE.md}"
+LOCK="$(dirname "$Q")/.queue.lock"
+# see scripts/queue-backup.sh, and the trap below
+QB="$PWD/scripts/queue-backup.sh"
 [ -f "$Q" ] || { echo "no queue at $Q"; exit 1; }
 
 top=0
@@ -39,7 +43,7 @@ until mkdir "$LOCK" 2>/dev/null; do
   [ "$tries" -gt 60 ] && { rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || exit 1; break; }
   sleep 1
 done
-trap 'rm -rf "$LOCK"' EXIT INT TERM
+trap 'sh "$QB" snapshot "$Q" >/dev/null 2>&1; rm -rf "$LOCK"' EXIT INT TERM
 
 row="| $id | TODO | $files | $what |"
 if [ "$top" = 1 ]; then
