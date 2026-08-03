@@ -146,6 +146,55 @@ measures nothing printing `0/0` is the shape this whole item is about.
 
 ---
 
+## Verified
+
+Against the **built bundle** on 4480 (`vite preview`), HEAD frozen at `7d44eb9a1`
+for the whole run — the first attempt was invalidated by my own mid-run commit
+moving HEAD, which is the trap `checks.mjs`'s own TREE MOVED footer exists for.
+
+```
+npm run typecheck            0
+node scripts/health.mjs      0   WORLD OK — __ct initialised
+npm run sweep                    sweep findings: none (0 STATION MISS, 0 COVERAGE)
+node scripts/checks.mjs          104 ✓ · 56 skipped · 17 ✗, exit 1
+  0 SERVER DIED   0 BUILD RACE   0 TREE MOVED
+w92-endofrun-cases.mjs           7/7 cases behave as specified
+```
+
+**The regression that mattered — zero spurious `SERVER DIED` across 144 registry
+rows.** That was the whole risk of probing after every check rather than only
+after failures.
+
+The new footer fired once, correctly:
+
+```
+THIS RUN LOST 1 check.
+  142 of 143 registered checks ran. The server is still serving, so
+  this is not a death — the run stopped short of its own subject list…
+```
+
+Exit **1**, not 3 — a real red outranks an unmeasured one, as intended.
+
+**Cost of the per-check probe, measured not guessed:** `probeServer` against a
+live local preview, 40 calls — **median 1.11 ms, max 5.33 ms**, so ~**0.16 s**
+added across all 143 rows of a run that takes eleven minutes.
+
+### The 17 reds are all inherited — two spot-checked to the source
+
+- `note-hashes` **WRONG WORLD** — 4 of 384 citations unresolvable, in
+  `SESSION-STATE.md` (2), `AUDIT-INSTRUMENTS.md` (1) and
+  `eighty-item225-prop-landing.md` (1). **None mine**; this note cites no SHAs
+  deliberately (GOTCHAS 36).
+- `I-clip` **FAILED (1)** — `cars … OVERLAP by 1000000000.00 m`. That is the 1e9
+  sentinel from **item 242**, the five pooled car boxes at the world origin,
+  which worker eightyseven is holding right now. Not mine, not touched.
+
+Nothing I changed can turn a passing check red: the per-check probe either marks
+a row unmeasured and `continue`s, or falls through leaving the old row verbatim.
+Check argv, env and timeouts are byte-for-byte unchanged.
+
+---
+
 ## FOR THE DESK — found and not fixed
 
 1. **98 CHECKS ARE STILL GREEN-OVER-A-CORPSE WHEN RUN BY HAND.** The
@@ -173,7 +222,14 @@ measures nothing printing `0/0` is the shape this whole item is about.
    The flag-per-selftest and `+canfail` paths push more rows than there are
    registry entries, so a surplus cannot be reported as loss — which also means a
    genuine shortfall could be masked in that one mode. Plain runs are exact.
-5. **I ran `npm install` and `npm run build` in the SHARED checkout by mistake**
+5. **`note-hashes.mjs` EXITS 3 FOR SOMETHING IT DID MEASURE, and the suite then
+   labels it `WRONG WORLD`.** It read all 384 citations and found 4 bad — that is
+   a finding, so the code should be 1. `checks.mjs` renders any exit 3 as
+   `WRONG WORLD`, which is a sentence about the build stamp and not about
+   citations, and my new footer now additionally counts it as a lost check. Both
+   are correct given the code it returns; the code is what is wrong. Pre-existing,
+   one line, not mine to take. **Worth a row.**
+6. **I ran `npm install` and `npm run build` in the SHARED checkout by mistake**
    before noticing I was outside my worktree (GOTCHAS 84). No source file was
    edited there and the preview I started on 4480 was killed; only `dist/` and
    `node_modules`, both gitignored, were touched. Flagging it because a rebuilt
