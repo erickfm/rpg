@@ -100,13 +100,41 @@ world. It answers HTTP 200, so nothing looks wrong: you measure someone else's
 street and report confidently about it. One builder lost 20 minutes to this
 tonight, and it is the same failure as GOTCHAS 48 wearing a different hat.
 
+**USE `ss -ltn`. `curl` IS NOT A FREE-PORT TEST AND NEVER WAS.**
+
 ```sh
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:<port>/   # 000 = free
+ss -ltn | grep ":<port> " && echo TAKEN || echo free
 ```
 
-Anything other than `000` means **take a different port** — any free one in
-4180–4199 — and **say which one you used** in your handoff. The desk has been
-assigning these blind and cannot tell from here.
+```sh
+ss -ltn | awk '{print $4}' | grep -oE '[0-9]+$' | sort -un   # everything taken
+```
+
+A hit means **take a different port** — any free one in 4180–4199 — and **say
+which one you used** in your handoff. The desk has been assigning these blind
+and cannot tell from here.
+
+**Why the old `curl … %{http_code}` recipe was wrong, demonstrated rather than
+asserted.** It read `000` as free. But `000` only means *nothing spoke HTTP to
+me*, and a socket can be **bound and listening** without doing that — a vite
+server still starting up, a process holding the port for its own reasons. Bind
+a bare TCP listener on 4239 that never answers, and the two tools disagree
+outright:
+
+```
+ss  : LISTEN 0  511  127.0.0.1:4239  0.0.0.0:*
+curl: 000                                        ← "free", said the old recipe
+```
+
+That is precisely how worker sixtyone lost port 4183: `curl` said `000`, and
+`--strictPort` then refused to bind, partway into a run. `ss -ltn` reads the
+kernel's listen table, so it sees a bound socket whether or not anything is
+answering on it. (GOTCHAS 81.)
+
+**It is still a race, and no tool fixes that** — a port free when you look can be
+taken before you bind. So bind with **`--strictPort`** and let it fail loudly,
+rather than letting vite silently walk to the next port and hand you a world at
+an address you are not measuring.
 
 > An instrument aimed at the wrong world reports a catastrophe it cannot see —
 > or a clean bill of health it did not earn. (GOTCHAS 48.)
@@ -247,6 +275,19 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 - **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor.
 - **Press `V` for the collision overlay.** Wireframe boxes, red where a gap under 0.95 m could trap a player. It is how the user found two real bugs on its first day.
 - **Verify on the BUILT bundle** (`npx vite preview`), not only on dev. The panel/keydown class of bug has shipped differently than it renders in dev.
+- **A build against the tree your preview is serving blinds it for about a fifth
+  of a second. It does NOT kill it.** `vite build` empties `dist/` before writing
+  and `vite preview` serves `dist/` statically, so the healthy server has no page
+  to hand back for that window — measured on this tree at **1175 of 6935 polls
+  returning 404, 0.67 s–0.89 s into the build, with zero refused connections**
+  (`scripts/probes/w67-does-build-kill-preview.mjs`). Any check that reaches for
+  the world in that window fails through no fault of yours. `npm run checks` now
+  tells the three cases apart and says which one you are in — `BUILD RACE` (it
+  healed, re-run that one check), `dist/ EMPTY` (the build is still going or it
+  failed; re-run `npm run build`), `SERVER DIED` (the port really is refusing
+  connections). **Do not start a second preview on that port; the first one is
+  alive.** If you were running builds and checks against one tree at the same
+  time, the red is the race, not your change.
 - Finish with `node scripts/bugsweep.mjs` — **zero STATION MISS**, no new console errors. It covers all 12 rooms and 3 sites.
 - **The 2 m sidewalk lane is sacred.** Indoors too: a person should be able to walk past a shelf without brushing it.
 

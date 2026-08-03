@@ -241,7 +241,9 @@ export function buildBankInterior(ctx: CtxBuild): void {
     dither(g, 24, 56, 40);
   }), 'detail');
   const bankLeafM = new THREE.MeshBasicMaterial({ map: bankLeafT, side: THREE.DoubleSide });
-  leafPair(put, bankLeafM, dAt, DW, DH, hd - 0.12, 0.55, 'bank', 0.03);
+  // No swing argument: `leafPair` hangs every entrance in the world at
+  // `LEAF_AJAR`, which is shut, matching the painted bronze door on the street.
+  leafPair(put, bankLeafM, dAt, DW, DH, hd - 0.12, 'bank', 0.03);
 
   // ── the palette, named once ────────────────────────────────────────────────
   const BRONZE = BANK_DOOR.bronze;  // ct/bank.ts BANK_DOOR.bronze — one bronze, inside and out

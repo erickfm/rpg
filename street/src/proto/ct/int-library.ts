@@ -7,7 +7,7 @@ import { type DoorDecl } from './doors';
 import { PASSABLE } from './gap';
 // the hard-texel text painter, so a sign in here is as crisp as one on the
 // street — same reason ct/int-hotel.ts imports it
-import { hardLayer as hardLayerLib } from './vice';
+import { hardLayer as hardLayerLib, LEAF_AJAR, doorRebate } from './vice';
 
 // PUBLIC LIBRARY, inside.
 //
@@ -733,10 +733,24 @@ export function buildLibrary(ctx: CtxBuild): void {
     // unflipped — GOTCHAS §35. The rotation has already done the mirroring, and
     // flipping it again would put the brass on the hinge stile, which is the
     // one place a door handle is never.
-    const OPEN = 0.85;                                  // ~49 deg, matching the kit
+    // `0.85` — *"~49 deg, matching the kit"* — was here, and matching the kit
+    // was the problem: the kit's angle is not a decision anybody made about a
+    // library, and the user's own words about this entrance were *"the door
+    // reads as SHUT-BUT-OPEN"* (quoted in full at `ct/int-pawn.ts:177`). These
+    // leaves are hand-rolled rather than `leafPair`'s — they are back-to-back
+    // planes on the OUTER face, not a mirrored pair — so the shared angle has
+    // to be imported rather than inherited from the helper.
+    const OPEN = LEAF_AJAR;                             // vice.ts — one angle, world-wide
     const LW = DW / 2 - 0.02;
     const hz = hd + T + 0.02;                           // the hinge, on the OUTER face
     const dAtJ = room.doorAt;
+    // The same rebate `leafPair` puts behind every other shut pair. This room
+    // does not call `leafPair` — its leaves are back-to-back planes on the
+    // outer face — so it asks for the piece rather than getting it for free,
+    // and the piece is imported rather than copied. Without it the 2 x 0.02 m
+    // between the leaves is a slot onto the void behind the doorway, which is
+    // exactly what it photographed as.
+    doorRebate(put, dAtJ, DW, DH, hz);
     for (const sx of [-1, 1]) {
       const hx = dAtJ + sx * DW / 2;                    // each leaf on its own jamb
       const th = -sx * OPEN;
