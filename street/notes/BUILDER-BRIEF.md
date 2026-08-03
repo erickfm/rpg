@@ -56,8 +56,21 @@ agent that was never given a worktree at all**; that agent has no worktree to
 have come from and looks exactly like the desk. If you were spawned without
 isolation, the guard will not save you and §0's manual check is all you have.
 
+**It still does not replace the check above.** It hooks four `package.json`
+scripts plus `vite.config.ts`. **Any bare `node scripts/*.mjs` still goes round
+it.** Run `git log --oneline -3` first anyway.
+
+**It fails open on every uncertain answer**, because it sits on `preinstall` and
+a bug there would brick the most-run command on the project.
+
 `CT_ALLOW_SHARED=1` opts out. It is not a normal thing for a builder to want —
-if you use it, say so in your `done.sh` line.
+if you use it, say so in your `done.sh` line. **It is no longer the desk's
+routine escape hatch:** until item 247 the guard refused the desk too, because
+the desk and every builder share **one `CLAUDE_CODE_SESSION_ID` and one
+environment** (worker ninetythree measured **50 of 50** agent processes carrying
+`CLAUDE_CODE_CHILD_SESSION=1`, the desk's own tool shells included). The guard no
+longer asks *who you are* — it asks *where your shell was standing*, which is the
+one thing that does differ.
 
 ---
 
@@ -309,6 +322,26 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 - **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor.
 - **Press `V` for the collision overlay.** Wireframe boxes, red where a gap under 0.95 m could trap a player. It is how the user found two real bugs on its first day.
 - **Verify on the BUILT bundle** (`npx vite preview`), not only on dev. The panel/keydown class of bug has shipped differently than it renders in dev.
+- **ONE CHECK IS EXEMPT FROM THAT, AND IT IS NAMED: `scripts/interiors-walk.mjs`
+  IS DEV-ONLY.** It reads its declarations out of the TypeScript sources at
+  runtime — four sites, `import('/src/proto/ct/doors.ts')` ×3 and
+  `.../ct/interior.ts` ×1 — which is deliberate: on `vite dev` the ES module
+  cache hands back **the same instance the app is using**, so the harness reads
+  the live door and party-wall declarations and a room added tomorrow is
+  understood with no edit. `vite preview` serves only `dist/`, so all four 404.
+  **Run this one on `vite dev`. It is the only exception, and it is not one you
+  have to remember** — pointed at a bundle it now aborts with **exit 3, nothing
+  measured**, and says so in a sentence. It used to die on an unhandled fetch
+  error, which node turns into **exit 1 — "measured, and it is WRONG"** — so a
+  builder doing exactly what the line above says got a red against twelve rooms
+  that were fine, from a suite that never started (GOTCHAS 32).
+  **What would lift the exemption, measured 2026-08-03 by
+  `scripts/probes/w93-item246-iw-bundle-gap.mjs`:** three of the four sites are
+  already redundant — `doorStandFor` and `doorPointFor` are on `__ct.doors()`
+  and agree **12/12 and 12/12 exactly**, and `roomWidthFor`'s value is assigned
+  to `r.W` and **read nowhere in the file**. The whole remaining blocker is
+  `ct/interior.ts`'s `PARTY`, which nothing publishes. **One line beside
+  `roomDims()` in `src/proto/crosstown.ts` makes this suite bundle-runnable.**
 - **A build against the tree your preview is serving blinds it for about a fifth
   of a second. It does NOT kill it.** `vite build` empties `dist/` before writing
   and `vite preview` serves `dist/` statically, so the healthy server has no page

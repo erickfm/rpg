@@ -1,4 +1,46 @@
 // ┌───────────────────────────────────────────────────────────────────────┐
+// │  ⚠ THIS ONE CHECK IS DEV-ONLY. IT CANNOT RUN ON `vite preview`.       │
+// │                                                                       │
+// │  Everything else in this project is verified on the BUILT BUNDLE —    │
+// │  GOTCHAS 28, and BUILDER-BRIEF §10 tells every builder so. This file  │
+// │  is the documented exception, and the contradiction is stated here    │
+// │  rather than lived with (item 246).                                   │
+// │                                                                       │
+// │  WHY. It reads its declarations out of the TypeScript sources at      │
+// │  runtime — four sites, `import('/src/proto/ct/doors.ts')` x3 and      │
+// │  `import('/src/proto/ct/interior.ts')` x1. `vite dev` serves those    │
+// │  transpiled and the app has already imported them, so the ES module   │
+// │  cache hands back the SAME instance: the harness reads the live       │
+// │  declaration and a party wall added tomorrow is understood for free.  │
+// │  `vite preview` serves only `dist/`, so all four 404.                 │
+// │                                                                       │
+// │  WHAT IT WOULD TAKE TO LIFT IT — measured, not guessed, by            │
+// │  `scripts/probes/w93-item246-iw-bundle-gap.mjs` on 2026-08-03:        │
+// │                                                                       │
+// │    doorStandFor / doorPointFor  ALREADY on `__ct.doors()`, and they   │
+// │                                 agree exactly, 12/12 and 12/12.       │
+// │    roomWidthFor -> `r.W`        DEAD — assigned at one line and read  │
+// │                                 nowhere. (`inRoom` uses lower-case    │
+// │                                 `r.w`, measured off the colliders.)   │
+// │    declaredDoors().at -> r.at   fallback only, at the `|| { x:        │
+// │                                 room.at … }` arm of DOOR.             │
+// │    interior.ts `PARTY`          NOT published anywhere. 1 declared    │
+// │                                 party wall, and this file exits 3     │
+// │                                 without it, deliberately: a           │
+// │                                 containment run that does not know    │
+// │                                 the party doorways reports the        │
+// │                                 feature as a hole.                    │
+// │                                                                       │
+// │  So THREE of the four sites are already redundant and the whole       │
+// │  remaining blocker is publishing `PARTY` on `__ct` — one line in      │
+// │  `src/proto/crosstown.ts`, beside `roomDims()`. That file was not     │
+// │  in item 246's scope, so it is queued, not done.                      │
+// │                                                                       │
+// │  Until then: run this on `vite dev`. The preflight below aborts with  │
+// │  EXIT 3 (nothing measured) rather than the exit 1 it used to give,    │
+// │  which read as twelve failing rooms. (GOTCHAS 32.)                    │
+// └───────────────────────────────────────────────────────────────────────┘
+// ┌───────────────────────────────────────────────────────────────────────┐
 // │  HEADING CONVENTION — atan2(-nx, nz).  NOT atan2(nx, nz).             │
 // │                                                                       │
 // │  Yaw 0 looks along -z, so heading y points along (sin y, -cos y).     │
@@ -305,6 +347,49 @@ await p.goto(aim('http://localhost:4185/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
+
+// ── DEV-SERVER PREFLIGHT (item 246) ───────────────────────────────────────
+//
+// THIS SUITE IS DEV-ONLY, AND UNTIL NOW IT SAID SO BY CRASHING. See the banner
+// at the top of this file for why it is dev-only and what would lift it. This
+// block exists only so the constraint arrives as a sentence rather than as a
+// stack trace with an exit code that means the opposite of the truth:
+//
+//   before   page.evaluate: TypeError: Failed to fetch dynamically imported
+//            module: http://localhost:4490/src/proto/ct/doors.ts
+//            ...unhandled, node turns it into  EXIT 1
+//
+// **Exit 1 is "measured, and it is WRONG" (GOTCHAS 32).** Nothing was measured.
+// A builder following the standing verify-on-the-bundle instruction got a red
+// against twelve rooms that are fine, from a check that never started — the
+// exact ambiguity GOTCHAS 32 was written about, in the one suite the rule
+// points at most often.
+//
+// EXIT 3 IS THE HONEST CODE: aborted, wrong world, nothing follows about the
+// interiors. And it is checked HERE, four hundred lines before the first
+// import site, so the answer costs a page load instead of a full launch.
+{
+  const devModules = await p.evaluate(async () => {
+    try { await import('/src/proto/ct/doors.ts'); return true; } catch { return false; }
+  });
+  if (!devModules) {
+    console.log('');
+    console.log('DEV SERVER REQUIRED — nothing measured.');
+    console.log('  This suite reads its door and party-wall declarations from the TypeScript');
+    console.log('  sources at runtime (`import("/src/proto/ct/doors.ts")`, `.../ct/interior.ts`).');
+    console.log('  `vite dev` serves those transpiled; `vite preview` serves only the bundle,');
+    console.log('  so they 404 and every room would be walked against a guess.');
+    console.log('');
+    console.log('  Re-run against a dev server:  npx vite --port <yours> --strictPort');
+    console.log('                                SHOT_URL=http://localhost:<yours>/ node scripts/interiors-walk.mjs');
+    console.log('');
+    console.log('  This is the ONE check in the suite that cannot honour the');
+    console.log('  verify-on-the-built-bundle rule. See notes/BUILDER-BRIEF.md §10 and the');
+    console.log('  banner at the top of this file. Exit 3 = aborted, not failed.');
+    await b.close();
+    process.exit(3);
+  }
+}
 
 // ── AND ASK IT WHAT EACH DOOR CALLS ITSELF (item 213) ───────────────────
 //
