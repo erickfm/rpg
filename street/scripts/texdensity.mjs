@@ -135,14 +135,21 @@ if (SELFTEST) {
         const rx = Math.abs(m.map.repeat.x) || 1, ry = Math.abs(m.map.repeat.y) || 1;
         const asp = (m.map.image.width * rx / fw) / (m.map.image.height * ry / fh);
         if (asp < 0.9 || asp > 1.1) return;        // start from a SQUARE face
-        m.map.repeat.x = rx * 3;                   // now it draws 3x stretched
-        done = { name: o.name || '?', mi, face: [+fw.toFixed(2), +fh.toFixed(2)] };
+        // 5x, not 3x: GROSS is 4x, and a mutation that lands UNDER the
+        // threshold proves nothing. The first draft used 3x and still printed
+        // "caught it" — because the world has a real backlog of gross faces, so
+        // `gross.length` was non-zero no matter what the mutation did. That is
+        // the "check that cannot fail" family this repo keeps paying for, in
+        // the selftest that exists to prevent it.
+        m.map.repeat.x = rx * 5;
+        done = { name: o.name || '?', mi, face: [+fw.toFixed(3), +fh.toFixed(3)] };
       });
     });
     return done;
   });
   if (!hit) { console.error('SELFTEST could not find a square face to break'); await b.close(); process.exit(3); }
-  console.log(`selftest: tripled repeat.x on a ${hit.face.join('×')} m face (${hit.name}) — this MUST now go red\n`);
+  console.log(`selftest: x5 repeat.x on a ${hit.face.join('×')} m face (${hit.name}) — THIS FACE must appear below\n`);
+  globalThis.__selftestFace = hit;
 }
 
 const out = await p.evaluate((k) => {
@@ -282,13 +289,18 @@ if (BLESS) {
 }
 
 if (SELFTEST) {
-  // The mutation took a SQUARE face to 3x. It must appear in `gross`.
-  if (!gross.length) {
-    console.error('\nSELFTEST FAILED — a face was made to draw a 3x stretched texture and this '
-                + 'script did not report it. The verdict above is decoration.');
+  // NOT `if (gross.length)` — that passes on this world no matter what the
+  // mutation did, because the backlog is 188 faces deep. The assertion has to
+  // be that THE FACE I BROKE is in the list.
+  const f = globalThis.__selftestFace;
+  const found = gross.find((r) => r.mi === f.mi
+    && Math.abs(r.face[0] - f.face[0]) < 0.005 && Math.abs(r.face[1] - f.face[1]) < 0.005);
+  if (!found) {
+    console.error(`\nSELFTEST FAILED — the ${f.face.join('×')} m face was made to draw a 5x `
+                + 'stretched texture and does not appear in the gross list. The verdict is decoration.');
     process.exit(2);
   }
-  console.log('\nselftest: caught it');
+  console.log(`\nselftest: caught it — that face is in the list at ${found.aspect}x`);
   process.exit(0);
 }
 
