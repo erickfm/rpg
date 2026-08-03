@@ -1731,6 +1731,38 @@ export function makeCrosstown(): Proto {
      *  and nothing may push onto it expecting the world to change. The one
      *  selftest that mutates `colliders()` by reference keeps doing so. */
     staticColliders: () => colliders.filter((c) => !actorBoxes.has(c)),
+    /** WHAT THE CROWD STEERS AROUND — the pedestrians' obstacle list.
+     *
+     *  `colliders` stops the PLAYER; `citAvoid` is what `ct/crowd.ts` steers
+     *  citizens around, and the two are different lists on purpose. Nothing
+     *  published it, so **the difference between them was unobservable from
+     *  outside**, and that is a blocker under two of the user's own bugs:
+     *  *"pedestrians sometimes clip into the fruit in the sidewalk outside the
+     *  bodega"* (195) and *"people still get stuck"* (173). Both could be
+     *  watched and neither could be asserted — a probe could see a citizen
+     *  walk through a crate but could not ask whether the crate was ever
+     *  offered to the crowd in the first place. Those are different bugs with
+     *  different fixes, and telling them apart is the whole value here.
+     *
+     *  NUMBERS, NOT THE LIVE ARRAY, and this is the one place it differs from
+     *  `colliders()` above. That one returns by reference because
+     *  `interiors-walk.mjs --selftest` walls doors shut by pushing onto it;
+     *  nothing needs that here, and a probe that can push a box into the
+     *  crowd's obstacle list is a probe that can make the world agree with it.
+     *  Each entry is a fresh spread, so mutating one changes nothing — the same
+     *  reasoning `painted()` gives for publishing three counters rather than
+     *  the renderer.
+     *
+     *  `actor` IS COMPUTED HERE, INSIDE THE WORLD, because it can only be
+     *  computed here: it is an IDENTITY test against `actorBoxes`, and identity
+     *  is exactly what does not survive `page.evaluate`. Cars and citizens push
+     *  onto `citAvoid` too, so without this flag a probe asking "is the fruit
+     *  stand in the list" has to distinguish a crate from a pedestrian by
+     *  shape — and a citizen's box is 0.5 x 0.5, which is also plenty of real
+     *  furniture. The spread carries `rot`, `minY`/`maxY` and any `tag` a box
+     *  was built with, so a caller can key on the same fields the red-dump
+     *  probes already key on. */
+    citAvoid: () => citAvoid.map((b) => ({ ...b, actor: actorBoxes.has(b) })),
     // test affordance: WHAT GROUND HAS BEEN PUBLISHED, and where? Same argument
     // as colliders() and groundAt() — a module that asks `ctx.site('jail')` and
     // gets null must build nothing and say so, and until now there was no way
