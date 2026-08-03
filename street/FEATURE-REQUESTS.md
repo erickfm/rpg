@@ -3040,3 +3040,12 @@ to one side.
   201.** The crowd network already has the concept: `ct/crowd.ts:232` — *"`road`
   on an edge is what 'cross at the crossing, and only at the crossing' comes
   to"*, and `:239` counts `crossings`.
+
+- **"[screenshot] truck collision isnt accurate to the truck but the other truck
+  is? it seems odd. seems like all trucks should be one object that are all the
+  same no?"** (2026-08-02,
+  `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-02 22-08-24.png`,
+  taken in the V collision-debug view) → **routed as queue item 202, which
+  supersedes 87.** SECOND report of this class, and this time he proposes the
+  fix himself: one collider definition per vehicle kind. `ct/cars.ts` already
+  has a `CarKind` type and `makeCar(kind, …)`.
