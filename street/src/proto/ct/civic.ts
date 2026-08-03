@@ -496,9 +496,29 @@ export function buildCivic(o: {
     // `ox + dir * u`, so the x span reverses with `dir` and the z span is
     // `oz + v`. Sizing per tread keeps the flags 1.5 m whatever the tread
     // measures, which is the whole point of passing metres.
+    // ⚠ U AND V SWAP WITH THE AXIS, AND THIS DID NOT. The same trap the item
+    // 163 note below flags for the SIDE faces, one level up, on the TOP one —
+    // and 163 did not reach it, because it changed which materials the stone
+    // faces get and this is the plazaTex canvas.
+    //
+    // `put` maps approach coords to world differently per axis: 'x' puts a box
+    // at (ox + dir*u, oz + v), 'z' at (ox + v, oz + dir*u). This took its
+    // x-range from u and its z-range from v unconditionally — right for 'x',
+    // exactly inverted for 'z'. The call site used to hold a ternary whose two
+    // arms were BYTE-IDENTICAL, which is where the intended swap went missing.
+    //
+    // Cost, measured on the built bundle: the church forecourt's three tread
+    // tops asked for a 27x147 canvas to cover a 4.6 x 0.84 m face and drew
+    // 5.87 x 175 px/m — a 29.8x stretch on paving the player walks over and
+    // looks straight down at, and the worst VISIBLE face in civic's backlog.
+    // scripts/probes/w102-flagtop-axis-swap.mjs reproduces all three measured
+    // canvases and both ppm axes from the swap on paper, so this is the code
+    // rather than a guess. Fixed: 31.96 x 32.2 px/m, square.
     const flagTop = (u0: number, u1: number, v0: number, v1: number) => {
-      const ax = f.ox + f.dir * u0, bx = f.ox + f.dir * u1;
-      const az = f.oz + v0, bz = f.oz + v1;
+      const ax = f.ox + (f.axis === 'x' ? f.dir * u0 : v0);
+      const bx = f.ox + (f.axis === 'x' ? f.dir * u1 : v1);
+      const az = f.oz + (f.axis === 'x' ? v0 : f.dir * u0);
+      const bz = f.oz + (f.axis === 'x' ? v1 : f.dir * u1);
       return new THREE.MeshBasicMaterial({
         map: declareSurface(plazaTex(Math.min(ax, bx), Math.max(ax, bx),
           Math.min(az, bz), Math.max(az, bz)), 'ground'),
