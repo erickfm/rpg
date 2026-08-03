@@ -2940,3 +2940,13 @@ to one side.
   through a density fix before (`ct/civic.ts:403` refers back to it) and
   `ct/park.ts:1715` already warns about scale changing between two pieces of
   the same shelter.
+
+- **"[screenshot] try to add some y diversity here. the height is soooo flat."**
+  (2026-08-02, pasted image, the park seen from the street) → **routed as queue
+  item 172.** The park already has a gaussian relief system (crown +0.10, mound
+  +0.30 over σ 3.1, dish -0.09, corner -0.10) but it is capped by a hard
+  constraint its own author documented: *"The park site is floored by one flat
+  32 × 30 m plane at KERB_H, drawn by `openSite` in ct/street.ts, and it is not
+  mine and does not move."* The same comment names the fix: *"If ct/street.ts
+  ever lets a module own its site's ground, the crown can come off and the
+  hollows can be real."*
