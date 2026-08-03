@@ -993,14 +993,48 @@ export function makeCrosstown(): Proto {
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, DRAW_L + 0.35), steelM);
     bar.position.set(0, DECK_Y - 0.14, p.half - 0.05 + (DRAW_L + 0.35) / 2);
     trailer.add(bar);
-    // the axle, and two wheels tucked under the deck (top 0.44, below it)
-    const axle = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.06), steelM);
-    axle.position.set(0, 0.22, deckZ0 + DECK_L * 0.5);
+    // ── the axle, and two wheels ACTUALLY tucked under the deck ─────────────
+    //
+    // *"[screenshot] fix the wheels on the trailer"* (2026-08-02), and he has
+    // also said *"i love the car with the trailer thing btw keep that tysm"* —
+    // so the rig stays and something about the wheels reads wrong.
+    //
+    // THE COMMENT ON THIS LINE USED TO SAY "tucked under the deck" AND IT WAS
+    // NOT TRUE. Centres at ±0.95 with a half-thickness of 0.07 put the outer
+    // sidewalls at ±1.02 against `DECK_HW = 0.9` — **0.113 m of tyre standing
+    // proud of the trailer on each side**, measured off the live scene graph
+    // (`scripts/probes/w114-item253-trailer-look.mjs`: wheel span X
+    // 2.7244…4.7701, deck span 2.8375…4.6571). Shot from the carriageway at 3 m,
+    // which is where a player passes it, the near wheel reads as a black disc
+    // silhouetted against the ROAD with no bodywork behind it — the *"dark blob
+    // detached from the vehicle"* the request describes. The sedan's own wheel
+    // one metre away does not, because it is a circle inside an arch.
+    //
+    // ninetyeight had already ruled out the other candidate with numbers: these
+    // wheels do NOT float. Ground gap 0.0000 m — a 12-gon phased onto a VERTEX,
+    // so they are the one pair in the world that is seated exactly right, and
+    // item 252's decagon-on-its-apothem defect does not apply here.
+    //
+    // NOW DERIVED FROM THE DECK, so the comment cannot go false again: the outer
+    // sidewall is placed flush with the deck edge rather than at a typed ±0.95.
+    // `ct/cars.ts:1458` warns that moving a CAR's wheel inboard "buried it,
+    // which was worse" — that does not transfer, and the reason is structural:
+    // a car's flank is an opaque slab from rocker to beltline, so an inboard
+    // wheel disappears behind it, whereas this deck is 0.06 m of plank at
+    // 0.44–0.50 m and hides nothing. Tucking these in changes which side of the
+    // silhouette the wheel sits on; it does not hide it.
+    const WHEEL_R = 0.22, WHEEL_T = 0.14;
+    const WHEEL_X = DECK_HW - WHEEL_T / 2;          // outer sidewall == deck edge
+    const AXLE_Z = deckZ0 + DECK_L * 0.5;
+    // The axle spans hub to hub, so it follows the wheels instead of being a
+    // second hand-typed width that could drift away from them.
+    const axle = new THREE.Mesh(new THREE.BoxGeometry(WHEEL_X * 2, 0.06, 0.06), steelM);
+    axle.position.set(0, WHEEL_R, AXLE_Z);
     trailer.add(axle);
     for (const s of [-1, 1]) {
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 12), tyreM);
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(WHEEL_R, WHEEL_R, WHEEL_T, 12), tyreM);
       w.rotation.z = Math.PI / 2;
-      w.position.set(s * 0.95, 0.22, deckZ0 + DECK_L * 0.5);
+      w.position.set(s * WHEEL_X, WHEEL_R, AXLE_Z);
       trailer.add(w);
     }
     // a low tail board with the lamps, at the very back so it shadows none of
