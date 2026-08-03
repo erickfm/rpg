@@ -309,6 +309,20 @@ export function makeCrosstown(): Proto {
   // arrived on. One rule, no per-spot bookkeeping, and it cannot be defeated by
   // two spots sharing a doorway.
   let landing: { x: number; z: number } | null = null;
+  // THE TWO HALVES OF THE LATCH, NAMED — because the bug in them was a
+  // RELATIONSHIP, not a value, and a relationship you cannot see is one nobody
+  // checks. `LATCH_ARM` is "that act moved me, so it was a transition";
+  // `LATCH_CLEAR` is "I have walked far enough away to re-arm". Both were typed
+  // literals — 1.0 here, and 1.2 in TWO places (the per-frame clear below and
+  // `__ct.landing()`'s `clearIn`) — so the only statement of how they relate
+  // lived in prose. Three copies of a number that must agree is BUILDER-BRIEF
+  // §8's habit, and `__ct.landing().clearIn` is the reading a harness trusts.
+  //
+  // ARM < CLEAR ON PURPOSE. The gap is the hysteresis: arming at the same
+  // distance it clears at would let a spot re-fire the instant you drifted back
+  // over the line, which is the yo-yo this whole mechanism exists to stop.
+  const LATCH_ARM = 1.0;
+  const LATCH_CLEAR = 1.2;
   // ── LINE-OF-SIGHT CACHE ───────────────────────────────────────────────────
   // *"i get awful performance drops in my room not sure why."* Flat 301.
   //
@@ -979,14 +993,48 @@ export function makeCrosstown(): Proto {
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, DRAW_L + 0.35), steelM);
     bar.position.set(0, DECK_Y - 0.14, p.half - 0.05 + (DRAW_L + 0.35) / 2);
     trailer.add(bar);
-    // the axle, and two wheels tucked under the deck (top 0.44, below it)
-    const axle = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.06), steelM);
-    axle.position.set(0, 0.22, deckZ0 + DECK_L * 0.5);
+    // ── the axle, and two wheels ACTUALLY tucked under the deck ─────────────
+    //
+    // *"[screenshot] fix the wheels on the trailer"* (2026-08-02), and he has
+    // also said *"i love the car with the trailer thing btw keep that tysm"* —
+    // so the rig stays and something about the wheels reads wrong.
+    //
+    // THE COMMENT ON THIS LINE USED TO SAY "tucked under the deck" AND IT WAS
+    // NOT TRUE. Centres at ±0.95 with a half-thickness of 0.07 put the outer
+    // sidewalls at ±1.02 against `DECK_HW = 0.9` — **0.113 m of tyre standing
+    // proud of the trailer on each side**, measured off the live scene graph
+    // (`scripts/probes/w114-item253-trailer-look.mjs`: wheel span X
+    // 2.7244…4.7701, deck span 2.8375…4.6571). Shot from the carriageway at 3 m,
+    // which is where a player passes it, the near wheel reads as a black disc
+    // silhouetted against the ROAD with no bodywork behind it — the *"dark blob
+    // detached from the vehicle"* the request describes. The sedan's own wheel
+    // one metre away does not, because it is a circle inside an arch.
+    //
+    // ninetyeight had already ruled out the other candidate with numbers: these
+    // wheels do NOT float. Ground gap 0.0000 m — a 12-gon phased onto a VERTEX,
+    // so they are the one pair in the world that is seated exactly right, and
+    // item 252's decagon-on-its-apothem defect does not apply here.
+    //
+    // NOW DERIVED FROM THE DECK, so the comment cannot go false again: the outer
+    // sidewall is placed flush with the deck edge rather than at a typed ±0.95.
+    // `ct/cars.ts:1458` warns that moving a CAR's wheel inboard "buried it,
+    // which was worse" — that does not transfer, and the reason is structural:
+    // a car's flank is an opaque slab from rocker to beltline, so an inboard
+    // wheel disappears behind it, whereas this deck is 0.06 m of plank at
+    // 0.44–0.50 m and hides nothing. Tucking these in changes which side of the
+    // silhouette the wheel sits on; it does not hide it.
+    const WHEEL_R = 0.22, WHEEL_T = 0.14;
+    const WHEEL_X = DECK_HW - WHEEL_T / 2;          // outer sidewall == deck edge
+    const AXLE_Z = deckZ0 + DECK_L * 0.5;
+    // The axle spans hub to hub, so it follows the wheels instead of being a
+    // second hand-typed width that could drift away from them.
+    const axle = new THREE.Mesh(new THREE.BoxGeometry(WHEEL_X * 2, 0.06, 0.06), steelM);
+    axle.position.set(0, WHEEL_R, AXLE_Z);
     trailer.add(axle);
     for (const s of [-1, 1]) {
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 12), tyreM);
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(WHEEL_R, WHEEL_R, WHEEL_T, 12), tyreM);
       w.rotation.z = Math.PI / 2;
-      w.position.set(s * 0.95, 0.22, deckZ0 + DECK_L * 0.5);
+      w.position.set(s * WHEEL_X, WHEEL_R, AXLE_Z);
       trailer.add(w);
     }
     // a low tail board with the lamps, at the very back so it shadows none of
@@ -1607,7 +1655,7 @@ export function makeCrosstown(): Proto {
     // you must walk to re-arm.
     landing: () => (landing
       ? { x: landing.x, z: landing.z,
-          clearIn: Math.max(0, 1.2 - Math.hypot(rig.pos.x - landing.x, rig.pos.z - landing.z)) }
+          clearIn: Math.max(0, LATCH_CLEAR - Math.hypot(rig.pos.x - landing.x, rig.pos.z - landing.z)) }
       : null),
     hermit: (v: boolean | null) => apt.forceHermit(v),
     /** THE WALLET, READ-ONLY — cash, pockets, bank balance, card.
@@ -2165,7 +2213,7 @@ export function makeCrosstown(): Proto {
       // Lines are skipped so the debug volume cannot occlude the world, and the
       // held watch and wrist are DOM rather than scene, so they never can.
       // everything re-arms once you have stepped away from where you arrived
-      if (landing && Math.hypot(px - landing.x, pz - landing.z) > 1.2) landing = null;
+      if (landing && Math.hypot(px - landing.x, pz - landing.z) > LATCH_CLEAR) landing = null;
       // THE EYE IS ON WHATEVER STOREY THE PLAYER IS, and this line was 1.6
       // flat, which killed every `[E]` above the ground floor.
       //
@@ -2301,7 +2349,43 @@ export function makeCrosstown(): Proto {
           // a TRANSITION is an act that moved you. Only those latch: latching
           // everything would stop the ATM re-offering "check balance" after one
           // press, and a seat re-offering "stand up".
-          if (Math.hypot(rig.pos.x - wasX, rig.pos.z - wasZ) > 1.0) {
+          //
+          // ── AND ONLY IF YOU STILL HAVE LEGS TO CLEAR IT WITH (item 283) ──
+          //
+          // THE ARM CONDITION IS A DISTANCE; THE CLEAR CONDITION IS A WALK.
+          // That asymmetry is the whole bug. `landing` is discharged by exactly
+          // one thing — the per-frame `> LATCH_CLEAR` test above, which reads
+          // the player's own x/z — and `fp.ts`'s seated branch returns before
+          // any movement is integrated. So a seated player's x/z is frozen at
+          // the seat, and a latch armed by SITTING DOWN can never discharge:
+          // `canSee` is false for every spot in the world until you stand.
+          //
+          // That is not a hypothetical. `ctx.seat` lets a seat declare an
+          // `approach` away from the pose — the bank's client chair is taken
+          // from its right so the player does not stand on the loan officer
+          // (`ct/int-bank.ts:1421`) — and `hypot(1.10, 0.25) = 1.13 m` clears
+          // LATCH_ARM by 13 cm. Measured on the built bundle: 2 of 219 seats
+          // are over the line ("sit in the client chair", "sit in the shelter"),
+          // and in both the seated `[E]` item 188 landed was dead on arrival.
+          // The user asked for that chair by name — *"you sit and its the loan
+          // process as an integrated overlay"* — so it was dead exactly where
+          // he was going to look for it.
+          //
+          // NOT FIXED BY MOVING EITHER NUMBER. Raising LATCH_ARM past 1.13
+          // rescues these two seats and breaks at the next `approach` somebody
+          // writes; lowering it arms the latch on more of them. The defect is
+          // that a latch whose only discharge is locomotion was being armed on
+          // a player who cannot locomote, so the guard is that condition
+          // itself, derived from `rig.seated` rather than from any distance.
+          //
+          // Safe to read `rig.seated` AFTER the act rather than before: the act
+          // is what changes it, and both directions come out right. Sit down —
+          // still seated, no latch, which is the fix. Use something from a
+          // chair that stands you up and moves you (item 188 made that
+          // reachable) — not seated, latch arms, exactly as a door does. And
+          // `landing` is provably null on entry here, because `canSee` gates
+          // `picked`, so this cannot be masking an older latch.
+          if (!rig.seated && Math.hypot(rig.pos.x - wasX, rig.pos.z - wasZ) > LATCH_ARM) {
             landing = { x: rig.pos.x, z: rig.pos.z };
           }
         } else if ((purse.inv.CEREAL ?? 0) > 0 && px < 100) {

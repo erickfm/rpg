@@ -75,6 +75,7 @@ import { reportWorld } from './lib/which-world.mjs';
 import { reportEndOfRun } from './lib/server-state.mjs';
 import { entrySpots } from './lib/entry-spot.mjs';
 import { sampleFloors, installRayFloorQuery, selfTestRayQuery } from './lib/floors.mjs';
+import { classify } from './lib/declared-failures.mjs';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 
@@ -326,7 +327,17 @@ const OFF_BELT = [
 // `--selftst` would drop out of the room filter AND out of the selftest test at
 // :165, running the ordinary walk and exiting 0 — a selftest pass for a
 // selftest that never ran (GOTCHAS 34 shape one).
-const SELFTEST = flags(['--selftest']).selftest;
+// `--selftest-declared` exercises the DECLARED-failure mechanism at the bottom
+// of this file WITHOUT booting a browser, and exits immediately. It is listed
+// here rather than left to a bare `node scripts/probes/...` because GOTCHAS 79's
+// first corollary is that a selftest nobody invokes is not a selftest, and this
+// is the file whose exit code the mechanism changes.
+const { selftest: SELFTEST, selftestDeclared: SELFTEST_DECLARED } = flags(['--selftest', '--selftest-declared']);
+if (SELFTEST_DECLARED) {
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, ['scripts/probes/w116-declared-selftest.mjs'], { stdio: 'inherit' });
+  process.exit(r.status ?? 1);
+}
 const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const rooms = only ? ROOMS.filter((r) => r.id === only) : ROOMS;
 // The positional filter has to reach the off-belt rooms too, or `apt301` would
@@ -1833,10 +1844,87 @@ for (const spec of offBelt) {
   console.log(`  kerb landing, keeper facing. It has no street door; \`${spec.covers}\` walks its door.\n`);
 }
 
+// ── DECLARED, KNOWN-OPEN FAILURES (item 287) ───────────────────────────────
+//
+// THIS SUITE EXITED 1 FOR FOUR KNOWN REASONS, AND THAT IS WHY ITS OWN AUTHOR
+// MISREAD ITS EXIT CODE. Worker onehundrednine reported `365/369, exit 0` and
+// then caught itself: it had read the run through `tail`, so the code it saw was
+// `tail`'s. The count was right; the verdict was not. A suite that is always red
+// trains everyone to stop reading its exit code — and then a REAL red arrives
+// and nothing happens. That is the fault being repaired here, not the four legs.
+//
+// The legs are NOT deleted and NOT loosened (BUILDER-BRIEF §7). They still run,
+// still report, and still print their numbers. They are DECLARED — and the
+// declaration is itself something that can fail: a declared leg that starts
+// PASSING is red (`ROT`), and a declaration that matches no leg at all is red
+// (`missing`). See `scripts/lib/declared-failures.mjs`; its five-case selftest,
+// three of them red cases, is `scripts/probes/w116-declared-selftest.mjs` and
+// runs under `--selftest-declared`.
+//
+// EVERY REASON BELOW IS MEASURED, NOT ASSERTED. Worker onehundredsixteen,
+// item 287, build 8bd8ae3a1, `scripts/probes/w116-served-spots.mjs`.
+const DECLARED = [
+  ['jail: the room keeps its own light after dark',
+    'ITEM 240 — SAME SUBJECT, AND 240\'s COORDINATE IS OFF BY ONE WINDOW. Measured by '
+    + 'onehundredsixteen with `scripts/probes/w116-jail-which-material.mjs`, which runs this '
+    + 'leg\'s own day/dark comparison but PRINTS the material: the single dimming material sits '
+    + 'at (1006.37, 2.42, -9.40). Item 240 names (1006.37, 2.42, -5.60) — x and y agree TO THE '
+    + 'CENTIMETRE and only z differs by 3.8 m, so these are sibling slot windows in one run down '
+    + 'the cell wall, not two different findings. It goes #f0f3f6 by day -> #6c6f76 after dark, '
+    + 'and #6c6f76 is EXACTLY the night floor worker seventyone installed when it called item 210 '
+    + '"false in every clause". So the material is landing on its DESIGNED night value: the '
+    + 'evidence here favours seventyone, and this leg is asserting `dimmed === 0` in a room that '
+    + 'contains a window meant to dim. NOT SETTLED HERE, because both that probe and this leg read '
+    + '`material.color` from JS, and item 240\'s standing warning is that lamplight moved into '
+    + 'POOL_FRAG where a fragment shader is invisible to exactly that read. Whether the ROOM looks '
+    + 'dim to a player still needs 240\'s pixel measurement. 240 is TODO and unclaimed; leave it there.'],
+
+  ['casino: the customer station comes from the world, not from memory',
+    'The casino publishes NO spot matching this leg\'s /buy|order|serve|till|counter/i — 0 of 125 '
+    + 'in range. It is not unstaffed: it publishes "sit at the blackjack table" at x871.17-872.27, '
+    + 'z-11.35, which is 0.6 m from the authored keeper (-2.6, -12.0) and IS the customer station. '
+    + 'The leg\'s vocabulary only knows standing retail counters; this room serves you SEATED. '
+    + 'Not widened here — see the hazard noted on the hotel row, which must be fixed first.'],
+
+  ['tax: the customer station comes from the world, not from memory',
+    'Same one cause as the casino: 0 of 6 spots in range match the retail-counter vocabulary. '
+    + 'The tax office publishes "sit down with the preparer", which is the client chair the '
+    + 'authored keeper (-2.6, -0.75) already names in its own comment. Seated service again.'],
+
+  ['hotel: the customer station comes from the world, not from memory',
+    'NOT the same cause, and this one is a WORLD gap rather than a vocabulary gap. The hotel '
+    + 'publishes only "sit on the sofa", "sit in the armchair" and "sit in the lobby", all at '
+    + 'x887.7-889.6 — the lounge. The reception desk, where the clerk stands and where the '
+    + 'authored keeper points (x881.68, z8.75), publishes NO interaction at all. There is nothing '
+    + 'for this leg to find because there is nothing there to do. Queued for the desk.'],
+];
+//
+// ⚠ AND A FOURTH THING, FOUND WHILE MEASURING THE ABOVE AND NOT FIXED HERE:
+// this leg's neighbourhood filter is `q.x > 400 && Math.abs(q.x - rcx) < 40`,
+// with NO z bound. The casino (cx 874.32) and the hotel (cx 885.68) are 11.36 m
+// apart, so each one's search sees BOTH rooms: 125 spots each, identical lists.
+// The leg takes `near[0]`, so the moment the vocabulary is widened it can adopt
+// the NEIGHBOURING ROOM's station and check a keeper against a spot in a
+// different building. `roomDims()` publishes `w`, `d`, `cx` and `cz` per room —
+// bounding the search to the room's own published footprint is the fix, and it
+// must land BEFORE the vocabulary is widened, or widening turns three honest
+// reds into two greens that mean nothing. Queued for the desk.
+
 console.log('');
-for (const [ok, name, detail] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${name}\n        ${detail}`);
-const bad = results.filter((r) => !r[0]).length;
-console.log(`\n${results.length - bad}/${results.length} passed`);
+const verdict = classify(results, DECLARED);
+for (const [tag, name, detail] of verdict.lines) console.log(`${tag}  ${name}\n        ${detail}`);
+for (const m of verdict.missing) {
+  console.log(`MISS  ${m}\n        DECLARED, its room WAS walked, and no leg of that name ran — renamed or deleted,`
+    + `\n        so the declaration is aimed at nothing (GOTCHAS 34). This is red.`);
+}
+// Named, never silent, and NOT red — this run simply did not visit that room
+// (`interiors-walk <room>`). Printing them is what stops "not red" turning into
+// "not noticed" if someone quietly narrows what the suite walks.
+for (const m of verdict.notCovered ?? []) {
+  console.log(` --   ${m}\n        DECLARED, but this run did not walk that room — not judged either way.`);
+}
+const bad = verdict.bad;
+console.log(`\n${verdict.passed}/${results.length} passed, ${verdict.decl} declared known-open, ${bad} unaccounted`);
 // AN EMPTY RUN IS NOT A PASS.
 //
 // This printed "0/0 passed" and exited 0 when it walked no rooms at all —

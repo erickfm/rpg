@@ -824,8 +824,14 @@ export interface Pickable { x: number; z: number; r: number; ok: () => boolean }
 export interface PickView { x: number; z: number; yaw: number; pitch: number }
 
 /** Angular half-width, in radians, that counts as "looking at" a spot of
- *  radius `r` seen from `d` metres. Measured rather than guessed: at the
- *  apartment door (r 1.2) this gives 31° at 2 m and 11° at 6 m. */
+ *  radius `r` seen from `d` metres.
+ *
+ *  ⚠ THE NUMBERS THAT USED TO BE HERE WERE `atan2(r, d)` — the value BEFORE the
+ *  clamp — and reading them as the function's output is the single mistake this
+ *  row has cost the most (`notes/ninetytwo-item98-the-plateau-is-the-clamp.md`).
+ *  The real, clamped output at the apartment door (r 1.2) is **25.0° at 2 m**
+ *  (`raw` would be 31.0°, the ceiling wins) and **11.3° at 6 m** (`raw` wins,
+ *  the ceiling is not in play). See `LOOK_CEILING`. */
 /** How far outside its registered radius a SEATED player can still reach a spot
  *  — and the radius of the outer ring the debug volume overlay draws. Those two
  *  are all it does now; see `pickSpot` below, where the standing aim-free test
@@ -854,6 +860,34 @@ export const REACH_MARGIN = 0.6;
  *  frame 1.15 m away, so 0.15 is the smallest value that keeps *"standing
  *  beside it, not looking"* working. See the note in `pickSpot`. */
 export const TOUCH_MARGIN = 0.15;
+
+/** The look cone's CEILING, in radians — the widest half-angle that can ever
+ *  count as "looking at" something, whatever the spot's radius or distance.
+ *
+ *  **THE USER CHOSE THIS NUMBER, 2026-08-03: 25°.** It is the one constant in
+ *  this file that is a judgement rather than a measurement, because his two
+ *  complaints pull on it in opposite directions and both are real:
+ *
+ *    35.5° -> *"i feel like i select stuff without even looking at it"*
+ *    15.0° -> the dead ring: a door beside you is dead until you line up on it
+ *
+ *  Four builders released this row while it was a builder's call to make. It was
+ *  put to him with both numbers and he picked the middle. **Do not re-tune it
+ *  without him.**
+ *
+ *  EXPORTED BECAUSE TWO WORKERS RETYPED IT AND BOTH GOT IT WRONG. The clamp used
+ *  to be two bare literals on the return line, and `atan2(r, d)` — the value
+ *  BEFORE the clamp — was mistaken for the function's output twice, which cost
+ *  this row a release and inverted its premise
+ *  (`notes/ninetytwo-item98-the-plateau-is-the-clamp.md` §2). Anything that needs
+ *  the ceiling imports it. */
+export const LOOK_CEILING = 25 * Math.PI / 180;      // 0.4363 rad
+
+/** The look cone's FLOOR, in radians (~11.46°) — so a small spot far away is not
+ *  a pin-prick. UNCHANGED by the 25° decision: the floor governs distant, small
+ *  spots, where nobody has complained in either direction, and the measured edge
+ *  tracks `raw` to 0.28° out there already. Only the ceiling moved. */
+export const LOOK_FLOOR = 0.20;
 
 export function lookTolerance(r: number, d: number): number {
   const raw = Math.atan2(r, Math.max(0.35, d));
@@ -891,7 +925,29 @@ export function lookTolerance(r: number, d: number): number {
   // the other half of his original request — a door you are standing at opens
   // whether or not you are looking at it — and `D-walk`'s four-way door test
   // still passes on all four, including standing beside it NOT looking.
-  return Math.min(0.26, Math.max(0.20, raw));      // ~11.5° … ~15°
+  // ── AND THE CEILING WENT BACK UP, 14.90° -> 25.00°, ON THE USER'S OWN
+  // DECISION (item 98, 2026-08-03). See `LOOK_CEILING` above.
+  //
+  // WHY THE CEILING AND NOTHING ELSE. Four workers refused this row against four
+  // different prescriptions — cap the aim-tier reach, switch to a `sin` form,
+  // widen the corridor — and every one of them was measured wrong before it was
+  // implemented. What was finally measured right is that **there are not two
+  // regimes; there is one predicate sitting on its own ceiling.** At r = 1.05 the
+  // world's edge reads 15° flat from 1.5 m to 4.0 m and only tracks `raw` past
+  // 4.5 m, because `raw` does not fall under the ceiling until d = r/tan(ceil).
+  // So below that distance the ceiling IS the answer, and above it the ceiling is
+  // not in play at all — which is exactly why moving it is safe for the far
+  // corridor `D-look-selects` holds, and why nothing else needed to move.
+  //
+  // WHAT IT BUYS, measured on this tree before and after (probes/w114-*):
+  //   the dead ring — distances where the cone covers LESS than the spot's own
+  //   radius, i.e. you can stand beside the door frame and get nothing —
+  //   shrank from 1.20-3.90 m to 1.20-2.30 m. r/tan(25°) = 2.25 m, derived.
+  //
+  // WHAT IT COSTS: the aim-free proximity tier is untouched, so the "180° behind
+  // him" winners in `D-offer-rate`'s tail are unchanged — they were never the
+  // cone (see the note at `touching`, below). Only the aimed tier widened.
+  return Math.min(LOOK_CEILING, Math.max(LOOK_FLOOR, raw));   // ~11.5° … 25.0°
 }
 
 /**
