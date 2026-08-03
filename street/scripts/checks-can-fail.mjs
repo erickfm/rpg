@@ -89,37 +89,216 @@ const NO_PROOF_YET = [
 ];
 
 const src = readFileSync('scripts/checks.mjs', 'utf8');
-const body = src.slice(src.indexOf('const CHECKS = ['));
 
-const rows = [];
-for (const m of body.matchAll(/^\s*\['([a-zA-Z0-9._-]+)',\s*(.*)$/gm)) {
-  const [, name, rest] = m;
-  // drop the question string, then read the selftest column
-  const after = rest.replace(/^(['"]).*?[^\\]\1\s*,\s*/, '');
-  // THE COLUMN HAS THREE SHAPES, NOT TWO — and the third is a BARE STRING.
-  //
-  // scripts/checks.mjs reads it as: `false` skip, `true` pass --selftest,
-  // anything else is canfail case names via
-  // `Array.isArray(selftest) ? selftest : [selftest]` — so `'park-repro'` on
-  // its own is a perfectly good declaration, and six rows use it that way
-  // (park-repro, faces, crowd-walk, A-joinery-matches-fascia,
-  // A-tree-canopy-opaque, A-diner-block-vs-sky).
-  //
-  // The first version of this parser accepted only `true` and `[`, and so
-  // reported all six as having no way to go red — six working checks accused
-  // by a guard that had only ever been tried against the two shapes I had in
-  // mind. Caught by running it, not by reading it.
-  const declares = /^true/.test(after) || /^\[/.test(after) || /^['"]/.test(after);
-  rows.push({ name, declares });
+// ── PARSING THE REGISTRY ────────────────────────────────────────────────────
+//
+// ⚠ THIS WAS A PER-LINE REGEX AND IT WAS ACCUSING WORKING CHECKS (item 190).
+//
+// `/^\s*\['(name)',\s*(.*)$/gm` reads to END OF LINE, so a row whose selftest
+// column wrapped onto a continuation line read as an EMPTY column and was
+// reported as having no way to go red. `w40-bed-vs-door` declares two canfail
+// cases on its second line and has been accused of declaring nothing:
+//
+//     ['w40-bed-vs-door',  'does aim beat proximity in 301 — at BOTH ends…?',
+//       ['w40-near-outright', 'w40-looked-dominant'], [], true],
+//
+// It was bad enough that `checks.mjs:346` carries a comment forbidding a row
+// from wrapping — *"ON ONE LINE ON PURPOSE, AND THAT IS A BUG IN A GUARD, NOT A
+// STYLE CHOICE"* — i.e. the registry was being formatted around its auditor's
+// parser. **A false red is worse than no check, because builders learn to
+// ignore it**, and this one had trained the registry itself.
+//
+// So it is a bracket-aware scan now, not a line scan: split the array into rows
+// on TOP-LEVEL brackets and each row into columns on TOP-LEVEL commas, with
+// strings and comments skipped properly. Line breaks stop meaning anything,
+// which is the only way "keep the column on line one" stops being a rule.
+//
+// AND IT IS UNFORGIVING, deliberately — the same instinct as sixtysix's
+// `--only <name>`, where a mistyped name exits 2 rather than producing an empty
+// green run. Every way this can fail to understand the file exits 2 with the
+// reason. A guard that guesses is the thing being fixed.
+
+/** Split `s` on top-level `sep`, respecting strings, comments and nesting. */
+function topLevel(s, open, close, sep) {
+  const out = [];
+  let depth = 0, start = 0, i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (c === '/' && s[i + 1] === '/') { i = s.indexOf('\n', i); if (i < 0) i = s.length; continue; }
+    if (c === '/' && s[i + 1] === '*') { const e = s.indexOf('*/', i + 2); i = e < 0 ? s.length : e + 2; continue; }
+    if (c === "'" || c === '"' || c === '`') {
+      const q = c; i++;
+      while (i < s.length && s[i] !== q) i += s[i] === '\\' ? 2 : 1;
+      i++; continue;
+    }
+    if (open.includes(c)) depth++;
+    else if (close.includes(c)) {
+      depth--;
+      if (depth < 0) return { rows: out, rest: s.slice(i), depth };
+    } else if (depth === 0 && c === sep) { out.push(s.slice(start, i)); start = i + 1; }
+    i++;
+  }
+  out.push(s.slice(start));
+  return { rows: out, rest: '', depth };
 }
 
-if (!rows.length) {
-  // A parser that matches nothing would pass this guard silently, which is the
-  // exact shape the guard exists to catch. (GOTCHAS 34.)
-  console.error('checks-can-fail: parsed ZERO rows out of scripts/checks.mjs.');
-  console.error('That is a broken parser, not an empty registry — refusing to report a pass.');
-  process.exit(2);
+/**
+ * Parse the registry out of a `checks.mjs` SOURCE STRING.
+ *
+ * Takes the source rather than reading the file, for one reason: it is the only
+ * way `--selftest` can hand it a deliberately-broken registry and watch the
+ * verdict change. A guard whose parser can only ever be pointed at the real
+ * file is a guard nobody can prove works — which is, word for word, what this
+ * guard exists to say about everybody else.
+ */
+function parseRegistry(SRC, fail = (c) => process.exit(c)) {
+  const head = SRC.indexOf('const CHECKS = [');
+  if (head < 0) {
+    console.error('checks-can-fail: no `const CHECKS = [` in scripts/checks.mjs — the registry has');
+    console.error('moved or been renamed. Refusing to report on a file I cannot find the registry in.');
+    return fail(2);
+  }
+  // everything between the opening `[` and its matching `]`
+  const inner = SRC.slice(SRC.indexOf('[', head) + 1);
+  const closed = topLevel(inner, '[({', '])}', ',');
+  if (closed.depth >= 0) {
+    console.error('checks-can-fail: the CHECKS array never closes — scripts/checks.mjs does not parse.');
+    return fail(2);
+  }
+  const body = inner.slice(0, inner.length - closed.rest.length);
+
+  /**
+   * Drop leading whitespace AND leading comments.
+   *
+   * ⚠ WITHOUT THIS THE SCAN FINDS 61 ROWS OF 145, and my own population floor is
+   * what caught it. Splitting on top-level commas puts the comment block that
+   * PRECEDES a row into that row's chunk — and this registry is mostly comment,
+   * often twenty lines of it per row — so `chunk.trim().startsWith('[')` was
+   * false for every documented row and true only for the terse ones. That is the
+   * same class of quiet under-count as the per-line regex being replaced, which
+   * is why the floor exists rather than a `rows.length` check.
+   */
+  const stripLead = (s) => {
+    let i = 0;
+    for (;;) {
+      while (i < s.length && /\s/.test(s[i])) i++;
+      if (s[i] === '/' && s[i + 1] === '/') { const e = s.indexOf('\n', i); if (e < 0) return ''; i = e + 1; continue; }
+      if (s[i] === '/' && s[i + 1] === '*') { const e = s.indexOf('*/', i + 2); if (e < 0) return ''; i = e + 2; continue; }
+      return s.slice(i);
+    }
+  };
+
+  const rows = [];
+  for (const raw of topLevel(body, '[({', '])}', ',').rows) {
+    const t = stripLead(raw);
+    if (!t.startsWith('[')) continue;             // a stray comment between rows
+    const cols = topLevel(t.slice(1, t.lastIndexOf(']')), '[({', '])}', ',').rows.map((c) => c.trim());
+    const nameM = /^(['"])([a-zA-Z0-9._-]+)\1$/.exec(cols[0] ?? '');
+    if (!nameM) {
+      console.error(`checks-can-fail: a CHECKS row whose first column is not a quoted name:\n  ${t.slice(0, 120)}`);
+      console.error('Refusing to guess. Fix the row, or teach this parser the new shape.');
+      return fail(2);
+    }
+    if (cols.length < 3) {
+      console.error(`checks-can-fail: row '${nameM[2]}' has ${cols.length} columns; a registry row is`);
+      console.error('  [name, question, selftest, …]. Refusing to read a missing column as a declaration.');
+      return fail(2);
+    }
+    // scripts/checks.mjs reads the third column as: `false` skip, `true` pass
+    // --selftest, and ANYTHING ELSE as canfail case names via
+    // `Array.isArray(selftest) ? selftest : [selftest]` — so a BARE STRING like
+    // `'park-repro'` is a perfectly good declaration and six rows use it that way.
+    // The very first version of this parser accepted only `true` and `[` and
+    // accused all six; that is why this reads "not false" rather than listing
+    // shapes, which is also what checks.mjs itself does.
+    const sel = cols[2];
+    rows.push({ name: nameM[2], declares: sel !== 'false' && sel !== 'undefined' && sel !== '' });
+  }
+
+  if (!rows.length) {
+    // A parser that matches nothing would pass this guard silently, which is the
+    // exact shape the guard exists to catch. (GOTCHAS 34.)
+    console.error('checks-can-fail: parsed ZERO rows out of scripts/checks.mjs.');
+    console.error('That is a broken parser, not an empty registry — refusing to report a pass.');
+    return fail(2);
+  }
+  // A POPULATION FLOOR, for the same reason. The registry has been 140+ rows all
+  // week; a scan that suddenly finds a handful has misparsed, and every verdict
+  // below is a filter over that handful. 100 is well under the real count and
+  // hugely over the collapse this catches.
+  const ROW_FLOOR = 100;
+  if (rows.length < ROW_FLOOR) {
+    console.error(`checks-can-fail: parsed only ${rows.length} rows, floor is ${ROW_FLOOR}.`);
+    console.error('That is a misparse, not a shrunken registry — refusing to report a pass.');
+    return fail(2);
+  }
+  return rows;
 }
+
+// ── --selftest: PROVE THE PARSER, BOTH SIGNS ───────────────────────────────
+//
+// Four cases, each a mutation of the REAL registry source, because a parser
+// tested only against a hand-written toy registry is a parser tested against my
+// own idea of the file. Every case asserts a NAMED row, never a count — a count
+// passes on this registry no matter what the mutation did, which is the trap
+// `texdensity.mjs`'s selftest documents and this one avoids the same way.
+if (process.argv.includes('--selftest')) {
+  const name = (rs, n) => rs.find((r) => r.name === n);
+  const fails = [];
+  const ok = (c, m) => { console.log(`  ${c ? 'OK  ' : 'FAIL'} ${m}`); if (!c) fails.push(m); };
+
+  const base = parseRegistry(src);
+
+  // 1. THE ITEM'S OWN BUG. `w40-bed-vs-door` declares two canfail cases on its
+  //    SECOND line. The per-line regex read an empty column and accused it.
+  ok(name(base, 'w40-bed-vs-door')?.declares === true,
+    'a WRAPPED row is read as declaring — w40-bed-vs-door');
+  // 2. …AND THE PHANTOM IT INVENTED. The old regex matched the continuation
+  //    line `['w40-near-outright', 'w40-looked-dominant'], [], true],` as if it
+  //    were a registry row, so the suite contained a check that does not exist
+  //    and silently "declared". One wrapped row, TWO faults.
+  ok(name(base, 'w40-near-outright') === undefined,
+    'a continuation line is NOT mistaken for a row — no phantom w40-near-outright');
+  // 3. THE NEGATIVE CASE. Take a row that declares and set its column to
+  //    `false`; it must turn up undeclared. Without this the verdict could be
+  //    hard-wired true and every case above would still pass.
+  //
+  //    Done on a SINGLE-LINE row carrying a literal `true`, found by scanning
+  //    the real source — not by a regex I hoped would match. My first attempt
+  //    built the pattern from the victim's name inside a template literal, got
+  //    the backslashes wrong, and matched nothing: the mutation did not fire and
+  //    both halves of the case went red. That is the vacuous-mutation family
+  //    (GOTCHAS 90) failing loudly instead of quietly, which is the only reason
+  //    the `mutation actually changed the source` assertion is here at all.
+  const line = src.split('\n').find((l) => /^\s*\['[a-zA-Z0-9._-]+',\s*'[^']*',\s*true\s*[,\]]/.test(l));
+  if (!line) {
+    console.error('SELFTEST cannot find a single-line row declaring `true` to break —'
+      + ' the negative case is unproven, which is not a pass (GOTCHAS §32)');
+    process.exit(3);
+  }
+  const victim = /^\s*\['([a-zA-Z0-9._-]+)'/.exec(line)[1];
+  const broken = src.replace(line, line.replace(/,\s*true(\s*[,\]])/, ',false$1'));
+  ok(broken !== src, `the mutation actually changed the source — ${victim}`);
+  ok(name(base, victim)?.declares === true, `${victim} declared BEFORE the mutation`);
+  ok(name(parseRegistry(broken), victim)?.declares === false,
+    `a row set to \`false\` reads as UNDECLARED — ${victim}`);
+  // 4. UNFORGIVING, the half sixtysix's `--only <name>` got right: a source it
+  //    cannot find a registry in must exit 2, never report an empty green run.
+  const refused = (bad) => {
+    let code = null;
+    try { parseRegistry(bad, (c) => { code = c; throw new Error('__refused__'); }); }
+    catch (e) { if (e.message !== '__refused__') throw e; }
+    return code;
+  };
+  ok(refused('const NOTHING = [];') === 2, 'a source with no CHECKS registry exits 2');
+  ok(refused('const CHECKS = [') === 2, 'a registry that never closes exits 2');
+  ok(refused("const CHECKS = [\n  ['only-one', 'q', true],\n];\n") === 2,
+    'a registry under the population floor exits 2, rather than passing on 1 row');
+  console.log(fails.length ? `\n${fails.length} FAILED` : '\nselftest: the parser is proven both ways');
+  process.exit(fails.length ? 2 : 0);
+}
+
+const rows = parseRegistry(src);
 
 const known = new Set([...Object.keys(EXEMPT), ...NO_PROOF_YET]);
 const undeclared = rows.filter((r) => !r.declares && !known.has(r.name)).map((r) => r.name);
@@ -138,7 +317,21 @@ if (!undeclared.length && !stale.length) {
 }
 if (undeclared.length) {
   console.error('\nREGISTERED WITH NO WAY TO GO RED — these run every suite and have never been watched fail:\n');
-  for (const n of undeclared) console.error(`  ${n}`);
+  // ANNOTATED, not excused. A script can be registered several times with
+  // different arguments — `w75-site-contained` runs three times, once per site
+  // — and only one of those rows carries the canfail case. Saying so is the
+  // difference between "nobody has ever watched this script fail" and "nobody
+  // has watched THIS LEG of it fail", which are different sizes of debt and
+  // were printed identically before.
+  //
+  // It does NOT clear them, and that is deliberate: a mutation proven on
+  // `--site jail` says nothing about whether the park leg can go red, and the
+  // whole point of this guard is refusing to accept an argument that shape.
+  const declaredElsewhere = new Set(rows.filter((r) => r.declares).map((r) => r.name));
+  for (const n of undeclared) {
+    console.error(`  ${n}${declaredElsewhere.has(n)
+      ? '   (the same script DOES declare one on another row — this LEG does not)' : ''}`);
+  }
   console.error(`
 Give it a failing path, or say why it has none:
   · a --selftest in the script, and \`true\` in its CHECKS row, or
