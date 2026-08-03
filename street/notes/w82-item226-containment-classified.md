@@ -242,11 +242,25 @@ concern and the honest answer is that the floor does **not** make it impossible.
 
 ## FOR THE DESK — found and not fixed
 
-1. **`w75-site-contained.mjs` should import `scripts/lib/floors.mjs`.** It holds
-   the inline original of that predicate; there are now two copies, which is the
-   defect BUILDER-BRIEF §8 names. One-line change, but to a registered check that
-   is correctly RED at the lot and outside item 226 (§9). **Do not let anyone
-   "fix" that red while doing it.**
+1. **THERE ARE NOW THREE ANSWERS TO "IS THERE A FLOOR HERE", AND THEY SHOULD BE
+   ONE.** Merging mainline after this item landed item 230's
+   `scripts/world-contained.mjs`, so the world now holds:
+
+   | where | how it decides |
+   |---|---|
+   | `scripts/w75-site-contained.mjs` (item 215) | mesh bounding boxes, inline |
+   | `scripts/lib/floors.mjs` (this item) | the same, hoisted |
+   | `scripts/world-contained.mjs` (item 230) | **a raycast** |
+
+   The first two are the same code twice, which is the defect BUILDER-BRIEF §8
+   names — pointing w75 at the lib is one line. The third is a **different
+   method**, and that is the more interesting one: nobody has checked that a
+   raycast and a bounding-box test agree about the same point. If they disagree
+   anywhere, one of the three containment checks is wrong and we do not know
+   which. **Worth a row: run both predicates over the same point set and diff.**
+   I did not do it — `w75-site-contained.mjs` is correctly RED at the lot and
+   outside item 226 (§9), and **do not let anyone "fix" that red while doing
+   this.**
 2. **`RoomDims` should publish the room's HEIGHT**, the way item 192 made it
    publish `cx`. It is the missing number that would let leg 6 bound its sample
    box per storey instead of not bounding it. `ct/interior.ts`, not named by 226.
