@@ -162,9 +162,12 @@ const ROOMS = [
 // convention. Without one this file cannot be added to the shared runner, which
 // is why 113 checks guarding the user's own requirements have never been in it.
 //
-// Three inversions, all in the HARNESS rather than in `src/`: no source is
+// Four inversions, all in the HARNESS rather than in `src/`: no source is
 // touched, so this needs no lock and cannot leave a mutated tree behind if it
-// dies. Each targets a check that has caught a real defect this session.
+// dies. Each targets a check that has caught a real defect this session. Three
+// are geometry legs and set up before the browser launches; the fourth is the
+// night-light leg (item 209) and has to be applied IN THE PAGE, below `p.goto`,
+// because its mutation goes through the running world's own dimmer registry.
 const SCRIPT = 'G-rooms-walk', EXTRA = ', plus an optional bare room id (casino hotel tax pawn)';
 // GOTCHAS §34, shape one: a flag this script does not recognise must not be
 // ignored. `checks.mjs` invokes selftests as `--selftest`, and every argument
@@ -1122,7 +1125,8 @@ if (SELFTEST) {
     const row = results.find((r) => r[1] === n);
     return !row || row[0];
   });
-  console.log('\nSELFTEST — three inverted truths, all must fail:');
+  // Counted, not typed — this said "three" while the list held four.
+  console.log(`\nSELFTEST — ${INVERTED.length} inverted truths, all must fail:`);
   for (const n of INVERTED) {
     const row = results.find((r) => r[1] === n);
     console.log(`  ${!row ? 'MISSING ' : row[0] ? 'STILL OK' : 'failed  '}  ${n}`);

@@ -703,13 +703,16 @@ if (SELFTEST) {
     'the two faces of each blade carry the SAME texture, not a mirrored one',
     'the brick and stone around them DO go dark after dark'];
   const missed = INVERTED.filter((n) => { const r = results.find((q) => q[1] === n); return !r || r[0]; });
-  console.log('\nSELFTEST — two inverted truths, both must fail:');
+  // Counted, not typed: this said "two" while the list held three, which is a
+  // small lie of exactly the kind that lets somebody add a fourth and not notice
+  // it never ran.
+  console.log(`\nSELFTEST — ${INVERTED.length} inverted truths, all must fail:`);
   for (const n of INVERTED) {
     const r = results.find((q) => q[1] === n);
     console.log(`  ${!r ? 'MISSING ' : r[0] ? 'STILL OK' : 'failed  '}  ${n}`);
   }
   console.log(missed.length ? `\n${missed.length} did NOT fail — a check here cannot fail`
-    : '\nboth failed as they must');
+    : `\nall ${INVERTED.length} failed as they must`);
   await b.close();
   process.exit(missed.length ? 1 : 0);
 }
