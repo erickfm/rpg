@@ -1327,6 +1327,56 @@ const CASES = [
     'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: Math.PI, h: 0.47,   // selftest: the row turned into the wall',
     'seat-facing.mjs', [], 'the waiting row facing plaster 0.58 m away'],
 
+  // ITEM 189, PUT BACK. `scripts/watch-vs-panel.mjs` was written to prove that
+  // fix and then sat in `scripts/probes/` unregistered for a day — the fourth
+  // guard this week that nobody ran (after masonry measuring zero faces,
+  // texdensity unregistered and w5-shadow-census unregistered). Item 199
+  // registered it; this is the mutation that makes the registration mean
+  // something.
+  //
+  // The whole fix is the second term. `poseFor` takes the eye along the target
+  // face's own normal, so reading a form that lies FLAT on a desk means looking
+  // straight down (-1.5707 rad at the loan, measured), and looking down is the
+  // gesture the wristwatch rises on. Drop `&& !panelUp()` and the player's own
+  // watch sits over the bottom edge of the document he is reading — 14,897 px²
+  // of the loan form obscured, which is the picture worker sixtysix
+  // photographed while building item 185.
+  //
+  // WHY THE NEEDLE IS THE WHOLE CALL and not just the term: `rig.pitch < -0.95`
+  // appears once, but a bare `&& !panelUp()` is the kind of fragment a refactor
+  // re-wraps onto its own line, and a needle that stops matching guards NOTHING
+  // while looking exactly as green as one that does (five stale needles this
+  // week — see the `density` row above). canfail's own RESTORE FAILED check is
+  // what catches that, and quoting the full statement gives it the most to hold.
+  ['watch-over-panel', TOWN,
+    'hud.watch(rig.pitch < -0.95 && !panelUp(), Math.floor(clockMin));',
+    'hud.watch(rig.pitch < -0.95, Math.floor(clockMin));   // selftest: item 189 reverted, the watch rides over the form',
+    'watch-vs-panel.mjs', [], "the player's wristwatch over a panel laid on a desk"],
+
+  // BLIND THE CHECK, NOT THE WORLD — the fourth of its kind here, after
+  // `footprint-blind`, `glow-blind` and `masonry-blind`, and it is owed for the
+  // same reason all three were. `watch-over-panel` above proves the VERDICT can
+  // go red. It cannot prove the POPULATION UNDER the verdict can, and those two
+  // fail apart: `masonry.mjs`'s own flag sailed through the entire period it was
+  // examining zero faces, because with no faces there was nothing to break.
+  //
+  // This empties the roster that `scripts/watch-vs-panel.mjs`'s phase 5 sweeps —
+  // ONLY the test hook, so the seven panels are all still there and all still
+  // open; the check simply cannot see that they exist. Every assertion about the
+  // watch still passes, which is the point: a check that measured nothing would
+  // report exactly that, and phase 5's floors are the only thing between the
+  // suite and a green certificate over an empty set.
+  //
+  // WATCHED RED, and watched red for the RIGHT ROWS: 4 failures, all of them
+  // `5. FLOOR:` — the roster is empty, the sweep raised 0 of an expected 5, the
+  // machine-bound excusal reads stale because nothing refused, and 0 panels
+  // could be driven head-down. Phases 1-4 stay green throughout, so this case
+  // and the one above cannot cover for each other.
+  ['watch-panel-blind', HUD,
+    '    panels: () => everyPanel().map((q) => q.id),',
+    '    panels: () => [],   // selftest: the roster the guard sweeps, emptied',
+    'watch-vs-panel.mjs', [], 'a watch guard with no panels left to guard'],
+
 ];
 
 const sh = (c) => execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });

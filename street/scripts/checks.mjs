@@ -1390,6 +1390,41 @@ const CHECKS = [
   // have seen the prompt shown somewhere and hidden somewhere, or it has
   // measured nothing. Verified to fail: reverting the one line gives 18 ghosts.
   ['prompt-not-a-ghost', 'is a HIDDEN [E] prompt always an EMPTY one?', false, []],
+  // REGISTERED 2026-08-03 (w109, item 199). It was written a day earlier as
+  // `scripts/probes/w68-watch-vs-panel.mjs` to prove item 189 — the player's
+  // wristwatch riding over a panel laid FLAT on a desk, because `poseFor` takes
+  // the eye along the face's own normal and reading a form on a desk therefore
+  // IS the look-down gesture the watch rises on. Its author said plainly that it
+  // was not registered and that the fault would hit the mail (155) and the
+  // library PC (157); both of those panels now exist, and both are swept by it.
+  // It moved out of `probes/` because this runner spawns `scripts/<name>.mjs`
+  // and refuses to start on a registered name that is not there.
+  //
+  // FOURTH UNREGISTERED GUARD THIS WEEK — after `masonry.mjs` measuring zero
+  // faces, `texdensity.mjs` and `w5-shadow-census.mjs`. The pattern is not that
+  // people write bad checks; it is that a check with no row here costs nothing
+  // to leave out and says nothing when it is.
+  //
+  // Default tier, not `--slow`: it warps rather than walks, and it is 24 s
+  // against a preview, well inside the 180 s ceiling.
+  //
+  // THE POPULATION FLOOR IS THE PART THAT WAS OWED. The check named two panels
+  // by hand, in a world that grows panels — which is exactly how `masonry` came
+  // to examine zero faces. Its phase 5 now takes `__hud.panels()` (7 today) as
+  // the population and accounts for every member: 5 raise from anywhere and are
+  // swept, 2 are machine-bound and refuse to stay up away from their stool, and
+  // BOTH directions of that excusal are asserted so it cannot rot. Of the 5, it
+  // classifies by what the world actually did rather than by a list — 3 can be
+  // driven head-down while up and carry the STOWED assertion; ct-atm and
+  // ct-letter cannot, because their focus lock wins against `warp`'s pitch, so
+  // asserting STOWED on them would pass for the honest reason and count as
+  // coverage it is not. The floor under all of it is that the at-risk count is
+  // not 0, which is the only way phase 5 could sweep seven panels and assert
+  // nothing.
+  //
+  // `watch-over-panel` reverts item 189's one term. Watched red: 3 of 32
+  // assertions fail with it, and the watch takes 14,897 px² of the loan form.
+  ['watch-vs-panel', 'does the wristwatch stand down while a cabinet is up?', ['watch-over-panel']],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

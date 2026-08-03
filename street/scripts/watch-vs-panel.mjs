@@ -324,7 +324,7 @@ ok(surprise.length === 0,
   `5. FLOOR: no panel has silently stopped raising${surprise.length ? ` — ${surprise.join(', ')} did; either it is machine-bound (add it to MACHINE_BOUND with the measurement) or its open() has regressed` : ''}`);
 const stale = MACHINE_BOUND.filter((id) => !refused.includes(id));
 ok(stale.length === 0,
-  `5. FLOOR: the machine-bound excusal is not stale${stale.length ? ` — ${stale.join(', ')} now raises and must be SWEPT, not excused` : ''}`);
+  `5. FLOOR: the machine-bound excusal is not stale${stale.length ? ` — ${stale.join(', ')} did not refuse; either it now raises and must be SWEPT rather than excused, or it has left the roster entirely` : ''}`);
 // (4) …and the derived count. Not a typed number: it is the roster the world
 //     just handed us, minus the members it just refused to raise.
 ok(raised.length === roster.length - MACHINE_BOUND.length && raised.length > 0,
