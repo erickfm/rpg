@@ -47,6 +47,9 @@ const ATM = 'src/proto/ct/atm.ts';            // the cash machine's screens and 
 const ATMFACE = 'src/proto/ct/atm-face.ts';
 const JAIL = 'src/proto/ct/jail.ts';          // O's — the building and its screens
 const HUD = 'src/proto/ct/hud.ts';            // the panel framework and its diegetic surfaces
+// The harness, not a world module: input, the render loop and the ONE
+// `requestPointerLock` in the whole source (item 277).
+const MAIN = 'src/main.ts';
 // AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
 // the whole class this file kept falling into.
 //
@@ -1376,6 +1379,40 @@ const CASES = [
     '    panels: () => everyPanel().map((q) => q.id),',
     '    panels: () => [],   // selftest: the roster the guard sweeps, emptied',
     'watch-vs-panel.mjs', [], 'a watch guard with no panels left to guard'],
+
+  // ITEM 277, PUT BACK — the user's *"when i exit overlays my mouse stops
+  // working as well."* `open()` calls `exitPointerLock()` to let the player
+  // click a diegetic screen, and until this item NOTHING gave the lock back:
+  // one `requestPointerLock` in the whole source, on a canvas click. Six
+  // overlays, and each one left him unable to look around until he worked out
+  // he had to click the world.
+  //
+  // The mutation drops the hand-back. Every `RETURNED` leg goes red — Escape,
+  // `[E]`, the ATM's self-close, and the seated close — while every `RELEASED`
+  // and `NOT STOLEN` leg stays green, which is the shape that says the guard is
+  // reading the right quantity rather than falling over generally.
+  ['pointer-never-returns', HUD,
+    'if (pendingLock && !livePanel && !raising && pendingLock.isConnected) {',
+    'if (false && pendingLock && !livePanel && !raising && pendingLock.isConnected) {   // selftest: item 277 reverted',
+    'pointer-returns.mjs', [], 'overlays that give the mouse back to nobody'],
+
+  // …AND THE POPULATION UNDER IT. Same argument as `watch-panel-blind` above and
+  // `masonry-blind` before it: `pointer-never-returns` proves the VERDICT can go
+  // red, and cannot prove the guard would notice it had measured nothing.
+  //
+  // Every leg of `pointer-returns.mjs` rests on the player HOLDING the pointer
+  // before an overlay opens. Take locking away and `RELEASED` becomes free,
+  // `RETURNED` becomes impossible, and a guard without floors would report the
+  // world broken — or, if it had been written the other way round, perfect. This
+  // makes the world unable to lock at all; the FLOORS must be what goes red, not
+  // the verdicts.
+  //
+  // It mutates the release rather than the re-lock, so it cannot be the same
+  // mutation as the case above wearing a different name.
+  ['pointer-never-locks', MAIN,
+    '    try { renderer.domElement.requestPointerLock(); } catch { /* sandboxed iframe: drag-look still works */ }',
+    '    void renderer;   // selftest: the world can no longer take the pointer at all',
+    'pointer-returns.mjs', [], 'a world that can never lock the pointer in the first place'],
 
 ];
 

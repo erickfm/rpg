@@ -1425,6 +1425,30 @@ const CHECKS = [
   // `watch-over-panel` reverts item 189's one term. Watched red: 3 of 32
   // assertions fail with it, and the watch takes 14,897 px² of the loan form.
   ['watch-vs-panel', 'does the wristwatch stand down while a cabinet is up?', ['watch-over-panel']],
+  // REGISTERED 2026-08-03 (w109, item 277). The user: *"when i exit overlays my
+  // mouse stops working as well."* Opening a diegetic panel releases the pointer
+  // lock — right, you cannot click a screen with a pointer pinned to the middle
+  // of the canvas — and NOTHING gave it back. With six overlays that is a
+  // control the player cannot get back without discovering he must click.
+  //
+  // THREE CLAIMS, DELIBERATELY NOT ONE. `RELEASED` (the lock is gone while a
+  // cabinet is up) is the behaviour that was already correct, and a "fix" that
+  // simply stopped releasing would restore the mouse and break clicking every
+  // diegetic screen in the world — so it is asserted first and cannot be traded
+  // away for `RETURNED`. `NOT STOLEN` is the third: a blanket re-lock on close
+  // would pass RETURNED and seize the pointer of a player who never clicked into
+  // the world, which is worse than the bug.
+  //
+  // It drives all four exits the row names — `[E]`, Escape, the ATM's own
+  // farewell timeout (no user gesture at all) and closing while SEATED — plus
+  // the panel-replacement swap, because `open()` calls `closePanels()` and a
+  // re-lock in that gap pins the pointer under the incoming cabinet. That leg
+  // failed on the first cut of the fix and is why the debt is a module-level
+  // slot handed on rather than per-panel state.
+  //
+  // `--slow`: it warps to five machines and drives fourteen exits in real time,
+  // ~3 min, which is what this file's own rule means by walking.
+  ['pointer-returns', 'does the mouse work the instant an overlay closes?', ['pointer-never-returns', 'pointer-never-locks'], [], true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
