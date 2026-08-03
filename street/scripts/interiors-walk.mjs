@@ -1,4 +1,45 @@
 // ┌───────────────────────────────────────────────────────────────────────┐
+// │  RUNS ON THE BUILT BUNDLE. It did not, until item 251.                │
+// │                                                                       │
+// │  For the record, because "why is this file allowed to be odd" is a    │
+// │  question that gets asked again: this was THE ONE CHECK in the        │
+// │  project that could not honour the verify-on-the-built-bundle rule    │
+// │  (GOTCHAS 28, BUILDER-BRIEF §10) — a suite telling every builder to   │
+// │  use the bundle while containing a check that 404'd on it.            │
+// │                                                                       │
+// │  It read its declarations out of the TypeScript sources at runtime,   │
+// │  four sites: `import('/src/proto/ct/doors.ts')` x3 and                │
+// │  `import('/src/proto/ct/interior.ts')` x1. `vite dev` serves those    │
+// │  transpiled; `vite preview` serves only `dist/`, so all four 404.     │
+// │                                                                       │
+// │  WHAT IT TOOK — measured, not guessed, by                             │
+// │  `probes/w93-item246-iw-bundle-gap.mjs` and re-measured before the    │
+// │  swap by `probes/w95-item251-source-vs-hook.mjs`:                     │
+// │                                                                       │
+// │    doorStandFor / doorPointFor  ALREADY on `__ct.doors()`, agreeing   │
+// │                                 12/12 and 12/12. Swapped.             │
+// │    roomWidthFor -> `r.W`        DEAD — assigned at one line, read     │
+// │                                 nowhere. (`inRoom` uses lower-case    │
+// │                                 `r.w`, measured off the colliders.)   │
+// │                                 Deleted.                              │
+// │    declaredDoors().at -> r.at   DEAD — its only consumer is the       │
+// │                                 `|| { x: room.at … }` arm of DOOR,    │
+// │                                 and 13/13 rooms publish their own     │
+// │                                 `door` via roomDims(), so that arm    │
+// │                                 never fires. Deleted.                 │
+// │    interior.ts `PARTY`          the only one genuinely missing.       │
+// │                                 `crosstown.ts` now publishes it as    │
+// │                                 `__ct.party()`, a per-element copy    │
+// │                                 like `citAvoid()` — a probe must not  │
+// │                                 be able to mutate the world through   │
+// │                                 a test hook.                          │
+// │                                                                       │
+// │  This file still exits 3 rather than 1 if those hooks are absent: a   │
+// │  containment run that does not know where the party doorways are      │
+// │  reports the feature as a HOLE, and exit 1 would read as twelve       │
+// │  failing rooms when nothing was measured at all. (GOTCHAS 32.)        │
+// └───────────────────────────────────────────────────────────────────────┘
+// ┌───────────────────────────────────────────────────────────────────────┐
 // │  HEADING CONVENTION — atan2(-nx, nz).  NOT atan2(nx, nz).             │
 // │                                                                       │
 // │  Yaw 0 looks along -z, so heading y points along (sin y, -cos y).     │
@@ -33,7 +74,7 @@ import { approachHeading } from './lib/viewof.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { reportEndOfRun } from './lib/server-state.mjs';
 import { entrySpots } from './lib/entry-spot.mjs';
-import { sampleFloors, makeHasFloor, selfTestFloors } from './lib/floors.mjs';
+import { sampleFloors, installRayFloorQuery, selfTestRayQuery } from './lib/floors.mjs';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 
@@ -306,6 +347,42 @@ await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, aim('http://localhost:4185/'));   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
 
+// ── HOOK PREFLIGHT (item 246, converted by item 251) ──────────────────────
+//
+// THIS USED TO BE A DEV-SERVER PREFLIGHT, because this suite read its door and
+// party-wall declarations out of the TypeScript sources at runtime and
+// `vite preview` serves only `dist/`. It was the ONE check that could not
+// honour the verify-on-the-built-bundle rule every builder is given
+// (GOTCHAS 28) — a standing contradiction in the suite the rule points at most.
+//
+// It now reads both from `__ct`, so it runs anywhere the world does. What is
+// left is the same honest abort for the case that actually remains: the hooks
+// not being there.
+//
+// EXIT 3, NOT 1, AND THAT DISTINCTION IS THE WHOLE POINT OF THIS BLOCK.
+// **Exit 1 is "measured, and it is WRONG" (GOTCHAS 32).** A missing hook means
+// NOTHING was measured, and the old failure mode — an unhandled "Failed to
+// fetch dynamically imported module" that node turned into exit 1 — read as
+// twelve failing rooms that were all fine. Checked HERE, four hundred lines
+// before first use, so the answer costs a page load instead of a full launch.
+{
+  const missing = await p.evaluate(() => ['doors', 'roomDims', 'party']
+    .filter((k) => typeof window.__ct?.[k] !== 'function'));
+  if (missing.length) {
+    console.log('');
+    console.log(`WORLD HOOKS MISSING (${missing.join(', ')}) — nothing measured.`);
+    console.log('  This suite reads its door declarations from `__ct.doors()` and its');
+    console.log('  party walls from `__ct.party()`. Without them every room would be');
+    console.log('  walked against a guess.');
+    console.log('');
+    console.log('  `party()` is published in src/proto/crosstown.ts beside roomDims().');
+    console.log('  If you are on an older build, that is what is absent. Exit 3 = aborted,');
+    console.log('  not failed.');
+    await b.close();
+    process.exit(3);
+  }
+}
+
 // ── AND ASK IT WHAT EACH DOOR CALLS ITSELF (item 213) ───────────────────
 //
 // Every row above used to carry a `label` regex over the [E] prompt text — the
@@ -333,24 +410,40 @@ const isEntry = (r, txt) => r.entryLabel != null && txt != null && String(txt).i
   if (unresolved.length) console.log(`  note  no entry label resolved for: ${unresolved.join(', ')}`);
 }
 
+// EVERY DOOR THE WORLD PUBLISHES, READ ONCE. `__ct.doors()` already maps
+// `doorPointFor`/`doorStandFor` over `declaredDoors()`, so one call replaces
+// what used to be three source imports spread across two loops — and it is a
+// snapshot, so the two loops below cannot disagree with each other about a door.
+const DOORS = await p.evaluate(() => window.__ct.doors());
+
 for (const r of ROOMS) {
   if (!r.front) continue;
   const [name, w, cz, side] = r.front;
   // From the ROOM's declaration, which is the authority — the facade follows
   // it. Reading `frontageOf` here tested the old direction and failed every
   // room the moment it flipped.
-  const d = await p.evaluate(async ([name, w]) => {
-    const dm = await import('/src/proto/ct/doors.ts');
-    const decl = dm.declaredDoors().find((x) => x.building === name);
-    return { z: dm.doorWorldFor(name), at: decl.at, W: dm.roomWidthFor(w) };
-  }, [name, w]);
-  const stand = await p.evaluate(async ([n]) => {
-    const dm = await import('/src/proto/ct/doors.ts');
-    return dm.doorStandFor(n);
-  }, [name]);
+  // ITEM 251: `__ct.doors()`, NOT `import('/src/proto/ct/doors.ts')`. This was
+  // two page.evaluate round trips into the TypeScript source for three values,
+  // and re-measured on dev before the swap
+  // (`scripts/probes/w95-item251-source-vs-hook.mjs`):
+  //
+  //   doorStandFor  vs __ct.doors().stand   12/12 agree
+  //   doorPointFor  vs __ct.doors().point   12/12 agree
+  //   roomWidthFor  -> `r.W`                DEAD: assigned here, read nowhere
+  //                                         (`inRoom` uses lower-case `r.w`,
+  //                                         measured off the colliders)
+  //   declaredDoors().at -> `r.at`          DEAD: its only consumer is the
+  //                                         `|| { x: room.at … }` arm of DOOR,
+  //                                         and 13/13 rooms publish their own
+  //                                         `door` through roomDims(), so that
+  //                                         arm never fires
+  //
+  // `doorWorldFor` survives only as the fallback for `doorZ` when a room has no
+  // stand, which is why the door row is still read rather than just the stand.
+  const dr = DOORS.find((x) => x.building === name) || null;
+  const stand = dr && dr.stand;
   r.doorX = stand ? stand.x : side * (FACE - 0.75);
-  r.doorZ = stand ? stand.z : d.z;
-  r.at = d.at; if (r.W === undefined) r.W = d.W;
+  r.doorZ = stand ? stand.z : (dr && dr.point ? dr.point.z : cz);
   if (side > 0) r.east = true;
 }
 
@@ -424,21 +517,25 @@ const DIMS = await p.evaluate(() => window.__ct.roomDims());
 // has been failing containment ever since — a KNOWN-GOOD RED that has now cost
 // three separate investigations (items 222, 226).
 //
-// ASK `ct/interior.ts`, DO NOT COPY IT. `PARTY` is the one authoring of the
-// doorway: the pair, the local z, the clear width. Retyping any of it here is
-// the defect BUILDER-BRIEF §8 exists for, and this file has already paid for it
-// once (the pawn shop's `W`, four hundred lines up). vite dev serves TS
-// transpiled and the app has already imported this module, so the ES module
-// cache hands back the same instance — this reads the live declaration, and a
-// second party wall added tomorrow is understood here for free, with no edit.
-const PARTY = await p.evaluate(async () => {
-  const m = await import('/src/proto/ct/interior.ts');
-  return m.PARTY ?? null;
-});
-if (!Array.isArray(PARTY)) {
-  console.log('could not read PARTY from /src/proto/ct/interior.ts — refusing to');
-  console.log('guess which rooms are joined. A containment run that does not know');
-  console.log('about the party doorways reports the feature as a hole.');
+// ASK THE WORLD, DO NOT COPY IT. `PARTY` is the one authoring of the doorway:
+// the pair, the local z, the clear width. Retyping any of it here is the defect
+// BUILDER-BRIEF §8 exists for, and this file has already paid for it once (the
+// pawn shop's `W`, four hundred lines up).
+//
+// ITEM 251: THROUGH `__ct.party()` NOW, NOT `import('/src/proto/ct/interior.ts')`.
+// The import read the live declaration off the ES module cache, which was
+// correct and worked on `vite dev` only — and it was the LAST thing keeping
+// this check off the built bundle. `crosstown.ts` publishes the same array as a
+// per-element copy, so a second party wall added tomorrow is still understood
+// here for free, with no edit, and the harness cannot mutate the world through
+// it (verified both ways in w95-item251-source-vs-hook.mjs: hook matches source,
+// and pushing to / writing through the returned array leaves `party()` at 1 row,
+// at -9).
+const PARTY = await p.evaluate(() => window.__ct.party());
+if (!Array.isArray(PARTY) || !PARTY.length) {
+  console.log('could not read PARTY from __ct.party() — refusing to guess which');
+  console.log('rooms are joined. A containment run that does not know about the');
+  console.log('party doorways reports the feature as a hole.');
   await b.close(); process.exit(3);
 }
 /** are these two rooms joined by a DECLARED opening? */
@@ -464,15 +561,55 @@ const inRoom = (r, x, z) =>
 // A room rectangle says who OWNS ground, not where the world ENDS.
 // `groundAt()` cannot answer it — `groundPick` never returns null — so the
 // floors come from the scene. See `scripts/lib/floors.mjs`.
+// ── RAYCAST, NOT THE AABB BOX. CONVERTED 2026-08-03, ITEM 250 ─────────────
+//
+// This used to be `makeHasFloor(await sampleFloors(p))` — a bounding-box test
+// over meshes that survive a size filter. Item 238 reconciled the two
+// predicates over all 731,322 grid cells: they agree 97.37%, and **the
+// disagreement is asymmetric in the direction that decides authority** —
+// raycast errors are 92.4% sealed inside colliders and harmless, AABB errors
+// are 88.4% on OPEN WALKABLE GROUND. An over-claiming floor test reports ground
+// where there is none, and for THIS suite — which classifies every interior
+// endpoint — that is the false-GREEN direction. 11,948 cells over-claimed.
+//
+// The real weakness was never boxes-versus-rays. It is the **size filter in
+// front of the box, which hides 7,513 of 7,870 meshes**: item 172 gave the park
+// relief and its ground plane's world box became 0.653 m against a 0.600 m
+// filter — over by 53 mm — so a 32x30 m floor vanished outright and the park
+// read 60 escapes / 624 FAIL. On the raycast it is 0 / 544 PASS.
+//
+// ⚠⚠ **THE QUERY IS ASYNC AND THAT IS THE KILLER — GOTCHAS 90.** `if
+// (!hasFloor(x, z))` on a Promise is ALWAYS FALSE, so every check silently
+// passes forever, and no self-test can catch it: a check that cannot fail is
+// green on a wrong world too. Every call site below is `await`ed, and they were
+// found by grepping the USE (`if (hasFloor(`, `!hasFloor(`) and not the name.
+const RAY = await installRayFloorQuery(p);
+const hasFloor = RAY.query;                      // (x, z, gy) => Promise<boolean>
+// AND `sampleFloors` SURVIVES, FOR A QUESTION THAT IS NOT A FLOOR TEST.
+//
+// The off-belt ceiling derivation (search this file for `const ceil =`) needs
+// the floor MESHES — their x/z extents and their y — so it can take the lowest
+// slab above head height inside a room's footprint. A point predicate cannot
+// answer that, ray or box, because it returns a boolean and not an elevation.
+//
+// The over-claim item 250 is about does not reach it: this is a `Math.min` over
+// slabs, so the AABB size filter can only make it miss one, and missing one is
+// caught loudly by the `Number.isFinite(ceil)` check two lines below the use.
+// The failure direction here is the safe one. **Do not "finish the conversion"
+// by deleting this** — it is not the predicate.
+//
+// (I found it by running the off-belt room and getting `ReferenceError: FLOORS
+// is not defined`. Grepping `hasFloor` by use, as item 250 instructs, does not
+// find a second symbol drawn from the same import. Grep the IMPORT LIST too.)
 const FLOORS = await sampleFloors(p);
-const hasFloor = makeHasFloor(FLOORS);
 {
-  const bad = await selfTestFloors(p, FLOORS, hasFloor);
+  const bad = await selfTestRayQuery(p, hasFloor, RAY.tris);
   if (bad.length) {
     console.log('FLOOR PREDICATE FAILED ITS OWN CONTROLS — nothing measured:\n  ' + bad.join('\n  '));
     await b.close(); process.exit(3);
   }
-  console.log(`floor predicate ok: ${FLOORS.length} floor meshes, road solid, off-world void`);
+  console.log(`floor predicate ok (RAYCAST): ${RAY.tris} triangles from ${RAY.meshes} meshes, `
+    + `${RAY.buckets} buckets, road solid, off-world void`);
 }
 
 // A ROOM MAY DECLARE ITS DOOR BY `face:` AND PUBLISH NO FRONTAGE.
@@ -489,12 +626,12 @@ const hasFloor = makeHasFloor(FLOORS);
 for (const r of ROOMS) {
   if (r.front || r.doorX !== undefined) continue;
   const nm = (r.id || '').toUpperCase();
-  const stand = await p.evaluate(async ([n]) => {
-    const dm = await import('/src/proto/ct/doors.ts');
-    const s = dm.doorStandFor(n);
-    const pt = dm.doorPointFor(n);
-    return s ? { x: s.x, z: s.z, at: pt ? pt.x : 0 } : null;
-  }, [nm]);
+  // ITEM 251: same snapshot as the front path, so a `face:` room and a `front:`
+  // room can never be told different things about the same door. The old
+  // version also read `doorPointFor(n).x` into an `at` field that was then
+  // thrown away — the line below it assigns `r.at = 0` regardless — so that
+  // import was dead on arrival and is not replaced.
+  const stand = (DOORS.find((x) => x.building === nm) || {}).stand || null;
   if (stand) { r.doorX = stand.x; r.doorZ = stand.z; if (r.at === undefined) r.at = 0; }
 }
 
@@ -985,7 +1122,7 @@ for (room of rooms) {
         }
         continue;
       }
-      if (hasFloor(a[0], a[2], a[3])) {
+      if (await hasFloor(a[0], a[2], a[3])) {          // AWAIT — GOTCHAS 90
         leaks++;
         if (leaks <= 3) check(`walked out of every room going ${key}`, false,
           `from local ${f2(lx)},${f2(lz)} ended at ${f2(a[0])},${f2(a[2])} gy=${f2(a[3])} — `
@@ -1018,9 +1155,13 @@ for (room of rooms) {
   // OUTDOORS. A predicate that could not see interior floors at all would pass
   // those two and then call every endpoint in this room VOID; conversely this
   // is the leg that fails if a room's floor stops being floor-shaped.
+  // Hoisted to ONE awaited value. It used to call the predicate twice inline,
+  // which under the async query would have handed `check` a Promise (truthy —
+  // always green) and then printed a second Promise into the message. GOTCHAS 90.
+  const centreFloored = await hasFloor(cx, cz, built.y);
   check('the floor predicate can see this room\'s own floor',
-    hasFloor(cx, cz, built.y),
-    `room centre ${f2(cx)},${f2(cz)} at y=${f2(built.y)} reads ${hasFloor(cx, cz, built.y) ? 'FLOORED' : 'VOID'}`);
+    centreFloored,
+    `room centre ${f2(cx)},${f2(cz)} at y=${f2(built.y)} reads ${centreFloored ? 'FLOORED' : 'VOID'}`);
 
   // the doorway is the one deliberate gap in the collider line, so it gets
   // walked at head-on as well

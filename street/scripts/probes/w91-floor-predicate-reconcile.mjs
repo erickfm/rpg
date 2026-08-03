@@ -1,3 +1,18 @@
+// -- LEFT ON THE AABB BOX ON PURPOSE. ITEM 250, 2026-08-03. ----------------
+// Item 250 converted the world's floor CLASSIFIERS to the raycast query
+// (`installRayFloorQuery`), because the AABB pass over-claims 11,948 cells and
+// 88.4% of those are on open walkable ground -- the false-green direction. On
+// this world the AABB pass keeps **357 of 7,866 meshes**; the ray reads all of
+// them (93,493 triangles).
+//
+// THIS FILE IS NOT A CLASSIFIER AND WAS DELIBERATELY NOT CONVERTED.
+// Its subject IS the box-versus-ray disagreement: it runs both and reconciles
+// them. `makeHasFloor` here is one of the two things being compared.
+// Converting it would delete the question it exists to ask. If you are here
+// looking for a floor predicate to USE, use the raycast -- see
+// scripts/interiors-walk.mjs for the converted call sites, and mind GOTCHAS 90:
+// the ray query is ASYNC and an un-awaited call is always truthy.
+// --------------------------------------------------------------------------
 // ITEM 238 — THE THREE FLOOR PREDICATES, RUN OVER ONE POINT SET.
 //
 // Three independent answers to "is there a floor here" had accumulated:
@@ -186,7 +201,9 @@ console.log('\n── WHERE THEY DIFFER, over all ' + total + ' cells ──');
 console.log(`  both say FLOOR        ${both}`);
 console.log(`  both say VOID         ${neither}`);
 console.log(`  AABB floor, ray VOID  ${boxOnly}   <- boxes covering ground that is not drawn`);
-console.log(`  ray floor, AABB VOID  ${rayOnly}   <- must be 0: a box always contains its own mesh`);
+console.log(`  ray floor, AABB VOID  ${rayOnly}   <- NOT 0, though a box does always contain its own mesh:`);
+console.log('                                the AABB pass never computes a box for a mesh its');
+console.log('                                size filter rejected. Mostly building undersides.');
 console.log(`  agreement             ${((both + neither) / total * 100).toFixed(2)}%`);
 if (boxOnlyPts.length) console.log(`  e.g. AABB-only: ${JSON.stringify(boxOnlyPts)}`);
 if (rayOnlyPts.length) console.log(`  e.g. ray-only:  ${JSON.stringify(rayOnlyPts)}`);

@@ -108,17 +108,29 @@ if (oldEscapes.length) console.log(`  e.g. the old check's escapes: ${JSON.strin
 report('the NEW predicate finds floor everywhere the player stands in the park', newVoid === 0,
   `${newVoid} of ${inPark.length} standing positions read void — the park is floored and the raycast says so`);
 
-// ── AND THE CLAIM I COULD NOT MAKE ────────────────────────────────────────
+// ⚠ ── THIS SECTION IS A KNOWN FALSE NEGATIVE. DO NOT READ IT AS "THE PARK IS
+//      FINE". ────────────────────────────────────────────────────────────────
 //
-// I expected `oldVoid > 0` here — "the park leg was about to go red" — and it
-// is 0, twice, at 4 legs and at 14. **So that claim is withdrawn.** The walk
-// enters across the perimeter PATH, and the paths are flat meshes the AABB
-// predicate keeps; it never gets far enough onto the open grass for the dropped
-// ground plane to matter. Reporting this is worth more than a claim that reads
-// well (BUILDER-BRIEF §12).
-report('the walk-based park regression is NOT reproducible — claim withdrawn', oldVoid === 0,
-  `${oldVoid} of ${inPark.length} in-park standing positions read void to the OLD predicate; `
-  + 'the walk lands on paths, which the AABB pass keeps');
+// `oldVoid` is 0 here, at 4 legs and at 14, and I briefly withdrew the claim
+// that the park leg was red because of it. **The claim was right and THIS PROBE
+// was wrong.** Running the actual pre-change file settled it:
+//
+//   git show 9bff8791e:street/scripts/w75-site-contained.mjs > /tmp/old.mjs
+//   FAIL  the player cannot walk out of the world at the park
+//         60 of 624 walks ended ON NO FLOOR — x -19.59…-7.73 z -96.26…-68.37
+//
+// Why this misses it: the legs below walk in a STRAIGHT LINE west from eight
+// starts. `w75-site-contained` is a FLOOD FILL that fans out in eight
+// directions from every cell it reaches, so it lands on open grass a straight
+// line never touches — the escapes are at x -19.6…-7.7, off the entrance path.
+//
+// A probe that examines only the route its author thought of reports green
+// about everything they did not (GOTCHAS 79), and this is that, committed
+// inside an item about predicates that lie. Kept, with the assertion inverted
+// to say what it actually demonstrates, because the failure is instructive.
+report('KNOWN LIMITATION: a straight-line walk cannot reproduce the park regression', oldVoid === 0,
+  `${oldVoid} of ${inPark.length} in-park positions read void to the OLD predicate here, `
+  + 'against 60 of 624 for the real 8-direction flood fill — this probe walks lines, not fills');
 
 // What IS true is narrower and still worth knowing: on the open GRASS, away
 // from the paths, the two predicates disagree outright. This warps rather than

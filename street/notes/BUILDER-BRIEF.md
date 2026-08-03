@@ -25,6 +25,53 @@ That `npm install` is the part people skip; the hard reset removes the
 `node_modules` symlink and the dev server then fails with an error that looks
 nothing like the cause. (GOTCHAS 54, 13.)
 
+### …and there is a GUARD now, so expect to be refused rather than to be lucky
+
+The manual check above is the *first* line, not the only one. **`npm install`,
+`npm run build`, `npm run dev`, `npm run live` and even a bare `npx vite` refuse
+to run if you are standing in the SHARED CHECKOUT
+(`/home/erick/projects/rpg/street`) having travelled there out of your own
+worktree.** It prints the worktree it wants you to go back to. Do that; do not
+argue with it.
+
+```
+  REFUSED: npm run build in THE SHARED CHECKOUT.
+  ...
+  FIX: go back to YOUR OWN worktree and run it there.
+      cd /home/erick/projects/rpg/.claude/worktrees/agent-<your-id>/street
+```
+
+`scripts/guard-shared-checkout.mjs` fronts `scripts/lib/shared-checkout.mjs`;
+`scripts/probes/w94-guard-selftest.mjs` is its 30-assertion self-test. Read the
+lib's header before you touch it — in particular, **do not "improve" it back
+into an environment-variable test.** The desk's shell and yours carry byte-
+identical `CLAUDE_CODE_CHILD_SESSION`, `AI_AGENT` and `CLAUDE_PID`; they are the
+same process. That mistake is queue item 247 and it blocked the desk's artifact
+republish for a session.
+
+**Two things it deliberately does not do.** It never touches the read-only
+measurement scripts (`sweep`, `fp`, `checks`, `capture`) — their problem is
+reading the wrong world, which has its own instrument. And it **cannot see an
+agent that was never given a worktree at all**; that agent has no worktree to
+have come from and looks exactly like the desk. If you were spawned without
+isolation, the guard will not save you and §0's manual check is all you have.
+
+**It still does not replace the check above.** It hooks four `package.json`
+scripts plus `vite.config.ts`. **Any bare `node scripts/*.mjs` still goes round
+it.** Run `git log --oneline -3` first anyway.
+
+**It fails open on every uncertain answer**, because it sits on `preinstall` and
+a bug there would brick the most-run command on the project.
+
+`CT_ALLOW_SHARED=1` opts out. It is not a normal thing for a builder to want —
+if you use it, say so in your `done.sh` line. **It is no longer the desk's
+routine escape hatch:** until item 247 the guard refused the desk too, because
+the desk and every builder share **one `CLAUDE_CODE_SESSION_ID` and one
+environment** (worker ninetythree measured **50 of 50** agent processes carrying
+`CLAUDE_CODE_CHILD_SESSION=1`, the desk's own tool shells included). The guard no
+longer asks *who you are* — it asks *where your shell was standing*, which is the
+one thing that does differ.
+
 ---
 
 ## 1. The loop: take one item, finish it, take the next
@@ -275,6 +322,19 @@ costs ten plus a broken world. (PARALLEL-WORKFLOW §11.)
 - **Screenshots are for LOOKING, never for PROVING a change didn't move the world.** Two runs of identical code differ ~20% of pixels. Use `npm run fp before` → change → `npm run fp after` → `npm run fpdiff`; textures and structure must match, 4–6 pigeons drifting is the noise floor.
 - **Press `V` for the collision overlay.** Wireframe boxes, red where a gap under 0.95 m could trap a player. It is how the user found two real bugs on its first day.
 - **Verify on the BUILT bundle** (`npx vite preview`), not only on dev. The panel/keydown class of bug has shipped differently than it renders in dev.
+- **THERE IS NO LONGER AN EXEMPTION. `scripts/interiors-walk.mjs` runs on the
+  built bundle** as of item 251 — it was the one check that could not, and the
+  contradiction of a rule enforced by a suite that broke it is gone. It read its
+  declarations out of the TypeScript sources at runtime (four sites,
+  `import('/src/proto/ct/doors.ts')` ×3 and `.../ct/interior.ts` ×1), which
+  `vite preview` 404s. Three of those were already redundant against
+  `__ct.doors()` — `doorStandFor`/`doorPointFor` agree **12/12 and 12/12**,
+  `roomWidthFor` fed an `r.W` **read nowhere**, and `declaredDoors().at` fed a
+  fallback that **never fires because 13/13 rooms publish their own `door`**.
+  The only real gap was `PARTY`, now published as **`__ct.party()`** — a
+  per-element copy, because a probe must not be able to mutate world state
+  through a test hook. **If it ever aborts with exit 3 it means a hook is
+  missing, not that the rooms are broken** (GOTCHAS 32).
 - **A build against the tree your preview is serving blinds it for about a fifth
   of a second. It does NOT kill it.** `vite build` empties `dist/` before writing
   and `vite preview` serves `dist/` statically, so the healthy server has no page

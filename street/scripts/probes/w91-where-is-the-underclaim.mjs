@@ -1,3 +1,19 @@
+// -- LEFT ON THE AABB BOX ON PURPOSE. ITEM 250, 2026-08-03. ----------------
+// Item 250 converted the world's floor CLASSIFIERS to the raycast query
+// (`installRayFloorQuery`), because the AABB pass over-claims 11,948 cells and
+// 88.4% of those are on open walkable ground -- the false-green direction. On
+// this world the AABB pass keeps **357 of 7,866 meshes**; the ray reads all of
+// them (93,493 triangles).
+//
+// THIS FILE IS NOT A CLASSIFIER AND WAS DELIBERATELY NOT CONVERTED.
+// It validates a fast accelerator AGAINST `makeHasFloor` on random cells, then
+// locates where the box under-claims. `makeHasFloor` is its reference, not its
+// tool.
+// Converting it would delete the question it exists to ask. If you are here
+// looking for a floor predicate to USE, use the raycast -- see
+// scripts/interiors-walk.mjs for the converted call sites, and mind GOTCHAS 90:
+// the ray query is ASYNC and an un-awaited call is always truthy.
+// --------------------------------------------------------------------------
 // ITEM 238 — WHERE ARE THE 7289 CELLS THE BOXES MISS?
 //
 // `w91-floor-predicate-reconcile.mjs` found the AABB predicate UNDER-claims as
