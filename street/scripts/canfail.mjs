@@ -942,6 +942,29 @@ const CASES = [
     'const IN = 1.95;',
     'crowd-walk.mjs', [], 'citizens standing where a stopped body seals the walk'],
 
+  // A CROWD THAT NEVER TAKES A STEP — the inversion of crowd-walk's FIRST leg,
+  // "they are walking", which had no case here. `crowd-lane` above is the only
+  // other one aimed at that script and it is a LANE-GEOMETRY case: it moves the
+  // walkable network, and the people keep walking. So the leg that item 218
+  // rewrote — the one that pairs two samples of the crowd 1500 ms apart — could
+  // have been turned into something that measures nothing and this file would
+  // still have said crowd-walk was guarded. That is precisely GOTCHAS 34 inside
+  // the tool whose job is catching it, and w72 hit the same shape in item 209:
+  // every inversion those two suites had was a geometry leg.
+  //
+  // `step` is the only thing that advances a citizen along its edge, so zeroing
+  // it freezes the cast in place while leaving all six of them in the world,
+  // routed, planned and reported by `walkers()`. That is the point: the leg must
+  // go red with a FULL POPULATION — 0 of 6 moved, 6 of 6 judged — not as
+  // "NOTHING TO CHECK", which would prove nothing about the comparison.
+  //
+  // Watched, on the built bundle: `they are walking — 0/6 moved >0.2 m in 1.5 s,
+  // paired by cast identity (6 of 6 present in both samples, floor 4)`.
+  ['crowd-frozen', 'src/proto/ct/crowd.ts',
+    'const step = held ? 0 : Math.min(c.sp, follow || c.sp) * dt;',
+    'const step = 0;',
+    'crowd-walk.mjs', [], 'a crowd that is planned and routed but never takes a step'],
+
   // The three-band face, restored. 10 texels of head cannot carry 3 texels of
   // shading either side without reading as skin discolouration.
   ['faces-bands', 'src/proto/ct/citizens.ts',
