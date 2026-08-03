@@ -129,10 +129,10 @@ after ESC  : panel null, seated FALSE, prompt "[E] sit at the computer"
 `ct/slots.ts:2083` already writes this down and keeps its guard anyway, on the
 grounds that *"quietly depending on another module's current behaviour for your
 own correctness is the thing this project keeps being bitten by."* That is
-exactly right, and it is why the spot is worth having: **w69 has queued the
-removal of that `rig.stand()`** — *"closing the form put you back in the
-chair"*, `notes/w69-seated-e.md`, WHAT I DID NOT DO §2. The day it lands, a
-dismissed machine has no way back in at all without this spot.
+exactly right, and it is why the spot is worth having: **that removal is queued as item 206**,
+*"closing a panel from a chair ejects you from the chair"* — `leave()` is to
+re-sit the remembered pose. The day 206 lands, a dismissed machine has no way
+back in at all without this spot, and this spot is what makes 206 safe to land.
 
 A capability nobody can exercise is a capability nobody can prove (GOTCHAS 79),
 so both modules publish `dismissHere()`, in the same family as `__ct.sit` —
@@ -183,8 +183,10 @@ finding and cost me one run. **Either publish `__ct.sitAt(i)`, or fix
 `w69-seated-offers.mjs:64` and `w69-seated-loan.mjs:70`** — I did not touch
 either, they are not named by this item and one is w69's acceptance evidence.
 
-**2. `crosstown.ts:1440` still stands you out of the chair on every close**, and
-that is w69's queued item, not mine. This change is what makes landing it safe.
+**2. `crosstown.ts:1440` still stands you out of the chair on every close** —
+that is **item 206**, already on the board, not mine. This change is what makes
+landing it safe: without the spot, 206 turns a dismissed machine into one you
+cannot re-open at all.
 
 **3. The prompt is not visible in ordinary play**, and that is honest rather
 than a defect: the poll opens the panel on the frame you sit, so the offer only
