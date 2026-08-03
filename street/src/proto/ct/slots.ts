@@ -1915,5 +1915,26 @@ export function register(ctx: CtxBuild): void {
      *  THAT money. */
     cash: () => ctx.purse.cash,
     credit: () => CREDIT,
+    /**
+     * WHERE THE PRESSABLE THINGS ARE, in canvas pixels — the machine's own
+     * declaration, published so a harness can click the layout that was
+     * actually drawn instead of carrying a second copy of it.
+     *
+     * BUILDER-BRIEF §8, and it is not a theoretical worry here: this face was
+     * re-laid twice while item 100 was being built (once for the portrait
+     * cabinet, once to lift every control clear of the stool cushion), and a
+     * probe holding hand-typed button centres would have gone on clicking dead
+     * cabinet and reporting the mouse broken. It also survives the one place
+     * `import('/src/proto/ct/slots.ts')` cannot reach, which is the BUILT
+     * bundle — the only place GOTCHAS §28's class of fault is visible at all.
+     */
+    face: () => ({
+      w: FACE.w, h: FACE.h,
+      deck: DECK.map((d) => ({ ...d, y: BTN_Y, h: BTN_H })),
+      bill: { x: 22, y: BILL_Y, w: 276, h: BILL_H },
+      glass: { ...GLASS },
+    }),
+    /** the plane the face is painted on while focused, or null */
+    screen: () => (plane && plane.visible ? plane : null),
   };
 }
