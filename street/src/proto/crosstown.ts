@@ -27,7 +27,7 @@ import { buildCrowd, type Crowd } from './ct/crowd';
 import { pickSpot, SpotOutline, REACH_MARGIN } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
-import { makeHud, setScreenFocus, type Purse } from './ct/hud';
+import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
@@ -1924,8 +1924,29 @@ export function makeCrosstown(): Proto {
         wet: (scene.userData.wetness as number | undefined) ?? 0,
       };
       for (const h of HOOKS) h.fn(frame);
-      // look down: your watch
-      hud.watch(rig.pitch < -0.95, Math.floor(clockMin));
+      // look down: your watch — BUT NOT WHILE A CABINET IS UP.
+      //
+      // `poseFor` takes the eye along the target face's own NORMAL. For a
+      // screen bolted to a wall that normal is horizontal and the player ends
+      // up level; for a form lying on a desk it points STRAIGHT UP, so reading
+      // it means looking down — and looking down is the exact gesture that
+      // raises the watch. Worker sixtysix photographed the result while
+      // building the loan (item 185): its first SIGN box sat behind a
+      // wristwatch. The ATM, slots and blackjack are all VERTICAL surfaces,
+      // which is the only reason this went four panels without being seen.
+      //
+      // You are reading a document, not checking the time, so the watch stands
+      // down. Same shape and same reasoning as `hud.prompt`, which already
+      // silences itself on `panelUp()` for the double-caption overlap.
+      //
+      // WHY THIS ALSO ANSWERS "does it come back on every close path". It is
+      // not an event and it does not need to be: this is a per-frame RECOMPUTE
+      // of `want`, so the frame after `livePanel` clears — however it cleared,
+      // by [E], by Escape, by the ATM's own farewell timeout, or by a future
+      // panel that closes itself in a way nobody has written yet — the watch
+      // slides back if the player is still looking down. There is no close
+      // path to miss because no close path is enumerated.
+      hud.watch(rig.pitch < -0.95 && !panelUp(), Math.floor(clockMin));
       // right-click: flip the wallet out / away
       const rmb = input.keys.has('rmb');
       if (rmb && !rmbHeld) hud.toggleWallet();
