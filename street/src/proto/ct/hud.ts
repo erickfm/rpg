@@ -1688,8 +1688,8 @@ export function makeHud(purse: Purse): Hud {
   // more pls"* (2026-08-04) takes it 46 → 42, and lifts it for the first time.
   const WATCH_X = 42;      // % of viewport width, the wrapper's `left` anchor
   /**
-   * Upward nudge, in % of the element's OWN height (198 px = 72 canvas px x
-   * WATCH_S). Was an unnamed `translateY(0)`.
+   * Upward nudge, in % of the LIMB's height (198 px = 72 canvas px x WATCH_S),
+   * applied as px — see WATCH_LIMB_H. Was an unnamed `translateY(0)`.
    *
    * THERE IS A CEILING ON THIS AND IT IS NOT LARGE. The limb has to leave the
    * frame through the BOTTOM edge; if it lifts clear it exits through the left
@@ -1705,14 +1705,43 @@ export function makeHud(purse: Purse): Hud {
    * again twice over before the hand comes off the ground.
    */
   const WATCH_LIFT = 12;
-  const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT}%) rotate(-5deg)`;
+  /**
+   * THE LIMB'S OWN HEIGHT, AND THE CANVAS'S, WHICH ARE NO LONGER THE SAME NUMBER.
+   *
+   * Everything drawn here is positioned against the LIMB: 72 canvas px, the
+   * band at y 6…72. That number never changes and no drawing coordinate below
+   * moved. The CANVAS is now taller, and the extra rows sit BELOW the limb, as
+   * bleed for things that stick out past its underside.
+   *
+   * WHY THERE HAS TO BE ANY. *"the watch band overhang is not symetrical on the
+   * limb. the bottom has no overhang."* (2026-08-04). It never had one: the
+   * strap ran y 0…72 against a limb at 6…72, so it stood 6 px proud at the top
+   * and stopped flush at the bottom — because the bottom WAS the canvas edge,
+   * and for most of this arm's life that edge was under the frame where nobody
+   * could see it. WATCH_LIFT put it on screen and the asymmetry with it.
+   *
+   * THE THREE COMPENSATIONS, so growing the canvas moves nothing:
+   *   · `bottom` pays back the added height, or the whole arm rides up by it;
+   *   · `transform-origin`'s y is pinned in px to the limb's middle — `50%` of
+   *     a taller element is a different, lower pivot;
+   *   · WATCH_LIFT is applied in px off the LIMB's height, not as a `%` of the
+   *     element — otherwise every canvas change silently re-tunes the lift and
+   *     the ceiling derived above stops meaning what it says.
+   */
+  const WATCH_LIMB_H = 72;
+  /** px the strap stands proud of the limb — now on BOTH long edges, was 6/0. */
+  const STRAP_OVER = 6;
+  const WATCH_H = WATCH_LIMB_H + STRAP_OVER;
+  const WATCH_BOTTOM = (-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)).toFixed(2);
+  const WATCH_LIFT_PX = (WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S).toFixed(2);
+  const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-5deg)`;
   const WATCH_HIDDEN = 'translateX(-50%) translateY(140%) rotate(-5deg)';
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
   const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
-  const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${72 * WATCH_S}px;image-rendering:pixelated;display:block;`;
+  const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${WATCH_H * WATCH_S}px;image-rendering:pixelated;display:block;`;
   const WRAP_CSS = 'position:fixed;'
-    + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
-    + `transform-origin:calc(100% - ${WATCH_PIVOT}px) 50%;`
+    + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:${WATCH_BOTTOM}px;z-index:11;pointer-events:none;`
+    + `transform-origin:calc(100% - ${WATCH_PIVOT}px) ${WATCH_LIMB_H * WATCH_S / 2}px;`
     + 'transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
@@ -1721,7 +1750,7 @@ export function makeHud(purse: Purse): Hud {
     watchWrap.id = 'ct-watch';
     watchWrap.style.cssText = WRAP_CSS;
     watchCv = document.createElement('canvas');
-    watchCv.width = WATCH_W; watchCv.height = 72;
+    watchCv.width = WATCH_W; watchCv.height = WATCH_H;
     watchCv.style.cssText = WATCH_CSS;
     watchWrap.appendChild(watchCv);
     document.body.appendChild(watchWrap);
@@ -1733,13 +1762,13 @@ export function makeHud(purse: Purse): Hud {
     // place, which is three bugs that only appear on the second build.
     watchWrap.style.cssText = WRAP_CSS;
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
-    watchCv.width = WATCH_W; watchCv.height = 72;
+    watchCv.width = WATCH_W; watchCv.height = WATCH_H;
     watchCv.style.cssText = WATCH_CSS;
   }
   // the wrist-and-watch close-up (the good one — arm version was reverted)
   const drawWatch = (mins: number) => {
     const g = watchCv.getContext('2d')!;
-    g.clearRect(0, 0, WATCH_W, 72);
+    g.clearRect(0, 0, WATCH_W, WATCH_H);
     // ── THE FOREARM ───────────────────────────────────────────────────────
     //
     // STEP 2 of an incremental rebuild (an all-at-once redraw was rejected, and
@@ -1822,8 +1851,21 @@ export function makeHud(purse: Purse): Hud {
     // rather than reinvented. IT IS THE ONLY OVERLAY ON THE SKIN — everything
     // left of it stays one flat `#c9946a`.
     g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(172, 0, 4, 72);
-    g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
-    g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
+    // ── THE STRAP, AND ITS OVERHANG ───────────────────────────────────────
+    //
+    // *"the watch band overhang is not symetrical on the limb. the bottom has
+    // no overhang."* (2026-08-04). It was `fillRect(38, 0, 44, 72)` against a
+    // limb at y 6…72: 6 px proud at the top, 0 at the bottom. Both edges are
+    // now STRAP_OVER, measured off the limb's own band rather than off the
+    // canvas — which is why the canvas grew, above.
+    //
+    // Matched to the top rather than split, because the top overhang is the one
+    // he has looked at for two days without objecting; the ask is for the
+    // bottom to have what the top has. A 3/3 split at the strap's original 72
+    // height would be `6 - 3` and `66 + 6` here, one line, if he wants it.
+    const STRAP_Y = 6 - STRAP_OVER, STRAP_H = 66 + STRAP_OVER * 2;
+    g.fillStyle = '#26282e'; g.fillRect(38, STRAP_Y, 44, STRAP_H);          // strap
+    g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, STRAP_Y, 4, STRAP_H);
     g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
     g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
     g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);         // LCD
