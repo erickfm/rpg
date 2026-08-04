@@ -3281,3 +3281,17 @@ look, press E — and explicitly NOT to re-run the old probe and call it fine.
 item because the desk wrote them into one row. A single-cause item would have
 been bisectable in seconds. Do not bundle a mechanism change with a coordinate
 change again.
+
+## 2026-08-03 19:10 — put the calendar back on the right, and fix the door
+
+> "move the calendar back to the right and fix the door standpoint"
+
+**Routed to: queued as item 308 at rank 0, held until worker onehundredthirtytwo
+releases item 307.** Both are flat 301, and running two agents in one room is the
+exact mistake that caused this: the calendar fix broke the door and the door fix
+broke the calendar, hours apart, on 2026-08-03.
+
+This pays back the cost the desk reported when item 298 landed — the calendar is
+currently 0.60 m left of where it hung and 0.35 m left of where he asked, because
+the door's stand-point occupies the wall to its right. He is now asking for the
+harder fix instead of the cheap one, which is the right call.
