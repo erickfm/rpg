@@ -3546,6 +3546,54 @@ against, it is untouched, and it repeats at ~2.75 px per row. That beats `WATCH_
 or `WATCH_TILT`, which buy the same lift by moving pixels items 275 and the
 arm-angle item are pinned to. All three options are written down at the constant.
 
+## 2026-08-04 — "inspo on hand and arm design"
+
+Verbatim: *"take a look at this image for inspo on hand and arm design btw"*
+(`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-04 12-59-06.png` — an
+anime cel of a wrist wearing a round analog steel watch, the hand relaxed and
+loosely curled.)
+
+**Taken:** every edge of skin is now a dark line (`player.ink`, a tone at 0.46 of
+the skin's value, not black) — the forearm's top edge and the hand's whole
+silhouette. That is the reference's one universal habit and our limb had none of
+it, which is why a flat tan region butted straight onto the road. And the hand
+stopped being `fillRect(104, 0, 72, 72)`: it is a shape now — swells off the
+wrist to a knuckle high point, rounds off at the far end, the underside curling
+away where the fingers do — with three strokes (knuckle ridge, two creases) and
+flat hard-edged shadow shapes instead of axis-aligned strips.
+
+**Deliberately not taken:** the watch (his brief said hand and arm; the reference
+is analog on a link bracelet and ours is a digital LCD — case, band, face and
+digits are untouched to the pixel). The light direction (ours has come from the
+right since item 216 and the wrist and hand share the identical rgba values;
+only the SHAPE of those shadows changed). Actual fingers (the reference is a
+side-on view of someone else's hand at arm's length — down the back of our own
+from 40 cm the curled fingers are behind the knuckle ridge, which is what he
+worked out himself in item 216: *"no fingers would actually show"*). And the
+sleeve cuff, which is the one judgement call worth his ruling — see below.
+
+**The cuff, not done, and why.** The reference's forearm is cropped by the frame
+with a dark straight-cut cuff at the wrist end, and that is genuinely "arm
+design". Two reasons it is his call rather than mine: our forearm is 600 canvas
+px long *because* it has to reach the edge of a 3840 frame, so a cuff at any
+fixed x sits at the frame edge on a 1280 screen and in the middle of the picture
+on a wide one — the composition would differ per monitor. And this file already
+fought this exact shape: the note at the recede gradient calls a dark stripe
+across the middle of a limb "exactly the 'two limbs' failure to avoid". The
+palette has `sleeve` and `cuff` sitting unused and ready if he wants it.
+
+**Item 216 is not being overruled, it is being completed.** He said *"really
+minimal… a square larger in width than the wrist"* and he was right about the
+line budget — the reference is minimal too, a silhouette and three strokes with
+no modelling anywhere. What the square got wrong was the shape, not the economy.
+Still wider than the wrist (71 px at the knuckle against 66), still no thumb,
+still no fingers drawn as fingers.
+
+**The invariant held.** `handBot` is flat 72 for the inner half of the hand,
+which is not a shape choice: that inner bottom corner is what `WATCH_DROP` is
+measured against and it is ~1.0 px from its floor. Only the far end rounds, where
+the outer corner sits ~60 px inside the frame and costs nothing.
+
 ## 2026-08-04 — watch arm, the nudges
 
 *"hm more left more out"* → `WATCH_X` 43→36%, `WATCH_DROP` 14→6.

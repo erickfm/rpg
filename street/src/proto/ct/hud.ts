@@ -1622,7 +1622,11 @@ export function makeHud(purse: Purse): Hud {
   // the player's own clothing — one place to swap later (a real wardrobe).
   // `sleeve` is the forearm covering (a sweater here); a tee would just leave
   // the forearm as `skin`. The first-person hands (watch + wallet) read from it.
-  const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', sleeve: '#3f4a5c', cuff: '#333c4a' };
+  // `ink` is the CEL OUTLINE — the single dark line the reference image draws
+  // every edge of skin with. It is a tone, not black: 0.46 of the skin's own
+  // value, which is the ratio the reference holds between its outline and its
+  // fill. Black would read as a sticker cut out and laid on the street.
+  const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', ink: '#5d452f', sleeve: '#3f4a5c', cuff: '#333c4a' };
   // ── THE ARM, AND THE FOUR NUMBERS THAT HOLD IT IN PLACE ──────────────────
   //
   // *"for the watch i would like the rest of the arm (to the left) rendered as
@@ -1898,7 +1902,31 @@ export function makeHud(purse: Purse): Hud {
     const armColumns = () => {
       for (let x = 0; x < WATCH_ARM; x++) { const t = armTop(x); g.fillRect(x, t, 1, 72 - t); }
     };
-    g.fillStyle = '#c9946a'; armColumns();
+    g.fillStyle = player.skin; armColumns();
+    // …AND IT IS DRAWN, NOT CUT OUT. *"take a look at this image for inspo on
+    // hand and arm design btw"* (2026-08-04) — an anime cel of a wrist and a
+    // relaxed hand. Strip that image of everything specific to it and the one
+    // thing left is that EVERY EDGE OF SKIN IS A DARK LINE. Our limb had none:
+    // it was a flat tan region butting straight onto the road, which is why it
+    // read as a shape sitting on the screen rather than an arm in the world.
+    // One texel, the length of the limb, `player.ink`.
+    //
+    // BEFORE THE GRADIENT, ON PURPOSE. The recede pass below covers these same
+    // columns, so the outline darkens with the limb it belongs to instead of
+    // staying a constant near-black stripe that gets LIGHTER than the arm at the
+    // elbow end. Drawn as a staircase — each column spans from the previous
+    // column's top edge to its own — because a 1 px dot per column leaves holes
+    // wherever `armTop` steps, and holes in an outline read as a dashed line.
+    const inkTop = (top: (x: number) => number, x0: number, x1: number) => {
+      let prev = Math.round(top(x0));
+      for (let x = x0; x < x1; x++) {
+        const t = Math.round(top(x));
+        const a = Math.min(t, prev), b = Math.max(t, prev);
+        g.fillRect(x, a, 1, b - a + 1);
+        prev = t;
+      }
+    };
+    g.fillStyle = player.ink; inkTop(armTop, 0, WATCH_ARM);
     // …and it RECEDES. The wrist's shading is "light from the right", carried by
     // a 10 px `rgba(0,0,0,0.15)` cap that used to sit at the cut end and would
     // now be a dark stripe across the middle of a limb, which is exactly the
@@ -1939,32 +1967,143 @@ export function makeHud(purse: Purse): Hud {
     // said he liked cannot have drifted by a pixel.
     g.save();
     g.translate(WATCH_ARM, 0);
-    g.fillStyle = '#c9946a'; g.fillRect(0, 6, 104, 66);          // wrist, cut by the frame
+    g.fillStyle = player.skin; g.fillRect(0, 6, 104, 66);        // wrist, cut by the frame
     g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
-    // ── THE FIST ──────────────────────────────────────────────────────────
+    // ── THE HAND ──────────────────────────────────────────────────────────
     //
-    // *"it actually should be really minimal considering it would be the top of
-    // the fist. no fingers would actually show so i kinda expect a square larger
-    // in width than the wrist attached to the right side of the wrist."*
+    // TWO OF HIS ASKS MEET HERE AND THEY DISAGREE, so the disagreement is the
+    // design. The first built this object:
     //
-    // ONE BOX, and that is the whole design. He worked out the anatomy himself
-    // and he is right: from this camera you are looking down at the BACK of a
-    // closed fist, the fingers are curled underneath and out of sight, and the
-    // back of a fist really is just a slab. Minimal is the CORRECT answer here,
-    // not a cheap one — no fingers, no knuckles, no taper, no thumb.
+    //   *"it actually should be really minimal considering it would be the top
+    //   of the fist. no fingers would actually show so i kinda expect a square
+    //   larger in width than the wrist attached to the right side of the
+    //   wrist."*
     //
-    // 72 px against the wrist's 66, so it is "larger in width than the wrist"
-    // as asked, with the extra reading as the swell of the hand above the wrist.
-    // Cut by the bottom of the frame like the wrist, for the same reason.
+    // and it was answered literally — `fillRect(104, 0, 72, 72)`, one box, no
+    // fingers, no knuckles, no taper. Then:
     //
-    // Drawn BEFORE the strap and the case so it can never overlap them; it butts
-    // at x 104 where the wrist ends, and the strap lives at 38…82.
-    g.fillStyle = '#c9946a'; g.fillRect(104, 0, 72, 72);
-    // …and the same two-tone shading the wrist carries, light coming from the
-    // right, so it reads as one limb and not as a glove: the identical rgba
-    // values, not a matched-by-eye pair.
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(166, 0, 10, 72);
-    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(104, 0, 4, 72);   // the wrist's shadow on it
+    //   *"take a look at this image for inspo on hand and arm design btw"*
+    //   (2026-08-04)
+    //
+    // and the image is a RELAXED, LOOSELY CURLED hand — fingers falling in
+    // toward the palm, the index knuckle the high point, a rounded far end, the
+    // thumb tucked out of sight. Not a fist and not a square.
+    //
+    // HE IS NOT TAKING "MINIMAL" BACK. Look at what the reference actually
+    // spends its lines on and it is minimal too: a silhouette, three curved
+    // strokes, and two flat hard-edged shadow shapes. It has no rendering, no
+    // gradient and no knuckle modelling. What he was right about was the LINE
+    // BUDGET; what the box got wrong was the SHAPE. So this keeps every claim he
+    // made — no fingers drawn as fingers, no thumb, still wider than the wrist
+    // (71 px at the knuckle against the wrist's 66) — and spends the same
+    // handful of marks on a hand-shaped outline instead of a rectangle.
+    //
+    // AND THE CAMERA IS STILL OURS, NOT THE REFERENCE'S. That image is a side-on
+    // view of someone else's hand at arm's length; we are looking down the back
+    // of our own from 40 cm. From here the curled fingers are BEHIND the knuckle
+    // ridge and mostly hidden, which is exactly what he worked out himself the
+    // first time. They are two creases at the far end, not four fingers.
+    //
+    // ┌ THE SILHOUETTE, and the one line of it that is load-bearing ───────────
+    // │ `handBot` is FLAT 72 for the inner half. That is not a shape choice —
+    // │ the hand's inner bottom corner sitting below the frame is the invariant
+    // │ `WATCH_DROP` is measured against, and it is now ~1.0 px from its floor.
+    // │ Lifting the bottom edge anywhere left of u 0.52 spends drop budget that
+    // │ does not exist. The far end is free: at drop 4.5 the OUTER bottom corner
+    // │ is ~60 px inside the frame, so rounding it costs nothing and removes the
+    // │ squared-off corner that made the box read as a box.
+    // └───────────────────────────────────────────────────────────────────────
+    //
+    // Ends at 174, not 176. `WATCH_HAND` stays 176 — every derived number in
+    // this file (`WATCH_W`, `WATCH_LEFT`, `WATCH_PIVOT`) hangs off it — the hand
+    // simply no longer fills its last two columns, because a silhouette that
+    // runs into the canvas edge is a silhouette with one edge missing.
+    const HAND_L = 104, HAND_R = 174, HAND_W = HAND_R - HAND_L;
+    const hu = (x: number) => (x - HAND_L) / HAND_W;
+    /** the back of the hand: swells off the wrist to the knuckle, then rounds. */
+    const handTop = (x: number) => {
+      const u = hu(x);
+      if (u <= 0.55) return 6 - 5 * Math.sin((u / 0.55) * Math.PI / 2);   // 6 → 1, the knuckle rise
+      if (u <= 0.80) return 1 + 3 * Math.pow((u - 0.55) / 0.25, 2);       // 1 → 4, the flat back
+      return 4 + 34 * Math.pow((u - 0.80) / 0.20, 1.7);                   // 4 → 38, the round-off
+    };
+    /** the underside: cut by the frame, then curls away where the fingers do. */
+    const handBot = (x: number) => {
+      const u = hu(x);
+      if (u <= 0.52) return 72;                                           // the invariant, see above
+      return 72 - 26 * Math.pow((u - 0.52) / 0.48, 1.9);                  // 72 → 46, the curl
+    };
+    const handColumns = (from: number, to: number, top: (x: number) => number) => {
+      for (let x = from; x < to; x++) {
+        const t = Math.round(top(x)), b = Math.round(handBot(x));
+        if (b > t) g.fillRect(x, t, 1, b - t);
+      }
+    };
+    // Column by column, like the forearm and for the identical reason: a filled
+    // path would be antialiased at 1x and then magnified 2.75x, and one soft
+    // edge in a world of hard texels is the thing you cannot un-see.
+    g.fillStyle = player.skin; handColumns(HAND_L, HAND_R, handTop);
+    // ── THE SHADING: FLAT SHAPES BOUNDED BY LINES ───────────────────────────
+    //
+    // The reference has no gradients on skin at all — it has two or three flat
+    // regions with hard edges, and the edge IS the drawing. What it does NOT
+    // get to change is our light direction: the wrist has been lit from the
+    // right since item 216 and the file's own note says the fist carries "the
+    // identical rgba values, not a matched-by-eye pair". Those values are kept
+    // to the digit; only their SHAPE changes, from axis-aligned strips to
+    // regions that follow the form.
+    //
+    // The knuckle ridge is the boundary of the lit plane. The DRAWN stroke below
+    // covers only the middle of that boundary and the lit shape runs on past
+    // both ends of it — which is the reference's habit, not an oversight: its
+    // shadow shapes are bounded by lines that stop before the shape does.
+    const KNUCK = (x: number) => handTop(x) + 8;
+    g.fillStyle = 'rgba(255,255,255,0.12)';
+    for (let x = HAND_L + 24; x < HAND_R - 4; x++) {
+      const t = Math.round(handTop(x)) + 1;
+      const k = Math.min(Math.round(KNUCK(x)), Math.round(handBot(x)) - 1);
+      if (k > t) g.fillRect(x, t, 1, k - t);
+    }
+    // the wrist's shadow ON the hand — same 0.10 as before, now following the
+    // silhouette's own top edge instead of a 4 px vertical slab
+    g.fillStyle = 'rgba(0,0,0,0.10)'; handColumns(HAND_L, HAND_L + 5, handTop);
+    // …and the underside of the curl, which is the reference's most
+    // characteristic shadow: the curled fingers face DOWN, so they are dark
+    // whichever side the light is on. Hard top edge, hugging `handBot`.
+    g.fillStyle = 'rgba(0,0,0,0.14)';
+    for (let x = HAND_L + 40; x < HAND_R; x++) {
+      const b = Math.round(handBot(x));
+      const t = Math.max(Math.round(handTop(x)) + 1, b - 16);
+      if (b > t) g.fillRect(x, t, 1, b - t);
+    }
+    // ── THE OUTLINE AND THE THREE STROKES ───────────────────────────────────
+    //
+    // The top edge is outlined and the inner bottom edge is NOT, which is the
+    // same rule the reference uses: a limb cropped by the frame has no line
+    // along the crop. Past u 0.52 the underside stops being a crop and becomes
+    // a real silhouette, so the line picks up there.
+    g.fillStyle = player.ink;
+    g.fillRect(0, 6, HAND_L, 1);                                 // the wrist's own top edge
+    inkTop(handTop, HAND_L, HAND_R);
+    inkTop((x) => handBot(x) - 1, HAND_L + Math.ceil(0.52 * HAND_W), HAND_R);
+    // THREE STROKES, WHICH IS THE WHOLE BUDGET. The reference's hand carries
+    // about that many and nothing else. A quadratic Bézier walked as texels —
+    // 64 samples over ~30 px, so it cannot gap — never `quadraticCurveTo`, which
+    // would antialias.
+    const stroke = (x0: number, y0: number, cx: number, cy: number, x1: number, y1: number) => {
+      for (let i = 0; i <= 64; i++) {
+        const t = i / 64, m = 1 - t;
+        g.fillRect(Math.round(m * m * x0 + 2 * m * t * cx + t * t * x1),
+                   Math.round(m * m * y0 + 2 * m * t * cy + t * t * y1), 1, 1);
+      }
+    };
+    inkTop(KNUCK, HAND_L + 30, HAND_R - 16);   // the knuckle ridge — a staircase,
+    // not a dot per column: the first cut drew it with `fillRect(x, KNUCK(x), 1, 1)`
+    // and past the middle of the hand `KNUCK` climbs faster than one row per
+    // column, so it came out as a dashed line. Same failure the forearm's
+    // outline is written to avoid, made twice in one function.
+    stroke(146, 12, 162, 20, 168, 44);   // index/middle, the long one in the reference
+    stroke(140, 40, 152, 46, 160, 60);   // the crease below it, shorter, as it is there
     g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
     g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
