@@ -38,6 +38,52 @@ whole item. But they are area-specific: you meet them when you touch that area,
 and the file is searchable. **Do not let reading this file be the reason your
 first commit is twenty minutes away.**
 
+## AND 21 OF THESE 94 ARE THE SAME ENTRY: THE CHECK WENT GREEN WITHOUT MEASURING
+
+Count them — §27, §32, §34, §48, §50, §56, §78, §79, §79b, §80, §87, §88, §90,
+§91, §92 and the aiming ones around them. **That is the biggest category in this
+file, larger than anything about the world itself.** §58 has the rate measured
+directly: over one stretch, **5 of the 12 "defects" found were the instruments,
+not the street.**
+
+**It is not bad luck and it is not carelessness. It is what we are.** §27 is the
+entry to read twice: a check caught a real dispatch bug, and the builder *wrote a
+paragraph in the script explaining why it was unavoidable geometry*, loosened the
+assertion, and moved on. Three seats then passed while seating the player
+somewhere they had not chosen.
+
+**We are far better at justifying a result than at doubting one.** And the fix
+and the test come out of ONE act of reasoning, so a green test is not independent
+confirmation — it is the same guess, twice, agreeing with itself. A wrong belief
+produces a test that protects the wrong belief.
+
+That is also why cheap and valuable are not in tension here. Four rules, none of
+which costs more than the check already cost:
+
+1. **WATCH IT GO RED, ONCE, BEFORE YOU KEEP IT.** Not a mutation framework —
+   break the thing by hand, run the check, see red *for the reason you claim*,
+   restore, and put the red in your commit message. A minute. **It is the only
+   step that turns an assertion into a measurement**, and every entry listed
+   above is a check nobody had watched fail.
+2. **ASSERT A NUMBER, NEVER AN ABSENCE.** "0 found", "nothing trapped", "no
+   errors" — absence is exactly what measuring nothing produces, which is why
+   every false green above is phrased that way. "11 lot cars, 23 colliders"
+   fails in both directions and costs not one character more to write.
+3. **READ PUBLISHED STATE; DO NOT DRIVE MACHINERY.** A `__ct` read is
+   milliseconds and deterministic. Cameras, DOM counts, sleeps and pixels are
+   where every flake in this file lives (§30, §43, §78, §80, §92) — and the seat
+   sweep split chair from machine on the *camera's* state, inventing four
+   defects that were never there.
+4. **BUILD THE CHECK FROM THE SYMPTOM, NEVER FROM THE DIAGNOSIS.** Measured over
+   one session, the desk's stated cause was **wrong 28 times against 5 right**. A
+   check derived from a cause inherits that cause's error and then defends it.
+   The user's words don't rot; our explanations do.
+
+And the budget, which is the user's own: **the proof must not cost more than the
+code.** If an honest check would cost more than the fix, do the cheap one and
+**declare the gap in your handoff**. A stated gap is auditable. A flaky red is
+not — it just teaches everyone to scroll past red.
+
 ## RENUMBERED 2026-08-02 — if you are following a citation, read this first
 
 **§51 and §52 were each used TWICE, and the second §51 appeared *after* the
