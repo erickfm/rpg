@@ -444,6 +444,17 @@ export interface ScreenSurface {
   mesh?: () => THREE.Object3D | null;
   /** how far the eye settles off the face, in metres along its normal */
   standoff?: number;
+  /**
+   * HOW HIGH THE EYE STANDS, in metres above the floor under it.
+   *
+   * Omit it and the eye lands level with the middle of the screen, which is
+   * right for anything you look in the face. 301's full-length mirror is the
+   * exception it exists for: its glass is centred 1.125 m up, and a player
+   * crouched to that height sees no floor — and the floor at the foot of the
+   * glass is where his open suitcase is. At standing height the look tilts
+   * down and both are in frame, which is the composition he asked for.
+   */
+  eyeY?: number;
   /** the field of view to lean in to. Narrower reads as leaning closer. */
   fov?: number;
   /** is there something pressable at this canvas pixel? Drives the cursor. */
@@ -482,6 +493,25 @@ export interface ScreenSurface {
    * window.
    */
   up?: (hit: { x: number; y: number } | null) => void;
+  /**
+   * EVERY POINTER EVENT, IN CLIENT SPACE, WHILE THIS SCREEN IS UP — whether or
+   * not the ray is anywhere near the panel's own face.
+   *
+   * `hot`/`click`/`move`/`up` all speak the panel's CANVAS pixels, which is the
+   * right language for a machine whose buttons are painted on itself. It is the
+   * wrong language for 301's mirror: *"this is not an option … maybe a suitcase
+   * on the ground below the mirror?"* — its controls are garments lying in a
+   * case on the floorboards, several feet outside the glass the panel is
+   * painted on, so every one of those hooks reports `null` over them.
+   *
+   * So a caller whose controls are IN THE WORLD takes the raw pointer and does
+   * its own geometry against `ScreenFocus.ray`. Return true for "there is
+   * something here", which drives the pointing hand exactly as `hot` does.
+   *
+   * Called for `mousemove` and `mousedown` from the gate, and for `mouseup`
+   * from its own listener — so a drag that ends anywhere on the page ends.
+   */
+  pointer?: (e: MouseEvent, phase: 'move' | 'down' | 'up') => boolean | void;
   /**
    * WHICH material slot is the screen, when the mesh carries several.
    *
@@ -587,7 +617,12 @@ export interface ScreenFocus {
    * leave**, which is the worst bug this project ships, so the controller is
    * required to report the loss rather than to sit there hoping.
    */
-  enter: (o: { mesh: THREE.Object3D; standoff: number; fov: number; escape: () => void }) => void;
+  enter: (o: {
+    mesh: THREE.Object3D; standoff: number; fov: number;
+    /** eye height above the floor; omit for the screen's own centre */
+    eyeY?: number;
+    escape: () => void;
+  }) => void;
   /**
    * Give the view, the look and the feet back.
    *
@@ -606,11 +641,36 @@ export interface ScreenFocus {
   leave: () => boolean;
   /** where on the focused face is this client-space pointer? `null` = off it */
   pick: (clientX: number, clientY: number) => { u: number; v: number } | null;
+  /**
+   * The ray from the eye through this client-space pixel, in WORLD space, or
+   * `null` when there is nothing focused or no canvas to measure.
+   *
+   * For a screen whose controls are objects in the room rather than pixels on
+   * its own face — see `ScreenSurface.pointer`. The caller does its own
+   * geometry with it, because only the caller knows which of its boxes is a
+   * garment and which is the lid.
+   */
+  ray: (clientX: number, clientY: number)
+    => { origin: THREE.Vector3; dir: THREE.Vector3 } | null;
 }
 let FOCUS: ScreenFocus | null = null;
 export function setScreenFocus(f: ScreenFocus | null): void { FOCUS = f; }
 /** is the world's focus controller wired up at all? */
 export function screenFocusReady(): boolean { return FOCUS !== null; }
+/**
+ * The world-space ray under a client-space pointer, for a panel whose controls
+ * are OBJECTS IN THE ROOM — see `ScreenSurface.pointer`. `null` when nothing is
+ * focused, which is also what a caller gets in a harness with no world.
+ *
+ * Exported rather than passed through the surface hooks because the caller
+ * needs it at three different moments (hover, grab, drop) and threading a ray
+ * through each would put the geometry in this file, which knows nothing about
+ * suitcases.
+ */
+export function focusRay(clientX: number, clientY: number):
+{ origin: THREE.Vector3; dir: THREE.Vector3 } | null {
+  return FOCUS?.ray(clientX, clientY) ?? null;
+}
 
 /** The shared look. Three authors picking three greys is the thing this stops. */
 export const UI = {
@@ -1024,9 +1084,14 @@ function gate(e: Event): void {
     // still swallowed below, so the world neither turns its head nor takes
     // pointer lock back — they are read on the way past and go no further.
     const h = p.hit(e as MouseEvent);
-    cursorHand(!!h && !!p.spec.surface?.hot?.(h.x, h.y));
+    // A WORLD-SPACE CALLER ANSWERS FOR THE CURSOR TOO. `pointer` returning true
+    // means "there is something under this", which is the same question `hot`
+    // answers for a panel whose controls are painted on itself.
+    const world = p.spec.surface?.pointer?.(e as MouseEvent, 'move');
+    cursorHand(!!world || (!!h && !!p.spec.surface?.hot?.(h.x, h.y)));
     if (h) p.spec.surface?.move?.(h.x, h.y);
   } else if (e.type === 'mousedown') {
+    p.spec.surface?.pointer?.(e as MouseEvent, 'down');
     const h = p.hit(e as MouseEvent);
     if (h) p.spec.surface?.click?.(h.x, h.y);
   }
@@ -1043,7 +1108,9 @@ function gate(e: Event): void {
  */
 const gateRelease = (e: Event): void => {
   const p = livePanel;
-  if (p) p.spec.surface?.up?.(p.hit(e as MouseEvent));
+  if (!p) return;
+  p.spec.surface?.pointer?.(e as MouseEvent, 'up');
+  p.spec.surface?.up?.(p.hit(e as MouseEvent));
 };
 
 function gateUp(on: boolean): void {
@@ -1493,6 +1560,7 @@ export function makePanel(spec: PanelSpec): Panel {
           mesh: onMesh,
           standoff: spec.surface!.standoff ?? 0.55,
           fov: spec.surface!.fov ?? 60,
+          eyeY: spec.surface!.eyeY,
           escape: () => api.close(),
         });
        } catch (err) {

@@ -33,7 +33,7 @@ import { screenFade, makePanel, type Panel } from './hud';
  *  `GLASS` is the palette the wall plate below paints with, so the mirror seen
  *  from across the room and the mirror you step into cannot drift apart in
  *  colour (BUILDER-BRIEF §8). */
-import { mirrorPanel, glassCanvas, paintGlass } from './mirror';
+import { mirrorPanel, buildCase, glassCanvas, paintGlass } from './mirror';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
@@ -4298,21 +4298,51 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // what you have on without closing an import cycle. What is HERE is the one
     // thing only this file knows: where you stand to be offered it.
     //
-    // ⚠ IT USED TO BE A DIEGETIC PANEL PAINTED ON THIS MESH, with a derived
-    // stand-off and a leaned-in fov, the way the wall calendar is. **That is
-    // gone** and the reason is worth keeping: he came back with *"we need to be
-    // able to drag and drop items… we can make the rest of the room kinda fade
-    // away so we cna have a proper way to dress"*, and a rack of garments you
-    // pick up and carry does not fit on a glass that is 0.52 m wide against
-    // 1.35 m tall. Fitting that height to the frame leaves the width at about
-    // an eighth of the screen and NO fov or stand-off changes that — both
-    // scale the framing together. So the dressing view is drawn over the
-    // camera, and it draws the mirror rather than being painted on it.
+    // ⚠ A SCREEN-SPACE DRESSING PANEL WAS BUILT HERE AND HE KILLED IT: *"so the
+    // recent wardrobe changes are not diagetic. this is not an option. i liked
+    // the original view and how it locked us to that view with the mirror… maybe
+    // a suitcase on the ground below the mirror?"* The panel is painted on THIS
+    // MESH again, the eye locks to the glass again, and the clothes are in a
+    // case standing on the boards under it. Nothing about this feature is drawn
+    // over the world any more.
+    //
+    // ── THE THREE NUMBERS THAT PUT THE FLOOR IN FRAME ────────────────────
+    //
+    // `eyeY` 1.62 is the whole trick and it is new (`ScreenSurface.eyeY`). The
+    // framework's default puts the eye level with the middle of the screen —
+    // right for an ATM, wrong for a mirror centred 1.125 m off the boards,
+    // which crouched the player and looked dead level, so the floor at the foot
+    // of the glass was off the bottom of the frame and there was nowhere to put
+    // a suitcase. At standing height the look tilts down 14.2° (`poseFor`
+    // derives it: the eye rises, the aim does not) and the frame at the wall
+    // runs y −0.03…2.03 — the whole mirror AND the boards under it.
+    //
+    // `standoff` 1.95 m: far enough that the 1.35 m glass fills 71% of the
+    // frame height with the case under it, near enough that the case is a
+    // quarter of the frame's width and a garment in it is ~80 px on a 1080p
+    // screen — big enough to grab. The eye lands at local z 3.43, which is open
+    // floor: the TV crate ends at 2.53.
+    //
+    // `fov` 52 against the player's own 88 at rest, so it reads as leaning in.
     //
     // The mesh keeps its name because a probe should be able to find the glass
     // by asking rather than by guessing a shape.
     mirror.name = 'mirror-301';
-    const openMirror = mirrorPanel();
+    // ── AND THE CASE HE LIVES OUT OF ─────────────────────────────────────
+    // His own suggestion, and the backstory was already here: he was kicked out
+    // of his mother's house with what he could carry, which is what the lease,
+    // the mailbox and the empty flat have all been saying. It stands open in
+    // the corner for the whole game, not only while he is dressing — it is
+    // furniture, not a container the interface opens.
+    const wardrobeCase = buildCase(scene, {
+      x: AX(MIR_X), floorY: RY, wallZ: AZI(MIR_WALL_Z), texM,
+    });
+    const openMirror = mirrorPanel({
+      mesh: () => mirror,
+      glassW: GLASS_W, glassH: GLASS_H,
+      standoff: 1.95, fov: 52, eyeY: 1.62,
+      wardrobe: wardrobeCase,
+    });
     // ── WHERE YOU STAND, WHICH IS A 0.118 m SLOT AND HAS TO BE MEASURED ──
     //
     // This corner is boxed in by two colliders declared ~700 lines below, and

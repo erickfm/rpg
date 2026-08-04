@@ -1368,6 +1368,18 @@ export function makeCrosstown(): Proto {
   // is where a head actually is at a cash machine. `ct/bank.ts` is not touched,
   // not imported, and none of its numbers are copied: this reads the object.
   const RAY = new THREE.Raycaster();
+  /** Point `RAY` at a client-space pixel. False when there is no canvas to
+   *  measure — a harness with no renderer, or a zero-sized one mid-resize. */
+  const aimRay = (clientX: number, clientY: number): boolean => {
+    if (!renderer) return false;
+    const r = renderer.domElement.getBoundingClientRect();
+    if (!r.width || !r.height) return false;
+    RAY.setFromCamera(new THREE.Vector2(
+      ((clientX - r.left) / r.width) * 2 - 1,
+      -((clientY - r.top) / r.height) * 2 + 1,
+    ), cam);
+    return true;
+  };
   let renderer: THREE.WebGLRenderer | null = null;
   /** seconds to ease ONTO a screen. Leaving is instant — see `leave`. */
   const FOCUS_IN = 0.40;
@@ -1386,7 +1398,7 @@ export function makeCrosstown(): Proto {
     while (a < -Math.PI) a += Math.PI * 2;
     return a;
   };
-  const poseFor = (mesh: THREE.Object3D, standoff: number, fov: number): FocusPose => {
+  const poseFor = (mesh: THREE.Object3D, standoff: number, fov: number, eyeY?: number): FocusPose => {
     mesh.updateWorldMatrix(true, false);
     const c = new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
     const geo = (mesh as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
@@ -1402,7 +1414,24 @@ export function makeCrosstown(): Proto {
     // floor. The stand-off decides the DISTANCE; this decides that a person is
     // still a person, and the pitch below absorbs whatever the clamp took.
     const gy = groundPick(eye.x, eye.z);
-    eye.y = THREE.MathUtils.clamp(eye.y, gy + 1.05, gy + 1.75);
+    // ── WHERE THE EYE SITS, AND WHY A CALLER MAY NOW SAY ─────────────────
+    //
+    // The default is the SCREEN'S OWN HEIGHT — you look a machine in the face,
+    // and for an ATM or a wall calendar that is exactly right.
+    //
+    // `eyeY` is for the surface where it is wrong, and 301's mirror is the one:
+    // its glass is centred 1.125 m off the boards, so the default put the
+    // player's eye at a child's height and looking dead level. **A full-length
+    // mirror is looked at from standing height, tilted DOWN** — that is how you
+    // see your own shoes in it, and it is what puts the floor at the foot of the
+    // glass in frame, which is where his suitcase is. The pitch below falls out
+    // of it: `dir` is measured from wherever the eye ends up to the middle of
+    // the glass, so raising the eye tilts the look down by exactly as much.
+    //
+    // Metres above the FLOOR under the eye, not an absolute y, so it means the
+    // same thing on every storey. Still clamped: a caller cannot put the
+    // player's head through the ceiling or on the boards.
+    eye.y = THREE.MathUtils.clamp(eyeY === undefined ? eye.y : gy + eyeY, gy + 1.05, gy + 1.75);
     const dir = c.clone().sub(eye).normalize();
     // where the body stands: square to the face, along its HORIZONTAL normal
     const flat = new THREE.Vector3(n.x, 0, n.z);
@@ -1448,8 +1477,8 @@ export function makeCrosstown(): Proto {
     );
   };
   setScreenFocus({
-    enter: ({ mesh, standoff, fov, escape }) => {
-      const to = poseFor(mesh, standoff, fov);
+    enter: ({ mesh, standoff, fov, eyeY, escape }) => {
+      const to = poseFor(mesh, standoff, fov, eyeY);
       const from: FocusPose = {
         pos: cam.position.clone(), yaw: rig.yaw, pitch: rig.pitch, fov: cam.fov,
         feetX: rig.pos.x, feetZ: rig.pos.z,
@@ -1526,14 +1555,27 @@ export function makeCrosstown(): Proto {
     },
     pick: (clientX, clientY) => {
       if (!focus || !renderer) return null;
-      const r = renderer.domElement.getBoundingClientRect();
-      if (!r.width || !r.height) return null;
-      RAY.setFromCamera(new THREE.Vector2(
-        ((clientX - r.left) / r.width) * 2 - 1,
-        -((clientY - r.top) / r.height) * 2 + 1,
-      ), cam);
+      if (!aimRay(clientX, clientY)) return null;
       const hit = RAY.intersectObject(focus.mesh, false)[0];
       return hit && hit.uv ? { u: hit.uv.x, v: hit.uv.y } : null;
+    },
+    // THE RAY ITSELF, for a screen whose controls are OBJECTS IN THE ROOM
+    // rather than pixels on its own face.
+    //
+    // *"so the recent wardrobe changes are not diagetic. this is not an option.
+    //  … maybe a suitcase on the ground below the mirror?"* (2026-08-04.) The
+    // mirror's dressing view drags real garments out of a real case standing on
+    // 301's floorboards, so its hit-testing is against the WORLD and not against
+    // the panel's own canvas — `pick` cannot answer that, because it only ever
+    // asks about the one mesh the panel is painted on.
+    //
+    // A ray rather than a raycast: this file owns the camera and hands out the
+    // line, and whoever built the furniture does the geometry, because only they
+    // know which of their boxes means what. Same split as `spot` and `ground`.
+    ray: (clientX, clientY) => {
+      if (!focus || !renderer) return null;
+      if (!aimRay(clientX, clientY)) return null;
+      return { origin: RAY.ray.origin.clone(), dir: RAY.ray.direction.clone() };
     },
   });
 

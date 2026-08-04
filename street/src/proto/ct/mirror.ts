@@ -1,7 +1,8 @@
+import * as THREE from 'three';
 import { dither } from './paint';
-import { makePanel, type Panel } from './hud';
+import { makePanel, focusRay, type Panel } from './hud';
 import {
-  SLOTS, SLOT_NAME, options, cycle, showing, worn, wornIndex, wear,
+  SLOTS, options, showing, worn, wornIndex, wear,
   onWardrobeChange, type Slot, type Garment,
 } from './wardrobe';
 
@@ -119,47 +120,51 @@ export function paintGlass(g: CanvasRenderingContext2D, W: number, H: number): v
   dither(g, W, H, Math.round((W * H) / 42));
 }
 
-
 // ══ THE DRESSING VIEW ══════════════════════════════════════════════════════
 //
-// *"for the mirror we need to be able to drag and drop items. each option is a
-//  literal item. we can make the rest of the room kinda fade away so we cna
-//  have a proper way to dress and style our character. right now it is click to
-//  change and cycle through, but it should be a drag and drop sort of thing"*
-//                                                              (2026-08-04)
+// *"so the recent wardrobe changes are not diagetic. this is not an option. i
+//  liked the original view and how it locked us to that view with the mirror.
+//  we just need to be creative and find a way to have clothes we can click and
+//  drag. maybe a suitcase on the ground below the mirror?"*   (2026-08-04)
 //
-// THREE CHANGES AND ONE OF THEM DECIDED THE SHAPE OF THE OTHER TWO.
+// **"THIS IS NOT AN OPTION" IS THE STRONGEST THING HE HAS SAID.** A screen-space
+// dressing panel — a canvas over the camera with the mirror and a rack of
+// garments drawn on it — was built and is DELETED. Nothing here draws a widget
+// over the world any more, and nothing here should ever again: if the player
+// can see it, it is an object standing in flat 301.
 //
-// **IT IS NO LONGER PAINTED ON THE GLASS.** The first version was a diegetic
-// panel: the eye eased onto the mirror and the panel's canvas was hung on the
-// mirror's own mesh, which is the idiom the wall calendar established and which
-// is still the right answer for a thing you READ. It cannot be the right answer
-// for a thing you DRESS at. The glass is 0.52 m wide against 1.35 m tall, and
-// no fov or stand-off changes what that costs: fitting its height to the frame
-// leaves its width at about an eighth of the screen, because the strip is the
-// mirror's own proportion. A rack of garments you pick up and carry does not
-// fit in an eighth of a screen, and he asked for the room to fade away *"so we
-// can have a proper way to dress"* — which is permission to take the screen.
+// ── SO WHAT IS ON SCREEN IS THE ROOM ───────────────────────────────────────
 //
-// So it is a screen-space panel that DRAWS the mirror: his reflection in a
-// timber frame on the left, everything he owns on the right, and the flat
-// receded behind both. The framework's own vignette dims the world (`open()`
-// raises it for any panel not painted on a mesh), and the canvas paints the
-// room in the same cold palette as the glass, two shades down — so what he
-// sees is the flat falling back, not a card laid over it.
+//   · `[E]` at the mirror LOCKS THE VIEW TO IT, which is the thing he said he
+//     liked — the same `PanelSpec.surface` mechanism the wall calendar uses,
+//     restored. The eye eases to standing height in front of the glass and
+//     tilts down at it (`ScreenSurface.eyeY`, added for this), so the mirror
+//     fills the middle of the frame and the FLOORBOARDS AT ITS FOOT are in
+//     shot. That tilt is what makes the rest possible.
+//   · THE GLASS IS THE PANEL. Its canvas is hung on the mirror's own mesh and
+//     paints the reflection with you standing in it — `paintGlass` plus
+//     `paintFigure`, the same two drawings as before.
+//   · THE CLOTHES ARE IN A SUITCASE ON THE FLOOR UNDER IT, open, lid propped
+//     back against the wall. His own suggestion, and it is the right one for a
+//     reason beyond the interface: **he was kicked out of his mother's house
+//     with what he could carry**, which this world already says in the lease,
+//     the mailbox and the empty flat. He lives out of that case. It is not a
+//     container that appears when you dress — it is standing in the corner of
+//     301 for the whole game, open, with his clothes in it.
 //
-// **EVERY OPTION IS A DRAWN GARMENT.** No labels, no swatches, no list. A cell
-// holds a picture of the thing, painted from the same `cloth`/`trim` the figure
-// wears it in and in the same silhouette, so the item in your hand and the item
-// on your body are visibly one object.
+// ── AND THE DRAG HAPPENS IN THE WORLD ──────────────────────────────────────
 //
-// **AND THE RACK ONLY HOLDS WHAT YOU ARE NOT WEARING.** What you have on is on
-// you; its cell stands empty, showing the bare hanger. That is what makes the
-// drag literal — the garment is in exactly one place at a time and you move it
-// between them.
-
-/** the panel's canvas, and the CSS scale it is shown at (760 x 520 on screen) */
-const PW = 380, PH = 260, PSCALE = 2;
+// There is no canvas-space hit-testing here. The pointer is turned into a
+// WORLD RAY (`focusRay`, off the locked camera) and intersected with two
+// planes this module owns: the lid of the case, and the face of the mirror.
+// Pick a garment off the lid, carry it — it hangs in the air in front of the
+// eye, a real quad, tracking the pointer — and drop it on the glass to put it
+// on. Drop it anywhere else and it goes back in the case.
+//
+// **THE TARGETS ARE DELIBERATELY ENORMOUS.** The whole face of the mirror means
+// "wear it", not the four texels of yourself where that garment goes; anywhere
+// that is not the mirror means "back in the case". A fiddly hitbox would be
+// worse than the cycling he rejected, and there are only two answers to give.
 
 // ── THE FIGURE ─────────────────────────────────────────────────────────────
 //
@@ -468,240 +473,360 @@ function paintItem(g: CanvasRenderingContext2D, x0: number, y0: number, size: nu
   }
 }
 
-// ── THE PANEL ──────────────────────────────────────────────────────────────
+// ══ THE SUITCASE ═══════════════════════════════════════════════════════════
 //
-// LAYOUT, all derived from the two panel dimensions and each other. The mirror
-// takes the left third because a person is tall and narrow; the rack takes the
-// rest because six racks of garments are wide and shallow.
-const FRAME = { x: 8, y: 6, w: 140, h: 248 };
-/** the frame's own timber border. The glass is what is left inside it. */
-const FB = 6;
-const GLASSR = { x: FRAME.x + FB, y: FRAME.y + FB, w: FRAME.w - 2 * FB, h: FRAME.h - 2 * FB };
-/**
- * ONE SCALE, BOTH AXES, AND THE REMAINDER LEFT AS GLASS.
- *
- * *"give me true proportions in the mirror i feel stretched"*. `Math.min` of
- * the two fits is the whole fix: the figure is 40 x 152 of square units and it
- * lands in the glass at whatever size fits BOTH ways, with the leftover width
- * showing the reflected room either side of him — which is what a mirror looks
- * like. Scaling the axes independently to fill the glass is the thing that
- * cannot happen here, because there is only one number.
- */
-const FIG_S = Math.min(GLASSR.w / MW, GLASSR.h / MH);
-const FIG_X = GLASSR.x + Math.round((GLASSR.w - MW * FIG_S) / 2);
-const FIG_Y = GLASSR.y + Math.round((GLASSR.h - MH * FIG_S) / 2);
+// One base lying open on the boards and one lid propped back against the wall
+// under the mirror. Two boxes and a painted plane — this world's whole
+// vocabulary — and the garments are PAINTED INTO THE LINING the same way the
+// gig flyer is painted on the wall and the month is painted on the calendar.
+// A separate mesh per garment would be eighteen objects and eighteen draw
+// calls to say what one canvas says.
 
-const RACK_X = 156, RACK_Y = 8;
-const ROW_H = 40, CELL = 26, CELL_GAP = 4, LABEL_H = 8;
+/** how wide the case is. Bounded by the bed's collider at x −1.15 against a
+ *  mirror centred on −0.72: 0.86 is exactly the clear plaster there. */
+const CASE_W = 0.86;
+/** the base: shallow, and SHALLOW IN DEPTH ON PURPOSE. The north wall holds
+ *  the player 0.3456 m off it, so a case 0.30 deep sits entirely inside the
+ *  strip he can never walk into and needs no collider — the same argument the
+ *  mirror's own note makes for hanging without one. */
+const CASE_D = 0.30, CASE_H = 0.10;
+/** the lid, and the angle it leans back at. 0.36 x 42° puts its top edge
+ *  RY+0.368 and 0.06 m off the plaster — under the mirror frame's bottom
+ *  (RY+0.40) and clear of its 0.05 m of proudness, so the two never meet. */
+const LID_H = 0.36, LID_TILT = 42 * Math.PI / 180;
+/** the lining's canvas, at 300 px/m — dense enough to draw a garment on. */
+const LID_PPM = 300;
+/** the grid the clothes are packed in. 6 x 3 holds all 18, which is every
+ *  garment in the wardrobe that is not the underwear. */
+const GRID_C = 6, GRID_R = 3;
 
-/** what is IN a slot's rack: everything but the empty state, which is not a
- *  thing you can hold. Index `i` here is wardrobe index `i + 1`. */
-const rackOf = (slot: Slot) => options(slot).slice(1);
+/** the ray/plane solve, the only geometry this file does */
+function hitPlane(origin: THREE.Vector3, dir: THREE.Vector3,
+                  po: THREE.Vector3, pn: THREE.Vector3): THREE.Vector3 | null {
+  const denom = dir.dot(pn);
+  if (Math.abs(denom) < 1e-6) return null;
+  const t = po.clone().sub(origin).dot(pn) / denom;
+  return t > 0 ? origin.clone().addScaledVector(dir, t) : null;
+}
 
-const cellRect = (row: number, i: number) => ({
-  x: RACK_X + 2 + i * (CELL + CELL_GAP),
-  y: RACK_Y + row * ROW_H + LABEL_H + 1,
-  w: CELL, h: CELL,
-});
-
-const inRect = (x: number, y: number, r: { x: number; y: number; w: number; h: number }) =>
-  x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
-
-/** the rack cell under this panel pixel, or null */
-function cellAt(x: number, y: number): { slot: Slot; index: number } | null {
-  for (let row = 0; row < SLOTS.length; row++) {
-    const slot = SLOTS[row];
-    const items = rackOf(slot);
-    for (let i = 0; i < items.length; i++) {
-      if (inRect(x, y, cellRect(row, i))) return { slot, index: i + 1 };
-    }
+/** every garment in the case, in packing order: the empty states are not
+ *  things, so they are not in here. Cell `i` is `FLAT[i]`. */
+function flatRack(): { slot: Slot; index: number; g: Garment }[] {
+  const out: { slot: Slot; index: number; g: Garment }[] = [];
+  for (const slot of SLOTS) {
+    options(slot).forEach((g, i) => { if (i > 0) out.push({ slot, index: i, g }); });
   }
-  return null;
+  return out;
+}
+
+export interface WardrobeCase {
+  /** the lid's plane, for the ray to meet */
+  lidO: THREE.Vector3; lidN: THREE.Vector3; lidR: THREE.Vector3; lidU: THREE.Vector3;
+  /** which garment is at this point on the lid's plane, if any */
+  cellAt: (p: THREE.Vector3) => { slot: Slot; index: number } | null;
+  /** redraw the lining — a pocket is empty when its garment is being worn */
+  repaint: () => void;
 }
 
 /**
- * The slot you have your hand on, on the figure — and the DRESS is the one
- * place this is not the zone's own slot. A dress fills the bottom slot, so a
- * hand on the legs of someone in a dress is a hand on the dress, which lives
- * in `top`. Resolved here so no caller repeats the rule.
+ * Build the case. `x` is the column it stands in, `floorY` the boards, `wallZ`
+ * the plaster's room face; it packs itself against all three.
  */
-function bodySlotAt(x: number, y: number): Slot | null {
-  const z = zoneAt((x - FIG_X) / FIG_S, (y - FIG_Y) / FIG_S);
-  if (!z) return null;
-  return z === 'bottom' && worn('top').full ? 'top' : z;
+export function buildCase(scene: THREE.Scene, o: {
+  x: number; floorY: number; wallZ: number;
+  /** the module's own `texM` — DoubleSide basic material off a texture */
+  texM: (t: THREE.Texture) => THREE.Material;
+}): WardrobeCase {
+  const leather = new THREE.MeshBasicMaterial({ color: 0x4a3325 });
+  const leatherLo = new THREE.MeshBasicMaterial({ color: 0x3a2718 });
+  const zb = o.wallZ - CASE_D / 2;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(CASE_W, CASE_H, CASE_D), leather);
+  base.position.set(o.x, o.floorY + CASE_H / 2, zb);
+  scene.add(base);
+  // the two catches on the front lip, because a case without them is a box
+  for (const dx of [-0.22, 0.22]) {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.04, 0.02), leatherLo);
+    c.position.set(o.x + dx, o.floorY + CASE_H - 0.02, zb - CASE_D / 2 - 0.008);
+    scene.add(c);
+  }
+
+  // ── THE LID ────────────────────────────────────────────────────────────
+  // Hinged at the base's ROOM-side lip and fallen back against the plaster, so
+  // its lining faces up and out — toward an eye that is standing and looking
+  // down. Built with `lookAt` rather than Euler angles: three rotations in an
+  // unstated order is how a face ends up pointing into a wall.
+  const lidN = new THREE.Vector3(0, Math.sin(LID_TILT), -Math.cos(LID_TILT)).normalize();
+  // ⚠ THE LID'S OWN +x IS WORLD −x, AND THE HIT-TEST HAS TO AGREE WITH IT.
+  // `Object3D.lookAt` builds the basis as x = up × z, so with the face looking
+  // into the room (−z) the mesh's local +x — which is the direction the
+  // texture's `u` runs — points at world −x. A hit-test written off world +x
+  // would be a perfect mirror image of the picture: every garment pickable
+  // where a different one is drawn, and only the middle column right.
+  const lidR = new THREE.Vector3(-1, 0, 0);
+  const lidU = new THREE.Vector3().crossVectors(lidN, lidR).normalize();
+  const hinge = new THREE.Vector3(o.x, o.floorY + CASE_H, o.wallZ - CASE_D);
+  const lidO = hinge.clone().addScaledVector(lidU, LID_H / 2);
+
+  const LW = Math.round(CASE_W * LID_PPM), LH = Math.round(LID_H * LID_PPM);
+  const cell = { w: LW / GRID_C, h: LH / GRID_R };
+  const FLAT = flatRack();
+  const lidCv = document.createElement('canvas');
+  lidCv.width = LW; lidCv.height = LH;
+  const lidT = new THREE.CanvasTexture(lidCv);
+  lidT.magFilter = THREE.NearestFilter; lidT.minFilter = THREE.NearestFilter;
+
+  const repaint = () => {
+    const g = lidCv.getContext('2d');
+    if (!g) return;
+    // THE LINING: striped ticking, which is what the inside of every case made
+    // before 1980 looks like, and the one place a bit of colour belongs in a
+    // room this drab.
+    g.fillStyle = '#7d6a52'; g.fillRect(0, 0, LW, LH);
+    g.fillStyle = '#8d7a60';
+    for (let x = 0; x < LW; x += 14) g.fillRect(x, 0, 7, LH);
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 0, LW, 6);      // the fold at the hinge
+    g.fillStyle = '#5d4a34';                                         // the lid's own border
+    g.fillRect(0, 0, LW, 4); g.fillRect(0, LH - 4, LW, 4);
+    g.fillRect(0, 0, 4, LH); g.fillRect(LW - 4, 0, 4, LH);
+    FLAT.forEach((it, i) => {
+      const cx = (i % GRID_C) * cell.w, cy = Math.floor(i / GRID_C) * cell.h;
+      const size = Math.min(cell.w, cell.h) - 8;
+      const px = Math.round(cx + (cell.w - size) / 2), py = Math.round(cy + (cell.h - size) / 2);
+      if (wornIndex(it.slot) === it.index) {
+        // WORN — so the pocket it came out of is empty, and stays where it
+        // was. A garment is in exactly one place at a time and you can see
+        // both of them: the gap in the case and the thing on you.
+        g.fillStyle = 'rgba(0,0,0,0.26)';
+        g.fillRect(px, py, size, size);
+        return;
+      }
+      paintItem(g, px, py, size, it.g);
+    });
+    dither(g, LW, LH, Math.round((LW * LH) / 900));
+    lidT.needsUpdate = true;
+  };
+  repaint();
+
+  const lid = new THREE.Mesh(new THREE.PlaneGeometry(CASE_W, LID_H), o.texM(lidT));
+  lid.position.copy(lidO);
+  lid.lookAt(lidO.clone().add(lidN));
+  lid.name = 'wardrobe-case-lid';
+  scene.add(lid);
+
+  /** the point on the lid, in the lid's own metres, then in cells */
+  const cellAt = (p: THREE.Vector3) => {
+    const d = p.clone().sub(lidO);
+    const u = d.dot(lidR) + CASE_W / 2;          // 0…CASE_W, left to right
+    const v = LID_H / 2 - d.dot(lidU);           // 0…LID_H, top down
+    if (u < 0 || v < 0 || u > CASE_W || v > LID_H) return null;
+    const c = Math.min(GRID_C - 1, Math.floor((u / CASE_W) * GRID_C));
+    const r = Math.min(GRID_R - 1, Math.floor((v / LID_H) * GRID_R));
+    const it = FLAT[r * GRID_C + c];
+    return it ? { slot: it.slot, index: it.index } : null;
+  };
+
+  return { lidO, lidN, lidR, lidU, cellAt, repaint };
 }
 
-export function mirrorPanel(): () => void {
+// ══ THE PANEL: THE LOCKED VIEW, AND THE DRAG BETWEEN CASE AND GLASS ════════
+
+/**
+ * THE PANEL CANVAS'S DENSITY, in px per metre of glass.
+ *
+ * 200, five times the wall plate's own 40 — you are 1.95 m from it here rather
+ * than across the room. Its SIZE is derived from the glass's metres at this
+ * density and never typed, for the reason `glassCanvas` exists: a fixed canvas
+ * on a resizable quad is what stretched the plate, and *"give me true
+ * proportions in the mirror i feel stretched"* is not a note worth earning
+ * twice.
+ */
+const PANEL_PPM = 200;
+
+export function mirrorPanel(o: {
+  /** the glass, resolved at open time — interiors are rebuilt as you move */
+  mesh: () => THREE.Object3D | null;
+  /** the glass's own size, for the drop test and the canvas's proportions */
+  glassW: number; glassH: number;
+  standoff: number; fov: number; eyeY: number;
+  wardrobe: WardrobeCase;
+}): () => void {
+  const PW = Math.round(o.glassW * PANEL_PPM), PH = Math.round(o.glassH * PANEL_PPM);
+  /** canvas px per design unit — one number, both axes (see `draw`) */
+  const FIG_S = Math.min(PW / MW, PH / MH);
+  /** …and the same thing in METRES of glass, which is what the world-space
+   *  hit-test against the figure needs. */
+  const FIG_M = FIG_S * o.glassW / PW;
+  /**
+   * WHICH GARMENT HE GRABBED OFF HIMSELF — the figure's zones, in world space.
+   *
+   * `p` is where the ray met the glass and `c` its centre, so the offset is in
+   * metres across the mirror's face; the figure is drawn centred on that face,
+   * so one division by `FIG_M` puts it back in design units and the same
+   * `ZONES` the painter uses answer. The DRESS is the one place the answer is
+   * not the zone's own slot: a dress fills the bottom slot, so a hand on the
+   * legs of someone wearing one is a hand on the dress, which lives in `top`.
+   */
+  const bodySlotAt = (p: THREE.Vector3, c: THREE.Vector3): Slot | null => {
+    // ⚠ THE SAME −x, for the same reason: the mirror hangs with `rotation.y =
+    // PI`, so its texture's `u` runs along world −x. His watch is drawn on the
+    // canvas's left and is grabbed on the world's right.
+    const z = zoneAt(MW / 2 - (p.x - c.x) / FIG_M, MH / 2 - (p.y - c.y) / FIG_M);
+    if (!z) return null;
+    return z === 'bottom' && worn('top').full ? 'top' : z;
+  };
   let panel: Panel | null = null;
-  /** the garment in his hand, and where it came off */
-  let held: { slot: Slot; index: number; from: 'rack' | 'body' } | null = null;
-  let ptr: { x: number; y: number } | null = null;
-  /** the row the keyboard is on, so the panel is usable without a pointer */
-  let keySlot: Slot | null = null;
-  const repaint = () => panel?.repaint();
+  /** the garment in his hand */
+  let held: { slot: Slot; index: number } | null = null;
+  /** the quad it is carried on, built once and parked when empty */
+  let carry: THREE.Mesh | null = null;
+  let carryCv: HTMLCanvasElement | null = null;
+  let carryT: THREE.CanvasTexture | null = null;
 
-  const paint = (g: CanvasRenderingContext2D, W: number, H: number) => {
-    // ── THE FLAT, RECEDED ────────────────────────────────────────────────
-    // *"we can make the rest of the room kinda fade away."* Two halves, and
-    // the framework owns the first: `open()` raises its vignette over the live
-    // world for any panel not painted on a mesh, so the actual room behind
-    // this canvas is already dimmed by 42-72%. What is drawn HERE is the same
-    // room again, in the mirror's own cold palette taken several shades down,
-    // so the panel reads as 301 falling back rather than as a card laid on top
-    // of it — the boards still run away from you and the wall still meets them
-    // at a skirting line, they have simply lost their light.
-    g.fillStyle = '#2f3439'; g.fillRect(0, 0, W, H);            // the wall, gone dark
-    g.fillStyle = '#22262a'; g.fillRect(0, 0, W, 18);           // its ceiling
-    g.fillStyle = '#241c14'; g.fillRect(0, 196, W, H - 196);    // its boards
-    g.fillStyle = '#191309'; g.fillRect(0, 193, W, 3);          // the skirting
-    g.fillStyle = 'rgba(0,0,0,0.16)';
-    for (const y of [208, 224, 244]) g.fillRect(0, y, W, 1);
+  const CARRY_M = 0.13;     // how big a carried garment is, in metres
+  const CARRY_D = 0.85;     // how far in front of the eye it hangs
 
-    // ── THE MIRROR ───────────────────────────────────────────────────────
-    g.fillStyle = '#3f3125';                                     // the timber frame
-    g.fillRect(FRAME.x, FRAME.y, FRAME.w, FRAME.h);
-    g.fillStyle = '#2c2119';                                     // its inner shadow
-    g.fillRect(GLASSR.x - 1, GLASSR.y - 1, GLASSR.w + 2, GLASSR.h + 2);
-    // the glass: the same painted room the plate on the wall carries, at this
-    // panel's density — `paintGlass` is the one drawing of it in the codebase
-    g.save();
-    g.beginPath(); g.rect(GLASSR.x, GLASSR.y, GLASSR.w, GLASSR.h); g.clip();
-    g.translate(GLASSR.x, GLASSR.y);
-    paintGlass(g, GLASSR.w, GLASSR.h);
-    g.restore();
-    paintFigure(g, FIG_X, FIG_Y, FIG_S);
-    // WHAT A DROP WOULD DO, shown while he is carrying something: the glass
-    // gets a warm edge. A drop target you cannot see is a drag you have to
-    // guess at, and this is the only target there is.
-    if (held) {
-      g.fillStyle = 'rgba(240,232,214,0.55)';
-      for (const [x, y, w, h] of [
-        [GLASSR.x, GLASSR.y, GLASSR.w, 1], [GLASSR.x, GLASSR.y + GLASSR.h - 1, GLASSR.w, 1],
-        [GLASSR.x, GLASSR.y, 1, GLASSR.h], [GLASSR.x + GLASSR.w - 1, GLASSR.y, 1, GLASSR.h],
-      ]) g.fillRect(x, y, w, h);
+  /** the glass's plane, in world space. Its normal is the mirror's own −z. */
+  const glassPlane = () => {
+    const m = o.mesh();
+    if (!m) return null;
+    m.updateWorldMatrix(true, false);
+    const c = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld);
+    const n = new THREE.Vector3(0, 0, 1).transformDirection(m.matrixWorld).normalize();
+    return { c, n };
+  };
+
+  const dropCarry = () => {
+    if (carry) { carry.visible = false; }
+  };
+
+  const showCarry = (p: THREE.Vector3, eye: THREE.Vector3, gm: Garment) => {
+    if (!carry) {
+      carryCv = document.createElement('canvas');
+      carryCv.width = 48; carryCv.height = 48;
+      carryT = new THREE.CanvasTexture(carryCv);
+      carryT.magFilter = THREE.NearestFilter; carryT.minFilter = THREE.NearestFilter;
+      carry = new THREE.Mesh(new THREE.PlaneGeometry(CARRY_M, CARRY_M),
+        new THREE.MeshBasicMaterial({ map: carryT, transparent: true, side: THREE.DoubleSide }));
+      carry.renderOrder = 5;
+      (o.mesh()?.parent ?? null)?.add(carry);
     }
-
-    // ── THE RACK ─────────────────────────────────────────────────────────
-    g.textBaseline = 'alphabetic';
-    for (let row = 0; row < SLOTS.length; row++) {
-      const slot = SLOTS[row];
-      const items = rackOf(slot);
-      g.fillStyle = slot === keySlot ? INK : 'rgba(239,232,214,0.45)';
-      g.font = 'bold 7px ui-monospace, Menlo, monospace'; g.textAlign = 'left';
-      g.fillText(SLOT_NAME[slot], RACK_X + 2, RACK_Y + row * ROW_H + 7);
-      // what is ON him is not in the rack — its cell stands empty. That is
-      // what makes the drag literal: one garment, one place, and you can see
-      // where it came from while you are carrying it.
-      const out = wornIndex(slot);
-      for (let i = 0; i < items.length; i++) {
-        const r = cellRect(row, i);
-        const gone = out === i + 1 || (held?.slot === slot && held.index === i + 1);
-        g.fillStyle = gone ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.06)';
-        g.fillRect(r.x, r.y, r.w, r.h);
-        if (gone) {
-          g.fillStyle = 'rgba(239,232,214,0.20)';                // the bare hanger
-          g.fillRect(r.x + 6, r.y + 12, 14, 1);
-          g.fillRect(r.x + 12, r.y + 7, 2, 5);
-        } else {
-          paintItem(g, r.x + 1, r.y + 1, CELL - 2, items[i]);
-        }
-      }
+    const g = carryCv!.getContext('2d');
+    if (g) {
+      g.clearRect(0, 0, 48, 48);
+      paintItem(g, 0, 0, 48, gm);
+      carryT!.needsUpdate = true;
     }
-
-    // ── AND WHAT IS IN HIS HAND ──────────────────────────────────────────
-    // Drawn last, over everything, at the pointer. Nothing else in the panel
-    // moves while a garment is carried — the rack keeps its layout and the
-    // figure keeps its pose — so the only thing the eye tracks is the item.
-    if (held && ptr) {
-      const gm = options(held.slot)[held.index];
-      paintItem(g, Math.round(ptr.x - CELL / 2), Math.round(ptr.y - CELL / 2), CELL, gm);
-    }
+    carry.visible = true;
+    carry.position.copy(p);
+    carry.lookAt(eye);
   };
 
   const open = () => {
     if (!panel) {
       panel = makePanel({
-        id: 'ct-mirror', w: PW, h: PH, scale: PSCALE, chrome: 'none',
-        // `chrome:'none'` because this canvas draws its own room, its own
-        // mirror and its own rack, edge to edge. The framework's moulded beige
-        // case around a picture of a bedroom would be the *"menus popping up"*
-        // this project's design law is named for.
-        hint: () => (held
-          ? 'drop it on the mirror to put it on'
-          : 'drag a garment onto the mirror — drag one off to take it off'),
-        draw: paint,
-        key: (k) => {
-          // THE KEYBOARD DOES EVERYTHING THE POINTER DOES. A dressing screen
-          // that can only be worked by dragging is one a trackpad, a
-          // touchscreen or a stuck mouse cannot finish — and Escape and `[E]`
-          // belong to the framework, so nothing here can eat the way out.
-          const i = keySlot ? SLOTS.indexOf(keySlot) : -1;
-          if (k === 'arrowdown') keySlot = SLOTS[(i + 1 + SLOTS.length) % SLOTS.length];
-          else if (k === 'arrowup') keySlot = SLOTS[(i - 1 + SLOTS.length) % SLOTS.length];
-          else if (k === 'arrowright') { if (keySlot) cycle(keySlot, 1); }
-          else if (k === 'arrowleft') { if (keySlot) cycle(keySlot, -1); }
-          else return;
-          repaint();
+        id: 'ct-mirror', w: PW, h: PH, chrome: 'none', scale: 1,
+        // ONE LINE OF CHROME, and it is the only thing on screen that is not in
+        // the room: the caption every panel in this world owes, saying how to
+        // leave. The calendar and the ATM carry the same one and he has looked
+        // at both. Everything else you can see is 301.
+        hint: () => 'drag a garment onto the glass',
+        draw: (g, w, h) => {
+          paintGlass(g, w, h);
+          // ONE SCALE, BOTH AXES, and the remainder left as reflected room —
+          // *"give me true proportions in the mirror i feel stretched"*. The
+          // figure is 40 x 152 of square units and lands at whatever size fits
+          // BOTH ways; there is no second number that could stretch it.
+          paintFigure(g, Math.round((w - MW * FIG_S) / 2),
+            Math.round((h - MH * FIG_S) / 2), FIG_S);
         },
         surface: {
-          // NO `mesh`, deliberately — see the block at the top of this section.
-          // The surface hooks are how a panel receives the pointer; declaring
-          // one without a mesh is what makes this a screen-space panel you can
-          // still drag on.
-          hot: (x, y) => !!held || !!cellAt(x, y) || !!bodySlotAt(x, y),
-          move: (x, y) => { ptr = { x, y }; if (held) repaint(); },
-          click: (x, y) => {
-            ptr = { x, y };
-            const c = cellAt(x, y);
-            if (c && wornIndex(c.slot) !== c.index) {
-              held = { ...c, from: 'rack' };
-              keySlot = c.slot;
-              repaint();
-              return;
+          mesh: o.mesh,
+          standoff: o.standoff,
+          fov: o.fov,
+          // STANDING HEIGHT, LOOKING DOWN — this is what puts the boards at the
+          // foot of the glass in frame, and the suitcase with them.
+          eyeY: o.eyeY,
+          // ── EVERY POINTER EVENT, ANSWERED IN THE WORLD ──────────────────
+          pointer: (e, phase) => {
+            const ray = focusRay(e.clientX, e.clientY);
+            if (!ray) return false;
+            const gp = glassPlane();
+            const onGlass = (() => {
+              if (!gp) return false;
+              const p = hitPlane(ray.origin, ray.dir, gp.c, gp.n);
+              if (!p) return false;
+              const d = p.clone().sub(gp.c);
+              // the glass's own rect, in its own axes. `right` is the mirror's
+              // x because it hangs on a wall that faces −z.
+              return Math.abs(d.x) <= o.glassW / 2 && Math.abs(d.y) <= o.glassH / 2;
+            })();
+            const w = o.wardrobe;
+            const onLid = hitPlane(ray.origin, ray.dir, w.lidO, w.lidN);
+            const cell = onLid ? w.cellAt(onLid) : null;
+
+            if (phase === 'down') {
+              // OUT OF THE CASE. A pocket whose garment is already on him is
+              // empty and holds nothing to pick up.
+              if (cell && wornIndex(cell.slot) !== cell.index) {
+                held = { ...cell };
+              } else if (onGlass) {
+                // OFF HIMSELF. The whole glass is the grab, not the four
+                // texels the garment occupies — but WHICH garment needs the
+                // part of him he grabbed, so that is read off the figure's own
+                // zones, and the dress rule lives in `bodySlotAt`.
+                const gp2 = gp && hitPlane(ray.origin, ray.dir, gp.c, gp.n);
+                const s = gp2 ? bodySlotAt(gp2, gp!.c) : null;
+                if (s && wornIndex(s) > 0) {
+                  held = { slot: s, index: wornIndex(s) };
+                  // IT COMES OFF THE MOMENT HE GRABS IT, which is what pulling
+                  // a jumper over your head looks like: he is holding it and he
+                  // can see himself without it.
+                  wear(s, 0);
+                }
+              }
+              if (held) {
+                showCarry(ray.origin.clone().addScaledVector(ray.dir, CARRY_D),
+                  ray.origin, options(held.slot)[held.index]);
+                return true;
+              }
+              return false;
             }
-            // OFF THE BODY. The garment comes off THE MOMENT YOU GRAB IT
-            // rather than when you let go, because that is what pulling a
-            // jumper over your head looks like — you are holding it and he can
-            // see himself without it. Drop it back on the glass and it goes
-            // straight back on.
-            const s = bodySlotAt(x, y);
-            if (s && wornIndex(s) > 0) {
-              held = { slot: s, index: wornIndex(s), from: 'body' };
-              keySlot = s;
-              wear(s, 0);
-              repaint();
+
+            if (phase === 'move') {
+              if (held) {
+                showCarry(ray.origin.clone().addScaledVector(ray.dir, CARRY_D),
+                  ray.origin, options(held.slot)[held.index]);
+                return true;
+              }
+              // the pointing hand over anything he could pick up
+              return (!!cell && wornIndex(cell.slot) !== cell.index) || onGlass;
             }
-          },
-          up: (hit) => {
+
+            // phase === 'up'
             const h = held;
             held = null;
-            if (!h) return;
-            // ON THE GLASS: he wears it, whichever part of the reflection he
-            // dropped it on — a garment knows its own slot, so a hat dropped
-            // on the feet still goes on the head. Forgiving on purpose: making
-            // him hit the right body part would be a second, invisible rule.
-            if (hit && inRect(hit.x, hit.y, GLASSR)) wear(h.slot, h.index);
-            // ANYWHERE ELSE — the rack, the floor, off the panel entirely, or
-            // a button released after the pointer left the window — it goes
-            // back on the rail. For something taken off the body that means it
-            // stays off, which is how you get to the white undies: drag it
-            // away and let go. For something picked off the rack it means
-            // nothing happened.
-            ptr = hit;
-            repaint();
+            dropCarry();
+            if (!h) return false;
+            // ON THE GLASS he wears it. ANYWHERE ELSE — the lid, the boards,
+            // the wall, off the window entirely — it goes back in the case.
+            // Two answers, and the one that means "put it on" is a target the
+            // size of a full-length mirror.
+            if (onGlass) wear(h.slot, h.index);
+            return false;
           },
         },
         // NOTHING SURVIVES A CLOSE EXCEPT THE CLOTHES. Escape mid-drag drops
-        // whatever is in his hand — no ghost item, no half-state, and the
-        // garment is simply off, which is a state he can see and undo. The
-        // framework owns the rest of the exit: Escape and `[E]` from every
-        // screen, the gate, the pointer lock, and standing up.
-        onOpen: () => { held = null; ptr = null; keySlot = null; },
-        onClose: () => { held = null; ptr = null; },
+        // what is in his hand and parks the quad — no garment stuck to the
+        // cursor, no half-state. The framework owns the rest of the exit:
+        // Escape and `[E]` from every screen, the gate, the pointer lock, and
+        // standing up.
+        onOpen: () => { held = null; dropCarry(); },
+        onClose: () => { held = null; dropCarry(); },
       });
-      // if anything else ever dresses the player — a shop, a laundrette — the
-      // glass follows without that thing knowing this panel exists
-      onWardrobeChange(() => { if (panel?.isOpen()) panel.repaint(); });
+      // the case's lining and the glass both follow the wardrobe, so anything
+      // that dresses him later — a shop, a laundrette — moves both without
+      // knowing either exists
+      onWardrobeChange(() => { o.wardrobe.repaint(); if (panel?.isOpen()) panel.repaint(); });
     }
     panel.open();
   };
