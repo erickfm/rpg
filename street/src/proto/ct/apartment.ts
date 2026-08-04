@@ -4148,16 +4148,49 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       dither(g, 20, 64, 30);
     });
     const MIR_X = -0.72;                        // the chair's own x, kept
-    const MIR_W = 0.52, MIR_H = 1.70;
+    // ── WIDER AND SHORTER (his fourth word on this glass) ────────────────
+    //
+    // *"also mirror could be a bit wider and less tall."*   (2026-08-04)
+    //
+    //   WIDTH   0.52 -> 0.62. It spans x -1.03…-0.41 now.
+    //   HEIGHT  1.70 -> 1.45, ALL OF IT OFF THE TOP: RY+0.40…RY+1.85.
+    //
+    // THE HEIGHT COMES OFF THE TOP BECAUSE THE BOTTOM IS HIS. `MIR_GAP` is the
+    // floor clearance he asked for one message ago (*"raise the mirror a little
+    // so theres a bit more clearence with the floor"*) and `MIR_Y` is derived
+    // from it, so shortening `MIR_H` takes the difference off the head of the
+    // glass and leaves the gap he tuned exactly where it was. Nothing else had
+    // to change for that — it falls out of the derivation.
+    //
+    // ⚠ THE BED IS THE BOUND ON WIDTH AND HE SHOULD KNOW THE REAL NUMBER. The
+    // bed's collider ends at x -1.15 and this glass is centred on -0.72, so the
+    // widest it can ever be is **0.86 m** before the frame touches it. 0.62
+    // leaves 0.12 m of clear plaster on that side (was 0.17) and 0.41 m to the
+    // east wall's room face, so it is still nowhere near either. One more nudge
+    // of this size is comfortable; two is not.
+    //
+    // The door's swing is untouched: 301's leaf sweeps 0.91 m from a pivot at
+    // (-0.09, 3.975) and the frame's nearest corner is now 1.42 m out, still
+    // half a metre clear of the arc.
+    //
+    // THE PAINTED FIELD IS NOT REPAINTED, and that is the same call the last
+    // builder made for the 0.15 m lift. Going full-length changed the glass by
+    // 1.10 m and had to be redrawn; this is 15% off the height and 19% onto the
+    // width of the same view. The horizon sits 62% down, so the plate is still
+    // mostly floor — which is what a mirror you see your feet in shows — and
+    // the joints still open toward the bottom edge. What changes is 25 cm of
+    // ceiling coming off the top of the reflection, which is the part of the
+    // field carrying the least.
+    const MIR_W = 0.62, MIR_H = 1.45;
     const FRAME_D = 0.05, FRAME_W = 0.05;       // how proud it stands, and its border
     // the north wall's ROOM FACE. AZI(5.5) is the wall box's centreline and the
     // box is 0.14 deep — the same half-thickness `NORTH_Z` takes below, and the
     // trap it documents: hang at 5.49 and the mesh is entombed in the plaster.
     const MIR_WALL_Z = 5.5 - 0.07;
-    // ⚠ CLEARANCE, re-walked for the taller, wider frame rather than assumed.
-    // It spans x -0.98…-0.46 and y RY+0.40…RY+2.10 on the plaster:
-    //   the BED's collider ends at x -1.15, so 0.17 m of clear wall to its west
-    //   the EAST wall's room face is AX(0), 0.46 m past its other edge
+    // ⚠ CLEARANCE, re-walked for the wider, shorter frame rather than assumed.
+    // It spans x -1.03…-0.41 and y RY+0.40…RY+1.85 on the plaster:
+    //   the BED's collider ends at x -1.15, so 0.12 m of clear wall to its west
+    //   the EAST wall's room face is AX(0), 0.41 m past its other edge
     //   the SKIRTING is painted into the wallpaper tile, not geometry — and
     //     the tile's own band was deleted (see wallpaperT), so there is
     //     NOTHING built along this wall at floor level. The gap under the
