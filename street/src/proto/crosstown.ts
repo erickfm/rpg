@@ -27,11 +27,26 @@ import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
 import { pickSpot, SpotOutline, REACH_MARGIN, TOUCH_MARGIN, REACH_TRIM, ON_IT, lookTolerance } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
-import { buildApartment, SPAWN } from './ct/apartment';
+import { buildApartment, SPAWN, ST0 } from './ct/apartment';
 import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms, PARTY } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
+
+/**
+ * FLOOR TO CEILING IN THE WALK-UP, in metres — read by `ceilPick` below.
+ *
+ * ⚠ THIS IS A COPY AND IT SHOULD NOT BE. `ct/apartment.ts` states it twice, at
+ * `:797` (`floorMesh(f * ST + 2.55, …)`, the ceiling of floors 0–2) and at
+ * `:606` (`const H = 3 * ST + 2.55`, the top floor), and it exports neither —
+ * `ST0` next to it is exported, this is not. It lives here because that file was
+ * held by another builder the day head collision shipped, and a copied
+ * coordinate is exactly the defect this project sweeps for. **MOVE IT: export
+ * `CEIL_H = 2.55` from `ct/apartment.ts`, have those two lines read it, and
+ * import it here.** Until then, a builder who changes the walk-up's storey
+ * height has to change this too or the player's head stops in mid-air.
+ */
+const APT_CEIL_H = 2.55;
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -1192,6 +1207,10 @@ export function makeCrosstown(): Proto {
     // is the single call entitled to move the storey the player is recorded
     // on. Every other caller of `groundPick` gets a pure read.
     groundY: (x, z) => groundPick(x, z, true),
+    // The mirror of the line above, and the only thing that stops the player's
+    // head. Pure — it commits nothing, so unlike `groundY` it is safe to ask
+    // anywhere. See `ceilPick`.
+    ceilY: (x, z) => ceilPick(x, z),
   });
 
   /** How far west the world goes: past the deepest open site, or past the
@@ -1273,6 +1292,48 @@ export function makeCrosstown(): Proto {
       // instead of being restated here.
       return put(Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0);
     }
+  }
+
+  /**
+   * HOW HIGH IS THE CEILING AT (x, z)? `null` means "sky" — nothing known, and
+   * `fp.ts`'s head clamp switches off. See `FPOpts.ceilY`.
+   *
+   * **ONLY THE WALK-UP ANSWERS TODAY**, because the walk-up is where both
+   * reports came from: *"add collision to ceiling of apt so i cant clip"* and
+   * *"you clip through jumping down the stairs"* (2026-08-04). The street has no
+   * ceiling, and the interior belt's rooms each own their own slab — a room that
+   * wants headroom should publish it the way it already publishes
+   * `interiorGround`, rather than have this file guess at it.
+   *
+   * THE ROUTING IS COPIED FROM `groundPick`'s FIRST THREE BRANCHES, IN ORDER,
+   * and it has to be: `interiorGround` starts at x 400 and so is ALSO `x > 100`,
+   * so testing the walk-up's `x > 100` on its own would hand every shop the
+   * walk-up's storey heights. Anything that answers for the floor before the
+   * walk-up does is somewhere we have no ceiling for, which is `null`.
+   *
+   * THE WALK-UP'S CEILINGS ARE A CONSTANT HEIGHT ABOVE EVERY STOREY FLOOR —
+   * `ct/apartment.ts:797` builds them as `f * ST + 2.55` for f 0..2 and `:606`
+   * makes the top floor `H = 3 * ST + 2.55`. So the ceiling over you is the
+   * storey plane at or below your feet, plus `APT_CEIL_H`.
+   *
+   * ON THE STAIRS THAT IS DELIBERATELY CONSERVATIVE and that is the point. The
+   * picker walks you up a smooth ramp between storey planes, so mid-flight this
+   * returns the ceiling of the storey you started from — under the top landing's
+   * far edge, ramp 5.952, it says 7.95 where the landing nib's real underside is
+   * 7.986, i.e. 36 mm low. Low is the safe direction: `fp.ts` ignores a ceiling
+   * that is already below your eye, so the worst a low answer can do is stop
+   * protecting you, never trap you. Higher up the same flight it drops below
+   * your head and the clamp simply switches off, which is why this cannot seal
+   * the stairwell.
+   */
+  function ceilPick(x: number, z: number): number | null {
+    for (const g of GROUNDS) if (g.fn(x, z) !== null) return null;
+    if (interiorGround(x, z) !== null) return null;
+    if (x <= 100) return null;
+    // pure read — `apt.ground`'s hysteresis only writes when asked to commit
+    const gy = apt.ground(x, z);
+    const storey = THREE.MathUtils.clamp(Math.floor(gy / ST0), 0, 3);
+    return storey * ST0 + APT_CEIL_H;
   }
 
   // debug/tour hook

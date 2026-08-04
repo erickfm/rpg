@@ -14,9 +14,18 @@ import type { Input } from './types';
 // player is at. Only a collider that explicitly sets `maxY` gets the new
 // behaviour — the floor picker may stand you on `maxY` when you are already
 // above it, and horizontal movement stops treating it as a wall once you are.
-// `minY` is reserved for the mirror case (an overhang you can walk under) and
-// is not consumed anywhere yet — nothing needs headroom today, so nothing
-// implements it; a real user report is worth more than a guessed mechanism.
+// `minY` is STILL reserved and STILL read nowhere, and as of 2026-08-04 that is
+// a decision rather than an omission. The two head-collision reports that
+// arrived that day — *"add collision to ceiling of apt so i cant clip"* and
+// *"you clip through jumping down the stairs"* — are NOT answered by a box, for
+// three reasons. Nothing in this world registers a collider for a ceiling, and
+// the ceilings that matter are built in `ct/apartment.ts` as meshes. `blocked()`
+// is a HORIZONTAL reject — it refuses to let your body enter a footprint — and
+// a ceiling has to stop your head while leaving the footprint under it fully
+// walkable, which is the opposite question. And a reject that fired on a lintel
+// or a stair soffit while you merely walked would be far worse than the bug.
+// What those reports needed is a HEIGHT per (x, z), the mirror of `groundY`:
+// see `ceilY` in FPOpts and THE HEAD CLAMP in `update()`.
 // `rot` is OPT-IN for the same reason and in the same way. Without it a box is
 // axis-aligned, exactly as every box in this world has always been, and the
 // four tests below take a branch that is bit-for-bit the old arithmetic. With
@@ -77,6 +86,25 @@ export interface FPOpts {
   colliders?: AABB[];
   /** ground elevation under (x, z) — lets worlds have kerbs/steps */
   groundY?: (x: number, z: number) => number;
+  /**
+   * WHAT IS OVER YOUR HEAD at (x, z), in world Y — the mirror of `groundY`, and
+   * the whole of this rig's head collision. `null` means "sky": no ceiling
+   * known here, the clamp switches off, and movement is bit-for-bit what it was
+   * before this option existed. **Every world that does not supply this is
+   * unchanged in every way.**
+   *
+   * It is a HEIGHT rather than a set of boxes on purpose — see the note on
+   * `AABB.minY` at the top of this file. A height cannot catch you on a lintel,
+   * cannot narrow a doorway, and cannot make the 2 m sidewalk lane one
+   * millimetre tighter, because it is never consulted about horizontal
+   * movement at all. The only thing it can do is stop you going UP.
+   *
+   * It may be WRONG LOW and that is safe by construction: a ceiling reported
+   * below the eye you already have is ignored outright (see the head clamp),
+   * so a conservative answer costs protection, never mobility. It must never
+   * be wrong HIGH — that is the one direction that lets a head through.
+   */
+  ceilY?: (x: number, z: number) => number | null;
 }
 
 // Player collision capsule. 0.42 made bodies feel fractionally too wide to
@@ -101,6 +129,37 @@ export const RADIUS = 0.3456; // was 0.42, then 0.36
 // player on and off the surface; 0.08 m is comfortably more than either and
 // still tight enough that you cannot stand on a roof from a metre below it.
 const TOP_EPS = 0.08;
+
+/**
+ * ── HOW CLOSE YOUR EYE MAY COME TO A CEILING ─────────────────────────────────
+ *
+ * The user, 2026-08-04, twice and about two different rooms: *"add collision to
+ * ceiling of apt so i cant clip"* and *"you clip through jumping down the
+ * stairs"*. One cause — nothing in this file ever stopped the player's head.
+ *
+ * **THIS NUMBER IS SQUEEZED FROM BOTH SIDES AND THE BAND IS 0.10 M WIDE.**
+ * Measured in flat 301 (floor 5.407, ceiling 7.95), the headroom left above a
+ * STANDING eye on each furniture top is: bed 0.47, drawer 0.38, radiator 0.31,
+ * TV 0.11, dresser 0.10.
+ *
+ *   · TOO BIG AND THE BUG SURVIVES. The clamp is inert wherever the reported
+ *     ceiling is already below your standing eye (that is the safety valve that
+ *     stops it sealing a stairwell). So anything at or over 0.10 switches the
+ *     clamp OFF on the dresser and the TV — which are exactly the two tops the
+ *     report is about.
+ *   · TOO SMALL AND THE CAMERA'S 0.1 NEAR PLANE (crosstown.ts:40) starts to eat
+ *     the plaster at the apex.
+ *
+ * 0.06 sits inside that band: it protects every top in 301 including the two
+ * tightest, and it parks the eye 60 mm under the ceiling instead of 400 mm
+ * through it. It does NOT make anything unstandable — the clamp only ever
+ * limits the RISE, never the floor you are given, so standing on the dresser is
+ * untouched and getting up there is untouched (the approach hop starts from the
+ * floor, where there is 0.87 m of air and the clamp never fires). What it costs
+ * is the hop you could take once already on top: 0.04 m left on the dresser,
+ * 0.05 on the TV, 0.25 on the radiator, 0.37 on the bed.
+ */
+const HEAD_CLEAR = 0.06;
 
 /**
  * ── THE CROUCH JUMP ───────────────────────────────────────────────────────────
@@ -227,6 +286,7 @@ export class FPRig {
   private bounds: AABB;
   private colliders: AABB[];
   private groundY?: (x: number, z: number) => number;
+  private ceilY?: (x: number, z: number) => number | null;
   private airY = 0;   // height above the ground while jumping
   private vy = 0;
   // The floor height PLUS airY, as of the end of last frame's update() — i.e.
@@ -334,6 +394,7 @@ export class FPRig {
     this.bounds = o.bounds;
     this.colliders = o.colliders ?? [];
     this.groundY = o.groundY;
+    this.ceilY = o.ceilY;
     this.pos = new THREE.Vector3(spawn.x, this.height, spawn.z);
     this.lastGood = { x: spawn.x, z: spawn.z };
     this.lastWorldY = this.groundY ? this.groundY(spawn.x, spawn.z) : 0;
@@ -774,9 +835,12 @@ export class FPRig {
     //     ledge the instant your tucked feet cleared it.
     //  2. STANDING BACK UP IS THE ANIMATION. Release C and `tuck` runs down,
     //     so `gy` climbs from `top - tuck` to `top` over ~0.15 s: your legs
-    //     extend and your view rises onto the radiator. Nothing is above you to
-    //     be shoved into — `minY` is declared on AABB and read by nothing in
-    //     this file, so there is no ceiling collider in the world to catch.
+    //     extend and your view rises onto the radiator. THE HEAD CLAMP BELOW
+    //     DOES NOT CATCH THIS and must not: standing up is `gy` climbing, not
+    //     `airY`, and the clamp only ever limits `airY` while `vy > 0`. That is
+    //     correct rather than an oversight — the height you stand up INTO is the
+    //     height of a surface you are already legally on, so if it had no
+    //     headroom the surface itself would be the bug, not the stand-up.
     //  3. YOU CANNOT FALL BACK THROUGH IT. `footY` below is `gy + airY + tuck`,
     //     so the tuck this line subtracts is the tuck that line adds and the
     //     test value is a flat `top` no matter where the ease has got to. The
@@ -842,6 +906,53 @@ export class FPRig {
     }
     this.support = gy;
     this.lastX = this.pos.x; this.lastZ = this.pos.z;
+
+    // ── THE HEAD CLAMP: SOMETHING STOPS YOU GOING UP ─────────────────────────
+    //
+    // *"add collision to ceiling of apt so i cant clip"* and *"you clip through
+    // jumping down the stairs"*, 2026-08-04. Two reports, one missing thing.
+    //
+    // It arrests the RISE and does nothing else. Read the four gates below as
+    // four promises, because each one is a bug this could otherwise have been:
+    //
+    //  1. `this.vy > 0` — IT ONLY EVER FIRES WHILE YOU ARE GOING UP. This is
+    //     what makes "stopping" different from "teleporting". The step-off block
+    //     directly above hands `airY` a whole ledge's worth of height in one
+    //     frame precisely so the camera does NOT move — walk off the top landing
+    //     into the shaft and `airY` jumps by 2 m with world Y unchanged. A clamp
+    //     that could bite on that would snap the eye down by the same 2 m, which
+    //     is the exact defect item 112 exists to have fixed. Falling is never
+    //     touched, so it cannot.
+    //  2. `room >= 0` — A CEILING BELOW THE EYE YOU ALREADY HAVE IS IGNORED,
+    //     rather than clamped to zero. THIS IS THE VALVE THAT KEEPS THE
+    //     STAIRWELL OPEN. `ceilY` is one height per (x, z) and a stair is a ramp
+    //     climbing through storeys, so mid-flight the honest answer is often
+    //     lower than your own head. Clamping to zero there would silently delete
+    //     the jump on the stairs; ignoring it means the worst a wrong-low
+    //     ceiling can do is nothing at all.
+    //  3. It is expressed in WORLD EYE HEIGHT — `eyeNow` is the camera line
+    //     below minus `airY` — so the tuck cancels out of it exactly the way it
+    //     cancels out of the floor pick. Crouching lowers `stanceT * 0.68` and
+    //     therefore RAISES `room`: a crouch-jump fits under a slab a standing
+    //     one does not, which is the way round it has to be.
+    //  4. `vy = 0` on contact, not a bounce and not a cancel. `airY` stays where
+    //     the ceiling put it and the integrator above takes over next frame at
+    //     the same gravity a jump uses, so you come down off the ceiling exactly
+    //     as you would come down off an apex.
+    //
+    // Nothing here touches `gy`, `pos`, `support` or any collider, so no
+    // doorway, lintel or lane is one millimetre different, walking or standing.
+    // The seated branch returned long before this line, and `sit()`/`stand()`
+    // both zero or re-base what this reads — a head clamp cannot fire on a
+    // chair or on the frame you get out of one.
+    if (this.vy > 0 && this.ceilY) {
+      const ceil = this.ceilY(this.pos.x, this.pos.z);
+      if (ceil !== null) {
+        const eyeNow = this.height - this.stanceT * 0.68 + gy;   // eye with airY = 0
+        const room = ceil - HEAD_CLEAR - eyeNow;
+        if (room >= 0 && this.airY > room) { this.airY = room; this.vy = 0; }
+      }
+    }
 
     const grounded = this.airY === 0;
     const y = this.height - this.stanceT * 0.68 + gy + this.airY + (moving && grounded ? Math.sin(this.bobT) * this.bob : 0);
