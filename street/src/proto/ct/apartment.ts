@@ -28,6 +28,12 @@ import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
 import { giveRandom, pocketsFull } from './inventory';
 import { screenFade, makePanel, type Panel } from './hud';
+/** THE MIRROR'S OWN VIEW — the panel, the figure in it and the six racks live
+ *  in `ct/mirror.ts` + `ct/wardrobe.ts`, which this file hangs the glass for.
+ *  `GLASS` is the palette the wall plate below paints with, so the mirror seen
+ *  from across the room and the mirror you step into cannot drift apart in
+ *  colour (BUILDER-BRIEF §8). */
+import { mirrorPanel, GLASS } from './mirror';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
@@ -4037,21 +4043,27 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the old 24x32 field stretched to 1.6 m would have been a tall picture of
     // a short view, with a horizon at eye level and nothing under it.
     const mirrorT = surfTex('detail', 20, 64, (g) => {
-      g.fillStyle = '#98a3ac'; g.fillRect(0, 0, 20, 64);         // the room, gone cold
-      g.fillStyle = '#7b848d'; g.fillRect(0, 0, 20, 5);          // its ceiling
-      g.fillStyle = '#4a3a2b'; g.fillRect(0, 40, 20, 24);        // its floorboards
-      g.fillStyle = '#33281d'; g.fillRect(0, 38, 20, 2);         // the skirting line
+      // THE SEVEN COLOURS COME FROM `ct/mirror.ts` AND THE GEOMETRY STAYS HERE.
+      // That module paints the same reflection at eight times this density for
+      // the panel you step into, and two paintings of one surface must not
+      // drift apart in colour. The 20 x 64 field itself is untouched — Erick has
+      // looked at this plate through three iterations today and every literal
+      // below is the one he approved.
+      g.fillStyle = GLASS.wall; g.fillRect(0, 0, 20, 64);        // the room, gone cold
+      g.fillStyle = GLASS.ceil; g.fillRect(0, 0, 20, 5);         // its ceiling
+      g.fillStyle = GLASS.boards; g.fillRect(0, 40, 20, 24);     // its floorboards
+      g.fillStyle = GLASS.skirt; g.fillRect(0, 38, 20, 2);       // the skirting line
       // board joints, opening up toward the bottom — the boards run away from
       // you, so the near ones read wider
       g.fillStyle = 'rgba(0,0,0,0.20)';
       for (const y of [43, 47, 52, 59]) g.fillRect(0, y, 20, 1);
-      g.fillStyle = 'rgba(255,255,255,0.20)';                    // the near rake
+      g.fillStyle = GLASS.rakeNear;                              // the near rake
       for (let y = 0; y < 64; y++) g.fillRect(Math.round(1 + y * 0.22), y, 4, 1);
-      g.fillStyle = 'rgba(255,255,255,0.11)';                    // and the far one
+      g.fillStyle = GLASS.rakeFar;                               // and the far one
       for (let y = 0; y < 64; y++) g.fillRect(Math.round(9 + y * 0.22), y, 2, 1);
       // the silvering has gone at the corners, and worst along the bottom edge
       // where the damp got at it — it came with the flat
-      g.fillStyle = 'rgba(58,52,46,0.34)';
+      g.fillStyle = GLASS.rot;
       for (const [x, y, w, h] of [[0, 0, 2, 5], [18, 4, 2, 4], [0, 26, 1, 7],
                                   [19, 44, 1, 6], [0, 59, 4, 5], [15, 61, 5, 3]]) g.fillRect(x, y, w, h);
       dither(g, 20, 64, 30);
@@ -4094,6 +4106,84 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     mirror.rotation.y = Math.PI;   // this wall faces -z, and texM is DoubleSide:
     scene.add(mirror);             // get it wrong and the sheen simply rakes the
                                    // other way, which no "is it there" check sees
+    // ══ AND YOU CAN LOOK IN IT ═══════════════════════════════════════════
+    //
+    // *"ok lets add an interactable for the mirror where the view goes into the
+    //  mirror and really you just see yourself with click and drag options to
+    //  change your outfit."*   (2026-08-04)
+    //
+    // The panel, the figure and the six racks are `ct/mirror.ts` and
+    // `ct/wardrobe.ts` — the wardrobe imports nothing at all so that this file,
+    // `ct/hud.ts` (your own forearm) and the mirror can all read one fact about
+    // what you have on without closing an import cycle. What is HERE is the
+    // three things only this file knows: which mesh is the glass, where the eye
+    // settles, and where you stand.
+    //
+    // ── THE STAND-OFF IS ARITHMETIC, NOT TASTE ───────────────────────────
+    //
+    // `crosstown.ts` puts `fov` straight onto `cam.fov`, which is VERTICAL, so
+    // the glass's HEIGHT is the binding dimension: d = (H/2) / tan(fov/2), plus
+    // 18% so the reflection does not touch the top and bottom of the frame.
+    // Same derivation as the calendar's, and the same reason it cannot be
+    // borrowed from it — that page is 0.64 m tall and this glass is 1.60.
+    //
+    // ⚠ THE PICTURE IS A TALL NARROW STRIP AND THAT IS NOT A BUG. Fitting 1.60 m
+    // of height on a 16:9 screen leaves the 0.42 m of width at about an eighth
+    // of it, and **no fov or stand-off changes that ratio** — both scale the
+    // framing together, so the glass occupies the same fraction of the screen
+    // whatever is chosen here. It is the mirror's own proportion, it is what a
+    // full-length mirror looks like, and `ct/mirror.ts` lays its whole interface
+    // out vertically because of it.
+    //
+    // fov 52 against the player's own 88 at rest, so it reads as leaning in;
+    // the eye lands 1.94 m back, which at x −0.72 is open floor — the bed's
+    // collider ends at x −1.15 and the TV crate at z 2.53, so nothing stands in
+    // the column between the eye and the glass.
+    mirror.name = 'mirror-301';
+    const MIR_FOV = 52;
+    const MIR_STANDOFF = ((MIR_H - 2 * FRAME_W) / 2)
+      / Math.tan((MIR_FOV * Math.PI) / 360) * 1.18;
+    const openMirror = mirrorPanel(() => mirror, { standoff: MIR_STANDOFF, fov: MIR_FOV });
+    // ── WHERE YOU STAND, WHICH IS A 0.118 m SLOT AND HAS TO BE MEASURED ──
+    //
+    // This corner is boxed in by two colliders declared ~700 lines below, and
+    // both are padded by the player's own `RADIUS` (0.3456) before they stop
+    // you — so the floor a BODY can occupy is much smaller than the gap looks:
+    //
+    //   · THE BED  spans x −3.05…−1.15, z 4.40…5.32. Padded, it owns everything
+    //     west of x −0.8044 for z 4.054…5.666.
+    //   · 301'S OPEN LEAF spans x −0.34…−0.03, z 3.98…4.90. Padded, it owns
+    //     everything east of x −0.6856 for z 3.634…5.246.
+    //
+    // That leaves a **0.118 m column at x −0.8044…−0.6856** as the only floor in
+    // front of this glass, and the mirror hangs at x −0.72, inside it. So the
+    // stand-point is the middle of that column, x −0.745, and it is not a
+    // choice: any other x is inside something.
+    //
+    // AND IT SITS SOUTH OF THE PINCH, at z 4.20, so the prompt is offered from
+    // the OPEN FLOOR rather than from inside the squeeze. Trimmed reach is
+    // `(r + TOUCH_MARGIN) * REACH_TRIM` = (0.70 + 0.15) × 0.52 = 0.442 m, which
+    // reaches back to z 3.76 — clear of the bed's padded edge at 4.054, i.e.
+    // you are offered the mirror while still standing in the middle of the room
+    // and walk INTO the corner only if you want to. It is also 0.637 m off the
+    // door-to-bed line, well past the `RADIUS + TOUCH_MARGIN` (0.496 m) that
+    // item 310 established as the clearance a route needs, so this disc does not
+    // hang over the way out the way the calendar's once did.
+    //
+    // ⚠ `aimX/aimZ` ARE THE GLASS ITSELF, read off the mesh that was just
+    // positioned rather than retyped. A spot with no aim point is measured to
+    // its floor marker, which is the bug fixed in a5847cc1 (*"Aim at the THING,
+    // not at its floor marker"*) and again on 301's door — from the stand-point
+    // the glass is 1.18 m further north, so aiming at the marker would offer the
+    // mirror while you look at the floorboards and drop it while you look at
+    // yourself.
+    ctx.spot({
+      x: AX(-0.745), z: AZI(4.20), r: 0.70, obj: mirror,
+      aimX: mirror.position.x, aimZ: mirror.position.z,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      label: () => 'look in the mirror',
+      act: openMirror,
+    });
     // ── the poster ───────────────────────────────────────────────────────
     // The user: *"what is this poster on the wall?"* — which on this project
     // has meant the same thing four times now: the object is drawn but it is

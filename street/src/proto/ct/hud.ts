@@ -1,5 +1,11 @@
 import * as THREE from 'three';
 import { SHA, DIRTY, AT } from 'virtual:build-stamp';
+/** WHAT THE PLAYER HAS ON. A leaf module that imports nothing at all (its own
+ *  header says why), so reading it here cannot close a cycle — `ct/hud.ts` is
+ *  imported by half the world and importing anything back is how a module gets
+ *  silently dropped from the built bundle (GOTCHAS §28). The forearm and the
+ *  wristwatch below are the first-person half of the mirror in 301. */
+import { worn, onWardrobeChange } from './wardrobe';
 
 // ── the sky the clock drags around, the watch, and the wallet ─────────────
 //
@@ -444,6 +450,30 @@ export interface ScreenSurface {
   hot?: (x: number, y: number) => boolean;
   /** a click landed at this canvas pixel */
   click?: (x: number, y: number) => void;
+  /**
+   * THE POINTER MOVED TO THIS CANVAS PIXEL. Only while the ray is on the face.
+   *
+   * `hot` already receives every move — it is what drives the cursor — and the
+   * first version of the mirror read its pointer out of `hot`'s arguments. That
+   * is a predicate being used for its side effects: it is called once per move
+   * today and there is nothing stopping a later cursor change from calling it
+   * twice, or from caching it. A move is a move; it gets its own hook.
+   */
+  move?: (x: number, y: number) => void;
+  /**
+   * THE BUTTON CAME BACK UP — anywhere on the page, not only on the face.
+   *
+   * A DRAG ENDS OFF THE THING IT STARTED ON more often than not, and this world
+   * has one screen you drag across (301's mirror: *"click and drag options to
+   * change your outfit"*). Without this a drag that leaves the glass never ends
+   * and the next click continues it, which is a control stuck down.
+   *
+   * ⚠ `mouseup` IS DELIBERATELY ABSENT FROM `BLOCKED` — see `releaseHeld`: the
+   * gate must never swallow the release of a button or a key, or the world is
+   * left holding one. So this rides its own listener, installed with the gate
+   * and torn down with it, which **reads the event and does not swallow it**.
+   */
+  up?: () => void;
   /**
    * WHICH material slot is the screen, when the mesh carries several.
    *
@@ -943,12 +973,23 @@ function gate(e: Event): void {
     // pointer lock back — they are read on the way past and go no further.
     const h = surfaceHit(e as MouseEvent);
     cursorHand(!!h && !!p.spec.surface?.hot?.(h.x, h.y));
+    if (h) p.spec.surface?.move?.(h.x, h.y);
   } else if (e.type === 'mousedown') {
     const h = surfaceHit(e as MouseEvent);
     if (h) p.spec.surface?.click?.(h.x, h.y);
   }
   swallow(e);
 }
+
+/**
+ * THE ONE EVENT THE GATE READS WITHOUT SWALLOWING — see `ScreenSurface.up`.
+ *
+ * It is not in `BLOCKED` and must not be: `releaseHeld` exists because a
+ * swallowed `mouseup`/`keyup` leaves the world holding a button down forever.
+ * So this listener only tells the live panel that the button came up, and the
+ * event goes on its way untouched.
+ */
+const gateRelease = (): void => { livePanel?.spec.surface?.up?.(); };
 
 function gateUp(on: boolean): void {
   if (on === gateOn) return;
@@ -957,6 +998,8 @@ function gateUp(on: boolean): void {
     if (on) window.addEventListener(k, gate, CAP);
     else window.removeEventListener(k, gate, true);
   }
+  if (on) window.addEventListener('mouseup', gateRelease, CAP);
+  else window.removeEventListener('mouseup', gateRelease, true);
 }
 
 function backdropUp(on: boolean): void {
@@ -1636,10 +1679,24 @@ export function makeHud(purse: Purse): Hud {
     nightDiv.style.cssText = 'position:fixed;inset:0;background:#0a1024;opacity:0;pointer-events:none;z-index:5;transition:opacity .5s linear;';
     document.body.appendChild(nightDiv);
   }
-  // the player's own clothing — one place to swap later (a real wardrobe).
-  // `sleeve` is the forearm covering (a sweater here); a tee would just leave
-  // the forearm as `skin`. The first-person hands (watch + wallet) read from it.
-  const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', sleeve: '#3f4a5c', cuff: '#333c4a' };
+  // ── THE PLAYER'S OWN SKIN, AND WHERE THE CLOTHES WENT ────────────────────
+  //
+  // This used to carry `sleeve: '#3f4a5c'` and `cuff: '#333c4a'` with a comment
+  // saying it was *"one place to swap later (a real wardrobe)"* and that a tee
+  // would leave the forearm as skin. **THE REAL WARDROBE EXISTS NOW** —
+  // `ct/wardrobe.ts`, a leaf module that imports nothing so the hud, the mirror
+  // and the flat can all read it — and those two colours are the SWEATER's, in
+  // its rack row, where they were always describing a garment rather than a
+  // palette. The forearm below asks what you have on; it no longer guesses.
+  //
+  // What is left here is genuinely skin, which no garment changes.
+  const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54' };
+  // THE ARM IS CACHED ON THE MINUTE (`watchShown`), which is right — the LCD
+  // only changes once a game minute. Changing your SLEEVE or your watch does
+  // not move the clock, so without this the limb would keep the face and the
+  // cuff it had when you walked into the flat until the minute turned. −1 is
+  // never a real minute, so the next raise repaints from scratch.
+  onWardrobeChange(() => { watchShown = -1; });
   // ── THE ARM, AND THE FOUR NUMBERS THAT HOLD IT IN PLACE ──────────────────
   //
   // *"for the watch i would like the rest of the arm (to the left) rendered as
@@ -1877,7 +1934,32 @@ export function makeHud(purse: Purse): Hud {
     // ONE BAND, the same skin tone and the same y 6…72 as the wrist, so there is
     // no seam to see: the wrist below is drawn by the identical `fillRect` it
     // always was, just further along the same band.
-    g.fillStyle = '#c9946a'; g.fillRect(0, 6, WATCH_ARM, 66);
+    g.fillStyle = player.skin; g.fillRect(0, 6, WATCH_ARM, 66);
+    // ── AND WHAT YOU HAVE ON OVER IT ──────────────────────────────────────
+    //
+    // *"tops (short shirts, long sleeves, jackets, sweaters, dresses, etc)"*.
+    // A top with sleeves is the one wardrobe choice you can see WITHOUT a
+    // mirror, every time you look at the time — so a sweater is not cosmetic
+    // here, it is on your arm for the rest of the game.
+    //
+    // WHERE IT STOPS IS THE ONLY DECISION. The strap lives at x 38…82 after
+    // `WATCH_POS`, i.e. from `WATCH_ARM + 46`, so a sleeve run to the wrist
+    // would be painted over by the watch and would look like cloth under
+    // glass. It ends 40 px short of the wrist join instead, which is where a
+    // pushed-up cuff sits on someone about to check the time, and leaves the
+    // whole approved wrist-and-watch drawing untouched.
+    //
+    // TWO FLAT RECTS, cloth and cuff, no shading — the limb is one flat tone by
+    // his own repeated instruction and a garment on it does not get to be more
+    // modelled than the arm is. The cuff stands 2 px proud top and bottom
+    // because a cuff is thicker than the arm inside it; that is the only
+    // silhouette change and it is what makes it read as cloth and not as paint.
+    const wtop = worn('top');
+    if (wtop.sleeve === 2) {
+      const CUFF_W = 14, SLEEVE_END = WATCH_ARM - 40;
+      g.fillStyle = wtop.cloth; g.fillRect(0, 4, SLEEVE_END, 70);
+      g.fillStyle = wtop.trim; g.fillRect(SLEEVE_END - CUFF_W, 2, CUFF_W, 74);
+    }
     // AND IT IS FLAT. *"for the arm shape i dont want two colors just the one
     // skin tone on that rectangle"* (2026-08-04). There WAS a "recede" gradient
     // here — `rgba(0,0,0,0.18)` ramped over the 240 canvas px nearest the wrist,
@@ -1916,7 +1998,7 @@ export function makeHud(purse: Purse): Hud {
     // said he liked cannot have drifted by a pixel.
     g.save();
     g.translate(WATCH_ARM, 0);
-    g.fillStyle = '#c9946a'; g.fillRect(0, 6, 104, 66);          // wrist, cut by the frame
+    g.fillStyle = player.skin; g.fillRect(0, 6, 104, 66);        // wrist, cut by the frame
     // ── THE FIST ──────────────────────────────────────────────────────────
     //
     // *"it actually should be really minimal considering it would be the top of
@@ -1935,7 +2017,7 @@ export function makeHud(purse: Purse): Hud {
     //
     // Drawn BEFORE the strap and the case so it can never overlap them; it butts
     // at x 104 where the wrist ends, and the strap lives at 38…82.
-    g.fillStyle = '#c9946a'; g.fillRect(104, 0, 72, 72);
+    g.fillStyle = player.skin; g.fillRect(104, 0, 72, 72);
     // ── AND ITS CORNERS ───────────────────────────────────────────────────
     //
     // *"make the corners rounded on the fist here. just like cut the corner
@@ -1995,7 +2077,7 @@ export function makeHud(purse: Purse): Hud {
     // THUMB_W, deepen with THUMB_D (the canvas follows it, and the wrapper
     // compensations above absorb that — the limb does not move), or slide it
     // with THUMB_X — one number each.
-    g.fillStyle = '#c9946a'; g.fillRect(THUMB_X, WATCH_LIMB_H, THUMB_W, THUMB_D);
+    g.fillStyle = player.skin; g.fillRect(THUMB_X, WATCH_LIMB_H, THUMB_W, THUMB_D);
     // ── AND THE WEDGE THAT JOINS IT TO THE WRIST ──────────────────────────
     //
     // *"add triangle connecting left corner of thumb to wrist"* (2026-08-04).
@@ -2098,20 +2180,74 @@ export function makeHud(purse: Purse): Hud {
     // one that was approved, untouched, exactly as the WATCH_ARM translate
     // above left the wrist and fist untouched when the forearm was added.
     // WATCH_POS is the only thing to change next time.
+    // ── THE WATCH YOU CHOSE ───────────────────────────────────────────────
+    //
+    // *"watch (no watch, digital watch, analog watch)"*. Three options, three
+    // real consequences, and none of them is a recolour:
+    //
+    //   · NO WATCH — this whole limb never comes up. See `hud.watch` below:
+    //     looking down at a bare wrist to check the time is not a thing a
+    //     person does, so there is nothing to raise.
+    //   · DIGITAL — every literal below is the one that has been on screen for
+    //     two days. The strap and case colours now come off the rack row
+    //     instead of being typed here, and they are the same two hexes, so the
+    //     approved watch is texel-for-texel what it was.
+    //   · ANALOG — a brass case and a cream dial with two hands, drawn in the
+    //     same flat rects. It tells the same time off the same `mins`.
+    const wch = worn('watch');
     const STRAP_Y = 6 - STRAP_OVER, STRAP_H = 66 + STRAP_OVER * 2;
     g.save();
     g.translate(WATCH_POS, 0);
-    g.fillStyle = '#26282e'; g.fillRect(38, STRAP_Y, 44, STRAP_H);          // strap
+    g.fillStyle = wch.cloth; g.fillRect(38, STRAP_Y, 44, STRAP_H);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, STRAP_Y, 4, STRAP_H);
-    g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
-    g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
-    g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);         // LCD
-    const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
-    const m2 = String(mins % 60).padStart(2, '0');
-    g.fillStyle = '#1c2a1c'; g.font = 'bold 14px monospace'; g.textAlign = 'center';
-    g.fillText(`${hh}:${m2}`, 60, 38);
-    g.fillStyle = '#8a8d95'; g.font = '5px monospace';
-    g.fillText('CROSSTOWN QUARTZ', 60, 50);
+    g.fillStyle = wch.trim; g.fillRect(32, 14, 56, 42);          // case
+    if (wch.kind === 'analog') {
+      // THE DIAL IS A RECT WITH ITS CORNERS STEPPED OFF, not an `arc()`. A
+      // circle drawn by the path API antialiases, and this canvas is blown up
+      // 2.75x with `image-rendering:pixelated` — every blended pixel becomes a
+      // block of half-transparent brass. Five steps on a 44 x 30 face reads as
+      // round at the size it is actually seen. Same reasoning as the fist's
+      // chamfers, which are cut the same way for the same reason.
+      g.fillStyle = '#4a3f28'; g.fillRect(35, 17, 50, 36);        // the bezel's shadow
+      g.fillStyle = '#e6e0cc'; g.fillRect(38, 20, 44, 30);        // the face
+      for (let k = 0; k < 5; k++) {
+        const w = 5 - k;
+        g.fillStyle = wch.trim;
+        g.fillRect(38, 20 + k, w, 1); g.fillRect(82 - w, 20 + k, w, 1);
+        g.fillRect(38, 49 - k, w, 1); g.fillRect(82 - w, 49 - k, w, 1);
+      }
+      const CXW = 60, CYW = 35, RX = 19, RY2 = 12;
+      for (let i = 0; i < 12; i++) {                              // the hours
+        const a = (i * Math.PI) / 6;
+        const px2 = Math.round(CXW + Math.sin(a) * RX) - 1;
+        const py2 = Math.round(CYW - Math.cos(a) * RY2) - 1;
+        const big = i % 3 === 0;
+        g.fillStyle = big ? '#2a2620' : '#7d7768';
+        g.fillRect(px2, py2, big ? 3 : 2, big ? 3 : 2);
+      }
+      /** ONE HAND, stepped a pixel at a time — the staircase is the look. */
+      const hand = (a: number, len: number, w: number, fill: string) => {
+        g.fillStyle = fill;
+        for (let t = 0; t <= len; t++) {
+          g.fillRect(Math.round(CXW + Math.sin(a) * t * (RX / len) * 0.82) - 1,
+            Math.round(CYW - Math.cos(a) * t * (RY2 / len) * 0.82) - 1, w, w);
+        }
+      };
+      hand(((mins / 60) % 12) * (Math.PI / 6), 9, 3, '#2a2620');  // hours
+      hand((mins % 60) * (Math.PI / 30), 14, 2, '#2a2620');       // minutes
+      g.fillStyle = '#2a2620'; g.fillRect(59, 34, 3, 3);          // the hub
+      g.fillStyle = '#8a8272'; g.font = '5px monospace'; g.textAlign = 'center';
+      g.fillText('CROSSTOWN', 60, 45);
+    } else {
+      g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
+      g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);        // LCD
+      const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
+      const m2 = String(mins % 60).padStart(2, '0');
+      g.fillStyle = '#1c2a1c'; g.font = 'bold 14px monospace'; g.textAlign = 'center';
+      g.fillText(`${hh}:${m2}`, 60, 38);
+      g.fillStyle = '#8a8d95'; g.font = '5px monospace';
+      g.fillText('CROSSTOWN QUARTZ', 60, 50);
+    }
     g.restore();
     g.restore();
   };
@@ -2337,8 +2473,15 @@ export function makeHud(purse: Purse): Hud {
     // canonical "how night is it" curve that drives the lamps.
     setNight: (v) => { nightDiv!.style.opacity = String(v * 0.28); },
     watch: (want, mins) => {
-      watchWrap!.style.transform = want ? WATCH_SHOWN : WATCH_HIDDEN;
-      if (want && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
+      // AN EMPTY WRIST HAS NOTHING TO CHECK. `crosstown.ts` asks for the arm
+      // whenever the player looks far enough down; what it is really asking is
+      // *"is he checking the time"*, and with no watch on the answer is no
+      // however far he tilts his head. So the limb stays off screen — which is
+      // the honest consequence of *"no watch"* being one of the three options,
+      // and it needs no cooperation from the file that asks.
+      const up = want && worn('watch').kind !== 'none';
+      watchWrap!.style.transform = up ? WATCH_SHOWN : WATCH_HIDDEN;
+      if (up && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
     },
     setFps: (text: string | null) => {
       if (text === null) { if (fpsDiv) fpsDiv.style.display = 'none'; return; }
