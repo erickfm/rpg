@@ -1678,13 +1678,40 @@ export function makeHud(purse: Purse): Hud {
   // than argued — `scripts/probes/w57-watch.mjs` reads the LCD's bounding box
   // off the live element both ways round.
   //
-  // The `46%` is the user's own: *"can we move the watch arm thing as a whole
-  // over to the left a little bit?"* (2026-08-02). It was `52%`. Untouched.
+  // WHERE THE ARM SITS, IN TWO NAMES. Both of these were bare literals buried in
+  // CSS strings (a `46%` with three comments pointing at it, and a `translateY(0)`
+  // that read as "no offset" rather than "the number you nudge"). They are the
+  // two numbers the user actually moves, so they are the two that are named.
+  //
+  // *"can we move the watch arm thing as a whole over to the left a little
+  // bit?"* (2026-08-02) took it 52 → 46. *"mmove the limb up and to the left
+  // more pls"* (2026-08-04) takes it 46 → 42, and lifts it for the first time.
+  const WATCH_X = 42;      // % of viewport width, the wrapper's `left` anchor
+  /**
+   * Upward nudge, in % of the element's OWN height (198 px = 72 canvas px x
+   * WATCH_S). Was an unnamed `translateY(0)`.
+   *
+   * THERE IS A CEILING ON THIS AND IT IS NOT LARGE. The limb has to leave the
+   * frame through the BOTTOM edge; if it lifts clear it exits through the left
+   * edge instead and the hand floats in the middle of the road. The -5deg tilt
+   * drops the far (left) end, so the deepest visible point of the limb's
+   * underside is where it crosses the left edge of the screen, at
+   *
+   *     depth = 99 - 14 - (WATCH_X/100 x V + 77) x tan5°     [px below the frame]
+   *
+   * — 67 px at V=1280, 90 px at 1920, 114 px at 2560. The NARROWEST viewport
+   * binds, so 67 px ≈ 34% of the element's height is the floor to respect.
+   * 12% (24 px) leaves ~43 px of headroom at 1280 — room for roughly this nudge
+   * again twice over before the hand comes off the ground.
+   */
+  const WATCH_LIFT = 12;
+  const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT}%) rotate(-5deg)`;
+  const WATCH_HIDDEN = 'translateX(-50%) translateY(140%) rotate(-5deg)';
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
   const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
   const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${72 * WATCH_S}px;image-rendering:pixelated;display:block;`;
   const WRAP_CSS = 'position:fixed;'
-    + `left:calc(46% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
+    + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
     + `transform-origin:calc(100% - ${WATCH_PIVOT}px) 50%;`
     + 'transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
@@ -2030,9 +2057,7 @@ export function makeHud(purse: Purse): Hud {
     // canonical "how night is it" curve that drives the lamps.
     setNight: (v) => { nightDiv!.style.opacity = String(v * 0.28); },
     watch: (want, mins) => {
-      watchWrap!.style.transform = want
-        ? 'translateX(-50%) translateY(0) rotate(-5deg)'
-        : 'translateX(-50%) translateY(140%) rotate(-5deg)';
+      watchWrap!.style.transform = want ? WATCH_SHOWN : WATCH_HIDDEN;
       if (want && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
     },
     setFps: (text: string | null) => {
