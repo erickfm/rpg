@@ -280,14 +280,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // 2.6 m. A collider hid it, which is its own kind of wrong — the floor
   // visibly ended and something you could not see stopped you.
   //
-  // So floor the first NIB_D of that half at floor-3 level and put a real
-  // railing on its edge. NIB_D is bounded by HEADROOM, not by taste: flight A
-  // climbs directly underneath, and at 1.2 m deep the far end still clears
-  // the flight below by about 2.0 m. Deepen it and you start clipping the
-  // heads of people walking up.
-  //
-  // The landing geometry, the floor-picker and the guard collider all read
-  // these three numbers. They must not drift apart — that is the whole bug.
+  // The first answer was to FLOOR part of that half at floor-3 level — the nib
+  // — and put a railing on its outer edge. **That floor is gone** (*"i want it
+  // gone. the railing pulled back to the edge of the original floor"*, and see
+  // `GUARD_Z` below); what remains of the answer is the railing, standing on
+  // the hall's own edge, with `stairCap` behind it. The void it guards is the
+  // void that was always there.
   // ── doors ────────────────────────────────────────────────────────────────
   // The leaf inside doorTexN's painted casing is 26 of the texture's 32
   // texels, so the plane has to be 32/26 wider than the leaf you want. At
@@ -321,23 +319,68 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   //              because a door that seals to the boards was never fitted
   const DOOR_HEAD = 2.1;
   const FLAT_LEAF_W = DOOR_GAP + 0.04, FLAT_LEAF_H = 2.12;
-  // 1.2 -> 0.9: the user, on the top floor, *"top floor of apt railing is too
-  // far out. scope it back here"*. The nib was built to the HEADROOM limit
-  // rather than to how much landing anyone needs, and at 1.2 the balustrade
-  // stands most of a body-length past the hall's edge, which is what reads as
-  // "far out". 0.9 still leaves the player (0.36 m radius) half a metre of
-  // landing past the hall line to stand on, and going SHALLOWER can never
-  // cost headroom over flight A below — only deepening it can.
-  const NIB_D = 0.9;              // how far the landing reaches into the shaft
-  const NIB_Z1 = STAIR_Z0 + NIB_D; // its open edge: the railing stands here
+  // ══ THE NIB IS GONE ══════════════════════════════════════════════════════
+  //
+  // *"this is the part of the railing on the top floor i wanted you to get rid
+  //  of. see how the additional part of floor extends out? i want it gone. the
+  //  railing pulled back to the edge of the original floor."*   (2026-08-04)
+  //
+  // `NIB_D` was the tongue of floor-3 landing that reached out over the
+  // stairwell, and `NIB_Z1 = STAIR_Z0 + NIB_D` was its open edge, where the
+  // balustrade stood. Both are deleted. It went 1.2 -> 0.9 earlier today on
+  // *"top floor of apt railing is too far out. scope it back here"*, and this
+  // is the same complaint arriving at its real answer: he did not want it
+  // shallower, he wanted it gone.
+  //
+  // ── WHAT IT CARRIED, CHECKED BEFORE DELETING IT ─────────────────────────
+  //
+  // **NOTHING. IT IS NOT ON THE ROUTE.** Worked through the floor picker rather
+  // than assumed, because deleting the only walkable link to the top storey
+  // would strand it. In the shaft's WEST half (lx < 1.2) flight A climbs from
+  // the hall's edge UP to the half landing; in the EAST half (lx >= 1.2)
+  // flight B climbs the other way and arrives at floor 3 at AZI(8.4), which is
+  // the hall's own edge. So the way up is east and lands you on the hall
+  // itself; the nib was floor over the void beside it — a place to stand, not a
+  // way anywhere. Removing it removes standing room and no connection.
+  //
+  // ── SO THE BALUSTRADE STANDS ON THE HALL ────────────────────────────────
+  //
+  // `GUARD_Z` is its centreline and it is set BACK by half the timber's own
+  // depth, so the rail's far face is flush with the floor's edge at STAIR_Z0
+  // and the whole run stands ON floor rather than half of it over the shaft.
+  // Centring it on STAIR_Z0 would hang 45 mm of cap, sticks and newels in the
+  // air over the flight below, which from underneath — which is the view he
+  // photographed — is exactly the thing he is complaining about, one order of
+  // magnitude smaller.
   const TOP_Y = 3 * ST;           // floor 3
-  // The balustrade's DEPTH, hoisted because the guard collider is derived from
-  // it — the rail cap, the bottom rail and the newels all stand centred on
-  // NIB_Z1, so the timber occupies NIB_Z1 +/- RAIL_D/2 and a collider that
-  // starts at NIB_Z1 leaves the near half of it walkable-into. See `stairCap`.
+  // The balustrade's DEPTH, hoisted because both the guard collider and the
+  // run's own setback are derived from it — the rail cap, the bottom rail, the
+  // sticks and the newels all stand centred on `GUARD_Z`, so the timber
+  // occupies GUARD_Z +/- BAL_D/2 and a collider that starts at the centreline
+  // leaves the near half of it walkable-into. See `stairCap`.
   // NOT `RAIL_D` — the TV's own rails already own that name further down, and
   // a shadowed constant in a 5000-line module is a trap.
   const BAL_D = 0.09;
+  /** How far the stair handrail returns past each end of the core wall. Hoisted
+   *  from the handrail block because `GUARD_Z` is derived from it — see there. */
+  const RET = 0.07;
+  /**
+   * THE BALUSTRADE'S CENTRELINE, and the only z the top run reads.
+   *
+   * `STAIR_Z0 - RET`, which is TWO facts at once and that is why it is this
+   * number rather than a setback of its own choosing:
+   *
+   *   · it is INSIDE the hall — the run's far face lands at 8.375 against a
+   *     floor edge at 8.4, so no timber overhangs the shaft. Centring on
+   *     STAIR_Z0 would hang 45 mm of cap, sticks and newels in the air over the
+   *     flight below, which from underneath — the view he photographed — is the
+   *     thing he is complaining about, one order of magnitude smaller.
+   *   · it is the STAIR RAIL'S OWN RETURN LINE. The handrail that climbs the
+   *     shaft finishes by crossing the core's north end at exactly this z, so
+   *     the landing run and the stair run are collinear and read as one rail
+   *     turning the corner instead of two rails passing near each other.
+   */
+  const GUARD_Z = STAIR_Z0 - RET;
   const AX = (lx: number) => APT_X + lx, AZI = (lz: number) => APT_Z + lz;
   // ── 301'S DOOR STAND-POINT IS NOT HOISTED ANY MORE (item 309) ───────────
   //
@@ -942,7 +985,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // across from one flight to the next and from one storey to the next.
     const RAIL_H = 1.0;                        // above floor / above landing
     const WX = AX(1.08), EX = AX(1.32);        // a rail off each core face
-    const RET = 0.07;                          // return past the core's end
+    // `RET` — the return past each end of the core — is hoisted to the top of
+    // the module beside BAL_D, because the top landing's balustrade stands on
+    // that same line and is derived from it. See `GUARD_Z`.
     const CORE_H = TOP_Y + RAIL_H - 0.04;      // cap centreline lands on RAIL_H
     const coreT = wallpaperT.clone();
     coreT.wrapS = coreT.wrapT = THREE.RepeatWrapping;
@@ -974,15 +1019,58 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       P(EX, (f + 1) * ST + RAIL_H, STAIR_Z0 - RET);      // return past the north end
       P(WX, (f + 1) * ST + RAIL_H, STAIR_Z0 - RET);      // across, ready for the next
     }
+    // ── THE JOINTS, AND WHY THEY WERE RAGGED ─────────────────────────────
+    //
+    // *"the detail around the railing which follows the stairs down needs some
+    //  work. it's jagged and looks sloppy"*   (2026-08-04)
+    //
+    // **IT WAS THE OVERRUN.** Every segment was drawn `d.length() + 0.08` long
+    // — a whole section longer than the gap it spans — on the reasoning that
+    // *"segments overrun by one section so the mitres never open a gap"*. What
+    // that actually does at a corner is push each box 0.04 m PAST the vertex
+    // into the other one, and two boxes crossing at 31.5° (the rake, atan2(RISE,
+    // RUN)) do not disappear into each other: each one's far corners stick out
+    // through the other's faces. That is the notches, the offcuts and the chunk
+    // hanging past the post in his shot, and it happened at every joint on the
+    // run rather than at the one he photographed.
+    //
+    // It is worst at the RETURNS, which is where he was looking. Those segments
+    // are `RET` = 0.07 m long — SHORTER than the 0.08 overrun — so a stub past
+    // the core's end was drawn at more than twice its own length and stuck out
+    // further than it existed.
+    //
+    // ── SO THE SEGMENTS ARE HONEST AND THE CORNER IS A FITTING ───────────
+    //
+    // Each box is now exactly `d.length()`, meeting the next at the vertex
+    // plane, and a KNUCKLE — one small box, this world's answer to everything —
+    // sits on each interior vertex to swallow the wedge that opens on the
+    // outside of a bend. That is what a real staircase does: rails do not
+    // mitre themselves, they die into a fitting.
+    //
+    // 0.075 x 0.085 x 0.085 against a 0.07 x 0.08 rail: **deliberately a hair
+    // PROUD on every face**, 2.5 mm, so that not one face of a knuckle is
+    // coplanar with a face of the rail it joins. Sized equal they would z-fight
+    // down the whole run, which is a worse jaggedness than the one being fixed.
+    // Against a 31.5° rake the widest gap to cover is 0.08 * tan(15.75°) =
+    // 23 mm, so ±0.0425 covers it with room over.
+    //
+    // 23 knuckles: the run is ONE polyline from the lobby newel to floor 3 and
+    // this loop is every interior vertex of it, so every foot, head, landing
+    // return and storey crossing on all three flights is fitted by
+    // construction. There is no joint on this staircase that this misses.
     const Z_AXIS = new THREE.Vector3(0, 0, 1);
     for (let i = 1; i < railPts.length; i++) {
       const a = railPts[i - 1], b = railPts[i];
       const d = new THREE.Vector3().subVectors(b, a);
-      // segments overrun by one section so the mitres never open a gap
-      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, d.length() + 0.08), railM);
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, d.length()), railM);
       seg.position.copy(a).addScaledVector(d, 0.5);
       seg.quaternion.setFromUnitVectors(Z_AXIS, d.clone().normalize());
       scene.add(seg);
+    }
+    for (let i = 1; i + 1 < railPts.length; i++) {
+      const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.085, 0.085), railM);
+      knuckle.position.copy(railPts[i]);
+      scene.add(knuckle);
     }
     // it is fixed to the core wall, so show the fixings: a bracket every
     // third of a flight, bridging the gap from the wall face to the rail
@@ -1002,44 +1090,29 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const newel = new THREE.Mesh(new THREE.BoxGeometry(0.1, RAIL_H + 0.04, 0.1), railM);
     newel.position.set(WX, (RAIL_H + 0.04) / 2, AZI(STAIR_Z0 - RET));
     scene.add(newel);
-    // ── the top landing itself ───────────────────────────────────────────
-    // Carpet on top to match the hall it continues, a ceiling on the
-    // underside because you walk up flight A directly beneath it, and a
-    // timber fascia on the open edges so it reads as built rather than as a
-    // floating shelf.
-    const nibTop = carpetT.clone();
-    nibTop.wrapS = nibTop.wrapT = THREE.RepeatWrapping;
-    nibTop.repeat.set(1.2 / 1.8, NIB_D / 1.8);
-    // "to match the hall it continues" was true of the SCALE and false of the
-    // PHASE, and the phase is what you see. Both surfaces tile at 1.8 m and
-    // both run v toward -z, so they agree on gradient; they disagree on where
-    // v is zero. `floorMesh` puts v = 0 at the plane's +z edge, which for the
-    // hall is the stairwell mouth — so the hall arrives at AZI(8.4) on a tile
-    // boundary. A box's top face does the same from ITS +z edge, which is the
-    // nib's open edge at NIB_Z1, so the nib arrives at the mouth at
-    // v = NIB_D/1.8 = 0.5 — half a tile out, with the carpet's flecks stepping
-    // sideways along the joint. Offsetting by that same half tile lands the nib
-    // on the hall's boundary and the two runs read as one piece of carpet. It
-    // is written off NIB_D, so it re-solves if the landing is scoped again.
-    nibTop.offset.set(0, -NIB_D / 1.8);
-    nibTop.needsUpdate = true;
-    const nibUnder = ceilT.clone();
-    nibUnder.wrapS = nibUnder.wrapT = THREE.RepeatWrapping;
-    nibUnder.repeat.set(1.2 / 1.8, NIB_D / 1.8);
-    nibUnder.needsUpdate = true;
-    const nib = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.12, NIB_D),
-      [darkWoodM, darkWoodM, texM(nibTop), texM(nibUnder), darkWoodM, darkWoodM]);
-    nib.position.set(AX(0.6), TOP_Y + 0.006 - 0.06, AZI(8.4 + NIB_D / 2));
-    scene.add(nib);
+    // ── THE TOP LANDING'S NIB WAS BUILT HERE AND IS DELETED ──────────────
+    //
+    // *"see how the additional part of floor extends out? i want it gone."*
+    // It was one box — 1.2 x 0.12 x NIB_D, carpet on top, plaster ceiling
+    // underneath because you walk up flight A directly beneath it, timber on
+    // the open edges — plus two cloned textures whose repeat and offset were
+    // written off NIB_D so the carpet met the hall's on a tile boundary. All
+    // of it goes with the number; nothing else read those clones.
+    //
+    // ⚠ THE PLASTER SOFFIT IN HIS SHOT WENT WITH IT. That grey slab filling
+    // the frame, seen from the flight below, IS this box's underside. There is
+    // nothing left overhead there — the shaft is open to the storey ceiling
+    // above, which is where it was before the nib was ever built.
     // ── THE SLAB EDGE AT THE STAIRWELL MOUTH ─────────────────────────────
     // The user: *"graphics bugs underl top floor railing"* — a band of the red
     // stair carpet showing THROUGH the plaster ceiling, ragged along both
     // edges, shot from the floor below.
     //
-    // NOT the railing, and NOT item 310d's NIB_D pull-back — I checked mine
-    // first and it is innocent. The edge this happens at is AZI(8.4), the
-    // stairwell mouth, and no NIB number touches it; the nib is a BOX, its
-    // sides are closed, and it starts at 8.4 whether it is 1.2 deep or 0.9.
+    // NOT the railing, and never the nib — the edge this happens at is
+    // AZI(8.4), the stairwell mouth, and no landing number ever touched it.
+    // **THAT IS WHY THIS SURVIVES THE NIB'S DELETION UNCHANGED**: it is the
+    // edge of the STOREY SLAB, it exists at all three floors, and it has slabs
+    // to sit between whether or not anything is built out over the shaft.
     //
     // THE REAL CAUSE IS THAT A STOREY HAS NO SLAB. Every floor is two
     // zero-thickness planes — hall carpet at `f*ST + 0.006`, hall ceiling at
@@ -1051,18 +1124,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // z-fighting, and it has been there since the storeys were built — the
     // ceiling under the top landing is simply the first place anyone looked up.
     //
-    // A slab has an edge, so give it one: the same timber fascia the nib
-    // already wears on its open sides, run the full 2.4 m width of the mouth,
-    // at EVERY storey rather than at the one he happened to photograph. It
-    // meets the nib's own -z face in the same material, so the two read as one
-    // board. Purely visual, 2.55 m up — no collider, nothing to walk into.
+    // A slab has an edge, so give it one: a timber fascia run the full 2.4 m
+    // width of the mouth, at EVERY storey rather than at the one he happened to
+    // photograph. Purely visual, 2.55 m up — no collider, nothing to walk into.
     //
     // ITS TOP FACE WAS COPLANAR WITH THE CARPET, at all three storeys. `yt` was
     // the finished floor line `(f+1)*ST + 0.006`, which is exactly where the
     // carpet plane above is — and the board straddles the mouth at
     // AZI(8.38…8.42) while the hall carpet runs to AZI(8.4), so 2 cm of the two
-    // shared a plane and z-fought the full 2.4 m width. On floor 3 it fights
-    // the NIB's carpet top as well, over the other 2 cm. That is a flickering
+    // shared a plane and z-fought the full 2.4 m width. That is a flickering
     // band across the stairwell mouth, in the middle of exactly the view he
     // photographed. Stop 2.5 mm short of the finished floor: the board is still
     // continuous with the ceiling below it, and 2.5 mm at 40 mm deep is a 3.6°
@@ -1075,8 +1145,17 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     }
     // the guard: a railing you can SEE, standing exactly where the stairCap
     // collider starts, so nothing invisible ever stops you
-    const railCap2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, BAL_D), railM);
-    railCap2.position.set(AX(0.6), TOP_Y + RAIL_H, AZI(NIB_Z1));
+    // ⚠ IT STOPS WHERE THE STAIR RAIL BEGINS, at `WX`, and that is not tidiness
+    // — it is the same class of bug as the overrun above. Both runs sit at
+    // RAIL_H with an 0.08 section, so 1.2 m of cap against a stair return that
+    // crosses from EX to WX would have put two boxes at the SAME HEIGHT sharing
+    // 0.12 m of plan: coplanar top faces, z-fighting, on the one joint you look
+    // straight at as you come up the last flight. Ending on the stair rail's
+    // west line means they abut instead, and the return carries the hand on
+    // over the east newel — which is the joint a real staircase makes here.
+    const capW = WX - AX(0);
+    const railCap2 = new THREE.Mesh(new THREE.BoxGeometry(capW, 0.08, BAL_D), railM);
+    railCap2.position.set(AX(0) + capW / 2, TOP_Y + RAIL_H, AZI(GUARD_Z));
     scene.add(railCap2);
     // BALUSTERS, not a single mid-rail. Report finding 7: the cap was right —
     // 1.0 m, continuous, meeting the core — but under it was one rail at half
@@ -1114,7 +1193,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // hand's-breadth the run was built to, symmetric about the centre newel,
     // and self-correcting if a newel or the landing width ever moves.
     const botRail = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.045, 0.055), railM);
-    botRail.position.set(AX(0.6), TOP_Y + 0.075, AZI(NIB_Z1));
+    botRail.position.set(AX(0.6), TOP_Y + 0.075, AZI(GUARD_Z));
     scene.add(botRail);
     const BAL_H = RAIL_H - 0.135, BAL_W = 0.035, BAL_GAP = 0.08;
     const NEWEL_LX = [0.08, 0.6, 1.12], NEWEL_W = 0.07;
@@ -1125,14 +1204,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       for (let i = 0; i < n; i++) {
         const bal = new THREE.Mesh(new THREE.BoxGeometry(BAL_W, BAL_H, BAL_W), railM);
         bal.position.set(AX(x0 + (i + 1) * gap + (i + 0.5) * BAL_W),
-          TOP_Y + 0.075 + BAL_H / 2 + 0.0225, AZI(NIB_Z1));
+          TOP_Y + 0.075 + BAL_H / 2 + 0.0225, AZI(GUARD_Z));
         scene.add(bal);
       }
     }
     // the newels last, so they read as heavier than what they carry
     for (const lx of NEWEL_LX) {
       const post = new THREE.Mesh(new THREE.BoxGeometry(NEWEL_W, RAIL_H, NEWEL_W), railM);
-      post.position.set(AX(lx), TOP_Y + RAIL_H / 2, AZI(NIB_Z1));
+      post.position.set(AX(lx), TOP_Y + RAIL_H / 2, AZI(GUARD_Z));
       scene.add(post);
     }
     // lobby: the dead space under the half landing stays boxed in, full
@@ -5168,14 +5247,17 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       if (h > 3 * ST + 0.01) continue;  // nothing above floor 3
       consider(h);
     }
-    // The top landing is the one surface that is NOT a repeat of the storey
-    // pattern: it exists only at floor 3, only over the shaft's west half,
-    // and only for the first NIB_D of it. Every other candidate is rel+f*ST,
-    // and over there the best of those is flight A a storey and a half down —
-    // which is exactly the 2.6 m drop this closes. Offered as a candidate
-    // rather than special-cased, so the hysteresis still arbitrates: walking
-    // DOWN the east flight never sees it, because it is west-half only.
-    if (lx >= 0 && lx < 1.2 && lz > STAIR_Z0 && lz <= NIB_Z1) consider(TOP_Y);
+    // THE TOP LANDING'S NIB WAS THE ONE SURFACE HERE THAT WAS NOT A REPEAT OF
+    // THE STOREY PATTERN — floor 3 only, the shaft's west half only, and only
+    // for the first NIB_D of it, offered as an extra candidate right here. It
+    // is deleted with the nib (*"i want it gone"*), so every surface in this
+    // building is `rel + f * ST` again and there is no exception left to state.
+    //
+    // NOTHING REPLACES IT AND NOTHING NEEDS TO. Past AZI(8.4) in the west half
+    // the best offer is flight A a storey and a half below, which is the 2.6 m
+    // drop the nib was built to close — and what closes it now is `stairCap`,
+    // the balustrade's collider, which stands at the hall's edge and is why
+    // you cannot walk out there to fall in the first place.
     if (commit) lastGy = best;
     return best;
   };
@@ -5281,11 +5363,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     // TWO THINGS FIXED, both about it not matching the railing it stands for:
     //
-    //   WHERE  it began at NIB_Z1, which is the balustrade's CENTRELINE, so
-    //          the near half of the timber (BAL_D/2 = 45 mm) was inside the
-    //          walkable landing and you could stand in the rail. It begins at
-    //          the near FACE now, derived from BAL_D rather than typed, so it
-    //          re-solves if the run is ever made heavier.
+    //   WHERE  it began at the balustrade's CENTRELINE, so the near half of the
+    //          timber (BAL_D/2 = 45 mm) was inside the walkable landing and you
+    //          could stand in the rail. It begins at the near FACE now, derived
+    //          from BAL_D rather than typed, so it re-solves if the run is ever
+    //          made heavier — and it followed the run back to the hall's edge
+    //          for free when the nib was deleted, which is the whole reason
+    //          `GUARD_Z` is one constant and not four typed z values.
     //   WHEN   the gate was `lastGy > 3*ST - 0.12`, then `> TOP_Y - 0.6` (7.50).
     //          Both are the same mistake in different sizes: they ask whether
     //          you are STANDING ON THE TOP LANDING, and the user is not — he is
@@ -5296,25 +5380,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //          at that line from the stairs.
     //
     //          THE GATE CANNOT SIMPLY GO AWAY. This is a 2D collider with no
-    //          height, and it spans AZI(9.255)…AZI(13.2) of the shaft's west
+    //          height, and it now spans AZI(8.31)…AZI(13.2) of the shaft's west
     //          half — which is the airspace over FLIGHT A. On permanently it
     //          would wall the flight off at every storey and seal the walk-up.
     //
-    //          SO IT IS GATED AT THE HIGHEST THING YOU CAN WALK ON UNDER IT,
-    //          not at the landing. Everything walkable in this half below the
-    //          nib is flight A (5.40 -> 6.75) and the half landing (6.75); the
-    //          next surface up is the nib itself at 8.10, and flight B climbs
-    //          6.75 -> 8.10 in the EAST half, which this box does not touch. So
-    //          any threshold in (6.75, 8.10] is safe, and the LOWEST safe one is
-    //          the most railing: 10 cm over the half landing. The guard is now
-    //          live for the whole upper half of flight B and for every approach
-    //          to the landing, and still off for every step of flight A.
+    //          SO IT IS GATED AT THE HIGHEST THING YOU CAN WALK ON UNDER IT.
+    //          Everything walkable in this half is flight A (5.40 -> 6.75) and
+    //          the half landing (6.75); the next surface up is FLOOR 3'S HALL
+    //          at 8.10, and flight B climbs 6.75 -> 8.10 in the EAST half,
+    //          which this box does not touch. So any threshold in (6.75, 8.10]
+    //          is safe, and the LOWEST safe one is the most railing: 10 cm over
+    //          the half landing. Unchanged by the nib's removal — the nib used
+    //          to BE that 8.10 surface and the hall is at the same height, so
+    //          the arithmetic that chose 6.85 is identical.
+    //
+    //          ⚠ WHAT DID CHANGE is that the near edge came back 0.945 m with
+    //          the railing, so the box now bites 0.09 m into the floor-3 hall
+    //          (its face is BAL_D short of AZI(8.4)). That is correct and it is
+    //          the timber: you are held out of the run you can see, and the
+    //          hall you stand on ends where the railing stands on it.
     //
     // NO `maxY`, deliberately — a railing is a wall, and a top would let you
     // stand on the bannister and go over from higher up.
     const HALF_LAND_Y = 2 * ST + RISE;   // 6.75 — top of flight A, the last
     setCap(stairCap, lastGy > HALF_LAND_Y + 0.1,   // walkable thing under the nib
-      AX(0), AX(1.2), AZI(NIB_Z1 - BAL_D / 2), AZI(LAND_Z1));
+      AX(0), AX(1.2), AZI(GUARD_Z - BAL_D / 2), AZI(LAND_Z1));
     const onLobby = px > 100 && lastGy < 0.6;
     setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(STAIR_Z0), AZI(LAND_Z1));
     setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(STAIR_Z1), AZI(LAND_Z1));
