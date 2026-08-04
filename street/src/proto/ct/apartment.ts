@@ -2535,9 +2535,43 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // y0 +/- H_R, and each end's inner tangent must fall between the bore at the
     // upper end and the outer skin at the lower one; the offset is the midpoint
     // of that window, so it re-solves itself if the taper or the base moves.
+    //
+    // ── 310i(c): THE ARC'S ENDS ARE NOT WIDENED BY THE TUBE ─────────────────
+    //
+    // The user: *"mug handle is disconnected"*, straight after the half-torus
+    // above went in. The arc shape is right and stays; the OFFSET that places
+    // it was computed as if the arc were still a ring.
+    //
+    // Work out where the ends actually land. After `rotateZ` and `rotation.y`
+    // the centre curve is (0, H_R·cos u, H_R·sin u) about the mesh origin — a
+    // vertical semicircle in the yz plane, ends at (0, ±H_R, 0) and bulge at
+    // (0, 0, +H_R). So BOTH ENDS SIT AT EXACTLY `HANDLE_OFF` from the mug's
+    // axis, and the tube adds nothing to that: at u = 0 and u = π the tube's
+    // cross-section plane is perpendicular to the radial direction, so its
+    // 7 mm goes into x and y, never into z. The tube widens the arc outward at
+    // the BULGE, which is what a ring does everywhere and what the old formula
+    // assumed — `H_TUBE + …` pushed the whole arc 7 mm too far out, and 7 mm is
+    // more than the 4.7 mm wall it was supposed to end inside. Measured on the
+    // taper: the end plane sat 3.3 mm proud of the skin at the top end and
+    // 5.7 mm proud at the bottom. Both ends hung in mid-air. Disconnected.
+    //
+    // So drop the `H_TUBE +` and solve the window against the tube's real
+    // extremes rather than its centre line:
+    //   FLOOR, from the bore — the top end's disc reaches up to H_R + H_TUBE
+    //     above centre, and the bore is widest at the highest point it covers.
+    //   CEILING, from the skin — the end disc is flat and vertical while the cup
+    //     is round, so a point t off the centre of that disc stands
+    //     √(off² + t²) from the axis, further out than the offset itself. The
+    //     whole disc has to stay under the skin, so the offset is bounded by
+    //     √(skin² − H_TUBE²), not by the skin.
+    // The midpoint of that window buries the ends 1.3-3.7 mm inside the ceramic
+    // and still clears the bore by 0.8 mm — and the arc's closest approach to
+    // the axis anywhere is that same offset, so NO part of it is ever inside the
+    // cup. 310i(b) stays fixed; this only stops the handle floating off it.
     const H_R = 0.028, H_TUBE = 0.007;
     const H_LY = 0.055;                                 // ring centre, above the sill
-    const HANDLE_OFF = H_TUBE + (mugBoreR(H_LY + H_R) + mugOuterR(H_LY - H_R)) / 2;
+    const HANDLE_OFF = (mugBoreR(H_LY + H_R + H_TUBE)
+      + Math.sqrt(mugOuterR(H_LY - H_R) ** 2 - H_TUBE ** 2)) / 2;
     const hGeo = new THREE.TorusGeometry(H_R, H_TUBE, 6, 8, Math.PI);
     hGeo.rotateZ(Math.PI / 2);                          // bulge to local -x, i.e. world +z
     const handle = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0xd0c9ba }));
