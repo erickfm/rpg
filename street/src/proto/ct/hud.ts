@@ -1847,9 +1847,10 @@ export function makeHud(purse: Purse): Hud {
    * One more nudge this size is the last one.
    */
   const WATCH_POS = 8;
-  /** width of the dark cap at the limb's far end, grown inward from x 176. */
-  const STRIP_W = 12;
-  /** chamfer leg on the fist's corners, in texels — cut or filled, see below. */
+  // `STRIP_W` — the dark cap at the limb's far end — is DELETED, with the cap
+  // itself, on *"make the whole limb unicolor"*. See where it used to be drawn.
+  /** chamfer leg on the fist's FREE corners, in texels. The join ramp at the
+   *  wrist is `FIST_JOIN` and is a different number for a different reason. */
   const FIST_ROUND = 3;
   const WATCH_H = WATCH_LIMB_H + Math.max(STRAP_OVER, THUMB_D);
   // ── WHOLE CSS PIXELS, AND WHY THAT IS PART OF THE FUZZ ────────────────────
@@ -2061,10 +2062,11 @@ export function makeHud(purse: Purse): Hud {
     //
     //   · far TOP (176, 0) — outside, the knuckle end. CUT.
     //   · far BOTTOM (176, 72) — outside, the same end underneath. CUT.
-    //   · join TOP (104, 6) — INSIDE. The fist stands 6 px proud of the wrist
-    //     here, and a hand does not step off a wrist at a right angle; the
-    //     swell runs into it. FILLED, which is the corner he meant by "fill
-    //     where it makes sense".
+    //   · join TOP (104, 6) — the swell. It shipped FILLED, on the reading that
+    //     it is an inside corner; **he then asked for it CUT and moved right**
+    //     (*"like extend the wrist to match the bottom side"*), which is the
+    //     block below and which supersedes this line. His later words outrank
+    //     an earlier reading of his rule, including mine.
     //   · join BOTTOM (104, 72) — LEFT ALONE. THUMB_BACK's wedge already ramps
     //     out of this exact corner, so it is the one that is already solved.
     //     Chamfering it would cut into the ramp's apex and undo item 316.
@@ -2075,29 +2077,45 @@ export function makeHud(purse: Purse): Hud {
     // pixelated every blended pixel becomes a block of half-transparent skin,
     // which is a second tone on a limb where one flat tone is the whole point.
     //
-    // The fill goes here, with the skin. The two CUTS are made at the very end
-    // of the fist's drawing, AFTER the dark strip, so the strip is cut by the
-    // same texels and cannot hang past the silhouette into empty air.
-    // ── AND THE FILL RUNS THE WHOLE RISE NOW ──────────────────────────────
+    // ══ THE JOIN RAMP, AND IT MOVED TO THE OTHER SIDE OF x 104 ═══════════
     //
-    // *"we need to extend the cut on the top left of fist to the weird corner
-    // left over"* (2026-08-04). THE LEFTOVER CORNER WAS ARITHMETIC, not taste.
-    // The fist's top is row 0 and the wrist's is row 6, so this inside corner is
-    // **6 rows deep** — and the ramp was `FIST_ROUND` (3) rows, because it was
-    // written to match the CUTS at the far end. That left rows 0…2 of x 104 as a
-    // hard 3 px vertical step standing above the finished ramp, which is exactly
-    // the notch he can see beside the chamfer.
+    // *"make to top side corner we cut, cut more to the right. like extend the
+    //  wrist to match the bottom side"*   (2026-08-04)
     //
-    // `FIST_JOIN` IS THE RISE ITSELF, so this corner cannot come back: 6 rows,
-    // one texel of ramp per row, ending flush with the fist's top row. It is
-    // deliberately NOT `FIST_ROUND` — the two numbers were only ever equal by
-    // coincidence, and the far corners are free outside corners whose cut is a
-    // matter of how round the knuckle looks, while this one is a joint whose
-    // length is fixed by the two edges it joins.
+    // **THE ASYMMETRY IS WHERE EACH EDGE LEAVES THE STRAIGHT, and it was 6 px.**
+    // Both edges of this limb run dead straight out of the frame until the hand
+    // starts, and they did not start in the same column:
+    //
+    //     UNDERSIDE  straight y 72 to x 104, where THUMB_BACK's wedge begins
+    //                (its apex is ON x 104 — the wrist's own end, and the
+    //                landmark he named when he asked for that wedge)
+    //     TOP        straight y 6 only to x 98, because the ramp was FILLED
+    //                INTO the wrist: it added skin at 104-w for w up to 6, so
+    //                the silhouette started swelling six columns early
+    //
+    // So the top looked short and tapered while the bottom looked square, which
+    // is exactly *"extend the wrist to match the bottom side"*.
+    //
+    // ── SO IT IS A CUT NOW, NOT A FILL, AND IT LIVES RIGHT OF x 104 ──────
+    //
+    // Same 6 rows, same 45°, mirrored about the column it used to end on: the
+    // fist is laid down full-height and the ramp is CLEARED out of its top-left
+    // corner, x 104…110. The wrist therefore runs straight to 104 on both
+    // edges — the departure columns now match to the texel — and the hand
+    // swells to full height over the next six.
+    //
+    // ⚠ IT IS ALSO WHY THIS IS A CUT AND NOT A FILL IN THE OTHER SENSE: his
+    // word was *"cut"*, twice, and by the rule he set out for the far corners
+    // (outside cut, inside filled) this is the ramp of an outside edge running
+    // up onto the hand, not a fillet in an inside corner.
+    //
+    // `FIST_JOIN` IS THE RISE ITSELF — the 6 px the fist stands proud of the
+    // wrist — so it cannot drift out of step with either band. Deliberately not
+    // `FIST_ROUND`: that one is how round the free knuckle corners look, this
+    // one is fixed by the two edges it joins.
     const FIST_JOIN = 6;
     for (let k = 0; k < FIST_JOIN; k++) {
-      const w = FIST_JOIN - k;
-      g.fillRect(104 - w, 5 - k, w, 1);                  // join top, filled
+      g.clearRect(104, k, FIST_JOIN - k, 1);              // join top, cut back
     }
     // ── THE THUMB ─────────────────────────────────────────────────────────
     //
@@ -2183,53 +2201,41 @@ export function makeHud(purse: Purse): Hud {
       const w = FIST_ROUND - k;
       g.clearRect(THUMB_X + THUMB_W - w, WATCH_LIMB_H + THUMB_D - 1 - k, w, 1);
     }
-    // ── THE ONE DARK STRIP ────────────────────────────────────────────────
+    // ══ THE LIMB IS ONE TONE, AND THAT IS THE END OF IT ══════════════════
     //
-    // *"ok now ad the dark strip to the end of the limb"* (2026-08-04). THE END
-    // OF THE LIMB IS ITS FAR EDGE — x 172…176, the outer edge of the fist, where
-    // the limb stops. Not the wrist/fist join at x 104 where the removed strip
-    // used to sit, and not x 0, which is not an end at all: that side runs off
-    // the frame. Full height of the limb at that end, y 0…72, matching the fist.
+    // *"make the whole limb unicolor"*   (2026-08-04)
     //
-    // The strip he means is the one taken out three commits ago, so it is that
-    // strip: the identical `rgba(0,0,0,0.10)` at the identical width, moved
-    // rather than reinvented. IT IS THE ONLY OVERLAY ON THE SKIN — everything
-    // left of it stays one flat `#c9946a`.
+    // **THE DARK END CAP IS DELETED.** It was `rgba(0,0,0,0.10)` over x 164…176,
+    // `STRIP_W` 12, the last overlay left on skin — asked for by name, then
+    // widened by name, and now removed by the instruction that supersedes both.
+    // `STRIP_W` and `STRIP_X` go with it; nothing else read them.
     //
-    // *"increase the width of the darker shaded region at the end of the limb"*
-    // (2026-08-04): STRIP_W 4 → 12, grown INWARD, since the outer edge is the
-    // end of the limb and that is where he put it. Alpha is untouched at 0.10 —
-    // he said wider, not darker.
+    // ⚠ READ THIS BEFORE ADDING ANY TONE TO THIS LIMB. Forearm, wrist, fist and
+    // thumb are ONE flat `player.skin` with **nothing painted over them
+    // anywhere**, and that is a destination he has walked to in four separate
+    // instructions, not an unfinished state:
     //
-    // IT STOPS AT THE LIMB'S UNDERSIDE, AND THAT WAS DECIDED BY LOOKING. At
-    // STRIP_W 12 the cap reaches back past x 170 where the thumb ends, so it
-    // stands directly above the thumb's last 6 px, and there were two answers:
-    // wrap the cap down over that much thumb, or stop dead at y 72 and leave the
-    // thumb light. IT SHIPPED WRAPPED — the argument being that a light thumb
-    // hanging out from under a dark cap reads as an unfinished edge — AND HE
-    // LOOKED AND SAID NO: *"remove the dark at the end of the thumb"*
-    // (2026-08-04). He said the thumb, not the strip, so the cap itself is
-    // untouched at 12 and 0.10.
+    //   · the RECEDE GRADIENT, `rgba(0,0,0,0.18)` over the 240 px nearest the
+    //     wrist — *"for the arm shape i dont want two colors just the one skin
+    //     tone on that rectangle"*
+    //   · the WRIST's highlight, `rgba(255,255,255,0.12)` at x 94…104 —
+    //     *"arm has two colors on the right side"*
+    //   · the FIST's two, highlight and shadow — taken, put back on a
+    //     misreading, and taken again when he was shown both: *"nah go back the
+    //     other unicolor"*
+    //   · and now the END CAP, the one survivor of that pass, on *"make the
+    //     whole limb unicolor"*
     //
-    // SO THE HARD EDGE AT y 72 IS THE APPROVED LOOK, not an oversight. Do not
-    // blend it, feather it, or split the difference by shortening the cap to 6
-    // so it stops short of the thumb — that would be undoing the width he asked
-    // for to fix an edge he has already accepted.
+    // Every attempt to make this limb more has been rejected. Do not restore
+    // shading, a taper, an outline, a crease or a rim because it looks
+    // unfinished next to the watch — the watch is the detail here and the arm
+    // is the flat it sits on.
     //
-    // ROOM LEFT: nothing stops the cap now until the fist's own start at x 104
-    // (STRIP_W 72), or the watch case, whose right edge is at x 96 with
-    // WATCH_POS 8 (STRIP_W 80). Neither is close; 12 is an eighth of the way.
-    const STRIP_X = 176 - STRIP_W;
-    g.fillStyle = 'rgba(0,0,0,0.10)';
-    g.fillRect(STRIP_X, 0, STRIP_W, WATCH_LIMB_H);
-    // THE TWO CUT CORNERS, LAST, so they take the strip with them. `clearRect`
-    // rather than a skin-coloured overdraw: the fist's far corners sit over
-    // nothing (the wrist band stops at x 104, the thumb at x 170), so clearing
-    // is what actually shortens the silhouette — and because the dark strip has
-    // already been laid down over x 164…176, the same texels remove skin and
-    // strip together. The strip therefore follows the new corners for free and
-    // can never overhang them, which is the thing to watch on his most recent
-    // approval. It loses 6 of its 864 texels to this.
+    // THE TWO CUT CORNERS, LAST, and they no longer have a strip to take with
+    // them — they simply shorten skin. `clearRect` rather than a skin-coloured
+    // overdraw because the fist's far corners sit over nothing (the wrist band
+    // stops at x 104, the thumb at x 170), so clearing is what actually
+    // shortens the silhouette.
     for (let k = 0; k < FIST_ROUND; k++) {
       const w = FIST_ROUND - k;
       g.clearRect(176 - w, k, w, 1);                       // far top, cut
