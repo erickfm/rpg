@@ -3341,3 +3341,41 @@ two items pushing furniture around a reach setting.
 **"all these things" is world-wide**, not 301 — a general feel that interactables
 grab him from too far away. Walked, not computed: "a bit less" is a feel, and the
 failure mode is overshooting into fiddly.
+
+---
+
+## 2026-08-03 22:4x — "WHAT IS THE WORKER SPENDING MOST OF ITS CONTEXT DOING? 273K TOKENS FOR ONE CHANGE? remove whatever is causing that"
+
+Profiled worker 134's 189 turns: ~129K of its own output, ~57K tool results,
+~28K tool inputs, ~18K starting context. Of 96 shell calls, ~30 were orientation
+before the first edit, ~20 the change, ~36 verification — twelve of those polling
+one ten-minute walk, ten more re-running the suite at the old constant to get a
+"before".
+
+Routed to: THE DESK, directly (no worker). Removed:
+  * QUEUE.md 161 KB -> 15 KB (85% was 37 DONE-row essays averaging 3,700 chars,
+    re-read by every worker looking for its own row). Untracked/gitignored, so
+    the full text lives in notes/.queue-history, 20 snapshots deep.
+  * scripts/claim.sh 22 KB -> 10 KB (196 of 431 lines were comments; 134 `cat`ed
+    the whole file to learn the argument format). Round-trip tested.
+  * notes/BUILDER-BRIEF.md 29 KB -> 14 KB, and it was stale in ways that cost
+    time: §9 spent 25 lines on notes/OWNERSHIP.md, deleted; §12 ordered a handoff
+    note per worker, which is what took notes/ to 206 files. Section numbers NOT
+    renumbered — ~200 comments in src/ and scripts/ cite them; verified 0 orphans.
+  * New §2a forbids the three habits that cost 134 most.
+
+## 2026-08-03 22:5x — "forget val on this one plsss"
+
+Item 309 landed WITHOUT the browser-walk suite, at his instruction. Stopped
+worker 134 mid-verification and landed its three commits.
+
+⚠ CAUGHT ON THE WAY IN: its working tree held `REACH_TRIM = 1.00` — the baseline
+it set to measure the "before" and was killed before restoring. Landing the
+working tree as-is would have silently reverted the entire item while every
+commit message claimed 0.80. Discarded; the comment fix in the same file kept.
+This is exactly the manoeuvre §2a now forbids, and it nearly ate the change.
+
+Also landed: four checks that rebuild the reach predicate from published
+constants (casinodoor, standpoint-overlap, O-jail-walk, O-jail-walk-fix) taught
+about REACH_TRIM — without it casinodoor predicted 1.20 m where the door now
+fires over 0.96, i.e. they would have gone red against a correct world.
