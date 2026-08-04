@@ -1693,25 +1693,27 @@ export function makeHud(purse: Purse): Hud {
    * Upward nudge, in % of the LIMB's height (198 px = 72 canvas px x WATCH_S),
    * applied as px — see WATCH_LIMB_H. Was an unnamed `translateY(0)`.
    *
-   * THERE IS A CEILING ON THIS AND IT IS NOT LARGE. The limb has to leave the
-   * frame through the BOTTOM edge; if it lifts clear it exits through the left
-   * edge instead and the hand floats in the middle of the road. The -5deg tilt
-   * drops the far (left) end, so the deepest visible point of the limb's
-   * underside is where it crosses the left edge of the screen, at
+   * THERE IS A CEILING ON THIS. The limb has to leave the frame through the
+   * BOTTOM edge; if it lifts clear it exits through the left edge instead and
+   * the hand floats in the middle of the road. The tilt drops the far (left)
+   * end, so the deepest visible point of the limb's underside is where it
+   * crosses the left edge of the screen, and the ceiling is
    *
-   *     LIFT_max = 13.6 + (WATCH_X/100 x V + 77) x tan5°     [px]
+   *     LIFT_max = 99/cos T - 85 + (WATCH_X/100 x V + 77) x tan T     [px]
    *
-   * At WATCH_X 35 that is 60 px on a 1280 viewport, 80 px at 1920, 100 px at
-   * 2560. THE NARROWEST VIEWPORT BINDS, so 60 px — 30% — is the floor to
-   * respect, and only the 1280 column is worth quoting.
+   * for tilt T and viewport width V. ALL THREE OF THE PLACEMENT NUMBERS ARE IN
+   * IT, which is the whole reason it is written down: WATCH_LIFT spends the
+   * budget, WATCH_X shrinks it (each point drags the far end's crossing point
+   * toward the corner), and WATCH_TILT — being the term the far end's drop is
+   * proportional to — BUYS it. Rotating the limb further CCW makes it legal to
+   * lift higher, which is why *"rotate full limb ccw a bit"* cost nothing here.
    *
-   * UP AND LEFT SPEND THE SAME BUDGET. Moving left shrinks it, at 1.1 px per 1%
-   * of WATCH_X, because it drags the far end's crossing point toward the corner.
-   * 42/12 spent 24 of 67; 38/22 spent 44 of 63; 35/22 spends 44 of 60. **That
-   * leaves ~16 px — 8 points of WATCH_LIFT, or 14 of WATCH_X, and they trade
-   * against each other.** Past it the far end lifts clear of the bottom edge,
-   * the limb starts leaving through the LEFT edge instead, and the hand floats
-   * over the road with nothing holding it to the frame.
+   * At 35 / T=8 that is 89 px on a 1280 viewport, 112 px at 1920, 135 px at
+   * 2560. THE NARROWEST VIEWPORT BINDS, so only the 1280 column is worth
+   * quoting. The history, all at 1280: 42/12/5° spent 24 of 67; 38/22/5° spent
+   * 44 of 63; 35/22/5° spent 44 of 60 and left it nearly out; 35/22/8° spends
+   * 44 of 89. **That leaves ~45 px — 23 points of WATCH_LIFT, or 25 of WATCH_X,
+   * trading against each other at 1.8 px per point of WATCH_X.**
    */
   const WATCH_LIFT = 22;
   /**
@@ -1766,15 +1768,34 @@ export function makeHud(purse: Purse): Hud {
   const WATCH_H = WATCH_LIMB_H + Math.max(STRAP_OVER, THUMB_D);
   const WATCH_BOTTOM = (-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)).toFixed(2);
   const WATCH_LIFT_PX = (WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S).toFixed(2);
-  const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-5deg)`;
-  const WATCH_HIDDEN = 'translateX(-50%) translateY(140%) rotate(-5deg)';
+  /**
+   * THE LIMB'S TILT, IN DEGREES COUNTER-CLOCKWISE ON SCREEN. Written positive
+   * and negated at use, because CSS `rotate()` is positive-CLOCKWISE and the
+   * arm has only ever gone the other way — a bare `-5deg` in three places made
+   * "more counter-clockwise" read as "smaller", which is how a sign gets flipped.
+   * *"rotate full limb ccw a bit"* (2026-08-04): 5 → 8.
+   *
+   * The hand end rises and the far end drops, both about the pinned pivot. That
+   * is the ONLY thing this does — rotation is applied to the finished element,
+   * so nothing inside the canvas moves relative to anything else in it, and the
+   * case's 8 px clearance from the fist is untouched by it.
+   *
+   * ONE CONSTANT FOR BOTH STATES NOW. The shown state was `-5deg` and the
+   * initial CSS `-6deg`, so the arm rotated by a degree the first time it was
+   * ever raised — invisible, because that transition also slid it 300 px up the
+   * screen. There is no reason for the hidden state to differ: it is the same
+   * arm, parked off-frame. Both read WATCH_TILT.
+   */
+  const WATCH_TILT = 8;
+  const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-${WATCH_TILT}deg)`;
+  const WATCH_HIDDEN = `translateX(-50%) translateY(140%) rotate(-${WATCH_TILT}deg)`;
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
   const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
   const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${WATCH_H * WATCH_S}px;image-rendering:pixelated;display:block;`;
   const WRAP_CSS = 'position:fixed;'
     + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:${WATCH_BOTTOM}px;z-index:11;pointer-events:none;`
     + `transform-origin:calc(100% - ${WATCH_PIVOT}px) ${WATCH_LIMB_H * WATCH_S / 2}px;`
-    + 'transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
+    + `transform:${WATCH_HIDDEN};transition:transform .18s ease-out;`;
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
