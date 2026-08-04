@@ -1731,22 +1731,28 @@ export function makeHud(purse: Purse): Hud {
     // as a second colour on the rectangle, which is the one thing he asked not to
     // see. Removed, along with its `RECEDE` constant. One `fillRect`, one tone.
     //
-    // AND ONE MORE STRIP AFTER IT. *"arm has two colors on the right side"*
-    // (2026-08-04, after the gradient went) — a 10 px `rgba(255,255,255,0.12)`
-    // highlight at the far end of the wrist, x 94…104, left over from the old
-    // "light from the right" pass that predates the arm. Gone too. So THE ARM
-    // AND WRIST ARE FLAT: two `fillRect`s of one `#c9946a`, nothing over them.
+    // THE WHOLE LIMB IS ONE FLAT TONE, END TO END, AND HE CHOSE IT THAT WAY.
+    // Forearm, wrist and fist are three `fillRect`s of `#c9946a` with NOTHING
+    // painted over them — no gradient, no highlight, no shadow, no edge. FOUR
+    // things were deliberately removed to get here and none of them is missing:
     //
-    // THE FIST IS NOT, AND THAT IS DELIBERATE. The same pass also flattened the
-    // fist's own two strips and he pulled it straight back: *"right so i just
-    // wanted the strip on the arm gone not the full limb"*. They were restored
-    // at their original values. THE LINE BETWEEN THE TWO RULES IS THE WRIST/FIST
-    // JOIN AT x 104 — flat to the left of it, shaded to the right — and it is
-    // his call, drawn where he drew it.
+    //   · the recede gradient above, `rgba(0,0,0,0.18)` over 240 px;
+    //   · `rgba(255,255,255,0.12)` at the far end of the WRIST (x 94…104);
+    //   · `rgba(255,255,255,0.12)` at the FIST's right edge (x 166…176);
+    //   · `rgba(0,0,0,0.10)`, the wrist's shadow on the FIST (x 104…108).
     //
-    // Do not reintroduce shading, a taper, an outline or a crease — every attempt
-    // to make this arm more has been rejected. Shapes are untouched and approved;
-    // it is only ever the colour count he has objected to.
+    // The last three were the old "light from the right" pass; they predate the
+    // arm and were fine on a short stub, but on a full limb they read as stripes
+    // across it. *"arm has two colors on the right side"* took the wrist's.
+    // THE FIST'S TWO WERE TAKEN, PUT BACK, AND TAKEN AGAIN — he was shown both
+    // and picked uniform: *"right so i just wanted the strip on the arm gone not
+    // the full limb"*, then, on seeing them restored, *"nah go back the other
+    // unicolor"* (2026-08-04). Uniform is the settled answer, not an overshoot.
+    //
+    // So: do not reintroduce shading, a taper, an outline or a crease, and do not
+    // "restore" the fist's modelling because it looks unfinished next to the
+    // watch. Every attempt to make this limb more has been rejected. Shapes are
+    // untouched and approved; it is only ever the colour count he objected to.
     // EVERYTHING BELOW IS THE OLD DRAWING, MOVED — not redrawn. The wrist, the
     // fist, the strap, the case and the LCD keep their own coordinates and their
     // own order; the translate is the whole of the change, so the thing the user
@@ -1773,15 +1779,6 @@ export function makeHud(purse: Purse): Hud {
     // Drawn BEFORE the strap and the case so it can never overlap them; it butts
     // at x 104 where the wrist ends, and the strap lives at 38…82.
     g.fillStyle = '#c9946a'; g.fillRect(104, 0, 72, 72);
-    // …and the fist KEEPS its light-from-the-right shading. *"right so i just
-    // wanted the strip on the arm gone not the full limb"* (2026-08-04). A pass
-    // that flattened the whole limb went too far and these two were put back at
-    // their original numbers. The wrist no longer carries the matching pair, so
-    // the dark strip below now starts exactly where the removed wrist highlight
-    // used to end — THAT IS THE ASKED-FOR RESULT, not a seam to design around.
-    // Do not soften it, blend it, or retune either value to match.
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(166, 0, 10, 72);
-    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(104, 0, 4, 72);   // the wrist's shadow on it
     g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
     g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
