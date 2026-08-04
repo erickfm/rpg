@@ -2600,7 +2600,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     box(0.62, 0.13, 0.66, -1.35, RY + 0.60, 4.72, blankM, -0.22);
     const sheetM = new THREE.MeshBasicMaterial({ color: 0xb3ab97 });
     box(0.70, 0.06, 0.88, -2.55, RY + 0.47, 4.86, sheetM);
-    box(0.46, 0.11, 0.30, -2.86, RY + 0.50, 4.74, new THREE.MeshBasicMaterial({ color: 0xd0cabb }), 0.14); // dented pillow
+    // The pillow lies ACROSS the head of the bed, not along it. The frame is
+    // 1.90 in x by 0.92 in z, so the long axis is x and the head is the low-x
+    // end (it is the end the turned-back sheet covers, and the end the blanket
+    // heap is thrown away from). The pillow was 0.46 in x by 0.30 in z — its
+    // long side pointing down the bed, i.e. turned ninety degrees off. Swapped:
+    // 0.30 down the bed, 0.46 across it.
+    //
+    // Its POSITION was off too, not only its angle. At x −2.86 with a 0.46
+    // half-span it reached to −3.09, and the mattress stops at −3.03 — the old
+    // pillow poked 6 cm out through the head of the bed into the wall. Turned,
+    // it spans −3.01…−2.71 and sits on the mattress. In z it sat at 4.74
+    // against a mattress centred on 4.86, hanging 0.12 toward the near edge;
+    // centred now, with the 0.14 rad tilt kept because the bed is unmade.
+    box(0.30, 0.11, 0.46, -2.86, RY + 0.50, 4.86, new THREE.MeshBasicMaterial({ color: 0xd0cabb }), 0.14); // dented pillow
     // ── sleep ────────────────────────────────────────────────────────────
     // The user: *"sleep in your room"*. It is the one thing a bed is for and
     // the room has had a bed since it was furnished.
