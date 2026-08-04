@@ -1622,11 +1622,13 @@ export function makeHud(purse: Purse): Hud {
   // the player's own clothing — one place to swap later (a real wardrobe).
   // `sleeve` is the forearm covering (a sweater here); a tee would just leave
   // the forearm as `skin`. The first-person hands (watch + wallet) read from it.
-  // `ink` is the CEL OUTLINE — the single dark line the reference image draws
-  // every edge of skin with. It is a tone, not black: 0.46 of the skin's own
-  // value, which is the ratio the reference holds between its outline and its
-  // fill. Black would read as a sticker cut out and laid on the street.
-  const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', ink: '#5d452f', sleeve: '#3f4a5c', cuff: '#333c4a' };
+  // `ink` is the OUTLINE, and the block ref wants it NEAR-BLACK. The first cut
+  // made it a tone — 0.46 of the skin's value, reasoned off an anime cel — and
+  // on screen at 2.75x it read as a pale ragged fringe rather than a drawn line,
+  // which is a good part of why the arm looked torn. The block ref outlines
+  // every shape in black and that is not a stylistic accident: a heavy dark line
+  // is what lets four flat blocks read as an object at all.
+  const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', ink: '#17120e', sleeve: '#3f4a5c', cuff: '#333c4a' };
   // ── THE ARM, AND THE FOUR NUMBERS THAT HOLD IT IN PLACE ──────────────────
   //
   // *"for the watch i would like the rest of the arm (to the left) rendered as
@@ -1869,243 +1871,218 @@ export function makeHud(purse: Purse): Hud {
     watchCv.style.cssText = WATCH_CSS;
   }
   // the wrist-and-watch close-up (the good one — arm version was reverted)
+  /**
+   * ── THE ARM AND HAND: FIVE FLAT BLOCKS ───────────────────────────────────
+   *
+   * *"wow the arm looks soooo bad. i was hoping you could look at the ref and
+   * try to think about how to imagine it in this style here. not to try to draw
+   * the ref in this world. here's another ref closer to what i would imagine you
+   * creating. since it seem difficult for you to adstractly hop to the ideal."*
+   * (2026-08-04, with a second image)
+   *
+   * THE FIRST REFERENCE WAS AN ANIME CEL AND I COPIED ITS SURFACE. Outline,
+   * curved silhouette, knuckle ridge, two creases, hard-edged shadow shapes — I
+   * read "inspo" as "reproduce, minus the parts that do not fit". That was the
+   * error, and the second image is him showing me the answer rather than
+   * describing it again: **four or five flat blocks and nothing else.**
+   *
+   *     · a tapered quad for the forearm, running off the frame
+   *     · one solid BLACK band across it
+   *     · two overlapping near-rectangles for the hand, rotated off the
+   *       forearm's axis so they are not parallel to it
+   *     · one small tab for the thumb
+   *     · one flat fill per block, a thin dark outline on every block, and
+   *       NO INTERIOR MARKS OF ANY KIND
+   *
+   * It reads as a hand from BLOCK ARRANGEMENT AND ANGLE. Not from drawing. The
+   * move was toward fewer and flatter, and I went toward better-drawn, which is
+   * the opposite. Everything I added on the last pass is gone: the knuckle
+   * ridge, both creases, the curl shadow, the wrist's cast shadow, the swelling
+   * silhouette. What survives is the one mark that was right — the outline —
+   * because the block ref outlines every shape too.
+   *
+   * ── THE FOUR JUDGEMENT CALLS, AND WHAT I CHOSE ───────────────────────────
+   *
+   * **THE DIAGONAL: already ours, nothing to do.** The ref's arm sits diagonally
+   * and this canvas is a horizontal 776 x 72 strip — but the strip is only the
+   * storage. `WATCH_TILT` rotates the whole element -18° in CSS, so on screen
+   * the arm already runs down-to-the-left exactly as the ref does, and the 600
+   * px of canvas is what lets it still reach the edge of a 3840 frame. Drawing
+   * the diagonal INTO the canvas would rotate it twice. What the ref has and we
+   * did not is the second angle: its hand blocks are rotated OFF the forearm's
+   * axis, so arm and hand are not one parallel slab. That is `HAND_ROT` below,
+   * and it is the whole of what "sits diagonally" adds here. `WATCH_TILT` is
+   * untouched — it is Erick's own number from *"a bit of a steeper angle"*, and
+   * the fist-corner measurement `WATCH_DROP` depends on is taken at -18°.
+   *
+   * **THE BLACK BAND IS THE WATCH STRAP. There is no cuff.** The ref puts it
+   * exactly where a strap goes — hard against the hand, not back at a sleeve —
+   * and he was already cool on a cuff. So the strap it is, widened from 44 px to
+   * 84 and flattened to one black with no highlight, which is what makes it the
+   * strongest element on the arm the way it is in the ref. The case, the face
+   * and the digits sit on it untouched to the pixel; the strap was never part of
+   * them.
+   *
+   * **THE RECEDE GRADIENT DOES NOT SURVIVE. The taper does.** They were one idea
+   * — make the far end read as further away — and the ref keeps the half that is
+   * a shape and drops the half that is shading: its forearm is a flat tapered
+   * quad with an outline, and there is no gradient anywhere in it. The taper and
+   * the outline now carry the recession alone. This deletes a mechanism the file
+   * argued for at length, deliberately, on his instruction.
+   *
+   * **ITEM 216'S LIGHT DIRECTION HAS NOTHING LEFT TO ACT ON.** Its rule was that
+   * the hand and the wrist carry the IDENTICAL shading values so the two read as
+   * one limb rather than a hand in a glove. In a treatment with no interior
+   * shading the rule is not broken, it is satisfied trivially — both are the
+   * same flat fill. A lone highlight strip kept on the wrist would have been the
+   * one shaded thing in a picture built to have none. Flagging it rather than
+   * burying it, because it is a documented decision and I am overriding it.
+   *
+   * The one place a second tone survives is the FINGER BLOCK, and that is the
+   * ref's own move: its second block is a more saturated yellow. A different
+   * flat fill on a different block is not shading — it is how the ref separates
+   * two overlapping shapes without drawing anything between them.
+   */
   const drawWatch = (mins: number) => {
     const g = watchCv.getContext('2d')!;
     g.clearRect(0, 0, WATCH_W, 72);
+    type Pt = [number, number];
+    const INK_W = 2;             // outline weight, in canvas texels
+    /**
+     * ONE FLAT BLOCK: a convex polygon, hard texel edges, a one-texel outline,
+     * nothing inside it. Every shape past the forearm is drawn with this and
+     * there is no second drawing primitive in this function any more.
+     *
+     * COLUMN BY COLUMN, never `fill()` on a path, for the reason the forearm has
+     * always documented: the canvas is painted at 1x and blown up 2.75x with
+     * `image-rendering:pixelated`, so an antialiased edge becomes a three-texel
+     * smear. Sampled at `x + 0.5` so a column never lands exactly on a vertex.
+     *
+     * The outline is TWO STAIRCASE RAILS plus a cap at each end — each column
+     * spans from the previous column's boundary to its own — because one dot per
+     * column gaps wherever an edge climbs faster than a row per column, and a
+     * gapped outline reads as a dashed line. I shipped that bug on the last pass
+     * and it is why the rails exist rather than a dot.
+     */
+    const block = (pts: Pt[], fill: string) => {
+      const xs = pts.map((q) => q[0]);
+      const x0 = Math.floor(Math.min(...xs)), x1 = Math.ceil(Math.max(...xs));
+      const lo: number[] = [], hi: number[] = [];
+      for (let x = x0; x < x1; x++) {
+        const s = x + 0.5;
+        let a = Infinity, b = -Infinity;
+        for (let i = 0; i < pts.length; i++) {
+          const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % pts.length];
+          if ((ax <= s && bx > s) || (bx <= s && ax > s)) {
+            const y = ay + (s - ax) / (bx - ax) * (by - ay);
+            if (y < a) a = y;
+            if (y > b) b = y;
+          }
+        }
+        lo[x - x0] = a; hi[x - x0] = b;
+      }
+      g.fillStyle = fill;
+      for (let i = 0; i < lo.length; i++) {
+        if (!isFinite(lo[i])) continue;
+        const t = Math.round(lo[i]), b = Math.round(hi[i]);
+        if (b > t) g.fillRect(x0 + i, t, 1, b - t);
+      }
+      // TWO TEXELS, GROWING INWARD. One was the first cut and it was wrong twice
+      // over: at 2.75x a single texel that steps every few columns reads as a
+      // torn edge rather than a line, and the ref's own line weight is about 2%
+      // of its block — 1.4 texels on a block this size, so 2 is the honest
+      // round. Inward, so the silhouette the blocks agree on does not grow.
+      g.fillStyle = player.ink;
+      const rail = (at: (i: number) => number, down: boolean) => {
+        let prev = NaN;
+        for (let i = 0; i < lo.length; i++) {
+          if (!isFinite(lo[i])) { prev = NaN; continue; }
+          const t = Math.round(at(i)), q = isFinite(prev) ? prev : t;
+          const a = Math.min(t, q), b = Math.max(t, q);
+          if (down) g.fillRect(x0 + i, a, 1, b - a + INK_W);
+          else g.fillRect(x0 + i, a - INK_W + 1, 1, b - a + INK_W);
+          prev = t;
+        }
+      };
+      rail((i) => lo[i], true); rail((i) => hi[i] - 1, false);
+      for (const i of [0, lo.length - 1]) {
+        if (i < 0 || !isFinite(lo[i])) continue;
+        const t = Math.round(lo[i]), b = Math.round(hi[i]);
+        const c = i === 0 ? x0 : x0 + i - INK_W + 1;
+        g.fillRect(c, t, INK_W, Math.max(1, b - t));
+      }
+    };
+    /** a rectangle rotated about its own centre — the ref's hand is two of these */
+    const slab = (cx: number, cy: number, w: number, h: number, deg: number): Pt[] => {
+      const r = deg * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+      return ([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([sx, sy]) => {
+        const dx = sx * w / 2, dy = sy * h / 2;
+        return [cx + dx * c - dy * s, cy + dx * s + dy * c] as Pt;
+      });
+    };
     // ── THE FOREARM ───────────────────────────────────────────────────────
     //
-    // STEP 2 of an incremental rebuild (an all-at-once redraw was rejected, and
-    // an earlier arm was tried and reverted — so this adds LENGTH and changes
-    // nothing else). Step 1 ran the wrist off the left edge of its own canvas;
-    // the canvas simply ended there, which is the stub the user is looking at.
+    // The ref's first block: a TAPERED QUAD running off the edge of the picture.
+    // Which is what this already was, so its geometry is untouched — `armTop` is
+    // the same staircase it has been, narrowing 26 px over the 300 px nearest
+    // the elbow and holding flat beyond that, and the 600 px length is still
+    // what reaches the left edge of a 3840 frame.
     //
-    // ONE BAND, the same skin tone and the same y 6…72 as the wrist, so there is
-    // no seam to see: the wrist below is drawn by the identical `fillRect` it
-    // always was, just further along the same band.
-    // …AND IT NARROWS AS IT GOES BACK. A limb receding from your own eye
-    // foreshortens; a band of one thickness for its whole length is the other
-    // half of why the flat version read as a plank rather than an arm, and the
-    // taper is what stops the top edge being a ruler line. It is anatomically
-    // backwards — a real forearm is THICKER at the elbow — and perspective wins
-    // by a mile at this range: the elbow is roughly three times as far from the
-    // eye as the wrist.
-    //
-    // DRAWN COLUMN BY COLUMN, so the slope is a texel STAIRCASE. This canvas is
-    // upscaled 2.75x with `image-rendering:pixelated`; a `lineTo` diagonal would
-    // be antialiased first and then magnified, which is the one soft edge in a
-    // world drawn entirely in hard texels. 600 one-pixel fillRects, twice, on a
-    // canvas repainted once a minute.
+    // WHAT CHANGED IS WHAT IS NO LONGER DRAWN ON IT. The recede gradient is
+    // gone (see the note above the function): the block ref has no shading
+    // inside any shape, and the taper plus the outline are what carry "this end
+    // is further away" now.
     const ARM_TAPER = 26;        // canvas px thinner at the far end
     const ARM_TAPER_RUN = 300;   // over which it narrows, then holds
     const armTop = (x: number) =>
       6 + Math.round(ARM_TAPER * Math.min(1, (WATCH_ARM - x) / ARM_TAPER_RUN));
-    const armColumns = () => {
-      for (let x = 0; x < WATCH_ARM; x++) { const t = armTop(x); g.fillRect(x, t, 1, 72 - t); }
-    };
-    g.fillStyle = player.skin; armColumns();
-    // …AND IT IS DRAWN, NOT CUT OUT. *"take a look at this image for inspo on
-    // hand and arm design btw"* (2026-08-04) — an anime cel of a wrist and a
-    // relaxed hand. Strip that image of everything specific to it and the one
-    // thing left is that EVERY EDGE OF SKIN IS A DARK LINE. Our limb had none:
-    // it was a flat tan region butting straight onto the road, which is why it
-    // read as a shape sitting on the screen rather than an arm in the world.
-    // One texel, the length of the limb, `player.ink`.
-    //
-    // BEFORE THE GRADIENT, ON PURPOSE. The recede pass below covers these same
-    // columns, so the outline darkens with the limb it belongs to instead of
-    // staying a constant near-black stripe that gets LIGHTER than the arm at the
-    // elbow end. Drawn as a staircase — each column spans from the previous
-    // column's top edge to its own — because a 1 px dot per column leaves holes
-    // wherever `armTop` steps, and holes in an outline read as a dashed line.
-    const inkTop = (top: (x: number) => number, x0: number, x1: number) => {
-      let prev = Math.round(top(x0));
-      for (let x = x0; x < x1; x++) {
-        const t = Math.round(top(x));
+    // the limb runs PAST the wrist and under the hand blocks, exactly as the
+    // ref's forearm quad does — its end is covered rather than butted against.
+    // It also keeps the limb touching the bottom of the canvas at the inner end,
+    // which is the corner `WATCH_DROP` is measured against and is ~1.0 px from
+    // its floor: whatever the hand blocks do above, the arm still meets the
+    // frame edge and cannot float.
+    const LIMB_END = WATCH_ARM + 110;
+    g.fillStyle = player.skin;
+    for (let x = 0; x < LIMB_END; x++) {
+      const t = x < WATCH_ARM ? armTop(x) : 6;
+      g.fillRect(x, t, 1, 72 - t);
+    }
+    // its one mark: the top edge, at the SAME `INK_W` the blocks carry. It ran
+    // at one texel while they ran at two, and on screen the arm read as the
+    // lighter-drawn thing next to its own hand. There is one line weight in this
+    // picture. Staircased for the anti-dashing reason `block` documents; no
+    // outline along the bottom, because that edge is a crop, not a silhouette.
+    g.fillStyle = player.ink;
+    {
+      let prev = armTop(0);
+      for (let x = 0; x < LIMB_END; x++) {
+        const t = x < WATCH_ARM ? armTop(x) : 6;
         const a = Math.min(t, prev), b = Math.max(t, prev);
-        g.fillRect(x, a, 1, b - a + 1);
+        g.fillRect(x, a, 1, b - a + INK_W);
         prev = t;
       }
-    };
-    g.fillStyle = player.ink; inkTop(armTop, 0, WATCH_ARM);
-    // …and it RECEDES. The wrist's shading is "light from the right", carried by
-    // a 10 px `rgba(0,0,0,0.15)` cap that used to sit at the cut end and would
-    // now be a dark stripe across the middle of a limb, which is exactly the
-    // "two limbs" failure to avoid — so it is gone, and the same tone is spread
-    // over the whole new length instead, deepest at the elbow end.
-    //
-    // A GRADIENT, not bands, and the pixel art survives it: the canvas is
-    // painted at 1x and upscaled `image-rendering:pixelated`, so this resolves
-    // to 600 one-texel steps shown 2.75 px wide — banded at the texel scale like
-    // everything else here, with no step big enough to read as an edge. The
-    // stop at the wrist end is fully transparent, so the join is not a join.
-    //
-    // THE RAMP IS A RATE, NOT A FRACTION OF THE CANVAS, and the first cut got
-    // that wrong: spread over all 600 px it reached only 0.07 by the edge of a
-    // 1280-wide frame and the arm read dead flat. `WATCH_ARM` is sized for a
-    // 3840 viewport, so on any normal screen most of it is off-frame — the
-    // shading has to be spent where the player can see it. 240 canvas px is the
-    // 242 that reach the left edge of a 1280 frame; past that the gradient
-    // clamps to its end stop and the arm simply stays in shadow, which is what
-    // a limb going back out of the light does.
-    //
-    // THE RAMP GOT DEEPER WHEN THE ARM GOT STEEPER, and that is not a taste
-    // change. At 5° the visible forearm ran the whole width of the frame and
-    // 0.18 was spread over all of it; at 18° it leaves the bottom edge after
-    // about 250 canvas px, so the same ramp now has a quarter of the frame to
-    // work in and read as flat there. 0.32 over the same 240 px is what makes
-    // the far end look further away rather than merely darker.
-    const RECEDE = 240;
-    const recede = g.createLinearGradient(WATCH_ARM - RECEDE, 0, WATCH_ARM, 0);
-    recede.addColorStop(0, 'rgba(0,0,0,0.32)');
-    recede.addColorStop(1, 'rgba(0,0,0,0)');
-    // the SAME columns, so the shading cannot land where the limb is not — a
-    // gradient is in canvas space, so it spans the separate fills correctly
-    g.fillStyle = recede; armColumns();
-    // EVERYTHING BELOW IS THE OLD DRAWING, MOVED — not redrawn. The wrist, the
-    // fist, the strap, the case and the LCD keep their own coordinates and their
-    // own order; the translate is the whole of the change, so the thing the user
-    // said he liked cannot have drifted by a pixel.
+      g.fillRect(LIMB_END - INK_W, 6, INK_W, 66);   // end cap, covered by the hand
+    }
+    // Everything from here is in WRIST SPACE: x 0 is the near end of the arm,
+    // and the case, the face and the digits keep the coordinates they have had
+    // since item 216 — untouched to the pixel, as asked.
     g.save();
     g.translate(WATCH_ARM, 0);
-    g.fillStyle = player.skin; g.fillRect(0, 6, 104, 66);        // wrist, cut by the frame
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
-    // ── THE HAND ──────────────────────────────────────────────────────────
+    // ── THE BLACK BAND ────────────────────────────────────────────────────
     //
-    // TWO OF HIS ASKS MEET HERE AND THEY DISAGREE, so the disagreement is the
-    // design. The first built this object:
+    // In the ref this is the strongest thing on the arm and it is the element I
+    // had least of: a broad, solid, unbroken black. Ours was a 44 px strap with
+    // a 56 px case sitting on top of it, so the band was invisible — the watch
+    // was all case and no strap.
     //
-    //   *"it actually should be really minimal considering it would be the top
-    //   of the fist. no fingers would actually show so i kinda expect a square
-    //   larger in width than the wrist attached to the right side of the
-    //   wrist."*
-    //
-    // and it was answered literally — `fillRect(104, 0, 72, 72)`, one box, no
-    // fingers, no knuckles, no taper. Then:
-    //
-    //   *"take a look at this image for inspo on hand and arm design btw"*
-    //   (2026-08-04)
-    //
-    // and the image is a RELAXED, LOOSELY CURLED hand — fingers falling in
-    // toward the palm, the index knuckle the high point, a rounded far end, the
-    // thumb tucked out of sight. Not a fist and not a square.
-    //
-    // HE IS NOT TAKING "MINIMAL" BACK. Look at what the reference actually
-    // spends its lines on and it is minimal too: a silhouette, three curved
-    // strokes, and two flat hard-edged shadow shapes. It has no rendering, no
-    // gradient and no knuckle modelling. What he was right about was the LINE
-    // BUDGET; what the box got wrong was the SHAPE. So this keeps every claim he
-    // made — no fingers drawn as fingers, no thumb, still wider than the wrist
-    // (71 px at the knuckle against the wrist's 66) — and spends the same
-    // handful of marks on a hand-shaped outline instead of a rectangle.
-    //
-    // AND THE CAMERA IS STILL OURS, NOT THE REFERENCE'S. That image is a side-on
-    // view of someone else's hand at arm's length; we are looking down the back
-    // of our own from 40 cm. From here the curled fingers are BEHIND the knuckle
-    // ridge and mostly hidden, which is exactly what he worked out himself the
-    // first time. They are two creases at the far end, not four fingers.
-    //
-    // ┌ THE SILHOUETTE, and the one line of it that is load-bearing ───────────
-    // │ `handBot` is FLAT 72 for the inner half. That is not a shape choice —
-    // │ the hand's inner bottom corner sitting below the frame is the invariant
-    // │ `WATCH_DROP` is measured against, and it is now ~1.0 px from its floor.
-    // │ Lifting the bottom edge anywhere left of u 0.52 spends drop budget that
-    // │ does not exist. The far end is free: at drop 4.5 the OUTER bottom corner
-    // │ is ~60 px inside the frame, so rounding it costs nothing and removes the
-    // │ squared-off corner that made the box read as a box.
-    // └───────────────────────────────────────────────────────────────────────
-    //
-    // Ends at 174, not 176. `WATCH_HAND` stays 176 — every derived number in
-    // this file (`WATCH_W`, `WATCH_LEFT`, `WATCH_PIVOT`) hangs off it — the hand
-    // simply no longer fills its last two columns, because a silhouette that
-    // runs into the canvas edge is a silhouette with one edge missing.
-    const HAND_L = 104, HAND_R = 174, HAND_W = HAND_R - HAND_L;
-    const hu = (x: number) => (x - HAND_L) / HAND_W;
-    /** the back of the hand: swells off the wrist to the knuckle, then rounds. */
-    const handTop = (x: number) => {
-      const u = hu(x);
-      if (u <= 0.55) return 6 - 5 * Math.sin((u / 0.55) * Math.PI / 2);   // 6 → 1, the knuckle rise
-      if (u <= 0.80) return 1 + 3 * Math.pow((u - 0.55) / 0.25, 2);       // 1 → 4, the flat back
-      return 4 + 34 * Math.pow((u - 0.80) / 0.20, 1.7);                   // 4 → 38, the round-off
-    };
-    /** the underside: cut by the frame, then curls away where the fingers do. */
-    const handBot = (x: number) => {
-      const u = hu(x);
-      if (u <= 0.52) return 72;                                           // the invariant, see above
-      return 72 - 26 * Math.pow((u - 0.52) / 0.48, 1.9);                  // 72 → 46, the curl
-    };
-    const handColumns = (from: number, to: number, top: (x: number) => number) => {
-      for (let x = from; x < to; x++) {
-        const t = Math.round(top(x)), b = Math.round(handBot(x));
-        if (b > t) g.fillRect(x, t, 1, b - t);
-      }
-    };
-    // Column by column, like the forearm and for the identical reason: a filled
-    // path would be antialiased at 1x and then magnified 2.75x, and one soft
-    // edge in a world of hard texels is the thing you cannot un-see.
-    g.fillStyle = player.skin; handColumns(HAND_L, HAND_R, handTop);
-    // ── THE SHADING: FLAT SHAPES BOUNDED BY LINES ───────────────────────────
-    //
-    // The reference has no gradients on skin at all — it has two or three flat
-    // regions with hard edges, and the edge IS the drawing. What it does NOT
-    // get to change is our light direction: the wrist has been lit from the
-    // right since item 216 and the file's own note says the fist carries "the
-    // identical rgba values, not a matched-by-eye pair". Those values are kept
-    // to the digit; only their SHAPE changes, from axis-aligned strips to
-    // regions that follow the form.
-    //
-    // The knuckle ridge is the boundary of the lit plane. The DRAWN stroke below
-    // covers only the middle of that boundary and the lit shape runs on past
-    // both ends of it — which is the reference's habit, not an oversight: its
-    // shadow shapes are bounded by lines that stop before the shape does.
-    const KNUCK = (x: number) => handTop(x) + 8;
-    g.fillStyle = 'rgba(255,255,255,0.12)';
-    for (let x = HAND_L + 24; x < HAND_R - 4; x++) {
-      const t = Math.round(handTop(x)) + 1;
-      const k = Math.min(Math.round(KNUCK(x)), Math.round(handBot(x)) - 1);
-      if (k > t) g.fillRect(x, t, 1, k - t);
-    }
-    // the wrist's shadow ON the hand — same 0.10 as before, now following the
-    // silhouette's own top edge instead of a 4 px vertical slab
-    g.fillStyle = 'rgba(0,0,0,0.10)'; handColumns(HAND_L, HAND_L + 5, handTop);
-    // …and the underside of the curl, which is the reference's most
-    // characteristic shadow: the curled fingers face DOWN, so they are dark
-    // whichever side the light is on. Hard top edge, hugging `handBot`.
-    g.fillStyle = 'rgba(0,0,0,0.14)';
-    for (let x = HAND_L + 40; x < HAND_R; x++) {
-      const b = Math.round(handBot(x));
-      const t = Math.max(Math.round(handTop(x)) + 1, b - 16);
-      if (b > t) g.fillRect(x, t, 1, b - t);
-    }
-    // ── THE OUTLINE AND THE THREE STROKES ───────────────────────────────────
-    //
-    // The top edge is outlined and the inner bottom edge is NOT, which is the
-    // same rule the reference uses: a limb cropped by the frame has no line
-    // along the crop. Past u 0.52 the underside stops being a crop and becomes
-    // a real silhouette, so the line picks up there.
-    g.fillStyle = player.ink;
-    g.fillRect(0, 6, HAND_L, 1);                                 // the wrist's own top edge
-    inkTop(handTop, HAND_L, HAND_R);
-    inkTop((x) => handBot(x) - 1, HAND_L + Math.ceil(0.52 * HAND_W), HAND_R);
-    // THREE STROKES, WHICH IS THE WHOLE BUDGET. The reference's hand carries
-    // about that many and nothing else. A quadratic Bézier walked as texels —
-    // 64 samples over ~30 px, so it cannot gap — never `quadraticCurveTo`, which
-    // would antialias.
-    const stroke = (x0: number, y0: number, cx: number, cy: number, x1: number, y1: number) => {
-      for (let i = 0; i <= 64; i++) {
-        const t = i / 64, m = 1 - t;
-        g.fillRect(Math.round(m * m * x0 + 2 * m * t * cx + t * t * x1),
-                   Math.round(m * m * y0 + 2 * m * t * cy + t * t * y1), 1, 1);
-      }
-    };
-    inkTop(KNUCK, HAND_L + 30, HAND_R - 16);   // the knuckle ridge — a staircase,
-    // not a dot per column: the first cut drew it with `fillRect(x, KNUCK(x), 1, 1)`
-    // and past the middle of the hand `KNUCK` climbs faster than one row per
-    // column, so it came out as a dashed line. Same failure the forearm's
-    // outline is written to avoid, made twice in one function.
-    stroke(146, 12, 162, 20, 168, 44);   // index/middle, the long one in the reference
-    stroke(140, 40, 152, 46, 160, 60);   // the crease below it, shorter, as it is there
-    g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
-    g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
+    // 78 px wide now — 14…92 along the bottom, 20…98 along the top — with the
+    // 56 px case sitting on it, so black shows clear on both sides of the case
+    // and above and below it. That 6 px offset is a SHEAR, not a mistake: the
+    // ref's band is a parallelogram because it is wrapping a round arm. Flat
+    // black, no highlight — the 0.08 white edge the old strap carried was the
+    // last piece of interior shading anywhere on this object.
+    block([[20, 6], [98, 6], [92, 72], [14, 72]], '#0d0f13');
     g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
     g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
     g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);         // LCD
@@ -2115,8 +2092,33 @@ export function makeHud(purse: Purse): Hud {
     g.fillText(`${hh}:${m2}`, 60, 38);
     g.fillStyle = '#8a8d95'; g.font = '5px monospace';
     g.fillText('CROSSTOWN QUARTZ', 60, 50);
+    // ── THE HAND: TWO SLABS AND A TAB ─────────────────────────────────────
+    //
+    // `HAND_ROT` is the second angle, and it is the thing that makes this read
+    // as a hand rather than as more arm. The ref's hand blocks are turned off
+    // the forearm's axis — the wrist is a hinge, so the hand is never parallel
+    // to the arm. +6° in canvas space is -12° on screen against the arm's -18°:
+    // the hand sits FLATTER than the forearm, which is the direction the ref
+    // turns it and the direction a hand actually falls.
+    //
+    // 6, NOT THE 12 I TRIED FIRST. At 12 the net came out near -6° — close
+    // enough to screen-horizontal that the hand stopped reading as part of a
+    // diagonal arm and started reading as a rectangle of UI. The point of the
+    // second angle is that the hand differs from the arm, not that it levels
+    // out. Looked at on 5177, both ways.
+    //
+    // ORDER IS THE DRAWING. Fingers first, hand over them, thumb last: the ref
+    // separates its two overlapping blocks with nothing but overlap and a
+    // different flat fill, so the block in front simply covers the one behind
+    // and what is left showing IS the finger block. No line is drawn between
+    // them, because there is not one in the ref either.
+    const HAND_ROT = 6;
+    block(slab(158, 26, 28, 40, HAND_ROT), player.skinLo);      // fingers, behind and darker
+    block(slab(126, 34, 50, 54, HAND_ROT), player.skin);        // the back of the hand
+    block(slab(120, 62, 24, 14, HAND_ROT), player.skin);        // the thumb, a tab under it
     g.restore();
   };
+
   const WALLET_W = 180, WALLET_H = 140;
   let walletWrap = document.getElementById('ct-wallet') as HTMLDivElement | null;
   let walletCv: HTMLCanvasElement;

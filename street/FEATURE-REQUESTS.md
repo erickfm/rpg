@@ -3594,6 +3594,75 @@ which is not a shape choice: that inner bottom corner is what `WATCH_DROP` is
 measured against and it is ~1.0 px from its floor. Only the far end rounds, where
 the outer corner sits ~60 px inside the frame and costs nothing.
 
+## 2026-08-04 — "wow the arm looks soooo bad" + the block reference
+
+Verbatim: *"wow the arm looks soooo bad. i was hoping you could look at the ref
+and try to think about how to imagine it in this style here. not to try to draw
+the ref in this world. here's another ref closer to what i would imagine you
+creating. since it seem difficult for you to adstractly hop to the ideal."*
+(`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-04 13-14-52.png`)
+
+**The entry above this one is what he is rejecting, and the diagnosis in it was
+wrong.** I read "inspo" as "reproduce the anime cel minus the parts that do not
+fit" and delivered detail — outline, curved silhouette, knuckle ridge, two
+creases, hard-edged shadow shapes. The move he wanted was toward FEWER and
+FLATTER; I went toward better-drawn, which is the opposite direction. The second
+image is him showing the answer rather than describing it a third time.
+
+**The block ref is now the target and the anime still is mood only.** Four or
+five flat blocks: a tapered quad for the forearm running off the frame, one solid
+black band across it, two overlapping near-rectangles for the hand rotated off
+the forearm's axis, one small tab for the thumb. One flat fill per block, a
+dark outline on every block, and **no interior marks of any kind**. It reads as a
+hand from block arrangement and angle, not from drawing.
+
+Gone: the knuckle ridge, both creases, the curl shadow, the wrist's cast shadow,
+the swelling silhouette, and the recede gradient. Kept from the last pass: the
+outline, and only because the block ref outlines every shape too.
+
+**The four judgement calls, and what I chose.**
+
+*The diagonal is already ours.* The ref's arm sits diagonally; this canvas is a
+horizontal 776 x 72 strip, but the strip is only storage — `WATCH_TILT` rotates
+the element -18° in CSS, so on screen the arm already runs down-to-the-left as
+the ref does, and the 600 canvas px is what still reaches the edge of a 3840
+frame. Drawing the diagonal into the canvas would rotate it twice. What the ref
+has that we did not is the SECOND angle: its hand blocks are turned off the
+forearm's axis, so arm and hand are not one parallel slab. That is `HAND_ROT`,
+and it is all "sits diagonally" adds here. `WATCH_TILT` untouched — it is his own
+number, and `WATCH_DROP`'s corner measurement is taken at -18°.
+
+*The black band is the watch strap. No cuff.* The ref puts it exactly where a
+strap goes, hard against the hand rather than back at a sleeve, and he was
+already cool on a cuff. Widened 44 px → 78 and flattened to one black with no
+highlight, which is what makes it the strongest element on the arm the way it is
+in the ref. The case, face and digits sit on it untouched to the pixel; the strap
+was never part of them.
+
+*The recede gradient does not survive; the taper does.* They were one idea — make
+the far end read as further away — and the ref keeps the half that is a shape and
+drops the half that is shading. Taper plus outline now carry it alone. This
+deletes a mechanism the file argued for at length, on his instruction.
+
+*Item 216's light direction has nothing left to act on.* Its rule was that hand
+and wrist carry IDENTICAL shading values so the two read as one limb rather than
+a hand in a glove. With no interior shading the rule is satisfied trivially —
+both are the same flat fill. A lone highlight kept on the wrist would have been
+the one shaded thing in a picture built to have none. Flagged rather than buried,
+because it is a documented decision and I am overriding it.
+
+**I looked at it on 5177 before saying it was live**, which is what would have
+caught the last one, and it took three passes to stop looking bad:
+
+- the outline at 0.46 of the skin's value was a pale ragged fringe at 2.75x, not
+  a line. Near-black now, and **two texels, not one** — a single texel that steps
+  every few columns reads as a torn edge.
+- the forearm's outline was one texel while the blocks were two, so the arm read
+  as the lighter-drawn thing next to its own hand. One line weight now.
+- `HAND_ROT` 12 put the hand at -6° on screen, near enough to horizontal that it
+  read as a rectangle of UI rather than part of a diagonal arm. 6 keeps the
+  diagonal while still differing from the forearm.
+
 ## 2026-08-04 — "the e dialog should always be above anything else"
 
 Verbatim: *"also the e dialog should always be above anything else. never behind"*
