@@ -1899,6 +1899,36 @@ export function makeHud(purse: Purse): Hud {
     // compensations above absorb that — the limb does not move), or slide it
     // with THUMB_X — one number each.
     g.fillStyle = '#c9946a'; g.fillRect(THUMB_X, WATCH_LIMB_H, THUMB_W, THUMB_D);
+    // ── AND THE WEDGE THAT JOINS IT TO THE WRIST ──────────────────────────
+    //
+    // *"add triangle connecting left corner of thumb to wrist"* (2026-08-04).
+    // The thumb began at a hard vertical step, which read as a rectangle stuck
+    // under the hand rather than part of it. This ramps the underside down into
+    // it: three vertices, all in fist-local canvas px —
+    //
+    //     (THUMB_X - THUMB_BACK, 72)   the apex, back along the limb's underside
+    //     (THUMB_X, 72)                the thumb's upper-left corner
+    //     (THUMB_X, 72 + THUMB_D)      the thumb's lower-left corner
+    //
+    // THE APEX LANDS ON x 104, WHICH IS THE WRIST'S OWN END — the exact seam
+    // where the wrist stops and the fist begins. That is the landmark he named,
+    // and it is as far back as the wedge can go: the strap's lower overhang now
+    // occupies x 46…90 in this same band, so a longer ramp would run under the
+    // watch and be painted over by it. Shorten with THUMB_BACK; do not lengthen
+    // it past 36 without moving the strap.
+    //
+    // STEPPED ROWS, NOT A PATH FILL, AND THAT IS THE POINT. `fill()` on a
+    // diagonal antialiases, and this canvas is blown up 2.75x with
+    // `image-rendering:pixelated` — every blended edge pixel would become a
+    // 2.75 px block of half-transparent skin against the road. That is a second
+    // tone on a limb where the one flat tone is the thing he chose. One
+    // `fillRect` per row gives hard pixels and exactly `#c9946a`, and matches
+    // how every other shape on this arm is drawn.
+    const THUMB_BACK = 22;
+    for (let d = 0; d < THUMB_D; d++) {
+      const x0 = Math.round(THUMB_X - THUMB_BACK * (1 - d / THUMB_D));
+      g.fillRect(x0, WATCH_LIMB_H + d, THUMB_X - x0, 1);
+    }
     // ── THE ONE DARK STRIP ────────────────────────────────────────────────
     //
     // *"ok now ad the dark strip to the end of the limb"* (2026-08-04). THE END
