@@ -2293,36 +2293,46 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // is (74, 53, 36): warm by +38 R-over-B and dark at value 54. That is a
     // liquid.
     //
-    // ITEM 274 GOT THE DARKNESS RIGHT AND THE HUE WRONG. Erick, 2026-08-04:
-    // *"inside of mug on the windowsill is gray, the color doesn't match the
-    // rest of the mug"* — and he is describing the constant exactly. The body
-    // is (216, 210, 196), warm; what shipped was 0x6d6e6f = (109, 110, 111),
-    // a dead neutral with B fractionally ABOVE R. (The prose here argued for
-    // 0x6b7078 and the code had drifted to 0x6d6e6f; both are the same mistake,
-    // so the disagreement never mattered.) Rotating the shadow cool was a
-    // deliberate move away from coffee, but it moved past shade and into a
-    // DIFFERENT MATERIAL — which is the one thing the note above swore off.
+    // ITEM 274 GOT THE HUE WRONG **AND THE DARKNESS WRONG**, and the second
+    // one took two passes to see. Erick, 2026-08-04: *"inside of mug on the
+    // windowsill is gray, the color doesn't match the rest of the mug"* — so
+    // 0x6d6e6f = (109, 110, 111), a dead neutral with B above R, went to the
+    // body times 0.50 = (108, 105, 98) = 0x6c6962, which held 274's darkness
+    // and moved only hue. He looked again: *"inside of the mug looks identical
+    // to before to me."* He is right, and it was predictable — thirteen levels
+    // of blue at 40% value is nothing. **Hue is invisible at that darkness.**
+    // Fixing hue alone can never be a fix here; the value has to give.
     //
-    // Ceramic in shadow is the body colour times a scalar. So that is what it
-    // is now: the body at 50%, channel for channel.
+    // AND 274'S OWN PREMISE IS BACKWARDS. A near-black disc inside a pale cream
+    // cup is not what empty looks like — it is what COFFEE looks like. What you
+    // see looking into an empty mug from 22° is mostly the far INNER WALL, and
+    // that wall is lit ceramic, not shadow; only the small floor behind it is
+    // dark. This disc is the ONLY interior surface there is (the cylinder's top
+    // cap is solid — `openEnded` defaults false — so no inner wall is modelled),
+    // which means it has to AVERAGE the lit wall with the shadowed floor. x0.50
+    // is a pure shadow value. That is the whole reason it reads as full.
     //
-    //     body      (216, 210, 196)   x0.50 ->  (108, 105, 98)  = 0x6c6962
+    //     body      (216, 210, 196)   x0.65 ->  (140, 137, 127)  = 0x8c897f
     //
-    // THE DARKNESS IS UNCHANGED — value 108 against the old 111, three levels
-    // out of 255 — so nothing item 274 measured moves and the mouth cannot
-    // start reading as full. What changes is only the hue: R over B goes from
-    // -2 to +10, the body's own +20 scaled by the same half. It is not warm
-    // enough to be poured (coffee ran +38 at value 74) because it is not a
-    // rotation at all, it is the cup's own colour with the light taken away.
+    // Still the cup's own colour times a scalar — same ceramic, same warmth,
+    // R over B at +13 — but value 108 -> 140, which is a third brighter and
+    // the first change to this disc anyone can actually see.
     //
-    // The two goals turn out not to be in tension, which is why this is one
-    // constant and not a redesign. Channel-sum contrast, arithmetic on the
-    // constants rather than a re-measure (item 167's floor was 122):
+    // WHY 0.65 AND NOT LIGHTER, in channel sums (item 167's contrast floor was
+    // 122, and the sill it sits on is 0xa8a091 = 473):
     //
-    //     interior vs RIM   283 -> 311     still nothing like the 459 peg
-    //     interior vs SILL  143 -> 162     moved AWAY from the floor, not toward
+    //     interior vs RIM (622)    311 -> 218    still 96 clear of the floor,
+    //                                            so the mouth cannot flatten
+    //                                            back into the peg of item 108
+    //     interior vs SILL (473)   162 ->  69    stays DARKER than the sill, so
+    //                                            it is still the darkest thing
+    //                                            in frame and reads recessed
+    //
+    // Lighter than about x0.70 and the disc meets the sill's own tone, at which
+    // point the mug reads as a ring with a hole in it. That is the ceiling if he
+    // asks for lighter still; below x0.55 we are back in coffee.
     const brew = new THREE.Mesh(new THREE.CircleGeometry(MUG_R - 0.006, 12),
-      new THREE.MeshBasicMaterial({ color: 0x6c6962 }));
+      new THREE.MeshBasicMaterial({ color: 0x8c897f }));
     brew.position.set(AX(MUG_X), SILL_TOP + MUG_H + 0.001, AZI(MUG_Z));
     brew.rotation.x = -Math.PI / 2;
     scene.add(brew);
