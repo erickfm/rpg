@@ -3295,3 +3295,49 @@ This pays back the cost the desk reported when item 298 landed — the calendar 
 currently 0.60 m left of where it hung and 0.35 m left of where he asked, because
 the door's stand-point occupies the wall to its right. He is now asking for the
 harder fix instead of the cheap one, which is the right call.
+
+## 2026-08-03 21:05 — keep the door, move the calendar, shrink the radii
+
+> "i liked it how it was before i just want the calendar back to the right tho.
+> with the radius for all these things a bit less"
+
+**Routed to: worker onehundredthirtythree, live on item 308, messaged mid-item.**
+
+**Supersedes the door half of 308.** He likes the door as it behaves now, so the
+stand-point move stays reverted — that whole line of attack is closed. The
+deliverable is the calendar back where he asked.
+
+**His mechanism is better than the desk's.** The door dominated that wall because
+of REACH, not position: `onIt` admits any spot whose centre is inside the player's
+capsule, and past that the door still counts as `touching` at r 0.95 +
+TOUCH_MARGIN = 1.10 m. Shrinking radii means a spot only claims you when you are
+actually at it, which frees the wall without moving anything. The desk spent two
+items moving furniture around a problem that was a reach setting.
+
+**"all these things" is world-wide**, not 301 — he is describing a general feel
+that interactables grab him from too far away. Walked, not computed: "a bit less"
+is a feel, and the failure mode is overshooting into fiddly.
+
+## 2026-08-03 21:05 — keep the door, move the calendar, shrink the radii
+
+> "i liked it how it was before i just want the calendar back to the right tho.
+> with the radius for all these things a bit less"
+
+**Routed to: item 309, staffed immediately. The message reached worker
+onehundredthirtythree too late — it had already shipped 308 the other way.**
+
+**308 got the calendar all the way back (AX(-0.80), the full 0.60 m) BUT it did
+it by moving the door into its own doorway and shifting the bed's APPROACH ~0.95 m.
+That contradicts what he just said.** He likes the door as it was. Both moves are
+landed and verified, but they are not what he asked for.
+
+**His mechanism is better than the desk's and is now item 309.** The door dominated
+that wall through REACH, not position: `onIt` admits any spot whose centre is
+inside the player's capsule, and past that the door still counts as `touching` at
+r 0.95 + TOUCH_MARGIN = 1.10 m. Shrink the radii and a spot only claims you when
+you are actually at it — which frees the wall with nothing moved. The desk spent
+two items pushing furniture around a reach setting.
+
+**"all these things" is world-wide**, not 301 — a general feel that interactables
+grab him from too far away. Walked, not computed: "a bit less" is a feel, and the
+failure mode is overshooting into fiddly.
