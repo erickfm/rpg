@@ -21,6 +21,7 @@
 //
 // Usage: SHOT_URL=http://localhost:<port>/ node scripts/w29-sedan-climb.mjs
 import { chromium } from 'playwright';
+import { aim } from './lib/aim.mjs';
 
 const EYE = 1.62;          // fp.ts's standing eye height
 const TOL = 0.06;          // how close to a surface's own maxY counts as on it
@@ -30,7 +31,7 @@ const p = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
 p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4188/', { waitUntil: 'networkidle' });
+await p.goto(aim('http://localhost:4188/'), { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 
 const cols = await p.evaluate(() => window.__ct.colliders());

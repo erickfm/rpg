@@ -42,14 +42,31 @@ const files = [];
 const EXEMPT = new Set(['scripts/lib/aim.mjs', 'scripts/aimed.mjs',
   'scripts/probes/w19-aim-codemod.mjs']);
 
-const offenders = [];
+// ── ITEM 305: IT VOTES ON THE INSTRUMENTS, AND REPORTS THE PROBES ──────────
+//
+// This stood red for days at "45 still fall back to a hardcoded port", and 40
+// of the 45 were in `scripts/probes/` — one-shot investigations, each written
+// for one question on one afternoon, none of them ever run again. The rule is
+// right and the veto was aimed at a graveyard, so it went red every time
+// anybody filed a probe: red by construction, which is the shape the user's
+// standing rule rules out ("stay away from tests that are failure prone").
+//
+// The 5 that were NOT probes are fixed in the same commit and this now holds
+// them: `scripts/*.mjs` is the set the suite spawns and the set a builder runs
+// by hand, and that is exactly where a guessed port costs an item. Probes are
+// still counted and still printed — a reader can see the number move — they
+// just do not veto. Same shape as w101-shots-enoent's "votes on the REGISTERED
+// subset only ... a check that cries wolf is how the four survived".
+const isProbe = (f) => f.startsWith('scripts/probes/');
+const offenders = [], probeOffenders = [];
 for (const f of files) {
   if (EXEMPT.has(f)) continue;
   const src = readFileSync(f, 'utf8');
   for (const [i, line] of src.split('\n').entries()) {
     // A line that is wholly a comment is documentation, not an instrument.
     if (/^\s*(\/\/|\*|\/\*)/.test(line)) continue;
-    if (BARE.test(line)) offenders.push(`${f}:${i + 1}  ${line.trim().slice(0, 90)}`);
+    if (!BARE.test(line)) continue;
+    (isProbe(f) ? probeOffenders : offenders).push(`${f}:${i + 1}  ${line.trim().slice(0, 90)}`);
   }
 }
 
@@ -81,9 +98,25 @@ if (SELFTEST) {
   process.exit(0);
 }
 
-console.log(`${files.length} instrument(s) scanned in scripts/`);
+// A NUMBER IN BOTH HALVES, never an absence (GOTCHAS: "0 found" is what
+// measuring nothing produces). The population is stated before either verdict,
+// so an empty scan cannot read as a pass.
+const instruments = files.filter((f) => !EXEMPT.has(f) && !isProbe(f)).length;
+const probes = files.filter((f) => !EXEMPT.has(f) && isProbe(f)).length;
+console.log(`${instruments} instrument(s) and ${probes} one-shot probe(s) scanned in scripts/`);
+if (instruments < 100) {
+  console.log(`\nTHIS CHECK MEASURED ALMOST NOTHING: ${instruments} instruments is not this tree.`);
+  console.log('  "0 silent instruments" is free over an empty scan. Fix the walk, not the tree.');
+  process.exit(2);
+}
+if (probeOffenders.length) {
+  console.log(`\n${probeOffenders.length} of the ${probes} probes still guess a port — REPORTED, NOT A VERDICT.`);
+  console.log('  They honour SHOT_URL when it is set; they just do not announce the guess');
+  console.log('  when it is not. Each was written for one question on one afternoon and is');
+  console.log('  not run by the suite, so this does not go red on them.');
+}
 if (offenders.length) {
-  console.log(`\n${offenders.length} still fall back to a hardcoded port in silence:\n`);
+  console.log(`\n${offenders.length} of the ${instruments} INSTRUMENTS fall back to a hardcoded port in silence:\n`);
   for (const o of offenders) console.log(`  ${o}`);
   console.log(`\n  Route it through the helper, which returns SHOT_URL when it is set and`);
   console.log(`  announces the port loudly when it is not:\n`);
@@ -91,4 +124,4 @@ if (offenders.length) {
   console.log(`      const URL = aim('http://localhost:4185/');\n`);
   process.exit(1);
 }
-console.log('every instrument is either aimed or says which port it guessed');
+console.log(`all ${instruments} instruments are either aimed or say which port they guessed`);

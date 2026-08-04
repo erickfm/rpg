@@ -6,9 +6,10 @@
 //
 // The ring is picked out of the live registry, not typed: the five seats
 // labelled 'sit at the table' that lie on a common circle of radius 1.55.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4194/';
+const URL = aim('http://localhost:4194/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 620 } });
 await p.goto(URL, { waitUntil: 'networkidle' });
