@@ -65,9 +65,14 @@ fleet plus the coordination to keep it from colliding with itself.
 **Several agents in this one checkout means `git add -A` sweeps up someone
 else's in-flight work.** Stage the files you touched, by name.
 
-**Movement, collision, floors and seats are never small, and are verified by
-WALKING them** — press `V` for the collision overlay. **The 2 m sidewalk lane is
-sacred**, indoors too.
+**Movement, collision, floors and seats are never small** — think hard about
+them, and know that **the 2 m sidewalk lane is sacred**, indoors too. But
+**DO NOT verify them by walking, or by anything else.** *"dont check anything.
+make the change. im the check. we do qc at the end."* (2026-08-04, overriding
+this file's own earlier rule and a desk instruction that had just cited it.)
+Erick checks everything, immediately, on 5177 — and a builder walking doorways
+costs him minutes for a result he gets in seconds. `V` and the collision overlay
+belong to the QC sprint, not to shipping an ask.
 
 **Screenshots are for LOOKING, never for PROVING.** Two runs of identical code
 differ ~20% of pixels.
