@@ -3748,10 +3748,21 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // ── FULL LENGTH (his second word on it) ──────────────────────────────
     // The user: *"make the mirror full length"*. It hung as a 0.60 m glass at
     // chest height, which is a shaving mirror; this is one you see yourself
-    // head to foot in. The frame runs RY+0.25 to RY+1.95 — off the floor,
-    // because it HANGS (a glass sitting on the boards is a leaning cheval and
-    // would need a collider), and stopping 0.59 m under the RY+2.543 ceiling
-    // so it is not jammed against the cornice.
+    // head to foot in. It HANGS off the floor rather than standing on it — a
+    // glass sitting on the boards is a leaning cheval and would need a
+    // collider — and it stops well under the RY+2.543 ceiling so it is not
+    // jammed against the cornice.
+    //
+    // ── AND IT IS LIFTED (his third) ─────────────────────────────────────
+    // *"raise the mirror a little so theres a bit more clearence with the
+    // floor"*. RAISED, not trimmed: he asked for room under it, not a smaller
+    // mirror, and the height is what he asked for one message earlier. So the
+    // whole thing goes up 0.15 m — frame and plate together, since MIR_Y is
+    // what both are placed from — and the glass keeps its full 1.70.
+    //
+    // `MIR_GAP` IS THE NUMBER, and it is the one he is actually talking about:
+    // the air between the boards and the bottom of the frame. The next nudge
+    // is this line and nothing else. Everything else derives from it.
     //
     // AND THE PAINTING CHANGED WITH THE PROPORTION, which is the half of this
     // that is not arithmetic. A chest-height glass shows wall and a slice of
@@ -3791,17 +3802,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // trap it documents: hang at 5.49 and the mesh is entombed in the plaster.
     const MIR_WALL_Z = 5.5 - 0.07;
     // ⚠ CLEARANCE, re-walked for the taller, wider frame rather than assumed.
-    // It spans x -0.98…-0.46 and y RY+0.25…RY+1.95 on the plaster:
+    // It spans x -0.98…-0.46 and y RY+0.40…RY+2.10 on the plaster:
     //   the BED's collider ends at x -1.15, so 0.17 m of clear wall to its west
     //   the EAST wall's room face is AX(0), 0.46 m past its other edge
-    //   the SKIRTING is painted into the wallpaper tile, not geometry, so
-    //     there is nothing at the bottom to foul — the 0.25 m lift is for the
-    //     look of a hung glass, not for a board that is not there
+    //   the SKIRTING is painted into the wallpaper tile, not geometry — and
+    //     the tile's own band was deleted (see wallpaperT), so there is
+    //     NOTHING built along this wall at floor level. The gap under the
+    //     frame is clear air, and there is no board for it to float just above
+    //   the CEILING is RY+2.543, so the top still has 0.443 m over it — the
+    //     0.15 m lift comes out of headroom that was 0.593 m and had it
     //   301's LEAF sweeps 0.91 m from a pivot at (-0.09, 3.975); the frame's
     //     nearest corner is 1.46 m out, so the arc still misses it
     // Still no collider and no `maxY`: 0.05 m proud of a wall you are held
     // 0.35 m off cannot be reached, and it is not a surface.
-    const MIR_Y = RY + 1.10;                    // frame RY+0.25 … RY+1.95
+    //
+    // THE PLATE IS NOT REPAINTED FOR THE LIFT, deliberately. Going full length
+    // changed the view by 1.10 m of glass and had to be redrawn; this moves the
+    // same 1.60 m of glass 0.15 m, which is 9% of its own height — the horizon
+    // would shift about a texel and a half of 64 and the floor joints would
+    // still open toward the bottom edge. Redrawing it would be churn on a field
+    // that already reads right.
+    const MIR_GAP = 0.40;                       // boards to the frame's bottom
+    const MIR_Y = RY + MIR_GAP + MIR_H / 2;     // frame RY+0.40 … RY+2.10
     box(MIR_W, MIR_H, FRAME_D, MIR_X, MIR_Y, MIR_WALL_Z - FRAME_D / 2,
       new THREE.MeshBasicMaterial({ color: 0x3f3125 }));
     const mirror = new THREE.Mesh(
