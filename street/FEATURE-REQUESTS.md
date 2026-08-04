@@ -3443,3 +3443,40 @@ Also standing, not new: guards have NEVER been run in this checkout (desk.sh
 says so), so we do not know whether any check still detects. And branch
 `w133-unlanded-0.90-radius` holds 3 unlanded commits touching the trunk —
 superseded by worker 134's REACH_TRIM, but its two probes are not on mainline.
+
+## 2026-08-04 12:4x — "historically the workflow has been slow... focus on cutting, not adding"
+
+And, on the first proposal: *"stop reading the advice of prior models and just
+look at the workflow."* Correct — the first pass reasoned from CLAUDE.md,
+GOTCHAS and PARALLEL-WORKFLOW, which are prior models talking to themselves, and
+it proposed ADDING three things. Measured the mechanism instead.
+
+WHAT THE MEASUREMENT SAID: landing a finished branch takes 0-7 min and is not
+the bottleneck. A worker's first commit lands ~20 min after it starts, every
+spawn. The median world change is **62 lines of src/**. Only **11%** of added
+lines are the world (47% probes, 27% notes, 12% scripts). **51%** of the last 80
+src/ commits touch the trunk, where one agent is the hard limit anyway. And
+5177 is a vite DEV server on this checkout serving /src/main.ts over HMR —
+confirmed in the served HTML — so an edit here is on his screen in milliseconds.
+
+So: a five-agent coordination apparatus, for work that is half un-parallelisable
+and 62 lines wide, feeding a screen that was already watching the tree.
+
+HIS DECISIONS:
+  1. CUT the worktree -> branch -> rebase -> land layer. YES. Work happens in
+     this checkout, live on 5177.
+  2. The desk does NOT code — *"there is enough work for the desk that they
+     cant work on the things i want fixed."* Instead: **keep at least one agent
+     warm**, project context loaded, cleared of any previous task's context,
+     standing by for the next ask.
+  5. Delete the dead scripts. DONE — 25 removed, 36 shell scripts down to 11.
+  6. *"i am a better check than any code or agent, lets just use me unless we
+     need mass quality control mechanisms to check for example every door in
+     the game or something like that."* So: no probe, no check for ordinary
+     work. Sweeps across EVERY instance of a thing still earn their keep.
+
+STILL HIS CALL, not assumed: whether QUEUE.md stays the dispatch path. Kept as
+the record; asks now go straight to the warm builder. His standing instruction
+of 2026-08-01 — *"if there is a queue there should be workers working. always."*
+— is untouched and still right; it stops applying only because small work no
+longer enters the queue.
