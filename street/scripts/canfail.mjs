@@ -376,6 +376,68 @@ const CASES = [
     "      if (side !== 1) solid(ry > 1   // selftest: the lot's flanks stop colliding",
     'w75-site-contained.mjs', ['lot'], "walking out through the car lot's party walls again"],
 
+  // ── item 306: THE WHOLE-WORLD SWEEP HAD NEVER BEEN WATCHED FAIL ────────────
+  //
+  // `world-contained.mjs` carries its own `--selftest`, and that selftest stops
+  // at the RAYCASTER: it drops every flat street-level mesh and requires the
+  // road sentinel to go VOID. That proves the floor predicate can say no. It
+  // proves nothing about the half the check exists for — the reachability fill
+  // and the assertion over it — because the selftest exits before either runs
+  // (`world-contained.mjs:152-164`). Registering only the `true` would have
+  // certified half a guard, which is the argument `screenslot-blind` above and
+  // the `footprint` rows in checks.mjs already make.
+  //
+  // SAME NEEDLE AS `jail-forecourt-open`, DIFFERENT CHECK, ON PURPOSE. That
+  // mutation reopens one of the three world escapes fixed this week — the
+  // forecourt half of the jail's flanks, `site.minX → FX`, closed while the
+  // YARD half was already closed — and it is the only hole in this repo that
+  // has been proven to be a real, reachable way out of the world. The question
+  // item 306 was raised to answer is "would `world-contained` catch a FOURTH
+  // escape", and the only honest way to ask it is to put a real third one back.
+  //
+  // WATCHED RED before it was written here, on this needle and this build
+  // (3e92d5c66): the fill's largest floored component merged with the void east
+  // of the jail — 24 live components either way, but reachable cells went
+  // 20,426 → 136,297 and the verdict was **115,840 of 136,297 reachable cells
+  // OVER NOTHING, in 1 region, x 7.50…259.50 z -110.50…19.00**, exit 1. On the
+  // unmutated build the same run is 20,426 reachable, 0 over nothing, exit 0.
+  //
+  // It is cheap: the whole check is a single `page.evaluate` raycast and a
+  // grid fill, ~12 s, no walking. The proof costs less than the code.
+  ['world-escape-jail-flank', JAIL,
+    '    ctx.obstacle({ minX: site.minX, maxX: FX, minZ: zLine - SCR_T / 2, maxZ: zLine + SCR_T / 2 });',
+    '    void FX;   // selftest: the forecourt flanks stop colliding, hole reopened',
+    'world-contained.mjs', [], 'the whole-world fill reaching 115k cells of open sky past the jail'],
+
+  // ── item 306: `prompt-not-a-ghost` had no failing path either ──────────────
+  //
+  // The ghost is the ORIGINAL BUG, verbatim: `ct/hud.ts`'s `prompt()` hid
+  // `#ct-prompt` and returned WITHOUT clearing `textContent`, so the last
+  // caption sat in the element indefinitely — `[E] into the HOUSE OF DETENTION`
+  // still readable 40 m from the jail door, element hidden. 77 scripts read
+  // that element and 16 never look at `display`, so this was a bug that
+  // contaminated the instruments rather than the world, and it cost an hour of
+  // making a correct world look impossible.
+  //
+  // THE NEEDLE DELETES THE FIX AND NOTHING ELSE. `display = 'none'` stays, so
+  // the world still LOOKS right in a screenshot and only the DOM lies — which
+  // is the shape of the fault the check was written against. Deleting the whole
+  // early return would also have hidden nothing, and would have gone red for
+  // the visible reason instead of the invisible one.
+  //
+  // WATCHED RED on this needle and this build (3e92d5c66): **10 ghost(s)**,
+  // first three `[E] into FIRST FEDERAL` at (199.36, -17.46), `[E] out to the
+  // street` at (197.40, -15.80) and (198.84, -16.30) — hidden element, full
+  // text. Both population floors stayed green through it (36 of 40 spots showed
+  // a caption, 6 of 6 open-ground points hid it), so the red is the invariant
+  // failing and not the sample collapsing. The MIRROR leg — shown but empty —
+  // stayed green, correctly: this mutation cannot produce that state, and a
+  // case that reddened both would be certifying a leg it never touched.
+  ['prompt-ghost', HUD,
+    "        promptDiv!.style.display = 'none';\n        promptDiv!.textContent = '';",
+    "        promptDiv!.style.display = 'none';   // selftest: the ghost caption is back",
+    'prompt-not-a-ghost.mjs', [], 'a hidden [E] prompt still holding its last caption'],
+
   // ── item 72: fast-tier checks that had NO declared failing path ────────────
   //
   // Each of these ran on every suite and had never once been watched go red.
