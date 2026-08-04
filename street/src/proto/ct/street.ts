@@ -323,7 +323,15 @@ export function buildStreet(o: {
     // door and interior to a fixed z off that number. The wine red went with
     // the liquor — it was chosen to say liquor — and the rust is what the
     // fascia and the projecting mouldings are both painted from.
-    { nm: 'SLEEP CENTER', col: '#b8642c', w: 13, brick: '#835444', floors: 4, front: 'mattress' },
+    //
+    // ONE STOREY — *"make the matress store one story pls"*. `floors` counts the
+    // storeys ABOVE the shop band, not including it (tex-world's WALL_BASE_M is
+    // "cornice + parapet + skirt", the non-storey part), so `0` is a single-
+    // storey building and `1` would have been two. The upper wall is now 3.4 m
+    // of blank brick with its cornice over the 4.2 m showroom band — which is
+    // what a one-storey showroom of the period actually is. `w` still 13: the
+    // run before No. 227 must total 49.2, as above.
+    { nm: 'SLEEP CENTER', col: '#b8642c', w: 13, brick: '#835444', floors: 0, front: 'mattress' },
     { nm: '', col: '', w: 18, brick: '#835444', floors: 5, res: true }, // No. 227 — home, across from the alley, a bit off
     // THE SECOND ALLEY, and the width is PAID FOR, not added on the end.
     //
