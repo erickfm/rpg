@@ -1724,31 +1724,14 @@ export function makeHud(purse: Purse): Hud {
     // no seam to see: the wrist below is drawn by the identical `fillRect` it
     // always was, just further along the same band.
     g.fillStyle = '#c9946a'; g.fillRect(0, 6, WATCH_ARM, 66);
-    // …and it RECEDES. The wrist's shading is "light from the right", carried by
-    // a 10 px `rgba(0,0,0,0.15)` cap that used to sit at the cut end and would
-    // now be a dark stripe across the middle of a limb, which is exactly the
-    // "two limbs" failure to avoid — so it is gone, and the same tone is spread
-    // over the whole new length instead, deepest at the elbow end.
-    //
-    // A GRADIENT, not bands, and the pixel art survives it: the canvas is
-    // painted at 1x and upscaled `image-rendering:pixelated`, so this resolves
-    // to 600 one-texel steps shown 2.75 px wide — banded at the texel scale like
-    // everything else here, with no step big enough to read as an edge. The
-    // stop at the wrist end is fully transparent, so the join is not a join.
-    //
-    // THE RAMP IS A RATE, NOT A FRACTION OF THE CANVAS, and the first cut got
-    // that wrong: spread over all 600 px it reached only 0.07 by the edge of a
-    // 1280-wide frame and the arm read dead flat. `WATCH_ARM` is sized for a
-    // 3840 viewport, so on any normal screen most of it is off-frame — the
-    // shading has to be spent where the player can see it. 240 canvas px is the
-    // 242 that reach the left edge of a 1280 frame; past that the gradient
-    // clamps to its end stop and the arm simply stays in shadow, which is what
-    // a limb going back out of the light does.
-    const RECEDE = 240;
-    const recede = g.createLinearGradient(WATCH_ARM - RECEDE, 0, WATCH_ARM, 0);
-    recede.addColorStop(0, 'rgba(0,0,0,0.18)');
-    recede.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = recede; g.fillRect(0, 6, WATCH_ARM, 66);
+    // AND IT IS FLAT. *"for the arm shape i dont want two colors just the one
+    // skin tone on that rectangle"* (2026-08-04). There WAS a "recede" gradient
+    // here — `rgba(0,0,0,0.18)` ramped over the 240 canvas px nearest the wrist,
+    // meant to read as the limb going back out of the light. It did not: it read
+    // as a second colour on the rectangle, which is the one thing he asked not to
+    // see. Removed, along with its `RECEDE` constant. One `fillRect`, one tone.
+    // Do not reintroduce shading, a taper, an outline or a crease — every attempt
+    // to make this arm more has been rejected.
     // EVERYTHING BELOW IS THE OLD DRAWING, MOVED — not redrawn. The wrist, the
     // fist, the strap, the case and the LCD keep their own coordinates and their
     // own order; the translate is the whole of the change, so the thing the user
