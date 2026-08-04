@@ -1712,14 +1712,16 @@ export function makeHud(purse: Purse): Hud {
    * is positive for every T in range — so there is no angle at which rotating
    * further CCW starts costing headroom instead of buying it.
    *
-   * At 35 / T=12 that is 128 px on a 1280 viewport, 155 px at 1920, 183 px at
+   * At 35 / T=16 that is 169 px on a 1280 viewport, 205 px at 1920, 242 px at
    * 2560. THE NARROWEST VIEWPORT BINDS, so only the 1280 column is worth
    * quoting. The history, all at 1280: 42/12/5° spent 24 of 67; 38/22/5° spent
    * 44 of 63; 35/22/5° spent 44 of 60 and left it nearly out; 35/22/8° spent 44
-   * of 89; 35/22/12° spends 44 of 128. **That leaves ~84 px — 42 points of
-   * WATCH_LIFT, or 31 of WATCH_X, trading against each other at 2.7 px per
-   * point of WATCH_X.** Two rotations have taken this from nearly spent to
-   * roomier than it has ever been.
+   * of 89; 35/22/12° spent 44 of 128; 35/22/16° spends 44 of 169. **That leaves
+   * ~125 px — 63 points of WATCH_LIFT, or 34 of WATCH_X, trading against each
+   * other at 3.7 px per point of WATCH_X.** THIS CONSTRAINT IS NO LONGER THE
+   * ONE TO WORRY ABOUT: three rotations have taken it from nearly spent to
+   * three times the budget it started with, and the limits that now bite are
+   * the two written up under WATCH_TILT.
    */
   const WATCH_LIFT = 22;
   /**
@@ -1784,7 +1786,22 @@ export function makeHud(purse: Purse): Hud {
    * arm has only ever gone the other way — a bare `-5deg` in three places made
    * "more counter-clockwise" read as "smaller", which is how a sign gets flipped.
    * *"rotate full limb ccw a bit"* (2026-08-04): 5 → 8, then *"rotate the limb
-   * a bit more ccw"* the same day: 8 → 12.
+   * a bit more ccw"*: 8 → 12, then *"more ccw rotation on the full limb"*:
+   * 12 → 16. Three asks running, all the same direction, none walked back.
+   *
+   * THE LIFT CEILING IS NOT WHAT STOPS THIS — see WATCH_LIFT, it only ever buys
+   * headroom. TWO OTHER THINGS DO, and neither is reached at 16:
+   *
+   *   · **~22.5° at V=1280 the limb stops touching the LEFT edge of the frame.**
+   *     The top edge of the band leaves through the left edge today (screen
+   *     x -223 at 16°) while the underside leaves through the bottom (x 436).
+   *     Solve `y_o cos T + 82.5 = x_o sin T` and past that root the whole
+   *     cross-section exits through the BOTTOM instead, so the arm stops
+   *     reading as reaching in from the left of the frame and starts rising out
+   *     of the floor. It is a look, not a break, but it is a different look.
+   *   · **the LCD tilts with it.** 16° is about where a real wrist sits when
+   *     you turn it to read; past ~20° the digits start to read as a watch
+   *     sliding off the arm rather than one being looked at.
    *
    * The hand end rises and the far end drops, both about the pinned pivot. That
    * is the ONLY thing this does — rotation is applied to the finished element,
@@ -1797,7 +1814,7 @@ export function makeHud(purse: Purse): Hud {
    * screen. There is no reason for the hidden state to differ: it is the same
    * arm, parked off-frame. Both read WATCH_TILT.
    */
-  const WATCH_TILT = 12;
+  const WATCH_TILT = 16;
   const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-${WATCH_TILT}deg)`;
   const WATCH_HIDDEN = `translateX(-50%) translateY(140%) rotate(-${WATCH_TILT}deg)`;
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
@@ -2010,31 +2027,27 @@ export function makeHud(purse: Purse): Hud {
     // end of the limb and that is where he put it. Alpha is untouched at 0.10 —
     // he said wider, not darker.
     //
-    // AND AT 6 IT REACHES THE THUMB, SO SOMETHING HAD TO BE DECIDED. The thumb
-    // ends at x 170, six px inside the limb's end, so any strip wider than 6
-    // hangs over it: the strip owns the limb band y 0…72 and the thumb hangs
-    // below at y 72…85, and a dark cap sitting directly on top of a light thumb
-    // reads as an unfinished edge, not as shading. So THE DARK END WRAPS THE
-    // THUMB — the second rect below carries it down over whatever length of
-    // thumb the strip has reached back across (6 px of the thumb's 44, at
-    // STRIP_W 12). The two rects meet edge to edge and never overlap, so the
-    // alpha does not stack and the wrapped part is the same tone as the rest.
+    // IT STOPS AT THE LIMB'S UNDERSIDE, AND THAT WAS DECIDED BY LOOKING. At
+    // STRIP_W 12 the cap reaches back past x 170 where the thumb ends, so it
+    // stands directly above the thumb's last 6 px, and there were two answers:
+    // wrap the cap down over that much thumb, or stop dead at y 72 and leave the
+    // thumb light. IT SHIPPED WRAPPED — the argument being that a light thumb
+    // hanging out from under a dark cap reads as an unfinished edge — AND HE
+    // LOOKED AND SAID NO: *"remove the dark at the end of the thumb"*
+    // (2026-08-04). He said the thumb, not the strip, so the cap itself is
+    // untouched at 12 and 0.10.
     //
-    // THE ALTERNATIVE IS ONE LINE — delete the second `fillRect` and the strip
-    // stops dead at the limb's underside, leaving the thumb light. That is a
-    // look, not a bug, and it is his to pick.
+    // SO THE HARD EDGE AT y 72 IS THE APPROVED LOOK, not an oversight. Do not
+    // blend it, feather it, or split the difference by shortening the cap to 6
+    // so it stops short of the thumb — that would be undoing the width he asked
+    // for to fix an edge he has already accepted.
     //
-    // ROOM LEFT: the thumb was met at 6 and is now wrapped, so the next wall is
-    // the fist's own start at x 104 — STRIP_W 72 — and the watch case, whose
-    // right edge is at x 96 with WATCH_POS 8, so STRIP_W 80 would slide under
-    // it. Neither is close; 12 is an eighth of the way there.
-    const STRIP_X = 176 - STRIP_W, THUMB_END = THUMB_X + THUMB_W;
+    // ROOM LEFT: nothing stops the cap now until the fist's own start at x 104
+    // (STRIP_W 72), or the watch case, whose right edge is at x 96 with
+    // WATCH_POS 8 (STRIP_W 80). Neither is close; 12 is an eighth of the way.
+    const STRIP_X = 176 - STRIP_W;
     g.fillStyle = 'rgba(0,0,0,0.10)';
     g.fillRect(STRIP_X, 0, STRIP_W, WATCH_LIMB_H);
-    if (STRIP_X < THUMB_END) {
-      const x0 = Math.max(STRIP_X, THUMB_X);
-      g.fillRect(x0, WATCH_LIMB_H, THUMB_END - x0, THUMB_D);
-    }
     // THE TWO CUT CORNERS, LAST, so they take the strip with them. `clearRect`
     // rather than a skin-coloured overdraw: the fist's far corners sit over
     // nothing (the wrist band stops at x 104, the thumb at x 170), so clearing
