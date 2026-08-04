@@ -320,6 +320,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const NIB_D = 0.9;              // how far the landing reaches into the shaft
   const NIB_Z1 = STAIR_Z0 + NIB_D; // its open edge: the railing stands here
   const TOP_Y = 3 * ST;           // floor 3
+  // The balustrade's DEPTH, hoisted because the guard collider is derived from
+  // it — the rail cap, the bottom rail and the newels all stand centred on
+  // NIB_Z1, so the timber occupies NIB_Z1 +/- RAIL_D/2 and a collider that
+  // starts at NIB_Z1 leaves the near half of it walkable-into. See `stairCap`.
+  // NOT `RAIL_D` — the TV's own rails already own that name further down, and
+  // a shadowed constant in a 5000-line module is a trap.
+  const BAL_D = 0.09;
   const AX = (lx: number) => APT_X + lx, AZI = (lz: number) => APT_Z + lz;
   // ── 301'S DOOR STAND-POINT IS NOT HOISTED ANY MORE (item 309) ───────────
   //
@@ -995,7 +1002,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     }
     // the guard: a railing you can SEE, standing exactly where the stairCap
     // collider starts, so nothing invisible ever stops you
-    const railCap2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.09), railM);
+    const railCap2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, BAL_D), railM);
     railCap2.position.set(AX(0.6), TOP_Y + RAIL_H, AZI(NIB_Z1));
     scene.add(railCap2);
     // BALUSTERS, not a single mid-rail. Report finding 7: the cap was right —
@@ -4819,9 +4826,32 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   ctx.onFrame((f) => { updateCaps(f.px); updateDoor(f.dt); updateHermitAt(f.hourAbs, f.px, f.pz, f.dt); }, ORDER.WORLD);
 
   const updateCaps = (px: number) => {
-    // the guard starts at the railing, not at the stairwell mouth: the first
-    // NIB_D of the west half is the top landing now and you may stand on it
-    setCap(stairCap, lastGy > 3 * ST - 0.12, AX(0), AX(1.2), AZI(NIB_Z1), AZI(LAND_Z1));
+    // ── THIS BOX IS THE BALUSTRADE'S COLLIDER ────────────────────────────
+    // The user: *"if the railing had collision it couldnt happen"*. The
+    // balustrade — cap, bottom rail, balusters, newels — is drawn as loose
+    // meshes and has no collider of its own; what stands at that line is this
+    // guard, which starts at the railing and fills the void behind it. Named
+    // here because reading the railing block will not tell you that.
+    //
+    // TWO THINGS FIXED, both about it not matching the railing it stands for:
+    //
+    //   WHERE  it began at NIB_Z1, which is the balustrade's CENTRELINE, so
+    //          the near half of the timber (BAL_D/2 = 45 mm) was inside the
+    //          walkable landing and you could stand in the rail. It begins at
+    //          the near FACE now, derived from BAL_D rather than typed, so it
+    //          re-solves if the run is ever made heavier.
+    //   WHEN   the gate was `lastGy > 3*ST - 0.12` — the railing existed only
+    //          while the floor picker agreed you were within 12 cm of floor 3,
+    //          which is a very thin band to hang a fall guard on. Widened to
+    //          the picker's own same-floor tolerance (the 0.6 in `consider`).
+    //          It CANNOT close the stairway: everything walkable in this half
+    //          of the shaft below the landing is flight A (5.40 -> 6.75) and
+    //          the half landing (6.75), all of it clear of TOP_Y - 0.6 = 7.50,
+    //          so the guard is still off for every step of the way down.
+    //
+    // NO `maxY`, deliberately — a railing is a wall, and a top would let you
+    // stand on the bannister and go over from higher up.
+    setCap(stairCap, lastGy > TOP_Y - 0.6, AX(0), AX(1.2), AZI(NIB_Z1 - BAL_D / 2), AZI(LAND_Z1));
     const onLobby = px > 100 && lastGy < 0.6;
     setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(STAIR_Z0), AZI(LAND_Z1));
     setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(STAIR_Z1), AZI(LAND_Z1));
