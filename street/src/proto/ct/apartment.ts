@@ -310,7 +310,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   //              because a door that seals to the boards was never fitted
   const DOOR_HEAD = 2.1;
   const FLAT_LEAF_W = DOOR_GAP + 0.04, FLAT_LEAF_H = 2.12;
-  const NIB_D = 1.2;              // how far the landing reaches into the shaft
+  // 1.2 -> 0.9: the user, on the top floor, *"top floor of apt railing is too
+  // far out. scope it back here"*. The nib was built to the HEADROOM limit
+  // rather than to how much landing anyone needs, and at 1.2 the balustrade
+  // stands most of a body-length past the hall's edge, which is what reads as
+  // "far out". 0.9 still leaves the player (0.36 m radius) half a metre of
+  // landing past the hall line to stand on, and going SHALLOWER can never
+  // cost headroom over flight A below — only deepening it can.
+  const NIB_D = 0.9;              // how far the landing reaches into the shaft
   const NIB_Z1 = STAIR_Z0 + NIB_D; // its open edge: the railing stands here
   const TOP_Y = 3 * ST;           // floor 3
   const AX = (lx: number) => APT_X + lx, AZI = (lz: number) => APT_Z + lz;
