@@ -3503,3 +3503,12 @@ First ask through the new path: straight to the warm builder, no queue row, no
 branch. No screenshot, and no cause or filename guessed by the desk. Flagged to
 the builder as a FEEL adjustment — *"a bit"* is his word — so: move modestly,
 report the number, expect him to call for more or less.
+
+Read as two axes of the same HUD element in `ct/hud.ts` — the watch is DOM, not
+scene. *"further out"* = the arm extended further from the chest, which in screen
+space is `WATCH_DROP` 30 → **14** (16 CSS px up, a third of the 45 px of headroom
+before the fist stops being cut by the frame and starts floating in the road).
+*"a bit left"* = the wrapper's `left`, 46% → **43%**, half the size of the 52→46
+move he once called "a little bit". The 46 was a literal in a CSS string quoted by
+three comments; it is now `WATCH_X`, so the next nudge is one number. Tilt, taper,
+shading and every drawn pixel untouched.

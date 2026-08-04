@@ -1632,7 +1632,7 @@ export function makeHud(purse: Purse): Hud {
   // scale was HIDDEN. The canvas was 176 px wide and displayed at a literal
   // `width:484px`; 484/176 = 2.75 is the size of a watch pixel on screen and it
   // appeared in neither number. Widen the canvas and every pixel silently
-  // shrinks. `left: calc(46% + 77px)` carried the same problem — the 77 is
+  // shrinks. `left: calc(WATCH_X% + 77px)` carried the same problem — the 77 is
   // `(176-120)/2 x 2.75`, the compensation for the last time this canvas grew,
   // and nothing said so.
   //
@@ -1645,12 +1645,16 @@ export function makeHud(purse: Purse): Hud {
    * The forearm added to the LEFT, in canvas px. Nothing is drawn to the right.
    *
    * DERIVED FROM THE ONE THING IT HAS TO DO — reach the edge of the frame. The
-   * canvas's left edge lands at `0.46V - 165 - WATCH_S x WATCH_ARM` for a
-   * viewport `V` wide (the `46%`, the two halves of `translateX(-50%)`, and the
-   * `left` compensation below all fold into that), so
+   * canvas's left edge lands at `X V - 165 - WATCH_S x WATCH_ARM` for a
+   * viewport `V` wide and `WATCH_X` = `100 X` (the percentage, the two halves of
+   * `translateX(-50%)`, and the `left` compensation below all fold into that), so
    *
-   *     WATCH_ARM >= (0.46 V - 165) / 2.75      →  1280: 155   1920: 262
-   *                                                2560: 369   3840: 583
+   *     WATCH_ARM >= (X V - 165) / 2.75         →  at the 0.46 this was first
+   *                                                sized for: 1280: 155
+   *                                                1920: 262  2560: 369
+   *                                                3840: 583. WATCH_X only ever
+   *                                                went DOWN since, which only
+   *                                                ever asks for less.
    *
    * 600 covers every viewport up to 3840 with room over. It costs a 776 x 72
    * canvas — 224 kB, repainted once a minute — and anything past the frame edge
@@ -1678,8 +1682,21 @@ export function makeHud(purse: Purse): Hud {
   // than argued — `scripts/probes/w57-watch.mjs` reads the LCD's bounding box
   // off the live element both ways round.
   //
-  // The `46%` is the user's own: *"can we move the watch arm thing as a whole
-  // over to the left a little bit?"* (2026-08-02). It was `52%`. Untouched.
+  /**
+   * WHERE THE WHOLE ARM SITS ACROSS THE FRAME, in percent of the viewport.
+   *
+   * The user's own number, twice over. *"can we move the watch arm thing as a
+   * whole over to the left a little bit?"* (2026-08-02) took it from `52` to
+   * `46`, and *"when i look down at my watch i want the arm a bit further out
+   * and a bit left"* (2026-08-04) takes it to `43` — half the size of the move
+   * he called "a little bit", because this one is "a bit".
+   *
+   * It was a literal `46%` buried in `WRAP_CSS` and quoted in three comments,
+   * which is how a tuning knob hides. Named, so the next nudge is one number.
+   * Moving LEFT only ever needs LESS forearm than `WATCH_ARM` provides, so the
+   * reach derivation above stays satisfied without being re-run.
+   */
+  const WATCH_X = 43;
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
   const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
   /**
@@ -1756,15 +1773,27 @@ export function makeHud(purse: Purse): Hud {
    * the paragraph above describes. The two wants pull opposite ways and 30 is
    * where they were balanced by eye. **If you retune the tilt, re-measure both
    * corners; there is no formula waiting to be found here.**
+   *
+   * NOW 14, AND THE CONSTRAINT ABOVE IS WHAT BOUNDS IT. *"when i look down at
+   * my watch i want the arm a bit further out and a bit left"* (2026-08-04).
+   * "Further out" is the arm EXTENDED — held further from the chest — and on a
+   * HUD drawn in screen space that is this number and nothing else: less drop
+   * lifts the whole limb up out of the bottom edge, which is what an arm reaching
+   * further away from your own eye does. 16 px of the 45 px of headroom the
+   * paragraph above measured: the fist's inner bottom corner was 26.5 px below
+   * the frame and is now ~10.5, so the hand is still CUT and still cannot float
+   * in the middle of the road — the failure that number exists to prevent. The
+   * digits gain the same 16 px of clearance, so it also reads easier. Anything
+   * past ~-15 crosses the line; this is a third of the way there.
    */
-  const WATCH_DROP = 30;
+  const WATCH_DROP = 14;
   /** shown, and stowed below the frame. Same tilt: the arm must not swing as it
    *  comes up, only slide. */
   const watchTransform = (shown: boolean) => (shown
     ? `translateX(-50%) translateY(${WATCH_DROP}px) rotate(${WATCH_TILT}deg)`
     : `translateX(-50%) translateY(140%) rotate(${WATCH_TILT}deg)`);
   const WRAP_CSS = 'position:fixed;'
-    + `left:calc(46% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
+    + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
     + `transform-origin:calc(100% - ${WATCH_PIVOT}px) 50%;`
     + `transform:${watchTransform(false)};transition:transform .18s ease-out;`;
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
