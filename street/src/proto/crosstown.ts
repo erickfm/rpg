@@ -25,7 +25,7 @@ import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
 import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
-import { pickSpot, SpotOutline, REACH_MARGIN, TOUCH_MARGIN, lookTolerance } from './fp';
+import { pickSpot, SpotOutline, REACH_MARGIN, TOUCH_MARGIN, REACH_TRIM, ON_IT, lookTolerance } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
 import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
@@ -2009,6 +2009,27 @@ export function makeCrosstown(): Proto {
     // the player moves the world and the guard together and neither can drift
     // into agreeing with itself.
     playerRadius: () => RADIUS,
+    /** THE WORLD-WIDE REACH TRIM AND THE DISC IT PRODUCES (item 309).
+     *
+     *  ⚠ A HARNESS THAT REBUILDS THE AIM-FREE PREDICATE FROM `touchMargin()`
+     *  ALONE IS NOW WRONG BY 20%, and this is the third time a published
+     *  constant has outlived the predicate it described (see `reachMargin`
+     *  above, which `casinodoor.mjs` believed to the tune of a metre). The
+     *  predicate as it stands, for a STANDING player, is
+     *
+     *      touching = d < (s.r + TOUCH_MARGIN) * REACH_TRIM
+     *      onIt     = d < ON_IT                   // = RADIUS * REACH_TRIM
+     *
+     *  so anything asking "would this be offered to a player standing here, not
+     *  looking at it" wants `reachTrim()` as well as `touchMargin()`.
+     *
+     *  `onItRadius` is published SEPARATELY from `playerRadius` above rather
+     *  than derived by the caller, because the two were one number until item
+     *  309 and every script that reconstructed the resolver's tier 1 read
+     *  `RADIUS`. They are different facts now: one is how wide the man is, the
+     *  other is how close he has to be. */
+    reachTrim: () => REACH_TRIM,
+    onItRadius: () => ON_IT,
     /** THE LOOK CONE, as a number — `lookTolerance(r, d)` in radians (item 237).
      *
      *  The margins above are constants; this is the one part of the selection
