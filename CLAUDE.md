@@ -92,10 +92,21 @@ walking it**, not from a screenshot. The 2 m sidewalk lane is sacred.
 
 ## Running it
 
-The user playtests **the live integration world at http://localhost:5177/** —
-mainline plus every builder's in-flight work, rebuilt every 15 s by
-`street/scripts/live-integrate.sh`, which drops any builder that breaks the
-build. Builders use their own ports (4178+); never share one.
+The user playtests **http://localhost:5177/**, and as of 2026-08-03 that is a
+plain `vite` DEV server on the main checkout — it serves `src/` directly with hot
+reload, so **it always shows mainline and is never stale.** `dist/` has nothing to
+do with it; do not "refresh" it by building.
+
+**It is NOT the integration world this section used to describe, and
+`live-integrate.sh` is not driving it.** That script reads three hardcoded
+worktrees — `rpg-ground`, `rpg-entrance`, `rpg-alley` — **all three deleted** — is
+blind to every `.claude/worktrees/agent-*` worker, and writes to `rpg-live`, which
+nothing serves. Do not trust it to show you a builder's in-flight work. If you want
+that, look at the builder's own port.
+
+Builders use their own ports (4178+); never share one. **Kill your preview when you
+finish** — 33 orphaned vite servers were found still listening on 2026-08-03,
+belonging to workers whose worktrees had been deleted hours earlier.
 
 There is also a published artifact and a GitHub Pages deploy
 (https://erickfm.github.io/rpg/, auto-deploys on push). Republish the artifact
