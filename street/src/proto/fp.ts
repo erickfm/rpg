@@ -84,7 +84,12 @@ export interface FPOpts {
 // clearance to pass a person. Only ever reduce this: every lane in the world
 // (the 2 m walk past a tree, the alley mouth, doorways) was tuned against the
 // old value, so a smaller radius can only make gaps easier, never trap you.
-export const RADIUS = 0.36;   // was 0.42
+// 2026-08-04, Erick: *"make our body collision like 4% less wide pls"* —
+// 0.36 -> 0.3456, the same "only ever reduce" direction as the 0.42 cut above.
+// ⚠ IF YOU CUT IT AGAIN, READ `ON_IT` FIRST. It used to be `RADIUS *
+// REACH_TRIM`, so this line silently owned interaction reach as well as body
+// width; it is now a literal for exactly that reason. See the note there.
+export const RADIUS = 0.3456; // was 0.42, then 0.36
 // (export added for ct/debug-collision.ts — the collision-view toggle draws the
 // player's own footprint at the SAME radius blocked() actually collides with,
 // rather than a second hand-typed number that could drift from it. Bounded
@@ -976,8 +981,26 @@ export const REACH_TRIM = 0.65;
  *  Trimmed by `REACH_TRIM` for the reason above: 0.36 -> 0.288. That is the
  *  disc that owned flat 301's south wall — the door's stand-point sits 0.46 m
  *  off it, and a 0.36 m disc about that point covers every square of floor a
- *  person stands on to read what is hung there. */
-export const ON_IT = RADIUS * REACH_TRIM;
+ *  person stands on to read what is hung there.
+ *
+ *  ⚠ NO LONGER DERIVED FROM `RADIUS`, AND THAT IS THE POINT OF IT. Item 309
+ *  gave the resolver its own trim but left the product reading off the body, so
+ *  `RADIUS` still silently owned interaction reach. On 2026-08-04 Erick asked
+ *  for *"body collision like 4% less wide"* — a movement ask — and as written
+ *  that would have pulled every `onIt` disc in the game in by 4% with it,
+ *  quietly undoing part of item 310c. The two facts the comment above says are
+ *  separate are now separately spelled.
+ *
+ *  `REACH_TRIM` IS NOT THE LEVER for holding this. It also scales `touching`
+ *  (`(s.r + TOUCH_MARGIN) * REACH_TRIM`), so raising it to 0.677 to keep this
+ *  disc at 0.234 would have widened the aim-free reach of every spot in the
+ *  world by 4.17% — the exact opposite of what 310c was for.
+ *
+ *  0.234 is what `0.36 * 0.65` evaluated to the day before, unchanged to the
+ *  float. Item 310's calendar-vs-door arithmetic depends on it: the two
+ *  stand-points are 0.322 m apart against a `2 * ON_IT` overlap width of
+ *  0.576, and both numbers still hold. */
+export const ON_IT = 0.234;
 
 /** The look cone's CEILING, in radians — the widest half-angle that can ever
  *  count as "looking at" something, whatever the spot's radius or distance.
