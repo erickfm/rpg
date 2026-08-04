@@ -2250,24 +2250,38 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // SO THE FIX IS TONE, NOT GEOMETRY. An empty mug still has a dark mouth —
     // but it is the SHADOW OF WHITE CERAMIC, not the brown of coffee. 0x4a3524
     // is (74, 53, 36): warm by +38 R-over-B and dark at value 54. That is a
-    // liquid. 0x6b7078 is (107, 112, 120) — the body tone taken down to ~53%
-    // and rotated cool, so B sits ABOVE R and it reads as shade rather than as
-    // something poured.
+    // liquid.
     //
-    // MEASURED IN HIS OWN PIXELS, not reasoned about, because that is exactly
-    // how the handle failed twice — item 167 found it drawn (1, 1, 2) out of
-    // 255 from the sill behind it. From his spot (inside the bed prompt,
-    // 22° down, `scripts/probes/w111-mug-empty.mjs`), channel-sum contrast:
+    // ITEM 274 GOT THE DARKNESS RIGHT AND THE HUE WRONG. Erick, 2026-08-04:
+    // *"inside of mug on the windowsill is gray, the color doesn't match the
+    // rest of the mug"* — and he is describing the constant exactly. The body
+    // is (216, 210, 196), warm; what shipped was 0x6d6e6f = (109, 110, 111),
+    // a dead neutral with B fractionally ABOVE R. (The prose here argued for
+    // 0x6b7078 and the code had drifted to 0x6d6e6f; both are the same mistake,
+    // so the disagreement never mattered.) Rotating the shadow cool was a
+    // deliberate move away from coffee, but it moved past shade and into a
+    // DIFFERENT MATERIAL — which is the one thing the note above swore off.
     //
-    //     interior vs RIM   459 -> 283      still nothing like a peg
-    //     interior vs SILL  310 -> 134      above the 122 item 167 accepted
+    // Ceramic in shadow is the body colour times a scalar. So that is what it
+    // is now: the body at 50%, channel for channel.
     //
-    // The interior LOST contrast against both and that is the point: it had
-    // far too much, because it was a different material, not a shadow. 283 and
-    // 134 are both comfortably clear — the cup's own body only manages 149
-    // against that sill and reads fine.
+    //     body      (216, 210, 196)   x0.50 ->  (108, 105, 98)  = 0x6c6962
+    //
+    // THE DARKNESS IS UNCHANGED — value 108 against the old 111, three levels
+    // out of 255 — so nothing item 274 measured moves and the mouth cannot
+    // start reading as full. What changes is only the hue: R over B goes from
+    // -2 to +10, the body's own +20 scaled by the same half. It is not warm
+    // enough to be poured (coffee ran +38 at value 74) because it is not a
+    // rotation at all, it is the cup's own colour with the light taken away.
+    //
+    // The two goals turn out not to be in tension, which is why this is one
+    // constant and not a redesign. Channel-sum contrast, arithmetic on the
+    // constants rather than a re-measure (item 167's floor was 122):
+    //
+    //     interior vs RIM   283 -> 311     still nothing like the 459 peg
+    //     interior vs SILL  143 -> 162     moved AWAY from the floor, not toward
     const brew = new THREE.Mesh(new THREE.CircleGeometry(MUG_R - 0.006, 12),
-      new THREE.MeshBasicMaterial({ color: 0x6d6e6f }));
+      new THREE.MeshBasicMaterial({ color: 0x6c6962 }));
     brew.position.set(AX(MUG_X), SILL_TOP + MUG_H + 0.001, AZI(MUG_Z));
     brew.rotation.x = -Math.PI / 2;
     scene.add(brew);
