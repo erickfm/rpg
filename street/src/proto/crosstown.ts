@@ -68,45 +68,45 @@ export function makeCrosstown(): Proto {
   const FOV_REST = 88, FOV_MIN = 52, FOV_STEP = 7;
   let fovTarget = FOV_REST;
   /**
-   * HOW FAR DOWN YOU MUST LOOK BEFORE THE WATCH COMES UP — a couple of degrees
-   * off the bottom of the look range, MEASURED BACK FROM THE CLAMP.
+   * HOW FAR DOWN YOU MUST LOOK BEFORE THE WATCH COMES UP, MEASURED BACK FROM
+   * THE CLAMP. Gate fires at `PITCH_LIMIT - WATCH_TOLERANCE` below level, so a
+   * BIGGER tolerance triggers EARLIER (shallower look-down).
    *
-   * *"to look at your watch you need to look straight down (couple deg of
-   * tolerance)."* (2026-08-03.) **READ THAT AS A SPEC, NOT AS A BUG REPORT** —
-   * he said so himself when the first reading went the wrong way: *"i want you
-   * to need to look straight down, it is confused. im asking for that. it isnt
-   * that way"*. He is describing the behaviour he wants, and the world does the
-   * opposite: the gate was `-0.95` rad = **54.4°** below level against a pitch
-   * clamp of `PITCH_LIMIT` = **74.48°**, so it opened **20.1°** early. A wrist
-   * you can read while still half looking at the street is not the gesture he
-   * asked for.
+   * **CURRENT: 9° tolerance = the watch rises at 65.5° below level.**
+   * *"make the look down angle to trigger watch coming up a bit less directly
+   * down. increase that angle a bit"* (2026-08-04). This SUPERSEDES the earlier
+   * reading of 2.9° (= 71.58°), which was a literal take on his *"couple deg of
+   * tolerance"* and turned out to be tighter than he wanted in the hand.
    *
-   * MEASURED BEFORE THE CHANGE, on the built bundle
-   * (`scripts/probes/w110-watch-gate.mjs`, 5 runs, ArrowDown held from level):
+   * **THE FLOOR HE ALREADY REJECTED — DO NOT WANDER BACK ONTO IT.** This gate
+   * was once `-0.95` rad = **54.4°** below level (a ~20.1° tolerance) and he
+   * threw it out twice: *"i want you to need to look straight down, it is
+   * confused. im asking for that. it isnt that way"* (2026-08-03). A wrist you
+   * can read while still half looking at the street is not the gesture he
+   * asked for. So the usable window is roughly **54.4°–71.58°**, and
+   * `WATCH_TOLERANCE` must never approach ~20°. 9° is a deliberate modest step
+   * with room to iterate in either direction.
    *
-   *   · appears at 54.4°, clamp reached at **74.48° on 5 of 5 runs**, spread
-   *     0.00°. The 20.1° window is real; nothing was eating it.
-   *   · the wrapper is `position:fixed`, so the frame at 55° and the frame at
-   *     74° are IDENTICAL to the last digit of the transform matrix. The digits
-   *     are **100% on screen the instant the gate fires** (client box y
-   *     891.4…951.8 of 958). So "shown long before it is readable" — the other
-   *     hypothesis on the item — is disproved: readable-at and appears-at are
-   *     the same angle, and always were.
+   * MEASURED (`scripts/probes/w110-watch-gate.mjs`, 5 runs, ArrowDown held from
+   * level): the clamp lands at **74.48° on 5 of 5 runs**, spread 0.00°, so the
+   * derivation below is exact. The wrapper is `position:fixed`, so the digits
+   * are **100% on screen the instant the gate fires** at any gate angle —
+   * readable-at and appears-at are the same angle, and always were. Moving this
+   * number moves *when*, never *how readable*.
    *
-   * SO THE ONLY THING TO MOVE IS WHERE THE WINDOW STARTS. `WATCH_TOLERANCE` is
-   * his "couple of degrees" and it is the ONLY typed number here; the gate is
-   * the CLAMP minus it. `PITCH_LIMIT` is imported from `fp.ts`, which owns it
-   * and applies it on both the mouse and the arrow-key paths — retyping 1.3
-   * here is exactly the defect that made `WATCH_DROP` next door lie about its
-   * own derivation, and it would rot silently the day the clamp moved.
+   * `WATCH_TOLERANCE` is the ONLY typed number here; the gate is the CLAMP
+   * minus it. `PITCH_LIMIT` is imported from `fp.ts`, which owns it and applies
+   * it on both the mouse and the arrow-key paths — retyping 1.3 here is exactly
+   * the defect that made `WATCH_DROP` next door lie about its own derivation,
+   * and it would rot silently the day the clamp moved.
    *
-   * WHY A BAND THAT NARROW IS STILL EASY TO HIT: it is backed against a hard
-   * stop. You push the mouse down until it stops moving and you are inside it —
-   * there is no aiming to do, which is what makes "straight down" a gesture
-   * rather than a balancing act. 2.9° is 23 px of mouse travel at fp.ts's
-   * 0.0022 rad/px, and the clamp absorbs every pixel past it.
+   * WHY IT STAYS EASY TO HIT: the band is backed against a hard stop. You push
+   * the mouse down until it stops moving and you are inside it — there is no
+   * aiming to do, which is what keeps "look down" a gesture rather than a
+   * balancing act. At fp.ts's 0.0022 rad/px, 9° is 71 px of mouse travel and
+   * the clamp absorbs every pixel past it.
    */
-  const WATCH_TOLERANCE = THREE.MathUtils.degToRad(2.9);
+  const WATCH_TOLERANCE = THREE.MathUtils.degToRad(9);
   const WATCH_PITCH = -(PITCH_LIMIT - WATCH_TOLERANCE);
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
