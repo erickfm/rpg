@@ -615,6 +615,42 @@ function findBank(scene: THREE.Scene): { x: number; y: number; z: number; found:
 /** the sheet's own size, in canvas texels. The bezel is the framework's. */
 const SHEET = { w: 192, h: 178 };
 /**
+ * The roll on the page — see the note by `sheet.rotateZ` below. A CONSTANT
+ * because the sheet is now re-aimed on every open and the roll has to be
+ * re-applied each time; a literal typed in two places is the same defect as a
+ * coordinate typed in two places (GOTCHAS §20).
+ */
+const SHEET_ROLL = 0.035;
+
+/**
+ * WHERE THE PAPER HANGS WHILE YOU READ IT — and why it is per-interaction.
+ *
+ * ⚠ THE SHEET IS THE POSE. `ct/hud.ts` hands this mesh to `crosstown.ts`'s
+ * focus controller, and `poseFor` derives EVERYTHING from it: the eye goes
+ * `standoff` back along the page's own normal, and — this is the part that
+ * bit — **the FEET are moved to `c + normal * 0.95`**. The player is put in
+ * front of the paper, not the paper in front of the player.
+ *
+ * There is one sheet and there were three [E]s using it, all pointing at the
+ * single build-time position by the mailbox. Two of those three are nowhere
+ * near it: the landlord stands five metres down the lobby at the foot of the
+ * stairs, and the slip under your door is on FLOOR 3, directly above the boxes.
+ * Reading the slip therefore did exactly what the user reported —
+ *
+ *   *"its bugged i cant read it and i teleport to outside my apt?"*
+ *
+ * — because `rig.sit` put his feet at the mailbox's x/z, which three storeys up
+ * is the landing OUTSIDE 301, and the eye, clamped to floor 3's ground by
+ * `poseFor`'s "a person is still a person" clamp, ended up staring at the
+ * floorboards with the page three storeys below them. ONE cause, both symptoms:
+ * the paper was in the wrong room.
+ *
+ * So each interaction says where the page it opens is held. The rule for
+ * picking one: the reader must end up standing 0.95 m back along `yaw`'s normal
+ * ON THE SAME FLOOR, with nothing between that eye and the page.
+ */
+type Hold = { x: number; y: number; z: number; yaw: number };
+/**
  * The widest line the sheet can hold, MEASURED rather than remembered.
  *
  * 172 px of paper between the margins at 8 px monospace, whose advance is
@@ -789,10 +825,27 @@ function buildPanel(): void {
   });
 }
 
-function showLetters(pile: Letter[]): void {
+/**
+ * Open the pile, HELD WHERE `at` SAYS.
+ *
+ * The aim happens before `open()` and not after: `ct/hud.ts` reads the mesh and
+ * enters focus inside that call, so a sheet moved afterwards would pose the
+ * player against the last letter's position — which is this whole bug with an
+ * extra frame in it.
+ */
+function showLetters(pile: Letter[], at: Hold): void {
   if (!pile.length) return;
   reading = pile;
   page = 0;
+  if (sheet) {
+    sheet.position.set(at.x, at.y, at.z);
+    // `rotation.set` first, THEN roll: `rotateZ` is about the object's local z,
+    // which after the yaw IS the page's normal, so it rolls the page in its own
+    // plane and cannot move where `poseFor` puts the eye. Re-set from scratch
+    // each time rather than accumulated, or the roll compounds every open.
+    sheet.rotation.set(0, at.yaw, 0);
+    sheet.rotateZ(SHEET_ROLL);
+  }
   buildPanel();
   PANEL?.open();
 }
@@ -805,6 +858,16 @@ export function register(ctx: CtxBuild): void {
   const bank = findBank(scene);
   const faceX = bankFace(bank.x);
   const me = cell(bank.x, bank.y, bank.z, BANK.me.c, BANK.me.r);
+
+  // ── WHERE EACH OF THE THREE LETTERS IS HELD ─────────────────────────────
+  // See `Hold`. All three are derived, none is typed twice, and each one lands
+  // the reader on the floor the [E] that opened it is gated to.
+  //
+  // AT THE BOXES: unchanged, and the only one that was ever right — a little
+  // above the door it came out of, so the open box and the post still riding in
+  // it stay visible under the page. `yaw = -π/2` sends the normal to −x, into
+  // the hall, so the eye is out in the lobby looking back at the bank.
+  const HOLD_BOX: Hold = { x: faceX - 0.34, y: me.y + 0.09, z: me.z, yaw: -Math.PI / 2 };
 
   const mat = (c: number) => new THREE.MeshBasicMaterial({ color: c });
   // C's own painted door colour and its shadow line, so the one door with
@@ -963,12 +1026,12 @@ export function register(ctx: CtxBuild): void {
   // where `poseFor` puts the eye (it reads that same normal). Setting
   // `rotation.z` instead would compose through the Euler order and tilt the
   // face itself, which is a different and worse thing.
-  sheet.rotateZ(0.035);
+  sheet.rotateZ(SHEET_ROLL);
   // Held a little ABOVE the door it came out of, so the open box and the post
   // still riding in it stay visible under the page rather than being covered
   // by it. x is arm's length off the face; `poseFor` then puts the eye
   // `standoff` further back again along the same normal.
-  sheet.position.set(faceX - 0.34, me.y + 0.09, me.z);
+  sheet.position.set(HOLD_BOX.x, HOLD_BOX.y, HOLD_BOX.z);
   sheet.visible = false;
 
   // ── the interaction ─────────────────────────────────────────────────────
@@ -996,9 +1059,9 @@ export function register(ctx: CtxBuild): void {
         collectedDay = Math.floor(totalMin / 1440) - (hour >= POST_HOUR ? 0 : 1);
         HELD.push(...w);
         while (HELD.length > KEEP) HELD.shift();
-        showLetters(w);                       // what you just took out
+        showLetters(w, HOLD_BOX);             // what you just took out
       } else if (HELD.length) {
-        showLetters([...HELD].reverse());     // newest first, on a second look
+        showLetters([...HELD].reverse(), HOLD_BOX);   // newest first, on a second look
       }
     },
   });
@@ -1056,6 +1119,13 @@ export function register(ctx: CtxBuild): void {
   const LL_X = APT_X0 + 0.62;      // west side of the lobby, off the wall
   const LL_Z = APT_Z0 + 6.6;       // at the foot of the stairs, clear of 101's door
   const LL_FACING = Math.PI;       // atan2(vx, vz): π looks −z, at the front door
+  // WHAT HE HANDS YOU IS HELD BETWEEN THE TWO OF YOU, not five metres away at
+  // the boxes, which is where it used to open from. `yaw = π` puts the normal
+  // on −z, so the eye is on the door side of the paper looking +z — at the
+  // page, and at the man behind it. The feet land 0.95 m back down the lobby
+  // from the page, which is a half-step back from where you pressed [E] and is
+  // clear of his collider.
+  const HOLD_HALL: Hold = { x: LL_X, y: 1.42, z: LL_Z - 0.55, yaw: Math.PI };
   const landlord = citizenSprite(
     { jacket: '#3f4048', pants: '#2b2f36', skin: '#5a3a22', hair: '#1c1410',
       fit: 'coat', cut: 'short', build: 1 },
@@ -1197,7 +1267,7 @@ export function register(ctx: CtxBuild): void {
       const l = paid > 0 ? receipt(day, paid) : shortSlip(day);
       HELD.push(l);
       while (HELD.length > KEEP) HELD.shift();
-      showLetters([l]);
+      showLetters([l], HOLD_HALL);
     },
   });
 
@@ -1232,6 +1302,22 @@ export function register(ctx: CtxBuild): void {
     y: 2 * ST0 + 0.012,        // floor 3, a hair proud of the boards
     w: 0.16, d: 0.11,
   };
+  // ── AND YOU READ IT WHERE YOU PICKED IT UP: INSIDE 301 ───────────────────
+  //
+  // *"i cant read it and i teleport to outside my apt?"* — both of those were
+  // this line missing. See `Hold`: this page used to open at the mailbox three
+  // storeys below, so the focus controller walked the player's feet out onto
+  // the landing and left the eye pointed down through the floorboards.
+  //
+  // `yaw = -π/2` is the same normal the boxes use (−x), which here means the
+  // page hangs just inside your own door with the eye on the ROOM side of it,
+  // looking back at the doorway the slip came under. The feet land at
+  // `x - 0.95` = AX(−1.10) on floor 3: a half-step back from where you bent
+  // down, well inside the flat, clear of the bed (AZI 4.40+) and the crate
+  // (AZI 2.53−), and nothing between that eye and the page whether the door is
+  // open or shut. The storey is the whole point — the boxes and this slip sit
+  // within a metre of each other in x and z (GOTCHAS §7).
+  const HOLD_301: Hold = { x: SLIP.x - 0.10, y: SLIP.y + 1.41, z: SLIP.z, yaw: -Math.PI / 2 };
   const slipT = declareSurface(pixTex(11, 16, (g) => {
     g.fillStyle = '#e2ddc8'; g.fillRect(0, 0, 11, 16);
     g.fillStyle = '#cdc7b0'; g.fillRect(0, 8, 11, 1);          // the fold, seen from above
@@ -1289,7 +1375,7 @@ export function register(ctx: CtxBuild): void {
       };
       HELD.push(l);
       while (HELD.length > KEEP) HELD.shift();
-      showLetters([l]);
+      showLetters([l], HOLD_301);
     },
   });
 
