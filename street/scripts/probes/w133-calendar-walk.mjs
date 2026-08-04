@@ -74,7 +74,7 @@ const say = (ok, line) => { console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${line}`); i
 
 // ── the page and the two stand-points, asked of the world ────────────────
 const gy = await p.evaluate(() => window.__ct.groundAt(199.36, -15.545));
-await p.evaluate(([gy]) => window.__ct.warp(198.90, -15.90, 0, gy, 0), [gy]);
+await p.evaluate(([gy]) => window.__ct.warp(199.36, -15.545, 0, gy, 0), [gy]);
 await p.waitForTimeout(600);
 const W = await p.evaluate(() => {
   let page = null;
@@ -99,9 +99,48 @@ console.log(`the page hangs ${(W.page.x - W.cal.x).toFixed(2)} m right of the sp
 
 // ── (1) WALK SQUARE UP TO THE PAGE AND READ IT ───────────────────────────
 console.log('(1) walked square up to the page, facing the wall');
+// START ON THE PAGE'S OWN COLUMN, derived from the mesh rather than typed —
+// this probe scored a false red on the very move it was written for when the
+// start x was a literal and the page moved out from under it.
+await p.evaluate(([x, z, gy]) => window.__ct.warp(x, z, 0, gy, 0),
+  [W.page.x, W.cal.z + 1.10, gy]);
+await p.waitForTimeout(500);
 const start = await pos();
+console.log(`    started at (${start.x.toFixed(3)}, ${start.z.toFixed(3)}), on the page's column`);
 await turnTo(0);                                    // yaw 0 faces -z, the south wall
-const at = await walkUntil((q) => q.z < -20);       // never true: walk until the wall stops him
+// STRIDE BY STRIDE, READING THE PROMPT AT EACH. The user's report is about a
+// WALK — *"i can t look at the calendar if im looking right at it"* — so one
+// sample at the end would be the pose that happens to work, which is exactly
+// how item 298 shipped a calendar readable from one spot. Every stride from
+// where he starts to where the wall stops him has to say the same thing.
+const seen = [];
+for (let i = 0; i < 40; i++) {
+  const q = await pos();
+  seen.push({ off: Math.abs(q.z - W.page.z), got: await prompt(),
+    dDoor: Math.hypot(q.x - W.door.x, q.z - W.door.z) });
+  if (q.z < W.page.z + 0.30) break;
+  await p.keyboard.down('w'); await p.waitForTimeout(40); await p.keyboard.up('w');
+  await frames(2);
+}
+for (const s of seen) console.log(`    ${s.off.toFixed(2)} m off the page `
+  + `(${s.dDoor.toFixed(2)} m from the door's stand-point) -> [E] ${s.got ?? '(none)'}`);
+// THE FIRST STRIDES ARE INSIDE THE DOOR'S OWN CAPSULE AND THE DOOR MUST WIN
+// THEM. That is `onIt` and it is deliberate — `w40-bed-vs-door` END ONE(b)
+// exists to keep exactly it, and the user asked for a door you can work
+// without lining up on it. The claim being made here is the OTHER half: once
+// you are off the door's own mat, every remaining stride up to the wall is the
+// calendar. Both halves are asserted, as numbers, so neither can hide.
+const onDoor = seen.filter((s) => s.dDoor < W.R);
+const rest = seen.filter((s) => s.dDoor >= W.R);
+const bad = rest.filter((s) => !/calendar/i.test(s.got ?? ''));
+const badOn = onDoor.filter((s) => !/door/i.test(s.got ?? ''));
+say(seen.length >= 5, `the approach was sampled (${seen.length} strides, `
+  + `${seen[seen.length - 1].off.toFixed(2)}-${seen[0].off.toFixed(2)} m off the page)`);
+say(rest.length >= 4 && badOn.length === 0,
+  `the ${onDoor.length} stride(s) INSIDE the door's own capsule gave the DOOR, as END ONE(b) requires`);
+say(bad.length === 0, `and the CALENDAR at every one of the ${rest.length} strides outside it`
+  + (bad.length ? ` — ${bad.length} said "${bad[0].got}" at ${bad[0].off.toFixed(2)} m` : ''));
+const at = await pos();
 const walked = Math.hypot(at.x - start.x, at.z - start.z);
 say(walked > 0.6, `the walk actually happened (${walked.toFixed(2)} m > 0.60)`);
 console.log(`    stopped at (${at.x.toFixed(3)}, ${at.z.toFixed(3)}) — `
