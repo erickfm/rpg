@@ -73,6 +73,50 @@ if (ARGS.selftest) {
   console.log(`  SELFTEST: pushed ${moved} car 3 m toward the frontage — this must go red\n`);
 }
 
+// ── ITEM 305: TURN THE REGION CULL OFF BEFORE READING THE SCENE ────────────
+//
+// THIS SCRIPT WAS MEASURING NOTHING, AND SAYING SO IN RED. Everything below
+// skips a mesh with an invisible ancestor. `crosstown.ts:1581 regionCull()`
+// hides EVERY top-level exterior child once the player's x passes REGION_X
+// (=100) — and the player spawns in flat 301 at x≈199. So on a plain load the
+// answer to "how many lot meshes are visible" is **0 of 556**, every car box
+// came back with -1e9 half-extents, and the suite printed rows like
+//
+//     cars at 10.3,8.6 and 11.6,-3.4 OVERLAP by 1000000000.00 m
+//     closest approach -999999859.556 m, to a 'walkup' mesh
+//
+// for eleven cars that are perfectly parked. GOTCHAS 79 — a check that filters
+// on `visible` measures NOTHING — with the sign flipped: it did not go quietly
+// green, it went loudly red, and a reader goes hunting for a lot full of
+// interpenetrating cars that was never there.
+//
+// `cullRegions(false)` is the world's own switch (crosstown.ts:2182) and it
+// restores each child's OWNER-INTENDED visibility rather than a blanket true,
+// so a hood-up car's hidden bonnet stays hidden — which is the distinction the
+// `visible` filter is here to make in the first place. Two frames, then read.
+const unculled = await p.evaluate(async () => {
+  window.__ct.cullRegions(false);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  let lot = 0, vis = 0;
+  window.__ct.scene().traverse((o) => {
+    if (!o.isMesh) return;
+    let mod = null; for (let q = o; q; q = q.parent) if (q.userData?.mod) { mod = q.userData.mod; break; }
+    if (mod !== 'lot') return;
+    lot++;
+    let v = true; for (let q = o; q; q = q.parent) if (q.visible === false) { v = false; break; }
+    if (v) vis++;
+  });
+  return { lot, vis, cull: window.__ct.cullInfo() };
+});
+console.log(`  region cull off — ${unculled.vis} of ${unculled.lot} lot meshes now drawable`
+  + ` (cullInfo ${JSON.stringify(unculled.cull)})`);
+// The floor that would have caught the original bug on the day it landed.
+if (unculled.vis < 100) {
+  console.error(`\nCANNOT ANSWER — only ${unculled.vis} of ${unculled.lot} lot meshes are drawable.`);
+  console.error('  Every box below would be built from an empty set. Nothing was measured.');
+  await b.close(); process.exit(3);
+}
+
 const world = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
   const roots = new Set(), cars = [];
@@ -82,14 +126,31 @@ const world = await p.evaluate(() => {
   // world matrix into the car's inverse — because applying matrixWorld and then
   // the inverse as two steps takes the AABB twice and inflates the result. My
   // first probe did exactly that and reported a car 4.47 m wide.
+  // ITEM 305 — `drew` IS THE WHOLE REPAIR, AND IT IS GOTCHAS 79 WEARING RED.
+  //
+  // This traverse skips any mesh with an invisible ancestor. A car group whose
+  // parts are ALL hidden therefore contributed nothing, `lo` stayed at +1e9 and
+  // `hi` at -1e9, and the box came back with half-extents of **-1e9** — which
+  // SAT then read as an overlap of exactly 1000000000.00 m against every other
+  // car in the lot. That is what the suite printed: fifty-odd rows of
+  // "OVERLAP by 1000000000.00 m" and a closest approach of -999999859.556 m,
+  // for one car at (10.3, 8.6) that simply draws nothing.
+  //
+  // The usual form of 79 is a filter on `visible` measuring NOTHING and saying
+  // so in green. This is the same bug saying so in red, which is not better —
+  // a reader goes hunting for a lot full of interpenetrating cars that is not
+  // there. So the emptiness is COUNTED and reported as its own number rather
+  // than being silently dropped or arithmetically hallucinated.
   const boxOf = (o) => {
     const inv = o.matrixWorld.clone().invert();
     const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    let drew = 0;
     o.traverse((c) => {
       if (!c.isMesh || !c.geometry) return;
       for (let q = c; q; q = q.parent) if (q.visible === false) return;
       const g = c.geometry; if (!g.boundingBox) g.computeBoundingBox();
       if (!g.boundingBox) return;
+      drew++;
       const bb = g.boundingBox.clone().applyMatrix4(inv.clone().multiply(c.matrixWorld));
       lo[0] = Math.min(lo[0], bb.min.x); hi[0] = Math.max(hi[0], bb.max.x);
       lo[1] = Math.min(lo[1], bb.min.y); hi[1] = Math.max(hi[1], bb.max.y);
@@ -97,6 +158,7 @@ const world = await p.evaluate(() => {
     });
     const e = o.matrixWorld.elements;
     return {
+      drew,
       // the three basis vectors, straight out of the matrix, never from a yaw
       ax: [e[0], e[1], e[2]], ay: [e[4], e[5], e[6]], az: [e[8], e[9], e[10]],
       org: [e[12], e[13], e[14]],
@@ -105,13 +167,20 @@ const world = await p.evaluate(() => {
     };
   };
 
-  const others = [];
+  const others = [], blank = [];
   s.traverse((o) => {
     let mod = null; for (let q = o; q; q = q.parent) if (q.userData?.mod) { mod = q.userData.mod; break; }
     if (o.isGroup) {
       if (mod !== 'lot' || inside(o)) return;
       let n = 0; o.traverse((c) => { if (c.isMesh) n++; });
-      if (n >= 8) { roots.add(o); cars.push({ ...boxOf(o), mod }); }
+      if (n >= 8) {
+        roots.add(o);
+        const box = boxOf(o);
+        // A car that draws nothing has no geometry to clip WITH, and cannot be
+        // clipped INTO by anything a player can see. It is listed, with its
+        // origin, so "one car is invisible" stays a visible fact.
+        (box.drew ? cars : blank).push({ ...box, mod, at: [box.org[0], box.org[2]] });
+      }
       return;
     }
     if (!o.isMesh || !o.geometry) return;
@@ -129,7 +198,7 @@ const world = await p.evaluate(() => {
     others.push({ x0: bb.min.x, y0: bb.min.y, z0: bb.min.z,
                   x1: bb.max.x, y1: bb.max.y, z1: bb.max.z, mod: mod ?? '(none)' });
   });
-  return { cars, others };
+  return { cars, others, blank };
 });
 
 // ── 3D SAT between an oriented box and an axis-aligned one ──
@@ -167,8 +236,26 @@ const clearance3 = (car, box) => {
   return best;
 };
 
-const { cars, others } = world;
-console.log(`\n  ${cars.length} cars · ${others.length} other solid meshes in the WHOLE world\n`);
+const { cars, others, blank } = world;
+console.log(`\n  ${cars.length} cars · ${others.length} other solid meshes in the WHOLE world`);
+// ITEM 305 — SAY THE EMPTY NUMBER OUT LOUD, in both directions.
+//
+// `blank` is cars that draw nothing. Printing it is not decoration: if it ever
+// reaches every car, this whole script has 0 boxes to compare and would report
+// "no car overlaps another" over an empty set — GOTCHAS 34, and free at zero.
+// So the floor is asserted here rather than implied by the verdicts below.
+if (blank.length)
+  console.log(`  ${blank.length} lot car(s) DRAW NOTHING and are not measurable geometry — `
+    + blank.map((c) => `(${c.at[0].toFixed(1)}, ${c.at[1].toFixed(1)})`).join(' ')
+    + '\n    (every mesh under them is invisible; they cannot clip and cannot be clipped'
+    + '\n     into by anything on screen. Before item 305 they came back with -1e9 half-'
+    + '\n     extents and printed as an OVERLAP of 1000000000.00 m against every neighbour.)');
+if (cars.length < 8) {
+  console.error(`\nCANNOT ANSWER — only ${cars.length} measurable car(s) in the lot; expected at least 8.`);
+  console.error('  "no car overlaps another" is free over an empty set. Nothing was measured.');
+  await b.close(); process.exit(3);
+}
+console.log('');
 
 // ── part 1: the same pair, measured both ways ────────────────────────────────
 console.log('  car against car — the same pairs, measured both ways:\n');
@@ -232,4 +319,19 @@ if (FAIL.length) { console.log('\nFAIL'); for (const f of FAIL.slice(0, 24)) con
 else console.log('\nno car overlaps another car, or anything else in the world.');
 
 await b.close();
+// ITEM 305 — THE SELFTEST HAD THE EXIT CODE THE WRONG WAY ROUND.
+//
+// `checks.mjs` runs `node scripts/I-clip.mjs --selftest` and reads status 0 as
+// "the mutation was caught" (the inverted convention every other row here
+// uses). This script exited **1** when it caught the shoved car — so the one
+// run that proves the guard still bites reported SELFTEST FAILED, and the one
+// that would prove it is decoration would have reported ok. Nobody saw it,
+// because the row was red on the plain run anyway.
+if (ARGS.selftest) {
+  const caught = FAIL.length > 0;
+  console.log(caught
+    ? `SELFTEST: caught the shoved car (${FAIL.length} intersections)`
+    : 'SELFTEST: NOT CAUGHT — this check is decoration');
+  process.exit(caught ? 0 : 2);
+}
 process.exit(FAIL.length ? 1 : 0);
