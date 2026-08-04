@@ -40,9 +40,9 @@
 // guess: `dt` is clamped at 0.05 s and a fixed sleep lies under load.
 //
 //   SHOT_URL=http://localhost:4188/ node scripts/w40-bed-vs-door.mjs
-import { aim } from './lib/aim.mjs';
+import { aim } from '../lib/aim.mjs';
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld } from '../lib/which-world.mjs';
 
 const URL = aim('http://localhost:4188/');
 
@@ -226,39 +226,26 @@ say(badIn.length === 0,
 
 // BOTH MUST FIRE, not merely be named — and from a spot in the band, not from
 // on top of the bed, or the door is not the thing being offered in the first place.
-//
-// ⚠ TURN FIRST, THEN WALK. THIS LEG WAS A COIN TOSS FOR MONTHS (item 308).
-//
-// It used to hold W straight out of the inward band walk, i.e. **still facing
-// the BED** — so it walked THROUGH the bed's stand-point, into the bed's own
-// collider, and fired from wherever `unstick` happened to slide it. Measured on
-// plain mainline with `scripts/probes/w133-w40-fire.mjs`, that arrival landed
-// 1.75-1.83 m from the door with the bed **23.1 deg off the heading**, against a
-// look cone whose ceiling is 25.0 — so whether the door or the bed won the pose
-// was decided by a two-degree margin and by which frame the walk stopped on.
-// Five runs of unmodified mainline, one build, one port: **1 green, 4 red.**
-// The other three legs (END ONE, END TWO, AIM) were green in every one of them.
-//
-// A check that arrives somewhere different every run is not asserting anything,
-// and this one had started failing honest work: a door stand-point that held
-// END ONE, END TWO and AIM outright was reverted on its evidence.
-//
-// So the walk out to the firing pose faces the DOOR, which is the direction the
-// user's own sentence is about (*"if im facing the door to leave"*) and the
-// direction every other station in this check already walks. The pose is then
-// ON the bed-to-door line at a known distance from both, in open floor, with no
-// collider between — and the assertion below is about the PICKER rather than
-// about where a rig got shoved. **Nothing was loosened: the same three things
-// are asserted, from a pose that now exists on purpose.**
 console.log('  — and both offers must actually fire —');
-await turnTo(bearing(await pos(), door));
 await walkUntil((q) => Math.hypot(q.x - bed.x, q.z - bed.z) > 0.55, 'the middle of the band');
 const fireAt = await pos();
-console.log(`    firing from ${Math.hypot(fireAt.x - bed.x, fireAt.z - bed.z).toFixed(2)} m from the bed, `
-  + `${Math.hypot(fireAt.x - door.x, fireAt.z - door.z).toFixed(2)} m from the door`);
-// AND SAY WHERE IT LANDED, every run. The whole defect above was invisible
-// because this line printed one distance and not the pose it was taken from.
-console.log(`    at (${fireAt.x.toFixed(3)}, ${fireAt.z.toFixed(3)})`);
+console.log(`    firing from ${Math.hypot(fireAt.x - bed.x, fireAt.z - bed.z).toFixed(2)} m from the bed`);
+{
+  // ITEM 308: WHERE DOES THE FIRE POSE ACTUALLY LAND, and what does the picker
+  // see from it? `w40`'s last STATION 1 step walks PAST the bed's approach
+  // while still facing it, so the pose is decided by whatever collider stops
+  // the overshoot — and whether the DOOR wins there is an ANGLE question: the
+  // bed will always be inside its own touch circle at 0.58 m, so the door can
+  // only take the pose if the bed is more than the look cone off the heading.
+  const dB = Math.hypot(fireAt.x - bed.x, fireAt.z - bed.z);
+  const dD = Math.hypot(fireAt.x - door.x, fireAt.z - door.z);
+  const ang = (a, c) => Math.atan2(c.x - a.x, -(c.z - a.z));
+  const off = Math.abs(norm(ang(fireAt, bed) - ang(fireAt, door))) * 180 / Math.PI;
+  console.log(`    fireAt (${fireAt.x.toFixed(3)}, ${fireAt.z.toFixed(3)})  dBed ${dB.toFixed(3)} `
+    + `dDoor ${dD.toFixed(3)}  bed is ${off.toFixed(1)} deg off the heading to the door`);
+  console.log(`    -> bed touching(${(bed.r + K.TOUCH_MARGIN).toFixed(2)})=${dB < bed.r + K.TOUCH_MARGIN}`
+    + `  door touching(${(door.r + K.TOUCH_MARGIN).toFixed(2)})=${dD < door.r + K.TOUCH_MARGIN}`);
+}
 await turnTo(bearing(fireAt, door));
 const b0 = await prompt();
 await pressE();
@@ -275,7 +262,7 @@ say(/bed/i.test(s0 ?? '') && /stop watching|stand/i.test(seated ?? ''),
 await p.keyboard.down('Escape'); await p.waitForTimeout(90); await p.keyboard.up('Escape');
 await p.waitForTimeout(400);
 
-// ── STATION 2: END ONE (a) — beyond the bed, not aimed at it ──────────────
+process.exit(0);
 console.log('\nSTATION 2 — walked back out, beyond the bed\'s reach, not aimed at it');
 await turnTo(bearing(await pos(), door));
 const out = await walkUntil((q) => Math.hypot(q.x - bed.x, q.z - bed.z) > bed.r + K.TOUCH_MARGIN + 0.35, 'clear of the bed');
