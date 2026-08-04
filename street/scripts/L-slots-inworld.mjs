@@ -380,10 +380,41 @@ if (mode === 'money' || mode === 'all') {
   // machine". One key doing both is a stronger answer to it than two, so the
   // assertion moves to the stronger claim rather than being loosened to fit
   // (GOTCHAS §27: a tolerance set by an argument is measuring your patience).
-  const out = await until(() => window.__ct.seated() === null, 'the player to leave the seat');
-  check(out,
-    'and it leaves the STOOL too — one key gets you out of both the machine and'
-    + ' the seat, so you cannot be trapped at a machine');
+  // …AND A SECOND ESCAPE LEAVES THE STOOL.
+  //
+  // THIS ASSERTED ONE KEY FOR BOTH AND IT IS TWO, DELIBERATELY, SINCE ITEM 206.
+  // The paragraph that used to sit here had the history right and the current
+  // contract wrong: C's seat-exit fix really did make ESC do both for a while.
+  // Item 206 then took that back at the user's request — *"you sit and its the
+  // loan process as an integrated overlay"* — because closing a screen you
+  // opened from a chair and finding yourself on your feet is not an overlay.
+  //
+  // The mechanism, read in the source rather than guessed: `ct/hud.ts`'s
+  // `close()` only stands you up `if (!keptTheirChair)`, and `keptTheirChair`
+  // comes from `crosstown.ts`'s `FOCUS.leave()`, which does `rig.stand()` —
+  // clearing fp.ts's capture-phase `forceUp` on purpose — and then
+  // `rig.sit(chair)` to put the chair back. Instrumented on the built bundle
+  // (counters added to fp.ts, measured, reverted): one ESCAPE at this stool
+  // gives esc=1, forceUp set=1, consumed=0, cleared-by-stand=1, still seated.
+  //
+  // SO THE CLAIM IS UNCHANGED — YOU CANNOT BE TRAPPED AT A MACHINE — and it is
+  // still measured, just with the count of presses made explicit and bounded.
+  // Two is not "however many it takes": three would fail this, and so would a
+  // second press that left the panel open. Walked 5/5 at this stool
+  // (scripts/probes/w132-walk-three-seats.mjs) and swept over 40 seats across
+  // all 21 labels (w132-all-seats-exit.mjs): 36 freed by one ESCAPE, 4 by two,
+  // 0 still seated after three.
+  let out = await until(() => window.__ct.seated() === null, 'the stool after one ESC', 1500);
+  let presses = 1;
+  if (!out) {
+    await press('Escape');
+    out = await until(() => window.__ct.seated() === null, 'the player to leave the seat', 4000);
+    presses = 2;
+  }
+  check(out && presses <= 2,
+    `and ${presses} press${presses > 1 ? 'es' : ''} of ESCAPE leave${presses > 1 ? '' : 's'} the STOOL too`
+    + ' — the machine first, then the seat, so you cannot be trapped at a machine');
+  check(await panelUp() === null, 'and the machine did not come back up with it');
   // The freeze has to lift with it, or "not trapped" is only half true: a player
   // standing beside a closed panel who cannot walk is still stuck.
   // `__ct.pos()` returns an ARRAY — [x, eyeY, z, yaw] — not the {x, z} object

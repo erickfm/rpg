@@ -160,9 +160,40 @@ await page.waitForTimeout(900);
 await page.screenshot({ path: `${OUT}/seated.png` });
 
 // ── AND STANDING BACK UP TURNS IT OFF, which is the path a toggle fails ──
-await page.keyboard.down('e');
+//
+// THE KEY THAT STANDS YOU UP IS `[ESC]`, AND IT IS READ OFF THE SCREEN RATHER
+// THAN ASSUMED. This block pressed `E` and had gone red for months; the world
+// was right and the check was a contract behind. Item 188 spends a seated `[E]`
+// on whatever you are AIMED AT and names the exit beside it under `[ESC]`
+// (crosstown.ts, the `exit` prompt). Sitting on this bed you are aimed at the
+// calendar, so the seated prompt reads
+//
+//     "[E] read the calendar   ·   [ESC] stop watching TV"
+//
+// and `E` opens the calendar. Measured with the prompt dumped at the instant of
+// the press (scripts/probes/w132-bed-exit.mjs): E #1 -> panel `ct-calendar`,
+// E #2 -> closes it, E #3 -> opens it again, forever. Nobody is trapped — the
+// way out is on screen the whole time — but this check was pressing a key that
+// stopped being the exit when 188 landed.
+//
+// So take the key from the prompt. That is stricter than hard-coding `Escape`,
+// not looser: if the world ever stops NAMING an exit, `exitKey` finds none and
+// the assertion below fails, which is the failure a player would actually feel.
+const seatedPrompt = (await prompt()) ?? '';
+const exitKey = /\[ESC\]/.test(seatedPrompt) ? 'Escape' : (/^\s*\[E\]/.test(seatedPrompt) ? 'e' : null);
+// NOTE WHAT THIS LINE DOES AND DOES NOT PROVE. It proves the seated state puts
+// SOME key on screen; it cannot tell "[E] read the calendar" (an object) from
+// "[E] stop watching TV" (the exit) by text alone. The proof that the key is
+// really the way out is the assertion after it, and that is the one that goes
+// red: with `exit` forced null in crosstown.ts the prompt still read
+// "[E] read the calendar", this line still passed, and `you can get back up
+// again` FAILED — which is the failure a player would feel.
+ok(!!exitKey, exitKey
+  ? `the seated state puts a key on screen, and this check will press [${exitKey === 'Escape' ? 'ESC' : 'E'}]: ${JSON.stringify(seatedPrompt)}`
+  : `THE SEATED PROMPT OFFERS NO KEY AT ALL — ${JSON.stringify(seatedPrompt)}`);
+await page.keyboard.down(exitKey ?? 'Escape');
 await page.waitForFunction(() => !window.__ct.seated(), null, { timeout: 6000 }).catch(() => {});
-await page.keyboard.up('e');
+await page.keyboard.up(exitKey ?? 'Escape');
 const stillSeated = await page.evaluate(() => !!window.__ct.seated());
 ok(!stillSeated, 'you can get back up again');
 await page.waitForFunction(() => window.__ct.scene().userData?.tv?.on === false, null, { timeout: 6000 }).catch(() => {});
