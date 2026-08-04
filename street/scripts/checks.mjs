@@ -926,6 +926,26 @@ const CHECKS = [
   // fifth.
   ['standpoint-overlap', 'does any furniture plant its stand-point inside a doorway?',
     ['--selftest']],
+  // ITEM 303 — the general form of item 301, and it is here because 301's fault
+  // could not be seen from either half of itself. The leaf's hinge moved to the
+  // other jamb and the collider that stands for it — typed 2,500 lines away, in
+  // the units of a ROOM — stayed where the old hinge left it. A 0.92 x 0.31 m
+  // box of solid air beside the front door, and an open leaf you walked straight
+  // through, in the flat the player spawns in.
+  //
+  // Four leaves in this world are registered solid (301's front door, the jail
+  // lobby gate, the bank vault slab, the car lot's roller gate). Three of them
+  // compute their box from the same constants that place the mesh, in the same
+  // block, so they cannot drift; 301's is the one that can, and did. Each opts
+  // in at its own build site with `userData.solidLeaf`, so a fifth solid leaf
+  // joins this check by saying so rather than by being remembered.
+  //
+  // Cheap on purpose (BUILDER-BRIEF 10a): one page load, `scene()` +
+  // `staticColliders()`, no walk. Watched red twice before it was kept — once by
+  // restoring 301's pre-fix box (10/41 covered, 0.767 m uncovered, exit 1), once
+  // by `--selftest`.
+  ['solid-leaf-vs-collider', 'can you walk through an open door leaf that is meant to be solid?',
+    ['--selftest']],
   // The complement of seats-walk: that one asks whether a seat SEATS you, this
   // asks whether you can get OUT of it, which is the half the user reported —
   // "pressing e doesnt get me out of it". It approaches each seat from a pace
