@@ -4,6 +4,12 @@ import { declareSurface, pixTex } from './paint';
 import { APT_X0, APT_Z0, ST0 } from './apartment';
 import { citizenSprite } from './citizens';
 import { UI, makePanel, screenFocusReady, type Panel } from './hud';
+import {
+  RENT, DAYS_PER_SEASON, dateOf, dueDay, duePeriodsBy, isRentDay,
+  nextDueDay, noDelivery, noticeDay,
+} from './calendar';
+
+export { RENT, dueDay, duePeriodsBy } from './calendar';
 
 // ── TENANCY ───────────────────────────────────────────────────────────────
 //
@@ -54,45 +60,33 @@ import { UI, makePanel, screenFocusReady, type Panel } from './hud';
 export const ORDER = BUILD.PROPS + 6;      // after ct/inventory.ts (+5) adopts its litter
 
 // ── the lease ─────────────────────────────────────────────────────────────
-
-/**
- * The terms, in one place, because every one of them is quoted somewhere the
- * player can read it and a number that appears in two places will disagree.
- *
- * $45 a week is a 1997 walk-up studio at the cheap end, and it is set against
- * the economy that exists rather than against realism: you start with $14.50
- * (`crosstown.ts`) and a box of cereal costs $2.50 (`ct/int-bodega.ts`). A
- * realistic $325 a month would be a debt you could never clear, which is a
- * failure state rather than a feature. Tune it here.
- *
- * FIRST DUE ON DAY 2, weekly after that. The game opens at 13:20 on day 0, so
- * a purely weekly cycle would put the first demand two and a half real hours
- * away and nobody would ever see it. Day 2 says you moved in most of a week
- * ago, which is also why there is already a notice in the box the first time
- * you walk in.
- */
-export const RENT = {
-  amount: 45,
-  /** the first rent day */
-  firstDay: 2,
-  /** and every this-many days after it */
-  everyDays: 7,
-  /** the notice lands this many days before the money is due */
-  noticeLead: 2,
-  /** the flat, the landlord, and the man's name on the bottom of the notice */
-  flat: '301',
-  landlord: 'V. OKONKWO',
-  building: 'No. 227',
-} as const;
-
-/** The `n`th rent day, counting from 0. Day 2, 9, 16, 23 … */
-export function dueDay(n: number): number { return RENT.firstDay + n * RENT.everyDays; }
-
-/** How many rent days have arrived by `day` — i.e. `dueDay(n) <= day` for n < this. */
-export function duePeriodsBy(day: number): number {
-  if (day < RENT.firstDay) return 0;
-  return Math.floor((day - RENT.firstDay) / RENT.everyDays) + 1;
-}
+//
+// THE TERMS AND THE DATE MATH ARE NO LONGER HERE. They are `ct/calendar.ts`, a
+// leaf module that imports nothing, because the wall calendar in 301 rings the
+// same rent days this file collects them on and the two used to be separate
+// copies — `ct/apartment.ts` carried a hand-typed `LEASE` block and a Gregorian
+// epoch of its own, with a comment saying it could not import this file without
+// closing a cycle (this one imports `APT_X0` from it). The leaf breaks that:
+// both files import the calendar and neither imports the other.
+//
+// What changed in the cycle itself, and why:
+//
+//   *"lets make rent due monthly on the first. when you start the game it's the
+//    first but ur mom already paid for your first month when she kicked you
+//    out"*
+//   *"per year i want there to be 4 months kinda like stardew where each month
+//    is a season, spring, summer, fall, winter"*
+//
+// So: FOUR MONTHS IN A YEAR, each one a season, 28 days each. Rent is due on
+// the 1st of each — four payments a year, one per season, always on a Monday.
+// Day 0 is SPRING 1, 1997, which IS a rent day, and `RENT.prepaidMonths` says
+// your mother covered it. A fresh start therefore owes nothing: no arrears, no
+// PAST DUE stamp, no slip under the door and no landlord in the lobby. What is
+// in the box on day 0 instead is HER RECEIPT (`prepaidReceipt` below), which is
+// where the backstory lives — it is a document the landlord already writes in
+// this file, not a cutscene and not a new panel.
+//
+// The first rent you pay out of your own pocket is day 28, the 1st of SUMMER.
 
 // ── the tenancy's own state ───────────────────────────────────────────────
 //
@@ -100,8 +94,18 @@ export function duePeriodsBy(day: number): number {
 // rather than derived. Session-scoped, like C's `doorShut` — this world has no
 // save, and inventing one here would be a second thing to get wrong.
 
-/** rent days settled so far. `paidPeriods === duePeriodsBy(day)` means square. */
-let paidPeriods = 0;
+/**
+ * Rent days settled so far. `paidPeriods === duePeriodsBy(day)` means square.
+ *
+ * IT STARTS AT 1, NOT 0, AND THAT IS THE WHOLE OPENING OF THE GAME. Day 0 is
+ * the 1st of SPRING, `duePeriodsBy(0)` is therefore 1, and a month falls due the
+ * instant the world loads — *"when you start the game it's the first"*. The one
+ * already on the books is your mother's: *"ur mom already paid for your first
+ * month when she kicked you out"*. One number, and every downstream thing that
+ * reads `owed()` — the landlord's presence, the stamp on the notice, the slip
+ * under your door — comes out right without knowing why.
+ */
+let paidPeriods = RENT.prepaidMonths;
 /** the last day whose post you have taken out of the box. -1 = you never have. */
 let collectedDay = -1;
 /** mail you have taken but not thrown away, newest last. */
@@ -274,8 +278,48 @@ const JUNK: { from: string; lines: string[] }[] = [
   ] },
 ];
 
-/** Sunday. No delivery, and the box should feel like it has a week in it. */
-function noDelivery(day: number): boolean { return day % 7 === 6; }
+/**
+ * THE ONE LETTER THAT ONLY EVER ARRIVES ONCE: your mother's receipt, day 0.
+ *
+ * *"ur mom already paid for your first month when she kicked you out"* — and
+ * the backstory needs a surface rather than a cutscene, so it gets the surface
+ * this file already has. He comes in off the street, opens his box, and the
+ * first thing in it is the carbon slip proving the month he is standing in is
+ * paid for and that somebody else paid it.
+ *
+ * It also does a job beyond flavour: it is the ONLY thing that explains why the
+ * rent feature is silent on day one. No notice, no stamp, no man at the foot of
+ * the stairs — without this the opening reads as a lease that has not started.
+ *
+ * `kind: 'receipt'` so it takes the live balance band underneath, which on day 0
+ * says NOTHING OUTSTANDING TODAY. That band is doing real work here.
+ */
+function prepaidReceipt(): Letter {
+  const here = dateOf(0).season;
+  const next = dateOf(DAYS_PER_SEASON).season;
+  return {
+    day: 0, kind: 'receipt', from: `${RENT.landlord} — PAID IN ADVANCE`,
+    lines: [
+      `RE: APT ${RENT.flat}, ${RENT.building}`,
+      '',
+      `$${RENT.amount.toFixed(2)} — ${here}, IN FULL.`,
+      '',
+      // ⚠ 35 COLUMNS, counted. `COLS` clips a long line SILENTLY and
+      // identically to one that fits — the landlord's signature came off the
+      // edge of this same sheet once and only a screenshot found it.
+      'Your mother paid this at the door',
+      'on her way out. She asked me to',
+      'keep an eye on you. I told her no.',
+      '',
+      `Next is the 1st of ${next}.`,
+      `                      — ${RENT.landlord}`,
+    ],
+  };
+}
+
+// `noDelivery` is the calendar's now — day 0 is a Monday and Sunday is day 6,
+// which is the fact the whole week in this world is pinned to. Re-exported from
+// there rather than re-derived here.
 
 /**
  * Everything delivered on `day`, in the order it sits in the box.
@@ -293,16 +337,29 @@ function mailFor(day: number): Letter[] {
   const out: Letter[] = [];
   if (day < 0 || noDelivery(day)) return out;
 
-  // the notice, `noticeLead` days before each rent day
-  const n = (day - RENT.firstDay + RENT.noticeLead) / RENT.everyDays;
-  if (Number.isInteger(n) && n >= 0) {
+  // HER RECEIPT, once, on the morning the game opens. First in the box because
+  // it is the answer to the question the box otherwise poses.
+  if (day === 0) out.push(prepaidReceipt());
+
+  // The notice, `noticeLead` days before the next 1st — and it names the season
+  // it is for rather than only counting days, because a wall calendar four steps
+  // away is showing that same word and the two must say the same thing.
+  //
+  // `duePeriodsBy(day)` is the index of the NEXT rent day whenever `day` is not
+  // one itself, and of the one after when it is — which is the period this
+  // notice should be warning about either way.
+  const n = duePeriodsBy(day);
+  if (day === noticeDay(n)) {
     const due = dueDay(n);
+    const left = due - day;
     out.push({
       day, kind: 'rent', from: `${RENT.landlord} — MANAGING AGENT`,
       lines: [
         `RE: APT ${RENT.flat}, ${RENT.building}`,
         '',
-        `RENT OF $${RENT.amount.toFixed(2)} DUE IN ${RENT.noticeLead} DAYS.`,
+        `RENT OF $${RENT.amount.toFixed(2)} IS DUE ON THE 1ST`,
+        `OF ${dateOf(due).season} — ${left} DAY${left === 1 ? '' : 'S'} FROM TODAY.`,
+        '',
         'I collect in person. I am in the',
         'hall or on the stairs. Cash only.',
         '',
@@ -1182,14 +1239,18 @@ export function register(ctx: CtxBuild): void {
 
   /** A receipt is a letter you were handed rather than posted. Same sheet. */
   function receipt(day: number, amount: number): Letter {
-    const weeks = Math.round(amount / RENT.amount);
+    // MONTHS, not weeks. Money still moves in whole rent periods and a period is
+    // now a season, so the carbon book has to say so — a receipt that says
+    // "one week's rent" against a monthly lease is the feature contradicting its
+    // own paperwork, which is what this file's own notice comment warns about.
+    const months = Math.round(amount / RENT.amount);
     return {
       day, kind: 'receipt', from: `${RENT.landlord} — RECEIVED`,
       lines: [
         `RECEIVED OF APT ${RENT.flat}`,
         '',
         `THE SUM OF $${amount.toFixed(2)},`,
-        `being ${weeks === 1 ? "one week's" : `${weeks} weeks'`} rent.`,
+        `being ${months === 1 ? "one month's" : `${months} months'`} rent.`,
         '',
         'Signed in pencil, on the back of an',
         'envelope from his coat pocket.',
@@ -1251,8 +1312,8 @@ export function register(ctx: CtxBuild): void {
       // this text; the gate is not visible from there.
       if (bal <= 0) return 'nothing is owed';
       if (cash >= RENT.amount) {
-        const weeks = Math.min(Math.floor(cash / RENT.amount), bal / RENT.amount);
-        return `pay the rent — $${(weeks * RENT.amount).toFixed(2)}`;
+        const months = Math.min(Math.floor(cash / RENT.amount), bal / RENT.amount);
+        return `pay the rent — $${(months * RENT.amount).toFixed(2)}`;
       }
       return `rent is $${bal.toFixed(2)} — you are $${(RENT.amount - cash).toFixed(2)} short`;
     },
@@ -1389,6 +1450,19 @@ export function register(ctx: CtxBuild): void {
     owed: () => owed(Math.floor(ctx.clock.now().totalMin / 1440)),
     paidPeriods: () => paidPeriods,
     dueDay: (n: number) => dueDay(n),
+    /**
+     * THE DATE, as `ct/calendar.ts` gives it — season, day of season, year.
+     *
+     * Published here because the tenancy is the only thing in the world that
+     * acts on the date today, so this is where anyone asking "what season is it"
+     * will look first. The real accessor is `seasonOf(day)` from
+     * `ct/calendar.ts`; this is the window onto it, not a second copy of it.
+     */
+    date: (d?: number) => dateOf(d ?? Math.floor(ctx.clock.now().totalMin / 1440)),
+    isRentDay: (d: number) => isRentDay(d),
+    nextDueDay: (d: number) => nextDueDay(d),
+    /** the notice for period `n` goes in the box on this day */
+    noticeDay: (n: number) => noticeDay(n),
     /** what is in the box this instant */
     waiting: () => waiting(ctx.clock.now().totalMin).map((l) => ({ day: l.day, kind: l.kind, from: l.from })),
     /** what a given day delivers, without waiting for it */
