@@ -128,30 +128,29 @@ export function buildAlley(a: {
       // grain per SQUARE METRE, not a flat count — the same correction the
       // facades and the party walls already took
       dither(g, AFW, AFL, Math.round(AF_W * AF_L * 22));
-      // Stains sized in METRES and scattered across the whole floor, rather
-      // than two blobs that each happened once. Deterministic, not rnd()
-      // (GOTCHAS §2).
-      let h = 0x9e3779b1;
-      const nx = () => { h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0; return (h >>> 9) / 0x7fffff; };
-      // …AND THE STAINS THEMSELVES READ AS CAST SHADOWS, which is the second
-      // half of the same report. Nine soft black ellipses at alpha 0.32, up to
-      // 2.2 m across on a 6.6 m floor, are indistinguishable from something's
-      // shadow — and nothing in this world casts one, so the eye hunts for the
-      // object and does not find it. They are visible as four dark blobs in
-      // /tmp/w64-alley/before.png at midday, before any grade.
+      // ── NO SCATTERED STAIN ELLIPSES HERE. HE ASKED TWICE. ────────────────
       //
-      // Smaller, weaker and MORE of them: 16 marks at alpha 0.15 and at most
-      // 1.2 m across read as ground that has been walked on, which is what a
-      // stain is. This is the same correction the note above records making
-      // once already — *"two blobs that each happened once … read as smears
-      // rather than as ground"* — applied to what it left behind.
-      g.fillStyle = 'rgba(0,0,0,0.15)';
-      for (let i = 0; i < 16; i++) {
-        const cx = nx() * AFW, cy = nx() * AFL;
-        g.beginPath();
-        g.ellipse(cx, cy, am(0.18 + nx() * 0.42), am(0.11 + nx() * 0.24), nx() * Math.PI, 0, Math.PI * 2);
-        g.fill();
-      }
+      // The user, 2026-08-04: *"get rid of strange elipses in the alley with
+      // the cat"* — the SECOND half of the 2026-08-02 report above, which a
+      // previous pass shrank instead of removing.
+      //
+      // THE REASON THEY READ WRONG, KEPT HERE SO NOBODY RE-ADDS THEM: soft
+      // black ellipses on a floor are indistinguishable from something's
+      // shadow — and NOTHING IN THIS WORLD CASTS ONE (it is entirely
+      // MeshBasic with no lights, per the note above), so the eye hunts for
+      // the object that would be casting them and never finds it. That is why
+      // they are "strange": not too dark, not too big, but unattributable.
+      // Shrinking them from 9 at alpha 0.32 to 16 at alpha 0.15 changed the
+      // amount and not the kind, so the report came back word for word.
+      //
+      // The floor is not bare without them. It keeps its tarmac tone, the
+      // per-square-metre dither above, the drain's radial damp wash and the
+      // gully square below — all of which have a cause the eye can name. A
+      // mark on this floor from now on has to point at something REAL: the
+      // drain, a dumpster's footprint, a door. Not a free-floating blob.
+      //
+      // (The seeded `nx()` stream that scattered them went with them — it fed
+      // nothing else in this painter, so no other randomised thing moved.)
       // THE DRAIN IS REAL CASTING NOW, so this paints the HOLE and nothing
       // else. B exported `floorDrain()` from ct/tex-ground.ts — frame, seven
       // bars sunk 11 mm under the frame top, a dark void plate — and it is
