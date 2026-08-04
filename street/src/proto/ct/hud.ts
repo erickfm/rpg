@@ -1773,6 +1773,8 @@ export function makeHud(purse: Purse): Hud {
   const WATCH_POS = 8;
   /** width of the dark cap at the limb's far end, grown inward from x 176. */
   const STRIP_W = 12;
+  /** chamfer leg on the fist's corners, in texels — cut or filled, see below. */
+  const FIST_ROUND = 3;
   const WATCH_H = WATCH_LIMB_H + Math.max(STRAP_OVER, THUMB_D);
   const WATCH_BOTTOM = (-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)).toFixed(2);
   const WATCH_LIFT_PX = (WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S).toFixed(2);
@@ -1900,6 +1902,37 @@ export function makeHud(purse: Purse): Hud {
     // Drawn BEFORE the strap and the case so it can never overlap them; it butts
     // at x 104 where the wrist ends, and the strap lives at 38…82.
     g.fillStyle = '#c9946a'; g.fillRect(104, 0, 72, 72);
+    // ── AND ITS CORNERS ───────────────────────────────────────────────────
+    //
+    // *"make the corners rounded on the fist here. just like cut the corner
+    // where it makes sense or fill the corner where it makes sense"*
+    // (2026-08-04). HIS INSTRUCTION IS ALSO THE RULE, and it resolves to one
+    // line: OUTSIDE corners get cut, INSIDE corners get filled. There are four
+    // on the fist and they are not treated alike —
+    //
+    //   · far TOP (176, 0) — outside, the knuckle end. CUT.
+    //   · far BOTTOM (176, 72) — outside, the same end underneath. CUT.
+    //   · join TOP (104, 6) — INSIDE. The fist stands 6 px proud of the wrist
+    //     here, and a hand does not step off a wrist at a right angle; the
+    //     swell runs into it. FILLED, which is the corner he meant by "fill
+    //     where it makes sense".
+    //   · join BOTTOM (104, 72) — LEFT ALONE. THUMB_BACK's wedge already ramps
+    //     out of this exact corner, so it is the one that is already solved.
+    //     Chamfering it would cut into the ramp's apex and undo item 316.
+    //
+    // FIST_ROUND is the leg length in texels for all three — 3 is 8 px on
+    // screen, a chamfer on a 198 px fist and not a rounded blob. STEPPED ROWS,
+    // like the wedge and for the same reason: `arcTo` antialiases, and at 2.75x
+    // pixelated every blended pixel becomes a block of half-transparent skin,
+    // which is a second tone on a limb where one flat tone is the whole point.
+    //
+    // The fill goes here, with the skin. The two CUTS are made at the very end
+    // of the fist's drawing, AFTER the dark strip, so the strip is cut by the
+    // same texels and cannot hang past the silhouette into empty air.
+    for (let k = 0; k < FIST_ROUND; k++) {
+      const w = FIST_ROUND - k;
+      g.fillRect(104 - w, 5 - k, w, 1);                  // join top, filled
+    }
     // ── THE THUMB ─────────────────────────────────────────────────────────
     //
     // *"also add a thumb to the fist"* (2026-08-04). This OVERRIDES the note
@@ -2001,6 +2034,19 @@ export function makeHud(purse: Purse): Hud {
     if (STRIP_X < THUMB_END) {
       const x0 = Math.max(STRIP_X, THUMB_X);
       g.fillRect(x0, WATCH_LIMB_H, THUMB_END - x0, THUMB_D);
+    }
+    // THE TWO CUT CORNERS, LAST, so they take the strip with them. `clearRect`
+    // rather than a skin-coloured overdraw: the fist's far corners sit over
+    // nothing (the wrist band stops at x 104, the thumb at x 170), so clearing
+    // is what actually shortens the silhouette — and because the dark strip has
+    // already been laid down over x 164…176, the same texels remove skin and
+    // strip together. The strip therefore follows the new corners for free and
+    // can never overhang them, which is the thing to watch on his most recent
+    // approval. It loses 6 of its 864 texels to this.
+    for (let k = 0; k < FIST_ROUND; k++) {
+      const w = FIST_ROUND - k;
+      g.clearRect(176 - w, k, w, 1);                       // far top, cut
+      g.clearRect(176 - w, WATCH_LIMB_H - 1 - k, w, 1);    // far bottom, cut
     }
     // ── THE STRAP, AND ITS OVERHANG ───────────────────────────────────────
     //
