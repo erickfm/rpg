@@ -589,6 +589,15 @@ const BANDS = {
   // nearly to the pavement the way a plate-glass showroom does, and a fascia in
   // between the tax office's banner and the burger barn's box.
   mattress: { fy: 0.10, fh: 0.86, ox: 0.30, og: 0.16, gi: 0.20, sg: 0.44, dw: 1.10 },
+  // An electronics shop is a showroom too — the stock is lit and you are meant
+  // to look at it — so it borrows the mattress row's shallow sill gap rather
+  // than the default 0.57. TVs are stacked from low down; 0.57 of stallriser
+  // cuts the bottom row off at the knees.
+  electro: { fy: 0.10, fh: 0.92, ox: 0.32, og: 0.16, gi: 0.20, sg: 0.44, dw: 1.05 },
+  // The video shop keeps the standard sg = gi + 0.35. Its stock is racked at
+  // chest height against the back wall, so it gains nothing from low glass —
+  // what it wants is a DEEP fascia, because the sign is the whole shop.
+  video: { fy: 0.09, fh: 1.02, ox: 0.38, og: 0.18, gi: 0.22, sg: 0.57, dw: 1.05 },
 } as const;
 type Character = keyof typeof BANDS;
 
@@ -600,6 +609,8 @@ function characterOf(name: string): Character {
   if (name.startsWith('A-1 TAX')) return 'tax';
   if (name === 'PAWN') return 'pawn';
   if (name === 'SLEEP CENTER') return 'mattress';
+  if (name === 'ELECTRO CITY') return 'electro';
+  if (name === 'VIDEO HUT') return 'video';
   return 'default';
 }
 
@@ -1315,6 +1326,8 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
   // and the flag can retire whenever D is next in that file.)
   if (name === 'DINER') return dinerFront(brick, name, wMeters);
   if (name === 'THRIFT') return thriftFront(brick, name, awning, wMeters);
+  if (name === 'ELECTRO CITY') return electroFront(brick, name, wMeters);
+  if (name === 'VIDEO HUT') return videoFront(brick, name, wMeters);
   const surf = masonry(wMeters, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   // The block default. It should NOT have a character — a barber, a deli and
@@ -2188,6 +2201,246 @@ export const mattressFront = (brick: string, wM: number) => {
     // ── stallriser: a low painted board, panelled like the block default ──
     const ry = gy + gh, rh = H - ry - m(0.05);
     proud(g, surf, ox, ry, ow, rh, '#7a5340');
+    g.fillStyle = 'rgba(0,0,0,0.24)';
+    const panels = Math.max(2, Math.round(ow / surf.ppm / 1.6));
+    for (let i = 1; i < panels; i++)
+      g.fillRect(ox + Math.round((ow * i) / panels), ry + m(0.06), Math.max(1, m(0.07)), rh - m(0.12));
+    g.fillStyle = 'rgba(30,26,20,0.30)'; g.fillRect(ox, H - m(0.16), ow, m(0.16));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
+  });
+};
+
+/**
+ * ELECTRO CITY — *"replace 'radio' with an electronics shop."*
+ *
+ * THE WALL OF TELEVISIONS IS THE WHOLE FRONT. Everything else here is in
+ * service of it. A 1997 electronics discounter is recognised from the far
+ * pavement by one thing: a grid of lit screens, all showing the SAME picture,
+ * stacked three high behind plate glass. Draw that and nobody needs to read a
+ * word; draw a fascia and a dark window and it is a barber's again.
+ *
+ * So the screens are drawn at the size they need to be legible rather than at
+ * scale — the same argument mattressFront's beds are drawn at — and the stock
+ * owns the glass. The hi-fi tower and the camcorder shelf are one column and
+ * one row of small dark blocks with a glint each: they say "and the other two
+ * things this shop sells" and they are not allowed to be more than that.
+ *
+ * GRAPHITE AND RED. `col` in ct/street.ts is the same graphite because it is
+ * also the projecting joinery — keep the two in step or the mouldings frame a
+ * fascia of another shade. The screens are the only bright thing, which is
+ * exactly right: in a shop like this the merchandise IS the lighting.
+ */
+const electroFront = (brick: string, nm: string, wM: number) => {
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const F = frontageOf(nm, wM);
+  const GRAPHITE = '#2a2d33', RED = '#c8322a', SILVER = '#9aa0a6';
+  const ROOM = '#1a1c20', SCREEN = '#5f8fa8';
+  return surf.paint((g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
+    surf.courses(g);
+    // ── the fascia: a backlit box, not a painted board ────────────────────
+    const B = BANDS.electro;
+    const fy = m(B.fy), fh = m(B.fh);
+    proud(g, surf, 0, fy, W, fh, GRAPHITE);
+    g.fillStyle = 'rgba(90,190,220,0.28)';                       // the tube behind the plexi
+    g.fillRect(m(0.2), fy + m(0.1), W - m(0.4), Math.max(1, m(0.06)));
+    g.fillRect(m(0.2), fy + fh - m(0.16), W - m(0.4), Math.max(1, m(0.06)));
+    g.font = `bold ${m(0.5)}px monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillText('ELECTRO CITY', W / 2 + 1, fy + fh / 2 + 1);
+    g.fillStyle = RED; g.fillText('ELECTRO CITY', W / 2, fy + fh / 2);
+    // ── the opening ───────────────────────────────────────────────────────
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
+    g.fillStyle = '#17191d'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
+    glazed(g, surf, gx, gy, gw, gh, ROOM);
+    // ── THE SCREENS. Three rows on a shelf stack, every one the same frame.
+    const cols = Math.max(4, Math.round(wM / 1.5)), rows = 3;
+    const cw = (gw - m(0.5)) / cols, chh = m(0.62);
+    const sx0 = gx + m(0.25), sy0 = gy + m(0.5);
+    for (let r = 0; r < rows; r++) {
+      const sy = sy0 + r * (chh + m(0.24));
+      if (sy + chh > gy + gh - m(0.1)) break;
+      // the shelf the row stands on — a dark bar under the sets
+      g.fillStyle = '#2f3238'; g.fillRect(gx + m(0.1), sy + chh, gw - m(0.2), m(0.12));
+      for (let c = 0; c < cols; c++) {
+        const sx = sx0 + c * cw;
+        g.fillStyle = '#26282c'; g.fillRect(sx, sy, cw - m(0.14), chh);          // the cabinet
+        // THE PICTURE, and every set carries the same one — that is the tell.
+        // Two bands and a bright block: a test card at eight texels tall.
+        const px = sx + m(0.06), py = sy + m(0.06);
+        const pw = cw - m(0.26), ph = chh - m(0.18);
+        g.fillStyle = SCREEN; g.fillRect(px, py, pw, ph);
+        g.fillStyle = 'rgba(240,250,255,0.55)'; g.fillRect(px, py, pw, Math.max(1, ph * 0.34));
+        g.fillStyle = 'rgba(200,60,40,0.45)'; g.fillRect(px, py + ph - Math.max(1, ph * 0.22), pw, Math.max(1, ph * 0.22));
+        g.fillStyle = HI; g.fillRect(px, py, pw, 1);
+      }
+    }
+    // ── the hi-fi tower, one end, UNDER the screen wall ───────────────────
+    // Same lesson the mattress front learned the hard way: stock does not get
+    // drawn over stock. The screens own the upper glass, so the separates stack
+    // sits below the lowest shelf, and the price card goes to the OPPOSITE end
+    // so the two can never collide whatever width or door side this front gets.
+    const towerLeft = F.doorCentreM > wM / 2;
+    const tw = m(0.7), tx = towerLeft ? gx + m(0.3) : gx + gw - tw - m(0.3);
+    let ty = gy + gh - m(1.05);
+    for (let i = 0; i < 4; i++) {
+      g.fillStyle = i === 1 ? '#34383e' : '#2b2e33';
+      g.fillRect(tx, ty, tw, m(0.2));
+      g.fillStyle = i % 2 ? 'rgba(90,190,220,0.7)' : 'rgba(230,120,40,0.7)';   // the one lit dot
+      g.fillRect(tx + tw - m(0.16), ty + m(0.07), m(0.07), m(0.06));
+      ty += m(0.24);
+    }
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.4)), SILVER);
+    // ── the price card taped in the glass. One, and small. ────────────────
+    const cwd = Math.min(m(3.0), gw * 0.36), chd = m(0.5);
+    const cxp = towerLeft ? gx + gw - cwd - m(0.3) : gx + m(0.3);
+    const cyp = gy + gh - chd - m(0.16);
+    g.fillStyle = '#f4edd8'; g.fillRect(cxp, cyp, cwd, chd);
+    g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(cxp, cyp + chd, cwd, m(0.05));
+    g.font = `bold ${m(0.2)}px monospace`; g.fillStyle = RED;
+    g.fillText('TV · VCR · CAMCORDER', cxp + cwd / 2, cyp + chd / 2);
+    // ── the door ──────────────────────────────────────────────────────────
+    const dcM = doorAlongU(nm, wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    g.fillStyle = SILVER; g.fillRect(dx - m(0.08), gy, dw + m(0.16), gh);
+    g.fillStyle = SH; g.fillRect(dx - m(0.08), gy, m(0.08), gh);
+    glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.5), ROOM);
+    g.fillStyle = SILVER; g.fillRect(dx, gy + m(0.66), dw, 1);                  // transom
+    g.fillStyle = '#6e726e'; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.55));    // kick plate
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.06));
+    g.fillStyle = SILVER; g.fillRect(dx + dw - m(0.2), gy + m(1.45), m(0.07), m(0.4));
+    g.fillStyle = '#f2ead0'; g.fillRect(dx + m(0.14), gy + m(0.95), m(0.5), m(0.26));
+    g.fillStyle = RED; g.font = `bold ${m(0.16)}px monospace`;
+    g.fillText('OPEN', dx + m(0.39), gy + m(1.08));
+    // ── stallriser: a dark painted board, panelled like the block default ─
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#3a3d42');
+    g.fillStyle = 'rgba(0,0,0,0.24)';
+    const panels = Math.max(2, Math.round(ow / surf.ppm / 1.6));
+    for (let i = 1; i < panels; i++)
+      g.fillRect(ox + Math.round((ow * i) / panels), ry + m(0.06), Math.max(1, m(0.07)), rh - m(0.12));
+    g.fillStyle = 'rgba(30,26,20,0.30)'; g.fillRect(ox, H - m(0.16), ow, m(0.16));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
+  });
+};
+
+/**
+ * VIDEO HUT — *"replace deli and records with a video hut."* The two were
+ * adjacent, so their 9.5 and 8.5 became one 18 m front and this painter has the
+ * widest shopfront on the side street to fill.
+ *
+ * WHAT MAKES IT A VIDEO SHOP AND NOT A SHOP: the racked spines. A rental floor
+ * of 1997 is a wall of identical clamshell boxes stood on end, and at any
+ * distance that is a row of coloured ticks with a dark bar under each shelf.
+ * That pattern is the entire read; it is drawn full width and nothing crosses
+ * it. The posters in the glass are the second signal and they live at the ends,
+ * where they cannot sit in front of the racks.
+ *
+ * BLUE AND YELLOW, because that is what a video rental was, everywhere, and the
+ * green that said deli and the purple that said records both had to go. The
+ * roster `col` is this same blue — it is the joinery as well as the fascia.
+ *
+ * A DEEP FASCIA (BANDS.video, the deepest on the block after the burger barn):
+ * the sign is the shop. Nine characters across 18 m is a big, calm word, which
+ * is the difference between this and a fast-food front shouting at the same
+ * size.
+ */
+const videoFront = (brick: string, nm: string, wM: number) => {
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const F = frontageOf(nm, wM);
+  const BLUE = '#1e5aa8', YELLOW = '#f2c22a', ALU = '#8f938f', ROOM = '#3a3630';
+  // the spines: five stock colours, cycled. Not random — a rack reads as a rack
+  // because the same few boxes repeat, and rnd() here would re-grain every
+  // texture created after it (GOTCHAS §31).
+  const SPINE = ['#b8402c', '#2f6ea8', '#c8a230', '#4a7a4a', '#8a4a7a'];
+  return surf.paint((g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
+    surf.courses(g);
+    // ── the fascia ────────────────────────────────────────────────────────
+    const B = BANDS.video;
+    const fy = m(B.fy), fh = m(B.fh);
+    proud(g, surf, 0, fy, W, fh, BLUE);
+    g.fillStyle = 'rgba(242,194,42,0.85)';                        // yellow keylines
+    g.fillRect(m(0.3), fy + m(0.13), W - m(0.6), Math.max(1, m(0.06)));
+    g.fillRect(m(0.3), fy + fh - m(0.19), W - m(0.6), Math.max(1, m(0.06)));
+    g.font = `bold ${m(0.62)}px monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(0,20,50,0.5)'; g.fillText('VIDEO HUT', W / 2 + 1, fy + fh / 2 + 1);
+    g.fillStyle = YELLOW; g.fillText('VIDEO HUT', W / 2, fy + fh / 2);
+    // ── the opening ───────────────────────────────────────────────────────
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
+    g.fillStyle = '#241f1a'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
+    glazed(g, surf, gx, gy, gw, gh, ROOM);
+    // a rental floor is fluorescent-lit and that is why you can see the racks
+    g.fillStyle = 'rgba(255,250,230,0.26)'; g.fillRect(gx, gy, gw, m(0.3));
+    // ── THE RACKS. Two banks of shelves, spines stood on end. ─────────────
+    const bankTop = gy + m(0.62), shelfH = m(0.72), sw = m(0.17);
+    for (let r = 0; r < 3; r++) {
+      const sy = bankTop + r * (shelfH + m(0.16));
+      if (sy + shelfH > gy + gh - m(0.1)) break;
+      const boxH = shelfH - m(0.14);
+      for (let x = gx + m(0.3); x < gx + gw - m(0.3); x += sw + Math.max(1, m(0.03))) {
+        const i = Math.round((x - gx) / (sw + m(0.03)));
+        g.fillStyle = SPINE[i % SPINE.length];
+        g.fillRect(x, sy, sw, boxH);
+        g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(x, sy + m(0.06), sw, Math.max(1, m(0.04)));
+        g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x + sw - 1, sy, 1, boxH);
+      }
+      // the shelf board, and the shadow the row above throws onto it
+      g.fillStyle = '#4a4038'; g.fillRect(gx + m(0.2), sy + boxH, gw - m(0.4), m(0.1));
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(gx + m(0.2), sy + boxH + m(0.1), gw - m(0.4), m(0.05));
+    }
+    // ── the NEW RELEASES header, above the top rack ───────────────────────
+    g.font = `bold ${m(0.26)}px monospace`;
+    g.fillStyle = YELLOW; g.fillText('NEW RELEASES', gx + gw / 2, gy + m(0.36));
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.4)), ALU);
+    // ── two posters taped inside the glass, at the ENDS, clear of the racks
+    const pw = m(1.15), ph = m(1.7);
+    for (const at of [0.03, 0.97 - pw / gw]) {
+      const px = gx + Math.round(gw * at), py = gy + m(0.9);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(px + m(0.05), py + m(0.06), pw, ph);
+      g.fillStyle = '#e8e0cc'; g.fillRect(px, py, pw, ph);
+      g.fillStyle = at < 0.5 ? '#2f3d6a' : '#6a2f33'; g.fillRect(px + m(0.07), py + m(0.07), pw - m(0.14), ph * 0.62);
+      g.fillStyle = 'rgba(240,235,215,0.6)';                                    // the title bar
+      g.fillRect(px + m(0.14), py + ph * 0.72, pw - m(0.28), m(0.12));
+      g.fillRect(px + m(0.22), py + ph * 0.82, pw - m(0.44), m(0.08));
+      g.fillStyle = 'rgba(0,0,0,0.16)';                                         // tape
+      for (const tx of [px - m(0.04), px + pw - m(0.12)])
+        for (const ty of [py - m(0.04), py + ph - m(0.1)]) g.fillRect(tx, ty, m(0.18), m(0.12));
+    }
+    // ── the hand-lettered rental card ─────────────────────────────────────
+    const nbW = Math.min(m(4.4), gw * 0.34), nbH = m(0.54);
+    const nbX = gx + Math.round((gw - nbW) / 2), nbY = gy + gh - nbH - m(0.14);
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(nbX + m(0.06), nbY + m(0.07), nbW, nbH);
+    g.fillStyle = '#f6efdb'; g.fillRect(nbX, nbY, nbW, nbH);
+    g.font = `bold ${m(0.3)}px monospace`;
+    g.fillStyle = '#1e5aa8'; g.fillText('VHS · 2 FOR $5', nbX + nbW / 2, nbY + nbH / 2);
+    // ── the door ──────────────────────────────────────────────────────────
+    const dcM = doorAlongU(nm, wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    g.fillStyle = ALU; g.fillRect(dx - m(0.08), gy, dw + m(0.16), gh);
+    g.fillStyle = SH; g.fillRect(dx - m(0.08), gy, m(0.08), gh);
+    glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.5), ROOM);
+    g.fillStyle = 'rgba(255,250,230,0.16)'; g.fillRect(dx, gy + m(0.12), dw, m(0.4));
+    g.fillStyle = ALU; g.fillRect(dx, gy + m(0.66), dw, 1);                     // transom
+    g.fillStyle = '#6e726e'; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.55));    // kick plate
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.06));
+    g.fillStyle = ALU; g.fillRect(dx + dw - m(0.2), gy + m(1.45), m(0.07), m(0.4));
+    // the return slot every rental shop has beside its door
+    g.fillStyle = '#2a2d33'; g.fillRect(dx + dw + m(0.24), gy + m(1.3), m(0.46), m(0.5));
+    g.fillStyle = '#111316'; g.fillRect(dx + dw + m(0.3), gy + m(1.4), m(0.34), m(0.09));
+    g.fillStyle = '#f2ead0'; g.fillRect(dx + m(0.14), gy + m(0.95), m(0.5), m(0.26));
+    g.fillStyle = '#a02818'; g.font = `bold ${m(0.16)}px monospace`;
+    g.fillText('OPEN', dx + m(0.39), gy + m(1.08));
+    // ── stallriser ────────────────────────────────────────────────────────
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#17427a');
     g.fillStyle = 'rgba(0,0,0,0.24)';
     const panels = Math.max(2, Math.round(ow / surf.ppm / 1.6));
     for (let i = 1; i < panels; i++)

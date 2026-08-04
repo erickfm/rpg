@@ -371,11 +371,23 @@ export function buildStreet(o: {
     { nm: 'SEVENS', col: '#8a2c42', w: 11.55, brick: '#5c4436', floors: 4 },
   ];
   const SOUTH2: BldSpec[] = [
-    // the church has moved to the main block; the two shops it displaced take
+    // the church has moved to the main block; the two shops it displaced took
     // its old slot. 9.5 + 8.5 = the 18 m the church vacated, so this run still
     // totals 64 and still ends dead on x = 57.
-    { nm: 'DELI', col: '#2e6a34', w: 9.5, brick: '#6b4034', floors: 3 },
-    { nm: 'RECORDS', col: '#6a2c6a', w: 8.5, brick: '#7a4a3a', floors: 3 },
+    //
+    // DELI + RECORDS ARE NOW ONE VIDEO RENTAL — *"replace deli and records with
+    // a video hut."* He names two shops and one replacement, and the two were
+    // ALREADY ADJACENT, so this is a merge and not two swaps: 9.5 + 8.5 = 18,
+    // and the 18 goes to the one building. Same precedent as LAUNDRY 9.2 +
+    // MERIDIAN 10 becoming one 19.2 m bank. THE RUN STILL TOTALS 64 and still
+    // ends dead on x = 57 — nothing either side of it moves, and no other
+    // building was touched to pay for it.
+    //
+    // Blue, because a video rental in 1997 is blue and yellow and nothing else;
+    // the green said deli and the purple said records, and both are gone. Brick
+    // is DELI's browner of the two — the darker wall carries an 18 m frontage
+    // better than the redder one did at 8.5.
+    { nm: 'VIDEO HUT', col: '#1e5aa8', w: 18, brick: '#6b4034', floors: 3 },
     { nm: 'GARAGE', col: '#5a5f66', w: 12, brick: '#5c4436', floors: 3 },
     { nm: 'BILLIARDS', col: '#2c5a3a', w: 12, brick: '#835444', floors: 4 },
     { nm: 'SMOKES', col: '#8a6a22', w: 11, brick: '#6b4034', floors: 3 },
@@ -1084,8 +1096,18 @@ export function buildStreet(o: {
     scene, bodegaZ0, KERB_H, sidewalkY, flat, wet, solid, shellMats,
     bod: EAST[EAST.length - 1] as BldSpec,   // BODEGA — last on the roster
   });
-  // south-west corner building closes the side street's west end
-  placeBld(-1, -98, { nm: 'RADIO', col: '#3a4a7a', w: 12, brick: '#835444', floors: 4 });
+  // south-west corner building closes the side street's west end.
+  //
+  // RADIO BECAME AN ELECTRONICS SHOP — *"replace 'radio' with an electronics
+  // shop."* An IDENTITY change only: `w` stays 12 and the placement stays
+  // absolute, so no run and no cursor sees this at all.
+  //
+  // Graphite, not the old navy. The navy was a repair shop's colour and it also
+  // sat one shade off A-1 TAX's; a 1997 TV-and-hi-fi discounter is a near-black
+  // fascia with red lettering and a wall of lit screens behind the glass, and
+  // nothing else on this block wears black. `col` is also the projecting
+  // joinery, so it and `electroFront`'s fascia are the same value on purpose.
+  placeBld(-1, -98, { nm: 'ELECTRO CITY', col: '#2a2d33', w: 12, brick: '#835444', floors: 4 });
   // THE EAST CROSS BUILDING IS GONE, AND THE JAIL SITE IS PUBLISHED IN ITS PLACE.
   //
   // What stood here was a 6 x 24 x 13.6 shell centred on (SIDE_X1 + 5), put
