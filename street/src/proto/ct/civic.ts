@@ -1517,7 +1517,17 @@ export function buildCivic(o: {
     const flagTex = flagS.paint((g) => {
       const r = clcg(0x6b2fd1);
       const W = flagS.W, H = flagS.H, fm = flagS.at;
-      g.fillStyle = '#5f6058'; g.fillRect(0, 0, W, H);           // the joints
+      // TONE. Erick: "remove the dark texture in front of the church". It was
+      // not a decal — it is this sheet, and it was reading as a FILM laid over
+      // the pavement rather than as stone, because every band of it sat below
+      // walkTex's #84817a: joints at #5f6058, flags averaging ~#7d7c70, plus a
+      // half-opacity moss wash and 40 near-black "worn" blotches on top.
+      // Retoned so the mean sits ON the pavement's tone and the flags read as
+      // a different STONE (cooler, coarser bond) rather than a stain. The
+      // blotches are gone outright: nothing in this world casts a shadow, so
+      // any loose dark shape on the ground makes the eye hunt for a caster
+      // and reads as a defect — the same judgement applied at the alley today.
+      g.fillStyle = '#7b7972'; g.fillRect(0, 0, W, H);           // the joints
       // a broken bond: each course a different depth, each flag a different
       // width, so no two joints line up the way the library's do
       for (let y = 0, i = 0; y < H; i++) {
@@ -1525,18 +1535,16 @@ export function buildCivic(o: {
         for (let x = -Math.round(r() * fm(0.8)); x < W;) {
           const w = fm(0.55 + r() * 0.75);
           const k = r();
-          g.fillStyle = k > 0.82 ? '#8d8c80' : k > 0.5 ? '#82806f' : k > 0.2 ? '#78776a' : '#6e6d62';
+          g.fillStyle = k > 0.82 ? '#928f84' : k > 0.5 ? '#8a8779' : k > 0.2 ? '#827f74' : '#7b796e';
           g.fillRect(x + 1, y + 1, w - 1, Math.min(d - 1, H - y - 1));
           x += w;
         }
         y += d;
       }
-      g.fillStyle = 'rgba(74,86,58,0.5)';                        // moss in the joints
-      for (let i = 0; i < 260; i++) g.fillRect(Math.floor(r() * W), Math.floor(r() * H), 1 + Math.floor(r() * 2), 1);
-      g.fillStyle = 'rgba(38,34,28,0.16)';                       // worn, dished at the gate
-      for (let i = 0; i < 40; i++) {
-        g.fillRect(Math.round(W * 0.5 + (r() - 0.5) * fm(3)), Math.round(r() * H), 2 + Math.floor(r() * 5), 2 + Math.floor(r() * 3));
-      }
+      // moss in the joints — a hint of green, not a wash. Was 260 marks at
+      // 0.5 alpha in a dark olive, which is what tinted the whole surface.
+      g.fillStyle = 'rgba(104,112,86,0.16)';
+      for (let i = 0; i < 120; i++) g.fillRect(Math.floor(r() * W), Math.floor(r() * H), 1 + Math.floor(r() * 2), 1);
       dither(g, W, H, Math.round(b.w * SET_C * 6));
     });
     const yard = new THREE.Mesh(new THREE.PlaneGeometry(b.w, SET_C), flat(flagTex));
