@@ -3594,6 +3594,52 @@ which is not a shape choice: that inner bottom corner is what `WATCH_DROP` is
 measured against and it is ~1.0 px from its floor. Only the far end rounds, where
 the outer corner sits ~60 px inside the frame and costs nothing.
 
+## 2026-08-04 — "the e dialog should always be above anything else"
+
+Verbatim: *"also the e dialog should always be above anything else. never behind"*
+
+**It was two bugs sharing a number, not one.** The prompt was `z-index: 10` and
+both of these are `11`:
+
+- **The watch.** `bottom:-14px` on a 198 px element puts its top ~184 px up the
+  screen; the prompt sits at 88. The case that bites is SEATED — `crosstown.ts`
+  keeps the exit label on screen unconditionally, on purpose (*"a state with an
+  invisible exit reads as being stuck"*), so sit down, look at the time, and
+  *"[E] stand up"* is behind your own forearm. That is the panel-you-cannot-close
+  family: the label naming the way out, hidden.
+- **The wallet.** 340 x 264 at `left:50%`, `bottom:-8px`, straight over the
+  prompt's position. And `toggleWallet` calls `closePanels()`, so the wallet is
+  explicitly NOT a panel — `panelUp()` is null the whole time it is open, the
+  prompt's existing suppression never fires, and it just sits underneath.
+
+The watch half got worse today by my own hand: the three items before this one
+moved it up 25 px and reshaped the arm, walking it further into the prompt's row
+than it has ever been.
+
+**Fixed:** prompt to **16** — clear of the watch and wallet (11), the build stamp
+(12), the panel backdrop (14) and the panel (15). The note line to **13**, not 16:
+it has the same overlap problem but no `panelUp()` guard, so 16 would start
+painting *"you bought a coffee"* over an open bodega panel. 13 clears the three
+things that covered it and keeps its existing relationship to panels exactly.
+
+**Also fixed, and it is the reason a z-order change would not have held:** both
+divs were styled only inside their `if (!div)` creation branch, so a HUD built
+over a live one — which is every HMR save on Erick's screen — reused the old node
+still carrying `z-index: 10`. The z is now assigned unconditionally.
+
+**"ALWAYS" and "NEVER", checked against every state.** Panels: the prompt already
+refuses to draw while `panelUp()`, and now sits above them as well — two agreeing
+guards. Seated: covered above, and it was the worst case. The fade (z 20) is the
+one thing still over it, and rather than leave that as an exception the prompt now
+hides while `fading` — so it is not behind the black, it is not there. A caption
+reading *"[E] the bed"* hanging in a sleep cut would be a worse bug than the one
+being fixed. Nothing else in `src/` creates a fixed-position overlay; the whole
+stack is in `hud.ts`, and the prompt is DOM over the canvas so no world geometry
+can reach it.
+
+**Trunk note:** the fix is entirely in `ct/hud.ts`. `crosstown.ts` was read to
+find the seated case but not edited.
+
 ## 2026-08-04 — watch arm, the nudges
 
 *"hm more left more out"* → `WATCH_X` 43→36%, `WATCH_DROP` 14→6.

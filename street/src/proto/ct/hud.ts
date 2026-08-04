@@ -2182,26 +2182,88 @@ export function makeHud(purse: Purse): Hud {
     };
     thumb(wx - 8); thumb(wx + ww - 18);
   };
+  /**
+   * ── THE LAYER THE [E] PROMPT LIVES ON ────────────────────────────────────
+   *
+   * *"also the e dialog should always be above anything else. never behind"*
+   * (2026-08-04). It was on **10**, and this file's whole stack is:
+   *
+   *      5  the night wash
+   *      9  the selection outline
+   *     11  the watch, the wallet
+   *     12  the build stamp
+   *  → 13  THE NOTE            (was 10 — below for why it is not 16)
+   *     14  the panel backdrop
+   *     15  the panel
+   *  → 16  THE [E] PROMPT      (was 10)
+   *     20  the fade, the fps counter
+   *
+   * TWO THINGS ACTUALLY COVERED IT, not one, and they are different bugs that
+   * happen to share a number:
+   *
+   *   · THE WATCH. `bottom:-14px` on a 198 px element puts its top ~184 px up
+   *     the screen and the prompt sits at 88; the hand's columns land right
+   *     across the middle of the frame. The case that matters is SEATED — the
+   *     seated prompt is unconditional (`crosstown.ts` never lets the exit
+   *     label leave the screen, deliberately), so sit down, look at the time,
+   *     and *"[E] stand up"* goes behind your own arm. That is the "a panel you
+   *     cannot close" family: the label naming the way out, hidden.
+   *   · THE WALLET. 340 x 264 at `left:50%`, `bottom:-8px` — it covers the
+   *     prompt's position outright. And `toggleWallet` calls `closePanels()`,
+   *     so it is NOT a panel: `panelUp()` is null the whole time it is open and
+   *     the prompt stays visible underneath it rather than being suppressed.
+   *
+   * AND THE WATCH HALF GOT WORSE TODAY, by my own hand: three items earlier in
+   * this same session moved it up 25 px and reshaped the arm, walking it further
+   * into the prompt's row than it had ever been.
+   *
+   * ABOVE THE PANEL TOO, at 16 rather than 13, even though `prompt()` already
+   * refuses to draw while `panelUp()`. Two guards that agree cost nothing; a
+   * z-order that quietly depends on a `display:none` somewhere else is how this
+   * comes back.
+   *
+   * THE ONE THING STILL ABOVE IT IS THE FADE, AND IT IS NOT AN EXCEPTION TO HIS
+   * RULE — see `prompt()`, which now hides while `fading`. The prompt is never
+   * behind the black because it is not there: a caption reading *"[E] the bed"*
+   * floating over a sleep cut is not the fix he asked for.
+   */
+  const Z_PROMPT = 16, Z_NOTE = 13;
   let promptDiv = document.getElementById('ct-prompt') as HTMLDivElement | null;
   if (!promptDiv) {
     promptDiv = document.createElement('div');
     promptDiv.id = 'ct-prompt';
-    promptDiv.style.cssText = 'position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:10;'
+    promptDiv.style.cssText = `position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:${Z_PROMPT};`
       + 'font:13px/1.4 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,.5);'
       + 'padding:5px 12px;border-radius:5px;pointer-events:none;display:none;letter-spacing:.4px;';
     document.body.appendChild(promptDiv);
   }
-  // the transient line — what just happened, above the [E] prompt
+  // the transient line — what just happened, above the [E] prompt. It has the
+  // SAME bug and gets a DIFFERENT number, which is the point. It sits 30 px
+  // higher over the identical stretch of arm and wallet, so leaving it on 10
+  // would fix the caption and leave the line above it sunk behind the same two
+  // objects. But it does not get 16: unlike the prompt it has no `panelUp()`
+  // guard, so 16 would start painting *"you bought a coffee"* over the open
+  // bodega panel — a regression nobody asked for, bought with a fix nobody
+  // needed. 13 clears the watch, the wallet and the build stamp and stops below
+  // the panel backdrop, which is exactly where it already was relative to panels.
   let noteDiv = document.getElementById('ct-note') as HTMLDivElement | null;
   if (!noteDiv) {
     noteDiv = document.createElement('div');
     noteDiv.id = 'ct-note';
-    noteDiv.style.cssText = 'position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:10;'
+    noteDiv.style.cssText = `position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:${Z_NOTE};`
       + 'font:13px/1.4 ui-monospace,Menlo,monospace;color:#e8e2d0;text-shadow:0 1px 3px rgba(0,0,0,.95);'
       + 'pointer-events:none;opacity:0;transition:opacity .35s linear;letter-spacing:.3px;'
       + 'max-width:70vw;text-align:center;';
     document.body.appendChild(noteDiv);
   }
+  // AND SET IT ON THE ELEMENTS THAT ALREADY EXIST. Both blocks above only style
+  // the div they create, so a HUD built over a live one — every HMR save Erick
+  // is watching, and every second `makeHud` — would have reused the old node
+  // carrying `z-index:10`. The watch's own rebuild branch has a comment about
+  // exactly this: "three bugs that only appear on the second build". A z-order
+  // fix that does not survive a hot reload is not a fix on his screen.
+  promptDiv.style.zIndex = String(Z_PROMPT);
+  noteDiv.style.zIndex = String(Z_NOTE);
   let noteTimer = 0;
 
   // ── the selection outline ───────────────────────────────────────────────
@@ -2344,7 +2406,15 @@ export function makeHud(purse: Purse): Hud {
       // holding exactly the same loaded gun. Checked before changing it that
       // nothing depends on the stale value — the only `#ct-prompt` mentions
       // anywhere in `src/` outside this block are three comments.
-      if (text === null || panelUp()) {
+      // …AND IT SILENCES ITSELF DURING A FADE, for `always above anything else.
+      // never behind`. The fade is z 20 and stays there: it is the screen going
+      // away, not a thing drawn over the prompt, and a *"[E] the bed"* hanging
+      // in the black while you sleep would be a worse bug than the one being
+      // fixed. So the prompt is not put behind the black — it is not there at
+      // all, and the per-frame loop brings it straight back when the cut ends.
+      // `fading` spans the whole out/hold/in, so this covers the middle where
+      // the world changes under it.
+      if (text === null || panelUp() || fading) {
         promptDiv!.style.display = 'none';
         promptDiv!.textContent = '';
         return;
