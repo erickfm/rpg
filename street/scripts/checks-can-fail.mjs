@@ -51,8 +51,11 @@ const EXEMPT = {
 // Produced by scripts/probes/w32-failpath-inventory.mjs against the registry,
 // not typed from memory.
 const NO_PROOF_YET = [
-  'lot-frontage', 'mirror-walk', 'I-apron-grain', 'people-walk', 'floaters-walk',
+  'lot-frontage', 'I-apron-grain', 'people-walk', 'floaters-walk',
   'jump-walk', 'feet-check', 'side-night',
+  // 'mirror-walk' — DELETED by item 305, so the debt goes with it. It never had
+  //   a failing path, and it stood red while printing "DO NOT ROUTE THIS YET"
+  //   against a reconciliation note that no longer exists.
   // 'gaps' — MOVED to WITHHELD below. It was never "nobody has looked": w37
   //   looked, tried, and wrote down why a case cannot be expressed. That reason
   //   belongs somewhere a reader can see it expire.
