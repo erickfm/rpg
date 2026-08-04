@@ -3528,6 +3528,24 @@ read further AWAY rather than further up (`WATCH_S`, or a steeper `WATCH_TILT`),
 which moves drawn pixels the earlier items are pinned to. Left is unbounded and
 can keep going. Both facts are now in the comment at the constant.
 
+Round three, verbatim: *"bit better now in terms of x direction but could be tiny
+bit further up in y"* — x settled at 36%, untouched. `WATCH_DROP` 6 → **4.5**,
+which is 1.5 px and leaves ~1.0 px before the fist stops being cut.
+
+That sounds like nothing and is not: this canvas is upscaled 2.75x and pixelated,
+so a TEXEL is 2.75 px and is the smallest step that means anything in it. 1.5 px
+is 0.55 of a texel and "tiny bit" is about one. What is gone is the budget, not
+the nerve — ~25 of the ~26 px this axis ever had are spent.
+
+**A fourth "further up" needs a different mechanism, and there is a clean one.**
+Grow the canvas DOWNWARD — 72 → 76 rows, every drawn coordinate unchanged, the
+downward fills extended. The element is `bottom`-anchored, so four fresh rows of
+limb below lift every existing pixel ~11 px along the arm's own axis while the
+fist's bottom edge stays exactly where it is: the invariant is not traded
+against, it is untouched, and it repeats at ~2.75 px per row. That beats `WATCH_S`
+or `WATCH_TILT`, which buy the same lift by moving pixels items 275 and the
+arm-angle item are pinned to. All three options are written down at the constant.
+
 ## 2026-08-04 — watch arm, the nudges
 
 *"hm more left more out"* → `WATCH_X` 43→36%, `WATCH_DROP` 14→6.

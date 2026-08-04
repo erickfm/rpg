@@ -1785,16 +1785,23 @@ export function makeHud(purse: Purse): Hud {
    * where they were balanced by eye. **If you retune the tilt, re-measure both
    * corners; there is no formula waiting to be found here.**
    *
-   * NOW 6, AND THE CONSTRAINT ABOVE IS WHAT BOUNDS IT. *"when i look down at my
-   * watch i want the arm a bit further out and a bit left"* took it 30 → 14, and
-   * *"hm more left more out"* takes it 14 → 6 (both 2026-08-04). "Further out"
-   * is the arm EXTENDED — held further from the chest — and on a HUD drawn in
-   * screen space that is this number and nothing else: less drop lifts the whole
-   * limb up out of the bottom edge, which is what an arm reaching further from
-   * your own eye does. The digits gain the same clearance, so it also reads
-   * easier.
+   * NOW 4.5, AND THE CONSTRAINT ABOVE IS WHAT BOUNDS IT. *"when i look down at
+   * my watch i want the arm a bit further out and a bit left"* took it 30 → 14,
+   * *"hm more left more out"* took it 14 → 6, and *"bit better now in terms of x
+   * direction but could be tiny bit further up in y"* takes it 6 → 4.5 (all
+   * 2026-08-04). "Further out" is the arm EXTENDED — held further from the chest
+   * — and on a HUD drawn in screen space that is this number and nothing else:
+   * less drop lifts the whole limb up out of the bottom edge, which is what an
+   * arm reaching further from your own eye does. The digits gain the same
+   * clearance, so it also reads easier.
    *
-   * ⚠ **THIS AXIS IS NOW ~2 px FROM ITS FLOOR. THE FLOOR IS ≈ 4, NOT ≈ -15.**
+   * THE LAST MOVE IS 1.5 px AND THAT IS NOT A TIMID CHOICE, IT IS THE WHOLE
+   * REMAINING BUDGET LESS A MARGIN. In this canvas's own units 1.5 px is 0.55 of
+   * a texel — the art is upscaled 2.75x and pixelated, so a texel is the smallest
+   * step that means anything here, and "tiny bit" is about one of them. There is
+   * ~1 px (0.36 texel) left under it and then the fist is no longer cut.
+   *
+   * ⚠ **THIS AXIS IS NOW ~1 px FROM ITS FLOOR. THE FLOOR IS ≈ 3.5, NOT ≈ -15.**
    * The first pass reported -15 as the limit and that was WRONG — -15 is where
    * the whole CASE seats on the bottom edge, by which point the paragraph above
    * has the fist floating 19.5 px clear. The invariant is the FIST's inner bottom
@@ -1804,17 +1811,28 @@ export function makeHud(purse: Purse): Hud {
    *     drop     fist inner corner
    *      30        26.5 px below     the value item 275 shipped
    *      14        ~10.5 px below    first pass
-   *       6         ~2.5 px below    here — still cut, barely
+   *       6         ~2.5 px below    second pass
+   *       4.5       ~1.0 px below    here — still cut, and that is the margin
    *       3.5        on the edge     the hand starts to float
    *
-   * So of the ~26 px this axis ever had, ~24 are spent. **A further "more out"
-   * cannot come from here** — it has to come from the arm reading as further
-   * AWAY rather than further up: `WATCH_S` (a limb held further off subtends
-   * less) or `WATCH_TILT` (steeper goes further down-and-away), and either one
-   * moves pixels this file's other comments are pinned to. Don't just decrement
-   * this and hope; re-measure the corner if you do.
+   * So of the ~26 px this axis ever had, ~25 are spent. **THE NEXT "further up"
+   * CANNOT COME FROM THIS NUMBER AT ALL.** Three ways out, in the order I'd try
+   * them, none of which is decrementing this and hoping:
+   *
+   *   · GROW THE CANVAS DOWNWARD (72 → 76 rows, drawn coords unchanged, the
+   *     downward fills extended). The element is `bottom`-anchored, so 4 fresh
+   *     rows of limb below push every existing pixel up 11 px along the arm's own
+   *     axis while the fist's bottom edge stays exactly where it is — the
+   *     invariant is not traded against, it is untouched. ~2.75 px of lift per
+   *     row, repeatable. Costs a matching `transform-origin` pin, because `50%`
+   *     of a taller element is not the same point.
+   *   · `WATCH_S` — a limb held further off subtends less.
+   *   · `WATCH_TILT` — steeper goes further down-and-away.
+   *
+   * The last two move drawn pixels that item 275 and the arm-angle item are
+   * pinned to; the first does not.
    */
-  const WATCH_DROP = 6;
+  const WATCH_DROP = 4.5;
   /** shown, and stowed below the frame. Same tilt: the arm must not swing as it
    *  comes up, only slide. */
   const watchTransform = (shown: boolean) => (shown
