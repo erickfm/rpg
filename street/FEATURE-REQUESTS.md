@@ -3512,3 +3512,18 @@ before the fist stops being cut by the frame and starts floating in the road).
 move he once called "a little bit". The 46 was a literal in a CSS string quoted by
 three comments; it is now `WATCH_X`, so the next nudge is one number. Tilt, taper,
 shading and every drawn pixel untouched.
+
+Round two, verbatim: *"hm more left more out"* — same direction on both, so the
+first move was too small. `WATCH_X` 43 → **36** (7 points, more than double) and
+`WATCH_DROP` 14 → **6**.
+
+**AND THE FIRST PASS MIS-REPORTED THE LIMIT.** It said the drop could reach ≈ -15
+before the fist floats. It cannot: -15 is where the *case* seats on the bottom
+edge, and by then the existing measurement has the fist floating 19.5 px clear of
+the frame. The real invariant is the fist's inner bottom corner, which is 26.5 px
+below the frame at drop 30 and moves 1:1, so it crosses zero at **drop ≈ 3.5**.
+At 6 there is ~2.5 px left. Roughly 24 of the ~26 px this axis ever had are now
+spent, and **a third "more out" cannot come from the drop** — it needs the arm to
+read further AWAY rather than further up (`WATCH_S`, or a steeper `WATCH_TILT`),
+which moves drawn pixels the earlier items are pinned to. Left is unbounded and
+can keep going. Both facts are now in the comment at the constant.

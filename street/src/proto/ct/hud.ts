@@ -1685,18 +1685,29 @@ export function makeHud(purse: Purse): Hud {
   /**
    * WHERE THE WHOLE ARM SITS ACROSS THE FRAME, in percent of the viewport.
    *
-   * The user's own number, twice over. *"can we move the watch arm thing as a
-   * whole over to the left a little bit?"* (2026-08-02) took it from `52` to
-   * `46`, and *"when i look down at my watch i want the arm a bit further out
-   * and a bit left"* (2026-08-04) takes it to `43` — half the size of the move
-   * he called "a little bit", because this one is "a bit".
+   * The user's own number, three times over, and the sizes of his own moves are
+   * the record worth keeping:
+   *
+   *     52 → 46   *"can we move the watch arm thing as a whole over to the left
+   *                a little bit?"*                              (2026-08-02)
+   *     46 → 43   *"…a bit further out and a bit left"*          (2026-08-04)
+   *     43 → 36   *"hm more left more out"*                      (2026-08-04)
+   *
+   * THE THIRD IS BIGGER THAN THE FIRST TWO ON PURPOSE. He looked at the 3-point
+   * move and asked again in the same direction, which is him saying it was too
+   * small — so this one is 7, more than double, rather than another cautious
+   * nudge that spends a round trip to learn nothing. He did not say *much* more,
+   * so it is not the whole way to the frame edge either.
+   *
+   * NOTHING BOUNDS THIS AXIS, unlike the drop below. Moving LEFT only ever needs
+   * LESS forearm than `WATCH_ARM` provides (at 36% a 3840 frame wants 443 of the
+   * 600), and overflow to the left is clipped by the viewport without a
+   * scrollbar. If he wants more still, this number can simply keep going.
    *
    * It was a literal `46%` buried in `WRAP_CSS` and quoted in three comments,
    * which is how a tuning knob hides. Named, so the next nudge is one number.
-   * Moving LEFT only ever needs LESS forearm than `WATCH_ARM` provides, so the
-   * reach derivation above stays satisfied without being re-run.
    */
-  const WATCH_X = 43;
+  const WATCH_X = 36;
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
   const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
   /**
@@ -1774,19 +1785,36 @@ export function makeHud(purse: Purse): Hud {
    * where they were balanced by eye. **If you retune the tilt, re-measure both
    * corners; there is no formula waiting to be found here.**
    *
-   * NOW 14, AND THE CONSTRAINT ABOVE IS WHAT BOUNDS IT. *"when i look down at
-   * my watch i want the arm a bit further out and a bit left"* (2026-08-04).
-   * "Further out" is the arm EXTENDED — held further from the chest — and on a
-   * HUD drawn in screen space that is this number and nothing else: less drop
-   * lifts the whole limb up out of the bottom edge, which is what an arm reaching
-   * further away from your own eye does. 16 px of the 45 px of headroom the
-   * paragraph above measured: the fist's inner bottom corner was 26.5 px below
-   * the frame and is now ~10.5, so the hand is still CUT and still cannot float
-   * in the middle of the road — the failure that number exists to prevent. The
-   * digits gain the same 16 px of clearance, so it also reads easier. Anything
-   * past ~-15 crosses the line; this is a third of the way there.
+   * NOW 6, AND THE CONSTRAINT ABOVE IS WHAT BOUNDS IT. *"when i look down at my
+   * watch i want the arm a bit further out and a bit left"* took it 30 → 14, and
+   * *"hm more left more out"* takes it 14 → 6 (both 2026-08-04). "Further out"
+   * is the arm EXTENDED — held further from the chest — and on a HUD drawn in
+   * screen space that is this number and nothing else: less drop lifts the whole
+   * limb up out of the bottom edge, which is what an arm reaching further from
+   * your own eye does. The digits gain the same clearance, so it also reads
+   * easier.
+   *
+   * ⚠ **THIS AXIS IS NOW ~2 px FROM ITS FLOOR. THE FLOOR IS ≈ 4, NOT ≈ -15.**
+   * The first pass reported -15 as the limit and that was WRONG — -15 is where
+   * the whole CASE seats on the bottom edge, by which point the paragraph above
+   * has the fist floating 19.5 px clear. The invariant is the FIST's inner bottom
+   * corner, which the measurement above puts 26.5 px below the frame at drop 30
+   * and therefore crosses zero at **drop ≈ 3.5**, moving 1:1 with this number:
+   *
+   *     drop     fist inner corner
+   *      30        26.5 px below     the value item 275 shipped
+   *      14        ~10.5 px below    first pass
+   *       6         ~2.5 px below    here — still cut, barely
+   *       3.5        on the edge     the hand starts to float
+   *
+   * So of the ~26 px this axis ever had, ~24 are spent. **A further "more out"
+   * cannot come from here** — it has to come from the arm reading as further
+   * AWAY rather than further up: `WATCH_S` (a limb held further off subtends
+   * less) or `WATCH_TILT` (steeper goes further down-and-away), and either one
+   * moves pixels this file's other comments are pinned to. Don't just decrement
+   * this and hope; re-measure the corner if you do.
    */
-  const WATCH_DROP = 14;
+  const WATCH_DROP = 6;
   /** shown, and stowed below the frame. Same tilt: the arm must not swing as it
    *  comes up, only slide. */
   const watchTransform = (shown: boolean) => (shown
