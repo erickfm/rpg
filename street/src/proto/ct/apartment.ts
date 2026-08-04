@@ -2380,18 +2380,54 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //      within — precisely the crescent. Ceramic in bounced light, body
     //      x0.82 = (177, 172, 161): the inside of a cup is not in shadow, it is
     //      the brightest thing after the rim
-    //   4. the FLOOR, 10 mm up, body x0.55 = (119, 116, 108). This is the dark
-    //      tone item 274 asked for — but it is 30 mm across at the BOTTOM of a
-    //      visible shaft instead of 64 mm across at the top, so it reads as the
-    //      bottom of an empty mug, which is the whole difference from a pour.
+    //   4. the FLOOR, at the BOTTOM of a visible shaft instead of 64 mm across
+    //      at the top, so it reads as the bottom of an empty mug rather than
+    //      as a pour. Its depth and its colour are item 310i, just below.
     //
-    // If it is still wrong after this, the next question is not a colour. It is
-    // whether he wants the wall crescent brighter or the floor deeper, and
-    // those are two separate knobs now instead of one that cannot win.
-    const MUG_WALL = 0.005, MUG_BASE = 0.010;
-    const MUG_IR = MUG_R - MUG_WALL;                 // bore radius at the rim
+    // He confirmed the shape of it — *"inside of the mug looks better"* — so
+    // none of the above moves again. Two defects on top of it, both real:
+    //
+    // ── 310i(a): YOU COULD NOT SEE THE BOTTOM. IT WAS 85 mm DOWN A 64 mm HOLE
+    //
+    // *"it needs a bottom. the bottom can be tinted brown like coffee or
+    // something."*
+    //
+    // The floor was NOT missing, not mis-wound, not culled and not the wrong
+    // diameter — it rendered, faced up, and was exactly the bore's own bottom
+    // radius. It was BEHIND THE NEAR RIM. The bore ran the full 85 mm from rim
+    // to base in a cup only 64 mm across, so the shallowest sightline that
+    // clears the near rim and still lands on the floor is atan(85/64) = **53
+    // degrees**. This file's own measurement of how he looks at this sill is
+    // 22-49 degrees. At every angle he plays at, the ray cleared the rim,
+    // crossed the cavity and struck the FAR WALL 21 mm above the floor —
+    // a bottomless shaft, which is exactly what he reported.
+    //
+    // So it is depth first and colour second. MUG_BASE 0.010 -> 0.060 leaves a
+    // 35 mm bore, in view from atan(35/64) = 29 degrees: most of his range, and
+    // far inside the close-up pitch he shot this from. It still leaves a 35 mm
+    // crescent of wall above the floor in a 64 mm mouth, so the depth cue the
+    // bore-out exists for is untouched. The base is thicker than a real mug's
+    // and that costs nothing: the only sightline into this cup is from above,
+    // and from there it is the difference between a cup and a pipe.
+    //
+    // The colour is HIS suggestion, taken as offered. 0x6b5138 = (107, 81, 56),
+    // R over B at +51 — brown past arguing — and 26 levels lighter than item
+    // 274's coffee 0x4a3524, so it reads as a SURFACE and not as a hole. This
+    // is the one thing a disc at the rim could never be: a small brown floor at
+    // the bottom of a plainly empty shaft is a dreg or a stain, not a full cup,
+    // because the bare ceramic above it says so.
+    //
+    // The profile is a FUNCTION now, not three typed radii. The cup tapers
+    // 0.038 -> 0.034, so the bore's bottom radius and the floor's radius both
+    // depend on where the base sits; typed separately they would have left a
+    // gap ring the moment MUG_BASE moved, which is precisely the change this
+    // item makes. Both read `mugBoreR`, so they cannot disagree.
+    const MUG_WALL = 0.005, MUG_BASE = 0.060, MUG_RB = 0.034;
+    const mugOuterR = (ly: number) => MUG_RB + (ly / MUG_H) * (MUG_R - MUG_RB);
+    const mugBoreR = (ly: number) => mugOuterR(ly) - MUG_WALL;
+    const MUG_IR = mugBoreR(MUG_H);                  // bore radius at the rim
     const mug = new THREE.Mesh(
-      new THREE.CylinderGeometry(MUG_R, 0.034, MUG_H, 12, 1, true), mugM);
+      new THREE.CylinderGeometry(MUG_R, MUG_RB, MUG_H, 12, 1, true), mugM);
     mug.position.set(AX(MUG_X), SILL_TOP + MUG_H / 2, AZI(MUG_Z));
     scene.add(mug);
     const rim = new THREE.Mesh(new THREE.RingGeometry(MUG_IR, MUG_R, 12),
@@ -2399,13 +2435,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     rim.position.set(AX(MUG_X), SILL_TOP + MUG_H, AZI(MUG_Z));
     rim.rotation.x = -Math.PI / 2;
     scene.add(rim);
+    // DoubleSide, not BackSide. BackSide draws the far half of the tube, which
+    // is the crescent and all you can ever LOOK at through the mouth — but it
+    // leaves the near half undrawn, and an undrawn wall cannot hide what is
+    // buried in the ceramic behind it. That is half of the handle bug below.
+    // The near half is occluded by the outer skin from every outside angle and
+    // is never hit by a ray coming in through the mouth, so drawing it changes
+    // nothing you can see and closes the cavity properly.
     const bore = new THREE.Mesh(
-      new THREE.CylinderGeometry(MUG_IR, 0.030, MUG_H - MUG_BASE, 12, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0xb1aca1, side: THREE.BackSide }));
+      new THREE.CylinderGeometry(MUG_IR, mugBoreR(MUG_BASE), MUG_H - MUG_BASE, 12, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xb1aca1, side: THREE.DoubleSide }));
     bore.position.set(AX(MUG_X), SILL_TOP + MUG_BASE + (MUG_H - MUG_BASE) / 2, AZI(MUG_Z));
     scene.add(bore);
-    const mugFloor = new THREE.Mesh(new THREE.CircleGeometry(0.030, 12),
-      new THREE.MeshBasicMaterial({ color: 0x77746c }));
+    const mugFloor = new THREE.Mesh(new THREE.CircleGeometry(mugBoreR(MUG_BASE), 12),
+      new THREE.MeshBasicMaterial({ color: 0x6b5138 }));
     mugFloor.position.set(AX(MUG_X), SILL_TOP + MUG_BASE, AZI(MUG_Z));
     mugFloor.rotation.x = -Math.PI / 2;
     scene.add(mugFloor);
@@ -2453,12 +2496,52 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //     ring 17 mm into the wall and the two ends now merge visibly, the way a
     //     real handle does. The hole is still bounded by the cup on its inner
     //     side, which is also what a real handle looks like.
+    //
+    // ── 310i(b): THE BITE WAS ONLY EVER LEGAL BECAUSE THE CUP WAS SOLID ─────
+    //
+    // The user: *"also the inside contains the handle? gotta get rid of the
+    // handle on the inside."*
+    //
+    // HANDLE_BITE is the cause and its REASON IS STILL RIGHT — a handle that
+    // only kisses the cup reads as a hoop parked beside it, and that complaint
+    // cost three passes. What changed is that item 310h opened the cup. A full
+    // torus pushed 10 mm past the outer skin reached 24 mm INSIDE the bore, and
+    // there is now an interior for it to be seen in. Nothing was wrong with the
+    // bite until the wall behind it stopped existing.
+    //
+    // AND IT CANNOT BE FIXED BY MOVING THE RING. At handle height the ceramic
+    // is 4.7 mm thick and the handle tube is 14 mm across, so no offset exists
+    // where a FULL ring both touches the outer skin and clears the bore: pull
+    // it out far enough to clear and it floats. That is the trade the ring
+    // shape forces, and it is the ring shape that is wrong.
+    //
+    // A real handle is not a ring passing through the wall. It is an ARC that
+    // leaves the cup and comes back, so use one — `TorusGeometry`'s fifth
+    // argument, a half turn, standing off the +z face with both ends buried in
+    // the ceramic. That gives MORE merge than the bite did, not less: the ends
+    // TERMINATE inside the wall instead of passing through it, so there is no
+    // gap, no float, and nothing left to emerge on the inside. The arc's open
+    // ends need no caps — they are inside opaque ceramic and the bore is
+    // DoubleSide now, so they are occluded from without and within.
+    //
+    // The geometry ships pointing the wrong way: a `TorusGeometry` arc starts
+    // at local +x and sweeps to local -x through +y, and `rotation.y` then puts
+    // local x on world z. `rotateZ` on the GEOMETRY spins the arc about its own
+    // hole axis to point the bulge at +z — done to the geometry rather than as
+    // a second Euler angle on the mesh, because two Euler angles compose in an
+    // order that is easy to get backwards and this composes in none.
+    //
+    // The offset is DERIVED from the profile, not typed. The two ends sit at
+    // y0 +/- H_R, and each end's inner tangent must fall between the bore at the
+    // upper end and the outer skin at the lower one; the offset is the midpoint
+    // of that window, so it re-solves itself if the taper or the base moves.
     const H_R = 0.028, H_TUBE = 0.007;
-    const HANDLE_BITE = 0.010;                          // how far the ring sinks past the wall
-    const HANDLE_OFF = MUG_R + (H_R - H_TUBE) - HANDLE_BITE;
-    const handle = new THREE.Mesh(new THREE.TorusGeometry(H_R, H_TUBE, 6, 14),
-      new THREE.MeshBasicMaterial({ color: 0xd0c9ba }));
-    handle.position.set(AX(MUG_X), SILL_TOP + 0.055, AZI(MUG_Z + HANDLE_OFF));
+    const H_LY = 0.055;                                 // ring centre, above the sill
+    const HANDLE_OFF = H_TUBE + (mugBoreR(H_LY + H_R) + mugOuterR(H_LY - H_R)) / 2;
+    const hGeo = new THREE.TorusGeometry(H_R, H_TUBE, 6, 8, Math.PI);
+    hGeo.rotateZ(Math.PI / 2);                          // bulge to local -x, i.e. world +z
+    const handle = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0xd0c9ba }));
+    handle.position.set(AX(MUG_X), SILL_TOP + H_LY, AZI(MUG_Z + HANDLE_OFF));
     handle.rotation.y = Math.PI / 2;                    // hole axis along x, facing the room
     scene.add(handle);
     // architrave, room side only. `casing` puts trim on BOTH faces, which is
