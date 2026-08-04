@@ -3175,6 +3175,48 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // redrawing it plus `needsUpdate` is the whole of the animation. No new
     // texture per frame — that would leak one every 120 ms.
     const TVW = 64, TVH = 48;
+    /** ── HOW SHARP THE GLASS IS ────────────────────────────────────────
+     *  The user: *"make the visuals on the tv a little bit clearer. its a bit
+     *  too pixelated"* (2026-08-04). ONE NUMBER, so the next nudge is this
+     *  number.
+     *
+     *  IT IS A SUPERSAMPLE, NOT A BIGGER SCREEN, and the difference is the
+     *  whole design. `TVW`/`TVH` stay 64x48 and remain the DRAWING SPACE:
+     *  all 27 spots, the ident's crawl, the dead screen and the warm-up wipe
+     *  are written in hard 64x48 coordinates (`fillRect(0, 30, TVW, TVH - 30)`,
+     *  `tvAt(g, 'BEFORE', 3, 2, …)`), so raising TVW/TVH would leave every one
+     *  of them drawing in the top-left corner of a larger canvas. Instead the
+     *  CANVAS is TV_SS times bigger and every paint runs under
+     *  `setTransform(TV_SS, 0, 0, TV_SS, 0, 0)` — so every rectangle keeps its
+     *  exact size, position and apparent chunk, and only the SAMPLING of it
+     *  gets finer. 64x48 -> 192x144.
+     *
+     *  WHICH IS WHY THE TEXT GETS CLEARER WITHOUT GETTING SMALLER — the trap
+     *  in this request. `tvText` draws each glyph cell `px/3` wide, and at the
+     *  common px = 4 that is 1.33 CANVAS PIXELS, so a column of a letter is
+     *  mostly antialiased fringe: exactly the "grey mush, which NearestFilter
+     *  then magnifies into smear" this file's own header warns about. The
+     *  glyphs are still 3x5 blocks at the same drawn size; they are just no
+     *  longer resolved on a grid too coarse to hold them.
+     *
+     *  3 RATHER THAN 2, and it is not taste: `px/3 * TV_SS` is an EXACT number
+     *  of device pixels at 3 for every size the screen uses (px 3,4,5,6 ->
+     *  3,4,5,6 px per glyph column), so the vertical strokes land on pixel
+     *  boundaries instead of straddling them. Row height is `px/5` and cannot
+     *  be made integral short of TV_SS = 15, so the horizontal edges keep a
+     *  little softness — which is what a CRT does anyway.
+     *
+     *  STILL NEAREST, deliberately. Linear filtering would make this the only
+     *  soft-edged surface in the flat and would read as blurry, not clearer;
+     *  and it is not what a 1997 set looks like. Aspect is untouched — 64:48
+     *  and 192:144 are both 4:3, so the bezel and the title-safe band are
+     *  measured in the same rows they always were.
+     *
+     *  COST: the canvas is 9x the fill and 9x the upload, at a cadence that is
+     *  unchanged — `tvRedraw = 0.11` for a LIVE segment, once for a still one,
+     *  and nothing at all unless the player is both on floor 3 and seated.
+     *  27,648 pixels nine times a second, while sitting on your own bed. */
+    const TV_SS = 3;
     /** ── TITLE-SAFE ────────────────────────────────────────────────────
      *  The user: *"make sure the top of the ad isnt getting cut off by the tv.
      *  we can reduce the bezel a little bit"* (2026-08-02).
@@ -3529,7 +3571,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const TV_PACE = 1.4;
     let tvSeg = 0, tvLeft = SEGMENTS[0].secs * TV_PACE, tvClock = 0, tvRedraw = 0;
     let tvBag: number[] = [];
-    const tvScreenT = surfTex('detail', TVW, TVH, (g) => { g.fillStyle = '#1b211d'; g.fillRect(0, 0, TVW, TVH); });
+    const tvScreenT = surfTex('detail', TVW * TV_SS, TVH * TV_SS, (g) => {
+      g.setTransform(TV_SS, 0, 0, TV_SS, 0, 0);
+      g.fillStyle = '#1b211d'; g.fillRect(0, 0, TVW, TVH);
+    });
+    /** THE ONLY WAY ANYTHING GETS THIS CANVAS. Four places paint the screen —
+     *  a segment, the dead glass, the warm-up wipe and the first fill above —
+     *  and every one of them writes in 64x48 drawing units, so the transform
+     *  has to be re-set on each. Set once at creation is not enough: a 2-D
+     *  context's transform is state, and any `restore()` past its matching
+     *  `save()` (the `burst` helper saves and restores twelve times a frame)
+     *  would drop it back to identity and paint the picture at 1:1 in the
+     *  corner. Fetching the context and setting the matrix in one call is what
+     *  makes that unforgettable. See `TV_SS`. */
+    const tvG = () => {
+      const g = (tvScreenT.image as HTMLCanvasElement).getContext('2d')!;
+      g.setTransform(TV_SS, 0, 0, TV_SS, 0, 0);
+      return g;
+    };
     const tvScreenM = flatOf2(tvScreenT);
     // ── THE BEZEL ────────────────────────────────────────────────────────
     // The user: *"give the tv a bezel"*. A glowing rectangle on a wall is a
@@ -3668,8 +3727,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillRect(0, 0, 2, TVH); g.fillRect(TVW - 2, 0, 2, TVH);
     };
     const tvPaint = () => {
-      const cv = tvScreenT.image as HTMLCanvasElement;
-      const g = cv.getContext('2d')!;
+      const g = tvG();
       tvMinRow = TVH;                     // reset the witness for THIS paint
       SEGMENTS[tvSeg].draw(g, tvClock);
       tvScreenT.needsUpdate = true;
@@ -3682,8 +3740,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       if (seated !== tvLit) {
         tvLit = seated;
         if (seated) { tvWarm = 0.5; tvBag = []; tvLeft = 0.01; }   // a fresh pack each sitting
-        else { const g = (tvScreenT.image as HTMLCanvasElement).getContext('2d')!;
-               tvDead(g); tvScreenT.needsUpdate = true; }
+        else { tvDead(tvG()); tvScreenT.needsUpdate = true; }
       }
       if (!tvLit) return;
       // A MOMENT OF COMING ON. Half a second of dark glass before the first ad
@@ -3691,7 +3748,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // as a texture swap, which is what it would be.
       if (tvWarm > 0) {
         tvWarm -= dt;
-        const g = (tvScreenT.image as HTMLCanvasElement).getContext('2d')!;
+        const g = tvG();
         g.fillStyle = '#1b211d'; g.fillRect(0, 0, TVW, TVH);
         const k = Math.max(0, 1 - tvWarm / 0.5);
         g.fillStyle = `rgba(220,235,225,${(0.10 + 0.35 * k).toFixed(3)})`;
