@@ -1852,8 +1852,36 @@ export function makeHud(purse: Purse): Hud {
   /** chamfer leg on the fist's corners, in texels — cut or filled, see below. */
   const FIST_ROUND = 3;
   const WATCH_H = WATCH_LIMB_H + Math.max(STRAP_OVER, THUMB_D);
-  const WATCH_BOTTOM = (-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)).toFixed(2);
-  const WATCH_LIFT_PX = (WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S).toFixed(2);
+  // ── WHOLE CSS PIXELS, AND WHY THAT IS PART OF THE FUZZ ────────────────────
+  //
+  // *"some of the lines look a bit fuzzy and like aliasing or something"*
+  // (2026-08-04). These two were `.toFixed(2)` — `-49.75px` and `43.56px` — so
+  // the element was laid out on a FRACTIONAL pixel boundary and every texel in
+  // it straddled two device pixels before the rotation ever got to it. That is
+  // the one cause of the softness that lives on this side of the screen and can
+  // be removed, so it is removed: `Math.round`, costing 0.25 px of drop and
+  // 0.44 px of lift, neither of which is visible and neither of which touches
+  // `WATCH_LIFT`, `WATCH_X`, `WATCH_POS` or `WATCH_TILT`.
+  //
+  // ⚠ WHAT THIS DOES NOT FIX, because the honest answer is that nothing in the
+  // canvas is at fault. Every rect the limb draws is on integer coordinates
+  // (the two stepped loops go through `Math.round`) and there is not one path,
+  // `arcTo` or `fill()` in the whole drawing — so there is no antialiasing
+  // being authored. What is left is presentation, and both halves are things he
+  // chose: the canvas is displayed at **2.75x**, a non-integer scale, so a
+  // texel is 2 or 3 device pixels wide depending on where it lands; and the
+  // element is **rotated 16°**, which the compositor resamples with filtering
+  // that `image-rendering: pixelated` does not govern. Straight edges therefore
+  // arrive on screen as soft stepped diagonals. The only levers are WATCH_S
+  // (which resizes the whole arm) and WATCH_TILT (which he has asked to
+  // increase three times running), so neither is touched here.
+  //
+  // The one genuinely antialiased thing INSIDE the canvas is `fillText` — the
+  // LCD's digits and `CROSSTOWN QUARTZ` are rasterised by the font engine and
+  // then blown up 2.75x, which is why that line reads as a grey smear in his
+  // shot. Fixing that means a pixel font, not a coordinate change.
+  const WATCH_BOTTOM = String(Math.round(-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)));
+  const WATCH_LIFT_PX = String(Math.round(WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S));
   /**
    * THE LIMB'S TILT, IN DEGREES COUNTER-CLOCKWISE ON SCREEN. Written positive
    * and negated at use, because CSS `rotate()` is positive-CLOCKWISE and the
@@ -1891,8 +1919,13 @@ export function makeHud(purse: Purse): Hud {
   const WATCH_TILT = 16;
   const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-${WATCH_TILT}deg)`;
   const WATCH_HIDDEN = `translateX(-50%) translateY(140%) rotate(-${WATCH_TILT}deg)`;
-  const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
-  const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
+  // whole pixels for the same reason as WATCH_BOTTOM above. Both are already
+  // integers at today's constants; rounding is what keeps them integers when
+  // WATCH_ARM next changes. (The `WATCH_X%` anchor they are added to is still
+  // a fraction of the viewport and cannot be rounded from here — that is the
+  // one fractional term left in the element's position.)
+  const WATCH_LEFT = String(Math.round(77 - WATCH_ARM * WATCH_S / 2));
+  const WATCH_PIVOT = String(Math.round(WATCH_HAND * WATCH_S / 2));
   const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${WATCH_H * WATCH_S}px;image-rendering:pixelated;display:block;`;
   const WRAP_CSS = 'position:fixed;'
     + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:${WATCH_BOTTOM}px;z-index:11;pointer-events:none;`
@@ -2045,8 +2078,25 @@ export function makeHud(purse: Purse): Hud {
     // The fill goes here, with the skin. The two CUTS are made at the very end
     // of the fist's drawing, AFTER the dark strip, so the strip is cut by the
     // same texels and cannot hang past the silhouette into empty air.
-    for (let k = 0; k < FIST_ROUND; k++) {
-      const w = FIST_ROUND - k;
+    // ── AND THE FILL RUNS THE WHOLE RISE NOW ──────────────────────────────
+    //
+    // *"we need to extend the cut on the top left of fist to the weird corner
+    // left over"* (2026-08-04). THE LEFTOVER CORNER WAS ARITHMETIC, not taste.
+    // The fist's top is row 0 and the wrist's is row 6, so this inside corner is
+    // **6 rows deep** — and the ramp was `FIST_ROUND` (3) rows, because it was
+    // written to match the CUTS at the far end. That left rows 0…2 of x 104 as a
+    // hard 3 px vertical step standing above the finished ramp, which is exactly
+    // the notch he can see beside the chamfer.
+    //
+    // `FIST_JOIN` IS THE RISE ITSELF, so this corner cannot come back: 6 rows,
+    // one texel of ramp per row, ending flush with the fist's top row. It is
+    // deliberately NOT `FIST_ROUND` — the two numbers were only ever equal by
+    // coincidence, and the far corners are free outside corners whose cut is a
+    // matter of how round the knuckle looks, while this one is a joint whose
+    // length is fixed by the two edges it joins.
+    const FIST_JOIN = 6;
+    for (let k = 0; k < FIST_JOIN; k++) {
+      const w = FIST_JOIN - k;
       g.fillRect(104 - w, 5 - k, w, 1);                  // join top, filled
     }
     // ── THE THUMB ─────────────────────────────────────────────────────────
@@ -2107,6 +2157,31 @@ export function makeHud(purse: Purse): Hud {
     for (let d = 0; d < THUMB_D; d++) {
       const x0 = Math.round(THUMB_X - THUMB_BACK * (1 - d / THUMB_D));
       g.fillRect(x0, WATCH_LIMB_H + d, THUMB_X - x0, 1);
+    }
+    // ── AND THE THUMB'S TIP IS CUT ────────────────────────────────────────
+    //
+    // *"additionally cut the corner on the thumb"* (2026-08-04). **HIS OWN RULE
+    // PICKS WHICH CORNER**: outside corners get cut, inside corners get filled,
+    // and the thumb has exactly one free outside corner. Taking them in turn —
+    //
+    //   · BOTTOM RIGHT (170, 85) — the tip, hanging in open air with the road
+    //     behind it. The only hard right angle on the thumb with nothing on
+    //     either side of it. **CUT**, and it is the one he means.
+    //   · bottom left — already ramped away by THUMB_BACK's wedge, which
+    //     reaches within a texel of it. Nothing left to cut.
+    //   · top right (170, 72) — INSIDE, against the fist's underside, which
+    //     runs on to x 176 past it. Cutting an inside corner opens a notch;
+    //     his rule says fill, and it is already filled by the fist.
+    //   · top left — inside, and the wedge's apex is what fills it.
+    //
+    // `clearRect`, `FIST_ROUND` and the same stepped rows as the fist's far
+    // corners, so the thumb is chamfered by the same 3 texels the hand is and
+    // not by a second number. It sits below `WATCH_LIMB_H`, where the dark end
+    // cap does not reach, so nothing has to be cut with it — the cap was taken
+    // off the thumb on his own ask and this does not put anything back.
+    for (let k = 0; k < FIST_ROUND; k++) {
+      const w = FIST_ROUND - k;
+      g.clearRect(THUMB_X + THUMB_W - w, WATCH_LIMB_H + THUMB_D - 1 - k, w, 1);
     }
     // ── THE ONE DARK STRIP ────────────────────────────────────────────────
     //
