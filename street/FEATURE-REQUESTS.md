@@ -3527,3 +3527,26 @@ spent, and **a third "more out" cannot come from the drop** — it needs the arm
 read further AWAY rather than further up (`WATCH_S`, or a steeper `WATCH_TILT`),
 which moves drawn pixels the earlier items are pinned to. Left is unbounded and
 can keep going. Both facts are now in the comment at the constant.
+
+## 2026-08-04 — watch arm, the nudges
+
+*"hm more left more out"* → `WATCH_X` 43→36%, `WATCH_DROP` 14→6.
+*"bit better now in terms of x direction but could be tiny bit further up in y"*
+→ X settled at 36%, y only.
+
+Worth keeping: the desk relayed a wrong budget on the y axis (said ~45 px of
+travel remained; the real floor is the FIST's bottom corner at drop ~3.5, not the
+case's at -15) and the builder caught and corrected it unprompted. The corrected
+floor and a drop-vs-corner table now live in the comment at the constant.
+
+## 2026-08-04 — hand and arm, reference image
+
+Verbatim: *"take a look at this image for inspo on hand and arm design btw"*
+Image: `~/Pictures/Screenshots/Screenshot from 2026-08-04 12-59-06.png`
+
+Anime cel still: relaxed loosely-curled hand, flat skin with hard-edged shadow
+shapes, sleeve cuff at the wrist, forearm cropped by the frame.
+
+Scoped by the desk to HAND AND ARM, his words. The reference wears an analog
+steel watch on a link bracelet and ours is a digital LCD — the builder was told
+not to redesign the watch off the back of this, and to ask rather than assume.
