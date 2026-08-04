@@ -1686,8 +1686,9 @@ export function makeHud(purse: Purse): Hud {
   // *"can we move the watch arm thing as a whole over to the left a little
   // bit?"* (2026-08-02) took it 52 → 46. *"mmove the limb up and to the left
   // more pls"* (2026-08-04) took it 46 → 42 and lifted it for the first time.
-  // *"also move full limb more up and left"* (same day) takes it 42 → 38.
-  const WATCH_X = 38;      // % of viewport width, the wrapper's `left` anchor
+  // *"also move full limb more up and left"* (same day) took it 42 → 38, and
+  // *"whole limb a little to the left"* takes it 38 → 35.
+  const WATCH_X = 35;      // % of viewport width, the wrapper's `left` anchor
   /**
    * Upward nudge, in % of the LIMB's height (198 px = 72 canvas px x WATCH_S),
    * applied as px — see WATCH_LIMB_H. Was an unnamed `translateY(0)`.
@@ -1700,17 +1701,17 @@ export function makeHud(purse: Purse): Hud {
    *
    *     LIFT_max = 13.6 + (WATCH_X/100 x V + 77) x tan5°     [px]
    *
-   * At WATCH_X 38 that is 63 px on a 1280 viewport, 84 px at 1920, 105 px at
-   * 2560. THE NARROWEST VIEWPORT BINDS, so 63 px — 31.7% — is the floor to
+   * At WATCH_X 35 that is 60 px on a 1280 viewport, 80 px at 1920, 100 px at
+   * 2560. THE NARROWEST VIEWPORT BINDS, so 60 px — 30% — is the floor to
    * respect, and only the 1280 column is worth quoting.
    *
-   * BOTH ASKS SPEND FROM THE SAME BUDGET. Moving LEFT shrinks it, at 1.1 px per
-   * 1% of WATCH_X, because it drags the far end's crossing point toward the
-   * corner. 42/12 spent 24 of 67; 38/22 spends 44 of 63. **That leaves ~19 px,
-   * about 10 points of WATCH_LIFT or 17 of WATCH_X, and they trade against each
-   * other.** The next nudge is the last, and it has to be half the size of this
-   * one. After that the far end lifts clear of the bottom edge, the limb starts
-   * leaving through the LEFT edge instead, and the hand floats over the road.
+   * UP AND LEFT SPEND THE SAME BUDGET. Moving left shrinks it, at 1.1 px per 1%
+   * of WATCH_X, because it drags the far end's crossing point toward the corner.
+   * 42/12 spent 24 of 67; 38/22 spent 44 of 63; 35/22 spends 44 of 60. **That
+   * leaves ~16 px — 8 points of WATCH_LIFT, or 14 of WATCH_X, and they trade
+   * against each other.** Past it the far end lifts clear of the bottom edge,
+   * the limb starts leaving through the LEFT edge instead, and the hand floats
+   * over the road with nothing holding it to the frame.
    */
   const WATCH_LIFT = 22;
   /**
@@ -1748,6 +1749,20 @@ export function makeHud(purse: Purse): Hud {
    * the hand. THUMB_X + THUMB_W should stay under 172 for that reason.
    */
   const THUMB_X = 126, THUMB_W = 44, THUMB_D = 13;
+  /**
+   * HOW FAR ALONG THE ARM THE WATCH SITS, in canvas px, applied as a translate
+   * to the whole assembly — strap, case, bezel, LCD and both text lines.
+   * *"watch a little to the right on the arm"* (2026-08-04): 0 → 8.
+   *
+   * IT CANNOT GO MUCH FURTHER. The assembly's widest part is the CASE, not the
+   * strap: case x 32…88, strap x 38…82, and the fist begins at x 104. So the
+   * case has 16 px of room and the strap 22, and the case is what runs out —
+   * **WATCH_POS 16 puts the case's right edge exactly on the fist**, and past
+   * that the strap paints over the hand it is supposed to be strapped behind.
+   * At 8 the case clears the fist by 8 px (22 on screen) and the strap by 14.
+   * One more nudge this size is the last one.
+   */
+  const WATCH_POS = 8;
   const WATCH_H = WATCH_LIMB_H + Math.max(STRAP_OVER, THUMB_D);
   const WATCH_BOTTOM = (-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)).toFixed(2);
   const WATCH_LIFT_PX = (WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S).toFixed(2);
@@ -1909,7 +1924,17 @@ export function makeHud(purse: Purse): Hud {
     // he has looked at for two days without objecting; the ask is for the
     // bottom to have what the top has. A 3/3 split at the strap's original 72
     // height would be `6 - 3` and `66 + 6` here, one line, if he wants it.
+    // ── AND WHERE ALONG THE ARM IT ALL SITS ───────────────────────────────
+    //
+    // *"watch a little to the right on the arm"* (2026-08-04). Strap, case,
+    // bezel, LCD and both lines of text are ONE object and slide together, so
+    // this is a translate, not five edited literals: every number below is the
+    // one that was approved, untouched, exactly as the WATCH_ARM translate
+    // above left the wrist and fist untouched when the forearm was added.
+    // WATCH_POS is the only thing to change next time.
     const STRAP_Y = 6 - STRAP_OVER, STRAP_H = 66 + STRAP_OVER * 2;
+    g.save();
+    g.translate(WATCH_POS, 0);
     g.fillStyle = '#26282e'; g.fillRect(38, STRAP_Y, 44, STRAP_H);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, STRAP_Y, 4, STRAP_H);
     g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
@@ -1921,6 +1946,7 @@ export function makeHud(purse: Purse): Hud {
     g.fillText(`${hh}:${m2}`, 60, 38);
     g.fillStyle = '#8a8d95'; g.font = '5px monospace';
     g.fillText('CROSSTOWN QUARTZ', 60, 50);
+    g.restore();
     g.restore();
   };
   const WALLET_W = 180, WALLET_H = 140;
