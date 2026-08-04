@@ -1731,15 +1731,18 @@ export function makeHud(purse: Purse): Hud {
     // as a second colour on the rectangle, which is the one thing he asked not to
     // see. Removed, along with its `RECEDE` constant. One `fillRect`, one tone.
     //
-    // THE WHOLE LIMB IS ONE FLAT TONE, END TO END, AND HE CHOSE IT THAT WAY.
-    // Forearm, wrist and fist are three `fillRect`s of `#c9946a` with NOTHING
-    // painted over them — no gradient, no highlight, no shadow, no edge. FOUR
-    // things were deliberately removed to get here and none of them is missing:
+    // THE WHOLE LIMB IS ONE FLAT TONE, AND HE CHOSE IT THAT WAY. Forearm, wrist
+    // and fist are three `fillRect`s of `#c9946a` with NOTHING painted over them
+    // — no gradient, no highlight, no shadow — except the single dark strip at
+    // the far end of the fist, which he asked for by itself and which is
+    // documented where it is drawn. FOUR things were deliberately removed to get
+    // here and none of them is missing:
     //
     //   · the recede gradient above, `rgba(0,0,0,0.18)` over 240 px;
     //   · `rgba(255,255,255,0.12)` at the far end of the WRIST (x 94…104);
     //   · `rgba(255,255,255,0.12)` at the FIST's right edge (x 166…176);
-    //   · `rgba(0,0,0,0.10)`, the wrist's shadow on the FIST (x 104…108).
+    //   · `rgba(0,0,0,0.10)`, the wrist's shadow on the FIST (x 104…108) — this
+    //     one later came back, unchanged but MOVED to x 172…176, on his own ask.
     //
     // The last three were the old "light from the right" pass; they predate the
     // arm and were fine on a short stub, but on a full limb they read as stripes
@@ -1779,6 +1782,19 @@ export function makeHud(purse: Purse): Hud {
     // Drawn BEFORE the strap and the case so it can never overlap them; it butts
     // at x 104 where the wrist ends, and the strap lives at 38…82.
     g.fillStyle = '#c9946a'; g.fillRect(104, 0, 72, 72);
+    // ── THE ONE DARK STRIP ────────────────────────────────────────────────
+    //
+    // *"ok now ad the dark strip to the end of the limb"* (2026-08-04). THE END
+    // OF THE LIMB IS ITS FAR EDGE — x 172…176, the outer edge of the fist, where
+    // the limb stops. Not the wrist/fist join at x 104 where the removed strip
+    // used to sit, and not x 0, which is not an end at all: that side runs off
+    // the frame. Full height of the limb at that end, y 0…72, matching the fist.
+    //
+    // The strip he means is the one taken out three commits ago, so it is that
+    // strip: the identical `rgba(0,0,0,0.10)` at the identical 4 px width, moved
+    // rather than reinvented. IT IS THE ONLY OVERLAY ON THE SKIN — everything
+    // left of it stays one flat `#c9946a`.
+    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(172, 0, 4, 72);
     g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
     g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
