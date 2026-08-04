@@ -2304,69 +2304,79 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // thinking, which is the story this sill is telling.
     const mugM = new THREE.MeshBasicMaterial({ color: 0xd8d2c4 });
     const MUG_X = SILL_X, MUG_Z = WIN_LZ - 0.55, MUG_R = 0.038, MUG_H = 0.095;
-    const mug = new THREE.Mesh(new THREE.CylinderGeometry(MUG_R, 0.034, MUG_H, 12), mugM);
+    // ── THE MUG'S MOUTH: A BORE, NOT A DISC. FOUR PASSES, THEN THE CAUSE ─────
+    //
+    // The user, item 274: *"mug should be empty."* Then, in order:
+    //
+    //     0x4a3524  brown          -> "should be empty"      (read as coffee)
+    //     0x6d6e6f  grey           -> "doesn't match"        (wrong hue)
+    //     0x6c6962  body x0.50     -> "identical to before"  (invisible move)
+    //     0x8c897f  body x0.65     -> "still not right"
+    //
+    // FOUR TONES ON ONE FLAT DISC, ALL WRONG, AND THE FIFTH WOULD HAVE BEEN
+    // WRONG TOO. Every one of those was a value/hue argument about a **circle
+    // sitting at the rim plane, 1 mm PROUD of a solid top cap** — which is not
+    // an opening, it is a LID. That geometry has exactly two failure modes and
+    // no success:
+    //
+    //     dark  -> a full-diameter dark ellipse in a cream cup = liquid
+    //     light -> the top vanishes into the body = item 108's "peg"
+    //
+    // A hole is not read from tone. It is read from DEPTH, and depth in an
+    // unlit world comes from the one thing this mug never had: **more than one
+    // interior surface.** Look into a real empty mug from the 22° he plays at
+    // and you see three tones, not one — the rim ring, a crescent of the far
+    // INNER WALL catching light, and a small darker floor sitting low and near
+    // inside that crescent. The offset between the crescent and the floor IS
+    // the depth cue. One flat disc cannot produce it at any colour.
+    //
+    // Measured against his own screenshot (13-46-40, gameplay distance): the
+    // mouth is roughly 30 x 12 px, ~360 px of ellipse. That is comfortably
+    // enough for a 4 px crescent over a 6 px floor, so this is not detail
+    // spent below the resolution he sees — it is the first thing he sees.
+    //
+    // So the cup is BORED OUT. Four parts, all opaque, no transparency and no
+    // sort order to get wrong:
+    //
+    //   1. the outer skin, now `openEnded` — the solid cap that made a lid
+    //      impossible to avoid is gone. Its bottom opens too; it stands on the
+    //      sill, so that face was never rendered
+    //   2. the RIM, a real annulus of ceramic thickness. It used to be the 6 mm
+    //      of top cap left showing round a 0.032 disc, which is why the rim
+    //      read as a coincidence rather than as the edge of a wall
+    //   3. the BORE, `BackSide` so it draws the FAR half of the tube seen from
+    //      within — precisely the crescent. Ceramic in bounced light, body
+    //      x0.82 = (177, 172, 161): the inside of a cup is not in shadow, it is
+    //      the brightest thing after the rim
+    //   4. the FLOOR, 10 mm up, body x0.55 = (119, 116, 108). This is the dark
+    //      tone item 274 asked for — but it is 30 mm across at the BOTTOM of a
+    //      visible shaft instead of 64 mm across at the top, so it reads as the
+    //      bottom of an empty mug, which is the whole difference from a pour.
+    //
+    // If it is still wrong after this, the next question is not a colour. It is
+    // whether he wants the wall crescent brighter or the floor deeper, and
+    // those are two separate knobs now instead of one that cannot win.
+    const MUG_WALL = 0.005, MUG_BASE = 0.010;
+    const MUG_IR = MUG_R - MUG_WALL;                 // bore radius at the rim
+    const mug = new THREE.Mesh(
+      new THREE.CylinderGeometry(MUG_R, 0.034, MUG_H, 12, 1, true), mugM);
     mug.position.set(AX(MUG_X), SILL_TOP + MUG_H / 2, AZI(MUG_Z));
     scene.add(mug);
-    // ── THE MUG'S MOUTH. IT IS AN EMPTY VESSEL, NOT A CUP OF COFFEE ──────────
-    //
-    // The user, item 274: *"mug should be empty."*
-    //
-    // The disc that was here is NOT deleted, and the reason is worth keeping:
-    // the cylinder has a SOLID top cap, so with nothing dark up there the top
-    // is a disc of the body colour and the whole thing reads as a peg — the
-    // older complaint, and he looks DOWN at this from 22°, so the top face is
-    // a third of what he sees of it. A disc sunk to coffee level INSIDE the
-    // cup would simply be hidden by that cap, which is why it rides 1 mm proud
-    // (1 mm is also clear of the z-fighting the reveal corners cost us).
-    //
-    // SO THE FIX IS TONE, NOT GEOMETRY. An empty mug still has a dark mouth —
-    // but it is the SHADOW OF WHITE CERAMIC, not the brown of coffee. 0x4a3524
-    // is (74, 53, 36): warm by +38 R-over-B and dark at value 54. That is a
-    // liquid.
-    //
-    // ITEM 274 GOT THE HUE WRONG **AND THE DARKNESS WRONG**, and the second
-    // one took two passes to see. Erick, 2026-08-04: *"inside of mug on the
-    // windowsill is gray, the color doesn't match the rest of the mug"* — so
-    // 0x6d6e6f = (109, 110, 111), a dead neutral with B above R, went to the
-    // body times 0.50 = (108, 105, 98) = 0x6c6962, which held 274's darkness
-    // and moved only hue. He looked again: *"inside of the mug looks identical
-    // to before to me."* He is right, and it was predictable — thirteen levels
-    // of blue at 40% value is nothing. **Hue is invisible at that darkness.**
-    // Fixing hue alone can never be a fix here; the value has to give.
-    //
-    // AND 274'S OWN PREMISE IS BACKWARDS. A near-black disc inside a pale cream
-    // cup is not what empty looks like — it is what COFFEE looks like. What you
-    // see looking into an empty mug from 22° is mostly the far INNER WALL, and
-    // that wall is lit ceramic, not shadow; only the small floor behind it is
-    // dark. This disc is the ONLY interior surface there is (the cylinder's top
-    // cap is solid — `openEnded` defaults false — so no inner wall is modelled),
-    // which means it has to AVERAGE the lit wall with the shadowed floor. x0.50
-    // is a pure shadow value. That is the whole reason it reads as full.
-    //
-    //     body      (216, 210, 196)   x0.65 ->  (140, 137, 127)  = 0x8c897f
-    //
-    // Still the cup's own colour times a scalar — same ceramic, same warmth,
-    // R over B at +13 — but value 108 -> 140, which is a third brighter and
-    // the first change to this disc anyone can actually see.
-    //
-    // WHY 0.65 AND NOT LIGHTER, in channel sums (item 167's contrast floor was
-    // 122, and the sill it sits on is 0xa8a091 = 473):
-    //
-    //     interior vs RIM (622)    311 -> 218    still 96 clear of the floor,
-    //                                            so the mouth cannot flatten
-    //                                            back into the peg of item 108
-    //     interior vs SILL (473)   162 ->  69    stays DARKER than the sill, so
-    //                                            it is still the darkest thing
-    //                                            in frame and reads recessed
-    //
-    // Lighter than about x0.70 and the disc meets the sill's own tone, at which
-    // point the mug reads as a ring with a hole in it. That is the ceiling if he
-    // asks for lighter still; below x0.55 we are back in coffee.
-    const brew = new THREE.Mesh(new THREE.CircleGeometry(MUG_R - 0.006, 12),
-      new THREE.MeshBasicMaterial({ color: 0x8c897f }));
-    brew.position.set(AX(MUG_X), SILL_TOP + MUG_H + 0.001, AZI(MUG_Z));
-    brew.rotation.x = -Math.PI / 2;
-    scene.add(brew);
+    const rim = new THREE.Mesh(new THREE.RingGeometry(MUG_IR, MUG_R, 12),
+      new THREE.MeshBasicMaterial({ color: 0xd8d2c4, side: THREE.DoubleSide }));
+    rim.position.set(AX(MUG_X), SILL_TOP + MUG_H, AZI(MUG_Z));
+    rim.rotation.x = -Math.PI / 2;
+    scene.add(rim);
+    const bore = new THREE.Mesh(
+      new THREE.CylinderGeometry(MUG_IR, 0.030, MUG_H - MUG_BASE, 12, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xb1aca1, side: THREE.BackSide }));
+    bore.position.set(AX(MUG_X), SILL_TOP + MUG_BASE + (MUG_H - MUG_BASE) / 2, AZI(MUG_Z));
+    scene.add(bore);
+    const mugFloor = new THREE.Mesh(new THREE.CircleGeometry(0.030, 12),
+      new THREE.MeshBasicMaterial({ color: 0x77746c }));
+    mugFloor.position.set(AX(MUG_X), SILL_TOP + MUG_BASE, AZI(MUG_Z));
+    mugFloor.rotation.x = -Math.PI / 2;
+    scene.add(mugFloor);
     // ── THE HANDLE, THIRD REPORT: IT WAS PAINTED IN ITS OWN BACKGROUND ───────
     //
     // The user, three times: *"mug looks messed up"*, *"the mug is messed up"*,
