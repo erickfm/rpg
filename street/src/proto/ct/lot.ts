@@ -685,6 +685,8 @@ function buildLot(o: {
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GL, GH - 0.16), linkPanel(GL, GH - 0.16));
       mesh.position.set(gx, Y + 0.08 + (GH - 0.16) / 2, gc);
       mesh.rotation.y = Math.PI / 2;
+      // registered solid — see the `solid()` over `gx`/`gc` below, item 303
+      mesh.userData.solidLeaf = 'lot-roller-gate';
       scene.add(mesh);
       const bar = (w: number, h: number, d: number, bx: number, by: number, bz: number, rz = 0) => {
         const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frameM);

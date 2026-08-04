@@ -764,6 +764,8 @@ export function buildJail(ctx: CtxBuild): void {
     stile.position.set(LEAF, (GATE_H - 0.16) / 2, 0);
     leaf.add(stile);
     leaf.rotation.y = OPEN;
+    // registered solid — see the collider three lines down, and item 303
+    leaf.userData.solidLeaf = 'jail-lobby-gate';
     put(leaf, HINGE, 0, CNT_Z);
     // THE COLLIDER FOLLOWS THE SWING, computed from the SAME angle the mesh is
     // rotated by. I re-derived it by hand once and got the sign of the x term

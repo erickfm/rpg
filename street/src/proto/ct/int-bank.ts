@@ -783,6 +783,8 @@ export function buildBankInterior(ctx: CtxBuild): void {
     // turns to point across the lobby. See the derivation above.
     [vEdgeM, vEdgeM, vEdgeM, vEdgeM, vBackM, vFaceM]);
   vaultDoor.rotation.y = Math.PI + THETA;
+  // registered solid — see the collider below, and item 303
+  vaultDoor.userData.solidLeaf = 'bank-vault-door';
   skin(vaultDoor, 'vault door');
   put(vaultDoor,
     HINGE_X - (DOOR_W / 2) * Math.cos(THETA), DOOR_H2 / 2,

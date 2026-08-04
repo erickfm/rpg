@@ -1237,6 +1237,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       DOOR_PIV_X = AX(-0.09); DOOR_PIV_Z = DOOR_Z1 + 0.02; DOOR_LEAF_W = LW;
       // named so scripts/swing.mjs can drive the arc and check what it sweeps
       leaf301.name = 'leaf301';
+      // …and REGISTERED SOLID, which is a different claim from being named
+      // (item 303). The open-leaf collider below is typed in the units of a
+      // ROOM, 2,500 lines from here, so the mesh can move and the box stay put
+      // — which is exactly what happened when this hinge went to the +z jamb.
+      // `scripts/solid-leaf-vs-collider.mjs` samples every leaf carrying this
+      // flag along its own body and requires the player to be stopped at each
+      // point; nothing else in the world ties these two edits together.
+      leaf301.userData.solidLeaf = 'apt-301-front';
       // PUBLISH THE TRAVEL, do not make a harness guess it. scripts/swing.mjs
       // first swept 76deg of a 166deg arc, in the wrong direction, and passed
       // — a door check that never visited the doorway. Same idea as props.ts
