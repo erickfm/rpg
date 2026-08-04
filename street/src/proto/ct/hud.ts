@@ -1570,6 +1570,23 @@ export function makePanel(spec: PanelSpec): Panel {
  *     import { screenFade } from './hud';
  *     act: () => screenFade({ mid: () => ctx.clock.advance(mins, { overSeconds: 0 }) }),
  */
+/**
+ * THE SHARED CUT, IN THREE BEATS. *"make the shared fade default faster too"*
+ * (2026-08-04): 850/750/1000 = 2600 ms → 260/170/300 = 730 ms, the timing he
+ * approved for the sleep.
+ *
+ * WHY IT IS SAFE TO CUT `HOLD` THIS HARD. `mid` does not run on a timer — the
+ * fade-out is awaited by `transitionend`, so the screen is genuinely at opacity
+ * 1 before the world changes, and no amount of shortening `out` can race it.
+ * `hold` is therefore not a safety margin, it is the black beat AFTER `mid`
+ * returns: at 170 ms it is still ~10 frames, far more than the one the renderer
+ * needs to draw the changed world before the screen comes back.
+ *
+ * A caller that wants the old, slower cut for DRAMATIC reasons passes its own
+ * `outMs`/`holdMs`/`inMs` — that is what the options are for, and it is a
+ * one-line change at the call site rather than a reason to keep everyone slow.
+ */
+const FADE_OUT_MS = 260, FADE_HOLD_MS = 170, FADE_IN_MS = 300;
 let LIVE: Hud | null = null;
 export function screenFade(o?: { mid?: () => void; outMs?: number; holdMs?: number; inMs?: number }): Promise<void> {
   // No HUD means no screen to fade, and the caller's `mid` must still happen —
@@ -2421,7 +2438,7 @@ export function makeHud(purse: Purse): Hud {
     // which is far worse than one that ends early.
     fade: (o = {}) => {
       if (fading) return fading;                 // two fades would fight one opacity
-      const outMs = o.outMs ?? 850, holdMs = o.holdMs ?? 750, inMs = o.inMs ?? 1000;
+      const outMs = o.outMs ?? FADE_OUT_MS, holdMs = o.holdMs ?? FADE_HOLD_MS, inMs = o.inMs ?? FADE_IN_MS;
       const unlock = lockInput();
       const settled = (ms: number, then: () => void) => {
         let called = false;
