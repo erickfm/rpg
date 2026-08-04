@@ -3071,19 +3071,14 @@ uniform float uPoolAmb;`)
     leg.position.set(lx, sidewalkY + LEG_H / 2, BENCH_Z + sz * 0.72);
     scene.add(leg);
   }
-  // a proper contact shadow on the flags, so it sits ON the pavement
-  const benchShadowT = declareSurface(pixTex(24, 48, (g) => {
-    const gr = g.createLinearGradient(0, 0, 24, 0);
-    gr.addColorStop(0, 'rgba(20,18,15,0.34)');
-    gr.addColorStop(0.7, 'rgba(20,18,15,0.16)');
-    gr.addColorStop(1, 'rgba(20,18,15,0)');
-    g.fillStyle = gr; g.fillRect(0, 2, 24, 44);
-  }), 'detail');
-  const bshadow = new THREE.Mesh(new THREE.PlaneGeometry(0.66, BENCH_L + 0.12),
-    wet(new THREE.MeshBasicMaterial({ map: benchShadowT, transparent: true, depthWrite: false })));
-  bshadow.rotation.x = -Math.PI / 2;
-  bshadow.position.set(BX_FRONT + 0.35, sidewalkY + 0.004, BENCH_Z);   // stays off the kerb
-  scene.add(bshadow);
+  // NO CONTACT SHADOW UNDER THE BENCH. There was one — a 0.66 x 1.92 m quad at
+  // 34% black on the flags — and it is gone with the twelve litter ones below.
+  // NOTHING IN THIS WORLD CASTS A SHADOW. Not the buildings, not the lamp
+  // columns, not the cars. So a dark shape printed on the ground has no caster
+  // the eye can find, and it stops reading as a shadow and starts reading as a
+  // stain or a hole in the pavement — which is what Erick called it: "remove
+  // the shadow texture". Four legs standing on the flags is what makes the
+  // bench sit on the ground; a smudge was never doing that work.
   // the collider stays inside the lamp-pole envelope (they block to x ≈ 6.11
   // with the rig's 0.36 m radius) so the bench never becomes the pinch point
   // The collider follows the RECLINE. The reclined panel's top-back corner is
@@ -3581,14 +3576,19 @@ uniform float uPoolAmb;`)
   // withdrew the guess. Building the mechanism now would be inventing it to
   // fit a theory nobody holds. Rotation is the only thing that varies, and
   // five distinct objects is the actual vocabulary.
-  const shadeT = declareSurface(pixTex(16, 16, (g) => {
-    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(2, 3, 12, 10);
-    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(1, 2, 14, 12);
-  }), 'detail');
-  // The contact shadow needs its OWN material: flatDecal sets alphaTest 0.5,
-  // and every texel of a soft shadow is below that, so shadows drawn through
-  // flatDecal were being discarded outright and nothing sat on the ground.
-  // (the contact shadow is parented to each piece in drop(), below)
+  // NO CONTACT SHADOWS. Each dropped piece used to carry a child quad of
+  // `shadeT` — soft black, 0.92 of the piece's own footprint — printed on the
+  // ground under it. Twelve of them, plus the bench's, all deleted.
+  //
+  // NOTHING IN THIS WORLD CASTS A SHADOW: no building, no lamp column, no car,
+  // no citizen. Thirteen decals were the only exception, so instead of seating
+  // the litter they read as unexplained dark marks on the road and in the
+  // alley — the eye hunts for a caster, finds none, and files it as a defect.
+  // Erick has now asked three times in one session for dark ground shapes to
+  // go, one of them by name: "remove the shadow texture". They go.
+  //
+  // What actually seats a piece is `drop()` below putting its measured bottom
+  // exactly on the ground, which it still does.
   const ALLEY_Y = 0.006;                  // ct/street.ts lays the alley slab at 0.005
   const drop = (name: string, x: number, z: number, yaw: number, y?: number) => {
     const make = CATALOGUE.find((c) => c[0] === name)?.[1];
@@ -3597,39 +3597,33 @@ uniform float uPoolAmb;`)
     // MEASURE, do not declare. Every number about a piece's size and seating is
     // taken from its own geometry now, because every one of them that was
     // hand-written turned out to be wrong: the base heights had the cups 6 and
-    // 8 mm underground, the half-extent guess missed that the fountain cup's
-    // straw reaches 58 cm on one side and 21 on the other, and a hand-written
-    // shadow size made shadows WIDER than the objects casting them, so they
-    // crossed the kerb where the object did not and half of each one vanished
-    // under the pavement. Three versions of one mistake.
+    // 8 mm underground, and the half-extent guess missed that the fountain
+    // cup's straw reaches 58 cm on one side and 21 on the other.
     //
-    // The LOCAL box is taken before the piece is turned, so the shadow can be
-    // a child and inherit the rotation; the WORLD box is taken after, because
-    // that is what the kerb and the building line have to be tested against.
-    o.updateMatrixWorld(true);
-    const bbL = new THREE.Box3().setFromObject(o);
+    // ORDER, now that the contact shadow is gone. That shadow used to be
+    // attached as a child BEFORE this box was taken, so the box covered the
+    // piece AND its smudge. Two things followed, and only one of them mattered:
+    //
+    //   · HEIGHT — unaffected, provably. The shadow sat at `bbL.min.y + 0.003`,
+    //     i.e. ABOVE the piece's own lowest point, so it never contributed to
+    //     `bb.min.y` and the seating line `gy - bb.min.y` is bit-for-bit what it
+    //     was. Nothing sinks and nothing floats. That was the risk worth
+    //     checking before touching this, and it is not a risk.
+    //   · HALF-EXTENT — the shadow was a rectangle at 0.92 of the piece's LOCAL
+    //     footprint, and a rectangle turned 86 degrees has corners that reach
+    //     past the world box of the thin cylinder it covers. So it could only
+    //     ever make `hx` LARGER. Dropping it makes `hx` the piece's true
+    //     half-extent, which is the number `clearOfKerb` and the building-line
+    //     clamp actually want. Where the clamp is binding — the gutter drops,
+    //     laid hard against the kerb — a piece now sits a centimetre or two
+    //     nearer the kerb, which is nearer to where it was authored. Padding
+    //     the clearance for a phantom would be keeping a fudge for a thing that
+    //     no longer exists.
+    //
+    // So: turn the piece, then measure the piece. One box, no children.
     // every candidate carries its own built-in skew; this turns the whole
     // piece on top of it, so no two placements of one object are copies
     o.rotation.y += yaw;
-    // The contact shadow is a CHILD of the piece, sized inside the piece's own
-    // LOCAL footprint at 0.92, and attached BEFORE the clearance box is taken.
-    // All three matter. A child moves when dimWorld pushes a piece clear of a
-    // building, and a shadow left at the old spot is worse than none. Sizing it
-    // inside the object stops it being the wider thing. And measuring after it
-    // is attached is what actually makes the guarantee exact — a rectangle
-    // turned 86 degrees has corners that stick out past the world box of the
-    // thin cylinder it covers, so a shadow can cross the kerb the object
-    // clears. Measure the assembled piece and the question does not arise.
-    // WET too. A contact shadow is part of the ground it is printed on, so it
-    // has to take the ground's weather or it stays a noon-dark smudge on a road
-    // that has gone to 17% — which reads as a hole rather than a shadow.
-    const sh = new THREE.Mesh(new THREE.PlaneGeometry(
-      (bbL.max.x - bbL.min.x) * 0.92, (bbL.max.z - bbL.min.z) * 0.92),
-      wet(new THREE.MeshBasicMaterial({ map: shadeT, transparent: true, depthWrite: false })));
-    sh.rotation.x = -Math.PI / 2;
-    sh.position.set((bbL.max.x + bbL.min.x) / 2, bbL.min.y + 0.003,
-                    (bbL.max.z + bbL.min.z) / 2);
-    o.add(sh);
     o.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(o);   // still at the origin, so this is the half-extent
     const hx = Math.max(-bb.min.x, bb.max.x);
