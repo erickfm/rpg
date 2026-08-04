@@ -930,6 +930,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const nibTop = carpetT.clone();
     nibTop.wrapS = nibTop.wrapT = THREE.RepeatWrapping;
     nibTop.repeat.set(1.2 / 1.8, NIB_D / 1.8);
+    // "to match the hall it continues" was true of the SCALE and false of the
+    // PHASE, and the phase is what you see. Both surfaces tile at 1.8 m and
+    // both run v toward -z, so they agree on gradient; they disagree on where
+    // v is zero. `floorMesh` puts v = 0 at the plane's +z edge, which for the
+    // hall is the stairwell mouth — so the hall arrives at AZI(8.4) on a tile
+    // boundary. A box's top face does the same from ITS +z edge, which is the
+    // nib's open edge at NIB_Z1, so the nib arrives at the mouth at
+    // v = NIB_D/1.8 = 0.5 — half a tile out, with the carpet's flecks stepping
+    // sideways along the joint. Offsetting by that same half tile lands the nib
+    // on the hall's boundary and the two runs read as one piece of carpet. It
+    // is written off NIB_D, so it re-solves if the landing is scoped again.
+    nibTop.offset.set(0, -NIB_D / 1.8);
     nibTop.needsUpdate = true;
     const nibUnder = ceilT.clone();
     nibUnder.wrapS = nibUnder.wrapT = THREE.RepeatWrapping;
@@ -964,8 +976,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // at EVERY storey rather than at the one he happened to photograph. It
     // meets the nib's own -z face in the same material, so the two read as one
     // board. Purely visual, 2.55 m up — no collider, nothing to walk into.
+    //
+    // ITS TOP FACE WAS COPLANAR WITH THE CARPET, at all three storeys. `yt` was
+    // the finished floor line `(f+1)*ST + 0.006`, which is exactly where the
+    // carpet plane above is — and the board straddles the mouth at
+    // AZI(8.38…8.42) while the hall carpet runs to AZI(8.4), so 2 cm of the two
+    // shared a plane and z-fought the full 2.4 m width. On floor 3 it fights
+    // the NIB's carpet top as well, over the other 2 cm. That is a flickering
+    // band across the stairwell mouth, in the middle of exactly the view he
+    // photographed. Stop 2.5 mm short of the finished floor: the board is still
+    // continuous with the ceiling below it, and 2.5 mm at 40 mm deep is a 3.6°
+    // slot, far outside any sightline the bleed ever came in on.
     for (let f = 0; f < 3; f++) {
-      const yb = f * ST + 2.55, yt = (f + 1) * ST + 0.006;
+      const yb = f * ST + 2.55, yt = (f + 1) * ST + 0.0035;
       const fascia = new THREE.Mesh(new THREE.BoxGeometry(2.4, yt - yb, 0.04), darkWoodM);
       fascia.position.set(AX(1.2), (yb + yt) / 2, AZI(8.4));
       scene.add(fascia);
@@ -986,18 +1009,49 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Pitch is 0.115 with a 0.035 stick, so the clear gap is 0.08 — under the
     // hand's-breadth a balustrade is actually built to, which is the number
     // that makes a run of sticks look considered rather than decorative.
+    //
+    // ── THE STICKS DID NOT KNOW WHERE THE NEWELS WERE ───────────────────────
+    //
+    // The user: *"fix top floor railing texture issues"*, over a shot of the
+    // top landing where the balusters cross and double up.
+    //
+    // The pitch above is the right pitch and the run was laid out as if the
+    // newels were not there: `bx = 0.155; bx <= 1.05; bx += 0.115` against
+    // newels at 0.08, 0.6 and 1.12. Written out, with a 0.035 stick against a
+    // 0.07 post, the clear gaps along the run come to
+    //
+    //   0.0225 | 0.08 x3 | 0.0475 | **-0.02** | 0.08 x3 | 0.1075
+    //
+    // — bunched to 22 mm at the west end, then the stick at 0.615 sitting
+    // INSIDE the centre newel at 0.6 and z-fighting it down its whole height,
+    // then 108 mm of daylight at the east end. Two dark boxes sharing 20 mm of
+    // x at the same z is what reads as one stick crossing another, and it is
+    // the only place in the run where the rhythm breaks.
+    //
+    // So lay the sticks out PER BAY, deriving the count from the target gap
+    // instead of marching a literal across the newels. Each bay is 0.45 m of
+    // clear air, which takes 3 sticks at an 86 mm gap — still inside the
+    // hand's-breadth the run was built to, symmetric about the centre newel,
+    // and self-correcting if a newel or the landing width ever moves.
     const botRail = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.045, 0.055), railM);
     botRail.position.set(AX(0.6), TOP_Y + 0.075, AZI(NIB_Z1));
     scene.add(botRail);
-    const BAL_H = RAIL_H - 0.135;
-    for (let bx = 0.155; bx <= 1.05; bx += 0.115) {
-      const bal = new THREE.Mesh(new THREE.BoxGeometry(0.035, BAL_H, 0.035), railM);
-      bal.position.set(AX(bx), TOP_Y + 0.075 + BAL_H / 2 + 0.0225, AZI(NIB_Z1));
-      scene.add(bal);
+    const BAL_H = RAIL_H - 0.135, BAL_W = 0.035, BAL_GAP = 0.08;
+    const NEWEL_LX = [0.08, 0.6, 1.12], NEWEL_W = 0.07;
+    for (let b = 0; b + 1 < NEWEL_LX.length; b++) {
+      const x0 = NEWEL_LX[b] + NEWEL_W / 2, clear = NEWEL_LX[b + 1] - NEWEL_W / 2 - x0;
+      const n = Math.max(1, Math.round((clear - BAL_GAP) / (BAL_W + BAL_GAP)));
+      const gap = (clear - n * BAL_W) / (n + 1);
+      for (let i = 0; i < n; i++) {
+        const bal = new THREE.Mesh(new THREE.BoxGeometry(BAL_W, BAL_H, BAL_W), railM);
+        bal.position.set(AX(x0 + (i + 1) * gap + (i + 0.5) * BAL_W),
+          TOP_Y + 0.075 + BAL_H / 2 + 0.0225, AZI(NIB_Z1));
+        scene.add(bal);
+      }
     }
     // the newels last, so they read as heavier than what they carry
-    for (const lx of [0.08, 0.6, 1.12]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, RAIL_H, 0.07), railM);
+    for (const lx of NEWEL_LX) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(NEWEL_W, RAIL_H, NEWEL_W), railM);
       post.position.set(AX(lx), TOP_Y + RAIL_H / 2, AZI(NIB_Z1));
       scene.add(post);
     }
