@@ -381,126 +381,41 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
   }
 }
 
-// ── THE ITEMS ──────────────────────────────────────────────────────────────
+// ══ THE RAIL ═══════════════════════════════════════════════════════════════
 //
-// *"each option is a literal item."* One garment, painted in a 24-unit square,
-// in ITS OWN `cloth` and `trim` and in the silhouette the figure wears it in —
-// a tee is a torso with sleeves whether it is on a hanger or on him. That is
-// what makes a drag read as moving one object rather than choosing an option.
-const IW = 24;
-
-/** Paint garment `gm` into a `size`-square cell at (x0, y0). */
-function paintItem(g: CanvasRenderingContext2D, x0: number, y0: number, size: number,
-                   gm: Garment): void {
-  const box = scaler(g, x0, y0, size / IW);
-  switch (gm.kind) {
-    case 'tee': case 'sweater': case 'jacket': case 'vest': {
-      const sl = gm.sleeve === 2 ? 12 : 5;
-      box(7, 5, 10, 14, gm.cloth);                       // the body
-      box(3, 5, 4, sl, gm.cloth);                        // the sleeves
-      box(17, 5, 4, sl, gm.cloth);
-      box(3, 5 + sl - 2, 4, 2, gm.trim);                 // their cuffs
-      box(17, 5 + sl - 2, 4, 2, gm.trim);
-      box(9, 4, 6, 2, gm.trim);                          // the collar
-      if (gm.kind === 'jacket') box(11, 6, 2, 13, 'rgba(0,0,0,0.22)');
-      if (gm.kind === 'sweater') box(7, 17, 10, 2, gm.trim);
-      break;
-    }
-    case 'dress': {
-      box(9, 4, 6, 5, gm.cloth);
-      for (let b = 0; b < 3; b++) box(8 - b * 2, 9 + b * 4, 8 + b * 4, 4, gm.cloth);
-      box(2, 19, 20, 2, gm.trim);
-      break;
-    }
-    case 'trousers': {
-      const len = (gm.leg ?? 3) >= 3 ? 14 : 7;
-      box(7, 4, 10, 3, gm.trim);                         // the waistband
-      box(7, 7, 4, len, gm.cloth);                       // two legs
-      box(13, 7, 4, len, gm.cloth);
-      if (gm.id === 'track') { box(7, 7, 1, len, gm.trim); box(16, 7, 1, len, gm.trim); }
-      break;
-    }
-    case 'skirt': {
-      box(8, 5, 8, 3, gm.trim);
-      for (let b = 0; b < 3; b++) box(8 - b * 2, 8 + b * 3, 8 + b * 4, 3, gm.cloth);
-      break;
-    }
-    case 'sneaker': case 'boot': {
-      const up = gm.kind === 'boot' ? 9 : 5;
-      box(5, 17 - up, 11, up, gm.cloth);                 // the upper, side on
-      box(4, 17, 16, 3, gm.cloth);                       // the foot
-      box(4, 19, 16, 2, gm.trim);                        // the sole
-      break;
-    }
-    case 'sandal': {
-      box(4, 17, 16, 2, gm.cloth);
-      box(4, 19, 16, 2, gm.trim);
-      box(7, 13, 3, 4, gm.cloth);                        // two straps
-      box(13, 13, 3, 4, gm.cloth);
-      break;
-    }
-    case 'cap': {
-      box(6, 8, 12, 6, gm.cloth);                        // the crown
-      box(4, 14, 16, 2, gm.trim);                        // the peak
-      box(11, 7, 2, 2, gm.trim);                         // the button
-      break;
-    }
-    case 'sun': {
-      box(7, 6, 10, 6, gm.cloth);
-      box(2, 12, 20, 3, gm.cloth);                       // the brim
-      box(7, 10, 10, 2, gm.trim);                        // the band
-      break;
-    }
-    case 'clear': case 'shades': {
-      box(3, 10, 7, 5, gm.cloth);                        // two lenses
-      box(14, 10, 7, 5, gm.cloth);
-      box(3, 9, 7, 1, gm.trim); box(14, 9, 7, 1, gm.trim);
-      box(3, 15, 7, 1, gm.trim); box(14, 15, 7, 1, gm.trim);
-      box(10, 11, 4, 1, gm.trim);                        // the bridge
-      break;
-    }
-    case 'digital': case 'analog': {
-      box(10, 3, 4, 18, gm.cloth);                       // the strap
-      box(7, 9, 10, 7, gm.trim);                         // the case
-      box(9, 11, 6, 3, gm.kind === 'digital' ? '#9cab8b' : '#e6e0cc');
-      break;
-    }
-    default:
-      // A GARMENT WHOSE KIND NOBODY DREW STILL HAS TO BE PICKABLE. A blank
-      // cell is a bug you can see; a crash is one that eats the panel.
-      box(5, 5, 14, 14, gm.cloth);
-      box(5, 17, 14, 2, gm.trim);
-  }
-}
-
-// ══ THE SUITCASE ═══════════════════════════════════════════════════════════
+// *"the suitcase looks awful and all the little items dont make sense. try
+//  again or come up with something better"*   (2026-08-04)
 //
-// One base lying open on the boards and one lid propped back against the wall
-// under the mirror. Two boxes and a painted plane — this world's whole
-// vocabulary — and the garments are PAINTED INTO THE LINING the same way the
-// gig flyer is painted on the wall and the month is painted on the calendar.
-// A separate mesh per garment would be eighteen objects and eighteen draw
-// calls to say what one canvas says.
+// **THE SECOND HALF IS THE DIAGNOSIS AND IT IS ABOUT SIZE.** The case held all
+// eighteen garments at once, in a 6 x 3 grid on a lid 0.86 x 0.36 m. Measured
+// against the locked view's own frame — 3.38 m wide at the wall — one cell was
+// **4.2% of the picture**. A shirt drawn four percent of the way across the
+// screen is a smudge with a collar-coloured pixel in it, and no amount of
+// redrawing fixes that: the container was asking the medium for detail it does
+// not have. It is the lesson the arm taught twice today — fewer, bigger,
+// clearer shapes, never more detail.
+//
+// ── SO: ONE CATEGORY AT A TIME, ON A RAIL, AT SEVEN TIMES THE SIZE ────────
+//
+// Six categories at once is what forced everything to be tiny. Showing ONE
+// leaves at most five garments to place, and five is a number this frame can
+// draw properly: a hanging garment is **0.26 x 0.55 m — 8% of the frame's width
+// and 29% of its height**, seven times the area a suitcase cell had.
+//
+// AND HANGING IS THE RIGHT POSE FOR THIS WORLD'S ART. A garment on a hook is
+// tall, symmetrical and read entirely from its silhouette, which is exactly
+// what flat-shaded painted planes are good at — it is how `ct/citizens.ts`
+// draws a person and how the whole street draws everything else. A garment
+// lying folded in a case is a rectangle seen at a grazing angle, which is the
+// one shape this medium cannot say anything with.
+//
+// WHERE IT HANGS is the wall left of the mirror, above the bed's head: a
+// batten of hooks in the one band of that wall which is in frame and empty —
+// y RY+0.71…RY+1.30, between the mattress (RY+0.45) and the flyer (RY+1.31).
+// Nothing had to move. A row of hooks over the bed is also just what a rented
+// room with no wardrobe has in it.
 
-/** how wide the case is. Bounded by the bed's collider at x −1.15 against a
- *  mirror centred on −0.72: 0.86 is exactly the clear plaster there. */
-const CASE_W = 0.86;
-/** the base: shallow, and SHALLOW IN DEPTH ON PURPOSE. The north wall holds
- *  the player 0.3456 m off it, so a case 0.30 deep sits entirely inside the
- *  strip he can never walk into and needs no collider — the same argument the
- *  mirror's own note makes for hanging without one. */
-const CASE_D = 0.30, CASE_H = 0.10;
-/** the lid, and the angle it leans back at. 0.36 x 42° puts its top edge
- *  RY+0.368 and 0.06 m off the plaster — under the mirror frame's bottom
- *  (RY+0.40) and clear of its 0.05 m of proudness, so the two never meet. */
-const LID_H = 0.36, LID_TILT = 42 * Math.PI / 180;
-/** the lining's canvas, at 300 px/m — dense enough to draw a garment on. */
-const LID_PPM = 300;
-/** the grid the clothes are packed in. 6 x 3 holds all 18, which is every
- *  garment in the wardrobe that is not the underwear. */
-const GRID_C = 6, GRID_R = 3;
-
-/** the ray/plane solve, the only geometry this file does */
+/** the ray/plane solve, the only geometry this module does */
 function hitPlane(origin: THREE.Vector3, dir: THREE.Vector3,
                   po: THREE.Vector3, pn: THREE.Vector3): THREE.Vector3 | null {
   const denom = dir.dot(pn);
@@ -509,125 +424,204 @@ function hitPlane(origin: THREE.Vector3, dir: THREE.Vector3,
   return t > 0 ? origin.clone().addScaledVector(dir, t) : null;
 }
 
-/** every garment in the case, in packing order: the empty states are not
- *  things, so they are not in here. Cell `i` is `FLAT[i]`. */
-function flatRack(): { slot: Slot; index: number; g: Garment }[] {
-  const out: { slot: Slot; index: number; g: Garment }[] = [];
-  for (const slot of SLOTS) {
-    options(slot).forEach((g, i) => { if (i > 0) out.push({ slot, index: i, g }); });
+/** how many hooks the batten carries. The biggest category is tops, at 5. */
+const HOOKS = 5;
+const HOOK_W = 0.26, HANG_H = 0.55;
+/** texels on a hanging garment: 32 x 64 over 0.26 x 0.55 m, near enough square */
+const HANG_TW = 32, HANG_TH = 64;
+
+/** A garment on a hook, drawn big. Design units are the texel grid itself. */
+function paintHanging(g: CanvasRenderingContext2D, W: number, H: number, gm: Garment): void {
+  const s = W / HANG_TW;
+  const box = (x: number, y: number, w: number, h: number, fill: string) => {
+    const x0 = Math.round(x * s), y0 = Math.round(y * s);
+    g.fillStyle = fill;
+    g.fillRect(x0, y0, Math.max(1, Math.round((x + w) * s) - x0),
+      Math.max(1, Math.round((y + h) * s) - y0));
+  };
+  const C = 16;                                     // the centre line
+  const WOOD = '#6b563c', WIRE = '#8a8a90';
+  g.clearRect(0, 0, W, H);
+
+  // THE HOOK, on everything. It is what says "this is hanging up and you may
+  // take it", and it is the one shape shared by all eighteen.
+  box(C - 1, 0, 2, 5, WIRE);
+  box(C - 3, 0, 6, 2, WIRE);
+
+  switch (gm.kind) {
+    case 'tee': case 'sweater': case 'jacket': case 'vest': {
+      for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);   // the hanger
+      const long = gm.sleeve === 2;
+      box(C - 10, 11, 20, gm.kind === 'jacket' ? 38 : 32, gm.cloth);               // the body
+      box(C - 14, 11, 4, long ? 30 : 12, gm.cloth);                                // sleeves
+      box(C + 10, 11, 4, long ? 30 : 12, gm.cloth);
+      box(C - 14, (long ? 39 : 21), 4, 2, gm.trim);                                // cuffs
+      box(C + 10, (long ? 39 : 21), 4, 2, gm.trim);
+      box(C - 10, 11, 20, 3, gm.trim);                                             // collar
+      box(C - 10, 11, 2, gm.kind === 'jacket' ? 38 : 32, 'rgba(255,255,255,0.10)');
+      box(C + 8, 11, 2, gm.kind === 'jacket' ? 38 : 32, 'rgba(0,0,0,0.16)');
+      if (gm.kind === 'jacket') box(C - 1, 14, 2, 35, 'rgba(0,0,0,0.24)');         // the front
+      if (gm.kind === 'sweater') box(C - 10, 46, 20, 3, gm.trim);                  // the welt
+      break;
+    }
+    case 'dress': {
+      for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);
+      box(C - 8, 11, 16, 18, gm.cloth);                                            // bodice
+      for (let b = 0; b < 4; b++) box(C - 8 - b * 2, 29 + b * 7, 16 + b * 4, 7, gm.cloth);
+      box(C - 14, 55, 28, 2, gm.trim);
+      break;
+    }
+    case 'trousers': {
+      for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);
+      const hem = (gm.leg ?? 3) >= 3 ? 56 : 32;
+      box(C - 9, 11, 18, 6, gm.trim);                                              // the waistband
+      box(C - 9, 17, 8, hem - 17, gm.cloth);                                       // two legs
+      box(C + 1, 17, 8, hem - 17, gm.cloth);
+      if (gm.id === 'track') { box(C - 9, 17, 1, hem - 17, gm.trim); box(C + 8, 17, 1, hem - 17, gm.trim); }
+      break;
+    }
+    case 'skirt': {
+      for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);
+      box(C - 8, 11, 16, 4, gm.trim);
+      for (let b = 0; b < 4; b++) box(C - 8 - b * 2, 15 + b * 7, 16 + b * 4, 7, gm.cloth);
+      break;
+    }
+    case 'sneaker': case 'boot': case 'sandal': {
+      // HUNG BY THE LACES, which is a real thing to do with shoes and gives
+      // them a hook like everything else on the batten.
+      box(C - 1, 5, 2, 14, '#cfc6b4');
+      const up = gm.kind === 'boot' ? 14 : gm.kind === 'sandal' ? 3 : 8;
+      for (const dx of [-11, 1]) {
+        box(C + dx, 34 - up, 10, up, gm.cloth);                                    // the upper
+        box(C + dx - 1, 34, 12, 5, gm.cloth);                                      // the foot
+        box(C + dx - 1, 38, 12, 3, gm.trim);                                       // the sole
+        if (gm.kind === 'sandal') { box(C + dx, 30, 10, 2, gm.trim); }
+      }
+      break;
+    }
+    case 'cap': {
+      box(C - 10, 12, 20, 12, gm.cloth);                                           // the crown
+      box(C - 16, 24, 14, 4, gm.trim);                                             // the peak
+      box(C - 2, 9, 4, 4, gm.trim);                                                // the button
+      break;
+    }
+    case 'sun': {
+      box(C - 8, 10, 16, 12, gm.cloth);                                            // the crown
+      box(C - 15, 22, 30, 5, gm.cloth);                                            // the brim
+      box(C - 15, 26, 30, 2, 'rgba(0,0,0,0.20)');
+      box(C - 8, 18, 16, 4, gm.trim);                                              // the band
+      break;
+    }
+    case 'clear': case 'shades': {
+      box(C - 1, 5, 2, 9, gm.trim);                                                // hung by one arm
+      box(C - 14, 14, 11, 8, gm.cloth);                                            // the lenses
+      box(C + 3, 14, 11, 8, gm.cloth);
+      box(C - 14, 13, 11, 2, gm.trim); box(C + 3, 13, 11, 2, gm.trim);
+      box(C - 14, 21, 11, 2, gm.trim); box(C + 3, 21, 11, 2, gm.trim);
+      box(C - 3, 15, 6, 2, gm.trim);                                               // the bridge
+      break;
+    }
+    case 'digital': case 'analog': {
+      box(C - 2, 5, 4, 22, gm.cloth);                                              // the strap
+      box(C - 8, 24, 16, 12, gm.trim);                                             // the case
+      box(C - 5, 27, 10, 6, gm.kind === 'digital' ? '#9cab8b' : '#e6e0cc');
+      box(C - 2, 33, 4, 12, gm.cloth);
+      break;
+    }
+    default:
+      box(C - 9, 11, 18, 30, gm.cloth);
+      box(C - 9, 39, 18, 3, gm.trim);
   }
-  return out;
 }
 
-export interface WardrobeCase {
-  /** the lid's plane, for the ray to meet */
-  lidO: THREE.Vector3; lidN: THREE.Vector3; lidR: THREE.Vector3; lidU: THREE.Vector3;
-  /** which garment is at this point on the lid's plane, if any */
-  cellAt: (p: THREE.Vector3) => { slot: Slot; index: number } | null;
-  /** redraw the lining — a pocket is empty when its garment is being worn */
+export interface WardrobeRail {
+  /** the plane the garments hang on */
+  railO: THREE.Vector3; railN: THREE.Vector3;
+  /** which garment is at this point on that plane, if any */
+  hookAt: (p: THREE.Vector3) => { slot: Slot; index: number } | null;
+  /** hang a different category up */
+  show: (slot: Slot) => void;
+  /** redraw what is on the hooks — a worn garment leaves its hook empty */
   repaint: () => void;
 }
 
 /**
- * Build the case. `x` is the column it stands in, `floorY` the boards, `wallZ`
- * the plaster's room face; it packs itself against all three.
+ * The batten and what is on it. `x` is its centre, `y` the hooks' line,
+ * `wallZ` the plaster's room face.
  */
-export function buildCase(scene: THREE.Scene, o: {
-  x: number; floorY: number; wallZ: number;
-  /** the module's own `texM` — DoubleSide basic material off a texture */
+export function buildRail(scene: THREE.Scene, o: {
+  x: number; y: number; wallZ: number;
   texM: (t: THREE.Texture) => THREE.Material;
-}): WardrobeCase {
-  const leather = new THREE.MeshBasicMaterial({ color: 0x4a3325 });
-  const leatherLo = new THREE.MeshBasicMaterial({ color: 0x3a2718 });
-  const zb = o.wallZ - CASE_D / 2;
-  const base = new THREE.Mesh(new THREE.BoxGeometry(CASE_W, CASE_H, CASE_D), leather);
-  base.position.set(o.x, o.floorY + CASE_H / 2, zb);
-  scene.add(base);
-  // the two catches on the front lip, because a case without them is a box
-  for (const dx of [-0.22, 0.22]) {
-    const c = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.04, 0.02), leatherLo);
-    c.position.set(o.x + dx, o.floorY + CASE_H - 0.02, zb - CASE_D / 2 - 0.008);
-    scene.add(c);
+}): WardrobeRail {
+  const woodM = new THREE.MeshBasicMaterial({ color: 0x6b563c });
+  const ironM = new THREE.MeshBasicMaterial({ color: 0x53535a });
+  const RAIL_W = HOOKS * HOOK_W;
+  const batten = new THREE.Mesh(new THREE.BoxGeometry(RAIL_W + 0.06, 0.05, 0.035), woodM);
+  batten.position.set(o.x, o.y + 0.035, o.wallZ - 0.018);
+  scene.add(batten);
+  const hookX = (i: number) => o.x - RAIL_W / 2 + HOOK_W * (i + 0.5);
+  for (let i = 0; i < HOOKS; i++) {
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.04, 0.012), ironM);
+    h.position.set(hookX(i), o.y - 0.01, o.wallZ - 0.032);
+    scene.add(h);
   }
 
-  // ── THE LID ────────────────────────────────────────────────────────────
-  // Hinged at the base's ROOM-side lip and fallen back against the plaster, so
-  // its lining faces up and out — toward an eye that is standing and looking
-  // down. Built with `lookAt` rather than Euler angles: three rotations in an
-  // unstated order is how a face ends up pointing into a wall.
-  const lidN = new THREE.Vector3(0, Math.sin(LID_TILT), -Math.cos(LID_TILT)).normalize();
-  // ⚠ THE LID'S OWN +x IS WORLD −x, AND THE HIT-TEST HAS TO AGREE WITH IT.
-  // `Object3D.lookAt` builds the basis as x = up × z, so with the face looking
-  // into the room (−z) the mesh's local +x — which is the direction the
-  // texture's `u` runs — points at world −x. A hit-test written off world +x
-  // would be a perfect mirror image of the picture: every garment pickable
-  // where a different one is drawn, and only the middle column right.
-  const lidR = new THREE.Vector3(-1, 0, 0);
-  const lidU = new THREE.Vector3().crossVectors(lidN, lidR).normalize();
-  const hinge = new THREE.Vector3(o.x, o.floorY + CASE_H, o.wallZ - CASE_D);
-  const lidO = hinge.clone().addScaledVector(lidU, LID_H / 2);
+  // THE GARMENTS: one plane per hook, hanging 5 mm proud of the plaster, each
+  // with its own canvas. Five meshes for the whole wardrobe — they are
+  // REPAINTED when the category changes rather than built and thrown away.
+  const railZ = o.wallZ - 0.005;
+  const quads: { mesh: THREE.Mesh; cv: HTMLCanvasElement; tex: THREE.CanvasTexture }[] = [];
+  for (let i = 0; i < HOOKS; i++) {
+    const cv = document.createElement('canvas');
+    cv.width = HANG_TW * 4; cv.height = HANG_TH * 4;
+    const tex = new THREE.CanvasTexture(cv);
+    tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+    const mat = o.texM(tex) as THREE.MeshBasicMaterial;
+    mat.transparent = true; mat.alphaTest = 0.5;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(HOOK_W, HANG_H), mat);
+    mesh.position.set(hookX(i), o.y - HANG_H / 2, railZ);
+    mesh.rotation.y = Math.PI;      // this wall faces −z, like everything on it
+    mesh.name = `wardrobe-hook-${i}`;
+    scene.add(mesh);
+    quads.push({ mesh, cv, tex });
+  }
 
-  const LW = Math.round(CASE_W * LID_PPM), LH = Math.round(LID_H * LID_PPM);
-  const cell = { w: LW / GRID_C, h: LH / GRID_R };
-  const FLAT = flatRack();
-  const lidCv = document.createElement('canvas');
-  lidCv.width = LW; lidCv.height = LH;
-  const lidT = new THREE.CanvasTexture(lidCv);
-  lidT.magFilter = THREE.NearestFilter; lidT.minFilter = THREE.NearestFilter;
+  let showing: Slot = 'top';
+  /** what is on the hooks right now: everything in the category except the
+   *  empty state, which is not a thing, and the one he has on. */
+  let hung: { slot: Slot; index: number; g: Garment }[] = [];
 
   const repaint = () => {
-    const g = lidCv.getContext('2d');
-    if (!g) return;
-    // THE LINING: striped ticking, which is what the inside of every case made
-    // before 1980 looks like, and the one place a bit of colour belongs in a
-    // room this drab.
-    g.fillStyle = '#7d6a52'; g.fillRect(0, 0, LW, LH);
-    g.fillStyle = '#8d7a60';
-    for (let x = 0; x < LW; x += 14) g.fillRect(x, 0, 7, LH);
-    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 0, LW, 6);      // the fold at the hinge
-    g.fillStyle = '#5d4a34';                                         // the lid's own border
-    g.fillRect(0, 0, LW, 4); g.fillRect(0, LH - 4, LW, 4);
-    g.fillRect(0, 0, 4, LH); g.fillRect(LW - 4, 0, 4, LH);
-    FLAT.forEach((it, i) => {
-      const cx = (i % GRID_C) * cell.w, cy = Math.floor(i / GRID_C) * cell.h;
-      const size = Math.min(cell.w, cell.h) - 8;
-      const px = Math.round(cx + (cell.w - size) / 2), py = Math.round(cy + (cell.h - size) / 2);
-      if (wornIndex(it.slot) === it.index) {
-        // WORN — so the pocket it came out of is empty, and stays where it
-        // was. A garment is in exactly one place at a time and you can see
-        // both of them: the gap in the case and the thing on you.
-        g.fillStyle = 'rgba(0,0,0,0.26)';
-        g.fillRect(px, py, size, size);
-        return;
-      }
-      paintItem(g, px, py, size, it.g);
+    hung = options(showing)
+      .map((g, index) => ({ slot: showing, index, g }))
+      .filter((it) => it.index > 0 && wornIndex(showing) !== it.index);
+    quads.forEach((q, i) => {
+      const it = hung[i];
+      q.mesh.visible = !!it;
+      if (!it) return;
+      const g = q.cv.getContext('2d');
+      if (!g) return;
+      paintHanging(g, q.cv.width, q.cv.height, it.g);
+      q.tex.needsUpdate = true;
     });
-    dither(g, LW, LH, Math.round((LW * LH) / 900));
-    lidT.needsUpdate = true;
   };
   repaint();
 
-  const lid = new THREE.Mesh(new THREE.PlaneGeometry(CASE_W, LID_H), o.texM(lidT));
-  lid.position.copy(lidO);
-  lid.lookAt(lidO.clone().add(lidN));
-  lid.name = 'wardrobe-case-lid';
-  scene.add(lid);
-
-  /** the point on the lid, in the lid's own metres, then in cells */
-  const cellAt = (p: THREE.Vector3) => {
-    const d = p.clone().sub(lidO);
-    const u = d.dot(lidR) + CASE_W / 2;          // 0…CASE_W, left to right
-    const v = LID_H / 2 - d.dot(lidU);           // 0…LID_H, top down
-    if (u < 0 || v < 0 || u > CASE_W || v > LID_H) return null;
-    const c = Math.min(GRID_C - 1, Math.floor((u / CASE_W) * GRID_C));
-    const r = Math.min(GRID_R - 1, Math.floor((v / LID_H) * GRID_R));
-    const it = FLAT[r * GRID_C + c];
+  const railO = new THREE.Vector3(o.x, o.y - HANG_H / 2, railZ);
+  const railN = new THREE.Vector3(0, 0, -1);
+  const hookAt = (p: THREE.Vector3) => {
+    const dy = p.y - railO.y, dx = p.x - railO.x;
+    if (Math.abs(dy) > HANG_H / 2 || Math.abs(dx) > RAIL_W / 2) return null;
+    const i = Math.min(HOOKS - 1, Math.floor((dx + RAIL_W / 2) / HOOK_W));
+    const it = hung[i];
     return it ? { slot: it.slot, index: it.index } : null;
   };
 
-  return { lidO, lidN, lidR, lidU, cellAt, repaint };
+  return {
+    railO, railN, hookAt, repaint,
+    show: (slot) => { if (slot !== showing) { showing = slot; repaint(); } },
+  };
 }
-
 // ══ THE PANEL: THE LOCKED VIEW, AND THE DRAG BETWEEN CASE AND GLASS ════════
 
 /**
@@ -648,7 +642,7 @@ export function mirrorPanel(o: {
   /** the glass's own size, for the drop test and the canvas's proportions */
   glassW: number; glassH: number;
   standoff: number; fov: number; eyeY: number;
-  wardrobe: WardrobeCase;
+  wardrobe: WardrobeRail;
 }): () => void {
   const PW = Math.round(o.glassW * PANEL_PPM), PH = Math.round(o.glassH * PANEL_PPM);
   /** canvas px per design unit — one number, both axes (see `draw`) */
@@ -677,12 +671,25 @@ export function mirrorPanel(o: {
   let panel: Panel | null = null;
   /** the garment in his hand */
   let held: { slot: Slot; index: number } | null = null;
+  /**
+   * A HAND ON HIMSELF THAT HAS NOT MOVED YET.
+   *
+   * Touching a part of yourself in the glass does TWO things and they must not
+   * be the same gesture. A CLICK hangs that category on the rail — *"show me my
+   * hats"*. A DRAG pulls the garment off. So a press on the body is only
+   * pending until the pointer travels `GRAB_PX`; browsing your own hats can
+   * never undress you by accident, which the first arrangement did.
+   */
+  let pending: { slot: Slot; index: number; x: number; y: number } | null = null;
+  const GRAB_PX = 6;
   /** the quad it is carried on, built once and parked when empty */
   let carry: THREE.Mesh | null = null;
   let carryCv: HTMLCanvasElement | null = null;
   let carryT: THREE.CanvasTexture | null = null;
 
-  const CARRY_M = 0.13;     // how big a carried garment is, in metres
+  /** a carried garment is the same drawing at the same size it hangs at, so
+   *  what he picked up and what he is holding are visibly one object */
+  const CARRY_M = HOOK_W;
   const CARRY_D = 0.85;     // how far in front of the eye it hangs
 
   /** the glass's plane, in world space. Its normal is the mirror's own −z. */
@@ -702,18 +709,19 @@ export function mirrorPanel(o: {
   const showCarry = (p: THREE.Vector3, eye: THREE.Vector3, gm: Garment) => {
     if (!carry) {
       carryCv = document.createElement('canvas');
-      carryCv.width = 48; carryCv.height = 48;
+      carryCv.width = HANG_TW * 4; carryCv.height = HANG_TH * 4;
       carryT = new THREE.CanvasTexture(carryCv);
       carryT.magFilter = THREE.NearestFilter; carryT.minFilter = THREE.NearestFilter;
-      carry = new THREE.Mesh(new THREE.PlaneGeometry(CARRY_M, CARRY_M),
-        new THREE.MeshBasicMaterial({ map: carryT, transparent: true, side: THREE.DoubleSide }));
+      carry = new THREE.Mesh(new THREE.PlaneGeometry(CARRY_M, CARRY_M * HANG_TH / HANG_TW),
+        new THREE.MeshBasicMaterial({
+          map: carryT, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide,
+        }));
       carry.renderOrder = 5;
       (o.mesh()?.parent ?? null)?.add(carry);
     }
     const g = carryCv!.getContext('2d');
     if (g) {
-      g.clearRect(0, 0, 48, 48);
-      paintItem(g, 0, 0, 48, gm);
+      paintHanging(g, carryCv!.width, carryCv!.height, gm);
       carryT!.needsUpdate = true;
     }
     carry.visible = true;
@@ -729,7 +737,7 @@ export function mirrorPanel(o: {
         // the room: the caption every panel in this world owes, saying how to
         // leave. The calendar and the ATM carry the same one and he has looked
         // at both. Everything else you can see is 301.
-        hint: () => 'drag a garment onto the glass',
+        hint: () => 'touch yourself to change what is on the rail',
         draw: (g, w, h) => {
           paintGlass(g, w, h);
           // ONE SCALE, BOTH AXES, and the remainder left as reflected room —
@@ -761,57 +769,63 @@ export function mirrorPanel(o: {
               return Math.abs(d.x) <= o.glassW / 2 && Math.abs(d.y) <= o.glassH / 2;
             })();
             const w = o.wardrobe;
-            const onLid = hitPlane(ray.origin, ray.dir, w.lidO, w.lidN);
-            const cell = onLid ? w.cellAt(onLid) : null;
+            const onRail = hitPlane(ray.origin, ray.dir, w.railO, w.railN);
+            const hook = onRail ? w.hookAt(onRail) : null;
+            /** the part of himself under the pointer, if he is on the glass */
+            const bodyAt = () => {
+              const p = gp && hitPlane(ray.origin, ray.dir, gp.c, gp.n);
+              return p && onGlass ? bodySlotAt(p, gp!.c) : null;
+            };
+            const carryTo = () => showCarry(
+              ray.origin.clone().addScaledVector(ray.dir, CARRY_D),
+              ray.origin, options(held!.slot)[held!.index]);
 
             if (phase === 'down') {
-              // OUT OF THE CASE. A pocket whose garment is already on him is
-              // empty and holds nothing to pick up.
-              if (cell && wornIndex(cell.slot) !== cell.index) {
-                held = { ...cell };
-              } else if (onGlass) {
-                // OFF HIMSELF. The whole glass is the grab, not the four
-                // texels the garment occupies — but WHICH garment needs the
-                // part of him he grabbed, so that is read off the figure's own
-                // zones, and the dress rule lives in `bodySlotAt`.
-                const gp2 = gp && hitPlane(ray.origin, ray.dir, gp.c, gp.n);
-                const s = gp2 ? bodySlotAt(gp2, gp!.c) : null;
-                if (s && wornIndex(s) > 0) {
-                  held = { slot: s, index: wornIndex(s) };
-                  // IT COMES OFF THE MOMENT HE GRABS IT, which is what pulling
-                  // a jumper over your head looks like: he is holding it and he
-                  // can see himself without it.
-                  wear(s, 0);
-                }
-              }
-              if (held) {
-                showCarry(ray.origin.clone().addScaledVector(ray.dir, CARRY_D),
-                  ray.origin, options(held.slot)[held.index]);
-                return true;
-              }
-              return false;
+              // OFF THE RAIL — unambiguous, so it is in his hand at once.
+              if (hook) { held = { ...hook }; carryTo(); return true; }
+              // ON HIMSELF — pending. See `pending`: a click changes the rail,
+              // a drag takes the garment off, and the difference is GRAB_PX.
+              const s = bodyAt();
+              if (s) pending = { slot: s, index: wornIndex(s), x: e.clientX, y: e.clientY };
+              return !!s;
             }
 
             if (phase === 'move') {
-              if (held) {
-                showCarry(ray.origin.clone().addScaledVector(ray.dir, CARRY_D),
-                  ray.origin, options(held.slot)[held.index]);
-                return true;
+              if (held) { carryTo(); return true; }
+              if (pending) {
+                const far = Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > GRAB_PX;
+                if (far && pending.index > 0) {
+                  held = { slot: pending.slot, index: pending.index };
+                  // IT COMES OFF THE MOMENT THE DRAG STARTS, which is what
+                  // pulling a jumper over your head looks like: he is holding
+                  // it and he can see himself without it.
+                  wear(pending.slot, 0);
+                  pending = null;
+                  carryTo();
+                  return true;
+                }
+                if (far) pending = null;      // nothing there to pull off
               }
-              // the pointing hand over anything he could pick up
-              return (!!cell && wornIndex(cell.slot) !== cell.index) || onGlass;
+              return !!hook || onGlass;
             }
 
             // phase === 'up'
-            const h = held;
-            held = null;
+            const h = held, pend = pending;
+            held = null; pending = null;
             dropCarry();
+            // A PRESS THAT NEVER MOVED IS A CHOICE OF CATEGORY. Touch your own
+            // head and your hats are on the rail; touch your feet and your
+            // shoes are. The mirror IS the category control — there is nothing
+            // to draw for it, because you are already looking at the thing you
+            // point at.
+            if (!h && pend) { o.wardrobe.show(pend.slot); return false; }
             if (!h) return false;
-            // ON THE GLASS he wears it. ANYWHERE ELSE — the lid, the boards,
-            // the wall, off the window entirely — it goes back in the case.
-            // Two answers, and the one that means "put it on" is a target the
-            // size of a full-length mirror.
+            // ON THE GLASS he wears it. ANYWHERE ELSE — the rail, the bed, the
+            // boards, off the window entirely — it goes back on its hook. Two
+            // answers, and the one that means "put it on" is a target the size
+            // of a full-length mirror.
             if (onGlass) wear(h.slot, h.index);
+            else o.wardrobe.show(h.slot);
             return false;
           },
         },
@@ -820,8 +834,8 @@ export function mirrorPanel(o: {
         // cursor, no half-state. The framework owns the rest of the exit:
         // Escape and `[E]` from every screen, the gate, the pointer lock, and
         // standing up.
-        onOpen: () => { held = null; dropCarry(); },
-        onClose: () => { held = null; dropCarry(); },
+        onOpen: () => { held = null; pending = null; dropCarry(); },
+        onClose: () => { held = null; pending = null; dropCarry(); },
       });
       // the case's lining and the glass both follow the wardrobe, so anything
       // that dresses him later — a shop, a laundrette — moves both without
