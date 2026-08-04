@@ -1685,8 +1685,9 @@ export function makeHud(purse: Purse): Hud {
   //
   // *"can we move the watch arm thing as a whole over to the left a little
   // bit?"* (2026-08-02) took it 52 → 46. *"mmove the limb up and to the left
-  // more pls"* (2026-08-04) takes it 46 → 42, and lifts it for the first time.
-  const WATCH_X = 42;      // % of viewport width, the wrapper's `left` anchor
+  // more pls"* (2026-08-04) took it 46 → 42 and lifted it for the first time.
+  // *"also move full limb more up and left"* (same day) takes it 42 → 38.
+  const WATCH_X = 38;      // % of viewport width, the wrapper's `left` anchor
   /**
    * Upward nudge, in % of the LIMB's height (198 px = 72 canvas px x WATCH_S),
    * applied as px — see WATCH_LIMB_H. Was an unnamed `translateY(0)`.
@@ -1697,14 +1698,21 @@ export function makeHud(purse: Purse): Hud {
    * drops the far (left) end, so the deepest visible point of the limb's
    * underside is where it crosses the left edge of the screen, at
    *
-   *     depth = 99 - 14 - (WATCH_X/100 x V + 77) x tan5°     [px below the frame]
+   *     LIFT_max = 13.6 + (WATCH_X/100 x V + 77) x tan5°     [px]
    *
-   * — 67 px at V=1280, 90 px at 1920, 114 px at 2560. The NARROWEST viewport
-   * binds, so 67 px ≈ 34% of the element's height is the floor to respect.
-   * 12% (24 px) leaves ~43 px of headroom at 1280 — room for roughly this nudge
-   * again twice over before the hand comes off the ground.
+   * At WATCH_X 38 that is 63 px on a 1280 viewport, 84 px at 1920, 105 px at
+   * 2560. THE NARROWEST VIEWPORT BINDS, so 63 px — 31.7% — is the floor to
+   * respect, and only the 1280 column is worth quoting.
+   *
+   * BOTH ASKS SPEND FROM THE SAME BUDGET. Moving LEFT shrinks it, at 1.1 px per
+   * 1% of WATCH_X, because it drags the far end's crossing point toward the
+   * corner. 42/12 spent 24 of 67; 38/22 spends 44 of 63. **That leaves ~19 px,
+   * about 10 points of WATCH_LIFT or 17 of WATCH_X, and they trade against each
+   * other.** The next nudge is the last, and it has to be half the size of this
+   * one. After that the far end lifts clear of the bottom edge, the limb starts
+   * leaving through the LEFT edge instead, and the hand floats over the road.
    */
-  const WATCH_LIFT = 12;
+  const WATCH_LIFT = 22;
   /**
    * THE LIMB'S OWN HEIGHT, AND THE CANVAS'S, WHICH ARE NO LONGER THE SAME NUMBER.
    *
@@ -1731,8 +1739,15 @@ export function makeHud(purse: Purse): Hud {
   const WATCH_LIMB_H = 72;
   /** px the strap stands proud of the limb — now on BOTH long edges, was 6/0. */
   const STRAP_OVER = 6;
-  /** the thumb, in fist-local canvas px — see where it is drawn for the why. */
-  const THUMB_X = 104, THUMB_W = 30, THUMB_D = 8;
+  /**
+   * The thumb, in fist-local canvas px — see where it is drawn for the why.
+   * *"thumb needs to be more to the right and bigger"* (2026-08-04): 104 → 126,
+   * 30 → 44 wide, 8 → 13 deep. It now ends at x 170, which is 2 px short of the
+   * dark end strip and 6 short of the fist's far edge — deliberate, so the fist
+   * still turns its own corner there instead of the thumb becoming the end of
+   * the hand. THUMB_X + THUMB_W should stay under 172 for that reason.
+   */
+  const THUMB_X = 126, THUMB_W = 44, THUMB_D = 13;
   const WATCH_H = WATCH_LIMB_H + Math.max(STRAP_OVER, THUMB_D);
   const WATCH_BOTTOM = (-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)).toFixed(2);
   const WATCH_LIFT_PX = (WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S).toFixed(2);
@@ -1859,12 +1874,15 @@ export function makeHud(purse: Purse): Hud {
     // bleed BELOW the limb (the rows STRAP_OVER opened). That is also the right
     // place anatomically for the view he described — looking down at the back of
     // a closed fist, the thumb is folded across the near side, at the base of
-    // the hand, not out at the far end. So the underside runs flat along y 72,
-    // drops THUMB_D for THUMB_W just past the wrist, and comes back up.
+    // the hand. So the underside runs flat along y 72, drops THUMB_D for
+    // THUMB_W, and comes back up before the fist's far corner.
     //
-    // Small on purpose: 30 x 8 canvas px is 82 x 22 on screen against a 198 px
-    // fist. Widen with THUMB_W, deepen with THUMB_D (the canvas follows it), or
-    // slide it toward the far end with THUMB_X — one number each.
+    // IT STARTED AT THE WRIST JOIN AND HALF THIS SIZE, and *"thumb needs to be
+    // more to the right and bigger"* moved it out to the middle of the fist:
+    // 44 x 13 canvas px, 121 x 36 on screen against a 198 px fist. Widen with
+    // THUMB_W, deepen with THUMB_D (the canvas follows it, and the wrapper
+    // compensations above absorb that — the limb does not move), or slide it
+    // with THUMB_X — one number each.
     g.fillStyle = '#c9946a'; g.fillRect(THUMB_X, WATCH_LIMB_H, THUMB_W, THUMB_D);
     // ── THE ONE DARK STRIP ────────────────────────────────────────────────
     //
