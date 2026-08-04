@@ -1730,8 +1730,22 @@ export function makeHud(purse: Purse): Hud {
     // meant to read as the limb going back out of the light. It did not: it read
     // as a second colour on the rectangle, which is the one thing he asked not to
     // see. Removed, along with its `RECEDE` constant. One `fillRect`, one tone.
+    //
+    // AND THAT WAS ONLY THE FIRST OF THREE. *"arm has two colors on the right
+    // side"* (2026-08-04, after the gradient went). THE WHOLE LIMB IS FLAT NOW —
+    // forearm, wrist and fist are four `fillRect`s of one `#c9946a` and nothing
+    // else. The other two were the old "light from the right" pair, which had
+    // survived because they predate the arm and were part of the wrist-and-fist
+    // close-up he approved: a 10 px `rgba(255,255,255,0.12)` highlight at the far
+    // end of the wrist, and on the fist another of the same plus a 4 px
+    // `rgba(0,0,0,0.10)` "wrist's shadow" at its left edge. On a short stub they
+    // read as modelling. On a full limb they are stripes ACROSS it, and the two
+    // at the wrist/fist join sat a pixel apart, so removing either alone would
+    // have left the other exactly where he was pointing.
+    //
     // Do not reintroduce shading, a taper, an outline or a crease — every attempt
-    // to make this arm more has been rejected.
+    // to make this arm more has been rejected. Shapes are untouched and approved;
+    // it is only ever the colour count he has objected to.
     // EVERYTHING BELOW IS THE OLD DRAWING, MOVED — not redrawn. The wrist, the
     // fist, the strap, the case and the LCD keep their own coordinates and their
     // own order; the translate is the whole of the change, so the thing the user
@@ -1739,7 +1753,6 @@ export function makeHud(purse: Purse): Hud {
     g.save();
     g.translate(WATCH_ARM, 0);
     g.fillStyle = '#c9946a'; g.fillRect(0, 6, 104, 66);          // wrist, cut by the frame
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
     // ── THE FIST ──────────────────────────────────────────────────────────
     //
     // *"it actually should be really minimal considering it would be the top of
@@ -1759,11 +1772,6 @@ export function makeHud(purse: Purse): Hud {
     // Drawn BEFORE the strap and the case so it can never overlap them; it butts
     // at x 104 where the wrist ends, and the strap lives at 38…82.
     g.fillStyle = '#c9946a'; g.fillRect(104, 0, 72, 72);
-    // …and the same two-tone shading the wrist carries, light coming from the
-    // right, so it reads as one limb and not as a glove: the identical rgba
-    // values, not a matched-by-eye pair.
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(166, 0, 10, 72);
-    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(104, 0, 4, 72);   // the wrist's shadow on it
     g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
     g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
