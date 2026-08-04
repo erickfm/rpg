@@ -1486,11 +1486,49 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // (0.36 -> 0.288). The calendar's reading spot is derived from THIS point
       // and that radius; see it, ~2,400 lines below.
       const ROOM_STAND_X = DOOR_PIV_X - 0.55, ROOM_STAND_Z = DOOR_PIV_Z - H301 * 1.45;
+      // ── AIM AT THE DOOR, NOT AT THE PATCH OF FLOOR YOU STAND ON ──────────
+      // *"it seems if im looking right at the door i cant open it i have to
+      // look at like the corner of the room?"* — he is right, and it is the
+      // calendar's bug (a5847cc1, "Aim at the THING, not at its floor marker")
+      // wearing the door's clothes. `offAxis` is measured to `aimX/aimZ` when
+      // they are declared and to the STAND-POINT when they are not, and both
+      // of these stand-points were bare. The room-side one sits 1.55 m off the
+      // pivot, back in the SOUTH-WEST corner (item 309), because that is the
+      // only floor clear of a 166° swing — so walking up to the leaf and
+      // facing it puts that marker behind your shoulder, and the only way to
+      // score a small `offAxis` is to turn away toward the corner. Which is
+      // exactly what he described. `REACH_TRIM` going 0.65 -> 0.52 an hour ago
+      // shortened the range at which proximity alone could rescue it, which is
+      // why two-day-old geometry became a complaint today.
+      //
+      // THE POINT IS THE MIDDLE OF THE CLEAR OPENING: the wall's own
+      // centreline `AX(0)` and the midpoint of `DOOR_Z0…DOOR_Z1`, both derived
+      // rather than typed. Shut, the leaf's own centre lies within 0.09 m of
+      // it — the leaf closes onto the room-side face at AX(-0.09) and spans
+      // the same z — so this IS the leaf whenever the leaf is what you see.
+      //
+      // ONE POINT FOR BOTH POSES, deliberately. `Spot.aimX` is a number and
+      // not a getter, so a swung-leaf aim is not expressible from this file —
+      // and it would be wrong anyway: open, the leaf has travelled ~0.98 m
+      // north of the opening, so a pose-following aim would jump a metre the
+      // instant you pressed E and take the prompt out from under you before
+      // you could close what you had just opened. Item 310c's history is that
+      // class of pose-dependent confusion. The doorway itself does not move.
+      //
+      // AND IT HELPS THE CALENDAR RATHER THAN COSTING IT. The two stand-points
+      // are 0.322 m apart in that corner and both can be underfoot at once,
+      // where the tie is settled on angle. The calendar aims SOUTH at its page
+      // on the south wall; the door now aims ~0.95 m NORTH at its opening
+      // instead of at a marker 0.46 m off that same south wall. The two are
+      // back to back rather than nearly coincident, so facing the page gives
+      // the calendar and facing the door gives the door — including on the one
+      // contested square a5847cc1 left red and documented.
+      const DOOR_AIM_X = AX(0), DOOR_AIM_Z = (DOOR_Z0 + DOOR_Z1) / 2;
       // A WAY OUT, on both sides (item 291) — *"just make the door high rank
       // pls."* `WAY_OUT` is declared on the pair, not on one of them, for the
       // same reason their ok/label/act are shared: a door is one piece of state
       // with two thresholds.
-      ctx.spot({ x: ROOM_STAND_X, z: ROOM_STAND_Z, r: 0.95, rank: WAY_OUT, ok: doorOk, label: doorLabel, act: doorAct });
+      ctx.spot({ x: ROOM_STAND_X, z: ROOM_STAND_Z, r: 0.95, rank: WAY_OUT, aimX: DOOR_AIM_X, aimZ: DOOR_AIM_Z, ok: doorOk, label: doorLabel, act: doorAct });
       // AND ITS MIRROR, on the hall side. Reflected about the wall's own
       // centreline (AX(0)) rather than a second hand-typed x, so the two
       // stand-points keep the same 0.57 m offset off their own wall face by
@@ -1506,7 +1544,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // again and the hall side is once more one number rather than two —
       // item 309.)
       const HALL_STAND_X = 2 * AX(0) - ROOM_STAND_X;
-      ctx.spot({ x: HALL_STAND_X, z: ROOM_STAND_Z, r: 0.95, rank: WAY_OUT, ok: doorOk, label: doorLabel, act: doorAct });
+      // THE SAME AIM POINT, NOT A MIRRORED ONE. The stand-points mirror because
+      // there is a floor on each side of the wall; the DOORWAY is one object in
+      // the middle and both sides look at it, so reflecting the aim would aim
+      // the hall spot at a point 0.14 m inside the room for no reason. The hall
+      // stand-point is offset the same 0.57 m + 1.45 m, so it had the identical
+      // bug from the landing — bare aim, marker down the hall past the hermit.
+      ctx.spot({ x: HALL_STAND_X, z: ROOM_STAND_Z, r: 0.95, rank: WAY_OUT, aimX: DOOR_AIM_X, aimZ: DOOR_AIM_Z, ok: doorOk, label: doorLabel, act: doorAct });
     }
     // the hermit — a big quiet man; you only ever catch him at his door.
     //
@@ -2762,7 +2806,27 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // ramping it over 1.5 s was there so the jump was not jarring, and
         // that is exactly what the fade is for. The shape is K's, verbatim
         // from notes/K-screen-fade.md.
-        void screenFade({ mid: () => ctx.clock.advance(mins, { overSeconds: 0 }) });
+        //
+        // ── HOW LONG THE SLEEP CUT TAKES ─────────────────────────────────
+        // The user: *"make the sleep transition faster pls"*. `screenFade`'s
+        // shared defaults are 260/170/300 = 730 ms and they are SHARED — every
+        // other cut in the game rides on them — so the sleep states its own
+        // timing here rather than re-timing the world. One line to nudge again.
+        //
+        // 400 ms total, a 45% cut, and still three real beats rather than a
+        // hard cut. THE FLOOR IS `SLEEP_HOLD_MS`, and it is a frame count, not
+        // taste: `mid` is awaited on `transitionend`, so the screen is already
+        // at opacity 1 before the clock moves and `hold` is purely the black
+        // beat AFTER it — it only has to outlast the one frame the renderer
+        // needs to draw the advanced world. `main.ts:130` clamps dt to 0.05 s,
+        // so ~50 ms is the hard floor and 90 ms keeps two frames of margin on
+        // the worst frame the sim will admit to. Do not take it under that or
+        // the clock jump lands on a screen that is on its way back up.
+        const SLEEP_OUT_MS = 140, SLEEP_HOLD_MS = 90, SLEEP_IN_MS = 170;
+        void screenFade({
+          mid: () => ctx.clock.advance(mins, { overSeconds: 0 }),
+          outMs: SLEEP_OUT_MS, holdMs: SLEEP_HOLD_MS, inMs: SLEEP_IN_MS,
+        });
       },
     });
     // ── PACKAGES ON THE LANDINGS ─────────────────────────────────────────
