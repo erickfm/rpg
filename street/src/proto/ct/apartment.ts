@@ -2159,10 +2159,44 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // offset, which is how the corner road and the side-street asphalt smear
     // were both fixed: at WIN_W the head and sill butt against the jambs'
     // inner faces and share no volume at all.
-    box(REV_D, 0.02, WIN_W, RX, WIN_Y + WIN_H / 2 + 0.01, WIN_LZ, revDark);   // head, in shadow
-    box(REV_D, 0.02, WIN_W, RX, WIN_Y - WIN_H / 2 - 0.01, WIN_LZ, revM);      // the reveal's own sill
+    //
+    // ── SECOND REPORT, AND IT WAS NEVER THE CORNERS ──────────────────────
+    // Erick, 2026-08-04: *"there are textures which flicker on the top and
+    // right inside of the window, can you look into that?"* The fix above is
+    // real and stays. It solved the four CORNERS. The band he is seeing runs
+    // the whole length of a return, and the pair fighting is not two reveal
+    // pieces — it is each reveal piece against THE WALL'S OWN CUT FACE.
+    //
+    // The hole is cut by the four `wallMesh` pieces up at R301's west wall.
+    // Their cut faces are the box's side faces, which `wallMesh` paints in
+    // `jambM`. Those faces land exactly where the reveal's visible faces do:
+    //
+    //     wall x span        -3.270 .. -3.130   (WALL_T about WIN_LX)
+    //     reveal x span      -3.262 .. -3.152   entirely INSIDE it
+    //     wall cut face z     4.400              opening edge, normal -z
+    //     jamb visible face   4.400              same plane, same normal
+    //
+    // So the reveal box was buried in the wall solid with only its inner face
+    // showing, and that face was coplanar with the cut face over the returns'
+    // full height. Same arithmetic at the head in y. The two colours are
+    // jambM (139,130,113) and revM (139,132,116) — three levels apart, which
+    // is why it reads as a fine cross-hatch of one tan rather than as two
+    // surfaces, and why it took a second report to place.
+    //
+    // A LINING GOES INSIDE THE HOLE, which is all this change is. Each piece
+    // moves in by its own 2 cm thickness, so its visible face stands 2 cm
+    // proud of the cut face and its BACK face is the one now sharing that
+    // plane — back-facing from the opening, so it culls and never contests.
+    // The head and sill lose 0.04 of span and the jambs lose 0.04 of height
+    // to keep them butting exactly as above, sharing no volume.
+    //
+    // All four returns had it, not just the two he could see from where he
+    // stood; the opening reads 4 cm narrower and the lining now covers the
+    // glass edge, which is what a real reveal does anyway.
+    box(REV_D, 0.02, WIN_W - 0.04, RX, WIN_Y + WIN_H / 2 - 0.01, WIN_LZ, revDark); // head, in shadow
+    box(REV_D, 0.02, WIN_W - 0.04, RX, WIN_Y - WIN_H / 2 + 0.01, WIN_LZ, revM);    // the reveal's own sill
     for (const sgn of [1, -1]) {
-      box(REV_D, WIN_H + 0.04, 0.02, RX, WIN_Y, WIN_LZ + sgn * (WIN_W / 2 + 0.01),
+      box(REV_D, WIN_H - 0.04, 0.02, RX, WIN_Y, WIN_LZ + sgn * (WIN_W / 2 - 0.01),
         sgn > 0 ? revM : revDark);                // one jamb catches the light
     }
     // the sill you can put things on, projecting past the architrave
