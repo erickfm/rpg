@@ -2835,9 +2835,51 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       for (let i = 0; i < 3; i++) g.fillRect(15, 16 + i * 2, 6 - i, 1);
     });
     const pkgM = texM(pkgT);
+    /** 32-bit integer mix, so a small sequential `day` is a SEED rather than a
+     *  counter. See `pkgRoll`. Same constants as the final avalanche below, on
+     *  purpose: a salt or a shift that happens to produce a parcel on day 0 is
+     *  luck, and the next person to touch this would inherit the same trap. */
+    const mix32 = (x: number) => {
+      x = Math.imul(x ^ (x >>> 16), 2246822519) >>> 0;
+      x = Math.imul(x ^ (x >>> 13), 3266489917) >>> 0;
+      return (x ^ (x >>> 16)) >>> 0;
+    };
     /** deterministic, and the day is an INPUT rather than state to reset */
     const pkgRoll = (num: string, day: number, salt: number) => {
-      let h = (2166136261 ^ day ^ (salt * 374761393)) >>> 0;
+      // ── THE SEED, NOT THE RATE ──────────────────────────────────────────
+      //
+      // The user: *"i havent seen a package since we made that change whereas
+      // before i would see like 3-4"*, then *"fix the seed"*.
+      //
+      // `day` used to be XOR'd in RAW next to a fixed salt, and three rounds of
+      // FNV over a three-character door number does not spread a small
+      // sequential integer. The final avalanche below is real and stays — but
+      // it repairs the low bits of the finished hash, and it cannot rescue a
+      // seed whose days never decorrelated from each other in the first place.
+      // What that produced, measured over the eight real door numbers at
+      // salt 1:
+      //
+      //     PKG_CHANCE 0.20   day 0 carried three parcels
+      //     PKG_CHANCE 0.10   DAYS 0-16 EMPTY AT ALL EIGHT DOORS
+      //
+      // and 0.10 is the live number. A game day is 1440 game-minutes at one a
+      // second — 24 real minutes — and `totalMin` starts at 13:20, so every
+      // fresh load starts on day 0. He was not unlucky and the rate was not
+      // wrong: the halving moved the threshold across a correlated clump and
+      // switched the feature off for the first seven hours of any session.
+      // Eight doors times seventeen days with nothing under 0.1 is a 6e-7
+      // event against a fair coin, so it is the mixing, not the dice.
+      //
+      // Mixing `day` (with the salt) before it seeds FNV fixes exactly that and
+      // nothing else — the long-run distribution is the same, because it was
+      // never the part that was broken. Re-measured the same way, at 0.10:
+      //
+      //     day 0  101 · day 1  201 · days 2-5 none · first parcel day 0
+      //     empty days 42.9% over 20,000 (a fair 0.9^8 is 43.0%)
+      //     per door 9.6-10.5% against a declared 10%
+      //     salt 7, which picks the SIDE, splits 50.3% overall and 48-52% at
+      //       every individual door — still a coin, not a lean
+      let h = (2166136261 ^ mix32(day ^ Math.imul(salt, 374761393))) >>> 0;
       for (let i = 0; i < num.length; i++) {
         h ^= num.charCodeAt(i);
         h = Math.imul(h, 16777619) >>> 0;
