@@ -3510,6 +3510,34 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     type Ad = {
       name: string; fmt: Fmt; secs: number;
       bg: string; ink: string; accent: string;
+      /**
+       * WHO IS PAYING FOR THIS SPOT. **Required, and that is the fix.**
+       *
+       * The user, twice: *"all ads on tv should have a clear business they are
+       * advertising"*, then *"ads are still not always specific to a business
+       * so i see hair in a can which is funny but the ad doesnt state the
+       * business. 90s style ad vibe is solid though. yea like i saw apply for a
+       * loan, but didnt say the business or anything"*.
+       *
+       * **THE VOICE IS NOT THE PROBLEM AND IS NOT TOUCHED.** HAIR IN A CAN
+       * stays HAIR IN A CAN. What was missing is the SIGN-OFF — the two seconds
+       * at the end of every spot ever cut where a name goes up — and half these
+       * ads simply did not have one: `order` was a phone number and an hour,
+       * `quote` was a face and a complaint, and the bank's *"A LOAN / TODAY /
+       * ASK INSIDE"* named no bank.
+       *
+       * IT IS NOT OPTIONAL SO THAT NOBODY CAN ADD AN ANONYMOUS AD. A `by?:`
+       * would put this back one spot at a time; required, the compiler asks the
+       * question for every row in the table and for every row anyone adds.
+       *
+       * PREFER A FRONTAGE HE CAN WALK INTO. Where the spot maps to a real shop
+       * on the block it names that shop — CROSSTOWN AUTO, FIRST FEDERAL, the
+       * ORPHEUS CASINO, CORNER BODEGA, BURGER BARN, the PAWN SHOP, the DINER,
+       * SLEEP CENTER — so the set reads as broadcasting from the street he is
+       * standing on. A product with no shopfront gets the shop that SELLS it
+       * (*"AT THE BODEGA"*) or an honest 1997 mail-order card.
+       */
+      by: string;
       head?: string; sub?: string; price?: string; was?: string;
       phone?: string; hours?: string; lines?: string[]; who?: string; tag?: string;
     };
@@ -3522,7 +3550,37 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const max = Math.max(1, Math.floor((TVW - 2 - x) / (px / 3 * 4)));
       tvText(g, txt.length > max ? txt.slice(0, max) : txt, x, tvSafeY(y, px), c, px);
     };
+    /** right-aligned and sized to fit, the mirror of `tvAt`. */
+    const tvRight = (g: CanvasRenderingContext2D, txt: string, xr: number, y: number, c: string, maxPx = 4) => {
+      let px = maxPx;
+      while (px > 3 && txt.length * px / 3 * 4 > xr - 2) px -= 1;
+      tvText(g, txt, Math.max(1, Math.round(xr - txt.length * px / 3 * 4)), tvSafeY(y, px), c, px);
+    };
     const fill = (g: CanvasRenderingContext2D, c: string) => { g.fillStyle = c; g.fillRect(0, 0, TVW, TVH); };
+    /**
+     * THE SIGN-OFF — the name of whoever is paying for the spot, on a bar
+     * across the bottom of the frame. **Every format calls this, last.**
+     *
+     * ONE BAR RATHER THAN TEN LAYOUTS, because it is the same beat in every ad
+     * ever cut: the picture ends, a card comes up, the name is on it. It is
+     * drawn in `accent` on `bg` — the two colours that ad already owns — so it
+     * belongs to the spot rather than looking like a caption the television
+     * added.
+     *
+     * 8 rows at the bottom of a 48-row frame, and the ten formats were each
+     * pulled up out of it rather than being allowed to overlap: the TV's own
+     * sampling was tripled today (64x48 -> 192x144 at the same drawn text
+     * size), so a name at px 4 down here is genuinely readable from the bed —
+     * which is the whole point of him being able to see who it is for.
+     *
+     * `y` moves it for the two formats that already own the bottom of the
+     * frame: `quote` has its attribution band there and shares this bar with
+     * it, and `legal`'s small print crawls along the very bottom edge.
+     */
+    const signoff = (g: CanvasRenderingContext2D, a: Ad, y = TVH - 8) => {
+      g.fillStyle = a.accent; g.fillRect(0, y, TVW, 8);
+      tvFit(g, a.by, y + 2, a.bg, 4);
+    };
     /** the starburst, for the formats loud enough to deserve one */
     const burst = (g: CanvasRenderingContext2D, c: string, t: number, cy = TVH / 2) => {
       g.fillStyle = c;
@@ -3546,7 +3604,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         if (a.was) tvFit(g, `WAS ${a.was}`, 4, a.ink, 4);
         tvFit(g, a.price ?? '', 13, '#00000077', 13);
         tvFit(g, a.price ?? '', 12, '#fffbe8', 13);
-        tvFit(g, a.head ?? '', 34, a.ink, 5);
+        tvFit(g, a.head ?? '', 32, a.ink, 5);      // 34 -> 32, clear of the sign-off
+        signoff(g, a);
       },
       // the object on a plain sweep, turning. The width oscillates, which at
       // this size is exactly what a slow rotation looks like.
@@ -3558,7 +3617,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         g.fillRect(TVW / 2 - w / 2, 12, w, 20);
         g.fillStyle = 'rgba(255,255,255,0.28)';
         g.fillRect(TVW / 2 - w / 2, 12, Math.max(1, w * 0.3), 20);         // a highlight edge
-        tvFit(g, a.head ?? '', 36, '#fffbe8', 5);
+        tvFit(g, a.head ?? '', 32, '#fffbe8', 5);  // 36 -> 32, clear of the sign-off
+        signoff(g, a);
       },
       // before and after, down the middle
       split: (g, a) => {
@@ -3569,7 +3629,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         g.fillStyle = '#fffbe8'; g.fillRect(TVW / 2 + 8, 14, 18, 16);      // the happy one
         g.fillStyle = '#fff'; g.fillRect(TVW / 2 - 1, 8, 2, 26);           // the divider
         tvAt(g, 'BEFORE', 3, 2, a.ink, 4); tvAt(g, 'AFTER', TVW / 2 + 6, 2, a.ink, 4);
-        tvFit(g, a.head ?? '', 37, a.ink, 5);
+        tvFit(g, a.head ?? '', 33, a.ink, 5);      // 37 -> 33, clear of the sign-off
+        signoff(g, a);
       },
       // five bullets, ticking on one at a time
       list: (g, a, t) => {
@@ -3577,10 +3638,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         g.fillStyle = a.accent; g.fillRect(0, 0, TVW, 9);
         tvFit(g, a.head ?? '', 2, a.bg, 5);
         const shown = Math.min((a.lines ?? []).length, 1 + Math.floor(t / 0.9));
+        // PITCH 7 -> 6 AND START 12 -> 11, which is what the sign-off costs
+        // this format and the only one where it cost anything real: five
+        // bullets at the old pitch ran to y 47 and the bar begins at 40.
         (a.lines ?? []).slice(0, shown).forEach((ln, i) => {
-          g.fillStyle = a.accent; g.fillRect(3, 13 + i * 7, 3, 3);         // the tick
-          tvAt(g, ln, 9, 12 + i * 7, a.ink, 4);
+          g.fillStyle = a.accent; g.fillRect(3, 12 + i * 6, 3, 3);         // the tick
+          tvAt(g, ln, 9, 11 + i * 6, a.ink, 4);
         });
+        signoff(g, a);
       },
       // the end card: number, hours, and nothing else
       order: (g, a, t) => {
@@ -3589,7 +3654,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         tvFit(g, a.phone ?? '', 15, '#00000077', 10);
         tvFit(g, a.phone ?? '', 14, '#fffbe8', 10);
         tvFit(g, a.hours ?? '24 HOURS', 30, a.ink, 4);
-        if (Math.floor(t * 2) % 2 === 0) tvFit(g, 'OPERATORS WAITING', 39, a.ink, 3);
+        if (Math.floor(t * 2) % 2 === 0) tvFit(g, 'OPERATORS WAITING', 33, a.ink, 3);
+        signoff(g, a);
       },
       // a face, quote marks, a name caption
       quote: (g, a) => {
@@ -3599,9 +3665,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         g.fillRect(22, 8, 3, 5); g.fillRect(27, 8, 3, 5);                  // the quote marks
         // the words go FULL WIDTH under the face, not squeezed into the 40 px
         // beside it — seven characters was all that ever fitted there.
-        (a.lines ?? []).forEach((ln, i) => tvFit(g, ln, 27 + i * 7, a.ink, 5));
+        (a.lines ?? []).forEach((ln, i) => tvFit(g, ln, 26 + i * 7, a.ink, 5));
+        // THIS FORMAT ALREADY HAD A BAND DOWN HERE and it carried the person's
+        // name, so it SHARES it rather than growing a second one: who said it
+        // on the left, who paid for it on the right. Both at px 3 — two names
+        // in 64 texels is what makes that the size — and `who` values were
+        // shortened to suit.
         g.fillStyle = a.accent; g.fillRect(0, TVH - 9, TVW, 9);
-        tvAt(g, a.who ?? '', 3, TVH - 8, a.bg, 4);
+        tvAt(g, a.who ?? '', 2, TVH - 7, a.bg, 3);
+        tvRight(g, a.by, TVW - 2, TVH - 7, a.bg, 3);
       },
       // a hand doing the same thing to an object, over and over
       demo: (g, a, t) => {
@@ -3611,14 +3683,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         const hx = 18 + Math.abs(Math.sin(t * 2.2)) * 22;                  // the hand
         g.fillStyle = '#d8a878'; g.fillRect(hx, 8, 9, 7);
         g.fillRect(hx + 2, 15, 5, 4);
-        tvFit(g, a.head ?? '', 30, a.ink, 5);
-        if (a.sub) tvFit(g, a.sub, 38, a.accent, 4);
+        tvFit(g, a.head ?? '', 28, a.ink, 5);
+        if (a.sub) tvFit(g, a.sub, 34, a.accent, 4);   // 38 -> 34
+        signoff(g, a);
       },
       // a still, with the small print crawling across it
       legal: (g, a, t) => {
         fill(g, a.bg);
         g.fillStyle = a.accent; g.fillRect(TVW / 2 - 13, 8, 26, 14);       // the logo block
-        tvFit(g, a.head ?? '', 26, a.ink, 5);
+        tvFit(g, a.head ?? '', 24, a.ink, 5);                              // 26 -> 24
+        // THE CRAWL KEEPS THE VERY BOTTOM — it is the joke of this format —
+        // so the sign-off goes above it rather than over it.
+        signoff(g, a, TVH - 16);
         g.fillStyle = '#000'; g.fillRect(0, TVH - 8, TVW, 8);
         const txt = a.tag ?? '';
         const x = TVW - ((t * 22) % (TVW + txt.length * 4 + 10));
@@ -3631,6 +3707,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         g.fillStyle = a.accent;
         g.fillRect(TVW / 2 - 22 * k, TVH / 2 - 9 * k, 44 * k, 18 * k);
         if (t > 0.35) tvFit(g, a.head ?? '', TVH / 2 - 3, a.bg, 5);
+        if (t > 0.35) signoff(g, a);
       },
       // white on blue. The quiet one, and it is what makes the loud ones loud.
       slate: (g, a) => {
@@ -3641,20 +3718,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // three-sided box. It is the one piece of non-text that has to sit
         // inside the safe area, so it is written FROM the safe constants
         // rather than from the 2 it used to carry.
-        const bt = TV_SAFE_T, bh = TVH - TV_SAFE_B - TV_SAFE_T;
+        // THE BOX STOPS ABOVE THE SIGN-OFF rather than running under it — a
+        // border with a bar laid across its bottom edge is the three-sided box
+        // this comment already exists to have fixed once.
+        const bt = TV_SAFE_T, bh = TVH - 9 - TV_SAFE_T;
         g.fillStyle = a.accent; g.fillRect(2, bt, TVW - 4, bh);
         g.fillStyle = a.bg; g.fillRect(3, bt + 1, TVW - 6, bh - 2);
-        (a.lines ?? []).forEach((ln, i) => tvFit(g, ln, 8 + i * 8, a.ink, 5));
+        (a.lines ?? []).forEach((ln, i) => tvFit(g, ln, 7 + i * 7, a.ink, 5));
+        signoff(g, a);
       },
     };
     const ADS: Ad[] = [
       // ── his own street, each in more than one format ───────────────────
       { name: 'crosstown price', fmt: 'price', secs: 3.4, bg: '#2f7a4a', ink: '#fff8e0', accent: '#3f9a5e',
-        was: '$2995', price: '$1395', head: 'CROSSTOWN AUTO' },
+        was: '$2995', price: '$1395', head: 'CROSSTOWN AUTO', by: 'CROSSTOWN AUTO' },
       { name: 'crosstown order', fmt: 'order', secs: 3.8, bg: '#1d4a30', ink: '#cfe8d8', accent: '#e0a81c',
-        phone: '555-0199', hours: 'OPEN TIL NINE' },
+        phone: '555-0199', hours: 'OPEN TIL NINE', by: 'CROSSTOWN AUTO' },
       { name: 'crosstown sting', fmt: 'sting', secs: 2.0, bg: '#2a2118', ink: '#fff8e0', accent: '#e0a81c',
-        head: 'CROSSTOWN' },
+        head: 'CROSSTOWN', by: 'CROSSTOWN AUTO' },
       // THE CASINO IS NOT CALLED SEVENS ANY MORE. Item 196 rebuilt this
       // elevation as the Orpheus casino wing: the category line on the facade
       // reads ORPHEUS and the name board reads CASINO (ct/vice.ts:1264), and the
@@ -3672,55 +3753,59 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // `slate` lays lines at 8 + i*8 and `tvSafeY` clamps the last one, so the
       // fourth row lands at y 32 against a safe bottom of 46.
       { name: 'orpheus slate', fmt: 'slate', secs: 4.2, bg: '#10203f', ink: '#eaf2ff', accent: '#c8d8f0',
-        lines: ['ORPHEUS', 'CASINO', 'FREE BUFFET', 'MUST BE 21'] },
+        lines: ['ORPHEUS', 'CASINO', 'FREE BUFFET', 'MUST BE 21'], by: 'ORPHEUS CASINO' },
       { name: 'orpheus quote', fmt: 'quote', secs: 4.4, bg: '#7a1420', ink: '#ffe9a8', accent: '#e8c33a',
-        lines: ['I WON', 'FOUR DOLLARS'], who: 'DENNIS, A LOCAL' },
+        lines: ['I WON', 'FOUR DOLLARS'], who: 'DENNIS', by: 'ORPHEUS CASINO' },
       { name: 'first federal legal', fmt: 'legal', secs: 5.0, bg: '#1d3d6b', ink: '#eaf2ff', accent: '#c8d8f0',
-        head: 'FIRST FEDERAL', tag: 'APR 29 PERCENT. RATES MAY VARY. FEES APPLY. NOT A COMMITMENT TO LEND.' },
+        head: 'FIRST FEDERAL', by: 'FIRST FEDERAL', tag: 'APR 29 PERCENT. RATES MAY VARY. FEES APPLY. NOT A COMMITMENT TO LEND.' },
       { name: 'first federal slate', fmt: 'slate', secs: 3.6, bg: '#0d2748', ink: '#eaf2ff', accent: '#7f9fd0',
-        lines: ['A LOAN', 'TODAY', 'ASK INSIDE'] },
+        lines: ['A LOAN', 'TODAY', 'ASK INSIDE'], by: 'FIRST FEDERAL' },
       { name: 'pawn price', fmt: 'price', secs: 3.2, bg: '#2a2036', ink: '#ffe08a', accent: '#3a2c4a',
-        price: 'CASH', head: 'WE BUY GOLD' },
+        price: 'CASH', head: 'WE BUY GOLD', by: 'THE PAWN SHOP' },
       { name: 'pawn quote', fmt: 'quote', secs: 4.2, bg: '#241b2e', ink: '#ffe08a', accent: '#e0b020',
-        lines: ['THEY TOOK', 'MY WATCH'], who: 'A CUSTOMER' },
+        lines: ['THEY TOOK', 'MY WATCH'], who: 'MARGE', by: 'THE PAWN SHOP' },
       { name: 'bodega list', fmt: 'list', secs: 5.6, bg: '#3a2c1e', ink: '#ffeec8', accent: '#c04a2a',
-        head: 'CORNER BODEGA', lines: ['OPEN LATE', 'MILK', 'BREAD', 'BEER', 'NO CHECKS'] },
+        head: 'CORNER BODEGA', by: 'CORNER BODEGA', lines: ['OPEN LATE', 'MILK', 'BREAD', 'BEER', 'NO CHECKS'] },
       { name: 'burger split', fmt: 'split', secs: 3.6, bg: '#a8301c', ink: '#fff4d8', accent: '#f0c020',
-        head: 'BURGER BARN' },
+        head: 'BURGER BARN', by: 'BURGER BARN' },
       // ── and the tat, spread across the same formats ────────────────────
       { name: 'slice demo', fmt: 'demo', secs: 4.6, bg: '#c81e28', ink: '#fffbe8', accent: '#ffd21e',
-        head: 'SLICE O MATIC', sub: 'IT NEVER STOPS' },
+        head: 'SLICE O MATIC', sub: 'IT NEVER STOPS', by: 'AT THE BODEGA' },
       { name: 'mop split', fmt: 'split', secs: 3.4, bg: '#1a7a8a', ink: '#f0ffff', accent: '#ffe83a',
-        head: 'MIRACLE MOP' },
+        head: 'MIRACLE MOP', by: 'MAIL ORDER ONLY' },
       { name: 'hair split', fmt: 'split', secs: 3.4, bg: '#4a2a5a', ink: '#ffe8ff', accent: '#e0a0f0',
-        head: 'HAIR IN A CAN' },
+        head: 'HAIR IN A CAN', by: 'AT THE BODEGA' },
       { name: 'ab list', fmt: 'list', secs: 5.4, bg: '#20304a', ink: '#e8f4ff', accent: '#ff6a20',
-        head: 'AB BLASTER 3000', lines: ['SIX PAYMENTS', 'NO WAITING', 'FOLDS FLAT', 'FITS ANYWHERE', 'AS SEEN ON TV'] },
+        head: 'AB BLASTER 3000', by: 'MAIL ORDER ONLY', lines: ['SIX PAYMENTS', 'NO WAITING', 'FOLDS FLAT', 'FITS ANYWHERE', 'AS SEEN ON TV'] },
       { name: 'psychic order', fmt: 'order', secs: 3.8, bg: '#2a1a4a', ink: '#ffe0a0', accent: '#c0a0ff',
-        phone: '555-0777', hours: 'FOUR A MINUTE' },
+        phone: '555-0777', hours: 'FOUR A MINUTE', by: 'PSYCHIC LINE' },
       { name: 'mega list', fmt: 'list', secs: 5.2, bg: '#d81880', ink: '#fff0ff', accent: '#40e0d0',
-        head: 'MEGA HITS 97', lines: ['FORTY SONGS', 'TWO TAPES', 'NOT IN STORES'] },
+        head: 'MEGA HITS 97', by: 'MAIL ORDER ONLY', lines: ['FORTY SONGS', 'TWO TAPES', 'NOT IN STORES'] },
       { name: 'carpet price', fmt: 'price', secs: 3.0, bg: '#7a4a1a', ink: '#fff0d0', accent: '#9a6030',
-        was: '$3', price: '99C', head: 'CARPET BARN' },
-      { name: 'mattress slate', fmt: 'slate', secs: 4.0, bg: '#123a6a', ink: '#f0f8ff', accent: '#6f8fc0',
-        lines: ['MATTRESS KING', 'NO PAYMENTS', 'UNTIL 98'] },
+        was: '$3', price: '99C', head: 'CARPET BARN', by: 'CARPET BARN' },
+      // MATTRESS KING IS NOT ON THIS STREET AND THE SLEEP CENTER IS — the
+      // mattress showroom he can walk into. Same joke, same format, same
+      // colours; it is now an ad for a shop that exists, which is what item 213
+      // asked for and what this one asks for again.
+      { name: 'sleep center slate', fmt: 'slate', secs: 4.0, bg: '#123a6a', ink: '#f0f8ff', accent: '#6f8fc0',
+        lines: ['SLEEP CENTER', 'NO PAYMENTS', 'UNTIL 98'], by: 'SLEEP CENTER' },
       { name: 'tan product', fmt: 'product', secs: 3.6, bg: '#e08a10', ink: '#8a4a00', accent: '#c06a00',
-        head: 'TAN U MORE' },
+        head: 'TAN U MORE', by: 'TAN U MORE' },
       { name: 'video sting', fmt: 'sting', secs: 2.0, bg: '#1a1a2a', ink: '#ffe040', accent: '#e02020',
-        head: 'VIDEO HUT' },
-      { name: 'pizza order', fmt: 'order', secs: 3.6, bg: '#0a5a2a', ink: '#fff8e0', accent: '#e02020',
-        phone: '555-0311', hours: 'TIL TWO AM' },
+        head: 'VIDEO HUT', by: 'VIDEO HUT' },
+      { name: 'diner order', fmt: 'order', secs: 3.6, bg: '#0a5a2a', ink: '#fff8e0', accent: '#e02020',
+        phone: '555-0311', hours: 'TIL TWO AM', by: 'THE DINER' },
       { name: 'veg demo', fmt: 'demo', secs: 4.8, bg: '#8a1060', ink: '#fff0ff', accent: '#ffe83a',
-        head: 'VEG O CHOP', sub: 'BUT WAIT' },
+        head: 'VEG O CHOP', sub: 'BUT WAIT', by: 'MAIL ORDER ONLY' },
       { name: 'gold legal', fmt: 'legal', secs: 5.0, bg: '#101018', ink: '#ffd870', accent: '#c8a020',
-        head: 'GOLD CLUB CARD', tag: 'PRE APPROVAL IS NOT APPROVAL. ANNUAL FEE. SEE TERMS. THIS IS NOT AN OFFER.' },
+        head: 'GOLD CLUB CARD', by: 'FIRST FEDERAL', tag: 'PRE APPROVAL IS NOT APPROVAL. ANNUAL FEE. SEE TERMS. THIS IS NOT AN OFFER.' },
       { name: 'roach product', fmt: 'product', secs: 3.4, bg: '#3a3a1a', ink: '#c8c8a0', accent: '#20200a',
-        head: 'ROACH MOTEL' },
+        head: 'ROACH MOTEL', by: 'AT THE BODEGA' },
       // ── and the two that are not selling anything, which is the point ──
       { name: 'psa', fmt: 'slate', secs: 4.6, bg: '#1a1a1a', ink: '#e8e8e8', accent: '#8a8a8a',
-        lines: ['A MESSAGE', 'FROM THIS', 'STATION'] },
+        lines: ['A MESSAGE', 'FROM THIS', 'STATION'], by: 'CHANNEL 4' },
       { name: 'ident', fmt: 'sting', secs: 2.2, bg: '#0a0a12', ink: '#fff', accent: '#4a6ad0',
-        head: 'CHANNEL 4' },
+        head: 'CHANNEL 4', by: 'CHANNEL 4' },
     ];
     const SEGMENTS: TvSeg[] = ADS.map((a) => ({
       name: a.name, secs: a.secs, live: true,
