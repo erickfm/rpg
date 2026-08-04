@@ -897,6 +897,68 @@ export const REACH_MARGIN = 0.6;
  *  beside it, not looking"* working. See the note in `pickSpot`. */
 export const TOUCH_MARGIN = 0.15;
 
+/** **HOW MUCH OF ITS OWN REACH AN INTERACTABLE ACTUALLY GETS, WORLD-WIDE.**
+ *  Multiplies the two AIM-FREE reaches below and nothing else — 1.0 is the
+ *  behaviour every number in this file was written against.
+ *
+ *  ⚠ THE USER ASKED FOR THIS BY NAME, 2026-08-03: *"with the radius for all
+ *  these things a bit less."* He is describing a feel — that interactables grab
+ *  him from further away than he is standing — not a figure, so it was walked
+ *  rather than computed (item 309, `scripts/probes/w134-reach-band.mjs`). Every
+ *  figure below is the distance at which the live prompt actually changed while
+ *  walking at the thing, not a prediction:
+ *
+ *      how far out it was still offered with the eyes 90° off it:
+ *                              trim 1.00   trim 0.80        aimed
+ *    a bodega counter (r1.00)     1.14 m      0.81 m       2.4 m, unmoved
+ *    No. 227's entry  (r1.05)     0.87 m      0.53 m       2.4 m, unmoved
+ *    a park bench     (r0.75)     0.81 m      0.70 m       2.4 m, unmoved
+ *    301's own door   (r0.95)     0.97 m      0.21 m       2.4 m, unmoved
+ *
+ *  (Those are lower than `(r + TOUCH_MARGIN) * trim` predicts, because the
+ *  prompt names the WINNER: at 90° off, a neighbouring spot takes the offer
+ *  before this one's own reach runs out. That is the number the player feels,
+ *  which is why it is the one recorded.)
+ *
+ *  **THE AIMED COLUMN IS THE POINT.** It does not move, because the trim is not
+ *  applied to it — so nothing became harder to select, it became harder to
+ *  select BY ACCIDENT, which is the complaint. You still take a door from 2.4 m
+ *  by looking at it; you no longer take it from 1.10 m by standing near it.
+ *
+ *  **IT IS NOT A KNOB FOR THE AIMED TIER AND MUST NOT BECOME ONE.** `looked`
+ *  carries no margin term at all and reaches 6 m; capping it collapses the aimed
+ *  reach onto the proximity radius and kills selection at 3 and 5 m, which is
+ *  the half of the feature the user asked for by name and which
+ *  `D-look-selects` exists to hold. Two builders have now tried it.
+ *
+ *  ⚠ WHAT IT COSTS, STATED RATHER THAN HIDDEN. `TOUCH_MARGIN`'s own derivation
+ *  above is the No. 227 entry: r 1.05 with its door frame 1.15 m away, so
+ *  1.05 + 0.15 = 1.20 was the SMALLEST reach that kept *"standing beside it,
+ *  not looking"* working there. Trimmed, that spot reaches 0.96 m and the
+ *  frame no longer sits inside it — **at No. 227 you must now glance at the
+ *  door.** That is a real regression against an older request of his, it is
+ *  reported rather than papered over, and it is the price of the newer one.
+ *  Walked at the frame: aimed at the door it is still offered from 2.4 m in;
+ *  aimed 90° away it drops from 0.87 m to 0.53 m. */
+export const REACH_TRIM = 0.80;
+
+/** The radius of the disc inside which a spot counts as **under your feet** —
+ *  `pickSpot`'s tier-1 `onIt`, which wins with no aim test at all and is the
+ *  only thing in the resolver that outranks `rank`.
+ *
+ *  IT WAS `RADIUS` ITSELF, THE PLAYER'S COLLISION CAPSULE, AND THAT COUPLING IS
+ *  WHY IT IS SPELLED OUT HERE. `RADIUS` is a movement constant — every lane in
+ *  the world was tuned against it and its own comment says *"only ever reduce
+ *  this"* — so trimming the resolver by editing it would have moved the 2 m
+ *  sidewalk lane, the alley mouth and every doorway to fix a prompt. Two
+ *  separate facts had one number.
+ *
+ *  Trimmed by `REACH_TRIM` for the reason above: 0.36 -> 0.288. That is the
+ *  disc that owned flat 301's south wall — the door's stand-point sits 0.46 m
+ *  off it, and a 0.36 m disc about that point covers every square of floor a
+ *  person stands on to read what is hung there. */
+export const ON_IT = RADIUS * REACH_TRIM;
+
 /** The look cone's CEILING, in radians — the widest half-angle that can ever
  *  count as "looking at" something, whatever the spot's radius or distance.
  *
@@ -1209,7 +1271,14 @@ export function pickSpot<T extends Pickable>(
     // REACH_MARGIN is NOT gone: it still sets how far outside its radius a spot
     // can be selected when you ARE looking at it, which is what made doors easy
     // to open at a distance. What changed is that the slack now costs a glance.
-    const touching = d < s.r + TOUCH_MARGIN;
+    //
+    // ── AND ALL OF IT IS TRIMMED BY `REACH_TRIM` NOW (item 309) ─────────────
+    // *"with the radius for all these things a bit less."* The margin's own
+    // derivation is unchanged and still says what the smallest UNTRIMMED value
+    // was; the trim is a separate, later, world-wide decision and it is applied
+    // here rather than by editing the margin so the two can be read apart. See
+    // `REACH_TRIM` for the walked numbers and for what it costs at No. 227.
+    const touching = d < (s.r + TOUCH_MARGIN) * REACH_TRIM;
     // angle between where you face and where the spot is, on the ground plane
     const offAxis = d < 1e-4 ? 0 : Math.abs(Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz));
     // UNCHANGED: looking still reaches as far as it ever did. I briefly added a
@@ -1264,7 +1333,12 @@ export function pickSpot<T extends Pickable>(
     // capsule `blocked()` collides with, so no heading points away from it in
     // any meaningful sense. See the tier comment for why this is `RADIUS` and
     // not the degenerate `d < 1e-4` I tried first.
-    const onIt = d < RADIUS;
+    //
+    // ⚠ `ON_IT`, NOT `RADIUS`, SINCE ITEM 309. It is still derived from the
+    // player's capsule and still means the same thing; what changed is that the
+    // resolver's copy of it can be trimmed without moving the player's body.
+    // The user asked for less reach on the interactables, not a narrower man.
+    const onIt = d < ON_IT;
     const entry = { spot: s, looked, offAxis, dist: d };
     const rank = s.rank ?? 0;
     if (near && (looked || onIt)) {
@@ -1272,7 +1346,7 @@ export function pickSpot<T extends Pickable>(
       // outranked by something else. A spot you are standing IN is not competing
       // for your attention; it is under your feet. Among two spots you are
       // standing in — which the world does contain, wherever two stand-points
-      // are closer than `2 * RADIUS` — rank then decides, and that is the case
+      // are closer than `2 * ON_IT` — rank then decides, and that is the case
       // `scripts/standpoint-overlap.mjs` exists to keep rare.
       if (bestNearLooked === null
         || (onIt !== bestNearLookedOnIt

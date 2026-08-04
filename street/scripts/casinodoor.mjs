@@ -193,6 +193,11 @@ const out = await p.evaluate(async ([want, x0, x1, step, z]) => {
     // typed — and read as `null` rather than defaulted, so an old bundle that
     // does not publish it is a MEASUREMENT FAILURE below and not a silent 0.15.
     touchMargin: window.__ct.touchMargin ? window.__ct.touchMargin() : null,
+    // item 309: the aim-free disc is `(r + TOUCH_MARGIN) * REACH_TRIM` now, so
+    // the margin alone is no longer the whole predicate. Read as null on a
+    // build that predates it, which the floor below turns into exit 2 rather
+    // than into a wrong band.
+    reachTrim: window.__ct.reachTrim ? window.__ct.reachTrim() : null,
   };
 }, [WANT, X0, X1, STEP, WALK_Z]);
 
@@ -255,8 +260,8 @@ check('the casino prompt comes up on the side street',
 // the margin cannot answer this, and "I could not measure" must not print as
 // "the band is fine" — that is the vacuous-pass family this file was rewritten
 // out of (GOTCHAS 79). It exits 2, not 1.
-if (entry?.label != null && out.touchMargin == null) {
-  console.error('CANNOT MEASURE: __ct.touchMargin() is not published by this build.');
+if (entry?.label != null && (out.touchMargin == null || out.reachTrim == null)) {
+  console.error(`CANNOT MEASURE: touchMargin()=${out.touchMargin} reachTrim()=${out.reachTrim} — one of them is not published by this build.`);
   console.error('  The aim-free band cannot be predicted without it, and the old own-radius');
   console.error('  bound under-claimed by 0.45 m. Rebuild, or check you are on item 223.');
   await b.close();
@@ -265,7 +270,14 @@ if (entry?.label != null && out.touchMargin == null) {
 let wantBand = null, bandWhy = 'no spot to derive from';
 if (entry?.label != null) {
   const dz = Math.abs(WALK_Z - entry.z);
-  const R = entry.r + out.touchMargin;
+  // ── AND THE TRIM, ITEM 309 ────────────────────────────────────────────
+  // `(r + TOUCH_MARGIN) * REACH_TRIM`, the user's *"with the radius for all
+  // these things a bit less"*. Without the factor this predicted 1.20 m where
+  // the world now gives 0.96, which is the same class of error the long note
+  // above is about — a check believing a published constant after the
+  // predicate moved on. WATCHED: with the factor removed the equality leg
+  // below goes red, predicting a wider band than the door fires over.
+  const R = (entry.r + out.touchMargin) * out.reachTrim;
   const half = Math.sqrt(Math.max(0, R * R - dz * dz));
   // the sample grid this sweep actually walked, filtered by the touch disc
   wantBand = [];
@@ -273,7 +285,7 @@ if (entry?.label != null) {
     const x = X0 + i * STEP;
     if (Math.abs(x - entry.x) < half) wantBand.push(+x.toFixed(1));
   }
-  bandWhy = `r ${entry.r} + touchMargin ${out.touchMargin} = ${f2(R)}, dz ${f2(dz)}`
+  bandWhy = `(r ${entry.r} + touchMargin ${out.touchMargin}) * reachTrim ${out.reachTrim} = ${f2(R)}, dz ${f2(dz)}`
     + ` → touch chord ${f2(2 * half)} m → x ${wantBand.join(', ')}`;
 }
 
@@ -296,7 +308,7 @@ check('…over exactly the band the touch disc predicts',
 // coming back. It is a separate claim from "the count matches", so it is a
 // separate row.
 {
-  const R = entry?.label != null ? entry.r + out.touchMargin : null;
+  const R = entry?.label != null ? (entry.r + out.touchMargin) * out.reachTrim : null;
   const strays = R == null ? [] : out.mine.filter((x) => Math.hypot(x - entry.x, WALK_Z - entry.z) >= R);
   check('…and never fires from outside the aim-free disc',
     R != null && strays.length === 0,
