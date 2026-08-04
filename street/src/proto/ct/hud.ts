@@ -1731,7 +1731,9 @@ export function makeHud(purse: Purse): Hud {
   const WATCH_LIMB_H = 72;
   /** px the strap stands proud of the limb — now on BOTH long edges, was 6/0. */
   const STRAP_OVER = 6;
-  const WATCH_H = WATCH_LIMB_H + STRAP_OVER;
+  /** the thumb, in fist-local canvas px — see where it is drawn for the why. */
+  const THUMB_X = 104, THUMB_W = 30, THUMB_D = 8;
+  const WATCH_H = WATCH_LIMB_H + Math.max(STRAP_OVER, THUMB_D);
   const WATCH_BOTTOM = (-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)).toFixed(2);
   const WATCH_LIFT_PX = (WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S).toFixed(2);
   const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-5deg)`;
@@ -1838,6 +1840,32 @@ export function makeHud(purse: Purse): Hud {
     // Drawn BEFORE the strap and the case so it can never overlap them; it butts
     // at x 104 where the wrist ends, and the strap lives at 38…82.
     g.fillStyle = '#c9946a'; g.fillRect(104, 0, 72, 72);
+    // ── THE THUMB ─────────────────────────────────────────────────────────
+    //
+    // *"also add a thumb to the fist"* (2026-08-04). This OVERRIDES the note
+    // above, which says no thumb — that note is his own earlier reasoning and
+    // his later words outrank it. Nothing else about the fist changes.
+    //
+    // ONE RECT, THE SAME FLAT `#c9946a`, and that is deliberate. This limb was
+    // redrawn from reference twice today and thrown out both times (*"wow the
+    // arm looks soooo bad"*, *"this is absolutely awful"*) and reverted; the
+    // three shading strips were removed on his ask; uniform was picked over
+    // modelled when he was shown both. So the thumb gets no outline, no crease,
+    // no taper, no second tone. It reads by SILHOUETTE or not at all, which is
+    // the same way the fist itself reads.
+    //
+    // WHY UNDER THE FIST, AT THE WRIST END. The fist fills y 0…72 and the canvas
+    // ceiling is y 0, so the top edge has no room; the only free space is the
+    // bleed BELOW the limb (the rows STRAP_OVER opened). That is also the right
+    // place anatomically for the view he described — looking down at the back of
+    // a closed fist, the thumb is folded across the near side, at the base of
+    // the hand, not out at the far end. So the underside runs flat along y 72,
+    // drops THUMB_D for THUMB_W just past the wrist, and comes back up.
+    //
+    // Small on purpose: 30 x 8 canvas px is 82 x 22 on screen against a 198 px
+    // fist. Widen with THUMB_W, deepen with THUMB_D (the canvas follows it), or
+    // slide it toward the far end with THUMB_X — one number each.
+    g.fillStyle = '#c9946a'; g.fillRect(THUMB_X, WATCH_LIMB_H, THUMB_W, THUMB_D);
     // ── THE ONE DARK STRIP ────────────────────────────────────────────────
     //
     // *"ok now ad the dark strip to the end of the limb"* (2026-08-04). THE END
