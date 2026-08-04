@@ -200,6 +200,81 @@ if (process.env.SHOT_WORLD !== 'integration' && servingBundle) {
 }
 
 // what each one answers, in the order a reader would want it
+// ── WHAT IS RED ON MAINLINE, AND WHY — ITEM 305, 2026-08-03 ────────────────
+//
+// Two workers had independently reported "~22 red" and neither owned them. The
+// measured figure, default (fast) tier against a preview of f2beb5794, was
+// **25 of 152 rows, 151 ran**. After this item: **13 of 143 rows, all ran**.
+// Not "all green" — an absence is what measuring nothing produces.
+//
+// Every one of the 13 that is still red is named here with its bucket, so the
+// next reader does not re-derive the triage. **If you fix one, delete its
+// line.** A list that outlives its reds is the same disease as a red that
+// outlives its cause.
+//
+//  REAL — the world is genuinely wrong, and a player can meet it:
+//    L-slots-inworld      ESC leaves the slot machine but NOT the stool, and
+//                         held W then moves you 0.00 m — you are frozen at the
+//                         machine. Two symptoms, one seat.
+//    K-tv-off-unless-seated  E will not stand you up off 301's bed once the TV
+//                         is on ("you can get back up again" fails, then the
+//                         set never goes off). `I-seat-exit` (slow tier) says
+//                         the same thing about a different seat: 1 of 29 seats
+//                         — "sit in the client chair" — traps with NO key out,
+//                         and "sit at the computer" opens only to Escape.
+//                         These three are probably ONE bug in leaving a seat.
+//    L-every-stool-seats-you  every stool seats you, but only 1 of 2 opens the
+//                         machine — sitting down IS the trigger.
+//    N-post-waiting       standing in your own doorway the world offers "sit
+//                         on the bed and watch TV", not the slip of paper at
+//                         your feet. Same spot-picker knot as w40's.
+//    J-library-room       3 of 6: no partition at the old pier line (widest
+//                         clear run 5.25 m of a needed 5.60), the librarian
+//                         does not face the door (sector 3.00 of 4), and she
+//                         stands on open floor rather than inside her desk.
+//    K-tyre-has-arch      84 of 86 tyres have bodywork over them; 2 bare, at
+//                         (2.92,-8.53) and (4.58,-8.51).
+//    gaps                 5 parked-vehicle corridors in the trap band, worst
+//                         0.41 m at (8.53, 8.19).
+//    w5-shadow-census     BARE count 72 against a recorded baseline of 62. Do
+//                         NOT re-baseline it to 72 without walking the 10.
+//    pointer-returns      2 of 79. The library PC raises no cabinet on the /E
+//                         leg while the /Escape leg raises one fine, so leg 13
+//                         then reports 13 of 14 exit paths driven. Reproduced
+//                         on two consecutive runs — deterministic, not a flake.
+//    hashes-resolve       12 cited commits are unreachable from mainline
+//                         (GOTCHAS 36, the most-cited entry in that file). The
+//                         check prints the landed replacement for 10 of the 12
+//                         with matching patch-ids; the other two are a merge
+//                         commit and a `live:` tag.
+//    checks-can-fail      3 rows still declare no way to go red at all —
+//                         `w75-site-contained` (the park leg only), and
+//                         `world-contained` and `prompt-not-a-ghost` entirely.
+//
+//  THE CHECK IS WRONG — repair it, and watch it go red by hand first:
+//    park                 the lantern half is green and worth keeping. The
+//                         LOOP-WALK leg hunts a `PlaneGeometry` of width
+//                         1.5±0.01 and height ≥8 at y 0.146±0.006 and finds
+//                         NONE, so it never walks. The park has been re-cut
+//                         three times and that needle is stale — the same leg's
+//                         own header records the last time this happened.
+//    floaters-walk        62 props below 1.4 m report air under them and the
+//                         script vetoes on all 62. Its own header admits the
+//                         list "is dominated by upright wall planes"; the low
+//                         band is not the clean population it assumes (eight
+//                         identical entries at x 993.86/1006.14 are one rank of
+//                         something, counted eight times).
+//
+// NOT MEASURED BY THIS ITEM, and it is a real gap: the 22-row SLOW tier was
+// started and abandoned — committing here moved HEAD, so `reportWorld` began
+// answering WRONG WORLD partway through and the tail of that run measured
+// nothing. The one slow row that did complete first is `I-seat-exit`, quoted
+// above. Nothing here speaks for `w40-bed-vs-door`, whose FIRE leg is the other
+// known coin flip: it reaches its firing pose by holding W while FACING the bed
+// (line ~230), so it walks INTO the bed collider and takes whatever `unstick`
+// gives back — 1.3-1.8 m from the door, varying ~0.9 m a run. Turning to face
+// the door BEFORE that walk-out would make it deterministic; its other legs are
+// good and must stay.
 const CHECKS = [
   ['check-wiring',     'is every module that was written actually built?', true],
   // ITEM 305 — `ledger-intact`, `D-ledger-status-vs-evidence` and
