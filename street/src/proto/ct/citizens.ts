@@ -19,6 +19,49 @@ export const FW = 32, FH = 64;
 export const SPRITE_H_M = 1.9;
 
 /**
+ * WHERE THE FIST CLOSES ON THE UMBRELLA'S HANDLE — the frame row it lands on,
+ * and how many texels outboard of the body's centre line.
+ *
+ * *"citizens hold their umbrella weird please fix this"* (2026-08-04.) It was
+ * row 3, HALF A HEAD ABOVE THE CROWN, on the reasoning that a canopy 30 cm over
+ * your head has to be held at head height. That reasoning skipped a step: it
+ * checked the fist against the SHAFT and never against the HANDLE, and
+ * `ct/crowd.ts` drew the handle 20 cm lower still. So the arm went dead
+ * vertical, the hand closed on bare shaft up by the canopy, and the wooden
+ * crook dangled unheld beside the citizen's eyes — a person carrying an
+ * umbrella by its dome.
+ *
+ * Row 15 is where a handle actually is. A row is `SPRITE_H_M / FH` = 2.97 cm
+ * and the painted figure's top is row 4, so row 15 hangs 0.33 m below the
+ * crown; with the hem 0.30 m above it that makes a 0.63 m shaft, which is what
+ * a stick umbrella has. On a 1.66 m painted figure the grip lands at 1.35 m —
+ * shoulder height on a real body, even though this sprite's oversized head puts
+ * it level with the ear. The arm that reaches it is bent, not extended.
+ *
+ * `HOLD_X` is what keeps the shaft off the face, and it is the half of this the
+ * old pose could not have fixed on its own. The head's skin runs cx-5…cx+4 and
+ * its hair, cap or hood one texel further, so a fist centred SIX texels out
+ * closes beside the jaw and never inside it — and the shaft it holds leans out
+ * to meet it instead of dropping down the centre line through the face.
+ *
+ * It is the RAISED (+x) side of the sheet, and `viewAt` mirrors that sheet for
+ * the far four sectors — so the umbrella's own sprite has to mirror in step or
+ * the shaft ends up in the empty hand. `ct/crowd.ts` does that; a dome alone
+ * never needed it, a leaning shaft does.
+ */
+export const HOLD_ROW = 15, HOLD_X = 6;
+/**
+ * The fist's drop below the painted figure's top (row 4 of 64), in metres.
+ *
+ * EXPORTED SO IT CANNOT DRIFT. The handle's row in `ct/crowd.ts` used to be an
+ * independent fraction of the umbrella sheet with a comment pointing here, and
+ * the two ended up 20 cm apart — which is the bug above. crowd.ts imports this
+ * file already, so reading the number closes no cycle; it is the REVERSE
+ * direction that would (GOTCHAS §28), which is what the old note warned about.
+ */
+export const HOLD_DROP_M = (HOLD_ROW - 4) * SPRITE_H_M / FH;
+
+/**
  * HOW FAR FORWARD OF THE HIP THE SEATED ART ITSELF REACHES.
  *
  * The profile shin is drawn at `cx - KNEE`, so a seated figure's leg already
@@ -111,41 +154,6 @@ export function citizenAtlas(o: Look): THREE.Texture {
    *  commonest seat. Measured against the world, not reasoned from the sheet. */
   const SEAT_DROP = 6;
   const holdUp = o.holdUp ?? false;
-  /**
-   * WHERE A RAISED FIST LANDS, in frame rows — DERIVED, then looked at.
-   *
-   * `ct/crowd.ts` hangs the umbrella's hem `UMB_CLEAR = 0.30 m` above this
-   * figure's crown, and paints the grip `UMB_GRIP 30 − UMB_HEM 17 = 13` sheet
-   * rows below that hem at `UMB_M/UMB_PX = 1.14/38 = 0.03 m` a row. So the
-   * grip sits `0.39 − 0.30 = 0.09 m` **below the crown**. This plane is 1.9 m
-   * over `FH` rows — 0.0297 m a row — so 0.09 m is **3 rows**, and the shaft is
-   * in front of rows −2 … 11 with the crown at row 8.
-   *
-   * **A hand on that shaft therefore has to be at head height**, and anywhere
-   * in rows −2…11 is on it. That is not a compromise made to fit the sprite; it
-   * is what holding a canopy 30 cm over your own head looks like.
-   *
-   * ⚠ **ROW 7 WAS WRONG AND THE SHEET SAID SO.** It is on the shaft and it is
-   * level with the temple, so the fist landed in the hair — dark on dark, gone
-   * — and the forearm crossed the cheek. `shots/w107-sheet-salute.png`: it read
-   * as a SALUTE, which is the wrong gesture drawn correctly. Row 3 is still on
-   * the shaft and it is **above the crown** (the skull starts at row 8, the
-   * hair and any cap at row 4), so the fist closes against the sky where it is
-   * legible, and the forearm crosses the top of the head instead of the face.
-   * Found by printing the sheet, not by reasoning — this is the row the item
-   * says to judge by looking.
-   *
-   * ⚠ **CITED, NOT IMPORTED, and it cannot be otherwise.** `ct/crowd.ts:3`
-   * imports THIS file, so importing `UMB_GRIP` back closes a cycle — and
-   * GOTCHAS §28 is that a module in a cycle can be dropped from the **built
-   * bundle only**, which would take the whole crowd out of the artifact while
-   * dev looked perfect. `scripts/probes/w107-hand-on-shaft.mjs` measures the
-   * fist against the shaft in the running world instead, so the two cannot
-   * drift apart in silence.
-   */
-  const HOLD_ROW = 3;
-  /** the crown — below it the raised arm stays OUTSIDE the head's silhouette */
-  const HOLD_CLEAR = 8;
   const build = o.build ?? 0;
   const strideMax = o.stride ?? 3;
   const tw = 7 + build;            // torso half-width: 6, 7 or 8
@@ -368,44 +376,55 @@ export function citizenAtlas(o: Look): THREE.Texture {
         const armBot = seated ? 31 : (fit === 'coat' ? 40 : 36);
         const SHOULDER = oy + 21;
         /** An arm that leaves the shoulder at `sx` and closes its fist on the
-         *  shaft, above the head, at `HOLD_ROW`.
+         *  umbrella's HANDLE — beside the head at `HOLD_ROW`, `HOLD_X` texels
+         *  out from the centre line.
          *
-         *  TWO SEGMENTS, NOT ONE EASED SWEEP, and the sheet is why. A single
-         *  interpolation from shoulder to centre — squared, cubed, any of them
-         *  — has the forearm crossing the FACE, because the hand is inboard of
-         *  the shoulder and the head is in between. Printed at 6x it read as a
-         *  salute (`shots/w107-sheet-salute.png`).
+         *  ONE ANGLED RUN, where this used to be two segments. The old fist
+         *  finished ABOVE the crown and INBOARD, at the centre line, so the arm
+         *  had no way up that did not cross the face: it had to climb outside
+         *  the head's silhouette and only turn in over the top of it, which is
+         *  a salute with an umbrella in it, and is what the report is about.
          *
-         *  So the upper arm goes straight up OUTSIDE the head's silhouette to
-         *  the crown, and only the forearm turns in, above everything. That is
-         *  also what the limb actually does: elbow out, forearm over the head,
-         *  hand on the shaft.
+         *  A fist beside the jaw needs none of that. Shoulder to hand is a
+         *  straight diagonal, up and slightly in — elbow out, forearm angled,
+         *  hand at the jaw — and it never enters the head's columns at all.
          *
          *  Drawn a row at a time so the staircase is hard pixels rather than an
          *  arc `NearestFilter` would only fight — the same reasoning the
          *  umbrella's own dome is drawn with. */
         const reachUp = (sx: number, w: number) => {
-          const endX = cx - Math.floor(w / 2);
+          const endX = cx + HOLD_X - Math.floor(w / 2);
           g.fillStyle = jacket;
           for (let row = 21; row >= HOLD_ROW; row--) {
-            const t = row > HOLD_CLEAR ? 0
-              : (HOLD_CLEAR - row) / (HOLD_CLEAR - HOLD_ROW);
+            const t = (21 - row) / (21 - HOLD_ROW);
             g.fillRect(Math.round(sx + (endX - sx) * t), oy + row, w, 1);
           }
-          // the fist, closed round the shaft — the same skin block the hanging
+          // the fist, closed round the handle — the same skin block the hanging
           // hand uses, so a hand is a hand whichever way the arm goes
           g.fillStyle = skin;
           g.fillRect(endX, oy + HOLD_ROW - 1, w, 3);
         };
         // ⚠ THE RAISED ARM IS DRAWN LAST, NOT HERE. Arms come before the head
-        // in this function, and a hand that finishes at row 7 with a forearm
-        // crossing rows 8-20 would be painted over by the skull, the hair, the
-        // cap brim and the hood in turn — the limb would vanish behind the head
-        // and the fist would lose its bottom row. So the raise is deferred to
-        // the foot of the frame, after everything on the head is down.
+        // in this function, and a hand that finishes at row 15 runs alongside
+        // rows the hair, the cap brim and the hood all reach — long hair and a
+        // hood both cover cx+5..cx+6, and the fist sits at cx+5..cx+7. Painted
+        // in place it would be part-swallowed by the head. So the raise is
+        // deferred to the foot of the frame, after everything on the head is
+        // down, and the hand reads as being in front of it.
         let raise: (() => void) | null = null;
         if (view === 2) {
-          if (holdUp) raise = () => reachUp(cx - 2, 4);
+          // ⚠ THE PROFILE RAISES FROM cx+1, NOT FROM cx-2 WHERE ITS ARM HANGS.
+          // This is the facing the eight-angle trap lives in. Everywhere else
+          // the shoulder is already outboard of the head (cx+tw against a head
+          // ending at cx+4), so the arm rises in clear air. In profile the one
+          // visible arm is drawn at the body's centre, and a run from there up
+          // to a fist at cx+4 crosses rows 15-19 at cx+0…cx+4 — straight over
+          // the jaw, a 4-texel jacket bar across the lower face on a head ten
+          // texels wide. Three texels back (9 cm, invisible at the shoulder,
+          // decisive at the head) puts the whole run behind the skull's back
+          // edge instead, which is also where a raised arm goes when you see
+          // someone side-on.
+          if (holdUp) raise = () => reachUp(cx + 1, 4);
           else {
             g.fillRect(cx - 2, oy + 21, 4, armBot - 21);
             g.fillStyle = skin; g.fillRect(cx - 2, oy + armBot, 4, 3);

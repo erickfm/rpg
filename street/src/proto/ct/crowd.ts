@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import { type Look, citizenAtlas, citizenPlane, sectorAt, viewAt } from './citizens';
+import { type Look, HOLD_DROP_M, HOLD_X, citizenAtlas, citizenPlane, sectorAt, viewAt } from './citizens';
 import { ROAD_HALF, rnd } from './rng';
 import { buildNet, STRAY, type Activity, type Net } from './crowd-net';
 import { ORDER, type CtxBuild } from './ctx';
@@ -313,10 +313,91 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   // shallow. 17 rows takes the aspect to 0.47, which is about what a real
   // 8-rib canopy does. It costs the shaft two rows and the shaft has plenty.
   const UMB_HEM = Math.round(UMB_PX * 0.46);     // last row of canopy
-  const UMB_GRIP = Math.round(UMB_PX * 0.79);    // where the hand is
-  const umbrellaTex = (canopy: string) => pixTex(UMB_PX, UMB_PX, (g) => {
+  /** metres a row — and a texel here is a texel on the citizen sheet, 0.030
+   *  against 0.0297, which is the density match derived above. Everything
+   *  below converts between the two sheets with that. */
+  const UMB_ROW_M = UMB_M / UMB_PX;
+  /**
+   * HOW FAR THE HEM CLEARS THE CROWN — 0.10 -> 0.30, and this is the change
+   * that does most of the work.
+   *
+   * *"umbrella looks so janky."* (2026-08-03.) The previous fix widened the
+   * canopy, on the reading that *"a canopy has to be wider than the shoulders
+   * it is keeping dry"* — true, and it did not cure it, because WIDTH was
+   * never what made it a hat. **HEIGHT IS.** A hat sits ON the head; an
+   * umbrella floats above it on a stick, and the thing your eye actually reads
+   * is the DAYLIGHT in between.
+   *
+   * At 0.10 m there was no daylight to read. Photographed at 1.6, 4 and 8 m in
+   * rain (`shots/w110-umb-before-0-*.png`): at 4 m — normal walking distance,
+   * which is the distance the item is judged at — the 10 cm gap is **1.4° of
+   * arc, about 12 screen px**, and both the hair and the canopy are dark, so
+   * the two silhouettes fuse into one dark mass sitting on the shoulders. The
+   * shaft that should have separated them is ONE texel of `#4a4a52` drawn
+   * straight down over dark brown hair, so it contributed nothing.
+   *
+   * 0.30 m puts a clear third of a metre of sky between crown and hem, and —
+   * this is the part that matters more than the number — **it moves the shaft
+   * off the head and into open air**, where a one-texel dark line against the
+   * street reads immediately. Nothing about the shaft's drawing changed.
+   *
+   * A LOOKED-AT VALUE, AND SAID SO. There is no quantity in this file it can
+   * be derived from: it is how much air a person reads as "held above", and
+   * the only instrument for that is the frame. Do not dress it up in a formula
+   * — the constant next door in `ct/hud.ts` spent a session wearing one that
+   * was arithmetically wrong. Before/after frames are `shots/w110-umb-*.png`.
+   *
+   * (Hoisted above `umbrellaTex` from further down the file, unchanged in
+   * value: the handle's row is now DERIVED from it and has to be in scope.)
+   */
+  const UMB_CLEAR = 0.30;
+  /**
+   * WHERE THE HANDLE IS — TAKEN FROM THE HAND THAT HOLDS IT, not chosen.
+   *
+   * *"citizens hold their umbrella weird please fix this"* (2026-08-04.) It was
+   * `0.79 · UMB_PX` = row 30, and the atlas painted the fist 20 cm HIGHER than
+   * that: the hand closed on bare shaft up beside the canopy while the wooden
+   * crook hung unheld by the citizen's eyes. Two numbers, in two files, each
+   * citing the other in a comment, drifted apart exactly as comments do.
+   *
+   * So it is imported now. `HOLD_DROP_M` is how far the fist sits below the
+   * painted figure's top; the hem sits `UMB_CLEAR` above that same top; so the
+   * handle belongs `UMB_CLEAR + HOLD_DROP_M` = 0.63 m below the hem — which is
+   * also, not by coincidence, the shaft length of a real stick umbrella.
+   */
+  const UMB_GRIP = UMB_HEM + Math.round((UMB_CLEAR + HOLD_DROP_M) / UMB_ROW_M);
+  /**
+   * AND THE SHAFT LEANS OUT TO MEET IT.
+   *
+   * The other half of "weird", and the half that only appears once the hand
+   * comes down: a shaft drawn straight down the sprite's centre line runs
+   * through the citizen's face. It always did — at the old grip row it merely
+   * stopped at the forehead instead of passing the chin.
+   *
+   * The fist is `HOLD_X` texels outboard on the citizen sheet, and a texel
+   * there is a texel here, so the shaft's foot goes to the same column.
+   *
+   * THE CANOPY STAYS CENTRED. A dome centred over the head is the silhouette
+   * that reads as shelter, and it is what the last two items on this prop were
+   * spent getting right — so the shaft tilts under it rather than the whole
+   * umbrella sliding sideways. That is also what a real one held out to one
+   * side does: 6 texels across the shaft's 21 is about 16°.
+   */
+  const UMB_LEAN = HOLD_X;
+  /**
+   * TALLER THAN IT IS WIDE, and only now.
+   *
+   * The canopy's proportions are still fractions of the WIDTH, so the dome is
+   * texel-for-texel the one item 271 landed. These extra rows are shaft and
+   * handle: a square 38-row sheet had 8 rows under the hem, and the handle now
+   * needs 21 of them plus its crook. Same `UMB_ROW_M` density throughout, so
+   * nothing about the canopy's scale moves.
+   */
+  const UMB_PXH = UMB_GRIP + 6;
+  const UMB_MH = UMB_PXH * UMB_ROW_M;
+  const umbrellaTex = (canopy: string) => pixTex(UMB_PX, UMB_PXH, (g) => {
     const cx = UMB_PX / 2, top = 2, wide = UMB_PX / 2 - 1;
-    g.clearRect(0, 0, UMB_PX, UMB_PX);
+    g.clearRect(0, 0, UMB_PX, UMB_PXH);
     const halfAt = (y: number) =>
       2 + (wide - 2) * Math.sqrt(Math.max(0, (y - top) / (UMB_HEM - top)));
     // the dome, drawn row by row so its edge stays a hard pixel step rather
@@ -381,11 +462,21 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     // ferrule, shaft and a wooden crook — all one texel wide
     g.fillStyle = '#4a4a52';
     g.fillRect(cx, 0, 1, top);                   // the spike above the dome
-    g.fillRect(cx, UMB_HEM + 1, 1, UMB_GRIP - UMB_HEM - 1);
+    // The shaft, stepped out from under the canopy to the hand — see UMB_LEAN.
+    // A row at a time, so the lean is a hard staircase rather than an arc
+    // NearestFilter would only fight; the same way the dome above is drawn.
+    for (let y = UMB_HEM + 1; y < UMB_GRIP; y++) {
+      const t = (y - UMB_HEM) / (UMB_GRIP - UMB_HEM);
+      g.fillRect(cx + Math.round(UMB_LEAN * t), y, 1, 1);
+    }
+    // …and the crook, hooking back INBOARD, toward the body. That is the way a
+    // crook faces on an umbrella held out to the side, and it also keeps the
+    // hook inside the fist rather than sticking out past it.
+    const gx = cx + UMB_LEAN;
     g.fillStyle = '#5a3a24';
-    g.fillRect(cx, UMB_GRIP, 1, 3);
-    g.fillRect(cx - 2, UMB_GRIP + 2, 3, 1);
-    g.fillRect(cx - 2, UMB_GRIP, 1, 2);
+    g.fillRect(gx, UMB_GRIP, 1, 3);
+    g.fillRect(gx - 2, UMB_GRIP + 2, 3, 1);
+    g.fillRect(gx - 2, UMB_GRIP, 1, 2);
   });
   // WHERE THE HEM LANDS IS THE WHOLE THING, and the first cut got it wrong: it
   // put the hem 2.7 cm BELOW the crown, so the canopy sat ON the head and the
@@ -396,40 +487,9 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   // a lift chosen by eye. `citizenPlane` is 1.9 m tall and the painted figure
   // fills 56 of its 64 rows (CITIZEN-STYLE.md), so the crown is 1.9 · 56/64 · hs.
   const FIG_TOP = 1.9 * (56 / 64);
-  /**
-   * HOW FAR THE HEM CLEARS THE CROWN — 0.10 -> 0.30, and this is the change
-   * that does most of the work.
-   *
-   * *"umbrella looks so janky."* (2026-08-03.) The previous fix widened the
-   * canopy, on the reading that *"a canopy has to be wider than the shoulders
-   * it is keeping dry"* — true, and it did not cure it, because WIDTH was
-   * never what made it a hat. **HEIGHT IS.** A hat sits ON the head; an
-   * umbrella floats above it on a stick, and the thing your eye actually reads
-   * is the DAYLIGHT in between.
-   *
-   * At 0.10 m there was no daylight to read. Photographed at 1.6, 4 and 8 m in
-   * rain (`shots/w110-umb-before-0-*.png`): at 4 m — normal walking distance,
-   * which is the distance the item is judged at — the 10 cm gap is **1.4° of
-   * arc, about 12 screen px**, and both the hair and the canopy are dark, so
-   * the two silhouettes fuse into one dark mass sitting on the shoulders. The
-   * shaft that should have separated them is ONE texel of `#4a4a52` drawn
-   * straight down over dark brown hair, so it contributed nothing.
-   *
-   * 0.30 m puts a clear third of a metre of sky between crown and hem, and —
-   * this is the part that matters more than the number — **it moves the shaft
-   * off the head and into open air**, where a one-texel dark line against the
-   * street reads immediately. Nothing about the shaft's drawing changed.
-   *
-   * A LOOKED-AT VALUE, AND SAID SO. There is no quantity in this file it can
-   * be derived from: it is how much air a person reads as "held above", and
-   * the only instrument for that is the frame. Do not dress it up in a formula
-   * — the constant next door in `ct/hud.ts` spent a session wearing one that
-   * was arithmetically wrong. Before/after frames are `shots/w110-umb-*.png`.
-   */
-  const UMB_CLEAR = 0.30;
   /** hem's distance below the plane's top edge, in metres */
-  const UMB_HEM_M = (UMB_HEM / UMB_PX) * UMB_M;
-  const umbGeo = new THREE.PlaneGeometry(UMB_M, UMB_M);
+  const UMB_HEM_M = UMB_HEM * UMB_ROW_M;
+  const umbGeo = new THREE.PlaneGeometry(UMB_M, UMB_MH);
   /** raise at, and lower below — two thresholds, not one. See the frame hook. */
   const UMB_UP = 0.12, UMB_DOWN = 0.05;
 
@@ -1134,7 +1194,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         const ox = px - c.lane, oz = pz - c.z;
         const oL = Math.hypot(ox, oz) || 1;
         c.umb.position.set(c.lane + (ox / oL) * 0.06,
-          sidewalkY + c.figTop + UMB_CLEAR + UMB_HEM_M - UMB_M / 2,
+          sidewalkY + c.figTop + UMB_CLEAR + UMB_HEM_M - UMB_MH / 2,
           c.z + (oz / oL) * 0.06);
         c.umb.rotation.y = c.mesh.rotation.y;
         // opening, not fading: see the material's comment on GOTCHAS 22
@@ -1170,6 +1230,27 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       while (away < -4) away += 8;
       if (Math.abs(away) > 0.7) c.sector = ((Math.round(sPos) % 8) + 8) % 8;
       const [col, mirror] = viewAt(c.sector);
+      // ── AND THE UMBRELLA MIRRORS WITH THE PERSON ──────────────────────
+      //
+      // NEW, AND ONLY BECAUSE THE SHAFT LEANS. A dome is symmetric, so for
+      // four of the eight facings this sprite could be drawn either way round
+      // and nobody could tell — which is the whole argument for it being one
+      // prop instead of five painted views. A leaning shaft is not symmetric:
+      // it points at the raised arm, that arm is the +x one on the painted
+      // sheet, and `viewAt` mirrors the sheet for the far four sectors. Left
+      // alone, half the block would hold an umbrella that leans away into the
+      // empty hand.
+      //
+      // Same repeat/offset flip the citizen sheet takes below, on the
+      // umbrella's own texture — each walker was given their own by
+      // `umbrellaTex`, so this is not shared state. The canopy's lit flank
+      // mirrors with it, which is correct: the person's shading mirrors too,
+      // and the two agreeing about the sun is what that comment asked for.
+      const umbMap = (c.umb.material as THREE.MeshBasicMaterial).map;
+      if (umbMap) {
+        umbMap.repeat.x = mirror ? -1 : 1;
+        umbMap.offset.x = mirror ? 1 : 0;
+      }
       // feet only stride while actually walking; stand still (feet together)
       // when halted, so a stopped person isn't marching in place
       if (moving) c.anim += dt * c.cad;   // per-person cadence, see strideFor

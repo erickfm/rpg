@@ -3900,3 +3900,37 @@ If he wants a different one it is one line: `LUCKY WINNERS` is also 13 character
 and drops in at the identical size.
 
 Built by the standing builder. Live on 5177.
+
+## 2026-08-04 — "citizens hold their umbrella weird please fix this"
+
+Screenshot: a citizen in a green coat under an open umbrella, arm stretched dead
+vertical, fist up level with the canopy.
+
+The pose and the prop are two different files and the fault was in the seam
+between them. `ct/citizens.ts` paints the raised arm into the citizen atlas;
+`ct/crowd.ts` draws the umbrella as a separate billboard hung over the head. Each
+had its own number for where the hand meets the shaft, each carried a comment
+citing the other, and they were **20 cm apart**: the fist closed at row 3 (above
+the crown) while the wooden crook was drawn down at the citizen's eyes. Nobody
+was holding the handle — the hand gripped bare shaft up by the dome, which is
+what "weird" is. The shaft also ran straight down the centre line, past the face.
+
+The handle is now IMPORTED, not cited. `HOLD_ROW`/`HOLD_X`/`HOLD_DROP_M` are
+exported from `ct/citizens.ts` and `UMB_GRIP` is derived from them — crowd
+already imports citizens, so that direction closes no cycle (the reverse would,
+which is what the old note was guarding against). They cannot drift again.
+
+The fist drops to row 15 — 0.33 m under the crown, a 0.63 m shaft, which is a
+real stick umbrella and lands the grip at shoulder height on the world figure.
+Six texels outboard, so it closes beside the jaw and the shaft leans out to meet
+it instead of crossing the face. The canopy is untouched: same dome, same 0.30 m
+of daylight over the crown, still centred — the sprite just got 6 rows taller to
+carry the longer shaft, at the same texel density.
+
+All five painted views, so all eight facings. The profile needed its own fix —
+its single arm is drawn at the body's centre, and raising from there swept a
+4-texel sleeve across the jaw, so it now rises from behind the skull. And the
+umbrella sprite mirrors with the person for the far four sectors, which a
+symmetric dome never needed and a leaning shaft does.
+
+Built by the standing builder. Live on 5177.
