@@ -226,10 +226,39 @@ say(badIn.length === 0,
 
 // BOTH MUST FIRE, not merely be named — and from a spot in the band, not from
 // on top of the bed, or the door is not the thing being offered in the first place.
+//
+// ⚠ TURN FIRST, THEN WALK. THIS LEG WAS A COIN TOSS FOR MONTHS (item 308).
+//
+// It used to hold W straight out of the inward band walk, i.e. **still facing
+// the BED** — so it walked THROUGH the bed's stand-point, into the bed's own
+// collider, and fired from wherever `unstick` happened to slide it. Measured on
+// plain mainline with `scripts/probes/w133-w40-fire.mjs`, that arrival landed
+// 1.75-1.83 m from the door with the bed **23.1 deg off the heading**, against a
+// look cone whose ceiling is 25.0 — so whether the door or the bed won the pose
+// was decided by a two-degree margin and by which frame the walk stopped on.
+// Five runs of unmodified mainline, one build, one port: **1 green, 4 red.**
+// The other three legs (END ONE, END TWO, AIM) were green in every one of them.
+//
+// A check that arrives somewhere different every run is not asserting anything,
+// and this one had started failing honest work: a door stand-point that held
+// END ONE, END TWO and AIM outright was reverted on its evidence.
+//
+// So the walk out to the firing pose faces the DOOR, which is the direction the
+// user's own sentence is about (*"if im facing the door to leave"*) and the
+// direction every other station in this check already walks. The pose is then
+// ON the bed-to-door line at a known distance from both, in open floor, with no
+// collider between — and the assertion below is about the PICKER rather than
+// about where a rig got shoved. **Nothing was loosened: the same three things
+// are asserted, from a pose that now exists on purpose.**
 console.log('  — and both offers must actually fire —');
+await turnTo(bearing(await pos(), door));
 await walkUntil((q) => Math.hypot(q.x - bed.x, q.z - bed.z) > 0.55, 'the middle of the band');
 const fireAt = await pos();
-console.log(`    firing from ${Math.hypot(fireAt.x - bed.x, fireAt.z - bed.z).toFixed(2)} m from the bed`);
+console.log(`    firing from ${Math.hypot(fireAt.x - bed.x, fireAt.z - bed.z).toFixed(2)} m from the bed, `
+  + `${Math.hypot(fireAt.x - door.x, fireAt.z - door.z).toFixed(2)} m from the door`);
+// AND SAY WHERE IT LANDED, every run. The whole defect above was invisible
+// because this line printed one distance and not the pose it was taken from.
+console.log(`    at (${fireAt.x.toFixed(3)}, ${fireAt.z.toFixed(3)})`);
 await turnTo(bearing(fireAt, door));
 const b0 = await prompt();
 await pressE();
