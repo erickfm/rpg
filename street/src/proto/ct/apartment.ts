@@ -3993,6 +3993,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const D301_STAND_Z = DOOR_PIV_Z - H301 * 1.45;
     ctx.spot({
       x: CAL_X - CAL_STAND_DX, z: D301_STAND_Z + 0.28, r: 0.60, obj: cal,
+      // AIM AT THE PAGE, which is where the player is looking when he reads it —
+      // the same two numbers `cal.position.set` uses above, not a second copy.
+      aimX: CAL_X, aimZ: SOUTH_Z,
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: () => 'read the calendar',
       act: openCalendar,

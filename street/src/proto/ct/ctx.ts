@@ -20,6 +20,11 @@ export interface WetSurface { m: THREE.MeshBasicMaterial; base: THREE.Color }
  *  enumerating them — see the note at the bottom of this file. */
 export interface Spot {
   x: number; z: number; r: number;
+  /** Where to AIM at this spot, when the thing is not where you stand to use
+   *  it — a calendar on a wall, read from a stand-point out in the room. See
+   *  `Pickable.aimX` in `fp.ts` for what it fixes and why `x`/`z` stay the
+   *  stand-point. Omit it and selection is unchanged. */
+  aimX?: number; aimZ?: number;
   /**
    * WHAT THIS SPOT IS ABOUT — the object the prompt names, so the selection
    * highlight can draw the same thing the prompt describes.

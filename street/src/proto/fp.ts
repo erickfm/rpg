@@ -821,6 +821,22 @@ export function tube(pts: THREE.Vector3[], radius: number, mat: THREE.Material):
 // looking at". Proximity only decides it among things you are not looking at.
 export interface Pickable {
   x: number; z: number; r: number; ok: () => boolean;
+  /** WHERE THE THING ACTUALLY IS, when that is not where you stand to use it.
+   *
+   *  `x`/`z` are the STAND-POINT — a disc of floor. Aim was measured to it,
+   *  which is right for a door (you look at the doorway you stand in) and wrong
+   *  for anything hung on a wall: 301's calendar hangs at `SOUTH_Z` and its
+   *  stand-point is 0.74 m out in the room, so walking up to READ the page puts
+   *  the stand-point BEHIND you. `offAxis` then reads ~180°, `looked` goes
+   *  false, and the calendar stops being offered at exactly the distance a
+   *  person reads a calendar from. The user, with the page filling his screen
+   *  and the prompt saying `[E] open the door`: *"just doesnt make sense"* —
+   *  then *"has something to do with the calendar i think"*, which it was.
+   *
+   *  Declare this and aim is measured HERE while everything else — distance,
+   *  `onIt`, `touching`, the tiers — still uses the stand-point. Omit it and
+   *  nothing changes by so much as a float. */
+  aimX?: number; aimZ?: number;
   /** HOW MUCH THIS SPOT MATTERS when two of them are equally selectable.
    *
    *  **THE USER DECIDED THIS, 2026-08-03: *"just make the door high rank pls."***
@@ -1284,7 +1300,12 @@ export function pickSpot<T extends Pickable>(
     // `REACH_TRIM` for the walked numbers and for what it costs at No. 227.
     const touching = d < (s.r + TOUCH_MARGIN) * REACH_TRIM;
     // angle between where you face and where the spot is, on the ground plane
-    const offAxis = d < 1e-4 ? 0 : Math.abs(Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz));
+    // AIMED AT THE THING, NOT AT THE FLOOR MARKER. See `Pickable.aimX`. The
+    // distance `d` above is deliberately still the stand-point's — how far you
+    // are from a spot and where you must LOOK to choose it are two questions.
+    const ax = (s.aimX ?? s.x) - view.x, az = (s.aimZ ?? s.z) - view.z;
+    const ad = Math.hypot(ax, az);
+    const offAxis = ad < 1e-4 ? 0 : Math.abs(Math.atan2(fx * az - fz * ax, fx * ax + fz * az));
     // UNCHANGED: looking still reaches as far as it ever did. I briefly added a
     // clause here capping `looked` at `s.r + REACH_MARGIN`, which collapses the
     // aimed reach back onto the proximity radius and would have killed
@@ -1370,8 +1391,24 @@ export function pickSpot<T extends Pickable>(
         || (onIt !== bestNearLookedOnIt
           ? onIt
           : bothOnIt
-            ? (looked !== bestNearLooked.looked ? looked : d < bestNearLookedKey)
-            : better(rank, d, bestNearLookedRank, bestNearLookedKey))) {
+            // BOTH underfoot: the ANGLE decides, not the boolean. This was
+            // `looked !== …looked ? looked : d < …` when `offAxis` still pointed
+            // at floor markers, so a boolean was all it could honestly use; with
+            // `Pickable.aimX` the angle is the real quantity and the two branches
+            // below now say the same thing in the same units.
+            ? (offAxis < bestNearLooked.offAxis - AIM_DECIDES ? true
+              : bestNearLooked.offAxis < offAxis - AIM_DECIDES ? false
+                : d < bestNearLookedKey)
+            // NEITHER underfoot — both merely touched AND looked at. Aim first
+            // here too, now that aim means "at the thing" (`Pickable.aimX`) and
+            // not "at its floor marker". This was tried BEFORE that fix and had
+            // to be reverted: it took `standpoint-overlap` from 1 wrong pose to
+            // 3, because measuring aim to the calendar's stand-point made the
+            // calendar look better-aimed than the door from poses squarely
+            // facing the door. Same three lines, different meaning.
+            : (offAxis < bestNearLooked.offAxis - AIM_DECIDES ? true
+              : bestNearLooked.offAxis < offAxis - AIM_DECIDES ? false
+                : better(rank, d, bestNearLookedRank, bestNearLookedKey)))) {
         bestNearLookedKey = d; bestNearLookedRank = rank;
         bestNearLookedOnIt = onIt; bestNearLooked = entry;
       }
