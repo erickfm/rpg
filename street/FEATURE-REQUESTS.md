@@ -3379,3 +3379,34 @@ Also landed: four checks that rebuild the reach predicate from published
 constants (casinodoor, standpoint-overlap, O-jail-walk, O-jail-walk-fix) taught
 about REACH_TRIM — without it casinodoor predicted 1.20 m where the door now
 fires over 0.96, i.e. they would have gone red against a correct world.
+
+## 2026-08-03 23:0x — "pretty good but somehow when im closerest to the calendar it defaults to door again? not even looking at door"
+
+Routed to: THE DESK, directly (one predicate, trunk, queue empty — a worker would
+have paid 20x the onboarding for a six-line change).
+
+MEASURED, not guessed: 301's room-side door stand-point (199.360, -17.455,
+rank WAY_OUT) and the calendar's (199.200, -17.175, rank 0) are **0.322 m apart**
+against a `2 * ON_IT` overlap width of **0.576 m**. So a lens of floor exists
+where BOTH centres are inside the player's capsule, both land in `pickSpot`'s
+tier 1, and rank decided there — the door winning every pose in the lens,
+including the ones nearer the calendar and facing away from the door.
+
+FIXED (item 310): tier 1 breaks a two-spots-underfoot tie on **where you are
+looking**, then on distance. Rank is untouched — item 291's *"just make the door
+high rank"* still holds everywhere else, and aiming at the door still wins from
+the same square centimetre, so a door you are standing in is never unreachable.
+Check `scripts/probes/w310-calendar-vs-door.mjs`, watched red by hand under a
+mutation (2/2 -> 1/2) before being kept.
+
+⚠ STILL OPEN, AND IT IS ITEM 309'S NOT 310'S — `standpoint-overlap.mjs` fails one
+pose: **facing the door from 0.40 m offers the calendar.** At that range the door
+is 0.40 m away and ON_IT is 0.288, so the door is not underfoot while the
+calendar is, and the untouched onIt-beats-not-onIt rule gives the calendar. I
+confirmed the attribution by mutation: the failure is byte-identical with and
+without item 310. It was created earlier tonight when item 309 moved the
+calendar's reading spot 0.075 m out to keep it readable — worker 134's own probe
+comment documented the trade and did not close it. The door is still reachable
+(step 0.11 m closer and aim), so this is a wrong-feeling pose, not a trap.
+NOT FIXED: the user has not reported it, and closing it means either undoing
+309's nudge or a second trunk change to the same predicate in one night.
