@@ -135,10 +135,12 @@ of work is where conflicts live. It is now the first line of every queue file.
 
 ### The queue is a file, not a message
 
-Each builder has `street/notes/queues/<agent>.md`. **The desk writes; builders
-only read.** That asymmetry is deliberate — if both sides edited it they would
-conflict on every merge, which is exactly the problem the queue exists to fix.
-Builders report completion in their handoff note instead.
+**SUPERSEDED 2026-08-03. There is ONE queue: `street/notes/QUEUE.md`**, and
+builders write to it themselves via `claim.sh` / `done.sh`, which lock it. The
+per-agent `notes/queues/<agent>.md` files described here were never ticked off,
+stopped being true within days, and are deleted. Builders report completion in
+their `done.sh` line — **not** in a handoff note; those are deleted too, because
+190 of them were written and none was read twice.
 
 `scripts/queues.sh` prints every queue plus each worktree's git state in one
 view: what each agent is on, how much is behind it, and whether its work is
@@ -601,10 +603,13 @@ what conflicted — three separate times on `apartment.ts` alone. Two builders
 also rewrote `citizens.ts` simultaneously and the merge resolution silently
 dropped a feature (`grime`).
 
-`notes/OWNERSHIP.md` now records this, and `scripts/ownership.sh <agent>` checks
-it. The rule: **a builder may read a shared module and may add an export, but
-changing an existing signature is a desk operation**, done with every caller in
-one commit.
+**`notes/OWNERSHIP.md` is deleted** — it was a permission list naming agents that
+had not run in weeks, and obeying it cost a worker three items in eleven minutes.
+**The queue grants files now**, and `scripts/ownership.sh <agent>` reads the queue
+to check them. The rule below still holds and matters more than ever: **a builder
+may read a shared module and may add an export, but changing an existing signature
+is a desk operation**, done with every caller in one commit — and see CLAUDE.md's
+ONE AGENT IN THE TRUNK, which is the same rule with teeth.
 
 ### Tooling that came out of this
 
