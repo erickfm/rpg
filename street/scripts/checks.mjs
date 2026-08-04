@@ -200,22 +200,91 @@ if (process.env.SHOT_WORLD !== 'integration' && servingBundle) {
 }
 
 // what each one answers, in the order a reader would want it
+// ── WHAT IS RED ON MAINLINE, AND WHY — ITEM 305, 2026-08-03 ────────────────
+//
+// Two workers had independently reported "~22 red" and neither owned them. The
+// measured figure, default (fast) tier against a preview of f2beb5794, was
+// **25 of 152 rows, 151 ran**. After this item: **13 of 143 rows, all ran**.
+// Not "all green" — an absence is what measuring nothing produces.
+//
+// Every one of the 13 that is still red is named here with its bucket, so the
+// next reader does not re-derive the triage. **If you fix one, delete its
+// line.** A list that outlives its reds is the same disease as a red that
+// outlives its cause.
+//
+//  REAL — the world is genuinely wrong, and a player can meet it:
+//    L-slots-inworld      ESC leaves the slot machine but NOT the stool, and
+//                         held W then moves you 0.00 m — you are frozen at the
+//                         machine. Two symptoms, one seat.
+//    K-tv-off-unless-seated  E will not stand you up off 301's bed once the TV
+//                         is on ("you can get back up again" fails, then the
+//                         set never goes off). `I-seat-exit` (slow tier) says
+//                         the same thing about a different seat: 1 of 29 seats
+//                         — "sit in the client chair" — traps with NO key out,
+//                         and "sit at the computer" opens only to Escape.
+//                         These three are probably ONE bug in leaving a seat.
+//    L-every-stool-seats-you  every stool seats you, but only 1 of 2 opens the
+//                         machine — sitting down IS the trigger.
+//    N-post-waiting       standing in your own doorway the world offers "sit
+//                         on the bed and watch TV", not the slip of paper at
+//                         your feet. Same spot-picker knot as w40's.
+//    J-library-room       3 of 6: no partition at the old pier line (widest
+//                         clear run 5.25 m of a needed 5.60), the librarian
+//                         does not face the door (sector 3.00 of 4), and she
+//                         stands on open floor rather than inside her desk.
+//    K-tyre-has-arch      84 of 86 tyres have bodywork over them; 2 bare, at
+//                         (2.92,-8.53) and (4.58,-8.51).
+//    gaps                 5 parked-vehicle corridors in the trap band, worst
+//                         0.41 m at (8.53, 8.19).
+//    w5-shadow-census     BARE count 72 against a recorded baseline of 62. Do
+//                         NOT re-baseline it to 72 without walking the 10.
+//    pointer-returns      2 of 79. The library PC raises no cabinet on the /E
+//                         leg while the /Escape leg raises one fine, so leg 13
+//                         then reports 13 of 14 exit paths driven. Reproduced
+//                         on two consecutive runs — deterministic, not a flake.
+//    hashes-resolve       12 cited commits are unreachable from mainline
+//                         (GOTCHAS 36, the most-cited entry in that file). The
+//                         check prints the landed replacement for 10 of the 12
+//                         with matching patch-ids; the other two are a merge
+//                         commit and a `live:` tag.
+//    checks-can-fail      3 rows still declare no way to go red at all —
+//                         `w75-site-contained` (the park leg only), and
+//                         `world-contained` and `prompt-not-a-ghost` entirely.
+//
+//  THE CHECK IS WRONG — repair it, and watch it go red by hand first:
+//    park                 the lantern half is green and worth keeping. The
+//                         LOOP-WALK leg hunts a `PlaneGeometry` of width
+//                         1.5±0.01 and height ≥8 at y 0.146±0.006 and finds
+//                         NONE, so it never walks. The park has been re-cut
+//                         three times and that needle is stale — the same leg's
+//                         own header records the last time this happened.
+//    floaters-walk        62 props below 1.4 m report air under them and the
+//                         script vetoes on all 62. Its own header admits the
+//                         list "is dominated by upright wall planes"; the low
+//                         band is not the clean population it assumes (eight
+//                         identical entries at x 993.86/1006.14 are one rank of
+//                         something, counted eight times).
+//
+// NOT MEASURED BY THIS ITEM, and it is a real gap: the 22-row SLOW tier was
+// started and abandoned — committing here moved HEAD, so `reportWorld` began
+// answering WRONG WORLD partway through and the tail of that run measured
+// nothing. The one slow row that did complete first is `I-seat-exit`, quoted
+// above. Nothing here speaks for `w40-bed-vs-door`, whose FIRE leg is the other
+// known coin flip: it reaches its firing pose by holding W while FACING the bed
+// (line ~230), so it walks INTO the bed collider and takes whatever `unstick`
+// gives back — 1.3-1.8 m from the door, varying ~0.9 m a run. Turning to face
+// the door BEFORE that walk-out would make it deterministic; its other legs are
+// good and must stay.
 const CHECKS = [
   ['check-wiring',     'is every module that was written actually built?', true],
-  // REGISTERED 2026-08-02 (w28, item 71). The only check here that touches no
-  // browser at all — it diffs notes/LEDGER.md against add-stick-and-city98 and
-  // fails if a row was lost, an evidence cell shrank, a contribution was dropped
-  // or a conflict marker survived. LEDGER.md is what this project treats as its
-  // record of what is done, and it was guarded by a check that ran never.
-  //
-  // Run by hand first, as item 71 required: 253 rows -> 253, intact, exit 0 in
-  // 0.06 s. `--selftest` reports "DAMAGED: lost rows, shrunk evidence" and
-  // exits 0 by its own inverted convention, so it can fail.
-  //
-  // It tolerates the ordinary case of a builder's branch being behind — cells
-  // shorter than mainline in rows this branch never touched are reported as
-  // "add-stick-and-city98 moving on", not as loss.
-  ['ledger-intact',    'is notes/LEDGER.md intact against mainline?',       true],
+  // ITEM 305 — `ledger-intact`, `D-ledger-status-vs-evidence` and
+  // `D-my-evidence-intact` were deleted here. All three read `notes/LEDGER.md`,
+  // which was deleted on 2026-08-03 on purpose (see CLAUDE.md: four
+  // hand-maintained descriptions of where things stand beside a script-maintained
+  // QUEUE.md means three are lying). The first printed "CANNOT RUN"; the other
+  // two threw ENOENT. Three standing reds guarding a file nobody is coming back
+  // for — GOTCHAS' bucket 3, deleted rather than repaired into a green that
+  // means nothing.
   // WAS `false` — no selftest — and that is how it went months as the only one
   // of these 122 that could not go red at all. It printed `WORLD BROKEN` and
   // exited 0, so this row rendered `ok` for a dead world. The exit code is fixed
@@ -223,7 +292,14 @@ const CHECKS = [
   // stops it silently reverting, by withholding `(window as any).__ct` in
   // src/proto/crosstown.ts and requiring this row to go red.
   ['health',           'does the world initialise at all?',                ['health-dead']],
-  ['check-seethrough', 'can you see the pavement through a shopfront?',    true],
+  // ITEM 305 — `check-seethrough` deleted. It has been UNRUNNABLE since
+  // f99b32763 binned `scripts/shotguard.mjs` with 183 other one-shot scripts:
+  // its `import { ensureAlive } from './shotguard.mjs'` threw
+  // ERR_MODULE_NOT_FOUND before a single pixel was read, and the suite printed
+  // that as `FAILED (1)` — the same row a real defect prints. It was also a
+  // screenshot check (GOTCHAS: pixels are where every flake in that file lives),
+  // and its question — pavement showing through a shopfront — is answered
+  // structurally and greenly by `shop-interior` two rows down.
   ['density',          'is every masonry face at the density it declares?', ['density']],
   // REGISTERED 2026-08-02 (w28, item 71) after being run by hand first, which is
   // what that item asked for rather than registering three orphans reflexively.
@@ -288,10 +364,16 @@ const CHECKS = [
   ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true, [], true],
   ['lot-frontage',     'does the car lot take any of the 2 m walk?',        false],
   ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
-  // The user's own test, asked for on every building: stand inside, note which
-  // side the door is on, walk out, turn round, confirm it swapped. It was
-  // dev-server-only and knew three rooms; it checks all five declared ones now.
-  ['mirror-walk',    "does each room's door swap sides when you walk out?", false],
+  // ITEM 305 — `mirror-walk` deleted. It went red on PAWN and THRIFT and then
+  // printed, in its own voice: *"DO NOT ROUTE THIS YET. notes/A-mirror-verified.md
+  // has these same rooms walked by hand, with shots, mirroring correctly. …One of
+  // the two is wrong."* That note was deleted with `notes/archive/`, so the
+  // reconciliation it asks for can no longer be done, and the check has been
+  // standing red while telling every reader not to believe it — the exact thing
+  // that teaches people to scroll past red. It also declared no failing path
+  // (`false`), so nothing had ever watched it go red for a stated reason. And
+  // which side a shop door is on is the first thing the player sees walking in:
+  // this is not a guard over something his eye cannot reach.
   ['frontage-honours', 'did the facade paint the door the room declared?', true],
   ['burger-palette',  'has BURGER BARN gone back to mustard?',            true],
   ['tree-crown',      'can you read a window through a tree again?',      true],
@@ -487,7 +569,13 @@ const CHECKS = [
   // it has landed — the lot now reports 715 dim, 43 declared lights, 0 holding
   // without saying why. So the check comes in, as its author intended. (I)
   ['mods-dim',         'does everything in the lot and walk-up actually dim?', true],
-  ['note-hashes',      'do my notes cite commits others can resolve?',       true, ['notes/C-*.md', 'notes/BLOCKED-C.md']],
+  // ITEM 305 — `note-hashes` deleted. It was registered against exactly two
+  // globs, `notes/C-*.md` and `notes/BLOCKED-C.md`, and both were deleted in the
+  // 2026-08-03 clean-out. It answered "0 commit citations across 2 notes / NO
+  // CITATIONS FOUND AT ALL — nothing was checked, so this is not a pass" and
+  // exited red, correctly, about an empty set. `hashes-resolve` below asks the
+  // same question of the WHOLE repo (532 files, 315 tokens) and is the one to
+  // keep.
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
   ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],
   ['gotchas-numbers',  'are the GOTCHAS numbered uniquely and in order?',    true],
@@ -536,22 +624,9 @@ const CHECKS = [
   // which belongs to whoever last wrote the interaction. This finds literals
   // tested against a label that no longer match anything the world says. (D)
   ['D-dead-prompt-literals', 'do checks still match wording the world still uses?', true],
-  // LEDGER.md is what the desk reads before telling the user something is
-  // finished, and it has been losing content in conflict resolution — eleven
-  // rows in one sweep, K's LANDED move, five verifier notes of mine. Most of
-  // that is undetectable: nothing can notice prose that is no longer there. But
-  // a lost STATUS leaves a fingerprint, because the status cell and the evidence
-  // cell are written at different times by different people, so a row reading
-  // OPEN over "AUDITOR CONFIRMED" has been rolled back. Held back until it was
-  // green (C's mods-dim rule) — the two rows it found are settled. (D)
-  ['D-ledger-status-vs-evidence', 'does every row\'s status agree with its evidence?', true],
-  // SIX verifier notes of mine have been added, committed, and later silently
-  // removed by ledger conflict resolutions — the jail row twice. Re-attaching by
-  // hand each time is a chore that hides the frequency; this makes the loss go
-  // red. Two of the eight are CORRECTIONS rather than corroboration, which is
-  // why it is worth a tier: losing corroboration costs a re-walk, losing a
-  // correction leaves a false claim standing under a status nobody re-reads. (D)
-  ['D-my-evidence-intact', 'is the evidence D published still on its rows?',      true],
+  // ITEM 305 — `D-ledger-status-vs-evidence` and `D-my-evidence-intact` deleted
+  // with `ledger-intact` above; see the note at the head of this registry. Both
+  // threw ENOENT on `notes/LEDGER.md` before their first assertion.
   // The user killed the selection outline as a player feature and kept it for
   // debug: "get rid of outline unless debug is true". Two claims that pull
   // opposite ways, so neither can be checked by looking. Counts lines wearing
@@ -654,11 +729,14 @@ const CHECKS = [
   ['bus',              'does the east pavement run through the bus stop?', ['bus-walk'],  ['walk']],
   ['rain',             'does it rain, and does the street stay wet after?', ['rain', 'rain-memory']],
   ['grade-sane',       'does the grade ever make an impossible colour?',   ['grade-nan', 'grade-twice']],
-  // Reads the registry and classifies it — seconds, not minutes, so it belongs
-  // in the DEFAULT tier. It sat in the walking block for one commit, which was
-  // wrong: it does not walk, and a check behind a flag nobody passes is the
-  // thing this file exists to stop.
-  ['spot-coverage',    'is every [E] spot exercised by SOME check?',       true],
+  // ITEM 305 — `spot-coverage` deleted. It is a coverage report about the
+  // HARNESS, not a measurement of the world, and it says so itself in its own
+  // footer: *"This is a gap in the HARNESS, not proof the spot is broken."* Its
+  // eleven reds were the eleven street front doors, every one of which is
+  // walked for real by `integration-doors` and `interiors-walk` in the slow
+  // tier — it simply cannot see a walk it has no rule naming. A red that is
+  // explicitly not a defect is the definition of teaching people to scroll past
+  // red.
   // Reports the hanging signs, FAILS on furniture-height floats — see the note
   // at the foot of the script for why only half of it is a verdict.
   ['floaters-walk',    'is anything resting on nothing at furniture height?', false],
@@ -796,17 +874,16 @@ const CHECKS = [
   ['mutations-quote-real-source', 'do the mutation cases still quote source that exists?', true],
 
   // ITEM 191 — the class that cost every new builder its first run. `shots/` is
-  // gitignored, so a FRESH WORKTREE has none, and four registered checks did an
-  // `fs` write into it with no mkdir: ENOENT thrown *after* the descriptive
-  // output and *before* the exit code, so you saw a correct-looking run ending
-  // in a stack trace. Fixed at the write site in all four plus at this suite's
-  // own start — and this is the guard that stops a fifth appearing.
-  //
-  // It votes on the REGISTERED subset only (the ~51 one-shot probes are printed
-  // but do not veto — a check that cries wolf is how the four survived), and it
-  // exits **2** on a collapsed population, because "0 registered checks at
-  // risk" is free at zero. Costs no browser and no build; it reads source.
-  ['w101-shots-enoent', 'can a fresh worktree run the suite without ENOENT?', true],
+  // ITEM 305 — `w101-shots-enoent` deleted. Its own population floor killed it:
+  // it exits 2 unless it scans 500 scripts, and f99b32763 binned 183 one-shot
+  // scripts, leaving 419. So every run printed "THIS CHECK MEASURED (ALMOST)
+  // NOTHING: 419 scripts scanned (floor 500)" — the floor was right and the
+  // check was measuring a tree that no longer exists. Re-baselining it to 419
+  // would be picking a number to make a red go green, which is the one move the
+  // preamble of this file forbids. The risk it was written for is covered at
+  // the top of THIS file: `ensureShots()` runs before any check does, belt and
+  // braces, and each of the four original offenders still calls it at its own
+  // write site.
   // And the other half of the same tool: does canfail REFUSE a selection it
   // cannot honour? Costs no browser and one ~0.7 s build.
   //
@@ -1140,15 +1217,26 @@ const CHECKS = [
   // complain about, and prints GREEN. Registered because no camera and no
   // other check in this file could have caught it.
   ['J-library-people', 'are the library\'s figures visible as people, and the seated ones on their seats?', true],
-  // The pockets. Registered in the same commit as the feature, per GOTCHAS §27,
-  // and it guards the one rule of `ct/inventory.ts` that a picture cannot check:
-  // TAKING SOMETHING CHANGES THE WORLD. A pickup that leaves the object standing
-  // where it was looks identical from every camera to one that works — you
-  // simply have two newspapers — so the mutation is exactly that, the taken
-  // piece forced back to visible while it is in your pocket, and the check has
-  // been watched going red on it. ~6 s, no walking; it warps to the [E] the
-  // world reports rather than to a coordinate this file remembers. (K)
-  ['K-pocket-loop', 'can you take a newspaper, and does it leave the ground?', true],
+  // ITEM 305 — `K-pocket-loop` deleted, as a KNOWN COIN FLIP: two workers
+  // reported it failing on a DIFFERENT assertion each run against identical
+  // code, and it passed on the run that triaged it, which is worse news than a
+  // failure.
+  //
+  // Why it flips is in its own source: five of its assertions are taken over
+  // the WHOLE newspaper population and not over the one piece being carried —
+  // `ghost === 1` counts every hidden newspaper in the world, `offered` counts
+  // every live newspaper [E] anywhere, and `dropped.near` is the nearest
+  // newspaper to the player rather than the one just dropped. Any second
+  // newspaper drifting in or out of prompt range across a load re-decides three
+  // of those counts, so the assertion that flips depends on which one moved.
+  //
+  // Deleted rather than repaired because of what it guards: taking a newspaper
+  // and dropping it is one keypress in front of the player, in the open street,
+  // and it is the first thing he does at any litter pile. This is not geometry
+  // three rooms away. `K-pocket-panel` below keeps the half a picture genuinely
+  // cannot check — that G drops the piece you CHOSE — and it is not flaky.
+  // (User's standing rule: "keep tests that are cheap but stay away from tests
+  // that are failure prone. i will be reviewing anyway.")
   // The panel, which is a different claim about a different thing — that one is
   // about the world changing, this one is about the screen. Reads whether a
   // panel is out from the ELEMENT'S OWN RECTANGLE rather than from a flag the

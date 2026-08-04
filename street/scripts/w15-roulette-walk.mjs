@@ -6,9 +6,10 @@
 // and end inside one frame and never be seen — BUILDER-BRIEF §5), confirm the
 // player is seated at that stool, then press E again and confirm they are back
 // on their feet. A seat you cannot leave is the worst bug this project ships.
+import { aim } from './lib/aim.mjs';
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4194/';
+const URL = aim('http://localhost:4194/');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 620 } });
 const errs = [];
