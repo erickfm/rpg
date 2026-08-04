@@ -1105,8 +1105,9 @@ export function buildCasino(ctx: CtxBuild): void {
   // small repeated bulbs, and the 777.
   //
   // The signage is painted by `tube` imported from ct/vice.ts — the same
-  // painter that draws SEVENS and LOOSEST SLOTS on the front of the
-  // building, so the hand is identical rather than merely similar.
+  // painter that draws SEVENS and the marquee headline (`WINNERS DAILY` since
+  // 2026-08-04, `LOOSEST SLOTS` before it) on the front of the building, so the
+  // hand is identical rather than merely similar.
 
   // Bulbs, and a chase to run them. Same idea as the marquee outside: sockets
   // are fixed and the chase is which of them are alight, so three shared

@@ -3873,3 +3873,30 @@ through the end of `drawWatch`. Everything else that landed in this file since
 wholesale file restore would have taken all of them out.
 
 Built by the standing builder. Live on 5177.
+
+## 2026-08-04 — "what does loosest slots mean, please change this sign"
+
+The casino marquee, top line. *"what does loosest slots mean, please change this
+sign"* — a question AND an instruction, and he gets both. The answer: a "loose"
+machine is one set to pay out more often, so `LOOSEST SLOTS` is a real 1997
+casino brag and the comment in `ct/slots.ts` defending it as period-correct was
+right on the facts. It is superseded anyway, because his words outrank an earlier
+call including a well-reasoned one, and a sign the player has to look up is not
+doing the job a sign has.
+
+Now `WINNERS DAILY` — the same brag with no gambling vocabulary in it, still
+marquee English, and no overlap with the flat line under it (`$2 BLACKJACK
+24 HRS`). Thirteen characters, exactly as many as the old line: `fitTube` derives
+the size from the sign's width, so both land on the same 21 px inside the
+172-texel budget and the headline keeps its weight, its position and its
+clearance under the top gold rule. Only the words moved.
+
+Also updated where the old copy was quoted in prose: the superseded note in
+`ct/slots.ts` (it keeps the authenticity argument, since that is why the phrase
+was chosen) and the painter note in `ct/int-casino.ts`. `LOOSEST SLOTS` appears
+nowhere else in `src/`.
+
+If he wants a different one it is one line: `LUCKY WINNERS` is also 13 characters
+and drops in at the identical size.
+
+Built by the standing builder. Live on 5177.

@@ -2178,9 +2178,17 @@ export function register(ctx: CtxBuild): void {
     // moulded 'machine' bezel used to wrap a SECOND cabinet around that
     // picture of a first one, plus a title stamp on top of it — which is
     // exactly the *"i never want there to be menus popping up unless they are
-    // embedded"* law item 0c names. `LOOSEST SLOTS` is real signage
+    // embedded"* law item 0c names. The marquee headline is real signage
     // (`ct/vice.ts` paints it on the facade); it was never missing from the
     // world, only doubled onto this screen's own frame.
+    //
+    // That headline READ `LOOSEST SLOTS` when this was written, and the note
+    // here defended it as authentic period copy — which it is: a "loose"
+    // machine is one set to pay out more often, and 1997 marquees advertised
+    // exactly that. Superseded 2026-08-04, because the user did not parse it:
+    // *"what does loosest slots mean, please change this sign"*. It is
+    // `WINNERS DAILY` now. The authenticity is kept on the record because it is
+    // why the phrase was chosen, not because it survived the reading.
     id: 'ct-slots',
     // scale 1, not 2. It only decides the size of the SCREEN-SPACE fallback,
     // and the portrait face is 483 canvas pixels tall — at 2 that fallback

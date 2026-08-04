@@ -1055,7 +1055,27 @@ export function buildVice(o: {
         g.fillStyle = GOLD; g.fillRect(0, 2, FW, 2); g.fillRect(0, FH - 4, FW, 2);
         // the headline in neon, the small print in plastic — a real marquee is
         // exactly this pair, and drawing both in tube would flatten the hierarchy
-        fitTube(g, 'LOOSEST SLOTS', FW / 2, 19, FW - 20, '#f2b83a');
+        //
+        // THE HEADLINE WAS `LOOSEST SLOTS` UNTIL 2026-08-04. It is real period
+        // signage — a "loose" machine is one set to pay out more often, and every
+        // casino in 1997 said so on its marquee — but the user read it off the
+        // pavement and it stopped him: *"what does loosest slots mean, please
+        // change this sign"*. Authentic and unreadable is still unreadable, and
+        // his words outrank the earlier call. `WINNERS DAILY` says the same brag
+        // with no gambling vocabulary in it.
+        //
+        // 13 CHARACTERS, EXACTLY AS MANY AS THE OLD LINE, AND THAT IS THE WHOLE
+        // FIT ARGUMENT. `fitTube` derives the size from the width, so the copy
+        // can never overflow — it comes out SMALLER instead, and the risk on this
+        // canvas runs the other way: the band between the top gold rule (texel 6)
+        // and the flat line below (ink from ~35) leaves the headline about 25 px
+        // of size before its casing climbs into the rule, and shorter copy is what
+        // buys size. Both strings are bold monospace at 13 chars, so both measure
+        // ~784 texels of ink at the 100 px reference and both land on the same
+        // 21 px into the 172-texel budget (FW - 20). Same weight, same position,
+        // same clearance — only the words changed. Copy of 11 characters or fewer
+        // is what to check here, not copy that is too long.
+        fitTube(g, 'WINNERS DAILY', FW / 2, 19, FW - 20, '#f2b83a');
         fitFlat(g, '$2 BLACKJACK  24 HRS', FW / 2, 39, FW - 20, '#e8e0c8');
         grime(g, FW, 6, 12, 28);
       });
