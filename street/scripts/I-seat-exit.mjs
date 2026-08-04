@@ -91,9 +91,27 @@ for (const s of pick) {
   await p.waitForTimeout(400);
   // AIM AT THE SEAT. The sit spot is aim-gated, and a probe looking the wrong
   // way records "did not sit" for a seat that is perfectly sittable.
+  //
+  // …AND THIS AIMED 180° AWAY FROM IT. `fp.ts` builds forward as
+  // `(sin yaw, 0, -cos yaw)`, so facing a point needs the z term NEGATED;
+  // `atan2(dx, dz)` — which is what stood here — points you at its mirror.
+  // Measured on the open street rather than reasoned, 0.4 s of W at a target
+  // 5 m ahead:
+  //
+  //     atan2(dx,  dz):  5.00 m -> 6.39 m   (further)
+  //     atan2(dx, -dz):  5.00 m -> 4.01 m   (closer)
+  //
+  // It did not show up as a wall of "could not sit" because a STANDING pick has
+  // an aim-free proximity pass (`crosstown.ts`, `pickSpot`'s `opts.seated`),
+  // so most seats were reachable anyway — which is precisely why a silent
+  // 180° error survived here. GOTCHAS 62's family.
+  //
+  // THE THIRD ARGUMENT IS THE YAW, NOT THE FOURTH. `warp(x, z, yaw?, gy?,
+  // pitch?)` — the call below was passing the yaw as `gy`, which warped the
+  // player to storey 0 and left him facing wherever he already was.
   await p.evaluate(([px, pz]) => {
     const q = window.__ct.pos();
-    window.__ct.warp(q[0], q[2], 0, Math.atan2(px - q[0], pz - q[2]), 0);
+    window.__ct.warp(q[0], q[2], Math.atan2(px - q[0], -(pz - q[2])));
   }, [s.pose.x, s.pose.z]);
   await p.waitForTimeout(350);
 
@@ -109,9 +127,37 @@ for (const s of pick) {
   // it is the ONLY one — E is the panel's own key there. Reporting "stuck" for a
   // seat Escape releases would be a stale verdict, so the three outcomes are
   // kept apart: E freed it, only Escape freed it, or nothing did.
+  //
+  // ── AND ONE ESCAPE IS NOT THE WHOLE CONTRACT. A SEAT CAN BE TWO STATES ──
+  //
+  // This reported the bank's "sit in the client chair" as TRAPPED, NO KEY OUT
+  // AT ALL, and that verdict was FALSE. The sequence above is E, E, ESC, and at
+  // that chair the SECOND E does not attempt the exit at all: since item 188 a
+  // seated `[E]` is spent on whatever you are aimed at, and there it opens the
+  // loan panel (prompt: "[E] apply for a loan   ·   [ESC] stand up"). The ESC
+  // that follows is then spent CLOSING that panel — and since item 206, closing
+  // a screen you opened from your own chair deliberately leaves you in the
+  // chair (`ct/hud.ts:1545` + `crosstown.ts`'s `FOCUS.leave()`), at the user's
+  // request: *"you sit and its the loan process as an integrated overlay."*
+  //
+  // So the player is one press from his feet, with `[ESC] stand up` on screen,
+  // and this called it a seat with no way out. Measured
+  // (scripts/probes/w132-esc-vs-panel.mjs): ESCAPE from a seat with no panel up
+  // freed 2 of 2; with a panel up, 0 of 3 on the first press and 3 of 3 within
+  // two. Walked at the chair itself, 5/5 runs, ONE Escape when no panel was
+  // opened first (scripts/probes/w132-walk-three-seats.mjs).
+  //
+  // THIS IS NOT A LOOSENING, AND THE BOUND IS WHAT KEEPS IT HONEST. "Trapped"
+  // now means "still seated after the panel has been shut AND the seat asked to
+  // release" — two presses, not "however many it takes". A seat needing three
+  // still lands in `stuck`, and so does one that never releases at all. What is
+  // no longer counted as a trap is the one case where the player can SEE the
+  // way out and it works.
   await ESC();
-  const esc = await st();
-  if (!esc.s) { escOnly.push({ ...s, tp }); continue; }
+  let esc = await st();
+  let escPresses = 1;
+  if (esc.s) { await ESC(); esc = await st(); escPresses = 2; }
+  if (!esc.s) { escOnly.push({ ...s, tp, escPresses }); continue; }
   stuck.push({ ...s, tp }); await reload();
 }
 
@@ -135,9 +181,15 @@ if (fine.length) {
 }
 if (escOnly.length) {
   const byL = new Map();
-  for (const q of escOnly) byL.set(q.label, (byL.get(q.label) ?? 0) + 1);
+  for (const q of escOnly) {
+    const k = `${q.label}  (ESC x${q.escPresses})`;
+    byL.set(k, (byL.get(k) ?? 0) + 1);
+  }
   console.log('\n  SEATS E WILL NOT LEAVE — Escape is the only way out:');
   for (const [k, v] of [...byL].sort((a, c) => c[1] - a[1])) console.log(`     ${String(v).padStart(3)}  ${JSON.stringify(k)}`);
+  const two = escOnly.filter((q) => q.escPresses === 2).length;
+  console.log(`     (${escOnly.length - two} freed by one ESCAPE, ${two} needed two — `
+    + 'a panel opened from the seat eats the first, item 206)');
 }
 // ── AND THE VERDICT HAS TO BE ABLE TO FAIL OVER AN EMPTY SAMPLE ─────────────
 //
