@@ -1348,10 +1348,26 @@ export function pickSpot<T extends Pickable>(
       // standing in — which the world does contain, wherever two stand-points
       // are closer than `2 * ON_IT` — rank then decides, and that is the case
       // `scripts/standpoint-overlap.mjs` exists to keep rare.
+      // ⚠ AMONG TWO SPOTS YOU ARE STANDING IN, RANK DOES NOT APPLY (item 310).
+      // The user, standing at the calendar in 301: *"somehow when im closerest
+      // to the calendar it defaults to door again? not even looking at door"*.
+      // Both stand-points are inside him — they are 0.322 m apart against a
+      // `2 * ON_IT` overlap width of 0.576 — so both land here, and `WAY_OUT`
+      // on the door then beat the calendar from every pose. That rank is the
+      // user's own (item 291, *"just make the door high rank"*) and must keep
+      // working, so this does NOT lower it: it says that between two things
+      // under your feet, WHERE YOU ARE LOOKING decides, and distance decides
+      // when you are looking at neither. Aim at the door and it still wins from
+      // the same square centimetre, so a door you are standing in is never
+      // unreachable and the WAY_OUT guarantee is intact — you just have to look
+      // at it, which is what "not even looking at door" asks for.
+      const bothOnIt = onIt && bestNearLookedOnIt;
       if (bestNearLooked === null
         || (onIt !== bestNearLookedOnIt
           ? onIt
-          : better(rank, d, bestNearLookedRank, bestNearLookedKey))) {
+          : bothOnIt
+            ? (looked !== bestNearLooked.looked ? looked : d < bestNearLookedKey)
+            : better(rank, d, bestNearLookedRank, bestNearLookedKey))) {
         bestNearLookedKey = d; bestNearLookedRank = rank;
         bestNearLookedOnIt = onIt; bestNearLooked = entry;
       }
