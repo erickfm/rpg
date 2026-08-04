@@ -60,13 +60,20 @@ every item that needed follow-up was a symptom plus a guess.
 
 `claim.sh` and `done.sh` lock the file, so two builders can never hold the same
 item. **A builder never confirms its own work**: `done.sh` marks DONE, and the
-desk checks it against the source before the LEDGER row moves. Every agent this
+desk checks it against the source before the row is believed. Every agent this
 week has made at least one claim that did not survive that check.
 
-**At most 5 agents run at once — normally 3 builders + 1 auditor.** A
-sixteen-agent run exhausted the account's usage on 2026-07-30 and took the whole
-fleet down. An agent exists only while it holds an item; when its queue empties
-it gets shut down, not parked. `street/PARALLEL-WORKFLOW.md` §10 is binding.
+**ONE AGENT IN THE TRUNK. EVER.** `src/proto/fp.ts`, `src/proto/crosstown.ts` and
+the spot picker are where every room meets — one player body, one selection
+predicate, one collision system. **A file lock cannot help here: it stops two
+builders double-CLAIMING, not two changes colliding in the same predicate.** On
+2026-08-03 the calendar fix broke the door and the door fix broke the calendar,
+both in that trunk, and the agent cap did nothing about either. Rooms, props and
+interiors parallelise freely — the trunk never does.
+
+**At most 5 agents at once**, and only on leaf work. A sixteen-agent run exhausted
+the account's usage on 2026-07-30 and took the whole fleet down. An agent exists
+only while it holds an item; when the queue empties it is shut down, not parked.
 
 **Screenshots are for LOOKING, never for PROVING.** Two runs of identical code
 differ ~20% of pixels. To prove a change didn't move the world:
