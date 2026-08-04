@@ -890,6 +890,10 @@ export interface PickView { x: number; z: number; yaw: number; pitch: number }
  *  across a pavement both live. */
 export const REACH_MARGIN = 0.6;
 
+/** How much more ON-AXIS one aimed-at spot must be before its aim beats the
+ *  other's RANK outright (`pickSpot` tier 2). See item 310c. */
+export const AIM_DECIDES = 0.12;
+
 /** How far outside its radius a spot is still "being touched" — the only case
  *  that is offered WITHOUT the player aiming at it. A quarter of REACH_MARGIN,
  *  and set by the user's own example: the No. 227 spot has r 1.05 with its door
@@ -940,7 +944,7 @@ export const TOUCH_MARGIN = 0.15;
  *  reported rather than papered over, and it is the price of the newer one.
  *  Walked at the frame: aimed at the door it is still offered from 2.4 m in;
  *  aimed 90° away it drops from 0.87 m to 0.53 m. */
-export const REACH_TRIM = 0.80;
+export const REACH_TRIM = 0.65;
 
 /** The radius of the disc inside which a spot counts as **under your feet** —
  *  `pickSpot`'s tier-1 `onIt`, which wins with no aim test at all and is the
@@ -1373,7 +1377,11 @@ export function pickSpot<T extends Pickable>(
       }
     } else if (looked) {
       const key = offAxis + d * 0.02;
-      if (better(rank, key, bestLookedRank, bestLookedKey)) {
+      // AIM BEATS RANK WHEN IT IS CLEARLY BETTER AIM (item 310c).
+      if (bestLooked === null
+        || (key < bestLookedKey - AIM_DECIDES ? true
+          : bestLookedKey < key - AIM_DECIDES ? false
+            : better(rank, key, bestLookedRank, bestLookedKey))) {
         bestLookedKey = key; bestLookedRank = rank; bestLooked = entry;
       }
     } else {
