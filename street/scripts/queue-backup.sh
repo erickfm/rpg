@@ -228,3 +228,11 @@ fi
 echo
 if [ "$fails" -eq 0 ]; then echo "  all good — $(count) snapshots taken during the run"; exit 0; fi
 echo "  $fails FAILED"; exit 1
+
+# CAP THE SNAPSHOTS. This ran on every claim/done/add and had reached 200 files
+# and 28 MB — a safety net that grows without bound stops being a safety net and
+# becomes the thing you have to clean up. Twenty is far more than the one you
+# ever actually want, which is the snapshot from just before the last mistake.
+KEEP_LAST=20
+D="$(dirname "${Q:-notes/QUEUE.md}")/.queue-history"
+[ -d "$D" ] && ls -1t "$D" 2>/dev/null | tail -n +$((KEEP_LAST + 1)) | while read -r f; do rm -f "$D/$f"; done

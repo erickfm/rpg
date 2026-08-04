@@ -1,38 +1,35 @@
 # rpg — CROSSTOWN '97
 
-**New here, or working with no memory of this project? Read
-`street/START-HERE.md` first.** It assumes zero context and links everything
-else in reading order.
+**New here, or working with no memory of this project? This file is the whole
+orientation.** There is no second door — `START-HERE.md` was deleted on
+2026-08-03 because it duplicated this file, had gone stale, and still told every
+new agent *"Read `notes/OWNERSHIP.md` first. One file, one owner"*, which is
+exactly the advice that cost a worker three items in eleven minutes.
 
-## The four documents
+## The two documents
 
-Read these; everything else is history or reference.
+**`street/notes/QUEUE.md`** — the one ranked list of work, and the only statement
+of where things stand. Take the top item with `./scripts/claim.sh <name>`, finish
+it, `./scripts/done.sh <name> "..."`, claim again. Nobody waits to be told what is
+next.
 
-0. **`street/notes/SESSION-STATE.md`** — **read this first, always.** What is
-   unfinished right now and who has it. Everything below is how the project
-   works; this is where it currently stands
-1. **`street/START-HERE.md`** — orientation, which agent you are, how to run things
-2. **`street/notes/GOTCHAS.md`** — landmines. Read before your first change
-3. **`street/notes/OWNERSHIP.md`** — **DEMOTED, history only.** It names which
-   agent *last held* a file — `C`, `F`, `J` and so on — and **none of them is
-   running.** It is not a permission list. Read it to find out who touched
-   something last, never to decide whether you may edit it; **the queue grants
-   files now.** Reading it as authority cost the first worker on the self-serve
-   queue its entire wave: three items released un-actioned in eleven minutes,
-   because every file it was handed "belonged" to a letter that had not existed
-   for days
-4. **`street/notes/QUEUE.md`** — **the one ranked list of work.** Builders take
-   the top item with `./scripts/claim.sh <name>`, finish it, run
-   `./scripts/done.sh <name> "..."`, and claim again — nobody waits to be told
-   what is next. Rules for *how* live in **`street/notes/BUILDER-BRIEF.md`**,
-   read once per session
-5. `street/notes/queues/<agent>.md` — **DEAD, kept only as history.** The old
-   per-agent files were never ticked off and have not been true for weeks
+**`street/notes/GOTCHAS.md`** — landmines. **Reference, not a read-through.** Read
+its ranked index (the fourteen that actually bite, and the section above them on
+checks that go green without measuring); search the rest when you touch that area.
 
-Reference, for looking things up rather than reading: `street/PARALLEL-WORKFLOW.md`
-(the multi-agent process) and `street/FEATURE-REQUESTS.md` (every request in the
-user's own words). `street/notes/archive/` holds finished handoff notes — open
-one only when touching the area it describes.
+Everything else is looked up, never read: `street/FEATURE-REQUESTS.md` is every
+request in the user's own words and is the spine — items come from it, and it stays
+true when summaries rot. `street/notes/BUILDER-BRIEF.md` is the how-to.
+This file orients a cold start.
+
+**Deleted 2026-08-03, and not coming back** (git history holds all of it):
+`SESSION-STATE.md`, `LEDGER.md` and `STATUS.md` were three hand-maintained
+descriptions of where things stand, sitting beside a QUEUE.md that is maintained by
+scripts — four sources of truth for one fact means three are lying at any moment.
+`OWNERSHIP.md` was a permission list this file already warned you never to obey,
+after it cost a worker three items in eleven minutes. `notes/status/` named agents
+that had not run in weeks. `notes/archive/` was 559 files and 78,879 lines — larger
+than the world itself — hand-copying what git already stores.
 
 ## Working agreements
 
