@@ -2545,13 +2545,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         x: sx, z: sz, r: 0.95,
         ok: () => q.present && q.side === 1
           && Math.abs(lastGy - q.d.floor * ST) < 0.5,
-        // WHOSE package it is, because that is the whole charm of it: you see
-        // him in the hall. And the refusal is readable BEFORE the key is
-        // pressed rather than after — K's note is explicit about that, and it
-        // is the difference between a full pack and a broken prompt.
+        // Two words, no apartment number: *"make the dialog for stealing just
+        // say steal package"* (2026-08-04). It used to name the door it was
+        // outside of. The refusal stays readable BEFORE the key is pressed
+        // rather than after — K's note is explicit about that, and it is the
+        // difference between a full pack and a broken prompt.
         label: () => (pocketsFull(ctx.purse)
           ? 'pockets full — you cannot carry it'
-          : `steal ${q.d.num}'s package`),
+          : 'steal package'),
         act: () => {
           // GATED ON `taken`. If the pockets are full the parcel stays on the
           // landing: destroying what you could not pick up is the one failure
@@ -2567,7 +2568,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           && Math.abs(lastGy - q.d.floor * ST) < 0.5,
         label: () => (pocketsFull(ctx.purse)
           ? 'pockets full — you cannot carry it'
-          : `steal ${q.d.num}'s package`),
+          : 'steal package'),
         act: () => { const got = giveRandom(ctx); if (got.taken) pkgTaken.add(key()); },
       });
     }

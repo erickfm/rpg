@@ -380,7 +380,7 @@ export function takeOne(p: Purse, id: string): boolean {
  *     …
  *     label: () => (pocketsFull(ctx.purse)
  *       ? 'pockets full — you cannot carry it'
- *       : 'steal the package'),
+ *       : 'steal package'),
  *     act: () => { const got = giveRandom(ctx); if (got.taken) removeThePackage(); },
  *
  * Gate the LABEL on `pocketsFull` as above so the refusal is readable before
