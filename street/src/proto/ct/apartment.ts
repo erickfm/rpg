@@ -28,6 +28,11 @@ import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
 import { giveRandom, pocketsFull } from './inventory';
 import { screenFade, makePanel, type Panel } from './hud';
+/** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
+ *  whole reason it exists — so this import cannot close the cycle that made the
+ *  wall calendar keep a private copy of the lease and a private epoch for two
+ *  months. See the note where `CAL_WEEK` is declared. */
+import { RENT, seasonPage, isRentDay, nextDueDay } from './calendar';
 
 // ── No. 227 — the player's walk-up ────────────────────────────────────────
 // Four stories, a switchback stair, your place (301) on the third floor,
@@ -4139,46 +4144,37 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // one offers. Days behind you are crossed off in the same biro, which is
     // what somebody waiting on a rent day actually does to a wall calendar.
     //
-    // ── THE LEASE, COPIED WITH A CITATION AND NOT IMPORTED ───────────────────
-    //
-    // These four values are `ct/tenancy.ts:74-87`'s `RENT`, value for value.
-    // BUILDER-BRIEF §8 says import rather than retype, and I cannot: `ct/
-    // tenancy.ts:4` imports `APT_X0/APT_Z0/ST0` FROM THIS FILE, so importing it
-    // back closes an import cycle — and GOTCHAS §28 is that a module in a cycle
-    // can be silently dropped from the BUILT BUNDLE ONLY. Dev would look
-    // perfect and the calendar (or the mailbox) would not exist in the artifact.
-    // That is the same trap `ct/atm.ts` hit and left alone for the same reason.
-    //
-    // So: cited copy, and a CHECK rather than a promise —
-    // `scripts/probes/w107-lease-copy-agrees.mjs` reads both files and fails if
-    // these four drift from tenancy's. The follow-up for the desk is to hoist
-    // `RENT` into a leaf module that neither file imports, which is the fix
-    // `ct/atm.ts`'s note asks for as well.
-    const LEASE = { firstDay: 2, everyDays: 7, amount: 45, landlord: 'V. OKONKWO' } as const;
     /**
-     * DAY 0 OF THE GAME IS MONDAY 1 SEPTEMBER 1997 — derived, not picked.
+     * ── THIS PAGE OWNS NO DATE ARITHMETIC ANY MORE ─────────────────────────
      *
-     * `ct/tenancy.ts:278` is `noDelivery(day) { return day % 7 === 6; }` with
-     * the comment "Sunday. No delivery." That fixes the world's week: day 6 is
-     * a Sunday, so DAY 0 IS A MONDAY, and any calendar drawn here has to start
-     * on one or it will disagree with the post. 1 September 1997 is a Monday
-     * (`new Date(Date.UTC(1997,8,1)).getUTCDay() === 1`) and it makes the first
-     * rent day — day 2 — Wednesday 3 September, weekly on a Wednesday after
-     * that. This is the only date this world has ever authored; nothing else
-     * names a month.
+     * It used to own two things it had no business owning, and both are gone:
+     *
+     *   `LEASE`     a hand-copied `{ firstDay: 2, everyDays: 7, amount: 45,
+     *               landlord }`, with a comment admitting the copy and asking
+     *               the desk to *"hoist `RENT` into a leaf module that neither
+     *               file imports"* — because `ct/tenancy.ts` imports THIS file
+     *               and importing it back would have closed the cycle GOTCHAS
+     *               §28 says can silently drop a module from the BUILT BUNDLE
+     *               ONLY. That leaf module now exists and this is it.
+     *   `CAL_EPOCH` `Date.UTC(1997, 8, 1)` — real Gregorian months off a
+     *               private epoch, with real month lengths, leap years and a
+     *               `lead` of blank cells to cope with them.
+     *
+     * THE WORLD HAS ONE CALENDAR AND IT IS `ct/calendar.ts`: four 28-day
+     * seasons to a year, day 0 is SPRING 1 1997, the 1st of every season is a
+     * Monday for ever, and rent buys a season. The old epoch's own reasoning —
+     * that `noDelivery` fixes day 0 as a Monday, so any page drawn here must
+     * start on one — is preserved there and made structural: 28 is a whole
+     * number of weeks, so the Monday can never drift.
+     *
+     * **DO NOT DERIVE A DATE HERE AGAIN.** Two date systems in one world is
+     * exactly what this replaced, and it was visible: the wall said SEPTEMBER
+     * while the lease charged by the season. Ask `seasonPage`.
      */
-    const CAL_EPOCH = Date.UTC(1997, 8, 1);
-    const CAL_MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY',
-      'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
     const CAL_WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];   // Monday first, per above
     /** what day it is, the same expression `ct/tenancy.ts:42` uses. A game day
      *  is 1440 game-minutes, which is 24 real ones. */
     const calToday = () => Math.floor(ctx.clock.now().totalMin / 1440);
-    const isRentDay = (d: number) =>
-      d >= LEASE.firstDay && (d - LEASE.firstDay) % LEASE.everyDays === 0;
-    /** the next rent day on or after `d` */
-    const nextRentDay = (d: number) => (d <= LEASE.firstDay ? LEASE.firstDay
-      : LEASE.firstDay + Math.ceil((d - LEASE.firstDay) / LEASE.everyDays) * LEASE.everyDays);
 
     // ── SIZE AND DENSITY (§7b) ───────────────────────────────────────────────
     //
@@ -4209,10 +4205,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const CAL_STANDOFF = (CAL_H / 2) / Math.tan((CAL_FOV * Math.PI) / 360) * 1.18;
 
     /**
-     * The month page, at any canvas size that is 3:4.
+     * The SEASON page, at any canvas size that is 3:4.
      *
-     * `day` is the game day; `offset` is how many months forward or back of the
-     * one containing it. Everything below is in 48 x 64 DESIGN UNITS and lands
+     * `day` is the game day; `offset` is how many seasons forward or back of
+     * the one containing it — a season IS the month here, see `ct/calendar.ts`.
+     * Everything below is in 48 x 64 DESIGN UNITS and lands
      * on whole pixels through `u()`, so it is crisp at S = 1 and at S = 6.
      */
     const drawCalendar = (g: CanvasRenderingContext2D, W: number, H: number,
@@ -4234,35 +4231,61 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         g.lineWidth = Math.max(1, u(lw));
       };
 
-      // which month is on the page, and where it sits in game days
-      const base = new Date(CAL_EPOCH + day * 86400000);
-      const first = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + offset, 1));
-      const after = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1));
-      const nDays = Math.round((after.getTime() - first.getTime()) / 86400000);
-      const lead = (first.getUTCDay() + 6) % 7;              // 0 = Monday
-      const day0 = Math.round((first.getTime() - CAL_EPOCH) / 86400000);
-      const weeks = Math.ceil((lead + nDays) / 7);
+      // WHICH SEASON IS ON THE PAGE — asked, not derived. `seasonPage` hands
+      // back the four numbers this grid needs (`day0`, `nDays`, `lead`,
+      // `weeks`) precisely so that no date arithmetic lives in a drawing
+      // routine, which is how the wall came to disagree with the lease.
+      const page = seasonPage(day, offset);
+      const { nDays, lead, day0, weeks } = page;
 
-      // the month block, and the page under it
+      // the season block, and the page under it
       box(0, 0, 48, 16, '#8c3a2e');
       box(0, 16, 48, 1, '#5e2820');
-      text(CAL_MONTHS[first.getUTCMonth()], 24, 5.5, 4.6, '#e8dcb8');
+      // 6.5, up from the 4.6 that was sized to fit 'SEPTEMBER'. The longest
+      // thing that can appear here is now six characters, and a six-character
+      // word at 4.6 leaves a third of the banner empty at both ends — the
+      // header stopped filling its own block the moment the months became
+      // seasons. At 6.5 'SPRING' is ~23 of the 48 units, which is the width
+      // 'SEPTEMBER' used to occupy, so the banner reads as it always did.
+      text(page.season, 24, 5.5, 6.5, '#e8dcb8');
       // the year keeps the 4x5 pixel font this calendar has always used, scaled
       // rather than replaced — at S = 1 it is the identical stamp it was.
       g.save();
       g.translate(u(24 - 9.5), u(9)); g.scale(S, S);
-      stampNum(g, String(first.getUTCFullYear()), 0, 0, '#e8dcb8');
+      stampNum(g, String(page.year), 0, 0, '#e8dcb8');
       g.restore();
       box(0, 17, 48, 47, '#e8e0cc');
-      for (let c = 0; c < 7; c++) text(CAL_WEEK[c], 3 + c * 6 + 2.5, 21, 3.6, '#8a8272');
 
-      // the grid
+      // ── THE GRID, WHICH IS NOW FOUR ROWS ─────────────────────────────────
+      // 28 days at 7 a week is exactly four, where a Gregorian month took five
+      // or six. Dividing the band by four gives 7.75-unit rows in 6-unit
+      // columns, and everything drawn per-cell is derived from `rowH`: today's
+      // block became a tall slot, the biro cross-off went from a 45° slash to
+      // a steep near-vertical, and the ring went from an oval to a circle.
+      // Correct, and not right.
+      //
+      // SO A ROW IS NEVER TALLER THAN A COLUMN IS WIDE, and the short grid is
+      // CENTRED in the band it no longer fills. A 4 x 7 page is then 42 x 24
+      // units of square cells: today's block is 4.8 x 5.2, the cross-off is
+      // exactly 45° again, and the ring keeps the same wide oval it has had
+      // since it was tuned.
+      //
+      // IT IS AN IDENTITY AT FIVE ROWS OR MORE — `(GRID_B - GRID_T) / weeks`
+      // is already <= COL_W there, and a full grid centres on itself — so this
+      // changes nothing about the page anyone has looked at before today, and
+      // a season retuned to 35 or 42 days gets the old behaviour back without
+      // anyone editing this.
       const GRID_T = 24, GRID_B = 55, COL_W = 6, X0 = 3;
-      const rowH = (GRID_B - GRID_T) / weeks;
+      const rowH = Math.min(COL_W, (GRID_B - GRID_T) / weeks);
+      const gridT = (GRID_T + GRID_B) / 2 - (weeks * rowH) / 2;
+      // the weekday letters ride ON the grid rather than on the band, or a
+      // centred grid leaves them stranded up by the header. `gridT - 3` is
+      // where they have always been drawn (21) whenever the grid starts at 24.
+      for (let c = 0; c < 7; c++) text(CAL_WEEK[c], 3 + c * 6 + 2.5, gridT - 3, 3.6, '#8a8272');
       for (let n = 1; n <= nDays; n++) {
         const idx = lead + n - 1;
         const cx = X0 + (idx % 7) * COL_W + COL_W / 2;
-        const cy = GRID_T + Math.floor(idx / 7) * rowH + rowH / 2;
+        const cy = gridT + Math.floor(idx / 7) * rowH + rowH / 2;
         const gd = day0 + n - 1;                             // the game day of this cell
         if (gd === day) box(cx - 2.4, cy - rowH / 2 + 0.4, 4.8, rowH - 0.8, '#8c3a2e');
         // NUMERALS ONLY WHERE THEY FIT. A two-digit number is 9 design units in
@@ -4282,17 +4305,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         if (isRentDay(gd)) {                                 // ringed
           biro(0.42);
           g.beginPath();
-          // ry pulled well inside the row: at `rowH/2 - 0.3` consecutive rent
-          // days ring into one another and a month of Wednesdays reads as a
-          // chain down the page rather than as four circled dates.
+          // ry pulled well inside the row. It was tuned when rent was WEEKLY
+          // and a page carried four or five rings: at `rowH/2 - 0.3` they ran
+          // into one another and a month of Wednesdays read as a chain down
+          // the page. There is exactly one ring on a page now — the 1st — so
+          // nothing can chain, and the figure is kept because an ellipse that
+          // touches the row above and below reads as a box, not as a ring.
           g.ellipse(u(cx), u(cy), u(2.7), u(rowH / 2 - 1.0), 0, 0, Math.PI * 2);
           g.stroke();
         }
       }
 
       // and what the ring is, written under it in the same biro
-      const due = nextRentDay(day) - day;
-      text(`RENT $${LEASE.amount}  ${LEASE.landlord}`, 24, 58, 3.2, '#2f4f8c');
+      const due = nextDueDay(day) - day;
+      text(`RENT $${RENT.amount}  ${RENT.landlord}`, 24, 58, 3.2, '#2f4f8c');
       text(due === 0 ? 'DUE TODAY' : `DUE IN ${due} DAY${due === 1 ? '' : 'S'}`,
         24, 62, 3.2, '#2f4f8c');
 
@@ -4480,8 +4506,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
               calPanel?.repaint();
             },
           },
-          // back to this month every time you walk up to it — a page you left
-          // turned three months forward is a state the player cannot see the
+          // back to this season every time you walk up to it — a page you left
+          // turned three seasons forward is a state the player cannot see the
           // cause of.
           onOpen: () => { calPage = 0; },
         });
