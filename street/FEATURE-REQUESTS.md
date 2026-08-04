@@ -3410,3 +3410,36 @@ comment documented the trade and did not close it. The door is still reachable
 (step 0.11 m closer and aim), so this is a wrong-feeling pose, not a trap.
 NOT FIXED: the user has not reported it, and closing it means either undoing
 309's nudge or a second trunk change to the same predicate in one night.
+
+## 2026-08-04 12:1x — "first is the full project clean rn?"
+
+Routed to: THE DESK, directly (a measurement, not a build). Queue was empty and
+no builders were running, so this is a cold baseline.
+
+CLEAN: working tree clean, 0 unpushed, no stashes, origin/main == HEAD
+(fda6c30b); `tsc --noEmit` 0 errors; vitest 17/17; `npm run build` succeeds;
+`health.mjs` against the live 5177 dev server reads WORLD OK.
+
+NOT CLEAN, three things, all measured twice:
+
+1. **`door301` is genuinely RED — 4 failures on 301's door.** Standing in the
+   swing it offers nothing (expected "close the door"); E from inside does not
+   shut it; a pace back it offers "close" where "open" is expected; and E from
+   there opens it again. This is the same door and the same predicate that items
+   309, 310, 310c and a5847cc1 all changed last night. NOT diagnosed here.
+2. **`npm run checks` silently drops 108 of its 143 rows.** It hits door301,
+   declares "THE SERVER AT ... DIED PARTWAY THROUGH THIS RUN — connection
+   refused", and abandons everything after it. The server did not die: it
+   answered 200 immediately before and immediately after, both runs, and it was
+   still listening afterwards. Reproduced twice on the built bundle at :4177 and
+   once on the dev server at :5177 — same stop point, same count. Spot-ran 10 of
+   the abandoned rows past it: 9 green, so the world behind the wall looks fine,
+   but 108 rows currently report red without measuring anything, which is the
+   largest category in GOTCHAS.
+3. **`checks-registered` red: `scripts/check-seethrough.mjs` is written, has a
+   `--selftest`, and is in no tier — it runs exactly never.**
+
+Also standing, not new: guards have NEVER been run in this checkout (desk.sh
+says so), so we do not know whether any check still detects. And branch
+`w133-unlanded-0.90-radius` holds 3 unlanded commits touching the trunk —
+superseded by worker 134's REACH_TRIM, but its two probes are not on mainline.
