@@ -936,9 +936,13 @@ const CASES = [
   // frame. crowd.ts's own comment at that line calls re-deriving the choice
   // "the other half of the oscillation", so dropping it restores the real bug
   // rather than inventing a new one. Measured: 0 reversals before, 29 after.
+  // ITEM 305 — RE-POINTED. `mutations-quote-real-source` had this case DEAD:
+  // the list picked up a `walled ? [] :` guard in front of it, so the old
+  // needle matched 0×. The mutation is unchanged — drop `c.pick` from the head
+  // of the offsets so the committed choice is no longer tried first.
   ['jitter-reversals', 'src/proto/ct/crowd.ts',
-    'for (const off of [c.pick, want, want + 0.4 * k, want - 0.8 * k, 0,',
-    'for (const off of [want, want + 0.4 * k, want - 0.8 * k, 0,',
+    'for (const off of walled ? [] : [c.pick, want, want + 0.4 * k, want - 0.8 * k, 0,',
+    'for (const off of walled ? [] : [want, want + 0.4 * k, want - 0.8 * k, 0,',
     'jitter.mjs', [], 'walkers flip-flopping as they pass, the stickiness gone'],
 
   // Every door in the belt is reached by standing on its PUBLISHED stand point
@@ -1393,9 +1397,12 @@ const CASES = [
   // that was wrongly blamed, because that is the thing seat-facing is able to
   // decide — a case must break what the check claims to catch, not what the
   // ticket said. (w19)
+  // ITEM 305 — RE-POINTED. The seat's x/z were hoisted into `wSeatX`/`wSeatZ`
+  // for the `seatTaken` guard, so the old needle matched 0×. Same mutation: the
+  // waiting row's yaw turned into the plaster.
   ['seat-facing-wall', TAX,
-    'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: 0, h: 0.47,',
-    'x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: Math.PI, h: 0.47,   // selftest: the row turned into the wall',
+    'x: wSeatX, z: wSeatZ, yaw: 0, h: 0.47,',
+    'x: wSeatX, z: wSeatZ, yaw: Math.PI, h: 0.47,   // selftest: the row turned into the wall',
     'seat-facing.mjs', [], 'the waiting row facing plaster 0.58 m away'],
 
   // ITEM 189, PUT BACK. `scripts/watch-vs-panel.mjs` was written to prove that
@@ -1419,9 +1426,11 @@ const CASES = [
   // while looking exactly as green as one that does (five stale needles this
   // week — see the `density` row above). canfail's own RESTORE FAILED check is
   // what catches that, and quoting the full statement gives it the most to hold.
+  // ITEM 305 — RE-POINTED. The literal `-0.95` became the named `WATCH_PITCH`,
+  // so the old needle matched 0×. Same mutation: drop `&& !panelUp()`.
   ['watch-over-panel', TOWN,
-    'hud.watch(rig.pitch < -0.95 && !panelUp(), Math.floor(clockMin));',
-    'hud.watch(rig.pitch < -0.95, Math.floor(clockMin));   // selftest: item 189 reverted, the watch rides over the form',
+    'hud.watch(rig.pitch < WATCH_PITCH && !panelUp(), Math.floor(clockMin));',
+    'hud.watch(rig.pitch < WATCH_PITCH, Math.floor(clockMin));   // selftest: item 189 reverted, the watch rides over the form',
     'watch-vs-panel.mjs', [], "the player's wristwatch over a panel laid on a desk"],
 
   // BLIND THE CHECK, NOT THE WORLD — the fourth of its kind here, after
@@ -1484,9 +1493,16 @@ const CASES = [
   //
   // It mutates the release rather than the re-lock, so it cannot be the same
   // mutation as the case above wearing a different name.
+  // ITEM 305 — RE-POINTED. Item 277 rewrote this call site to catch the
+  // PROMISE as well as the synchronous throw, so the one-line `try { … }` the
+  // old needle quoted no longer exists and it matched 0×. Same effect, one line
+  // further in: the lock is requested on a DETACHED canvas, so the world's own
+  // canvas can never take the pointer. `r` keeps its type and the `.catch()`
+  // line below still compiles, which the old whole-statement deletion would not
+  // have done here.
   ['pointer-never-locks', MAIN,
-    '    try { renderer.domElement.requestPointerLock(); } catch { /* sandboxed iframe: drag-look still works */ }',
-    '    void renderer;   // selftest: the world can no longer take the pointer at all',
+    '      const r = renderer.domElement.requestPointerLock() as unknown as Promise<void> | undefined;',
+    '      const r = document.createElement(\'canvas\').requestPointerLock() as unknown as Promise<void> | undefined;   // selftest: the world can no longer take the pointer at all',
     'pointer-returns.mjs', [], 'a world that can never lock the pointer in the first place'],
 
   // ITEM 294. ONE LOT SEDAN IS NOT THE SHAPE THE OTHER FIVE SEDANS ARE.
