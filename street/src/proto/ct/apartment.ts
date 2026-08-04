@@ -4258,16 +4258,100 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     scene.add(snaps);
     // lit by the same fixture as the landing outside the door
     ceilingLamp(2 * ST + 2.55, AZI(3.75), 0.55, AX(-1.6));
+    // ── 301'S COLLISION, FITTED TO THE MESHES IT STANDS FOR ──────────────────
+    //
+    // The user, 2026-08-04: *"make the collision on the object in the apt match
+    // the actual geometry of the objects. i want to be able to jump onto the
+    // bed, dresser, etc"*
+    //
+    // TWO SEPARATE FAULTS, and the second one is the whole ask.
+    //
+    // **THE WALLS STOPPED YOU AT THEIR CENTRELINES, NOT THEIR FACES.** All three
+    // of R301's walls are 0.14 m boxes and the colliders below were typed to the
+    // centreline, so 0.07 m of every wall in this room was walk-into-able
+    // plaster. The faces are not guessed here — each is already named in this
+    // file by something that has to hang flush on it: the west wall's span is
+    // `-3.270..-3.130` (the window-reveal note ~line 2244), and `NORTH_Z`'s own
+    // comment says `AZI(5.5)` is a CENTRELINE with the box 0.14 deep, which puts
+    // the north face at `AZI(5.43)` and — by the same 0.07 — the south face at
+    // `AZI(2.07)`, which is exactly the plane `SOUTH_Z` hangs 0.015 proud of.
+    // The OUTER edge of each box is left where it was: nothing stands out there,
+    // and thinning a wall is how you open a hole into the unmodelled half of the
+    // building. The room loses 0.07 m on three sides and keeps 3.13 m of width
+    // against a rig that needs 0.72 — the open band at z 2.65…4.40 is interior
+    // and is not touched at all.
+    //
+    // **AND EVERY STICK OF FURNITURE WAS A WALL EXTRUDED TO INFINITY.** That is
+    // the half he is asking for. The FOOTPRINTS were already honest — I
+    // re-measured all five against the `box()` calls that draw them (bed frame
+    // 2585, radiator 2570, dresser 2853, crate 2881, chair 3546) and four of the
+    // five were exact — but a collider with no `maxY` blocks you at every
+    // height, so a 0.36 m milk crate stopped you as dead as the wall behind it
+    // and there was no top to land on.
+    //
+    // `fp.ts` HAS CARRIED THE MECHANISM SINCE THE CAR ROOFS SHIPPED, and nothing
+    // in this flat had ever opted in. `standTop()` stands you on any collider
+    // that declares a `maxY` once your feet are already within `TOP_EPS` (0.08)
+    // of it, and `blocked()` stops treating that collider as a wall at the same
+    // instant; `escapeFrom()` exempts it too, so resting on a top does not read
+    // as being wedged in it. So this is one number per object, taken from the
+    // top face of the mesh — not a new system.
+    //
+    // ⚠ WHAT THE HOP REACHES IS 0.475 m — fp.ts's jump block, the HARD FLOOR at
+    // `main.ts`'s dt clamp, rising to ~0.538 m at 60 fps. Plus `TOP_EPS` that
+    // makes **0.555 m the highest surface anything can climb from the floor**,
+    // and only 0.475+0.08 = 0.555 is safe to rely on. Bed (0.45), chair (0.46)
+    // and crate (0.36) are under it. The radiator (0.61), the TV (0.81) and the
+    // dresser top (0.82) are OVER it and are reachable only by hopping bed ->
+    // radiator -> dresser. **Raising the jump is the user's call and is not made
+    // here**; v0 4.0 -> 5.0 would put 0.82 m in reach at the clamp, and it would
+    // re-time every kerb, stoop and car roof in the world.
     sevColliders.push(
-      { minX: AX(-3.35), maxX: AX(-3.2), minZ: AZI(2), maxZ: AZI(5.5) },
-      { minX: AX(-3.2), maxX: AX(0), minZ: AZI(1.85), maxZ: AZI(2) },
-      { minX: AX(-3.2), maxX: AX(0), minZ: AZI(5.5), maxZ: AZI(5.65) },
-      // the furniture, each box matching what you can see
-      { minX: AX(-3.05), maxX: AX(-1.15), minZ: AZI(4.40), maxZ: AZI(5.32) },  // bed
-      { minX: AX(-3.10), maxX: AX(-2.94), minZ: AZI(3.25), maxZ: AZI(4.25) },  // radiator
-      { minX: AX(-3.00), maxX: AX(-2.30), minZ: AZI(2.12), maxZ: AZI(2.80) },  // dresser + its open drawer
-      { minX: AX(-1.75), maxX: AX(-1.37), minZ: AZI(2.15), maxZ: AZI(2.53) },  // crate + TV
-      { minX: AX(-0.95), maxX: AX(-0.50), minZ: AZI(4.90), maxZ: AZI(5.34) },  // chair, clear of 301's arc
+      { minX: AX(-3.35), maxX: AX(-3.13), minZ: AZI(2), maxZ: AZI(5.5) },
+      { minX: AX(-3.13), maxX: AX(0), minZ: AZI(1.85), maxZ: AZI(2.07) },
+      { minX: AX(-3.13), maxX: AX(0), minZ: AZI(5.43), maxZ: AZI(5.65) },
+      // ── the furniture: footprint from the mesh, `maxY` from its top face ──
+      // The bed's box IS the frame (1.90 x 0.92 at RY+0.13, line 2585) and the
+      // top is the MATTRESS, 0.19 thick centred at RY+0.355 — you stand on the
+      // ticking, not on the rail. The blanket heaped over the foot rises to
+      // RY+0.665 and is deliberately NOT the height: you sink into a duvet, and
+      // 0.665 is over the hop anyway, so taking it would make the bed he named
+      // unclimbable.
+      { minX: AX(-3.05), maxX: AX(-1.15), minZ: AZI(4.40), maxZ: AZI(5.32), maxY: RY + 0.45 },  // bed
+      // cast iron, 0.58 tall on RY+0.32. Only 0.16 m deep, so the standable
+      // strip is genuinely that narrow — `standTop` pads nothing, which is
+      // right: a roof does not extend past its own edge.
+      { minX: AX(-3.10), maxX: AX(-2.94), minZ: AZI(3.25), maxZ: AZI(4.25), maxY: RY + 0.61 },  // radiator
+      // SPLIT, because the drawer that never shuts is 0.28 m lower than the
+      // carcass and the old single box claimed the whole column was solid to
+      // the dresser's top — i.e. it let you stand on 0.17 m of thin air over an
+      // open drawer, which is the exact complaint. Carcass 0.70 x 0.50 x 0.82
+      // (2853); drawer bottom RY+0.355, front 0.20 tall centred on RY+0.44, so
+      // its lip is RY+0.54, standing out to DZ1 + half its 0.035 front.
+      { minX: AX(-3.00), maxX: AX(-2.30), minZ: AZI(2.12), maxZ: AZI(2.62), maxY: RY + 0.82 },  // dresser carcass
+      { minX: AX(-2.96), maxX: AX(-2.34), minZ: AZI(2.62), maxZ: AZI(2.81), maxY: RY + 0.54 },  // its open drawer
+      // ONE BOX FOR THE STACK, at the TV's footprint rather than the crate's.
+      // The set is WIDER than the thing it stands on — CASE_W 0.52 against a
+      // 0.38 crate — so the old box left 0.07 m of cabinet hanging in the air on
+      // each side that you walked straight through, and standing on the crate at
+      // 0.36 would have put you inside the picture tube. The crate's footprint
+      // is entirely contained in this one, so a second box would add nothing.
+      // Top is the case: TV_Y (RY+0.58) + CASE_H/2.
+      //
+      // ⚠ IT COSTS THE CALENDAR 0.07 m OF ITS APPROACH COLUMN and does not break
+      // it: this box's padded east edge moves 198.976 -> 199.046 world, and the
+      // calendar's stand-point is at x 199.20, so the margin goes 0.224 -> 0.154
+      // and the 0.70-1.02 m reading band is in z and is untouched.
+      { minX: AX(-1.82), maxX: AX(-1.30), minZ: AZI(2.14), maxZ: AZI(2.53), maxY: RY + 0.81 },  // crate + TV
+      // clear of 301's arc. Footprint is the pan and the four legs (3546-3548),
+      // 0.02 tighter all round than the box that was here. Top is `PAN_TOP` —
+      // the yesterday's-clothes bundle sits on the pan and you stand in it.
+      // ⚠ THE BACKREST IS NOT A SECOND BOX ON PURPOSE. It is a 0.05 m panel
+      // running to RY+0.92, and a box that tall padded by RADIUS covers the
+      // whole seat pan — declaring it would make the chair unstandable, which
+      // is the opposite of the ask. The cost is that once you are up on the
+      // seat you can walk through 5 cm of chair back.
+      { minX: AX(-0.93), maxX: AX(-0.51), minZ: AZI(4.92), maxZ: AZI(5.32), maxY: RY + 0.46 },  // chair
       // 301's leaf, standing open against the wall — a door is solid even
       // when it is open. Safe on every floor: west of AX(0) is only ever
       // reachable through 301's opening, which aptDoorCap gates to floor 3.
