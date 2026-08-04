@@ -103,6 +103,50 @@ export const RADIUS = 0.3456; // was 0.42, then 0.36
 const TOP_EPS = 0.08;
 
 /**
+ * ── THE CROUCH JUMP ───────────────────────────────────────────────────────────
+ *
+ * The user, 2026-08-04: *"i would like to be able to crouch jump too. so like
+ * jumping and then crouching in air allows me to clear the collision where my
+ * feet are to get on top stuff i couldnt get on top of other wise"*
+ *
+ * HOW MANY METRES TUCKING YOUR LEGS RAISES YOUR FEET. It does NOT touch the
+ * jump: `vy` is still 4.0 and your HEAD still tops out at the same 0.475-0.538 m
+ * it always did (raising the hop would re-time every kerb, stoop and car roof in
+ * the world, and was declined once already today). What moves is where your feet
+ * are tested against the world — `blocked()`, `standTop()` and `escapeFrom()`
+ * all take one `atY` and all three get the tucked one, so they cannot disagree
+ * about whether you are over a ledge.
+ *
+ * WHAT IT PUTS IN REACH. The standing ceiling is apex + `TOP_EPS` = 0.555 m at
+ * the 20 fps `dt` clamp (`main.ts:107`), ~0.62 m at 60 fps. Add this and the
+ * tucked ceiling is **0.905 m at the clamp**, ~0.97 at 60 fps. In flat 301 that
+ * takes the radiator (0.61), the TV crate (0.81) and the dresser (0.82) from
+ * impossible to reachable, with 0.085 m of margin on the tallest of them even at
+ * the worst frame rate — deliberately, so the mechanic does not stop working
+ * when the machine gets busy. Anything at a metre or over still needs the
+ * furniture chain.
+ *
+ * ONLY COLLIDERS THAT DECLARE A `maxY` CAN EVER OPEN UP. A wall, a railing, a
+ * doorframe has no `maxY` and blocks at every height no matter how high your
+ * feet read — so no tuck can put you through one, and the 2 m sidewalk lane is
+ * exactly as wide crouched, airborne, as it is standing still.
+ */
+const TUCK_LIFT = 0.35;
+
+/** How fast the tuck comes in and goes out, 1/s. Faster than the camera crouch
+ *  (9) on purpose: legs snap up quicker than a body settles down, and the ease
+ *  has to be substantially complete by the apex ~0.29 s after takeoff or the
+ *  ceiling above is a lie. At 16 the lift is 99% in by then. */
+const TUCK_EASE = 16;
+
+/** How much of the standing crouch's 0.68 m camera dip survives while you are
+ *  in the air. NOT 1: crouching mid-air is you pulling your knees up, not you
+ *  being pushed down, so the head must stay roughly where the jump put it — a
+ *  full dip would read as being yanked out of the sky. NOT 0 either: without
+ *  some movement the tuck has no feedback at all. 0.15 is ~0.10 m of dip. */
+const AIR_CROUCH_DIP = 0.15;
+
+/**
  * HOW FAR THE FLOOR HAS TO DROP IN ONE FRAME BEFORE IT COUNTS AS A FALL, in
  * metres. **THIS IS THE ONE NUMBER TO TURN.**
  *
@@ -219,6 +263,28 @@ export class FPRig {
   private lastZ = 0;
   private jumpHeld = false; // holding the key doesn't re-jump; release first
   private crouchT = 0; // 0 standing, 1 crouched — eased so the camera dips smoothly
+  // How crouched your BODY is, as opposed to how hard you are holding the key.
+  // On the ground it is `crouchT`; in the air it collapses to `AIR_CROUCH_DIP`
+  // of it, because a mid-air crouch is a tuck and a tuck does not lower your
+  // head. Drives the camera dip AND the walk-speed cut — the speed cut in
+  // particular must not apply in the air, or the tuck would rob you of exactly
+  // the forward drift you need to get your feet over the ledge you tucked for.
+  private stanceT = 0;
+  // ── the tuck, in METRES of foot lift ──
+  //
+  // Eased, and it is `lastWorldY`'s partner: `footY` below is the pair's only
+  // consumer and the two are always written in the same breath, because the
+  // floor pick SUBTRACTS this from a top it credits (see update()) and the test
+  // ADDS it back. Those two cancel exactly, which is the whole trick — it is
+  // why the tuck can decay under you while you stand on a radiator without the
+  // radiator ever ceasing to hold you up.
+  private tuck = 0;
+  // Where your feet TEST from: `lastWorldY` plus the tuck that was live when
+  // `lastWorldY` was written. Stored rather than recomputed at the top of the
+  // next frame from a `tuck` that has since eased — do that and the credit for
+  // the top you are standing on evaporates mid-stand-up, dropping you through
+  // it. One number, settled once, read by every collision test in the frame.
+  private footY = 0;
   private bobT = 0;
   // ── sitting ──
   //
@@ -274,6 +340,7 @@ export class FPRig {
     // Spawn standing on the terrain, never on a top: a stale `support` from
     // before the rig existed is exactly the phantom fall `lastX`/`lastZ` guard.
     this.support = this.lastWorldY;
+    this.footY = this.lastWorldY;   // no tuck to spawn with
     this.lastX = spawn.x; this.lastZ = spawn.z;
     cam.position.copy(this.pos);
   }
@@ -550,9 +617,18 @@ export class FPRig {
       // Escape also drops pointer lock, which is the right shape: it is the
       // key you press when you want out of whatever you are in.
       if (input.keys.has('escape') || this.forceUp) { this.forceUp = false; this.stand(); return; }
+      // A seat un-crouches you, and it un-TUCKS you: `sit()` has already zeroed
+      // `airY`/`vy`, so nothing below could re-arm the tuck anyway, but a tuck
+      // left standing here would be a lift applied to `footY` the frame you get
+      // up — a phantom 0.35 m of feet, on a spot chosen by `stand()`'s search
+      // ring, i.e. exactly the stale-`support` class of bug this file has been
+      // bitten by twice. Both scalars run down to 0 while you sit.
       this.crouchT += (0 - this.crouchT) * Math.min(1, dt * 9);
+      this.stanceT += (0 - this.stanceT) * Math.min(1, dt * 9);
+      this.tuck += (0 - this.tuck) * Math.min(1, dt * TUCK_EASE);
       const sgy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
       this.lastWorldY = sgy;   // keep it live while seated, or standing up stale-reads it
+      this.footY = sgy + this.tuck;
       const sy = sgy + this.seat.h + SIT_EYE;
       this.cam.position.set(this.pos.x, sy, this.pos.z);
       this.look.set(
@@ -569,7 +645,12 @@ export class FPRig {
     // than recomputed live, and why that is fine. Read once and reused for
     // every collision test this frame, including the floor pick at the
     // bottom, so they all agree on the same "am I up there" answer.
-    const atY = this.lastWorldY;
+    // — plus the tuck, if you are crouching in mid-air (`TUCK_LIFT`). This one
+    // value is what `unstick`, both `blocked()` calls and the floor pick below
+    // all test against, so the tuck cannot let you MOVE somewhere it will not
+    // then let you STAND, or leave `escapeFrom` reading a ledge you legally
+    // tucked onto as a wedge to shove you off.
+    const atY = this.footY;
 
     // Before anything else: if we are inside something, get out. Runs ahead
     // of movement so the step that follows starts from a legal position, and
@@ -584,11 +665,14 @@ export class FPRig {
     if (input.keys.has('s')) mv.sub(this.fwd);
     if (input.keys.has('a')) mv.sub(this.right);
     if (input.keys.has('d')) mv.add(this.right);
-    // hold C to crouch: low camera, slow steps
+    // hold C to crouch: low camera, slow steps — and, in the air, a tuck.
     this.crouchT += ((input.keys.has('c') ? 1 : 0) - this.crouchT) * Math.min(1, dt * 9);
+    // `airY` here is last frame's, settled, same as `atY` — the tuck itself is
+    // eased below against THIS frame's, after the integrator has run.
+    this.stanceT += ((this.airY > 0 ? AIR_CROUCH_DIP : 1) * this.crouchT - this.stanceT) * Math.min(1, dt * 9);
     const moving = mv.lengthSq() > 0;
     if (moving) {
-      const sp = (input.keys.has('shift') ? this.run : this.speed) * (1 - 0.55 * this.crouchT);
+      const sp = (input.keys.has('shift') ? this.run : this.speed) * (1 - 0.55 * this.stanceT);
       mv.normalize().multiplyScalar(sp * dt);
       const nx = THREE.MathUtils.clamp(this.pos.x + mv.x, this.bounds.minX, this.bounds.maxX);
       if (!this.blocked(nx, this.pos.z, atY)) this.pos.x = nx;
@@ -656,6 +740,19 @@ export class FPRig {
       this.airY = Math.max(0, this.airY + this.vy * dt);
       if (this.airY === 0 && this.vy < 0) this.vy = 0;
     }
+    // ── the tuck ──
+    //
+    // Off the RAW key, not `crouchT`: easing an already-eased value composes
+    // into a much slower ramp (0.73 of full lift by the apex instead of 0.99),
+    // and the whole mechanic lives or dies on being fully in by then.
+    //
+    // ONLY WHILE AIRBORNE, and this is the load-bearing half of the gate. A
+    // tuck that survived on the ground would exempt every low collider from
+    // `blocked()` while you crouch-walk, and you would phase into the side of
+    // the bed at ankle height. Landing eases it out instead of dropping it, so
+    // the floor pick below rises under you over ~0.15 s rather than in a frame.
+    const airborne = this.airY > 0 || this.vy !== 0;
+    this.tuck += ((airborne && input.keys.has('c') ? TUCK_LIFT : 0) - this.tuck) * Math.min(1, dt * TUCK_EASE);
     let gy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
     // Stand on a collider's top when you are already up there — see
     // `standTop`'s own comment. Only raises the floor, never lowers it: a
@@ -666,7 +763,26 @@ export class FPRig {
     // below. Item 130 deleted that flag, and an unread local is how a reader
     // concludes a distinction still matters when it does not.)
     const top = this.standTop(this.pos.x, this.pos.z, atY);
-    if (top !== null && top > gy) gy = top;
+    // MINUS THE TUCK, because `gy` is where your NATURAL feet go and the thing
+    // the ledge is holding up is your TUCKED ones, `tuck` metres higher. Three
+    // consequences, all of them wanted:
+    //
+    //  1. NO LAUNCH. Credit is granted `tuck` metres lower than a standing
+    //     landing would be, and the floor you are given is `tuck` metres lower
+    //     to match, so the eye moves by the same bounded amount it always did.
+    //     Without this line the camera would teleport the full height of the
+    //     ledge the instant your tucked feet cleared it.
+    //  2. STANDING BACK UP IS THE ANIMATION. Release C and `tuck` runs down,
+    //     so `gy` climbs from `top - tuck` to `top` over ~0.15 s: your legs
+    //     extend and your view rises onto the radiator. Nothing is above you to
+    //     be shoved into — `minY` is declared on AABB and read by nothing in
+    //     this file, so there is no ceiling collider in the world to catch.
+    //  3. YOU CANNOT FALL BACK THROUGH IT. `footY` below is `gy + airY + tuck`,
+    //     so the tuck this line subtracts is the tuck that line adds and the
+    //     test value is a flat `top` no matter where the ease has got to. The
+    //     credit that put you up here can never lapse while it runs out.
+    const stand = top === null ? null : top - this.tuck;
+    if (stand !== null && stand > gy) gy = stand;
 
     // ── STEPPING OFF A SURFACE IS A FALL, NOT THE FLOOR MOVING ───────────────
     //
@@ -728,7 +844,7 @@ export class FPRig {
     this.lastX = this.pos.x; this.lastZ = this.pos.z;
 
     const grounded = this.airY === 0;
-    const y = this.height - this.crouchT * 0.68 + gy + this.airY + (moving && grounded ? Math.sin(this.bobT) * this.bob : 0);
+    const y = this.height - this.stanceT * 0.68 + gy + this.airY + (moving && grounded ? Math.sin(this.bobT) * this.bob : 0);
     this.cam.position.set(this.pos.x, y, this.pos.z);
     this.look.set(
       Math.sin(this.yaw) * Math.cos(this.pitch),
@@ -741,6 +857,11 @@ export class FPRig {
     // picked above, so standing still on a roof keeps reading atY >= maxY
     // and the surface holds you, frame after frame.
     this.lastWorldY = gy + this.airY;
+    // ...and where they TEST from next frame. Written here, with the same
+    // `tuck` the floor pick above just used, so the two cancel — see item 3 on
+    // that pick. Never recompute this from `this.tuck` at the top of the next
+    // frame; by then it has eased and the cancellation is broken.
+    this.footY = this.lastWorldY + this.tuck;
   }
 }
 
