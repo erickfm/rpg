@@ -30,6 +30,14 @@ fixing what Erick asked for. It keeps **at least one builder warm**: already
 oriented on this project, carrying no previous task's context, standing by for
 the next ask.
 
+**WARM MEANS LIGHT, NOT LOADED.** *"less is more imo because they can go and
+read worst case."* A warm builder's whole warm-up is this file. It does not
+pre-read GOTCHAS, the brief, or the source, and it does not map the codebase —
+it reads exactly what the task in hand needs, when the task arrives. A builder
+that spent 69k tokens memorising a map it may never use is worse than one that
+spends 3k reading the two files the ask actually touches. Respawn rather than
+let a builder accumulate; a fresh warm-up costs about a minute.
+
 **THE DESK DOES NOT DIAGNOSE EITHER.** Measured over 35 items: the desk's stated
 cause was wrong 6 times and a builder caught it 6 out of 6; over a later session,
 28 rows said the desk's cause was wrong against 5 that said it was right. So an
