@@ -1389,15 +1389,25 @@ const CHECKS = [
   // on `side`, which removes the collider from the lot's party walls and leaves
   // the park's alone; watched red at 6 of 368 walks ending on no floor.
   //
-  // ⚠ THE PARK STILL CARRIES `false`, AND THAT IS NOW A MEASURED FACT RATHER
-  // THAN A GAP NOBODY GOT TO. The mirror-image mutation was written, proven to
-  // take effect (colliders 537 → 535, the park's two flank boxes) and run:
-  // **616 walks, 0 escapes, all contained.** The park's containment does not
-  // depend on its flank colliders. Putting a case name here for a mutation the
-  // check sleeps through would be worse than the `false` — it is the precise
-  // failure this item was raised about. See scripts/canfail.mjs beside
-  // `lot-flank-open` for what a real one would have to do.
-  ['w75-site-contained', 'can the player walk out of the world at the park?', false, ['park'], true],
+  // THE PARK CARRIED `false` FOR TWO ROUNDS, AND BOTH TIMES IT WAS A MEASURED
+  // FACT RATHER THAN A GAP NOBODY GOT TO. Item 260 wrote the mirror-image flank
+  // mutation, proved it took effect (colliders 537 → 535, the park's two flank
+  // boxes) and ran it: 616 walks, 0 escapes. Item 306 then removed the park's
+  // BACK-WALL collider — a real 1.2 m slot of void between the world clamp at
+  // x -40.20 and the wall at x -39, which `world-contained` went red on with
+  // 114 cells over nothing — and this leg slept through that too: 600 walks,
+  // 0 escapes. It walks a 3 m grid in 2.97 m steps; a 1.2 m slot behind a wall
+  // is finer than its own resolution, and that is a real and permanent limit of
+  // a per-site WALK against a whole-world grid FILL.
+  //
+  // CLOSED BY BREAKING THE FLOOR INSTEAD OF A WALL — canfail `park-ground-short`
+  // takes 12 m off the park's 32 m ground plane without moving its centre or a
+  // single collider, so the player walks in through the gate as usual and is
+  // over nothing two strides later. That is this check's own fault class: ground
+  // you can walk on that is not drawn. Watched red on 3e92d5c66 — **63 of 600
+  // walks ended ON NO FLOOR, x -12.90…-7.27 z -96.23…-68.44**, against 0 of 600
+  // on the same build unmutated, with the population legs green through both.
+  ['w75-site-contained', 'can the player walk out of the world at the park?', 'park-ground-short', ['park'], true],
   ['w75-site-contained', 'can the player walk out of the world at the lot?', 'lot-flank-open', ['lot'], true],
   // REGISTERED 2026-08-03 (w85, item 230). THE SAME QUESTION ASKED OF THE WHOLE
   // WORLD, and it is not a fourth site row — it is the row for everywhere that

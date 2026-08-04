@@ -371,10 +371,68 @@ const CASES = [
   // work. A real one has to reach ground with NO FLOOR MESH under it, since
   // that is what this check calls an escape — see the lot's numbers below for
   // the shape of a hole that qualifies.
+  //
+  // ── ITEM 306 CLOSED IT — `park-ground-short`, at the foot of this block ────
+  //
+  // …and closing it took a SECOND mutation that the park leg also slept
+  // through, which is worth as much as the case. Reading the note above as
+  // "the flanks are the wrong wall, try the back one", I removed the park's
+  // BACK-WALL collider (the `solid(side < 0 ? ...)` three lines below the flank
+  // loop in street.ts), park-only, wall left standing. It opens a real,
+  // reachable, 1.2 m slot of void between the world clamp at x -40.20 and the
+  // back wall at x -39 — `world-contained.mjs` on that same build went red on
+  // it: **114 cells over nothing in 2 regions, x -40.00…-39.50, z -97.50…-68.50
+  // and z -85.00…-68.50**, which is the park's own z span.
+  //
+  // `w75-site-contained.mjs park` on that build: **600 walks, 75 places,
+  // 0 escapes, all contained.** Not because the world was sealed — the whole-
+  // world sweep had just proved it was not — but because this check walks a
+  // 3 m grid in 2.97 m steps and a 1.2 m slot behind a wall is finer than its
+  // own resolution. THAT IS A REAL LIMIT OF THE PARK LEG AND IT IS NOT A BUG
+  // IN IT: the two checks are not redundant, and the per-site walk is the
+  // weaker instrument of the two wherever the hole is narrow.
   ['lot-flank-open', STREET,
     '      solid(ry > 1',
     "      if (side !== 1) solid(ry > 1   // selftest: the lot's flanks stop colliding",
     'w75-site-contained.mjs', ['lot'], "walking out through the car lot's party walls again"],
+
+  // ── item 306: AND THE PARK LEG, THE LAST OF THE THREE SITES ────────────────
+  //
+  // Two collider mutations have now been tried on this leg and BOTH slept —
+  // the flanks (item 260, above) and the back wall (this item, above). Both
+  // were the same shape: take a wall's obstacle away and let the player through
+  // it. The park does not fail that way, because what is past its walls is
+  // either floored or too narrow for a 2.97 m step to land in.
+  //
+  // SO THIS ONE DOES NOT MOVE A COLLIDER AT ALL. It breaks the other half of
+  // the invariant — the FLOOR — and it is the fault class this check's own
+  // header is about: ground the player can walk on that is **not drawn**. The
+  // hotel/casino doorway held a 0.36 m slot of open sky through every check in
+  // the project for exactly this reason, and the "real pavement out to z 16.75"
+  // claim this file used to carry was a bounding box over ground that was never
+  // drawn either.
+  //
+  // The site's ground plane loses 12 m of its 32 m depth, PARK ONLY (`side < 0`
+  // — the lot's is untouched, so this case and `lot-flank-open` cannot certify
+  // each other). Its centre does not move, so the shortfall is 6 m at the back
+  // wall and 6 m just inside the frontage. Every wall, rail and collider stays
+  // exactly where it was: the player walks in through the gate as usual and is
+  // over nothing two strides later.
+  //
+  // WATCHED RED on 3e92d5c66, and watched GREEN on the same build unmutated:
+  //
+  //   unmutated  600 walks, 75 places (44 in-site), **0 escapes**, exit 0
+  //   mutated    600 walks, 75 places (44 in-site), **63 of 600 walks ended ON
+  //              NO FLOOR — x -12.90…-7.27 z -96.23…-68.44**, exit 1
+  //
+  // The population legs stayed green through it (600 walks, 44 in-site places,
+  // nothing left queued), so the red is the assertion and not the sweep
+  // collapsing. `world-contained.mjs` on the same build independently found
+  // 255 cells over nothing in 13 regions across the same band.
+  ['park-ground-short', STREET,
+    '    const floorGeo = new THREE.PlaneGeometry(o.depth, w,',
+    '    const floorGeo = new THREE.PlaneGeometry(side < 0 ? o.depth - 12 : o.depth, w,   // selftest: the park\'s ground stops 6 m short of both x edges',
+    'w75-site-contained.mjs', ['park'], "standing on nothing inside the park's own rectangle"],
 
   // ── item 306: THE WHOLE-WORLD SWEEP HAD NEVER BEEN WATCHED FAIL ────────────
   //
