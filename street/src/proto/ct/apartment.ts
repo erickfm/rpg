@@ -3676,86 +3676,71 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const antM = new THREE.MeshBasicMaterial({ color: 0x9a9aa2 });
     box(0.02, 0.42, 0.02, -1.68, RY + 0.95, 2.34, antM, 0).rotation.z = 0.38;   // rabbit ears
     box(0.02, 0.38, 0.02, -1.44, RY + 0.93, 2.34, antM, 0).rotation.z = -0.44;
-    // a chair with yesterday's clothes over the back
+    // ── the mirror, where the chair was ──────────────────────────────────
+    // The user: *"remove this chair, add a mirror here instead"*, over a shot
+    // of the chair in the north-east corner. GONE, all of it: the seat pan,
+    // the four legs, the back, the shirt over it, the second garment on it,
+    // and its collider — a collider left standing in an empty corner is an
+    // invisible object, which is worse than the chair was. With it goes the
+    // last of items 146 and 249, which were both about how those two garments
+    // sat on a pan that no longer exists.
     //
-    // TUCKED 0.30 m NORTH of where it used to stand. Re-handing the door to
-    // match the rest of the building swung its 166deg arc across this half of
-    // the room instead of the other, and the leaf passed clean through the
-    // chair from 138deg onward — scripts/swing.mjs, twelve sampled points at
-    // all three heights. The arc is 0.86 m from a pivot at (-0.09, 3.975) and
-    // the chair's near corner was 0.75 m out; it is 1.01 m out now. It could
-    // not go deeper into the room instead: the dresser collider runs to
-    // x -1.15 and the chair is 0.45 wide, which leaves 0.01 m of margin, so
-    // north to the wall was the only direction with room in it.
-    const chairM = new THREE.MeshBasicMaterial({ color: 0x6b5033 });
-    // THE SEAT PAN, named rather than left as four literals — the garment below
-    // has to land ON it, and item 249 is what happens when that relationship is
-    // arithmetic in someone's head instead of in the file (BUILDER-BRIEF §8).
-    const PAN_Y = RY + 0.44, PAN_T = 0.04;
-    const PAN_TOP = PAN_Y + PAN_T / 2;
-    box(0.42, PAN_T, 0.40, -0.72, PAN_Y, 5.12, chairM);
-    for (const [lx, lz] of [[-0.54, 4.95], [-0.90, 4.95], [-0.54, 5.29], [-0.90, 5.29]] as [number, number][]) {
-      box(0.05, 0.44, 0.05, lx, RY + 0.22, lz, chairM);
-    }
-    box(0.42, 0.46, 0.05, -0.72, RY + 0.69, 5.29, chairM);
-    // ── "fix this chair" (item 146) ──────────────────────────────────────────
+    // ⚠ IT WAS ONE OF ONLY TWO THINGS YOU COULD CLIMB FROM THE FLOOR — the hop
+    // reaches 0.555 m and the chair's top was 0.46. The bed (0.45) is now the
+    // only one, and so the only way up to the radiator/dresser chain. Called
+    // out because the loss is invisible until someone tries the route.
     //
-    // The user photographed this one and the report reads: *back panel appears
-    // to float above the seat, with a separate rail above it.* Both halves are
-    // the SHIRT, not the chair — measured in world coordinates before touching
-    // anything (`scripts/probes/w90-item146-find-chair.mjs`):
+    // WALL-HUNG, not standing. A cheval glass on the floor here would be a new
+    // obstacle in a corner the chair was already tucked out of to clear 301's
+    // 166deg door arc, and it would need a collider to be honest about itself.
+    // Hung, it needs none and gets none: the north wall's collider stops you
+    // 0.35 m short of the plaster and the frame stands 0.05 m proud of it, so
+    // nothing can reach it. No `maxY` either — it is not a surface.
     //
-    //     seat top      5.867
-    //     backrest      5.867 .. 6.327     a 0.05 m panel
-    //     shirt         6.107 .. 6.307     0.26 m DEEP — 5.2x the panel
+    // IT DOES NOT REFLECT AND IS NOT TRYING TO. Nothing in CROSSTOWN reflects,
+    // and a live one would be the only one in the world. So the glass is
+    // PAINTED, the way the TV's dead screen and the window's glazing already
+    // are: a cold, dim version of the room it faces — pale wall above, floor
+    // below — with two diagonal sheen rakes over it. The rakes are what read
+    // as glass at this size; the horizon is what stops it reading as a grey
+    // panel.
     //
-    // The seat/back junction is FLUSH, gap 0.000 — nothing floats. What floats
-    // is what you can SEE: a 0.26 m slab pasted across the MIDDLE of a 0.05 m
-    // panel hides it, and leaves a **0.02 m strip of backrest peeking out above
-    // the shirt**. That two-centimetre strip is the "separate rail", and with
-    // the panel cut into bands the part below reads as detached from the seat.
-    // Confirmed against all 219 registered seats: ZERO have a real gap, so this
-    // was never a geometry fault (`probes/w90-item146-floating-backs.mjs`).
-    //
-    // A shirt left on a chair hangs OVER THE TOP RAIL. So it straddles the top
-    // edge now — 6.19..6.41 against a top of 6.327, folded 0.08 over and 0.14
-    // down — instead of being a belt across the panel's waist. No strip is left
-    // above it because there is nothing above it any more.
-    //
-    // z AND DEPTH DELIBERATELY UNCHANGED. The chair was tucked north until its
-    // near corner cleared the door's 166deg arc by 1.01 m (see above), and the
-    // shirt's 0.26 m already reaches z 5.37 toward the wall; moving it back to
-    // centre on the panel would spend clearance this chair does not have.
-    box(0.40, 0.22, 0.26, -0.74, RY + 0.90, 5.24, new THREE.MeshBasicMaterial({ color: 0x3f5a6b }), 0.1);
-    // ── THE SECOND GARMENT (item 249) ────────────────────────────────────────
-    //
-    // Same family of fault as the shirt above, in the other direction: it was
-    // EMBEDDED rather than floating. Measured on the built world before touching
-    // it (`scripts/probes/w119-249-garment-vs-pan.mjs`):
-    //
-    //     seat pan     5.827 .. 5.867
-    //     garment      5.837 .. 5.977     bottom 0.030 m BELOW the pan's top
-    //
-    // So 3 cm of a 14 cm bundle was buried in a 4 cm pan — three quarters of the
-    // pan's whole thickness — and the frame is worse than the number: the pan
-    // disappears behind it and what is left reads as a loose brown flap hanging
-    // off the front of the chair, which is the same "separate rail" mistake the
-    // user photographed in item 146 wearing different clothes.
-    //
-    // DERIVED FROM THE PAN, not renumbered: its underside sits exactly on
-    // `PAN_TOP`. A hand-typed `RY + 0.53` would be the second copy of a number
-    // the pan already owns, and the next person to move the seat would leave
-    // this behind — which is precisely how it got 0.03 m out in the first place.
-    //
-    // x, z, SIZE AND YAW ARE ALL UNCHANGED, deliberately. The only thing wrong
-    // was the height, and this chair has 0.01 m of margin against the dresser
-    // collider and a door arc to clear (see the block above) — nudging it in
-    // plan to "drape" it over the front lip would spend clearance it does not
-    // have, and a solid box overhanging an edge is the FLOATING fault, which is
-    // the one the user has already reported twice.
-    const GARMENT_H = 0.14;
-    box(0.34, GARMENT_H, 0.22, -0.70, PAN_TOP + GARMENT_H / 2, 5.08,
-      new THREE.MeshBasicMaterial({ color: 0x7a5a4a }), -0.3);
+    // AND IT IS FRAMED, for the reason the TV's bezel exists: an unframed
+    // rectangle on a wall is a poster. One box for the frame with the plate
+    // laid 2 mm proud of its face, so the frame's own border is the surround —
+    // not four rails round an aperture like the TV, because a mirror has no
+    // depth to recess and two meshes beat five.
+    const mirrorT = surfTex('detail', 24, 32, (g) => {
+      g.fillStyle = '#98a3ac'; g.fillRect(0, 0, 24, 32);         // the room, gone cold
+      g.fillStyle = '#7b848d'; g.fillRect(0, 0, 24, 5);          // its ceiling
+      g.fillStyle = '#4a3a2b'; g.fillRect(0, 24, 24, 8);         // its floorboards
+      g.fillStyle = '#33281d'; g.fillRect(0, 24, 24, 1);         // the skirting line
+      g.fillStyle = 'rgba(255,255,255,0.20)';                    // the near rake
+      for (let y = 0; y < 32; y++) g.fillRect(Math.round(2 + y * 0.42), y, 5, 1);
+      g.fillStyle = 'rgba(255,255,255,0.11)';                    // and the far one
+      for (let y = 0; y < 32; y++) g.fillRect(Math.round(11 + y * 0.42), y, 2, 1);
+      // the silvering has gone at the corners — it came with the flat
+      g.fillStyle = 'rgba(58,52,46,0.34)';
+      for (const [x, y, w, h] of [[0, 0, 2, 4], [22, 5, 2, 3], [0, 13, 1, 5],
+                                  [1, 27, 3, 3], [21, 29, 3, 3]]) g.fillRect(x, y, w, h);
+      dither(g, 24, 32, 26);
+    });
+    const MIR_X = -0.72;                        // the chair's own x, kept
+    const MIR_W = 0.44, MIR_H = 0.60;
+    const FRAME_D = 0.05, FRAME_W = 0.05;       // how proud it stands, and its border
+    // the north wall's ROOM FACE. AZI(5.5) is the wall box's centreline and the
+    // box is 0.14 deep — the same half-thickness `NORTH_Z` takes below, and the
+    // trap it documents: hang at 5.49 and the mesh is entombed in the plaster.
+    const MIR_WALL_Z = 5.5 - 0.07;
+    const MIR_Y = RY + 1.42;                    // you look into it standing up
+    box(MIR_W, MIR_H, FRAME_D, MIR_X, MIR_Y, MIR_WALL_Z - FRAME_D / 2,
+      new THREE.MeshBasicMaterial({ color: 0x3f3125 }));
+    const mirror = new THREE.Mesh(
+      new THREE.PlaneGeometry(MIR_W - 2 * FRAME_W, MIR_H - 2 * FRAME_W), texM(mirrorT));
+    mirror.position.set(AX(MIR_X), MIR_Y, AZI(MIR_WALL_Z - FRAME_D - 0.002));
+    mirror.rotation.y = Math.PI;   // this wall faces -z, and texM is DoubleSide:
+    scene.add(mirror);             // get it wrong and the sheen simply rakes the
+                                   // other way, which no "is it there" check sees
     // ── the poster ───────────────────────────────────────────────────────
     // The user: *"what is this poster on the wall?"* — which on this project
     // has meant the same thing four times now: the object is drawn but it is
@@ -4450,9 +4435,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // ⚠ WHAT THE HOP REACHES IS 0.475 m — fp.ts's jump block, the HARD FLOOR at
     // `main.ts`'s dt clamp, rising to ~0.538 m at 60 fps. Plus `TOP_EPS` that
     // makes **0.555 m the highest surface anything can climb from the floor**,
-    // and only 0.475+0.08 = 0.555 is safe to rely on. Bed (0.45), chair (0.46)
-    // and crate (0.36) are under it. The radiator (0.61), the TV (0.81) and the
-    // dresser top (0.82) are OVER it and are reachable only by hopping bed ->
+    // and only 0.475+0.08 = 0.555 is safe to rely on. Bed (0.45) and crate
+    // (0.36) are under it — the chair (0.46) was too, and the user had it
+    // removed for a mirror, so **the bed is now the only climb from the floor
+    // and the only way into the chain below**. The radiator (0.61), the TV
+    // (0.81) and the dresser top (0.82) are OVER it and reachable by bed ->
     // radiator -> dresser. **Raising the jump is the user's call and is not made
     // here**; v0 4.0 -> 5.0 would put 0.82 m in reach at the clamp, and it would
     // re-time every kerb, stoop and car roof in the world.
@@ -4493,15 +4480,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // calendar's stand-point is at x 199.20, so the margin goes 0.224 -> 0.154
       // and the 0.70-1.02 m reading band is in z and is untouched.
       { minX: AX(-1.82), maxX: AX(-1.30), minZ: AZI(2.14), maxZ: AZI(2.53), maxY: RY + 0.81 },  // crate + TV
-      // clear of 301's arc. Footprint is the pan and the four legs (3546-3548),
-      // 0.02 tighter all round than the box that was here. Top is `PAN_TOP` —
-      // the yesterday's-clothes bundle sits on the pan and you stand in it.
-      // ⚠ THE BACKREST IS NOT A SECOND BOX ON PURPOSE. It is a 0.05 m panel
-      // running to RY+0.92, and a box that tall padded by RADIUS covers the
-      // whole seat pan — declaring it would make the chair unstandable, which
-      // is the opposite of the ask. The cost is that once you are up on the
-      // seat you can walk through 5 cm of chair back.
-      { minX: AX(-0.93), maxX: AX(-0.51), minZ: AZI(4.92), maxZ: AZI(5.32), maxY: RY + 0.46 },  // chair
+      // THE CHAIR'S BOX WAS HERE and went with the chair — *"remove this chair,
+      // add a mirror here instead"*. Nothing replaces it: the mirror hangs on
+      // the north wall 0.05 m proud of plaster you are already held 0.35 m off,
+      // so it needs no collider and has none. See the mirror block for why.
       // 301's leaf, standing open against the wall — a door is solid even
       // when it is open. Safe on every floor: west of AX(0) is only ever
       // reachable through 301's opening, which aptDoorCap gates to floor 3.
