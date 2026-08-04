@@ -61,7 +61,7 @@ echo "item $num released — the desk verifies it before the LEDGER moves."
 echo
 echo "Before you claim the next one, make sure you have:"
 echo "  · committed everything (a killed agent keeps only commits)"
-echo "  · written notes/<name>-<topic>.md — root cause in one line, not 'adjusted the value'"
+echo "  · put the root cause in ONE LINE above — not 'adjusted the value'. No notes file."
 echo "  · said what you did NOT fix, precisely enough for the desk to queue it"
 echo
 echo "Now:  ./scripts/claim.sh $who"
