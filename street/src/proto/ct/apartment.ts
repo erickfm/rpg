@@ -1581,8 +1581,40 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const dome = new THREE.Mesh(domeGeo, opalM);
       dome.position.set(wx, ceilY - 0.05, wz);
       scene.add(dome);
-      const gl = new THREE.Mesh(new THREE.PlaneGeometry(halo, halo), glowMat);
-      gl.position.set(wx, ceilY - 0.12, wz);
+      // ── THE HALO MUST NOT REACH THE SLAB IT HANGS UNDER ─────────────────
+      // The user: *"sometimes the lights in the apt bleed into the floor
+      // above, make sure this doesnt happen"* — a bright rectangular patch
+      // lying on a wooden floor.
+      //
+      // NOT additive blending, and not `depthWrite: false`. Those are honest:
+      // the quad is still depth-TESTED, so from below the ceiling occludes it
+      // correctly. The bug is that **the quad is genuinely sticking through the
+      // floor**, and nothing occludes geometry that is on your side of it.
+      //
+      // `boards` billboards are YAW-ONLY (crosstown.ts: `rotation.y = atan2`),
+      // so this quad is VERTICAL in every frame — its full `halo` height is
+      // always vertical extent. Centred at `ceilY - 0.12` with halo 0.6 it ran
+      // from ceilY-0.42 to **ceilY+0.18**: 0.18 m ABOVE the ceiling it hangs
+      // from. The slabs are thinner than that everywhere:
+      //
+      //   hall lamps        floor above at ceilY+0.156   pokes 0.024
+      //   half-landing      landing top  at ceilY+0.14   pokes 0.05  <- his shot
+      //   301's own lamp    floor above at ceilY+0.156   clears by 0.001
+      //   the two at H      nothing above at all         invisible
+      //
+      // So no fixture was ever SAFE BY DESIGN — two were safe because there is
+      // no storey above them and one clears by a millimetre. That is the finding.
+      // "Sometimes" is just which of them you happen to walk over.
+      //
+      // Cap the top edge at `ceilY` and leave the BOTTOM edge exactly where it
+      // was. `ceilY` is by construction the underside of whatever is overhead
+      // — a ceiling plane for the halls and 301, the landing box's own soffit
+      // for the half landings — so one cap covers every fixture in the walk-up
+      // and the flat, including any added later. Nothing visible from below
+      // moves: the 0.18 m that got clipped was already inside the slab.
+      const glTop = ceilY - 0.01, glBot = ceilY - 0.12 - halo / 2;
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(halo, glTop - glBot), glowMat);
+      gl.position.set(wx, (glTop + glBot) / 2, wz);
       boards.push({ m: gl });
       scene.add(gl);
     };
