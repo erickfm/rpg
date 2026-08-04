@@ -36,6 +36,28 @@ let alleyDish: (x: number, z: number) => number = () => 0;
 
 export const ALLEY_SLAB_Y = 0.005;
 
+/** ── THE PAWN ALLEY IS FLUSH WITH THE PAVEMENT, AND THAT IS THE WHOLE POINT ──
+ *
+ *  The user, 2026-08-04: *"make the long alley flush with the sidewalk"*.
+ *
+ *  The long alley (2.5 m, between PAWN and No. 227) was laid at 0.009 — road
+ *  level — while the walk it opens off is at KERB_H. That is a 13 cm DROP at
+ *  the mouth, and it is not a kerb: kerbs in this world stand at |x| = ROAD_HALF,
+ *  out at the carriageway. This mouth is at the BUILDING LINE, two metres of
+ *  pavement inland, so there was nothing there for a step to mean. You walked
+ *  along the pavement and fell into a slot.
+ *
+ *  0.14 IS CROSSTOWN'S `KERB_H`, restated here because this file is a LEAF by
+ *  design (see the header — a cycle here cost two agents a day) and cannot
+ *  import it. It is the one number the alley reads: `ct/props.ts` lays the slab
+ *  and registers the walking height off it, and `ct/pawn-alley.ts` stands every
+ *  piece of its furniture on it. If the kerb ever moves, move this with it.
+ *
+ *  The west alley keeps ALLEY_SLAB_Y above — that one is a SERVICE YARD off the
+ *  road, its own mouth already documents its 14 cm step, and the user named the
+ *  long one. */
+export const ALLEY2_SLAB_Y = 0.14;
+
 /** Height of the paving SURFACE at (x, z) — what something resting on the
  *  ground should sit on. Outside the alley it is the flat slab, which is what
  *  every caller got before this existed, so importing it can only change an

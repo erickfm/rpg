@@ -6,6 +6,7 @@ import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite,
 import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER, soldierCourse,
          alley2Ground } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
+import { ALLEY2_SLAB_Y } from './alley-floor';
 import { weedTuft } from './weeds';
 import { BAY } from './bodega-corner';
 
@@ -3998,10 +3999,36 @@ uniform float uPoolAmb;`)
       if (tag === 'end') endX = p2.x;
     });
     if (isFinite(fz0) && isFinite(fz1) && endX !== null && fz1 > fz0) {
-      // 0.009, a few mm over D's 0.005 placeholder, so the two cannot z-fight
-      // while both exist. D removes theirs and this drops to the slab proper —
-      // asked for in notes/B-alley2-ground-for-D.md.
-      alley2Ground(scene, FACE, endX, fz0, fz1, 0.009, (t) => wet(flat(t)), wet);
+      const ex: number = endX;
+      // ── FLUSH WITH THE PAVEMENT ─────────────────────────────────────────
+      //
+      // *"make the long alley flush with the sidewalk"* (2026-08-04). This was
+      // 0.009 — a few mm over ct/street.ts's 0.005 placeholder so the two could
+      // not z-fight — which is road level, 13 cm below the walk that opens onto
+      // it. `ALLEY2_SLAB_Y` is KERB_H, so the slab and the paving are now one
+      // surface and there is no step at the mouth. The placeholder is 13 cm
+      // BELOW this now rather than 4 mm, so the z-fight it was dodging cannot
+      // happen either way.
+      //
+      // Everything alley2Ground lays — channel, gully, both vents — is placed
+      // relative to this `y`, so they come up with it and stay flush in it.
+      alley2Ground(scene, FACE, ex, fz0, fz1, ALLEY2_SLAB_Y, (t) => wet(flat(t)), wet);
+      // ── AND THE PLAYER WALKS ON WHAT THEY SEE ───────────────────────────
+      //
+      // Raising the paint alone would have been the worse bug: a join that
+      // LOOKS flush and still drops you 13 cm. `groundPick`'s final fallback in
+      // crosstown.ts answers KERB_H only out to |x| < FACE + 0.3 and 0 beyond
+      // it, so from 30 cm inside the mouth the whole alley walked at road
+      // level. This is the same move the park, the car lot and the library
+      // courtyard already make — the module that owns the ground says how high
+      // it is, rather than crosstown.ts learning another rectangle.
+      //
+      // The rect is D's own walls, read above, so it cannot drift from the slot
+      // it describes. It starts at FACE, where the fallback is already
+      // answering KERB_H, so the two agree across the seam instead of meeting
+      // at it.
+      ctx.ground((x, z) => (x >= FACE && x <= ex && z >= fz0 && z <= fz1)
+        ? ALLEY2_SLAB_Y : null);
     }
   }
 
