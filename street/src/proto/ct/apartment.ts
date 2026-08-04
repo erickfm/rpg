@@ -3666,9 +3666,44 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     // The SEAT does not move and never did — `TV_SEAT_X/Z` was untouched by
     // both items. This is only the patch of floor you press E from.
+    //
+    // ── AND NOW THE APPROACH IS THE SEAT (item 310e) ───────────────────────
+    //
+    // The user, twice: *"sit on bed and watch tv should be more on the bed than
+    // in the middle of the room as an e option"*, then *"make it harder to have
+    // the e dialog be sit on bed and watch tv"*. **This overrules item 309's
+    // restoration above**, which put the stand-point back where it had always
+    // been because he asked for the flat the way it was — his newer words win,
+    // and 309's own justification (an underived +0.40 that "has no derivation
+    // and never had one") is the weakest number in this block anyway.
+    //
+    // WHERE IT WAS: `AX(TV_X + 0.40)`/`AZI(3.70)` = local (-1.16, 3.70). The
+    // bed's collider is x -3.05…-1.15, z 4.40…5.32, so that point was OFF the
+    // bed on both axes — 0.70 m south of the mattress and past its foot, in the
+    // door's mouth, which is the middle of the room he is describing. With
+    // r 0.70 the prompt reached back to z 3.00, a third of the way to the
+    // opposite wall.
+    //
+    // WHERE IT IS: the seat pose itself, so `approach` is simply gone and
+    // `ctx.seat` defaults `at` to `{x, z}` — (TV_SEAT_X, TV_SEAT_Z) = local
+    // (-1.56, 4.42), the near edge of the mattress, dead in line with the
+    // television. **Not a second copy of the coordinate: there is no second
+    // coordinate any more.** You press E where you sit, which is the only
+    // version of this that cannot drift when the seat moves again.
+    //
+    // WHAT IT COSTS THE PLAYER: nothing he can feel. The bed's collider stops
+    // a standing player at z 4.054 (0.35 m of body off a 4.40 edge), which is
+    // 0.37 m from the new point — half the radius. What it takes away is the
+    // room side: the disc's south edge goes 3.00 -> 3.72, and the aim cone now
+    // points at the bed instead of at open floor.
+    //
+    // ⚠ `r` IS DELIBERATELY UNTOUCHED at 0.70. He is having the GLOBAL reach cut
+    // in `fp.ts` in the same session (*"in general the radius for things to
+    // press e should be smaller"*); cutting this one too would stack two
+    // reductions on one prompt and neither of us could say which made it
+    // unreachable. Moving the point is the part the global cut cannot do.
     ctx.seat({
       x: TV_SEAT_X, z: TV_SEAT_Z, yaw: 0, h: 0.45, r: 0.70,
-      approach: { x: AX(TV_X + 0.40), z: AZI(3.70) },
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: 'sit on the bed and watch TV',
       standLabel: 'stop watching TV',
