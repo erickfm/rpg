@@ -1477,15 +1477,25 @@ const CHECKS = [
   // on `side`, which removes the collider from the lot's party walls and leaves
   // the park's alone; watched red at 6 of 368 walks ending on no floor.
   //
-  // ⚠ THE PARK STILL CARRIES `false`, AND THAT IS NOW A MEASURED FACT RATHER
-  // THAN A GAP NOBODY GOT TO. The mirror-image mutation was written, proven to
-  // take effect (colliders 537 → 535, the park's two flank boxes) and run:
-  // **616 walks, 0 escapes, all contained.** The park's containment does not
-  // depend on its flank colliders. Putting a case name here for a mutation the
-  // check sleeps through would be worse than the `false` — it is the precise
-  // failure this item was raised about. See scripts/canfail.mjs beside
-  // `lot-flank-open` for what a real one would have to do.
-  ['w75-site-contained', 'can the player walk out of the world at the park?', false, ['park'], true],
+  // THE PARK CARRIED `false` FOR TWO ROUNDS, AND BOTH TIMES IT WAS A MEASURED
+  // FACT RATHER THAN A GAP NOBODY GOT TO. Item 260 wrote the mirror-image flank
+  // mutation, proved it took effect (colliders 537 → 535, the park's two flank
+  // boxes) and ran it: 616 walks, 0 escapes. Item 306 then removed the park's
+  // BACK-WALL collider — a real 1.2 m slot of void between the world clamp at
+  // x -40.20 and the wall at x -39, which `world-contained` went red on with
+  // 114 cells over nothing — and this leg slept through that too: 600 walks,
+  // 0 escapes. It walks a 3 m grid in 2.97 m steps; a 1.2 m slot behind a wall
+  // is finer than its own resolution, and that is a real and permanent limit of
+  // a per-site WALK against a whole-world grid FILL.
+  //
+  // CLOSED BY BREAKING THE FLOOR INSTEAD OF A WALL — canfail `park-ground-short`
+  // takes 12 m off the park's 32 m ground plane without moving its centre or a
+  // single collider, so the player walks in through the gate as usual and is
+  // over nothing two strides later. That is this check's own fault class: ground
+  // you can walk on that is not drawn. Watched red on 3e92d5c66 — **63 of 600
+  // walks ended ON NO FLOOR, x -12.90…-7.27 z -96.23…-68.44**, against 0 of 600
+  // on the same build unmutated, with the population legs green through both.
+  ['w75-site-contained', 'can the player walk out of the world at the park?', 'park-ground-short', ['park'], true],
   ['w75-site-contained', 'can the player walk out of the world at the lot?', 'lot-flank-open', ['lot'], true],
   // REGISTERED 2026-08-03 (w85, item 230). THE SAME QUESTION ASKED OF THE WHOLE
   // WORLD, and it is not a fourth site row — it is the row for everywhere that
@@ -1502,12 +1512,35 @@ const CHECKS = [
   // through every check in the project (`scripts/probes/w85-item230-aabb-vs-
   // raycast.mjs`).
   //
-  // NO `canfail` CASE: it carries its own `--selftest`, which deletes every
-  // flat street-level mesh and requires the road sentinel to go VOID. Both
-  // halves of that are asserted — including that the mutation removed a
-  // non-zero number of meshes, because the first version removed none and
-  // "passed" by measuring an empty set.
-  ['world-contained', 'is there anywhere in the WHOLE world the player can reach with no floor?', false, [], true],
+  // ⚠ ITEM 306 — THIS ROW SAID `false` AND THE COMMENT BELOW SAID WHY, AND THE
+  // COMMENT WAS THE PROBLEM. It carried a paragraph explaining that the script
+  // has its own `--selftest`, next to a column declaring no failing path, so
+  // `checks-can-fail.mjs` named this — the guard against walking OUT OF THE
+  // WORLD, after three world escapes were sealed this week — as a check nothing
+  // had ever watched go red. A reason in prose beside a `false` is invisible to
+  // every instrument here; that is the whole lesson of the WITHHELD block in
+  // checks-can-fail.mjs.
+  //
+  // IT NOW DECLARES BOTH, because the two halves prove different things and
+  // this check has two halves.
+  //
+  //   `true`  runs the script's own `--selftest`: it drops every flat
+  //           street-level mesh and requires the road sentinel to go VOID,
+  //           asserting BOTH that the mutation removed a non-zero number of
+  //           meshes and that the road then reads void — the first version
+  //           removed none and "passed" by measuring an empty set. That proves
+  //           the RAYCASTER can say no. It exits before the reachability fill
+  //           (world-contained.mjs:152-164), so it proves nothing about the
+  //           assertion this file exists for.
+  //   canfail `world-escape-jail-flank` reopens the jail forecourt hole — one
+  //           of the three real escapes fixed this week — and requires the
+  //           whole-world verdict to go red on it. Watched by hand on
+  //           3e92d5c66: reachable cells 20,426 -> 136,297 and 115,840 of them
+  //           OVER NOTHING in 1 region, x 7.50…259.50 z -110.50…19.00, exit 1.
+  //
+  // Registering only the first would certify half a guard, which is the
+  // argument the `masonry`/`masonry-blind` and `footprint` rows above make.
+  ['world-contained', 'is there anywhere in the WHOLE world the player can reach with no floor?', true, [], true, ['world-escape-jail-flank']],
   // REGISTERED 2026-08-03 (w85, item 236). `ct/hud.ts` hid `#ct-prompt` without
   // clearing its text, so the last caption lingered for ever — `[E] into the
   // HOUSE OF DETENTION` still readable 40 m from the jail door. **77 scripts
@@ -1519,8 +1552,22 @@ const CHECKS = [
   // mirror case (shown but empty) would catch a future `prompt()` that cleared
   // the text and forgot to hide the box. Population floors on both — it must
   // have seen the prompt shown somewhere and hidden somewhere, or it has
-  // measured nothing. Verified to fail: reverting the one line gives 18 ghosts.
-  ['prompt-not-a-ghost', 'is a HIDDEN [E] prompt always an EMPTY one?', false, []],
+  // measured nothing.
+  //
+  // ⚠ ITEM 306. THIS ROW SAID `false` UNDER THE WORDS "Verified to fail:
+  // reverting the one line gives 18 ghosts." Somebody really did watch it go
+  // red — and wrote the evidence into a comment, where no instrument reads it,
+  // beside a column saying the check has no failing path. `checks-can-fail.mjs`
+  // therefore listed it as never having been watched fail, correctly, because
+  // "watched once by a person who then typed a sentence" is not a failing path
+  // anybody can re-run. That reverted line is now `prompt-ghost` in
+  // scripts/canfail.mjs: it deletes the `textContent = ''` and leaves
+  // `display = 'none'` standing, so only the DOM lies and the world still looks
+  // right — which is the shape of the fault. Watched red on 3e92d5c66:
+  // 10 ghost(s), first `[E] into FIRST FEDERAL` at (199.36, -17.46), both
+  // population floors still green (36/40 spots showed a caption, 6/6 open
+  // points hid it), so the red is the invariant and not the sample collapsing.
+  ['prompt-not-a-ghost', 'is a HIDDEN [E] prompt always an EMPTY one?', 'prompt-ghost', []],
   // REGISTERED 2026-08-03 (w109, item 199). It was written a day earlier as
   // `scripts/probes/w68-watch-vs-panel.mjs` to prove item 189 — the player's
   // wristwatch riding over a panel laid FLAT on a desk, because `poseFor` takes
