@@ -1113,9 +1113,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillRect(7, 16, 18, 16); g.fillRect(7, 38, 18, 20);
       g.fillStyle = 'rgba(255,255,255,0.12)';
       g.fillRect(7, 16, 18, 2); g.fillRect(7, 38, 18, 2);
-      // a security chain and its slide, because this is the side you use
-      g.fillStyle = '#8d8d92'; g.fillRect(5, 22, 6, 2);
-      g.fillStyle = '#6e6e74'; for (let i = 0; i < 5; i++) g.fillRect(11 + i * 2, 23, 1, 1);
+      // ── NO SECURITY CHAIN HERE. DO NOT PUT ONE BACK. ────────────────────
+      // There was one — a #8d8d92 slide at (5,22) with five #6e6e74 links
+      // trailing off it — drawn *"because this is the side you use"*. The
+      // user, looking straight at it: *"get rid of whatever this is on the
+      // back of the door"*. He did not recognise it, and that IS the finding:
+      // 8 texels of hardware on a 32 x 64 leaf, seen across a room, is not a
+      // chain, it is a smudge with dots after it. It is the same lesson the
+      // painted knob taught (finding 8, two panels down) — detail below the
+      // texel density it is drawn at reads as an artefact, not as detail.
+      //
+      // Nothing replaces it. He has turned down elaboration all day and a
+      // plain leaf is what a plain leaf looks like; the two sunken panels, the
+      // grain and the wear are untouched, and the chain sat INSIDE the upper
+      // panel, so nothing is left as an empty band.
       dither(g, 32, 64, 40);
     });
     // Report finding 8: the knob was a single flat square of #c9b45e painted
