@@ -3710,29 +3710,63 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // laid 2 mm proud of its face, so the frame's own border is the surround —
     // not four rails round an aperture like the TV, because a mirror has no
     // depth to recess and two meshes beat five.
-    const mirrorT = surfTex('detail', 24, 32, (g) => {
-      g.fillStyle = '#98a3ac'; g.fillRect(0, 0, 24, 32);         // the room, gone cold
-      g.fillStyle = '#7b848d'; g.fillRect(0, 0, 24, 5);          // its ceiling
-      g.fillStyle = '#4a3a2b'; g.fillRect(0, 24, 24, 8);         // its floorboards
-      g.fillStyle = '#33281d'; g.fillRect(0, 24, 24, 1);         // the skirting line
+    // ── FULL LENGTH (his second word on it) ──────────────────────────────
+    // The user: *"make the mirror full length"*. It hung as a 0.60 m glass at
+    // chest height, which is a shaving mirror; this is one you see yourself
+    // head to foot in. The frame runs RY+0.25 to RY+1.95 — off the floor,
+    // because it HANGS (a glass sitting on the boards is a leaning cheval and
+    // would need a collider), and stopping 0.59 m under the RY+2.543 ceiling
+    // so it is not jammed against the cornice.
+    //
+    // AND THE PAINTING CHANGED WITH THE PROPORTION, which is the half of this
+    // that is not arithmetic. A chest-height glass shows wall and a slice of
+    // floor; a full-length one is mostly FLOOR — you stand back from it and it
+    // takes in the boards from your feet out to the far wall. So the horizon
+    // drops to 62% down, the skirting line goes in where wall meets floor
+    // because at this height you can see the junction, and the boards below it
+    // get joints that open up toward the bottom edge, since the near end of a
+    // reflected floor is the bottom of the glass. Repainting was not optional:
+    // the old 24x32 field stretched to 1.6 m would have been a tall picture of
+    // a short view, with a horizon at eye level and nothing under it.
+    const mirrorT = surfTex('detail', 20, 64, (g) => {
+      g.fillStyle = '#98a3ac'; g.fillRect(0, 0, 20, 64);         // the room, gone cold
+      g.fillStyle = '#7b848d'; g.fillRect(0, 0, 20, 5);          // its ceiling
+      g.fillStyle = '#4a3a2b'; g.fillRect(0, 40, 20, 24);        // its floorboards
+      g.fillStyle = '#33281d'; g.fillRect(0, 38, 20, 2);         // the skirting line
+      // board joints, opening up toward the bottom — the boards run away from
+      // you, so the near ones read wider
+      g.fillStyle = 'rgba(0,0,0,0.20)';
+      for (const y of [43, 47, 52, 59]) g.fillRect(0, y, 20, 1);
       g.fillStyle = 'rgba(255,255,255,0.20)';                    // the near rake
-      for (let y = 0; y < 32; y++) g.fillRect(Math.round(2 + y * 0.42), y, 5, 1);
+      for (let y = 0; y < 64; y++) g.fillRect(Math.round(1 + y * 0.22), y, 4, 1);
       g.fillStyle = 'rgba(255,255,255,0.11)';                    // and the far one
-      for (let y = 0; y < 32; y++) g.fillRect(Math.round(11 + y * 0.42), y, 2, 1);
-      // the silvering has gone at the corners — it came with the flat
+      for (let y = 0; y < 64; y++) g.fillRect(Math.round(9 + y * 0.22), y, 2, 1);
+      // the silvering has gone at the corners, and worst along the bottom edge
+      // where the damp got at it — it came with the flat
       g.fillStyle = 'rgba(58,52,46,0.34)';
-      for (const [x, y, w, h] of [[0, 0, 2, 4], [22, 5, 2, 3], [0, 13, 1, 5],
-                                  [1, 27, 3, 3], [21, 29, 3, 3]]) g.fillRect(x, y, w, h);
-      dither(g, 24, 32, 26);
+      for (const [x, y, w, h] of [[0, 0, 2, 5], [18, 4, 2, 4], [0, 26, 1, 7],
+                                  [19, 44, 1, 6], [0, 59, 4, 5], [15, 61, 5, 3]]) g.fillRect(x, y, w, h);
+      dither(g, 20, 64, 30);
     });
     const MIR_X = -0.72;                        // the chair's own x, kept
-    const MIR_W = 0.44, MIR_H = 0.60;
+    const MIR_W = 0.52, MIR_H = 1.70;
     const FRAME_D = 0.05, FRAME_W = 0.05;       // how proud it stands, and its border
     // the north wall's ROOM FACE. AZI(5.5) is the wall box's centreline and the
     // box is 0.14 deep — the same half-thickness `NORTH_Z` takes below, and the
     // trap it documents: hang at 5.49 and the mesh is entombed in the plaster.
     const MIR_WALL_Z = 5.5 - 0.07;
-    const MIR_Y = RY + 1.42;                    // you look into it standing up
+    // ⚠ CLEARANCE, re-walked for the taller, wider frame rather than assumed.
+    // It spans x -0.98…-0.46 and y RY+0.25…RY+1.95 on the plaster:
+    //   the BED's collider ends at x -1.15, so 0.17 m of clear wall to its west
+    //   the EAST wall's room face is AX(0), 0.46 m past its other edge
+    //   the SKIRTING is painted into the wallpaper tile, not geometry, so
+    //     there is nothing at the bottom to foul — the 0.25 m lift is for the
+    //     look of a hung glass, not for a board that is not there
+    //   301's LEAF sweeps 0.91 m from a pivot at (-0.09, 3.975); the frame's
+    //     nearest corner is 1.46 m out, so the arc still misses it
+    // Still no collider and no `maxY`: 0.05 m proud of a wall you are held
+    // 0.35 m off cannot be reached, and it is not a surface.
+    const MIR_Y = RY + 1.10;                    // frame RY+0.25 … RY+1.95
     box(MIR_W, MIR_H, FRAME_D, MIR_X, MIR_Y, MIR_WALL_Z - FRAME_D / 2,
       new THREE.MeshBasicMaterial({ color: 0x3f3125 }));
     const mirror = new THREE.Mesh(
