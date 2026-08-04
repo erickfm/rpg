@@ -939,6 +939,37 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       [darkWoodM, darkWoodM, texM(nibTop), texM(nibUnder), darkWoodM, darkWoodM]);
     nib.position.set(AX(0.6), TOP_Y + 0.006 - 0.06, AZI(8.4 + NIB_D / 2));
     scene.add(nib);
+    // ── THE SLAB EDGE AT THE STAIRWELL MOUTH ─────────────────────────────
+    // The user: *"graphics bugs underl top floor railing"* — a band of the red
+    // stair carpet showing THROUGH the plaster ceiling, ragged along both
+    // edges, shot from the floor below.
+    //
+    // NOT the railing, and NOT item 310d's NIB_D pull-back — I checked mine
+    // first and it is innocent. The edge this happens at is AZI(8.4), the
+    // stairwell mouth, and no NIB number touches it; the nib is a BOX, its
+    // sides are closed, and it starts at 8.4 whether it is 1.2 deep or 0.9.
+    //
+    // THE REAL CAUSE IS THAT A STOREY HAS NO SLAB. Every floor is two
+    // zero-thickness planes — hall carpet at `f*ST + 0.006`, hall ceiling at
+    // `f*ST + 2.55` — and BOTH stop dead at the mouth. Between them is 0.156 m
+    // of void that is open along that whole edge. Stand near the mouth and look
+    // steeply up and a thin cone of rays slips PAST the ceiling's edge and
+    // lands on the UNDERSIDE of the carpet above: red, framed by plaster, and
+    // aliased along its silhouette because it is a grazing sliver. It is not
+    // z-fighting, and it has been there since the storeys were built — the
+    // ceiling under the top landing is simply the first place anyone looked up.
+    //
+    // A slab has an edge, so give it one: the same timber fascia the nib
+    // already wears on its open sides, run the full 2.4 m width of the mouth,
+    // at EVERY storey rather than at the one he happened to photograph. It
+    // meets the nib's own -z face in the same material, so the two read as one
+    // board. Purely visual, 2.55 m up — no collider, nothing to walk into.
+    for (let f = 0; f < 3; f++) {
+      const yb = f * ST + 2.55, yt = (f + 1) * ST + 0.006;
+      const fascia = new THREE.Mesh(new THREE.BoxGeometry(2.4, yt - yb, 0.04), darkWoodM);
+      fascia.position.set(AX(1.2), (yb + yt) / 2, AZI(8.4));
+      scene.add(fascia);
+    }
     // the guard: a railing you can SEE, standing exactly where the stairCap
     // collider starts, so nothing invisible ever stops you
     const railCap2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.09), railM);
