@@ -3761,3 +3761,67 @@ shapes, sleeve cuff at the wrist, forearm cropped by the frame.
 Scoped by the desk to HAND AND ARM, his words. The reference wears an analog
 steel watch on a link bracelet and ours is a digital LCD — the builder was told
 not to redesign the watch off the back of this, and to ask rather than assume.
+
+## 2026-08-04 — the steal prompt, two words
+
+Verbatim: *"make the dialog for stealing just say steal package"*
+
+It read `steal 302's package` — the apartment number was interpolated in. Both
+parcel spots (one per side of a door, in `ct/apartment.ts`) built the label, and
+they were the only two places it existed. Now the literal `steal package`.
+
+The doc comment in `ct/inventory.ts` that quoted the old wording was corrected in
+the same pass so it stops describing something that no longer ships.
+
+## 2026-08-04 — package rate
+
+Verbatim: *"also there's too many packages to steal. make package rate less
+frequent"*
+
+`PKG_CHANCE` 0.20 → 0.10, per door per day, over the walk-up's 8 doors: 1.6
+parcels a day becomes 0.8, and the odds the building has one at all go 83% → 57%.
+His own landing carries one 19% of days.
+
+Note for whoever moves it next: it is ONE knob and nothing accumulates —
+`present` is recomputed every frame as a function of (door, day), and the
+taken-set is keyed by day, so a parcel he walks past clears at the rollover
+regardless. Deliberately not back to the 0.08 that made it invisible in the first
+place; this is the one dial between "a depot" and "never happens".
+
+## 2026-08-04 — the mug's interior
+
+Verbatim: *"inside of mug on the windowsill is gray, the color doesn't match the
+rest of the mug"*
+
+He was describing the constant exactly: body (216,210,196) warm, interior
+`0x6d6e6f` (109,110,111) dead neutral.
+
+**This reversed part of item 274** (*"mug should be empty"*), which darkened the
+mouth deliberately — that stays. What 274 also did was rotate the hue COOL to get
+away from coffee, and that is the half he is seeing: it went past shade into a
+different material, the one thing 274's own note swore off. Ceramic in shadow is
+the body times a scalar, so it is now the body x0.50 = `0x6c6962`. Value 108
+against the old 111, so the darkness 274 measured does not move and the mouth
+cannot go back to reading as full. The two goals were never actually in tension.
+
+## 2026-08-04 — flicker inside the window
+
+Verbatim: *"also there are textures which flicker on the top and right inside of
+the window, can you look into that?"*
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-04 13-28-14.png`
+
+A depth fight, and **not the one already fixed at that spot.** The earlier fix
+was the four CORNERS, reveal piece against reveal piece, and it stays fixed. This
+was each reveal piece against THE WALL'S OWN CUT FACE — the reveal box sat buried
+in the wall solid with only its inner face showing, exactly coplanar with the
+opening's cut face, which is why the band runs a return's whole length instead of
+sitting in a corner.
+
+It survived the first fix because the two colours are `jambM` (139,130,113) and
+`revM` (139,132,116): three levels apart, so it reads as a cross-hatch within one
+tan rather than as two surfaces arguing.
+
+Each piece now moves in by its own 2 cm, so the visible face stands proud and the
+coplanar face is the back one, which culls. All four returns had it — he could
+only see two from where he stood. No polygonOffset, no geometry moved toward the
+sidewalk lane, colliders untouched.
