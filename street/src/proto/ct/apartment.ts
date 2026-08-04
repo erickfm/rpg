@@ -2476,14 +2476,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // appears where he lives. That is not a rare event, it is an invisible
     // feature, and his sentence is the correct report of it.
     //
-    // 0.20 is chosen with both of his statements in hand — he asked for *"a
-    // small chance"* and he is telling me he has never seen one — and with the
+    // 0.20 was chosen with both of his statements in hand — he asked for *"a
+    // small chance"* and he was telling me he had never seen one — and with the
     // failure the queue row names in the other direction: *"a landing with a
-    // parcel at every door reads as a depot."* At 0.20 a door gets a parcel
-    // about one day in five, his own landing carries one on a third of days,
-    // and the building averages 1.6 of its 8 doors. Re-measured numbers are in
-    // notes/w64-packages.md. It is one constant either way.
-    const PKG_CHANCE = 0.20;                 // per door per day — see scripts/packages.mjs
+    // parcel at every door reads as a depot."* At 0.20 a door got a parcel
+    // about one day in five, his own landing carried one on a third of days,
+    // and the building averaged 1.6 of its 8 doors. Re-measured numbers are in
+    // notes/w64-packages.md.
+    //
+    // 2026-08-04, and 0.20 overshot: *"there's too many packages to steal.
+    // make package rate less frequent"*. Halved, because half is a number he
+    // can push either way and because the arithmetic is legible from it:
+    //
+    //     0.20   1.6 of 8 doors per day · SOMETHING in the building 83% of days
+    //     0.10   0.8 of 8 doors per day · something in the building 57% of days
+    //            his own landing (301/302) carries one 19% of days
+    //
+    // Deliberately NOT back to the 0.08 that made it an invisible feature —
+    // this is the one dial between "a depot" and "never happens", so expect to
+    // move it again. It is one constant either way; nothing accumulates,
+    // because `present` below is recomputed every frame from (door, day) and
+    // `pkgTaken` is keyed by day, so an unstolen parcel clears at the rollover.
+    const PKG_CHANCE = 0.10;                 // per door per day — see scripts/packages.mjs
     const PKG_W = 0.28, PKG_H = 0.26, PKG_D = 0.34;
     // margin from the jamb: half the parcel, plus enough that it reads as
     // beside the door rather than against it
