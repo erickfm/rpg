@@ -139,7 +139,9 @@ const HATS: readonly Garment[] = [
 const GLASSES: readonly Garment[] = [
   { id: 'noglasses', name: 'NO GLASSES', kind: 'none', cloth: '#000000', trim: '#000000' },
   { id: 'specs', name: 'GLASSES', kind: 'clear', cloth: '#b6c6cf', trim: '#2a2a2e' },
-  { id: 'shades', name: 'SUNGLASSES', kind: 'sun', cloth: '#1e232b', trim: '#16161a' },
+  // `shades`, not `sun` — the SUN HAT already owns that kind, and the item
+  // painter switches on `kind` alone with no idea which slot it came from.
+  { id: 'shades', name: 'SUNGLASSES', kind: 'shades', cloth: '#1e232b', trim: '#16161a' },
 ];
 
 /**

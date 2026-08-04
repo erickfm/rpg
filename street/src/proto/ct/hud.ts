@@ -441,7 +441,7 @@ export interface ScreenSurface {
    * adopt: a surface that cannot be found is a worse-looking panel, not a
    * broken one.
    */
-  mesh: () => THREE.Object3D | null;
+  mesh?: () => THREE.Object3D | null;
   /** how far the eye settles off the face, in metres along its normal */
   standoff?: number;
   /** the field of view to lean in to. Narrower reads as leaning closer. */
@@ -472,8 +472,16 @@ export interface ScreenSurface {
    * gate must never swallow the release of a button or a key, or the world is
    * left holding one. So this rides its own listener, installed with the gate
    * and torn down with it, which **reads the event and does not swallow it**.
+   *
+   * The argument is where the pointer was, in the caller's own canvas pixels,
+   * or **`null` when the button came up off the panel entirely** — which is a
+   * real answer and not a missing one. A drag dropped outside the screen is a
+   * drop on nothing, and a caller that read a stale last-known position
+   * instead would treat it as a drop whereever the pointer last happened to be
+   * inside: the mirror would put a garment on for a gesture that left the
+   * window.
    */
-  up?: () => void;
+  up?: (hit: { x: number; y: number } | null) => void;
   /**
    * WHICH material slot is the screen, when the mesh carries several.
    *
@@ -730,7 +738,22 @@ export interface Panel {
 }
 
 const BEZEL = 14, CAPTION = 18, TITLE_H = 14;
-let livePanel: { spec: PanelSpec; close: () => void } | null = null;
+let livePanel: {
+  spec: PanelSpec;
+  close: () => void;
+  /**
+   * WHERE THIS PANEL'S PIXELS ARE ON THE SCREEN, so a pointer can be turned
+   * into the caller's own canvas coordinates whether the panel is painted on a
+   * mesh or over the camera. Set by `makePanel`, which owns the element.
+   *
+   * A DIEGETIC panel answers this by raycasting the mesh (`surfaceHit`); a
+   * SCREEN-SPACE one answers it off its own canvas's client rect, which is the
+   * half that did not exist before the mirror needed to be dragged on. Both
+   * return the caller's canvas pixels, so `hot`/`click`/`move` are written once
+   * and do not know which kind of panel they are in.
+   */
+  hit: (e: MouseEvent) => { x: number; y: number } | null;
+} | null = null;
 /**
  * THE POINTER LOCK THE PANEL SYSTEM TOOK, AND OWES BACK.
  *
@@ -933,6 +956,35 @@ function surfaceHit(e: MouseEvent): { x: number; y: number } | null {
   return uv ? { x: uv.u * p.spec.w, y: (1 - uv.v) * p.spec.h } : null;
 }
 
+/**
+ * The same question for a panel painted OVER the camera rather than onto a
+ * mesh: where is this pointer in the caller's screen pixels?
+ *
+ * Off the canvas's own client rect rather than off the CSS that placed it —
+ * the element is `position:fixed; left:50%; top:50%; translate(-50%,-50%)` and
+ * may be scaled, so the browser's measurement is the only thing that stays
+ * true when the viewport changes. `rect.width / (CW * ...)` is not needed: the
+ * ratio of canvas pixels to client pixels IS `cv.width / rect.width`, whatever
+ * the scale factor and whatever the page zoom.
+ *
+ * `bezel` is subtracted because a caller lays out in SCREEN pixels — the area
+ * inside the chrome — and the canvas includes the bezel around it. Frameless
+ * panels pass 0,0 and the two coordinate systems are the same.
+ *
+ * `null` when the pointer is off the canvas entirely, which the caller reads
+ * as "not over me": a drag that leaves the panel stops tracking, and a click
+ * out there is nothing rather than an edge pixel.
+ */
+function elementHit(
+  e: MouseEvent, cv: HTMLCanvasElement, sx: number, sy: number, w: number, h: number,
+): { x: number; y: number } | null {
+  const r = cv.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+  const x = (e.clientX - r.left) * (cv.width / r.width) - sx;
+  const y = (e.clientY - r.top) * (cv.height / r.height) - sy;
+  return x >= 0 && y >= 0 && x < w && y < h ? { x, y } : null;
+}
+
 function gate(e: Event): void {
   const p = livePanel;
   // A DESYNCED GATE IS A TRAP. If the gate is somehow installed with no panel
@@ -971,11 +1023,11 @@ function gate(e: Event): void {
     // THE POINTER IS A POINTER AGAIN while a screen is up. These events are
     // still swallowed below, so the world neither turns its head nor takes
     // pointer lock back — they are read on the way past and go no further.
-    const h = surfaceHit(e as MouseEvent);
+    const h = p.hit(e as MouseEvent);
     cursorHand(!!h && !!p.spec.surface?.hot?.(h.x, h.y));
     if (h) p.spec.surface?.move?.(h.x, h.y);
   } else if (e.type === 'mousedown') {
-    const h = surfaceHit(e as MouseEvent);
+    const h = p.hit(e as MouseEvent);
     if (h) p.spec.surface?.click?.(h.x, h.y);
   }
   swallow(e);
@@ -989,7 +1041,10 @@ function gate(e: Event): void {
  * So this listener only tells the live panel that the button came up, and the
  * event goes on its way untouched.
  */
-const gateRelease = (): void => { livePanel?.spec.surface?.up?.(); };
+const gateRelease = (e: Event): void => {
+  const p = livePanel;
+  if (p) p.spec.surface?.up?.(p.hit(e as MouseEvent));
+};
 
 function gateUp(on: boolean): void {
   if (on === gateOn) return;
@@ -1305,7 +1360,20 @@ export function makePanel(spec: PanelSpec): Panel {
       // point — the alternative is a comment telling five builders to be
       // careful.
       seatedAtOpen = !!(window as unknown as { __ct?: { seated?: () => unknown } }).__ct?.seated?.();
-      livePanel = { spec, close: () => api.close() };
+      livePanel = {
+        spec,
+        close: () => api.close(),
+        // ONE POINTER QUESTION, TWO ANSWERS. A diegetic panel is raycast; a
+        // screen-space one is measured off its own canvas. Resolved per event
+        // rather than at open time because `surfaceHit` degrades to `null` when
+        // the focus controller is missing (a harness, the artifact iframe) —
+        // and a panel that fell back to the screen-space cabinet must fall back
+        // to the screen-space POINTER with it, or it draws where it cannot be
+        // clicked.
+        hit: (e: MouseEvent) => (spec.surface && FOCUS
+          ? surfaceHit(e)
+          : elementHit(e, cv, SX, SY, spec.w, spec.h)),
+      };
       // THE `[E]` THAT OPENED THIS MUST NOT ALSO CLOSE IT. The player is almost
       // certainly still holding the key that got him here, and it auto-repeats;
       // the gate below now reads `E` as "leave", so without this a machine
@@ -1340,7 +1408,12 @@ export function makePanel(spec: PanelSpec): Panel {
       // to freeze the world — every failure lands on the screen-space cabinet,
       // which is the same place a null `mesh()` has always landed.
       try {
-        onMesh = spec.surface && FOCUS ? spec.surface.mesh() : null;
+        // `mesh` IS OPTIONAL, and a surface without one is a panel that wants
+        // the pointer but not the wall: the mirror's dressing view is drawn
+        // over the camera and still reads `hot`/`click`/`move`/`up`. No mesh,
+        // no diegetic path, and the screen-space cabinet — which is exactly
+        // what a `mesh()` returning null has always produced.
+        onMesh = spec.surface?.mesh && FOCUS ? spec.surface.mesh() : null;
         // AND THE MATERIAL HAS TO BE BORROWABLE, not just the mesh findable —
         // resolved HERE, before `backdropUp` and `paint` commit to a layout,
         // because `screenSlot` returning null must land in exactly the same

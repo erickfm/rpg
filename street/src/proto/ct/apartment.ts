@@ -33,7 +33,7 @@ import { screenFade, makePanel, type Panel } from './hud';
  *  `GLASS` is the palette the wall plate below paints with, so the mirror seen
  *  from across the room and the mirror you step into cannot drift apart in
  *  colour (BUILDER-BRIEF §8). */
-import { mirrorPanel, GLASS } from './mirror';
+import { mirrorPanel, glassCanvas, paintGlass } from './mirror';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
@@ -4121,32 +4121,6 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // reflected floor is the bottom of the glass. Repainting was not optional:
     // the old 24x32 field stretched to 1.6 m would have been a tall picture of
     // a short view, with a horizon at eye level and nothing under it.
-    const mirrorT = surfTex('detail', 20, 64, (g) => {
-      // THE SEVEN COLOURS COME FROM `ct/mirror.ts` AND THE GEOMETRY STAYS HERE.
-      // That module paints the same reflection at eight times this density for
-      // the panel you step into, and two paintings of one surface must not
-      // drift apart in colour. The 20 x 64 field itself is untouched — Erick has
-      // looked at this plate through three iterations today and every literal
-      // below is the one he approved.
-      g.fillStyle = GLASS.wall; g.fillRect(0, 0, 20, 64);        // the room, gone cold
-      g.fillStyle = GLASS.ceil; g.fillRect(0, 0, 20, 5);         // its ceiling
-      g.fillStyle = GLASS.boards; g.fillRect(0, 40, 20, 24);     // its floorboards
-      g.fillStyle = GLASS.skirt; g.fillRect(0, 38, 20, 2);       // the skirting line
-      // board joints, opening up toward the bottom — the boards run away from
-      // you, so the near ones read wider
-      g.fillStyle = 'rgba(0,0,0,0.20)';
-      for (const y of [43, 47, 52, 59]) g.fillRect(0, y, 20, 1);
-      g.fillStyle = GLASS.rakeNear;                              // the near rake
-      for (let y = 0; y < 64; y++) g.fillRect(Math.round(1 + y * 0.22), y, 4, 1);
-      g.fillStyle = GLASS.rakeFar;                               // and the far one
-      for (let y = 0; y < 64; y++) g.fillRect(Math.round(9 + y * 0.22), y, 2, 1);
-      // the silvering has gone at the corners, and worst along the bottom edge
-      // where the damp got at it — it came with the flat
-      g.fillStyle = GLASS.rot;
-      for (const [x, y, w, h] of [[0, 0, 2, 5], [18, 4, 2, 4], [0, 26, 1, 7],
-                                  [19, 44, 1, 6], [0, 59, 4, 5], [15, 61, 5, 3]]) g.fillRect(x, y, w, h);
-      dither(g, 20, 64, 30);
-    });
     const MIR_X = -0.72;                        // the chair's own x, kept
     // ── WIDER AND SHORTER (his fourth word on this glass) ────────────────
     //
@@ -4173,14 +4147,21 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // (-0.09, 3.975) and the frame's nearest corner is now 1.42 m out, still
     // half a metre clear of the arc.
     //
-    // THE PAINTED FIELD IS NOT REPAINTED, and that is the same call the last
-    // builder made for the 0.15 m lift. Going full-length changed the glass by
-    // 1.10 m and had to be redrawn; this is 15% off the height and 19% onto the
-    // width of the same view. The horizon sits 62% down, so the plate is still
-    // mostly floor — which is what a mirror you see your feet in shows — and
-    // the joints still open toward the bottom edge. What changes is 25 cm of
-    // ceiling coming off the top of the reflection, which is the part of the
-    // field carrying the least.
+    // ── AND THE FIELD IS NOT REDRAWN BUT IT IS NOW MEASURED ─────────────
+    //
+    // *"give me true proportions in the mirror i feel stretched"* — and the
+    // plate was, in both directions at different times. It was a FIXED 20 x 64
+    // canvas (aspect 0.3125) on a quad that has been 0.2625 all day and became
+    // 0.385 with this resize: the same painting squeezed 19% one way, then
+    // stretched 23% the other. Two numbers kept in step by hand and nothing
+    // keeping them.
+    //
+    // The composition is unchanged — horizon 62% down, joints opening toward
+    // the bottom, foxing worst along the bottom edge — but the CANVAS is now
+    // derived from the plate's metres (`glassCanvas`, 40 texels/m) and the
+    // field is painted in fractions of its own W and H (`paintGlass`). Texels
+    // are square by construction and the next resize cannot desynchronise them,
+    // because there is no second number left to forget.
     const MIR_W = 0.62, MIR_H = 1.45;
     const FRAME_D = 0.05, FRAME_W = 0.05;       // how proud it stands, and its border
     // the north wall's ROOM FACE. AZI(5.5) is the wall box's centreline and the
@@ -4202,18 +4183,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Still no collider and no `maxY`: 0.05 m proud of a wall you are held
     // 0.35 m off cannot be reached, and it is not a surface.
     //
-    // THE PLATE IS NOT REPAINTED FOR THE LIFT, deliberately. Going full length
-    // changed the view by 1.10 m of glass and had to be redrawn; this moves the
-    // same 1.60 m of glass 0.15 m, which is 9% of its own height — the horizon
-    // would shift about a texel and a half of 64 and the floor joints would
-    // still open toward the bottom edge. Redrawing it would be churn on a field
-    // that already reads right.
     const MIR_GAP = 0.40;                       // boards to the frame's bottom
-    const MIR_Y = RY + MIR_GAP + MIR_H / 2;     // frame RY+0.40 … RY+2.10
+    const MIR_Y = RY + MIR_GAP + MIR_H / 2;     // frame RY+0.40 … RY+1.85
     box(MIR_W, MIR_H, FRAME_D, MIR_X, MIR_Y, MIR_WALL_Z - FRAME_D / 2,
       new THREE.MeshBasicMaterial({ color: 0x3f3125 }));
+    // THE GLASS, AND ITS CANVAS DERIVED FROM IT. Both dimensions of the plate
+    // and both of the canvas come off `MIR_W`/`MIR_H` and `FRAME_W`, so the
+    // painted field's aspect IS the quad's aspect and there is no pair of
+    // numbers to keep in step. See `glassCanvas` for what went wrong when
+    // there was.
+    const GLASS_W = MIR_W - 2 * FRAME_W, GLASS_H = MIR_H - 2 * FRAME_W;
+    const gc = glassCanvas(GLASS_W, GLASS_H);
+    const mirrorT = surfTex('detail', gc.w, gc.h, (g) => paintGlass(g, gc.w, gc.h));
     const mirror = new THREE.Mesh(
-      new THREE.PlaneGeometry(MIR_W - 2 * FRAME_W, MIR_H - 2 * FRAME_W), texM(mirrorT));
+      new THREE.PlaneGeometry(GLASS_W, GLASS_H), texM(mirrorT));
     mirror.position.set(AX(MIR_X), MIR_Y, AZI(MIR_WALL_Z - FRAME_D - 0.002));
     mirror.rotation.y = Math.PI;   // this wall faces -z, and texM is DoubleSide:
     scene.add(mirror);             // get it wrong and the sheen simply rakes the
@@ -4227,35 +4210,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // The panel, the figure and the six racks are `ct/mirror.ts` and
     // `ct/wardrobe.ts` — the wardrobe imports nothing at all so that this file,
     // `ct/hud.ts` (your own forearm) and the mirror can all read one fact about
-    // what you have on without closing an import cycle. What is HERE is the
-    // three things only this file knows: which mesh is the glass, where the eye
-    // settles, and where you stand.
+    // what you have on without closing an import cycle. What is HERE is the one
+    // thing only this file knows: where you stand to be offered it.
     //
-    // ── THE STAND-OFF IS ARITHMETIC, NOT TASTE ───────────────────────────
+    // ⚠ IT USED TO BE A DIEGETIC PANEL PAINTED ON THIS MESH, with a derived
+    // stand-off and a leaned-in fov, the way the wall calendar is. **That is
+    // gone** and the reason is worth keeping: he came back with *"we need to be
+    // able to drag and drop items… we can make the rest of the room kinda fade
+    // away so we cna have a proper way to dress"*, and a rack of garments you
+    // pick up and carry does not fit on a glass that is 0.52 m wide against
+    // 1.35 m tall. Fitting that height to the frame leaves the width at about
+    // an eighth of the screen and NO fov or stand-off changes that — both
+    // scale the framing together. So the dressing view is drawn over the
+    // camera, and it draws the mirror rather than being painted on it.
     //
-    // `crosstown.ts` puts `fov` straight onto `cam.fov`, which is VERTICAL, so
-    // the glass's HEIGHT is the binding dimension: d = (H/2) / tan(fov/2), plus
-    // 18% so the reflection does not touch the top and bottom of the frame.
-    // Same derivation as the calendar's, and the same reason it cannot be
-    // borrowed from it — that page is 0.64 m tall and this glass is 1.60.
-    //
-    // ⚠ THE PICTURE IS A TALL NARROW STRIP AND THAT IS NOT A BUG. Fitting 1.60 m
-    // of height on a 16:9 screen leaves the 0.42 m of width at about an eighth
-    // of it, and **no fov or stand-off changes that ratio** — both scale the
-    // framing together, so the glass occupies the same fraction of the screen
-    // whatever is chosen here. It is the mirror's own proportion, it is what a
-    // full-length mirror looks like, and `ct/mirror.ts` lays its whole interface
-    // out vertically because of it.
-    //
-    // fov 52 against the player's own 88 at rest, so it reads as leaning in;
-    // the eye lands 1.94 m back, which at x −0.72 is open floor — the bed's
-    // collider ends at x −1.15 and the TV crate at z 2.53, so nothing stands in
-    // the column between the eye and the glass.
+    // The mesh keeps its name because a probe should be able to find the glass
+    // by asking rather than by guessing a shape.
     mirror.name = 'mirror-301';
-    const MIR_FOV = 52;
-    const MIR_STANDOFF = ((MIR_H - 2 * FRAME_W) / 2)
-      / Math.tan((MIR_FOV * Math.PI) / 360) * 1.18;
-    const openMirror = mirrorPanel(() => mirror, { standoff: MIR_STANDOFF, fov: MIR_FOV });
+    const openMirror = mirrorPanel();
     // ── WHERE YOU STAND, WHICH IS A 0.118 m SLOT AND HAS TO BE MEASURED ──
     //
     // This corner is boxed in by two colliders declared ~700 lines below, and
