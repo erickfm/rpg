@@ -35,8 +35,17 @@ read worst case."* A warm builder's whole warm-up is this file. It does not
 pre-read GOTCHAS, the brief, or the source, and it does not map the codebase —
 it reads exactly what the task in hand needs, when the task arrives. A builder
 that spent 69k tokens memorising a map it may never use is worse than one that
-spends 3k reading the two files the ask actually touches. Respawn rather than
-let a builder accumulate; a fresh warm-up costs about a minute.
+spends 3k reading the two files the ask actually touches.
+
+**ONE TASK, ONE BUILDER. RETIRE IT AFTERWARDS.** The desk broke this within the
+hour of writing the rule above, chaining five asks onto one agent until it held
+93k tokens of four unrelated jobs, and Erick caught it: *"you didnt start a new
+agent you took one with a context which was already used for something else."*
+A fresh warm-up costs **~6 seconds and 21k tokens**. Chaining saves nothing and
+buys a builder reasoning about a mug while it edits the collision radius. Send a
+second task to a live builder only when it is genuinely the same work — a
+rejected pass at the thing it just built, or a trunk file no one else may enter
+while it holds it.
 
 **THE DESK DOES NOT DIAGNOSE EITHER.** Measured over 35 items: the desk's stated
 cause was wrong 6 times and a builder caught it 6 out of 6; over a later session,
