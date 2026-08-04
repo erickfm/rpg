@@ -3825,3 +3825,51 @@ Each piece now moves in by its own 2 cm, so the visible face stands proud and th
 coplanar face is the back one, which culls. All four returns had it — he could
 only see two from where he stood. No polygonOffset, no geometry moved toward the
 sidewalk lane, colliders untouched.
+
+## 2026-08-04 — the arm goes back to a0375cb5
+
+Verbatim: *"revert arm design back to a0375cb5 commit"*
+
+He rejected both of today's redraws, `219a5a41` put the arm back to its state at
+`1dd6a266`, he then asked what older versions existed and picked this one by
+hash: `a0375cb5` (2026-08-02, *"Item 111: the watch arm continues to the edge of
+the frame"*). Not a bug report — he is choosing a historical design to look at.
+
+**FAITHFUL, WHICH MEANS ITEM 165 GOES TOO.** `a0375cb5` predates `fa606ff1`
+(*"the watch arm goes down and away instead of lying across the frame"*), so the
+tilt, the taper and the drop all revert with it. A half-revert would hand him a
+hybrid that never existed on any screen and that he cannot judge against the
+thing he asked for.
+
+**THIS TAKES THIS MORNING'S THREE POSITION NUDGES WITH IT**, and they were his
+own, tuned against the -18° tilt that no longer exists:
+
+    WATCH_X      36%   →  the literal 46% in WRAP_CSS  (the const is gone)
+    WATCH_DROP   4.5   →  translateY(0)                (the const is gone)
+    WATCH_TILT   -18°  →  -5° in watch(), -6° in WRAP_CSS (as it was: the CSS
+                          one never reached the screen)
+
+Flagged rather than half-kept: at -5° his -18°-era numbers describe a different
+arm, so re-applying them on top is a fresh judgement he should make by looking,
+not one to assume. If he wants any of them back it is one line each.
+
+Also reverted with item 165: the forearm's taper (`ARM_TAPER` 26 px over 300,
+drawn column by column) back to the flat `fillRect(0, 6, WATCH_ARM, 66)` band,
+and the recede gradient from 0.32 back to 0.18 — that deepening existed only
+because the steeper arm left the frame sooner.
+
+**KEPT: `14959136`, the [E] prompt z-order** — `Z_PROMPT` 16, `Z_NOTE` 13, the
+unconditional `zIndex` assignment that survives HMR, and the `|| fading` guard.
+Same file, unrelated to the drawing, reported by him today. Its comment claimed
+the overlap came from *"three items earlier moved it up 25 px (`WATCH_DROP` 30 →
+4.5)"*; that const no longer exists and the claim was never the real reason — the
+element is `bottom:-14px` and 198 px tall in every version of it, so it crosses
+the prompt's row at 88 whatever the tilt and drop are. Corrected to say that, so
+the layering does not look like it depends on numbers that keep moving.
+
+The arm region of `ct/hud.ts` is byte-identical to `a0375cb5` from the ARM header
+through the end of `drawWatch`. Everything else that landed in this file since
+2026-08-02 — items 133, 236, 150, 275, 277, 206, 216, 249 — is untouched; a
+wholesale file restore would have taken all of them out.
+
+Built by the standing builder. Live on 5177.

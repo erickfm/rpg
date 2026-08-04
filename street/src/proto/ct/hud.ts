@@ -1632,7 +1632,7 @@ export function makeHud(purse: Purse): Hud {
   // scale was HIDDEN. The canvas was 176 px wide and displayed at a literal
   // `width:484px`; 484/176 = 2.75 is the size of a watch pixel on screen and it
   // appeared in neither number. Widen the canvas and every pixel silently
-  // shrinks. `left: calc(WATCH_X% + 77px)` carried the same problem — the 77 is
+  // shrinks. `left: calc(46% + 77px)` carried the same problem — the 77 is
   // `(176-120)/2 x 2.75`, the compensation for the last time this canvas grew,
   // and nothing said so.
   //
@@ -1645,16 +1645,12 @@ export function makeHud(purse: Purse): Hud {
    * The forearm added to the LEFT, in canvas px. Nothing is drawn to the right.
    *
    * DERIVED FROM THE ONE THING IT HAS TO DO — reach the edge of the frame. The
-   * canvas's left edge lands at `X V - 165 - WATCH_S x WATCH_ARM` for a
-   * viewport `V` wide and `WATCH_X` = `100 X` (the percentage, the two halves of
-   * `translateX(-50%)`, and the `left` compensation below all fold into that), so
+   * canvas's left edge lands at `0.46V - 165 - WATCH_S x WATCH_ARM` for a
+   * viewport `V` wide (the `46%`, the two halves of `translateX(-50%)`, and the
+   * `left` compensation below all fold into that), so
    *
-   *     WATCH_ARM >= (X V - 165) / 2.75         →  at the 0.46 this was first
-   *                                                sized for: 1280: 155
-   *                                                1920: 262  2560: 369
-   *                                                3840: 583. WATCH_X only ever
-   *                                                went DOWN since, which only
-   *                                                ever asks for less.
+   *     WATCH_ARM >= (0.46 V - 165) / 2.75      →  1280: 155   1920: 262
+   *                                                2560: 369   3840: 583
    *
    * 600 covers every viewport up to 3840 with room over. It costs a 776 x 72
    * canvas — 224 kB, repainted once a minute — and anything past the frame edge
@@ -1682,166 +1678,15 @@ export function makeHud(purse: Purse): Hud {
   // than argued — `scripts/probes/w57-watch.mjs` reads the LCD's bounding box
   // off the live element both ways round.
   //
-  /**
-   * WHERE THE WHOLE ARM SITS ACROSS THE FRAME, in percent of the viewport.
-   *
-   * The user's own number, three times over, and the sizes of his own moves are
-   * the record worth keeping:
-   *
-   *     52 → 46   *"can we move the watch arm thing as a whole over to the left
-   *                a little bit?"*                              (2026-08-02)
-   *     46 → 43   *"…a bit further out and a bit left"*          (2026-08-04)
-   *     43 → 36   *"hm more left more out"*                      (2026-08-04)
-   *
-   * THE THIRD IS BIGGER THAN THE FIRST TWO ON PURPOSE. He looked at the 3-point
-   * move and asked again in the same direction, which is him saying it was too
-   * small — so this one is 7, more than double, rather than another cautious
-   * nudge that spends a round trip to learn nothing. He did not say *much* more,
-   * so it is not the whole way to the frame edge either.
-   *
-   * NOTHING BOUNDS THIS AXIS, unlike the drop below. Moving LEFT only ever needs
-   * LESS forearm than `WATCH_ARM` provides (at 36% a 3840 frame wants 443 of the
-   * 600), and overflow to the left is clipped by the viewport without a
-   * scrollbar. If he wants more still, this number can simply keep going.
-   *
-   * It was a literal `46%` buried in `WRAP_CSS` and quoted in three comments,
-   * which is how a tuning knob hides. Named, so the next nudge is one number.
-   */
-  const WATCH_X = 36;
+  // The `46%` is the user's own: *"can we move the watch arm thing as a whole
+  // over to the left a little bit?"* (2026-08-02). It was `52%`. Untouched.
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
   const WATCH_PIVOT = (WATCH_HAND * WATCH_S / 2).toFixed(2);
-  /**
-   * HOW STEEPLY THE FOREARM GOES DOWN AND AWAY. His third report on this object:
-   *
-   *   *"too much arm here i think it shou;ld have a bit of a steeper angle
-   *   maybe?"*  (2026-08-02, with a screenshot)
-   *
-   * READ THAT AGAINST HIS SECOND — *"i would like the rest of the arm (to the
-   * left) rendered as well"* — because they pull opposite ways and the
-   * resolution is the whole item. He is not taking the continuation back. He is
-   * saying it was added along the wrong axis: at 5° the forearm lay across the
-   * ENTIRE bottom of the frame as one flat slab of one tone, and a limb seen
-   * from your own eyes does not do that. It goes down and away, so it occupies a
-   * CORNER. Steepening shortens its apparent length without removing a pixel of
-   * what he asked for, which is why his own suggested fix is the right one.
-   *
-   * MEASURED, not chosen (`scripts/probes/w63-arm-angle.mjs`, 1280 x 958, his
-   * posture and his room):
-   *
-   *     tilt    bottom edge covered    HUD area of frame
-   *      -5°           65.5%                 11.5%     <- his screenshot
-   *     -18°           40.8%                  6.6%
-   *
-   * THIS IS ALSO THE ONE NUMBER, AND IT WAS THREE. `WRAP_CSS` said `-6deg` and
-   * `hud.watch()` wrote `-5deg` twice; the CSS one had been dead since the day
-   * it was written, because `watch()` overwrites `transform` on the first frame
-   * the player looks down. Nothing said so and both readings looked deliberate.
-   * (BUILDER-BRIEF §8.)
-   */
-  const WATCH_TILT = -18;
   const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${72 * WATCH_S}px;image-rendering:pixelated;display:block;`;
-  /**
-   * AND THE DROP THAT PAYS FOR THE TILT.
-   *
-   * Rotating about a pivot at the wrist swings the far end DOWN, which is the
-   * point — but it swings the HAND end up by the same rule, and at 5° that was
-   * 21 px and at 18° it is 75. The fist then leaves the bottom-right corner and
-   * stands in the middle of the floor as a squared-off block with world on three
-   * sides of it, which reads worse than the flat arm did. Looked at, not
-   * reasoned: `/tmp/w63-arm-t18.png` is the frame where I saw it.
-   *
-   * So the element goes down by roughly what the rotation lifted the hand end
-   * by, and the hand is cut by the bottom of the frame the way it always was.
-   *
-   * ⚠ THIS COMMENT USED TO CLAIM THE 30 WAS `WATCH_PIVOT x sin(tilt)`,
-   * "DERIVED so it stays right if the tilt is ever tuned again". **IT IS NOT,
-   * AND THAT FORMULA IS NOT THE RIGHT ONE EITHER — do not go and "restore" it.**
-   * `WATCH_PIVOT x sin(18°)` = 242 x 0.309 = **74.8**, two and a half times
-   * this number, and implementing it would push the whole face 45 px further
-   * down. Measured on the built bundle at 1280 x 958
-   * (`scripts/probes/w110-lcd-pixels.mjs`, marker divs parented INSIDE the
-   * wrapper so the browser applies the drop and the rotation — a hand-written
-   * matrix got this wrong first time and reported the STOWED watch as 99% on
-   * screen):
-   *
-   *            client box y      cut by the frame
-   *   case      845.5…1002.9        44.9 px   (71.5% on screen)
-   *   LCD       868.9… 966.4         8.4 px   (91.4%)
-   *   digits    891.4… 951.8         0.0 px   (100%, 6.2 px of clearance)
-   *   caption   931.6… 987.3        29.3 px   (47.4%)
-   *
-   * **The digits clear the bottom edge by 6.2 px.** At a drop of 74.8 they
-   * would be 39 px under it — the clock would be unreadable, which is the exact
-   * thing item 275 was about. So 30 is a LOOKED-AT value and this comment now
-   * says so rather than dressing it up.
-   *
-   * WHAT IT IS ACTUALLY BUYING, so the next person has the constraint rather
-   * than the number: the fist's inner bottom corner must stay BELOW the frame,
-   * or the hand floats in the middle of the road. At drop 30 it sits **26.5 px
-   * below**; its outer corner is 34.7 px above, so the bottom edge crosses the
-   * frame diagonally and reads as cut. Seating the whole case on the bottom
-   * edge would need drop ≈ -15, which floats the fist by 19.5 px — the failure
-   * the paragraph above describes. The two wants pull opposite ways and 30 is
-   * where they were balanced by eye. **If you retune the tilt, re-measure both
-   * corners; there is no formula waiting to be found here.**
-   *
-   * NOW 4.5, AND THE CONSTRAINT ABOVE IS WHAT BOUNDS IT. *"when i look down at
-   * my watch i want the arm a bit further out and a bit left"* took it 30 → 14,
-   * *"hm more left more out"* took it 14 → 6, and *"bit better now in terms of x
-   * direction but could be tiny bit further up in y"* takes it 6 → 4.5 (all
-   * 2026-08-04). "Further out" is the arm EXTENDED — held further from the chest
-   * — and on a HUD drawn in screen space that is this number and nothing else:
-   * less drop lifts the whole limb up out of the bottom edge, which is what an
-   * arm reaching further from your own eye does. The digits gain the same
-   * clearance, so it also reads easier.
-   *
-   * THE LAST MOVE IS 1.5 px AND THAT IS NOT A TIMID CHOICE, IT IS THE WHOLE
-   * REMAINING BUDGET LESS A MARGIN. In this canvas's own units 1.5 px is 0.55 of
-   * a texel — the art is upscaled 2.75x and pixelated, so a texel is the smallest
-   * step that means anything here, and "tiny bit" is about one of them. There is
-   * ~1 px (0.36 texel) left under it and then the fist is no longer cut.
-   *
-   * ⚠ **THIS AXIS IS NOW ~1 px FROM ITS FLOOR. THE FLOOR IS ≈ 3.5, NOT ≈ -15.**
-   * The first pass reported -15 as the limit and that was WRONG — -15 is where
-   * the whole CASE seats on the bottom edge, by which point the paragraph above
-   * has the fist floating 19.5 px clear. The invariant is the FIST's inner bottom
-   * corner, which the measurement above puts 26.5 px below the frame at drop 30
-   * and therefore crosses zero at **drop ≈ 3.5**, moving 1:1 with this number:
-   *
-   *     drop     fist inner corner
-   *      30        26.5 px below     the value item 275 shipped
-   *      14        ~10.5 px below    first pass
-   *       6         ~2.5 px below    second pass
-   *       4.5       ~1.0 px below    here — still cut, and that is the margin
-   *       3.5        on the edge     the hand starts to float
-   *
-   * So of the ~26 px this axis ever had, ~25 are spent. **THE NEXT "further up"
-   * CANNOT COME FROM THIS NUMBER AT ALL.** Three ways out, in the order I'd try
-   * them, none of which is decrementing this and hoping:
-   *
-   *   · GROW THE CANVAS DOWNWARD (72 → 76 rows, drawn coords unchanged, the
-   *     downward fills extended). The element is `bottom`-anchored, so 4 fresh
-   *     rows of limb below push every existing pixel up 11 px along the arm's own
-   *     axis while the fist's bottom edge stays exactly where it is — the
-   *     invariant is not traded against, it is untouched. ~2.75 px of lift per
-   *     row, repeatable. Costs a matching `transform-origin` pin, because `50%`
-   *     of a taller element is not the same point.
-   *   · `WATCH_S` — a limb held further off subtends less.
-   *   · `WATCH_TILT` — steeper goes further down-and-away.
-   *
-   * The last two move drawn pixels that item 275 and the arm-angle item are
-   * pinned to; the first does not.
-   */
-  const WATCH_DROP = 4.5;
-  /** shown, and stowed below the frame. Same tilt: the arm must not swing as it
-   *  comes up, only slide. */
-  const watchTransform = (shown: boolean) => (shown
-    ? `translateX(-50%) translateY(${WATCH_DROP}px) rotate(${WATCH_TILT}deg)`
-    : `translateX(-50%) translateY(140%) rotate(${WATCH_TILT}deg)`);
   const WRAP_CSS = 'position:fixed;'
-    + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
+    + `left:calc(46% + ${WATCH_LEFT}px);bottom:-14px;z-index:11;pointer-events:none;`
     + `transform-origin:calc(100% - ${WATCH_PIVOT}px) 50%;`
-    + `transform:${watchTransform(false)};transition:transform .18s ease-out;`;
+    + 'transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
@@ -1878,27 +1723,7 @@ export function makeHud(purse: Purse): Hud {
     // ONE BAND, the same skin tone and the same y 6…72 as the wrist, so there is
     // no seam to see: the wrist below is drawn by the identical `fillRect` it
     // always was, just further along the same band.
-    // …AND IT NARROWS AS IT GOES BACK. A limb receding from your own eye
-    // foreshortens; a band of one thickness for its whole length is the other
-    // half of why the flat version read as a plank rather than an arm, and the
-    // taper is what stops the top edge being a ruler line. It is anatomically
-    // backwards — a real forearm is THICKER at the elbow — and perspective wins
-    // by a mile at this range: the elbow is roughly three times as far from the
-    // eye as the wrist.
-    //
-    // DRAWN COLUMN BY COLUMN, so the slope is a texel STAIRCASE. This canvas is
-    // upscaled 2.75x with `image-rendering:pixelated`; a `lineTo` diagonal would
-    // be antialiased first and then magnified, which is the one soft edge in a
-    // world drawn entirely in hard texels. 600 one-pixel fillRects, twice, on a
-    // canvas repainted once a minute.
-    const ARM_TAPER = 26;        // canvas px thinner at the far end
-    const ARM_TAPER_RUN = 300;   // over which it narrows, then holds
-    const armTop = (x: number) =>
-      6 + Math.round(ARM_TAPER * Math.min(1, (WATCH_ARM - x) / ARM_TAPER_RUN));
-    const armColumns = () => {
-      for (let x = 0; x < WATCH_ARM; x++) { const t = armTop(x); g.fillRect(x, t, 1, 72 - t); }
-    };
-    g.fillStyle = '#c9946a'; armColumns();
+    g.fillStyle = '#c9946a'; g.fillRect(0, 6, WATCH_ARM, 66);
     // …and it RECEDES. The wrist's shading is "light from the right", carried by
     // a 10 px `rgba(0,0,0,0.15)` cap that used to sit at the cut end and would
     // now be a dark stripe across the middle of a limb, which is exactly the
@@ -1919,20 +1744,11 @@ export function makeHud(purse: Purse): Hud {
     // 242 that reach the left edge of a 1280 frame; past that the gradient
     // clamps to its end stop and the arm simply stays in shadow, which is what
     // a limb going back out of the light does.
-    //
-    // THE RAMP GOT DEEPER WHEN THE ARM GOT STEEPER, and that is not a taste
-    // change. At 5° the visible forearm ran the whole width of the frame and
-    // 0.18 was spread over all of it; at 18° it leaves the bottom edge after
-    // about 250 canvas px, so the same ramp now has a quarter of the frame to
-    // work in and read as flat there. 0.32 over the same 240 px is what makes
-    // the far end look further away rather than merely darker.
     const RECEDE = 240;
     const recede = g.createLinearGradient(WATCH_ARM - RECEDE, 0, WATCH_ARM, 0);
-    recede.addColorStop(0, 'rgba(0,0,0,0.32)');
+    recede.addColorStop(0, 'rgba(0,0,0,0.18)');
     recede.addColorStop(1, 'rgba(0,0,0,0)');
-    // the SAME columns, so the shading cannot land where the limb is not — a
-    // gradient is in canvas space, so it spans the separate fills correctly
-    g.fillStyle = recede; armColumns();
+    g.fillStyle = recede; g.fillRect(0, 6, WATCH_ARM, 66);
     // EVERYTHING BELOW IS THE OLD DRAWING, MOVED — not redrawn. The wrist, the
     // fist, the strap, the case and the LCD keep their own coordinates and their
     // own order; the translate is the whole of the change, so the thing the user
@@ -2074,9 +1890,11 @@ export function makeHud(purse: Purse): Hud {
    *     so it is NOT a panel: `panelUp()` is null the whole time it is open and
    *     the prompt stays visible underneath it rather than being suppressed.
    *
-   * AND THE WATCH HALF GOT WORSE TODAY: three items earlier in this same session
-   * moved it up 25 px (`WATCH_DROP` 30 → 4.5), walking it further into the
-   * prompt's row than it had ever been.
+   * THE OVERLAP IS NOT A FUNCTION OF WHERE THE ARM IS TUNED TO SIT. The element
+   * is `bottom:-14px` and 198 px tall in every version of it this file has ever
+   * shipped, so it crosses the prompt's row at 88 whatever the drop and the tilt
+   * are — which is why this layering stays correct across the arm being retuned,
+   * reverted, and reverted again. Do not re-derive it from today's numbers.
    *
    * ABOVE THE PANEL TOO, at 16 rather than 13, even though `prompt()` already
    * refuses to draw while `panelUp()`. Two guards that agree cost nothing; a
@@ -2198,10 +2016,9 @@ export function makeHud(purse: Purse): Hud {
     // canonical "how night is it" curve that drives the lamps.
     setNight: (v) => { nightDiv!.style.opacity = String(v * 0.28); },
     watch: (want, mins) => {
-      // ONE SOURCE FOR THE TILT — see WATCH_TILT. These two strings used to
-      // carry their own `-5deg` while WRAP_CSS carried a `-6deg` that never
-      // reached the screen.
-      watchWrap!.style.transform = watchTransform(want);
+      watchWrap!.style.transform = want
+        ? 'translateX(-50%) translateY(0) rotate(-5deg)'
+        : 'translateX(-50%) translateY(140%) rotate(-5deg)';
       if (want && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
     },
     setFps: (text: string | null) => {
