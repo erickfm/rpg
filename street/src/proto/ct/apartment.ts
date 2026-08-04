@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import { WAY_OUT } from '../fp';
+// RADIUS is the PLAYER'S OWN CAPSULE and it is imported, never retyped: the
+// calendar's page is offset from its stand-point by less than one capsule
+// (item 308), and a hand-typed 0.36 here would keep looking right after
+// somebody re-tuned the rig — BUILDER-BRIEF §8.
+import { WAY_OUT, RADIUS } from '../fp';
 import { pixTex, dither, declareSurface, type SurfaceKind } from './paint';
 
 /** `pixTex` + `declareSurface` in one call — see the twin in ct/lot.ts.
@@ -3663,21 +3667,50 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // and looked at it sideways. That patch of floor is the only one in this
     // room that works (it clears the door spot by 0.88 m and the bed-to-door
     // route by 0.51 m; see the stand-point note below, both figures unchanged
-    // by this item), so the page now hangs over it and the offset is zero.
+    // by this item), so the page hung over it and the offset went to zero.
     //
-    // ⚠ WHAT THIS COSTS THE USER, said plainly. He asked to *"move the calendar
-    // a bit to the right"* and this puts it 0.60 m LEFT of where that nudge left
-    // it — 0.35 m left of where it hung before he asked. Being able to read it
-    // is the request he made second and the one he is blocked on; the wall to
-    // the right of here is the door's floor and nothing hung on it can be
-    // opened. If he wants it further right, the door's stand-point is what has
-    // to be solved first, not this constant.
+    // ══ AND HALF OF THAT CAME BACK (item 308) ═══════════════════════════════
     //
-    // Clearance: it spans x 198.36…198.84. The TV crate is below it (x
-    // 198.25…198.63, and only RY+0.36 tall with the portable on top) so nothing
-    // is hidden — the page's bottom edge is RY+1.23. The three taped-up
-    // snapshots are NOT near it: north wall, above the bed, with the poster.
-    const CAL_X = AX(-1.40);
+    // The user, after being told what item 298 cost him: *"move the calendar
+    // back to the right and fix the door standpoint."* The page moves 0.30 m
+    // RIGHT of where 298 left it, to AX(-1.10). **That is half of the 0.60 he
+    // asked for and I am not pretending otherwise** — the rest is blocked, and
+    // what blocks it is written out below.
+    //
+    // WHY THE PAGE CAN MOVE WITHOUT THE STAND-POINT MOVING, which is the whole
+    // trick and is a different thing from what 298 undid. `fp.ts` tier 1 takes
+    // a spot whose centre is inside your own capsule (`onIt`, `d < RADIUS`), so
+    // the stand-point is not a point you must stand ON, it is a **0.36 m disc**.
+    // Walk square up to the page at AX(-1.10) and every position you can
+    // actually occupy is still inside that disc — the TV crate stops you at
+    // z -17.11 and the disc reaches z -16.76, so the band is 0.35 m deep and
+    // sits exactly where a person stands to read a wall page. Measured, at
+    // (198.90, -17.11): 0.315 m from the stand-point, and 0.575 m from the
+    // door's — inside one capsule and outside the other, which is the entire
+    // requirement. 298's 0.60 offset failed precisely because it put the
+    // square-on position OUTSIDE this disc, at 0.60, where the door's rank
+    // takes the pose.
+    //
+    // ⚠ AND WHY IT STOPS AT 0.30. At 0.35 the square-on position at the crate's
+    // edge is 0.363 m from the stand-point — outside the capsule by 3 mm, and
+    // the door takes it back. 0.30 leaves 0.045 m. **The door's stand-point is
+    // still the real blocker and it did NOT move**, because it cannot: with the
+    // bed's approach where it is, `scripts/probes/w133-door-only.mjs` searches
+    // the room at 1 cm and comes back EMPTY. Four spots want this corner —
+    // the door, the slip pushed under it (`ct/tenancy.ts`), the bed's approach
+    // 1.06 m from the doorway, and this page — and every door position that
+    // still reaches its own doorway is inside `0.85 + RADIUS` of the bed's
+    // approach or inside `2 * RADIUS` of the slip. Moving the bed's approach
+    // DOES open it (see 97d34a160, reverted), and it costs `w40-bed-vs-door`'s
+    // fire pose, which is a coin toss on mainline already at 23.1 deg against a
+    // 25 deg cone. The full 0.60 needs the bed's approach re-sited and that
+    // check's last step rebuilt; it is not one constant.
+    //
+    // Clearance: it spans x 198.66…199.14, on the clear strip east of the TV
+    // crate (which ends at 198.63) and 0.71 m short of the east wall's room
+    // face. The page's bottom edge is RY+1.23, well above the crate anyway. The
+    // three taped-up snapshots are NOT near it: north wall, above the bed.
+    const CAL_X = AX(-1.10);
     const cal = new THREE.Mesh(new THREE.PlaneGeometry(CAL_W, CAL_H), texM(calT));
     cal.position.set(CAL_X, RY + 1.55, SOUTH_Z);
     // NAMED, so a probe can find it by asking rather than by guessing a shape.
@@ -3831,7 +3864,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // file this item does not otherwise touch, so the figures are derived here
     // with their citation and `scripts/standpoint-overlap.mjs` fails
     // if the world ever disagrees with them. See the handoff note.
-    const CAL_STAND_DX = 0;
+    // ── 0.30, AND IT IS THE PLAYER'S OWN CAPSULE THAT PAYS FOR IT (item 308) ─
+    //
+    // Back off zero, but only by less than one RADIUS, and that bound is the
+    // point rather than a coincidence. The stand-point below did NOT move — it
+    // is still the one patch of floor in this room that clears the door's
+    // stand-point and the bed-to-door route at once — so every metre the page
+    // slides right is a metre you are standing off-centre from it. What keeps
+    // that honest is `onIt`: while the square-on position is still inside this
+    // spot's own 0.36 m capsule, tier 1 takes it with no aim test and the door
+    // cannot have it. Past RADIUS it can, and does — that is exactly what item
+    // 298 was undoing at 0.60.
+    //
+    // So the ceiling is RADIUS, and the working ceiling is lower because the
+    // crate holds you at z -17.11 and the disc is measured from the stand-point
+    // at z -17.015: at 0.35 the square-on pose is 0.363 m away and outside.
+    // 0.30 leaves 0.045 m of capsule, walked at five distances. IMPORTED, not
+    // retyped — re-tune the rig and this bound moves with it (BUILDER-BRIEF §8).
+    const CAL_STAND_DX = Math.min(0.30, RADIUS - 0.06);
     // ── THE 0.90 m IS NOT TASTE, IT IS THE NEAREST FLOOR THERE IS ───────────
     //
     // I tried 0.55 m first, to cover a pose the grid said was still failing
