@@ -1708,12 +1708,18 @@ export function makeHud(purse: Purse): Hud {
    * proportional to — BUYS it. Rotating the limb further CCW makes it legal to
    * lift higher, which is why *"rotate full limb ccw a bit"* cost nothing here.
    *
-   * At 35 / T=8 that is 89 px on a 1280 viewport, 112 px at 1920, 135 px at
+   * It rises monotonically with T — the derivative, 99 sinT/cos²T + x_o sec²T,
+   * is positive for every T in range — so there is no angle at which rotating
+   * further CCW starts costing headroom instead of buying it.
+   *
+   * At 35 / T=12 that is 128 px on a 1280 viewport, 155 px at 1920, 183 px at
    * 2560. THE NARROWEST VIEWPORT BINDS, so only the 1280 column is worth
    * quoting. The history, all at 1280: 42/12/5° spent 24 of 67; 38/22/5° spent
-   * 44 of 63; 35/22/5° spent 44 of 60 and left it nearly out; 35/22/8° spends
-   * 44 of 89. **That leaves ~45 px — 23 points of WATCH_LIFT, or 25 of WATCH_X,
-   * trading against each other at 1.8 px per point of WATCH_X.**
+   * 44 of 63; 35/22/5° spent 44 of 60 and left it nearly out; 35/22/8° spent 44
+   * of 89; 35/22/12° spends 44 of 128. **That leaves ~84 px — 42 points of
+   * WATCH_LIFT, or 31 of WATCH_X, trading against each other at 2.7 px per
+   * point of WATCH_X.** Two rotations have taken this from nearly spent to
+   * roomier than it has ever been.
    */
   const WATCH_LIFT = 22;
   /**
@@ -1765,6 +1771,8 @@ export function makeHud(purse: Purse): Hud {
    * One more nudge this size is the last one.
    */
   const WATCH_POS = 8;
+  /** width of the dark cap at the limb's far end, grown inward from x 176. */
+  const STRIP_W = 12;
   const WATCH_H = WATCH_LIMB_H + Math.max(STRAP_OVER, THUMB_D);
   const WATCH_BOTTOM = (-(14 + (WATCH_H - WATCH_LIMB_H) * WATCH_S)).toFixed(2);
   const WATCH_LIFT_PX = (WATCH_LIFT / 100 * WATCH_LIMB_H * WATCH_S).toFixed(2);
@@ -1773,7 +1781,8 @@ export function makeHud(purse: Purse): Hud {
    * and negated at use, because CSS `rotate()` is positive-CLOCKWISE and the
    * arm has only ever gone the other way — a bare `-5deg` in three places made
    * "more counter-clockwise" read as "smaller", which is how a sign gets flipped.
-   * *"rotate full limb ccw a bit"* (2026-08-04): 5 → 8.
+   * *"rotate full limb ccw a bit"* (2026-08-04): 5 → 8, then *"rotate the limb
+   * a bit more ccw"* the same day: 8 → 12.
    *
    * The hand end rises and the far end drops, both about the pinned pivot. That
    * is the ONLY thing this does — rotation is applied to the finished element,
@@ -1786,7 +1795,7 @@ export function makeHud(purse: Purse): Hud {
    * screen. There is no reason for the hidden state to differ: it is the same
    * arm, parked off-frame. Both read WATCH_TILT.
    */
-  const WATCH_TILT = 8;
+  const WATCH_TILT = 12;
   const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-${WATCH_TILT}deg)`;
   const WATCH_HIDDEN = `translateX(-50%) translateY(140%) rotate(-${WATCH_TILT}deg)`;
   const WATCH_LEFT = (77 - WATCH_ARM * WATCH_S / 2).toFixed(2);
@@ -1959,10 +1968,40 @@ export function makeHud(purse: Purse): Hud {
     // the frame. Full height of the limb at that end, y 0…72, matching the fist.
     //
     // The strip he means is the one taken out three commits ago, so it is that
-    // strip: the identical `rgba(0,0,0,0.10)` at the identical 4 px width, moved
+    // strip: the identical `rgba(0,0,0,0.10)` at the identical width, moved
     // rather than reinvented. IT IS THE ONLY OVERLAY ON THE SKIN — everything
     // left of it stays one flat `#c9946a`.
-    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(172, 0, 4, 72);
+    //
+    // *"increase the width of the darker shaded region at the end of the limb"*
+    // (2026-08-04): STRIP_W 4 → 12, grown INWARD, since the outer edge is the
+    // end of the limb and that is where he put it. Alpha is untouched at 0.10 —
+    // he said wider, not darker.
+    //
+    // AND AT 6 IT REACHES THE THUMB, SO SOMETHING HAD TO BE DECIDED. The thumb
+    // ends at x 170, six px inside the limb's end, so any strip wider than 6
+    // hangs over it: the strip owns the limb band y 0…72 and the thumb hangs
+    // below at y 72…85, and a dark cap sitting directly on top of a light thumb
+    // reads as an unfinished edge, not as shading. So THE DARK END WRAPS THE
+    // THUMB — the second rect below carries it down over whatever length of
+    // thumb the strip has reached back across (6 px of the thumb's 44, at
+    // STRIP_W 12). The two rects meet edge to edge and never overlap, so the
+    // alpha does not stack and the wrapped part is the same tone as the rest.
+    //
+    // THE ALTERNATIVE IS ONE LINE — delete the second `fillRect` and the strip
+    // stops dead at the limb's underside, leaving the thumb light. That is a
+    // look, not a bug, and it is his to pick.
+    //
+    // ROOM LEFT: the thumb was met at 6 and is now wrapped, so the next wall is
+    // the fist's own start at x 104 — STRIP_W 72 — and the watch case, whose
+    // right edge is at x 96 with WATCH_POS 8, so STRIP_W 80 would slide under
+    // it. Neither is close; 12 is an eighth of the way there.
+    const STRIP_X = 176 - STRIP_W, THUMB_END = THUMB_X + THUMB_W;
+    g.fillStyle = 'rgba(0,0,0,0.10)';
+    g.fillRect(STRIP_X, 0, STRIP_W, WATCH_LIMB_H);
+    if (STRIP_X < THUMB_END) {
+      const x0 = Math.max(STRIP_X, THUMB_X);
+      g.fillRect(x0, WATCH_LIMB_H, THUMB_END - x0, THUMB_D);
+    }
     // ── THE STRAP, AND ITS OVERHANG ───────────────────────────────────────
     //
     // *"the watch band overhang is not symetrical on the limb. the bottom has
