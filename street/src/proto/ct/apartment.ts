@@ -1849,11 +1849,70 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       m.position.set(cx, cy, GZ);
       scene.add(m);
     };
-    bar(CW, 0.07, 0.07, CXM, 1.96);                  // head
+    const GATE_HEAD_Y = 1.96;
+    bar(CW, 0.07, 0.07, CXM, GATE_HEAD_Y);           // head
     bar(CW, 0.07, 0.07, CXM, 0.04);                  // threshold
     bar(0.07, 2.0, 0.07, CX0 + 0.04, 1.0);           // stiles
     bar(0.07, 2.0, 0.07, CX1 - 0.04, 1.0);
     bar(CW, 0.05, 0.05, CXM, 1.16);                  // mid rail
+    // ── THE GAP OVER THE GATE ────────────────────────────────────────────
+    // The user: *"gate downstairs needs to go to top of stairway pls? no gap
+    // up top"*. The gate is 1.96 m of frame under an opening whose head is
+    // FLIGHT B'S SOFFIT — the raking timber that climbs toward the mouth —
+    // so half a metre of the stairwell showed straight over the head rail.
+    //
+    // THE OPENING IS A RECTANGLE, and the triangle in his screenshot is
+    // perspective, not shape: the soffit rakes in z, so its intersection with
+    // the gate's own plane is a single horizontal line, and everything
+    // wedge-shaped in the picture is that plane seen receding through the
+    // hole. So what closes it is a flat panel, not a raking one.
+    //
+    // A FIXED TRANSOM, NOT A TALLER GATE. A padlocked 2.5 m leaf is not a
+    // thing anyone has ever hung; a light infill panel between the gate's head
+    // and the soffit is what is actually built over a door in a stair
+    // enclosure. It gets its own two jambs and a head tight under the timber,
+    // so it reads as separate from the leaves — which is the same argument the
+    // hinge plates and the meeting stile settled for the gate itself.
+    //
+    // ITS HEAD IS DERIVED FROM THE FLIGHT, NOT MEASURED OFF THE PICTURE. Same
+    // three numbers `underB2` is positioned from ~1,000 lines above: centreline
+    // `RISE * 1.5 - 0.12` at `STAIR_Z0 + RUN / 2`, falling at `RISE / RUN`,
+    // and 0.14 thick, so the underside is half that thickness below it
+    // measured square to the rake. Re-pitch the stair and this follows.
+    const B_RAKE = Math.atan2(RISE, RUN);
+    const SOFFIT_Y = (RISE * 1.5 - 0.12)
+      + (RUN / 2 - (GZ - CZ0)) * (RISE / RUN)   // back up the rake to the gate plane
+      - 0.07 / Math.cos(B_RAKE);                // to the underside of the 0.14 board
+    // 5 cm of the panel is buried IN the soffit, for the reason 301's leaf
+    // overlaps its own head by the same amount: a panel that stops exactly on
+    // a surface shows a hairline of what is behind it the moment either moves.
+    const GAP_H = SOFFIT_Y + 0.05 - GATE_HEAD_Y;
+    // its own copy of the mesh, at the SAME 0.3 m diamond pitch the gate uses —
+    // reusing linkT would stretch its repeat over a panel a third the height
+    // and the two would visibly not be the same fence.
+    const gapT = linkT.clone();
+    gapT.wrapS = gapT.wrapT = THREE.RepeatWrapping;
+    gapT.repeat.set((CW - 0.1) / 0.3, GAP_H / 0.3);
+    gapT.needsUpdate = true;
+    const gapPanel = new THREE.Mesh(new THREE.PlaneGeometry(CW - 0.1, GAP_H),
+      new THREE.MeshBasicMaterial({ map: gapT, alphaTest: 0.4, side: THREE.DoubleSide }));
+    gapPanel.position.set(CXM, (GATE_HEAD_Y + SOFFIT_Y + 0.05) / 2, GZ);
+    scene.add(gapPanel);
+    bar(CW, 0.07, 0.07, CXM, SOFFIT_Y - 0.035);      // its head, tight under the soffit
+    for (const jx of [CX0 + 0.04, CX1 - 0.04]) {     // and its two jambs
+      const j = new THREE.Mesh(new THREE.BoxGeometry(0.07, SOFFIT_Y - GATE_HEAD_Y, 0.07), gateM);
+      j.position.set(jx, (GATE_HEAD_Y + SOFFIT_Y) / 2, GZ);
+      scene.add(j);
+    }
+    // NOTHING TO DO ABOUT COLLISION, AND THAT IS A FINDING RATHER THAN A
+    // SHRUG. `underStairA` is what stops you here — `mkCap()` gives it no
+    // `minY`/`maxY`, so it is an unbounded-height wall across AX(1.2)…AX(2.4)
+    // from AZI(STAIR_Z0) south, live whenever `onLobby`. The gap over the head
+    // was never passable: not by jumping, and not by today's crouch-jump,
+    // which lifts the feet test 0.35 m and would need a ceiling on this box to
+    // matter. The panel stands on that same near face the gate does, so the
+    // thing that stops you is still the thing you can see stopping you — and
+    // no `maxY` goes on it, for the reason `stairCap` does not have one.
     // WHICH SIDE OPENS. Report finding 4: there was nothing to say, so it read
     // as a fixed panel rather than a gate. Two hinge plates on the east stile
     // and a meeting stile down the middle settle it — a gate is a thing with a
