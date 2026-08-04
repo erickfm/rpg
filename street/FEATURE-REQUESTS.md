@@ -3934,3 +3934,34 @@ umbrella sprite mirrors with the person for the far four sectors, which a
 symmetric dome never needed and a leaning shaft does.
 
 Built by the standing builder. Live on 5177.
+
+## 2026-08-04 — "i can jump on the bed but im not seeing the bounds on collision"
+
+Verbatim: *"i can jump on the bed but im not seeing the bounds on collision when
+i hit the collision view? i hit v and i see collision go all the way up but then
+i can jump on the bed. doesnt make sense to me"*
+
+He was right and the overlay was lying. `AABB.maxY` is an **absolute world Y** —
+`fp.ts:414` returns it straight out as the height it stands your feet at. The
+`V` overlay (`ct/debug-collision.ts`) was reading it as a **height above the
+floor** and scaling the wireframe by it: `Math.max(0.05, c.maxY)`. Now
+`Math.max(0.05, c.maxY - floorY)`, which is the span the box is actually drawn
+across, since it is positioned at `floorY + h / 2`.
+
+Why it survived this long: until today every collider carrying a `maxY` was a
+car roof or the pickup's bed, all at street level where `floorY` is ~0 and the
+absolute Y and the height above the floor are the same number. 301's furniture
+got tops earlier today and broke the coincidence — the bed's top is world Y
+5.86 on the third storey, so it drew as a 5.86 m tower rising from the flat's
+floor. That is the "goes all the way up". The bed itself was always 0.45 m and
+always jumpable; only the picture was wrong.
+
+The clamp now also covers a top BELOW the player's floor (another storey's
+furniture, still in the array), which would otherwise scale the box inside out.
+
+The trap is written down in that file in three places, because the header's one
+promise is that the overlay "cannot disagree with what actually stops you" and
+this is exactly how it did. `minY` is declared in `fp.ts` and read nowhere — no
+second instance of the same mistake anywhere in `src/`.
+
+Built by the standing builder. Live on 5177.

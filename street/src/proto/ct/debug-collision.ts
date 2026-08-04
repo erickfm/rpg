@@ -42,11 +42,18 @@ import { trapAgainst } from './gap';
 
 /** Box height drawn for a collider with no `maxY` of its own — still most of
  *  them: item 1 (BUILDER-BRIEF, notes/w13-collider-volume.md) made `AABB.maxY`
- *  possible, but only ONE collider in the world sets it so far (the pickup's
- *  bed floor). Every other box is still a wall at every height a player can
- *  stand at, so this is still not a measurement of anything real for those —
- *  just tall enough to read as a wall rather than a curb. A collider that DOES
- *  carry `maxY` is drawn at its own real height instead, below. */
+ *  possible, and the vehicle fleet (`ct/cars.ts`) and 301's furniture
+ *  (`ct/apartment.ts`) now use it, but every other box is still a wall at
+ *  every height a player can stand at. For those this is not a measurement of
+ *  anything real — just tall enough to read as a wall rather than a curb. A
+ *  collider that DOES carry `maxY` is drawn to its own real top instead,
+ *  below.
+ *
+ *  ⚠ THE TRAP, WRITTEN DOWN BECAUSE IT ALREADY CAUGHT SOMEONE: `AABB.maxY` is
+ *  an ABSOLUTE WORLD Y, not a height above anything. `BOX_H` here IS a height.
+ *  They are not interchangeable and they only looked interchangeable for as
+ *  long as every capped collider sat at street level, where the floor is ~0.
+ *  See the note at the `h` computation in `update()`. */
 const BOX_H = 2.4;
 
 /** A corridor under this reads red. Matches `ct/gap.ts`'s own `PASSABLE`
@@ -131,6 +138,10 @@ export class ColliderDebug {
    * call into the floor picker (GOTCHAS §7 — that hysteresis has exactly one
    * writer and this is not it), and every collider currently reachable is on
    * the floor the player is already standing on.
+   *
+   * It is also what converts a capped collider's ABSOLUTE `maxY` into the
+   * height this file actually draws with — see the note at `h` below, and do
+   * not drop the subtraction.
    */
   update(scene: THREE.Scene, colliders: AABB[], floorY: number,
     player: { x: number; z: number; radius: number }, on: boolean,
@@ -168,7 +179,33 @@ export class ColliderDebug {
       // above `floorY`, not the generic wall height — the whole point of
       // giving one a top is that it stops being a wall at every height, and
       // the debug view should say so rather than keep drawing it as one.
-      const h = c.maxY !== undefined ? Math.max(0.05, c.maxY) : BOX_H;
+      //
+      // ⚠ `maxY` IS AN ABSOLUTE WORLD Y, NOT A HEIGHT. This line read
+      // `Math.max(0.05, c.maxY)` until 2026-08-04 and so drew the world
+      // coordinate as if it were a height above `floorY`. It went unnoticed
+      // for as long as the only capped colliders were car roofs and the
+      // pickup's bed, all of which sit on the street where `floorY` is ~0 and
+      // the two numbers coincide. The moment 301's furniture got tops
+      // (`ct/apartment.ts`, commit e3055f58) the coincidence broke: a bed
+      // whose top is world Y 5.86 on a third storey was drawn as a 5.86 m
+      // tower from the flat's floor, and the user — *"i hit v and i see
+      // collision go all the way up but then i can jump on the bed. doesnt
+      // make sense to me"* — was looking at a box that disagreed with the
+      // thing that stopped him. That is the ONE promise this overlay makes
+      // (see the header: it "cannot disagree with what actually stops you"),
+      // so subtract `floorY` and keep it subtracted.
+      //
+      // `fp.ts` is the authority on the semantics and it is unambiguous:
+      // `standTop` returns `c.maxY` straight out as the world height it
+      // plants your feet at (`fp.ts:414`), and `blocked` compares it against
+      // `atY`, world feet Y (`fp.ts:392`). Absolute, both times.
+      //
+      // The clamp is not cosmetic either: a top at or BELOW the player's own
+      // floor — another storey's furniture still live in the array — would
+      // otherwise scale the box negative and draw it inside out. 5 cm of
+      // wireframe on the floor is the honest picture of "this does not stop
+      // you up here".
+      const h = c.maxY !== undefined ? Math.max(0.05, c.maxY - floorY) : BOX_H;
       const b = this.boxes[i];
       // A TURNED collider (`AABB.rot`, item 36) is drawn TURNED. Its min/max
       // are extents in its own frame and `rot` spins it about its own centre —
