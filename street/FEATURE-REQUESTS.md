@@ -3480,3 +3480,26 @@ the record; asks now go straight to the warm builder. His standing instruction
 of 2026-08-01 — *"if there is a queue there should be workers working. always."*
 — is untouched and still right; it stops applying only because small work no
 longer enters the queue.
+
+## 2026-08-04 — "make sure each agent doesnt have a super inflated context"
+
+Verbatim: *"ok lets test this out, make sure each agent doesnt have a super
+inflated context btw. less is more imo because they can go and read worst case."*
+
+The first standing builder warmed itself by mapping all of `src/proto/`, reading
+the GOTCHAS index and deriving the whole interaction-tier model: **69k tokens,
+23 tool calls, 98 s** — carried on every turn thereafter, for an ask that had not
+arrived yet. Re-warmed on `CLAUDE.md` alone: **21k tokens, 1 tool call, 6 s.**
+Rule written into CLAUDE.md as WARM MEANS LIGHT, NOT LOADED. A builder reads what
+the task in hand touches, when the task arrives; the desk respawns rather than
+letting context accumulate across tasks.
+
+## 2026-08-04 — the watch arm
+
+Verbatim: *"when i look down at my watch i want the arm a bit further out and a
+bit left"*
+
+First ask through the new path: straight to the warm builder, no queue row, no
+branch. No screenshot, and no cause or filename guessed by the desk. Flagged to
+the builder as a FEEL adjustment — *"a bit"* is his word — so: move modestly,
+report the number, expect him to call for more or less.
