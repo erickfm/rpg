@@ -3954,24 +3954,36 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //     0.70 m, and that is the price of the corner.** It is 0.08 m better
     //     than it was — item 309's world-wide trim took `ON_IT` from 0.36 to
     //     0.288, which is exactly what moved this edge from 0.78 m to 0.70 m.
-    //   · THE WAY OUT. The bed's approach and the door's stand-point are 1.27 m
-    //     apart and the straight line between them passes within 0.05 m of this
-    //     column, so this spot's own disc hangs over the route you walk to
-    //     leave. Where it sticks out beyond the DOOR's disc, `onIt` offers you
-    //     *"read the calendar"* mid-stride on your way out of the flat. Scanned
-    //     at 2 cm with the spot at -17.40: a **0.08 m** hole, 0.29-0.37 m from
-    //     the door. That is the northern bound and it is what fixes this z.
+    //   · IT MUST BE OUTSIDE THAT DISC ITSELF, which is the bound that fixes
+    //     this number. At 0.205 m north of the door's stand-point the band was
+    //     0.70-0.94 m and perfectly usable, and `scripts/standpoint-overlap.mjs`
+    //     still failed *"at the calendar, facing it"* — because the spot's OWN
+    //     centre was 0.260 m from the door's, inside `ON_IT`, so warping onto it
+    //     and facing the page gave *"close the door"*. A reading spot you cannot
+    //     read from is the whole complaint, restated. 0.28 m north puts it
+    //     0.322 m away, clear by 0.034 m.
     //   · THE WALL stops you 0.32 m off it, and the TV crate forbids every
     //     column west of 198.99.
     //
-    // SO THE SPOT SITS 0.205 m NORTH OF THE DOOR'S STAND-POINT, at (199.20,
-    // -17.25) — the northernmost z at which the route enters this disc no
-    // sooner than it enters the door's. The band it opens is 0.70-0.95 m off
-    // the wall, which contains `CAL_STANDOFF` (0.73 m, the distance this
-    // panel's own camera ease derives from the page's height) — i.e. it is
-    // exactly where a person stands to read it. Walk closer than 0.70 m and the
-    // door takes the prompt back; that is stated rather than hidden, and it is
-    // the one thing item 308 bought by moving the door that this cannot.
+    // SO THE SPOT SITS 0.28 m NORTH OF THE DOOR'S STAND-POINT, at (199.20,
+    // -17.175). The band it opens is **0.70-1.02 m off the wall**, which
+    // contains `CAL_STANDOFF` (0.73 m, the distance this panel's own camera ease
+    // derives from the page's height) — i.e. exactly where a person stands to
+    // read it. Walk closer than 0.70 m and the door takes the prompt back.
+    //
+    // ⚠ AND IT COSTS 0.36 m OF THE WAY OUT, WHICH IS NOT HIDDEN. The bed's
+    // approach and the door's stand-point are 1.27 m apart and the line between
+    // them passes within 0.03 m of this column, so this disc hangs over the
+    // route you walk to leave; where it sticks out past the DOOR's disc, `onIt`
+    // offers *"read the calendar"* mid-stride. Scanned at 2 cm: the prompt is
+    // the calendar from 0.29 to 0.65 m from the door, and the door for the last
+    // 0.29 m — so you still ARRIVE on the door, which is where you stop and
+    // press. **The band and the hole trade 1:1** (spot at +0.205 -> band 0.24 /
+    // hole 0.24; at +0.28 -> band 0.32 / hole 0.36), because both are the part
+    // of this disc that sticks out past the door's, and the two bounds above are
+    // mutually exclusive: no z makes both `standpoint-overlap`'s 0.40 m pose and
+    // its "at the calendar" pose green at once. The only thing that removes the
+    // trade is moving the DOOR — item 308, which the user asked to have undone.
     //
     // ⚠ DERIVED FROM THE DOOR, NOT TYPED. `DOOR_PIV_X/Z` are the `let`s the
     // walk-up's door block writes ~2,600 lines above, and this block runs after
@@ -3980,7 +3992,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // probe above re-runs the search and fails if it stops being the answer.
     const D301_STAND_Z = DOOR_PIV_Z - H301 * 1.45;
     ctx.spot({
-      x: CAL_X - CAL_STAND_DX, z: D301_STAND_Z + 0.205, r: 0.60, obj: cal,
+      x: CAL_X - CAL_STAND_DX, z: D301_STAND_Z + 0.28, r: 0.60, obj: cal,
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: () => 'read the calendar',
       act: openCalendar,

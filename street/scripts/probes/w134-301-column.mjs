@@ -223,13 +223,16 @@ const say = (ok, line) => { console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${line}`); i
   //
   // IT IS NOT FIXABLE FROM THE CALENDAR'S SIDE. Scanned at 2 cm over the whole
   // column: every z that opens a readable band opens a route hole of the same
-  // width, 1:1 (spot at -17.40 -> band 0.10 m, hole 0.09 m; at -17.25 -> band
-  // 0.24 m, hole 0.24 m), because both are the part of this spot's disc that
-  // sticks out past the door's. The only thing that removes it is moving the
-  // DOOR, which is what item 308 did and what the user then asked to have
-  // undone. So the number is reported, the trade is named, and the row stays
-  // red — GOTCHAS §27 is the entry about writing a paragraph explaining why a
-  // real failure is unavoidable geometry and then quietly relaxing the bound.
+  // width, 1:1 (spot at -17.40 -> band 0.10 m, hole 0.09 m; -17.25 -> 0.24 and
+  // 0.24; -17.175 -> 0.32 and 0.36), because both are the part of this spot's
+  // disc that sticks out past the door's. And the south end of that range is
+  // not available: below about -17.22 the spot's own centre falls inside the
+  // door's `ON_IT` disc and the calendar cannot be read from its own spot,
+  // which is the original complaint restated. The only thing that removes the
+  // trade is moving the DOOR — item 308, which the user asked to have undone.
+  // So the number is reported, the trade is named, and the row stays red:
+  // GOTCHAS §27 is the entry about writing a paragraph explaining why a real
+  // failure is unavoidable geometry and then quietly relaxing the bound.
   say(wrong.length === 0,
     `${wrong.length} of ${out.length} poses on the way out offer something other than the door`
     + (wrong.length ? ` — "${wrong[0].r}" over ${(wrong.length * 0.02).toFixed(2)} m, worst at ${wrong[0].d.toFixed(2)} m from the door` : ''));
