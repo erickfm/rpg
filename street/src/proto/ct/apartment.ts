@@ -691,6 +691,63 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       scene.add(m);
       return m;
     };
+    /**
+     * ── A CEILING WITH SOMETHING BEHIND IT ─────────────────────────────────
+     *
+     * The user: *"make the ceiling thicker so i cant see through it when i poke
+     * my head through a bit on jump."*
+     *
+     * WHY A PLANE CANNOT HOLD, and it is arithmetic rather than bad luck. The
+     * camera's near plane is 0.1 m (`crosstown.ts:55`) and `fp.ts`'s head clamp
+     * holds the eye `HEAD_CLEAR = 0.06` BELOW the ceiling. 0.06 < 0.1, so at
+     * the top of a jump the ceiling is nearer than the near plane and is simply
+     * not drawn — and behind a zero-thickness plane there is 0.156 m of open
+     * void and then the underside of the carpet above. Nothing is wrong with
+     * the clamp; it is doing exactly what it says, and 0.06 cannot be widened
+     * (over about 0.10 it goes inert on the dresser and TV tops, which have
+     * 0.10-0.11 m of standing headroom).
+     *
+     * SO GIVE THE SURFACE DEPTH TO CLIP INTO. The plane stays exactly where and
+     * what it was — the view from the room is unchanged to the pixel — and a
+     * slab sits ON TOP of it. When the underside clips away, the slab's far
+     * side is `CEIL_D` further off and still drawn, so a head through the
+     * plaster is inside plaster.
+     *
+     *   UPWARD, NEVER DOWN. The ceiling line is what he stands under and what
+     *   the clamp reads; taking 0.12 m out of the room below would lower the
+     *   headroom of every room in the building and could fire the clamp on a
+     *   walk. **The clear height of every storey is untouched at 2.55.**
+     *
+     *   0.12 OF A 0.156 VOID. It must beat the near plane — the eye is 0.06
+     *   under the ceiling, so anything less than 0.04 of slab is still inside
+     *   0.1 m and still invisible — and it must not reach the carpet plane
+     *   above at `+0.156`, because a top face coplanar with that carpet is the
+     *   z-fight found and fixed at the stairwell fascia this morning. 0.12
+     *   clears the near plane three times over and stops 0.036 short of the
+     *   carpet, which is 14x the 2.5 mm the fascia settled for.
+     *
+     *   DOUBLE-SIDED, which is the whole trick. A box of front faces is
+     *   invisible from inside itself — every face is backfacing and culled —
+     *   so the eye would clip through the underside and see straight out of
+     *   the far side. `texM` is DoubleSide for its own reasons and this relies
+     *   on it: from inside, the slab is opaque in every direction.
+     *
+     *   NO COLLIDER, and none is wanted: the clamp already stops him. This is
+     *   about what he can SEE, and `standTop` treats anything with a `maxY` as
+     *   standable, so a collider here would be a floor at 2.55.
+     */
+    const CEIL_D = 0.12;
+    // The colour of `ceilT`'s own field, so the head that gets inside the slab
+    // is inside the SAME plaster it was looking at a frame earlier. DoubleSide
+    // for the reason above — this is the one material in the file whose inner
+    // faces are the point of it.
+    const slabM = new THREE.MeshBasicMaterial({ color: 0x6e6a60, side: THREE.DoubleSide });
+    const ceilMesh = (y: number, w: number, d: number, cx: number, cz: number) => {
+      floorMesh(y, w, d, cx, cz, ceilT);
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(w, CEIL_D, d), slabM);
+      slab.position.set(cx, y + CEIL_D / 2, cz);
+      scene.add(slab);
+    };
     // hall + stairwell shell. Both walls run full height either side of the
     // door column; the column itself is cut floor by floor, just below.
     wallMesh(3.025, H, AX(0), H / 2, AZI(1.5125), Math.PI / 2);
@@ -799,9 +856,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // floors, ceilings
     for (let f = 0; f < 4; f++) {
       floorMesh(f * ST + 0.006, 2.4, 8.4, AX(1.2), AZI(4.2));
-      if (f < 3) floorMesh(f * ST + 2.55, 2.4, 8.4, AX(1.2), AZI(4.2), ceilT);
+      if (f < 3) ceilMesh(f * ST + 2.55, 2.4, 8.4, AX(1.2), AZI(4.2));
     }
-    floorMesh(H, 2.4, 13.2, AX(1.2), AZI(6.6), ceilT);
+    // THE TOP STOREY GETS THE SAME SLAB AND NOT A SPECIAL CASE. Above `H` there
+    // is nothing at all — no carpet plane, no storey — so the plane up there
+    // was the thinnest surface in the building and the one with the emptiest
+    // thing behind it. It needs no clearance from a floor above because there
+    // is none, and 0.12 of plaster reads from below exactly as the plane did.
+    ceilMesh(H, 2.4, 13.2, AX(1.2), AZI(6.6));
     // the switchback: steeper now — 8 treads over a 2.6 m run (~28°), wood
     // grain on top, painted risers, a generous half landing
     const treadTopT = surfTex('ground', 32, 16, (g) => {
@@ -2157,7 +2219,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       skin(DOOR_GAP, R301_H - HEAD, R301_DOOR_Z, 2 * ST + HEAD + (R301_H - HEAD) / 2, HEAD);  // over it
     }
     floorMesh(2 * ST + 0.007, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ), woodFloorT);
-    floorMesh(2 * ST + R301_H, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ), ceilT);
+    // 301's own ceiling gets the slab too — it is the room he is standing in
+    // when he jumps, and the flat sits WEST of the hall shell, so there is no
+    // carpet plane above it at all. `R301_H` is unchanged: the slab grows up
+    // off it and the room is the same 2.55 m it has always been.
+    ceilMesh(2 * ST + R301_H, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ));
 
     // ── AND SAY SO, so the world's room registry knows this room exists ────
     //
