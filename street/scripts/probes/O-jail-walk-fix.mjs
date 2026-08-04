@@ -58,10 +58,13 @@ const reach = await p.evaluate(() => {
   // diagnostic that models a different predicate from the check it explains is
   // worse than none.
   const TOUCH_MARGIN = window.__ct.touchMargin();
+  // item 309: the aim-free disc is trimmed world-wide, so the margin alone
+  // over-reports it by 20%. `reachTrim()` is the missing term.
+  const REACH_TRIM = window.__ct.reachTrim ? window.__ct.reachTrim() : 1;
   return window.__ct.spots()
     .filter((s) => /DETENTION/i.test(s.label ?? ''))
     .map((s) => ({ label: s.label, d: +Math.hypot(s.x - q[0], s.z - q[2]).toFixed(2), ok: s.ok, r: s.r }))
-    .map((s) => ({ ...s, near: s.d < s.r + TOUCH_MARGIN }));
+    .map((s) => ({ ...s, near: s.d < (s.r + TOUCH_MARGIN) * REACH_TRIM }));
 });
 console.log('   jail spots in reach:', JSON.stringify(reach));
 console.log(`   ${reach.some((r) => r.near && r.ok) ? 'OK ' : 'FAIL'} the door prompt is live from where the walk stopped`);

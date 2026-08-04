@@ -85,8 +85,16 @@ if (Object.values(hooks).some((t) => t !== 'function')) {
 // standing, so filtering on it here would hide every room he is not currently
 // in — which is all of them but one, and this is a question about the whole
 // world's geometry rather than about one storey.
+// ⚠ `onItRadius()`, NOT `playerRadius()`, SINCE ITEM 309. They were the same
+// number until the user asked for less reach on the interactables — `RADIUS` is
+// now only the player's COLLISION capsule, and the resolver's tier-1 test reads
+// a separate, trimmed `ON_IT` (0.288 against 0.36). This file is about tier 1,
+// so it wants the second one; reading the first over-reports every overlap by
+// 20% and would report contested corners that the world resolves cleanly.
+// Falls back to `playerRadius()` on a build that predates the split.
 const { spots, RADIUS } = await p.evaluate(() => ({
-  spots: window.__ct.spots(), RADIUS: window.__ct.playerRadius(),
+  spots: window.__ct.spots(),
+  RADIUS: window.__ct.onItRadius ? window.__ct.onItRadius() : window.__ct.playerRadius(),
 }));
 if (!Array.isArray(spots) || spots.length === 0 || !Number.isFinite(RADIUS)) {
   console.error(`ABORT (exit 3): nothing to measure — ${spots?.length} spots, RADIUS ${RADIUS}`);
@@ -143,7 +151,7 @@ await b.close();
 const LIMIT = 2 * RADIUS * (SELFTEST ? 3 : 1);
 const ways = spots.filter((s) => (s.rank ?? 0) > 0);
 console.log(`${spots.length} registered spots, ${ways.length} of them a WAY OUT (rank > 0)`);
-console.log(`RADIUS ${RADIUS} m, so two capsules is ${LIMIT.toFixed(2)} m — the overlap limit\n`);
+console.log(`ON_IT ${RADIUS} m, so two "standing in it" discs is ${LIMIT.toFixed(2)} m — the overlap limit\n`);
 
 // A WAY OUT WITH NO RANK ANYWHERE IN THE WORLD IS THE CHECK FAILING SILENTLY,
 // not the world being clean. GOTCHAS 34: a check can pass because it found

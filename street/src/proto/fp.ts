@@ -1346,7 +1346,7 @@ export function pickSpot<T extends Pickable>(
       // outranked by something else. A spot you are standing IN is not competing
       // for your attention; it is under your feet. Among two spots you are
       // standing in — which the world does contain, wherever two stand-points
-      // are closer than `2 * RADIUS` — rank then decides, and that is the case
+      // are closer than `2 * ON_IT` — rank then decides, and that is the case
       // `scripts/standpoint-overlap.mjs` exists to keep rare.
       if (bestNearLooked === null
         || (onIt !== bestNearLookedOnIt

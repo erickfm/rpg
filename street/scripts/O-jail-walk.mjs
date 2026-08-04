@@ -118,9 +118,20 @@ if (mode === 'door' || mode === 'all') {
   // now. It is the case where the door or the stopping point moves 1.2 m that
   // this was silently ready to pass. `probes/w88-registered-checks-flip.mjs`
   // stands the player in the band and watches this very predicate flip.
+  //
+  // ── AND TRIMMED, 2026-08-03 (item 309) ────────────────────────────────────
+  //
+  // The aim-free predicate grew a world-wide factor on the user's *"with the
+  // radius for all these things a bit less"*: `d < (s.r + TOUCH_MARGIN) *
+  // REACH_TRIM`, 0.80. Rebuilding it from `touchMargin()` alone now
+  // over-reports reach by 20% — the SAME false-green direction the paragraph
+  // above is about, and the third time a published constant here has outlived
+  // its predicate. `__ct.reachTrim()` is the missing term.
   const TOUCH_MARGIN = await p.evaluate(() => window.__ct.touchMargin());
-  if (typeof TOUCH_MARGIN !== 'number' || !isFinite(TOUCH_MARGIN)) {
-    console.error('ABORT: __ct.touchMargin() did not return a number — nothing below can be measured.');
+  const REACH_TRIM = await p.evaluate(() => (window.__ct.reachTrim ? window.__ct.reachTrim() : NaN));
+  if (typeof TOUCH_MARGIN !== 'number' || !isFinite(TOUCH_MARGIN)
+      || typeof REACH_TRIM !== 'number' || !isFinite(REACH_TRIM)) {
+    console.error(`ABORT: touchMargin()=${TOUCH_MARGIN} reachTrim()=${REACH_TRIM} — nothing below can be measured.`);
     await b.close(); process.exit(3);                       // GOTCHAS §32
   }
   // Still needed further down, for the way-OUT landing bound. See there for why
@@ -130,15 +141,15 @@ if (mode === 'door' || mode === 'all') {
     console.error('ABORT: __ct.reachMargin() did not return a number — nothing below can be measured.');
     await b.close(); process.exit(3);                       // GOTCHAS §32
   }
-  const reachable = await p.evaluate(([margin]) => {
+  const reachable = await p.evaluate(([margin, trim]) => {
     const q = window.__ct.pos();
     const hits = window.__ct.spots()
       .filter((s) => /DETENTION/i.test(s.label ?? ''))
       .map((s) => ({ label: s.label, r: s.r, ok: s.ok,
                      d: +Math.hypot(s.x - q[0], s.z - q[2]).toFixed(2),
-                     near: Math.hypot(s.x - q[0], s.z - q[2]) < s.r + margin }));
+                     near: Math.hypot(s.x - q[0], s.z - q[2]) < (s.r + margin) * trim }));
     return hits;
-  }, [TOUCH_MARGIN]);
+  }, [TOUCH_MARGIN, REACH_TRIM]);
   console.log(`   jail spots in reach: ${JSON.stringify(reachable)}`);
   ok(reachable.some((h) => h.near && h.ok),
     'standing where the walk stopped, the jail\'s [E] is within reach and live');
