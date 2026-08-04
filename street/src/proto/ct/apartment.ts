@@ -4913,18 +4913,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //          walkable landing and you could stand in the rail. It begins at
     //          the near FACE now, derived from BAL_D rather than typed, so it
     //          re-solves if the run is ever made heavier.
-    //   WHEN   the gate was `lastGy > 3*ST - 0.12` — the railing existed only
-    //          while the floor picker agreed you were within 12 cm of floor 3,
-    //          which is a very thin band to hang a fall guard on. Widened to
-    //          the picker's own same-floor tolerance (the 0.6 in `consider`).
-    //          It CANNOT close the stairway: everything walkable in this half
-    //          of the shaft below the landing is flight A (5.40 -> 6.75) and
-    //          the half landing (6.75), all of it clear of TOP_Y - 0.6 = 7.50,
-    //          so the guard is still off for every step of the way down.
+    //   WHEN   the gate was `lastGy > 3*ST - 0.12`, then `> TOP_Y - 0.6` (7.50).
+    //          Both are the same mistake in different sizes: they ask whether
+    //          you are STANDING ON THE TOP LANDING, and the user is not — he is
+    //          on the flight, coming down, when he goes over. *"see how theres
+    //          none so if i jump i hit nothing and phase through?"* A railing
+    //          that only exists for someone already safely on the landing is
+    //          not a railing, and it is exactly why the V overlay draws nothing
+    //          at that line from the stairs.
+    //
+    //          THE GATE CANNOT SIMPLY GO AWAY. This is a 2D collider with no
+    //          height, and it spans AZI(9.255)…AZI(13.2) of the shaft's west
+    //          half — which is the airspace over FLIGHT A. On permanently it
+    //          would wall the flight off at every storey and seal the walk-up.
+    //
+    //          SO IT IS GATED AT THE HIGHEST THING YOU CAN WALK ON UNDER IT,
+    //          not at the landing. Everything walkable in this half below the
+    //          nib is flight A (5.40 -> 6.75) and the half landing (6.75); the
+    //          next surface up is the nib itself at 8.10, and flight B climbs
+    //          6.75 -> 8.10 in the EAST half, which this box does not touch. So
+    //          any threshold in (6.75, 8.10] is safe, and the LOWEST safe one is
+    //          the most railing: 10 cm over the half landing. The guard is now
+    //          live for the whole upper half of flight B and for every approach
+    //          to the landing, and still off for every step of flight A.
     //
     // NO `maxY`, deliberately — a railing is a wall, and a top would let you
     // stand on the bannister and go over from higher up.
-    setCap(stairCap, lastGy > TOP_Y - 0.6, AX(0), AX(1.2), AZI(NIB_Z1 - BAL_D / 2), AZI(LAND_Z1));
+    const HALF_LAND_Y = 2 * ST + RISE;   // 6.75 — top of flight A, the last
+    setCap(stairCap, lastGy > HALF_LAND_Y + 0.1,   // walkable thing under the nib
+      AX(0), AX(1.2), AZI(NIB_Z1 - BAL_D / 2), AZI(LAND_Z1));
     const onLobby = px > 100 && lastGy < 0.6;
     setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(STAIR_Z0), AZI(LAND_Z1));
     setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(STAIR_Z1), AZI(LAND_Z1));
