@@ -3965,3 +3965,23 @@ this is exactly how it did. `minY` is declared in `fp.ts` and read nowhere — n
 second instance of the same mistake anywhere in `src/`.
 
 Built by the standing builder. Live on 5177.
+
+## 2026-08-04 — the aim-point pattern is CONFIRMED GOOD
+
+Verbatim: *"i love all the aim point e select stuff in this latest build btw. it
+looks and feels great"*
+
+Said after `a936b6df` gave 301's door an `aimX`/`aimZ`, following `a5847cc1`
+which did the same for the calendar. **This is now a validated pattern, not a
+guess.** A spot with no `aimX`/`aimZ` measures "are you looking at it?" against
+its STAND-POINT — the patch of floor your feet go on — which for a door is 1.55 m
+off the pivot in a corner, and for a calendar is a marker on the floor. Facing the
+object then puts the thing being measured behind your shoulder.
+
+**So: any spot on an object you LOOK at should declare `aimX`/`aimZ` on the
+object, not rely on its floor marker.** Two of the three worst interaction
+complaints of the session came from exactly this. It cost one number per spot.
+
+Landed the same day as `REACH_TRIM` 0.65 -> 0.52 (item: *"in general the radius
+for things to press e should be smaller"*), so the good feel is the two together:
+you must be closer, AND looking at the thing rather than at its floor.
