@@ -1196,8 +1196,47 @@ export const TOUCH_MARGIN = 0.15;
  *  door.** That is a real regression against an older request of his, it is
  *  reported rather than papered over, and it is the price of the newer one.
  *  Walked at the frame: aimed at the door it is still offered from 2.4 m in;
- *  aimed 90° away it drops from 0.87 m to 0.53 m. */
-export const REACH_TRIM = 0.65;
+ *  aimed 90° away it drops from 0.87 m to 0.53 m.
+ *
+ *  ── 0.65 -> 0.52, THE THIRD TIME HE HAS ASKED (2026-08-04) ────────────────
+ *  *"in general the radius for things to press e should be smaller"*, having
+ *  just watched `[E] sit on the bed and watch TV` offer itself from the middle
+ *  of 301. The row so far: 1.00 -> 0.80 (item 309, *"with the radius for all
+ *  these things a bit less"*), 0.80 -> 0.65 (item 310c), and now 0.65 -> 0.52.
+ *  Each step is ~20% of the value before it, deliberately — this is a number he
+ *  tunes by feel and the useful thing is a consistent stride he can say "again"
+ *  or "too far" to, not one builder's guess at the destination.
+ *
+ *  WHAT 20% IS, IN CENTIMETRES, at the radii the world actually registers
+ *  (`(r + TOUCH_MARGIN) * trim`, so the cut is 20% of a reach that already
+ *  includes the margin):
+ *
+ *      r 0.60  the 301 calendar, the tightest spot there is   0.49 -> 0.39 m
+ *      r 0.95  301's own door                                 0.72 -> 0.57 m
+ *      r 1.05  No. 227's entry                                0.78 -> 0.62 m
+ *      r 1.80  the widest spot in the world                   1.27 -> 1.01 m
+ *
+ *  NOTHING BECOMES UNREACHABLE AND ONE FLOOR SAYS WHY. `pickSpot`'s underfoot
+ *  tier is `near && onIt`, so a spot whose trimmed reach fell below `ON_IT`
+ *  (0.234) would lose the "standing in it offers it" guarantee outright. That
+ *  needs `(r + 0.15) * 0.52 < 0.234`, i.e. r < 0.30, and the smallest genuine
+ *  spot radius in the tree is the calendar's 0.60 — twice the danger line. (The
+ *  0.13-0.34 values a grep for `r:` turns up are `room.clock` faces, not spots.)
+ *
+ *  WHAT IT DOES NOT MOVE, and he should know both:
+ *   · THE AIMED TIER, which is what offers the bed from across the room. That
+ *     is `d < reach` (6 m) with `lookTolerance(s.r, d)`, and this constant is
+ *     deliberately not applied to it — see the two paragraphs above, and the
+ *     four builders in `lookTolerance`. If he wants the ACROSS-THE-ROOM offer
+ *     cut, the honest lever is the spot radius fed to `lookTolerance`, not this.
+ *   · SEATED REACH. Seated sets `near = false` and selects purely through
+ *     `looked && d < s.r + RADIUS + REACH_MARGIN`, where this constant does not
+ *     appear. Sitting reaches exactly as far today as it did yesterday.
+ *
+ *  AND WHAT IT COSTS, again: the No. 227 regression recorded above gets deeper,
+ *  0.78 m of aim-free reach to 0.62 m against a door frame 1.15 m out. That
+ *  spot has needed a glance since 310c and it still does. */
+export const REACH_TRIM = 0.52;
 
 /** The radius of the disc inside which a spot counts as **under your feet** —
  *  `pickSpot`'s tier-1 `onIt`, which wins with no aim test at all and is the
@@ -1231,7 +1270,15 @@ export const REACH_TRIM = 0.65;
  *  0.234 is what `0.36 * 0.65` evaluated to the day before, unchanged to the
  *  float. Item 310's calendar-vs-door arithmetic depends on it: the two
  *  stand-points are 0.322 m apart against a `2 * ON_IT` overlap width of
- *  0.576, and both numbers still hold. */
+ *  0.576, and both numbers still hold.
+ *
+ *  ⚠ `REACH_TRIM` WENT 0.65 -> 0.52 ON 2026-08-04 AND THIS DID NOT FOLLOW IT.
+ *  That is the whole reason the two were unpicked. This disc is not "how far
+ *  away a prompt appears" — it is already smaller than the player's own body
+ *  (0.3456) and means *the spot's centre is inside you*. Shrinking it does not
+ *  make anything less grabby; it breaks item 310, which needs `2 * ON_IT` to
+ *  stay above the 0.322 m the calendar and the door stand apart. At 0.16 the
+ *  overlap is 0.32 and the two stop competing, which is the bug he reported. */
 export const ON_IT = 0.234;
 
 /** The look cone's CEILING, in radians — the widest half-angle that can ever

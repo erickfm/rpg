@@ -2079,7 +2079,14 @@ export function makeCrosstown(): Proto {
      *  predicate as it stands, for a STANDING player, is
      *
      *      touching = d < (s.r + TOUCH_MARGIN) * REACH_TRIM
-     *      onIt     = d < ON_IT                   // = RADIUS * REACH_TRIM
+     *      onIt     = d < ON_IT                   // A FREE-STANDING LITERAL
+     *
+     *  ⚠ THAT SECOND COMMENT USED TO READ `= RADIUS * REACH_TRIM` AND WAS ITSELF
+     *  AN INSTANCE OF THE HAZARD THIS DOCSTRING IS ABOUT. The coupling was cut on
+     *  2026-08-04 so the body radius and the resolver could move apart, and they
+     *  promptly did: `REACH_TRIM` went 0.65 -> 0.52 that same day while `ON_IT`
+     *  stayed at 0.234. A harness multiplying `playerRadius()` by `reachTrim()`
+     *  now gets 0.180, not 0.234. Ask `onItRadius()`.
      *
      *  so anything asking "would this be offered to a player standing here, not
      *  looking at it" wants `reachTrim()` as well as `touchMargin()`.
