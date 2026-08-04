@@ -3546,7 +3546,7 @@ against, it is untouched, and it repeats at ~2.75 px per row. That beats `WATCH_
 or `WATCH_TILT`, which buy the same lift by moving pixels items 275 and the
 arm-angle item are pinned to. All three options are written down at the constant.
 
-## 2026-08-04 — "inspo on hand and arm design"
+## 2026-08-04 — "inspo on hand and arm design"  ·  **REVERTED, see below**
 
 Verbatim: *"take a look at this image for inspo on hand and arm design btw"*
 (`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-04 12-59-06.png` — an
@@ -3594,7 +3594,7 @@ which is not a shape choice: that inner bottom corner is what `WATCH_DROP` is
 measured against and it is ~1.0 px from its floor. Only the far end rounds, where
 the outer corner sits ~60 px inside the frame and costs nothing.
 
-## 2026-08-04 — "wow the arm looks soooo bad" + the block reference
+## 2026-08-04 — "wow the arm looks soooo bad" + the block reference  ·  **REVERTED, see below**
 
 Verbatim: *"wow the arm looks soooo bad. i was hoping you could look at the ref
 and try to think about how to imagine it in this style here. not to try to draw
@@ -3662,6 +3662,36 @@ caught the last one, and it took three passes to stop looking bad:
 - `HAND_ROT` 12 put the hand at -6° on screen, near enough to horizontal that it
   read as a rectangle of UI rather than part of a diagonal arm. 6 keeps the
   diagonal while still differing from the forearm.
+
+## 2026-08-04 — "please revert from before we started work on this"
+
+Verbatim: *"this is absolutely awful. doesnt look like a hand and arm at all.
+please revert from before we started work on this"*
+
+Done. The arm and hand now draw **exactly** as they did at `1dd6a266` — the plain
+tapered forearm with its recede gradient, the 44 px strap, and the one-box fist
+from item 216. Both attempts above are gone: the anime-cel pass (`5730cd40`) and
+the flat-block pass (`d384c422`), along with everything that only existed to
+serve them — `player.ink`, `INK_W`, `HAND_ROT`, the `block`/`slab` rasterisers,
+the widened strap, and every comment describing them.
+
+**Two rejections in a row on the same object, and the second was after I looked
+at it.** Looking caught three real defects and still did not tell me the thing
+that mattered, which is that I cannot judge this at all. The next person to be
+handed a reference for this object should treat "does it read as a hand" as
+Erick's question only, and get a look from him before building on top of a pass —
+not after two.
+
+**What was NOT reverted, deliberately, and he has not complained about any of
+it:** the `[E]` prompt z-order (`14959136`) landed in this same file in between
+the two reverted commits and is unrelated to the drawing, so it survives intact —
+verified on 5177, prompt at z 16 over the watch at 11, note at 13. And the watch
+POSITION is his own, settled over three rounds and untouched: `WATCH_X` 36 %,
+`WATCH_DROP` 4.5, `WATCH_TILT` -18.
+
+`hud.ts` was restored from `1dd6a266` wholesale and the z-order work re-applied
+on top, rather than reverting two commits around a third. A full diff against
+`1dd6a266` was read before committing: the only differences are the z-index work.
 
 ## 2026-08-04 — "the e dialog should always be above anything else"
 
