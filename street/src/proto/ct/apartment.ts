@@ -1161,6 +1161,52 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       leaf.rotation.y = d302A;        // starts SHUT; updateHermitAt drives it
       scene.add(leaf);
       leaf.name = 'leaf302';
+      // ── ITEM 304: THIS LEAF HAS NO COLLIDER OF ITS OWN, AND IT DOES NOT ──
+      // ── NEED ONE. Do not add one; measure first, the way this was. ──────
+      //
+      // The row: *"NOTHING STOPS YOU AT THE HERMIT'S DOORWAY — 302's door leaf
+      // has NO COLLIDER IN EITHER POSE."* The first half of that is true and
+      // the second half is the part that matters, and they point opposite ways.
+      // Measured on the built bundle, `scripts/probes/w304-hermit-doorway-walk.mjs`:
+      //
+      //   pose   leaf covered   walked east to   the leaf is at
+      //   shut     41/41          local x 1.875    2.520          (the plug stops you)
+      //   open      2/41          local x 1.655    2.520 … 3.395  (the hermit stops you)
+      //   open      2/41          local x 2.040    2.520 … 3.395  (plug parked, hermit home:
+      //                                                            the EAST WALL stops you)
+      //
+      // 2.040 is the hard ceiling — the unsplit east wall run at AX(2.40)…AX(2.55)
+      // is a plain static push, the same in every pose and on every floor, and
+      // 2.40 less the rig's 0.360 m radius is 2.040. It reproduces the figure
+      // `w101-flatdoor-plug.mjs` measured for the same wall. **The open leaf's
+      // nearest point is 0.480 m further east than the player can ever stand.**
+      // UNCOVERED AND UNREACHABLE ARE DIFFERENT THINGS, and 302 is the second.
+      //
+      // AND IT IS NOT A LEAF THAT HANGS PERMANENTLY OPEN — that was the other
+      // candidate fix ("register the jamb instead"). It starts SHUT (`d302A =
+      // D302_SHUT`) and swings only while the hermit is out, because the user
+      // asked for exactly that: *"neighbors door should be closed when neightbor
+      // is not out"*. So the jamb is not the right registration on grounds of
+      // permanence — it is the right one because **302 IS NOT AN ENTERABLE
+      // FLAT.** The jamb is already registered, and has been all along: it is
+      // the unsplit east wall, the run this file's collider block calls out as
+      // "what holds all four east doorways shut, and it is deliberate".
+      //
+      // A collider swinging with this leaf would be a box in a 1.2 m recess the
+      // player cannot enter — 0.48 m behind a wall — which is precisely the
+      // stray-looking-box-doing-nothing that item 183 was mis-filed about two
+      // hundred lines up. It buys nothing and it is one more thing to drift.
+      //
+      // WHAT THE FLAG BELOW DOES BUY, honestly stated: in the pose the world
+      // loads in the leaf is 41/41 covered, and registering it makes
+      // `scripts/solid-leaf-vs-collider.mjs` re-measure that every run. It
+      // catches the shut leaf drifting OUT of the AX(2.40)…AX(2.55) band —
+      // watched red by hand at x0 + 0.35, which took it to 0/41 and a 0.933 m
+      // uncovered run. It does NOT catch a drift in z, because the wall run is
+      // unsplit across AZI(0)…AZI(13.2) and covers every z equally, and it says
+      // nothing at all about the open pose. That is the gap; it is declared
+      // rather than papered over, and the walk probe above is what covers it.
+      leaf.userData.solidLeaf = 'apt-302-hermit';
       scene.userData.doorTravel = {
         ...(scene.userData.doorTravel ?? {}),
         leaf302: { shut: D302_SHUT, open: D302_OPEN },
