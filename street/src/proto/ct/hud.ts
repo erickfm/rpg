@@ -2531,14 +2531,50 @@ export function makeHud(purse: Purse): Hud {
   // the pockets panel repaints — and it is called from fifteen modules. Only
   // its wallet half is gone. Renaming it is a mechanical fifteen-file change
   // and is the follow-up; doing it here would bury this deletion in noise.
+  // ── HOW LOUD THE [E] PROMPT IS ───────────────────────────────────────────
+  //
+  // *"make the e dialog less annoying, lower opacity, etc."*   (2026-08-05)
+  //
+  // Five levers, and the one that did most of the work is the FADE. What reads
+  // as annoying is a caption blinking on and off as you walk past things — a
+  // hard cut draws the eye every time, and there are spots every few metres on
+  // this block. 140 ms is enough that it arrives rather than appears, and short
+  // enough that it never feels like lag on something you walked up to.
+  //
+  // Then the BACKING, which is what made it feel like a dialog rather than a
+  // hint: a 50% black plate under white text is a caption bar. At 28% with a
+  // drop shadow doing the legibility work it reads as type on the world.
+  //
+  //   opacity     (none, solid)  ->  0.78
+  //   plate        rgba 0,0,0,.5 ->  .28
+  //   ink          #ffffff       ->  #e8e4d8, the world's own paper — a warm
+  //                                  off-white sits in a game of browns and
+  //                                  greys where a pure white shouts
+  //   size         13px          ->  12px, letter-spacing .4 -> .5
+  //   fade         none          ->  140 ms in and out
+  //
+  // ⚠ IT MUST STILL BE UNMISSABLE ONCE YOU LOOK. This is how every door, seat,
+  // prop, the mirror and the drawer announce themselves, so it is quieter, not
+  // fainter than the world behind it — hence the shadow staying and the ink
+  // going warm rather than grey. **Push `PROMPT_ON` first** if he wants it
+  // quieter still; it is the one number to move.
+  //
+  // ⚠ AND NOT THE Z-ORDER. `Z_PROMPT` 16 over `Z_NOTE` 13 is a reported bug's
+  // fix — the prompt was buried behind the watch and the wallet. Lower opacity,
+  // never lower z.
+  const PROMPT_ON = 0.78, PROMPT_PLATE = 0.28, PROMPT_INK = '#e8e4d8';
+  const PROMPT_PX = 12, PROMPT_FADE = 140;
+  let promptHide = 0;
   const Z_PROMPT = 16, Z_NOTE = 13;
   let promptDiv = document.getElementById('ct-prompt') as HTMLDivElement | null;
   if (!promptDiv) {
     promptDiv = document.createElement('div');
     promptDiv.id = 'ct-prompt';
     promptDiv.style.cssText = `position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:${Z_PROMPT};`
-      + 'font:13px/1.4 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,.5);'
-      + 'padding:5px 12px;border-radius:5px;pointer-events:none;display:none;letter-spacing:.4px;';
+      + `font:${PROMPT_PX}px/1.4 ui-monospace,Menlo,monospace;color:${PROMPT_INK};`
+      + `background:rgba(0,0,0,${PROMPT_PLATE});text-shadow:0 1px 2px rgba(0,0,0,.75);`
+      + `padding:4px 10px;border-radius:4px;pointer-events:none;display:none;letter-spacing:.5px;`
+      + `opacity:0;transition:opacity ${PROMPT_FADE}ms linear;`;
     document.body.appendChild(promptDiv);
   }
   // the transient line — what just happened, above the [E] prompt. It has the
@@ -2711,12 +2747,27 @@ export function makeHud(purse: Purse): Hud {
       // `fading` spans the whole out/hold/in, so this covers the middle where
       // the world changes under it.
       if (text === null || panelUp() || fading) {
-        promptDiv!.style.display = 'none';
-        promptDiv!.textContent = '';
+        // FADE OUT RATHER THAN VANISH, and only THEN go `display:none` and
+        // clear the text. The element has to keep both while it fades or there
+        // is nothing to fade; the clear is what instruments read (16 of the 77
+        // that watch this element never look at `display`), so it is deferred
+        // rather than dropped — a ~160 ms window against the 40 m of stale
+        // caption the clear was added to fix.
+        promptDiv!.style.opacity = '0';
+        if (promptHide) window.clearTimeout(promptHide);
+        promptHide = window.setTimeout(() => {
+          promptDiv!.style.display = 'none';
+          promptDiv!.textContent = '';
+          promptHide = 0;
+        }, PROMPT_FADE + 20);
         return;
       }
+      if (promptHide) { window.clearTimeout(promptHide); promptHide = 0; }
       promptDiv!.textContent = text;
       promptDiv!.style.display = 'block';
+      // one frame of `display:block` before the opacity moves, or the browser
+      // has nothing to transition FROM and it snaps on exactly as before
+      requestAnimationFrame(() => { promptDiv!.style.opacity = String(PROMPT_ON); });
     },
     fading: () => fading !== null,
     // WAIT FOR THE TRANSITION TO SAY IT IS DONE, not for a timer that thinks
