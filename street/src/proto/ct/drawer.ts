@@ -54,6 +54,9 @@ export const DRAWER_W = 0.58, DRAWER_D = 0.17;
 const LINING_PPM = 400;
 /** how close the eye gets, and how much of the frame the drawer then fills */
 export const DRAWER_STANDOFF = 0.68, DRAWER_FOV = 34;
+/** the yaw that faces the dresser's front squarely. Its drawer opens toward
+ *  +z, so facing it is −z, which is rig yaw 0. */
+export const DRAWER_FACE_YAW = 0;
 
 export function liningCanvas(): { w: number; h: number } {
   return { w: Math.round(DRAWER_W * LINING_PPM), h: Math.round(DRAWER_D * LINING_PPM) };
@@ -301,6 +304,14 @@ export function drawerPanel(o: {
           mesh: o.mesh,
           standoff: DRAWER_STANDOFF,
           fov: DRAWER_FOV,
+          // ── SQUARE UP TO THE DRESSER ON THE WAY IN ────────────────────────
+          // The lining is horizontal and can say nothing about heading, so the
+          // yaw comes off the FURNITURE it is in. This dresser stands against
+          // the south wall with its drawer opening toward +z, so the front's
+          // normal is +z and facing it is yaw 0 — `fwd = (sin y, 0, −cos y)`,
+          // which at 0 is (0, 0, −1). Stated as one number rather than derived
+          // from a normal that does not exist.
+          faceYaw: DRAWER_FACE_YAW,
           hot: (x, y) => !!held || !!cellAt(x, y),
           click: (x, y) => {
             if (held) {

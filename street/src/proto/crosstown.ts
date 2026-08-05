@@ -1431,7 +1431,7 @@ export function makeCrosstown(): Proto {
    * standing in.
    */
   const poseFor = (mesh: THREE.Object3D, standoff: number, fov: number, eyeY?: number,
-                   keep?: { yaw: number; x: number; z: number }): FocusPose => {
+                   keep?: { yaw: number; x: number; z: number }, faceYaw?: number): FocusPose => {
     mesh.updateWorldMatrix(true, false);
     const c = new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
     const geo = (mesh as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
@@ -1497,7 +1497,24 @@ export function makeCrosstown(): Proto {
     return {
       pos: eye,
       // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw)
-      yaw: upright || !keep ? Math.atan2(dir.x, -dir.z) : keep.yaw,
+      // ── AND A HORIZONTAL SURFACE IS TOLD WHICH WAY TO FACE ───────────────
+      //
+      // *"can we make it so looking into the dresser rotates the view on the
+      //  way to the diagetic view? the mirror, the calendar, all do this
+      //  already"*
+      //
+      // A vertical face derives its own yaw and always has. A horizontal one
+      // cannot — `atan2(+0, −0)` is π, which is the 180° spin — so it takes
+      // `faceYaw` from the caller, off the FURNITURE the surface belongs to:
+      // the dresser has a front, the front has a heading, and squaring up to it
+      // is exactly what the mirror does to its glass. `keep.yaw` remains the
+      // fallback for a caller that says nothing, which is what stopped the spin.
+      //
+      // It is a plain member of the pose, so `stepFocus` eases it with the
+      // position, the pitch and the fov on one curve over one duration, and
+      // wraps the delta into [−π, π] to take the short way round. There is no
+      // second path and therefore no jump cut at the end.
+      yaw: upright ? Math.atan2(dir.x, -dir.z) : (faceYaw ?? keep?.yaw ?? 0),
       pitch: Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1)),
       fov,
       // AND HE DOES NOT STEP EITHER. `FOCUS_FEET` puts the body square in front
@@ -1530,6 +1547,25 @@ export function makeCrosstown(): Proto {
     cam.position.lerpVectors(f.from.pos, f.to.pos, k);
     const fov = f.from.fov + (f.to.fov - f.from.fov) * k;
     if (Math.abs(cam.fov - fov) > 0.001) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    // ── THE UP VECTOR IS STATED, WHICH IS WHAT MAKES THE TURN VISIBLE ──────
+    //
+    // Looking straight down, yaw contributes nothing to the LOOK DIRECTION —
+    // `cos(pitch)` is ~0 — so the only thing a turn can change is which way the
+    // picture is oriented, and that is the up vector. Left implicit, three's
+    // `lookAt` falls back on world up, which is parallel to a downward view and
+    // resolves on a fudge: a fixed image whatever the yaw, and the roll noise
+    // reported earlier today.
+    //
+    // Stated, it is the player's own facing — flat, perpendicular to a downward
+    // view by construction, so it can never degenerate — and ROLL IS ZERO
+    // because it is specified rather than inferred. As the yaw eases, the
+    // drawer settles square: what is in front of him is at the top of the
+    // frame.
+    //
+    // ⚠ SET EVERY FRAME, BOTH WAYS. A vertical screen must get world up back or
+    // it would inherit whatever the last horizontal one left on the camera.
+    const flatFace = new THREE.Vector3(Math.sin(yaw), 0, -Math.cos(yaw));
+    cam.up.copy(Math.abs(pitch) > 1.0 ? flatFace : new THREE.Vector3(0, 1, 0));
     const cp = Math.cos(pitch);
     cam.lookAt(
       cam.position.x + Math.sin(yaw) * cp,
@@ -1538,9 +1574,9 @@ export function makeCrosstown(): Proto {
     );
   };
   setScreenFocus({
-    enter: ({ mesh, standoff, fov, eyeY, escape }) => {
+    enter: ({ mesh, standoff, fov, eyeY, faceYaw, escape }) => {
       const to = poseFor(mesh, standoff, fov, eyeY,
-        { yaw: rig.yaw, x: rig.pos.x, z: rig.pos.z });
+        { yaw: rig.yaw, x: rig.pos.x, z: rig.pos.z }, faceYaw);
       const from: FocusPose = {
         pos: cam.position.clone(), yaw: rig.yaw, pitch: rig.pitch, fov: cam.fov,
         feetX: rig.pos.x, feetZ: rig.pos.z,

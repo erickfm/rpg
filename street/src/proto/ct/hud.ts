@@ -448,6 +448,25 @@ export interface ScreenSurface {
    * look then pitches to suit, which `poseFor` derives rather than being told.
    */
   eyeY?: number;
+  /**
+   * WHICH WAY TO TURN THE PLAYER, in rig yaw, for a surface whose own normal
+   * cannot say.
+   *
+   * *"can we make it so looking into the dresser rotates the view on the way to
+   *  the diagetic view? the mirror, the calendar, all do this already"*
+   *  (2026-08-05)
+   *
+   * A VERTICAL screen derives this from its own face and needs nothing here. A
+   * HORIZONTAL one — a drawer's lining — has a normal pointing at the ceiling,
+   * which carries no heading at all: deriving one from it produced
+   * `atan2(+0, −0)` = exactly π, the 180° spin, and five commits chasing it.
+   *
+   * So the caller states it, off the FURNITURE the surface belongs to. A
+   * dresser stands against a wall and has a front, and that front has a
+   * perfectly good horizontal normal — the same thing the mirror's glass and
+   * the calendar's page have. Squaring up to it is what he is asking for.
+   */
+  faceYaw?: number;
   /** the field of view to lean in to. Narrower reads as leaning closer. */
   fov?: number;
   /** is there something pressable at this canvas pixel? Drives the cursor. */
@@ -595,6 +614,8 @@ export interface ScreenFocus {
     mesh: THREE.Object3D; standoff: number; fov: number;
     /** eye height above the floor; omit for the screen's own centre */
     eyeY?: number;
+    /** which way to turn him, for a face that cannot say — see ScreenSurface */
+    faceYaw?: number;
     escape: () => void;
   }) => void;
   /**
@@ -1616,6 +1637,7 @@ export function makePanel(spec: PanelSpec): Panel {
           standoff: spec.surface!.standoff ?? 0.55,
           fov: spec.surface!.fov ?? 60,
           eyeY: spec.surface!.eyeY,
+          faceYaw: spec.surface!.faceYaw,
           escape: () => api.close(),
         });
        } catch (err) {
