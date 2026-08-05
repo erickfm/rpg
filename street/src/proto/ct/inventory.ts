@@ -521,44 +521,82 @@ export function bagTake(p: Purse, id: string): boolean { return takeOne(p, id); 
 export function bagPut(p: Purse, id: string): boolean { return give(p, id, 1) > 0; }
 
 /**
- * ── HOW MANY SLOTS, AND WHY THE NUMBER MOVED ──────────────────────────────
+ * ── HOW MANY SLOTS ────────────────────────────────────────────────────────
  *
- * *"each bag has inf capacity"*   (2026-08-05)
+ * *"give all bags the same space of 12 slots. if you have no bag you hold one
+ *  thing in your right hand it functions as a one slot inventory."*
+ *   (2026-08-05)
  *
- * SIX IS WHAT YOUR POCKETS HOLD. It is not what a bag holds — a bag is now
- * unlimited, by his instruction, and `Garment.hold` (backpack 8, tote 6,
- * crossbody 5, clutch 2) is no longer consulted by anything.
+ * TWO NUMBERS, AND WHICH ONE APPLIES IS THE ONLY THING THE BAG DECIDES. Capacity
+ * stopped varying by bag one instruction ago and stopped being infinite with
+ * this one; what is left is the cleanest version of the rule this has been
+ * circling all session — a bag is twelve, a bare hand is one, and choosing
+ * BETWEEN bags is now purely about how it looks and how it is carried.
  *
- * So the six-slot rule did not disappear; it became THE NO-BAG RULE, and that
- * is what keeps choosing a bag meaningful now that capacity does not. With one
- * on you, you can carry anything; with nothing on you, you can carry six kinds
- * of thing, because that is a pair of trouser pockets.
+ * ⚠ A SLOT IS A THING, NOT A KIND, and that is a real change rather than a
+ * rewording. This used to count `slots(p).length` — the number of distinct ids —
+ * so twelve kinds could be forty objects if they stacked. But the bag DRAWS one
+ * cell per thing (`laid()` expands a stack of two sodas into two squares), so
+ * the picture said forty and the limit said twelve. He can see twelve squares;
+ * twelve is what it means. `carried()` counts what he can count.
  */
-export const POCKETS = 6;
-/** unlimited, but a finite number so `Math.min` and the slot count still work */
-const CARRY_ALL = 999;
-/** how many KINDS of thing he can carry right now — the bag decides */
+export const BAG_SLOTS = 12;
+/** *"if you have no bag you hold one thing in your right hand"* */
+export const HAND_SLOTS = 1;
+/**
+ * @deprecated the six-pocket rule is gone — a bare hand holds ONE. Kept as a
+ * name only because two comments in `ct/wardrobe.ts` still point at it; nothing
+ * reads it.
+ */
+export const POCKETS = HAND_SLOTS;
+/** how many things he can carry right now — the bag decides, and only this */
 export function carrySlots(): number {
-  return bagWorn().kind === 'none' ? POCKETS : CARRY_ALL;
+  return bagWorn().kind === 'none' ? HAND_SLOTS : BAG_SLOTS;
 }
 
 /** The kinds you are actually carrying, in the order you first picked them up. */
 export function slots(p: Purse): string[] {
   return Object.keys(p.inv).filter((k) => (p.inv[k] ?? 0) > 0);
 }
-
-/** How many more of `id` you could take right now. 0 means full FOR THAT ITEM.
- *  The slot limit is `carrySlots()`, which a worn bag lifts. */
-export function roomFor(p: Purse, id: string): number {
-  const have = p.inv[id] ?? 0;
-  if (have > 0) return Math.max(0, itemOf(id).stack - have);
-  return slots(p).length >= carrySlots() ? 0 : itemOf(id).stack;
+/** How many THINGS he is carrying, counting a stack of two as two — the same
+ *  count the bag view draws squares for. */
+export function carried(p: Purse): number {
+  return Object.keys(p.inv).reduce((t, k) => t + (p.inv[k] ?? 0), 0);
 }
 
-/** Is there nowhere left to put a NEW kind of thing? Ask this to WORD A PROMPT
- *  before offering. With a bag on, never — which is the point of the bag. */
+/**
+ * How many more of `id` he could take right now. 0 means no room FOR THAT ITEM.
+ *
+ * TWO CEILINGS AND THE LOWER ONE WINS: what the stack allows, and what the
+ * space allows. The second is back — it was neutered when capacity went
+ * infinite and `carrySlots()` returned 999 — so every refusal in this file can
+ * fire again, and every caller that words a prompt from `roomFor` starts
+ * telling the truth again without being touched.
+ */
+export function roomFor(p: Purse, id: string): number {
+  const byStack = Math.max(0, itemOf(id).stack - (p.inv[id] ?? 0));
+  const bySpace = Math.max(0, carrySlots() - carried(p));
+  return Math.min(byStack, bySpace);
+}
+
+/** Is there nowhere left to put anything at all? Ask this to WORD A PROMPT
+ *  before offering, never to decide — `give` is what decides. */
 export function pocketsFull(p: Purse): boolean {
-  return slots(p).length >= carrySlots();
+  return carried(p) >= carrySlots();
+}
+/**
+ * WHY he cannot take it, in his own vocabulary.
+ *
+ * A refusal has to name the thing that is full, and after this change that is
+ * two different objects: a bag on his back, or the one hand he has free. One
+ * phrase for both would be wrong in one of the two cases every time, and the
+ * callers should not each be deciding which — so they ask.
+ */
+export function fullWhy(p: Purse): string {
+  if (!pocketsFull(p)) return '';
+  return bagWorn().kind === 'none'
+    ? 'your hands are full'
+    : `your bag is full — ${carried(p)} of ${BAG_SLOTS}`;
 }
 
 /**
@@ -596,10 +634,10 @@ export function takeOne(p: Purse, id: string): boolean {
  * Rolls, pockets it, tells the player what they got — or that they had no room
  * — and refreshes the wallet. The caller states intent and nothing else:
  *
- *     import { giveRandom, pocketsFull } from './inventory';
+ *     import { giveRandom, fullWhy } from './inventory';
  *     …
  *     label: () => (pocketsFull(ctx.purse)
- *       ? 'pockets full — you cannot carry it'
+ *       ? fullWhy(ctx.purse)
  *       : 'steal package'),
  *     act: () => { const got = giveRandom(ctx); if (got.taken) removeThePackage(); },
  *
@@ -615,7 +653,7 @@ export function takeOne(p: Purse, id: string): boolean {
 export function givePackage(ctx: CtxBuild): { id: string; def: ItemDef; taken: boolean } {
   const taken = give(ctx.purse, PACKAGE.id, 1) > 0;
   if (taken) ctx.refreshWallet();
-  else note(`no room — ${POCKETS} of ${POCKETS} pockets full`);
+  else note(fullWhy(ctx.purse));
   return { id: PACKAGE.id, def: PACKAGE, taken };
 }
 
@@ -628,7 +666,7 @@ export function giveRandom(ctx: CtxBuild, table: string[] = PACKAGE_TABLE): { id
   // up"* — the note line stays for rent, the neighbour and the landlord, and
   // stops narrating what he can already see in his own bag. The REFUSAL stays:
   // that is not a descriptor, it is the reason nothing happened.
-  if (!taken) note(`no room — ${POCKETS} of ${POCKETS} pockets full`);
+  if (!taken) note(fullWhy(ctx.purse));
   return { id, def, taken };
 }
 
@@ -951,10 +989,10 @@ export function takeable(ctx: CtxBuild, o: {
     ok: () => !held && (o.ok ? o.ok() : true),
     label: () => (roomFor(ctx.purse, o.id) > 0
       ? `take the ${def.name}`
-      : `pockets full — no room for the ${def.name}`),
+      : `${fullWhy(ctx.purse)} — no room for the ${def.name}`),
     act: () => {
       if (give(ctx.purse, o.id, 1) < 1) {
-        note(`pockets full — ${slots(ctx.purse).length} of ${POCKETS}`);
+        note(fullWhy(ctx.purse));
         return;
       }
       o.obj.visible = false;                       // it LEAVES THE GROUND
