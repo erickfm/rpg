@@ -3217,21 +3217,82 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // because `present` below is recomputed every frame from (door, day) and
     // `pkgTaken` is keyed by day, so an unstolen parcel clears at the rollover.
     const PKG_CHANCE = 0.10;                 // per door per day — see scripts/packages.mjs
+    /** THE MEDIAN PARCEL. Every box is this one scaled — see `pkgSize`. */
     const PKG_W = 0.28, PKG_H = 0.26, PKG_D = 0.34;
-    // margin from the jamb: half the parcel, plus enough that it reads as
-    // beside the door rather than against it
-    const PKG_OFF = DOOR_W / 2 + PKG_D / 2 + 0.09;
-    const pkgT = surfTex('detail', 24, 24, (g) => {
-      g.fillStyle = '#a98d63'; g.fillRect(0, 0, 24, 24);        // parcel paper
-      g.fillStyle = 'rgba(0,0,0,0.10)';
-      for (let i = 0; i < 26; i++) g.fillRect((i * 7) % 24, (i * 11) % 24, 2, 2);
-      g.fillStyle = '#6d5436'; g.fillRect(0, 10, 24, 3);        // string, one way
-      g.fillRect(10, 0, 3, 24);                                  // and the other
-      g.fillStyle = '#e6e2d6'; g.fillRect(14, 15, 8, 6);         // the label
-      g.fillStyle = '#3a352c';
-      for (let i = 0; i < 3; i++) g.fillRect(15, 16 + i * 2, 6 - i, 1);
-    });
-    const pkgM = texM(pkgT);
+    /**
+     * ── ONE PARCEL, NOT SIX PICTURES OF ONE ────────────────────────────────
+     *
+     * The user: *"package graphics look a bit janky"* (2026-08-05), with a shot
+     * of a box on the landing carpet carrying TWO labels — one on the top and
+     * one on the front, at right angles to each other — and string that stops
+     * being string at every edge.
+     *
+     * THE CAUSE WAS ONE TEXTURE ON ALL SIX FACES. A single 24x24 square with
+     * paper, a cross of string and a label, handed to the whole box, so every
+     * face drew its own independent complete parcel. Nothing was wrong with the
+     * drawing; it was applied six times.
+     *
+     * A real parcel has ONE label, on the top, and ONE length of string that
+     * carries on across the edges. So this is a per-face treatment now, in
+     * BoxGeometry's group order [+x, -x, +y, -y, +z, -z]:
+     *
+     *   +y  the cross of string, and the label
+     *   -y  the cross of string, no label — both loops pass under it
+     *   the four sides   ONE band each, running down the face, no label
+     *
+     * WHY ONE SIDE TEXTURE SERVES ALL FOUR, and why it survives being scaled.
+     * The two loops are CENTRED. Loop A is centred in x and runs along z; where
+     * it goes over the +z and -z edges it comes down those faces centred in x,
+     * which on both of them is the middle of u. Loop B is centred in z and runs
+     * along x; it comes down the +x and -x faces centred in z, which on both of
+     * THEM is the middle of u. Every side face therefore wants exactly the same
+     * picture — a band down the middle — and being centred makes it immune to
+     * the per-face u/v flips that GOTCHAS 35 is about.
+     *
+     * It is also why the box can be SCALED per parcel (`pkgSize`) without the
+     * string coming apart: a band's apparent thickness on the top is measured
+     * in the same world axis as its thickness on the side it continues onto, so
+     * both stretch by the same factor. Continuity holds at every size.
+     *
+     * TWO SMALLER THINGS FROM THE SAME SHOT. The string was #6d5436 on #a98d63,
+     * 62% of the paper's luminance, which at this size reads as a GAP between
+     * two boxes rather than as twine — now #8a7049, 80%, a shade of the same
+     * brown rather than a hole in it. And the paper's dither was 2x2 texels of
+     * 24, i.e. 2.3 cm specks, which is damage; 1x1 of 32 is 0.9 cm, which is
+     * paper.
+     */
+    const PKG_TEX = 32;                      // texels per face
+    const PKG_BAND = 4;                      // string width; (32-4)/2 = 14, an
+    const PKG_B0 = (PKG_TEX - PKG_BAND) / 2; // INTEGER, so the band centres exactly
+    const pkgPaper = (g: CanvasRenderingContext2D) => {
+      g.fillStyle = '#a98d63'; g.fillRect(0, 0, PKG_TEX, PKG_TEX);
+      g.fillStyle = 'rgba(0,0,0,0.07)';
+      for (let i = 0; i < 34; i++) g.fillRect((i * 11) % PKG_TEX, (i * 17) % PKG_TEX, 1, 1);
+    };
+    /** `cross` for the two faces both loops pass over, one band for the sides */
+    const pkgFaceT = (cross: boolean, label: boolean) =>
+      texM(surfTex('detail', PKG_TEX, PKG_TEX, (g) => {
+        pkgPaper(g);
+        g.fillStyle = '#8a7049';
+        g.fillRect(PKG_B0, 0, PKG_BAND, PKG_TEX);              // the band down
+        if (cross) g.fillRect(0, PKG_B0, PKG_TEX, PKG_BAND);   // the one across
+        if (label) {
+          // clear of the cross, in the quadrant past both bands, because a
+          // label pasted over string is the one thing nobody does
+          g.fillStyle = '#e6e2d6'; g.fillRect(19, 19, 11, 9);
+          g.fillStyle = '#3a352c';
+          for (let i = 0; i < 3; i++) g.fillRect(21, 21 + i * 2, 7 - i * 2, 1);
+        }
+      }));
+    const pkgSideM = pkgFaceT(false, false);
+    // ORDER IS BoxGeometry's: +x, -x, +y, -y, +z, -z. Index 2 is the top and is
+    // the only one that carries a label.
+    const pkgM = [pkgSideM, pkgSideM, pkgFaceT(true, true), pkgFaceT(true, false),
+                  pkgSideM, pkgSideM];
+    /** ONE geometry for all eight doors, at the median size; each parcel's own
+     *  size is `mesh.scale` (see `pkgSize`), which is what keeps the string
+     *  continuous across the edges. */
+    const pkgG = new THREE.BoxGeometry(PKG_W, PKG_H, PKG_D);
     /** 32-bit integer mix, so a small sequential `day` is a SEED rather than a
      *  counter. See `pkgRoll`. Same constants as the final avalanche below, on
      *  purpose: a salt or a shift that happens to produce a parcel on day 0 is
@@ -3290,10 +3351,51 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       h = (h ^ (h >>> 16)) >>> 0;
       return h / 4294967296;
     };
+    /**
+     * ── HOW BIG THIS ONE IS ────────────────────────────────────────────────
+     *
+     * The user, in the same breath as the art: *"also size should be varied"*.
+     * A landing where every parcel is the identical box reads as stamped.
+     *
+     * SEEDED ON (door, day), through the SAME `pkgRoll` that already decides
+     * whether a parcel is there at all (salt 1) and which side of the mat it
+     * sits on (salt 7). Size is visible, so it has to hold still while he walks
+     * past and looks again — this is the exact argument made two commits ago
+     * for keeping PLACEMENT seeded while giving the CONTENTS a fresh roll, and
+     * it lands the same way here. A `Math.random()` in the frame loop would
+     * make the box breathe.
+     *
+     * ONE ROLL DRIVES ALL THREE AXES (`t`), with a small independent jitter on
+     * two of them, so a parcel is coherently big or coherently small rather
+     * than a random slab.
+     *
+     *   w  0.196 .. 0.280   h  0.174 .. 0.362   d  0.234 .. 0.473
+     *
+     * X IS CAPPED AT TODAY'S 0.28 AND ONLY SHRINKS, and that is the 2 m lane
+     * talking rather than taste. The hall is 2.4 m between wall centrelines and
+     * the doors' hall face sits 0.085 in, so the clear run is 2.23 m; a parcel
+     * at the current width eats 0.31 of it, leaving 1.92 — already inside the
+     * lane, and something he has walked past and approved. Letting x grow would
+     * make an approved margin worse, so it does not grow. y and z are free: z
+     * runs ALONG the wall and y is straight up, and neither is in the lane.
+     *
+     * The smallest is a shoebox and the largest is a 47 cm carton lying
+     * lengthwise — a parcel at both ends, which is the brief.
+     */
+    const PKG_MED = { w: PKG_W, h: PKG_H, d: PKG_D };
+    const pkgSize = (num: string, day: number) => {
+      const t = pkgRoll(num, day, 13);                          // how big, 0..1
+      const jit = (salt: number) => 0.93 + pkgRoll(num, day, salt) * 0.14;
+      return {
+        w: PKG_W * (0.70 + t * 0.30),
+        h: PKG_H * (0.72 + t * 0.58) * jit(17),
+        d: PKG_D * (0.74 + t * 0.56) * jit(19),
+      };
+    };
     const pkgTaken = new Set<string>();      // `${day}:${num}`, so it clears itself
     let pkgForce = -1;                       // test hook: 1 all, 0 none, -1 the roll
     const packages = DOORS.map((d) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(PKG_W, PKG_H, PKG_D), pkgM);
+      const mesh = new THREE.Mesh(pkgG, pkgM);
       mesh.visible = false;
       scene.add(mesh);
       const cap = mkCap();
@@ -3304,14 +3406,38 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // w105-moving-static.mjs DAYS=6`. Invisible to any probe sampling within
       // one day, which is why it sat in the static list unnoticed.
       sevActors.push(cap);
+      // NOT spread with `...pkgSize(...)`: that object's `d` is the parcel's
+      // DEPTH and this one's `d` is the DOOR, and the spread would quietly
+      // replace a door with a number. The size lives on the mesh's scale and
+      // the cap, which are the two things that actually have to agree.
       return { d, mesh, cap, side: 1, present: false };
     });
-    /** where the parcel stands for a given door and side — never the threshold */
-    const pkgPos = (d: WalkupDoor, side: number): [number, number, number] =>
-      [d.x + d.face * (PKG_W / 2 + 0.03), d.floor * ST + PKG_H / 2, d.z + side * PKG_OFF];
+    /**
+     * Where the parcel stands for a given door, side AND SIZE — never the
+     * threshold.
+     *
+     * ⚠ EVERY TERM IS DERIVED FROM THE SIZE PASSED IN, not from the median
+     * constants, and that is the whole of making parcels vary safely:
+     *  · x   half the parcel off the hall face, so it always touches the wall
+     *  · y   half its height, so it sits FLUSH on the carpet at any size
+     *  · z   `DOOR_W / 2 + d / 2 + 0.09`, which holds the parcel's NEAR EDGE at
+     *        a constant 0.645 m from the door's centre whatever its depth — so
+     *        the leaf's swing clearance is invariant, rather than a big box
+     *        creeping into the doorway and a small one leaving a gap.
+     */
+    const pkgPos = (d: WalkupDoor, side: number,
+                    s: { w: number; h: number; d: number }): [number, number, number] =>
+      [d.x + d.face * (s.w / 2 + 0.03), d.floor * ST + s.h / 2,
+       d.z + side * (DOOR_W / 2 + s.d / 2 + 0.09)];
     for (const q of packages) {
       const key = () => `${Math.floor(ctx.clock.now().totalMin / 1440)}:${q.d.num}`;
-      const [sx, , sz] = pkgPos(q.d, 1);
+      // AT THE MEDIAN SIZE, because a spot's x/z are read ONCE and the parcel's
+      // size now re-rolls nightly. The drift that buys: x moves at most 4 cm
+      // (half the width band) and z at most 7 cm (half the depth band), against
+      // a reach radius of 0.95 — under 8% of it, so the prompt lands on every
+      // parcel at every size. Making the spot follow would mean rebuilding it
+      // each night, which the spot picker does not offer.
+      const [sx, , sz] = pkgPos(q.d, 1, PKG_MED);
       ctx.spot({
         // registered at the door's centre-ish and moved with the parcel each
         // frame would be nicer, but a spot's x/z are read once — so one spot
@@ -3341,7 +3467,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           if (got.taken) pkgTaken.add(key());
         },
       });
-      const [ox, , oz] = pkgPos(q.d, -1);
+      const [ox, , oz] = pkgPos(q.d, -1, PKG_MED);
       ctx.spot({
         x: ox, z: oz, r: 0.95,
         ok: () => q.present && q.side === -1
@@ -3360,14 +3486,22 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         q.side = pkgRoll(q.d.num, day, 7) < 0.5 ? 1 : -1;
         q.present = !pkgTaken.has(k)
           && (pkgForce === -1 ? pkgRoll(q.d.num, day, 1) < PKG_CHANCE : pkgForce === 1);
-        const [x, y, z] = pkgPos(q.d, q.side);
+        // today's size, re-rolled with the side and for the same reason
+        const s = pkgSize(q.d.num, day);
+        const [x, y, z] = pkgPos(q.d, q.side, s);
         q.mesh.position.set(x, y, z);
+        // ONE shared geometry at the median, sized by scale. See `pkgSize`.
+        q.mesh.scale.set(s.w / PKG_W, s.h / PKG_H, s.d / PKG_D);
         q.mesh.visible = q.present;
         // Withheld if you are already standing in it, for the same reason the
         // hermit's is: a collider that appears around the player shoves them.
         const inIt = Math.abs(px - x) < 0.4 && Math.abs(pz - z) < 0.45;
+        // ⚠ THE CAP FOLLOWS THE MESH, off `s` and not off the median constants.
+        // Read from PKG_W/PKG_D it would be a fixed 0.28 x 0.34 box of solid air
+        // around a parcel that might be 0.20 x 0.24 — bumping into nothing
+        // beside a small one, and walking through the corners of a big one.
         setCap(q.cap, q.present && !inIt && Math.abs(lastGy - q.d.floor * ST) < 0.5,
-          x - PKG_W / 2, x + PKG_W / 2, z - PKG_D / 2, z + PKG_D / 2);
+          x - s.w / 2, x + s.w / 2, z - s.d / 2, z + s.d / 2);
       }
     });
     pkgForceSet = (v) => { pkgForce = v === null ? -1 : v ? 1 : 0; };
