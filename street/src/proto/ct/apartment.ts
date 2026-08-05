@@ -4207,31 +4207,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the old 24x32 field stretched to 1.6 m would have been a tall picture of
     // a short view, with a horizon at eye level and nothing under it.
     const MIR_X = -0.72;                        // the chair's own x, kept
-    // ══ IT IS A FACE MIRROR NOW ══════════════════════════════════════════
+    // ── FULL LENGTH AGAIN, AND WIDER AND SHORTER THAN IT FIRST WAS ───────
     //
-    // *"lets make the mirror small and just a face mirror btw."*  (2026-08-04)
+    // *"ok wait i have it, go back to the diagetic mirror but pre rack"*, then
+    // *"pre suitcase pls"*.   (2026-08-04)
     //
-    // 0.30 x 0.38, hung with its centre at RY+1.55 — the kind you shave in,
-    // at the height you look into one. It was 0.62 x 1.45 of full-length
-    // dressing glass and every number that served that is gone with it: the
-    // `MIR_GAP` floor clearance (a face mirror has no relationship with the
-    // floor), the locked full-length view's stand-off and eye height, and the
-    // whole idea of seeing yourself head to foot in this room.
+    // It was shrunk to a 0.30 x 0.38 face mirror an hour ago for a black-out
+    // sprite screen that no longer exists. **This is the glass he asked to have
+    // back**: full length, hung off the floor, the thing you see yourself head
+    // to foot in and the thing the locked view is framed on.
     //
-    // THE DRESSING MOVED OFF THE WALL ENTIRELY — *"we fade to black and we see
-    // a little like sprite version of ourselves"* — so this object is back to
-    // being a mirror rather than an interface, and it is sized as one.
+    //   WIDTH   0.62, his *"a bit wider"*
+    //   HEIGHT  1.45, his *"less tall"*, taken off the TOP
     //
-    // A SLIMMER FRAME WITH IT. `FRAME_W` 0.05 was a fifth of the old glass's
-    // width and is a third of this one's; at 0.03 the border reads as a shaving
-    // mirror's rather than as a picture frame, and the glass keeps 0.24 x 0.32.
+    // THE HEIGHT COMES OFF THE TOP BECAUSE THE BOTTOM IS HIS. `MIR_GAP` is the
+    // floor clearance he tuned (*"raise the mirror a little so theres a bit
+    // more clearence with the floor"*) and `MIR_Y` is derived from it, so the
+    // frame's height is free to change without moving the gap.
     //
-    // CLEARANCE, re-walked: it spans x -0.87…-0.57 and y RY+1.36…RY+1.74. The
-    // bed's collider ends at x -1.15 (0.28 m clear), the east wall's room face
-    // is 0.57 m past its other edge, and the ceiling is RY+2.543. Nothing is
-    // near it, and it hangs well above the mattress rather than beside it.
-    const MIR_W = 0.30, MIR_H = 0.38;
-    const FRAME_D = 0.035, FRAME_W = 0.03;      // how proud it stands, and its border
+    // ⚠ THE BED IS THE BOUND ON WIDTH AND THE REAL NUMBER IS 0.86 m — its
+    // collider ends at x −1.15 against a glass centred on −0.72. At 0.62 there
+    // is 0.12 m of clear plaster that side and 0.41 m to the east wall's room
+    // face. 301's leaf sweeps 0.91 m from its pivot and the nearest corner is
+    // 1.42 m out, still clear.
+    const MIR_W = 0.62, MIR_H = 1.45;
+    const FRAME_D = 0.05, FRAME_W = 0.05;       // how proud it stands, and its border
     // the north wall's ROOM FACE. AZI(5.5) is the wall box's centreline and the
     // box is 0.14 deep — the same half-thickness `NORTH_Z` takes below, and the
     // trap it documents: hang at 5.49 and the mesh is entombed in the plaster.
@@ -4239,10 +4239,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Still no collider and no `maxY`: 0.035 m proud of a wall you are held
     // 0.35 m off cannot be reached, and it is not a surface. The clearance this
     // used to carry was for the full-length glass; the walk above supersedes it.
-    // FACE HEIGHT, and that is the whole placement — a shaving mirror is hung
-    // where a face is, not measured up from the boards. RY+1.55 puts the glass
-    // at RY+1.39…RY+1.71 against a standing eye at about RY+1.62.
-    const MIR_Y = RY + 1.55;
+    const MIR_GAP = 0.40;                       // boards to the frame's bottom
+    const MIR_Y = RY + MIR_GAP + MIR_H / 2;     // frame RY+0.40 … RY+1.85
     box(MIR_W, MIR_H, FRAME_D, MIR_X, MIR_Y, MIR_WALL_Z - FRAME_D / 2,
       new THREE.MeshBasicMaterial({ color: 0x3f3125 }));
     // THE GLASS, AND ITS CANVAS DERIVED FROM IT. Both dimensions of the plate
@@ -4271,28 +4269,44 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // what you have on without closing an import cycle. What is HERE is the one
     // thing only this file knows: where you stand to be offered it.
     //
-    // ── AND `[E]` FADES TO BLACK AND OPENS THE CLOSET ────────────────────
+    // ══ AND YOU CAN LOOK IN IT ═══════════════════════════════════════════
     //
-    // *"i have an idea for a new interface. now instead we fade to black and we
-    //  see a little like sprite version of ourselves and we can apply the
-    //  clothes to the sprite."*
+    // *"ok lets add an interactable for the mirror where the view goes into the
+    //  mirror and really you just see yourself with click and drag options to
+    //  change your outfit."*   (2026-08-04)
     //
-    // Everything about the old locked view is GONE with the full-length glass —
-    // the derived stand-off, the standing eye height, the world-space drag, the
-    // reflection painted on this mesh. `ct/mirror.ts` owns the screen and this
-    // file owns nothing but the mirror and the spot that opens it.
+    // The panel, the figure and the six racks are `ct/mirror.ts` and
+    // `ct/wardrobe.ts` — the wardrobe imports nothing at all so that this file,
+    // `ct/hud.ts` (your own forearm) and the mirror can all read one fact about
+    // what you have on without closing an import cycle. What is HERE is the
+    // three things only this file knows: which mesh is the glass, where the eye
+    // settles, and where you stand.
     //
-    // ⚠ WHY IT IS ALLOWED OFF THE WALL, since *"not diagetic. this is not an
-    // option"* is three hours old and still true of everything else: he asked
-    // for this one himself and named what it is — *"a cute and '97 themed
-    // little imagination"*. It is not an interface pretending to be furniture,
-    // it is the picture you make in your head at a mirror, and that is the one
-    // thing here that was ever allowed to leave the room.
+    // ── THE STAND-OFF IS ARITHMETIC, NOT TASTE ───────────────────────────
     //
-    // The mesh keeps its name so a probe can find the glass by asking rather
-    // than by guessing a shape.
+    // `crosstown.ts` puts `fov` straight onto `cam.fov`, which is VERTICAL, so
+    // the glass's HEIGHT is the binding dimension: d = (H/2) / tan(fov/2), plus
+    // 18% so the reflection does not touch the top and bottom of the frame.
+    // Same derivation as the calendar's, and the same reason it cannot be
+    // borrowed from it — that page is 0.64 m tall and this glass is 1.60.
+    //
+    // ⚠ THE PICTURE IS A TALL NARROW STRIP AND THAT IS NOT A BUG. Fitting 1.60 m
+    // of height on a 16:9 screen leaves the 0.42 m of width at about an eighth
+    // of it, and **no fov or stand-off changes that ratio** — both scale the
+    // framing together, so the glass occupies the same fraction of the screen
+    // whatever is chosen here. It is the mirror's own proportion, it is what a
+    // full-length mirror looks like, and `ct/mirror.ts` lays its whole interface
+    // out vertically because of it.
+    //
+    // fov 52 against the player's own 88 at rest, so it reads as leaning in;
+    // the eye lands 1.94 m back, which at x −0.72 is open floor — the bed's
+    // collider ends at x −1.15 and the TV crate at z 2.53, so nothing stands in
+    // the column between the eye and the glass.
     mirror.name = 'mirror-301';
-    const openMirror = mirrorPanel();
+    const MIR_FOV = 52;
+    const MIR_STANDOFF = ((MIR_H - 2 * FRAME_W) / 2)
+      / Math.tan((MIR_FOV * Math.PI) / 360) * 1.18;
+    const openMirror = mirrorPanel(() => mirror, { standoff: MIR_STANDOFF, fov: MIR_FOV });
     // ── WHERE YOU STAND, WHICH IS A 0.118 m SLOT AND HAS TO BE MEASURED ──
     //
     // This corner is boxed in by two colliders declared ~700 lines below, and

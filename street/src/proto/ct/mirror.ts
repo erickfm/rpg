@@ -1,9 +1,9 @@
+import * as THREE from 'three';
 import { dither } from './paint';
-import { makePanel, type Panel } from './hud';
 import { viewAt } from './citizens';
+import { makePanel, type Panel } from './hud';
 import {
-  SLOTS, options, cycle, showing, worn, wornIndex, wear,
-  onWardrobeChange, type Slot, type Garment,
+  SLOTS, cycle, showing, worn, wornIndex, wear, onWardrobeChange, type Slot,
 } from './wardrobe';
 
 // ── THE MIRROR IN 301, AND THE PERSON IN IT ────────────────────────────────
@@ -16,7 +16,29 @@ import {
 // copy of the room, the way the dead TV and the window glazing are, and a live
 // render-to-texture here would be the only real reflection in the world. This
 // module owns both halves of that pretence: `paintGlass`, the plate on the
-// wall, and `mirrorPanel`, the dressing view you get when you press `[E]` at it.
+// wall, and `mirrorPanel`, the view you get when you press `[E]` at it.
+//
+// ── AND IT IS BACK TO EXACTLY THIS, AFTER FIVE PRESENTATIONS ──────────────
+//
+// *"ok wait i have it, go back to the diagetic mirror but pre rack"*, then
+// *"pre suitcase pls"*.   (2026-08-04)
+//
+// Between that first quote and this one the wardrobe was tried as a suitcase
+// on the boards, a wall batten with hooks and a shelf, a garment held up in
+// your own hands, a black-out sprite closet and a mail-order catalogue page.
+// **All five are deleted and this is the one he asked to have back**, in his
+// own words at the time: *"i liked the original view and how it locked us to
+// that view with the mirror."* He has an idea to build on it.
+//
+// THREE THINGS FROM THOSE FIVE SURVIVE, because they are FIXES rather than
+// presentation and dropping them would re-break faults he has already
+// reported:
+//
+//   · `glassCanvas` — the plate's canvas derived from its metres, from *"give
+//     me true proportions in the mirror i feel stretched"*
+//   · PER-PART FORESHORTENING on the figure, from *"i squish and distort in
+//     some"* — see `COL_SPAN`/`COL_ROUND`/`COL_DEEP`
+//   · the EIGHT FACINGS on the wheel, from *"scroll to turn self in mirror?"*
 
 /**
  * TEXELS PER METRE ON THE PLATE, and the reason this number exists at all.
@@ -120,23 +142,37 @@ export function paintGlass(g: CanvasRenderingContext2D, W: number, H: number): v
   dither(g, W, H, Math.round((W * H) / 42));
 }
 
-// ══ AND THE MIRROR IS ONLY A MIRROR ════════════════════════════════════════
+// ══ THE DRESSING VIEW ══════════════════════════════════════════════════════
 //
-// It was a full-length dressing glass with a locked view, a reflection of your
-// whole body painted on it, and — over four attempts — a suitcase, a rail and a
-// held garment staged in the room around it. **All of that is gone.**
-// *"lets make the mirror small and just a face mirror btw."* What is left above
-// is the plate: a cold painted copy of the room, at the size of a thing you
-// shave in. `[E]` at it opens the closet screen below, which is not in the room
-// at all.
+// *"so the recent wardrobe changes are not diagetic. this is not an option. i
+//  liked the original view and how it locked us to that view with the mirror.
+//  we just need to be creative and find a way to have clothes we can click and
+//  drag. maybe a suitcase on the ground below the mirror?"*   (2026-08-04)
+//
+// **"THIS IS NOT AN OPTION" IS THE STRONGEST THING HE HAS SAID.** A screen-space
+// dressing panel — a canvas over the camera with the mirror and a rack of
+// garments drawn on it — was built and is DELETED. Nothing here draws a widget
+// over the world any more, and nothing here should ever again: if the player
+// can see it, it is an object standing in flat 301.
+//
+// ── SO WHAT IS ON SCREEN IS THE ROOM ───────────────────────────────────────
+//
+//   · `[E]` at the mirror LOCKS THE VIEW TO IT, which is the thing he said he
+//     liked — the same `PanelSpec.surface` mechanism the wall calendar uses.
+//     The eye eases onto the glass and the fov leans 88 -> 52, which is the
+//     attention narrowing: no dimmer, because a wash over a diegetic view is
+//     the modal backdrop he rejected.
+//   · THE GLASS IS THE PANEL. Its canvas is hung on the mirror's own mesh and
+//     paints the reflection with you standing in it — `paintGlass` plus
+//     `paintFigure`, one drawing of each shared with the plate on the wall.
+//   · THE CONTROLS ARE YOUR OWN BODY. Six zones laid over the reflection where
+//     that garment actually is — the crown is the hat, the face is the
+//     glasses, the wrist is the watch. Drag sideways across one to scrub that
+//     slot's rack; a click without a drag steps one forward. **There is no
+//     container of clothes anywhere**, which is the whole of what he asked for
+//     when he said *"pre suitcase"*.
 
-// ══ THE PAPER DOLL ═════════════════════════════════════════════════════════
-//
-// *"we see a little like sprite version of ourselves and we can apply the
-//  clothes to the sprite."*  This is that sprite. It was painted as a
-// reflection for a full-length mirror that no longer exists; what it always
-// was underneath is a paper doll that can wear all six slots, so it survives
-// the move to the closet screen unchanged.
+// ── THE FIGURE ─────────────────────────────────────────────────────────────
 //
 // 40 x 152 design units, and the units are SQUARE. *"give me true proportions
 // in the mirror i feel stretched"* — so the figure is drawn through one scale
@@ -144,6 +180,14 @@ export function paintGlass(g: CanvasRenderingContext2D, W: number, H: number): v
 // glass, never stretched to fill it. A body has fixed proportions whatever
 // shape the thing it is reflected in happens to be.
 const MW = 40, MH = 152;
+/** canvas pixels per design unit, and the panel canvas that falls out of it.
+ *  4 → 160 x 608, five times the wall plate's own density: you are 1.9 m from
+ *  the glass here rather than across the room. */
+const S = 4;
+const PW = MW * S, PH = MH * S;
+/** the caption strip along the bottom of the glass */
+const BAND_T = 146;
+const INK = '#efe8d6';
 
 const CX = 20;              // the centre line
 const HEAD_T = 12, HEAD_B = 30, HEAD_HW = 7;
@@ -182,11 +226,68 @@ const ZONES: readonly Zone[] = [
 ];
 
 /** The slot at this point in FIGURE design units, or null. */
-function zoneAt(dx: number, dy: number): Slot | null {
+function zoneAt(dx: number, dy: number, facing = 0): Slot | null {
+  // UNDO THE TURN FIRST. The zones are written on the front-on grid, so at 55%
+  // and mirrored a wrist is not where they say it is. The bands that run the
+  // full width do not care; the watch is the one that does.
+  const [col, flip] = viewAt(facing);
+  let x = (dx - CX) / COL_SPAN[col] + CX;
+  if (flip) x = 2 * CX - x;
   for (const z of ZONES) {
-    if (dx >= z.x0 && dx < z.x1 && dy >= z.y0 && dy < z.y1) return z.slot;
+    if (x >= z.x0 && x < z.x1 && dy >= z.y0 && dy < z.y1) return z.slot;
   }
   return null;
+}
+
+function zoneOf(slot: Slot): Zone {
+  return ZONES.find((z) => z.slot === slot) as Zone;
+}
+
+/** the slot under a CANVAS pixel of the panel */
+function slotAtCanvas(px: number, py: number, facing: number): Slot | null {
+  return zoneAt(px / S, py / S, facing);
+}
+
+// ── THE PAINTER ────────────────────────────────────────────────────────────
+
+function paint(g: CanvasRenderingContext2D, W: number, H: number,
+               hover: Slot | null, facing: number): void {
+  const u = (v: number) => Math.round(v * (W / MW));
+  const box = (x: number, y: number, w: number, h: number, fill: string) => {
+    g.fillStyle = fill;
+    g.fillRect(u(x), u(y), u(x + w) - u(x), u(y + h) - u(y));
+  };
+  // the glass: ONE drawing of it, shared with the plate on the wall
+  paintGlass(g, W, H);
+  // and you, in it. ONE SCALE ON BOTH AXES, remainder left as reflected room —
+  // *"give me true proportions in the mirror i feel stretched"*.
+  const fs = Math.min(W / MW, H / MH);
+  paintFigure(g, Math.round((W - MW * fs) / 2), Math.round((H - MH * fs) / 2), fs, facing);
+
+  // ── AND WHAT YOUR HAND IS ON ───────────────────────────────────────────
+  //
+  // Only ever the hovered slot: a mirror with six labelled boxes drawn on it is
+  // the menu this design exists to avoid. Hover one and you get a bracket round
+  // it, an arrow at each edge of the glass saying which way it scrubs, and the
+  // garment's name in the strip along the bottom.
+  if (hover) {
+    const z = zoneOf(hover);
+    const cy = (z.y0 + z.y1) / 2;
+    g.fillStyle = 'rgba(240,232,214,0.10)';
+    g.fillRect(u(z.x0), u(z.y0), u(z.x1) - u(z.x0), u(z.y1) - u(z.y0));
+    for (const y of [z.y0, z.y1 - 1]) box(z.x0, y, z.x1 - z.x0, 1, 'rgba(240,232,214,0.55)');
+    // the two arrows, stepped rather than drawn as triangles for the reason the
+    // skirt's bands are stepped: nothing on this glass may be antialiased
+    for (let k = 0; k < 4; k++) {
+      box(1 + k, cy - (3 - k), 1, (3 - k) * 2 + 1, INK);
+      box(MW - 2 - k, cy - (3 - k), 1, (3 - k) * 2 + 1, INK);
+    }
+  }
+  box(0, BAND_T, MW, MH - BAND_T, 'rgba(12,14,18,0.72)');
+  g.fillStyle = hover ? INK : 'rgba(239,232,214,0.62)';
+  g.font = `bold ${u(4.2)}px ui-monospace, Menlo, monospace`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(hover ? showing(hover).name : 'DRAG TO DRESS', u(CX), u(BAND_T + 3.2));
 }
 
 /**
@@ -277,8 +378,8 @@ const COL_DEEP = [1, 1.12, 1.30, 1.12, 1];
  */
 
 /**
- * YOU, AS A LITTLE SPRITE — the body, the underwear under everything, and
- * whatever is worn over it. `s` scales BOTH axes, always.
+ * YOU, IN THE GLASS — the body, the underwear under everything, and whatever
+ * is worn over it. `s` scales BOTH axes, always.
  *
  * THE UNDERWEAR IS NOT A GARMENT AND IS DRAWN HERE. *"maximum naked must
  * include white undies."* An empty slot is not a state this painter has a
@@ -460,436 +561,126 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
   }
 }
 
-/** the garment art's own grid. 1:2 and chunky on purpose — it is the shape a
- *  hanging shirt and a standing pair of shoes both fit. */
-const HANG_TW = 32, HANG_TH = 64;
+// ── THE PANEL ──────────────────────────────────────────────────────────────
 
 /**
- * ONE GARMENT, AND IT IS DRAWN THE WAY YOU WOULD PICK IT UP.
+ * Build the mirror's view. `mesh` is resolved at OPEN time — `ct/apartment.ts`
+ * rebuilds its interiors as the player moves, so a reference captured at build
+ * time can outlive the object it names (`ScreenSurface.mesh` says so, and the
+ * degrade path is the screen-space cabinet rather than a crash).
  *
- * *"not bad but im not sure i like how things are hung?"* was about a wall
- * rail that no longer exists, but the split it forced survives every
- * presentation since and is the reason this painter has two families: **a
- * shirt is held up by the shoulders and a shoe is set down on its soles.**
- * Drawing all six the same way is what looked wrong on the batten and would
- * look exactly as wrong in a tray.
- *
- *     HUNG   tops, bottoms — on a hanger, falling from the top of the frame
- *     SET    shoes (a pair), hats, glasses, the watch with its strap coiled —
- *            standing on the bottom of the frame, on their own feet
- *
- * ONE CANVAS EITHER WAY: the painter decides whether the garment starts at the
- * top and falls or stands on the last row. Nothing about the quad changes.
+ * Returns the opener to hand straight to `ctx.spot({ act })`.
  */
-function paintHanging(g: CanvasRenderingContext2D, ox: number, oy: number,
-                      W: number, H: number, gm: Garment): void {
-  const s = W / HANG_TW;
-  const box = (x: number, y: number, w: number, h: number, fill: string) => {
-    const x0 = Math.round(x * s), y0 = Math.round(y * s);
-    g.fillStyle = fill;
-    g.fillRect(ox + x0, oy + y0, Math.max(1, Math.round((x + w) * s) - x0),
-      Math.max(1, Math.round((y + h) * s) - y0));
-  };
-  const C = 16;                    // the centre line
-  const B = HANG_TH;               // the last row: what it stands on
-  const WOOD = '#6b563c', WIRE = '#9a9aa2';
-
-  /** THE HANGER, identical on every garment that uses one. A shoulder line and
-   *  a wire hook: one more shape than a bare peg, and it is what makes a top
-   *  read as HUNG rather than impaled. It also gives every top the same
-   *  shoulder width, which is what lines the row up. */
-  const hanger = () => {
-    box(C - 1, 0, 2, 5, WIRE);
-    box(C - 3, 0, 6, 2, WIRE);
-    for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);
-  };
-
-  switch (gm.kind) {
-    // ── HUNG ───────────────────────────────────────────────────────────────
-    case 'tee': case 'sweater': case 'jacket': case 'vest': {
-      hanger();
-      const long = gm.sleeve === 2;
-      const hem = gm.kind === 'jacket' ? 49 : 43;
-      box(C - 10, 11, 20, hem - 11, gm.cloth);                                  // the body
-      box(C - 14, 11, 4, long ? 30 : 12, gm.cloth);                             // sleeves
-      box(C + 10, 11, 4, long ? 30 : 12, gm.cloth);
-      box(C - 14, long ? 39 : 21, 4, 2, gm.trim);                               // cuffs
-      box(C + 10, long ? 39 : 21, 4, 2, gm.trim);
-      box(C - 10, 11, 20, 3, gm.trim);                                          // collar
-      box(C - 10, 11, 2, hem - 11, 'rgba(255,255,255,0.10)');
-      box(C + 8, 11, 2, hem - 11, 'rgba(0,0,0,0.16)');
-      if (gm.kind === 'jacket') box(C - 1, 14, 2, hem - 15, 'rgba(0,0,0,0.24)');
-      if (gm.kind === 'sweater') box(C - 10, hem - 3, 20, 3, gm.trim);
-      break;
-    }
-    case 'dress': {
-      hanger();
-      box(C - 8, 11, 16, 18, gm.cloth);                                         // bodice
-      for (let b = 0; b < 4; b++) box(C - 8 - b * 2, 29 + b * 6, 16 + b * 4, 6, gm.cloth);
-      box(C - 14, 51, 28, 2, gm.trim);
-      break;
-    }
-    case 'trousers': {
-      hanger();
-      const hem = (gm.leg ?? 3) >= 3 ? 56 : 34;
-      box(C - 9, 11, 18, 6, gm.trim);                                           // the waistband
-      box(C - 9, 17, 8, hem - 17, gm.cloth);                                    // two legs
-      box(C + 1, 17, 8, hem - 17, gm.cloth);
-      if (gm.id === 'track') { box(C - 9, 17, 1, hem - 17, gm.trim); box(C + 8, 17, 1, hem - 17, gm.trim); }
-      break;
-    }
-    case 'skirt': {
-      hanger();
-      box(C - 8, 11, 16, 4, gm.trim);
-      for (let b = 0; b < 4; b++) box(C - 8 - b * 2, 15 + b * 6, 16 + b * 4, 6, gm.cloth);
-      break;
-    }
-
-    // ── STOOD ON THE SHELF ─────────────────────────────────────────────────
-    case 'sneaker': case 'boot': case 'sandal': {
-      // A PAIR, side by side, toes toward you — which is how shoes are left,
-      // and it doubles the silhouette so the category reads at a glance.
-      const up = gm.kind === 'boot' ? 18 : gm.kind === 'sandal' ? 4 : 10;
-      for (const x0 of [1, 17]) {
-        box(x0, B - 5 - up, 14, up, gm.cloth);                                  // the upper
-        box(x0, B - 5, 14, 3, gm.cloth);                                        // the foot
-        box(x0, B - 2, 14, 2, gm.trim);                                         // the sole
-        if (gm.kind === 'sandal') { box(x0 + 1, B - 11, 12, 2, gm.trim); box(x0 + 1, B - 8, 12, 2, gm.trim); }
-        if (gm.kind === 'sneaker') box(x0, B - 8, 14, 2, gm.trim);              // the stripe
-      }
-      break;
-    }
-    case 'cap': {
-      box(C - 11, B - 17, 22, 12, gm.cloth);                                    // the crown
-      box(C - 16, B - 6, 16, 4, gm.trim);                                       // the peak, on the shelf
-      box(C - 2, B - 20, 4, 3, gm.trim);                                        // the button
-      break;
-    }
-    case 'sun': {
-      box(C - 9, B - 21, 18, 12, gm.cloth);                                     // the crown
-      box(C - 16, B - 9, 32, 6, gm.cloth);                                      // the brim
-      box(C - 16, B - 5, 32, 2, 'rgba(0,0,0,0.22)');
-      box(C - 9, B - 13, 18, 4, gm.trim);                                       // the band
-      break;
-    }
-    case 'clear': case 'shades': {
-      box(C - 14, B - 11, 11, 9, gm.cloth);                                     // the lenses
-      box(C + 3, B - 11, 11, 9, gm.cloth);
-      box(C - 14, B - 12, 11, 2, gm.trim); box(C + 3, B - 12, 11, 2, gm.trim);
-      box(C - 14, B - 3, 11, 2, gm.trim); box(C + 3, B - 3, 11, 2, gm.trim);
-      box(C - 3, B - 10, 6, 2, gm.trim);                                        // the bridge
-      box(C - 16, B - 12, 2, 3, gm.trim); box(C + 14, B - 12, 2, 3, gm.trim);   // folded arms
-      break;
-    }
-    case 'digital': case 'analog': {
-      // THE STRAP COILED, which is what a watch does when you put it down.
-      box(C - 9, B - 16, 18, 4, gm.cloth);
-      box(C - 9, B - 16, 4, 14, gm.cloth);
-      box(C + 5, B - 16, 4, 14, gm.cloth);
-      box(C - 9, B - 4, 18, 4, gm.cloth);
-      box(C - 7, B - 22, 14, 9, gm.trim);                                       // the case
-      box(C - 5, B - 20, 10, 5, gm.kind === 'digital' ? '#9cab8b' : '#e6e0cc');
-      break;
-    }
-    default:
-      hanger();
-      box(C - 9, 11, 18, 30, gm.cloth);
-      box(C - 9, 41, 18, 3, gm.trim);
-  }
-}
-
-// ══ THE CATALOGUE ══════════════════════════════════════════════════════════
-//
-// *"WAY TOOO UGKLY TRY FINDING A COMPLETELY NEW DESIGN STYLE."*  (2026-08-04)
-//
-// WHAT WAS THERE WAS GENERIC 90s KITSCH — hot pink and cyan checkerboard,
-// spinning gold stars, a lit stage. Kids-TV energy. **CROSSTOWN is not that**,
-// and that is the whole of why it failed: this world is overcast brick, worn
-// tan, cold grey and dirt, and a neon checkerboard is at war with every pixel
-// around it. *"Cute and '97"* did not mean toy-shop neon; it meant OF THE
-// PERIOD.
-//
-// ── SO IT IS A MAIL-ORDER CATALOGUE PAGE ───────────────────────────────────
-//
-// A Sears or Argos clothing spread, which is the object this screen actually
-// is: garments photographed one to a box, in a printed grid, with a name and a
-// price under each, and a model down the side. It is chosen over a magazine
-// spread or a plain palette screen for three reasons —
-//
-//   · IT IS THE ERA'S REAL ARTEFACT. A 1997 catalogue page needs no era
-//     signalling, no stars and no neon; it reads as 1997 because that is what
-//     it is. Nothing decorative has to be invented.
-//   · ITS LAYOUT IS ALREADY THE INTERFACE. A grid of product cells with a
-//     caption apiece is exactly what a rack of garments needs to be, so the
-//     styling and the function are the same decision instead of two.
-//   · **EVERY COLOUR IS SAMPLED FROM THE STREET.** Not one value here is
-//     invented: `#f2ead0` and `#e8e4d8` are the world's paper, `#241f1a` its
-//     darkest ink, `#c9a45e` its tan, `#8a3a2e` the red on its signage,
-//     `#7d7668` its grey. They were counted out of `tex-world.ts`,
-//     `props.ts` and `tex-ground.ts` — the six most-used values in the game.
-//     The screen is printed in the same ink the street is painted in.
-//
-// THE DOLL IS THE ONLY SATURATED THING ON THE PAGE, and that is deliberate:
-// paper, ink, one tan rule and one red masthead, and then a person in coloured
-// clothes standing in the margin. He is what you are meant to be looking at.
-
-/** the page, in design px, and the CSS pixels each is drawn at */
-const SW = 320, SH = 180, SSCALE = 4;
-
-/**
- * THE PRESS. Six values, every one of them counted out of the street's own
- * textures rather than picked — see the note above.
- */
-const PAGE = {
-  paper: '#f2ead0',
-  paperLo: '#e8e4d8',
-  ink: '#241f1a',
-  dim: '#7d7668',
-  rule: '#c9a45e',
-  red: '#8a3a2e',
-} as const;
-
-const MAST = { x: 0, y: 0, w: SW, h: 15 };
-/** the model, down the left margin where a catalogue puts one */
-const STAGE = { x: 7, y: 22, w: 92, h: 150 };
-/** the department line, and the grid of product cells under it */
-const DEPT = { x: 107, y: 21, w: 206, h: 13 };
-const GRID = { x: 107, y: 39, w: 206, h: 133 };
-const CELL_W = 68, CELL_H = 66, GRID_C = 3;
-
-const cellRect = (i: number) => ({
-  x: GRID.x + (i % GRID_C) * CELL_W, y: GRID.y + Math.floor(i / GRID_C) * CELL_H,
-  w: CELL_W - 3, h: CELL_H - 3,
-});
-const deptRect = (i: number) => ({
-  x: DEPT.x + i * (DEPT.w / SLOTS.length), y: DEPT.y, w: DEPT.w / SLOTS.length - 1, h: DEPT.h,
-});
-const inRect = (x: number, y: number, r: { x: number; y: number; w: number; h: number }) =>
-  x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
-
-/** what the departments are called on the page */
-const DEPT_NAME: Record<Slot, string> = {
-  top: 'TOPS', bottom: 'PANTS', shoes: 'SHOES', hat: 'HATS', glasses: 'EYEWEAR', watch: 'WATCHES',
-};
-
-/**
- * A PRICE, and it has to be the SAME price every time the page is drawn.
- *
- * Hashed off the garment's own id rather than stored, so a new row in the rack
- * gets one for free and nobody has to price a wardrobe by hand. $3.99–$34.99
- * in dollar steps, which is the range this world's economy runs on — you start
- * with $14.50 and rent is $45.
- */
-function priceOf(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return `$${3 + (h % 32)}.99`;
-}
-
-/** everything in a category except the empty state, which is not a thing */
-const rackOf = (slot: Slot) => options(slot).slice(1);
-
-export function mirrorPanel(): () => void {
+export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
+  standoff: number; fov: number;
+}): () => void {
   let panel: Panel | null = null;
-  let cat: Slot = 'top';
-  /** the garment on the cursor: which slot, which index */
-  let held: { slot: Slot; index: number } | null = null;
-  let ptr: { x: number; y: number } | null = null;
-  /** a press that has not travelled far enough to be a drag yet */
-  let pending: { slot: Slot; index: number; x: number; y: number } | null = null;
-  const GRAB_PX = 5;
-  /** which way the model is facing, 0…7 — the wheel turns him */
+  let hover: Slot | null = null;
+  /** which way the reflection is facing, 0…7. Front-on again on every open — a
+   *  mirror left turned away is a state with no visible cause. */
   let facing = 0;
+  /** the drag in progress: which slot, where it started, and what was on then */
+  let drag: { slot: Slot; x0: number; i0: number; last: number; moved: boolean } | null = null;
+  /**
+   * How far you drag to change one garment, in canvas pixels.
+   *
+   * 20 of the 160 across the glass, so a drag from one edge to the other steps
+   * eight — more than any rack holds, i.e. every option in a slot is reachable
+   * in one gesture without lifting the button. Smaller and a twitch changes
+   * your trousers; larger and the longest rack needs two drags.
+   */
+  const STEP = 20;
 
   const repaint = () => panel?.repaint();
-
-  /** the model's own scale and origin, one factor on both axes */
-  const DOLL_S = Math.min((STAGE.w - 8) / MW, (STAGE.h - 16) / MH);
-  const DOLL_X = STAGE.x + Math.round((STAGE.w - MW * DOLL_S) / 2);
-  const DOLL_Y = STAGE.y + 8;
-
-  const cellAt = (x: number, y: number): { slot: Slot; index: number } | null => {
-    const rack = rackOf(cat);
-    for (let i = 0; i < rack.length; i++) {
-      if (inRect(x, y, cellRect(i))) return { slot: cat, index: i + 1 };
-    }
-    return null;
-  };
-  const deptAt = (x: number, y: number): Slot | null => {
-    for (let i = 0; i < SLOTS.length; i++) if (inRect(x, y, deptRect(i))) return SLOTS[i];
-    return null;
-  };
-  /**
-   * WHICH PART OF THE MODEL IS UNDER THIS POINT — the same `ZONES` he is
-   * painted from, so what you can grab is exactly what you can see.
-   *
-   * The turn has to be undone first: at 55% and mirrored a wrist is not where
-   * the front-on grid says it is. The full-width bands do not care; the watch
-   * is the one that does.
-   */
-  const dollSlotAt = (x: number, y: number): Slot | null => {
-    const [col, flip] = viewAt(facing);
-    let dx = (x - DOLL_X) / DOLL_S;
-    dx = (dx - CX) / COL_SPAN[col] + CX;
-    if (flip) dx = 2 * CX - dx;
-    const z = zoneAt(dx, (y - DOLL_Y) / DOLL_S);
-    if (!z) return null;
-    return z === 'bottom' && worn('top').full ? 'top' : z;
-  };
-
-  const paint = (g: CanvasRenderingContext2D, W: number, H: number) => {
-    const type = (t: string, x: number, y: number, px: number, c: string,
-                  align: CanvasTextAlign = 'left', bold = true) => {
-      g.fillStyle = c; g.textAlign = align; g.textBaseline = 'middle';
-      g.font = `${bold ? 'bold ' : ''}${px}px ui-monospace, Menlo, monospace`;
-      g.fillText(t, x, y);
-    };
-
-    // ── THE PAGE ────────────────────────────────────────────────────────
-    g.fillStyle = PAGE.paper; g.fillRect(0, 0, W, H);
-    // ── THE MASTHEAD. One red band, cream type, and a rule under it: the
-    // whole of a catalogue's decoration, and all it needs.
-    g.fillStyle = PAGE.red; g.fillRect(MAST.x, MAST.y, MAST.w, MAST.h);
-    type('CROSSTOWN', 7, 8, 9, PAGE.paper);
-    type('MAIL ORDER CATALOG', 78, 8, 7, '#e0c8b8');
-    type('NO. 227', W - 7, 8, 7, PAGE.paper, 'right');
-    g.fillStyle = PAGE.rule; g.fillRect(0, MAST.h, W, 1);
-    g.fillStyle = PAGE.ink; g.fillRect(0, MAST.h + 2, W, 1);
-
-    // ── THE MODEL, in the left margin, on a panel of paper stock ────────
-    g.fillStyle = PAGE.paperLo;
-    g.fillRect(STAGE.x, STAGE.y, STAGE.w, STAGE.h);
-    // a hairline box, the way a catalogue rules a photograph. It goes to the
-    // red when he is carrying something, because this box is the drop target
-    // and a target you cannot see is a drag you have to guess at.
-    g.fillStyle = held ? PAGE.red : PAGE.rule;
-    g.fillRect(STAGE.x, STAGE.y, STAGE.w, 1);
-    g.fillRect(STAGE.x, STAGE.y + STAGE.h - 1, STAGE.w, 1);
-    g.fillRect(STAGE.x, STAGE.y, 1, STAGE.h);
-    g.fillRect(STAGE.x + STAGE.w - 1, STAGE.y, 1, STAGE.h);
-    paintFigure(g, DOLL_X, DOLL_Y, DOLL_S, facing);
-    type(held ? 'DROP IT HERE' : 'SCROLL TO TURN', STAGE.x + STAGE.w / 2,
-      STAGE.y + STAGE.h - 7, 6, held ? PAGE.red : PAGE.dim, 'center');
-
-    // ── THE DEPARTMENT LINE ─────────────────────────────────────────────
-    // Printed small caps with a rule under the one you are reading, which is
-    // how a catalogue marks its own section. No tabs, no buttons, no boxes.
-    SLOTS.forEach((sl, i) => {
-      const r = deptRect(i);
-      const on = sl === cat;
-      type(DEPT_NAME[sl], r.x + r.w / 2, r.y + 6, 6, on ? PAGE.ink : PAGE.dim, 'center');
-      if (on) { g.fillStyle = PAGE.red; g.fillRect(r.x + 3, r.y + 11, r.w - 6, 1); }
-    });
-
-    // ── THE PRODUCT GRID ────────────────────────────────────────────────
-    const rack = rackOf(cat);
-    rack.forEach((gm, i) => {
-      const r = cellRect(i);
-      const idx = i + 1;
-      const gone = wornIndex(cat) === idx || (held?.slot === cat && held.index === idx);
-      g.fillStyle = PAGE.paperLo; g.fillRect(r.x, r.y, r.w, r.h);
-      g.fillStyle = PAGE.rule; g.fillRect(r.x, r.y + r.h - 1, r.w, 1);
-      if (gone) {
-        // OUT OF STOCK, because it is on the model. A catalogue's own way of
-        // saying it, and it keeps the cell where it was so a garment is
-        // visibly in exactly one place at a time.
-        type('ON THE', r.x + r.w / 2, r.y + r.h / 2 - 5, 6, PAGE.dim, 'center');
-        type('MODEL', r.x + r.w / 2, r.y + r.h / 2 + 3, 6, PAGE.dim, 'center');
-        return;
-      }
-      // the product shot: the garment art, boxed the way a catalogue boxes one
-      const aw = Math.round(r.h * 0.62), ah = aw * 2;
-      paintHanging(g, r.x + Math.round((r.w - aw) / 2), r.y + 2, aw, Math.min(ah, r.h - 16), gm);
-      type(gm.name, r.x + 3, r.y + r.h - 8, 6, PAGE.ink);
-      type(priceOf(gm.id), r.x + r.w - 3, r.y + r.h - 8, 6, PAGE.red, 'right');
-    });
-
-    // paper grain, last, over all of it — the same speckle every painted
-    // surface in this world carries, at a printed-page density
-    dither(g, W, H, 90);
-
-    // ── AND WHAT IS ON THE CURSOR ──────────────────────────────────────
-    if (held && ptr) {
-      const gm = options(held.slot)[held.index];
-      if (gm) paintHanging(g, Math.round(ptr.x - 13), Math.round(ptr.y - 26), 26, 52, gm);
-    }
-  };
 
   const open = () => {
     if (!panel) {
       panel = makePanel({
-        id: 'ct-closet', w: SW, h: SH, scale: SSCALE, chrome: 'none',
-        // THE WORLD GOES OUT. See `PanelSpec.blackout`: the ordinary vignette
-        // leaves the bedroom visible around the page, and the seam between the
-        // two is the difference between *"we fade to black"* and a card laid
-        // over the room.
-        blackout: true,
-        hint: () => 'drag a garment onto the model · scroll to turn',
-        draw: paint,
+        id: 'ct-mirror', w: PW, h: PH, chrome: 'none', scale: 1,
+        // `chrome:'none'` for the calendar's reason and more so: this canvas IS
+        // the mirror's glass, edge to edge. A framework bezel would be a beige
+        // plastic case drawn inside a wooden mirror frame.
+        hint: () => 'drag across yourself to change what you are wearing',
+        draw: (g, w, h) => paint(g, w, h, hover, facing),
+        // ── THE WHEEL TURNS YOU ────────────────────────────────────────
+        // *"scroll to turn self in mirror?"* — eight stops, `viewAt`'s own, so
+        // the reflection steps through exactly the angles `ct/citizens.ts`
+        // paints and never lands between two. It used to scrub the hovered
+        // rack, which the DRAG already does and does better.
+        //
+        // It cannot steal the world's zoom: that listener is BUBBLE-phase and
+        // this panel's gate is CAPTURE-phase with `stopImmediatePropagation`,
+        // so while the mirror is up the world never sees a wheel event.
         wheel: (d) => { facing = (facing + d + 8) % 8; repaint(); },
         key: (k) => {
-          // THE KEYBOARD DOES EVERYTHING THE POINTER DOES, so a trackpad, a
-          // touchscreen or a dead mouse can still finish. Escape and `[E]`
-          // belong to the framework and nothing here can eat them.
-          const i = SLOTS.indexOf(cat);
-          if (k === 'arrowright') cat = SLOTS[(i + 1) % SLOTS.length];
-          else if (k === 'arrowleft') cat = SLOTS[(i - 1 + SLOTS.length) % SLOTS.length];
-          else if (k === 'arrowup') cycle(cat, 1);
-          else if (k === 'arrowdown') cycle(cat, -1);
+          // THE KEYBOARD DOES EVERYTHING THE MOUSE DOES. A panel that can only
+          // be worked with a pointer is one a player with a trackpad, a
+          // touchscreen or a stuck mouse cannot leave a state in — and Escape
+          // and `[E]` are the framework's, so nothing here can eat the way out.
+          const i = hover ? SLOTS.indexOf(hover) : -1;
+          if (k === 'arrowdown') hover = SLOTS[(i + 1 + SLOTS.length) % SLOTS.length];
+          else if (k === 'arrowup') hover = SLOTS[(i - 1 + SLOTS.length) % SLOTS.length];
+          else if (k === 'arrowright') { if (hover) cycle(hover, 1); }
+          else if (k === 'arrowleft') { if (hover) cycle(hover, -1); }
           else return;
           repaint();
         },
         surface: {
-          // NO MESH — this page is not painted on anything in the world. The
-          // surface hooks are only how a panel receives the pointer.
-          hot: (x, y) => !!held || !!cellAt(x, y) || !!dollSlotAt(x, y) || !!deptAt(x, y),
+          mesh,
+          standoff: o.standoff,
+          fov: o.fov,
+          hot: (x, y) => slotAtCanvas(x, y, facing) !== null,
           move: (x, y) => {
-            ptr = { x, y };
-            if (held) { repaint(); return; }
-            if (pending && Math.hypot(x - pending.x, y - pending.y) > GRAB_PX) {
-              held = { slot: pending.slot, index: pending.index };
-              // IT COMES OFF THE MOMENT THE DRAG STARTS — you are carrying it
-              // and the model is visibly without it.
-              if (wornIndex(pending.slot) === pending.index) wear(pending.slot, 0);
-              pending = null;
-              repaint();
+            if (drag) {
+              // SCRUB. Measured from where the button went down and from the
+              // index it went down ON, not incrementally — an incremental
+              // version drifts, and dragging back to where you started must put
+              // back what you started in. `last` is the step count already
+              // applied, so a mousemove that has not crossed a step boundary
+              // does nothing at all: `wear` writes to storage and wakes the hud.
+              const steps = Math.round((x - drag.x0) / STEP);
+              if (steps !== 0) drag.moved = true;
+              if (steps !== drag.last) {
+                drag.last = steps;
+                wear(drag.slot, drag.i0 + steps);
+                repaint();
+              }
+              return;
             }
+            const z = slotAtCanvas(x, y, facing);
+            if (z !== hover) { hover = z; repaint(); }
           },
           click: (x, y) => {
-            ptr = { x, y };
-            const d = deptAt(x, y);
-            if (d) { cat = d; repaint(); return; }
-            const c = cellAt(x, y);
-            if (c) { pending = { ...c, x, y }; return; }
-            const sl = dollSlotAt(x, y);
-            if (sl && wornIndex(sl) > 0) pending = { slot: sl, index: wornIndex(sl), x, y };
-          },
-          up: (hit) => {
-            const h = held, pend = pending;
-            held = null; pending = null;
-            // A PRESS THAT NEVER TRAVELLED is a tap: on a product cell it puts
-            // the garment on, which is the shortcut a catalogue page should
-            // have; on the model it does nothing, because undressing yourself
-            // by tapping is how you undress by accident.
-            if (!h && pend && wornIndex(pend.slot) !== pend.index) {
-              cat = pend.slot; wear(pend.slot, pend.index);
-            } else if (h && hit && inRect(hit.x, hit.y, STAGE)) {
-              wear(h.slot, h.index);
-            }
-            // ANYWHERE ELSE it goes back to the page — and for something
-            // dragged off the model that means it stays off, which is how you
-            // reach the white undies: drag it away and let go.
-            ptr = hit;
+            const z = slotAtCanvas(x, y, facing);
+            if (!z) return;
+            hover = z;
+            // `showing` rather than `wornIndex`: while a dress is on, the
+            // bottoms slot is the dress, and a drag that started from the
+            // trousers still in the drawer would jump.
+            const i0 = showing(z) === worn(z) ? wornIndex(z) : -1;
+            drag = { slot: z, x0: x, i0, last: 0, moved: false };
             repaint();
           },
+          // THE BUTTON CAME UP — anywhere, including off the glass, which is
+          // where a drag that runs out of mirror ends. A click is a drag that
+          // never moved, so the two gestures cost one branch between them and
+          // neither can swallow the other.
+          up: () => {
+            const d = drag;
+            drag = null;
+            if (!d) return;
+            if (!d.moved) { cycle(d.slot, 1); repaint(); }
+          },
         },
-        // NOTHING SURVIVES A CLOSE EXCEPT THE CLOTHES. Escape mid-drag drops
-        // what is on the cursor; the framework owns the rest of the way out —
-        // Escape and `[E]` from every state, the gate, the pointer lock and
-        // standing up.
-        onOpen: () => { held = null; pending = null; ptr = null; facing = 0; cat = 'top'; },
-        onClose: () => { held = null; pending = null; ptr = null; },
+        // NOTHING IS REMEMBERED ACROSS OPENINGS except the clothes, which are
+        // the point. The hand starts on nothing, so walking up to the mirror
+        // never shows a bracket round a part of you that you last touched an
+        // hour ago and cannot remember choosing.
+        onOpen: () => { hover = null; drag = null; facing = 0; },
+        onClose: () => { drag = null; },
       });
+      // and if something else dresses the player — a shop, a laundrette, a
+      // debug hook — the glass follows without that thing knowing it exists
       onWardrobeChange(() => { if (panel?.isOpen()) panel.repaint(); });
     }
     panel.open();
