@@ -31,7 +31,7 @@ import { buildCrowd, type Crowd } from './ct/crowd';
 import { pickSpot, SpotOutline, REACH_MARGIN, TOUCH_MARGIN, REACH_TRIM, ON_IT, lookTolerance } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN, ST0 } from './ct/apartment';
-import { makeHud, setScreenFocus, panelUp, type Purse } from './ct/hud';
+import { makeHud, setScreenFocus, panelUp, registerHeldView, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms, PARTY } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
@@ -523,6 +523,11 @@ export function makeCrosstown(): Proto {
     refreshWallet: () => hud.refreshWallet(),
     drop: (id) => dropLoose(ctx, id, ctx.player.x(), ctx.player.z(), ctx.player.gy()),
   });
+  // AND THE BAG TELLS THE HUD IT IS UP, so the `[E]` prompt goes quiet while
+  // he is looking in it. Registered from here rather than imported by hud
+  // because hud is what `ct/bag.ts` imports for the pointer, and importing back
+  // would close a cycle (GOTCHAS §28). See `heldViewUp` in `ct/hud.ts`.
+  registerHeldView(bagOpen);
 
   const apt = buildApartment(ctx);
 

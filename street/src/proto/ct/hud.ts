@@ -1227,6 +1227,36 @@ export function closePanels(): void { livePanel?.close(); }
 export function panelUp(): string | null { return livePanel ? livePanel.spec.id : null; }
 
 /**
+ * ── A HELD VIEW IS UP ──────────────────────────────────────────────────────
+ *
+ * *"also no e options while looking at bag. in fact. e overlay should go away
+ *  and pressing e should close bag"*   (2026-08-05)
+ *
+ * THE PROMPT IS GATED ON `panelUp()` AND THE BAG IS DELIBERATELY NOT A PANEL.
+ * That was a considered choice and it stands — a panel freezes the world and
+ * dims the room, which is exactly wrong for a thing in your hands — but the
+ * price is that the bag gets none of a panel's free suppression. So there is a
+ * SECOND predicate, and it is about the whole class rather than about the bag:
+ * anything the player has RAISED INTO HIS OWN HANDS. Look down with the watch
+ * on and the wrist comes up over the world for the same reason and wants the
+ * same silence.
+ *
+ * The watch is this file's own state, so it sets `watchHeld` directly. The bag
+ * lives in `ct/bag.ts`, which IMPORTS this module for `takePointer` — so hud
+ * cannot import it back without closing a cycle, and GOTCHAS 28 is explicit
+ * about what a cycle does to the BUILT bundle while dev looks perfect. It
+ * registers itself instead, from `crosstown.ts`, which already imports both.
+ *
+ * ⚠ THE PROMPT ONLY. The note line stays up: it carries rent and the landlord,
+ * it was deliberately kept when the mirror's caption was stripped, and it is
+ * not a thing you press.
+ */
+let watchHeld = false;
+let heldOther: () => boolean = () => false;
+export function registerHeldView(fn: () => boolean): void { heldOther = fn; }
+export function heldViewUp(): boolean { return watchHeld || heldOther(); }
+
+/**
  * Build a panel. See `PanelSpec` — you draw the screen, this draws the machine.
  */
 export function makePanel(spec: PanelSpec): Panel {
@@ -2706,6 +2736,7 @@ export function makeHud(purse: Purse): Hud {
       // the honest consequence of *"no watch"* being one of the three options,
       // and it needs no cooperation from the file that asks.
       const up = want && worn('watch').kind !== 'none';
+      watchHeld = up;                          // see `heldViewUp`
       watchWrap!.style.transform = up ? WATCH_SHOWN : WATCH_HIDDEN;
       if (up && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
     },
@@ -2768,7 +2799,9 @@ export function makeHud(purse: Purse): Hud {
       // all, and the per-frame loop brings it straight back when the cut ends.
       // `fading` spans the whole out/hold/in, so this covers the middle where
       // the world changes under it.
-      if (text === null || panelUp() || fading) {
+      // …AND IT IS SILENT WHILE SOMETHING IS IN HIS HANDS — the bag, the watch,
+      // anything else that joins that carousel. See `heldViewUp`.
+      if (text === null || panelUp() || heldViewUp() || fading) {
         // FADE OUT RATHER THAN VANISH, and only THEN go `display:none` and
         // clear the text. The element has to keep both while it fades or there
         // is nothing to fade; the clear is what instruments read (16 of the 77
