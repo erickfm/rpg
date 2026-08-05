@@ -97,14 +97,17 @@ export interface Garment {
    * *"add to mirror options: bag (backpack, tote, crossbody)"*, and the bag you
    * WEAR is the bag you OPEN — the carousel on your wrist has nothing to show
    * when this slot is empty, the same way *"no watch"* means nothing rises.
-   * So a tote genuinely holds less than a backpack, and the number lives on the
-   * garment because the garment IS the container: there is no second table
-   * anywhere that could disagree about how big your bag is.
+   * ⚠ DEAD SINCE 2026-08-05. *"each bag has inf capacity"* — nothing reads this
+   * field any longer. It is kept as the record of what the four bags used to
+   * hold (8 / 6 / 5 / 2), because the numbers are the only trace of an argument
+   * about what a shoulder carries versus a hand, and a future ask may want them
+   * back. THE ONE THING IT MUST NOT DO IS COME BACK QUIETLY: if a caller starts
+   * consulting it again, capacity is a rule again, and that is his call to make
+   * rather than a side effect of somebody reaching for a handy number.
    *
-   * 8 / 4 / 5 — a backpack, a tote you carry in one hand, and a crossbody that
-   * is small but deep. **These are a first guess and they are cheap to retune**;
-   * the design decision that matters is that they DIFFER, which is what makes
-   * choosing a bag a choice rather than a colour.
+   * `kind === 'none'` is how you ask whether a bag is worn. The carry limit
+   * that still exists is `POCKETS` in `ct/inventory.ts` and it applies when you
+   * are wearing nothing — see `carrySlots`.
    */
   hold?: number;
 }
@@ -221,15 +224,14 @@ const WATCHES: readonly Garment[] = [
  *     CROSSBODY  one shoulder, strap DIAGONAL, pouch on the far hip
  *     CLUTCH     no strap at all, held flat in the hand
  *
- * CAPACITY FOLLOWS THE CARRY, and the order is the interesting part: what your
- * back takes beats what one shoulder takes beats what one hand takes.
+ * CAPACITY USED TO FOLLOW THE CARRY — backpack 8 > tote 6 > crossbody 5 >
+ * clutch 2, what your back takes beating what one shoulder takes beating what
+ * one hand takes. **That rule is gone**: *"each bag has inf capacity"*
+ * (2026-08-05). Any bag holds anything and scrolling covers the overflow, which
+ * makes the choice of bag cosmetic — his call, made in his own words.
  *
- *     backpack 8  >  tote 6  >  crossbody 5  >  clutch 2
- *
- * The tote goes 4 -> 6 with this change and that is not a fudge: it was drawn
- * as a small hand-carried thing and is now a big open shoulder bag, so it holds
- * more than the crossbody's zipped pouch rather than less. The clutch at 2 is
- * the floor — it is a wallet with ambitions.
+ * The `hold` numbers below are left where they are as the record of it and are
+ * read by nothing; see the note on the field itself.
  */
 const BAGS: readonly Garment[] = [
   { id: 'nobag', name: 'NO BAG', kind: 'none', cloth: '#000000', trim: '#000000', hold: 0 },
@@ -258,11 +260,17 @@ const wornAt: Record<Slot, number> = {
   top: 1, bottom: 1, shoes: 1, hat: 0, glasses: 0, watch: 1, bag: 0,
 };
 
-/** THE BAG YOU HAVE ON, which is the bag you can open. `hold` is 0 when there
- *  is none, so a caller can ask one question instead of two. */
+/**
+ * THE BAG YOU HAVE ON, which is the bag you can open. `kind` is `'none'` when
+ * there is none, and that is the only question anyone asks of it.
+ *
+ * ⚠ `bagCapacity()` USED TO LIVE HERE AND IS GONE. *"each bag has inf
+ * capacity"* (2026-08-05) — no caller may consult `Garment.hold` any more, and
+ * the field is kept only as the record of what the four bags used to hold. The
+ * carry limit that remains is `POCKETS` in `ct/inventory.ts`, and it applies
+ * when you are wearing NO bag; see `carrySlots`.
+ */
 export function bagWorn(): Garment { return worn('bag'); }
-/** How much the bag on your back carries. 0 = you are not wearing one. */
-export function bagCapacity(): number { return worn('bag').hold ?? 0; }
 
 /** the last top that was NOT a dress, so taking a dress off can put it back */
 let lastPlainTop = 1;

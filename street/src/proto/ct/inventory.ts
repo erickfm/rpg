@@ -4,6 +4,9 @@ import {
   hudNote, makePanel, onPurseChange, registerHeldObject, setPocketInfo, UI,
   type Panel, type Purse,
 } from './hud';
+// `ct/wardrobe.ts` imports NOTHING, which is why this is safe to reach for from
+// the store — see the leaf-module note at the top of that file.
+import { bagWorn } from './wardrobe';
 
 // ── POCKETS ───────────────────────────────────────────────────────────────
 //
@@ -444,51 +447,86 @@ export function drawerPut(id: string): void { DRAWER[id] = (DRAWER[id] ?? 0) + 1
 // is what makes this a place rather than a menu — and the item vocabulary is
 // still this one table, so `ItemDef` says what a thing IS exactly once.
 //
-// CAPACITY IS THE GARMENT'S. `bagCapacity()` comes off `Garment.hold` in
-// `ct/wardrobe.ts` — backpack 8, tote 6, crossbody 5, clutch 2, and 0 when the
-// slot is empty. Nothing here holds a second opinion about how big your bag is.
-const BAG: Record<string, number> = { NEWSPAPER: 1, SODA: 2 };
+// ══ THERE WAS A SECOND STORE, AND IT IS GONE ══════════════════════════════
+//
+// *"how come i dont see my inventory in the bag. its like picking stuff up
+//  send its to a sep inventory?"*   (2026-08-05)
+//
+// HE IS EXACTLY RIGHT AND IT WAS EXACTLY THAT. This file used to hold
+//
+//     const BAG: Record<string, number> = { NEWSPAPER: 1, SODA: 2 };
+//
+// a module-level record with its own put/take/stock, and the bag view drew from
+// it. Every entry point in the world writes to the PURSE instead — `give(ctx.
+// purse, …)` — and that is all of them, checked one by one:
+//
+//     picking litter off the ground   inventory.ts, the `takeable` spot
+//     stealing a parcel               givePackage  -> give
+//     opening a parcel                giveRandom   -> give
+//     taking from the dresser         drawer.ts    -> roomFor + give
+//
+// NOTHING IN THE WORLD EVER WROTE TO `BAG`. The only three callers of `bagPut`
+// were inside `ct/bag.ts` itself, all of them putting back something that had
+// just come out. So the bag showed a newspaper and two sodas that were typed
+// here as a seed, for ever, and everything he actually picked up went somewhere
+// with no view onto it. "user inventory, bag inventory, and dresser inventory"
+// was answered as three STORES when it should have been two stores and two
+// VIEWS of one of them.
+//
+// ONE STORE NOW: the purse. The four `bag*` functions below are a THIN VIEW
+// over it — they take a Purse and forward to `slots`/`give`/`takeOne` — kept as
+// names rather than deleted because `ct/bag.ts` reads in bag vocabulary and the
+// indirection is where the "the bag is a view, not a container" fact is
+// written down. There is no second table left to drift.
 
-/** What is in the bag: ids in lay-out order, with their counts. */
-export function bagStock(): { id: string; n: number }[] {
-  return Object.keys(BAG).filter((k) => BAG[k] > 0).map((id) => ({ id, n: BAG[id] }));
-}
-/** How many things are in it, counting duplicates — against `bagCapacity()`. */
-export function bagUsed(): number {
-  return Object.keys(BAG).reduce((t, k) => t + BAG[k], 0);
+/** What he is carrying: ids in pick-up order, with their counts. */
+export function bagStock(p: Purse): { id: string; n: number }[] {
+  return slots(p).map((id) => ({ id, n: p.inv[id] ?? 0 }));
 }
 /** Take one out. False if there is none. */
-export function bagTake(id: string): boolean {
-  if ((BAG[id] ?? 0) < 1) return false;
-  BAG[id] -= 1;
-  if (BAG[id] === 0) delete BAG[id];
-  return true;
-}
-/** Put one in, if it fits. False when the bag is full — capacity is the bag's,
- *  so a clutch refuses at 2 and a backpack keeps going to 8. */
-export function bagPut(id: string, cap: number): boolean {
-  if (bagUsed() >= cap) return false;
-  BAG[id] = (BAG[id] ?? 0) + 1;
-  return true;
-}
+export function bagTake(p: Purse, id: string): boolean { return takeOne(p, id); }
+/** Put one back. Cannot fail while a bag is worn — see `roomFor`. */
+export function bagPut(p: Purse, id: string): boolean { return give(p, id, 1) > 0; }
 
+/**
+ * ── HOW MANY SLOTS, AND WHY THE NUMBER MOVED ──────────────────────────────
+ *
+ * *"each bag has inf capacity"*   (2026-08-05)
+ *
+ * SIX IS WHAT YOUR POCKETS HOLD. It is not what a bag holds — a bag is now
+ * unlimited, by his instruction, and `Garment.hold` (backpack 8, tote 6,
+ * crossbody 5, clutch 2) is no longer consulted by anything.
+ *
+ * So the six-slot rule did not disappear; it became THE NO-BAG RULE, and that
+ * is what keeps choosing a bag meaningful now that capacity does not. With one
+ * on you, you can carry anything; with nothing on you, you can carry six kinds
+ * of thing, because that is a pair of trouser pockets.
+ */
 export const POCKETS = 6;
+/** unlimited, but a finite number so `Math.min` and the slot count still work */
+const CARRY_ALL = 999;
+/** how many KINDS of thing he can carry right now — the bag decides */
+export function carrySlots(): number {
+  return bagWorn().kind === 'none' ? POCKETS : CARRY_ALL;
+}
 
 /** The kinds you are actually carrying, in the order you first picked them up. */
 export function slots(p: Purse): string[] {
   return Object.keys(p.inv).filter((k) => (p.inv[k] ?? 0) > 0);
 }
 
-/** How many more of `id` you could take right now. 0 means full FOR THAT ITEM. */
+/** How many more of `id` you could take right now. 0 means full FOR THAT ITEM.
+ *  The slot limit is `carrySlots()`, which a worn bag lifts. */
 export function roomFor(p: Purse, id: string): number {
   const have = p.inv[id] ?? 0;
   if (have > 0) return Math.max(0, itemOf(id).stack - have);
-  return slots(p).length >= POCKETS ? 0 : itemOf(id).stack;
+  return slots(p).length >= carrySlots() ? 0 : itemOf(id).stack;
 }
 
-/** Are all six pockets in use? Ask this to WORD A PROMPT before offering. */
+/** Is there nowhere left to put a NEW kind of thing? Ask this to WORD A PROMPT
+ *  before offering. With a bag on, never — which is the point of the bag. */
 export function pocketsFull(p: Purse): boolean {
-  return slots(p).length >= POCKETS;
+  return slots(p).length >= carrySlots();
 }
 
 /**

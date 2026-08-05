@@ -1,6 +1,6 @@
 import { takePointer, givePointerBack, type Purse } from './hud';
 import { bagStock, bagTake, bagPut, give, roomFor, itemOf } from './inventory';
-import { bagCapacity, bagWorn } from './wardrobe';
+import { bagWorn } from './wardrobe';
 
 // ══ THE BAG, HELD OPEN ═════════════════════════════════════════════════════
 //
@@ -109,6 +109,12 @@ const CELL = 88;
 const HL_HUG = 0.11;
 /** the air between cells in the grid */
 const CELL_GAP = 6;
+/** The option plates. `PLATE` is the letters' own paper from `ct/tenancy.ts`
+ *  and `PLATE_INK` its typewriter ink — sampled from the world rather than
+ *  invented, and the same in every bag so legibility never depends on cloth.
+ *  See the note at the plates in `paintOver`. */
+const PLATE = '#e6e1cd', PLATE_INK = '#2b2620';
+const PLATE_W = 78, PLATE_H = 19, PLATE_PX = 11;
 /** …and the floor it may shrink to in a small bag — 54 at 3x is 162 CSS px a
  *  side. A clutch's contents are smaller than a backpack's, which is the point
  *  of a clutch, but never small enough to stop being legible. Raised 42 -> 54
@@ -241,7 +247,8 @@ const inRect = (x: number, y: number, r: { x: number; y: number; w: number; h: n
 /** everything in the bag, one entry per thing, so a stack of two is two slots */
 function laid(): string[] {
   const out: string[] = [];
-  for (const s of bagStock()) for (let i = 0; i < s.n; i++) out.push(s.id);
+  if (!purse) return out;
+  for (const s of bagStock(purse)) for (let i = 0; i < s.n; i++) out.push(s.id);
   return out;
 }
 
@@ -326,11 +333,11 @@ function onUp(e: MouseEvent): void {
   const items = laid();
   const L = layout(items.length);
   const inside = p && inRect(p.x, p.y, L.mouth);
-  if (!inside && bagTake(id)) {
+  if (!inside && purse && bagTake(purse, id)) {
     // OUT OF THE STORE AND INTO THE WORLD. `bagTake` first, so the item is
     // never in two places; if the world refuses to build it, it goes straight
     // back rather than vanishing.
-    if (!dropOut?.(id)) bagPut(id, bagCapacity());
+    if (!dropOut?.(id)) bagPut(purse!, id);
     else onPurse?.();
   }
   paint();
@@ -379,7 +386,7 @@ function onClick(e: MouseEvent): void {
         // his feet with its own pick-up spot. Not a second path: one verb, one
         // implementation, so a thing dropped from the menu and a thing dragged
         // out are the same object in the same place.
-        if (bagTake(id)) { if (!dropOut?.(id)) bagPut(id, bagCapacity()); else onPurse?.(); }
+        if (purse && bagTake(purse, id)) { if (!dropOut?.(id)) bagPut(purse, id); else onPurse?.(); }
       } else if (purse && itemOf(id).use && v === itemOf(id).use!.verb.toUpperCase()) {
         // ── USING A THING MAY TURN IT INTO ANOTHER THING ──────────────────
         //
@@ -391,9 +398,9 @@ function onClick(e: MouseEvent): void {
         //
         // An act that returns nothing consumes the item outright, which is what
         // eating something will do.
-        if (bagTake(id)) {
+        if (bagTake(purse, id)) {
           const got = itemOf(id).use!.act(purse);
-          if (typeof got === 'string') bagPut(got, bagCapacity());
+          if (typeof got === 'string') bagPut(purse, got);
           onPurse?.();
         }
       }
@@ -443,10 +450,18 @@ function verbsFor(id: string): string[] {
 function plateRects(i: number, n: number) {
   const L = layout(laid().length);
   const r = L.at(i);
-  const w = 62, h = 15, gap = 3;
+  const w = PLATE_W, h = PLATE_H, gap = 3;
   const below = r.y + r.h + 2;
-  const fits = below + n * (h + gap) <= L.mouth.y + L.mouth.h - 2;
-  const top = fits ? below : r.y - n * (h + gap) - 2;
+  // ⚠ CLAMPED INTO THE OPENING, NOT ALLOWED TO ESCAPE ABOVE IT. The old rule
+  // was "below the item, or above it if the mouth runs out", and `above` put
+  // the stack on the LID — which is how EXAMINE and DROP ended up printed on
+  // the crossbody's flap in his shot, off the lining they are supposed to be
+  // stencilled on. Now it prefers below, falls back to above, and then clamps
+  // the whole stack inside the mouth either way.
+  const stack = n * (h + gap);
+  const lo = L.mouth.y + 3, hi = L.mouth.y + L.mouth.h - 3 - stack;
+  const want = below + stack <= L.mouth.y + L.mouth.h - 3 ? below : r.y - stack - 2;
+  const top = Math.max(lo, Math.min(want, Math.max(lo, hi)));
   const x = Math.min(Math.max(r.x + r.w / 2 - w / 2, L.mouth.x + 4), L.mouth.x + L.mouth.w - w - 4);
   return Array.from({ length: n }, (_, k) => ({ x, y: top + k * (h + gap), w, h }));
 }
@@ -669,13 +684,51 @@ function band(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
  * The sling stays the least open of the four because most of a crossbody IS
  * flap; that is the bag, not the drawing.
  */
-type Kind = { ix: number; iy: number; ih: number; r: number };
+/**
+ * ⚠ `size` IS THE BAG'S CHARACTER NOW, NOT ITS CAPACITY.
+ *
+ * *"each bag has inf capacity"*   (2026-08-05)
+ *
+ * The whole view used to scale on `bagCapacity()` — 72% at 2 up to 100% at 8 —
+ * and the comment above boasted that capacity read three ways: the bag's size,
+ * its mouth, and how much was in it. NONE OF THAT IS TRUE ANY MORE and nobody
+ * should try to restore the link, because there is no number left to link to.
+ *
+ * A backpack is still bigger than a clutch, and that is now simply what a
+ * backpack is. Same order, same feel, different reason: it is drawn from the
+ * KIND rather than derived from a capacity that no longer exists.
+ */
+type Kind = { ix: number; iy: number; ih: number; r: number; size: number };
 const KIND: Record<string, Kind> = {
-  pack: { ix: 0.045, iy: 0.15, ih: 0.76, r: 0.26 },
-  tote: { ix: 0.045, iy: 0.10, ih: 0.82, r: 0.05 },
-  sling: { ix: 0.10, iy: 0.36, ih: 0.58, r: 0.13 },
-  clutch: { ix: 0.07, iy: 0.18, ih: 0.72, r: 0.11 },
+  pack: { ix: 0.045, iy: 0.15, ih: 0.76, r: 0.26, size: 1.00 },
+  tote: { ix: 0.045, iy: 0.10, ih: 0.82, r: 0.05, size: 0.94 },
+  sling: { ix: 0.10, iy: 0.36, ih: 0.58, r: 0.13, size: 0.86 },
+  clutch: { ix: 0.07, iy: 0.18, ih: 0.72, r: 0.11, size: 0.76 },
+  /**
+   * ── AND NO BAG AT ALL, WHICH IS A REAL STOP NOW ─────────────────────────
+   *
+   * The bag is the only view onto what he carries (see `hasBag`), so it opens
+   * with nothing on his shoulder too — showing his pockets, six kinds of thing.
+   * `ix`/`iy` are 0 and `ih` is 1, so the "mouth" IS the whole footprint: the
+   * painter draws no body, no rim and no hardware for this kind, and what is
+   * left is the things themselves in the frame. Nothing to name a bag by,
+   * because there is no bag.
+   */
+  none: { ix: 0, iy: 0, ih: 1, r: 0, size: 0.86 },
 };
+/**
+ * ── THREE ACROSS ───────────────────────────────────────────────────────────
+ *
+ * *"maybe 3 slots each row?"*   (2026-08-05)
+ *
+ * PINNED, NOT DERIVED. The column count used to fall out of how many cells fit
+ * the mouth, which gave three in a backpack and two in everything else — the
+ * grid changed shape when he changed bags, and a row of two beside a row of
+ * three is not a grid, it is two layouts. Three is the count and the CELL is
+ * what gives way: it is sized so three fit whatever the mouth is, still capped
+ * at `CELL` and floored at `CELL_MIN`.
+ */
+const COLS = 3;
 
 /**
  * ONE LAYOUT, READ BY THE PAINTER AND THE HIT-TEST. They cannot drift, which
@@ -683,10 +736,10 @@ const KIND: Record<string, Kind> = {
  */
 function layout(n: number) {
   const kind = bagWorn().kind;
-  const k = 0.72 + 0.28 * Math.min(1, Math.max(0, (bagCapacity() - 2) / 6));
-  const bw = Math.round((BW - 28) * k), bh = Math.round((BH - 30) * k);
-  const bx = Math.round((BW - bw) / 2), by = BH - 10 - bh;
   const K = KIND[kind] ?? KIND.tote;
+  // THE BAG'S OWN CHARACTER, not a capacity — see `KIND`.
+  const bw = Math.round((BW - 28) * K.size), bh = Math.round((BH - 30) * K.size);
+  const bx = Math.round((BW - bw) / 2), by = BH - 10 - bh;
   const mouth = {
     x: Math.round(bx + bw * K.ix), y: Math.round(by + bh * K.iy),
     w: Math.round(bw * (1 - 2 * K.ix)), h: Math.round(bh * K.ih),
@@ -707,7 +760,16 @@ function layout(n: number) {
   // lining, which is what room left in a bag looks like anyway.
   const PEEK = 16;
   const inner0 = mouth.h - 16;
-  const cell = Math.max(CELL_MIN, Math.min(CELL, inner0 - PEEK));
+  const innerW = mouth.w - 16;
+  // ⚠ THREE ACROSS DECIDES THE CELL, not the other way round — see `COLS`. The
+  // cell is the smallest of what the width allows for three, what the height
+  // allows for one plus the peek, and `CELL`; floored at `CELL_MIN` so a small
+  // bag's contents never stop being legible.
+  const cell = Math.max(CELL_MIN, Math.min(
+    CELL,
+    Math.floor((innerW - (COLS - 1) * CELL_GAP) / COLS),
+    inner0 - PEEK,
+  ));
   // ── A REAL GRID, AND A BAND OF IT VISIBLE ──────────────────────────────
   //
   // They used to LEAN ON EACH OTHER: one or two rows spread across the mouth's
@@ -715,9 +777,9 @@ function layout(n: number) {
   // would be most of each item hidden behind the next, so it is a grid on a
   // fixed pitch now and the rows that do not fit are scrolled to rather than
   // overlapped. *"like rows of items"* is the ask and it is also the fix.
-  const inner = { x: mouth.x + 8, w: mouth.w - 16, y: mouth.y + 8, h: inner0 };
+  const inner = { x: mouth.x + 8, w: innerW, y: mouth.y + 8, h: inner0 };
   const pitch = cell + CELL_GAP;
-  const cols = Math.max(1, Math.floor((inner.w + CELL_GAP) / pitch));
+  const cols = COLS;
   const visRows = Math.max(1, Math.floor((inner.h + CELL_GAP) / pitch));
   const totalRows = Math.max(1, Math.ceil(n / cols));
   const maxScroll = Math.max(0, totalRows - visRows);
@@ -761,6 +823,21 @@ function paint(): void {
   // coordinate in this file had to move. It is also what lets the dragged item
   // be drawn at a bag-space position that is off the bag entirely.
   g.translate(originX(), originY());
+
+  // ── NO BAG: THE THINGS THEMSELVES, AND NOTHING ROUND THEM ──────────────
+  //
+  // The one kind that draws no container at all. Every branch below is skipped
+  // — no body, no mouth, no rim, no hardware — because there is nothing on his
+  // shoulder to draw and inventing one would be a lie about what he is wearing.
+  // A soft well behind the grid is the whole set: enough to read the items
+  // against, nothing that claims to be an object. See `KIND.none`.
+  if (L.kind === 'none') {
+    band(g, L.inner.x - 10, L.inner.y - 10, L.inner.w + 20, L.inner.h + 20, 12,
+      'rgba(20,17,16,0.62)');
+    paintItems(g, L, items);
+    paintOver(g, L, bag);
+    return;
+  }
 
   // ── THE HARDWARE THAT GOES BEHIND THE BODY ─────────────────────────────
   // THINNER, NOT GONE — see the note on `KIND`. These are the tells that make
@@ -825,6 +902,17 @@ function paint(): void {
     g.fillRect(Math.round(L.bx + L.bw / 2 - 4), L.by - 1, 8, 7);   // its stud
   }
 
+  paintItems(g, L, items);
+  paintOver(g, L, bag);
+}
+
+type Lay = ReturnType<typeof layout>;
+
+/**
+ * THE GRID, wherever it is drawn. Factored out because the no-bag view paints
+ * it too and there must not be two copies of a hit-tested layout's painter.
+ */
+function paintItems(g: CanvasRenderingContext2D, L: Lay, items: string[]): void {
   // ── WHAT IS IN IT ──────────────────────────────────────────────────────
   //
   // ⚠ THE DARK BAR UNDER EACH ITEM IS GONE, and it was the one on his list
@@ -869,7 +957,12 @@ function paint(): void {
     item(g, r.x, r.y, r.w, id);
   }
   g.restore();
+}
 
+/** the cursor's load, the option plates and the close-up — everything that
+ *  goes OVER the grid, in every presentation */
+function paintOver(g: CanvasRenderingContext2D, L: Lay,
+                   bag: { cloth: string; trim: string }): void {
   // ── WHAT IS ON THE CURSOR, ON ITS WAY OUT ──────────────────────────────
   // No dimming behind it: he is moving a thing, not examining one, and the bag
   // has to stay legible so he can see whether he is still over its mouth.
@@ -893,12 +986,42 @@ function paint(): void {
   //
   // The item they belong to LIFTS 4 texels and keeps its warm wash, so he can
   // see which thing he is acting on without the close-up he is replacing.
+  //
+  // ── AND THEY HAVE TO BE READABLE, WHICH THEY WERE NOT ──────────────────
+  //
+  // *"also the options on item are hard to read"*   (2026-08-05)
+  //
+  // THE PLATE WAS PAINTED IN `bag.trim` AND THE INK WAS #20191a. Both are dark,
+  // and worse, `trim` is the same colour as the flap or lid they land on — so
+  // in the crossbody's shot the plate did not separate from the bag at all and
+  // what was left was near-black type on dark brown. Measured as a contrast
+  // ratio (WCAG relative luminance, ink against its own plate):
+  //
+  //                      was           now
+  //     backpack        1.30 : 1     11.43 : 1
+  //     tote            4.10 : 1     11.43 : 1
+  //     crossbody       1.13 : 1     11.43 : 1
+  //     clutch          1.15 : 1     11.43 : 1
+  //
+  // Only the tote ever cleared 3:1, and only because its trim happens to be a
+  // pale straw; the crossbody sat at 1.13, which is invisible. All four are
+  // identical now and the plate stands 13.18 : 1 off the lining behind it.
+  // THE PLATE IS ITS OWN COLOUR — `PLATE`, the letters' paper
+  // from `ct/tenancy.ts`, so all four read identically and none of them depends
+  // on what the bag is made of.
+  //
+  // STILL PART OF THE OBJECT, which he approved and which is not negotiable. A
+  // pale paper label stitched to a lining is a real thing on a real bag — it is
+  // the care label — and it is keylined in the bag's OWN trim so it belongs to
+  // this bag rather than floating over it. Bigger, too: 62 x 15 at 9 px was
+  // sized against a 76 cell and these sit beside 88s.
   if (menu) {
     const opts = verbsFor(menu.id);
     plateRects(menu.i, opts.length).forEach((r, k) => {
-      band(g, r.x, r.y, r.w, r.h, 4, bag.trim);
-      g.fillStyle = '#20191a';
-      g.font = 'bold 9px ui-monospace, Menlo, monospace';
+      band(g, r.x - 1, r.y - 1, r.w + 2, r.h + 2, 5, bag.trim);   // stitched on
+      band(g, r.x, r.y, r.w, r.h, 4, PLATE);
+      g.fillStyle = PLATE_INK;
+      g.font = `bold ${PLATE_PX}px ui-monospace, Menlo, monospace`;
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText(opts[k], r.x + r.w / 2, r.y + r.h / 2 + 1);
     });
@@ -958,5 +1081,29 @@ export function showBag(want: boolean): void {
   }
 }
 
-/** is there a bag to open at all? 0 capacity means the slot is empty */
-export function hasBag(): boolean { return bagCapacity() > 0; }
+/**
+ * ── IS THERE ANYTHING TO LOOK AT — WHICH IS ALWAYS ────────────────────────
+ *
+ * This used to be `bagCapacity() > 0`, and it was the carousel's way of asking
+ * "is a bag worn". Capacity is gone (*"each bag has inf capacity"*) so that
+ * test no longer exists — but the bigger reason it changed is the one-store
+ * fix above it: THE BAG IS THE ONLY VIEW ONTO WHAT HE IS CARRYING.
+ *
+ * Which forces the pockets question that has been open since *"user inventory,
+ * bag inventory, and dresser inventory"*, and this is the answer:
+ *
+ *   THE STORE IS ALWAYS HIS POCKETS. THE BAG IS A VIEW ONTO THEM, AND WEARING
+ *   ONE IS WHAT LIFTS THE LIMIT.
+ *
+ * With a bag on he can carry anything and the view draws the bag round it.
+ * With NO bag on he can still carry six kinds of thing — `POCKETS`, which is
+ * what a pair of trouser pockets holds — and the view opens anyway, drawing
+ * the things with no bag round them. Look down, right-click, and there is what
+ * you have, either way.
+ *
+ * ⚠ SO IT RETURNS TRUE ALWAYS, and that is deliberate rather than lazy. The
+ * one state that must not exist is him owning something he cannot see or reach;
+ * a stop that disappears with the bag would create it every time he took a bag
+ * off with things in it. The name is kept because 20 lines of carousel read it.
+ */
+export function hasBag(): boolean { return true; }
