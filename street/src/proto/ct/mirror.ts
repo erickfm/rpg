@@ -430,7 +430,32 @@ const HOOK_W = 0.26, HANG_H = 0.55;
 /** texels on a hanging garment: 32 x 64 over 0.26 x 0.55 m, near enough square */
 const HANG_TW = 32, HANG_TH = 64;
 
-/** A garment on a hook, drawn big. Design units are the texel grid itself. */
+/**
+ * WHAT HANGS AND WHAT SITS — and it is the whole of this pass.
+ *
+ * *"not bad but im not sure i like how things are hung?"*   (2026-08-04)
+ *
+ * **THREE OF THE SIX CATEGORIES DO NOT HANG FROM A PEG.** Shirts and trousers
+ * do, and those read fine. A pair of sneakers dangling by its laces, a wristwatch
+ * swinging from a hook and a pair of sunglasses hooked by one arm do NOT — they
+ * are things that get PUT DOWN, and drawing them suspended is the sort of wrong
+ * a person sees instantly and cannot name. Presenting all six the same way let
+ * the three that do not suit it drag the whole row down.
+ *
+ * So the batten grew a shelf and the categories split by what you actually do
+ * with them. Same wall, same hooks, same one-category-at-a-time rule, different
+ * verb:
+ *
+ *     HANG   tops, bottoms — on a hanger, from the peg, hems where they fall
+ *     SIT    shoes (a pair, side by side), hats, glasses, the watch — on the
+ *            shelf, standing on their own feet
+ *
+ * ONE QUAD SIZE EITHER WAY, which is what makes this cheap: the plane spans the
+ * hook down to the shelf, and the painter decides whether the garment starts at
+ * the top of that canvas and falls, or stands on the bottom of it. The shelf
+ * board is at the quads' bottom edge, so anything drawn touching the last row is
+ * standing on real timber. No geometry changes, no second mesh, no re-layout.
+ */
 function paintHanging(g: CanvasRenderingContext2D, W: number, H: number, gm: Garment): void {
   const s = W / HANG_TW;
   const box = (x: number, y: number, w: number, h: number, fill: string) => {
@@ -439,98 +464,112 @@ function paintHanging(g: CanvasRenderingContext2D, W: number, H: number, gm: Gar
     g.fillRect(x0, y0, Math.max(1, Math.round((x + w) * s) - x0),
       Math.max(1, Math.round((y + h) * s) - y0));
   };
-  const C = 16;                                     // the centre line
-  const WOOD = '#6b563c', WIRE = '#8a8a90';
+  const C = 16;                    // the centre line
+  const B = HANG_TH;               // the last row: the shelf's top face
+  const WOOD = '#6b563c', WIRE = '#9a9aa2';
   g.clearRect(0, 0, W, H);
 
-  // THE HOOK, on everything. It is what says "this is hanging up and you may
-  // take it", and it is the one shape shared by all eighteen.
-  box(C - 1, 0, 2, 5, WIRE);
-  box(C - 3, 0, 6, 2, WIRE);
+  /** THE HANGER, identical on every garment that uses one. A shoulder line and
+   *  a wire hook: one more shape than a bare peg, and it is what makes a top
+   *  read as HUNG rather than impaled. It also gives every top the same
+   *  shoulder width, which is what lines the row up. */
+  const hanger = () => {
+    box(C - 1, 0, 2, 5, WIRE);
+    box(C - 3, 0, 6, 2, WIRE);
+    for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);
+  };
 
   switch (gm.kind) {
+    // ── HUNG ───────────────────────────────────────────────────────────────
     case 'tee': case 'sweater': case 'jacket': case 'vest': {
-      for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);   // the hanger
+      hanger();
       const long = gm.sleeve === 2;
-      box(C - 10, 11, 20, gm.kind === 'jacket' ? 38 : 32, gm.cloth);               // the body
-      box(C - 14, 11, 4, long ? 30 : 12, gm.cloth);                                // sleeves
+      const hem = gm.kind === 'jacket' ? 49 : 43;
+      box(C - 10, 11, 20, hem - 11, gm.cloth);                                  // the body
+      box(C - 14, 11, 4, long ? 30 : 12, gm.cloth);                             // sleeves
       box(C + 10, 11, 4, long ? 30 : 12, gm.cloth);
-      box(C - 14, (long ? 39 : 21), 4, 2, gm.trim);                                // cuffs
-      box(C + 10, (long ? 39 : 21), 4, 2, gm.trim);
-      box(C - 10, 11, 20, 3, gm.trim);                                             // collar
-      box(C - 10, 11, 2, gm.kind === 'jacket' ? 38 : 32, 'rgba(255,255,255,0.10)');
-      box(C + 8, 11, 2, gm.kind === 'jacket' ? 38 : 32, 'rgba(0,0,0,0.16)');
-      if (gm.kind === 'jacket') box(C - 1, 14, 2, 35, 'rgba(0,0,0,0.24)');         // the front
-      if (gm.kind === 'sweater') box(C - 10, 46, 20, 3, gm.trim);                  // the welt
+      box(C - 14, long ? 39 : 21, 4, 2, gm.trim);                               // cuffs
+      box(C + 10, long ? 39 : 21, 4, 2, gm.trim);
+      box(C - 10, 11, 20, 3, gm.trim);                                          // collar
+      box(C - 10, 11, 2, hem - 11, 'rgba(255,255,255,0.10)');
+      box(C + 8, 11, 2, hem - 11, 'rgba(0,0,0,0.16)');
+      if (gm.kind === 'jacket') box(C - 1, 14, 2, hem - 15, 'rgba(0,0,0,0.24)');
+      if (gm.kind === 'sweater') box(C - 10, hem - 3, 20, 3, gm.trim);
       break;
     }
     case 'dress': {
-      for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);
-      box(C - 8, 11, 16, 18, gm.cloth);                                            // bodice
-      for (let b = 0; b < 4; b++) box(C - 8 - b * 2, 29 + b * 7, 16 + b * 4, 7, gm.cloth);
-      box(C - 14, 55, 28, 2, gm.trim);
+      hanger();
+      box(C - 8, 11, 16, 18, gm.cloth);                                         // bodice
+      for (let b = 0; b < 4; b++) box(C - 8 - b * 2, 29 + b * 6, 16 + b * 4, 6, gm.cloth);
+      box(C - 14, 51, 28, 2, gm.trim);
       break;
     }
     case 'trousers': {
-      for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);
-      const hem = (gm.leg ?? 3) >= 3 ? 56 : 32;
-      box(C - 9, 11, 18, 6, gm.trim);                                              // the waistband
-      box(C - 9, 17, 8, hem - 17, gm.cloth);                                       // two legs
+      hanger();
+      const hem = (gm.leg ?? 3) >= 3 ? 56 : 34;
+      box(C - 9, 11, 18, 6, gm.trim);                                           // the waistband
+      box(C - 9, 17, 8, hem - 17, gm.cloth);                                    // two legs
       box(C + 1, 17, 8, hem - 17, gm.cloth);
       if (gm.id === 'track') { box(C - 9, 17, 1, hem - 17, gm.trim); box(C + 8, 17, 1, hem - 17, gm.trim); }
       break;
     }
     case 'skirt': {
-      for (let r = 0; r < 5; r++) box(C - 3 - r * 2, 6 + r, 6 + r * 4, 1, WOOD);
+      hanger();
       box(C - 8, 11, 16, 4, gm.trim);
-      for (let b = 0; b < 4; b++) box(C - 8 - b * 2, 15 + b * 7, 16 + b * 4, 7, gm.cloth);
+      for (let b = 0; b < 4; b++) box(C - 8 - b * 2, 15 + b * 6, 16 + b * 4, 6, gm.cloth);
       break;
     }
+
+    // ── STOOD ON THE SHELF ─────────────────────────────────────────────────
     case 'sneaker': case 'boot': case 'sandal': {
-      // HUNG BY THE LACES, which is a real thing to do with shoes and gives
-      // them a hook like everything else on the batten.
-      box(C - 1, 5, 2, 14, '#cfc6b4');
-      const up = gm.kind === 'boot' ? 14 : gm.kind === 'sandal' ? 3 : 8;
-      for (const dx of [-11, 1]) {
-        box(C + dx, 34 - up, 10, up, gm.cloth);                                    // the upper
-        box(C + dx - 1, 34, 12, 5, gm.cloth);                                      // the foot
-        box(C + dx - 1, 38, 12, 3, gm.trim);                                       // the sole
-        if (gm.kind === 'sandal') { box(C + dx, 30, 10, 2, gm.trim); }
+      // A PAIR, side by side, toes toward you — which is how shoes are left,
+      // and it doubles the silhouette so the category reads at a glance.
+      const up = gm.kind === 'boot' ? 18 : gm.kind === 'sandal' ? 4 : 10;
+      for (const x0 of [1, 17]) {
+        box(x0, B - 5 - up, 14, up, gm.cloth);                                  // the upper
+        box(x0, B - 5, 14, 3, gm.cloth);                                        // the foot
+        box(x0, B - 2, 14, 2, gm.trim);                                         // the sole
+        if (gm.kind === 'sandal') { box(x0 + 1, B - 11, 12, 2, gm.trim); box(x0 + 1, B - 8, 12, 2, gm.trim); }
+        if (gm.kind === 'sneaker') box(x0, B - 8, 14, 2, gm.trim);              // the stripe
       }
       break;
     }
     case 'cap': {
-      box(C - 10, 12, 20, 12, gm.cloth);                                           // the crown
-      box(C - 16, 24, 14, 4, gm.trim);                                             // the peak
-      box(C - 2, 9, 4, 4, gm.trim);                                                // the button
+      box(C - 11, B - 17, 22, 12, gm.cloth);                                    // the crown
+      box(C - 16, B - 6, 16, 4, gm.trim);                                       // the peak, on the shelf
+      box(C - 2, B - 20, 4, 3, gm.trim);                                        // the button
       break;
     }
     case 'sun': {
-      box(C - 8, 10, 16, 12, gm.cloth);                                            // the crown
-      box(C - 15, 22, 30, 5, gm.cloth);                                            // the brim
-      box(C - 15, 26, 30, 2, 'rgba(0,0,0,0.20)');
-      box(C - 8, 18, 16, 4, gm.trim);                                              // the band
+      box(C - 9, B - 21, 18, 12, gm.cloth);                                     // the crown
+      box(C - 16, B - 9, 32, 6, gm.cloth);                                      // the brim
+      box(C - 16, B - 5, 32, 2, 'rgba(0,0,0,0.22)');
+      box(C - 9, B - 13, 18, 4, gm.trim);                                       // the band
       break;
     }
     case 'clear': case 'shades': {
-      box(C - 1, 5, 2, 9, gm.trim);                                                // hung by one arm
-      box(C - 14, 14, 11, 8, gm.cloth);                                            // the lenses
-      box(C + 3, 14, 11, 8, gm.cloth);
-      box(C - 14, 13, 11, 2, gm.trim); box(C + 3, 13, 11, 2, gm.trim);
-      box(C - 14, 21, 11, 2, gm.trim); box(C + 3, 21, 11, 2, gm.trim);
-      box(C - 3, 15, 6, 2, gm.trim);                                               // the bridge
+      box(C - 14, B - 11, 11, 9, gm.cloth);                                     // the lenses
+      box(C + 3, B - 11, 11, 9, gm.cloth);
+      box(C - 14, B - 12, 11, 2, gm.trim); box(C + 3, B - 12, 11, 2, gm.trim);
+      box(C - 14, B - 3, 11, 2, gm.trim); box(C + 3, B - 3, 11, 2, gm.trim);
+      box(C - 3, B - 10, 6, 2, gm.trim);                                        // the bridge
+      box(C - 16, B - 12, 2, 3, gm.trim); box(C + 14, B - 12, 2, 3, gm.trim);   // folded arms
       break;
     }
     case 'digital': case 'analog': {
-      box(C - 2, 5, 4, 22, gm.cloth);                                              // the strap
-      box(C - 8, 24, 16, 12, gm.trim);                                             // the case
-      box(C - 5, 27, 10, 6, gm.kind === 'digital' ? '#9cab8b' : '#e6e0cc');
-      box(C - 2, 33, 4, 12, gm.cloth);
+      // THE STRAP COILED, which is what a watch does when you put it down.
+      box(C - 9, B - 16, 18, 4, gm.cloth);
+      box(C - 9, B - 16, 4, 14, gm.cloth);
+      box(C + 5, B - 16, 4, 14, gm.cloth);
+      box(C - 9, B - 4, 18, 4, gm.cloth);
+      box(C - 7, B - 22, 14, 9, gm.trim);                                       // the case
+      box(C - 5, B - 20, 10, 5, gm.kind === 'digital' ? '#9cab8b' : '#e6e0cc');
       break;
     }
     default:
+      hanger();
       box(C - 9, 11, 18, 30, gm.cloth);
-      box(C - 9, 39, 18, 3, gm.trim);
+      box(C - 9, 41, 18, 3, gm.trim);
   }
 }
 
@@ -559,6 +598,22 @@ export function buildRail(scene: THREE.Scene, o: {
   const batten = new THREE.Mesh(new THREE.BoxGeometry(RAIL_W + 0.06, 0.05, 0.035), woodM);
   batten.position.set(o.x, o.y + 0.035, o.wallZ - 0.018);
   scene.add(batten);
+  // ── AND THE SHELF UNDER IT ─────────────────────────────────────────────
+  // Half the categories are things you PUT DOWN, not things you hang: shoes, a
+  // hat, glasses, a watch. Its top face is exactly the bottom edge of the
+  // garment planes, so an item drawn touching the last row of its canvas is
+  // standing on real timber and needed no geometry of its own.
+  const shelfY = o.y - HANG_H;
+  const shelf = new THREE.Mesh(new THREE.BoxGeometry(RAIL_W + 0.06, 0.028, 0.10), woodM);
+  shelf.position.set(o.x, shelfY - 0.014, o.wallZ - 0.05);
+  scene.add(shelf);
+  // two brackets, because a board on a wall with nothing holding it up is the
+  // kind of thing this room would not have
+  for (const dx of [-RAIL_W / 2 + 0.10, RAIL_W / 2 - 0.10]) {
+    const br = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.07, 0.06), ironM);
+    br.position.set(o.x + dx, shelfY - 0.05, o.wallZ - 0.032);
+    scene.add(br);
+  }
   const hookX = (i: number) => o.x - RAIL_W / 2 + HOOK_W * (i + 0.5);
   for (let i = 0; i < HOOKS; i++) {
     const h = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.04, 0.012), ironM);
