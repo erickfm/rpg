@@ -138,6 +138,10 @@ const HATS: readonly Garment[] = [
 
 const GLASSES: readonly Garment[] = [
   { id: 'noglasses', name: 'NO GLASSES', kind: 'none', cloth: '#000000', trim: '#000000' },
+  // `cloth` IS UNUSED ON THIS ONE and that is the point of it: *"regular
+  // glasses should be see through"*, so the figure paints the frame and leaves
+  // the lens empty. The colour is kept rather than blanked so a future painter
+  // that wants a glint on the glass has the value to hand.
   { id: 'specs', name: 'GLASSES', kind: 'clear', cloth: '#b6c6cf', trim: '#2a2a2e' },
   // `shades`, not `sun` — the SUN HAT already owns that kind, and the item
   // painter switches on `kind` alone with no idea which slot it came from.

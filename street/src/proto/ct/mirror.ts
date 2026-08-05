@@ -606,16 +606,57 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     head(CX - HEAD_HW, HEAD_T - 1, HEAD_HW * 2, 2, hat.trim);                 // the band
   }
 
-  // glasses
+  // ── GLASSES, AND ONE OF THE TWO IS SEE-THROUGH ─────────────────────────
+  //
+  // *"regular glasses should be see through"*   (2026-08-04)
+  //
+  // SPECTACLES ARE A FRAME WITH NOTHING IN IT. The lens was a filled 5 x 4
+  // block of `cloth`, which hid the eye behind it — that is a pair of
+  // sunglasses whatever colour you paint it. Clear ones get all FOUR rims and
+  // no fill, so the skin and the eye already drawn under them show through.
+  //
+  // NO TINT WAS NEEDED and none is drawn. A one-unit rim is 1.78 canvas px
+  // here and about 5 screen px on a 1080p viewport — the frame is the most
+  // legible thing on the face after the hair, so a "faint lens" would only be
+  // a second tone on a surface that has fought to have one.
+  //
+  // AND THE INNER RIM IS NEW. The filled version could get away with three
+  // sides because the fill closed the shape; an outline with a side missing
+  // reads as a broken box, so a clear lens is a closed rectangle round the eye.
+  //
+  // ⚠ DRAW ORDER IS THE WHOLE FIX AND IT WAS ALREADY RIGHT: this block is the
+  // LAST thing painted on the figure, over a finished face. Move it above the
+  // eyes and a clear lens shows whatever the skin was at that moment instead.
+  //
+  // SUNGLASSES STAY OPAQUE. Dark lenses that hide the eyes are what makes them
+  // read as sunglasses rather than as spectacles, and with one pair now empty
+  // the two can no longer be confused: a rectangle you can see an eye through
+  // against a solid black slab.
   if (specs.kind !== 'none') {
-    for (const sgn of [-1, 1]) {
-      const gx = sgn < 0 ? CX - 6 : CX + 1;
-      head(gx, EYE_Y - 1, 5, 4, specs.cloth);
-      head(gx, EYE_Y - 2, 5, 1, specs.trim);
-      head(gx, EYE_Y + 3, 5, 1, specs.trim);
-      head(sgn < 0 ? gx - 1 : gx + 5, EYE_Y - 1, 1, 4, specs.trim);
+    const clear = specs.kind === 'clear';
+    // FIVE OF THE EIGHT FACINGS NEEDED WORK, because both lenses used to be
+    // painted at every angle — including from BEHIND, where a pair of glasses
+    // was floating on the back of his head. A filled lens hid that as a dark
+    // smudge; an empty frame would draw two boxes on his hair.
+    //   · front and three-quarter (cols 0, 1): both lenses and the bridge
+    //   · profile (col 2): the NEAR lens only — the far one is behind his
+    //     nose, and the unmirrored profile faces −x, which is where the nose
+    //     is drawn
+    //   · three-quarter back and back (cols 3, 4): no lenses at all
+    // The TEMPLES are drawn at every facing: they run over the ears and are
+    // the only part of a pair of glasses you can see from behind.
+    if (facing <= 2) {
+      for (const sgn of [-1, 1]) {
+        if (facing === 2 && sgn > 0) continue;
+        const gx = sgn < 0 ? CX - 6 : CX + 1;
+        if (!clear) head(gx, EYE_Y - 1, 5, 4, specs.cloth);                   // the dark lens
+        head(gx, EYE_Y - 2, 5, 1, specs.trim);                                // rim, top
+        head(gx, EYE_Y + 3, 5, 1, specs.trim);                                // rim, bottom
+        head(sgn < 0 ? gx - 1 : gx + 5, EYE_Y - 1, 1, 4, specs.trim);         // rim, outer
+        if (clear) head(sgn < 0 ? gx + 5 : gx - 1, EYE_Y - 1, 1, 4, specs.trim);  // and inner
+      }
+      if (facing < 2) head(CX - 1, EYE_Y, 2, 1, specs.trim);                  // the bridge
     }
-    head(CX - 1, EYE_Y, 2, 1, specs.trim);                                    // the bridge
     // THE TEMPLES RUN FRONT TO BACK, so in profile they are the whole of a pair
     // of glasses — the one part that gets longer rather than shorter.
     deep(CX - HEAD_HW - 1, EYE_Y, 2, 1, specs.trim);
