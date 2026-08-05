@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Proto } from './types';
 import { FPRig, RADIUS, SIT_EYE, PITCH_LIMIT, type AABB, type SeatPose } from './fp';
 import { showBag, hasBag, bagOpen, bagEscaped, configureBag } from './ct/bag';
+import { dropLoose } from './ct/inventory';
 import { worn } from './ct/wardrobe';
 import { ColliderDebug } from './ct/debug-collision';
 
@@ -384,9 +385,6 @@ export function makeCrosstown(): Proto {
    *  prompt to somebody walking in front of it. */
   const SEE_TTL = 0.10;
   const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
-  // the bag moves things into these same pockets — one purse, and `ct/bag.ts`
-  // is handed it once rather than reaching for a copy
-  configureBag({ purse, refreshWallet: () => hud.refreshWallet() });
   const hud = makeHud(purse);
   // Modules that answer for a patch of floor. Asked in declared order, first
   // non-null wins — see ctx.ground. The entry point no longer names any of
@@ -511,6 +509,21 @@ export function makeCrosstown(): Proto {
       },
     },
   };
+  // ── THE BAG'S TWO SEAMS INTO THE WORLD ────────────────────────────────────
+  // One purse, handed over once rather than reached for; and `drop`, which is
+  // the only reason this waits for `ctx` — putting a thing on the ground has to
+  // register a spot and add a mesh, and only the context can do either.
+  //
+  // AT HIS FEET, ON THE FLOOR HE IS STANDING ON. `ctx.player.gy()` is the
+  // storey under him, so a thing dropped on floor 3 lands on floor 3; and his
+  // own position is by definition somewhere he fits, so it can never land in a
+  // wall, in the furniture, or outside the 2 m lane.
+  configureBag({
+    purse,
+    refreshWallet: () => hud.refreshWallet(),
+    drop: (id) => dropLoose(ctx, id, ctx.player.x(), ctx.player.z(), ctx.player.gy()),
+  });
+
   const apt = buildApartment(ctx);
 
   // ── the clock ───────────────────────────────────────────────────────────

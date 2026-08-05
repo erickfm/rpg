@@ -65,14 +65,30 @@ let ptr: { x: number; y: number } | null = null;
 let escaped = false;
 let purse: Purse | null = null;
 let onPurse: (() => void) | null = null;
+/** put one on the ground at his feet. Supplied by the entry point, because
+ *  only it has the ctx a world object has to be registered against. */
+let dropOut: ((id: string) => boolean) | null = null;
+/**
+ * A PRESS THAT HAS NOT TRAVELLED YET — the same shape the mirror used before
+ * click-to-cycle replaced it. A press with no travel LIFTS the thing to look at
+ * it; a press that moves DRAGS it, and where you let go decides what happens.
+ * 6 px, so a hand that shakes on a click does not throw your dinner on the
+ * floor.
+ */
+let pending: { id: string; i: number; x: number; y: number } | null = null;
+let dragging: string | null = null;
+const GRAB_PX = 6;
 
 const CSS_HIDDEN = 'translateX(-50%) translateY(150%)';
 const CSS_SHOWN = 'translateX(-50%) translateY(0)';
 
 /** the purse the bag moves things into. Handed in once by the entry point. */
-export function configureBag(o: { purse: Purse; refreshWallet: () => void }): void {
+export function configureBag(o: {
+  purse: Purse; refreshWallet: () => void; drop: (id: string) => boolean;
+}): void {
   purse = o.purse;
   onPurse = o.refreshWallet;
+  dropOut = o.drop;
 }
 
 
@@ -99,6 +115,15 @@ function hit(e: MouseEvent): { x: number; y: number } | null {
 
 function onMove(e: MouseEvent): void {
   ptr = hit(e);
+  // PROMOTE A PRESS INTO A DRAG once it has travelled. The lifted-to-examine
+  // state and the dragging state are different things: one is held up to your
+  // eye, the other is being carried out of the bag, so a drag never enters the
+  // examine view and cannot be left there.
+  if (pending && ptr && Math.hypot(ptr.x - pending.x, ptr.y - pending.y) > GRAB_PX) {
+    dragging = pending.id;
+    held = null;
+    pending = null;
+  }
   paint();
 }
 
@@ -116,12 +141,47 @@ function onMove(e: MouseEvent): void {
  *    A right-click produces no `click` event at all, so this listener cannot
  *    touch it.
  */
+/**
+ * ── LETTING GO ─────────────────────────────────────────────────────────────
+ *
+ * OUTSIDE THE MOUTH IS THE FLOOR. That is the whole rule and it is why the
+ * mouth had to be a real shape first: you drag a thing up out of the opening
+ * and let go, and it is on the ground. Release back inside and it settles into
+ * the bag, unchanged.
+ *
+ * ⚠ THE POINTER CANNOT BE STRANDED BY THIS. The drag ends on `mouseup`, which
+ * this file listens for on the WINDOW — so a release off the canvas, off the
+ * window, or with the bag closing under it all end the drag. Nothing about the
+ * lock is touched here; `showBag(false)` is still the only thing that gives it
+ * back, and it clears `dragging` with everything else.
+ */
+function onUp(e: MouseEvent): void {
+  if (e.button !== 0) return;
+  const id = dragging;
+  const p = hit(e);
+  dragging = null;
+  if (!id) return;
+  const items = laid();
+  const L = layout(items.length);
+  const inside = p && inRect(p.x, p.y, L.mouth);
+  if (!inside && bagTake(id)) {
+    // OUT OF THE STORE AND INTO THE WORLD. `bagTake` first, so the item is
+    // never in two places; if the world refuses to build it, it goes straight
+    // back rather than vanishing.
+    if (!dropOut?.(id)) bagPut(id, bagCapacity());
+    else onPurse?.();
+  }
+  paint();
+}
+
 function onClick(e: MouseEvent): void {
   if (e.button !== 0) return;
   e.stopImmediatePropagation();
   e.preventDefault();
+  // a click that ended a drag is not also a lift
+  if (pending === null && dragging === null && ptr === null) return;
   const p = hit(e);
-  if (!p) return;
+  if (!p) { pending = null; return; }
   if (held) {
     // ON THE LIFTED THING: into your pockets, through the same `give` the whole
     // world uses. ANYWHERE ELSE: back in the bag. It cannot be destroyed — if
@@ -139,6 +199,18 @@ function onClick(e: MouseEvent): void {
   const items = laid();
   for (let i = 0; i < items.length; i++) {
     if (inRect(p.x, p.y, layout(items.length).at(i))) { held = items[i]; paint(); return; }
+  }
+}
+
+/** the press that a drag or a lift both start from */
+function onDown(e: MouseEvent): void {
+  if (e.button !== 0) return;
+  const p = hit(e);
+  if (!p) return;
+  const items = laid();
+  const L = layout(items.length);
+  for (let i = 0; i < items.length; i++) {
+    if (inRect(p.x, p.y, L.at(i))) { pending = { id: items[i], i, x: p.x, y: p.y }; return; }
   }
 }
 
@@ -345,7 +417,7 @@ function paint(): void {
 
   // ── WHAT IS IN IT ──────────────────────────────────────────────────────
   items.forEach((id, i) => {
-    if (held === id && items.indexOf(id) === i) return;
+    if ((held === id || dragging === id) && items.indexOf(id) === i) return;
     const r = L.at(i);
     if (ptr && inRect(ptr.x, ptr.y, r) && !held) {
       band(g, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 6, 'rgba(242,234,208,0.18)');
@@ -354,6 +426,21 @@ function paint(): void {
     g.fillRect(r.x + 5, r.y + r.h - 8, r.w - 6, 8);          // it sits IN the bag
     item(g, r.x, r.y, r.w, id);
   });
+
+  // ── WHAT IS ON THE CURSOR, ON ITS WAY OUT ──────────────────────────────
+  // No dimming behind it: he is moving a thing, not examining one, and the bag
+  // has to stay legible so he can see whether he is still over its mouth.
+  if (dragging && ptr) {
+    const L2 = layout(laid().length);
+    const out = !inRect(ptr.x, ptr.y, L2.mouth);
+    if (out) {
+      // a shadow on the floor under it, which is the only thing that says
+      // "let go here and it lands"
+      g.fillStyle = 'rgba(0,0,0,0.28)';
+      g.fillRect(Math.round(ptr.x - 26), Math.round(ptr.y + 20), 52, 8);
+    }
+    item(g, Math.round(ptr.x - 28), Math.round(ptr.y - 28), 56, dragging);
+  }
 
   // ── AND WHAT HE HAS LIFTED OUT ─────────────────────────────────────────
   if (held) {
@@ -381,12 +468,18 @@ export function showBag(want: boolean): void {
   if (want) {
     takePointer();
     window.addEventListener('mousemove', onMove, true);
+    window.addEventListener('mousedown', onDown, true);
+    window.addEventListener('mouseup', onUp, true);
     window.addEventListener('click', onClick, true);
     window.addEventListener('keydown', onKey, true);
   } else {
     held = null;
     ptr = null;
+    pending = null;
+    dragging = null;
     window.removeEventListener('mousemove', onMove, true);
+    window.removeEventListener('mousedown', onDown, true);
+    window.removeEventListener('mouseup', onUp, true);
     window.removeEventListener('click', onClick, true);
     window.removeEventListener('keydown', onKey, true);
     givePointerBack();

@@ -656,6 +656,50 @@ const TAKEN: Stashed[] = [];
  * own coordinates, so a takeable cannot be registered against a spot the object
  * is not actually at.
  */
+/**
+ * PUT A THING ON THE GROUND THAT WAS NEVER ON IT — and make it takeable again.
+ *
+ * *"should be able to drop items by just drag dropping them out of the bag. the
+ *  item should then exist on the ground."*   (2026-08-05)
+ *
+ * `dropId` above can only put back what it PICKED UP: `TAKEN` holds a `restore`
+ * closure captured from the object that was lifted, so a thing bought over a
+ * counter or handed out of a package has no mesh to give back and it says so.
+ * A bag full of things you never found on the floor needs the other half —
+ * something that BUILDS the object.
+ *
+ * IT IS A PLANE LYING FLAT ON THE BOARDS, painted with `ItemDef.icon`: the same
+ * art the bag and the pockets draw, so the thing you dropped is visibly the
+ * thing you were holding. 0.16 m square, which is litter-sized against a 2 m
+ * lane, and flat rather than standing because a dropped object has fallen over.
+ *
+ * AND IT REGISTERS THROUGH `takeable`, so picking it back up is the same code
+ * path as every other piece of litter on this street — `roomFor` refuses when
+ * you are full, `give` is the only way it enters a purse, and `TAKEN` gets its
+ * `restore` so it can be put down again. One store, one route in, one route out.
+ */
+export function dropLoose(ctx: CtxBuild, id: string, x: number, z: number, gy: number): boolean {
+  const cv = document.createElement('canvas');
+  cv.width = 48; cv.height = 48;
+  const g = cv.getContext('2d');
+  if (!g) return false;
+  g.save(); g.scale(2, 2);
+  try { itemOf(id).icon?.(g); } catch { /* an item with no art still drops */ }
+  g.restore();
+  const tex = new THREE.CanvasTexture(cv);
+  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  const obj = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 }));
+  obj.rotation.x = -Math.PI / 2;                 // lying on the floor
+  obj.position.set(x, gy + 0.006, z);            // just off the boards, no z-fight
+  obj.name = `dropped-${id}`;
+  ctx.scene.add(obj);
+  // `lift` is stated rather than inferred: this mesh carries no `groundY` tag,
+  // and 0.006 is what keeps it off the floor plane it is lying on.
+  takeable(ctx, { obj, id, lift: 0.006 });
+  return true;
+}
+
 export function takeable(ctx: CtxBuild, o: {
   obj: THREE.Object3D;
   id: string;
@@ -678,6 +722,12 @@ export function takeable(ctx: CtxBuild, o: {
   const s: Spot = {
     x: o.obj.position.x, z: o.obj.position.z, r: o.r ?? 0.7,
     obj: o.obj,
+    // ⚠ AIM AT THE THING, NOT AT ITS FLOOR MARKER — the bug fixed on 301's door
+    // and on the calendar today. For litter the two coincide horizontally, so
+    // this changes nothing YET and is declared anyway: the moment a takeable
+    // object is offered from a stand-point that is not on top of it, an
+    // undeclared aim measures to the patch of floor instead of the object.
+    aimX: o.obj.position.x, aimZ: o.obj.position.z,
     ok: () => !held && (o.ok ? o.ok() : true),
     label: () => (roomFor(ctx.purse, o.id) > 0
       ? `take the ${def.name}`
