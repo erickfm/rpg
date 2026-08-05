@@ -340,15 +340,6 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
   paintGlass(g, W, H);
   const fit = figureFit(W, H);
   paintFigure(g, fit.ox, fit.oy, fit.s, facing);
-  // EVERYTHING ELSE IS IN THE FIGURE'S SPACE, not the canvas's — the bracket
-  // has to land on the body it is bracketing, and the body is no longer the
-  // whole canvas.
-  const u = (v: number) => Math.round(v * fit.s);
-  const box = (x: number, y: number, w: number, h: number, fill: string) => {
-    g.fillStyle = fill;
-    g.fillRect(fit.ox + u(x), fit.oy + u(y), u(x + w) - u(x), u(y + h) - u(y));
-  };
-
   // ── AND WHAT YOU ARE POINTING AT ───────────────────────────────────────
   //
   // *"you just click the highlighted part and it changes"*, then *"the
@@ -380,18 +371,18 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
     const wash = `rgba(242,234,208,${(0.22 * lit).toFixed(3)})`;
     for (const piece of HL[hover]) fam[piece.f](...piece.r, wash);
   }
-  // the caption strip is CHROME ON THE GLASS and spans it, so it is measured
-  // off the canvas rather than off the figure standing in it
-  const band = Math.round(H * 0.055);
-  g.fillStyle = 'rgba(12,14,18,0.72)';
-  g.fillRect(0, H - band, W, band);
-  g.fillStyle = hover ? INK : 'rgba(239,232,214,0.62)';
-  g.font = `bold ${Math.max(7, Math.round(band * 0.62))}px ui-monospace, Menlo, monospace`;
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  // the name of the thing you are about to change, or what to do if you are
-  // not on anything. It is the one line of type on the glass and it names the
-  // GARMENT rather than the slot — you can see which part is lit.
-  g.fillText(hover ? showing(hover).name : 'CLICK TO CHANGE', W / 2, H - band / 2);
+  // ── AND THERE IS NO CAPTION ON THE GLASS ───────────────────────────────
+  //
+  // *"in the mirror make sure the overlay for click a part of yourself and e
+  //  option are gone"*. A strip along the bottom of the reflection printed the
+  // hovered garment's name, or `CLICK TO CHANGE` when you were on nothing.
+  // **Deleted, not hidden.** It was the last thing drawn over this world: a
+  // line of type floating on a mirror, telling you how to use a mirror.
+  //
+  // WHAT CARRIES THE AFFORDANCE NOW IS THE HIGHLIGHT. The part under your
+  // cursor lights up, which says "this is clickable and it is this one"
+  // without a word — and it says it ON the thing rather than beside it, which
+  // the caption never could.
 }
 
 /**
@@ -765,7 +756,10 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
         // `chrome:'none'` for the calendar's reason and more so: this canvas IS
         // the mirror's glass, edge to edge. A framework bezel would be a beige
         // plastic case drawn inside a wooden mirror frame.
-        hint: () => 'click a part of yourself to change it',
+        // NO CAPTION AT ALL — see `PanelSpec.silent`. The framework's own
+        // caption carried both halves of what he asked to have removed: the
+        // instruction on the left and `[E] leave` on the right.
+        silent: true,
         draw: (g, w, h) => paint(g, w, h, hover, facing, lit),
         // ── THE WHEEL TURNS YOU ────────────────────────────────────────
         // *"scroll to turn self in mirror?"* — eight stops, `viewAt`'s own, so

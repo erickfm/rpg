@@ -733,6 +733,26 @@ export interface PanelSpec {
    * See `ScreenSurface`. Omit it and nothing changes — this is additive, and
    * every existing panel keeps the screen-space cabinet it has today.
    */
+  /**
+   * NO CAPTION AT ALL — not the hint, not the `[E] leave` stamp, nothing.
+   *
+   * *"in the mirror make sure the overlay for click a part of yourself and e
+   *  option are gone"*   (2026-08-04)
+   *
+   * **BOTH HALVES OF HIS COMPLAINT ARE ONE ELEMENT.** `cap` prints the
+   * caller's `hint()` on the left and the exit stamp on the right, so 301's
+   * mirror was carrying *"click a part of yourself to change it   ·   [E]
+   * leave"* across the bottom of the screen. That is a line of instructions
+   * over a view whose whole point is that nothing is drawn over the world.
+   *
+   * ⚠ USE THIS ONLY WHERE THE WAY OUT IS ALREADY OBVIOUS FROM THE WORLD, and
+   * understand what you are giving up: the caption is *"the one thing every
+   * panel still owes you"*, and this project's worst bug is a view you cannot
+   * leave. It is set on exactly one panel — a mirror you walked up to and
+   * pressed `[E]` at, which both Escape and `[E]` still close from every
+   * state. A machine you sit down at must never have it.
+   */
+  silent?: boolean;
   surface?: ScreenSurface;
   /**
    * THE WORLD GOES OUT, NOT DIM.
@@ -1167,7 +1187,7 @@ export function makePanel(spec: PanelSpec): Panel {
     cv.style.cssText = `width:${CW * scale}px;height:${CH * scale}px;image-rendering:pixelated;display:block;`
       + (frameless ? '' : 'filter:drop-shadow(0 6px 14px rgba(0,0,0,.65));');
     wrap.appendChild(cv);
-    if (frameless) {
+    if (frameless && !spec.silent) {
       // THE ONE THING EVERY PANEL STILL OWES YOU: how to leave. Printed
       // OUTSIDE the canvas rather than over it — a frameless caller's `draw()`
       // fills the WHOLE screen, corners included (the library terminal's own
