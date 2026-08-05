@@ -1167,7 +1167,13 @@ export function shopfrontRelief(o: {
 
   // ── the fascia, framed rather than covered ────────────────────────────────
   const fTop = F.fasciaBottomM + F.fasciaH;
-  put(o.wMeters, 0.10, CORNICE, 0, fTop + 0.05, mat(tint.clone().multiplyScalar(0.72)));
+  const CORNICE_H = 0.10;
+  // The top of the projecting cornice — the highest, deepest thing on the
+  // frontage, and the ceiling anything else hung on this wall has to clear.
+  // Published as a name because the blade below hangs OFF it; two numbers that
+  // had to agree by hand is exactly how the blade ended up inside it.
+  const corniceTop = fTop + CORNICE_H;
+  put(o.wMeters, CORNICE_H, CORNICE, 0, corniceTop - CORNICE_H / 2, mat(tint.clone().multiplyScalar(0.72)));
   put(o.wMeters, 0.07, BED, 0, F.fasciaBottomM - 0.035, mat(tint.clone().multiplyScalar(0.55)));
 
   // ── the glass reveal: jambs each side and a head over, so the glazing
@@ -1197,16 +1203,41 @@ export function shopfrontRelief(o: {
   // the sprite tree in this file already settles the case: "the crown is WIDER
   // than the walk on purpose… it clears head height, and collision is
   // trunk-only, so the sidewalk stays as walkable as it was — the crown is
-  // allowed to be generous because you walk UNDER it." A blade hung at fascia
-  // height is that same case: its underside is at 2.6 m, a metre clear of a
+  // allowed to be generous because you walk UNDER it." A blade hung over the
+  // fascia is that same case: its underside is at 4.36 m, well clear of a
   // standing player, and it adds no collider because nothing can reach it.
   // A real one overhangs the pavement; that IS the feature.
   //
   // Selected by name, the same dispatch shopfrontTex uses — the shopfront
   // system decides how a named shop looks, and giving another shop a blade is
   // a change here and nowhere else.
+  //
+  // IT HUNG THROUGH THE FASCIA, AND IT HUNG LOW. *"sign is clipping here and a
+  // bit low imo"* — and the thing it was clipping is this frontage's OWN
+  // projecting joinery, which on the diner is stainless and reads as a metal
+  // canopy over the shop. At FOOT 2.45 the plate ran 2.45 → 4.00 m, straight
+  // through the BED mould (3.03 → 3.10 m, 0.13 m proud) and on up the fascia to
+  // stop 5 mm under the cornice's underside. Two solids sharing a volume, and
+  // the top arm threading a 5 mm slot: from the pavement it read as a sign
+  // buried in the awning beside it.
+  //
+  // There is no room to fix that where it stood. Between the mould's top and
+  // the cornice's underside is 1.00 m of clear wall and the plate is 1.55 m
+  // tall, so anything short of shrinking the sign — which is the artwork, not
+  // the placement — has to leave the band. Under the mould means a 1.48 m
+  // underside, which is the complaint made worse. So it goes ABOVE, onto the
+  // brick, which is where a projecting sign on a building with a fascia is
+  // actually bolted.
+  //
+  // DERIVED OFF `corniceTop`, not typed. The cornice is the deepest thing on
+  // this wall and the only one the blade can foul; hanging the blade off its
+  // published top means moving the fascia moves the sign with it. The brick it
+  // lands on is blank by construction: `facadeTex` puts the first storey's cill
+  // SKIRT_M = 2.4 m above the wall's foot, so the plate and its arm sit inside
+  // that skirt with 0.59 m of brick still over them.
   if (o.name === 'DINER') {
-    const PROJ = 0.95, TALL = 1.55, FOOT = 2.45;   // underside 2.45 m: walk under it
+    const CLEAR = 0.16;                            // brick between cornice and plate
+    const PROJ = 0.95, TALL = 1.55, FOOT = corniceTop + CLEAR;   // underside 4.36 m
     const bx = along(o.wMeters * 0.17);
     // THE BRACKET FIRST, and spanning the FULL projection. My first attempt
     // hung the plate off a stub arm reaching half way, which put the whole
