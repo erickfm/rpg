@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { dither } from './paint';
 import { makePanel, focusRay, type Panel } from './hud';
+import { viewAt } from './citizens';
 import {
   SLOTS, options, showing, worn, wornIndex, wear,
   onWardrobeChange, type Slot, type Garment,
@@ -220,15 +221,47 @@ function zoneAt(dx: number, dy: number): Slot | null {
   return null;
 }
 
-/** a rect painter in design units, rounded to whole pixels at any scale */
-function scaler(g: CanvasRenderingContext2D, ox: number, oy: number, s: number) {
+/**
+ * A rect painter in design units, rounded to whole pixels at any scale — and
+ * the place the TURN happens.
+ *
+ * *"scroll to turn self in mirror?"* (2026-08-04.) `flip` mirrors a rect about
+ * the centre line and `nf` squeezes it toward that line, and between them they
+ * are the whole of a facing: a body seen at 45° is narrower than one seen
+ * head-on and a body seen from the left is the one seen from the right,
+ * reversed. Applied HERE rather than as a canvas transform because
+ * `g.scale(0.55, 1)` would antialias every edge on the figure, and this world
+ * does not have a second tone to spare — the arithmetic happens in design units
+ * and the ROUNDING still happens last, so the pixels stay hard.
+ */
+function scaler(g: CanvasRenderingContext2D, ox: number, oy: number, s: number,
+                nf = 1, flip = false) {
   return (x: number, y: number, w: number, h: number, fill: string) => {
-    const x0 = Math.round(x * s), y0 = Math.round(y * s);
+    const mx = flip ? 2 * CX - x - w : x;
+    const nx = CX + (mx - CX) * nf, nw = w * nf;
+    const x0 = Math.round(nx * s), y0 = Math.round(y * s);
     g.fillStyle = fill;
     g.fillRect(ox + x0, oy + y0,
-      Math.max(1, Math.round((x + w) * s) - x0), Math.max(1, Math.round((y + h) * s) - y0));
+      Math.max(1, Math.round((nx + nw) * s) - x0), Math.max(1, Math.round((y + h) * s) - y0));
   };
 }
+
+/**
+ * HOW WIDE THE BODY IS IN EACH OF THE FIVE PAINTED COLUMNS.
+ *
+ * `ct/citizens.ts` paints five views — front, 3/4, profile, 3/4 back, back —
+ * and mirrors them for the far four sectors, which is how every person in this
+ * world turns. **`viewAt` is imported rather than reimplemented**, so the
+ * mirror steps through the same eight facings in the same order as the street
+ * does, and a reflection cannot end up turning the opposite way from a citizen.
+ *
+ * What is NOT shared is the ATLAS. `citizenAtlas` takes a `Look` — jacket,
+ * pants, skin, hair, fit — and cannot say hat, glasses, watch or shoes, which
+ * is four of this wardrobe's six slots. So the figure stays this module's own
+ * painter and only the CONVENTION is borrowed: eight stops, five distinct
+ * drawings, no angles in between.
+ */
+const COL_NARROW = [1, 0.82, 0.55, 0.82, 1];
 
 /**
  * YOU, IN THE GLASS — the body, the underwear under everything, and whatever
@@ -240,8 +273,12 @@ function scaler(g: CanvasRenderingContext2D, ox: number, oy: number, s: number) 
  * taking everything off leaves them showing. There is no index that means bare,
  * so there is nothing to forbid. See `ct/wardrobe.ts`'s header.
  */
-export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number, s: number): void {
-  const box = scaler(g, ox, oy, s);
+export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number, s: number,
+                            sector = 0): void {
+  const [col, flip] = viewAt(sector);
+  const box = scaler(g, ox, oy, s, COL_NARROW[col], flip);
+  /** 0 front, 1 three-quarter, 2 profile, 3 three-quarter back, 4 back */
+  const facing = col;
   const top = worn('top');
   const bottom = showing('bottom');
   const shoes = worn('shoes');
@@ -262,13 +299,23 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     box(sgn < 0 ? CX - LEG_GAP - LEG_HW * 2 : CX + LEG_GAP, HIP_B, LEG_HW * 2, LEG_B - HIP_B, SKIN);
   }
   // hair as one shape — this world draws a haircut as a silhouette and not as
-  // strands, the way `ct/citizens.ts` paints five views of one
-  box(CX - HEAD_HW, HEAD_T - 2, HEAD_HW * 2, 7, '#3a2c22');
-  box(CX - HEAD_HW - 1, HEAD_T + 1, 1, 8, '#3a2c22');
-  box(CX + HEAD_HW, HEAD_T + 1, 1, 8, '#3a2c22');
-  box(CX - 4, EYE_Y, 2, 2, '#2a2016');                                    // the face, all of it
-  box(CX + 2, EYE_Y, 2, 2, '#2a2016');
-  box(CX - 2, EYE_Y + 6, 4, 1, '#8a5c46');
+  // strands, the way `ct/citizens.ts` paints five views of one. TURNED AWAY it
+  // is the whole head: the back of a head is hair, and that is what tells you
+  // the figure has its back to you at all.
+  const HAIR = '#3a2c22';
+  box(CX - HEAD_HW, HEAD_T - 2, HEAD_HW * 2, facing >= 3 ? HEAD_B - HEAD_T + 2 : 7, HAIR);
+  box(CX - HEAD_HW - 1, HEAD_T + 1, 1, 8, HAIR);
+  box(CX + HEAD_HW, HEAD_T + 1, 1, 8, HAIR);
+  // THE FACE, ALL OF IT, and it goes when you turn past three-quarters. In
+  // PROFILE there is one eye and a nose standing outside the silhouette — the
+  // nose is what says which way he is looking, and `ct/citizens.ts` draws its
+  // profile the same way for the same reason.
+  if (facing <= 2) {
+    box(CX - 4, EYE_Y, 2, 2, '#2a2016');
+    if (facing < 2) box(CX + 2, EYE_Y, 2, 2, '#2a2016');
+    box(CX - 2, EYE_Y + 6, facing === 2 ? 2 : 4, 1, '#8a5c46');
+  }
+  if (facing === 2) box(CX - HEAD_HW - 2, EYE_Y + 1, 2, 2, SKIN);          // the nose
 
   // the white undies, under everything, always
   box(CX - TORSO_HW + 1, WAIST - 16, (TORSO_HW - 1) * 2, HIP_B - WAIST + 16, UNDIES);
@@ -719,7 +766,17 @@ export function mirrorPanel(o: {
     // ⚠ THE SAME −x, for the same reason: the mirror hangs with `rotation.y =
     // PI`, so its texture's `u` runs along world −x. His watch is drawn on the
     // canvas's left and is grabbed on the world's right.
-    const z = zoneAt(MW / 2 - (p.x - c.x) / FIG_M, MH / 2 - (p.y - c.y) / FIG_M);
+    //
+    // AND THE HIT-TEST TURNS WITH HIM. The zones are written on the front-on
+    // grid, so a figure squeezed to 55% and mirrored has to be undone before
+    // they mean anything — otherwise his watch is grabbable where it is not
+    // drawn, which is exactly the almost-but-not-quite the handrail was pulled
+    // up on. Bands that run the full width (hat, top, bottom, shoes) do not
+    // care; the wrist is the one that does.
+    const [col, flip] = viewAt(facing);
+    let dx = (MW / 2 - (p.x - c.x) / FIG_M - CX) / COL_NARROW[col] + CX;
+    if (flip) dx = 2 * CX - dx;
+    const z = zoneAt(dx, MH / 2 - (p.y - c.y) / FIG_M);
     if (!z) return null;
     return z === 'bottom' && worn('top').full ? 'top' : z;
   };
@@ -737,6 +794,15 @@ export function mirrorPanel(o: {
    */
   let pending: { slot: Slot; index: number; x: number; y: number } | null = null;
   const GRAB_PX = 6;
+  /**
+   * WHICH WAY THE REFLECTION IS FACING, 0…7. *"scroll to turn self in mirror?"*
+   *
+   * FRONT-ON EVERY TIME HE WALKS UP. A mirror you left facing away three hours
+   * ago is a state with no visible cause — the same reasoning that resets the
+   * wall calendar's page on every open. It holds while the view is up, so he
+   * can put a jacket on, turn, and look at the back of it.
+   */
+  let facing = 0;
   /** the quad it is carried on, built once and parked when empty */
   let carry: THREE.Mesh | null = null;
   let carryCv: HTMLCanvasElement | null = null;
@@ -792,7 +858,25 @@ export function mirrorPanel(o: {
         // the room: the caption every panel in this world owes, saying how to
         // leave. The calendar and the ATM carry the same one and he has looked
         // at both. Everything else you can see is 301.
-        hint: () => 'touch yourself to change what is on the rail',
+        hint: () => 'touch yourself to change the rail · scroll to turn',
+        // ── THE WHEEL TURNS YOU ────────────────────────────────────────
+        //
+        // ONE NOTCH, ONE FACING, eight stops — `viewAt`'s own eight, so the
+        // reflection steps through exactly the angles the atlas paints and
+        // never lands between two of them.
+        //
+        // IT CANNOT STEAL THE ZOOM. Outside a panel the wheel is
+        // `crosstown.ts`'s fov zoom, on a BUBBLE-phase listener; the gate this
+        // panel installs is CAPTURE-phase and calls `stopImmediatePropagation`
+        // plus `preventDefault` on every wheel event, so while the mirror is
+        // up the world never sees one and the page cannot scroll under the
+        // canvas either. Close the mirror and the zoom is exactly as it was.
+        // That is the mechanism the wall calendar's page-turn already rides.
+        //
+        // ONLY THE FIGURE TURNS. The rail is meshes on a wall and this touches
+        // nothing but the canvas hung on the glass — the garments cannot
+        // follow him round, because they are not his.
+        wheel: (d) => { facing = (facing + d + 8) % 8; panel?.repaint(); },
         draw: (g, w, h) => {
           paintGlass(g, w, h);
           // ONE SCALE, BOTH AXES, and the remainder left as reflected room —
@@ -800,7 +884,7 @@ export function mirrorPanel(o: {
           // figure is 40 x 152 of square units and lands at whatever size fits
           // BOTH ways; there is no second number that could stretch it.
           paintFigure(g, Math.round((w - MW * FIG_S) / 2),
-            Math.round((h - MH * FIG_S) / 2), FIG_S);
+            Math.round((h - MH * FIG_S) / 2), FIG_S, facing);
         },
         surface: {
           mesh: o.mesh,
@@ -889,7 +973,7 @@ export function mirrorPanel(o: {
         // cursor, no half-state. The framework owns the rest of the exit:
         // Escape and `[E]` from every screen, the gate, the pointer lock, and
         // standing up.
-        onOpen: () => { held = null; pending = null; dropCarry(); },
+        onOpen: () => { held = null; pending = null; facing = 0; dropCarry(); },
         onClose: () => { held = null; pending = null; dropCarry(); },
       });
       // the case's lining and the glass both follow the wardrobe, so anything
