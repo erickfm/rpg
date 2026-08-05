@@ -1468,6 +1468,35 @@ export function makePanel(spec: PanelSpec): Panel {
       // are genuinely standing in front of has not stopped being in the world,
       // and dimming it is the exact tell the user's screenshot is pointing at.
       backdropUp(!onMesh, !!spec.blackout);
+      // ══ GIVE THE MOUSE BACK — EVERY PANEL, NOT JUST THE DIEGETIC ONES ═══
+      //
+      // *"i cant use my mouse when im in the dressing menu."*   (2026-08-04)
+      //
+      // **THIS RELEASE USED TO LIVE INSIDE `if (onMesh)`.** Every panel that
+      // takes a click in this world happens to be painted on a mesh — the ATM,
+      // the slots, blackjack, the library terminal — so for as long as those
+      // were the only clickable screens the bug could not be reached. The
+      // closet is the first panel that is drawn over the camera AND wants a
+      // pointer, and it inherited a locked, hidden, canvas-pinned mouse: the
+      // whole interaction is drag and drop, so it was unusable.
+      //
+      // A PANEL IS A PANEL. The gate above already swallows every mousedown,
+      // mousemove and click for ALL of them, so the world cannot turn its head
+      // or re-take the lock whichever kind is up — which means releasing it
+      // here costs the screen-space panels nothing they were using, and
+      // `close()`'s `pendingLock` path already runs for every close and hands
+      // it back. One line moved out of a branch it never belonged in.
+      //
+      // REMEMBERED BEFORE IT IS RELEASED, because after the call
+      // `document.pointerLockElement` is null and the answer is gone.
+      //
+      // ONLY IF THERE IS ONE TO RECORD. A second panel opening over the first
+      // finds the pointer ALREADY released, and `?? null` here would overwrite
+      // a real debt with nothing — the mouse would then stay dead after the
+      // replacement closed, which is this same complaint by another road.
+      if (document.pointerLockElement) pendingLock = document.pointerLockElement;
+      try { document.exitPointerLock?.(); } catch { /* never locked */ }
+      cursorAs('default');
       paint();
       if (onMesh) {
        // `saved` gates the undo below: without it a throw BEFORE the two saves
@@ -1509,21 +1538,6 @@ export function makePanel(spec: PanelSpec): Panel {
         wrap!.style.bottom = '7%';
         wrap!.style.transform = 'translate(-50%,0)';
         wrap!.style.opacity = '1';
-        // GIVE THE MOUSE BACK. You cannot click a screen with a pointer the
-        // browser has hidden and pinned to the middle of the canvas.
-        //
-        // REMEMBERED BEFORE IT IS RELEASED, because after the call
-        // `document.pointerLockElement` is null and the answer is gone. `close()`
-        // hands it back — see `pendingLock`.
-        //
-        // ONLY IF THERE IS ONE TO RECORD. A second diegetic panel opening over
-        // the first finds the pointer ALREADY released, and `?? null` here would
-        // overwrite a real debt with nothing — the mouse would then stay dead
-        // after the replacement closed, which is the user's complaint reached by
-        // a different road.
-        if (document.pointerLockElement) pendingLock = document.pointerLockElement;
-        try { document.exitPointerLock?.(); } catch { /* never locked */ }
-        cursorHand(false);
         // THE WAY OUT, handed to the controller at the moment the way in
         // happens. If it ever loses the lock without being asked to, it closes
         // this panel rather than leaving a locked camera over an open one.
@@ -1577,13 +1591,17 @@ export function makePanel(spec: PanelSpec): Panel {
       // the gate over, and a camera still locked to a screen the player has
       // left is precisely the trap this must never allow. Wrapped because a
       // controller that throws must not be able to abandon the lock.
+      // AND THE CURSOR GOES BACK TO THE PAGE'S, for every panel and not just
+      // the diegetic ones — the same hole the release above was in. A panel
+      // that painted a pixel arrow on `document.body` and closed without
+      // clearing it leaves that arrow over a world with no cursor in it.
+      cursorRelease();
       if (onMesh) {
         // GIVE THE MESH ITS OWN FACE BACK, and do it before anything that can
         // throw. A machine left wearing a frozen copy of the last thing it
         // said is the visible half of this failing; a camera left locked is
         // the half that traps somebody.
         onMesh = null;
-        cursorRelease();
         try {
           // THE SLOT WE BORROWED, not whatever `mesh.material` is now. Item 150:
           // re-casting `mesh.material` here threw `setHex of undefined` on any
