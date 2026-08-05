@@ -448,11 +448,10 @@ export interface ScreenSurface {
    * HOW HIGH THE EYE STANDS, in metres above the floor under it.
    *
    * Omit it and the eye lands level with the middle of the screen, which is
-   * right for anything you look in the face. 301's full-length mirror is the
-   * exception it exists for: its glass is centred 1.125 m up, and a player
-   * crouched to that height sees no floor — and the floor at the foot of the
-   * glass is where his open suitcase is. At standing height the look tilts
-   * down and both are in frame, which is the composition he asked for.
+   * right for anything you look in the face and is what every panel in this
+   * world does today. It is here for a screen hung low or high enough that
+   * meeting it face-on would crouch the player or tilt his head back — the
+   * look then pitches to suit, which `poseFor` derives rather than being told.
    */
   eyeY?: number;
   /** the field of view to lean in to. Narrower reads as leaning closer. */
@@ -493,25 +492,6 @@ export interface ScreenSurface {
    * window.
    */
   up?: (hit: { x: number; y: number } | null) => void;
-  /**
-   * EVERY POINTER EVENT, IN CLIENT SPACE, WHILE THIS SCREEN IS UP — whether or
-   * not the ray is anywhere near the panel's own face.
-   *
-   * `hot`/`click`/`move`/`up` all speak the panel's CANVAS pixels, which is the
-   * right language for a machine whose buttons are painted on itself. It is the
-   * wrong language for 301's mirror: *"this is not an option … maybe a suitcase
-   * on the ground below the mirror?"* — its controls are garments lying in a
-   * case on the floorboards, several feet outside the glass the panel is
-   * painted on, so every one of those hooks reports `null` over them.
-   *
-   * So a caller whose controls are IN THE WORLD takes the raw pointer and does
-   * its own geometry against `ScreenFocus.ray`. Return true for "there is
-   * something here", which drives the pointing hand exactly as `hot` does.
-   *
-   * Called for `mousemove` and `mousedown` from the gate, and for `mouseup`
-   * from its own listener — so a drag that ends anywhere on the page ends.
-   */
-  pointer?: (e: MouseEvent, phase: 'move' | 'down' | 'up') => boolean | void;
   /**
    * WHICH material slot is the screen, when the mesh carries several.
    *
@@ -641,37 +621,11 @@ export interface ScreenFocus {
   leave: () => boolean;
   /** where on the focused face is this client-space pointer? `null` = off it */
   pick: (clientX: number, clientY: number) => { u: number; v: number } | null;
-  /**
-   * The ray from the eye through this client-space pixel, in WORLD space, or
-   * `null` when there is nothing focused or no canvas to measure.
-   *
-   * For a screen whose controls are objects in the room rather than pixels on
-   * its own face — see `ScreenSurface.pointer`. The caller does its own
-   * geometry with it, because only the caller knows which of its boxes is a
-   * garment and which is the lid.
-   */
-  ray: (clientX: number, clientY: number)
-    => { origin: THREE.Vector3; dir: THREE.Vector3 } | null;
 }
 let FOCUS: ScreenFocus | null = null;
 export function setScreenFocus(f: ScreenFocus | null): void { FOCUS = f; }
 /** is the world's focus controller wired up at all? */
 export function screenFocusReady(): boolean { return FOCUS !== null; }
-/**
- * The world-space ray under a client-space pointer, for a panel whose controls
- * are OBJECTS IN THE ROOM — see `ScreenSurface.pointer`. `null` when nothing is
- * focused, which is also what a caller gets in a harness with no world.
- *
- * Exported rather than passed through the surface hooks because the caller
- * needs it at three different moments (hover, grab, drop) and threading a ray
- * through each would put the geometry in this file, which knows nothing about
- * suitcases.
- */
-export function focusRay(clientX: number, clientY: number):
-{ origin: THREE.Vector3; dir: THREE.Vector3 } | null {
-  return FOCUS?.ray(clientX, clientY) ?? null;
-}
-
 /** The shared look. Three authors picking three greys is the thing this stops. */
 export const UI = {
   /** moulded beige-grey plastic, the colour of every machine made in 1997 */
@@ -780,6 +734,23 @@ export interface PanelSpec {
    * every existing panel keeps the screen-space cabinet it has today.
    */
   surface?: ScreenSurface;
+  /**
+   * THE WORLD GOES OUT, NOT DIM.
+   *
+   * The ordinary backdrop is a vignette — *"the world is still there, you have
+   * just stopped looking at it"* — which is right for a machine you are
+   * standing at. It is wrong for a screen that is not in the world at all:
+   * *"we fade to black and we see a little like sprite version of ourselves"*.
+   * A 72% wash leaves the bedroom faintly visible around the edges of the
+   * canvas, and the seam between the two blacks is the whole difference between
+   * a fade and a card laid over the room.
+   *
+   * So this takes the backdrop to solid black and lets the panel's own black
+   * canvas sit on it invisibly, at any viewport size. It is the ONE panel in
+   * this world that gets it, and it should stay that way: everything else in
+   * here is a thing you walk up to.
+   */
+  blackout?: boolean;
 }
 
 export interface Panel {
@@ -1084,14 +1055,9 @@ function gate(e: Event): void {
     // still swallowed below, so the world neither turns its head nor takes
     // pointer lock back — they are read on the way past and go no further.
     const h = p.hit(e as MouseEvent);
-    // A WORLD-SPACE CALLER ANSWERS FOR THE CURSOR TOO. `pointer` returning true
-    // means "there is something under this", which is the same question `hot`
-    // answers for a panel whose controls are painted on itself.
-    const world = p.spec.surface?.pointer?.(e as MouseEvent, 'move');
-    cursorHand(!!world || (!!h && !!p.spec.surface?.hot?.(h.x, h.y)));
+    cursorHand(!!h && !!p.spec.surface?.hot?.(h.x, h.y));
     if (h) p.spec.surface?.move?.(h.x, h.y);
   } else if (e.type === 'mousedown') {
-    p.spec.surface?.pointer?.(e as MouseEvent, 'down');
     const h = p.hit(e as MouseEvent);
     if (h) p.spec.surface?.click?.(h.x, h.y);
   }
@@ -1109,7 +1075,6 @@ function gate(e: Event): void {
 const gateRelease = (e: Event): void => {
   const p = livePanel;
   if (!p) return;
-  p.spec.surface?.pointer?.(e as MouseEvent, 'up');
   p.spec.surface?.up?.(p.hit(e as MouseEvent));
 };
 
@@ -1124,7 +1089,7 @@ function gateUp(on: boolean): void {
   else window.removeEventListener('mouseup', gateRelease, true);
 }
 
-function backdropUp(on: boolean): void {
+function backdropUp(on: boolean, black = false): void {
   if (!backdrop) {
     backdrop = document.getElementById('ct-panelback') as HTMLDivElement | null;
     if (!backdrop) {
@@ -1134,11 +1099,17 @@ function backdropUp(on: boolean): void {
       // it. A vignette rather than a flat wash so the middle of the screen,
       // where the cabinet is, stays the brightest thing.
       backdrop.style.cssText = 'position:fixed;inset:0;z-index:14;pointer-events:none;opacity:0;'
-        + 'transition:opacity .18s linear;background:radial-gradient(ellipse at center,'
-        + 'rgba(4,6,10,.42) 0%,rgba(4,6,10,.72) 100%);';
+        + 'transition:opacity .18s linear;';
       document.body.appendChild(backdrop);
     }
   }
+  // set every time, because the two kinds of panel share one element: a
+  // blackout that stayed on would put the next ATM in a void.
+  backdrop.style.background = black ? '#000' : 'radial-gradient(ellipse at center,'
+    + 'rgba(4,6,10,.42) 0%,rgba(4,6,10,.72) 100%)';
+  // and a fade to black is slower than a cabinet coming up: 0.18 s reads as a
+  // cut, and he asked for a fade.
+  backdrop.style.transition = `opacity ${black ? '.34' : '.18'}s linear`;
   backdrop.style.opacity = on ? '1' : '0';
 }
 
@@ -1496,7 +1467,7 @@ export function makePanel(spec: PanelSpec): Panel {
       // The vignette says "you have stopped looking at the world". A screen you
       // are genuinely standing in front of has not stopped being in the world,
       // and dimming it is the exact tell the user's screenshot is pointing at.
-      backdropUp(!onMesh);
+      backdropUp(!onMesh, !!spec.blackout);
       paint();
       if (onMesh) {
        // `saved` gates the undo below: without it a throw BEFORE the two saves

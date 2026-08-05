@@ -1419,14 +1419,13 @@ export function makeCrosstown(): Proto {
     // The default is the SCREEN'S OWN HEIGHT — you look a machine in the face,
     // and for an ATM or a wall calendar that is exactly right.
     //
-    // `eyeY` is for the surface where it is wrong, and 301's mirror is the one:
-    // its glass is centred 1.125 m off the boards, so the default put the
-    // player's eye at a child's height and looking dead level. **A full-length
-    // mirror is looked at from standing height, tilted DOWN** — that is how you
-    // see your own shoes in it, and it is what puts the floor at the foot of the
-    // glass in frame, which is where his suitcase is. The pitch below falls out
-    // of it: `dir` is measured from wherever the eye ends up to the middle of
-    // the glass, so raising the eye tilts the look down by exactly as much.
+    // `eyeY` is for the surface where that is wrong — anything hung low or high
+    // enough that meeting it face-on would crouch the player or put his head
+    // through the ceiling. **It is unused today** (301's full-length mirror
+    // wanted it and is now a face mirror with no locked view at all) and it is
+    // kept because the pitch falls out of it for free: `dir` is measured from
+    // wherever the eye ends up to the middle of the screen, so raising the eye
+    // tilts the look down by exactly as much, with no second knob to tune.
     //
     // Metres above the FLOOR under the eye, not an absolute y, so it means the
     // same thing on every storey. Still clamped: a caller cannot put the
@@ -1558,24 +1557,6 @@ export function makeCrosstown(): Proto {
       if (!aimRay(clientX, clientY)) return null;
       const hit = RAY.intersectObject(focus.mesh, false)[0];
       return hit && hit.uv ? { u: hit.uv.x, v: hit.uv.y } : null;
-    },
-    // THE RAY ITSELF, for a screen whose controls are OBJECTS IN THE ROOM
-    // rather than pixels on its own face.
-    //
-    // *"so the recent wardrobe changes are not diagetic. this is not an option.
-    //  … maybe a suitcase on the ground below the mirror?"* (2026-08-04.) The
-    // mirror's dressing view drags real garments out of a real case standing on
-    // 301's floorboards, so its hit-testing is against the WORLD and not against
-    // the panel's own canvas — `pick` cannot answer that, because it only ever
-    // asks about the one mesh the panel is painted on.
-    //
-    // A ray rather than a raycast: this file owns the camera and hands out the
-    // line, and whoever built the furniture does the geometry, because only they
-    // know which of their boxes means what. Same split as `spot` and `ground`.
-    ray: (clientX, clientY) => {
-      if (!focus || !renderer) return null;
-      if (!aimRay(clientX, clientY)) return null;
-      return { origin: RAY.ray.origin.clone(), dir: RAY.ray.direction.clone() };
     },
   });
 

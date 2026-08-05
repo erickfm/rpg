@@ -4271,49 +4271,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // what you have on without closing an import cycle. What is HERE is the one
     // thing only this file knows: where you stand to be offered it.
     //
-    // ⚠ A SCREEN-SPACE DRESSING PANEL WAS BUILT HERE AND HE KILLED IT: *"so the
-    // recent wardrobe changes are not diagetic. this is not an option. i liked
-    // the original view and how it locked us to that view with the mirror… maybe
-    // a suitcase on the ground below the mirror?"* The panel is painted on THIS
-    // MESH again, the eye locks to the glass again, and the clothes are in a
-    // case standing on the boards under it. Nothing about this feature is drawn
-    // over the world any more.
+    // ── AND `[E]` FADES TO BLACK AND OPENS THE CLOSET ────────────────────
     //
-    // ── THE THREE NUMBERS THAT PUT THE FLOOR IN FRAME ────────────────────
+    // *"i have an idea for a new interface. now instead we fade to black and we
+    //  see a little like sprite version of ourselves and we can apply the
+    //  clothes to the sprite."*
     //
-    // `eyeY` 1.62 is the whole trick and it is new (`ScreenSurface.eyeY`). The
-    // framework's default puts the eye level with the middle of the screen —
-    // right for an ATM, wrong for a mirror centred 1.125 m off the boards,
-    // which crouched the player and looked dead level, so the floor at the foot
-    // of the glass was off the bottom of the frame and there was nowhere to put
-    // a suitcase. At standing height the look tilts down 14.2° (`poseFor`
-    // derives it: the eye rises, the aim does not) and the frame at the wall
-    // runs y −0.03…2.03 — the whole mirror AND the boards under it.
+    // Everything about the old locked view is GONE with the full-length glass —
+    // the derived stand-off, the standing eye height, the world-space drag, the
+    // reflection painted on this mesh. `ct/mirror.ts` owns the screen and this
+    // file owns nothing but the mirror and the spot that opens it.
     //
-    // `standoff` 1.95 m: far enough that the 1.35 m glass fills 71% of the
-    // frame height with the case under it, near enough that the case is a
-    // quarter of the frame's width and a garment in it is ~80 px on a 1080p
-    // screen — big enough to grab. The eye lands at local z 3.43, which is open
-    // floor: the TV crate ends at 2.53.
+    // ⚠ WHY IT IS ALLOWED OFF THE WALL, since *"not diagetic. this is not an
+    // option"* is three hours old and still true of everything else: he asked
+    // for this one himself and named what it is — *"a cute and '97 themed
+    // little imagination"*. It is not an interface pretending to be furniture,
+    // it is the picture you make in your head at a mirror, and that is the one
+    // thing here that was ever allowed to leave the room.
     //
-    // `fov` 52 against the player's own 88 at rest, so it reads as leaning in.
-    //
-    // The mesh keeps its name because a probe should be able to find the glass
-    // by asking rather than by guessing a shape.
+    // The mesh keeps its name so a probe can find the glass by asking rather
+    // than by guessing a shape.
     mirror.name = 'mirror-301';
-    // ── AND THERE IS NO WARDROBE FURNITURE AT ALL ────────────────────────
-    //
-    // A batten of hooks and a shelf stood on this wall and is DELETED: *"rail
-    // looks worse come up with something else."* So was a suitcase before it.
-    // **Nothing is built for the clothes any more** — he holds one garment up
-    // against himself, which is what `ct/mirror.ts`'s own note sets out. That
-    // is why the flyer and the photographs came off this wall in the same
-    // breath: the answer was never a better object to put in the room.
-    const openMirror = mirrorPanel({
-      mesh: () => mirror,
-      glassW: GLASS_W, glassH: GLASS_H,
-      standoff: 1.95, fov: 52, eyeY: 1.62,
-    });
+    const openMirror = mirrorPanel();
     // ── WHERE YOU STAND, WHICH IS A 0.118 m SLOT AND HAS TO BE MEASURED ──
     //
     // This corner is boxed in by two colliders declared ~700 lines below, and
