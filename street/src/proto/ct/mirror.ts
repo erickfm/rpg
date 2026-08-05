@@ -379,7 +379,7 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
   // Warm against a glass that is deliberately cold, so it reads as lit rather
   // than as dirt on the skin.
   if (hover && lit > 0.01) {
-    const [col, flip] = viewAt(facing);
+    const [col, flip] = facingOf(facing);
     const sp = COL_SPAN[col];
     const fam = {
       span: scaler(g, fit.ox, fit.oy, fit.s, sp, sp, flip),
@@ -478,6 +478,34 @@ const COL_ROUND = [1, 0.96, 0.90, 0.96, 1];
 const COL_DEEP = [1, 1.12, 1.30, 1.12, 1];
 
 /**
+ * WHICH COLUMN A SECTOR PAINTS, AND WHICH WAY ROUND — and the second half of
+ * that is a bug fix that reaches every asymmetric thing on the figure.
+ *
+ * *"please review the design of each of the 8 perspectives for the garb to make
+ *  sure it makes sense"*   (2026-08-04)
+ *
+ * **A BACK VIEW IS A MIRROR OF A FRONT VIEW AND `viewAt` DOES NOT SAY SO.** It
+ * hands back `flip` only for the far four sectors, which is correct for
+ * choosing between the two 3/4s — but stand in front of someone and their left
+ * hand is on YOUR RIGHT; walk round behind them and it is on your left. So
+ * every asymmetric feature has to CHANGE SCREEN SIDES between the front columns
+ * and the back ones, and none of them did: the watch stayed on the same wrist,
+ * the tote on the same hip, the crossbody strap leaning the same way.
+ *
+ * `col >= 3` is the back half, and XOR is the whole fix. It costs one operator
+ * and it corrects the handedness of every item at once — a watch, a bag, a
+ * strap, a cap's peak — instead of six per-garment special cases that would
+ * each have to be remembered again by whoever adds the seventh.
+ *
+ * ⚠ THE HIT-TEST AND THE HIGHLIGHT READ THIS TOO. All three have to agree
+ * about which way round he is, or you click a wrist where no watch is drawn.
+ */
+export function facingOf(sector: number): [number, boolean] {
+  const [col, flip] = viewAt(sector);
+  return [col, flip !== (col >= 3)];
+}
+
+/**
  * ⚠ AND NONE OF THEM TOUCHES `y`. Height, head size top-to-bottom, the
  * shoulder line, every hem — all identical across all eight facings, because
  * turning does not change how tall you are. `scaler` takes `y` and `h` through
@@ -503,7 +531,7 @@ const COL_DEEP = [1, 1.12, 1.30, 1.12, 1];
  */
 export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number, s: number,
                             sector = 0): void {
-  const [col, flip] = viewAt(sector);
+  const [col, flip] = facingOf(sector);
   /** 0 front, 1 three-quarter, 2 profile, 3 three-quarter back, 4 back */
   const facing = col;
   const span = COL_SPAN[col];
@@ -569,11 +597,15 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
   //               that shows it
   //   3/4 back    most of the pack, over the back
   //   back        the whole pack, the biggest thing on the figure
-  if (bag.kind === 'pack') {
-    const w = facing >= 3 ? 22 : facing === 2 ? 14 : 20;
+  // ⚠ ONLY WHILE HE IS FACING YOU. *"back of back pack doesnt make sense"* —
+  // the pack was painted in this pass at EVERY facing, so from behind the
+  // torso was drawn straight over the top of it and you saw a person with two
+  // straps and no bag. It is drawn here while it is genuinely behind him, and
+  // in the front pass once he has turned round; see there.
+  if (bag.kind === 'pack' && facing < 3) {
+    const w = facing === 2 ? 14 : 20;
     deep(CX - w / 2, SHOULDER + 2, w, 34, bag.cloth);
     deep(CX - w / 2, SHOULDER + 2, w, 4, bag.trim);                 // its lid
-    if (facing >= 3) deep(CX - 5, SHOULDER + 16, 10, 8, bag.trim);  // and a pocket
   }
 
   // the white undies, under everything, always
@@ -642,22 +674,58 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
   //             back (the diagonal flips), with the pouch on the hip, which is
   //             hidden when he turns away
   if (bag.kind === 'pack') {
-    for (const sgn of [-1, 1]) {
-      if (facing === 2 && sgn > 0) continue;                        // the far strap
-      box(sgn < 0 ? CX - 8 : CX + 4, SHOULDER, 4, 22, bag.trim);
+    if (facing >= 3) {
+      // FROM BEHIND THE PACK IS THE FIGURE. It covers the back from shoulder
+      // to waist and the straps are gone over the top of the shoulders — two
+      // stubs at the collar, which is all you see of a strap from this side.
+      // This is the half that was missing and it is why the back read wrong.
+      const w = facing === 4 ? 24 : 22;
+      deep(CX - w / 2, SHOULDER + 1, w, 38, bag.cloth);
+      deep(CX - w / 2, SHOULDER + 1, w, 5, bag.trim);               // the lid
+      deep(CX - 6, SHOULDER + 20, 12, 10, bag.trim);                // the pocket
+      for (const sgn of [-1, 1]) box(CX + sgn * 7 - 2, SHOULDER - 1, 4, 4, bag.trim);
+    } else {
+      // and from the front, ONLY the straps: the pack itself is behind him and
+      // was already painted under the body.
+      for (const sgn of [-1, 1]) {
+        if (facing === 2 && sgn > 0) continue;                      // the far strap
+        box(sgn < 0 ? CX - 8 : CX + 4, SHOULDER, 4, 22, bag.trim);
+      }
     }
   } else if (bag.kind === 'tote') {
+    // ══ THE TOTE, REDRAWN ═══════════════════════════════════════════════
+    //
+    // *"tote doesnt make sense."* Three separate faults, and reporting it as
+    // *"reads the same from every angle"* was me describing the bug as a
+    // feature:
+    //
+    //  · IT FLOATED ON HIS RIBS. The bag sat at rows 56…74 with its handles
+    //    ABOVE it, while the hand it is supposedly carried by is at rows
+    //    78…88 — so it hung off his forearm with the handles pointing up into
+    //    his chest. It now hangs BELOW the closed hand, handles first, which
+    //    is the only way a carried bag can be.
+    //  · IT WAS A CYLINDER. `limb` (1 / .96 / .90) barely narrows, and a tote
+    //    is a FLAT SLAB: broad from the front, an edge from the side. `span`
+    //    (1 / .82 / .55) is the family for a wide flat thing and it is the
+    //    family the jacket's back and the shoulders already use.
+    //  · IT WAS VISIBLE THROUGH HIM. Carried on one side, it disappears
+    //    behind the body when that side turns away — which at profile is
+    //    exactly what happens, so at profile it is not drawn.
     const bx = CX + TORSO_HW - 1;
-    limb(bx, WAIST - 20, ARM_W + 3, 18, bag.cloth);                 // the bag
-    limb(bx + 2, WAIST - 26, 2, 7, bag.trim);                       // its handles
-    limb(bx + ARM_W - 1, WAIST - 26, 2, 7, bag.trim);
-  } else if (bag.kind === 'sling') {
-    // ONE DIAGONAL, STEPPED, and it leans the other way from behind — that is
-    // what says the strap has gone over the shoulder and round the back.
-    const dir = facing >= 3 ? -1 : 1;
-    for (let k = 0; k < 8; k++) {
-      box(CX - 9 + dir * k * 2.2, SHOULDER + 1 + k * 3, 5, 4, bag.trim);
+    if (facing !== 2) {
+      box(bx + 1, HAND_B - 6, 2, 8, bag.trim);                      // handles, to the hand
+      box(bx + ARM_W, HAND_B - 6, 2, 8, bag.trim);
+      box(bx, HAND_B + 2, ARM_W + 3, 22, bag.cloth);                // and the bag under them
+      box(bx, HAND_B + 2, ARM_W + 3, 3, bag.trim);                  // its hem
     }
+  } else if (bag.kind === 'sling') {
+    // ONE DIAGONAL, STEPPED. It used to flip by hand at `facing >= 3`; that is
+    // deleted, because `facingOf` now mirrors the whole figure for the back
+    // columns and the strap flips with everything else. One rule, not two.
+    for (let k = 0; k < 8; k++) {
+      box(CX - 9 + k * 2.2, SHOULDER + 1 + k * 3, 5, 4, bag.trim);
+    }
+    // the pouch rides on the FRONT hip, so it is behind him when he turns
     if (facing < 3) limb(CX + TORSO_HW - 3, WAIST - 12, ARM_W + 2, 12, bag.cloth);
   }
 
