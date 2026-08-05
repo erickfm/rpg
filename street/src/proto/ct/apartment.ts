@@ -2655,10 +2655,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // makes a window read as somewhere you stand rather than a hole."* The
     // sill was already here and already projected; it was bare.
     //
-    // A plant somebody has not watered enough and a mug they left there. Both
-    // at the ENDS, because the middle of the sill is where you put your hands
-    // when you lean on it to look down at the street, and leaving that clear is
-    // the difference between a sill somebody uses and a shelf of ornaments.
+    // A plant and a mug they left there. Both at the ENDS, because the middle
+    // of the sill is where you put your hands when you lean on it to look down
+    // at the street, and leaving that clear is the difference between a sill
+    // somebody uses and a shelf of ornaments.
+    //
+    // ⚠ THE PLANT USED TO BE DYING AND IS NOT ANY MORE. It was *"a plant
+    // somebody has not watered enough"*, paired with the mug: two things saying
+    // someone lives here and is not quite keeping up. **The user, 2026-08-05:
+    // *"make the brown leaf green pls"*** — so the browned frond is green and
+    // the plant is healthy. Do not restore it as lost flavour; it was
+    // deliberate, he saw it, and he asked for it gone. The mug still carries
+    // the "not keeping up" note on its own.
     const SILL_TOP = WIN_Y - WIN_H / 2 - 0.035 + 0.0225;
     const SILL_X = WIN_LX + 0.09;
     const potM = new THREE.MeshBasicMaterial({ color: 0x9c5b3c });
@@ -2675,8 +2683,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           g.fillRect(px, 13 - k, 2, 1);
         }
       }
-      // one frond gone brown, because nobody in this room waters anything
-      g.fillStyle = '#8a7340'; g.fillRect(3, 6, 2, 5);
+      // THE FIFTH FROND, and it was `#8a7340` brown until he asked for it green
+      // (2026-08-05). It takes `greens[1]`, the MIDDLE of the plant's own three
+      // rather than a fourth value invented for it: at x 3 it sits directly
+      // over blade 0, which is the darkest, so the dark tone would have merged
+      // it into that blade and lost a frond, and the lightest would have made
+      // the newest growth the shortest stub on the plant. The mid tone reads as
+      // one more leaf in the clump, which is what it is.
+      g.fillStyle = greens[1]; g.fillRect(3, 6, 2, 5);
       dither(g, 12, 14, 12);
     });
     const leafM = new THREE.MeshBasicMaterial({ map: leafT, alphaTest: 0.4, side: THREE.DoubleSide });
