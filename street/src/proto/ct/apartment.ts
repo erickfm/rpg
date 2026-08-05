@@ -768,13 +768,29 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      *   headroom of every room in the building and could fire the clamp on a
      *   walk. **The clear height of every storey is untouched at 2.55.**
      *
-     *   0.12 OF A 0.156 VOID. It must beat the near plane — the eye is 0.06
-     *   under the ceiling, so anything less than 0.04 of slab is still inside
-     *   0.1 m and still invisible — and it must not reach the carpet plane
-     *   above at `+0.156`, because a top face coplanar with that carpet is the
-     *   z-fight found and fixed at the stairwell fascia this morning. 0.12
-     *   clears the near plane three times over and stops 0.036 short of the
-     *   carpet, which is 14x the 2.5 mm the fascia settled for.
+     *   0.13 OF A 0.156 VOID, LIFTED 0.02, WHICH SPENDS ALL OF IT. *"ceiling
+     *   needs to be thicker still. i can still clip through to see beyond it on
+     *   occasion"* — the second report, so the number is derived rather than
+     *   doubled and hoped for:
+     *
+     *     the tallest thing you can stand on in 301 is the dresser, 0.827
+     *     + a standing eye of 1.62                       = eye at 2.447
+     *     the clamp caps the eye at ceiling − HEAD_CLEAR = 2.49, always
+     *     the near plane is 0.1, so nothing is drawn until 2.59
+     *     = the first 0.04 above the ceiling plane can never be seen at all
+     *
+     *   So the slab has to REACH PAST 2.59 with something solid, and the more
+     *   of it beyond that the better. Lifted to 2.57 and 0.13 deep it ends at
+     *   2.70 — **0.11 m of drawn plaster** against 0.08 before — and the carpet
+     *   above sits at 2.706, leaving **6 mm**, which is 2.4x the 2.5 mm the
+     *   stairwell fascia has held at all day. That is the whole void: 0.02 of
+     *   lift + 0.13 of slab + 0.006 of clearance = 0.156. There is no more room
+     *   upward, and downward is forbidden — see below.
+     *
+     *   ⚠ SO IF IT STILL LEAKS, THE NEXT LEVER IS NOT THIS NUMBER. It would be
+     *   `HEAD_CLEAR` (squeezed between the near plane and going inert on the
+     *   dresser tops) or the near plane itself, and neither is mine to move
+     *   quietly.
      *
      *   DOUBLE-SIDED, which is the whole trick. A box of front faces is
      *   invisible from inside itself — every face is backfacing and culled —
@@ -786,7 +802,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      *   about what he can SEE, and `standTop` treats anything with a `maxY` as
      *   standable, so a collider here would be a floor at 2.55.
      */
-    const CEIL_D = 0.12;
+    const CEIL_D = 0.13;
+    /**
+     * ⚠ AND THE SLAB DOES NOT SIT ON THE CEILING PLANE. THAT WAS THE GLITCH.
+     *
+     * *"ceiling is a lil glitchy similar to the corner of the window from a
+     *  dozen or so commits ago"*   (2026-08-05)
+     *
+     * **HIS COMPARISON IS THE DIAGNOSIS AND IT IS EXACT.** The window reveal
+     * (`eb66e32a`) was two coplanar surfaces contesting one depth; so was this.
+     * `ceilMesh` laid the ceiling PLANE at `y` and then centred the slab at
+     * `y + CEIL_D/2` — which puts the slab's BOTTOM FACE at `y`, on the plane,
+     * with the same normal. The slab is `DoubleSide`, so that face renders from
+     * below and fights the plaster for every pixel: where the slab wins you get
+     * its flat grey, where the plane wins you get `ceilT` with its dither
+     * specks — which is exactly the regular diagonal stipple in his shot, and
+     * why the specks appear in patches rather than everywhere.
+     *
+     * FIXED THE WAY THE WINDOW WAS: separate them, do not reach for
+     * `polygonOffset`. The slab starts `SLAB_LIFT` ABOVE the plane, so nothing
+     * is coplanar with anything and the visible surface from the room is the
+     * plane alone — unchanged to the pixel, which is the point.
+     *
+     * THE 0.02 GAP IS NEVER STOOD IN. The clamp holds the eye at least
+     * `HEAD_CLEAR` = 0.06 BELOW the plane, so the eye can never be in the band
+     * between the plane and the slab; by the time plaster is being clipped
+     * through, the slab is what is in front of it. Same 2 cm the window's
+     * reveal was moved by, for the same reason.
+     */
+    const SLAB_LIFT = 0.02;
     // The colour of `ceilT`'s own field, so the head that gets inside the slab
     // is inside the SAME plaster it was looking at a frame earlier. DoubleSide
     // for the reason above — this is the one material in the file whose inner
@@ -795,7 +839,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const ceilMesh = (y: number, w: number, d: number, cx: number, cz: number) => {
       floorMesh(y, w, d, cx, cz, ceilT);
       const slab = new THREE.Mesh(new THREE.BoxGeometry(w, CEIL_D, d), slabM);
-      slab.position.set(cx, y + CEIL_D / 2, cz);
+      slab.position.set(cx, y + SLAB_LIFT + CEIL_D / 2, cz);
       scene.add(slab);
     };
     // hall + stairwell shell. Both walls run full height either side of the
