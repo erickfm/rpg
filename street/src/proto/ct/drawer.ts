@@ -59,6 +59,43 @@ export function liningCanvas(): { w: number; h: number } {
   return { w: Math.round(DRAWER_W * LINING_PPM), h: Math.round(DRAWER_D * LINING_PPM) };
 }
 
+/** the world texture's own repaint, so a take or a put is visible from the
+ *  room and not only through the panel. Set when the texture is built. */
+let refreshWorld: (() => void) | null = null;
+
+/**
+ * THE DRAWER AS IT LOOKS FROM THE ROOM — paper, and the things lying on it.
+ *
+ * *"the diagetic overlay doesnt even exist? or i cant see it?"*  (2026-08-05)
+ *
+ * **A SECOND BUG, INDEPENDENT OF THE CAMERA.** This texture was built from an
+ * EMPTY canvas — a placeholder, on the reasoning that the panel would paint
+ * over it. It does, but only while the panel is open: the rest of the time
+ * `MeshBasicMaterial` ignores alpha it was never told to respect, so an
+ * untouched canvas renders BLACK. The drawer has been a black slab in the
+ * corner of the room this whole time, and no camera fix could have shown him
+ * anything else.
+ *
+ * So the world texture paints THE SAME PICTURE the panel does. The drawer
+ * genuinely has socks in it when you walk past, `[E]` only brings you closer to
+ * them, and there is one drawing rather than a real one and a blank.
+ */
+export function paintLiningWorld(g: CanvasRenderingContext2D, W: number, H: number): void {
+  paintLining(g, W, H);
+  const st = drawerStock();
+  LAY(W, H, st.length).forEach((r, i) => {
+    for (let d = Math.min(3, st[i].n) - 1; d > 0; d--) {
+      g.fillStyle = 'rgba(0,0,0,0.22)';
+      g.fillRect(r.x + d * 2, r.y + d * 2, r.w, r.h);
+    }
+    paintItemTop(g, r.x, r.y, r.w, r.h, st[i].id);
+  });
+}
+
+/** Register the world texture's repaint. `ct/apartment.ts` owns the texture;
+ *  this file owns when it is stale. */
+export function onLiningChange(fn: () => void): void { refreshWorld = fn; }
+
 /**
  * THE LINING — shelf paper, going yellow, laid in a drawer that has been in
  * this flat longer than the tenant has.
@@ -272,6 +309,8 @@ export function drawerPanel(o: {
                 // eat the thing: if the pockets refuse it, it goes back down.
                 if (give(o.purse, held, 1) < 1) drawerPut(held);
                 else o.refreshWallet();
+                // and the DRAWER ITSELF changes, not just this view of it
+                refreshWorld?.();
               }
               held = null;
               showHand(null);

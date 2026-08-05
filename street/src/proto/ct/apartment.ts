@@ -34,7 +34,9 @@ import { screenFade, makePanel, type Panel } from './hud';
  *  from across the room and the mirror you step into cannot drift apart in
  *  colour (BUILDER-BRIEF §8). */
 import { mirrorPanel, glassCanvas, paintGlass } from './mirror';
-import { drawerPanel, liningCanvas, DRAWER_W, DRAWER_D } from './drawer';
+import {
+  drawerPanel, liningCanvas, paintLiningWorld, onLiningChange, DRAWER_W, DRAWER_D,
+} from './drawer';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
@@ -3331,9 +3333,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // framing instead: at 34° the drawer's 0.58 m fills ~80% of the frame's
     // width and its 0.17 m depth about 42% of the height.
     const DRAW_TOP = RY + 0.3725;                 // the bottom board's top face
+    // THE DRAWER SHOWS ITS CONTENTS FROM THE ROOM, not only through the panel.
+    // This texture used to be an empty canvas on the reasoning that the panel
+    // would paint over it — which it does, and only while it is open, so the
+    // rest of the time the drawer rendered as a black slab. `paintLiningWorld`
+    // draws the same paper and the same stacks the panel draws, and
+    // `onLiningChange` repaints it when something is taken out.
+    const lc = liningCanvas();
+    const liningT = surfTex('detail', lc.w, lc.h, (g) => paintLiningWorld(g, lc.w, lc.h));
+    onLiningChange(() => {
+      const cv = liningT.image as HTMLCanvasElement;
+      const g = cv.getContext('2d');
+      if (!g) return;
+      g.clearRect(0, 0, lc.w, lc.h);
+      paintLiningWorld(g, lc.w, lc.h);
+      liningT.needsUpdate = true;
+    });
     const lining = new THREE.Mesh(new THREE.PlaneGeometry(DRAWER_W, DRAWER_D),
-      texM(surfTex('detail', liningCanvas().w, liningCanvas().h,
-        () => { /* painted per frame by the panel; this is its blank */ })));
+      texM(liningT));
     lining.position.set(AX(-2.65), DRAW_TOP + 0.002, AZI((DZ0 + DZ1) / 2));
     lining.rotation.x = -Math.PI / 2;
     lining.name = 'dresser-drawer-lining';
@@ -3353,7 +3370,21 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       label: () => 'look in the drawer',
       act: openDrawer,
     });
-    box(0.50, 0.10, 0.11, -2.65, RY + 0.42, 2.72, new THREE.MeshBasicMaterial({ color: 0x8a8272 }));
+    // ⚠ THE SHIRT THAT PROPPED THE DRAWER OPEN IS DELETED, and it is what he
+    // was looking at: *"COOL OK THIS IS WHAT I SEE IN THE DRAWER"*, over a shot
+    // filled by a grey box with a thin band of contents stranded above it.
+    //
+    // It was `box(0.50, 0.10, 0.11, …)` at RY+0.42 — a garment lying in the
+    // drawer so the drawer read as a drawer with something in it. Measured
+    // against the lining it sits on: **86% of its width, 65% of its depth, 95
+    // mm proud of it.** Looking down into the drawer it covers the contents
+    // almost completely, and at 0.585 m from the eye it fills 79% of the frame
+    // — which is the grey trapezoid, at the size it appears.
+    //
+    // No camera could have shown him anything else, which is why four pose
+    // fixes in a row did not help. The drawer holds REAL items now and they do
+    // the job the shirt was there to do, better: it was a stand-in for
+    // contents, and the contents have arrived.
     // an ashtray on top, full
     box(0.17, 0.04, 0.17, -2.52, RY + 0.84, 2.40, new THREE.MeshBasicMaterial({ color: 0x6a6a70 }));
     for (const [bx, bz, r] of [[-2.55, 2.37, 0.3], [-2.49, 2.42, -0.5], [-2.52, 2.44, 1.1]] as [number, number, number][]) {
