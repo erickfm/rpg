@@ -94,14 +94,30 @@ export function paintLiningOnly(g: CanvasRenderingContext2D, W: number, H: numbe
  * THE LINING — shelf paper, going yellow, laid in a drawer that has been in
  * this flat longer than the tenant has.
  *
- * Sampled from the street rather than invented: `#e8e4d8` is the world's paper
- * and `#c9a45e` its tan, both among the six most-used values in the game.
+ * **PLAIN.** *"lose the grid pattern in the dresser btw"* (2026-08-05). It had
+ * a printed check ruled across it at `W/14`, and that is deleted along with the
+ * `#c9a45e` tan it was drawn in. **Nothing replaces it — no chequer, no
+ * stripes, no second pattern.**
+ *
+ * WHAT THE GRID WAS DOING, since it was not decoration for its own sake: it
+ * gave the lining a sense of SCALE and made it read as printed paper rather
+ * than as flat colour. Two things already here do that job and neither is a
+ * regular pattern, so nothing had to be invented to replace it:
+ *
+ *   · the two WEAR BANDS at the ends, where a drawer gets grubby first — soft,
+ *     irregular, and they stop the field being one flat tone
+ *   · the DITHER, the same speckle every painted surface in this world carries
+ *     (`ct/paint.ts`), which is what keeps it from reading as a void
+ *
+ * `#d8cfb4` is the paper it is painted in — the world's own, like `#e8e4d8`
+ * beside it, sampled rather than picked.
+ *
+ * ⚠ ONE PAINTER, BOTH STATES. The drawer's world texture and the focused
+ * panel's canvas both come through here, so the grid could not survive in one
+ * and not the other.
  */
 function paintLining(g: CanvasRenderingContext2D, W: number, H: number): void {
   g.fillStyle = '#d8cfb4'; g.fillRect(0, 0, W, H);
-  g.fillStyle = '#c9a45e';                                   // its printed check
-  for (let x = 0; x < W; x += Math.round(W / 14)) g.fillRect(x, 0, 1, H);
-  for (let y = 0; y < H; y += Math.round(W / 14)) g.fillRect(0, y, W, 1);
   g.fillStyle = 'rgba(90,74,52,0.20)';                       // where it is dirty
   g.fillRect(0, 0, W, Math.round(H * 0.10));
   g.fillRect(0, H - Math.round(H * 0.12), W, Math.round(H * 0.12));
