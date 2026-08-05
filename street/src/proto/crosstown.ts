@@ -1543,7 +1543,14 @@ export function makeCrosstown(): Proto {
     // KEEP THE RIG IN STEP with what is actually on screen. Releasing then
     // continues from where the player was looking instead of snapping their
     // head back to the direction they walked up in.
-    rig.yaw = yaw; rig.pitch = pitch;
+    // ⚠ AND THE PITCH HANDED BACK IS CLAMPED TO WHAT THE RIG ALLOWS. The
+    // drawer's pose is −90°, well past `PITCH_LIMIT` (1.3), and the camera is
+    // entitled to it — `pitch` above still drives `lookAt`. The RIG is not: it
+    // would be holding an illegal value the moment the view closed, and the
+    // first mouse move would snap. The look he is given back is the steepest
+    // legal one, which is the same direction.
+    rig.yaw = yaw;
+    rig.pitch = THREE.MathUtils.clamp(pitch, -PITCH_LIMIT, PITCH_LIMIT);
     cam.position.lerpVectors(f.from.pos, f.to.pos, k);
     const fov = f.from.fov + (f.to.fov - f.from.fov) * k;
     if (Math.abs(cam.fov - fov) > 0.001) { cam.fov = fov; cam.updateProjectionMatrix(); }
@@ -1610,6 +1617,26 @@ export function makeCrosstown(): Proto {
       // caller reads this to decide whether to stand the player up, and a
       // falsy-by-accident return is the shape of bug this whole item is.
       if (!focus) return false;
+      // ══ GIVE THE CAMERA ITS UP VECTOR BACK ═══════════════════════════════
+      //
+      // *"hey so idk what you did but now mouse controls like pitch and yaw or
+      //  something idk"*   (2026-08-05)
+      //
+      // **`cam.up` IS PERSISTENT STATE AND `stepFocus` WAS LEAVING IT LYING
+      // DOWN.** `d5d2cded` set it every frame so a top-down view could state
+      // its own roll — for the drawer that is the player's FLAT FACING, a
+      // horizontal vector. `stepFocus` stops running the moment focus ends, so
+      // the last value it wrote simply stayed on the camera; and `fp.ts`'s own
+      // update calls `cam.lookAt` every frame, which resolves the whole view
+      // basis against `cam.up`. With it horizontal the player's basis is rolled
+      // 90°, so his mouse drives axes that are not the ones he is looking
+      // along. Exactly what he could not name.
+      //
+      // **IT WAS FINE FROM A FRESH LOAD AND BROKE ONLY AFTER THE DRAWER** —
+      // the one focus surface in the world that is horizontal. The mirror and
+      // the calendar are vertical and left `(0,1,0)` behind them, which is what
+      // it already was, which is why nothing showed up until now.
+      cam.up.set(0, 1, 0);
       const { chair } = focus;
       focus = null;
       if (Math.abs(cam.fov - fovTarget) > 0.001) { cam.fov = fovTarget; cam.updateProjectionMatrix(); }
@@ -2457,6 +2484,11 @@ export function makeCrosstown(): Proto {
       // pointer-lock deltas and `main.ts`'s drag-look fallback, which would
       // otherwise turn the view every time he dragged across the bag.
       if (focus || bagOpen()) { input.mouseDX = 0; input.mouseDY = 0; }
+      // BELT AND BRACES on the same fault: `leave()` is the seam that restores
+      // `cam.up`, and this is the guarantee that nothing can walk around it —
+      // an `enter` that throws, a focus abandoned without a leave. One compare
+      // per frame against a control that cannot be allowed to break.
+      else if (cam.up.y !== 1) cam.up.set(0, 1, 0);
       rig.update(dt, input);
       // …and the lock gets the last word on the camera, after the rig has had
       // its say and before anything reads the finished view.
