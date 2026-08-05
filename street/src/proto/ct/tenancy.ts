@@ -855,6 +855,22 @@ function drawLetter(g: CanvasRenderingContext2D): void {
   // EACH SENDER ITS OWN DRAWING — see `Letter.art`. Anything unnamed is the
   // typewritten letter this function has always been.
   (ART[l.art ?? ''] ?? drawTyped)(g, l);
+  // ── WHICH ONE OF HOW MANY, PRINTED ON IT ────────────────────────────────
+  // Bottom right, in the corner a page number goes in, small and grey — so the
+  // pile says how deep it is without the framework's caption saying it. Only
+  // when there IS a pile: one piece of post does not need to be numbered, and
+  // "1 of 1" is the sort of line that makes a world feel like a form.
+  // Drawn AFTER the piece so it lands on the paper rather than under it, and
+  // inside the same `LETTER_SS` scale every piece is composed at.
+  if (reading.length > 1) {
+    g.save();
+    g.scale(LETTER_SS, LETTER_SS);
+    g.fillStyle = 'rgba(90,84,70,0.75)';
+    g.font = UI.font(7);
+    g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+    g.fillText(`${page + 1}/${reading.length}`, SHEET.w - 6, SHEET.h - 6);
+    g.restore();
+  }
 }
 
 /** the space a piece of mail is drawn into, in sheet units. A piece may use all
@@ -1121,9 +1137,19 @@ function buildPanel(): void {
   // never set here.
   PANEL = makePanel({
     id: 'ct-letter', w: PANEL_W, h: PANEL_H, chrome: 'none',
-    hint: () => (reading.length > 1
-      ? `${page + 1} of ${reading.length}   scroll to turn`
-      : 'the only one today'),
+    // ⚠ SILENT, for the reason the mirror and now the calendar are. He has
+    // asked twice for the framework's grey caption off a thing he is holding
+    // — *"make sure the overlay for click a part of yourself and e option are
+    // gone"*, then *"get rid of this in cal"* — and mail in his hands is the
+    // same class of object as a mirror and a page on his wall. Same mechanism,
+    // `PanelSpec.silent`, no second one.
+    //
+    // THE PAGE COUNT DID NOT GO WITH IT. The caption carried "2 of 3", which is
+    // real information and the only thing saying there is more than one piece.
+    // It moved ONTO THE PAPER, bottom right, where a page number lives — see
+    // the foot of `drawTyped` and each piece's own painter. That is the answer
+    // the caption was standing in for: not a smaller caption, a diegetic one.
+    silent: true,
     draw: drawLetter,
     // The wheel turns the page, the same gesture the pockets use to choose.
     // ESC is the framework's and needs no line here.

@@ -26,7 +26,7 @@ import { declareRoom } from './interior';
 import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
-import { givePackage, pocketsFull } from './inventory';
+import { givePackage, pocketsFull, fullWhy } from './inventory';
 import { screenFade, makePanel, type Panel } from './hud';
 /** THE MIRROR'S OWN VIEW — the panel, the figure in it and the six racks live
  *  in `ct/mirror.ts` + `ct/wardrobe.ts`, which this file hangs the glass for.
@@ -3508,7 +3508,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // rather than after — K's note is explicit about that, and it is the
         // difference between a full pack and a broken prompt.
         label: () => (pocketsFull(ctx.purse)
-          ? 'pockets full — you cannot carry it'
+          ? fullWhy(ctx.purse)
           : 'steal package'),
         act: () => {
           // GATED ON `taken`. If the pockets are full the parcel stays on the
@@ -3529,7 +3529,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         ok: () => q.present && q.side === -1
           && Math.abs(lastGy - q.d.floor * ST) < 0.5,
         label: () => (pocketsFull(ctx.purse)
-          ? 'pockets full — you cannot carry it'
+          ? fullWhy(ctx.purse)
           : 'steal package'),
         // the parcel, not its contents — see the other side of the mat above
         act: () => { const got = givePackage(ctx); if (got.taken) pkgTaken.add(key()); },
@@ -5108,27 +5108,27 @@ export function buildApartment(ctx: CtxBuild): Apartment {
 
       // ── AND WHAT THE PAGE HAS TO SAY, IN THE SAME BIRO ─────────────────
       //
-      // TWO LINES, ONE PLACE. With nothing picked they are what they have
-      // always been: the ring explained, and how long you have. Pick a day and
-      // the same two lines become that day's — which date it is, and what is on
-      // it. One region, two states, so nothing new is drawn over anything and
-      // the page never grows a second panel. (The bag's option plates do the
-      // same trick in the same session, for the same reason.)
+      // *"and get rid of this in cal"*   (2026-08-05), pointing at
+      // *"RENT $45  V. OKONKWO"* and *"DUE TODAY"* standing permanently under
+      // the grid.
       //
-      // ⚠ AN EMPTY DAY PRINTS THE DATE AND NOTHING ELSE. Manufacturing a line
-      // for a day with nothing on it — "no events", "nothing today" — is the
-      // calendar talking for the sake of it, and it is the same instinct that
-      // put descriptors on picked-up items that he then had removed.
+      // THE FOOT IS BLANK UNTIL HE PICKS A DAY. That lease summary was written
+      // when the page could not answer a question — it was the only way the
+      // calendar could say anything about the rent, so it said it always. Then
+      // he asked for *"click a day … it just says, rent due"* and got it, and
+      // the standing banner became the same fact stated twice, permanently, in
+      // the space a selected day's answer belongs in. Nothing is lost: click
+      // the 1st and `RENT DUE $45` is there in the same ink, in the same two
+      // lines, because he asked a question.
+      //
+      // The ring round the 1st is still drawn and is still the thing that
+      // catches your eye without being told — the calendar has always marked
+      // rent day in biro and that has not changed.
       if (sel !== null) {
         const sd = sel - page.day0 + 1;
         text(`${page.season} ${sd}`, 24, 58, 3.2, '#2f4f8c');
         const ev = calEventOn(sel);
         if (ev) text(ev, 24, 62, 3.2, '#2f4f8c');
-      } else {
-        const due = nextDueDay(day) - day;
-        text(`RENT $${RENT.amount}  ${RENT.landlord}`, 24, 58, 3.2, '#2f4f8c');
-        text(due === 0 ? 'DUE TODAY' : `DUE IN ${due} DAY${due === 1 ? '' : 'S'}`,
-          24, 62, 3.2, '#2f4f8c');
       }
 
       // Paper grain. The two inks and the 26-specks-per-30x40 density are
@@ -5310,10 +5310,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       if (!calPanel) {
         calPanel = makePanel({
           id: 'ct-calendar', w: CAL_PW, h: CAL_PH, chrome: 'none', scale: 1,
+          // ⚠ SILENT. *"get rid of this in cal"* — the framework's caption, hint
+          // on the left and `[E] leave` on the right, printed in grey under the
+          // page. The SAME element he had removed from the mirror in `afd59010`,
+          // and `PanelSpec.silent` is the mechanism that already exists for it.
+          // Second surface, same answer, no second mechanism.
+          silent: true,
           // `chrome:'none'` because `drawCalendar` IS the whole object, edge to
           // edge — a framework bezel here would be a plastic case drawn round a
           // picture of a piece of card.
-          hint: () => 'scroll for the month  ·  click a day',
           draw: (g, w, h) => drawCalendar(g, w, h, calToday(), calPage, calSel),
           // ⚠ THE WHEEL IS THE MONTH AND ONLY THE MONTH. It is context-dependent
           // in this world already — fov zoom out in the street, turning the
