@@ -1398,7 +1398,18 @@ export function makeCrosstown(): Proto {
     while (a < -Math.PI) a += Math.PI * 2;
     return a;
   };
-  const poseFor = (mesh: THREE.Object3D, standoff: number, fov: number, eyeY?: number): FocusPose => {
+  /**
+   * WHERE THE EYE GOES FOR A SCREEN, and — for a HORIZONTAL one — where it does
+   * NOT go.
+   *
+   * `keep` is the player's own yaw and feet, and it is the answer to *"i dont
+   * like that for the dresser we rotate 180. like cmon."* (2026-08-04.) See the
+   * degenerate-facing note below: a face pointing straight up has no direction
+   * to be looked at FROM, so the only correct answer is the one he is already
+   * standing in.
+   */
+  const poseFor = (mesh: THREE.Object3D, standoff: number, fov: number, eyeY?: number,
+                   keep?: { yaw: number; x: number; z: number }): FocusPose => {
     mesh.updateWorldMatrix(true, false);
     const c = new THREE.Vector3().setFromMatrixPosition(mesh.matrixWorld);
     const geo = (mesh as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
@@ -1432,18 +1443,47 @@ export function makeCrosstown(): Proto {
     // player's head through the ceiling or on the boards.
     eye.y = THREE.MathUtils.clamp(eyeY === undefined ? eye.y : gy + eyeY, gy + 1.05, gy + 1.75);
     const dir = c.clone().sub(eye).normalize();
-    // where the body stands: square to the face, along its HORIZONTAL normal
+    // ══ A HORIZONTAL FACE HAS NO FACING, AND THAT COST A 180° SPIN ═════════
+    //
+    // *"i dont like that for the dresser we rotate 180. like cmon."*
+    //
+    // **IT WAS A SIGNED ZERO.** Every screen this framework had ever focused
+    // was VERTICAL until 301's dresser drawer, whose lining faces straight up.
+    // For one of those `dir` is (0, −1, 0), so the yaw came out of
+    //
+    //     Math.atan2(dir.x, -dir.z)   =   Math.atan2(+0, -0)
+    //
+    // and IEEE says `-(+0)` is NEGATIVE zero, and `atan2(+0, −0)` is **π**.
+    // Not an arbitrary angle, not a small drift: exactly 180°, every time, so
+    // the player pirouetted on the spot and then looked down behind himself.
+    // Reproduced in isolation before this was touched.
+    //
+    // THE REAL FAULT IS ASKING THE QUESTION AT ALL. A face pointing at the
+    // ceiling cannot say which side you look at it from — the horizontal part
+    // of its normal is nothing, which is why the FEET already had a fallback
+    // three lines down and the yaw did not. So when it is degenerate the pose
+    // KEEPS WHAT THE PLAYER HAS: his yaw and his feet, unchanged. You are
+    // standing at a dresser; you look down into the drawer; you do not turn.
+    //
+    // Fixed here rather than in `ct/drawer.ts` because it is the framework's
+    // arithmetic, and the next horizontal screen — a desk, a workbench, a
+    // counter — would have walked into the identical spin.
     const flat = new THREE.Vector3(n.x, 0, n.z);
-    if (flat.lengthSq() < 1e-6) flat.set(0, 0, 1);     // a screen facing straight up
+    const upright = flat.lengthSq() >= 1e-6;
+    if (!upright) flat.set(0, 0, 1);
     flat.normalize();
     return {
       pos: eye,
       // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw)
-      yaw: Math.atan2(dir.x, -dir.z),
+      yaw: upright || !keep ? Math.atan2(dir.x, -dir.z) : keep.yaw,
       pitch: Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1)),
       fov,
-      feetX: c.x + flat.x * FOCUS_FEET,
-      feetZ: c.z + flat.z * FOCUS_FEET,
+      // AND HE DOES NOT STEP EITHER. `FOCUS_FEET` puts the body square in front
+      // of a vertical screen, which is right for an ATM and meaningless for a
+      // drawer — the fallback normal would have walked him a metre to +z, into
+      // the radiator, for no reason a player could see.
+      feetX: upright || !keep ? c.x + flat.x * FOCUS_FEET : keep.x,
+      feetZ: upright || !keep ? c.z + flat.z * FOCUS_FEET : keep.z,
     };
   };
   /** The eased fly-in. Runs AFTER `rig.update` so the lock is the last word on
@@ -1477,7 +1517,8 @@ export function makeCrosstown(): Proto {
   };
   setScreenFocus({
     enter: ({ mesh, standoff, fov, eyeY, escape }) => {
-      const to = poseFor(mesh, standoff, fov, eyeY);
+      const to = poseFor(mesh, standoff, fov, eyeY,
+        { yaw: rig.yaw, x: rig.pos.x, z: rig.pos.z });
       const from: FocusPose = {
         pos: cam.position.clone(), yaw: rig.yaw, pitch: rig.pitch, fov: cam.fov,
         feetX: rig.pos.x, feetZ: rig.pos.z,
