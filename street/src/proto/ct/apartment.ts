@@ -5361,38 +5361,42 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     /**
      * ── HOW FAR THE PAGE TURNS ────────────────────────────────────────────
      *
-     * *"i can only scroll through spring and summer?"*   (2026-08-05)
+     * *"i want to be able to scroll future and past. why is it busted now?
+     *  seemed to work before. i can only go to year 1 + 2. year 2 only has
+     *  spring"*   (2026-08-05)
      *
-     * TOO TIGHT, AND HE IS RIGHT THAT IT READ AS BROKEN. The first version was
-     * "back to the season you moved in, forward one" — reasonable as a rule and
-     * wrong as an experience, because on day 0 that is SPRING and SUMMER and
-     * nothing else. A pad that refuses to show you next autumn is not a pad.
+     * ⚠ IT DID WORK BEFORE AND THE REGRESSION IS MINE. Checked against
+     * `4012e54c^` rather than dismissed: the old page-turn — wheel, arrow keys
+     * and the click on the outer fifths — was `calPage += d` with NO CLAMP AT
+     * ALL, in all three inputs. The range was infinite in both directions. He
+     * is remembering real behaviour; I put a clamp on a control that never had
+     * one, twice, and both times too tight. This is the third and it errs wide.
      *
-     * A FULL YEAR FORWARD, AND BACK TO WHEN HE MOVED IN.
+     * FORWARD: 20 SEASONS, five years, measured from the season he is in — so
+     * it moves with him and is unbounded in any practical sense.
      *
-     *   forward   +4 seasons from the one he is in — the whole year, plus the
-     *             page where it starts again. From SPRING YEAR 1 that is
-     *             SPRING, SUMMER, FALL, WINTER and SPRING YEAR 2, so the year
-     *             rollover is reachable on day 0 rather than in nine hours of
-     *             play. Which is the point of having a year on the banner at
-     *             all: two SPRINGs are reachable and the banner is what tells
-     *             them apart, so it had better be provable immediately.
-     *   back      to month 0, unchanged. A calendar bought when he moved in
-     *             starts there; seasons before he existed are not his to leaf
-     *             through, and a page of a flat he had not rented is stranger
-     *             than a page he cannot reach.
+     * BACK: TO ABSOLUTE MONTH -4, WHICH IS SPRING YEAR 0, and that number is
+     * principled rather than picked. `YEAR0` is 1 and the year comes off
+     * `fdiv(month, 4)`, so walking back gives WINTER YEAR 0, FALL YEAR 0,
+     * SUMMER YEAR 0, SPRING YEAR 0 — and then WINTER YEAR **-1**. Month -4 is
+     * exactly the deepest page whose banner is not a negative number. A wall
+     * calendar showing "YEAR -1" is nonsense in a way "YEAR 0" is not: YEAR 0
+     * reads as the year before he moved in, which is a pad he could plausibly
+     * still have on the nail.
      *
-     * STILL CLAMPED. Unbounded scrolling into YEAR 47 is worse than too narrow
-     * — it is a control with no end, and the pad is a physical object.
+     * So the floor is the BANNER's, not the tenancy's. The move-in floor is
+     * gone, exactly as asked — he can leaf a full year into the past on day 0,
+     * and further as time passes, because the floor is absolute while the
+     * forward window is relative.
      *
-     * The range still GROWS backwards as he lives here: day 0 gives 5 pages,
-     * a year in gives 9. Expressed against `calToday()` every time rather than
-     * stored, so it cannot go stale over a sleep.
+     *   day   0   months  -4 … +20   25 pages   SPRING Y0 … WINTER Y5
+     *   day 300   months  -4 … +30   35 pages   SPRING Y0 … WINTER Y8
      */
-    const CAL_AHEAD = 4;                        // seasons forward — one full year
+    const CAL_AHEAD = 20;                       // seasons forward — five years
+    const CAL_FLOOR = -4;                       // SPRING YEAR 0, the last non-negative banner
     const calClamp = (p: number) => {
       const m = Math.floor(calToday() / DAYS_PER_SEASON);
-      return Math.max(-m, Math.min(CAL_AHEAD, p));
+      return Math.max(CAL_FLOOR - m, Math.min(CAL_AHEAD, p));
     };
     const openCalendar = () => {
       if (!calPanel) {
@@ -5459,10 +5463,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
               calPanel?.repaint();
             },
           },
-          // back to this season every time you walk up to it — a page you left
-          // turned three seasons forward is a state the player cannot see the
-          // cause of. The selection goes with it for the same reason.
+          // ── IT IS ALWAYS ON TODAY WHEN HE WALKS UP TO IT ────────────────
+          //
+          // *"so exiting the cal should always rest it to today"*
+          //
+          // ON CLOSE, WHICH IS THE ONE HE ASKED FOR, and `onClose` runs on
+          // EVERY exit — `[E]`, Escape, standing up, and the automatic close
+          // when another panel opens. That is the same seam `ct/tenancy.ts`
+          // relies on for the letter sheet, and it is why there is no path that
+          // leaves the page turned.
+          //
+          // AND ON OPEN AS WELL, kept rather than replaced. It is not
+          // redundant: a panel built but never opened, or a close that somehow
+          // did not run, would still be corrected the moment he walks up. Two
+          // cheap assignments against a state the player cannot see the cause
+          // of — a calendar he left on WINTER YEAR 4 greeting him with WINTER
+          // YEAR 4 is exactly the bug he is describing in reverse.
+          //
+          // THE SELECTION GOES WITH THE PAGE, both times: the biro lines under
+          // the grid are the selected day's, and a pick left over from last
+          // visit would print a date on a page he did not choose.
           onOpen: () => { calPage = 0; calSel = null; },
+          onClose: () => { calPage = 0; calSel = null; },
         });
       }
       calPanel.open();
