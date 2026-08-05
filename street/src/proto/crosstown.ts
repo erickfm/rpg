@@ -2520,15 +2520,15 @@ export function makeCrosstown(): Proto {
       if (worn('watch').kind !== 'none') stops.push('watch');
       stops.push('nothing');
       if (!stops.includes(carousel)) carousel = 'nothing';
-      // ⚠ RIGHT-CLICK ALREADY DID SOMETHING AND IT STILL DOES. It has flipped
-      // the WALLET out and away since long before this, on this same edge
-      // detector — so the carousel does not get a second listener or a second
-      // `rmbHeld`. It takes the button ONLY while looking down; stand up, look
-      // ahead, right-click, and the wallet comes out exactly as it always has.
+      // ⚠ RIGHT-CLICK IS NOW THE CAROUSEL'S AND NOTHING ELSE'S. It used to flip
+      // the wallet out and away, and *"get rid of the whole wallet thing"* took
+      // that with it — so outside the look-down gate the button does nothing at
+      // all, deliberately and not by oversight. It is free for the next thing
+      // that wants it. `main.ts` still swallows the browser's context menu, so
+      // a stray right-click on the world is silent rather than a menu.
       const rmb = input.keys.has('rmb');
-      if (rmb && !rmbHeld) {
-        if (lookingDown) carousel = stops[(stops.indexOf(carousel) + 1) % stops.length];
-        else hud.toggleWallet();
+      if (lookingDown && rmb && !rmbHeld) {
+        carousel = stops[(stops.indexOf(carousel) + 1) % stops.length];
       }
       rmbHeld = rmb;
       hud.watch(lookingDown && carousel === 'watch', Math.floor(clockMin));

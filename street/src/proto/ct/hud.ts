@@ -79,12 +79,6 @@ export interface Hud {
    *  the standing HUD text removed, and a number nailed to the screen forever
    *  is that same complaint in a new coat. */
   setFps: (text: string | null) => void;
-  /** right-click: flip the wallet out / away */
-  toggleWallet: () => void;
-  /** put the wallet away. `ct/inventory.ts` calls this when the POCKETS open:
-   *  both are held objects centred at the bottom of the frame, so two out at
-   *  once would be one drawn over the other. One thing in your hands at a time. */
-  closeWallet: () => void;
   /** repaint the wallet if it happens to be open (after a buy, after feeding) */
   refreshWallet: () => void;
   /** the [E] hint under the crosshair; null hides it */
@@ -1394,7 +1388,6 @@ export function makePanel(spec: PanelSpec): Panel {
       raising++;
       try {
         closePanels();
-        LIVE?.closeWallet();
         closeHeld();
       } finally { raising--; }
       open = true;
@@ -1793,7 +1786,6 @@ export function screenFading(): boolean { return LIVE ? LIVE.fading() : false; }
 
 export function makeHud(purse: Purse): Hud {
   let watchShown = -1;
-  let walletOpen = false;
   /** The F readout's own element, created on first use so a world that never
    *  toggles it adds nothing to the DOM at all. */
   let fpsDiv: HTMLDivElement | null = null;
@@ -1840,7 +1832,10 @@ export function makeHud(purse: Purse): Hud {
   // palette. The forearm below asks what you have on; it no longer guesses.
   //
   // What is left here is genuinely skin, which no garment changes.
-  const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54' };
+  // `skinHi`/`skinLo` went with the wallet's thumbs, which were the only thing
+  // that ever read them. The limb is one flat tone by his own repeated
+  // instruction, so there is nothing left that wants a second skin value.
+  const player = { skin: '#c9946a' };
   // THE ARM IS CACHED ON THE MINUTE (`watchShown`), which is right — the LCD
   // only changes once a game minute. Changing your SLEEVE or your watch does
   // not move the clock, so without this the limb would keep the face and the
@@ -2482,118 +2477,28 @@ export function makeHud(purse: Purse): Hud {
     g.restore();
     g.restore();
   };
-  const WALLET_W = 180, WALLET_H = 140;
-  let walletWrap = document.getElementById('ct-wallet') as HTMLDivElement | null;
-  let walletCv: HTMLCanvasElement;
-  if (!walletWrap) {
-    walletWrap = document.createElement('div');
-    walletWrap.id = 'ct-wallet';
-    walletWrap.style.cssText = 'position:fixed;left:50%;bottom:-8px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(150%) rotate(2deg);transition:transform .18s ease-out;';
-    walletCv = document.createElement('canvas');
-    walletCv.width = WALLET_W; walletCv.height = WALLET_H;
-    walletCv.style.cssText = 'width:340px;height:264px;image-rendering:pixelated;display:block;';
-    walletWrap.appendChild(walletCv);
-    document.body.appendChild(walletWrap);
-  } else {
-    walletCv = walletWrap.firstChild as HTMLCanvasElement;
-    walletCv.width = WALLET_W; walletCv.height = WALLET_H;
-  }
-  // first-person: an open bifold held in front of you in both hands — not a
-  // corner menu. Thumbs grip the near edge; left leaf is your ID + pockets,
-  // right leaf the cash. Slides up into view like the watch.
-  const drawWallet = () => {
-    const g = walletCv.getContext('2d')!;
-    g.clearRect(0, 0, WALLET_W, WALLET_H);
-    const { skin, skinHi, skinLo } = player;
-    const wx = 20, wy = 16, ww = 140, wh = 104;
-    g.fillStyle = '#2e2116'; g.fillRect(wx - 3, wy - 3, ww + 6, wh + 6);  // edge shadow
-    g.fillStyle = '#4a3626'; g.fillRect(wx, wy, ww, wh);                  // leather
-    g.fillStyle = '#5a4230'; g.fillRect(wx, wy, ww, 4);                   // top sheen
-    g.fillStyle = '#2e2116'; g.fillRect(wx + ww / 2 - 1, wy, 2, wh);      // centre fold
-    g.strokeStyle = 'rgba(222,210,180,0.22)'; g.setLineDash([3, 3]);
-    g.strokeRect(wx + 4.5, wy + 4.5, ww - 9, wh - 9); g.setLineDash([]);
-    // right leaf — bills + cash total
-    const rx = wx + ww / 2 + 8;
-    g.fillStyle = '#587a4a'; g.fillRect(rx + 2, wy + 8, 52, 8);
-    g.fillStyle = '#6a8a5a'; g.fillRect(rx, wy + 12, 56, 34);
-    g.fillStyle = '#7a9a68'; g.fillRect(rx, wy + 12, 56, 3);
-    g.fillStyle = '#24301c'; g.font = 'bold 13px monospace'; g.textAlign = 'center';
-    g.fillText(`$${purse.cash.toFixed(2)}`, rx + 28, wy + 34);
-    // left leaf — ID card over your pockets (item list)
-    const lx = wx + 9;
-    g.fillStyle = '#c9b48a'; g.fillRect(lx, wy + 8, 54, 20);
-    g.fillStyle = '#8a7a58'; g.fillRect(lx + 2, wy + 10, 18, 16);
-    g.fillStyle = '#6a5a3c'; g.fillRect(lx + 23, wy + 12, 28, 2); g.fillRect(lx + 23, wy + 16, 24, 2); g.fillRect(lx + 23, wy + 20, 20, 2);
-    // How full you are, ABOVE the list rather than under it. The pockets have
-    // been finite since `ct/inventory.ts` landed, and a limit the player only
-    // meets by being refused is a limit that reads as a bug — so it goes on the
-    // face of the thing whose whole job is to list them. Above, because the list
-    // grows downward and the bottom of the wallet is where the world's own
-    // caption bar sits: a line under six items would be printed behind it.
-    g.textAlign = 'left';
-    g.fillStyle = '#9a927e'; g.font = '6px monospace';
-    const pi = pocketInfo?.();
-    if (pi) g.fillText(`${pi.used}/${pi.max} pockets`, lx, wy + 36);
-    g.fillStyle = '#e8e2d0'; g.font = '7px monospace';
-    let iy = wy + 47;
-    for (const [k, n] of Object.entries(purse.inv)) { if (n > 0) { g.fillText(`${k} x${n}`, lx, iy); iy += 10; } }
-    if (iy === wy + 47) { g.fillStyle = '#9a927e'; g.fillText('(empty pockets)', lx, iy); }
-    // thumbs gripping the near corners
-    const thumb = (tx: number) => {
-      g.fillStyle = skin; g.fillRect(tx, wy + wh - 22, 26, 34);
-      g.fillStyle = skinHi; g.fillRect(tx, wy + wh - 22, 26, 3);
-      g.fillStyle = skinLo; g.fillRect(tx, wy + wh + 8, 26, 4);
-      g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(tx + 7, wy + wh - 14, 12, 14); // nail
-    };
-    thumb(wx - 8); thumb(wx + ww - 18);
-  };
-  /**
-   * ── THE LAYER THE [E] PROMPT LIVES ON ────────────────────────────────────
-   *
-   * *"also the e dialog should always be above anything else. never behind"*
-   * (2026-08-04). It was on **10**, and this file's whole stack is:
-   *
-   *      5  the night wash
-   *      9  the selection outline
-   *     11  the watch, the wallet
-   *     12  the build stamp
-   *  → 13  THE NOTE            (was 10 — below for why it is not 16)
-   *     14  the panel backdrop
-   *     15  the panel
-   *  → 16  THE [E] PROMPT      (was 10)
-   *     20  the fade, the fps counter
-   *
-   * TWO THINGS ACTUALLY COVERED IT, not one, and they are different bugs that
-   * happen to share a number:
-   *
-   *   · THE WATCH. `bottom:-14px` on a 198 px element puts its top ~184 px up
-   *     the screen and the prompt sits at 88, so the fist lands right across
-   *     the prompt's row. The case that matters is SEATED — the
-   *     seated prompt is unconditional (`crosstown.ts` never lets the exit
-   *     label leave the screen, deliberately), so sit down, look at the time,
-   *     and *"[E] stand up"* goes behind your own arm. That is the "a panel you
-   *     cannot close" family: the label naming the way out, hidden.
-   *   · THE WALLET. 340 x 264 at `left:50%`, `bottom:-8px` — it covers the
-   *     prompt's position outright. And `toggleWallet` calls `closePanels()`,
-   *     so it is NOT a panel: `panelUp()` is null the whole time it is open and
-   *     the prompt stays visible underneath it rather than being suppressed.
-   *
-   * THE OVERLAP IS NOT A FUNCTION OF WHERE THE ARM IS TUNED TO SIT. The element
-   * is `bottom:-14px` and 198 px tall in every version of it this file has ever
-   * shipped, so it crosses the prompt's row at 88 whatever the drop and the tilt
-   * are — which is why this layering stays correct across the arm being retuned,
-   * reverted, and reverted again. Do not re-derive it from today's numbers.
-   *
-   * ABOVE THE PANEL TOO, at 16 rather than 13, even though `prompt()` already
-   * refuses to draw while `panelUp()`. Two guards that agree cost nothing; a
-   * z-order that quietly depends on a `display:none` somewhere else is how this
-   * comes back.
-   *
-   * THE ONE THING STILL ABOVE IT IS THE FADE, AND IT IS NOT AN EXCEPTION TO HIS
-   * RULE — see `prompt()`, which now hides while `fading`. The prompt is never
-   * behind the black because it is not there: a caption reading *"[E] the bed"*
-   * floating over a sleep cut is not the fix he asked for.
-   */
+  // ══ THE WALLET IS GONE ═══════════════════════════════════════════════════
+  //
+  // *"get rid of the whole wallet thing"*   (2026-08-05)
+  //
+  // An open bifold held in both hands, 180 x 140, flipped out and away on
+  // right-click: its canvas, its element, its painter, its `walletOpen` state,
+  // its thumbs and both `toggleWallet`/`closeWallet` are all deleted.
+  //
+  // ⚠ **THE MONEY IS NOT THE WALLET AND DID NOT GO WITH IT.** `Purse` — cash,
+  // account, card, pin and `inv` — is state this file DECLARES and
+  // `crosstown.ts` OWNS; the wallet only ever drew a picture of it, as its own
+  // header said from the first day (*"the wallet is a view onto this, nothing
+  // more"*). Thirteen modules read `purse.cash`: the ATM, both banks, the pawn
+  // shop, the bodega, the burger bar, the thrift store, the diner, slots,
+  // blackjack, tenancy and inventory. Rent is $45 a season and is charged
+  // against it. Every one of them is untouched.
+  //
+  // `refreshWallet` SURVIVES AND IS A MISNOMER NOW, kept deliberately: it is
+  // the *"the purse changed"* signal, it notifies `PURSE_WATCH` — which is how
+  // the pockets panel repaints — and it is called from fifteen modules. Only
+  // its wallet half is gone. Renaming it is a mechanical fifteen-file change
+  // and is the follow-up; doing it here would bury this deletion in noise.
   const Z_PROMPT = 16, Z_NOTE = 13;
   let promptDiv = document.getElementById('ct-prompt') as HTMLDivElement | null;
   if (!promptDiv) {
@@ -2731,23 +2636,11 @@ export function makeHud(purse: Purse): Hud {
       fpsDiv.style.display = 'block';
       fpsDiv.textContent = text;
     },
-    toggleWallet: () => {
-      walletOpen = !walletOpen;
-      if (walletOpen) { closePanels(); closeHeld(); drawWallet(); }
-      walletWrap!.style.transform = walletOpen
-        ? 'translateX(-50%) translateY(0) rotate(2deg)'
-        : 'translateX(-50%) translateY(150%) rotate(2deg)';
-    },
-    closeWallet: () => {
-      if (!walletOpen) return;
-      walletOpen = false;
-      walletWrap!.style.transform = 'translateX(-50%) translateY(150%) rotate(2deg)';
-    },
     // ONE SIGNAL, BOTH VIEWS. Everything in the world that changes the purse
     // already calls this — the bodega counter, the ATM, feeding the birds — so
     // the pockets panel refreshes off the same call rather than needing every
     // one of those callers to learn that a second view exists.
-    refreshWallet: () => { if (walletOpen) drawWallet(); for (const f of PURSE_WATCH) f(); },
+    refreshWallet: () => { for (const f of PURSE_WATCH) f(); },
     prompt: (text) => {
       // THE DOUBLE CAPTION. `crosstown.ts`'s per-frame loop calls this every
       // frame from whatever the player is standing on or seated at — it does
