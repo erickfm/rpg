@@ -609,7 +609,7 @@ function characterOf(name: string): Character {
   if (name.startsWith('A-1 TAX')) return 'tax';
   if (name === 'PAWN') return 'pawn';
   if (name === 'SLEEP CENTER') return 'mattress';
-  if (name === 'ELECTRO CITY') return 'electro';
+  if (name === 'VOLT VILLAGE') return 'electro';
   if (name === 'VIDEO HUT') return 'video';
   return 'default';
 }
@@ -1357,7 +1357,7 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
   // and the flag can retire whenever D is next in that file.)
   if (name === 'DINER') return dinerFront(brick, name, wMeters);
   if (name === 'THRIFT') return thriftFront(brick, name, awning, wMeters);
-  if (name === 'ELECTRO CITY') return electroFront(brick, name, wMeters);
+  if (name === 'VOLT VILLAGE') return electroFront(brick, name, wMeters);
   if (name === 'VIDEO HUT') return videoFront(brick, name, wMeters);
   const surf = masonry(wMeters, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
@@ -2242,7 +2242,16 @@ export const mattressFront = (brick: string, wM: number) => {
 };
 
 /**
- * ELECTRO CITY — *"replace 'radio' with an electronics shop."*
+ * VOLT VILLAGE — *"replace 'radio' with an electronics shop."*, then
+ * *"name the electronics shop volt village"* (2026-08-05).
+ *
+ * ⚠ THE FASCIA PRINTS `nm`, NOT A STRING TYPED HERE. It always took the name as
+ * an argument and always ignored it, printing its own copy — so the shop had
+ * two names in two files and a rename had to find both. It prints what it is
+ * given now, which is what the parameter was for. The identifiers below stay
+ * `electro`/`electroFront` on purpose: they name the KIND of frontage — an
+ * electronics showroom, lit screens behind glass — not the trading name, and
+ * the whole point of this change is that the trading name lives in one place.
  *
  * THE WALL OF TELEVISIONS IS THE WHOLE FRONT. Everything else here is in
  * service of it. A 1997 electronics discounter is recognised from the far
@@ -2279,8 +2288,14 @@ const electroFront = (brick: string, nm: string, wM: number) => {
     g.fillRect(m(0.2), fy + fh - m(0.16), W - m(0.4), Math.max(1, m(0.06)));
     g.font = `bold ${m(0.5)}px monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillText('ELECTRO CITY', W / 2 + 1, fy + fh / 2 + 1);
-    g.fillStyle = RED; g.fillText('ELECTRO CITY', W / 2, fy + fh / 2);
+    // FIXED AT 0.5 m, NOT FITTED TO THE WIDTH — so the casino marquee's trap
+    // (short text auto-grows until it hits the rule above it) cannot happen
+    // here. The budget runs the other way and is enormous: 12 monospace
+    // characters at a 0.6 em advance is ~3.6 m of lettering on a 12 m fascia,
+    // 30% of it, and both the old name and the new are exactly 12 characters,
+    // so the rendered width is identical to the pixel.
+    g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillText(nm, W / 2 + 1, fy + fh / 2 + 1);
+    g.fillStyle = RED; g.fillText(nm, W / 2, fy + fh / 2);
     // ── the opening ───────────────────────────────────────────────────────
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#17191d'; g.fillRect(ox, oy, ow, oh);

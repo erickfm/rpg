@@ -1102,12 +1102,19 @@ export function buildStreet(o: {
   // shop."* An IDENTITY change only: `w` stays 12 and the placement stays
   // absolute, so no run and no cursor sees this at all.
   //
+  // …AND ELECTRO CITY BECAME VOLT VILLAGE — *"name the electronics shop volt
+  // village"* (2026-08-05). Identity again, and this time it is one string:
+  // `tex-world.ts`'s fascia painter takes the name as an argument now instead
+  // of printing its own copy of it, so the trading name lives HERE and nowhere
+  // else. Both names happen to be 12 characters, which is a coincidence and no
+  // longer one anything depends on.
+  //
   // Graphite, not the old navy. The navy was a repair shop's colour and it also
   // sat one shade off A-1 TAX's; a 1997 TV-and-hi-fi discounter is a near-black
   // fascia with red lettering and a wall of lit screens behind the glass, and
   // nothing else on this block wears black. `col` is also the projecting
   // joinery, so it and `electroFront`'s fascia are the same value on purpose.
-  placeBld(-1, -98, { nm: 'ELECTRO CITY', col: '#2a2d33', w: 12, brick: '#835444', floors: 4 });
+  placeBld(-1, -98, { nm: 'VOLT VILLAGE', col: '#2a2d33', w: 12, brick: '#835444', floors: 4 });
   // THE EAST CROSS BUILDING IS GONE, AND THE JAIL SITE IS PUBLISHED IN ITS PLACE.
   //
   // What stood here was a 6 x 24 x 13.6 shell centred on (SIDE_X1 + 5), put
