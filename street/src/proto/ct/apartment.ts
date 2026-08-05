@@ -5329,22 +5329,38 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     /**
      * ── HOW FAR THE PAGE TURNS ────────────────────────────────────────────
      *
-     * *"on the calendar, i want scrol to change the month"*   (2026-08-05)
+     * *"i can only scroll through spring and summer?"*   (2026-08-05)
      *
-     * CLAMPED, NOT UNBOUNDED, and the bounds are the tenancy's rather than a
-     * round number: back to the season he moved in (day 0, month 0) and forward
-     * one season past the one he is in. That is what a pad on a wall is — every
-     * page you have lived through, and next month's, which is printed. Scroll
-     * past the end of the lease and you are reading a calendar for a flat you
-     * do not have yet, which is not a thing the room can tell you about.
+     * TOO TIGHT, AND HE IS RIGHT THAT IT READ AS BROKEN. The first version was
+     * "back to the season you moved in, forward one" — reasonable as a rule and
+     * wrong as an experience, because on day 0 that is SPRING and SUMMER and
+     * nothing else. A pad that refuses to show you next autumn is not a pad.
      *
-     * The range GROWS as he lives here: on day 0 it is two pages, after a year
-     * it is six. It is expressed against `calToday()` every time rather than
+     * A FULL YEAR FORWARD, AND BACK TO WHEN HE MOVED IN.
+     *
+     *   forward   +4 seasons from the one he is in — the whole year, plus the
+     *             page where it starts again. From SPRING YEAR 1 that is
+     *             SPRING, SUMMER, FALL, WINTER and SPRING YEAR 2, so the year
+     *             rollover is reachable on day 0 rather than in nine hours of
+     *             play. Which is the point of having a year on the banner at
+     *             all: two SPRINGs are reachable and the banner is what tells
+     *             them apart, so it had better be provable immediately.
+     *   back      to month 0, unchanged. A calendar bought when he moved in
+     *             starts there; seasons before he existed are not his to leaf
+     *             through, and a page of a flat he had not rented is stranger
+     *             than a page he cannot reach.
+     *
+     * STILL CLAMPED. Unbounded scrolling into YEAR 47 is worse than too narrow
+     * — it is a control with no end, and the pad is a physical object.
+     *
+     * The range still GROWS backwards as he lives here: day 0 gives 5 pages,
+     * a year in gives 9. Expressed against `calToday()` every time rather than
      * stored, so it cannot go stale over a sleep.
      */
+    const CAL_AHEAD = 4;                        // seasons forward — one full year
     const calClamp = (p: number) => {
       const m = Math.floor(calToday() / DAYS_PER_SEASON);
-      return Math.max(-m, Math.min(1, p));
+      return Math.max(-m, Math.min(CAL_AHEAD, p));
     };
     const openCalendar = () => {
       if (!calPanel) {
