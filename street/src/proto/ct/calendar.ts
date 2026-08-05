@@ -92,11 +92,29 @@ export const DAYS_PER_YEAR = DAYS_PER_SEASON * SEASONS.length;
  * the grey street wants to match its weather instead, FALL is a one-word change
  * to `SEASON0` and nothing else moves.
  *
- * THE YEAR. 1997, kept, because the world is called CROSSTOWN '97 and the wall
- * calendar has stamped that year since it was drawn. Seasons roll the year over:
- * after WINTER 1997 comes SPRING 1998.
+ * ── THE YEAR IS YEAR 1 NOW, NOT 1997 ──────────────────────────────────────
+ *
+ * *"i think you can also get rid of the year. maybe just year 1"*  (2026-08-05)
+ *
+ * HE OFFERED BOTH — no year at all, or YEAR 1 — AND THE PAGE KEEPS ONE, for a
+ * reason that arrived in the same message as the year did: the wall calendar
+ * now SCROLLS between seasons. Every fifth page you turn back to is SPRING
+ * again, and with nothing but the season name on the banner two different
+ * SPRINGs are the same picture. A year is the only thing on the page that says
+ * which one you are looking at. Drop it and the scroll loses its landmark.
+ *
+ * 1997 IS UNTOUCHED AS THE SETTING. The world is CROSSTOWN '97 and stays so —
+ * this number was only ever printed in one place, the banner of the calendar in
+ * 301 (`ct/apartment.ts`, the `stampNum` line), and nothing else in the world
+ * derived an era from it. Checked all of it: `dateStr` has no callers at all,
+ * `ct/tenancy.ts` reads `dateOf(...).season` and never `.year`, so no rent
+ * notice, receipt or carbon has ever carried a year to disagree with. The
+ * library's `b.year` is a BOOK's publication date and is not this. The signage,
+ * the television and the watch's CROSSTOWN QUARTZ face read nothing from here.
+ *
+ * Seasons still roll it over, so after WINTER, YEAR 1 comes SPRING, YEAR 2.
  */
-export const YEAR0 = 1997;
+export const YEAR0 = 1;
 /** which of `SEASONS` day 0 falls in */
 export const SEASON0 = 0;
 
@@ -153,7 +171,7 @@ export function seasonOf(day: number): Season { return dateOf(day).season; }
  */
 export function dateStr(day: number): string {
   const d = dateOf(day);
-  return `${d.season} ${d.dayOfSeason}, ${d.year}`;
+  return `${d.season} ${d.dayOfSeason}, YEAR ${d.year}`;
 }
 
 /** Sunday. No post. Day 0 is a Monday, so `weekday === 6` is Sunday for ever. */

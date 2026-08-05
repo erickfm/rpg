@@ -39,7 +39,7 @@ import { drawerPanel, liningCanvas, paintLiningOnly, DRAWER_W, DRAWER_D } from '
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
  *  months. See the note where `CAL_WEEK` is declared. */
-import { RENT, seasonPage, isRentDay, nextDueDay } from './calendar';
+import { RENT, seasonPage, isRentDay, nextDueDay, noticeDay, DAYS_PER_SEASON } from './calendar';
 
 // ── No. 227 — the player's walk-up ────────────────────────────────────────
 // Four stories, a switchback stair, your place (301) on the third floor,
@@ -4872,6 +4872,72 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const CAL_STANDOFF = (CAL_H / 2) / Math.tan((CAL_FOV * Math.PI) / 360) * 1.18;
 
     /**
+     * ── THE GRID, IN ONE PLACE ────────────────────────────────────────────
+     *
+     * Read by the painter AND by the click hit-test, which is the whole reason
+     * it was lifted out of `drawCalendar`. The bag paid for this lesson twice:
+     * a layout that the drawing owns and the hit-test re-derives is a layout
+     * that drifts, and you end up clicking the 8th and selecting the 9th.
+     *
+     * Every number below is exactly what was inlined before, comment and all:
+     * a row is never taller than a column is wide, and a short grid is CENTRED
+     * in the band it no longer fills. At five rows or more it is an identity.
+     */
+    const CAL_GRID_T = 24, CAL_GRID_B = 55;
+    const calGrid = (weeks: number) => {
+      const COL_W = 6, X0 = 3;
+      const rowH = Math.min(COL_W, (CAL_GRID_B - CAL_GRID_T) / weeks);
+      return { COL_W, X0, rowH, gridT: (CAL_GRID_T + CAL_GRID_B) / 2 - (weeks * rowH) / 2 };
+    };
+    /** the centre of the cell holding `n` (1-based), in design units */
+    const calCell = (n: number, lead: number, weeks: number) => {
+      const { COL_W, X0, rowH, gridT } = calGrid(weeks);
+      const idx = lead + n - 1;
+      return { cx: X0 + (idx % 7) * COL_W + COL_W / 2,
+               cy: gridT + Math.floor(idx / 7) * rowH + rowH / 2, rowH, COL_W };
+    };
+    /**
+     * WHICH DAY IS UNDER A POINT, or null. The inverse of `calCell`, off the
+     * same `calGrid`, so the two cannot disagree.
+     */
+    const calDayAt = (ux: number, uy: number, day: number, offset: number): number | null => {
+      const p = seasonPage(day, offset);
+      const { COL_W, X0, rowH, gridT } = calGrid(p.weeks);
+      const col = Math.floor((ux - X0) / COL_W);
+      const row = Math.floor((uy - gridT) / rowH);
+      if (col < 0 || col > 6 || row < 0 || row >= p.weeks) return null;
+      const n = row * 7 + col - p.lead + 1;
+      return n >= 1 && n <= p.nDays ? p.day0 + n - 1 : null;
+    };
+    /**
+     * ── WHAT IS ON A DAY ──────────────────────────────────────────────────
+     *
+     * *"then when you click a day, say the 1st ytou can see it just says, rent
+     *  due"*   (2026-08-05)
+     *
+     * ⚠ NOTHING IS INVENTED HERE. These are the only two dated things
+     * `ct/calendar.ts` actually knows, and both come straight out of it:
+     *
+     *   RENT DUE      `isRentDay` — the 1st of every season
+     *   RENT NOTICE   `noticeDay` — three days before, backed off Sundays
+     *
+     * NOT SURFACED, and each for a reason. The SEASON CHANGE falls on the same
+     * day as the rent and the banner above the grid already names the season,
+     * so it would be a third label for a fact stated twice. SUNDAY (`noDelivery`)
+     * is real and is not an event — labelling every seventh cell "NO POST" is
+     * noise, and it is a property of the week rather than something happening.
+     *
+     * AN EMPTY DAY RETURNS NULL AND PRINTS NOTHING. A calendar whose every
+     * square has something written on it is a calendar with nothing on it.
+     */
+    const calEventOn = (gd: number): string | null => {
+      if (isRentDay(gd)) return `RENT DUE  $${RENT.amount}`;
+      const n = nextDueDay(gd) / DAYS_PER_SEASON;
+      if (noticeDay(n) === gd) return 'RENT NOTICE';
+      return null;
+    };
+
+    /**
      * The SEASON page, at any canvas size that is 3:4.
      *
      * `day` is the game day; `offset` is how many seasons forward or back of
@@ -4880,7 +4946,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * on whole pixels through `u()`, so it is crisp at S = 1 and at S = 6.
      */
     const drawCalendar = (g: CanvasRenderingContext2D, W: number, H: number,
-                          day: number, offset: number) => {
+                          day: number, offset: number, sel: number | null = null) => {
       const S = W / 48;
       const u = (v: number) => Math.round(v * S);
       const box = (x: number, y: number, w: number, h: number, fill: string) => {
@@ -4915,12 +4981,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // seasons. At 6.5 'SPRING' is ~23 of the 48 units, which is the width
       // 'SEPTEMBER' used to occupy, so the banner reads as it always did.
       text(page.season, 24, 5.5, 6.5, '#e8dcb8');
-      // the year keeps the 4x5 pixel font this calendar has always used, scaled
-      // rather than replaced — at S = 1 it is the identical stamp it was.
-      g.save();
-      g.translate(u(24 - 9.5), u(9)); g.scale(S, S);
-      stampNum(g, String(page.year), 0, 0, '#e8dcb8');
-      g.restore();
+      // ── 'YEAR 1', NOT '1997' ────────────────────────────────────────────
+      // *"i think you can also get rid of the year. maybe just year 1"*. The
+      // reasoning for keeping A year at all is in `ct/calendar.ts` at `YEAR0`:
+      // the page scrolls now, so two different SPRINGs are reachable and the
+      // year is the only thing that tells them apart.
+      //
+      // DRAWN WITH `text`, NOT `stampNum`. The 4x5 pixel numeral was built for
+      // four digits and is centred as such — `24 - 9.5` is half of '1997' — so
+      // a bare '1' would sit a digit and a half left of centre, and the word
+      // YEAR cannot be stamped by it at all. Using the banner's own face makes
+      // the block internally consistent: the season in the big type, the year
+      // in the small, both centred on the same axis.
+      text(`YEAR ${page.year}`, 24, 11.5, 4.2, '#e8dcb8');
       box(0, 17, 48, 47, '#e8e0cc');
 
       // ── THE GRID, WHICH IS NOW FOUR ROWS ─────────────────────────────────
@@ -4942,9 +5015,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // changes nothing about the page anyone has looked at before today, and
       // a season retuned to 35 or 42 days gets the old behaviour back without
       // anyone editing this.
-      const GRID_T = 24, GRID_B = 55, COL_W = 6, X0 = 3;
-      const rowH = Math.min(COL_W, (GRID_B - GRID_T) / weeks);
-      const gridT = (GRID_T + GRID_B) / 2 - (weeks * rowH) / 2;
+      const { COL_W, X0, rowH, gridT } = calGrid(weeks);
       // the weekday letters ride ON the grid rather than on the band, or a
       // centred grid leaves them stranded up by the header. `gridT - 3` is
       // where they have always been drawn (21) whenever the grid starts at 24.
@@ -4960,13 +5031,33 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // marks it has always been. The cell positions, the ring, the crossings
         // and today's block are identical at both scales, so stepping up to it
         // resolves the same page rather than showing a different one.
-        if (S >= 3) text(String(n), cx, cy + 0.2, 3.4, gd === day ? '#f2e8cc' : '#4a443a');
+        const inked = sel !== null && gd === sel ? '#2f4f8c'
+          : gd === day ? '#f2e8cc' : '#4a443a';
+        if (S >= 3) text(String(n), cx, cy + 0.2, 3.4, inked);
         else box(cx - 1.5, cy - 1.5, 3, 3, gd === day ? '#f2e8cc' : '#5a5348');
         if (gd < day) {                                      // crossed off
           biro(0.4);
           g.beginPath();
           g.moveTo(u(cx - 2.1), u(cy - rowH / 2 + 0.9));
           g.lineTo(u(cx + 2.1), u(cy + rowH / 2 - 0.9));
+          g.stroke();
+        }
+        // ── THE SELECTED DAY IS MARKED, NOT BOXED ──────────────────────
+        // The bag's highlight taught this one: an outset rectangle round a
+        // thing reads as a debug overlay, and the fix is to mark the THING.
+        // So the numeral goes over to the biro and a hand underlines it — the
+        // same pen that crosses off the past and rings the rent, which is what
+        // keeps it on the page rather than over it.
+        //
+        // TODAY STAYS THE RED BLOCK and they are different marks on purpose:
+        // once he scrolls to another season today is not even on the page, and
+        // when both land on the same cell the block is behind the underline and
+        // both still read.
+        if (sel !== null && gd === sel) {
+          biro(0.45);
+          g.beginPath();
+          g.moveTo(u(cx - 2.2), u(cy + rowH / 2 - 0.7));
+          g.lineTo(u(cx + 2.2), u(cy + rowH / 2 - 0.7));
           g.stroke();
         }
         if (isRentDay(gd)) {                                 // ringed
@@ -4983,11 +5074,30 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         }
       }
 
-      // and what the ring is, written under it in the same biro
-      const due = nextDueDay(day) - day;
-      text(`RENT $${RENT.amount}  ${RENT.landlord}`, 24, 58, 3.2, '#2f4f8c');
-      text(due === 0 ? 'DUE TODAY' : `DUE IN ${due} DAY${due === 1 ? '' : 'S'}`,
-        24, 62, 3.2, '#2f4f8c');
+      // ── AND WHAT THE PAGE HAS TO SAY, IN THE SAME BIRO ─────────────────
+      //
+      // TWO LINES, ONE PLACE. With nothing picked they are what they have
+      // always been: the ring explained, and how long you have. Pick a day and
+      // the same two lines become that day's — which date it is, and what is on
+      // it. One region, two states, so nothing new is drawn over anything and
+      // the page never grows a second panel. (The bag's option plates do the
+      // same trick in the same session, for the same reason.)
+      //
+      // ⚠ AN EMPTY DAY PRINTS THE DATE AND NOTHING ELSE. Manufacturing a line
+      // for a day with nothing on it — "no events", "nothing today" — is the
+      // calendar talking for the sake of it, and it is the same instinct that
+      // put descriptors on picked-up items that he then had removed.
+      if (sel !== null) {
+        const sd = sel - page.day0 + 1;
+        text(`${page.season} ${sd}`, 24, 58, 3.2, '#2f4f8c');
+        const ev = calEventOn(sel);
+        if (ev) text(ev, 24, 62, 3.2, '#2f4f8c');
+      } else {
+        const due = nextDueDay(day) - day;
+        text(`RENT $${RENT.amount}  ${RENT.landlord}`, 24, 58, 3.2, '#2f4f8c');
+        text(due === 0 ? 'DUE TODAY' : `DUE IN ${due} DAY${due === 1 ? '' : 'S'}`,
+          24, 62, 3.2, '#2f4f8c');
+      }
 
       // Paper grain. The two inks and the 26-specks-per-30x40 density are
       // `ct/paint.ts:399`'s `dither`, and at S = 1 this loop IS `dither` — same
@@ -5140,7 +5250,30 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // before throwing) cannot bite either: `texM` gives this plane ONE
     // `MeshBasicMaterial`, so `screenSlot` has nothing to be ambiguous about.
     let calPage = 0;
+    /** the day he has PICKED, as a game day, or null. Not a cell index — a page
+     *  turn must not silently move the selection to a different date. */
+    let calSel: number | null = null;
     let calPanel: Panel | null = null;
+    /**
+     * ── HOW FAR THE PAGE TURNS ────────────────────────────────────────────
+     *
+     * *"on the calendar, i want scrol to change the month"*   (2026-08-05)
+     *
+     * CLAMPED, NOT UNBOUNDED, and the bounds are the tenancy's rather than a
+     * round number: back to the season he moved in (day 0, month 0) and forward
+     * one season past the one he is in. That is what a pad on a wall is — every
+     * page you have lived through, and next month's, which is printed. Scroll
+     * past the end of the lease and you are reading a calendar for a flat you
+     * do not have yet, which is not a thing the room can tell you about.
+     *
+     * The range GROWS as he lives here: on day 0 it is two pages, after a year
+     * it is six. It is expressed against `calToday()` every time rather than
+     * stored, so it cannot go stale over a sleep.
+     */
+    const calClamp = (p: number) => {
+      const m = Math.floor(calToday() / DAYS_PER_SEASON);
+      return Math.max(-m, Math.min(1, p));
+    };
     const openCalendar = () => {
       if (!calPanel) {
         calPanel = makePanel({
@@ -5148,35 +5281,63 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           // `chrome:'none'` because `drawCalendar` IS the whole object, edge to
           // edge — a framework bezel here would be a plastic case drawn round a
           // picture of a piece of card.
-          hint: () => 'scroll to turn the page',
-          draw: (g, w, h) => drawCalendar(g, w, h, calToday(), calPage),
-          wheel: (d) => { calPage += d; calPanel?.repaint(); },
+          hint: () => 'scroll for the month  ·  click a day',
+          draw: (g, w, h) => drawCalendar(g, w, h, calToday(), calPage, calSel),
+          // ⚠ THE WHEEL IS THE MONTH AND ONLY THE MONTH. It is context-dependent
+          // in this world already — fov zoom out in the street, turning the
+          // figure at the mirror, scrolling rows in the bag — and this is that
+          // same arrangement, taken only while this page is up.
+          //
+          // A PAGE TURN CLEARS THE SELECTION. The label under the grid is the
+          // selected day's, and carrying a pick from SPRING onto the SUMMER page
+          // would print a date that is not on the page you are looking at.
+          wheel: (d) => {
+            const was = calPage;
+            calPage = calClamp(calPage + d);
+            if (calPage !== was) calSel = null;
+            calPanel?.repaint();
+          },
           key: (k) => {
-            if (k === 'arrowright' || k === 'arrowdown') calPage++;
-            else if (k === 'arrowleft' || k === 'arrowup') calPage--;
+            const was = calPage;
+            if (k === 'arrowright' || k === 'arrowdown') calPage = calClamp(calPage + 1);
+            else if (k === 'arrowleft' || k === 'arrowup') calPage = calClamp(calPage - 1);
             else return;
+            if (calPage !== was) calSel = null;
             calPanel?.repaint();
           },
           surface: {
             mesh: () => cal,
             standoff: CAL_STANDOFF,
             fov: CAL_FOV,
-            // `hot`/`click` arrive in THIS canvas's own pixels. Turning the page
-            // is the only thing a wall calendar does, so it is the only thing
-            // offered: the outer fifth of each side, the same left-back /
-            // right-forward gesture the wheel and the arrows already give.
-            hot: (x) => x < CAL_PW * 0.2 || x > CAL_PW * 0.8,
-            click: (x) => {
-              if (x < CAL_PW * 0.2) calPage--;
-              else if (x > CAL_PW * 0.8) calPage++;
-              else return;
+            // ── CLICK PICKS A DAY, AND ONLY A DAY ────────────────────────
+            //
+            // *"but click to only allow for selecting the different days"*.
+            // THE PAGE-TURN CLICK IS DELETED. It used to be the outer fifth of
+            // each side, left-back and right-forward — a second way to do what
+            // the wheel does, sitting exactly where a hand goes to click the
+            // first and last columns of the grid. Two verbs on one gesture, and
+            // he named which one he wants.
+            //
+            // `hot`/`click` arrive in THIS canvas's own pixels, so both divide
+            // by S to reach the 48 x 64 design units everything else is in.
+            // `calDayAt` is the inverse of the painter's own `calCell`, off one
+            // shared `calGrid` — the bag paid twice for a hit-test that
+            // re-derived a layout the painter owned.
+            hot: (x, y) => calDayAt(x / (CAL_PW / 48), y / (CAL_PW / 48),
+              calToday(), calPage) !== null,
+            click: (x, y) => {
+              const gd = calDayAt(x / (CAL_PW / 48), y / (CAL_PW / 48), calToday(), calPage);
+              if (gd === null) return;
+              // click it again to put it down, the same toggle the bag's items
+              // have — a selection you cannot clear is a mode
+              calSel = calSel === gd ? null : gd;
               calPanel?.repaint();
             },
           },
           // back to this season every time you walk up to it — a page you left
           // turned three seasons forward is a state the player cannot see the
-          // cause of.
-          onOpen: () => { calPage = 0; },
+          // cause of. The selection goes with it for the same reason.
+          onOpen: () => { calPage = 0; calSel = null; },
         });
       }
       calPanel.open();
