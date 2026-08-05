@@ -101,6 +101,25 @@ let dropOut: ((id: string) => boolean) | null = null;
  */
 let pending: { id: string; i: number; x: number; y: number } | null = null;
 let dragging: string | null = null;
+/**
+ * A DRAG JUST ENDED, SO THE `click` THAT FOLLOWS IT IS NOT A CLICK.
+ *
+ * *"i want to be able to unclick by clicking. i click and im holding it but i
+ *  cant unclick"*   (2026-08-05)
+ *
+ * **THIS IS WHY HE COULD NOT DESELECT, AND THE GUARD I WROTE FOR IT WAS DEAD.**
+ * A browser fires `mouseup` and then `click`. Any press that travels more than
+ * `GRAB_PX` becomes a drag — which is most real mouse clicks — so the sequence
+ * was: the drag starts and clears the options, `onUp` settles the item back and
+ * clears `dragging`, and then the trailing `click` arrives, finds no options
+ * open, falls through to the item loop and SELECTS IT AGAIN. Every attempt to
+ * unclick re-clicked. The old guard tested `dragging === null`, which `onUp`
+ * had already made true a moment earlier, so it could never fire.
+ *
+ * A flag set at the end of the drag and consumed by the next click is the fix:
+ * it is the one thing that survives between the two events.
+ */
+let afterDrag = false;
 const GRAB_PX = 6;
 
 const CSS_HIDDEN = 'translateX(-50%) translateY(150%)';
@@ -185,7 +204,9 @@ function onUp(e: MouseEvent): void {
   const id = dragging;
   const p = hit(e);
   dragging = null;
+  pending = null;
   if (!id) return;
+  afterDrag = true;                 // the `click` behind this one is not one
   const items = laid();
   const L = layout(items.length);
   const inside = p && inRect(p.x, p.y, L.mouth);
@@ -203,21 +224,23 @@ function onClick(e: MouseEvent): void {
   if (e.button !== 0) return;
   e.stopImmediatePropagation();
   e.preventDefault();
-  // a click that ended a drag is not also a lift
-  if (pending === null && dragging === null && ptr === null) return;
+  // A CLICK THAT ENDED A DRAG IS NOT ALSO A CLICK — see `afterDrag`. Consumed
+  // here, so the next genuine press is unaffected.
+  if (afterDrag) { afterDrag = false; pending = null; return; }
   const p = hit(e);
-  if (!p) { pending = null; return; }
+  pending = null;
+  if (!p) { menu = null; held = null; paint(); return; }
   if (held) {
     // ON THE LIFTED THING: into your pockets, through the same `give` the whole
     // world uses. ANYWHERE ELSE: back in the bag. It cannot be destroyed — if
     // the pockets refuse it, it goes straight back.
-    if (inRect(p.x, p.y, liftRect()) && purse && roomFor(purse, held) > 0) {
-      if (bagTake(held)) {
-        if (give(purse, held, 1) < 1) bagPut(held, bagCapacity());
-        else onPurse?.();
-      }
-    }
+    // ⚠ A CLICK OUT OF THE CLOSE-UP PUTS IT BACK AND DOES NOTHING ELSE. It used
+    // to POCKET the thing if the click landed on it, which is a second hidden
+    // verb on the same gesture he is trying to use to cancel — exactly the
+    // "i'm holding it and i can't unclick" trap. Taking it into your pockets is
+    // a verb and belongs on a plate with the others, not on a stray click.
     held = null;
+    menu = null;
     paint();
     return;
   }
@@ -241,14 +264,23 @@ function onClick(e: MouseEvent): void {
       paint();
       return;
     }
-    // anywhere else dismisses without acting
+    // ANYWHERE ELSE DISMISSES WITHOUT ACTING — including the item itself, which
+    // is the click-to-unclick he asked for: click to pick it, click it again to
+    // put it down. Nothing is dropped, nothing is used, it simply settles back.
     menu = null;
     paint();
     return;
   }
   const items = laid();
   for (let i = 0; i < items.length; i++) {
-    if (inRect(p.x, p.y, layout(items.length).at(i))) { menu = { id: items[i], i }; paint(); return; }
+    if (inRect(p.x, p.y, layout(items.length).at(i))) {
+      // an explicit toggle as well as the dismiss above, so the intent survives
+      // whatever the branch order becomes later
+      const open = menu as { id: string; i: number } | null;
+      menu = open && open.i === i ? null : { id: items[i], i };
+      paint();
+      return;
+    }
   }
 }
 
