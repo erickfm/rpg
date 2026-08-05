@@ -3392,26 +3392,6 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         d: PKG_D * (0.74 + t * 0.56) * jit(19),
       };
     };
-    const pkgTaken = new Set<string>();      // `${day}:${num}`, so it clears itself
-    let pkgForce = -1;                       // test hook: 1 all, 0 none, -1 the roll
-    const packages = DOORS.map((d) => {
-      const mesh = new THREE.Mesh(pkgG, pkgM);
-      mesh.visible = false;
-      scene.add(mesh);
-      const cap = mkCap();
-      sevColliders.push(cap);
-      // ITEM 260: a parcel cap MOVES. `pkgRoll(q.d.num, day, 7)` picks which
-      // SIDE of the door it sits on and re-rolls every night, so this box jumps
-      // 1.63 m in z between game days — measured, `scripts/probes/
-      // w105-moving-static.mjs DAYS=6`. Invisible to any probe sampling within
-      // one day, which is why it sat in the static list unnoticed.
-      sevActors.push(cap);
-      // NOT spread with `...pkgSize(...)`: that object's `d` is the parcel's
-      // DEPTH and this one's `d` is the DOOR, and the spread would quietly
-      // replace a door with a number. The size lives on the mesh's scale and
-      // the cap, which are the two things that actually have to agree.
-      return { d, mesh, cap, side: 1, present: false };
-    });
     /**
      * Where the parcel stands for a given door, side AND SIZE — never the
      * threshold.
@@ -3429,6 +3409,66 @@ export function buildApartment(ctx: CtxBuild): Apartment {
                     s: { w: number; h: number; d: number }): [number, number, number] =>
       [d.x + d.face * (s.w / 2 + 0.03), d.floor * ST + s.h / 2,
        d.z + side * (DOOR_W / 2 + s.d / 2 + 0.09)];
+    const pkgTaken = new Set<string>();      // `${day}:${num}`, so it clears itself
+    let pkgForce = -1;                       // test hook: 1 all, 0 none, -1 the roll
+    const packages = DOORS.map((d) => {
+      const mesh = new THREE.Mesh(pkgG, pkgM);
+      mesh.visible = false;
+      /**
+       * ── WHY THE PACKAGES GOT DARKER THROUGH THE DAY ────────────────────
+       *
+       * The user: *"why do the packages get darker throughout the day?"*
+       * (2026-08-05), with a parcel measured at 20% of its own colour —
+       * paper 169,141,99 rendering as 33,27,19 — on a landing whose carpet,
+       * wallpaper, skirting and door frame were all lit normally.
+       *
+       * ⚠ IT WAS BEING GRADED BY THE STREET'S NIGHT CURVE, INSIDE A BUILDING.
+       * `props.dimWorld` (crosstown.ts:1150) sweeps the scene once and
+       * exempts interiors by WORLD POSITION — `Math.abs(wp.x) > 100`, and
+       * this building stands at APT_X0 = 200. Every other mesh in the
+       * apartment is placed before it is added, so the guard sees 200 and
+       * skips it. THESE WERE NOT: the parcel's position is driven per frame
+       * from (door, day, side), so at the moment of the sweep all eight sat
+       * at their default (0,0,0), the guard read x = 0, and the grader
+       * collected them as street furniture. They then rode the outdoor
+       * nightfall down to a fifth of their colour while the hall around them
+       * kept its own light — a box in an unlit stairwell, dimming with a
+       * sunset it cannot see.
+       *
+       * THE FIX IS TO TELL THE TRUTH AT COLLECTION TIME rather than to flag
+       * the material. `userData.noLight` looks like the answer and is not:
+       * props.ts:1022 is explicit that it means "takes no LAMP warm term",
+       * registering without poolability — a noLight surface still darkens at
+       * night, which is exactly the thing being complained about. So the mesh
+       * is seated on its own landing before it is added, at the median size
+       * and side 1. Nothing downstream changes: the frame loop moves it every
+       * frame regardless, and this is a real place it genuinely stands.
+       *
+       * NOT NEW TODAY. `mesh.visible = false; scene.add(mesh)` with the
+       * position set only in `onFrame` is how this was originally written;
+       * 9537ba74 changed the material and added a scale and did not touch it.
+       * Swept the rest of the file for the same shape — the hermit, the
+       * ceiling roses, their spill planes, every stair and rail part are all
+       * positioned before their add, and line 3492 is the only per-frame
+       * `position.set` in the building. The parcels were the only one.
+       */
+      const [bx, by, bz] = pkgPos(d, 1, PKG_MED);
+      mesh.position.set(bx, by, bz);
+      scene.add(mesh);
+      const cap = mkCap();
+      sevColliders.push(cap);
+      // ITEM 260: a parcel cap MOVES. `pkgRoll(q.d.num, day, 7)` picks which
+      // SIDE of the door it sits on and re-rolls every night, so this box jumps
+      // 1.63 m in z between game days — measured, `scripts/probes/
+      // w105-moving-static.mjs DAYS=6`. Invisible to any probe sampling within
+      // one day, which is why it sat in the static list unnoticed.
+      sevActors.push(cap);
+      // NOT spread with `...pkgSize(...)`: that object's `d` is the parcel's
+      // DEPTH and this one's `d` is the DOOR, and the spread would quietly
+      // replace a door with a number. The size lives on the mesh's scale and
+      // the cap, which are the two things that actually have to agree.
+      return { d, mesh, cap, side: 1, present: false };
+    });
     for (const q of packages) {
       const key = () => `${Math.floor(ctx.clock.now().totalMin / 1440)}:${q.d.num}`;
       // AT THE MEDIAN SIZE, because a spot's x/z are read ONCE and the parcel's
