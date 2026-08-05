@@ -186,15 +186,16 @@ function hash01(day: number, salt: number): number {
  *
  * These are written as they would be printed, in their own voice, because the
  * joke of junk mail is the register rather than the content.
+ *
+ * THE LENGTH OF THIS TABLE IS PART OF THE SEED. The picker below indexes it by
+ * `hash01(day, …) * JUNK.length`, so adding or removing an entry reshuffles
+ * WHICH piece lands on which day for every day in the world. It does not change
+ * HOW MANY pieces arrive (salts 1 and 2, independent of the table) and it does
+ * not touch the rent notice, which is on its own `noticeLead` schedule. Nothing
+ * outside this file reads the table; the `junkKinds` probe surface derives its
+ * count from it.
  */
 const JUNK: { from: string; lines: string[] }[] = [
-  { from: 'GRAND PRIZE CLEARING HOUSE', lines: [
-    'MR OCCUPANT — YOU MAY ALREADY HAVE',
-    'WON ONE (1) OF THESE PRIZES:',
-    '   A. $1,000,000.00',
-    '   B. A LUGGAGE SET',
-    'RETURN THE GOLD SEAL IN 10 DAYS.',
-  ] },
   { from: 'VIDEO 2000 — MEMBER SERVICES', lines: [
     'Our records show two (2) tapes',
     'overdue on your account. Late fees',
@@ -669,8 +670,50 @@ function findBank(scene: THREE.Scene): { x: number; y: number; z: number; found:
 // Reading your post while the street walks on behind you was not something I
 // had noticed was wrong.
 
-/** the sheet's own size, in canvas texels. The bezel is the framework's. */
+/** the sheet's own DRAWING SPACE, in its own units. The bezel is the
+ *  framework's. Not the canvas size any more — see `LETTER_SS`. */
 const SHEET = { w: 192, h: 178 };
+/**
+ * ── READABILITY ────────────────────────────────────────────────────────────
+ * The user: *"letters should be more readable similar treatment we gave to the
+ * text in the tv ads"* (2026-08-04). That treatment is `TV_SS` in
+ * `ct/apartment.ts`, and the long note there is the argument; this is the same
+ * move on a different surface.
+ *
+ * IT IS A SUPERSAMPLE, NOT A BIGGER SHEET, and getting that backwards is the
+ * trap. Raising `SHEET` alone would leave every coordinate in `drawLetter` —
+ * the 10 px margin, the 14 px sender baseline, the 12 px line pitch, the stamp
+ * at `w - 52` — drawing a small letter in the corner of a big page, and the
+ * type would come out SMALLER on screen, not clearer. Instead the CANVAS is
+ * `LETTER_SS` times bigger and `drawLetter` paints under
+ * `setTransform(SS,0,0,SS,0,0)`, so every rule, band and glyph keeps its exact
+ * size and position on the paper and only the SAMPLING of it gets finer.
+ * 192x178 -> 576x534. THE DRAWN GLYPH SIZE IS UNCHANGED.
+ *
+ * WHY IT WAS MUSH. The body is `UI.font(8)` — an 8 px font resolved on a grid
+ * where a lower-case stroke is barely one texel wide, so each glyph was mostly
+ * antialiased fringe, and the sheet is then magnified hard: 0.2596 m of paper
+ * held at 0.42 m under a 55 deg fov fills about 59% of the frame, so one canvas
+ * texel spans ~3.5 screen pixels. Grey fringe blown up 3.5x is the smear he is
+ * looking at. At SS 3 the same 8 px glyph is resolved across 24 texels.
+ *
+ * 3 RATHER THAN 2 for the reason the television gives: the letters are drawn
+ * with integer coordinates and integer font sizes, so an integer factor keeps
+ * every edge on a texel boundary, and 3 is where an 8 px face has enough grid
+ * under it to hold a stroke.
+ *
+ * STILL NEAREST — the framework's own filtering is untouched, and a soft page
+ * in this flat would read as blurry rather than sharp. ASPECT UNTOUCHED: 192:178
+ * and 576:534 are the same ratio, so the plane below stays derived and correct.
+ *
+ * COST IS NOTHING. 9x the fill, but a letter repaints on OPEN and on a PAGE
+ * TURN — not per frame, unlike the television — so this is nine times a paint
+ * that happens when a hand moves.
+ */
+const LETTER_SS = 3;
+/** the canvas the framework actually allocates, and the space clicks arrive in */
+const PANEL_W = SHEET.w * LETTER_SS;
+const PANEL_H = SHEET.h * LETTER_SS;
 /**
  * The roll on the page — see the note by `sheet.rotateZ` below. A CONSTANT
  * because the sheet is now re-aimed on every open and the roll has to be
@@ -737,10 +780,23 @@ const fill = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: n
 };
 
 /** Paint the SHEET. The framework has already drawn everything around it, and
- *  the origin is the screen's own top left. */
-function drawLetter(g: CanvasRenderingContext2D, w: number, h: number): void {
+ *  the origin is the screen's own top left.
+ *
+ *  THE ARGUMENTS ARE IGNORED ON PURPOSE. The framework passes the CANVAS size,
+ *  which is `LETTER_SS` times the drawing space; everything below is written in
+ *  sheet units and the transform does the rest. See `LETTER_SS`. */
+function drawLetter(g: CanvasRenderingContext2D): void {
   const l = reading[page];
   if (!l) return;
+  // Supersample. `scale`, NOT `setTransform`, and that is not a style choice:
+  // the framework's screen-space fallback (`ct/hud.ts:1422`) does
+  // `g.translate(SX, SY)` before calling this, to seat the page inside the
+  // cabinet's recess — and `setTransform` would wipe that translate and paint
+  // the letter in the corner of the canvas instead. `scale` composes with it.
+  // Nothing accumulates across repaints: both call sites wrap the call in
+  // `g.save()` / `g.restore()`.
+  g.scale(LETTER_SS, LETTER_SS);
+  const w = SHEET.w, h = SHEET.h;
 
   // cheap paper gone slightly yellow, and the crease it was folded on
   fill(g, l.kind === 'junk' ? '#ddd8c4' : '#e6e1cd', 0, 0, w, h);
@@ -832,7 +888,7 @@ function buildPanel(): void {
   // the paper already said what this is, which is exactly why `title` was
   // never set here.
   PANEL = makePanel({
-    id: 'ct-letter', w: SHEET.w, h: SHEET.h, chrome: 'none',
+    id: 'ct-letter', w: PANEL_W, h: PANEL_H, chrome: 'none',
     hint: () => (reading.length > 1
       ? `${page + 1} of ${reading.length}   scroll to turn`
       : 'the only one today'),
@@ -861,12 +917,15 @@ function buildPanel(): void {
       // adds a gesture and no state. Only when there IS more than one, so the
       // cursor never offers a press that would do nothing.
       //
-      // `hot`/`click` arrive in THIS canvas's pixels (`ct/hud.ts:733`), not in
-      // uv and not in client space, so `SHEET.w` is the right thing to halve.
+      // `hot`/`click` arrive in THIS CANVAS's pixels (`ct/hud.ts:733`), not in
+      // uv, not in client space and NOT in the sheet's drawing units — so the
+      // thing to halve is `PANEL_W`, the supersampled width the framework
+      // allocated. Halving `SHEET.w` here would put the divide a third of the
+      // way across the page and every click past it would turn forward.
       hot: () => reading.length > 1,
       click: (x) => {
         if (reading.length < 2) return;
-        page = (page + (x > SHEET.w / 2 ? 1 : reading.length - 1)) % reading.length;
+        page = (page + (x > PANEL_W / 2 ? 1 : reading.length - 1)) % reading.length;
         PANEL?.repaint();
       },
     },
@@ -1052,10 +1111,15 @@ export function register(ctx: CtxBuild): void {
   // bank this file already measured, so C moving the boxes moves the paper too.
   //
   // THE ASPECT IS DERIVED, NOT TYPED. `drawLetter` paints a SHEET.w x SHEET.h
-  // canvas, and a plane of any other ratio stretches the landlord's typewriter.
+  // page, and a plane of any other ratio stretches the landlord's typewriter.
+  // Deriving it from `SHEET` rather than `PANEL_W`/`PANEL_H` is deliberate and
+  // safe — a supersample multiplies both, so the two ratios are identical, and
+  // SHEET is the size the page is actually COMPOSED at.
   // (BUILDER-BRIEF §7b: a texture's density comes from the face it lands on —
-  // 0.28 m of paper carrying 192 canvas px is 686 px/m, which is the density of
-  // a thing held at arm's length and is meant to be this high.)
+  // 0.28 m of paper carrying 576 canvas px is 2057 px/m. It was 686 before
+  // `LETTER_SS`, and the letter being hard to read at 686 is the whole reason
+  // that constant exists: this is a thing held at arm's length filling most of
+  // the frame, so the density is meant to be this high.)
   const SHEET_W = 0.28;
   sheet = add(new THREE.Mesh(
     new THREE.PlaneGeometry(SHEET_W, SHEET_W * SHEET.h / SHEET.w),
