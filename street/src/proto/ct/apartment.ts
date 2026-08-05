@@ -33,7 +33,7 @@ import { screenFade, makePanel, type Panel } from './hud';
  *  `GLASS` is the palette the wall plate below paints with, so the mirror seen
  *  from across the room and the mirror you step into cannot drift apart in
  *  colour (BUILDER-BRIEF §8). */
-import { mirrorPanel, buildRail, glassCanvas, paintGlass } from './mirror';
+import { mirrorPanel, glassCanvas, paintGlass } from './mirror';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
@@ -4328,34 +4328,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // The mesh keeps its name because a probe should be able to find the glass
     // by asking rather than by guessing a shape.
     mirror.name = 'mirror-301';
-    // ── AND THE RAIL HIS CLOTHES HANG ON ─────────────────────────────────
+    // ── AND THERE IS NO WARDROBE FURNITURE AT ALL ────────────────────────
     //
-    // *"the suitcase looks awful and all the little items dont make sense."*
-    // The case is gone. What replaces it is a batten of hooks on the wall LEFT
-    // OF THE MIRROR, above the bed's head, carrying ONE CATEGORY at a time —
-    // see `buildRail` for why one category is the whole fix.
-    //
-    // ⚠ ITS BAND OF WALL WAS THE LAST EMPTY ONE IN FRAME AND IT FITS EXACTLY.
-    // Everything here was measured against what already hangs on this wall
-    // rather than chosen:
-    //   · the MATTRESS tops out at RY+0.45, so nothing may hang below ~RY+0.70
-    //   · the GIG FLYER spans RY+1.31…RY+2.01 (x −2.71…−2.19)
-    //   · the THREE SNAPSHOTS span RY+1.44…RY+1.60 (x −1.82…−1.42)
-    //   · the locked view sees x −2.41…0 of this wall, and the mirror owns
-    //     −1.03…−0.41 of that
-    // So the hooks go at RY+1.30 — a centimetre under the flyer — and the
-    // garments hang 0.55 m from there to RY+0.75, clearing the mattress by
-    // 0.30 m. The batten is 1.30 m wide centred on x −1.72, i.e. −2.37…−1.07:
-    // inside the frame's left edge by 0.04 m and short of the mirror by the
-    // same. **Nothing on this wall moved to make room.**
-    const wardrobeRail = buildRail(scene, {
-      x: AX(-1.72), y: RY + 1.30, wallZ: AZI(MIR_WALL_Z), texM,
-    });
+    // A batten of hooks and a shelf stood on this wall and is DELETED: *"rail
+    // looks worse come up with something else."* So was a suitcase before it.
+    // **Nothing is built for the clothes any more** — he holds one garment up
+    // against himself, which is what `ct/mirror.ts`'s own note sets out. That
+    // is why the flyer and the photographs came off this wall in the same
+    // breath: the answer was never a better object to put in the room.
     const openMirror = mirrorPanel({
       mesh: () => mirror,
       glassW: GLASS_W, glassH: GLASS_H,
       standoff: 1.95, fov: 52, eyeY: 1.62,
-      wardrobe: wardrobeRail,
     });
     // ── WHERE YOU STAND, WHICH IS A 0.118 m SLOT AND HAS TO BE MEASURED ──
     //
