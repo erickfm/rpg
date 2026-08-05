@@ -34,6 +34,7 @@ import { screenFade, makePanel, type Panel } from './hud';
  *  from across the room and the mirror you step into cannot drift apart in
  *  colour (BUILDER-BRIEF §8). */
 import { mirrorPanel, glassCanvas, paintGlass } from './mirror';
+import { drawerPanel, liningCanvas, DRAWER_W, DRAWER_D } from './drawer';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
@@ -3305,6 +3306,53 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     }
     box(0.62, 0.17, 0.03, -2.65, RY + 0.44, DZ0, drawIn);                       // back
     box(0.62, 0.20, 0.035, -2.65, RY + 0.44, DZ1, dresserSideM);                // the front
+    // ══ AND YOU CAN LOOK INTO IT ═════════════════════════════════════════
+    //
+    // *"we need to figure out inventories … idk if theres anyway to diagetic
+    //  this"*   (2026-08-04)
+    //
+    // A FIRST ANSWER, and it is one drawer — not the bag, not the pockets. The
+    // whole of the idea is in `ct/drawer.ts`; what this file owns is the same
+    // three things it owns for the mirror: the surface the panel is painted on,
+    // where the eye goes, and where you stand.
+    //
+    // THE LINING IS THE SCREEN. A plane laid on the drawer's own bottom board,
+    // 2 mm above it, facing up — so `PanelSpec.surface` hangs the contents on
+    // the timber that is already there and the camera eases straight down into
+    // it. Same mechanism as the calendar and the mirror; the only new thing is
+    // that the face is HORIZONTAL, which `poseFor` handles (it takes the
+    // mesh's own normal) and which cannot collide with the wristwatch, because
+    // `crosstown.ts` gates that on `!panelUp()`.
+    //
+    // THE STAND-OFF IS THE CLAMP, and saying so saves the next person the
+    // arithmetic. `poseFor` holds the eye between 1.05 and 1.75 m above the
+    // floor whatever it is asked for, and this board sits at RY+0.373 — so
+    // 0.68 is the CLOSEST it can ever get, and the fov is what does the
+    // framing instead: at 34° the drawer's 0.58 m fills ~80% of the frame's
+    // width and its 0.17 m depth about 42% of the height.
+    const DRAW_TOP = RY + 0.3725;                 // the bottom board's top face
+    const lining = new THREE.Mesh(new THREE.PlaneGeometry(DRAWER_W, DRAWER_D),
+      texM(surfTex('detail', liningCanvas().w, liningCanvas().h,
+        () => { /* painted per frame by the panel; this is its blank */ })));
+    lining.position.set(AX(-2.65), DRAW_TOP + 0.002, AZI((DZ0 + DZ1) / 2));
+    lining.rotation.x = -Math.PI / 2;
+    lining.name = 'dresser-drawer-lining';
+    scene.add(lining);
+    const openDrawer = drawerPanel({
+      scene, mesh: () => lining, purse: ctx.purse, refreshWallet: ctx.refreshWallet,
+    });
+    // WHERE YOU STAND: in front of the dresser. Its collider spans x −3.00…
+    // −2.30 and z 2.12…2.81, so padded by the player's own 0.3456 the nearest
+    // standable floor is z 3.156 — this sits 0.15 m clear of that, square to
+    // the drawer, with the aim on the drawer itself rather than on the patch
+    // of floor (the bug fixed in a5847cc1 and again on 301's door).
+    ctx.spot({
+      x: AX(-2.65), z: AZI(3.31), r: 0.70, obj: lining,
+      aimX: lining.position.x, aimZ: lining.position.z,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      label: () => 'look in the drawer',
+      act: openDrawer,
+    });
     box(0.50, 0.10, 0.11, -2.65, RY + 0.42, 2.72, new THREE.MeshBasicMaterial({ color: 0x8a8272 }));
     // an ashtray on top, full
     box(0.17, 0.04, 0.17, -2.52, RY + 0.84, 2.40, new THREE.MeshBasicMaterial({ color: 0x6a6a70 }));

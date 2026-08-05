@@ -322,6 +322,44 @@ export function bestFence(p: Purse): string | null {
  * you are full" a real question with a real answer rather than a theoretical
  * one.
  */
+// ══ THE DRESSER DRAWER ═════════════════════════════════════════════════════
+//
+// *"we need to figure out inventories. so user inventory, bag inventory, anmd
+//  dresser inventory … idk if theres anyway to diagetic this"*  (2026-08-04)
+//
+// **THE DRAWER'S CONTENTS LIVE HERE, WITH EVERYTHING ELSE ABOUT ITEMS.** It is
+// a different CONTAINER from your pockets — that is the whole point, a drawer
+// and a bag and your pockets are not the same object — but it is not a second
+// item system: it holds `ItemDef` ids from the same table `Purse.inv` does, so
+// what a thing IS is stated once and every container agrees about it.
+//
+// A PLAIN COUNT PER ID, because a drawer is a heap and not six ordered pockets.
+// `POCKETS` and `stack` do not apply: what bounds a drawer is how much fits in
+// it, which `ct/drawer.ts` answers by laying the stacks out and running out of
+// floor. Capacity is physical.
+//
+// WHAT IS IN IT TO BEGIN WITH is the flat's own junk, from the table already
+// declared below: a pack of tube socks, a couple of taped-over video tapes, and
+// somebody else's cheque book. Rough, and a starting state he can judge — the
+// interesting question is whether the VIEW works, not what the drawer holds.
+const DRAWER: Record<string, number> = { SOCKS: 4, VHS: 2, CHEQUES: 1 };
+
+/** What is in the dresser drawer: ids in lay-out order, with their counts. */
+export function drawerStock(): { id: string; n: number }[] {
+  return Object.keys(DRAWER).filter((k) => DRAWER[k] > 0).map((id) => ({ id, n: DRAWER[id] }));
+}
+
+/** Take one out of the drawer. False if there is none. */
+export function drawerTake(id: string): boolean {
+  if ((DRAWER[id] ?? 0) < 1) return false;
+  DRAWER[id] -= 1;
+  if (DRAWER[id] === 0) delete DRAWER[id];
+  return true;
+}
+
+/** Put one back in. */
+export function drawerPut(id: string): void { DRAWER[id] = (DRAWER[id] ?? 0) + 1; }
+
 export const POCKETS = 6;
 
 /** The kinds you are actually carrying, in the order you first picked them up. */
