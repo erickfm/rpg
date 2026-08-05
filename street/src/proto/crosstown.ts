@@ -1505,7 +1505,29 @@ export function makeCrosstown(): Proto {
     // you lean over a drawer, you do not hover above it — and because the aim
     // is still the mesh's centre the contents stay centred in frame.
     if (!upright) {
-      const away = keep ? new THREE.Vector3(keep.x - c.x, 0, keep.z - c.z)
+      // ⚠ THE LEAN COMES OFF HIS FACING, NOT HIS POSITION, and that correction
+      // is `267131cd`'s own regression: *"drawers are now messed up on rotation
+      // and seemingly position?"*
+      //
+      // It used to lean along `player.pos − mesh.centre`, which sounds right
+      // and is not, because **you can press `[E]` anywhere in the spot's reach
+      // — 0.44 m of it.** Measured across that disc: standing 0.35 m off to one
+      // side swung the lean 26° and, since the yaw is derived from the lean,
+      // turned him 26° with it; the other side turned him 31° the other way. So
+      // the view swivelled and slid depending on exactly where he happened to
+      // be standing when he pressed the key. Both halves of his report, one
+      // cause.
+      //
+      // HIS FACING HAS NO SUCH SPREAD. The spot only offers itself when he is
+      // aimed at the thing, so `-forward` is stable, and deriving the yaw back
+      // out of it returns **exactly the yaw he already had** — he does not turn
+      // at all, which is what leaning over a drawer looks like. The aim is
+      // still the mesh's centre, so the contents stay centred whatever angle he
+      // stands at.
+      //
+      // fp.ts:477 — fwd = (sin yaw, 0, −cos yaw), so back is its negation.
+      const away = keep
+        ? new THREE.Vector3(-Math.sin(keep.yaw), 0, Math.cos(keep.yaw))
         : new THREE.Vector3(0, 0, 1);
       if (away.lengthSq() < 1e-6) away.set(0, 0, 1);
       away.normalize();
