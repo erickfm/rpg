@@ -220,6 +220,9 @@ interface Citizen {
    *  height of this person's painted head — the canopy hangs off that, so a
    *  short walker's umbrella is not floating over a tall one's */
   umb: THREE.Mesh; umbOpen: number; figTop: number;
+  /** does this person own an umbrella at all — see `UMB_SHARE`. Fixed for the
+   *  run, so nobody gains or loses one walking in and out of view. */
+  owns: boolean;
   /** the same figure with a hand up, and which sheet is on the mesh now */
   texUp: THREE.Texture; holding: boolean;
   /** what the sprite is currently showing — for the feet check, see `views` */
@@ -347,10 +350,21 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    * — the constant next door in `ct/hud.ts` spent a session wearing one that
    * was arithmetically wrong. Before/after frames are `shots/w110-umb-*.png`.
    *
-   * (Hoisted above `umbrellaTex` from further down the file, unchanged in
-   * value: the handle's row is now DERIVED from it and has to be in scope.)
+   * (Hoisted above `umbrellaTex` from further down the file: the handle's row
+   * is DERIVED from it and has to be in scope.)
+   *
+   * 0.30 -> 0.24. *"people still hold umbrellas a bit weird"* (2026-08-05) —
+   * and the frame shows a canopy hanging in its own patch of sky. The reasoning
+   * above still holds: daylight between crown and hem is what stops it reading
+   * as a hat. But 0.30 m was chosen when the only thing crossing that daylight
+   * was a ONE-TEXEL shaft that contributed nothing (its own words), so the gap
+   * had to carry the whole read on its own and was set as wide as it could be.
+   * The shaft below is two texels and two tones now and carries its half, so
+   * the gap can come back to what an umbrella actually clears a head by —
+   * 8 texels of air is still an unmistakable gap, and 6 cm less of it is 6 cm
+   * less of the float the report is about.
    */
-  const UMB_CLEAR = 0.30;
+  const UMB_CLEAR = 0.24;
   /**
    * WHERE THE HANDLE IS — TAKEN FROM THE HAND THAT HOLDS IT, not chosen.
    *
@@ -390,10 +404,13 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    * The canopy's proportions are still fractions of the WIDTH, so the dome is
    * texel-for-texel the one item 271 landed. These extra rows are shaft and
    * handle: a square 38-row sheet had 8 rows under the hem, and the handle now
-   * needs 21 of them plus its crook. Same `UMB_ROW_M` density throughout, so
+   * needs 19 of them plus its crook. Same `UMB_ROW_M` density throughout, so
    * nothing about the canopy's scale moves.
+   *
+   * 6 -> 8 rows of tail, because the crook moved BELOW the fist instead of
+   * being painted over it — see the handle.
    */
-  const UMB_PXH = UMB_GRIP + 6;
+  const UMB_PXH = UMB_GRIP + 8;
   const UMB_MH = UMB_PXH * UMB_ROW_M;
   const umbrellaTex = (canopy: string) => pixTex(UMB_PX, UMB_PXH, (g) => {
     const cx = UMB_PX / 2, top = 2, wide = UMB_PX / 2 - 1;
@@ -459,24 +476,55 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     for (const f of [-0.88, -0.5, 0.5, 0.88]) {
       g.clearRect(cx + Math.round(f * halfAt(UMB_HEM)) - 1, UMB_HEM, 2, 1);
     }
-    // ferrule, shaft and a wooden crook — all one texel wide
-    g.fillStyle = '#4a4a52';
-    g.fillRect(cx, 0, 1, top);                   // the spike above the dome
-    // The shaft, stepped out from under the canopy to the hand — see UMB_LEAN.
+    // ── THE SHAFT: TWO TEXELS WIDE, AND TWO TONES ────────────────────────
+    //
+    // *"people still hold umbrellas a bit weird"* (2026-08-05) — and what the
+    // frame actually shows is a canopy with NO STICK UNDER IT. It was one texel
+    // of `#4a4a52`: 3 cm, about a screen pixel and a half at the distance the
+    // item is judged from, in a value that sits squarely between the wet road,
+    // the brick and the dark coats it passes in front of. The note on UMB_CLEAR
+    // above had already said so in passing — *"the shaft that should have
+    // separated them is ONE texel … so it contributed nothing"* — and then went
+    // and widened the gap instead of the shaft. A canopy with nothing visible
+    // holding it up is a canopy that floats, which is the report.
+    //
+    // Two texels, and the two are DIFFERENT VALUES on purpose. A single-value
+    // line has to be either darker or lighter than what is behind it, and this
+    // one run crosses sky, brick, road and the wearer's own coat. A dark column
+    // beside a light one carries its own contrast against all four, which is
+    // the same trick the dome's lit and shadowed flanks are.
+    //
     // A row at a time, so the lean is a hard staircase rather than an arc
     // NearestFilter would only fight; the same way the dome above is drawn.
-    for (let y = UMB_HEM + 1; y < UMB_GRIP; y++) {
-      const t = (y - UMB_HEM) / (UMB_GRIP - UMB_HEM);
-      g.fillRect(cx + Math.round(UMB_LEAN * t), y, 1, 1);
+    const shaftAt = (y: number) =>
+      cx + Math.round(UMB_LEAN * (y - UMB_HEM) / (UMB_GRIP - UMB_HEM));
+    g.fillStyle = '#3a3a42';
+    g.fillRect(cx, 0, 1, top);                   // the spike above the dome
+    for (let y = UMB_HEM + 1; y <= UMB_GRIP + 1; y++) {
+      g.fillStyle = '#3a3a42'; g.fillRect(shaftAt(y), y, 1, 1);
+      g.fillStyle = '#7c7c88'; g.fillRect(shaftAt(y) + 1, y, 1, 1);
     }
-    // …and the crook, hooking back INBOARD, toward the body. That is the way a
-    // crook faces on an umbrella held out to the side, and it also keeps the
-    // hook inside the fist rather than sticking out past it.
-    const gx = cx + UMB_LEAN;
-    g.fillStyle = '#5a3a24';
-    g.fillRect(gx, UMB_GRIP, 1, 3);
-    g.fillRect(gx - 2, UMB_GRIP + 2, 3, 1);
-    g.fillRect(gx - 2, UMB_GRIP, 1, 2);
+    // ── AND A CROOK THE HAND IS ABOVE, NOT BURIED IN ─────────────────────
+    //
+    // It started AT `UMB_GRIP` — the very rows the atlas paints the fist on —
+    // and this billboard is drawn 6 cm in FRONT of the person, so the handle
+    // was painted straight over the hand holding it. Reconciling the two
+    // numbers in the last item got them to the same PLACE and that turned out
+    // to be the problem: at the same place, the front one wins, and all that
+    // was left to read was a 3-texel brown blob where a hand should be.
+    //
+    // The fist is three rows deep centred on the grip, so the wood starts two
+    // rows below it and hangs clear: hand on the shaft, handle under the hand.
+    // Two texels thick like the shaft, because a crook thinner than the stick
+    // it ends reads as a fray. It still hooks back INBOARD, toward the body —
+    // the way a crook faces on an umbrella carried out to one side.
+    const gx = shaftAt(UMB_GRIP), hy = UMB_GRIP + 2;
+    g.fillStyle = '#6b4526';
+    g.fillRect(gx, hy, 2, 4);                    // the wood, straight down
+    g.fillRect(gx - 3, hy + 3, 5, 2);            // …turning in at the bottom
+    g.fillRect(gx - 3, hy + 1, 2, 3);            // …and back up, closing the C
+    g.fillStyle = 'rgba(0,0,0,0.25)';            // lit from the right, as the dome is
+    g.fillRect(gx + 1, hy, 1, 4);
   });
   // WHERE THE HEM LANDS IS THE WHOLE THING, and the first cut got it wrong: it
   // put the hem 2.7 cm BELOW the crown, so the canopy sat ON the head and the
@@ -492,6 +540,40 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   const umbGeo = new THREE.PlaneGeometry(UMB_M, UMB_MH);
   /** raise at, and lower below — two thresholds, not one. See the frame hook. */
   const UMB_UP = 0.12, UMB_DOWN = 0.05;
+  /**
+   * HOW MANY OF THE BLOCK OWN ONE — *"not everyone should have an umbrella like
+   * half of everyone maybe"* (2026-08-05). One number to tune.
+   */
+  const UMB_SHARE = 0.5;
+  /**
+   * …AND WHO. A PROPERTY OF THE PERSON, FIXED FOR THE RUN.
+   *
+   * The obvious version — roll for it when the rain starts — is the one thing
+   * this must not be: the same walker would come back from the far end of the
+   * block with an umbrella they did not leave with, and a shower that eased and
+   * returned would re-deal the whole street. So it is a pure function of `id`,
+   * which is the walker's index in CAST and never changes.
+   *
+   * NO DRAW FROM `rnd()`. That stream's ORDER is load-bearing (GOTCHAS 2) and
+   * every texture built after the crowd would re-grain if this consumed from
+   * it — the same reason `UMB_CANOPY` is indexed rather than sampled. This is a
+   * hash of the id instead, so the draw count is exactly what it was.
+   *
+   * AND THE SHARE IS EXACT, by RANK rather than by threshold. Six people is a
+   * small enough sample that `hash(id) < 0.5` can easily come out 2 or 5 of 6;
+   * sorting the cast by the hash and taking the first half gives three, and
+   * gives `round(n · UMB_SHARE)` for any cast this grows to. Arbitrary but
+   * fixed, which is the whole requirement.
+   */
+  const umbKey = (id: number) => {
+    let h = Math.imul(id ^ 0x9e3779b9, 0x85ebca6b);
+    h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+  const umbOwners = new Set(
+    CAST.map((_, i) => i)
+      .sort((a, b) => umbKey(a) - umbKey(b))
+      .slice(0, Math.round(CAST.length * UMB_SHARE)));
 
   CAST.forEach((p, i) => {
     // THE PERSON'S OWN SIZE, not the role's — and it is worked out BEFORE the
@@ -516,8 +598,19 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     // and one extra draw here would re-grain every texture built after the
     // crowd; `citizenAtlas` takes all its colour from the `Look` and never
     // touches the shared LCG, so painting it twice moves nothing.
-    const texUp = citizenAtlas({ ...p.look, stride: strideFor(p.sp, hs), holdUp: true });
-    texUp.repeat.set(1 / 5, 1 / 2);
+    //
+    // …AND ONLY FOR THE HALF WHO OWN ONE. A walker with no umbrella never swaps
+    // sheets, so the second bake is a canvas painted to be never sampled. The
+    // rest fall back to `tex`, which is the atlas's ordinary arms-down pose —
+    // the one the whole world already uses and the only one it had before this
+    // prop existed. They walk the block in the rain unsheltered, which is what
+    // half a street does.
+    const owns = umbOwners.has(i);
+    let texUp = tex;
+    if (owns) {
+      texUp = citizenAtlas({ ...p.look, stride: strideFor(p.sp, hs), holdUp: true });
+      texUp.repeat.set(1 / 5, 1 / 2);
+    }
     // the geometry is translated so the origin is at the FEET, so scaling
     // height never lifts anyone off the pavement or sinks them into it
     const geo = citizenPlane();
@@ -539,7 +632,11 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     // would light a surface no lamp can reach, and a collider on it would let a
     // canopy shove the player.
     const umb = new THREE.Mesh(umbGeo, new THREE.MeshBasicMaterial({
-      map: umbrellaTex(UMB_CANOPY[i % UMB_CANOPY.length]),
+      // …and no canvas at all for the half who do not own one: the mesh stays
+      // so every walker is the same shape of record, but it never turns visible
+      // and there is nothing to sample. The colour is still indexed off `i`, so
+      // the owners keep the spread of canopies they had.
+      map: owns ? umbrellaTex(UMB_CANOPY[i % UMB_CANOPY.length]) : null,
       // alphaTest ALONE. Setting `transparent` as well is GOTCHAS 22, and it is
       // also why the open/shut is done with SCALE rather than a fade: opacity
       // needs `transparent`, and the pair of them is the documented fault.
@@ -548,7 +645,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     umb.visible = false;
     scene.add(umb);
     citizens.push({
-      umb, umbOpen: 0, figTop: FIG_TOP * hs, texUp, holding: false,
+      umb, umbOpen: 0, figTop: FIG_TOP * hs, texUp, holding: false, owns,
       mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: p.sp,
       ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3,
       cad: 5 * Math.sqrt(p.sp) / hs,     // cadence: long legs swing slower
@@ -1161,7 +1258,12 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       // how an earlier reading came out wrong — so this reads that rather than
       // inventing a second opinion about the weather.
       const rainNow = (scene.userData.rainHeavy as number) ?? 0;
-      const wantUmb = rainNow > UMB_UP ? 1 : rainNow < UMB_DOWN ? 0 : c.umbOpen;
+      // …and only for the half who own one (`UMB_SHARE`). Gated HERE rather
+      // than at `c.umb.visible`, because `holding` — the raised-arm sheet — is
+      // derived from visibility below, and a walker with no umbrella putting a
+      // hand up to hold nothing is a worse frame than either end of this item.
+      const wantUmb = !c.owns ? 0
+        : rainNow > UMB_UP ? 1 : rainNow < UMB_DOWN ? 0 : c.umbOpen;
       c.umbOpen += (wantUmb - c.umbOpen) * Math.min(1, dt * 5);
       c.umb.visible = c.umbOpen > 0.02;
       // ── AND THE HAND GOES UP WITH IT ─────────────────────────────────

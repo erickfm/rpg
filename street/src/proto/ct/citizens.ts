@@ -38,18 +38,24 @@ export const SPRITE_H_M = 1.9;
  * shoulder height on a real body, even though this sprite's oversized head puts
  * it level with the ear. The arm that reaches it is bent, not extended.
  *
- * `HOLD_X` is what keeps the shaft off the face, and it is the half of this the
- * old pose could not have fixed on its own. The head's skin runs cx-5…cx+4 and
- * its hair, cap or hood one texel further, so a fist centred SIX texels out
- * closes beside the jaw and never inside it — and the shaft it holds leans out
- * to meet it instead of dropping down the centre line through the face.
+ * `HOLD_X` is what keeps the shaft off the face — 6 -> 9, and the six was
+ * measured against the wrong silhouette. *"people still hold umbrellas a bit
+ * weird"* (2026-08-05.) The note below said the head's skin runs cx-5…cx+4 "and
+ * its hair, cap or hood one texel further", so six texels out cleared it. The
+ * skin does; the HEADWEAR does not. `capTop` runs cx-6…cx+5, a ball cap's brim
+ * cx-7…cx+6, and a hood cx-7…cx+6 on every view — so a fist at cx+5…cx+7 landed
+ * HALF INSIDE THE HOOD, and the reported frame is a hooded walker whose hand is
+ * a skin-coloured notch in their own hood. Nine puts the fist at cx+7…cx+11,
+ * clear of the widest headwear on the sheet with a texel of air to spare, and
+ * the shaft it holds leans out to meet it instead of dropping down the centre
+ * line through the face.
  *
  * It is the RAISED (+x) side of the sheet, and `viewAt` mirrors that sheet for
  * the far four sectors — so the umbrella's own sprite has to mirror in step or
  * the shaft ends up in the empty hand. `ct/crowd.ts` does that; a dome alone
  * never needed it, a leaning shaft does.
  */
-export const HOLD_ROW = 15, HOLD_X = 6;
+export const HOLD_ROW = 15, HOLD_X = 9;
 /**
  * The fist's drop below the painted figure's top (row 4 of 64), in metres.
  *
@@ -394,23 +400,48 @@ export function citizenAtlas(o: Look): THREE.Texture {
          *  umbrella's own dome is drawn with. */
         const reachUp = (sx: number, w: number) => {
           const endX = cx + HOLD_X - Math.floor(w / 2);
-          g.fillStyle = jacket;
           for (let row = 21; row >= HOLD_ROW; row--) {
             const t = (21 - row) / (21 - HOLD_ROW);
-            g.fillRect(Math.round(sx + (endX - sx) * t), oy + row, w, 1);
+            const x = Math.round(sx + (endX - sx) * t);
+            g.fillStyle = jacket;
+            g.fillRect(x, oy + row, w, 1);
+            // ── AND AN EDGE DOWN ITS INBOARD SIDE ─────────────────────────
+            //
+            // The raised arm is cut from the SAME `jacket` fill as the torso
+            // and the hood it runs beside, with nothing between them, so on
+            // the reported frame the whole shoulder-to-jaw region is one
+            // unbroken lilac mass and there is no arm in it to see. One texel
+            // of shadow on the inboard edge is the entire separation a
+            // hanging arm gets for free by standing outside the torso — this
+            // one leans across it, so it has to be drawn.
+            g.fillStyle = 'rgba(0,0,0,0.28)';
+            g.fillRect(x, oy + row, 1, 1);
           }
-          // the fist, closed round the handle — the same skin block the hanging
-          // hand uses, so a hand is a hand whichever way the arm goes
+          // ── THE FIST, ROUND THE SHAFT AND NOT BESIDE IT ────────────────
+          //
+          // It was `w` wide (3, or 4 in profile) starting at `endX`, so the
+          // umbrella's 1-texel shaft covered a third of it and a hand a texel
+          // clear on each side reads as NEAR the stick rather than ON it.
+          // Five wide, centred on the shaft's own columns (cx+HOLD_X…+1), puts
+          // two texels of skin outboard and one inboard of the wood — fingers
+          // in front, thumb behind, which is what a grip looks like.
           g.fillStyle = skin;
-          g.fillRect(endX, oy + HOLD_ROW - 1, w, 3);
+          g.fillRect(cx + HOLD_X - 2, oy + HOLD_ROW - 1, 5, 3);
+          // knuckles: the underside of a closed hand, in the hand's own colour
+          // rather than a black bar, so it darkens the fist instead of hanging
+          // a line under it (the banding rule the face carries, one row down).
+          g.fillStyle = shade(skin, 0.72);
+          g.fillRect(cx + HOLD_X - 2, oy + HOLD_ROW + 1, 5, 1);
         };
         // ⚠ THE RAISED ARM IS DRAWN LAST, NOT HERE. Arms come before the head
         // in this function, and a hand that finishes at row 15 runs alongside
-        // rows the hair, the cap brim and the hood all reach — long hair and a
-        // hood both cover cx+5..cx+6, and the fist sits at cx+5..cx+7. Painted
-        // in place it would be part-swallowed by the head. So the raise is
-        // deferred to the foot of the frame, after everything on the head is
-        // down, and the hand reads as being in front of it.
+        // rows the hair, the cap brim and the hood all reach — a hood and a cap
+        // brim both cover cx-7..cx+6. At HOLD_X 6 the fist sat at cx+5..cx+7,
+        // INSIDE that, and drawing it on top only made it a skin-coloured notch
+        // in the hood rather than a hand in the air; HOLD_X 9 moves it out of
+        // those columns entirely. The deferral still matters — the ARM below
+        // the fist still crosses the hood's edge — so the raise stays at the
+        // foot of the frame, after everything on the head is down.
         let raise: (() => void) | null = null;
         if (view === 2) {
           // ⚠ THE PROFILE RAISES FROM cx+1, NOT FROM cx-2 WHERE ITS ARM HANGS.
@@ -418,9 +449,10 @@ export function citizenAtlas(o: Look): THREE.Texture {
           // the shoulder is already outboard of the head (cx+tw against a head
           // ending at cx+4), so the arm rises in clear air. In profile the one
           // visible arm is drawn at the body's centre, and a run from there up
-          // to a fist at cx+4 crosses rows 15-19 at cx+0…cx+4 — straight over
-          // the jaw, a 4-texel jacket bar across the lower face on a head ten
-          // texels wide. Three texels back (9 cm, invisible at the shoulder,
+          // to the fist crosses the upper rows over the jaw — a 4-texel jacket
+          // bar across the lower face on a head ten texels wide. (Less of one
+          // since HOLD_X went to 9: the run now leaves the skull's columns four
+          // rows sooner.) Three texels back (9 cm, invisible at the shoulder,
           // decisive at the head) puts the whole run behind the skull's back
           // edge instead, which is also where a raised arm goes when you see
           // someone side-on.
