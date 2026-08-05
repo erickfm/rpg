@@ -1386,7 +1386,34 @@ export function makeCrosstown(): Proto {
   /** how far the FEET stop from the face. The eye goes closer than the body
    *  can; a person leans in to read a screen and their shoes do not follow. */
   const FOCUS_FEET = 0.95;
-  type FocusPose = { pos: THREE.Vector3; yaw: number; pitch: number; fov: number; feetX: number; feetZ: number };
+  /**
+   * ⚠ `quat` IS THE CAMERA'S ORIENTATION AND `yaw`/`pitch` ARE NOT.
+   *
+   * *"dude this is what my dresser diagetic interface looks like"* — a shot of
+   * the floorboards raked at 45°, the drawer a small quad off to one side. The
+   * camera was ROLLED, and it was the fourth failed attempt at this pose.
+   *
+   * **A DIRECTION VECTOR CANNOT EXPRESS ROLL.** Every focus pose in this file
+   * was a yaw and a pitch fed to `cam.lookAt`, which resolves the third axis
+   * against an implicit world up — fine for every VERTICAL screen in the game,
+   * and undefined for one you look down into: near vertical the up-vector is
+   * nearly parallel to the view, three.js applies its own tiny fudge, and the
+   * roll lands on whatever the arithmetic leaves behind. Three patches chased
+   * the symptom (the lean, its direction, its order) and each one uncovered the
+   * next, because none of them addressed the missing axis.
+   *
+   * So the pose now carries an ORIENTATION, built from a basis this file states
+   * outright, and `stepFocus` slerps it. Roll cannot happen, because it is
+   * specified rather than inferred.
+   *
+   * `yaw`/`pitch` STAY, and are still eased, because they are what the RIG is
+   * handed back on release — the player's head has to keep looking where the
+   * camera left it. They no longer drive the camera.
+   */
+  type FocusPose = {
+    pos: THREE.Vector3; quat: THREE.Quaternion;
+    yaw: number; pitch: number; fov: number; feetX: number; feetZ: number;
+  };
   let focus: {
     mesh: THREE.Object3D; escape: () => void; from: FocusPose; to: FocusPose; t: number;
     /** THE CHAIR THE PLAYER WAS ALREADY IN when this screen opened, or null if
@@ -1553,8 +1580,31 @@ export function makeCrosstown(): Proto {
     // Fixed here rather than in `ct/drawer.ts` because it is the framework's
     // arithmetic, and the next horizontal screen — a desk, a workbench, a
     // counter — would have walked into the identical spin.
+    // ══ THE CAMERA'S BASIS, STATED RATHER THAN INFERRED ═══════════════════
+    //
+    // THREE AXES, AND THE ONE THAT WAS MISSING IS `up`:
+    //
+    //   forward  eye → the middle of the screen. Always known.
+    //   up       WHAT IS AT THE TOP OF THE PICTURE. For a wall that is the
+    //            world's up and always was. For a surface you look DOWN into
+    //            it cannot be — so it is the player's own flat facing, which
+    //            is what "up the screen" means when you lean over a drawer:
+    //            the far side of it is at the top. Stable, and it can never be
+    //            parallel to a downward forward, so nothing degenerates.
+    //   right    their cross product, which `Matrix4.lookAt` takes for us.
+    //
+    // `Matrix4.lookAt(eye, target, up)` builds exactly the camera basis three
+    // uses (its z points from the target back to the eye), so the quaternion
+    // off it IS the orientation — no Euler order to get wrong, no `lookAt`
+    // guessing an axis we already know.
+    const upHint = upright
+      ? new THREE.Vector3(0, 1, 0)
+      : new THREE.Vector3(Math.sin(keep ? keep.yaw : 0), 0, -Math.cos(keep ? keep.yaw : 0));
+    const quat = new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().lookAt(eye, c, upHint));
     return {
       pos: eye,
+      quat,
       // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw)
       // ALWAYS DERIVED NOW. The lean above gives a horizontal face a real
       // direction to be looked at from, so the signed-zero `atan2(+0, −0)`
@@ -1588,24 +1638,34 @@ export function makeCrosstown(): Proto {
     const pitch = f.from.pitch + (f.to.pitch - f.from.pitch) * k;
     // KEEP THE RIG IN STEP with what is actually on screen. Releasing then
     // continues from where the player was looking instead of snapping their
-    // head back to the direction they walked up in.
+    // head back to the direction they walked up in. **These no longer drive
+    // the camera** — see `FocusPose.quat`.
     rig.yaw = yaw; rig.pitch = pitch;
     cam.position.lerpVectors(f.from.pos, f.to.pos, k);
     const fov = f.from.fov + (f.to.fov - f.from.fov) * k;
     if (Math.abs(cam.fov - fov) > 0.001) { cam.fov = fov; cam.updateProjectionMatrix(); }
-    const cp = Math.cos(pitch);
-    cam.lookAt(
-      cam.position.x + Math.sin(yaw) * cp,
-      cam.position.y + Math.sin(pitch),
-      cam.position.z - Math.cos(yaw) * cp,
-    );
+    // ── AND THE ORIENTATION IS SLERPED, NOT REBUILT FROM TWO ANGLES ────────
+    //
+    // A slerp takes the shortest rotation between two orientations, so it
+    // cannot introduce a roll that neither end has — where `lookAt` was free to
+    // invent one every frame from an up-vector it had to guess. It also removes
+    // the wrap-around question the yaw lerp had to solve by hand.
+    //
+    // ⚠ VERTICAL SURFACES ARE BIT-FOR-BIT WHERE THEY WERE at both ends: `to`
+    // is built by `Matrix4.lookAt(eye, centre, worldUp)`, which is precisely
+    // what `cam.lookAt` was computing for them, and `from` is the camera's own
+    // orientation at the moment of entry. The mirror and the calendar move
+    // between the same two poses; only the path between them is now a great
+    // circle instead of two independent angle ramps.
+    cam.quaternion.slerpQuaternions(f.from.quat, f.to.quat, k);
   };
   setScreenFocus({
     enter: ({ mesh, standoff, fov, eyeY, escape }) => {
       const to = poseFor(mesh, standoff, fov, eyeY,
         { yaw: rig.yaw, x: rig.pos.x, z: rig.pos.z });
       const from: FocusPose = {
-        pos: cam.position.clone(), yaw: rig.yaw, pitch: rig.pitch, fov: cam.fov,
+        pos: cam.position.clone(), quat: cam.quaternion.clone(),
+        yaw: rig.yaw, pitch: rig.pitch, fov: cam.fov,
         feetX: rig.pos.x, feetZ: rig.pos.z,
       };
       // THE FEET ARE LOCKED BY THE RIG'S OWN SEAT rather than by a second freeze
