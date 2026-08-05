@@ -672,7 +672,46 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the four narrow faces are cut plaster. The ends of a wall segment are
     // exactly what you look at when you stand in a doorway.
     const WALL_T = 0.14;
-    const jambM = new THREE.MeshBasicMaterial({ color: 0x8b8271 });
+    /**
+     * ── WHY THE WALLS ARE DOUBLE-SIDED, AND WHY THEY WERE NOT THICKENED ────
+     *
+     * *"make the walls thicker too i keep being able to clip through and see
+     *  through walls"*   (2026-08-05)
+     *
+     * **THICKNESS IS THE WRONG LEVER AND THE ARITHMETIC SAYS SO.** Checked
+     * before changing a number, the way `CEIL_D` was:
+     *
+     *   · the walls are already SOLID — `wallMesh` builds a `BoxGeometry`
+     *     `WALL_T` = 0.14 deep, not a zero-thickness plane
+     *   · every collider is on the room-side FACE, not the centreline. 301's
+     *     three were fixed this morning (`e3055f58`) and I re-walked the rest:
+     *     the hall's west run stops at AX(0), its east at AX(2.4), its ends at
+     *     AZI(0) and AZI(13.2), and each is the face of the wall it stands for
+     *   · so the body is held `RADIUS` = **0.3456** off any wall face, which is
+     *     **3.4x the 0.1 m near plane**. Head-on, he cannot get close enough to
+     *     clip one. No thickness was ever going to change that number
+     *
+     * SO IT IS NOT DISTANCE, IT IS THE ANGLE — and then culling. The near plane
+     * clips along the VIEW AXIS, not radially: stand beside a wall and look
+     * ALONG it and the stretch of wall next to your shoulder projects to almost
+     * nothing on that axis and falls inside 0.1 m, however far away it is
+     * sideways. Thickening cannot help, because at a grazing angle the far face
+     * is just as close to the axis as the near one.
+     *
+     * WHAT MAKES THAT A HOLE RATHER THAN A SLIVER IS BACKFACE CULLING. A box of
+     * FRONT faces is invisible from inside itself — every face points away —
+     * so the moment the near plane cuts into the wall there is nothing left to
+     * draw and you see straight into the next room. **This is the ceiling
+     * slab's own lesson, written up 100 lines below in its own comment, and the
+     * walls never had it applied.**
+     *
+     * `DoubleSide` on both wall materials is the whole fix: no geometry moves,
+     * no room shrinks or grows, no new face meets anything, so there is not a
+     * single new coplanar pair to z-fight — the fourth one today would have
+     * been the cost of thickening instead. It strictly ADDS surface where there
+     * was a hole; from any legal standing position the view is identical.
+     */
+    const jambM = new THREE.MeshBasicMaterial({ color: 0x8b8271, side: THREE.DoubleSide });
     // uOff/vOff are in METRES from the start and the base of the wall this
     // piece belongs to. They exist because cutting an opening turns one wall
     // into four, and each piece then samples the tile from ITS own corner —
@@ -696,7 +735,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       t.repeat.set(w / 2.7, h / 2.7);
       t.offset.set(uOff / 2.7, vOff / 2.7);
       t.needsUpdate = true;
-      const face = new THREE.MeshBasicMaterial({ map: t });
+      // DoubleSide for the reason on `jambM`: a wall you can see the inside of
+      // is a wall you cannot see through.
+      const face = new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, WALL_T),
         [jambM, jambM, jambM, jambM, face, face]);
       m.position.set(cx, cy, cz);
