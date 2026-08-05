@@ -235,10 +235,16 @@ function zoneAt(dx: number, dy: number): Slot | null {
  * and the ROUNDING still happens last, so the pixels stay hard.
  */
 function scaler(g: CanvasRenderingContext2D, ox: number, oy: number, s: number,
-                nf = 1, flip = false) {
+                posF = 1, sizeF = 1, flip = false) {
   return (x: number, y: number, w: number, h: number, fill: string) => {
     const mx = flip ? 2 * CX - x - w : x;
-    const nx = CX + (mx - CX) * nf, nw = w * nf;
+    // WHERE IT SITS AND HOW WIDE IT IS ARE TWO QUESTIONS. A rect's CENTRE moves
+    // toward the body's own centre line as he turns — every part of a body does
+    // — but its WIDTH is a fact about the part's own shape, and the two must
+    // not share a factor. Scale them together and an arm detaches from a
+    // narrowing torso, or stays attached and becomes a wire.
+    const c = mx + w / 2, nw = w * sizeF;
+    const nx = CX + (c - CX) * posF - nw / 2;
     const x0 = Math.round(nx * s), y0 = Math.round(y * s);
     g.fillStyle = fill;
     g.fillRect(ox + x0, oy + y0,
@@ -261,7 +267,46 @@ function scaler(g: CanvasRenderingContext2D, ox: number, oy: number, s: number,
  * painter and only the CONVENTION is borrowed: eight stops, five distinct
  * drawings, no angles in between.
  */
-const COL_NARROW = [1, 0.82, 0.55, 0.82, 1];
+/**
+ * WIDE FLAT SPANS: shoulders, chest, hips, and the garments stretched over
+ * them. These are what a turn really foreshortens — edge-on they nearly
+ * vanish. It is also the factor every part's POSITION uses, because a body
+ * rotating brings all of it toward the centre line together.
+ */
+const COL_SPAN = [1, 0.82, 0.55, 0.82, 1];
+/**
+ * ROUND THINGS: the head, the neck, arms, legs. A head is close to a ball in
+ * plan and a limb is a cylinder — **from the side they are about as wide as
+ * from the front**, just a different shape.
+ *
+ * *"i squish and distort in some"* was this, and only this: ONE factor was
+ * applied to the whole drawing, so at 0.55 the head became a squashed egg and
+ * the arms became wires. The head is the first thing the eye checks and it was
+ * the thing being wrecked. 0.90 at profile is a tenth of the squeeze the
+ * shoulders take.
+ */
+const COL_ROUND = [1, 0.96, 0.90, 0.96, 1];
+/**
+ * THINGS THAT ARE LONGER FRONT-TO-BACK THAN THEY ARE WIDE, which get BIGGER as
+ * you turn, not smaller: a shoe, a cap's peak, a nose. A foot seen from the
+ * front is 10 cm across and from the side it is 26 cm long, and drawing it
+ * shrinking with the shoulders is exactly as wrong as the squashed head.
+ */
+const COL_DEEP = [1, 1.12, 1.30, 1.12, 1];
+
+/**
+ * ⚠ AND NONE OF THEM TOUCHES `y`. Height, head size top-to-bottom, the
+ * shoulder line, every hem — all identical across all eight facings, because
+ * turning does not change how tall you are. `scaler` takes `y` and `h` through
+ * untouched and there is no vertical factor to add by accident.
+ *
+ * ⚠ NOR IS THE DESTINATION STRETCHED, which is the other way this world has
+ * produced *"i feel stretched"* (the wall plate: a fixed canvas on a resized
+ * quad). Checked rather than assumed: the figure is drawn through ONE `s` on
+ * both axes, its canvas is derived from the glass's metres at a fixed density,
+ * and the held garment's quad is 0.26 x 0.52 against a 1:2 canvas. Every
+ * surface here is equal-scaled and padded, never fitted.
+ */
 
 /**
  * YOU, IN THE GLASS — the body, the underwear under everything, and whatever
@@ -276,9 +321,18 @@ const COL_NARROW = [1, 0.82, 0.55, 0.82, 1];
 export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number, s: number,
                             sector = 0): void {
   const [col, flip] = viewAt(sector);
-  const box = scaler(g, ox, oy, s, COL_NARROW[col], flip);
   /** 0 front, 1 three-quarter, 2 profile, 3 three-quarter back, 4 back */
   const facing = col;
+  const span = COL_SPAN[col];
+  /** WIDE SPANS — the torso, the hips, and the cloth stretched across them */
+  const box = scaler(g, ox, oy, s, span, span, flip);
+  /** LIMBS — carried by the torso's rotation, but a cylinder's own width */
+  const limb = scaler(g, ox, oy, s, span, COL_ROUND[col], flip);
+  /** THE HEAD AND WHAT IS ON IT — barely narrows, and does not slide inward
+   *  with the shoulders either: it is already on the centre line. */
+  const head = scaler(g, ox, oy, s, COL_ROUND[col], COL_ROUND[col], flip);
+  /** DEEP THINGS — a shoe, a peak, a nose. These GROW as he turns. */
+  const deep = scaler(g, ox, oy, s, span, COL_DEEP[col], flip);
   const top = worn('top');
   const bottom = showing('bottom');
   const shoes = worn('shoes');
@@ -288,34 +342,34 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
 
   // SKIN FIRST, ALL OF IT, so an empty slot needs no special case anywhere —
   // it leaves what is underneath showing, and what is underneath is you.
-  box(CX - HEAD_HW, HEAD_T, HEAD_HW * 2, HEAD_B - HEAD_T, SKIN);          // head
-  box(CX - 3, HEAD_B - 1, 6, NECK_B - HEAD_B + 1, SKIN_LO);               // neck
+  head(CX - HEAD_HW, HEAD_T, HEAD_HW * 2, HEAD_B - HEAD_T, SKIN);         // head
+  head(CX - 3, HEAD_B - 1, 6, NECK_B - HEAD_B + 1, SKIN_LO);              // neck
   box(CX - TORSO_HW + 1, SHOULDER, (TORSO_HW - 1) * 2, WAIST - SHOULDER, SKIN);
   for (const sgn of [-1, 1]) {                                            // arms and hands
-    box(sgn < 0 ? CX - TORSO_HW - ARM_W + 1 : CX + TORSO_HW - 1, ARM_T, ARM_W, HAND_B - ARM_T, SKIN);
+    limb(sgn < 0 ? CX - TORSO_HW - ARM_W + 1 : CX + TORSO_HW - 1, ARM_T, ARM_W, HAND_B - ARM_T, SKIN);
   }
   box(CX - TORSO_HW + 1, WAIST, (TORSO_HW - 1) * 2, HIP_B - WAIST, SKIN); // hips
   for (const sgn of [-1, 1]) {                                            // legs
-    box(sgn < 0 ? CX - LEG_GAP - LEG_HW * 2 : CX + LEG_GAP, HIP_B, LEG_HW * 2, LEG_B - HIP_B, SKIN);
+    limb(sgn < 0 ? CX - LEG_GAP - LEG_HW * 2 : CX + LEG_GAP, HIP_B, LEG_HW * 2, LEG_B - HIP_B, SKIN);
   }
   // hair as one shape — this world draws a haircut as a silhouette and not as
   // strands, the way `ct/citizens.ts` paints five views of one. TURNED AWAY it
   // is the whole head: the back of a head is hair, and that is what tells you
   // the figure has its back to you at all.
   const HAIR = '#3a2c22';
-  box(CX - HEAD_HW, HEAD_T - 2, HEAD_HW * 2, facing >= 3 ? HEAD_B - HEAD_T + 2 : 7, HAIR);
-  box(CX - HEAD_HW - 1, HEAD_T + 1, 1, 8, HAIR);
-  box(CX + HEAD_HW, HEAD_T + 1, 1, 8, HAIR);
+  head(CX - HEAD_HW, HEAD_T - 2, HEAD_HW * 2, facing >= 3 ? HEAD_B - HEAD_T + 2 : 7, HAIR);
+  head(CX - HEAD_HW - 1, HEAD_T + 1, 1, 8, HAIR);
+  head(CX + HEAD_HW, HEAD_T + 1, 1, 8, HAIR);
   // THE FACE, ALL OF IT, and it goes when you turn past three-quarters. In
   // PROFILE there is one eye and a nose standing outside the silhouette — the
   // nose is what says which way he is looking, and `ct/citizens.ts` draws its
   // profile the same way for the same reason.
   if (facing <= 2) {
-    box(CX - 4, EYE_Y, 2, 2, '#2a2016');
-    if (facing < 2) box(CX + 2, EYE_Y, 2, 2, '#2a2016');
-    box(CX - 2, EYE_Y + 6, facing === 2 ? 2 : 4, 1, '#8a5c46');
+    head(CX - 4, EYE_Y, 2, 2, '#2a2016');
+    if (facing < 2) head(CX + 2, EYE_Y, 2, 2, '#2a2016');
+    head(CX - 2, EYE_Y + 6, facing === 2 ? 2 : 4, 1, '#8a5c46');
   }
-  if (facing === 2) box(CX - HEAD_HW - 2, EYE_Y + 1, 2, 2, SKIN);          // the nose
+  if (facing === 2) deep(CX - HEAD_HW - 2, EYE_Y + 1, 2, 2, SKIN);         // the nose
 
   // the white undies, under everything, always
   box(CX - TORSO_HW + 1, WAIST - 16, (TORSO_HW - 1) * 2, HIP_B - WAIST + 16, UNDIES);
@@ -335,9 +389,9 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     box(CX - TORSO_HW + 1, WAIST, (TORSO_HW - 1) * 2, 3, bottom.trim);      // waistband
     for (const sgn of [-1, 1]) {
       const lx = sgn < 0 ? CX - LEG_GAP - LEG_HW * 2 : CX + LEG_GAP;
-      box(lx, HIP_B, LEG_HW * 2, hem - HIP_B, bottom.cloth);
-      if (bottom.id === 'track') box(sgn < 0 ? lx : lx + LEG_HW * 2 - 1, HIP_B, 1, hem - HIP_B, bottom.trim);
-      box(lx, hem - 2, LEG_HW * 2, 2, bottom.trim);
+      limb(lx, HIP_B, LEG_HW * 2, hem - HIP_B, bottom.cloth);
+      if (bottom.id === 'track') limb(sgn < 0 ? lx : lx + LEG_HW * 2 - 1, HIP_B, 1, hem - HIP_B, bottom.trim);
+      limb(lx, hem - 2, LEG_HW * 2, 2, bottom.trim);
     }
   } else if (bottom.kind === 'skirt' || bottom.kind === 'dress') {
     // A SKIRT IS A CONE and this world draws a cone as stepped bands — the way
@@ -363,8 +417,8 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     const sleeveB = top.sleeve === 2 ? ARM_B - 2 : ARM_T + 12;
     for (const sgn of [-1, 1]) {
       const ax = sgn < 0 ? CX - TORSO_HW - ARM_W + 1 : CX + TORSO_HW - 1;
-      box(ax, ARM_T - 2, ARM_W, sleeveB - ARM_T + 2, top.cloth);
-      box(ax, sleeveB - 2, ARM_W, 2, top.trim);                              // the cuff
+      limb(ax, ARM_T - 2, ARM_W, sleeveB - ARM_T + 2, top.cloth);
+      limb(ax, sleeveB - 2, ARM_W, 2, top.trim);                             // the cuff
     }
     if (top.kind === 'jacket') {
       box(CX - 1, SHOULDER + 1, 1, hem - SHOULDER - 1, 'rgba(0,0,0,0.22)');
@@ -377,54 +431,64 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
   // the watch, on the wrist the hud raises
   if (watch.kind !== 'none') {
     const ax = CX - TORSO_HW - ARM_W + 1;
-    box(ax - 1, WRIST_T + 2, ARM_W + 2, 8, watch.cloth);
-    box(ax - 1, WRIST_T + 4, ARM_W + 2, 4, watch.trim);
-    box(ax, WRIST_T + 5, ARM_W, 2, watch.kind === 'digital' ? '#9cab8b' : '#e6e0cc');
+    limb(ax - 1, WRIST_T + 2, ARM_W + 2, 8, watch.cloth);
+    limb(ax - 1, WRIST_T + 4, ARM_W + 2, 4, watch.trim);
+    limb(ax, WRIST_T + 5, ARM_W, 2, watch.kind === 'digital' ? '#9cab8b' : '#e6e0cc');
   }
 
   // shoes
   for (const sgn of [-1, 1]) {
     const lx = sgn < 0 ? CX - LEG_GAP - LEG_HW * 2 : CX + LEG_GAP;
+    // A FOOT IS 10 cm ACROSS AND 26 cm LONG, so turning makes a shoe BIGGER.
+    // `deep` is the only family that grows, and this is what it is for.
     if (shoes.kind === 'sneaker') {
-      box(lx - 1, LEG_B - 4, LEG_HW * 2 + 2, FOOT_B - LEG_B + 4, shoes.cloth);
-      box(lx - 1, FOOT_B - 2, LEG_HW * 2 + 2, 2, shoes.trim);
-      box(lx - 1, LEG_B - 1, LEG_HW * 2 + 2, 1, shoes.trim);
+      deep(lx - 1, LEG_B - 4, LEG_HW * 2 + 2, FOOT_B - LEG_B + 4, shoes.cloth);
+      deep(lx - 1, FOOT_B - 2, LEG_HW * 2 + 2, 2, shoes.trim);
+      deep(lx - 1, LEG_B - 1, LEG_HW * 2 + 2, 1, shoes.trim);
     } else if (shoes.kind === 'sandal') {
-      box(lx - 1, FOOT_B - 3, LEG_HW * 2 + 2, 3, shoes.cloth);
-      box(lx, LEG_B, LEG_HW * 2, 1, shoes.trim);
-      box(lx, LEG_B + 3, LEG_HW * 2, 1, shoes.trim);
+      deep(lx - 1, FOOT_B - 3, LEG_HW * 2 + 2, 3, shoes.cloth);
+      deep(lx, LEG_B, LEG_HW * 2, 1, shoes.trim);
+      deep(lx, LEG_B + 3, LEG_HW * 2, 1, shoes.trim);
     } else if (shoes.kind === 'boot') {
-      box(lx - 1, LEG_B - 12, LEG_HW * 2 + 2, FOOT_B - LEG_B + 12, shoes.cloth);
-      box(lx - 1, FOOT_B - 2, LEG_HW * 2 + 2, 2, shoes.trim);
+      deep(lx - 1, LEG_B - 12, LEG_HW * 2 + 2, FOOT_B - LEG_B + 12, shoes.cloth);
+      deep(lx - 1, FOOT_B - 2, LEG_HW * 2 + 2, 2, shoes.trim);
     } else {
-      box(lx - 1, LEG_B, LEG_HW * 2 + 2, FOOT_B - LEG_B, SKIN_HI);            // bare
+      deep(lx - 1, LEG_B, LEG_HW * 2 + 2, FOOT_B - LEG_B, SKIN_HI);            // bare
     }
   }
 
   // the hat
   if (hat.kind === 'cap') {
-    box(CX - HEAD_HW - 1, HEAD_T - 4, HEAD_HW * 2 + 2, 7, hat.cloth);
-    box(CX - HEAD_HW - 3, HEAD_T + 2, HEAD_HW * 2 + 6, 2, hat.trim);          // the peak, head-on
-    box(CX - 1, HEAD_T - 5, 2, 2, hat.trim);                                  // the button
+    head(CX - HEAD_HW - 1, HEAD_T - 4, HEAD_HW * 2 + 2, 7, hat.cloth);        // the crown
+    // THE PEAK IS THE DEEPEST THING ON THE FIGURE — head-on it is a bar across
+    // the brow, in profile it is the longest part of the silhouette. So it
+    // grows AND it slides forward onto the face's side as he turns, which is
+    // what says which way a capped head is looking.
+    deep(CX - HEAD_HW - 3 - facing * 2, HEAD_T + 2, HEAD_HW * 2 + 6, 2, hat.trim);
+    head(CX - 1, HEAD_T - 5, 2, 2, hat.trim);                                 // the button
   } else if (hat.kind === 'sun') {
-    box(CX - HEAD_HW, HEAD_T - 6, HEAD_HW * 2, 8, hat.cloth);                 // crown
-    box(CX - 13, HEAD_T + 1, 26, 3, hat.cloth);                               // brim
-    box(CX - 13, HEAD_T + 3, 26, 1, 'rgba(0,0,0,0.20)');
-    box(CX - HEAD_HW, HEAD_T - 1, HEAD_HW * 2, 2, hat.trim);                  // the band
+    head(CX - HEAD_HW, HEAD_T - 6, HEAD_HW * 2, 8, hat.cloth);                // crown
+    // A BRIM IS A DISC and a disc's silhouette is its diameter from every
+    // angle, so it keeps the head's own factor rather than the shoulders'.
+    head(CX - 13, HEAD_T + 1, 26, 3, hat.cloth);                              // brim
+    head(CX - 13, HEAD_T + 3, 26, 1, 'rgba(0,0,0,0.20)');
+    head(CX - HEAD_HW, HEAD_T - 1, HEAD_HW * 2, 2, hat.trim);                 // the band
   }
 
   // glasses
   if (specs.kind !== 'none') {
     for (const sgn of [-1, 1]) {
       const gx = sgn < 0 ? CX - 6 : CX + 1;
-      box(gx, EYE_Y - 1, 5, 4, specs.cloth);
-      box(gx, EYE_Y - 2, 5, 1, specs.trim);
-      box(gx, EYE_Y + 3, 5, 1, specs.trim);
-      box(sgn < 0 ? gx - 1 : gx + 5, EYE_Y - 1, 1, 4, specs.trim);
+      head(gx, EYE_Y - 1, 5, 4, specs.cloth);
+      head(gx, EYE_Y - 2, 5, 1, specs.trim);
+      head(gx, EYE_Y + 3, 5, 1, specs.trim);
+      head(sgn < 0 ? gx - 1 : gx + 5, EYE_Y - 1, 1, 4, specs.trim);
     }
-    box(CX - 1, EYE_Y, 2, 1, specs.trim);                                     // the bridge
-    box(CX - HEAD_HW - 1, EYE_Y, 2, 1, specs.trim);                           // the arms
-    box(CX + HEAD_HW - 1, EYE_Y, 2, 1, specs.trim);
+    head(CX - 1, EYE_Y, 2, 1, specs.trim);                                    // the bridge
+    // THE TEMPLES RUN FRONT TO BACK, so in profile they are the whole of a pair
+    // of glasses — the one part that gets longer rather than shorter.
+    deep(CX - HEAD_HW - 1, EYE_Y, 2, 1, specs.trim);
+    deep(CX + HEAD_HW - 1, EYE_Y, 2, 1, specs.trim);
   }
 }
 
@@ -666,7 +730,7 @@ export function mirrorPanel(o: {
     // up on. Bands that run the full width (hat, top, bottom, shoes) do not
     // care; the wrist is the one that does.
     const [col, flip] = viewAt(facing);
-    let dx = (MW / 2 - (p.x - c.x) / FIG_M - CX) / COL_NARROW[col] + CX;
+    let dx = (MW / 2 - (p.x - c.x) / FIG_M - CX) / COL_SPAN[col] + CX;
     if (flip) dx = 2 * CX - dx;
     const z = zoneAt(dx, MH / 2 - (p.y - c.y) / FIG_M);
     if (!z) return null;
