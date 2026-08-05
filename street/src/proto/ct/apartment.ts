@@ -4397,57 +4397,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       label: () => 'look in the mirror',
       act: openMirror,
     });
-    // ── the poster ───────────────────────────────────────────────────────
-    // The user: *"what is this poster on the wall?"* — which on this project
-    // has meant the same thing four times now: the object is drawn but it is
-    // not READABLE. What was there was an orange field, a yellow disc, a
-    // cross and two white bars, and it was not a picture of anything. The
-    // answer is not to redraw it better, it is to DECIDE what it is.
-    //
-    // It is a photocopied gig flyer, off a lamp post, on acid-green copy
-    // stock — the cheapest thing anyone pinned to a wall in 1997 and the one
-    // most likely to still be up in a rented room. That decision is what
-    // makes it drawable, because a flyer is a fixed set of parts: a masthead,
-    // ONE big shape, a bill of support acts in ragged lines, and a date bar.
-    //
-    // It is 0.52 m wide and you see it from across a 3 m room, so nothing on
-    // it can be read as words and nothing is asked to be. The shape carries
-    // it: a filled star at 22 of the 32 texels across, black on green, which
-    // is a silhouette that survives being four pixels tall on screen. The
-    // text is BARS — the eye reads ragged black lines under a shape as
-    // "small print" without ever trying to spell it, and a bar cannot be
-    // misread the way a half-drawn word can.
-    const postT = surfTex('sign', 32, 44, (g) => {
-      g.fillStyle = '#a9c93e'; g.fillRect(0, 0, 32, 44);          // copy stock
-      g.fillStyle = '#16161a'; g.fillRect(0, 0, 32, 8);           // masthead
-      g.fillStyle = '#a9c93e';                                     // knocked out of it
-      for (const [x, w] of [[3, 4], [9, 3], [14, 5], [21, 3], [26, 4]]) g.fillRect(x, 2, w, 4);
-      // the one strong shape
-      g.fillStyle = '#16161a';
-      g.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 4.6 : 11;
-        const px2 = 16 + Math.cos(a) * r, py2 = 22 + Math.sin(a) * r;
-        if (i === 0) g.moveTo(px2, py2); else g.lineTo(px2, py2);
-      }
-      g.closePath(); g.fill();
-      // the bill: ragged lines, shortening down the page
-      for (const [y, w] of [[35, 24], [38, 18], [41, 11]]) g.fillRect(Math.round((32 - w) / 2), y, w, 2);
-      g.fillStyle = '#16161a'; g.fillRect(0, 30, 32, 3);           // date bar
-      g.fillStyle = '#a9c93e';
-      for (const [x, w] of [[4, 5], [12, 3], [17, 6], [25, 3]]) g.fillRect(x, 31, w, 1);
-      // a toner streak, because it came off a machine that was running low
-      g.fillStyle = 'rgba(255,255,255,0.13)'; g.fillRect(0, 14, 32, 3);
-      // tape at the top corners, and the bottom-left corner gone soft and
-      // curled away — the paper back is lighter than its printed face
-      g.fillStyle = 'rgba(236,236,228,0.42)';
-      g.fillRect(1, 0, 7, 3); g.fillRect(24, 0, 7, 3);
-      g.fillStyle = '#20242e';
-      for (let i = 0; i < 6; i++) g.fillRect(0, 43 - i, 6 - i, 1);   // wall behind
-      g.fillStyle = '#cfd8a8';
-      for (let i = 0; i < 5; i++) g.fillRect(6 - i, 43 - i, 1, 1);   // the curl itself
-      dither(g, 32, 44, 22);
-    });
+    // ── THE GIG FLYER IS GONE ────────────────────────────────────────────
+    // *"get rid of the poster and photos on the wall its going to make any
+    //  idea look bad"* (2026-08-04). It was a photocopied gig flyer on
+    //  acid-green stock, 0.52 x 0.70 at AX(-2.45), and its 32 x 44 painted
+    //  field went with it. **Nothing replaces it.** The north wall is the one
+    //  the mirror hangs on and the one the dressing view looks straight at, and
+    //  an empty wall behind a person is the correct backdrop for looking at
+    //  what they are wearing — which is what he is telling us.
     // ── THE TWO HANGING PLANES, DECLARED TOGETHER ────────────────────────────
     //
     // The user: *"put the calendar where the poster is and the poster where the
@@ -4466,47 +4423,23 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // So a hanging also needs the ROTATION belonging to its wall — see below.
     const SOUTH_Z = AZI(2.085);
     const NORTH_Z = AZI(5.5) - 0.07 - 0.015;
-    // ── THE POSTER NOW HANGS ON THE NORTH WALL, ABOVE THE BED ────────────────
+    // ── THE NORTH WALL, ABOVE THE BED: BARE, AND KEPT BARE ───────────────
     //
-    // It takes the calendar's former x and y verbatim; only the wall changed.
-    // `rotation.y = Math.PI` because this wall faces -z and `texM` is
-    // DoubleSide — get it wrong and nothing goes missing, the flyer simply
-    // reads MIRRORED, which is the failure the calendar's own comment warned
-    // about and which no "is it there?" check would catch.
+    // The calendar left this wall for the south one, and the flyer and the
+    // three snapshots have now left it too — *"get rid of the poster and photos
+    // on the wall its going to make any idea look bad"*. **Above the bed is
+    // bare plaster and it stays that way.**
     //
-    // CLEARANCE, measured rather than assumed, because the flyer is 0.52 x 0.70
-    // and the calendar it replaces was 0.30 x 0.40 — it is the bigger object
-    // moving into the smaller one's slot, so this is the direction that can
-    // foul. Spans x -2.71…-2.19; the three snapshots span -1.82…-1.42, so
-    // 0.37 m of clear wall between them, and the west wall's inner face at
-    // AX(-3.2) is a further 0.49 m past its left edge. Nothing overlaps.
-    const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.70), texM(postT));
-    poster.position.set(AX(-2.45), RY + 1.66, NORTH_Z);
-    poster.rotation.y = Math.PI;
-    scene.add(poster);
-
-    // ── the north wall, above the bed ────────────────────────────────────
-    // Found by re-walking the building after the spawn moved in here
-    // (notes/C-entrance-report.md, "RE-WALK"). You wake facing the window, and
-    // three of the four directions you can turn to pay off — the window and
-    // the street below, the poster and the TV to the south, your own door with
-    // the 301 plate. North was bare from the bed's head to the ceiling, which
-    // in a room 3.5 m deep is a quarter of what you see in the first five
-    // seconds.
+    // This is the wall the mirror hangs on, and the dressing view stares
+    // straight down it: anything hung here stands behind the person you are
+    // looking at and competes with him. The old note here argued the opposite
+    // — that a bare north wall was *"a quarter of what you see in the first
+    // five seconds"* — and it was right for a room you wake up in and wrong for
+    // a room you dress in. His words outrank it.
     //
-    // Both of these hang ABOVE THE BED and are sized to be read from the
-    // SPAWN, 1.2 m away and off to one side — not from the middle of the room.
-    // Small enough that the wall is still mostly wall; a second poster up here
-    // would have made the room read as decorated rather than lived in.
-    //
-    // rotation.y = PI on the snapshots below, and on the POSTER that now hangs
-    // here — this wall faces -z, so its artwork has to be turned or it reads
-    // mirrored; texM is DoubleSide, so getting this wrong shows nothing
-    // missing, just a backwards flyer. Both z planes are declared together up
-    // beside the poster, with the centreline-vs-face trap written out there.
-    //
-    // THE CALENDAR HAS LEFT THIS WALL for the south one, at the user's request.
-    // What remains above the bed is the poster and the three snapshots.
+    // WHAT IS LEFT ON IT: the mirror, and nothing else. Checked rather than
+    // assumed — `NORTH_Z` now has no other tenant, and the only other things
+    // this wall carries are the ceiling lamp above it and the bed against it.
     // ══ THE CALENDAR — bigger, a little right, and a thing you can READ ══════
     //
     // The user: *"move the calendar a bit to the right, make it bigger, and make
@@ -5048,26 +4981,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       label: () => 'read the calendar',
       act: openCalendar,
     });
-    // three snapshots taped up in a row, curling at one corner. Alpha outside
-    // them so it is three photographs and not a photograph-coloured rectangle.
-    const snapT = surfTex('detail', 34, 13, (g) => {
-      g.clearRect(0, 0, 34, 13);
-      const shot = (x0: number, sky: string, ground: string, figure: string) => {
-        g.fillStyle = '#e6e2d6'; g.fillRect(x0, 0, 10, 12);          // the white border
-        g.fillStyle = sky; g.fillRect(x0 + 1, 1, 8, 6);
-        g.fillStyle = ground; g.fillRect(x0 + 1, 7, 8, 4);
-        g.fillStyle = figure; g.fillRect(x0 + 4, 4, 2, 5);           // somebody, unreadably
-        g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(x0 + 3, 0, 4, 2);  // the tape
-      };
-      shot(0, '#7d94a8', '#4a5a48', '#3a3128');
-      shot(12, '#c8b48a', '#8a7a5c', '#42352a');
-      shot(24, '#6a7f9a', '#586a52', '#2e2a24');
-      dither(g, 34, 13, 20);
-    });
-    const snaps = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.153), texM(snapT));
-    snaps.position.set(AX(-1.62), RY + 1.52, NORTH_Z);
-    snaps.rotation.y = Math.PI;
-    scene.add(snaps);
+    // ── AND SO ARE THE THREE SNAPSHOTS ───────────────────────────────────
+    // Same instruction, same wall: 0.40 x 0.153 of taped-up photographs at
+    // AX(-1.62), with their own 34 x 13 field. Also gone, also not replaced.
     // lit by the same fixture as the landing outside the door
     ceilingLamp(2 * ST + 2.55, AZI(3.75), 0.55, AX(-1.6));
     // ── 301'S COLLISION, FITTED TO THE MESHES IT STANDS FOR ──────────────────
