@@ -180,13 +180,37 @@ export function paintGlass(g: CanvasRenderingContext2D, W: number, H: number): v
 // glass, never stretched to fill it. A body has fixed proportions whatever
 // shape the thing it is reflected in happens to be.
 const MW = 40, MH = 152;
-/** canvas pixels per design unit, and the panel canvas that falls out of it.
- *  4 → 160 x 608, five times the wall plate's own density: you are 1.9 m from
- *  the glass here rather than across the room. */
-const S = 4;
-const PW = MW * S, PH = MH * S;
-/** the caption strip along the bottom of the glass */
-const BAND_T = 146;
+/**
+ * THE PANEL CANVAS'S DENSITY, in px per metre of glass — and the third report
+ * of one bug is what put it here.
+ *
+ * *"give me true proportions in the mirror i feel stretched"*, then *"i squish
+ * and distort in some"*, then *"ok but im still distorted in the mirror"*.
+ * Two fixes shipped and neither landed, because both were aimed at the wrong
+ * surface. **MEASURED, END TO END:**
+ *
+ *     the drawn figure   136 texels tall, 20-texel head → 6.8 heads, and
+ *                        36 texels arm to arm → 1:3.8 of its height ✓
+ *     figure → canvas    fitted at min(160/40, 608/152) = 4.0 on both axes ✓
+ *     canvas → GLASS     canvas 160 x 608, aspect 0.2632
+ *                        glass 0.52 x 1.35 m, aspect 0.3852
+ *                        **⇒ x1.464 HORIZONTAL STRETCH. 46% TOO WIDE.**
+ *
+ * The figure was geometrically perfect right up to the last step, where a
+ * FIXED 160 x 608 canvas was mapped onto a quad of a different shape — which
+ * is precisely the fault `glassCanvas` was written to fix, applied to the WALL
+ * PLATE and never to this panel. Two surfaces, one bug, one of them fixed.
+ *
+ * AND IT EXPLAINS WHY IT ARRIVED WHEN IT DID. At the glass he first saw
+ * (0.42 x 1.60) the aspects were 0.2625 against 0.2632 — a stretch of x0.997,
+ * invisible. *"a bit wider and less tall"* took the quad to 0.385 and opened
+ * the gap; his complaint landed in the same breath, and I read it as the plate.
+ *
+ * So this canvas is DERIVED from the glass's metres, exactly as the plate's is,
+ * and the two can no longer disagree. 200 px/m, five times the plate's 40 —
+ * you are 1.9 m from it here rather than across the room.
+ */
+const PANEL_PPM = 200;
 const INK = '#efe8d6';
 
 const CX = 20;              // the centre line
@@ -243,26 +267,47 @@ function zoneOf(slot: Slot): Zone {
   return ZONES.find((z) => z.slot === slot) as Zone;
 }
 
-/** the slot under a CANVAS pixel of the panel */
-function slotAtCanvas(px: number, py: number, facing: number): Slot | null {
-  return zoneAt(px / S, py / S, facing);
+/** the slot under a CANVAS pixel of the panel — through the same fit the
+ *  figure was drawn with, or the zones sit where he no longer does. */
+function slotAtCanvas(px: number, py: number, W: number, H: number,
+                      facing: number): Slot | null {
+  const fit = figureFit(W, H);
+  return zoneAt((px - fit.ox) / fit.s, (py - fit.oy) / fit.s, facing);
 }
 
 // ── THE PAINTER ────────────────────────────────────────────────────────────
 
+/**
+ * WHERE THE FIGURE SITS IN A CANVAS OF ANY SHAPE — one scale on both axes, the
+ * remainder left as reflected room.
+ *
+ * `Math.min` is the whole of it, and it only started MEANING anything once the
+ * canvas stopped being the figure's own shape: at 160 x 608 the two fits were
+ * both 4.0 and the figure filled the canvas edge to edge, so nothing was ever
+ * letterboxed and the quad's aspect went straight into his silhouette. Against
+ * a canvas derived from a 0.52 x 1.35 glass the fits are 2.60 and 1.78, the
+ * height binds, and he stands 71 px wide in 104 with reflected room either
+ * side — which is what a person in a mirror looks like.
+ */
+function figureFit(W: number, H: number) {
+  const s = Math.min(W / MW, H / MH);
+  return { s, ox: Math.round((W - MW * s) / 2), oy: Math.round((H - MH * s) / 2) };
+}
+
 function paint(g: CanvasRenderingContext2D, W: number, H: number,
                hover: Slot | null, facing: number): void {
-  const u = (v: number) => Math.round(v * (W / MW));
-  const box = (x: number, y: number, w: number, h: number, fill: string) => {
-    g.fillStyle = fill;
-    g.fillRect(u(x), u(y), u(x + w) - u(x), u(y + h) - u(y));
-  };
   // the glass: ONE drawing of it, shared with the plate on the wall
   paintGlass(g, W, H);
-  // and you, in it. ONE SCALE ON BOTH AXES, remainder left as reflected room —
-  // *"give me true proportions in the mirror i feel stretched"*.
-  const fs = Math.min(W / MW, H / MH);
-  paintFigure(g, Math.round((W - MW * fs) / 2), Math.round((H - MH * fs) / 2), fs, facing);
+  const fit = figureFit(W, H);
+  paintFigure(g, fit.ox, fit.oy, fit.s, facing);
+  // EVERYTHING ELSE IS IN THE FIGURE'S SPACE, not the canvas's — the bracket
+  // has to land on the body it is bracketing, and the body is no longer the
+  // whole canvas.
+  const u = (v: number) => Math.round(v * fit.s);
+  const box = (x: number, y: number, w: number, h: number, fill: string) => {
+    g.fillStyle = fill;
+    g.fillRect(fit.ox + u(x), fit.oy + u(y), u(x + w) - u(x), u(y + h) - u(y));
+  };
 
   // ── AND WHAT YOUR HAND IS ON ───────────────────────────────────────────
   //
@@ -274,20 +319,30 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
     const z = zoneOf(hover);
     const cy = (z.y0 + z.y1) / 2;
     g.fillStyle = 'rgba(240,232,214,0.10)';
-    g.fillRect(u(z.x0), u(z.y0), u(z.x1) - u(z.x0), u(z.y1) - u(z.y0));
+    g.fillRect(fit.ox + u(z.x0), fit.oy + u(z.y0), u(z.x1) - u(z.x0), u(z.y1) - u(z.y0));
     for (const y of [z.y0, z.y1 - 1]) box(z.x0, y, z.x1 - z.x0, 1, 'rgba(240,232,214,0.55)');
     // the two arrows, stepped rather than drawn as triangles for the reason the
     // skirt's bands are stepped: nothing on this glass may be antialiased
+    // the arrows sit at the GLASS's edges, not the figure's — they say which
+    // way the scrub goes and they belong to the mirror, not to him. Stepped
+    // rather than drawn as triangles: nothing on this glass may be antialiased.
+    const ay = fit.oy + u(cy);
     for (let k = 0; k < 4; k++) {
-      box(1 + k, cy - (3 - k), 1, (3 - k) * 2 + 1, INK);
-      box(MW - 2 - k, cy - (3 - k), 1, (3 - k) * 2 + 1, INK);
+      const t = u(3 - k) * 2 + 1;
+      g.fillStyle = INK;
+      g.fillRect(u(1 + k), ay - t / 2, Math.max(1, u(1)), t);
+      g.fillRect(W - u(2 + k), ay - t / 2, Math.max(1, u(1)), t);
     }
   }
-  box(0, BAND_T, MW, MH - BAND_T, 'rgba(12,14,18,0.72)');
+  // the caption strip is CHROME ON THE GLASS and spans it, so it is measured
+  // off the canvas rather than off the figure standing in it
+  const band = Math.round(H * 0.055);
+  g.fillStyle = 'rgba(12,14,18,0.72)';
+  g.fillRect(0, H - band, W, band);
   g.fillStyle = hover ? INK : 'rgba(239,232,214,0.62)';
-  g.font = `bold ${u(4.2)}px ui-monospace, Menlo, monospace`;
+  g.font = `bold ${Math.max(7, Math.round(band * 0.62))}px ui-monospace, Menlo, monospace`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(hover ? showing(hover).name : 'DRAG TO DRESS', u(CX), u(BAND_T + 3.2));
+  g.fillText(hover ? showing(hover).name : 'DRAG TO DRESS', W / 2, H - band / 2);
 }
 
 /**
@@ -573,7 +628,11 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
  */
 export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
   standoff: number; fov: number;
+  /** the glass's own size in metres — the canvas is derived from it, and the
+   *  46% stretch this fixes is what happens when it is not. See `PANEL_PPM`. */
+  glassW: number; glassH: number;
 }): () => void {
+  const PW = Math.round(o.glassW * PANEL_PPM), PH = Math.round(o.glassH * PANEL_PPM);
   let panel: Panel | null = null;
   let hover: Slot | null = null;
   /** which way the reflection is facing, 0…7. Front-on again on every open — a
@@ -629,7 +688,7 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
           mesh,
           standoff: o.standoff,
           fov: o.fov,
-          hot: (x, y) => slotAtCanvas(x, y, facing) !== null,
+          hot: (x, y) => slotAtCanvas(x, y, PW, PH, facing) !== null,
           move: (x, y) => {
             if (drag) {
               // SCRUB. Measured from where the button went down and from the
@@ -647,11 +706,11 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
               }
               return;
             }
-            const z = slotAtCanvas(x, y, facing);
+            const z = slotAtCanvas(x, y, PW, PH, facing);
             if (z !== hover) { hover = z; repaint(); }
           },
           click: (x, y) => {
-            const z = slotAtCanvas(x, y, facing);
+            const z = slotAtCanvas(x, y, PW, PH, facing);
             if (!z) return;
             hover = z;
             // `showing` rather than `wornIndex`: while a dress is on, the

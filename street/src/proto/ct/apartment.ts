@@ -4306,7 +4306,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const MIR_FOV = 52;
     const MIR_STANDOFF = ((MIR_H - 2 * FRAME_W) / 2)
       / Math.tan((MIR_FOV * Math.PI) / 360) * 1.18;
-    const openMirror = mirrorPanel(() => mirror, { standoff: MIR_STANDOFF, fov: MIR_FOV });
+    // `glassW/glassH` ARE NOT DECORATION. The panel's canvas is derived from
+    // them at `PANEL_PPM`, so the picture hung on this quad has the quad's own
+    // aspect — the plate below already did this and the panel did not, which
+    // is the 46% horizontal stretch he reported three times. Both surfaces now
+    // read the same two numbers.
+    const openMirror = mirrorPanel(() => mirror, {
+      standoff: MIR_STANDOFF, fov: MIR_FOV, glassW: GLASS_W, glassH: GLASS_H,
+    });
     // ── WHERE YOU STAND, WHICH IS A 0.118 m SLOT AND HAS TO BE MEASURED ──
     //
     // This corner is boxed in by two colliders declared ~700 lines below, and
