@@ -3,7 +3,7 @@ import { dither } from './paint';
 import { viewAt } from './citizens';
 import { makePanel, type Panel } from './hud';
 import {
-  SLOTS, cycle, showing, worn, wornIndex, wear, onWardrobeChange, type Slot,
+  SLOTS, cycle, showing, worn, onWardrobeChange, type Slot,
 } from './wardrobe';
 
 // ── THE MIRROR IN 301, AND THE PERSON IN IT ────────────────────────────────
@@ -309,30 +309,34 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
     g.fillRect(fit.ox + u(x), fit.oy + u(y), u(x + w) - u(x), u(y + h) - u(y));
   };
 
-  // ── AND WHAT YOUR HAND IS ON ───────────────────────────────────────────
+  // ── AND WHAT YOU ARE POINTING AT ───────────────────────────────────────
   //
-  // Only ever the hovered slot: a mirror with six labelled boxes drawn on it is
-  // the menu this design exists to avoid. Hover one and you get a bracket round
-  // it, an arrow at each edge of the glass saying which way it scrubs, and the
-  // garment's name in the strip along the bottom.
+  // *"you just click the highlighted part and it changes"* — so the highlight
+  // is part of the design and not decoration, and it has one job: say THIS
+  // PART IS CLICKABLE AND IT IS THE ONE YOU WILL CHANGE.
+  //
+  // A WASH PLUS A CLOSED OUTLINE. The wash alone was too quiet against a
+  // reflection that is already pale grey; an outline alone reads as a crop
+  // mark. Together they make a lit panel of you — warm, because everything
+  // else on this glass is cold, so it cannot be mistaken for part of the room.
+  //
+  // ALL FOUR EDGES, where the old bracket drew only two. That was a scrub
+  // gutter, pointing left and right at a gesture that no longer exists; a
+  // closed box says "a thing", which is what a hat or a pair of shoes is.
+  //
+  // ONE UNIT THICK at the figure's own scale, so it is ~2 px on this canvas
+  // and steps up with the mirror rather than being a hairline at one size and
+  // a slab at another. Only ever ONE zone is lit: six labelled boxes on a
+  // mirror is the menu this whole design exists to avoid.
   if (hover) {
     const z = zoneOf(hover);
-    const cy = (z.y0 + z.y1) / 2;
-    g.fillStyle = 'rgba(240,232,214,0.10)';
+    g.fillStyle = 'rgba(255,244,214,0.16)';
     g.fillRect(fit.ox + u(z.x0), fit.oy + u(z.y0), u(z.x1) - u(z.x0), u(z.y1) - u(z.y0));
-    for (const y of [z.y0, z.y1 - 1]) box(z.x0, y, z.x1 - z.x0, 1, 'rgba(240,232,214,0.55)');
-    // the two arrows, stepped rather than drawn as triangles for the reason the
-    // skirt's bands are stepped: nothing on this glass may be antialiased
-    // the arrows sit at the GLASS's edges, not the figure's — they say which
-    // way the scrub goes and they belong to the mirror, not to him. Stepped
-    // rather than drawn as triangles: nothing on this glass may be antialiased.
-    const ay = fit.oy + u(cy);
-    for (let k = 0; k < 4; k++) {
-      const t = u(3 - k) * 2 + 1;
-      g.fillStyle = INK;
-      g.fillRect(u(1 + k), ay - t / 2, Math.max(1, u(1)), t);
-      g.fillRect(W - u(2 + k), ay - t / 2, Math.max(1, u(1)), t);
-    }
+    const line = 'rgba(246,238,214,0.72)';
+    box(z.x0, z.y0, z.x1 - z.x0, 1, line);
+    box(z.x0, z.y1 - 1, z.x1 - z.x0, 1, line);
+    box(z.x0, z.y0, 1, z.y1 - z.y0, line);
+    box(z.x1 - 1, z.y0, 1, z.y1 - z.y0, line);
   }
   // the caption strip is CHROME ON THE GLASS and spans it, so it is measured
   // off the canvas rather than off the figure standing in it
@@ -342,7 +346,10 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
   g.fillStyle = hover ? INK : 'rgba(239,232,214,0.62)';
   g.font = `bold ${Math.max(7, Math.round(band * 0.62))}px ui-monospace, Menlo, monospace`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(hover ? showing(hover).name : 'DRAG TO DRESS', W / 2, H - band / 2);
+  // the name of the thing you are about to change, or what to do if you are
+  // not on anything. It is the one line of type on the glass and it names the
+  // GARMENT rather than the slot — you can see which part is lit.
+  g.fillText(hover ? showing(hover).name : 'CLICK TO CHANGE', W / 2, H - band / 2);
 }
 
 /**
@@ -638,18 +645,6 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
   /** which way the reflection is facing, 0…7. Front-on again on every open — a
    *  mirror left turned away is a state with no visible cause. */
   let facing = 0;
-  /** the drag in progress: which slot, where it started, and what was on then */
-  let drag: { slot: Slot; x0: number; i0: number; last: number; moved: boolean } | null = null;
-  /**
-   * How far you drag to change one garment, in canvas pixels.
-   *
-   * 20 of the 160 across the glass, so a drag from one edge to the other steps
-   * eight — more than any rack holds, i.e. every option in a slot is reachable
-   * in one gesture without lifting the button. Smaller and a twitch changes
-   * your trousers; larger and the longest rack needs two drags.
-   */
-  const STEP = 20;
-
   const repaint = () => panel?.repaint();
 
   const open = () => {
@@ -659,13 +654,13 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
         // `chrome:'none'` for the calendar's reason and more so: this canvas IS
         // the mirror's glass, edge to edge. A framework bezel would be a beige
         // plastic case drawn inside a wooden mirror frame.
-        hint: () => 'drag across yourself to change what you are wearing',
+        hint: () => 'click a part of yourself to change it',
         draw: (g, w, h) => paint(g, w, h, hover, facing),
         // ── THE WHEEL TURNS YOU ────────────────────────────────────────
         // *"scroll to turn self in mirror?"* — eight stops, `viewAt`'s own, so
         // the reflection steps through exactly the angles `ct/citizens.ts`
-        // paints and never lands between two. It used to scrub the hovered
-        // rack, which the DRAG already does and does better.
+        // paints and never lands between two. It is not part of dressing and
+        // never was — turning to look at the back of a jacket is its own thing.
         //
         // It cannot steal the world's zoom: that listener is BUBBLE-phase and
         // this panel's gate is CAPTURE-phase with `stopImmediatePropagation`,
@@ -689,23 +684,18 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
           standoff: o.standoff,
           fov: o.fov,
           hot: (x, y) => slotAtCanvas(x, y, PW, PH, facing) !== null,
+          // ── ONE VERB: CLICK ────────────────────────────────────────────
+          //
+          // *"get rid of drag to dress instead you just click the highlighted
+          //  part and it changes. cycles through all the options for that
+          //  category."*
+          //
+          // Hovering lights the part; clicking it steps that slot forward one
+          // and wraps. The drag-to-scrub it replaces is DELETED rather than
+          // left unreachable — its state, its `STEP` and its mouse-up branch
+          // are gone, so there is one gesture in this panel and no second path
+          // through the wardrobe that could disagree with it.
           move: (x, y) => {
-            if (drag) {
-              // SCRUB. Measured from where the button went down and from the
-              // index it went down ON, not incrementally — an incremental
-              // version drifts, and dragging back to where you started must put
-              // back what you started in. `last` is the step count already
-              // applied, so a mousemove that has not crossed a step boundary
-              // does nothing at all: `wear` writes to storage and wakes the hud.
-              const steps = Math.round((x - drag.x0) / STEP);
-              if (steps !== 0) drag.moved = true;
-              if (steps !== drag.last) {
-                drag.last = steps;
-                wear(drag.slot, drag.i0 + steps);
-                repaint();
-              }
-              return;
-            }
             const z = slotAtCanvas(x, y, PW, PH, facing);
             if (z !== hover) { hover = z; repaint(); }
           },
@@ -713,30 +703,22 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
             const z = slotAtCanvas(x, y, PW, PH, facing);
             if (!z) return;
             hover = z;
-            // `showing` rather than `wornIndex`: while a dress is on, the
-            // bottoms slot is the dress, and a drag that started from the
-            // trousers still in the drawer would jump.
-            const i0 = showing(z) === worn(z) ? wornIndex(z) : -1;
-            drag = { slot: z, x0: x, i0, last: 0, moved: false };
+            // `cycle` WRAPS OVER THE WHOLE RACK INCLUDING INDEX 0, and index 0
+            // is the empty state — so clicking your chest enough times takes
+            // the top off, which is the only way to undress now that dragging
+            // a garment away is gone. It cannot go further than that: the
+            // white vest and the white briefs ARE index 0 rather than options
+            // sitting above a bare body, so *"maximum naked"* is a floor you
+            // reach and cannot pass. See `ct/wardrobe.ts`'s header.
+            cycle(z, 1);
             repaint();
-          },
-          // THE BUTTON CAME UP — anywhere, including off the glass, which is
-          // where a drag that runs out of mirror ends. A click is a drag that
-          // never moved, so the two gestures cost one branch between them and
-          // neither can swallow the other.
-          up: () => {
-            const d = drag;
-            drag = null;
-            if (!d) return;
-            if (!d.moved) { cycle(d.slot, 1); repaint(); }
           },
         },
         // NOTHING IS REMEMBERED ACROSS OPENINGS except the clothes, which are
-        // the point. The hand starts on nothing, so walking up to the mirror
-        // never shows a bracket round a part of you that you last touched an
-        // hour ago and cannot remember choosing.
-        onOpen: () => { hover = null; drag = null; facing = 0; },
-        onClose: () => { drag = null; },
+        // the point. Nothing starts lit, so walking up to the mirror never
+        // highlights a part of you that you last touched an hour ago and
+        // cannot remember choosing.
+        onOpen: () => { hover = null; facing = 0; },
       });
       // and if something else dresses the player — a shop, a laundrette, a
       // debug hook — the glass follows without that thing knowing it exists
