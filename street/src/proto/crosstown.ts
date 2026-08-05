@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { Proto } from './types';
 import { FPRig, RADIUS, SIT_EYE, PITCH_LIMIT, type AABB, type SeatPose } from './fp';
+import { showBag, hasBag } from './ct/bag';
+import { worn } from './ct/wardrobe';
 import { ColliderDebug } from './ct/debug-collision';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -82,6 +84,10 @@ export function makeCrosstown(): Proto {
   // changing one alone is exactly what produced the second complaint.
   const FOV_REST = 88, FOV_MIN = 52, FOV_STEP = 7;
   let fovTarget = FOV_REST;
+  /** which stop of the wrist-down carousel is up — see the block that cycles
+   *  it. Remembered across looking up and down again: coming back to the same
+   *  thing you left open is what a pocket does. */
+  let carousel = 'nothing';
   /**
    * HOW FAR DOWN YOU MUST LOOK BEFORE THE WATCH COMES UP, MEASURED BACK FROM
    * THE CLAMP. Gate fires at `PITCH_LIMIT - WATCH_TOLERANCE` below level, so a
@@ -2477,11 +2483,56 @@ export function makeCrosstown(): Proto {
       // panel that closes itself in a way nobody has written yet — the watch
       // slides back if the player is still looking down. There is no close
       // path to miss because no close path is enumerated.
-      hud.watch(rig.pitch < WATCH_PITCH && !panelUp(), Math.floor(clockMin));
-      // right-click: flip the wallet out / away
+      // ══ THE WRIST-DOWN CAROUSEL ═══════════════════════════════════════
+      //
+      // *"ok with looking down, right click should toggle between inventory
+      //  (bag), watch, and nothing (clear view looking down). if you dont have
+      //  a watch then looking down should have that option in the toggle
+      //  carosel"*   (2026-08-05)
+      //
+      // **THE STOPS ARE BUILT FROM WHAT HE IS ACTUALLY WEARING**, every frame,
+      // which is the whole of his second sentence. The wardrobe's watch slot
+      // has a NO WATCH option and the bag slot a NO BAG, so a cycle with a
+      // fixed three stops would offer him a watch he took off an hour ago.
+      //
+      //     wearing both      bag → watch → nothing
+      //     bag only          bag → nothing
+      //     watch only        watch → nothing
+      //     neither           nothing, and right-click does nothing to see
+      //
+      // **NOTHING IS ALWAYS A STOP.** A clear view of the floor is always
+      // available and it is the state he comes back to, so it is appended
+      // rather than conditional.
+      //
+      // ⚠ AND IF THE CURRENT STOP STOPS EXISTING — he takes the watch off at
+      // the mirror while the watch is up — the carousel FALLS BACK TO NOTHING
+      // rather than pointing at a thing that is not there. Checked against the
+      // live list rather than hooked off a change event, so it cannot go stale.
+      //
+      // RIGHT-CLICK IS ALREADY WIRED AND IS NOT TOUCHED. `main.ts:63` has long
+      // put the right button into `input.keys` as the pseudo-key `rmb`, and
+      // `main.ts:69` already suppresses the browser menu globally. This reads
+      // that key on its RISING EDGE and only while looking down; everywhere
+      // else the button keeps doing exactly what it did.
+      const lookingDown = rig.pitch < WATCH_PITCH && !panelUp();
+      const stops: string[] = [];
+      if (hasBag()) stops.push('bag');
+      if (worn('watch').kind !== 'none') stops.push('watch');
+      stops.push('nothing');
+      if (!stops.includes(carousel)) carousel = 'nothing';
+      // ⚠ RIGHT-CLICK ALREADY DID SOMETHING AND IT STILL DOES. It has flipped
+      // the WALLET out and away since long before this, on this same edge
+      // detector — so the carousel does not get a second listener or a second
+      // `rmbHeld`. It takes the button ONLY while looking down; stand up, look
+      // ahead, right-click, and the wallet comes out exactly as it always has.
       const rmb = input.keys.has('rmb');
-      if (rmb && !rmbHeld) hud.toggleWallet();
+      if (rmb && !rmbHeld) {
+        if (lookingDown) carousel = stops[(stops.indexOf(carousel) + 1) % stops.length];
+        else hud.toggleWallet();
+      }
       rmbHeld = rmb;
+      hud.watch(lookingDown && carousel === 'watch', Math.floor(clockMin));
+      showBag(lookingDown && carousel === 'bag');
       // V: toggle the collision debug view. Edge-triggered like rmb/E just
       // above, so holding it down does not flicker the overlay on and off.
       const debugKeyDown = input.keys.has('v');

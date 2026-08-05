@@ -360,6 +360,46 @@ export function drawerTake(id: string): boolean {
 /** Put one back in. */
 export function drawerPut(id: string): void { DRAWER[id] = (DRAWER[id] ?? 0) + 1; }
 
+// ══ THE BAG ════════════════════════════════════════════════════════════════
+//
+// *"with looking down, right click should toggle between inventory (bag),
+//  watch, and nothing"*   (2026-08-05)
+//
+// **A THIRD CONTAINER, AND DELIBERATELY NOT A COPY OF THE OTHER TWO.** Your
+// pockets are six slots you carry always; the drawer is furniture that stays in
+// the room; the bag is a thing you WEAR, so it exists only while one is on your
+// back and its size is the bag's own. Three containers that behave differently
+// is what makes this a place rather than a menu — and the item vocabulary is
+// still this one table, so `ItemDef` says what a thing IS exactly once.
+//
+// CAPACITY IS THE GARMENT'S. `bagCapacity()` comes off `Garment.hold` in
+// `ct/wardrobe.ts` — backpack 8, tote 6, crossbody 5, clutch 2, and 0 when the
+// slot is empty. Nothing here holds a second opinion about how big your bag is.
+const BAG: Record<string, number> = { NEWSPAPER: 1, SODA: 2 };
+
+/** What is in the bag: ids in lay-out order, with their counts. */
+export function bagStock(): { id: string; n: number }[] {
+  return Object.keys(BAG).filter((k) => BAG[k] > 0).map((id) => ({ id, n: BAG[id] }));
+}
+/** How many things are in it, counting duplicates — against `bagCapacity()`. */
+export function bagUsed(): number {
+  return Object.keys(BAG).reduce((t, k) => t + BAG[k], 0);
+}
+/** Take one out. False if there is none. */
+export function bagTake(id: string): boolean {
+  if ((BAG[id] ?? 0) < 1) return false;
+  BAG[id] -= 1;
+  if (BAG[id] === 0) delete BAG[id];
+  return true;
+}
+/** Put one in, if it fits. False when the bag is full — capacity is the bag's,
+ *  so a clutch refuses at 2 and a backpack keeps going to 8. */
+export function bagPut(id: string, cap: number): boolean {
+  if (bagUsed() >= cap) return false;
+  BAG[id] = (BAG[id] ?? 0) + 1;
+  return true;
+}
+
 export const POCKETS = 6;
 
 /** The kinds you are actually carrying, in the order you first picked them up. */
