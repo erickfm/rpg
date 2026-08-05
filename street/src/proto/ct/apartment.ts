@@ -26,7 +26,7 @@ import { declareRoom } from './interior';
 import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
-import { giveRandom, pocketsFull } from './inventory';
+import { givePackage, pocketsFull } from './inventory';
 import { screenFade, makePanel, type Panel } from './hud';
 /** THE MIRROR'S OWN VIEW — the panel, the figure in it and the six racks live
  *  in `ct/mirror.ts` + `ct/wardrobe.ts`, which this file hangs the glass for.
@@ -3332,7 +3332,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           // GATED ON `taken`. If the pockets are full the parcel stays on the
           // landing: destroying what you could not pick up is the one failure
           // K warned about, and it would read as the package evaporating.
-          const got = giveRandom(ctx);
+          // ⚠ THE PARCEL, NOT ITS CONTENTS. *"when i steal a package i want a
+          // package in my bag"* — the roll has moved to the moment he opens it
+          // (`PACKAGE.use` in `ct/inventory.ts`), so what leaves the landing is
+          // a sealed box. Still gated on `taken`: a full pocket leaves the
+          // parcel where it is rather than evaporating it.
+          const got = givePackage(ctx);
           if (got.taken) pkgTaken.add(key());
         },
       });
@@ -3344,7 +3349,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         label: () => (pocketsFull(ctx.purse)
           ? 'pockets full — you cannot carry it'
           : 'steal package'),
-        act: () => { const got = giveRandom(ctx); if (got.taken) pkgTaken.add(key()); },
+        // the parcel, not its contents — see the other side of the mat above
+        act: () => { const got = givePackage(ctx); if (got.taken) pkgTaken.add(key()); },
       });
     }
     ctx.onFrame(({ px, pz }) => {

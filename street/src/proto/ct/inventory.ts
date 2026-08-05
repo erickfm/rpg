@@ -67,7 +67,15 @@ export interface ItemDef {
    * `ct/int-bodega.ts` for food, `ct/props.ts` for the birds. That is the piece
    * that is not built, and it is a real one.
    */
-  use?: { verb: string; act: (p: Purse) => void };
+  use?: {
+    verb: string;
+    /**
+     * Do the thing. Return an id to REPLACE this item with, or nothing to
+     * consume it outright — "using a thing may turn it into another thing" is
+     * the general shape, and the parcel is its first tenant.
+     */
+    act: (p: Purse) => string | void;
+  };
   /**
    * Paint the thing, in a 24 × 24 box with the origin at its top left.
    *
@@ -184,6 +192,48 @@ const PARCEL = (g: CanvasRenderingContext2D) => {
 // a stolen package is that you do not know what is in it. 1997 mail order: a
 // videotape, a pair of trainers, a small appliance, and the disappointment,
 // which is the joke and is worth more entries than the prizes.
+/**
+ * ── THE PARCEL YOU STOLE, UNOPENED ─────────────────────────────────────────
+ *
+ * *"when i steal a package i want a package in my bag … i want to be able to
+ *  open the package and it becomes the item at random in that moment"*
+ *
+ * **THE RANDOMNESS MOVES FROM STEALING TO OPENING, AND THAT IS THE POINT.**
+ * Taking a parcel used to roll its contents on the spot, so the theft and the
+ * reveal were one event and there was nothing to decide. Carrying a sealed box
+ * makes it a decision: open it now, keep it, or fence it unopened and never
+ * know.
+ *
+ * IT IS A FRESH ROLL, NOT THE DOOR'S SEEDED ONE, deliberately.
+ * `ct/apartment.ts`'s `pkgRoll` is seeded on (door, day) so a parcel's SIZE and
+ * which side of the mat it lies on stay put while you walk past — a thing you
+ * can SEE has to stop changing. Contents are not a thing you can see, and his
+ * words are *"at random in that moment"*: the surprise is the opening. A seeded
+ * roll would also make two parcels from one door on one day hold the same
+ * thing, which reads as a bug rather than as fate.
+ *
+ * ITS `use` NEEDS NO `ctx`, WHICH IS WHY IT IS DECLARED INLINE — and that is
+ * the pattern. The obstacle flagged when the field was added (an `ItemDef` is
+ * built at module scope with nothing from the world in reach) does not bite for
+ * a verb that only moves things between containers this file already owns.
+ * **Declare it inline when it can be; register it from the module that owns the
+ * system when it cannot.** Eat-the-cereal will still need `ct/int-bodega.ts` to
+ * hand it a hunger model.
+ */
+export const PACKAGE = defineItem({
+  id: 'PACKAGE', name: 'parcel', stack: 2,
+  blurb: 'somebody else\u2019s. It has not been opened.',
+  use: { verb: 'open', act: () => rollPackage() },
+  icon: (g) => {
+    box(g, '#9d7f57', 3, 4, 18, 17);                   // brown paper
+    box(g, '#8a6f4a', 3, 4, 18, 2);                    // its folded top
+    box(g, '#6b5636', 11, 4, 2, 17);                   // the string, both ways
+    box(g, '#6b5636', 3, 11, 18, 2);
+    box(g, '#e8e4d8', 5, 14, 8, 5);                    // the label
+    box(g, '#7d7668', 6, 16, 6, 1);                    // written on, unreadably
+  },
+});
+
 export const PACKAGE_TABLE: string[] = [
   defineItem({
     id: 'VHS', name: 'video tape', stack: 2, blurb: 'no label. Somebody taped over something.',
@@ -487,13 +537,28 @@ export function takeOne(p: Purse, id: string): boolean {
  * the key is pressed, and gate whatever the act consumes on `got.taken`, so a
  * refused steal does not silently destroy the package it could not fit.
  */
+/**
+ * STEAL A PARCEL — and you get the PARCEL, not what is in it. The roll waits
+ * for `PACKAGE.use`. `giveRandom` below is untouched for any caller that still
+ * wants contents outright; nothing does today.
+ */
+export function givePackage(ctx: CtxBuild): { id: string; def: ItemDef; taken: boolean } {
+  const taken = give(ctx.purse, PACKAGE.id, 1) > 0;
+  if (taken) ctx.refreshWallet();
+  else note(`no room — ${POCKETS} of ${POCKETS} pockets full`);
+  return { id: PACKAGE.id, def: PACKAGE, taken };
+}
+
 export function giveRandom(ctx: CtxBuild, table: string[] = PACKAGE_TABLE): { id: string; def: ItemDef; taken: boolean } {
   const id = table[Math.floor(Math.random() * table.length)];
   const def = itemOf(id);
   const taken = give(ctx.purse, id, 1) > 0;
   ctx.refreshWallet();
-  if (taken) note(`${def.name} — ${def.blurb}`);
-  else note(`no room — ${POCKETS} of ${POCKETS} pockets full`);
+  // ⚠ NO LINE ON SUCCESS. *"i dont want descriptors for the items you pick
+  // up"* — the note line stays for rent, the neighbour and the landlord, and
+  // stops narrating what he can already see in his own bag. The REFUSAL stays:
+  // that is not a descriptor, it is the reason nothing happened.
+  if (!taken) note(`no room — ${POCKETS} of ${POCKETS} pockets full`);
   return { id, def, taken };
 }
 
@@ -762,7 +827,6 @@ export function takeable(ctx: CtxBuild, o: {
       o.obj.visible = false;                       // it LEAVES THE GROUND
       held = true;
       ctx.refreshWallet();
-      note(def.blurb ? `${def.name} — ${def.blurb}` : `pocketed the ${def.name}`);
       TAKEN.push({
         id: o.id,
         restore: (x, z, gy) => {
@@ -829,7 +893,8 @@ function putDown(ctx: CtxBuild, i: number): boolean {
   takeOne(ctx.purse, t.id);
   t.restore(ctx.player.x(), ctx.player.z(), ctx.player.gy());
   ctx.refreshWallet();
-  note(`dropped the ${itemOf(t.id).name}`);
+  // and no line for putting one down either — the same instruction. He can see
+  // it leave his hand and land on the floor; saying so is narration.
   return true;
 }
 

@@ -39,18 +39,27 @@ import { bagCapacity, bagWorn } from './wardrobe';
 // is no second path that could forget.
 
 /** the canvas, in texels, and the CSS pixels each is drawn at */
-const BW = 320, BH = 200, SCALE = 3;
+// ⚠ THE CANVAS GREW WITH THE SPRITES, WHICH IS THE WHOLE OF WHY 8 STILL FIT.
+// *"i want all the sprites to be a bit bigger in the bag"* — and the mouth is
+// what bounds them, so raising `CELL` alone would have spent the increase on
+// overlap: measured, 64 -> 76 inside a 320-wide canvas takes the backpack's
+// eight from 38% overlapped to 53%, which is most of each item hidden. Growing
+// the canvas 320 x 200 -> 368 x 230 in step holds the overlap at 39% while the
+// sprite gains 19%. Eight still fit at a glance, no scrolling, nothing shrinks.
+const BW = 368, BH = 230, SCALE = 3;
 /**
  * HOW BIG ONE THING IN THE BAG IS, in texels. 64 at 3x is **192 CSS pixels a
  * side** — the drawer's own scale, and the number this whole session turned on:
  * an item at 4% of the frame is a smudge, one at a third of it is legible.
  * **It did not shrink when the layout changed**; the items overlap instead.
  */
-const CELL = 64;
+// 76 at 3x is 228 CSS px a side, up from 192. See `BW`.
+const CELL = 76;
 /** …and the floor it may shrink to in a small bag. 34 at 3x is still 102 CSS
- *  px a side — a clutch's contents are smaller than a backpack's, which is the
- *  point of a clutch, but never small enough to stop being legible. */
-const CELL_MIN = 34;
+ *  px a side, up from 102 — a clutch's contents are smaller than a backpack's,
+ *  which is the point of a clutch, but never small enough to stop being
+ *  legible. */
+const CELL_MIN = 42;
 /** and how big it gets when you lift it out to look at it */
 const LIFT = 132;
 
@@ -260,7 +269,23 @@ function onClick(e: MouseEvent): void {
         // implementation, so a thing dropped from the menu and a thing dragged
         // out are the same object in the same place.
         if (bagTake(id)) { if (!dropOut?.(id)) bagPut(id, bagCapacity()); else onPurse?.(); }
-      } else if (v === 'USE' && purse) itemOf(id).use?.act(purse);
+      } else if (purse && itemOf(id).use && v === itemOf(id).use!.verb.toUpperCase()) {
+        // ── USING A THING MAY TURN IT INTO ANOTHER THING ──────────────────
+        //
+        // The parcel is the first tenant of this: OPEN takes the sealed box out
+        // of the bag, rolls its contents AT THAT MOMENT, and puts what it
+        // found back in the same slot the box vacated. So the bag can never be
+        // too full to hold the result — the thing making room IS the thing
+        // being replaced.
+        //
+        // An act that returns nothing consumes the item outright, which is what
+        // eating something will do.
+        if (bagTake(id)) {
+          const got = itemOf(id).use!.act(purse);
+          if (typeof got === 'string') bagPut(got, bagCapacity());
+          onPurse?.();
+        }
+      }
       paint();
       return;
     }
