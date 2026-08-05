@@ -97,7 +97,12 @@ const originY = () => VH - BH;
 // the highlight lands at 224 px, which is 4 px SMALLER than the old cell it
 // used to wrap with 18 px to spare. Bigger object, smaller highlight, exactly
 // the sentence.
-const CELL = 96;
+// …AND BACK TO 88 WHEN THE PIPS CAME OUT. The blank space he was naming was
+// between the highlight and the object, and `HL_HUG` is what actually fixed it;
+// 96 was me spending the whole increase on the cell as well, which cost columns
+// — the backpack's mouth held two at 96 and holds three at 88. Still +16% on
+// the 76 it was. The rule this file keeps relearning: fix the thing he named.
+const CELL = 88;
 /** how far the highlight sits INSIDE the cell, as a fraction of it. The art is
  *  drawn in a 24-unit box and typically fills 18-20 of it, so a hug at 78% of
  *  the cell lands ON the object rather than floating round it or cropping it. */
@@ -666,7 +671,7 @@ function band(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
  */
 type Kind = { ix: number; iy: number; ih: number; r: number };
 const KIND: Record<string, Kind> = {
-  pack: { ix: 0.09, iy: 0.15, ih: 0.76, r: 0.26 },
+  pack: { ix: 0.045, iy: 0.15, ih: 0.76, r: 0.26 },
   tote: { ix: 0.045, iy: 0.10, ih: 0.82, r: 0.05 },
   sling: { ix: 0.10, iy: 0.36, ih: 0.58, r: 0.13 },
   clutch: { ix: 0.07, iy: 0.18, ih: 0.72, r: 0.11 },
@@ -688,7 +693,21 @@ function layout(n: number) {
   };
   // Things shrink to what the mouth can hold rather than the mouth growing to
   // fit them — a clutch is small and that is the point of it.
-  const cell = Math.max(CELL_MIN, Math.min(CELL, mouth.h - 12));
+  // BOUNDED BY THE INNER HEIGHT, not by the mouth's — a cell taller than the
+  // space it is drawn into would be clipped at the lining on its FIRST row, and
+  // the clip is supposed to be what says "there is more below", not what eats
+  // the row you are looking at.
+  // …AND `PEEK` IS RESERVED OFF THE BOTTOM, which is what makes the clipped row
+  // below actually show. Measured across all four bags before this line
+  // existed: the pack left 48 texels of the next row visible and the tote 44,
+  // but the SLING left exactly 0 — its mouth is short, the cell got clamped to
+  // the full inner height, and one row filled it to the texel. A signal that
+  // works on three bags out of four is not a signal. Reserving the strip
+  // unconditionally costs a bag with nothing below it 16 texels of empty
+  // lining, which is what room left in a bag looks like anyway.
+  const PEEK = 16;
+  const inner0 = mouth.h - 16;
+  const cell = Math.max(CELL_MIN, Math.min(CELL, inner0 - PEEK));
   // ── A REAL GRID, AND A BAND OF IT VISIBLE ──────────────────────────────
   //
   // They used to LEAN ON EACH OTHER: one or two rows spread across the mouth's
@@ -696,7 +715,7 @@ function layout(n: number) {
   // would be most of each item hidden behind the next, so it is a grid on a
   // fixed pitch now and the rows that do not fit are scrolled to rather than
   // overlapped. *"like rows of items"* is the ask and it is also the fix.
-  const inner = { x: mouth.x + 8, w: mouth.w - 16, y: mouth.y + 8, h: mouth.h - 16 };
+  const inner = { x: mouth.x + 8, w: mouth.w - 16, y: mouth.y + 8, h: inner0 };
   const pitch = cell + CELL_GAP;
   const cols = Math.max(1, Math.floor((inner.w + CELL_GAP) / pitch));
   const visRows = Math.max(1, Math.floor((inner.h + CELL_GAP) / pitch));
@@ -723,7 +742,10 @@ function layout(n: number) {
   const from = scroll * cols;
   const to = Math.min(n, (scroll + visRows) * cols);
   return { bx, by, bw, bh, mouth, kind, cell, at, r: Math.round(bw * K.r),
-           cols, visRows, totalRows, maxScroll, from, to, inner };
+           cols, from, to, inner };
+  // `visRows`, `totalRows` and `maxScroll` are NOT returned any more: the pips
+  // were the only reader and they are gone. They still do their work above,
+  // where the clamp needs them.
 }
 
 function paint(): void {
@@ -757,20 +779,29 @@ function paint(): void {
   }
 
   // ── THE BODY ───────────────────────────────────────────────────────────
+  //
+  // *"not the biggest fan of all the rectangle lines. at the top, bottom of
+  //  items, below the bag, etc. please remove em"*   (2026-08-05)
+  //
+  // TWO STRIPS USED TO LIE ON THIS SHAPE — a white 6% "light on the near wall"
+  // and a black 18% "shadow under it" — and both are gone. They were hard-edged
+  // rectangles painted ONTO a rounded silhouette, which is the one thing this
+  // world's flat shading cannot absorb: a stepped corner reads as a shape and a
+  // square band across it reads as a mark. `band` already gives the bag its
+  // form, and cloth against the room behind it is enough.
   band(g, L.bx, L.by, L.bw, L.bh, L.r, bag.cloth);
-  g.fillStyle = 'rgba(255,255,255,0.06)';                    // light on the near wall
-  g.fillRect(L.bx + 10, L.by + L.bh - 22, L.bw - 20, 12);
-  g.fillStyle = 'rgba(0,0,0,0.18)';                          // and its own shadow under it
-  g.fillRect(L.bx + 14, L.by + L.bh - 4, L.bw - 28, 6);
 
   // ── THE MOUTH: lining at the rim, then the inside going dark ───────────
   // THE RIM IS 3 TEXELS, NOT 6. It is a bezel round the contents and it was
   // costing twice what it needed to on all four sides.
+  //
+  // AND THE BAR ACROSS THE TOP OF THE OPENING IS GONE with the rest of them —
+  // a 35% black rectangle whose job was "the inside is deeper at the back". On
+  // an interior that is already #20191a it bought almost no depth and read as
+  // exactly what he named: a line across the top.
   band(g, L.mouth.x, L.mouth.y, L.mouth.w, L.mouth.h, Math.round(L.r * 0.6), bag.trim);
   band(g, L.mouth.x + 3, L.mouth.y + 3, L.mouth.w - 6, L.mouth.h - 6,
     Math.max(2, Math.round(L.r * 0.4)), '#20191a');
-  g.fillStyle = 'rgba(0,0,0,0.35)';
-  g.fillRect(L.mouth.x + 4, L.mouth.y + 3, L.mouth.w - 8, 9);
 
   // ── AND THE HARDWARE THAT GOES IN FRONT ────────────────────────────────
   if (L.kind === 'pack') {
@@ -783,8 +814,8 @@ function paint(): void {
     // than a half, which is what was sitting on the contents.
     const fh = Math.round(L.bh * 0.34);
     band(g, L.bx + 4, L.by - 6, L.bw - 8, fh, Math.round(L.r * 0.8), bag.trim);
-    g.fillStyle = 'rgba(0,0,0,0.20)';
-    g.fillRect(L.bx + 8, L.by + fh - 10, L.bw - 16, 4);
+    // the 20% black strip that used to sit under the flap's edge went with the
+    // others — the flap's own trim against the cloth already reads as an edge
     band(g, Math.round(L.bx + L.bw / 2 - 10), L.by + fh - 8, 20, 15, 4, bag.cloth);
     g.fillStyle = '#2a2620';                                 // the buckle
     g.fillRect(Math.round(L.bx + L.bw / 2 - 6), L.by + fh - 4, 12, 7);
@@ -795,10 +826,33 @@ function paint(): void {
   }
 
   // ── WHAT IS IN IT ──────────────────────────────────────────────────────
-  // ⚠ ONLY THE VISIBLE BAND. `L.from`..`L.to` is the slice the scroll has
-  // brought into the mouth; drawing the rest would spill items over the bag's
-  // own body and out into the room.
-  for (let i = L.from; i < L.to; i++) {
+  //
+  // ⚠ THE DARK BAR UNDER EACH ITEM IS GONE, and it was the one on his list
+  // worth thinking about before cutting. It was a 30% black rectangle along the
+  // bottom of every cell, captioned *"it sits IN the bag"* — a contact shadow,
+  // there to stop things floating. It does not do that job here. A contact
+  // shadow works by being darker than the ground it lands on, and the ground is
+  // #20191a: at 30% over near-black there is almost no shadow left to read, so
+  // what survived was its EDGES — a hard horizontal bar under each object,
+  // which is exactly what he is looking at in the shot.
+  //
+  // NOTHING REPLACED IT, deliberately. The interior is a dark well inside a lit
+  // rim inside a body, all rounded; an object drawn on that is already inside
+  // something. It is the same lesson the mirror paid for five times — when a
+  // device is not working, the answer is to remove it, not to swap it for a
+  // different device.
+  //
+  // ONE ROW PAST THE FOLD, CLIPPED. `L.to` is the slice that fits; the loop
+  // runs one row further and the clip cuts it at the lining. That is what says
+  // there is more underneath now that the pips are gone — you see the tops of
+  // the things below, which is what looking into a bag actually looks like, and
+  // it is contents rather than a mark. Nothing is clickable there: both
+  // hit-tests still stop at `L.to`.
+  g.save();
+  g.beginPath();
+  g.rect(L.inner.x - 2, L.inner.y - 2, L.inner.w + 4, L.inner.h + 4);
+  g.clip();
+  for (let i = L.from; i < Math.min(items.length, L.to + L.cols); i++) {
     const id = items[i];
     if ((held === id || dragging === id) && items.indexOf(id) === i) continue;
     const r = L.at(i);
@@ -807,42 +861,27 @@ function paint(): void {
     if (menu?.i === i || (ptr && inRect(ptr.x, ptr.y, r) && !held && !menu)) {
       // ⚠ AN INSET, NOT AN OUTSET — see `HL_HUG`. It hugs the object instead of
       // floating round it, and it is smaller in absolute texels than the one it
-      // replaces even though the object it sits on grew 26%.
+      // replaces even though the object it sits on grew. It is a rounded band
+      // in the bag's own light, not one of the rectangles: it stays.
       const p = Math.round(r.w * HL_HUG);
       band(g, r.x + p, r.y + p, r.w - p * 2, r.h - p * 2, 6, 'rgba(242,234,208,0.18)');
     }
-    g.fillStyle = 'rgba(0,0,0,0.30)';
-    g.fillRect(r.x + 6, r.y + r.h - 9, r.w - 8, 8);          // it sits IN the bag
     item(g, r.x, r.y, r.w, id);
   }
-
-  // ── HOW MUCH MORE THERE IS ─────────────────────────────────────────────
-  // One pip per row, down the inside of the mouth, the visible band lit. Only
-  // when there IS more than fits: a clutch never scrolls and never shows these,
-  // and a bag whose contents all fit does not either. It answers the one
-  // question a wrapping scroll would have taken away — how much is left.
-  if (L.maxScroll > 0) {
-    const px = L.mouth.x + L.mouth.w - 7;
-    const ph = Math.max(3, Math.floor((L.inner.h - 4) / L.totalRows) - 2);
-    for (let r = 0; r < L.totalRows; r++) {
-      const lit = r >= scroll && r < scroll + L.visRows;
-      g.fillStyle = lit ? 'rgba(242,234,208,0.55)' : 'rgba(242,234,208,0.16)';
-      g.fillRect(px, L.inner.y + 2 + r * (ph + 2), 3, ph);
-    }
-  }
+  g.restore();
 
   // ── WHAT IS ON THE CURSOR, ON ITS WAY OUT ──────────────────────────────
   // No dimming behind it: he is moving a thing, not examining one, and the bag
   // has to stay legible so he can see whether he is still over its mouth.
+  //
+  // ⚠ THE DROP SHADOW UNDER THE CURSOR WENT WITH THE OTHER BARS. It was the
+  // same rectangle in a different place — 28% black, hard-edged, drawn under a
+  // thing being carried once it was clear of the mouth — and it was the only
+  // one of them with a job the picture was not already doing: it said "let go
+  // here and it lands". THE BAG SAYS THAT BETTER. Being outside the mouth is
+  // the signal, and the mouth is right there. `L2` and the `out` test went with
+  // it; nothing else read them.
   if (dragging && ptr) {
-    const L2 = layout(laid().length);
-    const out = !inRect(ptr.x, ptr.y, L2.mouth);
-    if (out) {
-      // a shadow on the floor under it, which is the only thing that says
-      // "let go here and it lands"
-      g.fillStyle = 'rgba(0,0,0,0.28)';
-      g.fillRect(Math.round(ptr.x - DRAG / 2 + 4), Math.round(ptr.y + DRAG / 2 - 8), DRAG - 8, 8);
-    }
     // ⚠ AT `ptr`, WHICH IS NOW ALLOWED TO BE ANYWHERE. This one line is what he
     // was actually reporting: `ptr` used to be null off the bag's canvas and
     // nothing got drawn. Grown 56 -> 72 with `CELL`, so the thing in his hand is
