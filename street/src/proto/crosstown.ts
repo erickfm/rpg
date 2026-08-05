@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Proto } from './types';
 import { FPRig, RADIUS, SIT_EYE, PITCH_LIMIT, type AABB, type SeatPose } from './fp';
-import { showBag, hasBag } from './ct/bag';
+import { showBag, hasBag, bagOpen, bagEscaped, configureBag } from './ct/bag';
 import { worn } from './ct/wardrobe';
 import { ColliderDebug } from './ct/debug-collision';
 
@@ -384,6 +384,9 @@ export function makeCrosstown(): Proto {
    *  prompt to somebody walking in front of it. */
   const SEE_TTL = 0.10;
   const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
+  // the bag moves things into these same pockets — one purse, and `ct/bag.ts`
+  // is handed it once rather than reaching for a copy
+  configureBag({ purse, refreshWallet: () => hud.refreshWallet() });
   const hud = makeHud(purse);
   // Modules that answer for a patch of floor. Asked in declared order, first
   // non-null wins — see ctx.ground. The entry point no longer names any of
@@ -2399,7 +2402,12 @@ export function makeCrosstown(): Proto {
       // a seated player can still turn their head — right for a bench, wrong
       // for a machine you are reading. Dropping the delta before the rig sees
       // it also frees the mouse to be a POINTER, which is the whole request.
-      if (focus) { input.mouseDX = 0; input.mouseDY = 0; }
+      // MOUSE-LOOK IS OFF WHILE A SCREEN OR THE BAG IS UP. *"we can lock mouse
+      // when we open bag"* — and it is done HERE, on the one line that already
+      // did it for panels, because this kills BOTH routes at once: the
+      // pointer-lock deltas and `main.ts`'s drag-look fallback, which would
+      // otherwise turn the view every time he dragged across the bag.
+      if (focus || bagOpen()) { input.mouseDX = 0; input.mouseDY = 0; }
       rig.update(dt, input);
       // …and the lock gets the last word on the camera, after the rig has had
       // its say and before anything reads the finished view.
@@ -2531,6 +2539,10 @@ export function makeCrosstown(): Proto {
         carousel = stops[(stops.indexOf(carousel) + 1) % stops.length];
       }
       rmbHeld = rmb;
+      // ESCAPE CLOSES THE BAG TOO, and it comes back through the carousel
+      // rather than closing the bag behind its back — so the pointer is handed
+      // over by the same `showBag(false)` every other exit runs through.
+      if (bagEscaped()) carousel = 'nothing';
       hud.watch(lookingDown && carousel === 'watch', Math.floor(clockMin));
       showBag(lookingDown && carousel === 'bag');
       // V: toggle the collision debug view. Edge-triggered like rmb/E just

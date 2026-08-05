@@ -841,6 +841,65 @@ let pendingLock: Element | null = null;
  * and the pointer ends up hidden under the incoming cabinet.
  */
 let raising = 0;
+/**
+ * TAKE THE MOUSE, AND GIVE IT BACK — the one implementation, for everything in
+ * this world that needs a cursor.
+ *
+ * `847bc6f6` moved the release out of `if (onMesh)` so that every PANEL got it;
+ * *"since right click allows you to get in and out of your bag then we can lock
+ * mouse when we open bag"* (2026-08-05) needs the same behaviour for something
+ * that is **not a panel** — the bag is a held object, the world keeps running
+ * behind it and the room is not dimmed. So the two calls are lifted out here
+ * rather than copied, because a second copy of "give the pointer back" is
+ * exactly how one of them ends up not doing it.
+ *
+ * The debt is the module-level `pendingLock` either way, so a panel opening
+ * over an open bag hands the one lock along instead of two owners fighting
+ * over it.
+ */
+export function takePointer(): void {
+  // REMEMBERED BEFORE IT IS RELEASED, because after the call
+  // `document.pointerLockElement` is null and the answer is gone. ONLY IF THERE
+  // IS ONE TO RECORD: a second taker finds the pointer already released, and
+  // `?? null` here would overwrite a real debt with nothing.
+  if (document.pointerLockElement) pendingLock = document.pointerLockElement;
+  try { document.exitPointerLock?.(); } catch { /* never locked */ }
+  cursorAs('default');
+}
+
+export function givePointerBack(): void {
+  // NOT WHILE A PANEL IS UP OR COMING UP. A bag closing under an open cabinet
+  // must not re-lock the pointer the cabinet is still using, and `raising`
+  // marks the hand-over between two panels.
+  if (pendingLock && !livePanel && !raising && pendingLock.isConnected) {
+      const el = pendingLock as HTMLElement; pendingLock = null;
+      // A SANDBOXED IFRAME REFUSES THE LOCK, and the artifact falls back to
+      // drag-look. Failing to re-lock there is correct and must stay silent.
+      //
+      // ⚠ THE SYNCHRONOUS `catch` ALONE IS NOT ENOUGH, AND `main.ts:32` HAS
+      // THE SAME HOLE. Measured in a frame sandboxed without
+      // `allow-pointer-lock` (`scripts/probes/w109-lock-returns-promise.mjs`):
+      // `requestPointerLock()` returns a **Promise** and throws NOTHING
+      // synchronously, so `try { … } catch {}` catches nothing and the
+      // rejection surfaces as an UNCAUGHT pageerror —
+      //
+      //     try/catch only        2 errors, one of them PAGEERROR: Failed to
+      //                           execute 'requestPointerLock' … Blocked
+      //     try/catch + .catch()  1 error, the browser's own console note
+      //
+      // — every single time an overlay closed in the published artifact. This
+      // is `close()`, the callback that un-traps the player, so an uncaught
+      // throw here is §11 territory rather than a log line. The older DOM
+      // signature returns `undefined`, hence the `typeof` test rather than an
+      // assumption either way.
+      try {
+        const r = el.requestPointerLock?.() as unknown as Promise<void> | undefined;
+        if (r && typeof r.catch === 'function') r.catch(() => { /* refused: drag-look still works */ });
+      } catch { /* sandboxed iframe: drag-look still works */ }
+  }
+  cursorRelease();
+}
+
 let gateOn = false;
 let backdrop: HTMLDivElement | null = null;
 
@@ -1507,9 +1566,7 @@ export function makePanel(spec: PanelSpec): Panel {
       // finds the pointer ALREADY released, and `?? null` here would overwrite
       // a real debt with nothing — the mouse would then stay dead after the
       // replacement closed, which is this same complaint by another road.
-      if (document.pointerLockElement) pendingLock = document.pointerLockElement;
-      try { document.exitPointerLock?.(); } catch { /* never locked */ }
-      cursorAs('default');
+      takePointer();
       paint();
       if (onMesh) {
        // `saved` gates the undo below: without it a throw BEFORE the two saves
@@ -1677,32 +1734,7 @@ export function makePanel(spec: PanelSpec): Panel {
       // `isConnected`, because interiors are rebuilt as the player moves and a
       // canvas detached from the document cannot take a lock; asking anyway
       // throws where nobody is listening.
-      if (pendingLock && !livePanel && !raising && pendingLock.isConnected) {
-        const el = pendingLock as HTMLElement; pendingLock = null;
-        // A SANDBOXED IFRAME REFUSES THE LOCK, and the artifact falls back to
-        // drag-look. Failing to re-lock there is correct and must stay silent.
-        //
-        // ⚠ THE SYNCHRONOUS `catch` ALONE IS NOT ENOUGH, AND `main.ts:32` HAS
-        // THE SAME HOLE. Measured in a frame sandboxed without
-        // `allow-pointer-lock` (`scripts/probes/w109-lock-returns-promise.mjs`):
-        // `requestPointerLock()` returns a **Promise** and throws NOTHING
-        // synchronously, so `try { … } catch {}` catches nothing and the
-        // rejection surfaces as an UNCAUGHT pageerror —
-        //
-        //     try/catch only        2 errors, one of them PAGEERROR: Failed to
-        //                           execute 'requestPointerLock' … Blocked
-        //     try/catch + .catch()  1 error, the browser's own console note
-        //
-        // — every single time an overlay closed in the published artifact. This
-        // is `close()`, the callback that un-traps the player, so an uncaught
-        // throw here is §11 territory rather than a log line. The older DOM
-        // signature returns `undefined`, hence the `typeof` test rather than an
-        // assumption either way.
-        try {
-          const r = el.requestPointerLock?.() as unknown as Promise<void> | undefined;
-          if (r && typeof r.catch === 'function') r.catch(() => { /* refused: drag-look still works */ });
-        } catch { /* sandboxed iframe: drag-look still works */ }
-      }
+      givePointerBack();
       // RELEASE BEFORE onClose, and inside a try, because THIS is the callback
       // that un-traps the player. A caller whose release throws must not be
       // able to leave the world frozen behind a closed panel — that is exactly

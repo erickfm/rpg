@@ -1,62 +1,176 @@
-import { bagStock, itemOf } from './inventory';
+import { takePointer, givePointerBack, type Purse } from './hud';
+import { bagStock, bagTake, bagPut, give, roomFor, itemOf } from './inventory';
 import { bagCapacity, bagWorn } from './wardrobe';
 
 // ══ THE BAG, HELD OPEN ═════════════════════════════════════════════════════
 //
 // *"ok with looking down, right click should toggle between inventory (bag),
-//  watch, and nothing (clear view looking down)."*   (2026-08-05)
+//  watch, and nothing (clear view looking down)."*, then *"make the bag much
+//  bigger and let me interact with it with my mouse"*, then *"since right click
+//  allows you to get in and out of your bag then we can lock mouse when we open
+//  bag"*   (2026-08-05)
 //
-// **THE SAME KIND OF OBJECT AS THE WRISTWATCH**, and that is the whole design
-// argument. Looking down and finding your watch there is a first-person thing
-// this world already does and he has approved all day; looking down and finding
-// the bag you are wearing held open is the same gesture with a different
-// object. Neither is a menu — they are things you are carrying, drawn where
-// your hands are.
+// **THE SAME KIND OF OBJECT AS THE WRISTWATCH.** Looking down and finding your
+// watch there is a first-person thing this world already does; looking down and
+// finding the bag you are wearing held open is the same gesture with a
+// different object. Its own canvas at the bottom of the frame, sliding up on a
+// transform — **not `makePanel`**, because a panel freezes the world, dims the
+// room and takes the whole screen, and none of those are true of a bag you are
+// holding while standing in a street. The world keeps running behind it.
 //
-// SO IT IS BUILT THE WAY THE WATCH IS: its own canvas, `position:fixed` at the
-// bottom of the frame, sliding up on a transform. Not `makePanel` — a panel
-// freezes the world, takes the pointer and dims the room, which is right for a
-// machine you stand at and wrong for something in your hands while you are
-// still standing in a street.
+// ── IT TAKES THE MOUSE, AND HIS OWN REASONING IS WHY THAT IS SAFE ─────────
 //
-// ── WHY IT IS ITS OWN MODULE ──────────────────────────────────────────────
+// *"since right click allows you to get in and out of your bag then we can lock
+// mouse when we open bag"* — the way in is the way out, so there is no pose to
+// get stranded in. Opening releases pointer lock and shows a cursor; mouse-look
+// stops; right-click cycles onward and gives the lock straight back.
 //
-// `ct/inventory.ts` imports `ct/hud.ts` at runtime, so the hud cannot import
-// the item table back — GOTCHAS §28, a module in a cycle can be dropped from
-// the BUILT BUNDLE ONLY, which is the failure that looks perfect in dev. This
-// file imports both and is imported by the entry point, so the arrow runs one
-// way and the bag can draw real items.
+// ⚠ **THE PITCH GATE CANNOT BE THE ONLY WAY OUT.** With mouse-look off he
+// cannot look up past 65.5° to dismiss it, so right-click has to genuinely
+// work — and it does, by a route this file is careful not to break: `main.ts`
+// adds `rmb` to the key set from a **mousedown on the canvas**, and this file
+// swallows only `click`, never `mousedown`. Swallowing mousedown at the window
+// would kill the very button the exit depends on. See `onClick`.
+//
+// EVERY EXIT RUNS THROUGH ONE SEAM. `showBag(want)` is called every frame by
+// the carousel, and the lock follows `want` — so cycling past the bag, looking
+// back up, Escape, the worn bag changing at the mirror and the carousel falling
+// back to `nothing` all release and restore through the same two lines. There
+// is no second path that could forget.
 
 /** the canvas, in texels, and the CSS pixels each is drawn at */
-const BW = 220, BH = 132, SCALE = 2;
+const BW = 320, BH = 200, SCALE = 3;
 /**
- * HOW BIG ONE THING IN THE BAG IS, in texels.
- *
- * 46 of a 220-wide canvas at 2x is **92 CSS pixels a side**. That is the number
- * that matters and it is why there is no grid here: the wardrobe spent a whole
- * session proving that an item at 4% of the frame is a smudge and one at 60% is
- * legible, and a bag with four big things in it beats one with twelve small
- * ones. If a bag holds more than fits across, the row is what fits — capacity
- * is a fact about the garment, not about the picture.
+ * HOW BIG ONE THING IN THE BAG IS, in texels. 64 at 3x is **192 CSS pixels a
+ * side** — the drawer's own scale, and the number this whole session turned on:
+ * an item at 4% of the frame is a smudge, one at a third of it is legible.
+ * Four across and two down is eight, which is exactly the backpack's capacity.
  */
-const CELL = 46;
+const CELL = 64, PAD = 8, ACROSS = 4;
+/** and how big it gets when you lift it out to look at it */
+const LIFT = 132;
 
 let wrap: HTMLDivElement | null = null;
 let cv: HTMLCanvasElement | null = null;
 let shown = false;
+/** what he has lifted out of the bag to look at, or null */
+let held: string | null = null;
+/** the pointer, in canvas texels, or null when it is off the bag */
+let ptr: { x: number; y: number } | null = null;
+/** set by Escape, read and cleared by the carousel — see `bagEscaped` */
+let escaped = false;
+let purse: Purse | null = null;
+let onPurse: (() => void) | null = null;
 
 const CSS_HIDDEN = 'translateX(-50%) translateY(150%)';
 const CSS_SHOWN = 'translateX(-50%) translateY(0)';
+
+/** the purse the bag moves things into. Handed in once by the entry point. */
+export function configureBag(o: { purse: Purse; refreshWallet: () => void }): void {
+  purse = o.purse;
+  onPurse = o.refreshWallet;
+}
+
+const cellRect = (i: number) => ({
+  x: PAD + (i % ACROSS) * (CELL + PAD),
+  y: 28 + Math.floor(i / ACROSS) * (CELL + PAD),
+  w: CELL, h: CELL,
+});
+const liftRect = () => ({ x: (BW - LIFT) / 2, y: (BH - LIFT) / 2, w: LIFT, h: LIFT });
+const inRect = (x: number, y: number, r: { x: number; y: number; w: number; h: number }) =>
+  x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
+
+/** everything in the bag, one entry per thing, so a stack of two is two slots */
+function laid(): string[] {
+  const out: string[] = [];
+  for (const s of bagStock()) for (let i = 0; i < s.n; i++) out.push(s.id);
+  return out;
+}
+
+/** where the pointer is in canvas texels, or null if it is off the canvas */
+function hit(e: MouseEvent): { x: number; y: number } | null {
+  if (!cv) return null;
+  const r = cv.getBoundingClientRect();
+  if (!r.width || !r.height) return null;
+  const x = (e.clientX - r.left) * (BW / r.width);
+  const y = (e.clientY - r.top) * (BH / r.height);
+  return x >= 0 && y >= 0 && x < BW && y < BH ? { x, y } : null;
+}
+
+function onMove(e: MouseEvent): void {
+  ptr = hit(e);
+  paint();
+}
+
+/**
+ * ⚠ `click`, NOT `mousedown`, AND THAT IS LOAD-BEARING TWICE OVER.
+ *
+ *  · `main.ts` re-takes pointer lock on a CANVAS CLICK. Swallowing the click in
+ *    the capture phase is what stops the cursor being snatched back the moment
+ *    he touches the bag — without it the lock returns on the first click and
+ *    mouse-look starts fighting him.
+ *  · `main.ts` adds the `rmb` pseudo-key on a CANVAS MOUSEDOWN, and that is the
+ *    key the carousel reads to let him OUT. A capture-phase swallow of
+ *    mousedown would run before the canvas ever saw it and would strand him in
+ *    the bag with no mouse-look and no exit — the worst bug this project ships.
+ *    A right-click produces no `click` event at all, so this listener cannot
+ *    touch it.
+ */
+function onClick(e: MouseEvent): void {
+  if (e.button !== 0) return;
+  e.stopImmediatePropagation();
+  e.preventDefault();
+  const p = hit(e);
+  if (!p) return;
+  if (held) {
+    // ON THE LIFTED THING: into your pockets, through the same `give` the whole
+    // world uses. ANYWHERE ELSE: back in the bag. It cannot be destroyed — if
+    // the pockets refuse it, it goes straight back.
+    if (inRect(p.x, p.y, liftRect()) && purse && roomFor(purse, held) > 0) {
+      if (bagTake(held)) {
+        if (give(purse, held, 1) < 1) bagPut(held, bagCapacity());
+        else onPurse?.();
+      }
+    }
+    held = null;
+    paint();
+    return;
+  }
+  const items = laid();
+  for (let i = 0; i < items.length; i++) {
+    if (inRect(p.x, p.y, cellRect(i))) { held = items[i]; paint(); return; }
+  }
+}
+
+function onKey(e: KeyboardEvent): void {
+  if (e.key.toLowerCase() !== 'escape') return;
+  // ESCAPE CLOSES IT, from every state including mid-lift. It does not release
+  // the lock itself — it raises a flag the carousel reads, so the close runs
+  // through `showBag(false)` like every other exit and there is one place that
+  // hands the pointer back.
+  escaped = true;
+  held = null;
+}
+
+/** did Escape ask for the bag to close? Read once and cleared. */
+export function bagEscaped(): boolean {
+  const was = escaped;
+  escaped = false;
+  return was;
+}
+
+/** is the bag open right now — the carousel's own state, for the look freeze */
+export function bagOpen(): boolean { return shown; }
 
 function build(): void {
   wrap = document.getElementById('ct-bag') as HTMLDivElement | null;
   if (!wrap) {
     wrap = document.createElement('div');
     wrap.id = 'ct-bag';
-    // bottom-centre, under the prompt and over the world — the wallet's own
-    // corner, because it is the same kind of object and two held things should
-    // not appear in two different places
-    wrap.style.cssText = 'position:fixed;left:50%;bottom:-6px;z-index:11;pointer-events:none;'
+    // bottom-centre and BELOW the panel layer, because it is a held object and
+    // not a cabinet. `pointer-events:none` on purpose: the clicks are read off
+    // a window listener, so nothing here can swallow an event the world needs.
+    wrap.style.cssText = 'position:fixed;left:50%;bottom:-8px;z-index:11;pointer-events:none;'
       + `transform:${CSS_HIDDEN};transition:transform .18s ease-out;`;
     cv = document.createElement('canvas');
     cv.width = BW; cv.height = BH;
@@ -67,65 +181,67 @@ function build(): void {
   } else {
     cv = wrap.firstChild as HTMLCanvasElement;
     cv.width = BW; cv.height = BH;
+    cv.style.cssText = `width:${BW * SCALE}px;height:${BH * SCALE}px;`
+      + 'image-rendering:pixelated;display:block;';
   }
 }
 
-/**
- * PAINT THE BAG YOU ARE WEARING, open, with what is in it.
- *
- * The bag's own `cloth` and `trim` come off the garment, so the backpack, the
- * tote, the crossbody and the clutch are visibly four different bags rather
- * than one bag with four names — the same values the figure in the mirror is
- * drawn from.
- */
+/** one thing, in a box, from the world's own item art */
+function item(g: CanvasRenderingContext2D, x: number, y: number, size: number, id: string): void {
+  g.save();
+  g.translate(x, y);
+  g.scale(size / 24, size / 24);
+  // `ItemDef.icon` DRAWS rather than blits, so scaling lands on the rects
+  // themselves and the edges stay hard. That is why the art is a painter.
+  try { itemOf(id).icon?.(g); } catch { /* an item with no art is not a crash */ }
+  g.restore();
+}
+
 function paint(): void {
   const g = cv?.getContext('2d');
   if (!g) return;
   const bag = bagWorn();
   g.clearRect(0, 0, BW, BH);
-  // the mouth of it, drawn as a shallow box you are looking down into: the far
-  // wall in shadow, the near wall lit, the floor of the bag between them
-  g.fillStyle = bag.trim; g.fillRect(0, 8, BW, BH - 8);
-  g.fillStyle = bag.cloth; g.fillRect(6, 14, BW - 12, BH - 20);
-  g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(6, 14, BW - 12, 10);   // its far wall
-  g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(6, BH - 12, BW - 12, 6);
-  // the two straps or handles, coming up out of frame — what says it is a bag
-  // and not a box, and it is the one place the carry shows in first person
+  // the mouth of it, looked down into: the far wall in shadow, the near wall
+  // lit, the lining between them. Its own `cloth` and `trim`, so the backpack,
+  // the tote, the crossbody and the clutch are four visibly different bags.
+  g.fillStyle = bag.trim; g.fillRect(0, 10, BW, BH - 10);
+  g.fillStyle = bag.cloth; g.fillRect(7, 18, BW - 14, BH - 26);
+  g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(7, 18, BW - 14, 12);
+  g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(7, BH - 14, BW - 14, 6);
   g.fillStyle = bag.trim;
-  for (const x of [26, BW - 34]) g.fillRect(x, 0, 8, 16);
+  for (const x of [34, BW - 46]) g.fillRect(x, 0, 12, 20);   // straps, out of frame
 
-  // ── AND WHAT IS IN IT ──────────────────────────────────────────────────
-  //
-  // `ItemDef.icon` is the world's own item art, painted in a 24 x 24 box —
-  // the same drawing the wallet uses, so a thing looks like itself wherever
-  // you meet it. Scaled up rather than redrawn: at CELL it is nearly four
-  // times its authored size and stays hard-edged, because everything in this
-  // world is drawn to be enlarged.
-  const st = bagStock();
-  const items: string[] = [];
-  for (const s of st) for (let i = 0; i < s.n; i++) items.push(s.id);
-  const pad = 6;
-  const across = Math.max(1, Math.floor((BW - pad) / (CELL + pad)));
-  items.slice(0, across).forEach((id, i) => {
-    const x = pad + i * (CELL + pad), y = Math.round((BH - CELL) / 2) + 4;
-    // a shadow in the bag under each thing, so they sit IN it rather than on it
+  const items = laid();
+  items.forEach((id, i) => {
+    if (i >= ACROSS * 2) return;                 // what fits is what shows
+    const r = cellRect(i);
+    if (held === id && items.indexOf(id) === i) return;   // it is in his hand
+    const hot = ptr && inRect(ptr.x, ptr.y, r) && !held;
+    if (hot) { g.fillStyle = 'rgba(242,234,208,0.16)'; g.fillRect(r.x, r.y, r.w, r.h); }
     g.fillStyle = 'rgba(0,0,0,0.22)';
-    g.fillRect(x + 3, y + CELL - 6, CELL, 6);
-    g.save();
-    g.translate(x, y);
-    g.scale(CELL / 24, CELL / 24);
-    // ⚠ `imageSmoothingEnabled` is irrelevant here — `icon` DRAWS rather than
-    // blits, so the scale lands on the rects themselves and the edges stay
-    // hard. That is why the item art is a painter and not a bitmap.
-    try { itemOf(id).icon?.(g); } catch { /* an item with no art is not a crash */ }
-    g.restore();
+    g.fillRect(r.x + 4, r.y + r.h - 7, r.w - 4, 7);        // it sits IN the bag
+    item(g, r.x, r.y, CELL, id);
   });
+
+  // ── AND WHAT HE HAS LIFTED OUT ─────────────────────────────────────────
+  // Twice the size of the same thing lying in the bag, over a shadow of it, so
+  // "examining" is holding it up rather than a tooltip about it.
+  if (held) {
+    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(0, 10, BW, BH - 10);
+    const r = liftRect();
+    item(g, r.x, r.y, LIFT, held);
+  }
 }
 
 /**
- * Raise or lower it. Called every frame by the carousel in `crosstown.ts`;
- * cheap when nothing has changed, because the transform is only written on a
- * transition and the canvas is only repainted while it is up.
+ * Raise or lower it, and take or give back the mouse with it.
+ *
+ * ONE SEAM FOR EVERY EXIT. The carousel calls this every frame with what it
+ * wants; the lock, the cursor, the listeners and the lifted item all follow
+ * `want`, so cycling past the bag, looking back up, Escape, standing up and the
+ * worn bag changing all close it the same way. Nothing else in this file
+ * touches the pointer.
  */
 export function showBag(want: boolean): void {
   if (!wrap) build();
@@ -133,6 +249,19 @@ export function showBag(want: boolean): void {
   if (want === shown) return;
   shown = want;
   wrap!.style.transform = want ? CSS_SHOWN : CSS_HIDDEN;
+  if (want) {
+    takePointer();
+    window.addEventListener('mousemove', onMove, true);
+    window.addEventListener('click', onClick, true);
+    window.addEventListener('keydown', onKey, true);
+  } else {
+    held = null;
+    ptr = null;
+    window.removeEventListener('mousemove', onMove, true);
+    window.removeEventListener('click', onClick, true);
+    window.removeEventListener('keydown', onKey, true);
+    givePointerBack();
+  }
 }
 
 /** is there a bag to open at all? 0 capacity means the slot is empty */
