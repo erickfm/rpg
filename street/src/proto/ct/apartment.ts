@@ -4045,14 +4045,46 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         });
         signoff(g, a);
       },
-      // the end card: number, hours, and nothing else
+      /**
+       * The end card: number, hours, and nothing else.
+       *
+       * ── THE TWO LINES THAT SAT ON TOP OF EACH OTHER ────────────────────
+       *
+       * *"text in ads shouldnt overlap like this, make sure you space things
+       *  out. i do like the flashing text tho."*   (2026-08-05)
+       *
+       * MEASURED, NOT GUESSED, AND IT IS NOT THE FLASH'S FAULT. The two strings
+       * are separate LINES, not alternates of one slot — `hours` sat at y 30 in
+       * a 4 px face, so it occupied rows 30-34, and `OPERATORS WAITING` sat at
+       * y 33 in a 3 px face, rows 33-36. They shared rows 33 and 34, and at
+       * this size two glyph rows of overlap is the whole line. Two hand-typed
+       * y values that happened to collide, exactly as the read said.
+       *
+       * SO THE ROWS ARE DERIVED NOW. `BODY` is where the body band starts and
+       * every line below it is `BODY + pitch`, where the pitch is the line
+       * above's own height plus 2 rows of air. Nothing here can collide again
+       * without someone changing a face size and not the constant under it,
+       * and the last line's foot is checked against the sign-off band:
+       *
+       *     hours       y 27, 4 px   ->  rows 27-31
+       *     +2 air
+       *     flash       y 33, 3 px   ->  rows 33-36
+       *     sign-off    y 40                    4 rows clear
+       *
+       * THE FLASH IS UNTOUCHED — *"i do like the flashing text tho"*. Same
+       * half-second alternation, same line, same words; it just has its own
+       * rows to be in.
+       */
       order: (g, a, t) => {
         fill(g, a.bg);
         tvFit(g, 'ORDER NOW', 3, a.accent, 6);
         tvFit(g, a.phone ?? '', 15, '#00000077', 10);
         tvFit(g, a.phone ?? '', 14, '#fffbe8', 10);
-        tvFit(g, a.hours ?? '24 HOURS', 30, a.ink, 4);
-        if (Math.floor(t * 2) % 2 === 0) tvFit(g, 'OPERATORS WAITING', 33, a.ink, 3);
+        const BODY = 27, HOURS_PX = 4, AIR = 2;
+        tvFit(g, a.hours ?? '24 HOURS', BODY, a.ink, HOURS_PX);
+        if (Math.floor(t * 2) % 2 === 0) {
+          tvFit(g, 'OPERATORS WAITING', BODY + HOURS_PX + AIR, a.ink, 3);
+        }
         signoff(g, a);
       },
       // a face, quote marks, a name caption
