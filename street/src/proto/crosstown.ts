@@ -1472,10 +1472,56 @@ export function makeCrosstown(): Proto {
     const upright = flat.lengthSq() >= 1e-6;
     if (!upright) flat.set(0, 0, 1);
     flat.normalize();
+    // ══ AND YOU LEAN OVER IT RATHER THAN HOVERING ABOVE IT ════════════════
+    //
+    // *"rotate is jumpy cause its all last minute. like the very last thing is
+    //  jump cut to rotated view"*   (2026-08-04)
+    //
+    // **THE YAW EASE WAS NEVER THE PROBLEM.** `stepFocus` interpolates yaw,
+    // pitch, position and fov together on one smoothstep over one duration, and
+    // it wraps the yaw delta into [−π, π] so it takes the short way round. All
+    // of that was already right, and it is why he said *"rotated"* rather than
+    // *"turned"*: what snapped was the camera's ROLL, not its heading.
+    //
+    // GIMBAL LOCK, and only a horizontal screen can reach it. `cam.lookAt` is
+    // handed `(sin yaw · cos pitch, sin pitch, −cos yaw · cos pitch)`, so the
+    // yaw's whole contribution is scaled by `cos(pitch)` — and looking straight
+    // down into a drawer that is **zero**. The look vector becomes (0, −1, 0),
+    // which is PARALLEL to the up vector `lookAt` resolves heading against, so
+    // the roll is undefined and settles on floating-point noise in the last few
+    // frames of the ease. Measured: at −74° the yaw still contributes 27% of
+    // the vector, at −86° only 7%, at −90° none of it.
+    //
+    // **THE RIG ITSELF CANNOT REACH THIS** — `fp.ts` clamps the player's own
+    // pitch to `PITCH_LIMIT` (1.3 rad, 74.5°) precisely so the look never
+    // degenerates. The focus path bypassed that clamp and walked straight into
+    // the case the clamp exists to prevent.
+    //
+    // So a horizontal screen is looked at FROM THE SIDE YOU ARE STANDING ON,
+    // leaned over by exactly the angle the rig allows: push the eye back toward
+    // the player by `rise · tan(90° − PITCH_LIMIT)` and the pitch lands on
+    // −PITCH_LIMIT by construction, with `cos` at 0.27 and a heading that means
+    // something again. It also reads better than the plan view it replaces —
+    // you lean over a drawer, you do not hover above it — and because the aim
+    // is still the mesh's centre the contents stay centred in frame.
+    if (!upright) {
+      const away = keep ? new THREE.Vector3(keep.x - c.x, 0, keep.z - c.z)
+        : new THREE.Vector3(0, 0, 1);
+      if (away.lengthSq() < 1e-6) away.set(0, 0, 1);
+      away.normalize();
+      // off the ACTUAL rise, not off `standoff` — the clamp above may have
+      // moved the eye, and the angle has to come out right either way
+      eye.addScaledVector(away, (eye.y - c.y) * Math.tan(Math.PI / 2 - PITCH_LIMIT));
+      flat.copy(away).negate();
+    }
     return {
       pos: eye,
       // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw)
-      yaw: upright || !keep ? Math.atan2(dir.x, -dir.z) : keep.yaw,
+      // ALWAYS DERIVED NOW. The lean above gives a horizontal face a real
+      // direction to be looked at from, so the signed-zero `atan2(+0, −0)`
+      // that produced the 180° spin cannot arise — and squaring up to the
+      // drawer is a small turn taken WITH the tilt rather than instead of it.
+      yaw: Math.atan2(dir.x, -dir.z),
       pitch: Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1)),
       fov,
       // AND HE DOES NOT STEP EITHER. `FOCUS_FEET` puts the body square in front
