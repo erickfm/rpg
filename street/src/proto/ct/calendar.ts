@@ -79,6 +79,47 @@ export const DAYS_PER_SEASON = 28;
 export const SEASONS = ['SPRING', 'SUMMER', 'FALL', 'WINTER'] as const;
 export type Season = (typeof SEASONS)[number];
 
+/**
+ * ── WHAT COLOUR A SEASON IS ───────────────────────────────────────────────
+ *
+ * *"theme the color of the calendar to the season. green spring, yellow summer,
+ *  red fall, blue winter"*   (2026-08-05)
+ *
+ * HERE, BESIDE THE NAMES, because this module is what a season IS. The wall
+ * calendar is the first reader; if the sky, the foliage or a shop window ever
+ * wants to know what colour SUMMER is, it reads one place and cannot invent a
+ * fifth opinion — the same argument that put the lease in here beside the date.
+ *
+ * ⚠ A PRINTER'S SECOND COLOUR ON CHEAP STOCK, NOT FOUR PRIMARIES. CROSSTOWN is
+ * overcast brick, worn tan and cold grey, and a pure green would be the loudest
+ * thing in the flat — that exact mistake got a whole screen thrown out today
+ * (*"WAY TOOO UGKLY"*). So: a muted leaf, an ochre rather than a yellow, and
+ * the brick red the calendar's banner has ALWAYS been, which is why FALL cost
+ * nothing to name — the page was already autumn-coloured and nobody had said so.
+ *
+ * MEASURED, NOT EYEballed. Every one of these carries the banner's cream type
+ * (#e8dcb8) at 3.5:1 or better, which is the large-text bar, and stands off the
+ * cream paper (#e8e0cc) at 3.3:1 or better as a block:
+ *
+ *              banner type   vs paper
+ *   SPRING        3.53         3.67
+ *   SUMMER        3.97         4.12
+ *   FALL          5.57         5.79
+ *   WINTER        4.68         4.87
+ *
+ * SUMMER IS THE ONE THAT NEEDED WORK, exactly as expected — yellow ink on cream
+ * paper is the trap in this request. A true mustard came back at 2.44:1, below
+ * anything readable, so it is walked down to a dark ochre. It still reads as
+ * the yellow season beside the other three, which is what a season colour has
+ * to do; it just is not a highlighter.
+ */
+export const SEASON_INK: Record<Season, string> = {
+  SPRING: '#5f7a43',        // muted leaf
+  SUMMER: '#87641f',        // dark ochre — see the note above
+  FALL: '#8c3a2e',          // the brick the banner already was
+  WINTER: '#4a6272',        // cold slate
+};
+
 /** 112 days. Derived — never type the product. */
 export const DAYS_PER_YEAR = DAYS_PER_SEASON * SEASONS.length;
 

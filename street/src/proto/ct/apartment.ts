@@ -39,7 +39,8 @@ import { drawerPanel, liningCanvas, paintLiningOnly, DRAWER_W, DRAWER_D } from '
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
  *  months. See the note where `CAL_WEEK` is declared. */
-import { RENT, seasonPage, isRentDay, nextDueDay, noticeDay, DAYS_PER_SEASON } from './calendar';
+import { RENT, seasonPage, isRentDay, nextDueDay, noticeDay, DAYS_PER_SEASON,
+  SEASON_INK } from './calendar';
 
 // ── No. 227 — the player's walk-up ────────────────────────────────────────
 // Four stories, a switchback stair, your place (301) on the third floor,
@@ -5003,9 +5004,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const page = seasonPage(day, offset);
       const { nDays, lead, day0, weeks } = page;
 
+      // ── THE SEASON'S OWN COLOUR ────────────────────────────────────────
+      //
+      // *"theme the color of the calendar to the season. green spring, yellow
+      //  summer, red fall, blue winter"*   (2026-08-05)
+      //
+      // THE BANNER AND TODAY'S BLOCK TAKE IT, AND THE PAPER DOES NOT. A page
+      // washed green is a poster; a page printed in green on cream stock is a
+      // calendar, and the second one is what a $2 wall pad actually looked
+      // like. So the season is the PRESS COLOUR — the block across the top, the
+      // rule under it, and the square round today — and everything else stays
+      // exactly the paper and ink it was. The four are in `ct/calendar.ts`
+      // beside the season names, measured, with the contrast table.
+      //
+      // THE RULE UNDER THE BANNER IS DERIVED, not a fifth colour per season: it
+      // is the season at 66%, the same shade relationship #5e2820 had to
+      // #8c3a2e. One number to add a season, not two.
+      const INK = SEASON_INK[page.season];
+      const dark = (c: string, k: number) => '#' + [1, 3, 5].map((i) =>
+        Math.round(parseInt(c.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join('');
       // the season block, and the page under it
-      box(0, 0, 48, 16, '#8c3a2e');
-      box(0, 16, 48, 1, '#5e2820');
+      box(0, 0, 48, 16, INK);
+      box(0, 16, 48, 1, dark(INK, 0.66));
       // 6.5, up from the 4.6 that was sized to fit 'SEPTEMBER'. The longest
       // thing that can appear here is now six characters, and a six-character
       // word at 4.6 leaves a third of the banner empty at both ends — the
@@ -5057,14 +5077,26 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         const cx = X0 + (idx % 7) * COL_W + COL_W / 2;
         const cy = gridT + Math.floor(idx / 7) * rowH + rowH / 2;
         const gd = day0 + n - 1;                             // the game day of this cell
-        if (gd === day) box(cx - 2.4, cy - rowH / 2 + 0.4, 4.8, rowH - 0.8, '#8c3a2e');
+        // TODAY'S BLOCK TAKES THE SEASON TOO, so the page has one press colour
+        // rather than a red square marooned on a green page. It cannot vanish
+        // against the paper — the weakest of the four still stands off it at
+        // 3.67:1 — and it never has to compete with the banner, which is 8
+        // units above the grid.
+        if (gd === day) box(cx - 2.4, cy - rowH / 2 + 0.4, 4.8, rowH - 0.8, INK);
         // NUMERALS ONLY WHERE THEY FIT. A two-digit number is 9 design units in
         // the pixel font and a cell is 5, so at S = 1 this stays the grid of
         // marks it has always been. The cell positions, the ring, the crossings
         // and today's block are identical at both scales, so stepping up to it
         // resolves the same page rather than showing a different one.
-        const inked = sel !== null && gd === sel ? '#2f4f8c'
-          : gd === day ? '#f2e8cc' : '#4a443a';
+        // TODAY WINS THE NUMERAL, selection wins the underline — and that
+        // order matters. It used to be the other way round, which put a blue
+        // numeral on the season block whenever he clicked today: unreadable for
+        // the same luminance reason as the stroke above. Selection is a mark ON
+        // the page and today is the page's own print; when they land on one
+        // cell the print keeps the fill and the mark keeps the stroke, and both
+        // are still visible.
+        const inked = gd === day ? '#f2e8cc'
+          : sel !== null && gd === sel ? '#2f4f8c' : '#4a443a';
         if (S >= 3) text(String(n), cx, cy + 0.2, 3.4, inked);
         else box(cx - 1.5, cy - 1.5, 3, 3, gd === day ? '#f2e8cc' : '#5a5348');
         if (gd < day) {                                      // crossed off
@@ -5086,7 +5118,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // when both land on the same cell the block is behind the underline and
         // both still read.
         if (sel !== null && gd === sel) {
+          // ⚠ THE UNDERLINE GOES CREAM WHEN IT LANDS ON TODAY'S BLOCK, and that
+          // is the one collision the season colours create. Biro blue on the
+          // FALL block is 1.05:1 — the same luminance, so the stroke simply
+          // stops existing on the day he is most likely to click. Measured
+          // across all four: fall 1.05, winter 1.25, spring 1.66, summer 1.84,
+          // none of them usable. On paper the biro is fine and stays; on the
+          // block it takes the same cream the numeral does.
           biro(0.45);
+          if (gd === day) g.strokeStyle = '#f2e8cc';
           g.beginPath();
           g.moveTo(u(cx - 2.2), u(cy + rowH / 2 - 0.7));
           g.lineTo(u(cx + 2.2), u(cy + rowH / 2 - 0.7));
