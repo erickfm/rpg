@@ -34,9 +34,7 @@ import { screenFade, makePanel, type Panel } from './hud';
  *  from across the room and the mirror you step into cannot drift apart in
  *  colour (BUILDER-BRIEF §8). */
 import { mirrorPanel, glassCanvas, paintGlass } from './mirror';
-import {
-  drawerPanel, liningCanvas, paintLiningWorld, onLiningChange, DRAWER_W, DRAWER_D,
-} from './drawer';
+import { drawerPanel, liningCanvas, paintLiningOnly, DRAWER_W, DRAWER_D } from './drawer';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
  *  wall calendar keep a private copy of the lease and a private epoch for two
@@ -3333,22 +3331,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // framing instead: at 34° the drawer's 0.58 m fills ~80% of the frame's
     // width and its 0.17 m depth about 42% of the height.
     const DRAW_TOP = RY + 0.3725;                 // the bottom board's top face
-    // THE DRAWER SHOWS ITS CONTENTS FROM THE ROOM, not only through the panel.
-    // This texture used to be an empty canvas on the reasoning that the panel
-    // would paint over it — which it does, and only while it is open, so the
-    // rest of the time the drawer rendered as a black slab. `paintLiningWorld`
-    // draws the same paper and the same stacks the panel draws, and
-    // `onLiningChange` repaints it when something is taken out.
+    // PAPER, AND ONLY PAPER. *"i dont want to see the little items unless im
+    // e'd into the dresser btw. it looks bad"* — the contents belong to the
+    // focused view, where you are close enough to read them; from the room a
+    // stack is a smudge. This texture was briefly an EMPTY canvas (which
+    // rendered black, a real bug) and then briefly the full picture (which is
+    // what he is objecting to); it is the lining, which is what a drawer looks
+    // like when you are not looking in it. The panel's own canvas paints the
+    // stacks and is swapped onto this same material while the view is up.
     const lc = liningCanvas();
-    const liningT = surfTex('detail', lc.w, lc.h, (g) => paintLiningWorld(g, lc.w, lc.h));
-    onLiningChange(() => {
-      const cv = liningT.image as HTMLCanvasElement;
-      const g = cv.getContext('2d');
-      if (!g) return;
-      g.clearRect(0, 0, lc.w, lc.h);
-      paintLiningWorld(g, lc.w, lc.h);
-      liningT.needsUpdate = true;
-    });
+    const liningT = surfTex('detail', lc.w, lc.h, (g) => paintLiningOnly(g, lc.w, lc.h));
     const lining = new THREE.Mesh(new THREE.PlaneGeometry(DRAWER_W, DRAWER_D),
       texM(liningT));
     lining.position.set(AX(-2.65), DRAW_TOP + 0.002, AZI((DZ0 + DZ1) / 2));
