@@ -598,83 +598,93 @@ function paintHanging(g: CanvasRenderingContext2D, ox: number, oy: number,
   }
 }
 
-// ══ THE CLOSET ═════════════════════════════════════════════════════════════
+// ══ THE CATALOGUE ══════════════════════════════════════════════════════════
 //
-// *"lets make the mirror small and just a face mirror btw. i have an idea for a
-//  new interface. now instead we fade to black and we see a little like sprite
-//  version of ourselves and we can apply the clothes to the sprite and its cute
-//  and '97 themed little imagination of outfit and watch and all that. have
-//  more fun with it."*   (2026-08-04)
+// *"WAY TOOO UGKLY TRY FINDING A COMPLETELY NEW DESIGN STYLE."*  (2026-08-04)
 //
-// ── FIVE PRESENTATIONS DIED TO GET HERE AND THEY ALL DIED OF THE SAME THING ─
+// WHAT WAS THERE WAS GENERIC 90s KITSCH — hot pink and cyan checkerboard,
+// spinning gold stars, a lit stage. Kids-TV energy. **CROSSTOWN is not that**,
+// and that is the whole of why it failed: this world is overcast brick, worn
+// tan, cold grey and dirt, and a neon checkerboard is at war with every pixel
+// around it. *"Cute and '97"* did not mean toy-shop neon; it meant OF THE
+// PERIOD.
 //
-//   · a SCREEN-SPACE PANEL      *"not diagetic. this is not an option."*
-//   · a SUITCASE, 18 in the lid *"looks awful and all the little items dont
-//                                make sense."* Each was 4.2% of the frame.
-//   · a WALL BATTEN + shelf     *"not bad but im not sure i like how things
-//                                are hung"*, then *"rail looks worse."*
-//   · a HELD GARMENT            *"this setup sucks."*
+// ── SO IT IS A MAIL-ORDER CATALOGUE PAGE ───────────────────────────────────
 //
-// Every one of them staged this INSIDE A SMALL ROOM, where it competed with the
-// mirror for the frame and had to survive being stared at in a world drawn at
-// forty texels to the metre. **On black, at sprite scale, not one of those
-// pressures exists.** So do not rebuild the room here: there is no wall, no
-// floor, no furniture and no light on this screen, and that absence is the
-// feature.
+// A Sears or Argos clothing spread, which is the object this screen actually
+// is: garments photographed one to a box, in a printed grid, with a name and a
+// price under each, and a model down the side. It is chosen over a magazine
+// spread or a plain palette screen for three reasons —
 //
-// ── AND YES, HE REVERSED HIMSELF, AND THE REVERSAL IS RIGHT ────────────────
+//   · IT IS THE ERA'S REAL ARTEFACT. A 1997 catalogue page needs no era
+//     signalling, no stars and no neon; it reads as 1997 because that is what
+//     it is. Nothing decorative has to be invented.
+//   · ITS LAYOUT IS ALREADY THE INTERFACE. A grid of product cells with a
+//     caption apiece is exactly what a rack of garments needs to be, so the
+//     styling and the function are the same decision instead of two.
+//   · **EVERY COLOUR IS SAMPLED FROM THE STREET.** Not one value here is
+//     invented: `#f2ead0` and `#e8e4d8` are the world's paper, `#241f1a` its
+//     darkest ink, `#c9a45e` its tan, `#8a3a2e` the red on its signage,
+//     `#7d7668` its grey. They were counted out of `tex-world.ts`,
+//     `props.ts` and `tex-ground.ts` — the six most-used values in the game.
+//     The screen is printed in the same ink the street is painted in.
 //
-// *"not diagetic. this is not an option"* was three hours ago and this is a
-// screen over black. **His newer words outrank his earlier ones** — the rule is
-// in CLAUDE.md and it is the most valuable thing a builder here does. His own
-// framing is what dissolves the contradiction: this is not an interface
-// pretending to be furniture, it is *"a little imagination"*. You look in a
-// mirror and picture yourself in things. That is allowed to leave the room,
-// and it is the only one of the six that ever was.
-//
-// ── AND IT IS ALLOWED TO BE FUN, WHICH NOTHING ELSE HERE IS ────────────────
-//
-// *"have more fun with it"* is an instruction, and it is the exact opposite of
-// the note every other surface in this project carries. Fewer, clearer shapes
-// is the law of the STREET — it is what the arm, the suitcase and the rail were
-// all pulled up on. This screen is not the street. It is a 1997 dress-up
-// screen: hot pink and cyan, chunky type, a starburst, a checkered border, a
-// doll on a little stage. **Do not sober this up to match the rest of the
-// world.**
+// THE DOLL IS THE ONLY SATURATED THING ON THE PAGE, and that is deliberate:
+// paper, ink, one tan rule and one red masthead, and then a person in coloured
+// clothes standing in the margin. He is what you are meant to be looking at.
 
-/** the screen, in design px, and the CSS pixels each one is drawn at */
+/** the page, in design px, and the CSS pixels each is drawn at */
 const SW = 320, SH = 180, SSCALE = 4;
 
-/** the palette, and it is deliberately nothing like the street's */
-const UI97 = {
-  ink: '#fff4fb',
-  hot: '#e0338c',        // the pink every box on a 1997 screen was
-  cyan: '#3ad1e0',
-  gold: '#ffd21e',
-  deep: '#1a0f2a',       // the near-black the doll's stage sits on
-  shade: '#2c1a44',
+/**
+ * THE PRESS. Six values, every one of them counted out of the street's own
+ * textures rather than picked — see the note above.
+ */
+const PAGE = {
+  paper: '#f2ead0',
+  paperLo: '#e8e4d8',
+  ink: '#241f1a',
+  dim: '#7d7668',
+  rule: '#c9a45e',
+  red: '#8a3a2e',
 } as const;
 
-/** the doll's stage, the tray of clothes, and the six tabs over it */
-const STAGE = { x: 8, y: 22, w: 104, h: 150 };
-const TABS = { x: 120, y: 22, w: 192, h: 18 };
-const TRAY = { x: 120, y: 46, w: 192, h: 126 };
-/** five garments across the tray, 1:2 like the art */
-const CELL_W = 36, CELL_H = 72, CELL_GAP = 3;
+const MAST = { x: 0, y: 0, w: SW, h: 15 };
+/** the model, down the left margin where a catalogue puts one */
+const STAGE = { x: 7, y: 22, w: 92, h: 150 };
+/** the department line, and the grid of product cells under it */
+const DEPT = { x: 107, y: 21, w: 206, h: 13 };
+const GRID = { x: 107, y: 39, w: 206, h: 133 };
+const CELL_W = 68, CELL_H = 66, GRID_C = 3;
 
 const cellRect = (i: number) => ({
-  x: TRAY.x + 4 + i * (CELL_W + CELL_GAP), y: TRAY.y + 16, w: CELL_W, h: CELL_H,
+  x: GRID.x + (i % GRID_C) * CELL_W, y: GRID.y + Math.floor(i / GRID_C) * CELL_H,
+  w: CELL_W - 3, h: CELL_H - 3,
 });
-const tabRect = (i: number) => ({
-  x: TABS.x + i * (TABS.w / SLOTS.length), y: TABS.y, w: TABS.w / SLOTS.length - 2, h: TABS.h,
+const deptRect = (i: number) => ({
+  x: DEPT.x + i * (DEPT.w / SLOTS.length), y: DEPT.y, w: DEPT.w / SLOTS.length - 1, h: DEPT.h,
 });
 const inRect = (x: number, y: number, r: { x: number; y: number; w: number; h: number }) =>
   x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
 
-/** what the tabs are called. Three letters, because the tab is 30 px wide. */
-const TAB_NAME: Record<Slot, string> = {
-  top: 'TOP', bottom: 'LEG', shoes: 'FEET', hat: 'HAT', glasses: 'EYES', watch: 'TIME',
+/** what the departments are called on the page */
+const DEPT_NAME: Record<Slot, string> = {
+  top: 'TOPS', bottom: 'PANTS', shoes: 'SHOES', hat: 'HATS', glasses: 'EYEWEAR', watch: 'WATCHES',
 };
+
+/**
+ * A PRICE, and it has to be the SAME price every time the page is drawn.
+ *
+ * Hashed off the garment's own id rather than stored, so a new row in the rack
+ * gets one for free and nobody has to price a wardrobe by hand. $3.99–$34.99
+ * in dollar steps, which is the range this world's economy runs on — you start
+ * with $14.50 and rent is $45.
+ */
+function priceOf(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return `$${3 + (h % 32)}.99`;
+}
 
 /** everything in a category except the empty state, which is not a thing */
 const rackOf = (slot: Slot) => options(slot).slice(1);
@@ -682,21 +692,22 @@ const rackOf = (slot: Slot) => options(slot).slice(1);
 export function mirrorPanel(): () => void {
   let panel: Panel | null = null;
   let cat: Slot = 'top';
-  /** the garment on the cursor: which slot, which index, and where it is */
+  /** the garment on the cursor: which slot, which index */
   let held: { slot: Slot; index: number } | null = null;
   let ptr: { x: number; y: number } | null = null;
   /** a press that has not travelled far enough to be a drag yet */
   let pending: { slot: Slot; index: number; x: number; y: number } | null = null;
   const GRAB_PX = 5;
-  /** which way the doll is facing, 0…7 — the wheel still turns him */
+  /** which way the model is facing, 0…7 — the wheel turns him */
   let facing = 0;
-  /** a little life: the doll bobs, and the starburst spins */
-  let t0 = 0;
 
   const repaint = () => panel?.repaint();
 
-  /** the tray cell under this point — closed over `cat`, because the tray only
-   *  ever shows one category and the cell IS the garment. */
+  /** the model's own scale and origin, one factor on both axes */
+  const DOLL_S = Math.min((STAGE.w - 8) / MW, (STAGE.h - 16) / MH);
+  const DOLL_X = STAGE.x + Math.round((STAGE.w - MW * DOLL_S) / 2);
+  const DOLL_Y = STAGE.y + 8;
+
   const cellAt = (x: number, y: number): { slot: Slot; index: number } | null => {
     const rack = rackOf(cat);
     for (let i = 0; i < rack.length; i++) {
@@ -704,17 +715,17 @@ export function mirrorPanel(): () => void {
     }
     return null;
   };
-  const tabAt = (x: number, y: number): Slot | null => {
-    for (let i = 0; i < SLOTS.length; i++) if (inRect(x, y, tabRect(i))) return SLOTS[i];
+  const deptAt = (x: number, y: number): Slot | null => {
+    for (let i = 0; i < SLOTS.length; i++) if (inRect(x, y, deptRect(i))) return SLOTS[i];
     return null;
   };
   /**
-   * WHICH PART OF THE DOLL IS UNDER THIS POINT — the same `ZONES` the figure is
+   * WHICH PART OF THE MODEL IS UNDER THIS POINT — the same `ZONES` he is
    * painted from, so what you can grab is exactly what you can see.
    *
-   * The turn has to be undone first: at 55% and mirrored, a wrist is not where
-   * the front-on grid says it is. Bands that run the full width do not care;
-   * the watch is the one that does.
+   * The turn has to be undone first: at 55% and mirrored a wrist is not where
+   * the front-on grid says it is. The full-width bands do not care; the watch
+   * is the one that does.
    */
   const dollSlotAt = (x: number, y: number): Slot | null => {
     const [col, flip] = viewAt(facing);
@@ -726,108 +737,81 @@ export function mirrorPanel(): () => void {
     return z === 'bottom' && worn('top').full ? 'top' : z;
   };
 
-  /** the doll's own scale and origin inside the stage, one factor both axes */
-  const DOLL_S = Math.min(STAGE.w / MW, (STAGE.h - 10) / MH);
-  const DOLL_X = STAGE.x + Math.round((STAGE.w - MW * DOLL_S) / 2);
-  const DOLL_Y = STAGE.y + 4;
-
   const paint = (g: CanvasRenderingContext2D, W: number, H: number) => {
-    const now = performance.now() / 1000;
-    if (!t0) t0 = now;
-    const t = now - t0;
-    g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+    const type = (t: string, x: number, y: number, px: number, c: string,
+                  align: CanvasTextAlign = 'left', bold = true) => {
+      g.fillStyle = c; g.textAlign = align; g.textBaseline = 'middle';
+      g.font = `${bold ? 'bold ' : ''}${px}px ui-monospace, Menlo, monospace`;
+      g.fillText(t, x, y);
+    };
 
-    // ── THE FRAME: a checkered border, which is the single most 1997 thing a
-    // screen can wear, and it costs one loop.
-    for (let x = 0; x < W; x += 8) {
-      const c = (x / 8) % 2 ? UI97.hot : UI97.cyan;
-      g.fillStyle = c; g.fillRect(x, 0, 8, 3); g.fillRect(x, H - 3, 8, 3);
-    }
-    for (let y = 0; y < H; y += 8) {
-      const c = (y / 8) % 2 ? UI97.cyan : UI97.hot;
-      g.fillStyle = c; g.fillRect(0, y, 3, 8); g.fillRect(W - 3, y, 3, 8);
-    }
+    // ── THE PAGE ────────────────────────────────────────────────────────
+    g.fillStyle = PAGE.paper; g.fillRect(0, 0, W, H);
+    // ── THE MASTHEAD. One red band, cream type, and a rule under it: the
+    // whole of a catalogue's decoration, and all it needs.
+    g.fillStyle = PAGE.red; g.fillRect(MAST.x, MAST.y, MAST.w, MAST.h);
+    type('CROSSTOWN', 7, 8, 9, PAGE.paper);
+    type('MAIL ORDER CATALOG', 78, 8, 7, '#e0c8b8');
+    type('NO. 227', W - 7, 8, 7, PAGE.paper, 'right');
+    g.fillStyle = PAGE.rule; g.fillRect(0, MAST.h, W, 1);
+    g.fillStyle = PAGE.ink; g.fillRect(0, MAST.h + 2, W, 1);
 
-    // ── THE TITLE, with a star that turns. Nothing in this world has ever had
-    // an animated flourish and this screen gets one.
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = UI97.gold;
-    g.font = 'bold 11px ui-monospace, Menlo, monospace';
-    g.fillText('CROSSTOWN CLOSET', W / 2, 12);
-    for (const sx of [W / 2 - 62, W / 2 + 62]) {
-      g.save(); g.translate(sx, 12); g.rotate(t * 1.1);
-      g.fillStyle = UI97.gold;
-      for (let k = 0; k < 4; k++) {
-        g.save(); g.rotate((k / 4) * Math.PI); g.fillRect(-5, -1, 10, 2); g.restore();
-      }
-      g.restore();
-    }
-
-    // ── THE STAGE, and the doll on it ──────────────────────────────────
-    g.fillStyle = UI97.deep;
+    // ── THE MODEL, in the left margin, on a panel of paper stock ────────
+    g.fillStyle = PAGE.paperLo;
     g.fillRect(STAGE.x, STAGE.y, STAGE.w, STAGE.h);
-    g.fillStyle = UI97.shade;
-    g.fillRect(STAGE.x, STAGE.y + STAGE.h - 12, STAGE.w, 12);      // the floor of it
-    g.fillStyle = held ? UI97.gold : UI97.hot;                      // its rule
-    g.fillRect(STAGE.x, STAGE.y, STAGE.w, 2);
-    g.fillRect(STAGE.x, STAGE.y + STAGE.h - 2, STAGE.w, 2);
-    g.fillRect(STAGE.x, STAGE.y, 2, STAGE.h);
-    g.fillRect(STAGE.x + STAGE.w - 2, STAGE.y, 2, STAGE.h);
-    // A LITTLE BOB. One texel, once a second and a half — enough that the doll
-    // reads as a character rather than a diagram, and small enough that it
-    // never fights the drag.
-    const bob = Math.round(Math.sin(t * 2.2) * 0.5 - 0.5);
-    g.fillStyle = 'rgba(0,0,0,0.45)';                               // his shadow
-    g.fillRect(DOLL_X + 8, STAGE.y + STAGE.h - 13, Math.round(MW * DOLL_S) - 16, 3);
-    paintFigure(g, DOLL_X, DOLL_Y + bob, DOLL_S, facing);
+    // a hairline box, the way a catalogue rules a photograph. It goes to the
+    // red when he is carrying something, because this box is the drop target
+    // and a target you cannot see is a drag you have to guess at.
+    g.fillStyle = held ? PAGE.red : PAGE.rule;
+    g.fillRect(STAGE.x, STAGE.y, STAGE.w, 1);
+    g.fillRect(STAGE.x, STAGE.y + STAGE.h - 1, STAGE.w, 1);
+    g.fillRect(STAGE.x, STAGE.y, 1, STAGE.h);
+    g.fillRect(STAGE.x + STAGE.w - 1, STAGE.y, 1, STAGE.h);
+    paintFigure(g, DOLL_X, DOLL_Y, DOLL_S, facing);
+    type(held ? 'DROP IT HERE' : 'SCROLL TO TURN', STAGE.x + STAGE.w / 2,
+      STAGE.y + STAGE.h - 7, 6, held ? PAGE.red : PAGE.dim, 'center');
 
-    // ── THE SIX TABS ───────────────────────────────────────────────────
+    // ── THE DEPARTMENT LINE ─────────────────────────────────────────────
+    // Printed small caps with a rule under the one you are reading, which is
+    // how a catalogue marks its own section. No tabs, no buttons, no boxes.
     SLOTS.forEach((sl, i) => {
-      const r = tabRect(i);
+      const r = deptRect(i);
       const on = sl === cat;
-      g.fillStyle = on ? UI97.hot : UI97.shade;
-      g.fillRect(r.x, r.y, r.w, r.h);
-      g.fillStyle = on ? UI97.gold : '#5b4a72';
-      g.fillRect(r.x, r.y, r.w, 2);
-      g.fillStyle = on ? UI97.ink : '#9a86b8';
-      g.font = 'bold 8px ui-monospace, Menlo, monospace';
-      g.fillText(TAB_NAME[sl], r.x + r.w / 2, r.y + r.h / 2 + 1);
+      type(DEPT_NAME[sl], r.x + r.w / 2, r.y + 6, 6, on ? PAGE.ink : PAGE.dim, 'center');
+      if (on) { g.fillStyle = PAGE.red; g.fillRect(r.x + 3, r.y + 11, r.w - 6, 1); }
     });
 
-    // ── THE TRAY ───────────────────────────────────────────────────────
-    g.fillStyle = UI97.deep;
-    g.fillRect(TRAY.x, TRAY.y, TRAY.w, TRAY.h);
-    g.fillStyle = UI97.cyan;
-    g.fillRect(TRAY.x, TRAY.y, TRAY.w, 2);
-    g.fillRect(TRAY.x, TRAY.y + TRAY.h - 2, TRAY.w, 2);
-    g.fillRect(TRAY.x, TRAY.y, 2, TRAY.h);
-    g.fillRect(TRAY.x + TRAY.w - 2, TRAY.y, 2, TRAY.h);
+    // ── THE PRODUCT GRID ────────────────────────────────────────────────
     const rack = rackOf(cat);
     rack.forEach((gm, i) => {
       const r = cellRect(i);
       const idx = i + 1;
       const gone = wornIndex(cat) === idx || (held?.slot === cat && held.index === idx);
-      g.fillStyle = gone ? '#150c22' : UI97.shade;
-      g.fillRect(r.x, r.y, r.w, r.h);
+      g.fillStyle = PAGE.paperLo; g.fillRect(r.x, r.y, r.w, r.h);
+      g.fillStyle = PAGE.rule; g.fillRect(r.x, r.y + r.h - 1, r.w, 1);
       if (gone) {
-        // AN EMPTY PEG, so a garment is in exactly one place at a time and you
-        // can see where the one on the doll came from.
-        g.fillStyle = '#3a2a56';
-        for (let k = 0; k < r.h; k += 6) g.fillRect(r.x + r.w / 2 - 1, r.y + k, 2, 3);
+        // OUT OF STOCK, because it is on the model. A catalogue's own way of
+        // saying it, and it keeps the cell where it was so a garment is
+        // visibly in exactly one place at a time.
+        type('ON THE', r.x + r.w / 2, r.y + r.h / 2 - 5, 6, PAGE.dim, 'center');
+        type('MODEL', r.x + r.w / 2, r.y + r.h / 2 + 3, 6, PAGE.dim, 'center');
         return;
       }
-      paintHanging(g, r.x, r.y, r.w, r.h, gm);
+      // the product shot: the garment art, boxed the way a catalogue boxes one
+      const aw = Math.round(r.h * 0.62), ah = aw * 2;
+      paintHanging(g, r.x + Math.round((r.w - aw) / 2), r.y + 2, aw, Math.min(ah, r.h - 16), gm);
+      type(gm.name, r.x + 3, r.y + r.h - 8, 6, PAGE.ink);
+      type(priceOf(gm.id), r.x + r.w - 3, r.y + r.h - 8, 6, PAGE.red, 'right');
     });
-    // and what the tray is for, said once, in the tray
-    g.fillStyle = UI97.cyan;
-    g.font = 'bold 8px ui-monospace, Menlo, monospace';
-    g.fillText('DRAG IT ONTO YOURSELF', TRAY.x + TRAY.w / 2, TRAY.y + TRAY.h - 10);
+
+    // paper grain, last, over all of it — the same speckle every painted
+    // surface in this world carries, at a printed-page density
+    dither(g, W, H, 90);
 
     // ── AND WHAT IS ON THE CURSOR ──────────────────────────────────────
     if (held && ptr) {
       const gm = options(held.slot)[held.index];
-      if (gm) paintHanging(g, Math.round(ptr.x - CELL_W / 2), Math.round(ptr.y - CELL_H / 2),
-        CELL_W, CELL_H, gm);
+      if (gm) paintHanging(g, Math.round(ptr.x - 13), Math.round(ptr.y - 26), 26, 52, gm);
     }
   };
 
@@ -836,16 +820,16 @@ export function mirrorPanel(): () => void {
       panel = makePanel({
         id: 'ct-closet', w: SW, h: SH, scale: SSCALE, chrome: 'none',
         // THE WORLD GOES OUT. See `PanelSpec.blackout`: the ordinary vignette
-        // leaves the bedroom faintly visible around the canvas, and the seam
-        // between the two blacks is the difference between a fade and a card
-        // laid over the room. *"we fade to black"*.
+        // leaves the bedroom visible around the page, and the seam between the
+        // two is the difference between *"we fade to black"* and a card laid
+        // over the room.
         blackout: true,
-        hint: () => 'drag a garment onto yourself · scroll to turn',
+        hint: () => 'drag a garment onto the model · scroll to turn',
         draw: paint,
         wheel: (d) => { facing = (facing + d + 8) % 8; repaint(); },
         key: (k) => {
           // THE KEYBOARD DOES EVERYTHING THE POINTER DOES, so a trackpad, a
-          // touchscreen or a stuck mouse can still finish. Escape and `[E]`
+          // touchscreen or a dead mouse can still finish. Escape and `[E]`
           // belong to the framework and nothing here can eat them.
           const i = SLOTS.indexOf(cat);
           if (k === 'arrowright') cat = SLOTS[(i + 1) % SLOTS.length];
@@ -856,28 +840,25 @@ export function mirrorPanel(): () => void {
           repaint();
         },
         surface: {
-          // NO MESH — this screen is not painted on anything in the world, and
-          // that is the whole point of it. The surface hooks are only how a
-          // panel receives the pointer.
-          hot: (x, y) => !!held || !!cellAt(x, y) || !!dollSlotAt(x, y) || !!tabAt(x, y),
+          // NO MESH — this page is not painted on anything in the world. The
+          // surface hooks are only how a panel receives the pointer.
+          hot: (x, y) => !!held || !!cellAt(x, y) || !!dollSlotAt(x, y) || !!deptAt(x, y),
           move: (x, y) => {
             ptr = { x, y };
             if (held) { repaint(); return; }
-            if (pending) {
-              if (Math.hypot(x - pending.x, y - pending.y) > GRAB_PX) {
-                held = { slot: pending.slot, index: pending.index };
-                // IT COMES OFF THE MOMENT THE DRAG STARTS — you are holding it
-                // and the doll is visibly without it.
-                if (wornIndex(pending.slot) === pending.index) wear(pending.slot, 0);
-                pending = null;
-                repaint();
-              }
+            if (pending && Math.hypot(x - pending.x, y - pending.y) > GRAB_PX) {
+              held = { slot: pending.slot, index: pending.index };
+              // IT COMES OFF THE MOMENT THE DRAG STARTS — you are carrying it
+              // and the model is visibly without it.
+              if (wornIndex(pending.slot) === pending.index) wear(pending.slot, 0);
+              pending = null;
+              repaint();
             }
           },
           click: (x, y) => {
             ptr = { x, y };
-            const tab = tabAt(x, y);
-            if (tab) { cat = tab; repaint(); return; }
+            const d = deptAt(x, y);
+            if (d) { cat = d; repaint(); return; }
             const c = cellAt(x, y);
             if (c) { pending = { ...c, x, y }; return; }
             const sl = dollSlotAt(x, y);
@@ -886,35 +867,30 @@ export function mirrorPanel(): () => void {
           up: (hit) => {
             const h = held, pend = pending;
             held = null; pending = null;
-            // A PRESS THAT NEVER TRAVELLED is a tap: on a garment in the tray
-            // it puts it on, which is the shortcut a dress-up screen should
-            // have; on the doll it does nothing, because taking clothes off by
-            // tapping yourself is how you undress by accident.
+            // A PRESS THAT NEVER TRAVELLED is a tap: on a product cell it puts
+            // the garment on, which is the shortcut a catalogue page should
+            // have; on the model it does nothing, because undressing yourself
+            // by tapping is how you undress by accident.
             if (!h && pend && wornIndex(pend.slot) !== pend.index) {
               cat = pend.slot; wear(pend.slot, pend.index);
-            } else if (h) {
-              // ON THE DOLL he wears it. ANYWHERE ELSE — the tray, the tabs,
-              // the black, off the canvas entirely — it goes back on its peg,
-              // which for something dragged off him means it stays off. That
-              // is how you get to the white undies: drag it away and let go.
-              if (hit && inRect(hit.x, hit.y, STAGE)) wear(h.slot, h.index);
+            } else if (h && hit && inRect(hit.x, hit.y, STAGE)) {
+              wear(h.slot, h.index);
             }
+            // ANYWHERE ELSE it goes back to the page — and for something
+            // dragged off the model that means it stays off, which is how you
+            // reach the white undies: drag it away and let go.
             ptr = hit;
             repaint();
           },
         },
         // NOTHING SURVIVES A CLOSE EXCEPT THE CLOTHES. Escape mid-drag drops
-        // what is on the cursor — no ghost garment — and the framework owns the
-        // rest of the way out: Escape and `[E]` from every state, the gate, the
-        // pointer lock, and standing up.
-        onOpen: () => { held = null; pending = null; ptr = null; facing = 0; cat = 'top'; t0 = 0; },
+        // what is on the cursor; the framework owns the rest of the way out —
+        // Escape and `[E]` from every state, the gate, the pointer lock and
+        // standing up.
+        onOpen: () => { held = null; pending = null; ptr = null; facing = 0; cat = 'top'; },
         onClose: () => { held = null; pending = null; ptr = null; },
       });
       onWardrobeChange(() => { if (panel?.isOpen()) panel.repaint(); });
-      // THE STAR TURNS AND THE DOLL BOBS, so this screen repaints on its own —
-      // the only one in the world that does. Cheap: a 320 x 180 canvas at 12 a
-      // second, and only while it is up.
-      setInterval(() => { if (panel?.isOpen()) panel.repaint(); }, 84);
     }
     panel.open();
   };
