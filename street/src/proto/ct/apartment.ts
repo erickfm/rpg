@@ -4207,69 +4207,42 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the old 24x32 field stretched to 1.6 m would have been a tall picture of
     // a short view, with a horizon at eye level and nothing under it.
     const MIR_X = -0.72;                        // the chair's own x, kept
-    // ── WIDER AND SHORTER (his fourth word on this glass) ────────────────
+    // ══ IT IS A FACE MIRROR NOW ══════════════════════════════════════════
     //
-    // *"also mirror could be a bit wider and less tall."*   (2026-08-04)
+    // *"lets make the mirror small and just a face mirror btw."*  (2026-08-04)
     //
-    //   WIDTH   0.52 -> 0.62. It spans x -1.03…-0.41 now.
-    //   HEIGHT  1.70 -> 1.45, ALL OF IT OFF THE TOP: RY+0.40…RY+1.85.
+    // 0.30 x 0.38, hung with its centre at RY+1.55 — the kind you shave in,
+    // at the height you look into one. It was 0.62 x 1.45 of full-length
+    // dressing glass and every number that served that is gone with it: the
+    // `MIR_GAP` floor clearance (a face mirror has no relationship with the
+    // floor), the locked full-length view's stand-off and eye height, and the
+    // whole idea of seeing yourself head to foot in this room.
     //
-    // THE HEIGHT COMES OFF THE TOP BECAUSE THE BOTTOM IS HIS. `MIR_GAP` is the
-    // floor clearance he asked for one message ago (*"raise the mirror a little
-    // so theres a bit more clearence with the floor"*) and `MIR_Y` is derived
-    // from it, so shortening `MIR_H` takes the difference off the head of the
-    // glass and leaves the gap he tuned exactly where it was. Nothing else had
-    // to change for that — it falls out of the derivation.
+    // THE DRESSING MOVED OFF THE WALL ENTIRELY — *"we fade to black and we see
+    // a little like sprite version of ourselves"* — so this object is back to
+    // being a mirror rather than an interface, and it is sized as one.
     //
-    // ⚠ THE BED IS THE BOUND ON WIDTH AND HE SHOULD KNOW THE REAL NUMBER. The
-    // bed's collider ends at x -1.15 and this glass is centred on -0.72, so the
-    // widest it can ever be is **0.86 m** before the frame touches it. 0.62
-    // leaves 0.12 m of clear plaster on that side (was 0.17) and 0.41 m to the
-    // east wall's room face, so it is still nowhere near either. One more nudge
-    // of this size is comfortable; two is not.
+    // A SLIMMER FRAME WITH IT. `FRAME_W` 0.05 was a fifth of the old glass's
+    // width and is a third of this one's; at 0.03 the border reads as a shaving
+    // mirror's rather than as a picture frame, and the glass keeps 0.24 x 0.32.
     //
-    // The door's swing is untouched: 301's leaf sweeps 0.91 m from a pivot at
-    // (-0.09, 3.975) and the frame's nearest corner is now 1.42 m out, still
-    // half a metre clear of the arc.
-    //
-    // ── AND THE FIELD IS NOT REDRAWN BUT IT IS NOW MEASURED ─────────────
-    //
-    // *"give me true proportions in the mirror i feel stretched"* — and the
-    // plate was, in both directions at different times. It was a FIXED 20 x 64
-    // canvas (aspect 0.3125) on a quad that has been 0.2625 all day and became
-    // 0.385 with this resize: the same painting squeezed 19% one way, then
-    // stretched 23% the other. Two numbers kept in step by hand and nothing
-    // keeping them.
-    //
-    // The composition is unchanged — horizon 62% down, joints opening toward
-    // the bottom, foxing worst along the bottom edge — but the CANVAS is now
-    // derived from the plate's metres (`glassCanvas`, 40 texels/m) and the
-    // field is painted in fractions of its own W and H (`paintGlass`). Texels
-    // are square by construction and the next resize cannot desynchronise them,
-    // because there is no second number left to forget.
-    const MIR_W = 0.62, MIR_H = 1.45;
-    const FRAME_D = 0.05, FRAME_W = 0.05;       // how proud it stands, and its border
+    // CLEARANCE, re-walked: it spans x -0.87…-0.57 and y RY+1.36…RY+1.74. The
+    // bed's collider ends at x -1.15 (0.28 m clear), the east wall's room face
+    // is 0.57 m past its other edge, and the ceiling is RY+2.543. Nothing is
+    // near it, and it hangs well above the mattress rather than beside it.
+    const MIR_W = 0.30, MIR_H = 0.38;
+    const FRAME_D = 0.035, FRAME_W = 0.03;      // how proud it stands, and its border
     // the north wall's ROOM FACE. AZI(5.5) is the wall box's centreline and the
     // box is 0.14 deep — the same half-thickness `NORTH_Z` takes below, and the
     // trap it documents: hang at 5.49 and the mesh is entombed in the plaster.
     const MIR_WALL_Z = 5.5 - 0.07;
-    // ⚠ CLEARANCE, re-walked for the wider, shorter frame rather than assumed.
-    // It spans x -1.03…-0.41 and y RY+0.40…RY+1.85 on the plaster:
-    //   the BED's collider ends at x -1.15, so 0.12 m of clear wall to its west
-    //   the EAST wall's room face is AX(0), 0.41 m past its other edge
-    //   the SKIRTING is painted into the wallpaper tile, not geometry — and
-    //     the tile's own band was deleted (see wallpaperT), so there is
-    //     NOTHING built along this wall at floor level. The gap under the
-    //     frame is clear air, and there is no board for it to float just above
-    //   the CEILING is RY+2.543, so the top still has 0.443 m over it — the
-    //     0.15 m lift comes out of headroom that was 0.593 m and had it
-    //   301's LEAF sweeps 0.91 m from a pivot at (-0.09, 3.975); the frame's
-    //     nearest corner is 1.46 m out, so the arc still misses it
-    // Still no collider and no `maxY`: 0.05 m proud of a wall you are held
-    // 0.35 m off cannot be reached, and it is not a surface.
-    //
-    const MIR_GAP = 0.40;                       // boards to the frame's bottom
-    const MIR_Y = RY + MIR_GAP + MIR_H / 2;     // frame RY+0.40 … RY+1.85
+    // Still no collider and no `maxY`: 0.035 m proud of a wall you are held
+    // 0.35 m off cannot be reached, and it is not a surface. The clearance this
+    // used to carry was for the full-length glass; the walk above supersedes it.
+    // FACE HEIGHT, and that is the whole placement — a shaving mirror is hung
+    // where a face is, not measured up from the boards. RY+1.55 puts the glass
+    // at RY+1.39…RY+1.71 against a standing eye at about RY+1.62.
+    const MIR_Y = RY + 1.55;
     box(MIR_W, MIR_H, FRAME_D, MIR_X, MIR_Y, MIR_WALL_Z - FRAME_D / 2,
       new THREE.MeshBasicMaterial({ color: 0x3f3125 }));
     // THE GLASS, AND ITS CANVAS DERIVED FROM IT. Both dimensions of the plate
