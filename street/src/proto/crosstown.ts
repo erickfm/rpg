@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Proto } from './types';
 import { FPRig, RADIUS, SIT_EYE, PITCH_LIMIT, type AABB, type SeatPose } from './fp';
-import { showBag, hasBag, bagOpen, bagEscaped, configureBag } from './ct/bag';
+import { showBag, bagOpen, bagEscaped, configureBag } from './ct/bag';
 import { dropLoose } from './ct/inventory';
 import { worn } from './ct/wardrobe';
 import { ColliderDebug } from './ct/debug-collision';
@@ -88,7 +88,15 @@ export function makeCrosstown(): Proto {
   /** which stop of the wrist-down carousel is up — see the block that cycles
    *  it. Remembered across looking up and down again: coming back to the same
    *  thing you left open is what a pocket does. */
-  let carousel = 'nothing';
+  /** the two things you can have in your hands while looking down. Two
+   *  booleans, not a cycle — see the block that reads them. */
+  let bagUp = false, watchUp = false;
+  /** E's rising edge for the bag toggle, kept apart from `feedHeld` so the
+   *  world's own [E] edge detector is not disturbed by it */
+  let eDownHeld = false;
+  /** is he looking at the floor right now — read by the [E] dispatch and by
+   *  the prompt's suppression. Written once per frame, below. */
+  let lookDown = false;
   /**
    * HOW FAR DOWN YOU MUST LOOK BEFORE THE WATCH COMES UP, MEASURED BACK FROM
    * THE CLAMP. Gate fires at `PITCH_LIMIT - WATCH_TOLERANCE` below level, so a
@@ -2626,29 +2634,68 @@ export function makeCrosstown(): Proto {
       // `main.ts:69` already suppresses the browser menu globally. This reads
       // that key on its RISING EDGE and only while looking down; everywhere
       // else the button keeps doing exactly what it did.
+      // ══ TWO VERBS, TWO OBJECTS ═══════════════════════════════════════
+      //
+      // *"instead of using right click for inventory, lets make inventory just
+      //  looking down and pressing e. this essentially means if looking down
+      //  you cant use e dialogs and im fine with that"*, then, asked what
+      //  should be left of the cycle: *"i want right click to still toggle
+      //  watch"*   (2026-08-05)
+      //
+      //     looking down + E             the bag, open and shut
+      //     looking down + right-click   the watch, up and down
+      //
+      // THE CAROUSEL IS DELETED, not narrowed. It built a stop list every frame
+      // from what he was wearing, appended `nothing` unconditionally, and fell
+      // back when a stop stopped existing — machinery that only made sense when
+      // one button had to reach three states. Two independent booleans reach the
+      // same four combinations with none of it, and there is no cycle to be at
+      // the wrong point of. Gone with it: `stops`, the fall-back, the `nothing`
+      // stop, and `hasBag()`'s only caller.
+      //
+      // NO WATCH IS SILENT. `hud.watch` already refuses an empty wrist on its
+      // own terms (*"an empty wrist has nothing to check"*), so right-clicking
+      // with no watch on flips a flag that draws nothing. No error, no empty
+      // sleeve — which is what it did as a carousel stop too.
+      //
+      // OPENING THE BAG LOWERS THE WATCH. You cannot hold a bag open and read
+      // your wrist at the same time, and two objects in the same corner of the
+      // frame is the crowding the carousel existed to prevent. The reverse is
+      // NOT true: raising the watch does not shut the bag, because the bag has
+      // the mouse and yanking it away mid-drag is the worse surprise.
       const lookingDown = rig.pitch < WATCH_PITCH && !panelUp();
-      const stops: string[] = [];
-      if (hasBag()) stops.push('bag');
-      if (worn('watch').kind !== 'none') stops.push('watch');
-      stops.push('nothing');
-      if (!stops.includes(carousel)) carousel = 'nothing';
-      // ⚠ RIGHT-CLICK IS NOW THE CAROUSEL'S AND NOTHING ELSE'S. It used to flip
-      // the wallet out and away, and *"get rid of the whole wallet thing"* took
-      // that with it — so outside the look-down gate the button does nothing at
-      // all, deliberately and not by oversight. It is free for the next thing
-      // that wants it. `main.ts` still swallows the browser's context menu, so
-      // a stray right-click on the world is silent rather than a menu.
+      lookDown = lookingDown;
+      // ⚠ RIGHT-CLICK IS THE WATCH'S AND NOTHING ELSE'S. It used to flip the
+      // wallet out and away, and *"get rid of the whole wallet thing"* took that
+      // with it; outside the look-down gate it does nothing at all, deliberately
+      // and not by oversight. `main.ts:63` puts the right button into
+      // `input.keys` as `rmb` and `main.ts:69` suppresses the browser menu
+      // globally, so a stray right-click on the world is silent.
       const rmb = input.keys.has('rmb');
-      if (lookingDown && rmb && !rmbHeld) {
-        carousel = stops[(stops.indexOf(carousel) + 1) % stops.length];
-      }
+      if (lookingDown && rmb && !rmbHeld) watchUp = !watchUp;
       rmbHeld = rmb;
-      // ESCAPE CLOSES THE BAG TOO, and it comes back through the carousel
-      // rather than closing the bag behind its back — so the pointer is handed
-      // over by the same `showBag(false)` every other exit runs through.
-      if (bagEscaped()) carousel = 'nothing';
-      hud.watch(lookingDown && carousel === 'watch', Math.floor(clockMin));
-      showBag(lookingDown && carousel === 'bag');
+      // ⚠ E IS EDGE-TRIGGERED HERE AND CONSUMED HERE. `lookDown` is published to
+      // the [E] dispatch below, which returns early while it is true — so the
+      // press that opens the bag cannot also fire a spot he happens to be
+      // standing on. That is the same swallow `ct/bag.ts` does capture-phase
+      // once the bag is OPEN; this covers the press that opens it, which that
+      // listener is not yet attached for.
+      const eNow = input.keys.has('e');
+      if (lookingDown && eNow && !eDownHeld) {
+        bagUp = !bagUp;
+        if (bagUp) watchUp = false;               // one object at a time
+      }
+      eDownHeld = eNow;
+      // LOOKING BACK UP PUTS BOTH AWAY, which is what made the carousel's
+      // `nothing` stop redundant: a clear view of the floor is simply neither
+      // of them raised, and lifting your head is the gesture that gets it.
+      if (!lookingDown) { bagUp = false; }
+      // ESCAPE CLOSES THE BAG, and it comes back through here rather than
+      // closing the bag behind its back — so the pointer is handed over by the
+      // same `showBag(false)` every other exit runs through. Still one seam.
+      if (bagEscaped()) bagUp = false;
+      hud.watch(lookingDown && watchUp, Math.floor(clockMin));
+      showBag(lookingDown && bagUp);
       // V: toggle the collision debug view. Edge-triggered like rmb/E just
       // above, so holding it down does not flicker the overlay on and off.
       const debugKeyDown = input.keys.has('v');
@@ -2813,12 +2860,21 @@ export function makeCrosstown(): Proto {
       // key `fp.ts` honours unconditionally from two independent listeners and
       // which therefore cannot be taken away by anything on offer here.
       const exit = rig.seated ? (SEAT_EXIT.get(rig.seatedOn!) ?? 'stand up') : null;
-      hud.prompt(exit
+      // ⚠ NO WORLD PROMPT WHILE HE IS LOOKING AT THE FLOOR. E belongs to the bag
+      // down there — *"this essentially means if looking down you cant use e
+      // dialogs and im fine with that"* — and a prompt offering a key that will
+      // do something else is worse than no prompt. The gate is 65.5 degrees
+      // below level, his own tuned number, so there is very little he could be
+      // aiming at anyway.
+      hud.prompt(lookDown ? null : exit
         ? (active ? `[E] ${active.label()}   ·   [ESC] ${exit}` : `[E] ${exit}`)
         : (active ? `[E] ${active.label()}` : null));
       spotOutline.show(scene, debugSpots ? active : null);
       // E dispatch (edge-triggered)
-      const feedDown = input.keys.has('e');
+      // ⚠ AND THE KEY ITSELF IS THE BAG'S DOWN THERE. Held back rather than
+      // consumed at the toggle, so `feedHeld` keeps tracking the real key state
+      // and lifting his head mid-press cannot fire a spot on the way up.
+      const feedDown = input.keys.has('e') && !lookDown;
       if (feedDown && !feedHeld) {
         if (rig.seated && !active) {
           // STANDING UP IS THE FALLBACK, AND THE FALLBACK IS THE DEFAULT.

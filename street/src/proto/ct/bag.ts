@@ -1146,3 +1146,9 @@ export function showBag(want: boolean): void {
  * off with things in it. The name is kept because 20 lines of carousel read it.
  */
 export function hasBag(): boolean { return true; }
+// ⚠ AND IT HAS NO CALLERS AS OF 2026-08-05. The carousel was the only one, and
+// *"i want right click to still toggle watch"* replaced it with two plain
+// booleans — E for the bag, right-click for the watch, no stop list to build
+// and nothing conditional on whether a bag is worn. Kept exported and kept
+// TRUE, because the sentence it now states is the one that matters: there is
+// always something to look at down there, so the view is always reachable.
