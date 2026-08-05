@@ -447,10 +447,10 @@ function verbsFor(id: string): string[] {
 
 /** where the plates sit: stacked under the item, or above it if the mouth runs
  *  out — a clutch's opening is short and the options still have to land in it */
-function plateRects(i: number, n: number) {
+function plateRects(i: number, n: number, wIn = PLATE_W) {
   const L = layout(laid().length);
   const r = L.at(i);
-  const w = PLATE_W, h = PLATE_H, gap = 3;
+  const w = wIn, h = PLATE_H, gap = 3;
   const below = r.y + r.h + 2;
   // ⚠ CLAMPED INTO THE OPENING, NOT ALLOWED TO ESCAPE ABOVE IT. The old rule
   // was "below the item, or above it if the mouth runs out", and `above` put
@@ -835,7 +835,7 @@ function paint(): void {
     band(g, L.inner.x - 10, L.inner.y - 10, L.inner.w + 20, L.inner.h + 20, 12,
       'rgba(20,17,16,0.62)');
     paintItems(g, L, items);
-    paintOver(g, L, bag);
+    paintOver(g, L, bag, items);
     return;
   }
 
@@ -903,7 +903,7 @@ function paint(): void {
   }
 
   paintItems(g, L, items);
-  paintOver(g, L, bag);
+  paintOver(g, L, bag, items);
 }
 
 type Lay = ReturnType<typeof layout>;
@@ -962,7 +962,7 @@ function paintItems(g: CanvasRenderingContext2D, L: Lay, items: string[]): void 
 /** the cursor's load, the option plates and the close-up — everything that
  *  goes OVER the grid, in every presentation */
 function paintOver(g: CanvasRenderingContext2D, L: Lay,
-                   bag: { cloth: string; trim: string }): void {
+                   bag: { cloth: string; trim: string }, items: string[]): void {
   // ── WHAT IS ON THE CURSOR, ON ITS WAY OUT ──────────────────────────────
   // No dimming behind it: he is moving a thing, not examining one, and the bag
   // has to stay legible so he can see whether he is still over its mouth.
@@ -986,6 +986,45 @@ function paintOver(g: CanvasRenderingContext2D, L: Lay,
   //
   // The item they belong to LIFTS 4 texels and keeps its warm wash, so he can
   // see which thing he is acting on without the close-up he is replacing.
+  //
+  // ── WHAT IS THIS THING — ON HOVER, IN THE SAME PLACE ───────────────────
+  //
+  // *"hover on item in bag should say what the item is. like cereal or
+  //  whatever"*   (2026-08-05)
+  //
+  // THE NAME PREVIEWS WHERE THE VERBS WILL COMMIT. It is the same plate, in the
+  // same idiom, at the same anchor `plateRects` gives the options — so hovering
+  // shows you WHAT, clicking replaces it with WHAT YOU CAN DO. They cannot
+  // fight for the space because they are never up together: this branch is
+  // guarded on `!menu && !held`, and opening the options is what takes the
+  // hover's place. One spot, two states, and the eye never has to move.
+  //
+  // ⚠ THIS IS NOT THE DESCRIPTOR HE TURNED DOWN. *"i dont want descriptors for
+  // the items you pick up"* was about the world narrating events at him
+  // unprompted, and those notes are still deleted. This is the opposite
+  // direction: he points at a thing and asks what it is. So it is the NAME and
+  // nothing else — `ItemDef.name`, the single field the [E] prompts already
+  // word themselves from, upper-cased. No blurb, no stack count, no sentence.
+  //
+  // THE PLATE SIZES TO THE WORD rather than the word to the plate: "PAIR OF
+  // TRAINERS" does not fit the 78 the verbs use, and shrinking the type to make
+  // it fit would undo the legibility fix directly above. Measured, padded and
+  // clamped into the mouth by the same `plateRects` that clamps the options.
+  if (!menu && !held && ptr) {
+    for (let i = L.from; i < L.to; i++) {
+      if (!inRect(ptr.x, ptr.y, L.at(i))) continue;
+      const label = itemOf(items[i]).name.toUpperCase();
+      g.font = `bold ${PLATE_PX}px ui-monospace, Menlo, monospace`;
+      const w = Math.min(L.mouth.w - 12, Math.ceil(g.measureText(label).width) + 16);
+      const r = plateRects(i, 1, w)[0];
+      band(g, r.x - 1, r.y - 1, r.w + 2, r.h + 2, 5, bag.trim);
+      band(g, r.x, r.y, r.w, r.h, 4, PLATE);
+      g.fillStyle = PLATE_INK;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
+      break;
+    }
+  }
   //
   // ── AND THEY HAVE TO BE READABLE, WHICH THEY WERE NOT ──────────────────
   //
