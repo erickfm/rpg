@@ -89,6 +89,28 @@ export interface ItemDef {
    * about.
    */
   icon?: (g: CanvasRenderingContext2D) => void;
+  /**
+   * HOW THICK IT IS ON THE FLOOR, in metres.
+   *
+   * *"items dropped sometimes have no height and so they look graphically
+   *  weird on the ground. pls give height. no collision needed"*  (2026-08-05)
+   *
+   * A dropped thing used to be a 0.16 m PLANE lying flat, and he is right about
+   * what that looks like: seen at a grazing angle it thins to a line and then
+   * to a decal painted on the carpet. It is a box now, and this is its depth.
+   *
+   * IT VARIES BY ITEM, because "give it height" and "make everything a cube"
+   * are different instructions. A chequebook is 20 mm and a cereal box is 110,
+   * and one number for both would make the flat things look wrong in the other
+   * direction. The default is a middling 0.05 — an unknown id still gets a
+   * solid, and the same argument the `icon` fallback makes: an honest generic
+   * beats a confident wrong picture.
+   *
+   * ⚠ VISUAL ONLY. He said "no collision needed" and there is none — no
+   * collider, no `maxY`, nothing standable. Dropping something on the floor
+   * must not build a step.
+   */
+  thick?: number;
 }
 
 const ITEMS = new Map<string, ItemDef>();
@@ -135,6 +157,7 @@ const box = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: nu
 // cannot actually obtain is worse than a short one.
 defineItem({
   id: 'NEWSPAPER', name: 'folded newspaper', stack: 2,
+  thick: 0.035,   // folded, and somebody has stood on it
   blurb: 'yesterday’s, and somebody has stood on it.',
   // ct/props.ts's own newsprint: #9d9483 weathered, #3a352d masthead ink
   icon: (g) => {
@@ -149,6 +172,7 @@ defineItem({
 // the starting purse, so these two are declared rather than introduced.
 defineItem({
   id: 'CEREAL', name: 'box of cereal', stack: 4, blurb: 'the birds prefer it to you.',
+  thick: 0.11,   // a carton, the tallest thing in the table
   icon: (g) => {
     box(g, '#c8862e', 5, 3, 14, 19);                   // the carton, stood up
     box(g, '#e0a94a', 5, 3, 14, 2);
@@ -159,6 +183,7 @@ defineItem({
 });
 defineItem({
   id: 'SODA', name: 'can of soda', stack: 4, blurb: 'warm. It has been on that shelf a while.',
+  thick: 0.09,   // a can on its side is a 66 mm cylinder; 90 upright
   icon: (g) => {
     box(g, '#b9bcc2', 8, 4, 9, 17);                    // aluminium
     box(g, '#8f9298', 8, 4, 2, 17);                    // the shaded side
@@ -225,6 +250,7 @@ const PARCEL = (g: CanvasRenderingContext2D) => {
  */
 export const PACKAGE = defineItem({
   id: 'PACKAGE', name: 'parcel', stack: 2,
+  thick: 0.10,   // a small parcel, matching the landing boxes
   blurb: 'somebody else\u2019s. It has not been opened.',
   use: { verb: 'open', act: () => rollPackage() },
   icon: (g) => {
@@ -240,6 +266,7 @@ export const PACKAGE = defineItem({
 export const PACKAGE_TABLE: string[] = [
   defineItem({
     id: 'VHS', name: 'video tape', stack: 2, blurb: 'no label. Somebody taped over something.',
+    thick: 0.03,   // a cassette is a 25 mm slab
     icon: (g) => {
       box(g, '#1e2024', 2, 6, 20, 13);                 // the shell
       box(g, '#34383e', 2, 6, 20, 1);
@@ -250,6 +277,7 @@ export const PACKAGE_TABLE: string[] = [
   }).id,
   defineItem({
     id: 'TRAINERS', name: 'pair of trainers', stack: 1, blurb: 'two sizes too big, and white.',
+    thick: 0.08,   // two sizes too big and tied together
     icon: (g) => {
       box(g, '#e4e2da', 3, 9, 18, 8);                  // upper
       box(g, '#c6c3b8', 3, 15, 18, 3);                 // midsole
@@ -261,6 +289,7 @@ export const PACKAGE_TABLE: string[] = [
   }).id,
   defineItem({
     id: 'TOASTER', name: 'toaster', stack: 1, blurb: 'a toaster. You have stolen a toaster.',
+    thick: 0.10,   // a block, and the joke is that he carried it
     icon: (g) => {
       box(g, '#b6b9bf', 3, 7, 18, 12);                 // chrome slab
       box(g, '#d6d9de', 3, 7, 18, 2);                  // the top highlight
@@ -272,6 +301,7 @@ export const PACKAGE_TABLE: string[] = [
   }).id,
   defineItem({
     id: 'CHEQUES', name: 'book of cheques', stack: 4, blurb: 'someone else’s name on every one.',
+    thick: 0.02,   // a chequebook, the thinnest
     icon: (g) => {
       box(g, '#c9d6cc', 3, 7, 18, 11);                 // bank green
       box(g, '#eef1ec', 3, 7, 18, 2);
@@ -282,6 +312,7 @@ export const PACKAGE_TABLE: string[] = [
   }).id,
   defineItem({
     id: 'SOCKS', name: 'pack of tube socks', stack: 4, blurb: 'six pairs, tube, white.',
+    thick: 0.05,   // a soft pack that slumps
     icon: (g) => {
       for (const y of [5, 13]) {
         box(g, '#eceade', 3, y, 18, 6);                // a rolled tube
@@ -293,6 +324,7 @@ export const PACKAGE_TABLE: string[] = [
   }).id,
   defineItem({
     id: 'CATALOGUE', name: 'mail-order catalogue', stack: 2, blurb: 'the thing that sells the things.',
+    thick: 0.02,   // the thing that sells the things, and it is a magazine
     icon: (g) => {
       box(g, '#8a7a58', 4, 3, 16, 18);                 // the block of pages, edge on
       box(g, '#d8cfae', 4, 3, 15, 18);                 // the cover
@@ -803,6 +835,44 @@ const TAKEN: Stashed[] = [];
  * you are full, `give` is the only way it enters a purse, and `TAKEN` gets its
  * `restore` so it can be put down again. One store, one route in, one route out.
  */
+/**
+ * ── A DROPPED THING IS A SOLID ────────────────────────────────────────────
+ *
+ * *"items dropped sometimes have no height and so they look graphically weird
+ *  on the ground. pls give height. no collision needed"*   (2026-08-05)
+ *
+ * IT WAS A PLANE. `ce0c3025` dropped a 0.16 m quad lying flat with the icon on
+ * it, and at a grazing angle a quad has no thickness to show — it thins to a
+ * line, then to a decal painted on the carpet. A box has sides, so it has a
+ * silhouette from anywhere in the room.
+ *
+ * THE TOP CARRIES THE ART AND THE SIDES DO NOT, which is the lesson the landing
+ * parcels paid for four commits ago: one texture on six faces gave two labels at
+ * right angles and string that stopped at every edge. The top is what he sees
+ * looking down, so it gets the icon; the four sides and the underside take the
+ * ART'S OWN DOMINANT COLOUR, read back off the canvas that was just painted
+ * rather than typed — so a red soda can has red sides and a grey toaster grey
+ * ones, and nobody has to keep a second palette in step with the icons. The
+ * sides go 22% darker than the top, which is the only shading a flat-shaded
+ * world gets and is what says "this face is not the lit one".
+ *
+ * FLUSH ON THE FLOOR AT EVERY STOREY. The origin sits half a thickness up, so
+ * the base lands on `gy` whatever the item is, plus 2 mm of daylight against
+ * the boards — the same trick the old plane used at 6 mm, and the smallest gap
+ * that keeps a coplanar pair from z-fighting.
+ *
+ * ⚠ NO COLLIDER, NO `maxY`, NOTHING STANDABLE. He was explicit, and it is the
+ * right call twice over: dropping something must not build a step you can climb
+ * on, and a solid you can walk through is a smaller lie than a floor tile that
+ * grew.
+ *
+ * AND TWO DROPS DO NOT STACK. Both used to land at exactly the player's feet,
+ * so the second was inside the first. Each drop steps round a small ring and
+ * takes its own yaw off the same counter — deterministic, so nothing jitters
+ * per frame, and the yaw is the difference between things somebody dropped and
+ * things somebody arranged.
+ */
+let dropN = 0;
 export function dropLoose(ctx: CtxBuild, id: string, x: number, z: number, gy: number): boolean {
   const cv = document.createElement('canvas');
   cv.width = 48; cv.height = 48;
@@ -813,15 +883,40 @@ export function dropLoose(ctx: CtxBuild, id: string, x: number, z: number, gy: n
   g.restore();
   const tex = new THREE.CanvasTexture(cv);
   tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
-  const obj = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 }));
-  obj.rotation.x = -Math.PI / 2;                 // lying on the floor
-  obj.position.set(x, gy + 0.006, z);            // just off the boards, no z-fight
+  // THE SIDES, READ OFF THE ART. Mean of every pixel the icon actually painted
+  // — `a > 128` skips the transparent surround, or every side would be washed
+  // toward whatever the empty canvas is. A fallback of mid-grey covers an item
+  // that drew nothing at all.
+  let r = 0, gg = 0, b = 0, n = 0;
+  try {
+    const px = g.getImageData(0, 0, 48, 48).data;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] > 128) { r += px[i]; gg += px[i + 1]; b += px[i + 2]; n++; }
+    }
+  } catch { /* a tainted or zero-sized canvas is not a reason to refuse a drop */ }
+  const dim = 0.78;                                  // the sides are not the lit face
+  const side = n > 0
+    ? new THREE.Color(r / n / 255 * dim, gg / n / 255 * dim, b / n / 255 * dim)
+    : new THREE.Color(0x6a6459);
+  const sideM = new THREE.MeshBasicMaterial({ color: side });
+  const topM = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 });
+  const th = itemOf(id).thick ?? 0.05;
+  // BoxGeometry group order is [+x, -x, +y, -y, +z, -z] — index 2 is the top.
+  const obj = new THREE.Mesh(new THREE.BoxGeometry(0.16, th, 0.16),
+    [sideM, sideM, topM, sideM, sideM, sideM]);
+  // the little ring, so the second thing you drop is beside the first
+  const k = dropN++;
+  const a = k * 2.39996;                             // the golden angle: never repeats a spoke
+  const rad = k === 0 ? 0 : 0.10 + 0.02 * (k % 4);
+  obj.rotation.y = (k * 1.107) % (Math.PI / 2);      // dropped, not placed
+  const LIFT = th / 2 + 0.002;
+  obj.position.set(x + Math.cos(a) * rad, gy + LIFT, z + Math.sin(a) * rad);
   obj.name = `dropped-${id}`;
   ctx.scene.add(obj);
   // `lift` is stated rather than inferred: this mesh carries no `groundY` tag,
-  // and 0.006 is what keeps it off the floor plane it is lying on.
-  takeable(ctx, { obj, id, lift: 0.006 });
+  // and half a thickness plus 2 mm is what sits it ON the floor rather than in
+  // it — so picking it up and dropping it on another storey lands it flush too.
+  takeable(ctx, { obj, id, lift: LIFT });
   return true;
 }
 
