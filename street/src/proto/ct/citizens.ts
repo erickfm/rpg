@@ -70,10 +70,16 @@ export const HOLD_DROP_M = (HOLD_ROW - 4) * SPRITE_H_M / FH;
 /**
  * HOW FAR FORWARD OF THE HIP THE SEATED ART ITSELF REACHES.
  *
- * The profile shin is drawn at `cx - KNEE`, so a seated figure's leg already
+ * The seated shin is drawn at `cx - KNEE`, so a seated figure's leg already
  * extends this far ahead of wherever its origin was placed. **This is the whole
  * reason `seatFwd` must not also move the body forward by the seat's depth** —
  * see the derivation on `seatFwd` in `CitizenSprite`'s options.
+ *
+ * IN THREE COLUMNS OF THE FIVE, and that used to be one. See `reach` in the
+ * seated leg block: the two 3/4 views take the same reach as the profile, and
+ * dead front and dead back take none because there is no horizontal component
+ * of "forward" to paint. `seatFwd`'s claim that the redraw clears the seat is
+ * true of six sectors out of eight now rather than two.
  *
  * 12 texels was chosen (item 272) so the shin clears a diner bench's front face,
  * which stands `0.55 / 2 = 0.275 m` ahead of a sitter placed at the bench
@@ -221,17 +227,58 @@ export function citizenAtlas(o: Look): THREE.Texture {
         const FOOT_Y = oy + 59;             // the floor. Unchanged — feet still land
         const THIGH = 6;                    // rows of thigh above the seat, ~0.18 m
         const KNEE = SEATED_KNEE_TEXELS;    // texels FORWARD of the hip, ~0.36 m
+        /**
+         * HOW FAR THIS COLUMN'S KNEE REACHES — and it is the whole of the
+         * *"legs for seated citizens only work from some angles"* report
+         * (2026-08-05).
+         *
+         * Item 272 drew the seated leg as a real L reaching `KNEE` texels
+         * FORWARD of the hip — and drew it in ONE of the five columns. The
+         * other four got two shins dropped straight down at the hip's own x.
+         * `viewAt` maps 8 sectors onto `[0,1,2,3,4,3,2,1]`, so **two sectors
+         * had legs and six did not**, which is exactly what he is describing.
+         *
+         * AND IT IS NOT A DEPTH PROBLEM, which is why the sheet can fix it. A
+         * citizen is a billboard turned to face you, so the sheet's x axis IS
+         * the screen's. What the profile leg does is not reach into the scene,
+         * it reaches ACROSS IT: 12 texels is 0.36 m, and the diner bench that
+         * stands between a sitter and the aisle is 0.55 m deep, so a leg
+         * painted 0.36 m out clears the 0.275 m half-panel and a shin painted
+         * 0.18 m out (`cx - 6`) stays inside its silhouette and is eaten from
+         * every angle. The one column that escaped is the one that reached.
+         *
+         * `seatFwd` cannot supply it. `citizenSprite` zeroes that option for
+         * this very seat (item 286) on the reading that *"the redraw already
+         * clears it"* — true of one column in five, and re-enabling it is the
+         * double-count item 286 exists to have removed.
+         *
+         * The forward direction is −x on the unmirrored sheet (the profile
+         * faces LEFT — GOTCHAS 33), and only its HORIZONTAL component can be
+         * painted on a billboard. Views 1-3 all have one and all take the FULL
+         * reach: the honest `sin(45°) · 12` is 8.5 texels = 0.25 m against a
+         * 0.275 m panel, which is still swallowed, and a knee a little further
+         * out than a real one is a leg where a knee at 8 is nothing.
+         *
+         * Views 0 and 4 take NONE, and that is the answer rather than a gap in
+         * the fix: dead front and dead back are the two columns where forward
+         * is INTO the screen and no sideways offset is anything but a lie.
+         * Nothing occludes them either — dead front of a booth sitter is where
+         * the TABLE is, and from dead behind the seat back is supposed to hide
+         * the legs.
+         */
+        const reach = view === 0 || view === 4 ? 0 : KNEE;
         g.fillStyle = pantsC;
         if (seated) {
-          if (view === 2) {
-            // Side on, and this is the view the aisle actually gives you: the
-            // thigh runs forward along the seat, the shin drops in front of it.
+          if (reach) {
+            // The thigh runs forward along the seat, the shin drops in front
+            // of it — the view the aisle actually gives you, and now the three
+            // columns that can show it rather than the one.
             g.fillStyle = shade(pantsC, 0.62);
-            g.fillRect(cx - KNEE, SEAT - THIGH, KNEE + 2, THIGH);        // far thigh
-            g.fillRect(cx - KNEE, SEAT, 4, FOOT_Y - SEAT);               // far shin
+            g.fillRect(cx - reach, SEAT - THIGH, reach + 2, THIGH);        // far thigh
+            g.fillRect(cx - reach, SEAT, 4, FOOT_Y - SEAT);                // far shin
             g.fillStyle = pantsC;
-            g.fillRect(cx - KNEE - 1, SEAT - THIGH + 1, KNEE + 2, THIGH); // near thigh, over it
-            g.fillRect(cx - KNEE - 1, SEAT + 1, 4, FOOT_Y - SEAT - 1);    // near shin
+            g.fillRect(cx - reach - 1, SEAT - THIGH + 1, reach + 2, THIGH); // near thigh, over it
+            g.fillRect(cx - reach - 1, SEAT + 1, 4, FOOT_Y - SEAT - 1);     // near shin
           } else {
             // FORESHORTENED, and this is the half the leg-only attempt got
             // wrong: from the front a lap is a WIDE SHORT MASS at hip height,
@@ -269,12 +316,17 @@ export function citizenAtlas(o: Look): THREE.Texture {
           // which is why the sheet read as a standing figure with its legs
           // lopped off. Same rows (57…59) either way, so the sprite still
           // reaches the floor and nothing about its footprint changes.
-          if (view === 2) {
-            // 6 texels rather than the standing 8: the profile shoe is now at
-            // cx − KNEE − 4 and 8 would start at cx − 17, one texel INTO THE
-            // NEIGHBOURING FRAME of the atlas. A 0.18 m shoe seen slightly
-            // foreshortened is the honest thing to draw in the room that is left.
-            g.fillRect(cx - KNEE - 4, oy + 57, 6, 3);
+          // …AND IT FOLLOWS THE SAME `reach`. It was keyed off `view === 2`
+          // while the leg above is keyed off the reach, and the two must agree
+          // or the 3/4 columns get a leg out at the knee and a shoe back under
+          // the hip — which is the "two shoes floating beside the person" bug
+          // the standing profile below records, in the seated pose.
+          if (reach) {
+            // 6 texels rather than the standing 8: the shoe is at cx − KNEE − 4
+            // and 8 would start at cx − 17, one texel INTO THE NEIGHBOURING
+            // FRAME of the atlas. A 0.18 m shoe seen slightly foreshortened is
+            // the honest thing to draw in the room that is left.
+            g.fillRect(cx - reach - 4, oy + 57, 6, 3);
           } else {
             g.fillRect(cx - 7, oy + 57, 6, 3);
             g.fillRect(cx + 1, oy + 57, 6, 3);
@@ -330,12 +382,25 @@ export function citizenAtlas(o: Look): THREE.Texture {
         // (`shots/w112-zoom-0-try2.png`, kept: it is the failure this fixes).
         // Setting the upper body 3 texels back — 0.09 m, and a sitter does lean
         // back — buys the thigh 3 more texels of daylight and turns the bar
-        // into an L. Profile only: in the other four views the horizontal axis
-        // is not the direction he faces, so a shift there would just move him.
+        // into an L. Keyed off `reach` now, not off `view === 2`: the two 3/4
+        // columns reach the same 12 texels as the profile does and swallow the
+        // thigh the same way if the body does not lean back off it. Views 0 and
+        // 4 still get none — there the horizontal axis is not the direction he
+        // faces, so a shift would just move him sideways.
         const SEAT_BACK = 3;
-        if (seated) g.translate(view === 2 ? SEAT_BACK : 0, SEAT_DROP);
+        if (seated) g.translate(reach ? SEAT_BACK : 0, SEAT_DROP);
         // ── torso ─────────────────────────────────────────────────────
-        const torsoBot = fit === 'coat' ? 45 : 39;
+        //
+        // A SEATED HEM STOPS AT THE HIP. Standing, a long coat falls to row 45;
+        // seated, `SEAT_DROP` carries that to row 51 while the hip — which IS
+        // the seat's top face, `citizenPlane` puts the origin there — is row 44.
+        // So a coated sitter had 0.21 m of coat hanging *inside the cushion*,
+        // and on the way down it painted over the whole lap and the top half of
+        // both shins. That is the second half of the reported frame: the coated
+        // customer keeps one far shin sticking out from under a slab of coat,
+        // which reads as a detached block rather than as legs. A coat rides up
+        // when you sit; every fit ends at the hip.
+        const torsoBot = seated ? 38 : fit === 'coat' ? 45 : 39;
         g.fillStyle = jacket;
         g.fillRect(cx - tw, oy + 20, tw * 2, torsoBot - 20);
         if (grime > 0) {
