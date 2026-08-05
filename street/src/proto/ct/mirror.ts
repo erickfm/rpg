@@ -106,7 +106,8 @@ export const GLASS = {
  * the corners. The rakes are what read as glass at this size; the horizon is
  * what stops it reading as a grey panel.
  */
-export function paintGlass(g: CanvasRenderingContext2D, W: number, H: number): void {
+export function paintGlass(g: CanvasRenderingContext2D, W: number, H: number,
+                           sheen = true): void {
   const bx = (fx: number, fy: number, fw: number, fh: number, fill: string) => {
     const x0 = Math.round(fx * W), y0 = Math.round(fy * H);
     g.fillStyle = fill;
@@ -128,10 +129,32 @@ export function paintGlass(g: CanvasRenderingContext2D, W: number, H: number): v
     const w = Math.max(1, Math.round(fw * W));
     for (let y = 0; y < H; y++) g.fillRect(Math.round(fx * W + y * 0.22), y, w, 1);
   };
-  rake(1 / 20, 4 / 20, GLASS.rakeNear);
-  rake(9 / 20, 2 / 20, GLASS.rakeFar);
-  // the silvering has gone at the corners, and worst along the bottom edge
-  // where the damp got at it — it came with the flat
+  // ── THE SHEEN IS FOR THE PLATE ON THE WALL, NOT FOR THE VIEW ───────────
+  //
+  // *"get rid of glare lines when looking directly into mirror"*  (2026-08-05)
+  //
+  // TWO SURFACES, ONE DRAWING, AND THEY WANT DIFFERENT THINGS — the same split
+  // the drawer's lining got, and for the same reason. From across the room the
+  // rakes are the whole trick: a flat rectangle with a diagonal sheen on it
+  // reads as GLASS, and without them it is a grey panel. Looked directly INTO,
+  // at the size his reflection fills the frame, a fixed streak lying across his
+  // face is not a highlight, it is a defect on the picture.
+  //
+  // So they stay on the plate you walk past and go from the view you stand in.
+  // Nothing replaces them: a plain glass is the safer answer and this feature
+  // has been told twice today that added detail is not wanted.
+  if (sheen) {
+    rake(1 / 20, 4 / 20, GLASS.rakeNear);
+    rake(9 / 20, 2 / 20, GLASS.rakeFar);
+  }
+  // ── THE FOXING STAYS, IN BOTH ─────────────────────────────────────────
+  // He named the glare lines and not this, and it is a different mark doing a
+  // different job: the rakes lay diagonally ACROSS the reflection, where the
+  // foxing sits at the corners and along the bottom edge, out of the way of a
+  // person standing in the middle of the glass. It is also what says the
+  // silvering is old and came with the flat, which is most of why this reads
+  // as a mirror in a rented room. Separable — its own loop — so it did not
+  // have to go with them.
   for (const [x, y, w, h] of [[0, 0, 2, 5], [18, 4, 2, 4], [0, 26, 1, 7],
                               [19, 44, 1, 6], [0, 59, 4, 5], [15, 61, 5, 3]]) {
     bx(x / 20, y / 64, w / 20, h / 64, GLASS.rot);
@@ -355,8 +378,10 @@ function figureFit(W: number, H: number) {
 
 function paint(g: CanvasRenderingContext2D, W: number, H: number,
                hover: Slot | null, facing: number, lit: number): void {
-  // the glass: ONE drawing of it, shared with the plate on the wall
-  paintGlass(g, W, H);
+  // the glass: ONE drawing of it, shared with the plate on the wall — minus
+  // its sheen, which belongs to the plate you walk past and not to the view you
+  // stand in. See `paintGlass`.
+  paintGlass(g, W, H, false);
   const fit = figureFit(W, H);
   paintFigure(g, fit.ox, fit.oy, fit.s, facing);
   // ── AND WHAT YOU ARE POINTING AT ───────────────────────────────────────
