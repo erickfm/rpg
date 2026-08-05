@@ -1442,32 +1442,8 @@ export function makeCrosstown(): Proto {
     // same thing on every storey. Still clamped: a caller cannot put the
     // player's head through the ceiling or on the boards.
     eye.y = THREE.MathUtils.clamp(eyeY === undefined ? eye.y : gy + eyeY, gy + 1.05, gy + 1.75);
-    const dir = c.clone().sub(eye).normalize();
-    // ══ A HORIZONTAL FACE HAS NO FACING, AND THAT COST A 180° SPIN ═════════
-    //
-    // *"i dont like that for the dresser we rotate 180. like cmon."*
-    //
-    // **IT WAS A SIGNED ZERO.** Every screen this framework had ever focused
-    // was VERTICAL until 301's dresser drawer, whose lining faces straight up.
-    // For one of those `dir` is (0, −1, 0), so the yaw came out of
-    //
-    //     Math.atan2(dir.x, -dir.z)   =   Math.atan2(+0, -0)
-    //
-    // and IEEE says `-(+0)` is NEGATIVE zero, and `atan2(+0, −0)` is **π**.
-    // Not an arbitrary angle, not a small drift: exactly 180°, every time, so
-    // the player pirouetted on the spot and then looked down behind himself.
-    // Reproduced in isolation before this was touched.
-    //
-    // THE REAL FAULT IS ASKING THE QUESTION AT ALL. A face pointing at the
-    // ceiling cannot say which side you look at it from — the horizontal part
-    // of its normal is nothing, which is why the FEET already had a fallback
-    // three lines down and the yaw did not. So when it is degenerate the pose
-    // KEEPS WHAT THE PLAYER HAS: his yaw and his feet, unchanged. You are
-    // standing at a dresser; you look down into the drawer; you do not turn.
-    //
-    // Fixed here rather than in `ct/drawer.ts` because it is the framework's
-    // arithmetic, and the next horizontal screen — a desk, a workbench, a
-    // counter — would have walked into the identical spin.
+    // where the body stands: square to the face, along its HORIZONTAL normal —
+    // and whether the face HAS one, which is what the lean below turns on
     const flat = new THREE.Vector3(n.x, 0, n.z);
     const upright = flat.lengthSq() >= 1e-6;
     if (!upright) flat.set(0, 0, 1);
@@ -1536,6 +1512,47 @@ export function makeCrosstown(): Proto {
       eye.addScaledVector(away, (eye.y - c.y) * Math.tan(Math.PI / 2 - PITCH_LIMIT));
       flat.copy(away).negate();
     }
+    // ⚠ AND THE AIM IS TAKEN *AFTER* THE LEAN, WHICH IS WHERE THIS BROKE.
+    //
+    // *"this is what is looks like when i click into the drawer"* — a
+    // screenshot of the dresser's outside, level, filling the frame. The lean
+    // was appended below this line, so `dir` was still the pre-lean vector:
+    // straight down. Everything derived from it therefore came out of the
+    // degenerate case the lean exists to prevent — `atan2(+0, −0)` = π, the
+    // 180° spin back again, and `asin(−1)` = −90°, gimbal lock back again —
+    // while the eye had separately been moved 0.19 m. A camera at the leaned
+    // position, spun to face away, pitched into a locked roll: rotation and
+    // position both wrong, exactly as reported, and from one line being in the
+    // wrong place.
+    //
+    // **THE ORDER IS THE FIX.** Move the eye first, then look from where it
+    // actually is. Nothing else about the lean changed.
+    const dir = c.clone().sub(eye).normalize();
+    // ══ A HORIZONTAL FACE HAS NO FACING, AND THAT COST A 180° SPIN ═════════
+    //
+    // *"i dont like that for the dresser we rotate 180. like cmon."*
+    //
+    // **IT WAS A SIGNED ZERO.** Every screen this framework had ever focused
+    // was VERTICAL until 301's dresser drawer, whose lining faces straight up.
+    // For one of those `dir` is (0, −1, 0), so the yaw came out of
+    //
+    //     Math.atan2(dir.x, -dir.z)   =   Math.atan2(+0, -0)
+    //
+    // and IEEE says `-(+0)` is NEGATIVE zero, and `atan2(+0, −0)` is **π**.
+    // Not an arbitrary angle, not a small drift: exactly 180°, every time, so
+    // the player pirouetted on the spot and then looked down behind himself.
+    // Reproduced in isolation before this was touched.
+    //
+    // THE REAL FAULT IS ASKING THE QUESTION AT ALL. A face pointing at the
+    // ceiling cannot say which side you look at it from — the horizontal part
+    // of its normal is nothing, which is why the FEET already had a fallback
+    // three lines down and the yaw did not. So when it is degenerate the pose
+    // KEEPS WHAT THE PLAYER HAS: his yaw and his feet, unchanged. You are
+    // standing at a dresser; you look down into the drawer; you do not turn.
+    //
+    // Fixed here rather than in `ct/drawer.ts` because it is the framework's
+    // arithmetic, and the next horizontal screen — a desk, a workbench, a
+    // counter — would have walked into the identical spin.
     return {
       pos: eye,
       // rig convention, fp.ts:477 — fwd = (sin yaw, 0, -cos yaw)
