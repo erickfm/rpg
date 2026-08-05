@@ -59,6 +59,30 @@ let cv: HTMLCanvasElement | null = null;
 let shown = false;
 /** what he has lifted out of the bag to look at, or null */
 let held: string | null = null;
+/**
+ * ── THE ITEM HE HAS OPENED THE OPTIONS ON ─────────────────────────────────
+ *
+ * *"on click on item i want options for it. just like a little menu integrated
+ *  no like close up view how it currently is. options could be like drop, use,
+ *  etc"*   (2026-08-05)
+ *
+ * Clicking used to lift a thing straight to a close-up. Now it offers the
+ * VERBS, and the close-up is one of them — demoted from the default to a
+ * choice, which is exactly what he asked for.
+ *
+ * **"INTEGRATED" IS THE WORD THIS IS BUILT AROUND.** The options are not a
+ * context menu floating over the game; they are stencilled plates on the bag's
+ * own lining, in the bag's own `trim`, inside its mouth, at the item they
+ * belong to. Same materials and palette as everything else in the view.
+ *
+ * ⚠ AND THEY ARE WORDS, WHICH IS WORTH NAMING RATHER THAN CROSSING QUIETLY.
+ * Icons for DROP and EXAMINE at this size would be two unreadable smudges —
+ * that is the lesson five wardrobe presentations paid for — so the honest
+ * choice was type printed ON the object rather than pictograms nobody can
+ * read. If he wants them wordless the answer is not smaller icons, it is
+ * fewer verbs.
+ */
+let menu: { id: string; i: number } | null = null;
 /** the pointer, in canvas texels, or null when it is off the bag */
 let ptr: { x: number; y: number } | null = null;
 /** set by Escape, read and cleared by the carousel — see `bagEscaped` */
@@ -122,6 +146,7 @@ function onMove(e: MouseEvent): void {
   if (pending && ptr && Math.hypot(ptr.x - pending.x, ptr.y - pending.y) > GRAB_PX) {
     dragging = pending.id;
     held = null;
+    menu = null;
     pending = null;
   }
   paint();
@@ -196,10 +221,62 @@ function onClick(e: MouseEvent): void {
     paint();
     return;
   }
+  // ── A PLATE, IF THE OPTIONS ARE UP ──────────────────────────────────────
+  if (menu) {
+    const opts = verbsFor(menu.id);
+    const rects = plateRects(menu.i, opts.length);
+    for (let k = 0; k < opts.length; k++) {
+      if (!inRect(p.x, p.y, rects[k])) continue;
+      const v = opts[k];
+      const id = menu.id;
+      menu = null;
+      if (v === 'EXAMINE') held = id;
+      else if (v === 'DROP') {
+        // THE SAME DROP THE DRAG USES — `bagTake` then `dropLoose`, landing at
+        // his feet with its own pick-up spot. Not a second path: one verb, one
+        // implementation, so a thing dropped from the menu and a thing dragged
+        // out are the same object in the same place.
+        if (bagTake(id)) { if (!dropOut?.(id)) bagPut(id, bagCapacity()); else onPurse?.(); }
+      } else if (v === 'USE' && purse) itemOf(id).use?.act(purse);
+      paint();
+      return;
+    }
+    // anywhere else dismisses without acting
+    menu = null;
+    paint();
+    return;
+  }
   const items = laid();
   for (let i = 0; i < items.length; i++) {
-    if (inRect(p.x, p.y, layout(items.length).at(i))) { held = items[i]; paint(); return; }
+    if (inRect(p.x, p.y, layout(items.length).at(i))) { menu = { id: items[i], i }; paint(); return; }
   }
+}
+
+/**
+ * WHICH VERBS THIS THING ACTUALLY SUPPORTS — never a dead option.
+ *
+ * EXAMINE and DROP are true of everything: anything can be looked at and
+ * anything can be put on the floor. USE appears only where the item table
+ * declares one, and nothing declares one yet — see `ItemDef.use` for what that
+ * still needs.
+ */
+function verbsFor(id: string): string[] {
+  const v = ['EXAMINE', 'DROP'];
+  if (itemOf(id).use) v.splice(1, 0, itemOf(id).use!.verb.toUpperCase());
+  return v;
+}
+
+/** where the plates sit: stacked under the item, or above it if the mouth runs
+ *  out — a clutch's opening is short and the options still have to land in it */
+function plateRects(i: number, n: number) {
+  const L = layout(laid().length);
+  const r = L.at(i);
+  const w = 62, h = 15, gap = 3;
+  const below = r.y + r.h + 2;
+  const fits = below + n * (h + gap) <= L.mouth.y + L.mouth.h - 2;
+  const top = fits ? below : r.y - n * (h + gap) - 2;
+  const x = Math.min(Math.max(r.x + r.w / 2 - w / 2, L.mouth.x + 4), L.mouth.x + L.mouth.w - w - 4);
+  return Array.from({ length: n }, (_, k) => ({ x, y: top + k * (h + gap), w, h }));
 }
 
 /** the press that a drag or a lift both start from */
@@ -216,6 +293,11 @@ function onDown(e: MouseEvent): void {
 
 function onKey(e: KeyboardEvent): void {
   if (e.key.toLowerCase() !== 'escape') return;
+  // ESCAPE PEELS ONE LAYER AT A TIME and never adds a second way out: the
+  // options first, then the close-up, then the bag itself. Only that last step
+  // touches the carousel, so the pointer is still handed back by the one seam
+  // that has always done it.
+  if (menu || held) { menu = null; held = null; paint(); e.stopImmediatePropagation(); return; }
   // ESCAPE CLOSES IT, from every state including mid-lift. It does not release
   // the lock itself — it raises a flag the carousel reads, so the close runs
   // through `showBag(false)` like every other exit and there is one place that
@@ -419,7 +501,9 @@ function paint(): void {
   items.forEach((id, i) => {
     if ((held === id || dragging === id) && items.indexOf(id) === i) return;
     const r = L.at(i);
-    if (ptr && inRect(ptr.x, ptr.y, r) && !held) {
+    // the one the options are open on lifts clear of the others
+    if (menu && menu.i === i) { r.y -= 4; }
+    if (menu?.i === i || (ptr && inRect(ptr.x, ptr.y, r) && !held && !menu)) {
       band(g, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 6, 'rgba(242,234,208,0.18)');
     }
     g.fillStyle = 'rgba(0,0,0,0.30)';
@@ -440,6 +524,21 @@ function paint(): void {
       g.fillRect(Math.round(ptr.x - 26), Math.round(ptr.y + 20), 52, 8);
     }
     item(g, Math.round(ptr.x - 28), Math.round(ptr.y - 28), 56, dragging);
+  }
+
+  // ── THE OPTIONS, STENCILLED ON THE LINING ──────────────────────────────
+  //
+  // The item they belong to LIFTS 4 texels and keeps its warm wash, so he can
+  // see which thing he is acting on without the close-up he is replacing.
+  if (menu) {
+    const opts = verbsFor(menu.id);
+    plateRects(menu.i, opts.length).forEach((r, k) => {
+      band(g, r.x, r.y, r.w, r.h, 4, bag.trim);
+      g.fillStyle = '#20191a';
+      g.font = 'bold 9px ui-monospace, Menlo, monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(opts[k], r.x + r.w / 2, r.y + r.h / 2 + 1);
+    });
   }
 
   // ── AND WHAT HE HAS LIFTED OUT ─────────────────────────────────────────
@@ -477,6 +576,7 @@ export function showBag(want: boolean): void {
     ptr = null;
     pending = null;
     dragging = null;
+    menu = null;
     window.removeEventListener('mousemove', onMove, true);
     window.removeEventListener('mousedown', onDown, true);
     window.removeEventListener('mouseup', onUp, true);

@@ -47,6 +47,28 @@ export interface ItemDef {
   /** one line you get when you pocket it. The character lives here. */
   blurb: string;
   /**
+   * WHAT "USE" MEANS FOR THIS THING, if it means anything.
+   *
+   * *"on click on item i want options for it … options could be like drop,
+   *  use, etc"*   (2026-08-05)
+   *
+   * **NOTHING DECLARES ONE YET, AND THAT IS DELIBERATE.** The bag offers only
+   * the verbs an item actually supports, so a pack of tube socks shows DROP and
+   * EXAMINE and no third button that does nothing — a dead option is worse than
+   * a missing one, because it teaches the player the menu lies.
+   *
+   * The field is here so that a use is ONE LINE at the item's own declaration
+   * rather than a switch somewhere else that has to know about every id. What
+   * it still needs before anything can declare one: most real uses touch the
+   * WORLD (eat the cereal and your hunger moves, feed the birds and the birds
+   * react, play the tape and the TV changes), and an `ItemDef` is built at
+   * module scope with no `ctx` in reach. So the caller passes what the act
+   * needs, or the act is registered later by whoever owns that system —
+   * `ct/int-bodega.ts` for food, `ct/props.ts` for the birds. That is the piece
+   * that is not built, and it is a real one.
+   */
+  use?: { verb: string; act: (p: Purse) => void };
+  /**
    * Paint the thing, in a 24 × 24 box with the origin at its top left.
    *
    * Optional, and the fallback is a plain wrapped parcel rather than a guess at
