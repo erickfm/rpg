@@ -3,6 +3,11 @@ import { makePanel, type Panel } from './hud';
 import { dither } from './paint';
 import type { Purse } from './hud';
 import { drawerStock, drawerTake, drawerPut, give, roomFor } from './inventory';
+/** THE BAG YOU WEAR IS THE BAG YOU OPEN — one fact, read from the wardrobe and
+ *  never copied. `bagCapacity()` is 0 when the slot is empty, so the carousel
+ *  that will offer the bag has one question to ask and no second table to
+ *  disagree with. Declared here now so the container work lands on it. */
+export { bagCapacity, bagWorn } from './wardrobe';
 
 // ══ LOOKING INTO THE DRESSER DRAWER ════════════════════════════════════════
 //

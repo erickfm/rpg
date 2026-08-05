@@ -32,16 +32,16 @@
 // bare, so there is no state to forbid, and nothing anyone adds to either list
 // can create one.
 
-export type Slot = 'top' | 'bottom' | 'shoes' | 'hat' | 'glasses' | 'watch';
+export type Slot = 'top' | 'bottom' | 'shoes' | 'hat' | 'glasses' | 'watch' | 'bag';
 
 /** The six, in the order he said them — which is also head-to-toe enough to
  *  read as a list in the mirror. */
-export const SLOTS: readonly Slot[] = ['top', 'bottom', 'shoes', 'hat', 'glasses', 'watch'];
+export const SLOTS: readonly Slot[] = ['top', 'bottom', 'shoes', 'hat', 'glasses', 'watch', 'bag'];
 
 /** What the mirror calls each slot when you have a hand on it. */
 export const SLOT_NAME: Record<Slot, string> = {
   top: 'TOP', bottom: 'BOTTOM', shoes: 'SHOES', hat: 'HAT',
-  glasses: 'GLASSES', watch: 'WATCH',
+  glasses: 'GLASSES', watch: 'WATCH', bag: 'BAG',
 };
 
 /**
@@ -91,6 +91,22 @@ export interface Garment {
   full?: boolean;
   /** BOTTOMS ONLY — how far down the leg. 0 briefs, 1 shorts, 2 knee, 3 ankle */
   leg?: 0 | 1 | 2 | 3;
+  /**
+   * BAGS ONLY — HOW MUCH IT CARRIES, and it is not decoration.
+   *
+   * *"add to mirror options: bag (backpack, tote, crossbody)"*, and the bag you
+   * WEAR is the bag you OPEN — the carousel on your wrist has nothing to show
+   * when this slot is empty, the same way *"no watch"* means nothing rises.
+   * So a tote genuinely holds less than a backpack, and the number lives on the
+   * garment because the garment IS the container: there is no second table
+   * anywhere that could disagree about how big your bag is.
+   *
+   * 8 / 4 / 5 — a backpack, a tote you carry in one hand, and a crossbody that
+   * is small but deep. **These are a first guess and they are cheap to retune**;
+   * the design decision that matters is that they DIFFER, which is what makes
+   * choosing a bag a choice rather than a colour.
+   */
+  hold?: number;
 }
 
 // ── THE RACK ───────────────────────────────────────────────────────────────
@@ -169,8 +185,31 @@ const WATCHES: readonly Garment[] = [
   { id: 'analog', name: 'ANALOG WATCH', kind: 'analog', cloth: '#5a3f2a', trim: '#b9a267' },
 ];
 
+/**
+ * THE SEVENTH SLOT, and the only one whose choice has consequences beyond
+ * looking at yourself.
+ *
+ * *"add to mirror options: bag (backpack, tote, crossbody)"*   (2026-08-04)
+ *
+ * `kind` is the SHAPE and the shape is what the figure paints — a pack behind
+ * the shoulders, a bag hanging off a hand, a strap across the chest are three
+ * genuinely different silhouettes rather than one bag in three colours.
+ *
+ * INDEX 0 IS NO BAG, exactly as index 0 is the underwear on tops and bottoms
+ * and *"no watch"* on the wrist. Cycling reaches it, so a bag can always be
+ * taken off — and `bagWorn()` is what the carousel asks before it offers you
+ * anything to open.
+ */
+const BAGS: readonly Garment[] = [
+  { id: 'nobag', name: 'NO BAG', kind: 'none', cloth: '#000000', trim: '#000000', hold: 0 },
+  { id: 'backpack', name: 'BACKPACK', kind: 'pack', cloth: '#3f4a3a', trim: '#2a3227', hold: 8 },
+  { id: 'tote', name: 'TOTE BAG', kind: 'tote', cloth: '#c9a45e', trim: '#8a7a52', hold: 4 },
+  { id: 'crossbody', name: 'CROSSBODY', kind: 'sling', cloth: '#4a3626', trim: '#2f2318', hold: 5 },
+];
+
 const RACK: Record<Slot, readonly Garment[]> = {
-  top: TOPS, bottom: BOTTOMS, shoes: SHOES, hat: HATS, glasses: GLASSES, watch: WATCHES,
+  top: TOPS, bottom: BOTTOMS, shoes: SHOES, hat: HATS, glasses: GLASSES,
+  watch: WATCHES, bag: BAGS,
 };
 
 /** Everything that can be put in a slot. The mirror scrubs through this. */
@@ -183,7 +222,15 @@ export function options(slot: Slot): readonly Garment[] { return RACK[slot]; }
 // a save-less first load is pixel-identical to yesterday's world and nobody
 // wakes up dressed differently because a feature shipped.
 
-const wornAt: Record<Slot, number> = { top: 1, bottom: 1, shoes: 1, hat: 0, glasses: 0, watch: 1 };
+const wornAt: Record<Slot, number> = {
+  top: 1, bottom: 1, shoes: 1, hat: 0, glasses: 0, watch: 1, bag: 0,
+};
+
+/** THE BAG YOU HAVE ON, which is the bag you can open. `hold` is 0 when there
+ *  is none, so a caller can ask one question instead of two. */
+export function bagWorn(): Garment { return worn('bag'); }
+/** How much the bag on your back carries. 0 = you are not wearing one. */
+export function bagCapacity(): number { return worn('bag').hold ?? 0; }
 
 /** the last top that was NOT a dress, so taking a dress off can put it back */
 let lastPlainTop = 1;

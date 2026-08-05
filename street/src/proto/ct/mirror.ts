@@ -242,6 +242,19 @@ interface Zone { slot: Slot; x0: number; y0: number; x1: number; y1: number }
  */
 const ZONES: readonly Zone[] = [
   { slot: 'watch', x0: 0, y0: WRIST_T, x1: CX - TORSO_HW + 1, y1: WRIST_B },
+  // ── THE BAG, AND ITS ZONE DOES NOT MOVE WITH THE BAG ────────────────────
+  //
+  // *"add to mirror options: bag (backpack, tote, crossbody)"*   (2026-08-04)
+  //
+  // The three sit in three different places — a pack behind the shoulders, a
+  // tote off a hand, a strap across the chest — and **the zone is ONE FIXED
+  // REGION anyway**, because of the state where none of them is on. With no bag
+  // worn there is no bag to click, so a zone that followed the garment would
+  // vanish exactly when you needed it to put one ON. It is where a strap lands
+  // and where a carried bag hangs: the figure's LEFT side, from the shoulder to
+  // the waist, mirroring the watch on the other one. Two things you wear on the
+  // sides of you, one carved out of the torso on each side.
+  { slot: 'bag', x0: CX + TORSO_HW - 1, y0: SHOULDER + 2, x1: MW, y1: WAIST },
   { slot: 'hat', x0: 6, y0: 0, x1: 34, y1: HEAD_T + 4 },
   { slot: 'glasses', x0: 8, y0: HEAD_T + 4, x1: 32, y1: NECK_B - 2 },
   { slot: 'top', x0: 0, y0: NECK_B - 2, x1: MW, y1: WAIST },
@@ -305,6 +318,12 @@ const HL: Record<Slot, { f: 'span' | 'limb' | 'head' | 'deep';
     { f: 'deep', r: [CX + LEG_GAP - 1, LEG_B - 4, LEG_HW * 2 + 2, FOOT_B - LEG_B + 6] },
   ],
   watch: [{ f: 'limb', r: [CX - TORSO_HW - ARM_W, WRIST_T + 1, ARM_W + 2, 10] }],
+  // the strap over the shoulder and the bag's own body at the hip — the two
+  // places something is whichever of the three you have on
+  bag: [
+    { f: 'span', r: [CX + 4, SHOULDER, 9, 10] },
+    { f: 'limb', r: [CX + TORSO_HW - 1, WAIST - 22, ARM_W + 3, 24] },
+  ],
 };
 
 /** the slot under a CANVAS pixel of the panel — through the same fit the
@@ -503,6 +522,7 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
   const hat = worn('hat');
   const specs = worn('glasses');
   const watch = worn('watch');
+  const bag = worn('bag');
 
   // SKIN FIRST, ALL OF IT, so an empty slot needs no special case anywhere —
   // it leaves what is underneath showing, and what is underneath is you.
@@ -534,6 +554,27 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     head(CX - 2, EYE_Y + 6, facing === 2 ? 2 : 4, 1, '#8a5c46');
   }
   if (facing === 2) deep(CX - HEAD_HW - 2, EYE_Y + 1, 2, 2, SKIN);         // the nose
+
+  // ── THE BAG THAT IS BEHIND YOU ─────────────────────────────────────────
+  //
+  // A BACKPACK IS THE ONE GARMENT THAT IS MOSTLY HIDDEN FROM THE FRONT, which
+  // is the opposite of every other slot, so it is drawn in TWO passes: the pack
+  // itself here, under the body, and its straps after the top. What each facing
+  // shows falls out of that without a single special case for the front:
+  //
+  //   front       two straps over the shoulders and nothing else
+  //   3/4         the straps, and a sliver of pack past the arm
+  //   profile     the pack behind the shoulder, and it GROWS (`deep`) — a
+  //               pack is far deeper than it is wide and this is the angle
+  //               that shows it
+  //   3/4 back    most of the pack, over the back
+  //   back        the whole pack, the biggest thing on the figure
+  if (bag.kind === 'pack') {
+    const w = facing >= 3 ? 22 : facing === 2 ? 14 : 20;
+    deep(CX - w / 2, SHOULDER + 2, w, 34, bag.cloth);
+    deep(CX - w / 2, SHOULDER + 2, w, 4, bag.trim);                 // its lid
+    if (facing >= 3) deep(CX - 5, SHOULDER + 16, 10, 8, bag.trim);  // and a pocket
+  }
 
   // the white undies, under everything, always
   box(CX - TORSO_HW + 1, WAIST - 16, (TORSO_HW - 1) * 2, HIP_B - WAIST + 16, UNDIES);
@@ -590,6 +631,34 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
       box(CX + 1, SHOULDER + 1, 5, 6, top.trim);
     }
     if (top.kind === 'sweater') box(CX - TORSO_HW, hem - 3, TORSO_HW * 2, 3, top.trim);
+  }
+
+  // ── AND THE BAG THAT IS IN FRONT OF YOU ────────────────────────────────
+  //
+  //   PACK      only the straps, over whatever top is on
+  //   TOTE      hangs off the hand at his left side, the same from every angle
+  //             — a bag in your hand does not hide behind you
+  //   SLING     the strap crosses the chest at the front and the BACK at the
+  //             back (the diagonal flips), with the pouch on the hip, which is
+  //             hidden when he turns away
+  if (bag.kind === 'pack') {
+    for (const sgn of [-1, 1]) {
+      if (facing === 2 && sgn > 0) continue;                        // the far strap
+      box(sgn < 0 ? CX - 8 : CX + 4, SHOULDER, 4, 22, bag.trim);
+    }
+  } else if (bag.kind === 'tote') {
+    const bx = CX + TORSO_HW - 1;
+    limb(bx, WAIST - 20, ARM_W + 3, 18, bag.cloth);                 // the bag
+    limb(bx + 2, WAIST - 26, 2, 7, bag.trim);                       // its handles
+    limb(bx + ARM_W - 1, WAIST - 26, 2, 7, bag.trim);
+  } else if (bag.kind === 'sling') {
+    // ONE DIAGONAL, STEPPED, and it leans the other way from behind — that is
+    // what says the strap has gone over the shoulder and round the back.
+    const dir = facing >= 3 ? -1 : 1;
+    for (let k = 0; k < 8; k++) {
+      box(CX - 9 + dir * k * 2.2, SHOULDER + 1 + k * 3, 5, 4, bag.trim);
+    }
+    if (facing < 3) limb(CX + TORSO_HW - 3, WAIST - 12, ARM_W + 2, 12, bag.cloth);
   }
 
   // the watch, on the wrist the hud raises
