@@ -263,9 +263,49 @@ function zoneAt(dx: number, dy: number, facing = 0): Slot | null {
   return null;
 }
 
-function zoneOf(slot: Slot): Zone {
-  return ZONES.find((z) => z.slot === slot) as Zone;
-}
+/**
+ * WHAT THE HIGHLIGHT IS DRAWN ON — the PARTS, not the zone.
+ *
+ * *"the highlighting could be a little less janky"*   (2026-08-04)
+ *
+ * **THE HIGHLIGHT WAS A HIT-TEST RECTANGLE WITH A WASH IN IT**, and measured
+ * against the body underneath it that box was **40% empty glass**: 28 units of
+ * hat over a 16-unit head, 40 of shoes over 24 of feet, 36 of trousers over 22
+ * of legs. A rectangle floating in the reflection around the part it means is
+ * a debug overlay, which is exactly what it looked like.
+ *
+ * A ZONE AND ITS HIGHLIGHT ARE TWO DIFFERENT JOBS and they now have two
+ * different shapes. The zone stays a fat forgiving rectangle — you should not
+ * have to hit a 4-unit wrist to click your watch. The HIGHLIGHT is the part
+ * itself, in as many rects as the part has pieces, taken from the same
+ * constants `paintFigure` draws it from: two legs, two arms, two shoes.
+ *
+ * `f` NAMES THE FORESHORTENING FAMILY, and that is the second half of the fix.
+ * The body narrows as he turns and the old highlight did not — at profile the
+ * box was **twice** the width of the person in it. Each piece now goes through
+ * the same scaler the painter used for it, so the wash sits on him at all
+ * eight facings instead of beside him at five of them.
+ */
+const HL: Record<Slot, { f: 'span' | 'limb' | 'head' | 'deep';
+                         r: [number, number, number, number] }[]> = {
+  hat: [{ f: 'head', r: [CX - HEAD_HW - 1, HEAD_T - 6, HEAD_HW * 2 + 2, 12] }],
+  glasses: [{ f: 'head', r: [CX - HEAD_HW, EYE_Y - 3, HEAD_HW * 2, 9] }],
+  top: [
+    { f: 'span', r: [CX - TORSO_HW, SHOULDER - 1, TORSO_HW * 2, WAIST - SHOULDER + 4] },
+    { f: 'limb', r: [CX - TORSO_HW - ARM_W + 1, ARM_T - 2, ARM_W, ARM_B - ARM_T + 2] },
+    { f: 'limb', r: [CX + TORSO_HW - 1, ARM_T - 2, ARM_W, ARM_B - ARM_T + 2] },
+  ],
+  bottom: [
+    { f: 'span', r: [CX - TORSO_HW + 1, WAIST, (TORSO_HW - 1) * 2, HIP_B - WAIST + 2] },
+    { f: 'limb', r: [CX - LEG_GAP - LEG_HW * 2, HIP_B, LEG_HW * 2, LEG_B - HIP_B - 4] },
+    { f: 'limb', r: [CX + LEG_GAP, HIP_B, LEG_HW * 2, LEG_B - HIP_B - 4] },
+  ],
+  shoes: [
+    { f: 'deep', r: [CX - LEG_GAP - LEG_HW * 2 - 1, LEG_B - 4, LEG_HW * 2 + 2, FOOT_B - LEG_B + 6] },
+    { f: 'deep', r: [CX + LEG_GAP - 1, LEG_B - 4, LEG_HW * 2 + 2, FOOT_B - LEG_B + 6] },
+  ],
+  watch: [{ f: 'limb', r: [CX - TORSO_HW - ARM_W, WRIST_T + 1, ARM_W + 2, 10] }],
+};
 
 /** the slot under a CANVAS pixel of the panel — through the same fit the
  *  figure was drawn with, or the zones sit where he no longer does. */
@@ -295,7 +335,7 @@ function figureFit(W: number, H: number) {
 }
 
 function paint(g: CanvasRenderingContext2D, W: number, H: number,
-               hover: Slot | null, facing: number): void {
+               hover: Slot | null, facing: number, lit: number): void {
   // the glass: ONE drawing of it, shared with the plate on the wall
   paintGlass(g, W, H);
   const fit = figureFit(W, H);
@@ -311,32 +351,34 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
 
   // ── AND WHAT YOU ARE POINTING AT ───────────────────────────────────────
   //
-  // *"you just click the highlighted part and it changes"* — so the highlight
-  // is part of the design and not decoration, and it has one job: say THIS
-  // PART IS CLICKABLE AND IT IS THE ONE YOU WILL CHANGE.
+  // *"you just click the highlighted part and it changes"*, then *"the
+  // highlighting could be a little less janky"*.
   //
-  // A WASH PLUS A CLOSED OUTLINE. The wash alone was too quiet against a
-  // reflection that is already pale grey; an outline alone reads as a crop
-  // mark. Together they make a lit panel of you — warm, because everything
-  // else on this glass is cold, so it cannot be mistaken for part of the room.
+  // A WASH ON THE PART ITSELF — see `HL`. What it replaces was a wash and a
+  // closed outline filling the whole hit rectangle, which measured 40% empty
+  // glass and, in profile, twice the width of the body it was marking.
   //
-  // ALL FOUR EDGES, where the old bracket drew only two. That was a scrub
-  // gutter, pointing left and right at a gesture that no longer exists; a
-  // closed box says "a thing", which is what a hat or a pair of shoes is.
+  // THE OUTLINE IS GONE WITH THE BOX. A box has one edge; a hat, two arms and
+  // a torso have nine between them, and outlining each piece would draw seams
+  // straight down the joins where they meet. The wash alone says "this part"
+  // once the shape is right, and getting the shape right is what made the
+  // outline unnecessary.
   //
-  // ONE UNIT THICK at the figure's own scale, so it is ~2 px on this canvas
-  // and steps up with the mirror rather than being a hairline at one size and
-  // a slab at another. Only ever ONE zone is lit: six labelled boxes on a
-  // mirror is the menu this whole design exists to avoid.
-  if (hover) {
-    const z = zoneOf(hover);
-    g.fillStyle = 'rgba(255,244,214,0.16)';
-    g.fillRect(fit.ox + u(z.x0), fit.oy + u(z.y0), u(z.x1) - u(z.x0), u(z.y1) - u(z.y0));
-    const line = 'rgba(246,238,214,0.72)';
-    box(z.x0, z.y0, z.x1 - z.x0, 1, line);
-    box(z.x0, z.y1 - 1, z.x1 - z.x0, 1, line);
-    box(z.x0, z.y0, 1, z.y1 - z.y0, line);
-    box(z.x1 - 1, z.y0, 1, z.y1 - z.y0, line);
+  // THE COLOUR IS THE WORLD'S PAPER, `#f2ead0`, at 0.22 — the most-used light
+  // value in the game rather than a highlight colour invented for this panel.
+  // Warm against a glass that is deliberately cold, so it reads as lit rather
+  // than as dirt on the skin.
+  if (hover && lit > 0.01) {
+    const [col, flip] = viewAt(facing);
+    const sp = COL_SPAN[col];
+    const fam = {
+      span: scaler(g, fit.ox, fit.oy, fit.s, sp, sp, flip),
+      limb: scaler(g, fit.ox, fit.oy, fit.s, sp, COL_ROUND[col], flip),
+      head: scaler(g, fit.ox, fit.oy, fit.s, COL_ROUND[col], COL_ROUND[col], flip),
+      deep: scaler(g, fit.ox, fit.oy, fit.s, sp, COL_DEEP[col], flip),
+    };
+    const wash = `rgba(242,234,208,${(0.22 * lit).toFixed(3)})`;
+    for (const piece of HL[hover]) fam[piece.f](...piece.r, wash);
   }
   // the caption strip is CHROME ON THE GLASS and spans it, so it is measured
   // off the canvas rather than off the figure standing in it
@@ -688,6 +730,34 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
   let facing = 0;
   const repaint = () => panel?.repaint();
 
+  // ── AND IT FADES, WHICH IS THE OTHER HALF OF "JANKY" ────────────────────
+  //
+  // A wash that snaps to full strength as the cursor crosses a boundary reads
+  // as jitter, especially where two zones meet and a small movement flips
+  // between them. `lit` ramps 0→1 in **90 ms**, which is three or four frames:
+  // enough that the eye reads it as lighting up rather than blinking, and far
+  // too short to feel like lag between hovering and highlighting — a
+  // highlight that trails the cursor would be worse than the pop it fixes.
+  //
+  // THE TICKER ONLY RUNS WHILE A FADE IS IN FLIGHT. This panel repaints on
+  // demand and nothing else here animates, so a permanent frame hook would be
+  // a repaint every 40 ms for the entire time he stands at the mirror.
+  let lit = 0;
+  let litTimer = 0;
+  const LIT_MS = 90;
+  const relight = () => {
+    if (litTimer) return;
+    let last = performance.now();
+    litTimer = window.setInterval(() => {
+      const now = performance.now(), dt = now - last; last = now;
+      const want = hover ? 1 : 0;
+      lit += Math.sign(want - lit) * (dt / LIT_MS);
+      lit = Math.max(0, Math.min(1, lit));
+      repaint();
+      if (lit === want) { clearInterval(litTimer); litTimer = 0; }
+    }, 16);
+  };
+
   const open = () => {
     if (!panel) {
       panel = makePanel({
@@ -696,7 +766,7 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
         // the mirror's glass, edge to edge. A framework bezel would be a beige
         // plastic case drawn inside a wooden mirror frame.
         hint: () => 'click a part of yourself to change it',
-        draw: (g, w, h) => paint(g, w, h, hover, facing),
+        draw: (g, w, h) => paint(g, w, h, hover, facing, lit),
         // ── THE WHEEL TURNS YOU ────────────────────────────────────────
         // *"scroll to turn self in mirror?"* — eight stops, `viewAt`'s own, so
         // the reflection steps through exactly the angles `ct/citizens.ts`
@@ -738,7 +808,13 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
           // through the wardrobe that could disagree with it.
           move: (x, y) => {
             const z = slotAtCanvas(x, y, PW, PH, facing);
-            if (z !== hover) { hover = z; repaint(); }
+            if (z === hover) return;
+            // MOVING BETWEEN TWO PARTS DOES NOT DIM AND RE-LIGHT. The wash
+            // stays up and the shape under it changes, so crossing from your
+            // shirt to your trousers is one move rather than a blink.
+            if (!hover || !z) relight();
+            hover = z;
+            repaint();
           },
           click: (x, y) => {
             const z = slotAtCanvas(x, y, PW, PH, facing);
@@ -759,7 +835,8 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
         // the point. Nothing starts lit, so walking up to the mirror never
         // highlights a part of you that you last touched an hour ago and
         // cannot remember choosing.
-        onOpen: () => { hover = null; facing = 0; },
+        onOpen: () => { hover = null; facing = 0; lit = 0; },
+        onClose: () => { if (litTimer) { clearInterval(litTimer); litTimer = 0; } },
       });
       // and if something else dresses the player — a shop, a laundrette, a
       // debug hook — the glass follows without that thing knowing it exists
