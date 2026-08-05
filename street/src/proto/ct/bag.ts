@@ -47,6 +47,10 @@ const BW = 320, BH = 200, SCALE = 3;
  * **It did not shrink when the layout changed**; the items overlap instead.
  */
 const CELL = 64;
+/** …and the floor it may shrink to in a small bag. 34 at 3x is still 102 CSS
+ *  px a side — a clutch's contents are smaller than a backpack's, which is the
+ *  point of a clutch, but never small enough to stop being legible. */
+const CELL_MIN = 34;
 /** and how big it gets when you lift it out to look at it */
 const LIFT = 132;
 
@@ -71,21 +75,7 @@ export function configureBag(o: { purse: Purse; refreshWallet: () => void }): vo
   onPurse = o.refreshWallet;
 }
 
-/** WHERE ITEM `i` LIES IN THE BAG — the painter and the hit-test share this,
- *  or you click a thing where a different one is drawn. */
-function cellRect(i: number, n: number) {
-  const m = MOUTH[bagWorn().kind] ?? MOUTH.tote;
-  const inner = { x: m.x + 12, y: m.y + 16, w: BW - (m.x + 12) * 2, h: BH - m.y - 22 };
-  const rows = n > 4 ? 2 : 1;
-  const per = Math.ceil(n / rows) || 1;
-  const row = Math.floor(i / per), col = i % per;
-  const spread = per > 1 ? (inner.w - CELL) / (per - 1) : 0;
-  return {
-    x: Math.round(inner.x + col * spread),
-    y: Math.round(inner.y + row * (inner.h - CELL) / Math.max(1, rows - 1 || 1)),
-    w: CELL, h: CELL,
-  };
-}
+
 const liftRect = () => ({ x: (BW - LIFT) / 2, y: (BH - LIFT) / 2, w: LIFT, h: LIFT });
 const inRect = (x: number, y: number, r: { x: number; y: number; w: number; h: number }) =>
   x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
@@ -148,7 +138,7 @@ function onClick(e: MouseEvent): void {
   }
   const items = laid();
   for (let i = 0; i < items.length; i++) {
-    if (inRect(p.x, p.y, cellRect(i, items.length))) { held = items[i]; paint(); return; }
+    if (inRect(p.x, p.y, layout(items.length).at(i))) { held = items[i]; paint(); return; }
   }
 }
 
@@ -227,94 +217,145 @@ function band(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 }
 
 /**
- * ── WHAT EACH BAG'S MOUTH LOOKS LIKE ───────────────────────────────────────
+ * ── WHAT EACH BAG IS, AND WHY FOUR SIZES WERE NOT ENOUGH ───────────────────
  *
- * *"the bag that comes up when looking down on right click doesnt look like a
- *  bag try again."*   (2026-08-05)
+ * *"the problem is the edge exists top, left, right, but not bottom, which
+ *  make the shape incomplete. also the shape is the same across all bags. also
+ *  different sized bags should have different sizes"*   (2026-08-05)
  *
- * **IT WAS A BOX WITH A GRID IN IT, WHICH IS AN INVENTORY SCREEN.** A rectangle
- * with items in a tidy lattice at equal spacing is the one thing this project
- * has spent a whole session refusing to draw. What makes a bag read as a bag is
- * not its outline:
+ * THREE FAULTS, AND THE FIRST WAS MY OWN CHOICE BACKFIRING. The bag slid up
+ * from the bottom of the frame and ran off it, deliberately, so it would feel
+ * HELD rather than displayed — and the price was a silhouette with no bottom
+ * edge, which reads as an unfinished shape rather than an object. **The
+ * complete shape wins.** The whole bag is in frame now with 10 texels of air
+ * under it, so it closes on all four sides. It still rises into view, which is
+ * what made it feel carried; it simply stops before the edge.
  *
- *   · THE MOUTH. You are looking DOWN into an open one, so the strongest cue is
- *     the opening itself — a soft-cornered gape with the lining showing at its
- *     rim and the interior receding into shadow below it. That is what was
- *     missing entirely.
- *   · SLUMP. Cloth does not hold a rectangle, so nothing here has a square
- *     corner and the rim is thicker at the near edge than the far one, because
- *     you are looking into it rather than at it.
- *   · ITS OWN HARDWARE, in its own `cloth` and `trim`: a backpack's drawstring
- *     eyelets, a tote's handles rising out of frame, a crossbody's flap, a
- *     clutch's clasp.
- *   · CONTENTS NESTED AND OVERLAPPING, sitting in the bag and against each
- *     other, not floating in a lattice with equal gaps.
+ * AND SIZE ALONE DOES NOT DIFFERENTIATE. I reported the mouth's width as the
+ * capacity and he is right that it does not read: four of one shape at four
+ * scales is one bag. So they differ in STRUCTURE — outline, rim, hardware —
+ * and you should be able to name one with the contents taken out:
  *
- * AND THE MOUTH'S SIZE IS THE CAPACITY, which is the part that makes this more
- * than decoration: a backpack gapes wide and holds 8, a clutch is a slim slot
- * and holds 2. You can see how much it takes by looking at it.
+ *   BACKPACK   round and deep, a big round cinched collar, drawstring eyelets
+ *              round it, and both shoulder straps down the sides
+ *   TOTE       wide, shallow, square-cornered cloth, two handles rising off
+ *              the rim, no flap and no fastening at all
+ *   CROSSBODY  small, most of it under a flap thrown back over the top, with
+ *              a buckle on the flap's tongue
+ *   CLUTCH     slim, no strap and no handle anywhere, a clasp bar across the
+ *              top edge with a stud in the middle
+ *
+ * THE WHOLE VIEW SCALES WITH THE BAG, not just the mouth inside a fixed
+ * footprint: `hold` 2 draws at 72% and `hold` 8 at 100%, so a clutch is small
+ * in frame and a backpack fills it. Capacity is legible three ways now — the
+ * bag's size, its mouth, and how much is in it.
  */
-const MOUTH: Record<string, { x: number; y: number; r: number }> = {
-  pack: { x: 16, y: 30, r: 18 },      // round and deep
-  tote: { x: 12, y: 38, r: 6 },       // a wide slot
-  sling: { x: 40, y: 52, r: 14 },     // small, and flapped
-  clutch: { x: 30, y: 74, r: 10 },    // a slim gape
+type Kind = { ix: number; iy: number; ih: number; r: number };
+const KIND: Record<string, Kind> = {
+  pack: { ix: 0.16, iy: 0.26, ih: 0.56, r: 0.26 },
+  tote: { ix: 0.06, iy: 0.16, ih: 0.46, r: 0.05 },
+  sling: { ix: 0.18, iy: 0.54, ih: 0.34, r: 0.13 },
+  clutch: { ix: 0.10, iy: 0.28, ih: 0.44, r: 0.11 },
 };
+
+/**
+ * ONE LAYOUT, READ BY THE PAINTER AND THE HIT-TEST. They cannot drift, which
+ * is what stops you clicking a thing where a different one is drawn.
+ */
+function layout(n: number) {
+  const kind = bagWorn().kind;
+  const k = 0.72 + 0.28 * Math.min(1, Math.max(0, (bagCapacity() - 2) / 6));
+  const bw = Math.round((BW - 28) * k), bh = Math.round((BH - 30) * k);
+  const bx = Math.round((BW - bw) / 2), by = BH - 10 - bh;
+  const K = KIND[kind] ?? KIND.tote;
+  const mouth = {
+    x: Math.round(bx + bw * K.ix), y: Math.round(by + bh * K.iy),
+    w: Math.round(bw * (1 - 2 * K.ix)), h: Math.round(bh * K.ih),
+  };
+  // things lean on each other inside the mouth rather than sitting in a
+  // lattice, and they shrink to what the mouth can hold rather than the mouth
+  // growing to fit them — a clutch is small and that is the point of it.
+  const cell = Math.max(CELL_MIN, Math.min(CELL, mouth.h - 10));
+  const rows = n > 4 ? 2 : 1;
+  const per = Math.ceil(n / rows) || 1;
+  const inner = { x: mouth.x + 8, w: mouth.w - 16 };
+  const spread = per > 1 ? (inner.w - cell) / (per - 1) : 0;
+  const rowGap = rows > 1 ? Math.max(10, mouth.h - cell - 12) / (rows - 1) : 0;
+  const at = (i: number) => ({
+    x: Math.round(inner.x + (i % per) * spread),
+    y: Math.round(mouth.y + 8 + Math.floor(i / per) * rowGap),
+    w: cell, h: cell,
+  });
+  return { bx, by, bw, bh, mouth, kind, cell, at, r: Math.round(bw * K.r) };
+}
 
 function paint(): void {
   const g = cv?.getContext('2d');
   if (!g) return;
   const bag = bagWorn();
-  const m = MOUTH[bag.kind] ?? MOUTH.tote;
+  const items = laid();
+  const L = layout(items.length);
   g.clearRect(0, 0, BW, BH);
 
-  // ── THE BAG ITSELF, seen from above: cloth, slumped, running off the
-  // bottom of the frame because it is against you.
-  band(g, 4, 14, BW - 8, BH - 14, 20, bag.cloth);
-  g.fillStyle = 'rgba(255,255,255,0.06)';                    // the light on its near wall
-  g.fillRect(10, BH - 26, BW - 20, 12);
-
-  // its hardware, per bag, and this is most of what tells them apart
-  if (bag.kind === 'tote') {
-    for (const x of [58, BW - 82]) { g.fillStyle = bag.trim; g.fillRect(x, 0, 22, 30); }
-  } else if (bag.kind === 'pack') {
-    g.fillStyle = bag.trim;                                   // drawstring eyelets
-    for (let k = 0; k < 7; k++) g.fillRect(30 + k * 40, m.y - 10, 10, 8);
-  } else if (bag.kind === 'sling') {
-    band(g, 20, 8, BW - 40, 40, 10, bag.trim);                // the flap, thrown back
-  } else if (bag.kind === 'clutch') {
-    g.fillStyle = bag.trim; g.fillRect(BW / 2 - 24, m.y - 16, 48, 12);   // the clasp
+  // ── THE HARDWARE THAT GOES BEHIND THE BODY ─────────────────────────────
+  if (L.kind === 'pack') {
+    // both shoulder straps, down the sides, disappearing behind it
+    for (const x of [L.bx - 6, L.bx + L.bw - 12]) {
+      band(g, x, L.by + L.bh * 0.18, 18, L.bh * 0.9, 8, bag.trim);
+    }
+  } else if (L.kind === 'tote') {
+    // two handles standing off the rim — the tote's whole tell
+    for (const x of [L.bx + L.bw * 0.22, L.bx + L.bw * 0.72]) {
+      band(g, Math.round(x), L.by - 20, Math.round(L.bw * 0.06), 40, 4, bag.trim);
+    }
   }
 
-  // ── THE MOUTH: the lining at the rim, then the inside going dark ────────
-  band(g, m.x, m.y, BW - m.x * 2, BH - m.y + 10, m.r, bag.trim);
-  band(g, m.x + 7, m.y + 7, BW - (m.x + 7) * 2, BH - m.y - 4, Math.max(2, m.r - 5), '#20191a');
-  g.fillStyle = 'rgba(0,0,0,0.35)';                          // it recedes
-  g.fillRect(m.x + 8, m.y + 7, BW - (m.x + 8) * 2, 14);
+  // ── THE BODY ───────────────────────────────────────────────────────────
+  band(g, L.bx, L.by, L.bw, L.bh, L.r, bag.cloth);
+  g.fillStyle = 'rgba(255,255,255,0.06)';                    // light on the near wall
+  g.fillRect(L.bx + 10, L.by + L.bh - 22, L.bw - 20, 12);
+  g.fillStyle = 'rgba(0,0,0,0.18)';                          // and its own shadow under it
+  g.fillRect(L.bx + 14, L.by + L.bh - 4, L.bw - 28, 6);
 
-  // ── AND WHAT IS IN IT, NESTED ──────────────────────────────────────────
-  //
-  // EVERYTHING AT ONCE AND NO SCROLLING. *"i want to be able to see all the
-  // stuff i have in there at a glance. maybe scroll through stuff"* — the
-  // "maybe" is a fallback and it is not needed: the largest bag holds 8, and 8
-  // fit inside the mouth at the full 192 CSS px an item has had all along,
-  // because they OVERLAP. Things in a bag lean on each other; a lattice with
-  // equal gaps was the thing that made this read as a widget.
-  const items = laid();
+  // ── THE MOUTH: lining at the rim, then the inside going dark ───────────
+  band(g, L.mouth.x, L.mouth.y, L.mouth.w, L.mouth.h, Math.round(L.r * 0.6), bag.trim);
+  band(g, L.mouth.x + 6, L.mouth.y + 6, L.mouth.w - 12, L.mouth.h - 12,
+    Math.max(2, Math.round(L.r * 0.4)), '#20191a');
+  g.fillStyle = 'rgba(0,0,0,0.35)';
+  g.fillRect(L.mouth.x + 7, L.mouth.y + 6, L.mouth.w - 14, 12);
+
+  // ── AND THE HARDWARE THAT GOES IN FRONT ────────────────────────────────
+  if (L.kind === 'pack') {
+    g.fillStyle = bag.trim;                                  // drawstring eyelets
+    const n = 6, step = (L.mouth.w - 16) / (n - 1);
+    for (let i = 0; i < n; i++) g.fillRect(Math.round(L.mouth.x + 8 + i * step) - 4, L.mouth.y - 5, 8, 7);
+  } else if (L.kind === 'sling') {
+    // the flap, thrown back over the top — most of this bag is flap
+    band(g, L.bx + 4, L.by - 6, L.bw - 8, Math.round(L.bh * 0.5), Math.round(L.r * 0.8), bag.trim);
+    g.fillStyle = 'rgba(0,0,0,0.20)';
+    g.fillRect(L.bx + 8, L.by + Math.round(L.bh * 0.5) - 10, L.bw - 16, 5);
+    band(g, Math.round(L.bx + L.bw / 2 - 12), L.by + Math.round(L.bh * 0.5) - 8, 24, 18, 4, bag.cloth);
+    g.fillStyle = '#2a2620';                                 // the buckle
+    g.fillRect(Math.round(L.bx + L.bw / 2 - 7), L.by + Math.round(L.bh * 0.5) - 3, 14, 9);
+  } else if (L.kind === 'clutch') {
+    band(g, L.bx + 10, L.by - 4, L.bw - 20, 16, 5, bag.trim);   // the clasp bar
+    g.fillStyle = '#d8cfb4';
+    g.fillRect(Math.round(L.bx + L.bw / 2 - 5), L.by - 1, 10, 9);   // its stud
+  }
+
+  // ── WHAT IS IN IT ──────────────────────────────────────────────────────
   items.forEach((id, i) => {
     if (held === id && items.indexOf(id) === i) return;
-    const r = cellRect(i, items.length);
-    const { x, y } = r;
-    const hot = ptr && inRect(ptr.x, ptr.y, r) && !held;
-    if (hot) { g.fillStyle = 'rgba(242,234,208,0.18)'; band(g, x - 3, y - 3, CELL + 6, CELL + 6, 6, 'rgba(242,234,208,0.18)'); }
+    const r = L.at(i);
+    if (ptr && inRect(ptr.x, ptr.y, r) && !held) {
+      band(g, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 6, 'rgba(242,234,208,0.18)');
+    }
     g.fillStyle = 'rgba(0,0,0,0.30)';
-    g.fillRect(x + 5, y + CELL - 8, CELL - 6, 8);            // it sits IN the bag
-    item(g, x, y, CELL, id);
+    g.fillRect(r.x + 5, r.y + r.h - 8, r.w - 6, 8);          // it sits IN the bag
+    item(g, r.x, r.y, r.w, id);
   });
 
   // ── AND WHAT HE HAS LIFTED OUT ─────────────────────────────────────────
-  // Twice the size of the same thing in the bag, over a shadow of the whole
-  // opening, so examining is holding it up rather than a tooltip about it.
   if (held) {
     g.fillStyle = 'rgba(0,0,0,0.42)'; g.fillRect(0, 0, BW, BH);
     const r = liftRect();
