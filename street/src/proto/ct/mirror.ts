@@ -657,11 +657,19 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
       limb(ax, ARM_T - 2, ARM_W, sleeveB - ARM_T + 2, top.cloth);
       limb(ax, sleeveB - 2, ARM_W, 2, top.trim);                             // the cuff
     }
-    if (top.kind === 'jacket') {
+    // ⚠ A JACKET'S FRONT IS ONLY ON ITS FRONT. The opening seam and both
+    // lapels were painted at every facing, so from behind he had a zip up his
+    // spine and a collar on the back of his neck. Cols 0-2 only; from the back
+    // a jacket is a plain panel, which is exactly what a jacket looks like
+    // from the back.
+    if (top.kind === 'jacket' && facing < 3) {
       box(CX - 1, SHOULDER + 1, 1, hem - SHOULDER - 1, 'rgba(0,0,0,0.22)');
       box(CX - 6, SHOULDER + 1, 5, 6, top.trim);                             // lapels
       box(CX + 1, SHOULDER + 1, 5, 6, top.trim);
     }
+    // and a YOKE seam across the shoulders instead, which is the one thing the
+    // back of a shirt or jacket actually has on it
+    if (facing >= 3) box(CX - TORSO_HW, SHOULDER + 6, TORSO_HW * 2, 1, 'rgba(0,0,0,0.18)');
     if (top.kind === 'sweater') box(CX - TORSO_HW, hem - 3, TORSO_HW * 2, 3, top.trim);
   }
 
@@ -765,7 +773,14 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     // the brow, in profile it is the longest part of the silhouette. So it
     // grows AND it slides forward onto the face's side as he turns, which is
     // what says which way a capped head is looking.
-    deep(CX - HEAD_HW - 3 - facing * 2, HEAD_T + 2, HEAD_HW * 2 + 6, 2, hat.trim);
+    // ⚠ THE PEAK POINTS FORWARD, so it is only on the facings that can see
+    // the front of the head. It used to be painted at all five columns AND to
+    // slide further off-centre with each one, so from behind the cap had a
+    // brim hanging off the side of his skull. Cols 0-2 it slides out into
+    // profile where it is longest; col 3 keeps a sliver, because you do catch
+    // the tip of a peak past the ear at three-quarter back; col 4 has none.
+    if (facing < 3) deep(CX - HEAD_HW - 3 - facing * 2, HEAD_T + 2, HEAD_HW * 2 + 6, 2, hat.trim);
+    else if (facing === 3) deep(CX - HEAD_HW - 2, HEAD_T + 2, 5, 2, hat.trim);
     head(CX - 1, HEAD_T - 5, 2, 2, hat.trim);                                 // the button
   } else if (hat.kind === 'sun') {
     head(CX - HEAD_HW, HEAD_T - 6, HEAD_HW * 2, 8, hat.cloth);                // crown
@@ -773,6 +788,9 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     // angle, so it keeps the head's own factor rather than the shoulders'.
     head(CX - 13, HEAD_T + 1, 26, 3, hat.cloth);                              // brim
     head(CX - 13, HEAD_T + 3, 26, 1, 'rgba(0,0,0,0.20)');
+    // the band goes all the way round a crown, so unlike the cap's peak it is
+    // correct at every facing — a disc brim and a ring band are the two things
+    // on this figure that genuinely do not care which way he is turned
     head(CX - HEAD_HW, HEAD_T - 1, HEAD_HW * 2, 2, hat.trim);                 // the band
   }
 
