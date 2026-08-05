@@ -4636,8 +4636,40 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Still no collider and no `maxY`: 0.035 m proud of a wall you are held
     // 0.35 m off cannot be reached, and it is not a surface. The clearance this
     // used to carry was for the full-length glass; the walk above supersedes it.
-    const MIR_GAP = 0.40;                       // boards to the frame's bottom
-    const MIR_Y = RY + MIR_GAP + MIR_H / 2;     // frame RY+0.40 … RY+1.85
+    // ── AND IT IS LIFTED AGAIN (his fourth) ──────────────────────────────
+    // *"move the mirror up a little bit"*   (2026-08-05)
+    //
+    // 0.15 m, the same step the last lift took, because "a little bit" is the
+    // same phrase he used then and got the answer he kept. ONE LINE, as
+    // promised: `MIR_GAP` is the only number, and the frame, the plate, the
+    // glass canvas and the locked eye all derive from it.
+    //
+    //     bottom edge   RY+0.40  ->  RY+0.55
+    //     top edge      RY+1.85  ->  RY+2.00
+    //     ceiling       RY+2.543, so 0.543 m of plaster still above it
+    //
+    // THE CEILING IS NOT THE LIMIT YET. It bites at MIR_GAP 1.09, where the top
+    // would touch RY+2.543 — so there is another 0.54 m of lift available and
+    // nothing here is stopping short or squashing the glass to fit. If he wants
+    // it higher again, this line goes up until then and no further.
+    //
+    // NOT REPAINTED, and that is the same call the last lift made. The plate
+    // paints a reflected slice — horizon at 62% down, a skirting line where
+    // wall meets floor — and those were tuned to the PROPORTION of a
+    // full-length glass, which has not changed by a millimetre. A 0.15 m lift
+    // on a 1.45 m mirror moves the reflected field by about a tenth of its own
+    // height; repainting for that is churn against a picture he has approved.
+    // The repaint that WAS warranted was the shape change, chest-height to
+    // full-length, and it already happened.
+    //
+    // THE LOCKED POSE FOLLOWS ON ITS OWN, checked rather than assumed: the
+    // surface spec sets `standoff`, `fov`, `glassW` and `glassH` and NO `eyeY`,
+    // so `poseFor` derives the eye from the MESH's own centre. Raise the mesh
+    // and the eye rises with it, square to the glass at the same height up the
+    // plate. The figure is framed exactly as before and nothing about the pose
+    // needed following.
+    const MIR_GAP = 0.55;                       // boards to the frame's bottom
+    const MIR_Y = RY + MIR_GAP + MIR_H / 2;     // frame RY+0.55 … RY+2.00
     box(MIR_W, MIR_H, FRAME_D, MIR_X, MIR_Y, MIR_WALL_Z - FRAME_D / 2,
       new THREE.MeshBasicMaterial({ color: 0x3f3125 }));
     // THE GLASS, AND ITS CANVAS DERIVED FROM IT. Both dimensions of the plate
