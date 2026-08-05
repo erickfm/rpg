@@ -153,6 +153,26 @@ export interface Letter {
   lines: string[];
   /** a rent notice is graded differently — it gets the stamp and the figure */
   kind: 'rent' | 'late' | 'junk' | 'receipt' | 'hand';
+  /**
+   * WHICH PIECE OF PAPER THIS IS, by name.
+   *
+   * *"the mail is too homogenous. everything is a weird letter the same exact
+   *  format. also none of them look like actual letters. every letter from a
+   *  different sender should be unique. there could also be flyers, and junk
+   *  mail, and stuff mixed in"*   (2026-08-05)
+   *
+   * HE IS RIGHT AND THE CAUSE IS ONE PAINTER. `drawLetter` drew every piece
+   * with the same sender rule, the same 8 px body and the same creases, so a
+   * bank statement and a takeaway menu were one picture with different words —
+   * and the FORMAT is most of what tells you what a piece of mail is before you
+   * read a word of it.
+   *
+   * So a piece names its own drawing here and `ART` looks it up; anything that
+   * names nothing gets `drawTyped`, which is exactly today's letter and is what
+   * the rent notice, the receipt and his mother's carbon still use. Their
+   * content and behaviour are untouched — those three do real work.
+   */
+  art?: string;
 }
 
 /**
@@ -195,7 +215,31 @@ function hash01(day: number, salt: number): number {
  * outside this file reads the table; the `junkKinds` probe surface derives its
  * count from it.
  */
-const JUNK: { from: string; lines: string[] }[] = [
+const JUNK: { from: string; lines: string[]; art?: string }[] = [
+  // ── the three that are not letters, and do not look like one ────────────
+  { from: 'VIDEO HUT', art: 'flyer-video', lines: [
+    'BLOOD HARBOUR II  (18)',
+    'THE LONG WEEKEND  (15)',
+    'KARATE DOG  (PG)',
+    'Two for one, Tuesdays.',
+  ] },
+  { from: 'THE DINER', art: 'menu-diner', lines: [
+    'ALL DAY',
+    'Two eggs, any way|1.95',
+    'Short stack|2.25',
+    'Grilled cheese|2.50',
+    'Chili, cup|1.75',
+    'AFTER SIX',
+    'Meatloaf plate|4.95',
+    'Liver + onions|4.50',
+    'Coffee, bottomless|0.65',
+    'Pie, slice|1.25',
+  ] },
+  { from: 'FOR THE PREVIOUS TENANT', art: 'envelope-prev', lines: [
+    'D. R. KOVACS',
+    'APT 301, 227 W 19TH',
+    'THIS CITY',
+  ] },
   { from: 'VIDEO 2000 — MEMBER SERVICES', lines: [
     'Our records show two (2) tapes',
     'overdue on your account. Late fees',
@@ -788,6 +832,174 @@ const fill = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: n
 function drawLetter(g: CanvasRenderingContext2D): void {
   const l = reading[page];
   if (!l) return;
+  // EACH SENDER ITS OWN DRAWING — see `Letter.art`. Anything unnamed is the
+  // typewritten letter this function has always been.
+  (ART[l.art ?? ''] ?? drawTyped)(g, l);
+}
+
+/** the space a piece of mail is drawn into, in sheet units. A piece may use all
+ *  of it or a corner of it; what it leaves is cut away (see the sheet's
+ *  material). */
+const PAPER = { w: SHEET.w, h: SHEET.h };
+
+/** every piece's own painter, by `Letter.art` */
+const ART: Record<string, (g: CanvasRenderingContext2D, l: Letter) => void> = {};
+
+
+// ══ THE PIECES THAT ARE NOT LETTERS ════════════════════════════════════════
+//
+// *"the mail is too homogenous … there could also be flyers, and junk mail, and
+//  stuff mixed in"*   (2026-08-05)
+//
+// EACH ONE IS ITS OWN DRAWING, not a parameter on a shared one. What tells you
+// what a piece of mail is, before you read a word, is its PAPER and its
+// LAYOUT — so these differ in stock colour, in shape, in how much of the space
+// they fill, and in what marks they carry. `Letter.art` names one; anything
+// unnamed is `drawTyped`, which is the typewritten letter this file has always
+// drawn and which the rent notice, the receipt and his mother's carbon keep.
+//
+// THEY COME OFF THE STREET'S OWN BUSINESSES, which is the move that made the
+// television ads work and costs nothing because the shops already exist:
+// VIDEO HUT, the DINER, the PAWN shop, the BODEGA, SLEEP CENTER.
+//
+// LEGIBILITY IS NOT NEGOTIABLE. `LETTER_SS` supersamples all of this 3x at
+// unchanged glyph size, and every piece below is written in the same 8-9 px
+// faces the letter uses. A cheap flyer is a LOOK — coarse colour, heavy rules,
+// a smudged second plate — never an excuse for type you cannot read.
+
+/** the fold every piece that came through a letterbox carries */
+function creases(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, n = 2): void {
+  for (let i = 1; i <= n; i++) {
+    fill(g, 'rgba(120,112,90,0.11)', x, Math.round(y + (h * i) / (n + 1)), w, 1);
+  }
+}
+/** a sheet of stock: the paper, its lit top edge and its shaded bottom */
+function stock(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number,
+               paper: string, hi: string, lo: string): void {
+  fill(g, paper, x, y, w, h);
+  fill(g, hi, x, y, w, 2);
+  fill(g, lo, x, y + h - 3, w, 3);
+}
+
+/**
+ * ── THE VIDEO HUT FLYER ────────────────────────────────────────────────────
+ * Cheap goldenrod stock, edge to edge, printed in two plates on a press that
+ * does not quite register — so the red sits 1 texel off the black, which is
+ * exactly what a $30 flyer looked like and is one `fillRect` to say. A banner
+ * across the top, three new releases, and the late fee in a box at the foot.
+ */
+ART['flyer-video'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  stock(g, 0, 0, W, H, '#e8d38a', '#f4e3a8', '#c9b168');
+  creases(g, 0, 0, W, H, 1);
+  // the banner, in the shop's own sign red, with the mis-registered black
+  fill(g, '#8e2b22', 8, 8, W - 16, 26);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = 'rgba(30,26,22,0.55)'; g.font = UI.font(13, true);
+  g.fillText('VIDEO HUT', W / 2 + 1, 27);                  // the off-plate ghost
+  g.fillStyle = '#f2e6c8';
+  g.fillText('VIDEO HUT', W / 2, 26);
+  g.fillStyle = '#3a3126'; g.font = UI.font(8, true);
+  g.fillText('NEW THIS WEEK', W / 2, 46);
+  fill(g, '#8e2b22', 20, 50, W - 40, 1);
+  g.textAlign = 'left'; g.fillStyle = '#2b2620'; g.font = UI.font(8);
+  let y = 64;
+  for (const line of l.lines) { g.fillText(line.slice(0, COLS), 12, y); y += 12; }
+  // the late-fee box, ruled, because that is the part they want read
+  const by = H - 42;
+  fill(g, '#d8bf72', 10, by, W - 20, 30);
+  fill(g, '#8e2b22', 10, by, W - 20, 2);
+  fill(g, '#8e2b22', 10, by + 28, W - 20, 2);
+  g.fillStyle = '#8e2b22'; g.font = UI.font(9, true);
+  g.textAlign = 'center';
+  g.fillText('LATE FEES ARE $1.50 A DAY', W / 2, by + 13);
+  g.fillStyle = '#3a3126'; g.font = UI.font(7);
+  g.fillText('BE KIND. PLEASE REWIND.', W / 2, by + 24);
+  g.textAlign = 'left';
+};
+
+/**
+ * ── THE DINER'S TAKEAWAY MENU ──────────────────────────────────────────────
+ * A TALL NARROW SLIP, not a page — the space around it is left unpainted and
+ * the sheet's alphaTest cuts it away, so this piece is genuinely a different
+ * SIZE of paper from the flyer above it. Green ink on white, a rule under the
+ * name, and two columns: dish and price, leadered with dots the way a menu is.
+ */
+ART['menu-diner'] = (g, l) => {
+  const w = Math.round(PAPER.w * 0.52), x = Math.round((PAPER.w - w) / 2);
+  const H = PAPER.h;
+  stock(g, x, 0, w, H, '#f0ece0', '#faf7ee', '#cfc9b8');
+  creases(g, x, 0, w, H, 3);                       // folded small, into a pocket
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#2e5136'; g.font = UI.font(10, true);
+  g.fillText('THE DINER', x + w / 2, 20);
+  g.fillStyle = '#6b6455'; g.font = UI.font(7);
+  g.fillText('OPEN 6 AM — 11 PM', x + w / 2, 31);
+  fill(g, '#2e5136', x + 8, 36, w - 16, 1);
+  // dish ......... price, which is the whole look of a menu
+  g.font = UI.font(8); g.textBaseline = 'alphabetic';
+  let y = 50;
+  for (const line of l.lines) {
+    const [dish, price] = line.split('|');
+    if (price === undefined) {                     // a heading, not a dish
+      g.fillStyle = '#2e5136'; g.font = UI.font(8, true);
+      g.textAlign = 'left'; g.fillText(dish, x + 8, y);
+      g.font = UI.font(8);
+    } else {
+      g.fillStyle = '#3a352c'; g.textAlign = 'left';
+      g.fillText(dish, x + 8, y);
+      g.textAlign = 'right'; g.fillText(price, x + w - 8, y);
+      g.fillStyle = 'rgba(58,53,44,0.35)'; g.textAlign = 'left';
+      g.fillText('.'.repeat(Math.max(0, 18 - dish.length)), x + 10 + dish.length * 5, y);
+    }
+    y += 12;
+  }
+  g.textAlign = 'left';
+};
+
+/**
+ * ── A LETTER FOR WHOEVER LIVED HERE BEFORE HIM ─────────────────────────────
+ * Free characterisation, and the coordinator is right that it is the best value
+ * on the list: somebody had this flat before he did and their post has not
+ * caught up. A WINDOW ENVELOPE, not a sheet — so this piece is the only one
+ * that is an envelope rather than its contents. The address shows through a
+ * grey panel, the name is not his, there is a franking mark where the stamp
+ * should be, and a hand has written on it in biro.
+ */
+ART['envelope-prev'] = (g, l) => {
+  const W = PAPER.w, h = Math.round(PAPER.h * 0.62), y0 = Math.round((PAPER.h - h) / 2);
+  stock(g, 0, y0, W, h, '#e9e6da', '#f6f4ea', '#c6c1b2');
+  // the flap seam across the back, which is what makes it read as an envelope
+  fill(g, 'rgba(120,112,90,0.16)', 0, y0 + Math.round(h * 0.34), W, 1);
+  // the window, and the address showing through it
+  const wx = 14, wy = y0 + Math.round(h * 0.44), ww = Math.round(W * 0.56), wh = 40;
+  fill(g, '#cfcabb', wx - 2, wy - 2, ww + 4, wh + 4);
+  fill(g, '#dedac9', wx, wy, ww, wh);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#3a352c'; g.font = UI.font(8);
+  let y = wy + 12;
+  for (const line of l.lines) { g.fillText(line.slice(0, COLS), wx + 5, y); y += 11; }
+  // the franking mark, top right, where a stamp would be
+  const fx = W - 54, fy = y0 + 10;
+  g.strokeStyle = 'rgba(90,80,70,0.55)'; g.lineWidth = 1;
+  g.strokeRect(fx, fy, 44, 22);
+  g.fillStyle = 'rgba(90,80,70,0.75)'; g.font = UI.font(7, true);
+  g.textAlign = 'center';
+  g.fillText('POSTAGE', fx + 22, fy + 10);
+  g.fillText('PAID', fx + 22, fy + 18);
+  for (let i = 0; i < 5; i++) fill(g, 'rgba(90,80,70,0.35)', fx - 22, fy + 4 + i * 4, 18, 2);
+  // and somebody's biro, at an angle, because a hand wrote it
+  g.save();
+  g.translate(W - 72, y0 + h - 16);
+  g.rotate(-0.09);
+  g.fillStyle = 'rgba(40,52,96,0.8)'; g.font = UI.font(8, true);
+  g.fillText('NOT AT THIS ADDRESS', 0, 0);
+  g.restore();
+  g.textAlign = 'left';
+};
+
+function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
+  const l = letter;
   // Supersample. `scale`, NOT `setTransform`, and that is not a style choice:
   // the framework's screen-space fallback (`ct/hud.ts:1422`) does
   // `g.translate(SX, SY)` before calling this, to seat the page inside the
@@ -1128,7 +1340,16 @@ export function register(ctx: CtxBuild): void {
     // material ARRAY throws there (queue item 150). Unlit is also what a page
     // wants — the framework forces `color` white on open so the evening wash
     // cannot dim what you are reading, and an unlit sheet honours that.
-    new THREE.MeshBasicMaterial({ color: 0xffffff })));
+    // ⚠ TRANSPARENT + alphaTest, WHICH IS WHAT LETS THE MAIL BE DIFFERENT
+    // SIZES. The canvas is no longer "the sheet"; it is the SPACE a piece of
+    // mail occupies, and each piece draws its own paper inside it — a bill
+    // fills it, a flyer is a squarer block, a compliments slip is a band a
+    // third of the height. Whatever a piece does not paint is cut away by the
+    // alpha test rather than shown as white card, so the plane's aspect never
+    // changes, no geometry moves, and there is nothing new to z-fight.
+    // alphaTest rather than blending: a discarded fragment never sorts, and
+    // `ct/props.ts:414` is explicit that an alphaTest surface is still graded.
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, alphaTest: 0.5 })));
   // NAMED so a probe can find it without inferring it from a geometry size —
   // an instrument that identifies its subject by guessing is the instrument
   // half this project's false defects came from.
