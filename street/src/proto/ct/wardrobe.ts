@@ -200,11 +200,43 @@ const WATCHES: readonly Garment[] = [
  * taken off — and `bagWorn()` is what the carousel asks before it offers you
  * anything to open.
  */
+/**
+ * ── AND HOW EACH ONE IS CARRIED, WHICH IS WHAT TELLS THEM APART ──────────
+ *
+ * *"the tote should be carried on the shoulder. should be more like the cross
+ *  body but not cross body lol. also clutch would also be cool and that would
+ *  look more how you made the tote look."*   (2026-08-05)
+ *
+ * He is right twice. The tote was drawn hanging off a closed HAND, which is
+ * not how a tote is worn — it goes over one shoulder, strapped like the
+ * crossbody but straight down instead of diagonally across. And the drawing it
+ * had is a **clutch**: a small flat slab carried in the hand. So the artwork
+ * was not wrong, it was mislabelled, and it is reused rather than thrown away.
+ *
+ * FOUR CARRIES, FOUR SILHOUETTES, which is the whole reason this slot has more
+ * than one entry:
+ *
+ *     BACKPACK   both shoulders, on your back — mostly hidden from the front
+ *     TOTE       one shoulder, strap straight down, bag under the arm
+ *     CROSSBODY  one shoulder, strap DIAGONAL, pouch on the far hip
+ *     CLUTCH     no strap at all, held flat in the hand
+ *
+ * CAPACITY FOLLOWS THE CARRY, and the order is the interesting part: what your
+ * back takes beats what one shoulder takes beats what one hand takes.
+ *
+ *     backpack 8  >  tote 6  >  crossbody 5  >  clutch 2
+ *
+ * The tote goes 4 -> 6 with this change and that is not a fudge: it was drawn
+ * as a small hand-carried thing and is now a big open shoulder bag, so it holds
+ * more than the crossbody's zipped pouch rather than less. The clutch at 2 is
+ * the floor — it is a wallet with ambitions.
+ */
 const BAGS: readonly Garment[] = [
   { id: 'nobag', name: 'NO BAG', kind: 'none', cloth: '#000000', trim: '#000000', hold: 0 },
   { id: 'backpack', name: 'BACKPACK', kind: 'pack', cloth: '#3f4a3a', trim: '#2a3227', hold: 8 },
-  { id: 'tote', name: 'TOTE BAG', kind: 'tote', cloth: '#c9a45e', trim: '#8a7a52', hold: 4 },
+  { id: 'tote', name: 'TOTE BAG', kind: 'tote', cloth: '#c9a45e', trim: '#8a7a52', hold: 6 },
   { id: 'crossbody', name: 'CROSSBODY', kind: 'sling', cloth: '#4a3626', trim: '#2f2318', hold: 5 },
+  { id: 'clutch', name: 'CLUTCH', kind: 'clutch', cloth: '#7a1420', trim: '#4f0d15', hold: 2 },
 ];
 
 const RACK: Record<Slot, readonly Garment[]> = {

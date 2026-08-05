@@ -701,30 +701,46 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
       }
     }
   } else if (bag.kind === 'tote') {
-    // ══ THE TOTE, REDRAWN ═══════════════════════════════════════════════
+    // ══ THE TOTE GOES OVER A SHOULDER ═══════════════════════════════════
     //
-    // *"tote doesnt make sense."* Three separate faults, and reporting it as
-    // *"reads the same from every angle"* was me describing the bug as a
-    // feature:
+    // *"the tote should be carried on the shoulder. should be more like the
+    //  cross body but not cross body lol."*
     //
-    //  · IT FLOATED ON HIS RIBS. The bag sat at rows 56…74 with its handles
-    //    ABOVE it, while the hand it is supposedly carried by is at rows
-    //    78…88 — so it hung off his forearm with the handles pointing up into
-    //    his chest. It now hangs BELOW the closed hand, handles first, which
-    //    is the only way a carried bag can be.
-    //  · IT WAS A CYLINDER. `limb` (1 / .96 / .90) barely narrows, and a tote
-    //    is a FLAT SLAB: broad from the front, an edge from the side. `span`
-    //    (1 / .82 / .55) is the family for a wide flat thing and it is the
-    //    family the jacket's back and the shoulders already use.
-    //  · IT WAS VISIBLE THROUGH HIM. Carried on one side, it disappears
-    //    behind the body when that side turns away — which at profile is
-    //    exactly what happens, so at profile it is not drawn.
-    const bx = CX + TORSO_HW - 1;
+    // ONE STRAP, STRAIGHT DOWN, which is the whole difference from the sling
+    // beside it: same idea of a bag worn rather than held, but the strap drops
+    // over the near shoulder instead of crossing the chest, and the bag sits
+    // UNDER THE ARM at the waist rather than on the far hip. Two carries that
+    // read apart at a glance, which is the only reason to have both.
+    //
+    // THE STRAP IS ALWAYS DRAWN. It lies on the shoulder, so it is visible
+    // front, side and back — it is what says the thing is worn at all, and
+    // from behind it is most of what you can see of a shoulder bag.
+    //
+    // THE BAG IS A FLAT SLAB, so `span` (1 / .82 / .55): broad from the front,
+    // an edge from the side. And it is NOT DRAWN AT PROFILE, where the body it
+    // hangs behind hides it — the same rule the sling's pouch follows.
+    box(CX + 6, SHOULDER - 1, 4, WAIST - SHOULDER - 12, bag.trim);  // over the shoulder
     if (facing !== 2) {
-      box(bx + 1, HAND_B - 6, 2, 8, bag.trim);                      // handles, to the hand
-      box(bx + ARM_W, HAND_B - 6, 2, 8, bag.trim);
-      box(bx, HAND_B + 2, ARM_W + 3, 22, bag.cloth);                // and the bag under them
-      box(bx, HAND_B + 2, ARM_W + 3, 3, bag.trim);                  // its hem
+      box(CX + TORSO_HW - 2, WAIST - 16, ARM_W + 5, 20, bag.cloth); // under the arm
+      box(CX + TORSO_HW - 2, WAIST - 16, ARM_W + 5, 3, bag.trim);   // its mouth
+    }
+  } else if (bag.kind === 'clutch') {
+    // ══ AND THE CLUTCH IS THE DRAWING THE TOTE USED TO HAVE ═════════════
+    //
+    // *"clutch would also be cool and that would look more how you made the
+    //  tote look."* He is right: a flat slab hanging off a closed hand was
+    //  never a tote, it was a clutch that had been mislabelled. So the art is
+    //  REUSED rather than replaced — smaller, flatter, and with the handles
+    //  taken off, because a clutch has none. That is what makes it a clutch
+    //  and not a small tote.
+    //
+    // No strap anywhere, and `span` again: it is the flattest thing in the
+    // wardrobe, so it nearly vanishes edge-on and is hidden at profile behind
+    // the arm that is holding it.
+    if (facing !== 2) {
+      const bx = CX + TORSO_HW - 1;
+      box(bx, HAND_B - 2, ARM_W + 2, 12, bag.cloth);
+      box(bx, HAND_B + 3, ARM_W + 2, 2, bag.trim);                  // the clasp line
     }
   } else if (bag.kind === 'sling') {
     // ONE DIAGONAL, STEPPED. It used to flip by hand at `facing >= 3`; that is
