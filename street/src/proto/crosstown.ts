@@ -1360,7 +1360,25 @@ export function makeCrosstown(): Proto {
     // pure read — `apt.ground`'s hysteresis only writes when asked to commit
     const gy = apt.ground(x, z);
     const storey = THREE.MathUtils.clamp(Math.floor(gy / ST0), 0, 3);
-    return storey * ST0 + APT_CEIL_H;
+    const room = storey * ST0 + APT_CEIL_H;
+    // ── …AND THE STAIRCASE, WHICH THIS FILE MUST NOT KNOW THE SHAPE OF ─────
+    //
+    // *"i dont want to be able to clip through the stairwell from below"*
+    // (2026-08-05). The room ceiling is not the lowest thing over you in the
+    // shaft: under a flight the raking soffit is, and this returned 5.25 for a
+    // head that was about to go through timber at 3.86. The clamp never fired.
+    //
+    // ASKED, NOT DERIVED HERE. The comment above already said a room that wants
+    // headroom should publish it, and `ct/apartment.ts` now does — it owns
+    // RISE, RUN, the soffit's thickness and where every flight stands, and none
+    // of that is copied into this file. `null` means "nothing but the room".
+    //
+    // IT CANNOT SEAL THE STAIRWELL. `fp.ts` ignores a ceiling already below the
+    // eye, so the worst a wrong answer does is stop protecting you; and the
+    // apartment only offers a surface more than 0.2 m above your feet, so the
+    // flight you are standing ON is never mistaken for a lid over you.
+    const stair = apt.ceil(x, z, gy);
+    return stair === null ? room : Math.min(room, stair);
   }
 
   // debug/tour hook

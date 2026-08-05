@@ -148,6 +148,15 @@ export const SPAWN = {
 };
 
 export interface Apartment {
+  /**
+   * THE LOWEST TIMBER OVER YOUR HEAD IN THE STAIRWELL, or null when there is
+   * nothing there but the storey's own ceiling.
+   *
+   * Published rather than guessed at, which is what `crosstown.ts`'s `ceilPick`
+   * asked for in its own comment: *"a room that wants headroom should publish
+   * it the way it already publishes `interiorGround`"*. See `aptCeil`.
+   */
+  ceil: (x: number, z: number, gy: number) => number | null;
   /** hall/stair/room walls, plus the floor-aware caps kept up to date inside
    *  this module's own per-frame hook */
   colliders: AABB[];
@@ -1014,7 +1023,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 0, 32, 2);
       dither(g, 32, 12, 24);
     });
-    const darkWoodM = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
+    // ⚠ DoubleSide, and it is the walls' fix from 5360d3fc applied to the
+    // timber. A box of FrontSide faces is invisible from INSIDE itself, so an
+    // eye that gets within the 0.1 m near plane of a soffit — or a millimetre
+    // inside one — looks straight through the staircase. The head clamp
+    // (`aptCeil`) is the real answer and this is the belt on top of it: it
+    // costs nothing, moves no geometry, and means a few millimetres of clamp
+    // error shows as timber rather than as a hole into the shaft.
+    const darkWoodM = new THREE.MeshBasicMaterial({ color: 0x4a3826, side: THREE.DoubleSide });
     const treadMats = [darkWoodM, darkWoodM, texM(treadTopT), darkWoodM, texM(riserT), texM(riserT)];
     const railM = new THREE.MeshBasicMaterial({ color: 0x3a2c20 });
     const landMats = [darkWoodM, darkWoodM, texM(woodFloorT.clone()), darkWoodM, darkWoodM, darkWoodM];
@@ -5967,10 +5983,77 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     scene.children[i].traverse((n) => { n.userData.mod = 'walkup'; });
   }
 
+  /**
+   * ── WHAT IS OVER YOUR HEAD IN THE STAIRWELL ───────────────────────────────
+   *
+   * *"i dont want to be able to clip through the stairwell from below. pls
+   *  fix"*   (2026-08-05)
+   *
+   * DIAGNOSED BEFORE TOUCHING ANYTHING, because three ceiling reports today had
+   * three different causes. IT IS NOT A MISSING OR SINGLE-SIDED SURFACE — the
+   * flights are solid boxes with real thickness (treads 0.18, soffits 0.14,
+   * landings 0.14), so this is not the walls' backface fault of 5360d3fc. AND
+   * IT IS NOT MAINLY A COLLIDER GAP, though there is one: `underStairA` and
+   * `underStairB` are gated `onLobby` (`lastGy < 0.6`), so above the ground
+   * floor nothing blocks the dead space under a flight at all.
+   *
+   * IT IS THE HEAD CLAMP NOT KNOWING WHAT A STAIRCASE IS. `crosstown.ts`'s
+   * `ceilPick` answers "the storey plane at or below your feet, plus 2.55" —
+   * the ROOM's ceiling — and its own comment says a room that wants headroom
+   * should publish it. Under flight B on floor 1 the real underside is 3.86 at
+   * its low end, an eye at 4.30, and the clamp is being told the ceiling is
+   * 5.25. It never fires, the eye goes inside the slab, and from inside a box
+   * you are looking at the backs of its faces. That is the clip.
+   *
+   * SO THE ROOM PUBLISHES IT. This returns the LOWEST thing genuinely over you
+   * in the shaft — a raking soffit, or a half landing — or null when there is
+   * nothing but the storey ceiling. `fp.ts` ignores a ceiling already below the
+   * eye, so this can only ever stop you rising into timber; it cannot seal the
+   * stairwell, and the flights stay walkable because the clamp switches off the
+   * moment you are on top of the thing rather than under it.
+   *
+   * THE GEOMETRY IS DERIVED, NOT TYPED. A flight's top surface is the line
+   * through its treads, `base + (lz - STAIR_Z0) / RUN * RISE`; the soffit box
+   * hangs 0.12 under it and is 0.14 thick, so its underside is a further
+   * 0.07 / cos(slope) = 82 mm down. 202 mm total, and if the pitch is retuned
+   * the whole thing follows RISE and RUN with it. NOTHING IS MOVED — no mesh
+   * changes position, so there are no new coplanar pairs and nothing to z-fight.
+   */
+  const SOFFIT_DROP = 0.12 + 0.07 / Math.cos(Math.atan2(RISE, RUN));
+  const aptCeil = (x: number, z: number, gy: number): number | null => {
+    const lx = x - APT_X, lz = z - APT_Z;
+    if (lx < -0.1 || lx > 2.5 || lz < STAIR_Z0 || lz > LAND_Z1) return null;
+    let best: number | null = null;
+    const offer = (y: number) => {
+      // ⚠ IT HAS TO BE GENUINELY ABOVE HIM. A flight you are STANDING ON has
+      // its own soffit under your feet, and 0.2 m is what separates "over my
+      // head" from "the thing I am on". Without it the clamp would fight the
+      // ramp on every step.
+      if (y > gy + 0.2 && (best === null || y < best)) best = y;
+    };
+    for (let f = 0; f < 3; f++) {
+      const base = f * ST;
+      if (lz <= STAIR_Z1) {
+        // flight A climbs west, +z; flight B climbs east, -z. Half widths are
+        // the 1.16 boxes about FLIGHT_A_X / FLIGHT_B_X.
+        if (Math.abs(lx - FLIGHT_A_X) <= 0.58) {
+          offer(base + ((lz - STAIR_Z0) / RUN) * RISE - SOFFIT_DROP);
+        }
+        if (Math.abs(lx - FLIGHT_B_X) <= 0.58) {
+          offer(base + RISE + ((STAIR_Z1 - lz) / RUN) * RISE - SOFFIT_DROP);
+        }
+      } else {
+        offer(base + RISE - 0.14);            // the half landing's own underside
+      }
+    }
+    return best;
+  };
   return {
     colliders: sevColliders,
     actorColliders: sevActors,
     ground: aptGround,
+    /** the lowest timber over you in the stairwell, or null. See `aptCeil`. */
+    ceil: aptCeil,
     // WHY gy() ONCE LIED AT THE KERB EDGE, and what now stops it. It reported
     // 0.00 while the ground there was 0.14 and the camera — which was right —
     // sat at 1.76. The drift was never in this module: `setGy` stores exactly
