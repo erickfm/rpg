@@ -449,6 +449,7 @@ export function makeCrosstown(): Proto {
     x: () => rig.pos.x,
     z: () => rig.pos.z,
     gy: () => apt.gy(),
+    yaw: () => rig.yaw,
     jumpTo: (x, z, yaw, gy) => jumpToImpl(x, z, yaw, gy),
   };
   // per-frame hooks, sorted by declared order once the world is built — so

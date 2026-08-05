@@ -4,6 +4,7 @@ import { declareSurface, pixTex } from './paint';
 import { APT_X0, APT_Z0, ST0 } from './apartment';
 import { citizenSprite } from './citizens';
 import { UI, makePanel, screenFocusReady, type Panel } from './hud';
+import { defineItem, bagPut } from './inventory';
 import {
   RENT, DAYS_PER_SEASON, dateOf, dueDay, duePeriodsBy, isRentDay,
   nextDueDay, noDelivery, noticeDay,
@@ -795,6 +796,25 @@ const SHEET_ROLL = 0.035;
  */
 type Hold = { x: number; y: number; z: number; yaw: number };
 /**
+ * WHERE A LETTER IS HELD WHEN HE READS IT OUT OF HIS BAG — which is anywhere.
+ *
+ * The three existing holds are places in the world (the box, the landlord's
+ * hands, the slip under his door) because those reads happen at those places.
+ * A piece out of the bag has no place, so it is held in front of HIM: 0.42 m
+ * along his own facing at chest height, which is `standoff` and where a person
+ * holds something they are reading. Same reason and the same number.
+ */
+function holdInFront(ctx: CtxBuild): Hold {
+  const yaw = ctx.player.yaw();
+  return {
+    x: ctx.player.x() + Math.sin(yaw) * 0.42,
+    y: ctx.player.gy() + 1.42,
+    z: ctx.player.z() - Math.cos(yaw) * 0.42,
+    // the sheet must FACE him, which is his own yaw turned about
+    yaw: yaw + Math.PI,
+  };
+}
+/**
  * The widest line the sheet can hold, MEASURED rather than remembered.
  *
  * 172 px of paper between the margins at 8 px monospace, whose advance is
@@ -1154,6 +1174,75 @@ function buildPanel(): void {
 }
 
 /**
+ * ══ THE MAIL GOES IN YOUR BAG ═══════════════════════════════════════════════
+ *
+ * *"reading the mail should take all the mail and put it in your bag."*
+ *   (2026-08-05)
+ *
+ * MAIL STOPS BEING A THING YOU LOOK AT IN PLACE AND BECOMES THINGS YOU OWN. A
+ * piece you have read is a piece you are carrying, so it can be examined in the
+ * bag, dropped on the floor and picked up again like anything else.
+ *
+ * ONE ITEM PER PIECE, NOT PER KIND, and the id is what makes that work:
+ * `MAIL-<day>-<n>`, unique, so the store gives each piece its own slot. Two
+ * VIDEO HUT flyers from different weeks are two things and stack into one
+ * square only if they are literally the same id, which they never are. The
+ * store is `ct/inventory.ts`'s purse and nothing else — no second list of what
+ * he is carrying, which is the whole of `2628381a`.
+ *
+ * `defineItem` IS CALLED AT THE MOMENT HE TAKES IT, which is what the item
+ * table was built to allow (*"any module may — you do not need this file to own
+ * yours"*). The piece's own `Letter` is closed over, so its sprite draws ITS
+ * artwork and READ opens ITS page. Nothing is looked up by parsing the id.
+ *
+ * ⚠ THE BAG SPRITE IS THE PIECE, not a generic envelope. `cd9a7100` gave every
+ * sender its own drawing and this reuses them: the icon paints the piece's real
+ * art into the 24-unit box the item table draws in, so a flyer is a goldenrod
+ * flyer in his bag and the previous tenant's letter is a window envelope.
+ *
+ * AND `READ` OPENS THE REAL PAGE — the same `showLetters` the mailbox uses, at
+ * the same LETTER_SS 3x legibility, held in front of him wherever he is
+ * standing. So THE FOCUSED MAIL VIEW SURVIVES AND IS NOT REDUNDANT: it was
+ * never the taking, it is the READING, and now it has two doors into it. The
+ * `Hold` machinery survives with it and gains a third position.
+ *
+ * ⚠ READ DOES NOT CONSUME. `ItemDef.use.act` returning a string puts that id
+ * back in the slot it vacated, so returning its own id is "use me and keep me".
+ * A letter you read once and lost would be a bug on the rent notice.
+ */
+let mailSeq = 0;
+/** how a piece of mail is drawn in the bag — its own art, shrunk into the
+ *  24-unit box every item icon is drawn in */
+function mailIcon(l: Letter): (g: CanvasRenderingContext2D) => void {
+  return (g) => {
+    g.save();
+    // the piece is composed at PAPER.w x PAPER.h; fit its LONG side to 22 of
+    // the icon's 24 so a tall slip and a wide flyer both sit in the square
+    const k = 22 / Math.max(PAPER.w, PAPER.h);
+    g.translate((24 - PAPER.w * k) / 2, (24 - PAPER.h * k) / 2);
+    g.scale(k, k);
+    (ART[l.art ?? ''] ?? drawTyped)(g, l);
+    g.restore();
+  };
+}
+/** put one piece in his bag, as its own item */
+function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): void {
+  const id = `MAIL-${l.day}-${mailSeq++}`;
+  defineItem({
+    id,
+    // the sender IS the name — it is what a person calls a piece of post, and
+    // it is already written on every one of them
+    name: l.from.split(' — ')[0].toLowerCase(),
+    stack: 1,
+    blurb: '',
+    icon: mailIcon(l),
+    use: { verb: 'read', act: () => { open(l); return id; } },
+  });
+  bagPut(ctx.purse, id);
+  ctx.refreshWallet();
+}
+
+/**
  * Open the pile, HELD WHERE `at` SAYS.
  *
  * The aim happens before `open()` and not after: `ct/hud.ts` reads the mesh and
@@ -1401,6 +1490,21 @@ export function register(ctx: CtxBuild): void {
         collectedDay = Math.floor(totalMin / 1440) - (hour >= POST_HOUR ? 0 : 1);
         HELD.push(...w);
         while (HELD.length > KEEP) HELD.shift();
+        // ⚠ AND EVERY PIECE GOES IN HIS BAG. *"reading the mail should take all
+        // the mail and put it in your bag."* The box is emptied by
+        // `collectedDay` above, which is a HIGH-WATER MARK rather than a
+        // per-piece flag — `waiting()` only walks forward from it — so taken
+        // mail stays taken across a sleep, a reload of the day, and a probe
+        // snapping the clock. There was nothing to build here: emptying already
+        // stuck, the way a stolen parcel's day key does.
+        //
+        // NOTHING CAN REFUSE IT. Capacity is infinite (`2628381a`) and
+        // `bagPut` forwards to `give`, whose only limit is `carrySlots()` —
+        // unbounded while a bag is worn. With NO bag on, the six-pocket rule
+        // applies and a big pile could exceed it; `give` refuses cleanly rather
+        // than destroying anything, and the pieces stay in `HELD` so the box
+        // spot still offers the read.
+        for (const l of w) pocketMail(ctx, l, (one) => showLetters([one], holdInFront(ctx)));
         showLetters(w, HOLD_BOX);             // what you just took out
       } else if (HELD.length) {
         showLetters([...HELD].reverse(), HOLD_BOX);   // newest first, on a second look

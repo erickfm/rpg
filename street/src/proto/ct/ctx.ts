@@ -190,6 +190,17 @@ export interface PlayerRef {
   x: () => number;
   z: () => number;
   gy: () => number;
+  /**
+   * WHICH WAY HE IS FACING, in the world's own yaw convention — 0 is -z, and
+   * `(sin yaw, -cos yaw)` is the direction he is looking, exactly as `fp.ts`
+   * builds its look vector.
+   *
+   * Added 2026-08-05 for reading a letter out of your bag, which can happen
+   * anywhere and so has to hold the page in front of HIM rather than at a fixed
+   * point in a room. It is also what `ct/bag.ts` needed and did not have when
+   * dropping a thing "in front of him" was deferred for want of a yaw.
+   */
+  yaw: () => number;
   jumpTo: (x: number, z: number, yaw: number, gy: number) => void;
 }
 
