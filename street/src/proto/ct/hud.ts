@@ -2205,21 +2205,49 @@ export function makeHud(purse: Purse): Hud {
     // mirror, every time you look at the time — so a sweater is not cosmetic
     // here, it is on your arm for the rest of the game.
     //
-    // WHERE IT STOPS IS THE ONLY DECISION. The strap lives at x 38…82 after
-    // `WATCH_POS`, i.e. from `WATCH_ARM + 46`, so a sleeve run to the wrist
-    // would be painted over by the watch and would look like cloth under
-    // glass. It ends 40 px short of the wrist join instead, which is where a
-    // pushed-up cuff sits on someone about to check the time, and leaves the
-    // whole approved wrist-and-watch drawing untouched.
+    // ── WHERE IT STOPS, WHICH IS THE ONLY DECISION ────────────────────────
+    //
+    // *"long shirts should extend down the arm further"*   (2026-08-05)
+    //
+    // IT STOPPED AT THE ELBOW AND HE IS RIGHT. `WATCH_ARM - 40` is 560 on a
+    // canvas whose visible portion starts around x 342 at a 1900 px viewport —
+    // so the cuff landed in the first third of the frame and bare skin ran the
+    // whole rest of the forearm to the watch. That is a pushed-up sleeve, and
+    // it was chosen as one; a shirt cuff sits at the WRIST.
+    //
+    // SO IT IS DERIVED FROM THE WATCH NOW, not from the arm's length. The strap
+    // occupies x 38…82 in hand-local px, which is `WATCH_ARM + WATCH_POS + 38`
+    // on the canvas — 646 — and that is the landmark the cuff has to respect: a
+    // sleeve run under the strap would read as cloth under glass. So the cuff's
+    // outer edge is the strap's leading edge less `SLEEVE_GAP`, and the gap is
+    // the one number to nudge.
+    //
+    //     SLEEVE_END   618, up from 560 — 62 canvas px further down the arm,
+    //                  171 CSS px at WATCH_S
+    //     the gap      28 canvas px, 77 CSS px of bare wrist between the cuff
+    //                  and the strap
+    //
+    // IT PASSES THE NOMINAL WRIST JOIN AT 600 AND THAT IS FINE — forearm and
+    // wrist are ONE `fillRect` of one tone with no seam between them (see the
+    // band above), so there is nothing at 600 for a cuff to cross.
+    //
+    // NOTHING ELSE MOVED. WATCH_POS, WATCH_ARM, WATCH_TILT, WATCH_X,
+    // WATCH_LIFT, the strap overhang, the case, the LCD, the digits, the dark
+    // end cap and the thumb are all untouched, and the sleeve is derived FROM
+    // two of them rather than typed beside them — so sliding the watch with
+    // WATCH_POS carries the cuff with it instead of stranding it.
     //
     // TWO FLAT RECTS, cloth and cuff, no shading — the limb is one flat tone by
     // his own repeated instruction and a garment on it does not get to be more
     // modelled than the arm is. The cuff stands 2 px proud top and bottom
     // because a cuff is thicker than the arm inside it; that is the only
     // silhouette change and it is what makes it read as cloth and not as paint.
+    // It is also the one hard edge that stops a longer sleeve reading as a
+    // recolour of the whole limb.
     const wtop = worn('top');
     if (wtop.sleeve === 2) {
-      const CUFF_W = 14, SLEEVE_END = WATCH_ARM - 40;
+      const SLEEVE_GAP = 28;                              // bare wrist before the strap
+      const CUFF_W = 14, SLEEVE_END = WATCH_ARM + WATCH_POS + 38 - SLEEVE_GAP;
       g.fillStyle = wtop.cloth; g.fillRect(0, 4, SLEEVE_END, 70);
       g.fillStyle = wtop.trim; g.fillRect(SLEEVE_END - CUFF_W, 2, CUFF_W, 74);
     }
