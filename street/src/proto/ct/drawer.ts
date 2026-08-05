@@ -217,6 +217,21 @@ export function drawerPanel(o: {
   mesh: () => THREE.Object3D | null;
   purse: Purse;
   refreshWallet: () => void;
+  /**
+   * PULL THE DRAWER OUT, OR PUSH IT BACK IN.
+   *
+   * *"close the dresser"* — it is shut in the room now and opens only while you
+   * are looking into it. Called from `onOpen`/`onClose`, which `makePanel` runs
+   * on either side of `FOCUS.enter`/`leave`, so the drawer is ALREADY out when
+   * the camera pose is computed from the lining's world position and is not
+   * pushed back until the eye has left.
+   *
+   * ⚠ INSTANT, NOT ANIMATED, and that is deliberate rather than lazy: the pose
+   * is taken once at `enter`, so a drawer still travelling would leave the
+   * camera settling on where it used to be. This view has cost five camera
+   * fixes today; none of them will be a slide.
+   */
+  setOpen: (open: boolean) => void;
 }): () => void {
   const { w: LW, h: LH } = liningCanvas();
   let panel: Panel | null = null;
@@ -350,11 +365,26 @@ export function drawerPanel(o: {
         // NOTHING SURVIVES A CLOSE. Escape mid-examine puts it back down,
         // because it was never taken out: `held` is a way of LOOKING at a
         // stack, not a fourth container something could be lost in.
+        // ⚠ THE PULL IS NOT DONE HERE — see `open()` below. `makePanel` runs
+        // `onOpen` at :1668, AFTER `FOCUS.enter` at :1635, so a drawer opened
+        // from this hook would still be shut when `poseFor` reads the lining's
+        // world position and the camera would settle on where it used to be.
+        // Checked rather than assumed, because that is the exact shape of the
+        // five camera bugs this view has already had.
         onOpen: () => { held = null; showHand(null); },
-        onClose: () => { held = null; showHand(null); },
+        onClose: () => { o.setOpen(false); held = null; showHand(null); },
       });
     }
+    // OUT FIRST, THEN THE VIEW. The pose is taken inside `panel.open()`, so the
+    // drawer has to be at its open world position before that call and not
+    // after it.
+    o.setOpen(true);
     panel.open();
+    // AND BACK IN IF THE VIEW REFUSED TO COME UP — `open()` early-returns
+    // inside the dismiss lockout (a panel he just escaped does not come
+    // straight back), and a drawer left hanging open with no view is a state
+    // with no visible cause.
+    if (!panel.isOpen()) o.setOpen(false);
   };
   return open;
 }

@@ -3351,19 +3351,45 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const dresserSideM = new THREE.MeshBasicMaterial({ color: 0x412f21 });
     box(0.70, 0.82, 0.50, -2.65, RY + 0.41, 2.37,
       [dresserSideM, dresserSideM, dresserSideM, dresserSideM, flatOf2(dresserT), dresserSideM]);
-    // The drawer that never shuts — proud of the FRONT, into the room.
-    // Report finding 8: it was a front and a solid lump, so from an oblique
-    // angle you looked into a block of wood rather than into a drawer. It is
-    // a real open box now: two sides, a bottom, a back, and the shirt that is
-    // stopping it closing sitting IN it rather than being it.
+    // ══ THE DRAWER SHUTS NOW, AND OPENS WHEN YOU LOOK IN IT ══════════════
+    //
+    // *"close the dresser and make the middle drawer the same as top and
+    //  bnottom"*   (2026-08-05)
+    //
+    // It stood permanently proud of the front, which is why another builder had
+    // to split its collider off this morning — 0.17 m of shelf you could stand
+    // on. Shut, the dresser is three identical drawers and that whole problem
+    // goes away with the protrusion.
+    //
+    // **HOW THE MIDDLE ONE MATCHES ITS NEIGHBOURS: it is not drawn at all when
+    // shut.** The top and bottom drawers are not geometry — they are painted
+    // into `dresserT`, the carcass's own face, panels and handles and all, and
+    // that texture paints THREE. So the closed position tucks this drawer 0.02
+    // BEHIND the carcass face and lets the paint do the work: the middle drawer
+    // is the same object as the other two, by construction, and cannot drift
+    // from them. Parking it flush at 2.62 instead would put its plain front
+    // exactly on the textured face and z-fight it.
+    //
+    // ⚠ AND IT OPENS INSTANTLY ON `[E]`, NOT OVER AN ANIMATION. The camera pose
+    // is computed once, at `enter`, from the lining's world position — so a
+    // drawer still sliding while the eye eases would have the camera settling
+    // on where the drawer WAS. Five camera fixes went wrong on this view today
+    // and none of them will be a slide. It still reads as opening as you lean
+    // in, because the 0.40 s camera ease covers it.
     const drawIn = new THREE.MeshBasicMaterial({ color: 0x6b523a });
-    const DZ0 = 2.62, DZ1 = 2.79;                    // how far it stands out
-    box(0.62, 0.035, DZ1 - DZ0, -2.65, RY + 0.355, (DZ0 + DZ1) / 2, drawIn);   // bottom
+    const DZ0 = 2.62, DZ1 = 2.79;                    // where it sits when OPEN
+    /** how far back it is parked when shut: its own travel, plus 0.02 so its
+     *  front is behind the carcass face rather than on it. */
+    const DRAW_SHUT = -(DZ1 - DZ0) - 0.02;
+    const drawerG = new THREE.Group();
+    drawerG.position.z = DRAW_SHUT;
+    scene.add(drawerG);
+    drawerG.add(box(0.62, 0.035, DZ1 - DZ0, -2.65, RY + 0.355, (DZ0 + DZ1) / 2, drawIn));
     for (const sx of [-0.29, 0.29]) {
-      box(0.035, 0.17, DZ1 - DZ0, -2.65 + sx, RY + 0.44, (DZ0 + DZ1) / 2, drawIn);
+      drawerG.add(box(0.035, 0.17, DZ1 - DZ0, -2.65 + sx, RY + 0.44, (DZ0 + DZ1) / 2, drawIn));
     }
-    box(0.62, 0.17, 0.03, -2.65, RY + 0.44, DZ0, drawIn);                       // back
-    box(0.62, 0.20, 0.035, -2.65, RY + 0.44, DZ1, dresserSideM);                // the front
+    drawerG.add(box(0.62, 0.17, 0.03, -2.65, RY + 0.44, DZ0, drawIn));          // back
+    drawerG.add(box(0.62, 0.20, 0.035, -2.65, RY + 0.44, DZ1, dresserSideM));   // the front
     // ══ AND YOU CAN LOOK INTO IT ═════════════════════════════════════════
     //
     // *"we need to figure out inventories … idk if theres anyway to diagetic
@@ -3404,9 +3430,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     lining.position.set(AX(-2.65), DRAW_TOP + 0.002, AZI((DZ0 + DZ1) / 2));
     lining.rotation.x = -Math.PI / 2;
     lining.name = 'dresser-drawer-lining';
-    scene.add(lining);
+    // IT RIDES WITH THE DRAWER, so its world position is the closed one until
+    // the drawer is pulled out — which is exactly why the pull has to happen
+    // BEFORE the panel opens and the pose is taken. `setOpen` is called from
+    // the panel's `onOpen`, which `makePanel` runs before `FOCUS.enter`.
+    drawerG.add(lining);
     const openDrawer = drawerPanel({
       scene, mesh: () => lining, purse: ctx.purse, refreshWallet: ctx.refreshWallet,
+      setOpen: (v) => { drawerG.position.z = v ? 0 : DRAW_SHUT; },
     });
     // WHERE YOU STAND: in front of the dresser. Its collider spans x −3.00…
     // −2.30 and z 2.12…2.81, so padded by the player's own 0.3456 the nearest
@@ -5144,8 +5175,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // open drawer, which is the exact complaint. Carcass 0.70 x 0.50 x 0.82
       // (2853); drawer bottom RY+0.355, front 0.20 tall centred on RY+0.44, so
       // its lip is RY+0.54, standing out to DZ1 + half its 0.035 front.
-      { minX: AX(-3.00), maxX: AX(-2.30), minZ: AZI(2.12), maxZ: AZI(2.62), maxY: RY + 0.82 },  // dresser carcass
-      { minX: AX(-2.96), maxX: AX(-2.34), minZ: AZI(2.62), maxZ: AZI(2.81), maxY: RY + 0.54 },  // its open drawer
+      // ONE BOX FOR THE WHOLE DRESSER AGAIN. The drawer's own collider is
+      // deleted with the protrusion it stood for: shut, nothing sticks out past
+      // AZI(2.62), so there is no shelf to stand on and no gap to fall into.
+      // The split existed because a 0.17 m ledge at RY+0.54 let you stand on
+      // air over an open drawer; there is no open drawer to stand over now.
+      //
+      // ⚠ `maxY` RY+0.82 IS UNCHANGED AND IS LOAD-BEARING — it is the top of
+      // the bed → radiator → dresser climb, and the tallest thing in the flat.
+      { minX: AX(-3.00), maxX: AX(-2.30), minZ: AZI(2.12), maxZ: AZI(2.62), maxY: RY + 0.82 },  // dresser
       // ONE BOX FOR THE STACK, at the TV's footprint rather than the crate's.
       // The set is WIDER than the thing it stands on — CASE_W 0.52 against a
       // 0.38 crate — so the old box left 0.07 m of cabinet hanging in the air on
