@@ -5714,64 +5714,124 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     // 1.15 m off the boards, which is where a 1997 domestic switch sits, and
     // 0.02 m proud of the plaster — nothing the 2 m lane can feel.
-    const SW_Z = AZI(2.85), SW_Y = RY + 1.15, SW_X = AX(-0.03);
+    // ⚠ IT WAS BURIED IN THE PLASTER. *"theres no physical switch on the wall"*
+    // — and he is right, it was never visible. `SW_X` was `AX(-0.03)` against a
+    // wall slab that spans `AX(-0.15)` to `AX(0)` (its collider at :976), so a
+    // 0.02-thick plate centred at -0.03 occupied -0.04 to -0.02: ENTIRELY
+    // INSIDE the wall, with the room's face of that wall at -0.15. Not a
+    // grading fault, not culling, not a missing `scene.add` — I put it in the
+    // masonry. The room-side face is the number that matters and it is the one
+    // I did not use.
+    const SW_FACE = -0.15;                       // the wall's face, into the room
+    const SW_Z = AZI(2.85), SW_Y = RY + 1.15;
+    const SW_X = AX(SW_FACE - 0.011);            // plate half-thickness proud of it
     const swPlateM = new THREE.MeshBasicMaterial({ color: 0xd8d2c4 });
     const swRockM = new THREE.MeshBasicMaterial({ color: 0xe8e4d8 });
-    const swPlate = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.10, 0.10), swPlateM);
+    const swPlate = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.11, 0.11), swPlateM);
     swPlate.position.set(SW_X, SW_Y, SW_Z);
+    swPlate.name = 'switch-301';
     scene.add(swPlate);
-    // the rocker: a smaller slab proud of the plate, tipped by the state
-    const swRock = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.055, 0.04), swRockM);
-    swRock.position.set(SW_X - 0.014, SW_Y, SW_Z);
+    // the rocker, standing proud of the plate so it reads as a thing you press
+    const swRock = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.058, 0.042), swRockM);
+    swRock.position.set(SW_X - 0.018, SW_Y, SW_Z);
+    swRock.name = 'switch-301-rocker';
     scene.add(swRock);
 
     /**
-     * ── WHAT THE SWITCH ACTUALLY DOES ────────────────────────────────────
+     * ══ AND THE ROOM ACTUALLY GOES DARK ═══════════════════════════════════
      *
-     * It drives 301's own ceiling fixture and nothing else: the HALO on the
-     * floor (`spill`) goes out, and the opal DOME goes from lit glass to the
-     * dead grey of a bulb that is off. The hall and stair lamps are untouched —
-     * they are other people's fixtures on other people's meters.
+     * *"the switch turns the light off up top but doesnt change the lighting in
+     *  the room"*   (2026-08-05)
      *
-     * WHAT SURVIVES IN THE DARK, because a room you cannot use is a bug: the
-     * window, the street lamps through it, the door's light from the landing,
-     * and the television if he left it on. Every surface in the flat is
-     * `MeshBasicMaterial` and unlit by construction, so the room does not go
-     * black — it loses the pool of light on the boards, which is the thing that
-     * reads as "the light is on" in the first place. **Said plainly: the
-     * surfaces themselves are not re-tinted.** Making the room genuinely dimmer
-     * needs the interior grading pass that `dimWorld` deliberately skips
-     * (`|x| > 100`), and that is a bigger change than a switch.
+     * He is right and I said so myself last commit: killing the halo and greying
+     * the dome is a lamp ornament, not a light switch.
      *
-     * IT PERSISTS, session-scoped, like `doorShut` beside it. Leave the flat and
-     * come back and it is as you left it; sleep with it on and you wake to it
-     * on, which is right. There is no save in this world, so it resets on
-     * reload — the same rule every other piece of flat state follows.
+     * THE TECHNIQUE IS `props.dimWorld`'s, DRIVEN BY THE SWITCH INSTEAD OF THE
+     * SUN. That pass grades a `MeshBasicMaterial`'s `color` against a remembered
+     * base and exempts interiors by world position — `|x| > 100`, and this
+     * building stands at 200 — so the machinery is proven and this room is
+     * exactly the thing it deliberately leaves alone. Nothing fights: those
+     * materials are never in `litList`.
      *
-     * ⚠ NOTHING HERE IS TOUCHED BY THE GRADER. The switch plate and rocker are
-     * positioned BEFORE `scene.add`, which is the exact fault that made the
-     * parcels darken at `0969f1c4`; `props.dimWorld` reads world position at
-     * collection time and this building stands at x 200, so both are skipped.
+     * HOW 301'S MESHES ARE ENUMERATED, since a wrong list is the whole risk.
+     * The room already publishes its own extents — `R301_X0/X1`, `R301_Z0/Z1`,
+     * `R301_H` — so the sweep is a `Box3` centre test against THOSE rather than
+     * against numbers typed here. It runs ONCE, after everything in the flat is
+     * built, and it CLONES each material it takes: the wallpaper, the boards and
+     * the skirting are shared with the hall, and dimming the shared instance
+     * would take the landing down with the flat.
+     *
+     * ⚠ RUN AT BUILD, NOT PER FRAME, which is the fault that blackened the
+     * landing parcels at `0969f1c4`: a mesh positioned after it is read gets
+     * measured at the origin. Everything in 301 is placed before it is added,
+     * and the two switch meshes above are placed before their own `scene.add`
+     * for the same reason. The parcels are at the doors on the landings, well
+     * outside this box, and are not caught.
+     *
+     * WHAT SURVIVES, and it is the point of the window:
+     *   · THE WINDOW AND THE CITY — the glass sits at `GLASS_X`, which is
+     *     `WIN_LX - 0.062` = −3.262, OUTSIDE `R301_X0` = −3.2. The room's own
+     *     bounds exclude it without a special case, so street light and sky
+     *     still come in and the room reads as lit from outside.
+     *   · ANYTHING `selfLit` — the ceiling halo, the lamp's own wash. Skipped by
+     *     the same `userData` flag `props.ts` uses, not by name.
+     *   · THE TELEVISION'S SCREEN and the drawer lining's lit canvas, by name,
+     *     because a lit screen in a dark room is the whole reason to have one.
+     *   · THE HALL, THE STAIRS AND THE OTHER FLATS — outside the box entirely.
+     *   · THE PLAYER'S ARM AND THE HUD, which are DOM canvases and not in the
+     *     scene graph at all, so they cannot be reached from here.
+     *
+     * `ROOM_DARK` is the one number to move. 0.34 is "the light is off in a room
+     * with a window", not "the screen is black" — expect to retune it in one
+     * word from him.
      */
+    const ROOM_DARK = 0.34;
+    const LIT_BY_ITSELF = /screen|lining|halo|spill|glass|city/i;
+    const dimmable: { m: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
+    {
+      const bb = new THREE.Box3(), mid = new THREE.Vector3();
+      const lo = new THREE.Vector3(AX(R301_X0), RY - 0.35, AZI(R301_Z0 - 0.15));
+      const hi = new THREE.Vector3(AX(R301_X1), RY + R301_H + 0.25, AZI(R301_Z1 + 0.15));
+      scene.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!(mesh as unknown as { isMesh?: boolean }).isMesh) return;
+        if (LIT_BY_ITSELF.test(mesh.name)) return;
+        bb.setFromObject(mesh);
+        bb.getCenter(mid);
+        if (mid.x < lo.x || mid.x > hi.x || mid.y < lo.y || mid.y > hi.y
+          || mid.z < lo.z || mid.z > hi.z) return;
+        const one = !Array.isArray(mesh.material);
+        const mats = (one ? [mesh.material] : mesh.material) as THREE.MeshBasicMaterial[];
+        const clones = mats.map((m0) => {
+          if (m0?.userData?.selfLit || !m0?.color) return m0;
+          const cl = m0.clone();
+          dimmable.push({ m: cl, base: cl.color.clone() });
+          return cl;
+        });
+        mesh.material = one ? clones[0] : clones;
+      });
+    }
+
     let lightOn = true;
     const setLight = (on: boolean) => {
       lightOn = on;
-      if (flatLamp) {
-        flatLamp.spill.visible = on;
-        (flatLamp.dome.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xffffff : 0x6b6659);
-      }
-      // the rocker tips, which is the only moving part on the object
-      swRock.position.y = SW_Y + (on ? 0.012 : -0.012);
+      flatLamp.spill.visible = on;
+      (flatLamp.dome.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xffffff : 0x6b6659);
+      const k = on ? 1 : ROOM_DARK;
+      for (const d of dimmable) d.m.color.setRGB(d.base.r * k, d.base.g * k, d.base.b * k);
+      swRock.position.y = SW_Y + (on ? 0.012 : -0.012);   // the rocker tips
     };
     setLight(true);
     ctx.spot({
-      x: AX(-0.55), z: SW_Z, r: 0.72,
+      x: AX(-0.62), z: SW_Z, r: 0.72,
       obj: swPlate,
       // ⚠ AIM AT THE PLATE, NOT AT THE PATCH OF FLOOR HE STANDS ON. A switch is
-      // 10 cm of wall at chest height and is exactly the case that fix was for.
+      // 11 cm of wall at chest height and is exactly the case that fix was for.
       aimX: SW_X, aimZ: SW_Z,
       ok: () => Math.abs(lastGy - 2 * ST) < 0.5,
-      label: () => (lightOn ? 'the light switch — off' : 'the light switch — on'),
+      // *"should jkust say light switch"* — two words, no article, no state.
+      // The rocker says which way it is and now so does the whole room.
+      label: () => 'light switch',
       act: () => setLight(!lightOn),
     });
 
