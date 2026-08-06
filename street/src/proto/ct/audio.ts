@@ -523,12 +523,19 @@ export function register(ctx: CtxBuild): void {
   //    know that a drawer is open, which is the point: this module cannot see
   //    `hud.ts`, `bag.ts` or `mirror.ts` and does not need to.
   //
-  // THE ONE THING IT CANNOT SEE is whether he is in the AIR. `Frame` carries
-  // `gy`, the GROUND height under him, not his own y, so a jump reads as
-  // ordinary forward travel and lays down its steps mid-flight. Fixing it needs
-  // one boolean off the rig — `fp.ts`'s own grounded flag — which is a trunk
-  // file this module deliberately does not open.
+  // THE ONE THING IT COULD NOT SEE was whether he is in the AIR — *"make it so
+  // no foot steps when im in air (jumping, etc.) please"*. `Frame` carries
+  // `gy`, the GROUND height under him and never his own y, so a jump was
+  // forward travel with nothing underneath it and laid its steps mid-flight.
+  //
+  // That is now `ctx.player.airborne()`: `fp.ts`'s own `airY > 0 || vy !== 0`,
+  // the same flag it gates the mid-air tuck on, published as a getter and
+  // reaching here through `PlayerRef`. A boolean and not a height, so nothing
+  // out here invents a second opinion about what counts as off the ground. It
+  // covers the rise, the apex and the fall alike, and a crouch jump reads
+  // airborne because tucking your knees changes neither term.
   let lastX = NaN, lastZ = NaN;
+  let wasAir = false;     // last frame's answer, so touchdown is an EDGE
   let acc = 0;            // metres of stride banked since the last footfall
   let stepAt = 0;         // when the last one played, on the frame clock
   let stepPick = -1;      // which sample it was, so it is not picked twice
@@ -641,22 +648,42 @@ export function register(ctx: CtxBuild): void {
     const moved = Number.isNaN(lastX) ? 0 : Math.hypot(f.px - lastX, f.pz - lastZ);
     lastX = f.px; lastZ = f.pz;
 
+    const air = ctx.player.airborne();
+    const indoors = inside(f.px);
+    const pool = indoors ? IN_STEPS : OUT_STEPS;
+
     if (moved > TELEPORT) {
       // A door, a stairwell, a bed. Bank nothing and do not let the arrival
       // land a footstep — the transition already has a fade over it.
       acc = 0;
       stepAt = f.t;
+    } else if (air) {
+      // AIRBORNE: bank NOTHING. Not merely "do not play" — a jump covers real
+      // ground, and holding the metres would pay them all out the instant he
+      // landed, which is the same wrong sound arriving late.
+      acc = 0;
+    } else if (wasAir) {
+      // TOUCHDOWN. A landing makes a noise, and silence here is its own bug —
+      // you jump off a kerb and arrive like a ghost. It is the SAME sample set
+      // as the surface he lands on (`step-in-*` past |x| > 100, `step-out-*`
+      // otherwise), so a landing indoors is a floorboard, played harder and
+      // pitched down a little because it carries his whole weight rather than
+      // half of it.
+      acc = 0;
+      stepAt = f.t;
+      fire(pool[pick(pool.length)],
+        (indoors ? LVL.stepIn : LVL.stepOut) * 1.35,
+        0.86 + roll() * 0.06,
+        (roll() - 0.5) * 0.2);
     } else {
       acc = Math.min(acc + moved, STRIDE);   // clamped, so a sprint cannot queue
       if (acc >= STRIDE && f.t - stepAt >= STEP_MIN) {
         acc = 0;
         stepAt = f.t;
-        // Indoors is the same |x| > 100 fact the ambience crossfades on, read
-        // RAW here rather than through `ins`: the bed slews over half a second
-        // and a footstep does not — the first step inside the door should be a
-        // floorboard even while the street is still fading out behind it.
-        const indoors = inside(f.px);
-        const pool = indoors ? IN_STEPS : OUT_STEPS;
+        // `indoors` above is the same |x| > 100 fact the ambience crossfades
+        // on, read RAW rather than through `ins`: the bed slews over half a
+        // second and a footstep does not — the first step inside the door
+        // should be a floorboard while the street is still fading out behind it.
         fire(pool[pick(pool.length)],
           (indoors ? LVL.stepIn : LVL.stepOut) * (0.78 + roll() * 0.44),
           // Detune per step. Eight files played flat is eight files; eight
@@ -665,6 +692,7 @@ export function register(ctx: CtxBuild): void {
           (roll() - 0.5) * 0.24);
       }
     }
+    wasAir = air;
 
     if (peekUntil && performance.now() > peekUntil) { peekUntil = 0; wrap.style.opacity = '.28'; }
   }, HOOK.LATE);

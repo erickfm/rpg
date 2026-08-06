@@ -201,6 +201,20 @@ export interface PlayerRef {
    * dropping a thing "in front of him" was deferred for want of a yaw.
    */
   yaw: () => number;
+  /**
+   * ARE HIS FEET OFF THE FLOOR — jumping, at the apex, or falling.
+   *
+   * Added 2026-08-05 for *"make it so no foot steps when im in air (jumping,
+   * etc.) please"*. `ct/audio.ts` paces footsteps off distance travelled, and a
+   * jump is the one case that is forward travel with nothing underneath it.
+   *
+   * A BOOLEAN and not a height, deliberately. `gy()` above is the GROUND under
+   * him, never his own y, so no module can derive this — and handing out a y so
+   * they could would mean five modules each inventing their own threshold for
+   * "off the ground". This is `fp.ts`'s own flag, the same one it gates the
+   * mid-air tuck on, so it cannot disagree with the body.
+   */
+  airborne: () => boolean;
   jumpTo: (x: number, z: number, yaw: number, gy: number) => void;
 }
 

@@ -450,6 +450,10 @@ export function makeCrosstown(): Proto {
     z: () => rig.pos.z,
     gy: () => apt.gy(),
     yaw: () => rig.yaw,
+    // Straight off the rig, like `x`/`z`/`yaw` above and unlike `gy`, which has
+    // to come from the apartment's floor stack. There is no state here to keep
+    // in step — the flag is read at the moment it is asked for.
+    airborne: () => rig.airborne,
     jumpTo: (x, z, yaw, gy) => jumpToImpl(x, z, yaw, gy),
   };
   // per-frame hooks, sorted by declared order once the world is built — so

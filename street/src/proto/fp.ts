@@ -289,6 +289,9 @@ export class FPRig {
   private ceilY?: (x: number, z: number) => number | null;
   private airY = 0;   // height above the ground while jumping
   private vy = 0;
+  /** ARE YOUR FEET OFF THE FLOOR — see the `airborne` getter. Mirrors the local
+   *  `airborne` in `update()`; nothing else may compute its own version. */
+  private air = false;
   // The floor height PLUS airY, as of the end of last frame's update() — i.e.
   // roughly where your feet actually are right now. Read at the TOP of this
   // frame, before anything moves, so every collision test this frame uses one
@@ -410,6 +413,25 @@ export class FPRig {
   /** set by the capture-phase Escape listener; consumed by update(). */
   private forceUp = false;
   get seated(): boolean { return this.seat !== null; }
+  /**
+   * ARE YOUR FEET OFF THE FLOOR — jumping, at the apex, or on the way down.
+   *
+   * The user, 2026-08-05: *"make it so no foot steps when im in air (jumping,
+   * etc.) please"*. `ct/audio.ts` paces footsteps off distance travelled, which
+   * is right on every slope and doorway and wrong in exactly one place: a jump
+   * is forward travel with no feet under it.
+   *
+   * PUBLISHED AS THE BOOLEAN, not as `airY` or a y position, and that is the
+   * whole point of it being here. Every caller handed a height re-derives its
+   * own idea of "off the ground" and they drift — this is the same fact
+   * `update()` gates the mid-air tuck on, `airY > 0 || vy !== 0`, so it covers
+   * the rise, the apex, the fall and the frame you touch down, and a crouch
+   * jump reads airborne because tucking changes neither term. `sit()` and the
+   * jump-cut both zero it, so a chair and a teleport are never mid-flight.
+   *
+   * Reaches modules through `PlayerRef.airborne` in `ct/ctx.ts`, beside `gy()`.
+   */
+  get airborne(): boolean { return this.air; }
   /** the seat you are on, so a caller can tell WHICH one to offer standing up */
   get seatedOn(): SeatPose | null { return this.seat; }
 
@@ -421,7 +443,7 @@ export class FPRig {
     this.pos.x = pose.x; this.pos.z = pose.z;
     this.yaw = pose.yaw;
     // cancel anything mid-flight, or you land after standing up
-    this.airY = 0; this.vy = 0; this.jumpHeld = false;
+    this.airY = 0; this.vy = 0; this.jumpHeld = false; this.air = false;
     // A chair is not a surface you stepped off — RE-BASE whatever was holding
     // you up onto where you now are, so standing back up cannot read it as a
     // floor that dropped away.
@@ -813,7 +835,8 @@ export class FPRig {
     // the bed at ankle height. Landing eases it out instead of dropping it, so
     // the floor pick below rises under you over ~0.15 s rather than in a frame.
     const airborne = this.airY > 0 || this.vy !== 0;
-    this.tuck += ((airborne && input.keys.has('c') ? TUCK_LIFT : 0) - this.tuck) * Math.min(1, dt * TUCK_EASE);
+    this.air = airborne;   // published by the `airborne` getter — one source
+    this.tuck +=((airborne && input.keys.has('c') ? TUCK_LIFT : 0) - this.tuck) * Math.min(1, dt * TUCK_EASE);
     let gy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
     // Stand on a collider's top when you are already up there — see
     // `standTop`'s own comment. Only raises the floor, never lowers it: a
