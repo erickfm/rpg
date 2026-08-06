@@ -2152,9 +2152,53 @@ export function makeHud(purse: Purse): Hud {
   const WATCH_TILT = 16;
   let handed: 'left' | 'right' = 'left';
   /** the mirror, when he is right-handed — see `setHanded` */
+  /**
+   * ── THE MIRROR IS THREE TERMS, NOT ONE ──────────────────────────────────
+   *
+   * *"the handed ness change made it so the whole arm is now way to the right?"*
+   *
+   * ⚠ I REFLECTED THE PERCENTAGE AND DROPPED THE PIXELS. The anchor is
+   * `left: calc(35% + WATCH_LEFT px)` and `WATCH_LEFT` is
+   * `77 - WATCH_ARM * WATCH_S / 2` = **-748px** — the compensation for the
+   * forearm hanging off the canvas's left edge. My `setHanded` wrote
+   * `left: 65%` and lost that term entirely, so the element jumped 748 px right
+   * on top of a reflection that was wrong anyway. That is the whole of what he
+   * is looking at.
+   *
+   * SO IT ANCHORS FROM THE OTHER EDGE INSTEAD OF REFLECTING. `right:` with the
+   * IDENTICAL expression is the exact mirror by construction — same percentage,
+   * same pixels, measured from the far side — and there is no arithmetic to get
+   * wrong. Nothing in the left-handed case is retuned; the right-handed case is
+   * the same string against the opposite edge.
+   *
+   * AND TWO MORE TERMS THAT DO NOT MIRROR BY THEMSELVES:
+   *
+   *   `transform-origin` is pinned in PIXELS FROM THE RIGHT EDGE —
+   *   `calc(100% - WATCH_PIVOT px)`, put there by an earlier builder to sit the
+   *   pivot on the limb's middle. A distance from the right edge measures from
+   *   the wrong side once the element is flipped, so it becomes a plain
+   *   `WATCH_PIVOT px` from the left. Same point on the arm, either way round.
+   *
+   *   `WATCH_TILT` HAS TO CHANGE SIGN. CSS applies a transform list
+   *   right-to-left, so `scaleX(-1)` mirrors the element FIRST and the rotate
+   *   then happens in screen space — leaving a mirrored arm leaning the SAME
+   *   way, which reads as broken rather than as the other hand. +16 against -16
+   *   gives the same magnitude in the opposite direction, which is what a mirror
+   *   image is.
+   *
+   * `translateX(-50%)` NEEDS NOTHING, and that is worth stating because it looks
+   * like it should: it centres the element on its own anchor, and centring is
+   * symmetric. With the anchor mirrored correctly it lands correctly.
+   *
+   * EVERY NUMBER IS THE APPROVED ONE. WATCH_X 35, WATCH_LIFT 22, WATCH_TILT 16,
+   * WATCH_POS 8, WATCH_LEFT and WATCH_PIVOT are all read, none is duplicated
+   * for the right-handed case — so a future nudge to any of them moves both
+   * hands together and they cannot drift apart.
+   */
   const HAND = () => (handed === 'left' ? '' : ' scaleX(-1)');
-  const WATCH_SHOWN = () => `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-${WATCH_TILT}deg)${HAND()}`;
-  const WATCH_HIDDEN = () => `translateX(-50%) translateY(140%) rotate(-${WATCH_TILT}deg)${HAND()}`;
+  const TILT = () => (handed === 'left' ? -WATCH_TILT : WATCH_TILT);
+  const WATCH_SHOWN = () => `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(${TILT()}deg)${HAND()}`;
+  const WATCH_HIDDEN = () => `translateX(-50%) translateY(140%) rotate(${TILT()}deg)${HAND()}`;
   // whole pixels for the same reason as WATCH_BOTTOM above. Both are already
   // integers at today's constants; rounding is what keeps them integers when
   // WATCH_ARM next changes. (The `WATCH_X%` anchor they are added to is still
@@ -2163,16 +2207,24 @@ export function makeHud(purse: Purse): Hud {
   const WATCH_LEFT = String(Math.round(77 - WATCH_ARM * WATCH_S / 2));
   const WATCH_PIVOT = String(Math.round(WATCH_HAND * WATCH_S / 2));
   const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${WATCH_H * WATCH_S}px;image-rendering:pixelated;display:block;`;
-  const WRAP_CSS = 'position:fixed;'
-    + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:${WATCH_BOTTOM}px;z-index:11;pointer-events:none;`
-    + `transform-origin:calc(100% - ${WATCH_PIVOT}px) ${WATCH_LIMB_H * WATCH_S / 2}px;`
+  /** the one anchor expression, used against whichever edge the hand wants */
+  const WATCH_ANCHOR = `calc(${WATCH_X}% + ${WATCH_LEFT}px)`;
+  const EDGE = () => (handed === 'left'
+    ? `left:${WATCH_ANCHOR};right:auto;`
+    : `right:${WATCH_ANCHOR};left:auto;`);
+  const ORIGIN = () => (handed === 'left'
+    ? `calc(100% - ${WATCH_PIVOT}px)`
+    : `${WATCH_PIVOT}px`);
+  const WRAP_CSS = () => 'position:fixed;'
+    + `${EDGE()}bottom:${WATCH_BOTTOM}px;z-index:11;pointer-events:none;`
+    + `transform-origin:${ORIGIN()} ${WATCH_LIMB_H * WATCH_S / 2}px;`
     + `transform:${WATCH_HIDDEN()};transition:transform .18s ease-out;`;
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
     watchWrap = document.createElement('div');
     watchWrap.id = 'ct-watch';
-    watchWrap.style.cssText = WRAP_CSS;
+    watchWrap.style.cssText = WRAP_CSS();
     watchCv = document.createElement('canvas');
     watchCv.width = WATCH_W; watchCv.height = WATCH_H;
     watchCv.style.cssText = WATCH_CSS;
@@ -2184,7 +2236,7 @@ export function makeHud(purse: Purse): Hud {
     // pivot and the canvas's displayed size at whatever the previous build set
     // — so a rebuild would have shown the new arm at the old scale, in the old
     // place, which is three bugs that only appear on the second build.
-    watchWrap.style.cssText = WRAP_CSS;
+    watchWrap.style.cssText = WRAP_CSS();
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
     watchCv.width = WATCH_W; watchCv.height = WATCH_H;
     watchCv.style.cssText = WATCH_CSS;
@@ -2852,8 +2904,17 @@ export function makeHud(purse: Purse): Hud {
      */
     setHanded: (hand) => {
       handed = hand;
-      watchWrap!.style.left = `${hand === 'left' ? WATCH_X : 100 - WATCH_X}%`;
+      // RE-LAID AS A SET, never one property at a time — the anchor, the pivot
+      // and the tilt only mirror together, and poking `left` alone is exactly
+      // what put the arm 748 px off. The transition is suppressed for this one
+      // frame so switching hands is a cut rather than the arm sliding across
+      // the screen.
+      const t = watchWrap!.style.transition;
+      watchWrap!.style.transition = 'none';
+      watchWrap!.style.cssText = WRAP_CSS();
       watchWrap!.style.transform = watchHeld ? WATCH_SHOWN() : WATCH_HIDDEN();
+      void watchWrap!.offsetWidth;                 // commit before restoring it
+      watchWrap!.style.transition = t || 'transform .18s ease-out';
     },
     watch: (want, mins) => {
       // AN EMPTY WRIST HAS NOTHING TO CHECK. `crosstown.ts` asks for the arm
