@@ -4057,3 +4057,40 @@ same registration as flat 301's bed. Both tops are standable — seat 0.42, tabl
 walled full height on three sides.
 
 Live on 5177.
+
+## 2026-08-05 — "next i think i want to try to get this on railway"
+
+> *"next i think i want to try to get this on railway. for other people to play.
+> for that ill need to try to build a db of sorts. i did this before with another
+> game i made. i figure you can take inspo and try to get it working for us.
+> https://github.com/erickfm/slasher"*
+>
+> *"railway is auth'd install whatever you need thanks"*
+
+Built by the standing builder. **The reference was read and its ARCHITECTURE
+taken, not its language:** `erickfm/slasher`'s `server.py` is Flask serving a
+static game plus a JSON API, Postgres on Railway via `DATABASE_URL` and SQLite
+when that is absent — including the `postgres://` → `postgresql://` normalisation
+Railway forces on you. All of that is here in Node, because CROSSTOWN is already
+TypeScript and one toolchain is worth more than a familiar framework.
+
+- `server/` — Express. Serves `street/dist`, mounts five routes at `/api`.
+  Postgres when `DATABASE_URL` is set, `node:sqlite` from the standard library
+  when it is not, so a fresh checkout runs with no services and no npm package.
+- `street/src/proto/ct/save.ts` — **a slice registry, not a model of the game.**
+  A module that owns state declares `capture`/`restore` and this collects them
+  into one JSON document per player. Same argument as `ctx.spot` and
+  `ct/world.ts`: the owner owns the verb, and the central file never learns what
+  any of it is.
+- Identity is **a username and no password**, which is what he shipped in
+  slasher. Asked once per browser, and only when a server answered — so Pages
+  and the artifact never see a dialog.
+- `Dockerfile`, `.dockerignore`, `railway.json`, `DEPLOY.md`.
+
+**Nothing was linked and nothing was deployed** — the account is his. `DEPLOY.md`
+is the six-command sequence, and its first line is the prerequisite: 190 commits
+are unpushed and Railway builds from a pushed branch.
+
+**The Pages deploy and the packed artifact are untouched.** Neither has a server
+behind it, so `ct/save.ts` probes for one and falls back to `localStorage` —
+which is exactly what `ct/wardrobe.ts` already did.

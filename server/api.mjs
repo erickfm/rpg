@@ -53,15 +53,26 @@ export function api() {
   // below so that an oversized body is refused before it is parsed.
   r.use(express.json({ limit: MAX_SAVE_BYTES, type: ['application/json', 'text/plain'] }));
 
+  // ⚠ THIS IS 200 EVEN WHEN THE DATABASE IS DOWN, and that is deliberate.
+  //
+  // Two things read it and they want different answers:
+  //
+  //   · Railway's health check, which will REFUSE THE DEPLOY on a non-2xx. A
+  //     broken `DATABASE_URL` must not take the street off the internet — the
+  //     game needs no database, only saving does.
+  //   · the client (`ct/save.ts`), which asks "is there an API in front of me
+  //     at all", because on GitHub Pages and inside the artifact there is not.
+  //     That is true whether or not Postgres is answering this second; a save
+  //     that fails now retries on the next tick and the localStorage copy has
+  //     already landed.
+  //
+  // So `ok` is about the SERVER and `db.ok` is about the database, and the one
+  // you want when something is wrong is the second one.
   r.get('/health', async (_req, res) => {
-    try {
-      await db.ping();
-      res.json({ ok: true, db: db.KIND });
-    } catch (e) {
-      // 503, not 500: the process is fine, its database is not, and a platform
-      // health check should be able to tell those apart.
-      res.status(503).json({ ok: false, db: db.KIND, error: String(e && e.message || e) });
-    }
+    let dbOk = false, error;
+    try { await db.ping(); dbOk = true; }
+    catch (e) { error = String(e && e.message || e); }
+    res.json({ ok: true, db: { kind: db.KIND, ok: dbOk, ...(error ? { error } : {}) } });
   });
 
   r.post('/users', async (req, res) => {

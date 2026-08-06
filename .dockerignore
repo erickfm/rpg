@@ -1,0 +1,37 @@
+# Keep the build context small and the image reproducible. Anything listed here
+# is invisible to the Dockerfile, so check before adding: `street/scripts/lib/`
+# in particular MUST stay, because `street/vite.config.ts` imports
+# `shared-checkout.mjs` from it and the build will not start without it.
+
+node_modules
+**/node_modules
+
+# Build products. They are rebuilt in the image, and copying a stale `dist` in
+# would let a local build silently become the deploy.
+dist
+**/dist
+street/artifact
+
+# .git is not needed. `vite.config.ts`'s build stamp reads `git rev-parse` and
+# already falls back to "nogit" — *"a tarball with no .git still has to build"*.
+.git
+.gitignore
+.gitattributes
+.github
+.claude
+
+# The local SQLite save file — the deploy uses Postgres and must never inherit
+# somebody's laptop database.
+server/*.db
+server/*.db-shm
+server/*.db-wal
+
+# Instruments, notes and screenshots: none of it runs in the container.
+street/shots
+street/test
+street/notes
+street/PARALLEL-WORKFLOW.md
+street/FEATURE-REQUESTS.md
+*.log
+.DS_Store
+BRIEF*.md
