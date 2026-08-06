@@ -4301,3 +4301,46 @@ the figure back so an `[E]` can outline the keeper), `src/proto/ct/inventory.ts`
 (the model kit is exported). `WORLD OK`. Live on 5177. The diner, the bodega,
 the thrift store, the pawn shop, the video hut, VOLT VILLAGE and SLEEP CENTER
 follow on this pattern.
+
+### 2026-08-06 — "perfect yea apply it everywhere ty"
+
+**Six shops on the one pattern.** The burger barn's menu board, the diner's
+letter board over the pass, a handwritten price card on the bodega's counter, a
+biro card on the thrift store's till, the pawnbroker's rate card on his counter
+glass, and a tent card on the hotel's reception desk. Every one is a surface
+that room already had or already writes its signs in, in that room's own
+colours.
+
+**Boards that needed merging: one.** Only the burger barn's was three separate
+planes — a focus surface is one mesh, so it could only ever have offered a third
+of its own menu. The diner's board, the hotel's rate card and the pawn shop's
+counter were single meshes already; the bodega and the thrift store had no
+price list at all and got the card each of them already writes its notices on.
+
+**The same bug in three rooms.** `purse.inv[id] += 1`, bypassing `give` — the
+burger barn (two spots), the bodega (two) and the thrift store (one). All five
+took money from a player with no room and handed him nothing. The thrift's was
+worse: `'COAT'` was an id nobody had declared, so even when it worked the coat
+arrived as a generic wrapped parcel. Grepped the whole tree; those were all of
+them, and they are gone.
+
+**Sixteen new items**, every one with a bag icon and a dropped model: BURGER,
+CHICKEN, FRIES, PIE, SHAKE, COFFEE, EGGS, PLATTER, SANDWICH, CHIPS, COAT, SHIRT,
+BELT, BOOK, RADIO, WRISTWATCH. Nine lines across the six shops sell things the
+world already had — cereal, soda, a newspaper, tube socks, trainers, a toaster,
+a video tape.
+
+**The hotel sells a night, not an object.** `StockLine.serve` returns whether it
+happened, and the money moves only on true — the same rule the bag path uses,
+in the same function.
+
+**No interior, so no shop: VIDEO HUT, VOLT VILLAGE, SLEEP CENTER.** All three
+are painted shopfronts. There are twelve interiors in this world and those are
+not among them; each would be a room to build before it could be a shop.
+
+**Out of scope and left alone:** the bank, the library, the church, the tax
+office, the jail and the casino — services with their own machinery.
+
+`src/proto/ct/shop.ts`, `src/proto/ct/goods.ts`, `int-burger.ts`,
+`int-diner.ts`, `int-bodega.ts`, `int-thrift.ts`, `int-pawn.ts`,
+`int-hotel.ts`, `interior.ts`, `inventory.ts`. `WORLD OK`. Live on 5177.
