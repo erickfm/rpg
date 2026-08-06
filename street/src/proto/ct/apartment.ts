@@ -27,7 +27,7 @@ import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
 import { givePackage, pocketsFull, fullWhy } from './inventory';
-import { screenFade, makePanel, type Panel } from './hud';
+import { screenFade, makePanel, nightAt as hudNightAt, type Panel } from './hud';
 /** THE MIRROR'S OWN VIEW — the panel, the figure in it and the six racks live
  *  in `ct/mirror.ts` + `ct/wardrobe.ts`, which this file hangs the glass for.
  *  `GLASS` is the palette the wall plate below paints with, so the mirror seen
@@ -6264,25 +6264,100 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       });
     }
 
+    /**
+     * ══ AND THE ROOM FOLLOWS THE CLOCK ════════════════════════════════════
+     *
+     * *"room doesnt seem to get darker at night?"*   (2026-08-05)
+     *
+     * ⚠ IT NEVER HAS, AND THAT WAS DELIBERATE — by somebody else, for a good
+     * reason that has since expired. `props.ts:979` is one line:
+     * `if (Math.abs(wp.x) > 100) return;  // interiors keep their own light`.
+     * The world's grading pass skips every interior, because before today a room
+     * had no light of its own to lose — grading it would just have made it
+     * unusable after dark with nothing to turn on.
+     *
+     * 428ea23a CHANGED THAT PREMISE by giving 301 a switch and a material sweep,
+     * so the room now HAS a lit state and an unlit one. Nightfall is the same
+     * arithmetic on the same list; it was only ever missing the second input.
+     *
+     * THE MODEL, and it is the switch that makes it honest:
+     *
+     *   LIGHT ON    the room is lit because he lit it. It still loses a little
+     *               after dark — 0.82 at midnight against 1.0 at noon — because
+     *               one bulb does not replace a window, but it does not track
+     *               the sun. A room with the light on does not go dark at night.
+     *   LIGHT OFF   the window IS the light, so the room follows the sun
+     *               exactly: `ROOM_DARK` 0.34 by day, `ROOM_NIGHT` 0.16 at
+     *               midnight. That is the difference he is asking for, and it
+     *               is what makes the switch worth throwing.
+     *
+     * ⚠ NOT PER FRAME. The sweep touches every material in the flat, and the
+     * night curve moves on a game clock where a whole hour is a minute of play.
+     * It re-applies only when the factor has actually moved by 1% — about a
+     * dozen times across a night rather than sixty times a second.
+     *
+     * WHAT STILL DOES NOT FOLLOW IT: everything `selfLit`, which is the correct
+     * list — the ceiling halo, the television's glow and its wedge. A screen
+     * does not dim because the sun set. The window and the city beyond it are
+     * outside the room's bounds and keep their own sky, which is the whole point
+     * of a window.
+     */
+    const ROOM_NIGHT = 0.16;                  // light off, midnight
+    const LIT_NIGHT = 0.82;                   // light on, midnight — a bulb is not a sun
     let lightOn = true;
+    let lastK = -1;
     // ⚠ THE MIRROR'S FOCUSED VIEW CANNOT BE DIMMED BY THE MATERIAL — the panel
     // framework forces its colour white on open so a letter is readable after
     // dark. So it asks instead, and paints the room's light into the picture.
     // The plate on the wall needs none of this: it is an ordinary mesh inside
     // the bounds and the sweep already scales its colour.
-    setRoomLight(() => (lightOn ? 1 : ROOM_DARK));
+    // the mirror is a picture OF this room, so it takes the same number — the
+    // switch AND the hour, not the switch alone
+    let mirrorK = 1;
+    const setRoomLightLevel = (k: number) => { mirrorK = k; };
+    setRoomLight(() => mirrorK);
     const setLight = (on: boolean) => {
       lightOn = on;
       flatLamp.spill.visible = on;
       (flatLamp.dome.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xffffff : 0x6b6659);
-      const k = on ? 1 : ROOM_DARK;
-      for (const d of dimmable) d.m.color.setRGB(d.base.r * k, d.base.g * k, d.base.b * k);
+      // ⚠ THE CLOCK IS NOT READ HERE, and that is not a style choice: this runs
+      // at BUILD time and `crosstown.ts`'s `let totalMin` is declared AFTER
+      // `buildApartment(ctx)` — so `ctx.clock.now()` on this path is a
+      // temporal-dead-zone throw and takes the whole world down. It did, and
+      // `health.mjs` caught it; `npx tsc --noEmit` was clean, exactly as it was
+      // for the `rig.look2` fault an hour earlier. THE RULE, twice over now:
+      // anything that reads world state must run from a frame hook, not from a
+      // builder.
+      //
+      // So the switch grades on ITS OWN, at full daylight, and the first frame
+      // refines it with the hour. `lastK` is invalidated so that frame is not
+      // skipped by the 1% guard.
+      const k0 = on ? 1 : ROOM_DARK;
+      for (const d of dimmable) d.m.color.setRGB(d.base.r * k0, d.base.g * k0, d.base.b * k0);
+      setRoomLightLevel(k0);
+      lastK = -1;
       // ⚠ AND THE TELEVISION IS TOLD. With the ceiling light on its spill barely
       // marks the floor; with it off the set IS the light in the flat. See
       // `TV_SPILL_LIT` / `TV_SPILL_DARK`.
       tvSetRoomLit(on);
       swRock.position.y = SW_Y + (on ? 0.012 : -0.012);   // the rocker tips
     };
+    /** the room's light right now: the switch, then the hour. See `ROOM_NIGHT`. */
+    const roomK = (): number => {
+      const hourF = (ctx.clock.now().totalMin % 1440) / 60;
+      const day = 1 - hudNightAt(hourF);            // 1 at noon, 0 at midnight
+      return lightOn
+        ? LIT_NIGHT + (1 - LIT_NIGHT) * day
+        : ROOM_NIGHT + (ROOM_DARK - ROOM_NIGHT) * day;
+    };
+    const applyRoomLight = () => {
+      const k = roomK();
+      if (Math.abs(k - lastK) < 0.01) return;       // see "NOT PER FRAME" above
+      lastK = k;
+      for (const d of dimmable) d.m.color.setRGB(d.base.r * k, d.base.g * k, d.base.b * k);
+      setRoomLightLevel(k);
+    };
+    ctx.onFrame(() => { if (Math.abs(lastGy - 2 * ST) < 0.6) applyRoomLight(); });
     setLight(true);
     ctx.spot({
       x: AX(-0.62), z: SW_Z, r: 0.72,

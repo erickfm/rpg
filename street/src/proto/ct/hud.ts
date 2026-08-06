@@ -61,6 +61,25 @@ export interface Purse {
   pin?: string;
 }
 
+/**
+ * ── ONE NIGHT CURVE, SHARED ───────────────────────────────────────────────
+ *
+ * Hoisted to module scope and exported on 2026-08-05 so `ct/apartment.ts` can
+ * darken 301 on the SAME curve the sky, the lamps and the night wash use.
+ * *"room doesnt seem to get darker at night?"* — and the one thing worse than a
+ * room that does not follow the clock is a room that follows a SECOND clock.
+ * Unchanged in value and still the hud's own `nightAt`; only its scope moved.
+ */
+const NIGHT_STOPS: [number, number][] = [
+  [0, 0.58], [5, 0.58], [7, 0.18], [8.5, 0], [17.5, 0], [19, 0.20], [20, 0.40], [21.5, 0.58], [24, 0.58],
+];
+export const nightAt = (h: number): number => {
+  let i = 0;
+  while (i < NIGHT_STOPS.length - 2 && NIGHT_STOPS[i + 1][0] < h) i++;
+  const [h0, v0] = NIGHT_STOPS[i], [h1, v1] = NIGHT_STOPS[i + 1];
+  const t = THREE.MathUtils.clamp((h - h0) / (h1 - h0), 0, 1);
+  return v0 + (v1 - v0) * t;
+};
 export interface Hud {
   /** sky colour at hour h. A SHARED colour, rewritten in place every call. */
   skyAt: (h: number) => THREE.Color;
@@ -1883,9 +1902,7 @@ export function makeHud(purse: Purse): Hud {
   // Night wash. Peak was 0.34, which read as a dim evening rather than night;
   // 0.58 lets the sodium streetlamps actually be the light source they were
   // built to be. Dusk ramps harder too, so the turn feels like nightfall.
-  const NIGHT_STOPS: [number, number][] = [
-    [0, 0.58], [5, 0.58], [7, 0.18], [8.5, 0], [17.5, 0], [19, 0.20], [20, 0.40], [21.5, 0.58], [24, 0.58],
-  ];
+
   const cA = new THREE.Color(), cB = new THREE.Color(), skyNow = new THREE.Color();
   const skyAt = (h: number): THREE.Color => {
     let i = 0;
@@ -1893,13 +1910,6 @@ export function makeHud(purse: Purse): Hud {
     const [h0, s0] = SKY_STOPS[i], [h1, s1] = SKY_STOPS[i + 1];
     const t = THREE.MathUtils.clamp((h - h0) / (h1 - h0), 0, 1);
     return skyNow.copy(cA.set(s0)).lerp(cB.set(s1), t);
-  };
-  const nightAt = (h: number): number => {
-    let i = 0;
-    while (i < NIGHT_STOPS.length - 2 && NIGHT_STOPS[i + 1][0] < h) i++;
-    const [h0, v0] = NIGHT_STOPS[i], [h1, v1] = NIGHT_STOPS[i + 1];
-    const t = THREE.MathUtils.clamp((h - h0) / (h1 - h0), 0, 1);
-    return v0 + (v1 - v0) * t;
   };
   let nightDiv = document.getElementById('ct-night') as HTMLDivElement | null;
   if (!nightDiv) {
