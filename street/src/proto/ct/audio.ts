@@ -135,14 +135,19 @@ const LVL = {
   rain: 0.30,      // multiplied by rainLevel, so this is its DOWNPOUR level
   rainIndoors: 0.20, // …of the above, heard through a window
   site: 0.20,      // multiplied by distance and by the working day
-  // *"step sounds are too loud"*, immediately after the beds came down — and
-  // holding the one-shots still through that edit is what exposed it. Down
-  // ~8 dB. A footstep is your own shoe a metre and a half below your ears, not
-  // an event in the world, and the encoder had already lifted `stepinside` by
-  // 12 dB to bring it level with the pavement.
-  stepOut: 0.22,
-  stepIn: 0.20,
-  bird: 0.45,      // multiplied by distance
+  // THESE WENT DOWN 8 dB AND CAME STRAIGHT BACK UP. *"step sounds are too
+  // loud"*, then *"revert step vol sorry"* four minutes later. He is the check
+  // and the second word wins, so this is the ORIGINAL level, restored exactly.
+  //
+  // Worth writing down rather than quietly reverting: the complaint arrived
+  // right after the beds dropped 7 dB, and 0.22 was the answer to a mix that
+  // had only just moved under it. Once he had walked around with it, the steps
+  // at 0.55 over beds at 0.15 were what he wanted — the first reading was of
+  // the CHANGE, not of the level. A one-shot heard against a bed that shifted a
+  // moment ago is not yet a judgement about the one-shot.
+  stepOut: 0.55,
+  stepIn: 0.50,
+  bird: 0.70,      // multiplied by distance
 };
 
 /** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
