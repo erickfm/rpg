@@ -1204,6 +1204,39 @@ uniform float uPoolAmb;`)
     // point: the alley gap, the library's recessed courtyard and any setback
     // a builder adds later all handle themselves, because a gap in the walls
     // is simply a gap in the intervals. No cooperation needed from D or E.
+    //
+    // ── OFF. THIS IS "THE SHADOWS IN FRONT OF THE BANK AND THE LIBRARY" ─────
+    //
+    // Reported FOUR times — the burger barn, the bodega, the church frontage,
+    // and finally *"please get rid of the shadows here in front of the bank
+    // and the library. it's raining idk if that affects it"*. It is raining,
+    // and it does affect it: these sheets ride `wetness`, so every hunt run in
+    // dry weather found a clean pavement and three builders reported no fault.
+    //
+    // Two censuses missed them for the same reason. They were LOOKED FOR as
+    // something lying on the paving, and they are not: a sheet stands at the
+    // building line 1.07 m from a player walking the sacred 2 m lane, so at
+    // ANY glancing angle a 1.15 m strip projects across the whole lower half
+    // of the frame and tints the wall, the litter bin and ten metres of paving
+    // TOGETHER, with straight edges that owe nothing to the paving grid. That
+    // is exactly what the screenshots show, and no ground-hugging quad can do
+    // it. Measured at the reported spot in rain: 3.4 m of sheet at 1.2 m from
+    // the eye, opacity 0.328, covering x 563→900 of a 900 px frame. Hiding it
+    // and only it makes the reported artifact vanish.
+    //
+    // TWO REASONS IT READS AS A HARD-EDGED STAIN RATHER THAN A WET WALL, both
+    // worth knowing before anyone switches it back on:
+    //   · the gradient is UPSIDE DOWN. `splashT` paints its opaque end at
+    //     canvas y 0 — "opaque at the pavement" — but `pixTex` builds a
+    //     CanvasTexture, whose default `flipY` puts canvas y 0 at the TOP of
+    //     the plane. So the sheet is densest at 1.29 m up the wall and fades
+    //     out at the pavement: a dark band floating a metre off the ground
+    //     with a hard straight top edge, which is precisely a "shadow".
+    //     `splashT.flipY = false` below is the fix, applied and ready.
+    //   · a run also has no falloff at its ENDS, so where one stops it stops
+    //     dead — the hard vertical edges in the shot.
+    // Fix the second and flip this flag if wet walls are wanted back.
+    const WALL_SPLASH_SHEETS = false;
     root.updateMatrixWorld(true);
     const runs: Record<number, [number, number][]> = { [-1]: [], [1]: [] };
     const bb = new THREE.Box3();
@@ -1228,6 +1261,7 @@ uniform float uPoolAmb;`)
       for (const [z0, z1] of merged) {
         const len = z1 - z0;
         if (len < 1.5) continue;
+        if (!WALL_SPLASH_SHEETS) continue;
         const t = splashT.clone(); t.needsUpdate = true;
         t.repeat.set(len / 4, 1);                              // a streak every ~4 m
         const m = new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false });
@@ -1516,6 +1550,11 @@ uniform float uPoolAmb;`)
       }
     }
   }), 'detail');
+  // THE CANVAS IS PAINTED PAVEMENT-FIRST, SO DO NOT LET THE TEXTURE FLIP IT.
+  // `pixTex` returns a CanvasTexture and three's default `flipY` puts canvas
+  // row 0 at the TOP of the plane — which stood this gradient on its head and
+  // hung a dark band a metre up the wall. See the note by WALL_SPLASH_SHEETS.
+  splashT.flipY = false;
   splashT.wrapS = splashT.wrapT = THREE.RepeatWrapping;
   const splashMats: THREE.MeshBasicMaterial[] = [];
 
