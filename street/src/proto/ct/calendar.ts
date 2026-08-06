@@ -61,7 +61,7 @@
  *     a season   28 days  = 11.2 real hours
  *     a year    112 days  = 44.8 real hours
  *
- * and rent, being due on the 1st, is therefore a **once-per-11.2-hours** event
+ * and rent, being due once a season, is therefore a **once-per-11.2-hours** event
  * if you only ever walk. Sleeping is the release valve — `ctx.clock.advance()`
  * moves eight game hours in about a second and a half — so a player who sleeps
  * crosses a season in minutes rather than in an evening.
@@ -220,7 +220,7 @@ export function noDelivery(day: number): boolean { return fmod(day, 7) === 6; }
 
 // ── THE LEASE ──────────────────────────────────────────────────────────────
 //
-// It lives in the calendar because rent is a DATE — "the 1st of the month" — and
+// It lives in the calendar because rent is a DATE — "the 5th of the month" — and
 // splitting the terms from the date is what produced two disagreeing copies in
 // the first place. `ct/tenancy.ts` runs the tenancy off these; the wall calendar
 // in 301 rings the days off these. There is one copy and it is this one.
@@ -242,14 +242,40 @@ export const RENT = {
    */
   amount: 45,
   /**
-   * The notice lands this many days before the 1st.
+   * ── WHICH DAY OF THE SEASON THE RENT FALLS ON ────────────────────────────
+   *
+   * *"make rent due on the 5th instead of the 1st ty"*   (2026-08-05)
+   *
+   * THE ONE NUMBER. `dueDay`, `isRentDay`, `duePeriodsBy`, `nextDueDay` and
+   * `noticeDay` are all expressed through it, so this line is the whole change
+   * and nothing downstream holds a second opinion — the wall calendar's ring,
+   * its event line, the notice, the receipt and the landlord all follow.
+   *
+   * IT IS A FRIDAY, EVERY TIME. `DAYS_PER_SEASON` is 28, a whole number of
+   * weeks, and day 0 is a Monday — so the 1st was a Monday for ever and the 5th
+   * is a Friday for ever. Nothing depended on rent day being a Monday: the only
+   * weekday rule in this module is `noDelivery` (Sunday, no post), and Friday is
+   * a delivery day. Rent due on a Friday is the more period-correct of the two
+   * anyway — you paid the agent at the end of the working week.
+   *
+   * AND THE FIRST OF THE SEASON IS STILL A MONDAY. That property was about the
+   * calendar page's shape, not about rent, and it is untouched: the grid still
+   * starts flush with no lead-in blanks.
+   */
+  dueDayOfSeason: 5,
+  /**
+   * The notice lands this many days before the rent day.
    *
    * 3, up from 2. Against a seven-day cycle 2 days was 28% of the period; against
    * a 28-day one it is 7%, and a reminder that arrives at the very last moment
-   * of a season is a reminder for a game with a much faster clock than this. At
-   * 3 the notice lands on the **Friday** before the season turns — every time,
-   * because 28 is a whole number of weeks — which is exactly when a real agent
-   * posts one.
+   * of a season is a reminder for a game with a much faster clock than this.
+   *
+   * ⚠ WHERE IT LANDS CHANGED WITH THE DUE DAY, AND FOR THE BETTER. It used to
+   * fall 3 days before the 1st, i.e. on the PREVIOUS season's 26th — a warning
+   * about SUMMER's rent arriving in SPRING, which reads as a stray. Off the 5th
+   * it lands on the **2nd of the same season**, a Tuesday, so the notice and the
+   * bill are on the same page of the calendar. That is what a real agent posts
+   * and it is what the wall calendar can now show.
    */
   noticeLead: 3,
   /**
@@ -259,12 +285,16 @@ export const RENT = {
    * *"when you start the game it's the first but ur mom already paid for your
    *  first month when she kicked you out"*
    *
-   * Day 0 IS the 1st, so a month's rent falls due the instant the world loads.
-   * She covered it. `ct/tenancy.ts` seeds `paidPeriods` from this, so on a fresh
-   * start `owed()` is 0 — which means no arrears, no PAST DUE stamp, no slip
-   * under the door and **no landlord in the lobby** (he only stands there when
-   * he is owed). The first payment you make with your own money is the 1st of
-   * the next season.
+   * Day 0 is SPRING 1 and the first rent day is SPRING 5 — day 4 — so a month
+   * falls due four days into the world rather than the instant it loads. She
+   * covered it. `ct/tenancy.ts` seeds `paidPeriods` from this, so on a fresh
+   * start `owed()` is 0 and STAYS 0 through the whole of spring: no arrears, no
+   * PAST DUE stamp, no slip under the door and **no landlord in the lobby** (he
+   * only stands there when he is owed).
+   *
+   * The first payment you make with your own money is **SUMMER 5, day 32**.
+   * `duePeriodsBy` is 0 on day 0 now, where it used to be 1 — the game no longer
+   * opens ON a rent day — and 1 from day 4, which is the month she paid.
    *
    * Her receipt is in the mailbox on day 0. See `prepaidReceipt` in tenancy.
    */
@@ -275,29 +305,39 @@ export const RENT = {
   building: 'No. 227',
 } as const;
 
-/** Is the rent due on `day`? The 1st of a season, and nothing else. */
+/** Is the rent due on `day`? `RENT.dueDayOfSeason` of a season, and nothing else. */
 export function isRentDay(day: number): boolean {
-  return day >= 0 && dateOf(day).dayOfSeason === 1;
+  return day >= 0 && dateOf(day).dayOfSeason === RENT.dueDayOfSeason;
 }
 
-/** The game day of the `n`th rent day, counting from 0. Day 0, 28, 56, 84 … */
-export function dueDay(n: number): number { return n * DAYS_PER_SEASON; }
+/** The game day of the `n`th rent day, counting from 0. Day 4, 32, 60, 88 … */
+export function dueDay(n: number): number {
+  return n * DAYS_PER_SEASON + RENT.dueDayOfSeason - 1;
+}
 
 /**
  * How many rent days have arrived by `day` — `dueDay(n) <= day` for n < this.
  *
- * NOTE THAT THIS IS 1 ON DAY 0, not 0: the game opens ON a rent day and that
- * month is genuinely due. It is also genuinely paid — see `RENT.prepaidMonths`.
+ * ⚠ IT IS 0 ON DAY 0 NOW, where it used to be 1. The game opened ON a rent day
+ * when rent was the 1st; on the 5th it opens four days short of one, so nothing
+ * is due until day 4. `RENT.prepaidMonths` still covers that first one, so the
+ * fresh-start balance is 0 either way — but the reason is different and the
+ * arithmetic below had to stop assuming it.
+ *
+ * COUNTED FROM THE DUE DAY, not from the season boundary: `dueDay(n) = n*28 + 4`,
+ * so the count is how many of those are at or below `day`.
  */
 export function duePeriodsBy(day: number): number {
-  if (day < 0) return 0;
-  return dateOf(day).monthIndex + 1;
+  const first = dueDay(0);
+  if (day < first) return 0;
+  return Math.floor((day - first) / DAYS_PER_SEASON) + 1;
 }
 
 /** The next rent day on or after `day`. */
 export function nextDueDay(day: number): number {
-  if (day <= 0) return 0;
-  return Math.ceil(day / DAYS_PER_SEASON) * DAYS_PER_SEASON;
+  const first = dueDay(0);
+  if (day <= first) return first;
+  return Math.ceil((day - first) / DAYS_PER_SEASON) * DAYS_PER_SEASON + first;
 }
 
 /**

@@ -4893,7 +4893,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      *               `lead` of blank cells to cope with them.
      *
      * THE WORLD HAS ONE CALENDAR AND IT IS `ct/calendar.ts`: four 28-day
-     * seasons to a year, day 0 is SPRING 1 1997, the 1st of every season is a
+     * seasons to a year, day 0 is SPRING 1, the 1st of every season is a
      * Monday for ever, and rent buys a season. The old epoch's own reasoning —
      * that `noDelivery` fixes day 0 as a Monday, so any page drawn here must
      * start on one — is preserved there and made structural: 28 is a whole
@@ -4983,12 +4983,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * ⚠ NOTHING IS INVENTED HERE. These are the only two dated things
      * `ct/calendar.ts` actually knows, and both come straight out of it:
      *
-     *   RENT DUE      `isRentDay` — the 1st of every season
+     *   RENT DUE      `isRentDay` — the 5th of every season
      *   RENT NOTICE   `noticeDay` — three days before, backed off Sundays
      *
-     * NOT SURFACED, and each for a reason. The SEASON CHANGE falls on the same
-     * day as the rent and the banner above the grid already names the season,
-     * so it would be a third label for a fact stated twice. SUNDAY (`noDelivery`)
+     * NOT SURFACED, and each for a reason. The SEASON CHANGE is the 1st and the
+     * banner above the grid already names the season, so a label would be a
+     * third statement of a fact the page makes twice. (It used to fall on rent
+     * day; since 2026-08-05 rent is the 5th, so they are different cells now and
+     * the reasoning holds for the same reason either way.) SUNDAY (`noDelivery`)
      * is real and is not an event — labelling every seventh cell "NO POST" is
      * noise, and it is a property of the week rather than something happening.
      *
@@ -5170,7 +5172,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           // ry pulled well inside the row. It was tuned when rent was WEEKLY
           // and a page carried four or five rings: at `rowH/2 - 0.3` they ran
           // into one another and a month of Wednesdays read as a chain down
-          // the page. There is exactly one ring on a page now — the 1st — so
+          // the page. There is exactly one ring on a page now — the 5th — so
           // nothing can chain, and the figure is kept because an ellipse that
           // touches the row above and below reads as a box, not as a ring.
           g.ellipse(u(cx), u(cy), u(2.7), u(rowH / 2 - 1.0), 0, 0, Math.PI * 2);
@@ -5190,10 +5192,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // he asked for *"click a day … it just says, rent due"* and got it, and
       // the standing banner became the same fact stated twice, permanently, in
       // the space a selected day's answer belongs in. Nothing is lost: click
-      // the 1st and `RENT DUE $45` is there in the same ink, in the same two
-      // lines, because he asked a question.
+      // the 5th and `RENT DUE $45` is there in the same ink, because he asked a
+      // question.
       //
-      // The ring round the 1st is still drawn and is still the thing that
+      // The ring round the 5th is still drawn and is still the thing that
       // catches your eye without being told — the calendar has always marked
       // rent day in biro and that has not changed.
       //

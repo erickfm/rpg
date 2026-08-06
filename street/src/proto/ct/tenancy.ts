@@ -79,15 +79,19 @@ export const ORDER = BUILD.PROPS + 6;      // after ct/inventory.ts (+5) adopts 
 //    is a season, spring, summer, fall, winter"*
 //
 // So: FOUR MONTHS IN A YEAR, each one a season, 28 days each. Rent is due on
-// the 1st of each — four payments a year, one per season, always on a Monday.
-// Day 0 is SPRING 1, 1997, which IS a rent day, and `RENT.prepaidMonths` says
-// your mother covered it. A fresh start therefore owes nothing: no arrears, no
-// PAST DUE stamp, no slip under the door and no landlord in the lobby. What is
-// in the box on day 0 instead is HER RECEIPT (`prepaidReceipt` below), which is
-// where the backstory lives — it is a document the landlord already writes in
-// this file, not a cutscene and not a new panel.
+// the 5th of each — four payments a year, one per season, always on a FRIDAY
+// (*"make rent due on the 5th instead of the 1st ty"*, 2026-08-05; 28 is a whole
+// number of weeks, so the 1st is a Monday for ever and the 5th is a Friday for
+// ever). Day 0 is SPRING 1 and the first rent day is SPRING 5, day 4 — so the
+// world no longer opens ON a rent day, it opens four days short of one. That
+// month is still your mother's: `RENT.prepaidMonths` covers it, so a fresh
+// start owes nothing through the whole of spring — no arrears, no PAST DUE
+// stamp, no slip under the door and no landlord in the lobby. What is in the
+// box on day 0 instead is HER RECEIPT (`prepaidReceipt` below), which is where
+// the backstory lives — a document the landlord already writes in this file,
+// not a cutscene and not a new panel.
 //
-// The first rent you pay out of your own pocket is day 28, the 1st of SUMMER.
+// The first rent you pay out of your own pocket is day 32, the 5th of SUMMER.
 
 // ── the tenancy's own state ───────────────────────────────────────────────
 //
@@ -99,10 +103,12 @@ export const ORDER = BUILD.PROPS + 6;      // after ct/inventory.ts (+5) adopts 
  * Rent days settled so far. `paidPeriods === duePeriodsBy(day)` means square.
  *
  * IT STARTS AT 1, NOT 0, AND THAT IS THE WHOLE OPENING OF THE GAME. Day 0 is
- * the 1st of SPRING, `duePeriodsBy(0)` is therefore 1, and a month falls due the
- * instant the world loads — *"when you start the game it's the first"*. The one
- * already on the books is your mother's: *"ur mom already paid for your first
- * month when she kicked you out"*. One number, and every downstream thing that
+ * SPRING 1 and the first rent day is SPRING 5 — so `duePeriodsBy(0)` is now 0,
+ * not 1, and the month falls due on day 4 rather than the instant the world
+ * loads. The one already on the books is your mother's: *"ur mom already paid
+ * for your first month when she kicked you out"*. Seeding at 1 against a count
+ * of 0 leaves the balance at 0 through spring and settles her month the moment
+ * it arrives, which is what being paid up in advance means. One number, and every downstream thing that
  * reads `owed()` — the landlord's presence, the stamp on the notice, the slip
  * under your door — comes out right without knowing why.
  */
@@ -357,7 +363,7 @@ function prepaidReceipt(): Letter {
       'on her way out. She asked me to',
       'keep an eye on you. I told her no.',
       '',
-      `Next is the 1st of ${next}.`,
+      `Next is the 5th of ${next}.`,
       `                      — ${RENT.landlord}`,
     ],
   };
