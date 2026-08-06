@@ -2196,19 +2196,44 @@ export function makeHud(purse: Purse): Hud {
    *   gives the same magnitude in the opposite direction, which is what a mirror
    *   image is.
    *
-   * `translateX(-50%)` NEEDS NOTHING, and that is worth stating because it looks
-   * like it should: it centres the element on its own anchor, and centring is
-   * symmetric. With the anchor mirrored correctly it lands correctly.
+   * ⚠ AND `translateX(-50%)` DID NEED SOMETHING — the note that used to stand
+   * here said it did not, and *"hm when i right click i no longer see my watch"*
+   * (2026-08-05) is what that cost. Two terms were wrong together and they only
+   * bite in the right-handed case:
+   *
+   *   `translateX(-50%)` CENTRES ON A `left:` ANCHOR AND HANGS OFF A `right:`
+   *   ONE. With `left`, the anchor IS the element's left edge, so pulling back
+   *   half a width puts the anchor on the element's centre. With `right`, the
+   *   anchor is the element's RIGHT edge, so the same pull-back moves the box a
+   *   full half-width away from where the mirror wants it. It has to change
+   *   sign: `translateX(50%)`.
+   *
+   *   `scaleX(-1)` ON THE WRAPPER SCALES ABOUT `transform-origin`, WHICH IS THE
+   *   ROTATION PIVOT, NOT THE CENTRE. Reflecting a 2134 px box about a point
+   *   242 px from its edge slides it 3784 px sideways. Measured: the arm raised
+   *   correctly and landed at screen x -3417..-1301 on a 1000 px viewport —
+   *   off the left of the world entirely. The watch was working; it was nowhere
+   *   near the screen.
+   *
+   * SO THE MIRROR GOES ON THE DRAWING, NOT ON THE BOX. `scaleX(-1)` moves to
+   * the CANVAS, whose transform-origin is its own centre by default, so it
+   * flips the picture in place and moves nothing. The wrapper then mirrors with
+   * geometry only — the same anchor expression against the far edge, the
+   * centring translate the other way, the tilt the other way, the pivot
+   * measured from the near edge — and every one of those is exact by
+   * construction rather than tuned.
    *
    * EVERY NUMBER IS THE APPROVED ONE. WATCH_X 35, WATCH_LIFT 22, WATCH_TILT 16,
    * WATCH_POS 8, WATCH_LEFT and WATCH_PIVOT are all read, none is duplicated
    * for the right-handed case — so a future nudge to any of them moves both
    * hands together and they cannot drift apart.
    */
-  const HAND = () => (handed === 'left' ? '' : ' scaleX(-1)');
+  /** the watch assembly's own centre line, in canvas texels — see `drawWatch` */
+  const WATCH_CX = 60;
+  const MID = () => (handed === 'left' ? 'translateX(-50%)' : 'translateX(50%)');
   const TILT = () => (handed === 'left' ? -WATCH_TILT : WATCH_TILT);
-  const WATCH_SHOWN = () => `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(${TILT()}deg)${HAND()}`;
-  const WATCH_HIDDEN = () => `translateX(-50%) translateY(140%) rotate(${TILT()}deg)${HAND()}`;
+  const WATCH_SHOWN = () => `${MID()} translateY(-${WATCH_LIFT_PX}px) rotate(${TILT()}deg)`;
+  const WATCH_HIDDEN = () => `${MID()} translateY(140%) rotate(${TILT()}deg)`;
   // whole pixels for the same reason as WATCH_BOTTOM above. Both are already
   // integers at today's constants; rounding is what keeps them integers when
   // WATCH_ARM next changes. (The `WATCH_X%` anchor they are added to is still
@@ -2216,7 +2241,10 @@ export function makeHud(purse: Purse): Hud {
   // one fractional term left in the element's position.)
   const WATCH_LEFT = String(Math.round(77 - WATCH_ARM * WATCH_S / 2));
   const WATCH_PIVOT = String(Math.round(WATCH_HAND * WATCH_S / 2));
-  const WATCH_CSS = `width:${WATCH_W * WATCH_S}px;height:${WATCH_H * WATCH_S}px;image-rendering:pixelated;display:block;`;
+  /** the drawing, and the only place the mirror lives — see the note above */
+  const WATCH_CSS = () => `width:${WATCH_W * WATCH_S}px;height:${WATCH_H * WATCH_S}px;`
+    + `image-rendering:pixelated;display:block;`
+    + (handed === 'left' ? '' : 'transform:scaleX(-1);');
   /** the one anchor expression, used against whichever edge the hand wants */
   const WATCH_ANCHOR = `calc(${WATCH_X}% + ${WATCH_LEFT}px)`;
   const EDGE = () => (handed === 'left'
@@ -2237,7 +2265,7 @@ export function makeHud(purse: Purse): Hud {
     watchWrap.style.cssText = WRAP_CSS();
     watchCv = document.createElement('canvas');
     watchCv.width = WATCH_W; watchCv.height = WATCH_H;
-    watchCv.style.cssText = WATCH_CSS;
+    watchCv.style.cssText = WATCH_CSS();
     watchWrap.appendChild(watchCv);
     document.body.appendChild(watchWrap);
   } else {
@@ -2249,7 +2277,7 @@ export function makeHud(purse: Purse): Hud {
     watchWrap.style.cssText = WRAP_CSS();
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
     watchCv.width = WATCH_W; watchCv.height = WATCH_H;
-    watchCv.style.cssText = WATCH_CSS;
+    watchCv.style.cssText = WATCH_CSS();
   }
   // the wrist-and-watch close-up (the good one — arm version was reverted)
   const drawWatch = (mins: number) => {
@@ -2670,6 +2698,19 @@ export function makeHud(purse: Purse): Hud {
     const STRAP_Y = 6 - STRAP_OVER, STRAP_H = 66 + STRAP_OVER * 2;
     g.save();
     g.translate(WATCH_POS, 0);
+    // ⚠ THE ONE THING THAT MUST NOT MIRROR IS THE FACE. Right-handed flips the
+    // whole canvas (`WATCH_CSS`), which is right for the limb and fatal for the
+    // dial: `13:22` came out backwards and `CROSSTOWN QUARTZ` with it. A watch
+    // is not mirrored when it moves wrists — it is the same object, read the
+    // same way round, on the other arm.
+    //
+    // So the assembly is flipped BACK about its own centre and the outer flip
+    // cancels it. 60 is that centre and it is not a new number: the case is
+    // `fillRect(32, …, 56, …)` → 32+56/2 = 60, the strap 38..82 → 60, and every
+    // `fillText` in both faces already aligns to x 60. `WATCH_POS` stays
+    // OUTSIDE this, so *"watch a little to the right on the arm"* keeps sliding
+    // it toward the hand on either arm rather than away from it.
+    if (handed === 'right') { g.translate(WATCH_CX * 2, 0); g.scale(-1, 1); }
     g.fillStyle = wch.cloth; g.fillRect(38, STRAP_Y, 44, STRAP_H);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, STRAP_Y, 4, STRAP_H);
     g.fillStyle = wch.trim; g.fillRect(32, 14, 56, 42);          // case
@@ -2903,9 +2944,11 @@ export function makeHud(purse: Purse): Hud {
      * this file has hit more than any other. So the WRAPPER is flipped and not
      * one number of the drawing moves.
      *
-     * `scaleX(-1)` about the element's own centre, with `WATCH_X` reflected
-     * about 50% so the arm enters from the other edge — the two are one gesture
-     * and both belong to this line.
+     * `scaleX(-1)` ON THE CANVAS, about its own centre, so the picture flips
+     * and the box does not move; the wrapper mirrors separately, by geometry
+     * only. See the note at `MID`/`WATCH_CSS` for why the flip is not on the
+     * wrapper any more, and `drawWatch` for the one part of the picture that
+     * flips back — the dial, which would otherwise read backwards.
      *
      * ⚠ WHAT THIS DOES NOT FLIP, said plainly: the figure in the mirror still
      * wears its watch on the same wrist, because that is `ct/mirror.ts`'s own
@@ -2922,6 +2965,11 @@ export function makeHud(purse: Purse): Hud {
       const t = watchWrap!.style.transition;
       watchWrap!.style.transition = 'none';
       watchWrap!.style.cssText = WRAP_CSS();
+      // AND THE CANVAS, which is where `scaleX(-1)` now lives. Re-laying the
+      // wrapper alone would leave the box mirrored and the picture facing the
+      // way the other hand left it.
+      watchCv.style.cssText = WATCH_CSS();
+      watchShown = -1;      // the face is drawn per hand now: repaint it
       watchWrap!.style.transform = watchHeld ? WATCH_SHOWN() : WATCH_HIDDEN();
       void watchWrap!.offsetWidth;                 // commit before restoring it
       watchWrap!.style.transition = t || 'transform .18s ease-out';
