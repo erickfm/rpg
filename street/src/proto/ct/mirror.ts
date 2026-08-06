@@ -285,6 +285,96 @@ const ZONES: readonly Zone[] = [
   { slot: 'shoes', x0: 0, y0: LEG_B - 4, x1: MW, y1: MH },
 ];
 
+/**
+ * ══ WHERE THE BAG ACTUALLY IS ══════════════════════════════════════════════
+ *
+ * *"we need more accurate highlights. when i want to click the clutch to change
+ *  it its actually the bottoms?"*   (2026-08-05)
+ *
+ * MEASURED, AND HE IS EXACTLY RIGHT. The clutch is painted at
+ * `(CX + TORSO_HW - 1, HAND_B - 2, ARM_W + 2, 12)` — x 11…19, y 86…98 — and
+ * the BOTTOMS zone is x 2…38, y 76…134. The clutch sits ENTIRELY inside it.
+ * The bag's own zone is y 36…76, ten units above the thing it is for.
+ *
+ * THE CAUSE IS THE ZONE TABLE TILING ANATOMY WHILE THE GARMENTS ARE DRAWN
+ * WHEREVER THEY SIT. `6a892a47` split the highlight from the hit box and made
+ * the highlight follow the body part, which was right for the highlight and
+ * left the hit box still describing a torso-and-legs diagram. A bag in a hand
+ * is not on the body part it overlaps.
+ *
+ * SO THIS IS THE ONE SOURCE. The painter below draws from it and the hit test
+ * measures it, so they cannot disagree — the same fix as the highlight, applied
+ * to the other half. Empty when nothing is worn, and empty at the facings where
+ * the drawing itself is suppressed: a clutch is hidden at profile behind the
+ * arm holding it, a sling's pouch is on the front hip and gone from behind, so
+ * a zone that stayed would offer him something he cannot see.
+ */
+type BagRect = {
+  r: [number, number, number, number];
+  /** which foreshortening family the painter puts it through */
+  f: 'span' | 'limb' | 'head' | 'deep';
+  /** which of the garment's two inks it takes */
+  c: 'cloth' | 'trim';
+};
+function bagRects(kind: string, facing: number): BagRect[] {
+  if (kind === 'pack') {
+    if (facing >= 3) {
+      const w = facing === 4 ? 24 : 22;                 // the pack IS the back
+      return [{ r: [CX - w / 2, SHOULDER + 1, w, 38], f: 'deep', c: 'cloth' }];
+    }
+    // from the front only the straps exist; the far one is hidden at profile
+    return ([-1, 1] as const).filter((sgn) => !(facing === 2 && sgn > 0))
+      .map((sgn) => ({ r: [sgn < 0 ? CX - 8 : CX + 4, SHOULDER, 4, 22], f: 'span', c: 'trim' } as BagRect));
+  }
+  if (kind === 'tote') {
+    const out: BagRect[] = [{ r: [CX + 6, SHOULDER - 1, 4, WAIST - SHOULDER - 12], f: 'span', c: 'trim' }];
+    if (facing !== 2) out.push({ r: [CX + TORSO_HW - 2, WAIST - 16, ARM_W + 5, 20], f: 'span', c: 'cloth' });
+    return out;
+  }
+  if (kind === 'clutch') {
+    return facing === 2 ? []
+      : [{ r: [CX + TORSO_HW - 1, HAND_B - 2, ARM_W + 2, 12], f: 'span', c: 'cloth' }];
+  }
+  if (kind === 'sling') {
+    const out: BagRect[] = [];
+    for (let k = 0; k < 8; k++) out.push({ r: [CX - 9 + k * 2.2, SHOULDER + 1 + k * 3, 5, 4], f: 'span', c: 'trim' });
+    if (facing < 3) out.push({ r: [CX + TORSO_HW - 3, WAIST - 12, ARM_W + 2, 12], f: 'limb', c: 'cloth' });
+    return out;
+  }
+  return [];
+}
+
+/**
+ * ── A WORN THING WINS OVER THE BODY UNDER IT ──────────────────────────────
+ *
+ * PRIORITY, MOST SPECIFIC FIRST: **bag, watch, glasses, hat**, then the body
+ * bands. Every one of those four is a small object lying ON a larger body part,
+ * so if the cursor is over the clutch it is the clutch and not the shorts
+ * behind it — which is the whole complaint. Within the accessories the order
+ * barely matters (they do not overlap each other), but it is fixed rather than
+ * incidental so it cannot drift.
+ *
+ * THE EMPTY CASE IS WHY `ZONES` SURVIVES. With no bag, no watch, no hat and no
+ * glasses on, there is nothing drawn to hit — and he still has to be able to
+ * click to put them ON. So a worn item's REAL rect takes precedence when it
+ * exists, and `ZONES`'s fat forgiving region is what answers when it does not.
+ * Two behaviours, one table each, and the fallback is exactly the table that
+ * was there before.
+ *
+ * PADDING IS 2 DESIGN UNITS on every side. The figure is 40 units wide, so 2 is
+ * 5% of it — enough that a 6-unit watch or a 9-unit pair of glasses is not
+ * fiddly, small enough that the clutch does not reclaim the shorts it sits on.
+ *
+ * ⚠ ONE APPROXIMATION, STATED. The un-turn below divides by `COL_SPAN`, the
+ * `span` family, for every rect — while the painter foreshortens a limb by
+ * `COL_ROUND` and a deep object by `COL_DEEP`. At profile that is at most a
+ * couple of units of drift on the two rects that are not `span`, which the
+ * padding covers. Un-turning per family would mean inverting three curves at
+ * the point rather than the rect and is not worth it at 40 units wide.
+ */
+const HIT_PAD = 2;
+const ACCESSORY_ORDER: Slot[] = ['bag', 'watch', 'glasses', 'hat'];
+
 /** The slot at this point in FIGURE design units, or null. */
 function zoneAt(dx: number, dy: number, facing = 0): Slot | null {
   // UNDO THE TURN FIRST. The zones are written on the front-on grid, so at 55%
@@ -293,6 +383,22 @@ function zoneAt(dx: number, dy: number, facing = 0): Slot | null {
   const [col, flip] = viewAt(facing);
   let x = (dx - CX) / COL_SPAN[col] + CX;
   if (flip) x = 2 * CX - x;
+  const inR = (r: readonly [number, number, number, number]) =>
+    x >= r[0] - HIT_PAD && x < r[0] + r[2] + HIT_PAD
+    && dy >= r[1] - HIT_PAD && dy < r[1] + r[3] + HIT_PAD;
+  // ── WHAT HE IS ACTUALLY WEARING, WHERE IT IS ACTUALLY DRAWN ────────────
+  for (const slot of ACCESSORY_ORDER) {
+    if (slot === 'bag') {
+      const bag = worn('bag');
+      if (bag.kind !== 'none' && bagRects(bag.kind, facing).some((b) => inR(b.r))) return 'bag';
+      continue;
+    }
+    // watch, glasses and hat are already single-sourced: `HL` holds the rects
+    // the painter draws them from, which is what `6a892a47` built it to be.
+    if (worn(slot).kind === 'none') continue;
+    if (HL[slot].some((h) => inR(h.r))) return slot;
+  }
+  // ── AND THE BODY UNDER IT, plus the fat fallback for an empty slot ──────
   for (const z of ZONES) {
     if (x >= z.x0 && x < z.x1 && dy >= z.y0 && dy < z.y1) return z.slot;
   }
@@ -706,25 +812,30 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
   //   SLING     the strap crosses the chest at the front and the BACK at the
   //             back (the diagonal flips), with the pouch on the hip, which is
   //             hidden when he turns away
+  // ══ EVERY BAG'S BODY COMES OFF `bagRects` ═════════════════════════════
+  //
+  // ONE TABLE, DRAWN HERE AND MEASURED BY `zoneAt`. This loop is the whole of
+  // where a bag IS; the per-kind blocks below add only the details that have no
+  // bearing on hitting it — a lid, a pocket, a clasp line, two collar stubs.
+  // Move a bag by editing `bagRects` and the click follows it, which is the
+  // entire point: the clutch was drawn at y 86…98 and hit-tested as the shorts
+  // it sits on, because the two lived in different tables.
+  const paintFam = { span: box, limb, head: box, deep } as const;
+  for (const br of bagRects(bag.kind, facing)) {
+    paintFam[br.f](br.r[0], br.r[1], br.r[2], br.r[3], br.c === 'cloth' ? bag.cloth : bag.trim);
+  }
   if (bag.kind === 'pack') {
     if (facing >= 3) {
-      // FROM BEHIND THE PACK IS THE FIGURE. It covers the back from shoulder
-      // to waist and the straps are gone over the top of the shoulders — two
-      // stubs at the collar, which is all you see of a strap from this side.
-      // This is the half that was missing and it is why the back read wrong.
+      // FROM BEHIND THE PACK IS THE FIGURE. Its slab is drawn above, off the
+      // table; these are the trimmings — the lid, the pocket, and the two collar
+      // stubs that are all you see of a strap from this side.
       const w = facing === 4 ? 24 : 22;
-      deep(CX - w / 2, SHOULDER + 1, w, 38, bag.cloth);
       deep(CX - w / 2, SHOULDER + 1, w, 5, bag.trim);               // the lid
       deep(CX - 6, SHOULDER + 20, 12, 10, bag.trim);                // the pocket
       for (const sgn of [-1, 1]) box(CX + sgn * 7 - 2, SHOULDER - 1, 4, 4, bag.trim);
-    } else {
-      // and from the front, ONLY the straps: the pack itself is behind him and
-      // was already painted under the body.
-      for (const sgn of [-1, 1]) {
-        if (facing === 2 && sgn > 0) continue;                      // the far strap
-        box(sgn < 0 ? CX - 8 : CX + 4, SHOULDER, 4, 22, bag.trim);
-      }
     }
+    // and from the front, ONLY the straps — and they are in the table, so
+    // there is nothing left to draw here.
   } else if (bag.kind === 'tote') {
     // ══ THE TOTE GOES OVER A SHOULDER ═══════════════════════════════════
     //
@@ -744,11 +855,8 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     // THE BAG IS A FLAT SLAB, so `span` (1 / .82 / .55): broad from the front,
     // an edge from the side. And it is NOT DRAWN AT PROFILE, where the body it
     // hangs behind hides it — the same rule the sling's pouch follows.
-    box(CX + 6, SHOULDER - 1, 4, WAIST - SHOULDER - 12, bag.trim);  // over the shoulder
-    if (facing !== 2) {
-      box(CX + TORSO_HW - 2, WAIST - 16, ARM_W + 5, 20, bag.cloth); // under the arm
-      box(CX + TORSO_HW - 2, WAIST - 16, ARM_W + 5, 3, bag.trim);   // its mouth
-    }
+    // strap and body are both in the table; only the mouth is a detail
+    if (facing !== 2) box(CX + TORSO_HW - 2, WAIST - 16, ARM_W + 5, 3, bag.trim);
   } else if (bag.kind === 'clutch') {
     // ══ AND THE CLUTCH IS THE DRAWING THE TOTE USED TO HAVE ═════════════
     //
@@ -762,20 +870,15 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     // No strap anywhere, and `span` again: it is the flattest thing in the
     // wardrobe, so it nearly vanishes edge-on and is hidden at profile behind
     // the arm that is holding it.
-    if (facing !== 2) {
-      const bx = CX + TORSO_HW - 1;
-      box(bx, HAND_B - 2, ARM_W + 2, 12, bag.cloth);
-      box(bx, HAND_B + 3, ARM_W + 2, 2, bag.trim);                  // the clasp line
-    }
+    // the slab is in the table; the clasp line is the detail
+    if (facing !== 2) box(CX + TORSO_HW - 1, HAND_B + 3, ARM_W + 2, 2, bag.trim);
   } else if (bag.kind === 'sling') {
     // ONE DIAGONAL, STEPPED. It used to flip by hand at `facing >= 3`; that is
     // deleted, because `facingOf` now mirrors the whole figure for the back
     // columns and the strap flips with everything else. One rule, not two.
-    for (let k = 0; k < 8; k++) {
-      box(CX - 9 + k * 2.2, SHOULDER + 1 + k * 3, 5, 4, bag.trim);
-    }
-    // the pouch rides on the FRONT hip, so it is behind him when he turns
-    if (facing < 3) limb(CX + TORSO_HW - 3, WAIST - 12, ARM_W + 2, 12, bag.cloth);
+    // the eight stepped strap blocks and the front-hip pouch are both in the
+    // table — the pouch is suppressed there at facing >= 3, where it is behind
+    // him, so the click is suppressed with the drawing rather than separately.
   }
 
   // the watch, on the wrist the hud raises
