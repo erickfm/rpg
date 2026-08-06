@@ -127,12 +127,21 @@ const LVL = {
  *  A timer has to be told how fast he is going and gets it wrong on every
  *  slope, every doorway and every collision slide. Distance does not: the step
  *  falls when the leg has travelled far enough, so walking, sprinting and
- *  scraping along a wall are all correct without any of them being a case. */
-const STRIDE = 0.78;
+ *  scraping along a wall are all correct without any of them being a case.
+ *
+ *  **The user, first thing he said on hearing it: *"steps are too quick btw
+ *  must be slower"*.** It shipped at 0.78 m, which against `fp.ts`'s walk of
+ *  3.2 m/s is 4.1 footfalls a second — a jog, and he was walking.
+ *
+ *  The right number was already in the recording and I had measured it and not
+ *  used it: `stepoutside.wav` is 23 footfalls spaced 0.52 s apart, which at
+ *  3.2 m/s is a 1.66 m stride. So walking now plays the take at the cadence it
+ *  was WALKED at, which is why it stops sounding like a man in a hurry. */
+const STRIDE = 1.66;
 /** No two footfalls closer than this, whatever the distance says. `fp.ts` ships
- *  with the debug sprint at 42 m/s — 54 steps a second on stride alone, which
- *  is not a run, it is a buzzsaw. */
-const STEP_MIN = 0.17;
+ *  with the debug sprint at 42 m/s — 25 steps a second on stride alone, which
+ *  is not a run, it is a buzzsaw. Three a second is already a hard run. */
+const STEP_MIN = 0.30;
 /** A frame that moves him further than this is a TELEPORT, not a stride: every
  *  door in this world is a `jumpTo` and `px` crosses 1000 in one frame. Without
  *  this, walking into a shop plays a footstep for a hundred metres of travel. */
