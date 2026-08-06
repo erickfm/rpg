@@ -4034,3 +4034,26 @@ about level or feel, not about what was wired:
 corner widget stays clickable when a panel has the keyboard.
 
 Built by the standing builder. Live on 5177.
+
+## 2026-08-05 — "add an armchair and small end table here"
+
+Asked over a shot of the **top-floor hallway looking at the dead end** — 401 on
+the left, 402 on the right, red carpet, bare end wall. It was not built, and he
+noticed hours later: *"never built an armchair and end table here?"*
+
+Built by the standing builder, in `ct/apartment.ts`. **Floor 3, and only floor
+3**, which is the whole trap in this ask: all four landings are the same
+geometry, so the same chair a storey down would have looked perfectly correct in
+his screenshot and been wrong. The meshes are placed once at `TOP_Y`; the two
+colliders are floor-gated caps, because colliders in this shaft are 2D and the
+hall is stacked four deep — a plain box would have put an invisible armchair
+outside 101, 201 and 301 as well.
+
+Five boxes each, flat colours off the building's own palette, drab olive vinyl.
+The corridor is untouched: the furniture ends 2.635 m short of the door line and
+the hall keeps its full 2.4 m width at every z. **Sittable** through `ctx.seat`,
+same registration as flat 301's bed. Both tops are standable — seat 0.42, table
+0.55, under the hop's 0.555 — and neither reaches anything: it is a blind end
+walled full height on three sides.
+
+Live on 5177.

@@ -414,6 +414,33 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const aptDoorCap = mkCap();     // 301's doorway only opens on floor 3
   const hermitCap = mkCap();      // he is solid, but only when he is in
   const doorShutCap = mkCap();    // 301's leaf, when it is actually shut
+  /** THE DEAD END'S ARMCHAIR AND END TABLE, ON FLOOR 3 ONLY.
+   *
+   *  They are CAPS and not plain colliders for the one reason everything in
+   *  this shaft is a cap: colliders here are 2D and the hall is stacked four
+   *  storeys deep, so a static box at the dead end would put an invisible
+   *  armchair in front of 101/102, 201/202 and 301/302 as well. `updateCaps`
+   *  switches them on when the player's storey IS floor 3.
+   *
+   *  `maxY` is set here and never moved — `setCap` only ever writes the four
+   *  horizontal bounds — and each one is the TOP FACE of the mesh it stands
+   *  for: the chair's seat, the table's top. Both are derived below from the
+   *  same constants the meshes are built from, so neither can outlive or
+   *  out-grow its furniture.
+   *
+   *  The LAYOUT is here rather than at the meshes because two things read it —
+   *  the furniture and its collision — and a footprint typed twice is the
+   *  "collider that outlives its mesh" bug waiting to happen. Local hall
+   *  coordinates: the hall is `lx` 0…2.4 between the two flat walls and `lz`
+   *  0…8.4 from the dead end to the stairwell mouth, with 401/402 at `lz` 3.5.
+   *  Everything below lives in `lz` < 0.83 — the last 0.83 m of a 3.5 m stub
+   *  BEYOND the doors, so the corridor keeps its full 2.4 m width everywhere
+   *  and the doors are 2.6 m clear of the nearest leg.
+   */
+  const CHAIR = { x0: 0.38, x1: 1.18, z0: 0.085, z1: 0.825, backD: 0.14, seat: 0.42, arm: 0.60, back: 0.88 };
+  const ETAB = { x0: 1.50, x1: 1.94, z0: 0.085, z1: 0.525, top: 0.55 };
+  const chairCap: AABB = { ...mkCap(), maxY: TOP_Y + CHAIR.seat };
+  const endTableCap: AABB = { ...mkCap(), maxY: TOP_Y + ETAB.top };
 
   // ── 301's door, open and shut ────────────────────────────────────────────
   // The user: *"i want to be able to close this door"*. Being able to shut it
@@ -2012,6 +2039,131 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // numbers rather than from the picture.
       if (f < 3) ceilingLamp(f < 2 ? (f + 1) * ST + RISE - 0.14 : H, AZI(STAIR_Z1 + 0.55), 0.62);
     }
+    // ── THE DEAD END, FURNISHED ──────────────────────────────────────────
+    //
+    // The user: *"add an armchair and small end table here"*, over a shot from
+    // between 401 and 402 looking at the bare end wall — and later, when it had
+    // not been built, *"never built an armchair and end table here?"*
+    //
+    // ⚠ FLOOR 3 AND ONLY FLOOR 3. Every landing in this building is the same
+    // geometry four times over, so a shot of one is a shot of all of them and
+    // building this a storey down would look entirely correct in isolation.
+    // The doors in his picture read 401/402, which is `f === 3`, whose carpet
+    // is `TOP_Y` = 3 * ST = 8.1. The MESHES are built once at that height (not
+    // in the per-floor loop above) and the two colliders are caps gated to the
+    // same storey — see `chairCap` at the head of this file for why a plain
+    // collider here would furnish all four landings with invisible chairs.
+    //
+    // WHERE IT ALL SITS, in the local frame `CHAIR`/`ETAB` are written in:
+    //   · the end wall is a 0.14 m box centred on AZI(0), so its PLASTER FACE
+    //     is at lz 0.07. Both backs stand at lz 0.085 — **15 mm of daylight**,
+    //     which is a shabby gap-behind-the-furniture and, more to the point,
+    //     not a coplanar pair.
+    //   · the hall carpet is a plane at `TOP_Y + 0.006`. Everything here starts
+    //     at `TOP_Y + 0.012` — **6 mm clear** — so nothing z-fights the floor.
+    //   · the corridor is untouched: the furniture ends at lz 0.825 and 401/402
+    //     are at lz 3.5, so there is **2.635 m** of full-width hall between the
+    //     chair's front and the door line, and the hall keeps all 2.4 m of its
+    //     width at every z. You reach both doors and turn round without ever
+    //     coming near it.
+    //   · the ceiling globe hangs at AZI(3.5) under a ceiling at TOP_Y + 2.55.
+    //     The tallest thing here is the chair back at TOP_Y + 0.88, 2.6 m away
+    //     in z and 1.67 m below the lamp's own halo. Nothing meets it.
+    //
+    // THE STYLE IS A LANDLORD'S CAST-OFF, not a nice armchair: five boxes for
+    // the chair, five for the table, flat colours off this building's own
+    // palette — the skirting's `#3e3024` and the stair treads' `#6a5038` for
+    // the timber — and a drab olive vinyl that is the one thing in the hall not
+    // already brown, so it reads against both the red carpet and the buff
+    // paper. No cushions, no piping, no lamp on the table.
+    {
+      const FY = TOP_Y;                                  // floor 3's carpet
+      const CLEAR = 0.012;                               // above the carpet plane
+      const vinylT = surfTex('detail', 32, 32, (g) => {
+        g.fillStyle = '#55604a'; g.fillRect(0, 0, 32, 32);
+        // wear: a few bald patches, darker rather than lighter — this chair has
+        // been sat on by strangers for twenty years
+        g.fillStyle = 'rgba(0,0,0,0.18)';
+        for (const [x, y, w, h] of [[3, 6, 5, 3], [19, 2, 4, 4], [11, 21, 6, 2], [25, 17, 3, 5]] as const) g.fillRect(x, y, w, h);
+        dither(g, 32, 32, 90);
+      });
+      const vinylM = new THREE.MeshBasicMaterial({ map: vinylT });   // solid: front faces only
+      const darkM = new THREE.MeshBasicMaterial({ color: 0x3e3024 }); // the skirting's own brown
+      const woodM = new THREE.MeshBasicMaterial({ color: 0x6a5038 }); // the stair treads' own
+      /** a box given by its own extents, so every number below is the face it
+       *  names and nothing is a centre plus half a size worked out by hand */
+      const slab = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number,
+                    m: THREE.Material) => {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), m);
+        b.position.set(AX((x0 + x1) / 2), (y0 + y1) / 2, AZI((z0 + z1) / 2));
+        scene.add(b);
+        return b;
+      };
+      // ── the armchair ──────────────────────────────────────────────────
+      const PLINTH = 0.09;                               // the dark base it stands on
+      // recessed 0.06 all round, so the shadow line under the upholstery reads
+      // as a chair on a base rather than as one solid block on the carpet
+      slab(CHAIR.x0 + 0.06, CHAIR.x1 - 0.06, FY + CLEAR, FY + PLINTH,
+           CHAIR.z0 + 0.06, CHAIR.z1 - 0.06, darkM);
+      const ARM_W = 0.12;
+      // the seat block: full width, from the front of the back slab forward
+      slab(CHAIR.x0, CHAIR.x1, FY + PLINTH, FY + CHAIR.seat, CHAIR.z0 + CHAIR.backD, CHAIR.z1, vinylM);
+      // the back, standing on the plinth against the wall
+      slab(CHAIR.x0, CHAIR.x1, FY + PLINTH, FY + CHAIR.back, CHAIR.z0, CHAIR.z0 + CHAIR.backD, vinylM);
+      // two arms, flush with the sides — a hall chair has no upholstered roll
+      for (const x0 of [CHAIR.x0, CHAIR.x1 - ARM_W]) {
+        slab(x0, x0 + ARM_W, FY + CHAIR.seat, FY + CHAIR.arm, CHAIR.z0 + CHAIR.backD, CHAIR.z1, vinylM);
+      }
+      // ── the end table ─────────────────────────────────────────────────
+      const T_TOP = 0.04, T_LEG = 0.055, T_IN = 0.05;    // top thickness, leg, inset
+      slab(ETAB.x0, ETAB.x1, FY + ETAB.top - T_TOP, FY + ETAB.top, ETAB.z0, ETAB.z1, woodM);
+      for (const x0 of [ETAB.x0 + T_IN, ETAB.x1 - T_IN - T_LEG]) {
+        for (const z0 of [ETAB.z0 + T_IN, ETAB.z1 - T_IN - T_LEG]) {
+          slab(x0, x0 + T_LEG, FY + CLEAR, FY + ETAB.top - T_TOP, z0, z0 + T_LEG, darkM);
+        }
+      }
+      // ── collision, taken off the meshes above ─────────────────────────
+      //
+      // ONE BOX EACH, at the union footprint the slabs actually occupy, and
+      // `maxY` at the surface you would land ON: the chair's seat (0.42) and
+      // the table's top (0.55). Both are under the 0.555 m the hop reaches
+      // (fp.ts's jump block, and the note on 301's furniture), so both are
+      // genuinely standable rather than decoratively topped.
+      //
+      // ⚠ STANDING ON EITHER REACHES NOTHING NEW. This is a blind end: the
+      // three surfaces around it are the full-height end wall and the two flat
+      // walls, all of them unbounded in y on purpose, and the stairwell void
+      // is 7.6 m away at the other end of the hall. From the table's 0.55 the
+      // hop tops out at ~1.03 m against a 2.55 m ceiling with nothing in
+      // between. There is no route up that did not exist before.
+      //
+      // The bounds are not typed here — they are `CHAIR`/`ETAB`, the same two
+      // records the slabs above are drawn from.
+      sevColliders.push(chairCap, endTableCap);
+    }
+    // ── SITTABLE, because a chair at a dead end that you cannot sit in is a
+    // dead end twice over. `ctx.seat` is the whole mechanism — press E, the
+    // camera settles at the pan height facing `yaw`, E or Escape stands you up
+    // — and this registers exactly like flat 301's bed seat does, with the
+    // same storey gate. Nothing new is built for it.
+    //
+    //   · `h` IS THE MESH'S OWN SEAT, `CHAIR.seat` — the cushion you can see,
+    //     not a number that agrees with it today.
+    //   · yaw PI is the CAMERA convention (0 looks along −z), so PI faces +z:
+    //     out of the chair and down the hall toward the stairs. The wall is
+    //     behind the backrest, which is where a backrest goes.
+    //   · NO `approach` IS NEEDED and none is given. The seat point is inside
+    //     `chairCap`, so you cannot stand on it; the nearest you can stand is
+    //     the cap's front face plus the rig's own RADIUS, which is 0.646 m from
+    //     the point — inside `r` with 0.20 m to spare. Same shape as the bed.
+    //   · `ok` is the storey, exactly as the bed's is: the hall is stacked four
+    //     deep and a seat with no floor gate is three phantom chairs.
+    ctx.seat({
+      x: AX((CHAIR.x0 + CHAIR.x1) / 2), z: AZI((CHAIR.z0 + CHAIR.backD + CHAIR.z1) / 2),
+      yaw: Math.PI, h: CHAIR.seat, r: 0.85,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - TOP_Y) < 0.5,
+      label: 'sit in the armchair',
+    });
     // ── the basement stair ───────────────────────────────────────────────
     // The east half of the shaft at lobby level was a flat navy box filling
     // the dead space under flight B, and it read as a blue wall. It is an
@@ -6471,6 +6623,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(STAIR_Z0), AZI(LAND_Z1));
     setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(STAIR_Z1), AZI(LAND_Z1));
     setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
+    // ── the dead end's armchair and end table, on floor 3 only ──────────
+    //
+    // GATED ABOVE 7.60 RATHER THAN AT 8.10 ± 0.5, and the difference is what
+    // keeps you standing on the furniture. `lastGy` is what the FLOOR PICKER
+    // returned — the storey — and `fp.ts` raises you onto a `maxY` separately,
+    // AFTER that, so standing on the table never moves this number. But a band
+    // centred on the storey is the shape of gate that would have broken the
+    // moment it did, and there is nothing above floor 3 to confuse a one-sided
+    // test: everything walkable in this hall's x-span below 8.10 is a storey
+    // 2.7 m down. `px > 100` because the interior is parked out east and the
+    // street's own ground must never switch a collider on in here.
+    const onTop = px > 100 && lastGy > TOP_Y - 0.5;
+    setCap(chairCap, onTop, AX(CHAIR.x0), AX(CHAIR.x1), AZI(CHAIR.z0), AZI(CHAIR.z1));
+    setCap(endTableCap, onTop, AX(ETAB.x0), AX(ETAB.x1), AZI(ETAB.z0), AZI(ETAB.z1));
   };
 
   /** Swing the leaf toward wherever it has been asked to be, and keep the
