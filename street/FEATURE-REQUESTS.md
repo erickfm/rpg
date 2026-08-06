@@ -4024,8 +4024,11 @@ about level or feel, not about what was wired:
   was walked at.
 - *"the ambiance sounds are too loud"* — every bed down ~7 dB, one-shots held
   still.
-- *"step sounds are too loud"* — and holding the one-shots still through the
-  previous edit is what exposed it. Down ~8 dB.
+- *"step sounds are too loud"* — down ~8 dB — **then *"revert step vol sorry"*
+  four minutes later, and the second word wins.** Worth keeping: the complaint
+  landed right after the beds had dropped 7 dB out from under the steps, so the
+  first reading was of the CHANGE and not of the level. A one-shot heard against
+  a bed that moved a moment ago is not yet a judgement about the one-shot.
 
 `M` mutes, `[` and `]` set volume, both remembered across reloads, and the
 corner widget stays clickable when a panel has the keyboard.

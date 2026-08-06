@@ -133,7 +133,11 @@ const LVL = {
   streetB: 0.13,   // the further-off layer, which breathes — see `sway`
   room: 0.13,
   rain: 0.30,      // multiplied by rainLevel, so this is its DOWNPOUR level
-  rainIndoors: 0.20, // …of the above, heard through a window
+  // …of the above, heard through a window. Raised from 0.20 when the wall
+  // filter went in: rain is the ONE bed with real content above 2 kHz, so a
+  // 520 Hz corner takes far more off it than off the traffic, and the level it
+  // needed on the far side of the filter is not the level it needed before it.
+  rainIndoors: 0.55,
   site: 0.20,      // multiplied by distance and by the working day
   // THESE WENT DOWN 8 dB AND CAME STRAIGHT BACK UP. *"step sounds are too
   // loud"*, then *"revert step vol sorry"* four minutes later. He is the check
@@ -174,6 +178,32 @@ const STEP_MIN = 0.30;
  *  door in this world is a `jumpTo` and `px` crosses 1000 in one frame. Without
  *  this, walking into a shop plays a footstep for a hundred metres of travel. */
 const TELEPORT = 1.2;
+
+// ── THE WALL ────────────────────────────────────────────────────────────────
+//
+// *"low pass when in my room pls"*.
+//
+// Fading the street to zero indoors is a CUT wearing a crossfade's clothes. A
+// wall does not delete the city, it takes the top off it — and the reason the
+// room felt sealed rather than quiet is that the first cut had no filter at
+// all, only a gain. So one lowpass sits across every outdoor bed and its corner
+// glides down as he steps in, while the beds themselves keep bleeding through
+// at `MUFFLE` rather than going silent.
+//
+// 520 Hz is chosen against the MATERIAL and not off a chart. `city.wav` is 92%
+// below 250 Hz, so the traffic rumble walks through the wall almost untouched —
+// which is exactly what a rumble does. `city2.wav` is 65% in 250 Hz–2 kHz and
+// loses most of itself, and `rain.wav` is the only file with real content above
+// 2 kHz, so the patter goes soft and distant. One number, three different and
+// correct outcomes, because the sources are three different things.
+const WALL_IN = 520;
+/** Outdoors the filter must be TRANSPARENT, not merely open. Above Nyquist for
+ *  every bed here (the highest is rain at 32 kHz, so 16 kHz), which makes it
+ *  arithmetically a no-op rather than a very gentle tilt nobody can hear but
+ *  everybody has to reason about. */
+const WALL_OUT = 20000;
+/** How much of the outdoor mix still reaches him through the wall. */
+const MUFFLE = 0.42;
 
 /** How long a crossfade takes, in seconds, as an exponential time constant.
  *  Stepping through a door is a TELEPORT — `px` jumps from ~5 to ~1000 in one
@@ -217,6 +247,8 @@ const roll = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4
 interface Rig {
   ac: AudioContext;
   master: GainNode;
+  /** the lowpass every OUTDOOR bed runs through — see `WALL_IN` */
+  wall: BiquadFilterNode;
   beds: Record<BedName, { g: GainNode; cur: number }>;
 }
 
@@ -317,12 +349,26 @@ export function register(ctx: CtxBuild): void {
     const master = ac.createGain();
     master.connect(ac.destination);
 
+    // ── THE WALL ─────────────────────────────────────────────────────────────
+    //
+    // *"low pass when in my room pls"* — and it is the half of the transition
+    // that was missing. Fading the street to zero indoors is a CUT dressed up as
+    // a crossfade: a room does not delete the city, it takes the top off it. So
+    // everything OUTDOORS runs through one lowpass whose corner glides down to
+    // `WALL_IN` when he steps inside, and the outdoor beds keep bleeding through
+    // at `MUFFLE` instead of going silent. The room bed does not pass through
+    // it — he is standing in that one.
+    const wall = ac.createBiquadFilter();
+    wall.type = 'lowpass';
+    wall.frequency.value = WALL_OUT;
+    wall.connect(master);
+
     const beds = {} as Rig['beds'];
     for (const n of BEDS) {
       const raw = bytes.get(n);
       const g = ac.createGain();
       g.gain.value = 0;
-      g.connect(master);
+      g.connect(n === 'room' ? master : wall);
       beds[n] = { g, cur: 0 };
       if (!raw) continue;
       // decodeAudioData DETACHES the ArrayBuffer it is given, so a retry would
@@ -350,7 +396,7 @@ export function register(ctx: CtxBuild): void {
         .catch((e) => console.warn(`[audio] ${n} would not decode:`, e));
     }
 
-    rig = { ac, master, beds };
+    rig = { ac, master, wall, beds };
     live = ac;
     applyMaster();
     paintWidget();
@@ -461,6 +507,7 @@ export function register(ctx: CtxBuild): void {
   };
 
   let ins = 0;            // 0 out on the street … 1 indoors
+  let wallHz = WALL_OUT;  // the lowpass corner, glided in LOG frequency
   let sway = 0;           // the second street layer, breathing
   let lastRain = 0;       // the last rain level seen OUTDOORS — see below
 
@@ -528,11 +575,25 @@ export function register(ctx: CtxBuild): void {
       sitePan = ac.createStereoPanner();
       beds.site.g.disconnect();
       beds.site.g.connect(sitePan);
-      sitePan.connect(rig.master);
+      sitePan.connect(rig.wall);   // the site is outdoors: it goes through the wall
     }
 
     ins = glide(ins, inside(f.px) ? 1 : 0, f.dt);
     const [out, inn] = power(ins);
+
+    // THE WALL'S CORNER, GLIDED IN LOG FREQUENCY and not in hertz. A linear
+    // sweep from 20 kHz to 520 spends nine tenths of its half-second above
+    // 2 kHz, where none of these beds has anything to lose, and then falls off a
+    // cliff at the end — it sounds like a switch with a delay on it. Pitch is
+    // logarithmic, so the interpolation has to be, and then the whole half
+    // second is audibly one door closing.
+    wallHz = Math.exp(glide(Math.log(wallHz), Math.log(ins > 0.5 ? WALL_IN : WALL_OUT), f.dt, 0.45));
+    rig.wall.frequency.value = wallHz;
+
+    // How much of the outside is still THERE, filtered. 1 on the street, MUFFLE
+    // in a room — never 0, because a room with the city switched off is a
+    // vacuum, and that is what the first cut sounded like.
+    const bleed = out + inn * MUFFLE;
 
     // `props.ts` publishes the live rain on the scene and ZEROES it indoors
     // (`if (px > 100) rainLevel = 0` — it never rains in a room). That is right
@@ -557,13 +618,13 @@ export function register(ctx: CtxBuild): void {
     sitePan.pan.value = glide(sitePan.pan.value, bearing(siteAt.x, siteAt.z, f.px, f.pz), f.dt, 0.12);
 
     const want: Record<BedName, number> = {
-      'street-a': out * LVL.streetA,
-      'street-b': out * LVL.streetB * (0.25 + 0.75 * sway),
+      'street-a': bleed * LVL.streetA,
+      'street-b': bleed * LVL.streetB * (0.25 + 0.75 * sway),
       room: inn * LVL.room,
       rain: rain * LVL.rain,
       // the working day is glided like everything else, so six o'clock is a
       // shift ending rather than a switch being thrown
-      site: out * LVL.site * near * shift,
+      site: bleed * LVL.site * near * shift,
     };
     for (const n of BEDS) {
       const b = beds[n];
