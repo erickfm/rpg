@@ -273,25 +273,25 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'Back Thursday. Feed nothing.',
     '                        — DEB',
   ] },
-  { from: 'HANDWRITTEN, NO STAMP', lines: [
+  { from: 'HANDWRITTEN, NO STAMP', art: 'note-super', lines: [
     'BOILER OFF SATURDAY 8AM UNTIL IT',
     'IS FIXED. NO HOT WATER. SORRY.',
     'DO NOT CALL ME ABOUT IT.',
     '                  — THE SUPER',
   ] },
-  { from: 'ADDRESSED TO 302', lines: [
+  { from: 'ADDRESSED TO 302', art: 'catalogue-302', lines: [
     'A seed catalogue. Your neighbour',
     'has one window, it faces a wall,',
     'and he gets this every month',
     'without fail.',
   ] },
-  { from: 'FIRST FEDERAL SAVINGS', lines: [
+  { from: 'FIRST FEDERAL SAVINGS', art: 'letterhead-bank', lines: [
     'YOU ARE PRE-APPROVED for a line',
     'of credit up to $2,500 at a',
     'variable rate of 24.9% APR.',
     'No obligation. No fee.',
   ] },
-  { from: 'CRIMEWATCH — 14TH PRECINCT', lines: [
+  { from: 'CRIMEWATCH — 14TH PRECINCT', art: 'notice-precinct', lines: [
     'THERE HAVE BEEN BREAK-INS ON',
     'THIS BLOCK. LOCK YOUR DOOR. DO',
     'NOT BUZZ ANYONE IN THAT YOU DO',
@@ -1181,6 +1181,145 @@ ART['postcard'] = (g, l) => {
   g.font = UI.font(7);
   let my = y + 18;
   for (const ln of l.lines) { g.fillText(ln.slice(0, 26), x + 8, my); my += 10; }
+};
+
+
+/**
+ * ── THE SUPER'S NOTE: TORN, HANDWRITTEN, NO STAMP ──────────────────────────
+ * The only piece nobody posted — it was pushed under the door, so it has no
+ * stamp, no address and no straight bottom edge. Ruled notepad paper with the
+ * margin line down the left, a ragged tear across the foot, and the writing in
+ * biro CAPITALS with a slight roll on it, because a hand is not a typewriter.
+ */
+ART['note-super'] = (g, l) => {
+  const w = Math.round(PAPER.w * 0.78), h = Math.round(PAPER.h * 0.60);
+  const x = Math.round((PAPER.w - w) / 2), y = 14;
+  fill(g, '#eeead6', x, y, w, h);
+  fill(g, '#f8f5e6', x, y, w, 2);
+  // the ruled lines and the red margin a legal pad has
+  for (let k = 1; k <= 5; k++) fill(g, 'rgba(90,120,150,0.22)', x + 4, y + 12 + k * 13, w - 8, 1);
+  fill(g, 'rgba(170,70,60,0.35)', x + 13, y, 1, h);
+  // THE TORN FOOT. Stepped, never a path fill — a diagonal here would
+  // antialiase into a second tone at LETTER_SS, which is this file's own rule.
+  for (let i = 0; i < w; i += 3) {
+    const bite = 2 + ((i * 7) % 5);
+    fill(g, 'rgba(0,0,0,0)', x + i, y + h - bite, 3, bite);
+    g.clearRect(x + i, y + h - bite, 3, bite);
+  }
+  g.save();
+  g.translate(x + 18, y + 22);
+  g.rotate(-0.02);                                   // a hand does not rule straight
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#2f4f8c'; g.font = UI.font(8, true);
+  let ly = 0;
+  for (const ln of l.lines) { g.fillText(ln.slice(0, 30), 0, ly); ly += 13; }
+  g.restore();
+};
+
+/**
+ * ── ADDRESSED TO 302: SOMEBODY ELSE'S SEED CATALOGUE ───────────────────────
+ * Not a letter at all — a CATALOGUE, so it is a cover: a colour block with a
+ * title over it, a price corner, and the neighbour's name on a mailing label
+ * stuck across the bottom. The joke is that it is not yours, so the label is
+ * the loudest thing on it.
+ */
+ART['catalogue-302'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  const GREEN = '#4a6b3a';
+  stock(g, 0, 0, W, H, '#e8e4d2', '#f4f1e2', '#c8c3b0');
+  fill(g, GREEN, 6, 6, W - 12, 78);                             // the cover photo
+  // three flat rows of "seedlings", which is all a 1997 cover needs to be
+  for (let k = 0; k < 6; k++) {
+    fill(g, '#6f8f52', 14 + k * 28, 52, 8, 26);
+    fill(g, '#c0563f', 14 + k * 28 - 2, 44, 12, 8);
+  }
+  fill(g, 'rgba(0,0,0,0.22)', 6, 62, W - 12, 22);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#f2eeda'; g.font = UI.font(11, true);
+  g.fillText('SPRING SEEDS', W / 2, 30);
+  g.font = UI.font(7);
+  g.fillText('1,200 VARIETIES · FREE SHIPPING', W / 2, 42);
+  // the price corner
+  fill(g, '#e8dcb8', W - 40, 8, 32, 16);
+  g.fillStyle = '#3a352c'; g.font = UI.font(8, true);
+  g.fillText('$2.95', W - 24, 20);
+  // THE MAILING LABEL, which is the whole point of this piece
+  g.textAlign = 'left';
+  fill(g, '#f6f4ea', 12, H - 62, W - 24, 34);
+  fill(g, 'rgba(90,84,70,0.35)', 12, H - 62, W - 24, 1);
+  g.fillStyle = '#2b2620'; g.font = UI.font(8, true);
+  g.fillText('APT 302', 18, H - 48);
+  g.fillStyle = '#4a443a'; g.font = UI.font(7);
+  g.fillText('227 W 19TH — THIS BUILDING', 18, H - 36);
+  g.fillStyle = '#6b6455'; g.font = UI.font(6);
+  g.fillText(l.lines[0]?.slice(0, COLS) ?? '', 12, H - 16);
+  g.fillText(l.lines[1]?.slice(0, COLS) ?? '', 12, H - 8);
+};
+
+/**
+ * ── FIRST FEDERAL: A BANK USES CRISP TYPE ──────────────────────────────────
+ * The most PRINTED thing in the box, and deliberately the opposite of the
+ * super's note beside it: a ruled letterhead with the bank's mark, justified
+ * body copy, and the APR in the small print at the foot where a bank puts the
+ * part it does not want read. White stock, navy ink, no smudge anywhere.
+ */
+ART['letterhead-bank'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  const NAVY = '#28405e';
+  stock(g, 0, 0, W, H, '#f4f2ea', '#fbfaf4', '#d4d0c4');
+  creases(g, 0, 0, W, H, 2);
+  // the mark: a flat shield, which is every savings bank's logo in 1997
+  fill(g, NAVY, 12, 10, 16, 18);
+  fill(g, '#f4f2ea', 15, 13, 10, 8);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = NAVY; g.font = UI.font(9, true);
+  g.fillText('FIRST FEDERAL', 34, 20);
+  g.font = UI.font(6);
+  g.fillStyle = '#6b6455';
+  g.fillText('SAVINGS · MEMBER FDIC · EST 1922', 34, 28);
+  fill(g, NAVY, 12, 34, W - 24, 2);
+  g.fillStyle = '#2b2620'; g.font = UI.font(8);
+  let y = 54;
+  for (const ln of l.lines.slice(0, 3)) { g.fillText(ln.slice(0, COLS), 12, y); y += 13; }
+  g.fillStyle = NAVY; g.font = UI.font(8, true);
+  g.fillText(l.lines[3] ?? '', 12, y + 6);
+  // THE SMALL PRINT, at the foot, above a rule — where a bank puts the part it
+  // would rather you did not read. Still legible, because that is the standard.
+  fill(g, 'rgba(40,64,94,0.35)', 12, H - 34, W - 24, 1);
+  g.fillStyle = '#6b6455'; g.font = UI.font(6);
+  g.fillText('Rate variable. Offer subject to approval and', 12, H - 24);
+  g.fillText('may be withdrawn at any time without notice.', 12, H - 16);
+};
+
+/**
+ * ── CRIMEWATCH: A PRECINCT NOTICE, PHOTOCOPIED ─────────────────────────────
+ * A xerox of a xerox — grey stock, a heavy black rule box round the whole
+ * thing, all-caps type and a precinct shield stamped at the foot. The one piece
+ * that is loud without being a sales pitch, and the copier's toner is uneven
+ * down one edge, which is what a fifth-generation photocopy looks like.
+ */
+ART['notice-precinct'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  stock(g, 0, 0, W, H, '#dedcd2', '#e9e7de', '#bcb9ae');
+  // the toner band down one edge, the tell of a tired copier
+  fill(g, 'rgba(0,0,0,0.07)', W - 22, 0, 22, H);
+  g.strokeStyle = '#2a2620'; g.lineWidth = 3;
+  g.strokeRect(8.5, 8.5, W - 17, H - 17);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#2a2620'; g.font = UI.font(12, true);
+  g.fillText('CRIMEWATCH', W / 2, 34);
+  fill(g, '#2a2620', 24, 40, W - 48, 1);
+  g.textAlign = 'left'; g.font = UI.font(8, true);
+  let y = 60;
+  for (const ln of l.lines) { g.fillText(ln.slice(0, COLS), 16, y); y += 13; }
+  // the shield, flat, at the foot beside the precinct line
+  const sx = 16, sy = H - 40;
+  fill(g, '#3a4a5c', sx, sy, 18, 22);
+  fill(g, '#dedcd2', sx + 4, sy + 5, 10, 8);
+  g.font = UI.font(7, true); g.fillStyle = '#2a2620';
+  g.fillText('14TH PRECINCT', sx + 26, sy + 12);
+  g.font = UI.font(6); g.fillStyle = '#5a544a';
+  g.fillText('COMMUNITY AFFAIRS UNIT', sx + 26, sy + 21);
 };
 
 function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
