@@ -84,13 +84,11 @@ export function makeCrosstown(): Proto {
   //
   // THE TWO NUMBERS ARE COUPLED. Range and step have to be chosen together;
   // changing one alone is exactly what produced the second complaint.
-  // ⚠ THE RESTING FOV IS THE MENU'S NOW. `FOV_REST` was 88 and is the default
-  // the menu itself carries, so nothing changes for a player who never opens it;
-  // `fovRest()` is read wherever the old constant was so a change lands on the
-  // next frame rather than needing a reload.
-  const FOV_MIN = 52, FOV_STEP = 7;
-  const fovRest = () => setting('fov');
-  let fovTarget = fovRest();
+  // ⚠ FOV IS NOT A MENU SETTING — *"i dont like selecting fov from menu"*
+  // (2026-08-05). It went in with the menu and came straight back out; this is
+  // the constant it always was, unchanged at 88.
+  const FOV_REST = 88, FOV_MIN = 52, FOV_STEP = 7;
+  let fovTarget = FOV_REST;
   /** which stop of the wrist-down carousel is up — see the block that cycles
    *  it. Remembered across looking up and down again: coming back to the same
    *  thing you left open is what a pocket does. */
@@ -149,7 +147,7 @@ export function makeCrosstown(): Proto {
     // scroll UP (deltaY < 0) zooms IN — the Google-Maps/Photoshop convention,
     // and the opposite sign from `ct/hud.ts`'s own "+1 forward" wheel, which
     // answers a different question (which menu item) and has no bearing here.
-    fovTarget = THREE.MathUtils.clamp(fovTarget + Math.sign(e.deltaY) * FOV_STEP, FOV_MIN, fovRest());
+    fovTarget = THREE.MathUtils.clamp(fovTarget + Math.sign(e.deltaY) * FOV_STEP, FOV_MIN, FOV_REST);
   };
   // BUBBLE phase, deliberately not capture, and the reason this needs no
   // import from `ct/hud.ts` at all: whenever a panel (ATM, slots, blackjack,
@@ -1291,8 +1289,7 @@ export function makeCrosstown(): Proto {
   //
   // It is still read live: these are getters, so a change in the menu is felt on
   // the very next mouse move without anything being pushed.
-  rig.look2 = { get sens() { return setting('sens'); },
-                get invertY() { return setting('invertY'); } };
+  rig.look2 = { get sens() { return setting('sens'); }, invertY: false };
 
   /** How far west the world goes: past the deepest open site, or past the
    *  building line if there are none. The 1.2 m is the same cushion the old

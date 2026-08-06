@@ -38,19 +38,37 @@ const DIM = '#a8a4e0';          // the legend, one step back
  * for volume and mute.
  */
 const PREF = 'ct-settings';
+/** ⚠ `ct/audio.ts`'s OWN key, read and written in its own shape. Shared rather
+ *  than copied: this is the one place two modules touch one preference, and it
+ *  is a stopgap until that file exports getters — see the VOLUME row. */
+const AUDIO_PREF = 'ct.audio';
+type AudioPref = { v: number; m: boolean };
+function audioPref(): AudioPref {
+  try {
+    const a = JSON.parse(localStorage.getItem(AUDIO_PREF) || '{}') as Partial<AudioPref>;
+    return { v: typeof a.v === 'number' ? a.v : 0.7, m: !!a.m };
+  } catch { return { v: 0.7, m: false }; }
+}
+function putAudio(a: AudioPref): void {
+  try { localStorage.setItem(AUDIO_PREF, JSON.stringify(a)); } catch { /* private mode */ }
+  for (const fn of WATCH) { try { fn(); } catch { /* a bad watcher is not a bad setting */ } }
+}
+/** the world's own save, so NEW GAME can clear it. `ct/save.ts`'s own key. */
+const SAVE_KEY = 'ct-save';
+let confirming = false;
+let confirmSel = 0;
 export interface Settings {
   /** which wrist the watch is on, and which hand the world assumes */
   hand: 'left' | 'right';
-  /** invert the vertical look, the way a flight stick does */
-  invertY: boolean;
   /** mouse sensitivity, as a multiplier on the rig's own 0.0022 */
   sens: number;
-  /** the resting field of view in degrees — the world's own FOV_REST default */
-  fov: number;
   /** the name he gave himself at character creation */
   name: string;
 }
-const DEFAULTS: Settings = { hand: 'left', invertY: false, sens: 1, fov: 88, name: '' };
+// ⚠ `invertY` AND `fov` ARE GONE FROM THIS LIST — *"i dont like selecting fov
+// from menu, idc about invert look"*. An old stored value for either is simply
+// ignored: the spread below only takes keys this interface declares.
+const DEFAULTS: Settings = { hand: 'left', sens: 1, name: '' };
 let S: Settings = { ...DEFAULTS };
 try {
   const raw = JSON.parse(localStorage.getItem(PREF) || '{}') as Partial<Settings>;
@@ -175,15 +193,10 @@ const ITEMS: Item[] = [
   {
     // ⚠ THE ONE WITH A REAL CONSEQUENCE. `ct/hud.ts` draws the watch arm up the
     // LEFT of the frame and `ct/wardrobe.ts` puts the watch on that wrist; this
-    // flips the arm. See `crosstown.ts`, which owns the wiring.
+    // mirrors the arm as a set — anchor, pivot and tilt. See `setHanded`.
     label: 'HANDEDNESS',
     value: () => (S.hand === 'left' ? 'LEFT' : 'RIGHT'),
     step: () => put('hand', S.hand === 'left' ? 'right' : 'left'),
-  },
-  {
-    label: 'INVERT LOOK',
-    value: () => (S.invertY ? 'ON' : 'OFF'),
-    step: () => put('invertY', !S.invertY),
   },
   {
     label: 'LOOK SPEED',
@@ -197,13 +210,55 @@ const ITEMS: Item[] = [
     },
   },
   {
-    label: 'FIELD OF VIEW',
-    value: () => `${S.fov}`,
+    /**
+     * ── SOUND ────────────────────────────────────────────────────────────
+     *
+     * *"i would like sound settings to be part of this"*
+     *
+     * ⚠ THESE TWO ROWS ARE HONEST BUT NOT LIVE, AND THAT IS BLOCKED ON ONE
+     * EXPORT. `ct/audio.ts` owns volume and mute and belongs to another agent.
+     * It keeps them in `localStorage['ct.audio']` as `{v, m}` and reads that key
+     * ONCE at boot, so the menu writing it moves the setting on the next reload
+     * and not before. Driving its `M` / `[` / `]` keys instead is not available
+     * either: its handler opens with `if (!e.isTrusted …) return`, which
+     * deliberately refuses synthetic events.
+     *
+     * IT NEEDS THREE FUNCTIONS AND NOTHING ELSE:
+     *     export function volume(): number
+     *     export function setVolume(v: number): void
+     *     export function toggleMute(): void
+     * The moment they exist these two `step`s call them and the rows go live
+     * with no other change. Requested; not editing another agent's file for it.
+     */
+    label: 'VOLUME',
+    value: () => (audioPref().m ? '--' : `${Math.round(audioPref().v * 100)}%`),
     step: (d) => {
-      const stops = [72, 80, 88, 96];
-      const i = stops.indexOf(S.fov) < 0 ? 2 : stops.indexOf(S.fov);
-      put('fov', stops[(i + d + stops.length) % stops.length]);
+      const a = audioPref();
+      putAudio({ v: Math.max(0, Math.min(1, Math.round((a.v + d * 0.1) * 10) / 10)), m: false });
     },
+  },
+  {
+    label: 'MUTE',
+    value: () => (audioPref().m ? 'ON' : 'OFF'),
+    step: () => { const a = audioPref(); putAudio({ v: a.v, m: !a.m }); },
+  },
+  {
+    /**
+     * ── NEW GAME, AND IT ASKS FIRST ──────────────────────────────────────
+     *
+     * *"i also would like to be able to start a new game, make sure new game
+     *  has a confirm dialog"*
+     *
+     * THE CONFIRM IS A SECOND OSD SCREEN, not a browser `confirm()` — the point
+     * of this whole surface is that the television owns its own dialogs, and a
+     * native alert box would be the one thing on screen that is not 1997.
+     *
+     * IT DEFAULTS TO NO. The cursor starts on the row that does nothing, so the
+     * dangerous answer needs a deliberate press rather than a reflex Enter.
+     */
+    label: 'NEW GAME',
+    value: () => null,
+    step: () => { confirming = true; confirmSel = 0; },
   },
 ];
 
@@ -211,9 +266,23 @@ let open = false;
 let sel = 0;
 export function menuOpen(): boolean { return open; }
 
+function paintConfirm(g: CanvasRenderingContext2D): void {
+  osdFrame(g);
+  heading(g, 'NEW GAME', 60);
+  g.font = font(12); g.fillStyle = INK;
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillText('THIS ERASES YOUR SAVED GAME.', OW / 2, 104);
+  g.fillText('THIS CANNOT BE UNDONE.', OW / 2, 122);
+  g.textAlign = 'left';
+  row(g, 'NO  — KEEP PLAYING', 96, 158, 14, confirmSel === 0);
+  row(g, 'YES — START OVER', 96, 182, 14, confirmSel === 1);
+  legend(g, [['SELECT', '▲ ▼ KEY'], ['SET', '▶ KEY'], ['END', 'ESC KEY']]);
+}
+
 function paint(): void {
   const g = cv?.getContext('2d');
   if (!g) return;
+  if (confirming) { paintConfirm(g); return; }
   osdFrame(g);
   heading(g, 'MENU', 46);
   let y = 92;
@@ -272,6 +341,23 @@ function onKey(e: KeyboardEvent): void {
     e.stopImmediatePropagation();
     return;
   }
+  // ── THE CONFIRM OWNS EVERY KEY WHILE IT IS UP ─────────────────────────
+  // Escape backs out of it rather than out of the menu, which is the safe
+  // direction: the one press he is most likely to make in a panic is the one
+  // that does not erase anything.
+  if (confirming) {
+    if (k === 'escape') confirming = false;
+    else if (k === 'arrowup' || k === 'arrowdown' || k === 'w' || k === 's') {
+      confirmSel = confirmSel === 0 ? 1 : 0;
+    } else if (k === 'arrowright' || k === 'enter' || k === ' ') {
+      if (confirmSel === 1) { newGame(); return; }
+      confirming = false;
+    } else return;
+    paint();
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    return;
+  }
   // rule 1: while it is up, every one of these keys is the menu's
   if (k === 'escape' || k === 'e') { close(); }
   else if (k === 'arrowup' || k === 'w') sel = (sel + ITEMS.length - 1) % ITEMS.length;
@@ -284,15 +370,34 @@ function onKey(e: KeyboardEvent): void {
   e.preventDefault();
 }
 
+/**
+ * ── STARTING OVER ─────────────────────────────────────────────────────────
+ *
+ * The world's save is `localStorage['ct-save']` (`ct/save.ts`'s LOCAL_KEY), so
+ * clearing that key and reloading IS a new game — every slice rebuilds from its
+ * own defaults and nothing here has to know what any of them contain.
+ *
+ * ⚠ SETTINGS SURVIVE IT, deliberately. Handedness and look speed are facts
+ * about the PERSON AND THE MACHINE, not about the character — the same reason
+ * they are not in the save in the first place. Starting a new life should not
+ * put the watch back on the other wrist. The audio preference survives for the
+ * same reason.
+ */
+function newGame(): void {
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* private mode */ }
+  location.reload();
+}
+
 export function close(): void {
   if (!open) return;
   open = false;
+  confirming = false;
   if (wrap) wrap.style.display = 'none';
 }
 
 /** click a row to select it, click again to step it — the mouse is free here */
 function onClick(e: MouseEvent): void {
-  if (!open || !cv) return;
+  if (!open || !cv || confirming) return;      // the confirm is keyboard-only
   const r = cv.getBoundingClientRect();
   const y = (e.clientY - r.top) * (OH / r.height);
   const i = Math.floor((y - 80) / 22);
