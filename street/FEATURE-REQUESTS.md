@@ -4344,3 +4344,47 @@ office, the jail and the casino — services with their own machinery.
 `src/proto/ct/shop.ts`, `src/proto/ct/goods.ts`, `int-burger.ts`,
 `int-diner.ts`, `int-bodega.ts`, `int-thrift.ts`, `int-pawn.ts`,
 `int-hotel.ts`, `interior.ts`, `inventory.ts`. `WORLD OK`. Live on 5177.
+
+### 2026-08-06 — "everything needs to be more expensive. use 500 bucks a mo rent as a baseline."
+
+**Rent is the anchor and did not move. Everything else did: ×4, rounded to the
+quarter.** A flat multiple rather than six hand-priced menus, because the
+relationships were the part worth keeping and a multiple is the only repricing
+that cannot silently break one — socks still cheapest at the thrift and dearest
+at the bodega, the diner still dearer than the barn, the pawn spread still
+`fencePrice × markup`, half of what you steal still worth about a coffee.
+
+**The fence table moved with the prices** (`ct/inventory.ts`, $0.25–$8 → $1–$32).
+It is the player's only earner; static, it would have made a whole season of
+theft worth $74 against a $500 bill.
+
+**The hotel is the one price that is not ×4.** It was $168 a season against $500
+for the flat — a third of the price, which made signing a lease the stupid
+option. $145 a week is **$580 a season, 16% more than the flat**: you pay a
+premium for taking a room a week at a time with no lease and no deposit, which
+is how a residential hotel actually worked.
+
+**The casino moved through one constant**, as `ct/slots.ts` said it would —
+`CREDIT` 0.25 → 1.00, `BILL` 5 → 20, and blackjack reads that same rate. Nothing
+rebuilt. The ATM's buttons went 20/40/60/100 → 40/100/200/400.
+
+**The painted money was repainted** everywhere it is a texture rather than a
+number: `ALL COATS $16`, `SHIRTS 2 FOR $12`, `HEAVY $24`, `BELTS $4 EACH`, the
+bodega's `COFFEE 2.50` and `ICE COLD 2 / $9`, the barn's `COMBO 11.95`, the
+video hut's `2 FOR $20` and `$6.00 A DAY`, the pizza sign's `TWO SLICES $7.00`.
+
+**The opening purse is UNCHANGED — $14.50 and $312.40 — and that is a decision.**
+$14.50 is now one meal in your pocket, and $312.40 is still "not quite rent",
+which is the relationship it was always for. Scaling it ×4 while rent stayed
+fixed would have made the player four times richer against the only bill that
+matters.
+
+**The season, after.** The flat is $17.86 a day. Subsistence is $5.50 a day
+($154 a season), the barn $14.00 ($392), the diner $26.50 ($742). A fresh player
+can now reach about **$623** — so **rent alone is payable for the first time**,
+and rent plus the cheapest food ($654) is about **$31 out of reach**. That gap is
+the game.
+
+`ct/shop.ts`, `ct/inventory.ts`, the six shop interiors, `ct/slots.ts`,
+`ct/atm.ts`, `ct/tex-world.ts`, `ct/tenancy.ts`, `ct/props.ts`. `WORLD OK`.
+Live on 5177.
