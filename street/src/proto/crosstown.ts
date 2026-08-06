@@ -555,10 +555,8 @@ export function makeCrosstown(): Proto {
   // and a seat stands you up (`fp.ts`); all three must win, or he gets a menu
   // over a view he can no longer reach, which is this project's worst bug.
   registerOsdBusy(() => !!panelUp() || bagOpen() || rig.seated);
-  // LOOK SPEED AND INVERT, read live off the menu rather than pushed — one
-  // object the rig holds, so a change is felt on the very next mouse move.
-  rig.look2 = { get sens() { return setting('sens'); },
-                get invertY() { return setting('invertY'); } };
+  // ⚠ LOOK SPEED AND INVERT ARE INSTALLED WHERE THE RIG EXISTS, not here. See
+  // the note at the assignment itself, beside `new FPRig`.
   installOsd();
   // AND THE SETTINGS REACH THE WORLD. Handedness flips the watch arm — the one
   // option with a visible consequence — and the rest are read live below.
@@ -1276,6 +1274,25 @@ export function makeCrosstown(): Proto {
     // anywhere. See `ceilPick`.
     ceilY: (x, z) => ceilPick(x, z),
   });
+  // ══ LOOK SPEED AND INVERT — INSTALLED HERE BECAUSE THE RIG EXISTS HERE ═══
+  //
+  // ⚠ THIS WAS AT :560 AND IT KILLED THE WORLD. `rig` is declared `let rig!:
+  // FPRig` at :452 and not constructed until this line, 750 lines later — so
+  // `rig.look2 = …` up there ran against `undefined`, threw, and `__ct` never
+  // appeared. NOTHING LOADED. `npx tsc --noEmit` was clean and could never have
+  // caught it: the `!` is a DEFINITE-ASSIGNMENT ASSERTION, which is me telling
+  // the compiler to stop tracking exactly the thing that was wrong.
+  //
+  // THE RULE, since the menu will want more of these: a setting that READS from
+  // the rig may be a closure declared anywhere, because a closure runs later —
+  // `registerOsdBusy(() => … rig.seated)` at :557 is fine for that reason. A
+  // setting that ASSIGNS INTO the rig must be here, or be pulled lazily through
+  // a getter instead of pushed at module scope.
+  //
+  // It is still read live: these are getters, so a change in the menu is felt on
+  // the very next mouse move without anything being pushed.
+  rig.look2 = { get sens() { return setting('sens'); },
+                get invertY() { return setting('invertY'); } };
 
   /** How far west the world goes: past the deepest open site, or past the
    *  building line if there are none. The 1.2 m is the same cushion the old
