@@ -4384,6 +4384,73 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * runs off, which is true while he is in the seat and false the moment he
      * stands up.
      */
+    /**
+     * ══ AND IT LIGHTS THE ROOM, NOT JUST ITSELF ═══════════════════════════
+     *
+     * *"was expecting tv glow that goes on the ground and surroundings not just
+     *  around the tv"*   (2026-08-05)
+     *
+     * HE IS DESCRIBING THE DIFFERENCE BETWEEN A HALO AND A SPILL, and he is
+     * right that I built the wrong one. A halo says "this object is bright"; a
+     * spill says "this object is illuminating that surface". The set needs both
+     * and had only the first.
+     *
+     * ⚠ THERE WAS NO INDOOR FLOOR-POOL TECHNIQUE TO COPY, checked before
+     * inventing one. The ceiling fixture's `spill` sits at `ceilY - 0.02` — it
+     * pools on the CEILING around the lamp, not on the boards; my own switch
+     * commit called it "the pool of light on the boards" and that was loose.
+     * `props.ts`'s real lamp pools are shader terms on `litList` materials and
+     * interiors are excluded from that sweep by construction (`|x| > 100`). So
+     * the honest primitive is `glowT`, the same stepped nearest-filtered disc
+     * every halo in this building is made of — five hard discs and a texel-
+     * broken fringe, which IS this world's soft falloff. No gradient, no
+     * antialiased edge, nothing that reads as a quad.
+     *
+     * DIRECTIONAL, NOT RADIAL. A bulb pools in a circle beneath itself; a screen
+     * throws FORWARD. The disc is stretched 2.1 m across by 1.7 m deep and its
+     * centre pushed 0.72 m out in +z from the glass, so its bright core lands on
+     * the boards in front of the set and its dim fringe reaches back to the
+     * crate — a wedge widening away from the screen rather than a ring round it.
+     *
+     * IT CANNOT POKE THROUGH THE FLOOR, and this one is safe by construction
+     * rather than by measurement: the quad is HORIZONTAL, so it has no vertical
+     * extent to overshoot with. That is exactly what the ceiling halos could not
+     * say — they are vertical billboards and their full height was vertical,
+     * which is how they got 5 cm into the slabs. It sits 6 mm above the boards,
+     * the same clearance a dropped item uses against z-fighting. In plan it
+     * spans x -2.61…-0.51 and z 3.24…4.94 inside a room of x -3.2…0,
+     * z 2…5.5 — clear of every wall.
+     *
+     * BRIGHTER IN THE DARK, WHICH IS THE POINT. `TV_SPILL_DARK` 1.0 against
+     * `TV_SPILL_LIT` 0.28: with the ceiling light on the set barely marks the
+     * floor, because a CRT does not compete with a bulb; with it off the
+     * television IS the light in the flat.
+     *
+     * HOW IT MEETS THE DIMMER: the spill is `selfLit`, so the room sweep skips
+     * it and it keeps full strength in the dark — while the boards UNDER it are
+     * multiplied to `ROOM_DARK`. Additive over a dimmed surface is exactly
+     * right: the floor is dark and the light on it is not, which is what a lit
+     * screen in an unlit room looks like.
+     *
+     * COLOURED BY THE PICTURE, off the same sample the halo already takes on
+     * each redraw — one read, two materials.
+     */
+    const TV_SPILL_W = 2.1, TV_SPILL_D = 1.7, TV_SPILL_OUT = 0.72;
+    const TV_SPILL_LIT = 0.28, TV_SPILL_DARK = 1.0;
+    const tvSpillM = new THREE.MeshBasicMaterial({
+      map: glowT, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: 0x000000, side: THREE.DoubleSide,
+    });
+    tvSpillM.userData.selfLit = true; tvSpillM.userData.graded = true;
+    const tvSpill = new THREE.Mesh(new THREE.PlaneGeometry(TV_SPILL_W, TV_SPILL_D), tvSpillM);
+    tvSpill.rotation.x = -Math.PI / 2;                        // laid on the boards
+    tvSpill.position.set(AX(TV_X), RY + 0.006, AZI(WELL_Z + TV_SPILL_OUT));
+    tvSpill.name = 'tv-spill-301';
+    tvSpill.visible = false;
+    scene.add(tvSpill);
+    /** the picture's last average, before the room's gain is applied to it */
+    const tvTint = new THREE.Color(0, 0, 0);
+    let tvSpillGain = TV_SPILL_DARK;
     const TV_GLOW_W = 0.86, TV_GLOW_H = 0.52;
     const tvGlowM = new THREE.MeshBasicMaterial({
       map: glowT, transparent: true, depthWrite: false,
@@ -4408,8 +4475,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         for (let i = 0; i < px.length; i += 64) { r += px[i]; gg += px[i + 1]; b += px[i + 2]; }
         const n = Math.max(1, Math.floor(px.length / 64));
         const k = 0.42 / 255;                       // how much of it reaches the room
-        tvGlowM.color.setRGB((r / n) * k, (gg / n) * k, (b / n) * k);
+        tvTint.setRGB((r / n) * k, (gg / n) * k, (b / n) * k);
+        tvApplyTint();
       } catch { /* a tainted canvas is not a reason to lose the television */ }
+    };
+    /** the picture's colour on both surfaces, at whatever the room allows */
+    const tvApplyTint = () => {
+      tvGlowM.color.copy(tvTint);
+      tvSpillM.color.setRGB(tvTint.r * tvSpillGain, tvTint.g * tvSpillGain, tvTint.b * tvSpillGain);
+    };
+    /** the ceiling switch tells the set how much of the room is its to light */
+    const tvSetRoomLit = (on: boolean) => {
+      tvSpillGain = on ? TV_SPILL_LIT : TV_SPILL_DARK;
+      tvApplyTint();
     };
     const RAIL_D = 0.04, RAIL_Z = WELL_Z + RAIL_D / 2 + 0.012;
     const topH = (TV_Y + CASE_H / 2) - (SCR_Y + SCR_H / 2);
@@ -4492,6 +4570,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       if (seated !== tvLit) {
         tvLit = seated;
         tvGlow.visible = seated;               // the set is only on in the seat
+        tvSpill.visible = seated;              // and so is the light it throws
         if (seated) { tvWarm = 0.5; tvBag = []; tvLeft = 0.01; }   // a fresh pack each sitting
         else { tvDead(tvG()); tvScreenT.needsUpdate = true; }
       }
@@ -5892,6 +5971,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       (flatLamp.dome.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xffffff : 0x6b6659);
       const k = on ? 1 : ROOM_DARK;
       for (const d of dimmable) d.m.color.setRGB(d.base.r * k, d.base.g * k, d.base.b * k);
+      // ⚠ AND THE TELEVISION IS TOLD. With the ceiling light on its spill barely
+      // marks the floor; with it off the set IS the light in the flat. See
+      // `TV_SPILL_LIT` / `TV_SPILL_DARK`.
+      tvSetRoomLit(on);
       swRock.position.y = SW_Y + (on ? 0.012 : -0.012);   // the rocker tips
     };
     setLight(true);
