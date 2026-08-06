@@ -4685,16 +4685,72 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * COLOURED BY THE PICTURE, off the same sample the halo already takes on
      * each redraw — one read, two materials.
      */
-    const TV_SPILL_W = 2.1, TV_SPILL_D = 1.7, TV_SPILL_OUT = 0.72;
+    /**
+     * ── AND IT IS A WEDGE, NOT A POOL ─────────────────────────────────────
+     *
+     * *"i think the tv glow needs to be a bit less symmetrical. its coming from
+     *  the tv no?"*   (2026-08-05)
+     *
+     * HE IS RIGHT AND THE PHYSICS IS THE ARGUMENT. My first spill was `glowT` —
+     * the RADIAL disc every ceiling halo is made of — stretched into an ellipse
+     * and pushed forward. Directional in PLACEMENT and symmetrical in SHAPE,
+     * with its bright core in the middle of the ellipse. That is a pool of light
+     * sitting near a television, not light leaving one.
+     *
+     * A SCREEN THROWS A WEDGE: narrow where it leaves the glass, widening with
+     * distance, brightest at the glass and falling off outward, and nothing at
+     * all behind the cabinet.
+     *
+     * BUILT FROM DISCS, WHICH IS THE HOUSE IDIOM AND NOT A CONCESSION. `glowT`
+     * is five hard discs plus a texel-broken fringe — no gradient, no
+     * antialiased edge — and that is exactly what stops a light quad reading as
+     * a quad. A wedge needs MORE discs rather than a different primitive: 14 of
+     * them stepped down the axis, each one wider and dimmer than the last, so
+     * the envelope is a cone and every individual edge is still a hard stepped
+     * circle. The fringe is scattered at the WIDE end only, where a real falloff
+     * breaks up.
+     *
+     * NEAR IS THE TOP OF THE CANVAS. Three.js gives a plane uv (0,0) at
+     * bottom-left and a CanvasTexture is flipY by default, so canvas row 0 lands
+     * on the plane's local +y edge — which after `rotation.x = -PI/2` maps to
+     * world -z, the side the television is on. Drawn near-at-top, it points the
+     * right way with no extra rotation to get backwards.
+     */
+    const TV_SPILL_W = 2.4, TV_SPILL_D = 2.2;
     const TV_SPILL_LIT = 0.28, TV_SPILL_DARK = 1.0;
+    const wedgeT = surfTex('detail', 32, 48, (g) => {
+      const N = 14;
+      for (let i = 0; i < N; i++) {
+        const t = i / (N - 1);                       // 0 at the glass, 1 at the far end
+        const cy = 3 + t * 40;                       // stepped down the axis
+        const r = 3.2 + t * 12;                      // narrow at the set, broad away
+        const a = 0.30 * Math.pow(1 - t, 1.6) + 0.03; // brightest at the glass
+        g.fillStyle = `rgba(255,240,206,${a.toFixed(3)})`;
+        for (let y = 0; y < 48; y++) for (let x = 0; x < 32; x++) {
+          const dx = x + 0.5 - 16, dy = y + 0.5 - cy;
+          if (dx * dx + dy * dy <= r * r) g.fillRect(x, y, 1, 1);
+        }
+      }
+      // the falloff breaking into texels, at the WIDE end where it actually does
+      g.fillStyle = 'rgba(255,236,194,0.06)';
+      for (let i = 0; i < 90; i++) {
+        const x = Math.floor(Math.random() * 32);
+        const y = Math.floor(26 + Math.random() * 22);
+        const dx = x + 0.5 - 16;
+        if (Math.abs(dx) < 4 + (y - 3) * 0.34) g.fillRect(x, y, 1, 1);
+      }
+    });
     const tvSpillM = new THREE.MeshBasicMaterial({
-      map: glowT, transparent: true, depthWrite: false,
+      map: wedgeT, transparent: true, depthWrite: false,
       blending: THREE.AdditiveBlending, color: 0x000000, side: THREE.DoubleSide,
     });
     tvSpillM.userData.selfLit = true; tvSpillM.userData.graded = true;
     const tvSpill = new THREE.Mesh(new THREE.PlaneGeometry(TV_SPILL_W, TV_SPILL_D), tvSpillM);
     tvSpill.rotation.x = -Math.PI / 2;                        // laid on the boards
-    tvSpill.position.set(AX(TV_X), RY + 0.006, AZI(WELL_Z + TV_SPILL_OUT));
+    // ⚠ THE NEAR EDGE IS AT THE GLASS, not a stand-off from it — that is what
+    // puts the bright end against the set and leaves nothing behind the
+    // cabinet. Centre = the screen face plus half the depth.
+    tvSpill.position.set(AX(TV_X), RY + 0.006, AZI(WELL_Z + TV_SPILL_D / 2));
     tvSpill.name = 'tv-spill-301';
     tvSpill.visible = false;
     scene.add(tvSpill);
