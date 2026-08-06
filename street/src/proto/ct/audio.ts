@@ -227,8 +227,11 @@ const url = (n: string) => {
 // footsteps and the birds are events and stayed where they were, so the balance
 // tipped the right way round in the same edit.
 const LVL = {
-  streetA: 0.15,   // the base of the outdoor bed: close traffic rumble
-  streetB: 0.13,   // the further-off layer, which breathes — see `sway`
+  // 0.15 -> 0.17: the close traffic carries more of the mix now that the far
+  // layer is only occasionally there. *"bank on a mix between the regular street
+  // sounds mostly"* — this is the "mostly".
+  streetA: 0.17,   // the base of the outdoor bed: close traffic rumble
+  streetB: 0.13,   // the further-off layer with the sirens in it — see `sway`
   room: 0.13,
   rain: 0.30,      // multiplied by rainLevel, so this is its DOWNPOUR level
   // …of the above, heard through a window. Raised from 0.20 when the wall
@@ -712,10 +715,33 @@ export function register(ctx: CtxBuild): void {
 
     // THE STREET BREATHES. `street-a` is 30 s long and a 30 s loop announces
     // itself inside two minutes. `street-b` is a different recording of a
-    // different place, 50 s long, and swinging it between a quarter and full
-    // over a 97 s cycle means the two never line up and the street never
-    // arrives back where it started. Two beds, no seam, no repeat you can hear.
-    sway = 0.5 + 0.5 * Math.sin(f.t * (Math.PI * 2 / 97));
+    // different place, 50 s long, and swinging it against `street-a` means the
+    // two never line up and the street never arrives back where it started.
+    // Two beds, no seam, no repeat you can hear.
+    //
+    // ── AND THE SIRENS ARE THE EXCEPTION, NOT THE WEATHER ─────────────────
+    //
+    // *"sirens are a little much i think in terms of the audio profile. maybe
+    //  bank on a mix between the regular street sounds mostly with the siren
+    //  sounds being used sparingly?"*   (2026-08-05)
+    //
+    // THE SIRENS ARE IN `street-b` — it is the "different place" recording, and
+    // it was never quiet: the old curve was `0.25 + 0.75 * sway` on a plain
+    // sine, so it sat at a QUARTER at its lowest and spent half of every 97 s
+    // above the midpoint. That is a bed, and a siren bed is a siren every other
+    // minute for ever.
+    //
+    // A SINE TO THE FOURTH sits near zero most of the way round and peaks
+    // briefly — the same total shape, redistributed. Against the new floor it
+    // is above a quarter for about 25% of the cycle and above half for 18%,
+    // rather than 50% and 50%. And the cycle goes 97 s -> 149 s, so the peaks
+    // are half as frequent AND still coprime with `street-a`'s 30 s loop, which
+    // is the property the two-bed trick depends on.
+    //
+    // FLOOR 0.25 -> 0.06. The far layer never disappears — cutting it entirely
+    // would leave a hole where the depth of the street is — it just stops being
+    // something you notice until it comes up.
+    sway = 0.5 + 0.5 * Math.sin(f.t * (Math.PI * 2 / 149));
 
     // The site: inverse-square-ish falloff, outdoors only, working hours only.
     const d = Math.hypot(siteAt.x - f.px, siteAt.z - f.pz);
@@ -725,7 +751,7 @@ export function register(ctx: CtxBuild): void {
 
     const want: Record<BedName, number> = {
       'street-a': bleed * LVL.streetA,
-      'street-b': bleed * LVL.streetB * (0.25 + 0.75 * sway),
+      'street-b': bleed * LVL.streetB * (0.06 + 0.94 * sway * sway * sway * sway),
       room: inn * LVL.room,
       rain: rain * LVL.rain,
       // the working day is glided like everything else, so six o'clock is a
