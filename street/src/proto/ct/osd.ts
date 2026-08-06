@@ -22,6 +22,9 @@
 // so it cannot close an import cycle (GOTCHAS §28) — audio imports nothing back.
 // `crosstown.ts` registers the few things this cannot see for itself.
 import { volume, setVolume, toggleMute, isMuted, VOLUME_STEP } from './audio';
+// A LEAF — it imports nothing at all, so the near-leaf property above holds.
+// It owns the whole answer to "what does NEW GAME clear?"; see `newGame` below.
+import { wipe } from './newgame';
 
 /** the reference's own palette, sampled from his screenshot, not invented */
 // EXPORTED because `ct/create.ts` is the same television and must not invent a
@@ -42,8 +45,6 @@ export const DIM = '#a8a4e0';   // the legend, one step back
  * for volume and mute.
  */
 const PREF = 'ct-settings';
-/** the world's own save, so NEW GAME can clear it. `ct/save.ts`'s own key. */
-const SAVE_KEY = 'ct-save';
 let confirming = false;
 let confirmSel = 0;
 export interface Settings {
@@ -442,31 +443,27 @@ function onKey(e: KeyboardEvent): void {
 /**
  * ── STARTING OVER ─────────────────────────────────────────────────────────
  *
- * The world's save is `localStorage['ct-save']` (`ct/save.ts`'s LOCAL_KEY), so
- * clearing that key and reloading IS a new game — every slice rebuilds from its
- * own defaults and nothing here has to know what any of them contain.
+ * ⚠ THIS FILE NO LONGER KNOWS WHAT A NEW GAME CLEARS, and that is the point.
+ * It used to remove `ct-save` and reload, which was wrong twice over: the
+ * outfit and the body live under their own keys and survived it, and — the one
+ * he actually caught — `ct/save.ts`'s `pagehide` listener fires ON THE RELOAD
+ * and wrote the old world, day and all, straight back into the key this had
+ * just deleted. *"starting a new gamre should start a new game the day stays
+ * the same"* (2026-08-06).
  *
- * ⚠ SETTINGS SURVIVE IT, deliberately. Handedness and look speed are facts
- * about the PERSON AND THE MACHINE, not about the character — the same reason
- * they are not in the save in the first place. Starting a new life should not
- * put the watch back on the other wrist. The audio preference survives for the
- * same reason.
- */
-/**
- * ⚠ AND A NEW GAME NOW ASKS WHO YOU ARE — *"new game should put me into
- * character create menu no? what happened to character create?"* (2026-08-05).
+ * `ct/newgame.ts` owns the list now — every key, with keep or clear and why —
+ * and it is a LEAF that imports nothing, so calling it costs this near-leaf
+ * module nothing (see the header, and GOTCHAS §28). Settings and audio still
+ * survive: a preference belongs to the person, not the character.
  *
- * A FLAG AND A RELOAD, not a call into `ct/create.ts`. This file is a near-leaf
- * on purpose (see the header) and creation has to paint the doll, which drags
- * THREE and `ct/hud.ts` in behind it — importing that here would close exactly
- * the cycle this module was built to stay out of. So the handshake is one key in
- * `localStorage`: this sets it, the page reloads into a world with no save, and
- * `ct/create.ts` finds it on the way up and clears it.
+ * A NEW GAME ALSO ASKS WHO YOU ARE — *"new game should put me into character
+ * create menu no?"* (2026-08-05) — and that handshake is a `localStorage` flag
+ * and a reload rather than a call into `ct/create.ts`, which would drag THREE
+ * and `ct/hud.ts` in behind it and close the cycle this module stays out of.
+ * `wipe()` sets the flag; creation finds it on the way up and clears it.
  */
 function newGame(): void {
-  try { localStorage.removeItem(SAVE_KEY); } catch { /* private mode */ }
-  try { localStorage.setItem('ct-create', '1'); } catch { /* private mode */ }
-  location.reload();
+  wipe();
 }
 
 export function close(): void {

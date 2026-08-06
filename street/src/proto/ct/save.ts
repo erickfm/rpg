@@ -2,6 +2,7 @@ import { BUILD, type CtxBuild } from './ctx';
 import { drawerStock, drawerTake, drawerPut } from './inventory';
 import { SLOTS, options, wornIndex, wear, onWardrobeChange, type Slot } from './wardrobe';
 import { captureBody, restoreBody, onBodyChange } from './body';
+import { wiped, onWipe } from './newgame';
 
 // ══ THE SAVE ═══════════════════════════════════════════════════════════════
 //
@@ -259,6 +260,14 @@ function writeLocal(json: string): void {
  * the save route as well as PUT.
  */
 export function flush(opts: { force?: boolean; beacon?: boolean } = {}): boolean {
+  // ⚠ NEW GAME HAS ALREADY DELETED THE SAVE AND IS RELOADING. Both exits below
+  // (`pagehide`, and the tab going hidden) FIRE ON `location.reload()`, so
+  // without this the dying page captured the old world — day 40, the old purse,
+  // the old drawer — and wrote it straight back over the key that was just
+  // cleared. That was the whole of *"the day stays the same"* (2026-08-06).
+  // Not even `force` may pass: nothing about the life being thrown away is
+  // worth keeping. See `ct/newgame.ts`.
+  if (wiped()) return false;
   if (!ready && !opts.force) return false;
   const blob = capture();
   // `at` moves every call, so compare everything EXCEPT it — otherwise the
@@ -470,6 +479,27 @@ function builtins(ctx: CtxBuild): void {
 
 export function register(ctx: CtxBuild): void {
   builtins(ctx);
+
+  // ── WHAT NEW GAME HAS TO DO *HERE* ─────────────────────────────────────
+  //
+  // `ct/newgame.ts` clears the browser's keys; it cannot know about the other
+  // copy. A player with an account has the old world in Postgres, and boot
+  // prefers the server blob over the local one — so clearing localStorage and
+  // reloading would fetch day 40 back down the wire. An EMPTY document is the
+  // erase: `restore` applies no slice it cannot find, so a blob with no slices
+  // in it IS a fresh world, and it needs no new route on the server.
+  //
+  // `sendBeacon` and not `fetch`, for the reason `flush` already gives: the
+  // reload is a heartbeat away and a `fetch` from a dying page is killed with
+  // it. The timer goes too, so nothing ticks between here and the reload.
+  onWipe(() => {
+    if (timer !== null) { clearInterval(timer); timer = null; }
+    if (mode !== 'server' || !player) return;
+    const url = apiUrl(`saves/${encodeURIComponent(player)}`);
+    if (!url) return;
+    const body = JSON.stringify({ save: { v: SAVE_VERSION, at: Date.now(), slices: {} } });
+    try { navigator.sendBeacon(url, new Blob([body], { type: 'text/plain' })); } catch { /* gone */ }
+  });
 
   // Everything from here is asynchronous and NOTHING waits on it. The world is
   // already built and playable by the time this runs; the save lands a moment
