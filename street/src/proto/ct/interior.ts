@@ -266,7 +266,11 @@ function partyFor(id: string): PartyWall | null {
 }
 
 interface Slab {
-  id: string; x0: number; x1: number; gy: (x: number, z: number) => number | null;
+  /** `commit` is the difference between a QUESTION and a MOVE — see
+   *  `interiorGround`. Only the rig's per-frame call, with the PLAYER's own
+   *  position, may pass true. */
+  id: string; x0: number; x1: number;
+  gy: (x: number, z: number, commit: boolean) => number | null;
   /** the room's RESOLVED size and centre — not what the spec asked for.
    *
    *  `W` is `spec.w ?? roomWidthFor(frontage)`, so a room that leaves it to the
@@ -288,6 +292,87 @@ interface Slab {
   door: { x: number; z: number; nx: number; nz: number };
 }
 const SLABS: Slab[] = [];
+
+// ── STACKED FLOORS IN ONE ROOM ──────────────────────────────────────────────
+//
+// `interiorGround(x, z)` is a single number per point, which is all a 2D walker
+// can be told. A mezzanine needs two, so the room offers CANDIDATES (see
+// `RoomSpec.floor`) and this picks between them by remembering which level the
+// player is on. `ct/apartment.ts:5952` solved the same problem for the walk-up
+// and everything below is its reasoning, generalised into the kit:
+//
+//   · **`commit` is the whole design.** Asking "how high is the floor at
+//     (x, z)?" must never change which level the player is recorded on. Only
+//     the rig's per-frame call, which passes the PLAYER's own coordinates,
+//     writes anything. The walk-up shipped this as a bug first — `canSee`
+//     probes every [E] spot every frame, and while the picker wrote on every
+//     call those probes were silent writers of the player's storey. The same
+//     mistake here would be worse: the probe would put you UNDER a gallery you
+//     are standing on.
+//   · **Per slab, not global.** A room's memory is its own, so leaving one room
+//     and entering another cannot carry a mezzanine height across.
+//
+// WHERE IT FAILS, IT FAILS UPWARD. Falling through a floor is the worst thing
+// this can do — much worse than refusing to let you under a balcony — so when
+// the remembered level matches no candidate at all (a warp, a teleport, a
+// respawn into a stacked footprint) the answer is the HIGHEST candidate: you
+// stand on the gallery rather than drop through it.
+const LAST_LEVEL = new Map<string, number>();
+
+/** How far a level may be from the one you are on and still be "the floor you
+ *  are already standing on". 0.6 m is `aptGround`'s own step limit, and it is
+ *  chosen for the same reason: a riser is 0.24 m and a storey is 2.7, so
+ *  nothing that is really a step is excluded and nothing that is really a
+ *  storey is admitted. */
+const LEVEL_SNAP = 0.6;
+
+function pickLevel(id: string, cand: number[], commit: boolean): number {
+  const last = LAST_LEVEL.get(id) ?? 0;
+  let best: number | null = null, bd = Infinity;
+  for (const h of cand) {
+    const d = Math.abs(h - last);
+    if (d > LEVEL_SNAP || d >= bd) continue;
+    bd = d; best = h;
+  }
+  // nothing within reach of where we were: fail UP, never down
+  if (best === null) for (const h of cand) if (best === null || h > best) best = h;
+  const y = best ?? 0;
+  if (commit) LAST_LEVEL.set(id, y);
+  return y;
+}
+
+// ── COLLIDERS THAT ONLY EXIST ON ONE LEVEL ──────────────────────────────────
+//
+// A balustrade is the problem this exists for. Colliders are 2D AABBs with no
+// height (`fp.ts` reads `maxY` only as "you may stand ON this", which is the
+// opposite of what a railing needs, and `minY` is read nowhere), so the
+// library's gallery rail was a floor-to-ceiling wall — it guarded the drop
+// correctly and walled off the whole space below to do it.
+//
+// So a gated collider is PARKED far outside the world when the player is not on
+// its level and put back when they are. That is `ct/apartment.ts`'s `stairCap`
+// trick (`mkCap`/`setCap`, :410/:582 — "floor-aware stair guards (2D colliders,
+// so they follow the floor)"), and it is used here for the same reason: it
+// needs nothing from `fp.ts`.
+//
+// DRIVEN BY THE COMMITTING CALL AND NOTHING ELSE, so it inherits the whole of
+// the guarantee above: a question about some other coordinate cannot open a
+// railing under a player leaning on it.
+interface LevelGate { box: AABB; y: number; minX: number; maxX: number; minZ: number; maxZ: number }
+const GATES = new Map<string, LevelGate[]>();
+const PARKED = 9999;
+
+/** Put every gated collider in `id` in or out of the world for level `y`.
+ *  Idempotent and cheap — a handful of boxes, only on a committing call. */
+function applyGates(id: string, y: number): void {
+  const gs = GATES.get(id);
+  if (!gs) return;
+  for (const g of gs) {
+    const live = Math.abs(g.y - y) <= LEVEL_SNAP;
+    g.box.minX = live ? g.minX : PARKED; g.box.maxX = live ? g.maxX : PARKED + 1;
+    g.box.minZ = live ? g.minZ : PARKED; g.box.maxZ = live ? g.maxZ : PARKED + 1;
+  }
+}
 
 /**
  * Every collider every room has registered, in one list.
@@ -576,9 +661,25 @@ export function buildAllInteriors(ctx: CtxBuild): void {
   }
 }
 
-export function interiorGround(x: number, z: number): number | null {
+/**
+ * How high is the floor at (x, z) inside the interior belt? `null` outside it.
+ *
+ * `commit` IS THE DIFFERENCE BETWEEN A QUESTION AND A MOVE, and it defaults to
+ * FALSE so that every existing caller is a pure read. It matters now that a
+ * room may have two floors at one point (see `RoomSpec.floor` and `pickLevel`):
+ * a committing call updates which level the player is remembered to be on, and
+ * a pure one cannot. Exactly one caller in the world passes true — the rig's
+ * per-frame `groundY`, via `groundPick` in `crosstown.ts`, which is the only
+ * one asking about the PLAYER's own position. `ct/apartment.ts`'s `aptGround`
+ * takes the same flag for the same reason and learned it the hard way.
+ *
+ * FOR A FLAT ROOM — every room in the belt but the library — this is bit-for-
+ * bit what it always was, committing or not: one candidate, `pickLevel`
+ * returns it, and the only state written is a number nothing else reads.
+ */
+export function interiorGround(x: number, z: number, commit = false): number | null {
   if (x < SLAB_X0) return null;
-  for (const s of SLABS) if (x >= s.x0 && x < s.x1) return s.gy(x, z) ?? 0;
+  for (const s of SLABS) if (x >= s.x0 && x < s.x1) return s.gy(x, z, commit) ?? 0;
   return null;
 }
 
@@ -630,8 +731,35 @@ export interface RoomSpec {
    * A LIST, not a single split, and later entries win — so a mezzanine over a
    * dais is two rows rather than a special case. Return null from the function
    * form for "not mine", exactly as `ctx.ground` does.
+   *
+   * ── TWO FLOORS AT ONE (x, z): RETURN AN ARRAY ────────────────────────────
+   *
+   * The user: *"i cant currently walk under the balcony"*, in the library
+   * (2026-08-05), and then *"make interiors level aware"*.
+   *
+   * The library's gallery is a 3.0 x 11.6 m deck at y 2.90 with 2.64 m of
+   * clear headroom under it, and its floor function answered 2.90 for every
+   * point in that footprint — so there was no ground floor under the balcony
+   * at all. **The balcony WAS the floor**, and 34.8 m² of room was a thing you
+   * could only ever stand on top of. That was not a bug in the room: this
+   * field was single-valued, so the room had no way to say it.
+   *
+   *   floor: (lx, lz) => inGallery(lx, lz) ? [0, 2.90] : null
+   *
+   * An array is a set of CANDIDATE surfaces at that point, lowest-first by
+   * convention but not by requirement. The kit picks between them with
+   * hysteresis against the level the PLAYER was last committed to — see
+   * `pickLevel` — which is the only way a 2D walker can have stacked floors.
+   * `ct/apartment.ts` reached the same conclusion three months earlier and
+   * wrote a private picker (`aptGround`) because this field could not express
+   * it; the shape of the answer here is deliberately its shape.
+   *
+   * ⚠ A ROOM THAT RETURNS AN ARRAY MUST FENCE ITS UPPER LEVEL. The picker will
+   * keep you on the deck while you are on it, but the moment you step outside
+   * the footprint the answer is the ground floor and you drop the whole height.
+   * `ctx.solidAt` is how you fence it without walling off the space below.
    */
-  floor?: RoomLevel[] | ((lx: number, lz: number) => number | null);
+  floor?: RoomLevel[] | ((lx: number, lz: number) => number | number[] | null);
   /**
    * Which way the player looks on arrival, in the room's own frame — 0 is
    * square into the room, which is what almost every shop wants. Set it only
@@ -826,6 +954,23 @@ export interface Room {
   }) => void;
   /** a collider in LOCAL coordinates, centred on (lx,lz) */
   solid: (lx: number, lz: number, w: number, d: number) => AABB;
+  /**
+   * A COLLIDER THAT ONLY EXISTS WHILE THE PLAYER IS ON LEVEL `y`.
+   *
+   * For fencing a mezzanine. A balustrade has to stop someone walking off the
+   * gallery AND leave the floor underneath open, and a plain `solid` cannot do
+   * both — colliders are 2D AABBs extruded to infinite height (`fp.ts` reads
+   * `maxY` as "you may stand on this", the opposite of a railing, and `minY`
+   * nowhere). So this one is parked outside the world whenever the committed
+   * level is not `y`, exactly as `ct/apartment.ts` parks its stair guards.
+   *
+   * ⚠ IT IS A FENCE, NOT A FLOOR. If a room offers a raised level it must fence
+   * every edge of it, because one step outside the footprint answers the ground
+   * floor and drops you the whole height. Anything structural — a column that
+   * runs from the floor to the deck, a wall — is a plain `solid`: real at both
+   * levels, and it should stay that way.
+   */
+  solidAt: (y: number, lx: number, lz: number, w: number, d: number) => AABB;
   /** every collider this room has registered — hand these to the rig */
   colliders: AABB[];
   /** Where the door is along the front wall, in LOCAL x — derived from the
@@ -2010,16 +2155,30 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
 
   // registry for the world: this is the same `gy` the entry point already
   // dispatches over for the exterior flights.
-  const levelAt = (wxx: number, wzz: number): number => {
+  const levelAt = (wxx: number, wzz: number, commit: boolean): number => {
     const f = spec.floor;
-    if (!f) return 0;
+    // A ROOM WITH NO LEVELS STILL COMMITS ITS ZERO, and it has to. The memory
+    // is what keeps a player on a gallery; if walking the flat part of a room
+    // left it untouched, a stale 2.90 from a previous visit would meet you at
+    // the door. Committing 0 everywhere else means the raised level can only
+    // ever be remembered while you are actually standing in its footprint,
+    // which is the property that makes the whole thing safe.
+    if (!f) { if (commit) { LAST_LEVEL.set(spec.id, 0); applyGates(spec.id, 0); } return 0; }
     const lx = wxx - cx, lz = wzz - cz;
-    if (typeof f === 'function') return f(lx, lz) ?? 0;
-    let y = 0;
-    for (const L of f) if (lx >= L.x0 && lx <= L.x1 && lz >= L.z0 && lz <= L.z1) y = L.y;
-    return y;                       // later rows win, so a mezzanine can sit over a dais
+    let cand: number[];
+    if (typeof f === 'function') {
+      const a = f(lx, lz);
+      cand = a === null ? [0] : typeof a === 'number' ? [a] : a.length ? a : [0];
+    } else {
+      let y = 0;
+      for (const L of f) if (lx >= L.x0 && lx <= L.x1 && lz >= L.z0 && lz <= L.z1) y = L.y;
+      cand = [y];                   // later rows win, so a mezzanine can sit over a dais
+    }
+    const y = pickLevel(spec.id, cand, commit);
+    if (commit) applyGates(spec.id, y);
+    return y;
   };
-  SLABS.push({ id: spec.id, x0, x1, gy: (gx, gz) => levelAt(gx, gz), w: W, d: D, h: H, cx, cz,
+  SLABS.push({ id: spec.id, x0, x1, gy: (gx, gz, commit) => levelAt(gx, gz, commit), w: W, d: D, h: H, cx, cz,
     // in the cut face when the door lives there, otherwise mid front wall
     door: CH
       ? { x: chMx, z: chMz, nx: -chSx / Math.SQRT2, nz: -chSz / Math.SQRT2 }
@@ -2076,6 +2235,18 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       }
     },
     solid: (lx, lz, w, d) => wall(lx - w / 2, lx + w / 2, lz - d / 2, lz + d / 2),
+    solidAt: (y, lx, lz, w, d) => {
+      const b = wall(lx - w / 2, lx + w / 2, lz - d / 2, lz + d / 2);
+      const gs = GATES.get(spec.id) ?? [];
+      gs.push({ box: b, y, minX: b.minX, maxX: b.maxX, minZ: b.minZ, maxZ: b.maxZ });
+      GATES.set(spec.id, gs);
+      // BUILT PARKED unless it guards the ground floor. The player enters every
+      // room at level 0, so a gallery rail that started live would be a wall
+      // across the room until the first commit moved it — and the first commit
+      // is a frame away, which is long enough to be walked into.
+      applyGates(spec.id, LAST_LEVEL.get(spec.id) ?? 0);
+      return b;
+    },
     inside: () => player.x() >= x0 && player.x() < x1,
   };
 }

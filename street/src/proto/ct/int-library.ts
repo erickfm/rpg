@@ -150,9 +150,34 @@ export function buildLibrary(ctx: CtxBuild): void {
     //
     // 2.90 m of rise over a 4.60 m run is 32°, a real stair, and the deck clears
     // the 1.95 m bays under it by nearly a metre.
+    // ══ AND YOU CAN WALK UNDER IT NOW ════════════════════════════════════
+    //
+    // *"i cant currently walk under the balcony"* (2026-08-05), and then
+    // *"make interiors level aware"*.
+    //
+    // He was right and the cause was this function. It used to answer
+    // `GALLERY_Y` for EVERY point in the gallery's x band with `lz <=
+    // GALLERY_Z1` — which is the deck AND the whole 3.0 x 11.6 m of room
+    // underneath it. There was no ground floor under the balcony at all: the
+    // balcony WAS the floor, and 34.8 m² of a 440 m² room could only ever be
+    // stood on top of. Headroom was never the problem — the soffit is at 2.64 m
+    // and the edge beam at 2.45, which is a metre of air over a 1.62 m eye.
+    //
+    // The kit could not express it: `RoomSpec.floor` was one number per point.
+    // It now takes an ARRAY of candidate surfaces and picks between them with
+    // hysteresis against the level the player is on, so this says the true
+    // thing — under the deck there are two floors, and which one you are on
+    // depends on whether you took the stair.
+    //
+    // THE RAMP STAYS SINGLE-VALUED, and that is what makes the transition work
+    // in both directions. Walking up, it commits a height that climbs smoothly
+    // to 2.90 by the time you reach z GALLERY_Z1, so the first two-candidate
+    // cell you meet finds 2.90 within reach and keeps you on the deck. Walking
+    // down, the same in reverse. There is nowhere on the stair the memory can
+    // be anything but the stair.
     floor: (lx, lz) => {
       if (lx < GALLERY_X0 || lx > GALLERY_X1) return null;
-      if (lz <= GALLERY_Z1) return GALLERY_Y;
+      if (lz <= GALLERY_Z1) return [0, GALLERY_Y];        // the deck, and the room under it
       if (lz <= STAIR_Z0) return GALLERY_Y * (STAIR_Z0 - lz) / (STAIR_Z0 - GALLERY_Z1);
       return null;
     },
@@ -176,7 +201,7 @@ export function buildLibrary(ctx: CtxBuild): void {
     light: { kind: 'troffer', tint: 0xfdf6e2, count: 4, dead: [2] },
   });
 
-  const { put, solid, W, D } = room;
+  const { put, solid, solidAt, W, D } = room;
   const rnd = (() => { let s = 0x1b7a33; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); })();
   const wood = new THREE.MeshBasicMaterial({ color: 0x6b5334 });
   const woodDark = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
@@ -535,7 +560,16 @@ export function buildLibrary(ctx: CtxBuild): void {
       const [p0, p1] = at(0, face * (BAY_D / 2 - 0.02));
       put(m, p0, y + 0.20, p1);
     }
-    solid(ax ? lx : lx, ax ? lz : lz, ...(ax ? [len + 0.08, BAY_D + 0.08] : [BAY_D + 0.08, len + 0.08]) as [number, number]);
+    // A RUN ON THE GALLERY IS FENCED TO THE GALLERY. `base` is the level it
+    // stands on, so a run at 2.90 registers a collider that only exists while
+    // the player is up there — it used to be a floor-to-ceiling wall standing
+    // in the middle of the ground floor under the deck. The two callers at
+    // base 0 are unchanged: `solidAt` and `solid` build the same box, and one
+    // of them is simply never parked.
+    const fence = base > 0.001
+      ? (lx2: number, lz2: number, w2: number, d2: number) => solidAt(base, lx2, lz2, w2, d2)
+      : solid;
+    fence(lx, lz, ...(ax ? [len + 0.08, BAY_D + 0.08] : [BAY_D + 0.08, len + 0.08]) as [number, number]);
   };
 
   // THE BACK WALL'S EAST BAY. The five free-standing runs above occupy x -7.6
@@ -1659,7 +1693,42 @@ export function buildLibrary(ctx: CtxBuild): void {
     for (let bz = deckZ0 + 0.25; bz < deckZ1 - 0.2; bz += 0.30) {
       box(0.06, GBAL_H, 0.06, woodDark, RAIL_X, GALLERY_Y + GBAL_H / 2, bz);
     }
-    solid(RAIL_X, deckCZ, 0.24, deckD);
+    // ══ THE ONE COLLIDER THAT WAS WALLING OFF THE WHOLE ROOM BELOW ═══════════
+    //
+    // This was a plain `solid`, and the note that used to sit under the gallery
+    // shelves said so cheerfully: *"their colliders cost the ground floor
+    // nothing: the balustrade already stops you at GALLERY_X0 + 0.09 down
+    // there"*. That was true, and it was the second half of *"i cant currently
+    // walk under the balcony"*. A collider is a 2D AABB extruded to infinite
+    // height, so a railing 2.9 m up was a wall standing on the floor.
+    //
+    // `solidAt` fences it to the deck's own level: live while the player is on
+    // the gallery, parked outside the world while they are underneath it. And
+    // it MUST stay live up there — the deck's west edge is the only side of it
+    // that is not a wall or the stair, and one step past GALLERY_X0 answers the
+    // ground floor and drops you 2.90 m. Falling through a floor is worse than
+    // anything this item was raised to fix.
+    solidAt(GALLERY_Y, RAIL_X, deckCZ, 0.24, deckD);
+
+    // ══ AND THE CLIFF THE NEW FLOOR CREATED, WHICH IS THE OTHER WAY ROUND ════
+    //
+    // Opening the ground under the deck put a 2.90 m step in the middle of the
+    // room, and it faces UP rather than down. The deck's south edge at
+    // GALLERY_Z1 abuts the TOP of the flight: one step south out of the new
+    // space, at z 0.61, and the picker answers the ramp at 2.89 — a 2.9 m
+    // elevator, because a ramp has one candidate and always wins.
+    //
+    // THE RAMP CANNOT BE MADE TWO-VALUED TO FIX THIS, and that is worth
+    // recording because it is the obvious idea. Offer [0, ramp] along the
+    // flight and the stair stops working: at the foot the ramp is 0.24 m, which
+    // is inside LEVEL_SNAP of the floor, so the picker would keep choosing the
+    // ground and you could never climb. The flight has to be single-valued.
+    //
+    // So the space under the deck ENDS where the stair begins, fenced at ground
+    // level only. Parked while you are on the gallery, so walking off the deck
+    // onto the stair head — the way down — is untouched. The 2.8 m of open
+    // crossing this closes is under the descending flight anyway.
+    solidAt(0, GCX, GALLERY_Z1 + 0.06, GW, 0.12);
 
     // a table up there, because a gallery with nothing on it is a walkway
     box(1.5, 0.06, 0.7, wood, GCX + 0.5, GALLERY_Y + 0.72, deckCZ + 1.4);
@@ -1673,9 +1742,10 @@ export function buildLibrary(ctx: CtxBuild): void {
     // no second reason to go up. Two runs against the east wall, books facing
     // the rail, split so the deck reads as having a middle.
     //
-    // Their colliders cost the ground floor nothing: the balustrade already
-    // stops you at GALLERY_X0 + 0.09 down there, so everything under this deck
-    // is behind a wall at floor level either way.
+    // Their colliders are FENCED TO THE DECK, via `wallRun`'s `base`. This note
+    // used to read "their colliders cost the ground floor nothing: the
+    // balustrade already stops you at GALLERY_X0 + 0.09 down there" — which was
+    // true, and was half the reason there was no room under the balcony.
     const SHELF_X = W / 2 - BAY_D / 2 - 0.06;
     // TWO SUB-PASSABLE PINCHES ON THE DECK, flagged by w4 while fixing item
     // 5g, unfixed until now (item 5j). `wallRun`'s own `solid()` pads a run's

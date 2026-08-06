@@ -1299,7 +1299,15 @@ export function makeCrosstown(): Proto {
       // the interior belt owns its own floors — each room answers for its
       // slab, so a builder can put a step or a mezzanine in a shop without
       // this file knowing anything about it
-      const ig = interiorGround(x, z);
+      //
+      // `commit` IS PASSED THROUGH, and for the same reason the walk-up's is:
+      // since 2026-08-05 a room may have TWO floors at one point — the library
+      // has a gallery you walk on and a floor under it — and the kit resolves
+      // that with hysteresis against the level the player is on. So the belt
+      // needs the same question/move distinction this function already draws.
+      // `put()` still wraps the RESULT: the belt picks WHICH floor, `apt.setGy`
+      // records the height, and those are two different facts.
+      const ig = interiorGround(x, z, commit);
       if (ig !== null) return put(ig);
       // NOT wrapped in put(): the walk-up's picker is stateful and does its
       // own committing, because the value it writes is chosen by hysteresis
