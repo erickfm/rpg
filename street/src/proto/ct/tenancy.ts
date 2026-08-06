@@ -297,32 +297,32 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'NOT BUZZ ANYONE IN THAT YOU DO',
     'NOT KNOW.',
   ] },
-  { from: 'THE MAIL-ORDER CATALOGUE', lines: [
+  { from: 'THE MAIL-ORDER CATALOGUE', art: 'catalogue-order', lines: [
     'Four hundred pages. Trainers,',
     'tube socks, a toaster, and a',
     'small appliance you cannot make',
     'out from the picture.',
   ] },
-  { from: 'DR. R. HALVERSEN, D.D.S.', lines: [
+  { from: 'DR. R. HALVERSEN, D.D.S.', art: 'card-dentist', lines: [
     'THIS IS A REMINDER that you are',
     'due for a cleaning. Our records',
     'show your last visit was 1993.',
     'Please call for an appointment.',
   ] },
-  { from: 'A CHAIN LETTER', lines: [
+  { from: 'A CHAIN LETTER', art: 'chain-letter', lines: [
     'DO NOT BREAK THE CHAIN. Copy',
     'this letter twenty (20) times',
     'and send it on. A man in OHIO',
     'broke it and lost his job in',
     'nine days.',
   ] },
-  { from: 'SOMEBODY ELSE ENTIRELY', lines: [
+  { from: 'SOMEBODY ELSE ENTIRELY', art: 'envelope-misrouted', lines: [
     'Wrong street, right number.',
     'Someone named MARGUERITE is',
     'owed $312 by a garage, and now',
     'you know that.',
   ] },
-  { from: 'PENNY SAVER — WEEKLY', lines: [
+  { from: 'PENNY SAVER — WEEKLY', art: 'classified-penny', lines: [
     'CARS · APPLIANCES · ROOMS TO LET',
     '"1977 SEDAN, RUNS, $400 OBO"',
     '"WANTED: DRUMMER. NO TIMEWASTERS"',
@@ -1320,6 +1320,179 @@ ART['notice-precinct'] = (g, l) => {
   g.fillText('14TH PRECINCT', sx + 26, sy + 12);
   g.font = UI.font(6); g.fillStyle = '#5a544a';
   g.fillText('COMMUNITY AFFAIRS UNIT', sx + 26, sy + 21);
+};
+
+
+/**
+ * ── THE MAIL-ORDER CATALOGUE: A THICK BOOK, NOT A SHEET ────────────────────
+ * The one piece with DEPTH. Four hundred pages is a slab, so it is drawn as a
+ * cover with a stack of page edges down its right side and a spine shadow —
+ * the only thing in the box you could prop a door open with. VOLT VILLAGE's
+ * kind of stock, sold by post: a grid of small goods on the cover, because that
+ * is exactly what a 1997 general catalogue put there.
+ */
+ART['catalogue-order'] = (g, l) => {
+  const w = Math.round(PAPER.w * 0.80), h = Math.round(PAPER.h * 0.90);
+  const x = Math.round((PAPER.w - w) / 2) - 5, y = Math.round((PAPER.h - h) / 2);
+  // the page edges, stacked to the right — this is the whole "it is a book"
+  for (let k = 0; k < 8; k++) {
+    fill(g, k % 2 ? '#d8d3c2' : '#e6e1d0', x + w + k, y + 2 + k * 0.4, 1, h - 4 - k * 0.8);
+  }
+  stock(g, x, y, w, h, '#e2ddc8', '#efeada', '#c4bda6');
+  fill(g, 'rgba(0,0,0,0.16)', x, y, 4, h);                     // the spine
+  const RUST = '#9a5a3a';
+  fill(g, RUST, x + 8, y + 8, w - 16, 22);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#f2eeda'; g.font = UI.font(9, true);
+  g.fillText('EVERYTHING', x + w / 2, y + 23);
+  g.fillStyle = '#4a443a'; g.font = UI.font(6);
+  g.fillText('SPRING · 400 PAGES · POST FREE', x + w / 2, y + 40);
+  // a grid of small goods, flat blocks — a general catalogue's whole cover
+  const gx = x + 12, gy = y + 48;
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+    fill(g, '#cfc8b2', gx + c * 38, gy + r * 30, 32, 24);
+    fill(g, ['#6b6455', '#8a7049', '#5f6b74'][(r + c) % 3], gx + c * 38 + 6, gy + r * 30 + 5, 20, 14);
+  }
+  g.textAlign = 'left'; g.fillStyle = '#4a443a'; g.font = UI.font(6);
+  let ly = y + h - 22;
+  for (const ln of l.lines.slice(0, 2)) { g.fillText(ln.slice(0, 32), x + 8, ly); ly += 9; }
+};
+
+/**
+ * ── THE DENTIST: A REMINDER CARD ───────────────────────────────────────────
+ * SMALL AND STIFF — a card, not a letter, because that is what a surgery sends.
+ * Pale blue stock, the practice's name at the top, and a ruled APPOINTMENT
+ * panel with the date left blank, which is the joke: they want him to call and
+ * fill it in, and his last visit was 1993.
+ */
+ART['card-dentist'] = (g, l) => {
+  const w = Math.round(PAPER.w * 0.84), h = Math.round(PAPER.h * 0.50);
+  const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
+  stock(g, x, y, w, h, '#dfe7e6', '#eef3f2', '#bcc7c6');
+  const TEAL = '#2f5d5a';
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = TEAL; g.font = UI.font(8, true);
+  g.fillText('R. HALVERSEN, D.D.S.', x + w / 2, y + 16);
+  g.font = UI.font(6); g.fillStyle = '#5a6b6a';
+  g.fillText('GENERAL DENTISTRY · 227 W 21ST', x + w / 2, y + 25);
+  fill(g, TEAL, x + 10, y + 30, w - 20, 1);
+  g.textAlign = 'left'; g.fillStyle = '#2b3a39'; g.font = UI.font(7);
+  let ly = y + 44;
+  for (const ln of l.lines.slice(0, 3)) { g.fillText(ln.slice(0, COLS), x + 10, ly); ly += 11; }
+  // the blank appointment panel — the point of the card
+  const py = y + h - 30;
+  g.strokeStyle = TEAL; g.lineWidth = 1;
+  g.strokeRect(x + 10.5, py + 0.5, w - 21, 20);
+  g.fillStyle = TEAL; g.font = UI.font(6, true);
+  g.fillText('APPOINTMENT', x + 15, py + 9);
+  fill(g, 'rgba(47,93,90,0.45)', x + 62, py + 12, w - 78, 1);
+};
+
+/**
+ * ── THE CHAIN LETTER: A PHOTOCOPY OF A PHOTOCOPY OF A TYPESCRIPT ───────────
+ * The worst-printed thing in the box and the only one that is SKEWED — it went
+ * through somebody's copier crooked and has been copied crooked ever since, so
+ * the whole page sits at 1.5 degrees inside its own paper. Blotched toner,
+ * a heavy underline under DO NOT BREAK THE CHAIN, and no sender anywhere.
+ */
+ART['chain-letter'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  stock(g, 0, 0, W, H, '#e6e3d6', '#f0eee2', '#c8c4b4');
+  // copier blotches — deterministic, so the piece does not shimmer per frame
+  for (let i = 0; i < 26; i++) {
+    fill(g, 'rgba(0,0,0,0.06)', (i * 37) % (W - 12) + 6, (i * 53) % (H - 12) + 6, 3 + (i % 3), 2);
+  }
+  g.save();
+  g.translate(W / 2, H / 2);
+  g.rotate(0.026);                                   // fed in crooked, and stayed
+  g.translate(-W / 2, -H / 2);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#2a2620'; g.font = UI.font(9, true);
+  g.fillText('DO NOT BREAK THE CHAIN', W / 2, 34);
+  fill(g, '#2a2620', 26, 38, W - 52, 2);
+  g.textAlign = 'left'; g.font = UI.font(8);
+  let y = 62;
+  for (const ln of l.lines) { g.fillText(ln.slice(0, COLS), 14, y); y += 13; }
+  g.textAlign = 'center'; g.font = UI.font(7, true);
+  g.fillText('SEND IT ON. DO NOT KEEP IT.', W / 2, H - 22);
+  g.restore();
+};
+
+/**
+ * ── SOMEBODY ELSE ENTIRELY: A WINDOW ENVELOPE, RE-ROUTED ───────────────────
+ * The second envelope in the box and NOT a repeat of the previous tenant's —
+ * that one was never opened and this one has been through the system twice.
+ * Buff stock rather than white, a yellow POST OFFICE redirect label stuck at an
+ * angle over the address, and a hand's ring-and-arrow round the house number.
+ * Wrong street, right number.
+ */
+ART['envelope-misrouted'] = (g, l) => {
+  const W = PAPER.w, h = Math.round(PAPER.h * 0.56), y0 = Math.round((PAPER.h - h) / 2);
+  stock(g, 0, y0, W, h, '#ded4b8', '#eae2ca', '#b9ae90');
+  fill(g, 'rgba(120,105,70,0.20)', 0, y0 + Math.round(h * 0.30), W, 1);   // the flap seam
+  // the window and the address showing through
+  const wx = 12, wy = y0 + Math.round(h * 0.40), ww = Math.round(W * 0.54), wh = 34;
+  fill(g, '#c9bf9e', wx - 2, wy - 2, ww + 4, wh + 4);
+  fill(g, '#d8cfae', wx, wy, ww, wh);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#3a352c'; g.font = UI.font(7);
+  g.fillText('MARGUERITE A. DUFRESNE', wx + 5, wy + 12);
+  g.fillText('227 W 19TH  APT 301', wx + 5, wy + 23);
+  // the hand that circled the number and pointed at it
+  g.strokeStyle = 'rgba(47,79,140,0.75)'; g.lineWidth = 1;
+  g.strokeRect(wx + 26, wy + 15, 22, 11);
+  fill(g, 'rgba(47,79,140,0.75)', wx + 50, wy + 20, 10, 1);
+  fill(g, 'rgba(47,79,140,0.75)', wx + 50, wy + 18, 4, 1);
+  // THE REDIRECT LABEL, stuck on crooked the way a hand sticks one
+  g.save();
+  g.translate(W - 66, y0 + 12);
+  g.rotate(-0.11);
+  fill(g, '#d8c24a', 0, 0, 58, 22);
+  fill(g, 'rgba(0,0,0,0.18)', 0, 0, 58, 4);
+  g.fillStyle = '#3a352c'; g.font = UI.font(6, true);
+  g.fillText('RETURN TO', 5, 12);
+  g.fillText('SENDER', 5, 19);
+  g.restore();
+  g.fillStyle = '#5a544a'; g.font = UI.font(6);
+  g.fillText(l.lines[0]?.slice(0, COLS) ?? '', 10, y0 + h - 8);
+};
+
+/**
+ * ── THE PENNY SAVER: A CLASSIFIED SHEET, SET IN COLUMNS ────────────────────
+ * NEWSPRINT, and the only piece set in COLUMNS — two of them, rules between,
+ * headings in reverse, and the ads themselves at 6 px because a free weekly
+ * sells by the line and crams. Grey-brown stock so it reads as pulp beside the
+ * white bank letter.
+ */
+ART['classified-penny'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  stock(g, 0, 0, W, H, '#dcd7c4', '#e8e3d2', '#bdb8a4');
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  fill(g, '#3a352c', 0, 6, W, 18);
+  g.fillStyle = '#dcd7c4'; g.font = UI.font(11, true);
+  g.fillText('PENNY SAVER', W / 2, 20);
+  g.fillStyle = '#4a443a'; g.font = UI.font(6);
+  g.fillText('FREE · WEEKLY · TAKE ONE', W / 2, 32);
+  fill(g, '#8d8672', 8, 36, W - 16, 1);
+  // two columns with a rule between them, which is the whole look
+  const colW = (W - 24) / 2, cx = [10, 14 + colW];
+  fill(g, 'rgba(90,84,70,0.35)', W / 2, 40, 1, H - 52);
+  g.textAlign = 'left';
+  const heads = ['CARS', 'ROOMS TO LET'];
+  for (let c = 0; c < 2; c++) {
+    fill(g, '#3a352c', cx[c], 44, colW - 4, 9);
+    g.fillStyle = '#dcd7c4'; g.font = UI.font(6, true);
+    g.fillText(heads[c], cx[c] + 3, 51);
+    g.fillStyle = '#2b2620'; g.font = UI.font(6);
+    let y = 62;
+    for (const ln of l.lines) {
+      // wrapped by hand into the column, because a classified column is narrow
+      const t = ln.slice(c * 16, c * 16 + 22);
+      if (t.trim()) { g.fillText(t, cx[c] + 2, y); y += 9; }
+    }
+  }
+  g.fillStyle = '#5a544a'; g.font = UI.font(6);
+  g.fillText(l.lines[3]?.slice(0, COLS) ?? '', 10, H - 12);
 };
 
 function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
