@@ -237,7 +237,11 @@ const LVL = {
   streetA: 0.17,   // the base of the outdoor bed: close traffic rumble
   streetB: 0.13,   // the further-off layer with the sirens in it — see `sway`
   room: 0.13,
-  rain: 0.30,      // multiplied by rainLevel, so this is its DOWNPOUR level
+  // *"replace the rain sound with rain better in sounds"*. The FILE changed and
+  // the in-world level deliberately did not: the old bed sat at -16.9 LUFS and
+  // the new one at -19.4, so 0.30 became 0.40 purely to cancel that 2.5 dB. He
+  // asked for a different recording, not a louder rainstorm.
+  rain: 0.40,      // multiplied by rainLevel, so this is its DOWNPOUR level
   // …of the above, heard through a window. Raised from 0.20 when the wall
   // filter went in: rain is the ONE bed with real content above 2 kHz, so a
   // 520 Hz corner takes far more off it than off the traffic, and the level it

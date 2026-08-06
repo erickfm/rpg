@@ -17,11 +17,21 @@
 #                                            across its 53 s (rms 0.007 → 0.005)
 #   room.wav          79.7% below 250 Hz   — interior hum with occasional swells
 #   construction.wav  81.6% in 250–2k      — quiet, distant site clatter
-#   rain.wav          only bed with real 2–8k content (6.3%) and 8k+ (1.1%)
+#   rain better.wav   the ONE bed with real top end: 45.9% in 2–8k and 9.1% in
+#                     8–16k, centroid 5811 Hz. Replaced the original `rain.wav`
+#                     on the user's *"replace the rain sound with rain better in
+#                     sounds"*, and the numbers say why it is better: the old
+#                     one had 6.3% in 2–8k and 1.1% above, centroid 3345 Hz —
+#                     a wash where this is a patter. It is also the only source
+#                     of the nine that arrived at a steady level (rms 0.0134 to
+#                     0.0143 across its 48 s, against the old rain's audible
+#                     fade-in), so the crossfade below has less to hide.
 #
 # So the four low beds are resampled to 22.05 kHz (Nyquist 11 kHz, above
 # everything they contain) and rain to 32 kHz, which is where the audible saving
-# comes from — far more than any bitrate knob.
+# comes from — far more than any bitrate knob. 32 kHz for rain is not a round
+# number either: it keeps 99.55% of the new file's energy, because only 0.45%
+# of it sits above 16 kHz.
 #
 # ── LOOP SEAMS ────────────────────────────────────────────────────────────
 #
@@ -68,12 +78,48 @@ peak_gain() {
   python3 -c "print(f'{-3 - ($max):.2f}')"
 }
 
-# bed NAME SRCFILE RATE CHANNELS XFADE
+# ── WHEN PEAK NORMALISATION IS THE WRONG TREATMENT ─────────────────────────
+#
+# `rain better.wav` arrives at -3.9 dBFS peak and -30.7 LUFS. The other four
+# beds land at -18.2 to -20.6 LUFS after peak normalisation, so peak-normalising
+# this one put it TWELVE DECIBELS below the rest of the set — and no mix
+# constant in ct/audio.ts can fix a file that arrives that far out, because
+# taking it back would need a gain of 1.47 on a bed that has to sum with four
+# others without clipping.
+#
+# The cause is in the material and is worth stating: measured in 20 ms frames,
+# the body of this recording sits at 0.07–0.11, and only 28 frames out of 2274
+# — 1.2% — exceed 0.30, with nine above 0.50. A handful of very close drops set
+# the peak for the whole file. Peak normalisation asks "how loud is the loudest
+# sample", which for rain is a question about nine frames, and the answer
+# silences the other 2265.
+#
+# So this bed is normalised by LOUDNESS instead, K-weighted, with a limiter for
+# those few outliers. Limiting 1.2% of frames is inaudible; leaving the bed 12 dB
+# down is not. The gain is CONSTANT — computed once and applied flat, never
+# ffmpeg's dynamic `loudnorm` — because the loop crossfade below joins the tail
+# to the head, and a time-varying gain would give those two ends different
+# levels and put back exactly the seam this script exists to remove.
+loud_gain() {
+  local i
+  i=$(ffmpeg -hide_banner -i "$1" -af ebur128 -f null - 2>&1 \
+      | grep -oP '^\s*I:\s*\K-?[0-9.]+' | tail -1)
+  python3 -c "print(f'{$2 - ($i):.2f}')"
+}
+
+# bed NAME SRCFILE RATE CHANNELS XFADE [TARGET_LUFS]
+# With TARGET_LUFS the bed is loudness-normalised and limited; without it, the
+# peak goes to -3 dBFS. See the note above for which is right when.
 bed() {
-  local name=$1 src=$2 rate=$3 ch=$4 x=$5
-  local d g
+  local name=$1 src=$2 rate=$3 ch=$4 x=$5 lufs=${6:-}
+  local d g tail=''
   d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$SRC/$src")
-  g=$(peak_gain "$SRC/$src")
+  if [ -n "$lufs" ]; then
+    g=$(loud_gain "$SRC/$src" "$lufs")
+    tail=',alimiter=limit=0.7:level=disabled'      # headroom for codec overshoot
+  else
+    g=$(peak_gain "$SRC/$src")
+  fi
   local e; e=$(python3 -c "print(f'{$d - $x:.4f}')")
   ffmpeg -hide_banner -loglevel error -y -i "$SRC/$src" -filter_complex "
     [0:a]asplit=3[a1][a2][a3];
@@ -81,9 +127,9 @@ bed() {
     [a2]atrim=start=$e,asetpts=N/SR/TB[tail];
     [a3]atrim=end=$x,asetpts=N/SR/TB[head];
     [tail][head]acrossfade=d=$x:c1=tri:c2=tri[xf];
-    [mid][xf]concat=n=2:v=0:a=1,volume=${g}dB[out]" \
+    [mid][xf]concat=n=2:v=0:a=1,volume=${g}dB${tail}[out]" \
     -map '[out]' -ac "$ch" -ar "$rate" -c:a libvorbis -q:a 1 "$OUT/$name.ogg"
-  echo "  $name.ogg  <- $src  ${rate}Hz ${ch}ch  ${g}dB  loop=$(python3 -c "print(f'{$d-$x:.1f}')")s"
+  echo "  $name.ogg  <- $src  ${rate}Hz ${ch}ch  ${g}dB${lufs:+ (to ${lufs} LUFS, limited)}  loop=$(python3 -c "print(f'{$d-$x:.1f}')")s"
 }
 
 # one NAME SRCFILE START DUR FADEOUT_AT RATE GAINDB
@@ -99,7 +145,7 @@ bed street-a  city.wav          22050 2 1.5
 bed street-b  city2.wav         22050 2 1.5
 bed room      room.wav          22050 2 1.5
 bed site      construction.wav  22050 1 1.5
-bed rain      rain.wav          32000 2 1.5
+bed rain      "rain better.wav" 32000 2 1.5 -19
 
 # stepoutside: 23 footfalls, onsets 0.249 0.798 1.397 1.946 2.524 3.068 3.647
 # 4.146 4.669 5.193 5.697 6.231 6.765 7.288 7.797 8.331 8.870 …  Eight taken
