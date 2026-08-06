@@ -6,6 +6,9 @@ import { SHA, DIRTY, AT } from 'virtual:build-stamp';
  *  silently dropped from the built bundle (GOTCHAS §28). The forearm and the
  *  wristwatch below are the first-person half of the mirror in 301. */
 import { worn, onWardrobeChange } from './wardrobe';
+// a leaf that imports nothing, exactly like `./wardrobe` and for the same
+// reason (GOTCHAS §28) — see its header.
+import { skin as bodySkin, onBodyChange } from './body';
 
 // ── the sky the clock drags around, the watch, and the wallet ─────────────
 //
@@ -1932,13 +1935,24 @@ export function makeHud(purse: Purse): Hud {
   // `skinHi`/`skinLo` went with the wallet's thumbs, which were the only thing
   // that ever read them. The limb is one flat tone by his own repeated
   // instruction, so there is nothing left that wants a second skin value.
-  const player = { skin: '#c9946a' };
+  // ⚠ AND IT IS NO LONGER A LITERAL. *"the options should simply be hair,
+  // height, build, skin color, immutables."* (2026-08-05) — character creation
+  // sets a skin tone in `ct/body.ts`, and this forearm is the ONE piece of the
+  // player that is on screen almost all the time. An arm that stayed `#c9946a`
+  // while the mirror in 301 showed somebody else is the first thing he would
+  // find. Read live, off the same leaf module `ct/mirror.ts` reads, so the two
+  // surfaces cannot disagree; `#c9946a` is still the default tone, so a player
+  // who never opens creation has exactly the arm he had yesterday.
+  const player = { get skin(): string { return bodySkin().base; } };
   // THE ARM IS CACHED ON THE MINUTE (`watchShown`), which is right — the LCD
   // only changes once a game minute. Changing your SLEEVE or your watch does
   // not move the clock, so without this the limb would keep the face and the
   // cuff it had when you walked into the flat until the minute turned. −1 is
   // never a real minute, so the next raise repaints from scratch.
   onWardrobeChange(() => { watchShown = -1; });
+  // …and so does changing your SKIN, for the identical reason: the arm is a
+  // cached canvas and a tone is not a minute.
+  onBodyChange(() => { watchShown = -1; });
   // ── THE ARM, AND THE FOUR NUMBERS THAT HOLD IT IN PLACE ──────────────────
   //
   // *"for the watch i would like the rest of the arm (to the left) rendered as
@@ -2160,8 +2174,8 @@ export function makeHud(purse: Purse): Hud {
    * arm, parked off-frame. Both read WATCH_TILT.
    */
   const WATCH_TILT = 16;
-  let handed: 'left' | 'right' = 'left';
-  /** the mirror, when he is right-handed — see `setHanded` */
+  let wrist: 'left' | 'right' = 'left';
+  /** WHICH WRIST, not which hand — `setHanded` inverts. See it. */
   /**
    * ── THE MIRROR IS THREE TERMS, NOT ONE ──────────────────────────────────
    *
@@ -2230,8 +2244,8 @@ export function makeHud(purse: Purse): Hud {
    */
   /** the watch assembly's own centre line, in canvas texels — see `drawWatch` */
   const WATCH_CX = 60;
-  const MID = () => (handed === 'left' ? 'translateX(-50%)' : 'translateX(50%)');
-  const TILT = () => (handed === 'left' ? -WATCH_TILT : WATCH_TILT);
+  const MID = () => (wrist === 'left' ? 'translateX(-50%)' : 'translateX(50%)');
+  const TILT = () => (wrist === 'left' ? -WATCH_TILT : WATCH_TILT);
   const WATCH_SHOWN = () => `${MID()} translateY(-${WATCH_LIFT_PX}px) rotate(${TILT()}deg)`;
   const WATCH_HIDDEN = () => `${MID()} translateY(140%) rotate(${TILT()}deg)`;
   // whole pixels for the same reason as WATCH_BOTTOM above. Both are already
@@ -2244,13 +2258,13 @@ export function makeHud(purse: Purse): Hud {
   /** the drawing, and the only place the mirror lives — see the note above */
   const WATCH_CSS = () => `width:${WATCH_W * WATCH_S}px;height:${WATCH_H * WATCH_S}px;`
     + `image-rendering:pixelated;display:block;`
-    + (handed === 'left' ? '' : 'transform:scaleX(-1);');
+    + (wrist === 'left' ? '' : 'transform:scaleX(-1);');
   /** the one anchor expression, used against whichever edge the hand wants */
   const WATCH_ANCHOR = `calc(${WATCH_X}% + ${WATCH_LEFT}px)`;
-  const EDGE = () => (handed === 'left'
+  const EDGE = () => (wrist === 'left'
     ? `left:${WATCH_ANCHOR};right:auto;`
     : `right:${WATCH_ANCHOR};left:auto;`);
-  const ORIGIN = () => (handed === 'left'
+  const ORIGIN = () => (wrist === 'left'
     ? `calc(100% - ${WATCH_PIVOT}px)`
     : `${WATCH_PIVOT}px`);
   const WRAP_CSS = () => 'position:fixed;'
@@ -2698,8 +2712,8 @@ export function makeHud(purse: Purse): Hud {
     const STRAP_Y = 6 - STRAP_OVER, STRAP_H = 66 + STRAP_OVER * 2;
     g.save();
     g.translate(WATCH_POS, 0);
-    // ⚠ THE ONE THING THAT MUST NOT MIRROR IS THE FACE. Right-handed flips the
-    // whole canvas (`WATCH_CSS`), which is right for the limb and fatal for the
+    // ⚠ THE ONE THING THAT MUST NOT MIRROR IS THE FACE. The right wrist flips
+    // the whole canvas (`WATCH_CSS`), which is right for the limb and fatal for the
     // dial: `13:22` came out backwards and `CROSSTOWN QUARTZ` with it. A watch
     // is not mirrored when it moves wrists — it is the same object, read the
     // same way round, on the other arm.
@@ -2710,7 +2724,7 @@ export function makeHud(purse: Purse): Hud {
     // `fillText` in both faces already aligns to x 60. `WATCH_POS` stays
     // OUTSIDE this, so *"watch a little to the right on the arm"* keeps sliding
     // it toward the hand on either arm rather than away from it.
-    if (handed === 'right') { g.translate(WATCH_CX * 2, 0); g.scale(-1, 1); }
+    if (wrist === 'right') { g.translate(WATCH_CX * 2, 0); g.scale(-1, 1); }
     g.fillStyle = wch.cloth; g.fillRect(38, STRAP_Y, 44, STRAP_H);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, STRAP_Y, 4, STRAP_H);
     g.fillStyle = wch.trim; g.fillRect(32, 14, 56, 42);          // case
@@ -2950,13 +2964,25 @@ export function makeHud(purse: Purse): Hud {
      * wrapper any more, and `drawWatch` for the one part of the picture that
      * flips back — the dial, which would otherwise read backwards.
      *
-     * ⚠ WHAT THIS DOES NOT FLIP, said plainly: the figure in the mirror still
-     * wears its watch on the same wrist, because that is `ct/mirror.ts`'s own
-     * `WRIST_T` band and its zone table. Flipping it there is a real change to
-     * a hit-tested layout and is not worth doing blind.
+     * ⚠⚠ THE ARGUMENT IS THE DOMINANT HAND. THE WATCH GOES ON THE OTHER ONE.
+     *
+     * *"so if right handed then watch is on left dude and right hand hold
+     *  stuff."*   (2026-08-05)
+     *
+     * It read the setting as "which wrist", which is not what the menu row says
+     * and not what the word means — a right-handed person wears the watch on
+     * the LEFT wrist and works with the right. So the one inversion lives here,
+     * at the seam, and every geometry term below still reads `wrist`, which is
+     * the only thing they were ever about:
+     *
+     *     HAND: RIGHT  →  wrist LEFT   →  the arm enters from the LEFT of frame
+     *     HAND: LEFT   →  wrist RIGHT  →  the arm enters from the RIGHT
+     *
+     * `ct/mirror.ts` follows the same rule from the same setting, so the
+     * reflection wears it on the wrist you are looking down at.
      */
     setHanded: (hand) => {
-      handed = hand;
+      wrist = hand === 'right' ? 'left' : 'right';
       // RE-LAID AS A SET, never one property at a time — the anchor, the pivot
       // and the tilt only mirror together, and poking `left` alone is exactly
       // what put the arm 748 px off. The transition is suppressed for this one

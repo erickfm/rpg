@@ -226,9 +226,12 @@ type Item = {
 };
 const ITEMS: Item[] = [
   {
-    // ⚠ THE ONE WITH A REAL CONSEQUENCE. `ct/hud.ts` draws the watch arm up the
-    // LEFT of the frame and `ct/wardrobe.ts` puts the watch on that wrist; this
-    // mirrors the arm as a set — anchor, pivot and tilt. See `setHanded`.
+    // ⚠ THE ONE WITH A REAL CONSEQUENCE, AND IT IS THE DOMINANT HAND — NOT THE
+    // WRIST. *"so if right handed then watch is on left dude and right hand
+    // hold stuff."* RIGHT puts the watch arm up the LEFT of the frame and on
+    // the reflection's own left wrist; LEFT puts both on the other side.
+    // `ct/hud.ts`'s `setHanded` owns the inversion and `ct/mirror.ts` reads the
+    // same setting, so the glass and the arm can never disagree.
     label: 'HANDEDNESS',
     value: () => (S.hand === 'left' ? 'LEFT' : 'RIGHT'),
     step: () => put('hand', S.hand === 'left' ? 'right' : 'left'),

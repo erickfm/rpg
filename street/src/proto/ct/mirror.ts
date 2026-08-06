@@ -5,6 +5,10 @@ import { makePanel, type Panel } from './hud';
 import {
   SLOTS, cycle, showing, worn, onWardrobeChange, type Slot,
 } from './wardrobe';
+import {
+  skin, hair, hairColour, build, heightScale, onBodyChange,
+} from './body';
+import { setting, onSettingChange } from './osd';
 
 // ── THE MIRROR IN 301, AND THE PERSON IN IT ────────────────────────────────
 //
@@ -240,16 +244,75 @@ const CX = 20;              // the centre line
 const HEAD_T = 12, HEAD_B = 30, HEAD_HW = 7;
 const EYE_Y = 20;
 const NECK_B = 35;
-const SHOULDER = 34, WAIST = 76, TORSO_HW = 12;
+const SHOULDER = 34, WAIST = 76;
+/**
+ * ── THE TWO HALF-WIDTHS BUILD MOVES, AND WHY THEY ARE `let` ───────────────
+ *
+ * *"the options should simply be hair, height, build, skin color"* (2026-08-05).
+ *
+ * `TORSO_HW` and `LEG_HW` are what EVERY span, hem, waistband, sleeve, strap
+ * and hit zone in this file is derived from — the garments are drawn relative
+ * to the body rather than at absolute coordinates, which is what makes a jacket
+ * fit a stocky figure without the jacket knowing one exists. So build is applied
+ * ONCE, here, and reaches all of it: the painter, `zoneAt`, `HL` and the
+ * highlight scalers alike, which is the only way those three can keep agreeing
+ * about where he is (they must, or you click a wrist where no watch is drawn).
+ *
+ * ⚠ `HL` IS BUILT AT MODULE LOAD FROM THESE and therefore holds the AVERAGE
+ * body's rects for the life of the page. That is deliberate and harmless: the
+ * highlight is a wash with `HIT_PAD` 2 either side of it, and the widest build
+ * moves an edge by 2. Rebuilding that table on every change would be the only
+ * reason this file needed a build hook at all.
+ */
+let TORSO_HW = 12;
 const ARM_T = 36, ARM_B = 78, ARM_W = 6;    // arms hang at CX ± (TORSO_HW…+ARM_W)
 const HAND_B = 88;
 const HIP_B = 92;
-const LEG_B = 138, LEG_HW = 4, LEG_GAP = 3;  // legs at CX ± (LEG_GAP … +2*LEG_HW)
+const LEG_B = 138, LEG_GAP = 3;  // legs at CX ± (LEG_GAP … +2*LEG_HW)
+let LEG_HW = 4;
 const FOOT_B = 146;
-/** the wrist the watch is on: the figure's own left, our left of centre */
+/** the band the watch sits in, on whichever wrist `watchOwnLeft` puts it */
 const WRIST_T = 68, WRIST_B = 80;
 
-const SKIN = '#c9946a', SKIN_LO = '#a87a54', SKIN_HI = '#d8a67d';
+/**
+ * ── WHICH WRIST THE REFLECTION WEARS IT ON ─────────────────────────────────
+ *
+ * *"so if right handed then watch is on left dude and right hand hold stuff."*
+ *   (2026-08-05)
+ *
+ * THE SETTING IS THE DOMINANT HAND AND THE WATCH GOES ON THE OTHER WRIST — the
+ * same inversion `ct/hud.ts`'s `setHanded` makes, from the same setting, so the
+ * figure wears it on the wrist you are looking down at in first person. Right-
+ * handed is his own LEFT wrist, which in a REFLECTION is our left of centre:
+ * a mirror does not swap sides, it swaps front for back.
+ *
+ * ⚠ THREE THINGS READ THIS AND ALL THREE HAVE TO AGREE — the painter, the
+ * hit zone and the highlight — or you click a wrist where no watch is drawn.
+ * That is the same warning `facingOf` carries about the back columns, and it
+ * is the same failure. `mirrorX` is how they agree: one reflection about `CX`,
+ * applied to a front-on rect, used by all three.
+ */
+const watchOwnLeft = (): boolean => setting('hand') === 'right';
+/** reflect a front-on span about the centre line */
+const mirrorX = (x: number, w: number): number => 2 * CX - x - w;
+
+/**
+ * ⚠ SKIN IS `let` AND SO IS THE BUILD ABOVE — one recompute, on one signal, and
+ * every call site in this file picks it up without being edited. `ct/hud.ts`
+ * does the same to the first-person forearm off the same module, because an arm
+ * that stays tan while the mirror shows somebody else is the bug he would find
+ * in four seconds.
+ */
+let SKIN = '#c9946a', SKIN_LO = '#a87a54', SKIN_HI = '#d8a67d';
+function applyBody(): void {
+  const t = skin();
+  SKIN = t.base; SKIN_LO = t.lo; SKIN_HI = t.hi;
+  const b = build();
+  TORSO_HW = 12 + b.torso;
+  LEG_HW = 4 + b.leg;
+}
+applyBody();
+onBodyChange(applyBody);
 const UNDIES = '#e9e6de', UNDIES_LO = '#d3cfc4';
 
 /** A part of the reflection you can take a garment off. Rects are design units. */
@@ -263,8 +326,12 @@ interface Zone { slot: Slot; x0: number; y0: number; x1: number; y1: number }
  * an arm that is IN a jacket. First match wins, so the smaller, more specific
  * thing is listed first. Everything else is disjoint.
  */
+const WATCH_ZONE = (): Zone => {
+  const x0 = 0, w = CX - TORSO_HW + 1;
+  const x = watchOwnLeft() ? x0 : mirrorX(x0, w);
+  return { slot: 'watch', x0: x, y0: WRIST_T, x1: x + w, y1: WRIST_B };
+};
 const ZONES: readonly Zone[] = [
-  { slot: 'watch', x0: 0, y0: WRIST_T, x1: CX - TORSO_HW + 1, y1: WRIST_B },
   // ── THE BAG, AND ITS ZONE DOES NOT MOVE WITH THE BAG ────────────────────
   //
   // *"add to mirror options: bag (backpack, tote, crossbody)"*   (2026-08-04)
@@ -406,6 +473,13 @@ function wornRects(slot: Slot, facing: number): readonly Mark[] {
     const bag = worn('bag');
     if (bag.kind !== 'none') return bagRects(bag.kind, facing);
   }
+  // AND THE WATCH CHANGES WRISTS. `HL.watch` is written for the own-left wrist,
+  // the same grid the painter's own rects are on, so the highlight is that rect
+  // reflected — never a second literal that could drift from the drawing.
+  if (slot === 'watch' && !watchOwnLeft()) {
+    return HL.watch.map((m) => ({ f: m.f,
+      r: [mirrorX(m.r[0], m.r[2]), m.r[1], m.r[2], m.r[3]] as const }));
+  }
   return HL[slot];
 }
 
@@ -429,7 +503,9 @@ function zoneAt(dx: number, dy: number, facing = 0): Slot | null {
     if (wornRects(slot, facing).some((h) => inR(h.r))) return slot;
   }
   // ── AND THE BODY UNDER IT, plus the fat fallback for an empty slot ──────
-  for (const z of ZONES) {
+  // the watch band is FIRST and computed, because it is the one zone that
+  // changes sides with handedness — see `watchOwnLeft`
+  for (const z of [WATCH_ZONE(), ...ZONES]) {
     if (x >= z.x0 && x < z.x1 && dy >= z.y0 && dy < z.y1) return z.slot;
   }
   return null;
@@ -476,7 +552,7 @@ const HL: Record<Slot, { f: 'span' | 'limb' | 'head' | 'deep';
     { f: 'deep', r: [CX - LEG_GAP - LEG_HW * 2 - 1, LEG_B - 4, LEG_HW * 2 + 2, FOOT_B - LEG_B + 6] },
     { f: 'deep', r: [CX + LEG_GAP - 1, LEG_B - 4, LEG_HW * 2 + 2, FOOT_B - LEG_B + 6] },
   ],
-  watch: [{ f: 'limb', r: [CX - TORSO_HW - ARM_W, WRIST_T + 1, ARM_W + 2, 10] }],
+  watch: [{ f: 'limb', r: [CX - TORSO_HW - ARM_W, WRIST_T + 1, ARM_W + 2, 10] }],  // reflected by `wornRects` when the watch is on the other wrist
   // the strap over the shoulder and the bag's own body at the hip — the two
   // places something is whichever of the three you have on
   bag: [
@@ -489,7 +565,8 @@ const HL: Record<Slot, { f: 'span' | 'limb' | 'head' | 'deep';
  *  figure was drawn with, or the zones sit where he no longer does. */
 function slotAtCanvas(px: number, py: number, W: number, H: number,
                       facing: number): Slot | null {
-  const fit = figureFit(W, H);
+  const f0 = figureFit(W, H);
+  const fit = stand(f0.ox, f0.oy, f0.s);          // height, exactly as painted
   return zoneAt((px - fit.ox) / fit.s, (py - fit.oy) / fit.s, facing);
 }
 
@@ -510,6 +587,32 @@ function slotAtCanvas(px: number, py: number, W: number, H: number,
 function figureFit(W: number, H: number) {
   const s = Math.min(W / MW, H / MH);
   return { s, ox: Math.round((W - MW * s) / 2), oy: Math.round((H - MH * s) / 2) };
+}
+
+/**
+ * ── AND HOW TALL HE IS, WHICH IS A SCALE AND NOT A STRETCH ────────────────
+ *
+ * *"the options should simply be hair, height, build, skin color, immutables."*
+ *   (2026-08-05)
+ *
+ * ONE MULTIPLIER ON BOTH AXES, ABOUT THE FEET. A taller person is a BIGGER
+ * person — longer bones, a bigger head, wider shoulders — not a normal person
+ * pulled vertically. This file has already paid three times for getting that
+ * wrong (*"i feel stretched"*, *"i squish and distort in some"*, *"im still
+ * distorted in the mirror"*), so height goes through the same single `s` that
+ * `figureFit` hands out and nothing here ever touches `y` alone.
+ *
+ * ABOUT THE FEET rather than about the centre: he is standing on a floor. The
+ * feet stay on the line `figureFit` put them on and the head moves, which is
+ * what shorter and taller look like. Horizontally he stays centred.
+ *
+ * ⚠ THE HIT TEST GOES THROUGH THIS TOO (`slotAtCanvas`), or a short player
+ * clicks his own trousers and cycles his shirt.
+ */
+function stand(ox: number, oy: number, s: number) {
+  const k = heightScale();
+  if (k === 1) return { ox, oy, s };
+  return { ox: ox + (MW * s * (1 - k)) / 2, oy: oy + MH * s * (1 - k), s: s * k };
 }
 
 /**
@@ -559,8 +662,12 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
   // its sheen, which belongs to the plate you walk past and not to the view you
   // stand in. See `paintGlass`.
   paintGlass(g, W, H, false);
-  const fit = figureFit(W, H);
-  paintFigure(g, fit.ox, fit.oy, fit.s, facing);
+  // ⚠ `stand` HERE AS WELL AS INSIDE `paintFigure`, because the hover wash
+  // below is scaled from this `fit` and has to land on the body the painter
+  // actually drew — see `stand`. `paintFigure` applies it to its own copy.
+  const f0 = figureFit(W, H);
+  const fit = stand(f0.ox, f0.oy, f0.s);
+  paintFigure(g, f0.ox, f0.oy, f0.s, facing);
   // ── AND WHAT YOU ARE POINTING AT ───────────────────────────────────────
   //
   // *"you just click the highlighted part and it changes"*, then *"the
@@ -792,8 +899,11 @@ export function facingOf(sector: number): [number, boolean] {
  * taking everything off leaves them showing. There is no index that means bare,
  * so there is nothing to forbid. See `ct/wardrobe.ts`'s header.
  */
-export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number, s: number,
+export function paintFigure(g: CanvasRenderingContext2D, ox0: number, oy0: number, s0: number,
                             sector = 0): void {
+  // HOW TALL HE IS, first — every scaler below is built from these three. See
+  // `stand`; it is a no-op at AVERAGE.
+  const { ox, oy, s } = stand(ox0, oy0, s0);
   const [col, flip] = facingOf(sector);
   /** 0 front, 1 three-quarter, 2 profile, 3 three-quarter back, 4 back */
   const facing = col;
@@ -827,14 +937,41 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
   for (const sgn of [-1, 1]) {                                            // legs
     limb(sgn < 0 ? CX - LEG_GAP - LEG_HW * 2 : CX + LEG_GAP, HIP_B, LEG_HW * 2, LEG_B - HIP_B, SKIN);
   }
-  // hair as one shape — this world draws a haircut as a silhouette and not as
-  // strands, the way `ct/citizens.ts` paints five views of one. TURNED AWAY it
-  // is the whole head: the back of a head is hair, and that is what tells you
-  // the figure has its back to you at all.
-  const HAIR = '#3a2c22';
-  head(CX - HEAD_HW, HEAD_T - 2, HEAD_HW * 2, facing >= 3 ? HEAD_B - HEAD_T + 2 : 7, HAIR);
-  head(CX - HEAD_HW - 1, HEAD_T + 1, 1, 8, HAIR);
-  head(CX + HEAD_HW, HEAD_T + 1, 1, 8, HAIR);
+  // ── HAIR, AND IT IS A SILHOUETTE ───────────────────────────────────────
+  //
+  // *"the options should simply be hair, height, build, skin color"* — so the
+  // one hard-coded cut becomes seven, off `ct/body.ts`. The rule it already
+  // followed is kept and is why the seven cost so little: this world draws a
+  // haircut as a SHAPE and not as strands, the way `ct/citizens.ts` paints five
+  // views of one. TURNED AWAY the cap is the whole head — the back of a head is
+  // hair, and at `SHAVED` its absence is what tells you he has turned round.
+  //
+  // EVERY CUT IS THE SAME THREE MOVES: a cap over the skull, a sliver down each
+  // side, and whatever hangs below the jaw. A new style is a case, not a
+  // function, and an unknown `kind` falls through to the crown alone rather
+  // than crashing the mirror.
+  const HC = hairColour();
+  const HAIR = HC.hex, HAIR_LO = HC.lo;
+  const cut = hair().kind;
+  if (cut !== 'shaved') {
+    /** how deep the cap sits over the skull from the front; from behind every
+     *  cut but a shave covers the whole head */
+    const crown = cut === 'crop' ? 5 : cut === 'messy' ? 8 : cut === 'bowl' ? 9 : 7;
+    head(CX - HEAD_HW, HEAD_T - 2, HEAD_HW * 2, facing >= 3 ? HEAD_B - HEAD_T + 2 : crown, HAIR);
+    // the sideburn strip either side, longer on the cuts that have sides
+    const side = cut === 'crop' ? 5 : cut === 'bowl' || cut === 'long' ? 14 : 8;
+    head(CX - HEAD_HW - 1, HEAD_T + 1, 1, side, HAIR);
+    head(CX + HEAD_HW, HEAD_T + 1, 1, side, HAIR);
+    if (cut === 'messy') {                       // a tuft standing off the crown
+      head(CX - 3, HEAD_T - 4, 3, 3, HAIR);
+      head(CX + 2, HEAD_T - 3, 2, 2, HAIR);
+    }
+    if (cut === 'bowl') head(CX - HEAD_HW, HEAD_T + 8, HEAD_HW * 2, 2, HAIR_LO);
+  }
+  // ⚠ WHAT HANGS BELOW THE JAW IS DRAWN LATER, over the shirt — see
+  // `hairOverCloth` at the end of the top half. Hair that falls past the
+  // shoulders is IN FRONT OF the collar, and drawn here it was painted under a
+  // 24-unit torso and vanished completely, which made LONG identical to SHORT.
   // THE FACE, ALL OF IT, and it goes when you turn past three-quarters. In
   // PROFILE there is one eye and a nose standing outside the silhouette — the
   // nose is what says which way he is looking, and `ct/citizens.ts` draws its
@@ -936,6 +1073,32 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     if (top.kind === 'sweater') box(CX - TORSO_HW, hem - 3, TORSO_HW * 2, 3, top.trim);
   }
 
+  // ── THE HAIR THAT FALLS OVER THE COLLAR ────────────────────────────────
+  //
+  // The crown and the sideburns went down with the skin, under everything. What
+  // hangs BELOW THE JAW has to come after the shirt, because that is where it
+  // is: over the collar, not tucked inside it.
+  {
+    const cut2 = hair().kind;
+    if (cut2 === 'long') {
+      // `box`, not `head` — a fall of hair sits on the shoulders and takes the
+      // TORSO's foreshortening, narrowing with him as he turns.
+      box(CX - HEAD_HW - 1, HEAD_B - 4, (HEAD_HW + 1) * 2, SHOULDER - HEAD_B + 20, HAIR);
+      box(CX - HEAD_HW - 1, SHOULDER + 14, (HEAD_HW + 1) * 2, 2, HAIR_LO);
+    } else if (cut2 === 'tail') {
+      // A PONYTAIL IS AN EDGE-ON THING. Face-on it is nothing; in profile and
+      // from behind it is the whole point of the cut, so it goes through `deep`,
+      // which GROWS as he turns. The BACK of the head is +x on the unflipped
+      // grid — the nose is drawn at −x — and `deep` mirrors it for the far four
+      // facings itself, so there is no `flip` to apply here.
+      const t = facing === 0 ? 0 : facing === 1 ? 3 : 6;
+      if (t) {
+        deep(CX + HEAD_HW - 1, HEAD_T + 4, t, 18, HAIR);
+        deep(CX + HEAD_HW - 1, HEAD_T + 20, t, 2, HAIR_LO);
+      }
+    }
+  }
+
   // ── AND THE BAG THAT IS IN FRONT OF YOU ────────────────────────────────
   //
   //   PACK      only the straps, over whatever top is on
@@ -1013,9 +1176,13 @@ export function paintFigure(g: CanvasRenderingContext2D, ox: number, oy: number,
     // him, so the click is suppressed with the drawing rather than separately.
   }
 
-  // the watch, on the wrist the hud raises
+  // the watch, on the wrist the hud raises — and on the same wrist it raises,
+  // which is the non-dominant one. See `watchOwnLeft`.
   if (watch.kind !== 'none') {
-    const ax = CX - TORSO_HW - ARM_W + 1;
+    const ax0 = CX - TORSO_HW - ARM_W + 1;
+    // the three rects share a centre line, so ONE reflected anchor moves all of
+    // them together and the strap stays centred on the case
+    const ax = watchOwnLeft() ? ax0 : mirrorX(ax0, ARM_W);
     limb(ax - 1, WRIST_T + 2, ARM_W + 2, 8, watch.cloth);
     limb(ax - 1, WRIST_T + 4, ARM_W + 2, 4, watch.trim);
     limb(ax, WRIST_T + 5, ARM_W, 2, watch.kind === 'digital' ? '#9cab8b' : '#e6e0cc');
@@ -1266,6 +1433,9 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
       // and if something else dresses the player — a shop, a laundrette, a
       // debug hook — the glass follows without that thing knowing it exists
       onWardrobeChange(() => { if (panel?.isOpen()) panel.repaint(); });
+      // and handedness moves the watch to the other wrist, which is a repaint
+      // for exactly the same reason a garment change is
+      onSettingChange(() => { if (panel?.isOpen()) panel.repaint(); });
     }
     panel.open();
   };
