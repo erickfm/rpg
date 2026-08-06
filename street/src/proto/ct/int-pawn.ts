@@ -402,12 +402,12 @@ export function buildPawn(ctx: CtxBuild): void {
     Math.max(floor, Math.round(fencePrice(id) * mult * 2) / 2);
   const RATES: ShopColumn[] = [
     { head: 'FOR SALE', lines: [
-      { id: 'WRISTWATCH', name: 'WATCH', price: 15.00 },
-      { id: 'TRAINERS', name: 'SHOES', price: ask('TRAINERS', 2.4, 6) },
-      { id: 'TOASTER', name: 'TOASTER', price: ask('TOASTER', 2.25, 4) },
-      { id: 'RADIO', name: 'RADIO', price: 7.00 },
-      { id: 'VHS', name: 'TAPE', price: ask('VHS', 2, 2) },
-      { id: 'SOCKS', name: 'SOCKS', price: ask('SOCKS', 3, 1.5) },
+      { id: 'WRISTWATCH', name: 'WATCH', price: 60.00 },
+      { id: 'TRAINERS', name: 'SHOES', price: ask('TRAINERS', 2.4, 24) },
+      { id: 'TOASTER', name: 'TOASTER', price: ask('TOASTER', 2.25, 16) },
+      { id: 'RADIO', name: 'RADIO', price: 28.00 },
+      { id: 'VHS', name: 'TAPE', price: ask('VHS', 2, 8) },
+      { id: 'SOCKS', name: 'SOCKS', price: ask('SOCKS', 3, 6) },
     ] },
   ];
   // Card stock gone brown under a caged bulb, the shop's own gold for the

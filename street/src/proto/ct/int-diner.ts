@@ -468,16 +468,16 @@ export function buildDiner(ctx: CtxBuild): void {
   // clamshells, because what a sit-down place hands you to CARRY is the box.
   const MENU: ShopColumn[] = [
     { head: 'BREAKFAST', lines: [
-      { id: 'EGGS', name: 'EGGS', price: 2.25 },
-      { id: 'COFFEE', name: 'COFFEE', price: 0.65 },
+      { id: 'EGGS', name: 'EGGS', price: 9.00 },
+      { id: 'COFFEE', name: 'COFFEE', price: 2.50 },
     ] },
     { head: 'PLATES', lines: [
-      { id: 'PLATTER', name: 'PLATTER', price: 3.75 },
-      { id: 'PIE', name: 'APPLE PIE', price: 1.40 },
+      { id: 'PLATTER', name: 'PLATTER', price: 15.00 },
+      { id: 'PIE', name: 'APPLE PIE', price: 5.50 },
     ] },
     { head: 'FOUNTAIN', lines: [
-      { id: 'SHAKE', name: 'SHAKE', price: 1.55 },
-      { id: 'SODA', name: 'SODA', price: 0.85 },
+      { id: 'SHAKE', name: 'SHAKE', price: 6.00 },
+      { id: 'SODA', name: 'SODA', price: 3.50 },
     ] },
   ];
   const MENU_LOOK: BoardLook = {

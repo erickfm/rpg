@@ -1780,12 +1780,12 @@ export const ORDER = BUILD.INTERIOR + 5;
  * the answer is a different number it is a one-line change here and nowhere
  * else.
  */
-export const CREDIT = 0.25;
+export const CREDIT = 1.00;
 
 /** What one press of INSERT feeds in. A note, not a coin — nobody plays a slot
  *  machine a quarter at a time, and a machine that takes twenty presses to load
  *  is a machine nobody sits at twice. */
-export const BILL = 5;
+export const BILL = 20;
 
 /**
  * The label G's stools publish for themselves, in `ct/int-casino.ts`:

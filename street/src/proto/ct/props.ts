@@ -2953,7 +2953,7 @@ uniform float uPoolAmb;`)
     g.fillStyle = '#2b3138'; g.font = 'bold 6px monospace';
     g.fillText('555-0143', 56, 15);
     g.fillStyle = '#6a6458'; g.font = '5px monospace';
-    g.fillText('TWO SLICES $1.75', 56, 20.5);
+    g.fillText('TWO SLICES $7.00', 56, 20.5);
     dither(g, 112, 24, 50);
   }), 'sign');
   // THE BENCH TURNED ROUND. The user, twice: "like the back of the bus is in

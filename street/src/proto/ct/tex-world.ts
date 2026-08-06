@@ -2466,7 +2466,7 @@ const videoFront = (brick: string, nm: string, wM: number) => {
     g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(nbX + m(0.06), nbY + m(0.07), nbW, nbH);
     g.fillStyle = '#f6efdb'; g.fillRect(nbX, nbY, nbW, nbH);
     g.font = `bold ${m(0.3)}px monospace`;
-    g.fillStyle = '#1e5aa8'; g.fillText('VHS · 2 FOR $5', nbX + nbW / 2, nbY + nbH / 2);
+    g.fillStyle = '#1e5aa8'; g.fillText('VHS · 2 FOR $20', nbX + nbW / 2, nbY + nbH / 2);
     // ── the door ──────────────────────────────────────────────────────────
     const dcM = doorAlongU(nm, wM, F.doorCentreM);
     const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);

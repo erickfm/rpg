@@ -527,18 +527,52 @@ export function shopCounter(ctx: CtxBuild, spec: ShopSpec): Shop {
   return { open, repaint, spot };
 }
 
-// ══ WHAT THINGS COST ═══════════════════════════════════════════════════════
+// ══ WHAT THINGS COST — AND THE ONE NUMBER EVERYTHING IS MEASURED FROM ══════
 //
-// **1997, and the arithmetic of this world is already tight.** Rent is $500 a
-// season; a fresh player can reach about $401 in one (starting cash $14.50, the
-// account $312.40, the pawn shop paying $0.25–$8 a piece). So every shop is a
-// SINK against an economy that is short before it opens, and the prices here are
-// deliberately period-real rather than balanced against that: a burger is $1.89
-// because a burger was $1.89, and a whole meal is about three dollars.
+// *"everything needs to be more expensive. use 500 bucks a mo rent as a
+//  baseline."*   (2026-08-06)
 //
-// That is the honest thing to build and it is worth saying out loud what it
-// does: eating at the barn every day for a season is roughly $270 against a
-// $500 rent bill, which is not payable. **Nothing here rebalances the economy**
-// — no wages, no discounts, no cheaper food — because that was not the ask, and
-// a shop that quietly re-tuned the rent would be a much bigger change than the
-// one he asked for wearing this one's clothes.
+// **RENT IS THE ANCHOR AND IT DID NOT MOVE. EVERYTHING ELSE DID: ×4.**
+//
+// The first pass priced this world at real 1997 money — a burger at $1.89,
+// a paperback at a quarter — against a rent of $500 a season. Both figures are
+// defensible on their own and together they are two different games: at $17.86
+// a day for the flat, a $3.57 meal is a rounding error, and no shop in the world
+// could make the player think about money. What he is asking for is not
+// historical accuracy, it is BITE.
+//
+// ── WHY A FLAT MULTIPLE AND NOT SIX HAND-PRICED MENUS ─────────────────────
+//
+// Because the relationships were the part worth keeping, and a flat multiple is
+// the only repricing that cannot silently break one. Socks are still cheapest at
+// the thrift, dearer at the pawn shop and dearest at the bodega; the diner still
+// costs more than the barn because you are paying for the stool; the pawn
+// spread is still `fencePrice × markup`, so both numbers still describe one
+// object; half of what you steal is still worth about a coffee. Every one of
+// those survives ×4 without being restated, and every one of them was a thing I
+// would have had to remember not to break if I had repriced line by line.
+//
+// Landing points are rounded to the quarter — $1.89 × 4 is $7.56 and the board
+// says $7.50 — because a sign painter writes round money and 7.56 reads as
+// arithmetic rather than as a price.
+//
+// ── THE TWO THINGS THAT ARE NOT ×4, BOTH DELIBERATE ───────────────────────
+//
+//   THE RENT itself, which is the ruler.
+//   THE HOTEL, which was repriced against the rent instead — see `int-hotel.ts`.
+//     It was a third of the price of the flat, which made the lease the stupid
+//     option; a week is now $145, so a season upstairs is $580 against $500.
+//
+// ── WHAT IT COSTS TO LIVE, AFTER ──────────────────────────────────────────
+//
+//     the flat                         $17.86 a day     ($500 / 28)
+//     subsistence (bodega chips, coffee) $5.50 a day     $154 a season
+//     eating at the barn                $14.00 a day     $392 a season
+//     eating at the diner               $26.50 a day     $742 a season
+//
+// So a day of food runs from a third of your rent to half again over it, which
+// is the spread this was missing. **Nothing here invents an income.** The fence
+// table moved with the prices (`ct/inventory.ts`) because it is the player's
+// only earner and a static one would have made theft pointless, but no wage,
+// no job and no discount has been added — that is a decision for the user and
+// not a thing a shop should quietly make on his behalf.

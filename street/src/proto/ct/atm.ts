@@ -117,7 +117,7 @@ const CAB_INK_DIM = shade(CAB_BODY, 40);
 /** What the bank holds for you before you have ever touched the machine. */
 const OPENING_BALANCE = 312.4;
 /** Notes it will actually give you. A machine has a stock of twenties. */
-const NOTES = [20, 40, 60, 100];
+const NOTES = [40, 100, 200, 400];
 
 type Screen = 'idle' | 'pin' | 'menu' | 'balance' | 'withdraw' | 'wait' | 'cash' | 'receipt' | 'card' | 'thanks';
 

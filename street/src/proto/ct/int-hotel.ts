@@ -949,13 +949,34 @@ export function buildHotel(ctx: CtxBuild): void {
   //
   // ── THE NIGHTLY RATE IS DERIVED FROM THE WEEKLY ONE ──────────────────────
   //
-  // $42 a week is $6 a night at seven nights to the week, and a hotel that lets
-  // rooms by the night charges MORE per night than by the week — that is the
-  // entire economic reason weekly rates exist. So a single night is the weekly
-  // rate over five, not over seven: $8.50. Both numbers come off `WEEKLY` below,
-  // so the card cannot quote a week at one price and a night at a price that
-  // makes the week a bad deal.
-  const WEEKLY = { single: 42, double: 55 };
+  // A hotel that lets rooms by the night charges MORE per night than by the
+  // week — that is the entire economic reason weekly rates exist. So a single
+  // night is the weekly rate over five, not over seven. Both numbers come off
+  // `WEEKLY` below, so the card cannot quote a week at one price and a night at
+  // a price that makes the week a bad deal: seven nights bought one at a time
+  // is $203 against $145 for the week, every time, whatever the figures become.
+  //
+  // ══ AND THE WEEK IS PRICED OFF THE RENT, NOT OFF THE OLD MENU ═════════════
+  //
+  // *"everything needs to be more expensive. use 500 bucks a mo rent as a
+  //  baseline."*
+  //
+  // **THIS IS THE ONE PRICE IN THE WORLD THAT IS NOT THE FLAT ×4, AND THAT IS
+  // THE POINT OF IT.** At $42 a week the boarding house was $168 a season
+  // against $500 for the flat — a third of the price for a bed with a key on a
+  // board, which makes signing a lease the stupid option and the rent the game
+  // is built around a thing you would simply never pay.
+  //
+  // $145. Four weeks is **$580**, which is **16% MORE than the flat**, and that
+  // is how a residential hotel actually worked: you pay a premium for taking it
+  // a week at a time with no lease, no deposit and no credit check. The flat is
+  // the cheap way to live and the hard one to qualify for; this is the dear way
+  // and it is open to anybody who walks in with cash. That relationship is the
+  // whole reason both exist.
+  //
+  // Read against the day: the flat is $500 / 28 = $17.86 a night and a room here
+  // is $29 — you pay 62% more for the night you did not have to commit to.
+  const WEEKLY = { single: 145, double: 190 };
   const nightly = (weekly: number) => Math.round((weekly / 5) * 2) / 2;
   /** Take a room: the clock goes to 8 a.m. and the screen cuts through it. */
   const takeRoom = (nights: number): boolean => {

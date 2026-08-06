@@ -285,8 +285,8 @@ export function buildThrift(ctx: CtxBuild): void {
   // side of its own rail. That is the failure the kit helper now prevents for
   // every room, not just this one.
   const CARDS: [string, string, number, number, number][] = [
-    ['ALL COATS', '$4', -2.0, 1.72, 1.1],
-    ['SHIRTS', '2 FOR $3', -2.0, 1.72, -0.25],
+    ['ALL COATS', '$16', -2.0, 1.72, 1.1],
+    ['SHIRTS', '2 FOR $12', -2.0, 1.72, -0.25],
     ['SKIRTS', 'DRESSES', -2.0, 1.72, -1.6],
     // propped ON the counter top (0.96 + the card's own half-height), not at
     // a typed height above it — that is how it ended up hanging in mid-air
@@ -562,10 +562,10 @@ export function buildThrift(ctx: CtxBuild): void {
   // ── more card signs, because one notice is never the last notice ──
   const MORE: [string, string, number, number, number][] = [
     ['ALL SALES', 'FINAL', TILL_CX - 1.5, 1.62, TILL_Z + 0.1],
-    ['COATS', 'HEAVY $6', COAT_X - 0.32, 1.92, COAT_CZ],
+    ['COATS', 'HEAVY $24', COAT_X - 0.32, 1.92, COAT_CZ],
     // propped ON the bin rim (0.42 top + the card's own half-height), not at a
     // typed height above a bin that has no wall behind it to tape it to
-    ['BELTS', '$1 EACH', 0.7, 0.42 + 0.10, 2.55],
+    ['BELTS', '$4 EACH', 0.7, 0.42 + 0.10, 2.55],
     ['SHOES', 'AS FOUND', hw - 0.42, 1.86, SHOE_CZ],
   ];
   for (const [a, b, cx2, cy, cz2] of MORE) room.sign(cardT(a, b), 0.4, 0.2, cx2, cy, cz2);
@@ -641,12 +641,12 @@ export function buildThrift(ctx: CtxBuild): void {
   // what the shop IS.
   const RAIL: ShopColumn[] = [
     { head: 'SECONDHAND', lines: [
-      { id: 'COAT', name: 'COAT', price: 4.00 },
-      { id: 'SHIRT', name: 'SHIRT', price: 1.50 },
-      { id: 'TRAINERS', name: 'SHOES', price: 3.00 },
-      { id: 'BELT', name: 'BELT', price: 1.00 },
-      { id: 'SOCKS', name: 'SOCKS', price: 1.00 },
-      { id: 'BOOK', name: 'PAPERBACK', price: 0.25 },
+      { id: 'COAT', name: 'COAT', price: 16.00 },
+      { id: 'SHIRT', name: 'SHIRT', price: 6.00 },
+      { id: 'TRAINERS', name: 'SHOES', price: 12.00 },
+      { id: 'BELT', name: 'BELT', price: 4.00 },
+      { id: 'SOCKS', name: 'SOCKS', price: 4.00 },
+      { id: 'BOOK', name: 'PAPERBACK', price: 1.00 },
     ] },
   ];
   // `cardT`'s own two colours, and a red second pen for the figures.

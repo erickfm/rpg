@@ -597,7 +597,7 @@ export function buildBodega(ctx: CtxBuild): void {
   // sign standing over nothing, which is the exact floating-prop fault this
   // room was pulled up for twice. It now reads CF_X/CF_Z/CF_H, so the card
   // goes wherever the bench goes.
-  room.sign(cardT('COFFEE', '.65'), 0.5, 0.25, CF_X + 0.02, CF_H + 0.125, CF_Z, Math.PI / 2);
+  room.sign(cardT('COFFEE', '2.50'), 0.5, 0.25, CF_X + 0.02, CF_H + 0.125, CF_Z, Math.PI / 2);
   room.sign(cardT('NO', 'LOITERING'), 0.5, 0.25, CTR_X - 0.6, 1.72, CTR_Z);
   room.sign(cardT('ATM INSIDE', 'CASH ONLY'), 0.52, 0.26, 0, 1.9, hd - 0.08);
 
@@ -622,7 +622,7 @@ export function buildBodega(ctx: CtxBuild): void {
   // Taped to the cooler glass. The cooler plane is at -hd + 0.06, so the tape
   // sits just proud of it; drift the cooler back and the sign follows.
   const COOL_Z = -hd + 0.06;
-  room.sign(cardT('ICE COLD', '2 / $3'), 0.62, 0.31, -1.7, 1.62, COOL_Z + 0.03);
+  room.sign(cardT('ICE COLD', '2 / $9'), 0.62, 0.31, -1.7, 1.62, COOL_Z + 0.03);
 
   // The lottery machine, floor-standing by the door where the queue forms.
   // Kept clear of the counter (which spans CTR_Z +/- 1.3) and of the cut
@@ -785,13 +785,13 @@ export function buildBodega(ctx: CtxBuild): void {
   // clutter standing in front of the till.
   const PRICES: ShopColumn[] = [
     { head: 'PRICES', lines: [
-      { id: 'SANDWICH', name: 'SANDWICH', price: 2.25 },
-      { id: 'CHIPS', name: 'CHIPS', price: 0.75 },
-      { id: 'CEREAL', name: 'CEREAL', price: 2.50 },
-      { id: 'SODA', name: 'SODA', price: 1.25 },
-      { id: 'COFFEE', name: 'COFFEE', price: 0.65 },
-      { id: 'NEWSPAPER', name: 'PAPER', price: 0.50 },
-      { id: 'SOCKS', name: 'SOCKS', price: 2.00 },
+      { id: 'SANDWICH', name: 'SANDWICH', price: 9.00 },
+      { id: 'CHIPS', name: 'CHIPS', price: 3.00 },
+      { id: 'CEREAL', name: 'CEREAL', price: 10.00 },
+      { id: 'SODA', name: 'SODA', price: 5.00 },
+      { id: 'COFFEE', name: 'COFFEE', price: 2.50 },
+      { id: 'NEWSPAPER', name: 'PAPER', price: 2.00 },
+      { id: 'SOCKS', name: 'SOCKS', price: 8.00 },
     ] },
   ];
   // Every colour off this room's own `cardT`: #e4dcc4 card, #2a3a6a marker.

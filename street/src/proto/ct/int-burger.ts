@@ -212,17 +212,17 @@ export function buildBurger(ctx: CtxBuild): void {
   // `ct/goods.ts` and one — the soda — already in the world.
   const MENU: ShopColumn[] = [
     { head: 'SANDWICHES', lines: [
-      { id: 'BURGER', name: 'BARN BURGER', price: 1.89 },
-      { id: 'CHICKEN', name: 'CHICKEN', price: 2.29 },
+      { id: 'BURGER', name: 'BARN BURGER', price: 7.50 },
+      { id: 'CHICKEN', name: 'CHICKEN', price: 9.00 },
     ] },
     { head: 'SIDES', lines: [
-      { id: 'FRIES', name: 'FRIES', price: 0.89 },
-      { id: 'PIE', name: 'APPLE PIE', price: 0.69 },
+      { id: 'FRIES', name: 'FRIES', price: 3.50 },
+      { id: 'PIE', name: 'APPLE PIE', price: 2.75 },
     ] },
     { head: 'DRINKS', lines: [
-      { id: 'SODA', name: 'SODA', price: 0.79 },
-      { id: 'SHAKE', name: 'SHAKE', price: 1.29 },
-      { id: 'COFFEE', name: 'COFFEE', price: 0.65 },
+      { id: 'SODA', name: 'SODA', price: 3.00 },
+      { id: 'SHAKE', name: 'SHAKE', price: 5.00 },
+      { id: 'COFFEE', name: 'COFFEE', price: 2.50 },
     ] },
   ];
   // The barn's own three colours, read off the constants at the head of this
@@ -464,7 +464,7 @@ export function buildBurger(ctx: CtxBuild): void {
         dither(g, 32, 40, 30);
       }), 'sign');
     room.sign(posterT('NOW', 'HIRING', '#b8322c'), 0.46, 0.58, LW + 0.04, 1.86, hd - 3.4, Math.PI / 2);
-    room.sign(posterT('COMBO', '2.99', '#c8902a'), 0.46, 0.58, LW + 0.04, 1.86, hd - 5.2, Math.PI / 2);
+    room.sign(posterT('COMBO', '11.95', '#c8902a'), 0.46, 0.58, LW + 0.04, 1.86, hd - 5.2, Math.PI / 2);
   }
 
   // ══ YOU TALK TO HER, AND YOU ORDER OFF THE BOARD ══════════════════════════

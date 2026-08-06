@@ -546,20 +546,38 @@ export function rollPackage(): string {
 //
 // ⚠ THE PRICES ARE THE JOKE AND THEY MUST STAY MEAN. `PACKAGE_TABLE` weights
 // the disappointment by repeating it — SOCKS and CATALOGUE appear twice in
-// eight entries, so **half of everything you steal is worth 25–50 cents**.
+// eight entries, so **half of everything you steal is worth about a coffee**.
 // Pricing that generously kills the gag: the point of stealing a package is
-// that it is a toaster. Nothing here is worth more than a cheap meal, and the
-// two prizes are only prizes next to a pack of tube socks.
+// that it is a toaster. Nothing here is worth more than a cheap meal out, and
+// the two prizes are only prizes next to a pack of tube socks.
 //
 // Derived, not retyped: `int-pawn.ts` imports `fencePrice`/`bestFence` rather
 // than carrying a second copy of these numbers (BUILDER-BRIEF §8).
+//
+// ══ ×4, 2026-08-06 ═════════════════════════════════════════════════════════
+//
+// *"everything needs to be more expensive. use 500 bucks a mo rent as a
+//  baseline."*
+//
+// **THIS TABLE IS THE PLAYER'S INCOME, so it had to move with the prices or
+// stealing stops being worth the walk.** It was $0.25–$8 a piece against a $500
+// rent bill — a builder measured a whole season of fencing coming to about $74,
+// which is 15% of one month's rent for emptying every landing in the building.
+// At ×4 the same season is ~$296, which is 59% of it: still not a living, and
+// now a visible dent.
+//
+// ⚠ AND THE GAG SURVIVES THE RESCALE BECAUSE EVERY RATIO IS UNTOUCHED. The
+// chequebook is still 64 times the catalogue, the socks are still the
+// disappointment, and half of what you steal is still near the bottom of the
+// table. A flat multiple is the only kind of repricing that cannot quietly
+// re-tune what this table is FOR.
 const FENCE: Record<string, number> = {
-  CATALOGUE: 0.25,   // he already has a stack of them by the till
-  SOCKS: 0.50,       // six pairs, tube, white
-  VHS: 2.00,         // no label — he cannot know what it is either
-  TOASTER: 4.00,
-  TRAINERS: 5.00,
-  CHEQUES: 8.00,     // the one thing in the table a fence genuinely wants
+  CATALOGUE: 1.00,   // he already has a stack of them by the till
+  SOCKS: 2.00,       // six pairs, tube, white
+  VHS: 8.00,         // no label — he cannot know what it is either
+  TOASTER: 16.00,
+  TRAINERS: 20.00,
+  CHEQUES: 32.00,    // the one thing in the table a fence genuinely wants
 };
 
 /** What the broker pays for one `id`, or 0 if he will not take it at all. */

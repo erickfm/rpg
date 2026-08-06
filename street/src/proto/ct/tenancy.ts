@@ -1136,7 +1136,7 @@ ART['flyer-video'] = (g, l) => {
   g.fillStyle = '#8e2b22'; g.font = UI.font(8, true);
   g.fillText('LATE FEES ARE', cx, by + 15);
   g.font = UI.font(9, true);
-  g.fillText('$1.50 A DAY', cx, by + 27);
+  g.fillText('$6.00 A DAY', cx, by + 27);
   g.fillStyle = '#3a3126'; g.font = UI.font(6);
   g.fillText('BE KIND. REWIND.', cx, by + 36);
   g.textAlign = 'left';
@@ -1331,7 +1331,7 @@ ART['flyer-pizza'] = (g, l) => {
   g.strokeStyle = RED; g.lineWidth = 1;
   g.strokeRect(P.x + 8.5, cy + 3.5, TW - 1, P.h - 96 - 12);
   g.textAlign = 'center'; g.fillStyle = RED; g.font = UI.font(10, true);
-  g.fillText('$1 OFF ANY PIE', cx, cy + 20);
+  g.fillText('$4 OFF ANY PIE', cx, cy + 20);
   g.fillStyle = '#6b6455'; g.font = UI.font(6);
   g.fillText(l.lines[3] ?? '', cx, cy + 29);
   g.textAlign = 'left';
@@ -1435,7 +1435,7 @@ ART['catalogue-302'] = (g, l) => {
   // the price corner
   fill(g, '#e8dcb8', P.x + P.w - 40, P.y + 8, 32, 16);
   g.fillStyle = '#3a352c'; g.font = UI.font(8, true);
-  g.fillText('$2.95', P.x + P.w - 24, P.y + 20);
+  g.fillText('$11.80', P.x + P.w - 24, P.y + 20);
   // THE MAILING LABEL, which is the whole point of this piece
   g.textAlign = 'left';
   fill(g, '#f6f4ea', P.x + 12, P.y + P.h - 66, P.w - 24, 34);
