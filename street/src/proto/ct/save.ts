@@ -525,8 +525,13 @@ async function boot(): Promise<void> {
 //                   gap: rent paid and rent OWED are the closest thing the game
 //                   has to a score, and `owed(day)` is computed from
 //                   `paidPeriods` against a restored clock — so a returning
-//                   player currently finds the date advanced and the rent
-//                   marked prepaid, which is arrears the wrong way round.
+//                   player finds the date advanced and `paidPeriods` back at 0,
+//                   i.e. billed again for every season he already settled.
+//                   ⚠ THIS GOT WORSE ON 2026-08-05, when the prepaid first month
+//                   was removed: the seed used to be 1, so the miss read as
+//                   "arrears the wrong way round" and only cost the player a
+//                   free month. At 0 it reads as a landlord who forgot he was
+//                   paid. Still the biggest gap, still two lines in tenancy.
 //                   `__rent` publishes `paidPeriods()` and `held()` READ ONLY
 //                   and says why: *"a probe that could set `paidPeriods` could
 //                   make its own assertions come true."* A slice is not a

@@ -3,10 +3,17 @@
 // *"per year i want there to be 4 months kinda like stardew where each month is
 //  a season, spring, summer, fall, winter"*   (2026-08-04)
 //
-// and, in the same breath:
+// and, on the rent that hangs off it:
 //
-// *"lets make rent due monthly on the first. when you start the game it's the
-//  first but ur mom already paid for your first month when she kicked you out"*
+// *"remove the mom paying my rent stuff forget about that. rent is due on the
+//  5th."*   (2026-08-05)
+//
+// ⚠ THAT SUPERSEDES the sentence this module opened with — *"when you start the
+// game it's the first but ur mom already paid for your first month when she
+// kicked you out"*. THERE IS NO PREPAID MONTH. The `prepaidMonths` field is
+// gone rather than set to 0, so nobody reintroduces the idea by flipping a
+// number, and her carbon slip is out of the mailbox. Rent falls due on the 5th
+// of every season, THE FIRST ONE INCLUDED: a fresh start owes $500 on day 4.
 //
 // A MONTH AND A SEASON ARE THE SAME OBJECT HERE. There are four of them in a
 // year, they are named rather than numbered, and every dated thing in this world
@@ -172,7 +179,7 @@ export interface GameDate {
   season: Season;
   /** 0…3, its index in `SEASONS` */
   seasonIndex: number;
-  /** 1…DAYS_PER_SEASON. **1 is the rent day.** */
+  /** 1…DAYS_PER_SEASON. **`RENT.dueDayOfSeason` — the 5th — is the rent day.** */
   dayOfSeason: number;
   /** 1997, 1998, … */
   year: number;
@@ -301,27 +308,11 @@ export const RENT = {
    * and it is what the wall calendar can now show.
    */
   noticeLead: 3,
-  /**
-   * MONTHS ALREADY PAID WHEN THE GAME OPENS — the whole of his second sentence,
-   * as one number.
-   *
-   * *"when you start the game it's the first but ur mom already paid for your
-   *  first month when she kicked you out"*
-   *
-   * Day 0 is SPRING 1 and the first rent day is SPRING 5 — day 4 — so a month
-   * falls due four days into the world rather than the instant it loads. She
-   * covered it. `ct/tenancy.ts` seeds `paidPeriods` from this, so on a fresh
-   * start `owed()` is 0 and STAYS 0 through the whole of spring: no arrears, no
-   * PAST DUE stamp, no slip under the door and **no landlord in the lobby** (he
-   * only stands there when he is owed).
-   *
-   * The first payment you make with your own money is **SUMMER 5, day 32**.
-   * `duePeriodsBy` is 0 on day 0 now, where it used to be 1 — the game no longer
-   * opens ON a rent day — and 1 from day 4, which is the month she paid.
-   *
-   * Her receipt is in the mailbox on day 0. See `prepaidReceipt` in tenancy.
-   */
-  prepaidMonths: 1,
+  // ⚠ THERE IS NO `prepaidMonths` AND THERE MUST NOT BE ONE AGAIN.
+  // *"remove the mom paying my rent stuff forget about that."* (2026-08-05).
+  // It seeded `ct/tenancy.ts`'s `paidPeriods` at 1, which held `owed()` at 0
+  // through the whole first season. The field is deleted rather than zeroed so
+  // that reinstating the conceit takes a decision and not a keystroke.
   /** the flat, the landlord, and the man's name on the bottom of the notice */
   flat: '301',
   landlord: 'V. OKONKWO',
@@ -341,11 +332,10 @@ export function dueDay(n: number): number {
 /**
  * How many rent days have arrived by `day` — `dueDay(n) <= day` for n < this.
  *
- * ⚠ IT IS 0 ON DAY 0 NOW, where it used to be 1. The game opened ON a rent day
- * when rent was the 1st; on the 5th it opens four days short of one, so nothing
- * is due until day 4. `RENT.prepaidMonths` still covers that first one, so the
- * fresh-start balance is 0 either way — but the reason is different and the
- * arithmetic below had to stop assuming it.
+ * ⚠ IT IS 0 ON DAY 0, where it used to be 1. The game opened ON a rent day when
+ * rent was the 1st; on the 5th it opens four days short of one, so nothing is
+ * due until day 4 — and then $500 IS, because nothing covers the first period
+ * any more. Day 0 to day 3 is the only quiet stretch a fresh start gets.
  *
  * COUNTED FROM THE DUE DAY, not from the season boundary: `dueDay(n) = n*28 + 4`,
  * so the count is how many of those are at or below `day`.

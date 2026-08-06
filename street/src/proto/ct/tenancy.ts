@@ -6,7 +6,7 @@ import { citizenSprite } from './citizens';
 import { UI, makePanel, screenFocusReady, hudNote, type Panel } from './hud';
 import { defineItem, bagPut, pocketsFull, fullWhy } from './inventory';
 import {
-  RENT, DAYS_PER_SEASON, dateOf, dueDay, duePeriodsBy, isRentDay,
+  RENT, dateOf, dueDay, duePeriodsBy, isRentDay,
   nextDueDay, noDelivery, noticeDay,
 } from './calendar';
 
@@ -72,26 +72,30 @@ export const ORDER = BUILD.PROPS + 6;      // after ct/inventory.ts (+5) adopts 
 //
 // What changed in the cycle itself, and why:
 //
-//   *"lets make rent due monthly on the first. when you start the game it's the
-//    first but ur mom already paid for your first month when she kicked you
-//    out"*
 //   *"per year i want there to be 4 months kinda like stardew where each month
 //    is a season, spring, summer, fall, winter"*
+//   *"remove the mom paying my rent stuff forget about that. rent is due on the
+//    5th."*   (2026-08-05)
 //
 // So: FOUR MONTHS IN A YEAR, each one a season, 28 days each. Rent is due on
 // the 5th of each — four payments a year, one per season, always on a FRIDAY
 // (*"make rent due on the 5th instead of the 1st ty"*, 2026-08-05; 28 is a whole
 // number of weeks, so the 1st is a Monday for ever and the 5th is a Friday for
 // ever). Day 0 is SPRING 1 and the first rent day is SPRING 5, day 4 — so the
-// world no longer opens ON a rent day, it opens four days short of one. That
-// month is still your mother's: `RENT.prepaidMonths` covers it, so a fresh
-// start owes nothing through the whole of spring — no arrears, no PAST DUE
-// stamp, no slip under the door and no landlord in the lobby. What is in the
-// box on day 0 instead is HER RECEIPT (`prepaidReceipt` below), which is where
-// the backstory lives — a document the landlord already writes in this file,
-// not a cutscene and not a new panel.
+// world does not open ON a rent day, it opens four days short of one.
 //
-// The first rent you pay out of your own pocket is day 32, the 5th of SUMMER.
+// ⚠ NOBODY HAS PAID THAT FIRST MONTH FOR YOU. The prepaid-month conceit and the
+// pink carbon that explained it are both gone at his instruction; `paidPeriods`
+// starts at 0 and `RENT` no longer carries a `prepaidMonths` to seed it from.
+// So the FIRST rent you owe is $500 on day 4, SPRING 5, out of your own pocket,
+// and the whole apparatus fires in the first season rather than the second: the
+// notice on SPRING 2 (day 1), then arrears, the PAST DUE stamp, the slip under
+// your door and the landlord at the foot of the stairs.
+//
+// AND HE VERY LIKELY CANNOT PAY IT — measured, not feared: roughly $401 is
+// reachable in a season against a $500 bill (see `RENT.amount`). That is not a
+// failure state and it is not a bug to fix here. Nothing evicts. Arrears simply
+// accrue and the man waits in the lobby, which is pressure rather than a wall.
 
 // ── the tenancy's own state ───────────────────────────────────────────────
 //
@@ -102,17 +106,24 @@ export const ORDER = BUILD.PROPS + 6;      // after ct/inventory.ts (+5) adopts 
 /**
  * Rent days settled so far. `paidPeriods === duePeriodsBy(day)` means square.
  *
- * IT STARTS AT 1, NOT 0, AND THAT IS THE WHOLE OPENING OF THE GAME. Day 0 is
- * SPRING 1 and the first rent day is SPRING 5 — so `duePeriodsBy(0)` is now 0,
- * not 1, and the month falls due on day 4 rather than the instant the world
- * loads. The one already on the books is your mother's: *"ur mom already paid
- * for your first month when she kicked you out"*. Seeding at 1 against a count
- * of 0 leaves the balance at 0 through spring and settles her month the moment
- * it arrives, which is what being paid up in advance means. One number, and every downstream thing that
- * reads `owed()` — the landlord's presence, the stamp on the notice, the slip
- * under your door — comes out right without knowing why.
+ * IT STARTS AT 0, AND THAT IS THE WHOLE OPENING OF THE GAME — *"remove the mom
+ * paying my rent stuff forget about that. rent is due on the 5th."* It used to
+ * be seeded from `RENT.prepaidMonths`, which is why the first season was silent;
+ * that field no longer exists. So `duePeriodsBy(0)` is 0 and the balance is 0
+ * for four days, then day 4 (SPRING 5) makes it 1 against 0 paid and $500 is
+ * outstanding. Every downstream thing that reads `owed()` — the landlord's
+ * presence, the stamp on the notice, the slip under your door — turns on in the
+ * FIRST season now, without any of them knowing why.
+ *
+ * ⚠ IT IS STILL NOT SAVED. `ct/save.ts` restores the clock and the purse but has
+ * no tenancy slice, so a returning player finds the DATE advanced and this back
+ * at 0. That gap got worse, not better, with this change: it used to restore a
+ * player as prepaid (arrears the wrong way round), and now it restores one as
+ * having never paid anything — so a player who settled a season comes back to
+ * the landlord asking for it again. Named rather than fixed; the two-line slice
+ * `ct/save.ts` sketches at its foot is the fix when someone is asked for it.
  */
-let paidPeriods = RENT.prepaidMonths;
+let paidPeriods = 0;
 /** the last day whose post you have taken out of the box. -1 = you never have. */
 let collectedDay = -1;
 /** mail you have taken but not thrown away, newest last. */
@@ -193,8 +204,8 @@ export interface Letter {
    *
    * So a piece names its own drawing here and `ART` looks it up; anything that
    * names nothing gets `drawTyped`, which is exactly today's letter and is what
-   * the rent notice, the receipt and his mother's carbon still use. Their
-   * content and behaviour are untouched — those three do real work.
+   * the short slip from the landlord's hand still uses. Its content and
+   * behaviour are untouched — it does real work.
    */
   art?: string;
 }
@@ -363,44 +374,13 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
   ] },
 ];
 
-/**
- * THE ONE LETTER THAT ONLY EVER ARRIVES ONCE: your mother's receipt, day 0.
- *
- * *"ur mom already paid for your first month when she kicked you out"* — and
- * the backstory needs a surface rather than a cutscene, so it gets the surface
- * this file already has. He comes in off the street, opens his box, and the
- * first thing in it is the carbon slip proving the month he is standing in is
- * paid for and that somebody else paid it.
- *
- * It also does a job beyond flavour: it is the ONLY thing that explains why the
- * rent feature is silent on day one. No notice, no stamp, no man at the foot of
- * the stairs — without this the opening reads as a lease that has not started.
- *
- * `kind: 'receipt'` so it takes the live balance band underneath, which on day 0
- * says NOTHING OUTSTANDING TODAY. That band is doing real work here.
- */
-function prepaidReceipt(): Letter {
-  const here = dateOf(0).season;
-  const next = dateOf(DAYS_PER_SEASON).season;
-  return {
-    day: 0, kind: 'receipt', art: 'carbon-prepaid', from: `${RENT.landlord} — PAID IN ADVANCE`,
-    lines: [
-      `RE: APT ${RENT.flat}, ${RENT.building}`,
-      '',
-      `$${RENT.amount.toFixed(2)} — ${here}, IN FULL.`,
-      '',
-      // ⚠ 35 COLUMNS, counted. `COLS` clips a long line SILENTLY and
-      // identically to one that fits — the landlord's signature came off the
-      // edge of this same sheet once and only a screenshot found it.
-      'Your mother paid this at the door',
-      'on her way out. She asked me to',
-      'keep an eye on you. I told her no.',
-      '',
-      `Next is the 5th of ${next}.`,
-      `                      — ${RENT.landlord}`,
-    ],
-  };
-}
+// ⚠ THERE IS NO DAY-0 LETTER ANY MORE. `prepaidReceipt()` — the pink carbon
+// from his mother, with its own `carbon-prepaid` painter — lived here and was
+// deleted at his instruction: *"remove the mom paying my rent stuff forget
+// about that."* It existed only to explain why day one was silent, and day one
+// is not silent now; a letter about a payment that never happened is worse than
+// no letter. The first thing the box holds is the ordinary notice on day 1.
+// Git history has both the letter and the painter if the conceit ever returns.
 
 // `noDelivery` is the calendar's now — day 0 is a Monday and Sunday is day 6,
 // which is the fact the whole week in this world is pinned to. Re-exported from
@@ -421,10 +401,6 @@ function prepaidReceipt(): Letter {
 function mailFor(day: number): Letter[] {
   const out: Letter[] = [];
   if (day < 0 || noDelivery(day)) return out;
-
-  // HER RECEIPT, once, on the morning the game opens. First in the box because
-  // it is the answer to the question the box otherwise poses.
-  if (day === 0) out.push(prepaidReceipt());
 
   // The notice, `noticeLead` days before the next 1st — and it names the season
   // it is for rather than only counting days, because a wall calendar four steps
@@ -983,7 +959,7 @@ const ART: Record<string, (g: CanvasRenderingContext2D, l: Letter) => void> = {}
 // LAYOUT — so these differ in stock colour, in shape, in how much of the space
 // they fill, and in what marks they carry. `Letter.art` names one; anything
 // unnamed is `drawTyped`, which is the typewritten letter this file has always
-// drawn and which the rent notice, the receipt and his mother's carbon keep.
+// drawn and which the landlord's handed-over short slip keeps.
 //
 // THEY COME OFF THE STREET'S OWN BUSINESSES, which is the move that made the
 // television ads work and costs nothing because the shops already exist:
@@ -1734,51 +1710,11 @@ ART['docket-receipt'] = (g, l) => {
   g.textAlign = 'left';
 };
 
-/**
- * ══ HIS MOTHER'S CARBON ═══════════════════════════════════════════════════
- *
- * *"ur mom already paid for your first month when she kicked you out"*
- *
- * THE ONE PIECE WITH A PERSON BEHIND IT, and it should feel unlike anything a
- * business sent. A FLIMSY PINK DUPLICATE: the third leaf of a receipt book, so
- * the stock is pink rather than cream, the printed form beneath is faint, and
- * the writing is in the SMUDGED PURPLE-GREY of carbon rather than in ink.
- *
- * ⚠ THE IMPRESSION IS DRAWN, AND IT IS THE WHOLE TELL. A carbon copy carries
- * the pressure of a pen that was never touching it: each line gets a 1 px
- * offset ghost under it, so the writing reads as pressed THROUGH rather than
- * printed ON. Nobody typed this and nobody printed it — she stood at the door
- * and he wrote it out.
- *
- * The words are untouched. They explain why day one is silent, which is the
- * job this piece does beyond flavour.
- */
-ART['carbon-prepaid'] = (g, l) => {
-  const w = Math.round(PAPER.w * 0.86), h = Math.round(PAPER.h * 0.86);
-  const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
-  const IN = 8, TW = w - IN * 2;                       // the printable width
-  stock(g, x, y, w, h, '#e8cfd0', '#f2dfe0', '#c9adae');
-  perf(g, x + 4, y + 4, w - 8);
-  // the printed form under the writing, faint because this is the third leaf
-  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillStyle = 'rgba(120,90,95,0.45)'; g.font = UI.font(6, true);
-  g.fillText('RECEIPT — DUPLICATE — DO NOT DETACH', x + IN, y + 14);
-  fill(g, 'rgba(120,90,95,0.35)', x + IN, y + 18, TW, 1);
-  // ⚠ THE WRITING IS FLOWED, NOT PLACED. `flow` wraps to TW — the DUPLICATE's
-  // width, not the notice's — and hands back where it stopped, so the band
-  // below is positioned off the body instead of off the paper's foot.
-  const CARBON = '#4a4250';
-  const top = y + 32;
-  // the impression first, one texel down and across: the pressure of a pen that
-  // was never touching this sheet. Same lines, same wrap, so it registers.
-  flow(g, x + IN + 1, top + 1, TW, l.lines, 8, 'rgba(74,66,80,0.30)', true);
-  const end = flow(g, x + IN, top, TW, l.lines, 8, CARBON, true);
-  // the ruled form lines, behind nothing — drawn only where the writing is not
-  for (let ly = y + 34; ly < end - 6; ly += 13) fill(g, 'rgba(120,90,95,0.16)', x + IN, ly, TW, 1);
-  // AND THE BAND SITS UNDER THE BODY, clamped inside the sheet. If the copy
-  // ever grows past the paper the band is the thing that gives, not the words.
-  balanceBand(g, x + IN, Math.min(end + 4, y + h - 22), TW);
-};
+// ⚠ `ART['carbon-prepaid']` WAS HERE and is deleted with the letter it drew —
+// the flimsy pink duplicate from his mother, with the 1 px impression ghost
+// under every line. *"remove the mom paying my rent stuff forget about that."*
+// Nothing sets `art: 'carbon-prepaid'` any more, so this was an unreachable
+// painter; git history has it if the conceit ever comes back.
 
 function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
   const l = letter;
