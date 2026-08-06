@@ -2106,21 +2106,36 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     {
       const FY = TOP_Y;                                  // floor 3's carpet
       const CLEAR = 0.012;                               // above the carpet plane
-      // ── THE LEATHER: WORN TAN, AND IT IS SAMPLED ──────────────────────
-      // Oxblood was the other classic option and it is the wrong one HERE: the
-      // hall carpet is `#663832`, a dark red-brown, and an oxblood chair
-      // standing on it at this distance is a silhouette-coloured lump on a
-      // silhouette-coloured floor. Tan is the one leather that separates from
-      // everything already in the picture — `#663832` carpet, `#57402c` doors,
-      // `#3e3024` skirting, `#7e7460` paper.
+      // ── THE LEATHER: DARK GREEN, AND IT IS SAMPLED ────────────────────
       //
-      // `#8a6238` IS THIS BUILDING'S OWN BROWN, RAISED. It is the stair treads'
-      // `#6a5038` (the warmest timber in the walk-up) taken up ~30 levels and
-      // pushed a little redder, so the chair belongs to the same family as the
-      // doors and the stairs rather than arriving from another palette — the
-      // shared-palette rule, BUILDER-BRIEF §8.
+      // TAN WAS BUILT AND REJECTED — *"dark brown i think dark brown or dark
+      // green?"* — and against cream stripes it photographed light and orange,
+      // the brightest thing in the walk-up. He offered both; this is green, and
+      // it is one constant to change if he wants the other.
+      //
+      // WHY GREEN AND NOT THE BROWN HE ALSO OFFERED. This hall is ALREADY a
+      // brown band at chair height: `#3e3024` skirting, `#57402c` doors, their
+      // frames, and the end table 0.24 m away in `#6a5038`. A dark brown chair
+      // joins that band and the silhouette built for the last correction — the
+      // 1.00 m back, the rolled arms, the legs — stops reading at hall
+      // distance. It is the same trap as oxblood against the `#663832` carpet,
+      // which is why oxblood was passed over one revision ago. Dark green
+      // leather is the reading-room chair, it is period, and against a red
+      // floor and cream paper it separates on HUE without being loud.
+      //
+      // `#43563a` IS THIS BUILDING'S OWN GREEN, PULLED DOWN. The only green in
+      // the walk-up is the houseplant on 301's sill, whose darkest leaf is
+      // `#4e6b34` (`leafT`, ~900 lines below); this is that, darkened and
+      // desaturated toward the park's grass `#727a56` — so the one green in the
+      // building and the one green in the hall are the same green. Shared
+      // palette, BUILDER-BRIEF §8, and NOT an invented hue.
+      //
+      // ⚠ KEPT DARK ON PURPOSE. Emerald would be the loudest object in a shabby
+      // building; at luma 0.30 this sits a hair above the carpet's 0.27 and
+      // well under the paper's 0.46, so it reads as a dark mass with a green
+      // cast rather than as a colour.
       const hideT = surfTex('detail', 32, 32, (g) => {
-        g.fillStyle = '#8a6238'; g.fillRect(0, 0, 32, 32);
+        g.fillStyle = '#43563a'; g.fillRect(0, 0, 32, 32);
         // old leather creases: a few darker strokes, not a pattern. Two
         // horizontals and a break, which is what a seat that has been sat in
         // for twenty years does and all it does.
@@ -2137,7 +2152,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // lighter top face is the cheapest thing that makes a seat read as a
       // horizontal plane you could sit on. Box material order is
       // [+x, -x, +y, -y, +z, -z], so this replaces exactly the third.
-      const hideTopM = new THREE.MeshBasicMaterial({ color: 0xa07647 });
+      // The lift is the SAME (+22, +20, +15) the tan carried, applied to the
+      // green — the amount of it was right, only the hue under it was wrong.
+      const hideTopM = new THREE.MeshBasicMaterial({ color: 0x596a49 });
       const hideMats = [hideM, hideM, hideTopM, hideM, hideM, hideM];
       const darkM = new THREE.MeshBasicMaterial({ color: 0x3e3024 }); // the skirting's own brown
       const woodM = new THREE.MeshBasicMaterial({ color: 0x6a5038 }); // the stair treads' own
@@ -2708,6 +2725,22 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // z 2.65 → 4.40 is open the full width, which is 1.75 m against a rig
     // that needs 0.72 — you can walk in, cross to the window, and turn round
     // without touching anything.
+    /**
+     * ── HOW LIT THE ROOM IS, 0…1 ──────────────────────────────────────────
+     *
+     * Written by the light switch (and the clock through it), read by anything
+     * in the flat that DEPICTS the room rather than being part of it. Hoisted
+     * here because two of those readers — the mirror's focused view and the
+     * calendar's page — are built hundreds of lines before the switch is.
+     *
+     * ⚠ THEY EXIST BECAUSE `ct/hud.ts:1648` FORCES A PANEL'S MATERIAL WHITE ON
+     * OPEN, deliberately, "so the evening wash cannot dim what you are reading".
+     * That is right for a letter you hold up to whatever light there is and
+     * wrong for a surface that is a picture OF this room. Those surfaces cannot
+     * be dimmed by their material, so they dim in their PAINT, where the
+     * framework's white cannot reach them.
+     */
+    let roomLitK = 1;
     const RY = 2 * ST + 0.007;               // the floorboards
     // solid furniture, so front faces only — texM's DoubleSide is for planes
     const flatOf2 = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t });
@@ -4724,7 +4757,27 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         const t = i / (N - 1);                       // 0 at the glass, 1 at the far end
         const cy = 3 + t * 40;                       // stepped down the axis
         const r = 3.2 + t * 12;                      // narrow at the set, broad away
-        const a = 0.30 * Math.pow(1 - t, 1.6) + 0.03; // brightest at the glass
+        // ── AND IT IS DARK AT THE SET'S OWN FOOT ────────────────────────
+        //
+        // *"i think we need a dark area right in front of the tv right? it
+        //  wouldnt be lit directly below, right?"*   (2026-08-05)
+        //
+        // HE IS RIGHT AND IT IS THE COSINE TERM. A screen is a FORWARD-facing
+        // emitter: illuminance goes as cos(angle from the normal) over distance
+        // squared, and the floor at the cabinet's foot is at ~90 degrees off
+        // that normal. Near is not the same as bright — the set throws its light
+        // ACROSS the room, not down its own front. My first curve peaked at the
+        // glass (`(1-t)^1.6`, maximum at t = 0) and lit the one patch of floor
+        // that physically receives least.
+        //
+        // A HUMP INSTEAD: zero at the glass, rising to a peak `TV_PEAK` of the
+        // way out, then the usual falloff. The rise is the cosine term winning,
+        // the fall is inverse-square winning, and where they cross is the
+        // brightest part of a real screen's pool.
+        const TV_PEAK = 0.26;
+        const a = 0.36 * (t < TV_PEAK
+          ? Math.pow(t / TV_PEAK, 1.3)
+          : Math.pow((1 - t) / (1 - TV_PEAK), 1.5));
         g.fillStyle = `rgba(255,240,206,${a.toFixed(3)})`;
         for (let y = 0; y < 48; y++) for (let x = 0; x < 32; x++) {
           const dx = x + 0.5 - 16, dy = y + 0.5 - cy;
@@ -4735,7 +4788,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = 'rgba(255,236,194,0.06)';
       for (let i = 0; i < 90; i++) {
         const x = Math.floor(Math.random() * 32);
-        const y = Math.floor(26 + Math.random() * 22);
+        const y = Math.floor(20 + Math.random() * 28);   // clear of the dark foot
         const dx = x + 0.5 - 16;
         if (Math.abs(dx) < 4 + (y - 3) * 0.34) g.fillRect(x, y, 1, 1);
       }
@@ -5469,7 +5522,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * on whole pixels through `u()`, so it is crisp at S = 1 and at S = 6.
      */
     const drawCalendar = (g: CanvasRenderingContext2D, W: number, H: number,
-                          day: number, offset: number, sel: number | null = null) => {
+                          day: number, offset: number, sel: number | null = null,
+                          dim = 1) => {
       const S = W / 48;
       const u = (v: number) => Math.round(v * S);
       const box = (x: number, y: number, w: number, h: number, fill: string) => {
@@ -5908,7 +5962,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           // `chrome:'none'` because `drawCalendar` IS the whole object, edge to
           // edge — a framework bezel here would be a plastic case drawn round a
           // picture of a piece of card.
-          draw: (g, w, h) => drawCalendar(g, w, h, calToday(), calPage, calSel),
+          // ⚠ THE PAGE KEEPS THE ROOM'S LIGHT — *"when i click into the cal it
+          // becomes bright, i want it to maintain the current light level"*.
+          // Same fault the mirror had and the same fix: the framework whitens a
+          // panel's material on open, so this dims in the PAINT instead. The
+          // plate on the WALL needs none of it — it is an ordinary mesh inside
+          // the room's bounds and the dimmer already scales its colour.
+          draw: (g, w, h) => drawCalendar(g, w, h, calToday(), calPage, calSel, roomLitK),
           // ⚠ THE WHEEL IS THE MONTH AND ONLY THE MONTH. It is context-dependent
           // in this world already — fov zoom out in the street, turning the
           // figure at the mirror, scrolling rows in the bag — and this is that
@@ -6313,9 +6373,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the bounds and the sweep already scales its colour.
     // the mirror is a picture OF this room, so it takes the same number — the
     // switch AND the hour, not the switch alone
-    let mirrorK = 1;
-    const setRoomLightLevel = (k: number) => { mirrorK = k; };
-    setRoomLight(() => mirrorK);
+    const setRoomLightLevel = (k: number) => { roomLitK = k; };
+    setRoomLight(() => roomLitK);
     const setLight = (on: boolean) => {
       lightOn = on;
       flatLamp.spill.visible = on;

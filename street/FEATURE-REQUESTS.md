@@ -4124,3 +4124,19 @@ the west wall, **244 mm** clear of the table, and **2.391 m** of full-width hall
 between the chair's outermost corner and the door line.
 
 Live on 5177.
+
+### 2026-08-05 — "dark brown i think dark brown or dark green?"
+
+The tan photographed light and orange against cream stripes. He offered both;
+**dark green**, because the hall is already a brown band at chair height —
+skirting, doors, frames and the end table 0.24 m away — and a dark brown chair
+joins it, which kills the silhouette built one correction ago. Same argument
+that ruled out oxblood on the red carpet.
+
+`#43563a`, from the ONE green already in this building: the houseplant on 301's
+sill, darkest leaf `#4e6b34`, darkened and desaturated toward park.ts's grass
+`#727a56`. Up-face `#596a49`, the same (+22, +20, +15) lift the tan carried.
+Nothing else moved — silhouette, 20° turn, rotated collider, floor-3 gating,
+sittability, standable tops, clearances all as measured.
+
+`WORLD OK`. Live on 5177.
