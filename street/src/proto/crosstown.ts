@@ -3,6 +3,7 @@ import type { Proto } from './types';
 import { FPRig, RADIUS, SIT_EYE, PITCH_LIMIT, type AABB, type SeatPose } from './fp';
 import { showBag, bagOpen, bagEscaped, configureBag } from './ct/bag';
 import { installOsd, registerOsdBusy, menuOpen, setting, onSettingChange } from './ct/osd';
+import { installCreate } from './ct/create';
 import { dropLoose } from './ct/inventory';
 import { worn } from './ct/wardrobe';
 import { ColliderDebug } from './ct/debug-collision';
@@ -556,6 +557,13 @@ export function makeCrosstown(): Proto {
   // ⚠ LOOK SPEED AND INVERT ARE INSTALLED WHERE THE RIG EXISTS, not here. See
   // the note at the assignment itself, beside `new FPRig`.
   installOsd();
+  // ── AND WHO YOU ARE, BEFORE ANY OF IT ──────────────────────────────────
+  // *"new game should put me into character create menu no?"* — `ct/create.ts`
+  // decides for itself whether this load needs a creation screen (NEW GAME just
+  // asked for one, or nobody has ever made a character in this browser) and does
+  // nothing at all otherwise. It registers its own Escape claim, so the menu
+  // cannot open on top of it.
+  installCreate();
   // AND THE SETTINGS REACH THE WORLD. Handedness flips the watch arm — the one
   // option with a visible consequence — and the rest are read live below.
   const applyHand = () => hud.setHanded(setting('hand'));

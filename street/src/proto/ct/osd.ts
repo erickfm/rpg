@@ -24,9 +24,12 @@
 import { volume, setVolume, toggleMute, isMuted, VOLUME_STEP } from './audio';
 
 /** the reference's own palette, sampled from his screenshot, not invented */
-const FIELD = '#2018c8';        // the blue field
-const INK = '#f4f4ff';          // the type
-const DIM = '#a8a4e0';          // the legend, one step back
+// EXPORTED because `ct/create.ts` is the same television and must not invent a
+// second palette, a second face or a second cursor. The arrow only ever points
+// that way — this file imports nothing but `ct/audio.ts`; see its header.
+export const FIELD = '#2018c8'; // the blue field
+export const INK = '#f4f4ff';   // the type
+export const DIM = '#a8a4e0';   // the legend, one step back
 
 /** ── WHAT THE PLAYER HAS CHOSEN ────────────────────────────────────────────
  *
@@ -75,6 +78,9 @@ function put<K extends keyof Settings>(k: K, v: Settings[K]): void {
   for (const fn of WATCH) { try { fn(); } catch { /* a bad watcher is not a bad setting */ } }
 }
 export function setName(v: string): void { put('name', v); }
+/** and the wrist, so character creation sets handedness through the SAME entry
+ *  the menu writes rather than inventing a second notion of it */
+export function setHand(v: Settings['hand']): void { put('hand', v); }
 
 // ── THE FIELD ──────────────────────────────────────────────────────────────
 //
@@ -82,7 +88,7 @@ export function setName(v: string): void { put('name', v); }
 // surface in this project uses — `image-rendering: pixelated` over a small grid
 // is what makes the type chunky rather than merely small. 320 x 240 is a VCR's
 // own display resolution and the reference is that shape.
-const OW = 320, OH = 240;
+export const OW = 320, OH = 240;
 let wrap: HTMLDivElement | null = null;
 let cv: HTMLCanvasElement | null = null;
 
@@ -132,7 +138,7 @@ function build(): void {
  */
 const FUZZ_MS = 200;
 let fuzzT = 0;                       // 0 = no transition running
-function snow(g: CanvasRenderingContext2D, density: number): void {
+export function snow(g: CanvasRenderingContext2D, density: number): void {
   const n = Math.round(OW * OH * density);
   for (let i = 0; i < n; i++) {
     const x = Math.floor(Math.random() * OW), y = Math.floor(Math.random() * OH);
@@ -142,7 +148,7 @@ function snow(g: CanvasRenderingContext2D, density: number): void {
   }
 }
 /** the bright bar a set tears on while it hunts for sync */
-function rollBar(g: CanvasRenderingContext2D, t: number): void {
+export function rollBar(g: CanvasRenderingContext2D, t: number): void {
   const y = Math.round(((t * 2.4) % 1) * (OH + 40)) - 20;
   g.fillStyle = 'rgba(255,255,255,0.30)';
   g.fillRect(0, y, OW, 6);
@@ -151,7 +157,7 @@ function rollBar(g: CanvasRenderingContext2D, t: number): void {
 }
 
 /** the reference's own face: one weight, one size, no antialiased edges */
-const font = (px: number) => `bold ${px}px ui-monospace, Menlo, Consolas, monospace`;
+export const font = (px: number) => `bold ${px}px ui-monospace, Menlo, Consolas, monospace`;
 
 /**
  * A ROW, AND THE SELECTED ONE IS INVERSE VIDEO — a white block with blue type
@@ -159,7 +165,7 @@ const font = (px: number) => `bold ${px}px ui-monospace, Menlo, Consolas, monosp
  * OSD of the period showed a cursor. Not a colour change, not an arrow: the
  * block is the cursor.
  */
-function row(g: CanvasRenderingContext2D, text: string, x: number, y: number,
+export function row(g: CanvasRenderingContext2D, text: string, x: number, y: number,
              px: number, on: boolean): void {
   g.font = font(px);
   const w = g.measureText(text).width;
@@ -175,7 +181,7 @@ function row(g: CanvasRenderingContext2D, text: string, x: number, y: number,
 }
 
 /** `--------- MENU ---------`, the dashes sized to what is left of the line */
-function heading(g: CanvasRenderingContext2D, word: string, y: number): void {
+export function heading(g: CanvasRenderingContext2D, word: string, y: number): void {
   g.font = font(16);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = INK;
@@ -184,7 +190,7 @@ function heading(g: CanvasRenderingContext2D, word: string, y: number): void {
 }
 
 /** the legend at the foot, in the reference's own words and order */
-function legend(g: CanvasRenderingContext2D, lines: [string, string][]): void {
+export function legend(g: CanvasRenderingContext2D, lines: [string, string][]): void {
   g.font = font(11);
   g.fillStyle = DIM;
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
@@ -376,8 +382,18 @@ function paintMenu(g: CanvasRenderingContext2D): void {
  * view you cannot leave" on. This project's worst bug is a panel you cannot
  * close; it is not going to be caused by a menu.
  */
-let busy: () => boolean = () => false;
-export function registerOsdBusy(fn: () => boolean): void { busy = fn; }
+// ⚠ A LIST, NOT A SLOT. It was one function, and `ct/create.ts` needed to add a
+// second claim (the creation screen owns Escape while it is up) — with a single
+// slot the later registration would have SILENTLY REPLACED `crosstown.ts`'s
+// panel/bag/seat predicate, which is exactly the way to get a menu over a panel
+// he cannot reach. Every claim is asked, any one of them wins, and a claim that
+// throws is treated as "not claiming" rather than taking the menu down with it.
+const BUSY: (() => boolean)[] = [];
+export function registerOsdBusy(fn: () => boolean): void { BUSY.push(fn); }
+function busy(): boolean {
+  for (const f of BUSY) { try { if (f()) return true; } catch { /* not a claim */ } }
+  return false;
+}
 
 function onKey(e: KeyboardEvent): void {
   const k = e.key.toLowerCase();
@@ -433,8 +449,20 @@ function onKey(e: KeyboardEvent): void {
  * put the watch back on the other wrist. The audio preference survives for the
  * same reason.
  */
+/**
+ * ⚠ AND A NEW GAME NOW ASKS WHO YOU ARE — *"new game should put me into
+ * character create menu no? what happened to character create?"* (2026-08-05).
+ *
+ * A FLAG AND A RELOAD, not a call into `ct/create.ts`. This file is a near-leaf
+ * on purpose (see the header) and creation has to paint the doll, which drags
+ * THREE and `ct/hud.ts` in behind it — importing that here would close exactly
+ * the cycle this module was built to stay out of. So the handshake is one key in
+ * `localStorage`: this sets it, the page reloads into a world with no save, and
+ * `ct/create.ts` finds it on the way up and clears it.
+ */
 function newGame(): void {
   try { localStorage.removeItem(SAVE_KEY); } catch { /* private mode */ }
+  try { localStorage.setItem('ct-create', '1'); } catch { /* private mode */ }
   location.reload();
 }
 
