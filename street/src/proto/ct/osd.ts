@@ -18,9 +18,10 @@
 // extend to anything else: the bag, the mirror, the drawer, the calendar and
 // the mail all stay diegetic objects.
 //
-// A LEAF MODULE. It imports nothing from the world, so anything may read it
-// without closing an import cycle (GOTCHAS §28) — `crosstown.ts` registers the
-// few things it cannot see for itself.
+// A NEAR-LEAF MODULE. It imports `ct/audio.ts` and nothing else from the world,
+// so it cannot close an import cycle (GOTCHAS §28) — audio imports nothing back.
+// `crosstown.ts` registers the few things this cannot see for itself.
+import { volume, setVolume, toggleMute, isMuted, VOLUME_STEP } from './audio';
 
 /** the reference's own palette, sampled from his screenshot, not invented */
 const FIELD = '#2018c8';        // the blue field
@@ -38,21 +39,6 @@ const DIM = '#a8a4e0';          // the legend, one step back
  * for volume and mute.
  */
 const PREF = 'ct-settings';
-/** ⚠ `ct/audio.ts`'s OWN key, read and written in its own shape. Shared rather
- *  than copied: this is the one place two modules touch one preference, and it
- *  is a stopgap until that file exports getters — see the VOLUME row. */
-const AUDIO_PREF = 'ct.audio';
-type AudioPref = { v: number; m: boolean };
-function audioPref(): AudioPref {
-  try {
-    const a = JSON.parse(localStorage.getItem(AUDIO_PREF) || '{}') as Partial<AudioPref>;
-    return { v: typeof a.v === 'number' ? a.v : 0.7, m: !!a.m };
-  } catch { return { v: 0.7, m: false }; }
-}
-function putAudio(a: AudioPref): void {
-  try { localStorage.setItem(AUDIO_PREF, JSON.stringify(a)); } catch { /* private mode */ }
-  for (const fn of WATCH) { try { fn(); } catch { /* a bad watcher is not a bad setting */ } }
-}
 /** the world's own save, so NEW GAME can clear it. `ct/save.ts`'s own key. */
 const SAVE_KEY = 'ct-save';
 let confirming = false;
@@ -174,13 +160,8 @@ export function osdFrame(g: CanvasRenderingContext2D): void {
  * why it is short: an option the game cannot honour is worse than a missing one,
  * because he will set it and nothing will happen.
  *
- * ⚠ SOUND IS NOT HERE AND IT IS NOT AN OVERSIGHT. `ct/audio.ts` owns volume and
- * mute — it remembers them across reloads and binds `M`, `[` and `]` — but it
- * exports only `register` and `ORDER`. There is no getter and no setter, so
- * this module cannot read or move them, and that file belongs to another agent.
- * IT NEEDS TO EXPOSE THREE THINGS: `volume()`, `setVolume(v)` and `toggleMute()`
- * (or `muted()`/`setMuted(b)`). The moment it does, two rows go in here and
- * nothing else changes.
+ * SOUND IS HERE AND IT IS LIVE, off `ct/audio.ts`'s own exports — see the
+ * VOLUME row for why it briefly was not.
  */
 type Item = {
   label: string;
@@ -211,36 +192,38 @@ const ITEMS: Item[] = [
   },
   {
     /**
-     * ── SOUND ────────────────────────────────────────────────────────────
+     * ── SOUND, LIVE ──────────────────────────────────────────────────────
      *
      * *"i would like sound settings to be part of this"*
      *
-     * ⚠ THESE TWO ROWS ARE HONEST BUT NOT LIVE, AND THAT IS BLOCKED ON ONE
-     * EXPORT. `ct/audio.ts` owns volume and mute and belongs to another agent.
-     * It keeps them in `localStorage['ct.audio']` as `{v, m}` and reads that key
-     * ONCE at boot, so the menu writing it moves the setting on the next reload
-     * and not before. Driving its `M` / `[` / `]` keys instead is not available
-     * either: its handler opens with `if (!e.isTrusted …) return`, which
-     * deliberately refuses synthetic events.
+     * ⚠ THESE WERE STUBS UNTIL 2026-08-05 AND THE REASON IS WORTH KEEPING. I
+     * had them reading and writing `localStorage['ct.audio']` directly, because
+     * `ct/audio.ts` appeared to expose nothing — and it turned out the exports
+     * were there and DEAD: `crosstown.ts` was throwing at `rig.look2` before
+     * `register()` ever ran, so that module's handle stayed null and every
+     * setter was a silent no-op. The same crash `580042a6` fixed had this second,
+     * quieter symptom, and I diagnosed the symptom instead of the crash. The
+     * lesson is the crash's, not the API's: a fatal at load makes everything
+     * downstream of it look like it was never built.
      *
-     * IT NEEDS THREE FUNCTIONS AND NOTHING ELSE:
-     *     export function volume(): number
-     *     export function setVolume(v: number): void
-     *     export function toggleMute(): void
-     * The moment they exist these two `step`s call them and the rows go live
-     * with no other change. Requested; not editing another agent's file for it.
+     * ONE PATH NOW. `M`, `[`, `]`, the corner widget and these two rows all go
+     * through the same four functions, so a change here persists exactly as a
+     * keypress does and the widget agrees with the menu.
+     *
+     * ⚠ READ EVERY PAINT, NEVER CACHED — its own instruction, and it is what
+     * stops the menu showing a stale number after he presses `M` with the menu
+     * open. `value()` runs on each repaint and asks.
      */
     label: 'VOLUME',
-    value: () => (audioPref().m ? '--' : `${Math.round(audioPref().v * 100)}%`),
-    step: (d) => {
-      const a = audioPref();
-      putAudio({ v: Math.max(0, Math.min(1, Math.round((a.v + d * 0.1) * 10) / 10)), m: false });
-    },
+    value: () => (isMuted() ? '--' : `${Math.round(volume() * 100)}%`),
+    // VOLUME_STEP is the stride the keys use and the widget's eight blocks are
+    // drawn from, so the menu moves by exactly one block per press.
+    step: (d) => setVolume(volume() + d * VOLUME_STEP),
   },
   {
     label: 'MUTE',
-    value: () => (audioPref().m ? 'ON' : 'OFF'),
-    step: () => { const a = audioPref(); putAudio({ v: a.v, m: !a.m }); },
+    value: () => (isMuted() ? 'ON' : 'OFF'),
+    step: () => toggleMute(),
   },
   {
     /**
