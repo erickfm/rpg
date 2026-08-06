@@ -2322,29 +2322,52 @@ export function register(ctx: CtxBuild): void {
     x: STAND_X, z: me.z, r: 0.95,
     obj: door,
     ok: () => ctx.player.gy() < 0.5 && ctx.player.x() > 100,
+    // ══ AN EMPTY BOX IS EMPTY ═══════════════════════════════════════════
+    //
+    // *"once i take the mail the mail shouldnt be in the mailbox anymore btw"*
+    //   (2026-08-05)
+    //
+    // `24323f68` proved the PILE empties correctly and that what he was seeing
+    // the second time was the ARCHIVE — the fall-through that showed everything
+    // he had ever taken whenever nothing was waiting. That fix made the archive
+    // read-only, which stopped the duplication and did not touch the complaint:
+    // from his side, opening his box and being handed letters he already owns IS
+    // the mail not leaving. The distinction between "the pile" and "the archive"
+    // was ours, not his.
+    //
+    // SO THE ARCHIVE IS OFF THE BOX ENTIRELY. Both readers are gone — the
+    // fall-through that opened it and the label that advertised it — and with
+    // nothing waiting the spot says the box is empty and `[E]` opens no panel at
+    // all. He can walk up, read that there is nothing in it, and walk away.
+    //
+    // ⚠ RE-READING HAS A BETTER HOME AND THAT IS WHY THIS COSTS NOTHING. His
+    // letters are ITEMS now (`27fda3d1`): they are in his bag, they carry their
+    // own artwork as their sprite, and READ opens the real page at full size
+    // wherever he is standing. The archive was solving a problem that stopped
+    // existing the moment mail became something he carries.
+    //
+    // `HELD` ITSELF STAYS, and it now has exactly one reader: the `held()`
+    // report surface a probe uses. Nothing the player can see consults it. It is
+    // not deleted because it is the only record of what has come through the
+    // box, and the next thing that wants that — a "you have already read this"
+    // mark, a filing system — will want it whole.
     label: () => {
       const w = waiting(ctx.clock.now().totalMin).length;
       if (w > 0) return `open your mailbox — ${w} letter${w === 1 ? '' : 's'}`;
-      if (HELD.length) return `read your mail (${HELD.length})`;
       return `your mailbox — ${RENT.flat} — nothing in it`;
     },
     act: () => {
-      const { totalMin } = ctx.clock.now();
-      const w = waiting(totalMin);
-      // ══ THE BOX HANDS YOU THE PILE. CLICKING TAKES IT. ═══════════════════
+      const w = waiting(ctx.clock.now().totalMin);
+      // ⚠ NOTHING WAITING, NOTHING OPENS. No panel, no archive, no empty sheet
+      // hanging in the lobby — the label has already told him, before he pressed
+      // anything, which is this file's own rule for a refusal being honest.
+      if (!w.length) return;
+      // THE BOX HANDS YOU THE PILE AND CLICKING TAKES ONE — see the panel's
+      // `click` and `takeCurrent`. LIVE, because this is the box's own pile.
       //
-      // It used to pocket every piece the instant he opened the box and then
-      // show him what he had just taken, which made the reading view a
-      // read-only slideshow of a decision already made. Now the pile is offered
-      // and each click takes ONE — see the panel's `click`.
-      //
-      // ⚠ NOTHING IS COLLECTED HERE ANY MORE. `collectedDay` advances only when
-      // the pile actually empties (in `takeCurrent`), so walking away mid-stack
-      // leaves the rest in the box.
-      // LIVE: this is the box's own pile and clicking takes from it. The
-      // fall-through below is a RE-READ of the archive and is not takeable.
-      if (w.length) showLetters(w, HOLD_BOX, true);
-      else if (HELD.length) showLetters([...HELD].reverse(), HOLD_BOX);
+      // Nothing is collected here: `collectedDay` advances only when the pile
+      // actually empties, so walking away mid-stack leaves the rest in the box.
+      showLetters(w, HOLD_BOX, true);
     },
   });
 
