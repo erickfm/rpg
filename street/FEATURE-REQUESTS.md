@@ -4140,3 +4140,17 @@ Nothing else moved — silhouette, 20° turn, rotated collider, floor-3 gating,
 sittability, standable tops, clearances all as measured.
 
 `WORLD OK`. Live on 5177.
+
+### 2026-08-05 — "light from tv is a little too strong"
+
+The **spill in the dark**, not the halo and not the lit-room state. He said
+"light from tv" — the thing that reads as light in the room is the floor wedge,
+and he has never called the glass itself too bright, so the halo is untouched.
+`TV_SPILL_LIT` 0.28 stays too: with the ceiling bulb on the set already barely
+marks the boards, and the gap between the two states is the feature.
+
+`TV_SPILL_DARK` **1.0 → 0.72** in `src/proto/ct/apartment.ts`. One number, one
+direction — push it either way from there. Wedge shape, stepped discs,
+picture-coloured tint, `selfLit` and the 6 mm clearance all unchanged.
+
+`WORLD OK`. Live on 5177.

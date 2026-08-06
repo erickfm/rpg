@@ -4750,7 +4750,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * right way with no extra rotation to get backwards.
      */
     const TV_SPILL_W = 2.4, TV_SPILL_D = 2.2;
-    const TV_SPILL_LIT = 0.28, TV_SPILL_DARK = 1.0;
+    // ⚠ *"light from tv is a little too strong"* (2026-08-05) — the SPILL in the
+    // dark, which is the one that reads as light in the room. `TV_SPILL_DARK`
+    // 1.0 → 0.72. The halo on the glass is untouched (he did not say the set
+    // looks bright) and so is `TV_SPILL_LIT`, which is already barely there with
+    // the ceiling bulb on — that gap between the two states is the feature.
+    const TV_SPILL_LIT = 0.28, TV_SPILL_DARK = 0.72;
     const wedgeT = surfTex('detail', 32, 48, (g) => {
       const N = 14;
       for (let i = 0; i < N; i++) {
