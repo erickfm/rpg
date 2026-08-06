@@ -985,75 +985,199 @@ function stock(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
 }
 
 /**
- * ── THE VIDEO HUT FLYER ────────────────────────────────────────────────────
- * Cheap goldenrod stock, edge to edge, printed in two plates on a press that
- * does not quite register — so the red sits 1 texel off the black, which is
- * exactly what a $30 flyer looked like and is one `fillRect` to say. A banner
- * across the top, three new releases, and the late fee in a box at the foot.
+ * ══ EVERY PIECE ITS OWN SHAPE ══════════════════════════════════════════════
+ *
+ * *"yea so the changes are way too subtle basically none of the dimensions
+ *  should be square unless its like a note or a post-it"*   (2026-08-05)
+ *
+ * HE FOUND THE CAUSE UNDER ALL OF IT, and it is not the printing. FIFTEEN
+ * PIECES SHARED ONE SILHOUETTE. `PAPER` is 192x178 — 1.08:1, near enough
+ * square — and eleven of the fifteen painters filled it edge to edge, so every
+ * toner band, skew, crease and blotch was decoration on the same card. Shape is
+ * the first thing the eye resolves and the only thing it resolves BEFORE
+ * reading, and there was exactly one of it. That is why three rounds of finer
+ * texture changed nothing he could see: the differences were all downstream of
+ * the one thing that had none.
+ *
+ * ALMOST NOTHING IN REAL MAIL IS SQUARE. Paper is long. A letter is 1:1.29, a
+ * legal sheet 1:1.65, a #10 envelope 2.29:1 on its side, an appointment card
+ * about 1.75:1, a till docket narrower still. THE SQUARE THINGS ARE NOTES —
+ * which is why the super's note is the one square piece in this table, and
+ * being the only one makes it the most recognisable object in the box instead
+ * of the most generic.
+ *
+ * SO THIS TABLE IS THE DRAWING. No two pieces share an aspect; the set runs
+ * from 2.26:1 landscape to 1:2.53 portrait; and every painter takes its
+ * rectangle from here rather than typing its own percentage of the sheet, so
+ * the spread can be read off in one place and corrected in one place
+ * (GOTCHAS §20 — a number that has to agree with another number belongs in one
+ * of them). THE SPACE AROUND A PIECE IS NEVER PAINTED and the sheet's
+ * `alphaTest` cuts it away, so these are genuinely different sizes of paper
+ * rather than framed insets on one card.
+ *
+ * ⚠ LAYOUT FOLLOWS SHAPE, AND THAT IS THE PART THAT BITES. A 68-unit ribbon
+ * does not hold a 30-character line. Every painter below FLOWS its copy
+ * (`flow`/`wrapTo`, which measure the real face at the real width) instead of
+ * slicing at `COLS` — that constant is 35, measured against the full 192 sheet,
+ * and it is now wrong for fourteen of the fifteen. Slicing at `COLS` on a
+ * narrow piece is the carbon's overflow bug on a different piece of paper, and
+ * the whole point of `wrapTo` existing is that it cannot happen again.
+ *
+ * ⚠ AND THE TYPE GETS SMALLER AS THE PAPER GETS NARROWER, on purpose. A 6 px
+ * face is 18 texels tall at `LETTER_SS` 3 and this file already sets small
+ * print at 6; what is NOT allowed is 6 px that has been squeezed or clipped,
+ * which is why the narrow pieces flow to more lines rather than to shorter
+ * ones. Legibility is the constraint the shape has to fit inside, not the
+ * other way round.
+ */
+const SHAPES: Record<string, { w: number; h: number }> = {
+  // ── LANDSCAPE: the things that are wider than they are tall ──────────────
+  'envelope-prev':       { w: 190, h:  84 },   // 2.26 : 1   a #10 window envelope
+  'card-dentist':        { w: 132, h:  80 },   // 1.65 : 1   an appointment card
+  'postcard':            { w: 168, h: 108 },   // 1.56 : 1   a 6x4 postcard
+  'flyer-pizza':         { w: 188, h: 136 },   // 1.38 : 1   a half-sheet flyer
+  'dotmatrix-video2000': { w: 192, h: 152 },   // 1.26 : 1   a fanfold tractor sheet
+  // ── THE ONE SQUARE THING, AND IT IS A NOTE ───────────────────────────────
+  'note-super':          { w: 104, h: 100 },   // 1.04 : 1   torn off a legal pad
+  // ── PORTRAIT: everything that came off a ream ────────────────────────────
+  'catalogue-order':     { w: 154, h: 172 },   // 1 : 1.12   400 pages, and thick
+  'classified-penny':    { w: 148, h: 178 },   // 1 : 1.20   a free weekly tabloid
+  'catalogue-302':       { w: 138, h: 178 },   // 1 : 1.29   a seed catalogue
+  'letterhead-bank':     { w: 126, h: 178 },   // 1 : 1.41   proper letter stock
+  'bill-utility':        { w: 116, h: 178 },   // 1 : 1.53   a statement with a stub
+  'menu-diner':          { w: 104, h: 178 },   // 1 : 1.71   a takeaway menu
+  'notice-precinct':     { w:  94, h: 178 },   // 1 : 1.89   a legal-size notice
+  'flyer-video':         { w:  84, h: 178 },   // 1 : 2.12   a long handbill
+  'chain-letter':        { w:  68, h: 172 },   // 1 : 2.53   a copied ribbon
+};
+
+/**
+ * The rectangle a piece occupies, centred in the drawing space.
+ *
+ * CENTRED rather than corner-anchored because the sheet's plane is the whole
+ * 192x178 and the framework aims the eye at its middle — an off-centre piece
+ * would hang to one side of the reader's gaze for no reason. A piece that wants
+ * to sit high (the super's note is pinned, not posted) offsets from here.
+ */
+function paper(art: string): { x: number; y: number; w: number; h: number } {
+  const s = SHAPES[art] ?? { w: PAPER.w, h: PAPER.h };
+  return {
+    x: Math.round((PAPER.w - s.w) / 2),
+    y: Math.round((PAPER.h - s.h) / 2),
+    w: s.w,
+    h: s.h,
+  };
+}
+
+/** `flow`, but CENTRED on `cx` — the half of the split that separates a printed
+ *  public notice from a typed page. Same measure-and-wrap as `flow`, same
+ *  returned y, so whatever comes next is placed off the foot of this. */
+function flowMid(g: CanvasRenderingContext2D, cx: number, y: number, w: number,
+                 lines: readonly string[], px: number, ink: string, bold = false): number {
+  g.font = UI.font(px, bold);
+  g.fillStyle = ink;
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  const lead = px + 4;
+  let cy = y;
+  for (const raw of lines) {
+    if (!raw.trim()) { cy += Math.round(lead * 0.5); continue; }
+    for (const seg of wrapTo(g, raw.trim(), w)) { g.fillText(seg, cx, cy); cy += lead; }
+  }
+  g.textAlign = 'left';
+  return cy;
+}
+
+/**
+ * ── THE VIDEO HUT FLYER: A LONG CHEAP HANDBILL ─────────────────────────────
+ * 84 x 178, 1:2.12 — the narrowest thing in the box bar the chain letter, and
+ * that is honest: a video shop's new-releases sheet is a strip run off cheap so
+ * it fits under a wiper or through a slot. Goldenrod stock edge to edge,
+ * printed in two plates on a press that does not quite register, so the red
+ * sits 1 texel off the black. Titles stack DOWN the strip with the rating under
+ * each — the wide two-column layout it used to have does not exist at 86 units,
+ * and that is the shape doing the design.
  */
 ART['flyer-video'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
-  stock(g, 0, 0, W, H, '#e8d38a', '#f4e3a8', '#c9b168');
-  creases(g, 0, 0, W, H, 1);
+  const P = paper('flyer-video'), IN = 6, TW = P.w - IN * 2;
+  const cx = P.x + P.w / 2;
+  stock(g, P.x, P.y, P.w, P.h, '#e8d38a', '#f4e3a8', '#c9b168');
+  creases(g, P.x, P.y, P.w, P.h, 2);
   // the banner, in the shop's own sign red, with the mis-registered black
-  fill(g, '#8e2b22', 8, 8, W - 16, 26);
+  fill(g, '#8e2b22', P.x + IN, P.y + 6, TW, 24);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = 'rgba(30,26,22,0.55)'; g.font = UI.font(13, true);
-  g.fillText('VIDEO HUT', W / 2 + 1, 27);                  // the off-plate ghost
+  g.fillStyle = 'rgba(30,26,22,0.55)'; g.font = UI.font(11, true);
+  g.fillText('VIDEO HUT', cx + 1, P.y + 23);                 // the off-plate ghost
   g.fillStyle = '#f2e6c8';
-  g.fillText('VIDEO HUT', W / 2, 26);
-  g.fillStyle = '#3a3126'; g.font = UI.font(8, true);
-  g.fillText('NEW THIS WEEK', W / 2, 46);
-  fill(g, '#8e2b22', 20, 50, W - 40, 1);
-  g.textAlign = 'left'; g.fillStyle = '#2b2620'; g.font = UI.font(8);
-  let y = 64;
-  for (const line of l.lines) { g.fillText(line.slice(0, COLS), 12, y); y += 12; }
+  g.fillText('VIDEO HUT', cx, P.y + 22);
+  g.fillStyle = '#3a3126'; g.font = UI.font(7, true);
+  g.fillText('NEW THIS WEEK', cx, P.y + 42);
+  fill(g, '#8e2b22', P.x + IN + 6, P.y + 46, TW - 12, 1);
+  // TITLE, THEN ITS RATING UNDER IT. The copy is written "NAME  (18)" for a
+  // wide sheet; on a strip the bracket is split off and set small underneath
+  // rather than wrapped, because "(18)" alone on a line reads as a mistake.
+  g.textAlign = 'left';
+  let y = P.y + 54;
+  for (const line of l.lines.slice(0, 3)) {
+    const m = line.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+    g.fillStyle = '#2b2620'; g.font = UI.font(7, true);
+    for (const seg of wrapTo(g, (m ? m[1] : line).trim(), TW)) { g.fillText(seg, P.x + IN, y); y += 10; }
+    g.fillStyle = '#6b6455'; g.font = UI.font(6);
+    g.fillText(m ? `RATED ${m[2]}` : '', P.x + IN, y);
+    y += 10;
+  }
+  flow(g, P.x + IN, P.y + 118, TW, l.lines.slice(3), 6, '#4a4030');
   // the late-fee box, ruled, because that is the part they want read
-  const by = H - 42;
-  fill(g, '#d8bf72', 10, by, W - 20, 30);
-  fill(g, '#8e2b22', 10, by, W - 20, 2);
-  fill(g, '#8e2b22', 10, by + 28, W - 20, 2);
-  g.fillStyle = '#8e2b22'; g.font = UI.font(9, true);
+  const by = P.y + P.h - 46;
+  fill(g, '#d8bf72', P.x + IN, by, TW, 40);
+  fill(g, '#8e2b22', P.x + IN, by, TW, 2);
+  fill(g, '#8e2b22', P.x + IN, by + 38, TW, 2);
   g.textAlign = 'center';
-  g.fillText('LATE FEES ARE $1.50 A DAY', W / 2, by + 13);
-  g.fillStyle = '#3a3126'; g.font = UI.font(7);
-  g.fillText('BE KIND. PLEASE REWIND.', W / 2, by + 24);
+  g.fillStyle = '#8e2b22'; g.font = UI.font(8, true);
+  g.fillText('LATE FEES ARE', cx, by + 15);
+  g.font = UI.font(9, true);
+  g.fillText('$1.50 A DAY', cx, by + 27);
+  g.fillStyle = '#3a3126'; g.font = UI.font(6);
+  g.fillText('BE KIND. REWIND.', cx, by + 36);
   g.textAlign = 'left';
 };
 
 /**
  * ── THE DINER'S TAKEAWAY MENU ──────────────────────────────────────────────
- * A TALL NARROW SLIP, not a page — the space around it is left unpainted and
- * the sheet's alphaTest cuts it away, so this piece is genuinely a different
- * SIZE of paper from the flyer above it. Green ink on white, a rule under the
- * name, and two columns: dish and price, leadered with dots the way a menu is.
+ * 104 x 178, 1:1.71 — a long slip, folded three times to get into a pocket,
+ * which is what a diner hands you with the check. Green ink on white, a rule
+ * under the name, and dish-leader-price down the strip the way a menu is set.
+ * THE LEADER IS MEASURED, not counted: at 104 units a long dish leaves room for
+ * two dots and a short one for a dozen, and a fixed count either collides with
+ * the price or leaves a gap.
  */
 ART['menu-diner'] = (g, l) => {
-  const w = Math.round(PAPER.w * 0.52), x = Math.round((PAPER.w - w) / 2);
-  const H = PAPER.h;
-  stock(g, x, 0, w, H, '#f0ece0', '#faf7ee', '#cfc9b8');
-  creases(g, x, 0, w, H, 3);                       // folded small, into a pocket
+  const P = paper('menu-diner'), IN = 8, TW = P.w - IN * 2;
+  const cx = P.x + P.w / 2, right = P.x + P.w - IN;
+  stock(g, P.x, P.y, P.w, P.h, '#f0ece0', '#faf7ee', '#cfc9b8');
+  creases(g, P.x, P.y, P.w, P.h, 3);                 // folded small, into a pocket
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#2e5136'; g.font = UI.font(10, true);
-  g.fillText('THE DINER', x + w / 2, 20);
-  g.fillStyle = '#6b6455'; g.font = UI.font(7);
-  g.fillText('OPEN 6 AM — 11 PM', x + w / 2, 31);
-  fill(g, '#2e5136', x + 8, 36, w - 16, 1);
-  // dish ......... price, which is the whole look of a menu
-  g.font = UI.font(8); g.textBaseline = 'alphabetic';
-  let y = 50;
+  g.fillStyle = '#2e5136'; g.font = UI.font(11, true);
+  g.fillText('THE DINER', cx, P.y + 22);
+  g.fillStyle = '#6b6455'; g.font = UI.font(6);
+  g.fillText('OPEN 6 AM — 11 PM', cx, P.y + 33);
+  fill(g, '#2e5136', P.x + IN, P.y + 38, TW, 1);
+  let y = P.y + 52;
   for (const line of l.lines) {
     const [dish, price] = line.split('|');
-    if (price === undefined) {                     // a heading, not a dish
-      g.fillStyle = '#2e5136'; g.font = UI.font(8, true);
-      g.textAlign = 'left'; g.fillText(dish, x + 8, y);
-      g.font = UI.font(8);
+    if (price === undefined) {                       // a heading, not a dish
+      g.textAlign = 'left'; g.fillStyle = '#2e5136'; g.font = UI.font(7, true);
+      g.fillText(dish, P.x + IN, y);
     } else {
-      g.fillStyle = '#3a352c'; g.textAlign = 'left';
-      g.fillText(dish, x + 8, y);
-      g.textAlign = 'right'; g.fillText(price, x + w - 8, y);
-      g.fillStyle = 'rgba(58,53,44,0.35)'; g.textAlign = 'left';
-      g.fillText('.'.repeat(Math.max(0, 18 - dish.length)), x + 10 + dish.length * 5, y);
+      g.textAlign = 'left'; g.fillStyle = '#3a352c'; g.font = UI.font(6);
+      g.fillText(dish, P.x + IN, y);
+      const dw = g.measureText(dish).width, pw = g.measureText(price).width;
+      g.textAlign = 'right'; g.fillText(price, right, y);
+      // the leader, measured into whatever gap is actually left
+      const gap = TW - dw - pw - 8;
+      if (gap > 4) {
+        g.textAlign = 'left'; g.fillStyle = 'rgba(58,53,44,0.35)';
+        g.fillText('.'.repeat(Math.floor(gap / g.measureText('.').width)), P.x + IN + dw + 4, y);
+      }
     }
     y += 12;
   }
@@ -1062,40 +1186,40 @@ ART['menu-diner'] = (g, l) => {
 
 /**
  * ── A LETTER FOR WHOEVER LIVED HERE BEFORE HIM ─────────────────────────────
- * Free characterisation, and the coordinator is right that it is the best value
- * on the list: somebody had this flat before he did and their post has not
- * caught up. A WINDOW ENVELOPE, not a sheet — so this piece is the only one
- * that is an envelope rather than its contents. The address shows through a
- * grey panel, the name is not his, there is a franking mark where the stamp
- * should be, and a hand has written on it in biro.
+ * 190 x 84, 2.26:1 — a #10 window envelope, and THE WIDEST THING IN THE BOX by
+ * a wide margin. That single number does the whole job the biro and the
+ * franking mark were being asked to do: nothing else in the mail is a letterbox
+ * shape, so this reads as an envelope before a mark is on it. The only piece
+ * that is an envelope rather than its contents — the address shows through a
+ * grey panel, the name is not his, and a hand has written on it.
  */
 ART['envelope-prev'] = (g, l) => {
-  const W = PAPER.w, h = Math.round(PAPER.h * 0.62), y0 = Math.round((PAPER.h - h) / 2);
-  stock(g, 0, y0, W, h, '#e9e6da', '#f6f4ea', '#c6c1b2');
+  const P = paper('envelope-prev');
+  stock(g, P.x, P.y, P.w, P.h, '#e9e6da', '#f6f4ea', '#c6c1b2');
   // the flap seam across the back, which is what makes it read as an envelope
-  fill(g, 'rgba(120,112,90,0.16)', 0, y0 + Math.round(h * 0.34), W, 1);
+  fill(g, 'rgba(120,112,90,0.16)', P.x, P.y + 30, P.w, 1);
   // the window, and the address showing through it
-  const wx = 14, wy = y0 + Math.round(h * 0.44), ww = Math.round(W * 0.56), wh = 40;
+  const wx = P.x + 12, wy = P.y + 36, ww = 100, wh = 38;
   fill(g, '#cfcabb', wx - 2, wy - 2, ww + 4, wh + 4);
   fill(g, '#dedac9', wx, wy, ww, wh);
-  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#3a352c'; g.font = UI.font(8);
-  let y = wy + 12;
-  for (const line of l.lines) { g.fillText(line.slice(0, COLS), wx + 5, y); y += 11; }
+  flow(g, wx + 5, wy + 12, ww - 10, l.lines, 7, '#3a352c');
   // the franking mark, top right, where a stamp would be
-  const fx = W - 54, fy = y0 + 10;
+  const fx = P.x + P.w - 52, fy = P.y + 6;
   g.strokeStyle = 'rgba(90,80,70,0.55)'; g.lineWidth = 1;
-  g.strokeRect(fx, fy, 44, 22);
+  g.strokeRect(fx + 0.5, fy + 0.5, 42, 20);
   g.fillStyle = 'rgba(90,80,70,0.75)'; g.font = UI.font(7, true);
-  g.textAlign = 'center';
-  g.fillText('POSTAGE', fx + 22, fy + 10);
-  g.fillText('PAID', fx + 22, fy + 18);
-  for (let i = 0; i < 5; i++) fill(g, 'rgba(90,80,70,0.35)', fx - 22, fy + 4 + i * 4, 18, 2);
-  // and somebody's biro, at an angle, because a hand wrote it
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillText('POSTAGE', fx + 21, fy + 9);
+  g.fillText('PAID', fx + 21, fy + 17);
+  for (let i = 0; i < 5; i++) fill(g, 'rgba(90,80,70,0.35)', fx - 22, fy + 3 + i * 4, 18, 2);
+  // and somebody's biro, at an angle, because a hand wrote it. BELOW the
+  // window, not across it — at 84 units tall there is one clear band left and
+  // this is it.
   g.save();
-  g.translate(W - 72, y0 + h - 16);
-  g.rotate(-0.09);
-  g.fillStyle = 'rgba(40,52,96,0.8)'; g.font = UI.font(8, true);
+  g.translate(P.x + 62, P.y + P.h - 4);
+  g.rotate(-0.07);
+  g.fillStyle = 'rgba(40,52,96,0.8)'; g.font = UI.font(7, true);
+  g.textAlign = 'left';
   g.fillText('NOT AT THIS ADDRESS', 0, 0);
   g.restore();
   g.textAlign = 'left';
@@ -1118,238 +1242,239 @@ function perf(g: CanvasRenderingContext2D, x: number, y: number, w: number): voi
 
 /**
  * ── VIDEO 2000: A DOT-MATRIX STATEMENT ─────────────────────────────────────
- * Fanfold computer paper with the sprocket strips still on and green bar
- * stripes across it — the single most 1997 object in the mailbox. A rental
- * chain does not write you a letter, it prints an account.
+ * 192 x 152, 1.26:1 — LANDSCAPE, because a 14 7/8" tractor sheet is wider than
+ * it is deep and that is the one proportion nothing else in the box has. The
+ * sprocket strips are still on it and the green bar stripes run the full width.
+ * A rental chain does not write you a letter, it prints an account.
  */
 ART['dotmatrix-video2000'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
-  stock(g, 0, 0, W, H, '#eceadd', '#f7f6ec', '#cfccbc');
-  for (let y = 22; y < H - 10; y += 16) fill(g, 'rgba(120,160,120,0.20)', 10, y, W - 20, 8);
-  sprockets(g, 0, 0, W, H);
+  const P = paper('dotmatrix-video2000'), IN = 14, TW = P.w - IN * 2;
+  stock(g, P.x, P.y, P.w, P.h, '#eceadd', '#f7f6ec', '#cfccbc');
+  for (let y = P.y + 30; y < P.y + P.h - 10; y += 16) {
+    fill(g, 'rgba(120,160,120,0.20)', P.x + 10, y, P.w - 20, 8);
+  }
+  sprockets(g, P.x, P.y, P.w, P.h);
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#3a352c'; g.font = UI.font(8, true);
-  g.fillText('VIDEO 2000', 14, 14);
+  g.fillText('VIDEO 2000', P.x + IN, P.y + 14);
   g.font = UI.font(7);
-  g.fillText('MEMBER SERVICES', 14, 22);
-  fill(g, '#8d8672', 12, 26, W - 24, 1);
-  g.font = UI.font(8);
-  let y = 40;
-  for (const line of l.lines) { g.fillText(line.slice(0, COLS), 14, y); y += 12; }
+  g.fillText('MEMBER SERVICES', P.x + IN, P.y + 23);
+  fill(g, '#8d8672', P.x + 12, P.y + 27, P.w - 24, 1);
+  flow(g, P.x + IN, P.y + 44, TW, l.lines, 8, '#3a352c');
   // the machine's own footer, right where a printer puts it
   g.fillStyle = '#6b6455'; g.font = UI.font(7);
-  g.fillText('* * * THIS IS NOT A BILL * * *', 14, H - 16);
+  g.fillText('* * * THIS IS NOT A BILL * * *', P.x + IN, P.y + P.h - 14);
 };
 
 /**
  * ── CITY LIGHT & POWER: A FORM WITH A TEAR-OFF STUB ────────────────────────
- * Boxed fields at the top, the amount in a heavy rule of its own, and the
- * bottom third is a payment stub below a perforation — which is what a utility
- * bill IS, and it gives the piece two distinct halves at a glance.
+ * 116 x 178, 1:1.53 — narrow and long, which is what a statement printed to be
+ * torn in two has to be: boxed fields at the top, the amount in a rule of its
+ * own, and the bottom quarter a payment stub below a perforation. The
+ * perforation gives the piece two distinct halves at a glance and the aspect
+ * gives it a distinct outline before that.
  */
 ART['bill-utility'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h, TEAR = H - 52;
-  stock(g, 0, 0, W, H, '#eae7d6', '#f6f4e6', '#c9c4b1');
-  const BLUE = '#2e4b6b';
-  fill(g, BLUE, 0, 0, W, 20);
+  const P = paper('bill-utility'), IN = 8, TW = P.w - IN * 2;
+  const TEAR = P.y + P.h - 46, BLUE = '#2e4b6b';
+  stock(g, P.x, P.y, P.w, P.h, '#eae7d6', '#f6f4e6', '#c9c4b1');
+  fill(g, BLUE, P.x, P.y, P.w, 18);
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#e8e4d4'; g.font = UI.font(8, true);
-  g.fillText('CITY LIGHT & POWER', 10, 14);
-  // the boxed fields
-  g.fillStyle = '#3a352c'; g.font = UI.font(7);
-  const rows = l.lines.slice(0, 2);
-  rows.forEach((ln, i) => {
-    const by = 28 + i * 18;
+  g.fillStyle = '#e8e4d4'; g.font = UI.font(7, true);
+  g.fillText('CITY LIGHT & POWER', P.x + IN, P.y + 13);
+  // the boxed fields — account, then the figure they want you to see
+  l.lines.slice(0, 2).forEach((ln, i) => {
+    const by = P.y + 26 + i * 20;
     g.strokeStyle = 'rgba(46,75,107,0.55)'; g.lineWidth = 1;
-    g.strokeRect(10.5, by + 0.5, W - 21, 15);
+    g.strokeRect(P.x + IN + 0.5, by + 0.5, TW - 1, 16);
     g.fillStyle = i === 1 ? BLUE : '#3a352c';
-    g.font = UI.font(i === 1 ? 9 : 7, i === 1);
-    g.fillText(ln.slice(0, COLS), 15, by + 11);
+    g.font = UI.font(i === 1 ? 8 : 6, i === 1);
+    g.fillText(ln, P.x + IN + 5, by + 11);
   });
-  g.fillStyle = '#4a443a'; g.font = UI.font(7);
-  let y = 74;
-  for (const ln of l.lines.slice(2)) { g.fillText(ln.slice(0, COLS), 10, y); y += 10; }
+  flow(g, P.x + IN, P.y + 78, TW, l.lines.slice(2), 6, '#4a443a');
   // the stub
-  perf(g, 6, TEAR, W - 12);
+  perf(g, P.x + 6, TEAR, P.w - 12);
   g.fillStyle = '#6b6455'; g.font = UI.font(6);
-  g.fillText('DETACH AND RETURN THIS PORTION WITH PAYMENT', 10, TEAR + 12);
-  fill(g, 'rgba(46,75,107,0.10)', 6, TEAR + 16, W - 12, H - TEAR - 22);
-  g.fillStyle = BLUE; g.font = UI.font(8, true);
-  g.fillText('227 W 19TH  APT 301', 10, TEAR + 30);
-  g.fillStyle = '#3a352c'; g.font = UI.font(7);
-  g.fillText('PAY AT ANY BRANCH OR BY MAIL', 10, TEAR + 42);
+  g.fillText('DETACH AND RETURN', P.x + IN, TEAR + 12);
+  fill(g, 'rgba(46,75,107,0.10)', P.x + 6, TEAR + 16, P.w - 12, P.h - (TEAR - P.y) - 22);
+  g.fillStyle = BLUE; g.font = UI.font(7, true);
+  g.fillText('227 W 19TH  APT 301', P.x + IN, TEAR + 29);
+  g.fillStyle = '#3a352c'; g.font = UI.font(6);
+  g.fillText('PAY AT ANY BRANCH', P.x + IN, TEAR + 40);
 };
 
 /**
  * ── PALERMO PIZZA: A GLOSSY TAKEAWAY FLYER WITH A COUPON ───────────────────
- * Red, white and green, the price as the loudest thing on it, and a coupon
- * ruled off along a dashed cut line in the bottom corner — which is the shape
- * of every pizza flyer that has ever come through a door.
+ * 188 x 136, 1.38:1 — a half-sheet, LANDSCAPE, because a pizza flyer is printed
+ * two-up on a letter sheet and guillotined across the middle. Red, white and
+ * green, the price as the loudest thing on it, and the coupon ruled off along a
+ * dashed cut line across the foot — which is the shape of every pizza flyer
+ * that has ever come through a door.
  */
 ART['flyer-pizza'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
-  const RED = '#a8322a', GREEN = '#3f6b3a';
-  stock(g, 0, 0, W, H, '#f2efe2', '#fbf9ef', '#d2cebd');
-  fill(g, GREEN, 0, 0, W, 5);
-  fill(g, RED, 0, 5, W, 24);
+  const P = paper('flyer-pizza'), IN = 8, TW = P.w - IN * 2;
+  const cx = P.x + P.w / 2, RED = '#a8322a', GREEN = '#3f6b3a';
+  stock(g, P.x, P.y, P.w, P.h, '#f2efe2', '#fbf9ef', '#d2cebd');
+  fill(g, GREEN, P.x, P.y, P.w, 5);
+  fill(g, RED, P.x, P.y + 5, P.w, 22);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#f5efdc'; g.font = UI.font(12, true);
-  g.fillText('PALERMO', W / 2, 24);
+  g.fillText('PALERMO', cx, P.y + 22);
   g.fillStyle = GREEN; g.font = UI.font(7, true);
-  g.fillText('2 BLOCKS DOWN · WE DELIVER', W / 2, 40);
-  g.textAlign = 'left'; g.fillStyle = '#2b2620'; g.font = UI.font(8);
-  let y = 58;
-  for (const ln of l.lines.slice(0, 3)) { g.fillText(ln.slice(0, COLS), 10, y); y += 13; }
+  g.fillText('2 BLOCKS DOWN · WE DELIVER', cx, P.y + 40);
+  flow(g, P.x + IN, P.y + 56, TW, l.lines.slice(0, 3), 8, '#2b2620');
   // the coupon, cut off along the dash
-  const cy = H - 54;
-  for (let i = 0; i < W - 16; i += 5) fill(g, 'rgba(90,84,70,0.55)', 8 + i, cy, 3, 1);
-  fill(g, 'rgba(168,50,42,0.10)', 8, cy + 3, W - 16, H - cy - 12);
+  const cy = P.y + 96;
+  for (let i = 0; i < P.w - 16; i += 5) fill(g, 'rgba(90,84,70,0.55)', P.x + 8 + i, cy, 3, 1);
+  fill(g, 'rgba(168,50,42,0.10)', P.x + 8, cy + 3, TW, P.h - 96 - 11);
   g.strokeStyle = RED; g.lineWidth = 1;
-  g.strokeRect(8.5, cy + 3.5, W - 17, H - cy - 13);
+  g.strokeRect(P.x + 8.5, cy + 3.5, TW - 1, P.h - 96 - 12);
   g.textAlign = 'center'; g.fillStyle = RED; g.font = UI.font(10, true);
-  g.fillText('$1 OFF ANY PIE', W / 2, cy + 22);
+  g.fillText('$1 OFF ANY PIE', cx, cy + 20);
   g.fillStyle = '#6b6455'; g.font = UI.font(6);
-  g.fillText(l.lines[3] ?? '', W / 2, cy + 34);
+  g.fillText(l.lines[3] ?? '', cx, cy + 29);
   g.textAlign = 'left';
 };
 
 /**
  * ── A POSTCARD ─────────────────────────────────────────────────────────────
- * LANDSCAPE AND SMALL — the only piece in the box wider than it is tall, which
- * is most of what makes a postcard a postcard before you read a word. Its BACK:
- * a rule down the middle, the message on the left in biro, and on the right a
- * stamp box over three address lines.
+ * 168 x 108, 1.56:1 — a 6x4, and the proportion IS the object: a postcard is
+ * the one piece of mail everybody can identify from across a room. Its BACK, so
+ * the rule down the middle, the message on the left in biro and, on the right,
+ * a stamp with the postmark rings over its corner above three ruled address
+ * lines.
  */
 ART['postcard'] = (g, l) => {
-  const w = Math.round(PAPER.w * 0.94), h = Math.round(PAPER.h * 0.62);
-  const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
-  stock(g, x, y, w, h, '#e4dcc4', '#efe9d6', '#c2b898');
-  const mid = x + Math.round(w * 0.58);
-  fill(g, 'rgba(90,84,70,0.45)', mid, y + 8, 1, h - 16);
+  const P = paper('postcard');
+  stock(g, P.x, P.y, P.w, P.h, '#e4dcc4', '#efe9d6', '#c2b898');
+  const mid = P.x + Math.round(P.w * 0.56);
+  fill(g, 'rgba(90,84,70,0.45)', mid, P.y + 8, 1, P.h - 16);
   // the stamp, and the postmark rings over its corner
-  const sx = x + w - 34, sy = y + 8;
+  const sx = P.x + P.w - 34, sy = P.y + 8;
   fill(g, '#b9a878', sx, sy, 26, 20);
   fill(g, '#8a6f47', sx + 3, sy + 3, 20, 14);
   g.strokeStyle = 'rgba(60,55,45,0.45)'; g.lineWidth = 1;
   for (let k = 0; k < 3; k++) g.strokeRect(sx - 6 - k * 3, sy + 2 - k * 3, 26 + k * 6, 20 + k * 6);
   // the address, ruled
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  for (let k = 0; k < 3; k++) fill(g, 'rgba(90,84,70,0.30)', mid + 8, y + 44 + k * 12, w - (mid - x) - 16, 1);
+  const aw = P.x + P.w - mid - 18;
+  for (let k = 0; k < 3; k++) fill(g, 'rgba(90,84,70,0.30)', mid + 8, P.y + 48 + k * 12, aw, 1);
   g.fillStyle = '#2f4f8c'; g.font = UI.font(7);
-  g.fillText('APT 301', mid + 10, y + 42);
-  g.fillText('227 W 19TH', mid + 10, y + 54);
-  // the message, in the same biro, cramped the way a postcard always is
-  g.font = UI.font(7);
-  let my = y + 18;
-  for (const ln of l.lines) { g.fillText(ln.slice(0, 26), x + 8, my); my += 10; }
+  g.fillText('APT 301', mid + 10, P.y + 46);
+  g.fillText('227 W 19TH', mid + 10, P.y + 58);
+  // the message, in the same biro, cramped the way a postcard always is —
+  // flowed into the left half rather than sliced, since that half is 86 units
+  flow(g, P.x + 8, P.y + 18, mid - P.x - 16, l.lines, 6, '#2f4f8c');
 };
 
 
 /**
- * ── THE SUPER'S NOTE: TORN, HANDWRITTEN, NO STAMP ──────────────────────────
- * The only piece nobody posted — it was pushed under the door, so it has no
- * stamp, no address and no straight bottom edge. Ruled notepad paper with the
- * margin line down the left, a ragged tear across the foot, and the writing in
- * biro CAPITALS with a slight roll on it, because a hand is not a typewriter.
+ * ── THE SUPER'S NOTE: THE ONE SQUARE THING IN THE BOX ──────────────────────
+ *
+ * *"basically none of the dimensions should be square unless its like a note or
+ *  a post-it"*   (2026-08-05)
+ *
+ * 104 x 100, 1.04:1 — AND IT IS THE ONLY ONE. Every other piece in `SHAPES` is
+ * a rectangle you could name; this is a square block torn off a legal pad,
+ * which is exactly the object that IS square in real life. Being the only one
+ * is what makes it identifiable: it was indistinguishable when it shared a
+ * silhouette with fourteen sheets of post, and it is unmistakable now that
+ * nothing else has its outline.
+ *
+ * It is also the only piece nobody posted — pushed under the door, so no stamp,
+ * no address and no straight bottom edge. Ruled paper, the red margin down the
+ * left, a ragged tear across the foot, and the writing in biro CAPITALS with a
+ * slight roll on it, because a hand is not a typewriter. IT SITS HIGH rather
+ * than centred, because it was pinned rather than delivered.
  */
 ART['note-super'] = (g, l) => {
-  const w = Math.round(PAPER.w * 0.78), h = Math.round(PAPER.h * 0.60);
-  const x = Math.round((PAPER.w - w) / 2), y = 14;
-  fill(g, '#eeead6', x, y, w, h);
-  fill(g, '#f8f5e6', x, y, w, 2);
+  const P = paper('note-super'), x = P.x, y = 16;
+  fill(g, '#eeead6', x, y, P.w, P.h);
+  fill(g, '#f8f5e6', x, y, P.w, 2);
   // the ruled lines and the red margin a legal pad has
-  for (let k = 1; k <= 5; k++) fill(g, 'rgba(90,120,150,0.22)', x + 4, y + 12 + k * 13, w - 8, 1);
-  fill(g, 'rgba(170,70,60,0.35)', x + 13, y, 1, h);
+  for (let k = 1; k <= 7; k++) fill(g, 'rgba(90,120,150,0.22)', x + 4, y + 8 + k * 10, P.w - 8, 1);
+  fill(g, 'rgba(170,70,60,0.35)', x + 13, y, 1, P.h);
   // THE TORN FOOT. Stepped, never a path fill — a diagonal here would
   // antialiase into a second tone at LETTER_SS, which is this file's own rule.
-  for (let i = 0; i < w; i += 3) {
+  for (let i = 0; i < P.w; i += 3) {
     const bite = 2 + ((i * 7) % 5);
-    fill(g, 'rgba(0,0,0,0)', x + i, y + h - bite, 3, bite);
-    g.clearRect(x + i, y + h - bite, 3, bite);
+    g.clearRect(x + i, y + P.h - bite, 3, bite);
   }
   g.save();
-  g.translate(x + 18, y + 22);
+  g.translate(x + 18, y + 18);
   g.rotate(-0.02);                                   // a hand does not rule straight
-  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#2f4f8c'; g.font = UI.font(8, true);
-  let ly = 0;
-  for (const ln of l.lines) { g.fillText(ln.slice(0, 30), 0, ly); ly += 13; }
+  flow(g, 0, 0, P.w - 26, l.lines, 6, '#2f4f8c', true);
   g.restore();
 };
 
 /**
  * ── ADDRESSED TO 302: SOMEBODY ELSE'S SEED CATALOGUE ───────────────────────
- * Not a letter at all — a CATALOGUE, so it is a cover: a colour block with a
- * title over it, a price corner, and the neighbour's name on a mailing label
- * stuck across the bottom. The joke is that it is not yours, so the label is
- * the loudest thing on it.
+ * 138 x 178, 1:1.29 — letter-proportioned, which is what a mail-order seed
+ * catalogue is trimmed to. Not a letter at all but a COVER: a colour block with
+ * a title over it, a price corner, and the neighbour's name on a mailing label
+ * across the bottom. The joke is that it is not yours, so the label is the
+ * loudest thing on it.
  */
 ART['catalogue-302'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
-  const GREEN = '#4a6b3a';
-  stock(g, 0, 0, W, H, '#e8e4d2', '#f4f1e2', '#c8c3b0');
-  fill(g, GREEN, 6, 6, W - 12, 78);                             // the cover photo
+  const P = paper('catalogue-302'), IN = 8, TW = P.w - IN * 2;
+  const cx = P.x + P.w / 2, GREEN = '#4a6b3a';
+  stock(g, P.x, P.y, P.w, P.h, '#e8e4d2', '#f4f1e2', '#c8c3b0');
+  fill(g, GREEN, P.x + 6, P.y + 6, P.w - 12, 78);               // the cover photo
   // three flat rows of "seedlings", which is all a 1997 cover needs to be
-  for (let k = 0; k < 6; k++) {
-    fill(g, '#6f8f52', 14 + k * 28, 52, 8, 26);
-    fill(g, '#c0563f', 14 + k * 28 - 2, 44, 12, 8);
+  for (let k = 0; k < 5; k++) {
+    fill(g, '#6f8f52', P.x + 16 + k * 24, P.y + 52, 8, 26);
+    fill(g, '#c0563f', P.x + 14 + k * 24, P.y + 44, 12, 8);
   }
-  fill(g, 'rgba(0,0,0,0.22)', 6, 62, W - 12, 22);
+  fill(g, 'rgba(0,0,0,0.22)', P.x + 6, P.y + 62, P.w - 12, 22);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#f2eeda'; g.font = UI.font(11, true);
-  g.fillText('SPRING SEEDS', W / 2, 30);
-  g.font = UI.font(7);
-  g.fillText('1,200 VARIETIES · FREE SHIPPING', W / 2, 42);
+  g.fillText('SPRING SEEDS', cx, P.y + 30);
+  g.font = UI.font(6);
+  g.fillText('1,200 VARIETIES · FREE SHIPPING', cx, P.y + 42);
   // the price corner
-  fill(g, '#e8dcb8', W - 40, 8, 32, 16);
+  fill(g, '#e8dcb8', P.x + P.w - 40, P.y + 8, 32, 16);
   g.fillStyle = '#3a352c'; g.font = UI.font(8, true);
-  g.fillText('$2.95', W - 24, 20);
+  g.fillText('$2.95', P.x + P.w - 24, P.y + 20);
   // THE MAILING LABEL, which is the whole point of this piece
   g.textAlign = 'left';
-  fill(g, '#f6f4ea', 12, H - 62, W - 24, 34);
-  fill(g, 'rgba(90,84,70,0.35)', 12, H - 62, W - 24, 1);
+  fill(g, '#f6f4ea', P.x + 12, P.y + P.h - 66, P.w - 24, 34);
+  fill(g, 'rgba(90,84,70,0.35)', P.x + 12, P.y + P.h - 66, P.w - 24, 1);
   g.fillStyle = '#2b2620'; g.font = UI.font(8, true);
-  g.fillText('APT 302', 18, H - 48);
-  g.fillStyle = '#4a443a'; g.font = UI.font(7);
-  g.fillText('227 W 19TH — THIS BUILDING', 18, H - 36);
-  g.fillStyle = '#6b6455'; g.font = UI.font(6);
-  g.fillText(l.lines[0]?.slice(0, COLS) ?? '', 12, H - 16);
-  g.fillText(l.lines[1]?.slice(0, COLS) ?? '', 12, H - 8);
+  g.fillText('APT 302', P.x + 18, P.y + P.h - 52);
+  g.fillStyle = '#4a443a'; g.font = UI.font(6);
+  g.fillText('227 W 19TH — THIS BUILDING', P.x + 18, P.y + P.h - 40);
+  flow(g, P.x + IN, P.y + P.h - 22, TW, l.lines.slice(0, 2), 6, '#6b6455');
 };
 
 /**
  * ── FIRST FEDERAL: A BANK USES CRISP TYPE ──────────────────────────────────
- * The most PRINTED thing in the box, and deliberately the opposite of the
- * super's note beside it: a ruled letterhead with the bank's mark, justified
- * body copy, and the APR in the small print at the foot where a bank puts the
- * part it does not want read. White stock, navy ink, no smudge anywhere.
+ * 126 x 178, 1:1.41 — the closest thing here to proper letter stock, and
+ * deliberately the opposite of the super's square note beside it: a ruled
+ * letterhead with the bank's mark, body copy flowed to the measure, and the APR
+ * in the small print at the foot where a bank puts the part it does not want
+ * read. White stock, navy ink, no smudge anywhere.
  */
 ART['letterhead-bank'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
+  const P = paper('letterhead-bank'), IN = 8, TW = P.w - IN * 2;
   const NAVY = '#28405e';
-  stock(g, 0, 0, W, H, '#f4f2ea', '#fbfaf4', '#d4d0c4');
-  creases(g, 0, 0, W, H, 2);
+  stock(g, P.x, P.y, P.w, P.h, '#f4f2ea', '#fbfaf4', '#d4d0c4');
+  creases(g, P.x, P.y, P.w, P.h, 2);
   // the mark: a flat shield, which is every savings bank's logo in 1997
-  fill(g, NAVY, 12, 10, 16, 18);
-  fill(g, '#f4f2ea', 15, 13, 10, 8);
+  fill(g, NAVY, P.x + IN, P.y + 10, 14, 16);
+  fill(g, '#f4f2ea', P.x + IN + 3, P.y + 13, 8, 7);
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillStyle = NAVY; g.font = UI.font(9, true);
-  g.fillText('FIRST FEDERAL', 34, 20);
-  g.font = UI.font(6);
-  g.fillStyle = '#6b6455';
-  g.fillText('SAVINGS · MEMBER FDIC · EST 1922', 34, 28);
-  fill(g, NAVY, 12, 34, W - 24, 2);
-  g.fillStyle = '#2b2620'; g.font = UI.font(8);
-  let y = 54;
-  for (const ln of l.lines.slice(0, 3)) { g.fillText(ln.slice(0, COLS), 12, y); y += 13; }
   g.fillStyle = NAVY; g.font = UI.font(8, true);
-  g.fillText(l.lines[3] ?? '', 12, y + 6);
+  g.fillText('FIRST FEDERAL', P.x + IN + 20, P.y + 19);
+  g.font = UI.font(6); g.fillStyle = '#6b6455';
+  g.fillText('SAVINGS · MEMBER FDIC', P.x + IN + 20, P.y + 28);
+  fill(g, NAVY, P.x + IN, P.y + 34, TW, 2);
+  const end = flow(g, P.x + IN, P.y + 52, TW, l.lines.slice(0, 3), 7, '#2b2620');
+  flow(g, P.x + IN, end + 6, TW, l.lines.slice(3), 7, NAVY, true);
   // THE SMALL PRINT, at the foot, above a rule — where a bank puts the part it
   // would rather you did not read. Still legible, because that is the standard.
-  fill(g, 'rgba(40,64,94,0.35)', 12, H - 34, W - 24, 1);
-  g.fillStyle = '#6b6455'; g.font = UI.font(6);
-  g.fillText('Rate variable. Offer subject to approval and', 12, H - 24);
-  g.fillText('may be withdrawn at any time without notice.', 12, H - 16);
+  fill(g, 'rgba(40,64,94,0.35)', P.x + IN, P.y + P.h - 34, TW, 1);
+  flow(g, P.x + IN, P.y + P.h - 24, TW,
+       ['Rate variable. Offer subject to approval.'], 6, '#6b6455');
 };
 
 /**
@@ -1358,204 +1483,227 @@ ART['letterhead-bank'] = (g, l) => {
  * *"so the chain letter and the crime watch look identical they need to be
  *  distinct"*   (2026-08-05)
  *
- * HE WAS RIGHT AND THE OLD PAIR WERE THE SAME DRAWING. Both were a full-bleed
- * grey-cream sheet — `#dedcd2` against `#e6e3d6`, eight units apart and the same
- * colour to an eye — carrying a CENTRED BOLD HEADING at y 34, a full-width dark
- * rule immediately under it, and left-aligned all-caps 8 px body from y 60 at a
- * 13 px pitch. Identical skeleton, identical palette. Everything that was meant
- * to tell them apart was print-quality texture: a 22 px toner band at 7% alpha
- * here, 26 blotches at 6% and a 1.5 deg skew there. NONE OF THAT SURVIVES — the
- * page is 192 units wide and a 7% grey band is below the threshold of the
- * material, let alone of a glance. The fix is not finer texture, it is different
- * OBJECTS: this one is now the loudest structured form in the box and the chain
- * letter is the least structured thing in it.
+ * HE WAS RIGHT AND THE OLD PAIR WERE THE SAME DRAWING. Both filled the whole
+ * 192x178 sheet; both were grey-cream — `#dedcd2` against `#e6e3d6`, eight
+ * units apart and one colour to an eye; both put a CENTRED BOLD HEADING at y 34
+ * over a full-width dark rule with left-aligned all-caps 8 px body from y 60 at
+ * a 13 px pitch. Identical outline, identical skeleton, identical palette.
+ * Everything meant to separate them was print-quality texture — a 22 px toner
+ * band at 7% alpha here, 26 blotches at 6% and a 1.5 degree skew there — and
+ * NONE OF IT SURVIVES at this size.
  *
- * SO IT IS A FORM. White stock rather than grey, a heavy black rule box round
- * the whole page, a solid navy masthead with the crest and the department
- * reversed out of it, a double rule, the advisory CENTRED inside its own ruled
- * panel, and a second navy bar at the foot with the number to call. Type is
- * centred everywhere, which is the other half of the split — the chain letter is
- * flush left and ragged from top to bottom.
+ * SO THEY ARE SPLIT ON SHAPE FIRST. This is 94 x 178, 1:1.89, a legal-size
+ * sheet: the proportion a municipal notice is actually run off on so it can be
+ * stapled to a board. The chain letter is 68 x 172, 1:2.53 — twenty-six units
+ * narrower and visibly a different object across the room, before a mark is
+ * printed on either.
  *
- * NOT THE BANK'S WHITE PAGE EITHER, which is the near-miss worth naming:
- * `letterhead-bank` is also white with a navy mark. It carries a 16 px shield in
- * the top-left corner and one 2 px rule; this carries two solid navy bars and a
- * 3 px black frame. The silhouettes have nothing in common.
+ * THEN ON EVERYTHING THAT READS. White stock against the chain letter's
+ * yellowed; a 3 px black rule box round the whole page against no border at
+ * all; a solid navy masthead with the crest reversed out of it and a second
+ * navy bar at the foot against no letterhead whatsoever; the advisory CENTRED
+ * in its own ruled panel against flush-left ragged type running to the edges.
+ *
+ * NOT THE BANK'S WHITE PAGE EITHER, which is the near-miss worth naming.
+ * `letterhead-bank` is also white with a navy mark — but it is 126 wide to this
+ * one's 94, carries a 14 px shield in its top-left corner and one 2 px rule,
+ * and is set flush left. Two solid navy bars inside a heavy black frame have
+ * nothing in common with it.
  */
 ART['notice-precinct'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
-  const NAVY = '#22344e', INK = '#1e1a16';
-  stock(g, 0, 0, W, H, '#f2f1ea', '#fbfaf4', '#d2d0c4');
-  // THE FRAME. A city notice is printed inside a rule box so it can be stapled
-  // to a board without losing its edge, and 3 px of solid black is the single
-  // loudest mark in the mailbox.
+  const P = paper('notice-precinct'), IN = 8, TW = P.w - IN * 2;
+  const cx = P.x + P.w / 2, NAVY = '#22344e', INK = '#1e1a16';
+  stock(g, P.x, P.y, P.w, P.h, '#f2f1ea', '#fbfaf4', '#d2d0c4');
+  // THE FRAME. A city notice is printed inside a rule box so it survives being
+  // stapled to a board, and 3 px of solid black is the loudest mark in the box.
   g.strokeStyle = INK; g.lineWidth = 3;
-  g.strokeRect(7.5, 7.5, W - 15, H - 15);
+  g.strokeRect(P.x + 5.5, P.y + 5.5, P.w - 11, P.h - 11);
   // the masthead, reversed out — department stationery, not a photocopy
-  fill(g, NAVY, 10, 10, W - 20, 40);
-  const sx = 18, sy = 16;                       // the crest, flat, inside the bar
-  fill(g, '#e8e6dc', sx, sy, 20, 28);
-  fill(g, NAVY, sx + 4, sy + 5, 12, 11);
-  fill(g, '#e8e6dc', sx + 6, sy + 19, 8, 5);
+  fill(g, NAVY, P.x + IN, P.y + 8, TW, 44);
+  const sx = cx - 8, sy = P.y + 12;                 // the crest, flat, in the bar
+  fill(g, '#e8e6dc', sx, sy, 16, 18);
+  fill(g, NAVY, sx + 3, sy + 4, 10, 7);
+  fill(g, '#e8e6dc', sx + 5, sy + 13, 6, 3);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#f2f1ea'; g.font = UI.font(13, true);
-  g.fillText('CRIMEWATCH', W / 2 + 8, 32);
+  g.fillStyle = '#f2f1ea'; g.font = UI.font(11, true);
+  g.fillText('CRIMEWATCH', cx, P.y + 42);
   g.fillStyle = '#a9bdd6'; g.font = UI.font(6);
-  g.fillText('14TH PRECINCT · COMMUNITY AFFAIRS', W / 2 + 8, 43);
+  g.fillText('14TH PRECINCT', cx, P.y + 50);
   // the double rule a form puts under its head
-  fill(g, INK, 10, 54, W - 20, 2);
-  fill(g, INK, 10, 58, W - 20, 1);
-  // THE ADVISORY, CENTRED IN ITS OWN PANEL. Centred rather than flush left is
-  // the layout half of the split, and the block is centred VERTICALLY off the
-  // line count so the panel stays right if the copy ever changes.
-  const boxY = 66, boxH = 68;
-  fill(g, 'rgba(34,52,78,0.07)', 16, boxY, W - 32, boxH);
+  fill(g, INK, P.x + IN, P.y + 56, TW, 2);
+  fill(g, INK, P.x + IN, P.y + 60, TW, 1);
+  // THE ADVISORY, CENTRED IN ITS OWN PANEL. Centred against the chain letter's
+  // flush left, and FLOWED — the copy is written in 30-character lines for a
+  // 192-unit sheet and this measure is 66, so it re-breaks to SEVEN lines. The
+  // panel is sized for that flowed height rather than for the four lines in the
+  // table: a box measured off the source copy is the carbon's overflow bug
+  // again, one paper-size later.
+  fill(g, 'rgba(34,52,78,0.07)', P.x + IN, P.y + 66, TW, 84);
   g.strokeStyle = NAVY; g.lineWidth = 1;
-  g.strokeRect(16.5, boxY + 0.5, W - 33, boxH - 1);
-  g.fillStyle = '#1e2a3c'; g.font = UI.font(8, true);
-  let y = boxY + (boxH - (l.lines.length - 1) * 14) / 2 + 3;
-  for (const ln of l.lines) { g.fillText(ln.slice(0, COLS), W / 2, y); y += 14; }
-  // and the bar at the foot with the number on it
-  fill(g, NAVY, 10, H - 40, W - 20, 26);
-  g.fillStyle = '#f2f1ea'; g.font = UI.font(8, true);
-  g.fillText('REPORT ANYTHING SUSPICIOUS', W / 2, H - 26);
-  g.fillStyle = '#a9bdd6'; g.font = UI.font(6);
-  g.fillText('14TH PRECINCT DESK — 555-0114', W / 2, H - 17);
+  g.strokeRect(P.x + IN + 0.5, P.y + 66.5, TW - 1, 83);
+  flowMid(g, cx, P.y + 78, TW - 12, l.lines, 6, '#1e2a3c', true);
+  // and the bar at the foot with the number on it, INSIDE the frame — the rule
+  // box is 3 px wide and drawn on the centre line, so its inner edge is at
+  // P.y + 7 and P.y + h - 7, and the bar has to stop short of that.
+  fill(g, NAVY, P.x + IN, P.y + P.h - 24, TW, 15);
+  g.textAlign = 'center';
+  g.fillStyle = '#f2f1ea'; g.font = UI.font(6, true);
+  g.fillText('REPORT IT — 555-0114', cx, P.y + P.h - 13);
   g.textAlign = 'left';
 };
 
 
 /**
  * ── THE MAIL-ORDER CATALOGUE: A THICK BOOK, NOT A SHEET ────────────────────
- * The one piece with DEPTH. Four hundred pages is a slab, so it is drawn as a
- * cover with a stack of page edges down its right side and a spine shadow —
- * the only thing in the box you could prop a door open with. VOLT VILLAGE's
- * kind of stock, sold by post: a grid of small goods on the cover, because that
- * is exactly what a 1997 general catalogue put there.
+ * 154 x 172, 1:1.12 — the SQUAREST of the printed pieces without being square,
+ * because a 400-page general catalogue is bound short and fat rather than long.
+ * The one piece with DEPTH: a cover with a stack of page edges down its right
+ * side and a spine shadow, the only thing in the box you could prop a door open
+ * with. A grid of small goods on the cover, because that is exactly what a 1997
+ * general catalogue put there.
  */
 ART['catalogue-order'] = (g, l) => {
-  const w = Math.round(PAPER.w * 0.80), h = Math.round(PAPER.h * 0.90);
-  const x = Math.round((PAPER.w - w) / 2) - 5, y = Math.round((PAPER.h - h) / 2);
+  const P = paper('catalogue-order'), w = P.w - 9, h = P.h;
+  const x = P.x, y = P.y, cx = x + w / 2, RUST = '#9a5a3a';
   // the page edges, stacked to the right — this is the whole "it is a book"
   for (let k = 0; k < 8; k++) {
     fill(g, k % 2 ? '#d8d3c2' : '#e6e1d0', x + w + k, y + 2 + k * 0.4, 1, h - 4 - k * 0.8);
   }
   stock(g, x, y, w, h, '#e2ddc8', '#efeada', '#c4bda6');
   fill(g, 'rgba(0,0,0,0.16)', x, y, 4, h);                     // the spine
-  const RUST = '#9a5a3a';
   fill(g, RUST, x + 8, y + 8, w - 16, 22);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#f2eeda'; g.font = UI.font(9, true);
-  g.fillText('EVERYTHING', x + w / 2, y + 23);
+  g.fillText('EVERYTHING', cx, y + 23);
   g.fillStyle = '#4a443a'; g.font = UI.font(6);
-  g.fillText('SPRING · 400 PAGES · POST FREE', x + w / 2, y + 40);
+  g.fillText('SPRING · 400 PAGES · POST FREE', cx, y + 40);
   // a grid of small goods, flat blocks — a general catalogue's whole cover
-  const gx = x + 12, gy = y + 48;
+  const gx = x + 12, gy = y + 48, cw = Math.floor((w - 24) / 3);
   for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-    fill(g, '#cfc8b2', gx + c * 38, gy + r * 30, 32, 24);
-    fill(g, ['#6b6455', '#8a7049', '#5f6b74'][(r + c) % 3], gx + c * 38 + 6, gy + r * 30 + 5, 20, 14);
+    fill(g, '#cfc8b2', gx + c * cw, gy + r * 30, cw - 6, 24);
+    fill(g, ['#6b6455', '#8a7049', '#5f6b74'][(r + c) % 3], gx + c * cw + 6, gy + r * 30 + 5, cw - 18, 14);
   }
-  g.textAlign = 'left'; g.fillStyle = '#4a443a'; g.font = UI.font(6);
-  let ly = y + h - 22;
-  for (const ln of l.lines.slice(0, 2)) { g.fillText(ln.slice(0, 32), x + 8, ly); ly += 9; }
+  flow(g, x + 8, y + h - 22, w - 16, l.lines.slice(0, 2), 6, '#4a443a');
 };
 
 /**
  * ── THE DENTIST: A REMINDER CARD ───────────────────────────────────────────
- * SMALL AND STIFF — a card, not a letter, because that is what a surgery sends.
- * Pale blue stock, the practice's name at the top, and a ruled APPOINTMENT
- * panel with the date left blank, which is the joke: they want him to call and
- * fill it in, and his last visit was 1993.
+ * 132 x 80, 1.65:1 — SMALL, STIFF AND LANDSCAPE, because that is the shape a
+ * surgery's reminder card is cut to and it is barely a third of the area of the
+ * sheets around it. Pale blue stock, the practice's name across the top, and a
+ * ruled APPOINTMENT panel with the date left blank, which is the joke: they
+ * want him to call and fill it in, and his last visit was 1993.
  */
 ART['card-dentist'] = (g, l) => {
-  const w = Math.round(PAPER.w * 0.84), h = Math.round(PAPER.h * 0.50);
-  const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
-  stock(g, x, y, w, h, '#dfe7e6', '#eef3f2', '#bcc7c6');
-  const TEAL = '#2f5d5a';
+  const P = paper('card-dentist'), IN = 8, TW = P.w - IN * 2;
+  const cx = P.x + P.w / 2, TEAL = '#2f5d5a';
+  stock(g, P.x, P.y, P.w, P.h, '#dfe7e6', '#eef3f2', '#bcc7c6');
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = TEAL; g.font = UI.font(8, true);
-  g.fillText('R. HALVERSEN, D.D.S.', x + w / 2, y + 16);
+  g.fillText('R. HALVERSEN, D.D.S.', cx, P.y + 14);
   g.font = UI.font(6); g.fillStyle = '#5a6b6a';
-  g.fillText('GENERAL DENTISTRY · 227 W 21ST', x + w / 2, y + 25);
-  fill(g, TEAL, x + 10, y + 30, w - 20, 1);
-  g.textAlign = 'left'; g.fillStyle = '#2b3a39'; g.font = UI.font(7);
-  let ly = y + 44;
-  for (const ln of l.lines.slice(0, 3)) { g.fillText(ln.slice(0, COLS), x + 10, ly); ly += 11; }
+  g.fillText('GENERAL DENTISTRY · 227 W 21ST', cx, P.y + 23);
+  fill(g, TEAL, P.x + IN, P.y + 28, TW, 1);
+  flow(g, P.x + IN, P.y + 38, TW, l.lines.slice(0, 3), 6, '#2b3a39');
   // the blank appointment panel — the point of the card
-  const py = y + h - 30;
+  const py = P.y + P.h - 20;
   g.strokeStyle = TEAL; g.lineWidth = 1;
-  g.strokeRect(x + 10.5, py + 0.5, w - 21, 20);
-  g.fillStyle = TEAL; g.font = UI.font(6, true);
-  g.fillText('APPOINTMENT', x + 15, py + 9);
-  fill(g, 'rgba(47,93,90,0.45)', x + 62, py + 12, w - 78, 1);
+  g.strokeRect(P.x + IN + 0.5, py + 0.5, TW - 1, 14);
+  g.textAlign = 'left'; g.fillStyle = TEAL; g.font = UI.font(6, true);
+  g.fillText('APPOINTMENT', P.x + IN + 4, py + 9);
+  fill(g, 'rgba(47,93,90,0.45)', P.x + IN + 50, py + 10, TW - 56, 1);
 };
 
 /**
- * ── THE CHAIN LETTER: A PHOTOCOPY OF A PHOTOCOPY OF A TYPESCRIPT ───────────
- * The worst-printed thing in the box and the only one that is SKEWED — it went
- * through somebody's copier crooked and has been copied crooked ever since, so
- * the whole page sits at 1.5 degrees inside its own paper. Blotched toner,
- * a heavy underline under DO NOT BREAK THE CHAIN, and no sender anywhere.
+ * ── THE CHAIN LETTER: A RIBBON THAT HAS BEEN THROUGH SIX COPIERS ───────────
+ *
+ * *"so the chain letter and the crime watch look identical"*   (2026-08-05)
+ *
+ * 68 x 172, 1:2.53 — THE NARROWEST PIECE IN THE BOX, and that is the whole
+ * separation from CRIMEWATCH before a mark is printed: 68 units against 94,
+ * 1:2.53 against 1:1.89. Honest for the object, too — this thing has been fed
+ * through six copiers by six people and what comes out the far end of that is
+ * not a full sheet any more, it is a strip somebody guillotined and passed on.
+ *
+ * AND NO LETTERHEAD ANYWHERE, which is the other half of the split. CRIMEWATCH
+ * is all structure — frame, masthead, panel, footer, everything centred. This
+ * has none: yellowed stock, no border, no rule, a shouty stacked head typed
+ * flush left with a row of hyphens under it because a typewriter has no
+ * underline, and dense small type running ragged to both edges and all the way
+ * to the foot. The copy is FLOWED, so 29-character lines re-break to the 58
+ * units actually available instead of running off the paper.
+ *
+ * IT IS ALSO THE ONLY PIECE THAT IS CROOKED — the whole sheet is rotated, not
+ * just the type on it, so the paper's own outline sits skewed against the plane
+ * it hangs on. The blotches stay, but they are seasoning now rather than the
+ * thing being asked to carry the difference.
  */
 ART['chain-letter'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
-  stock(g, 0, 0, W, H, '#e6e3d6', '#f0eee2', '#c8c4b4');
-  // copier blotches — deterministic, so the piece does not shimmer per frame
-  for (let i = 0; i < 26; i++) {
-    fill(g, 'rgba(0,0,0,0.06)', (i * 37) % (W - 12) + 6, (i * 53) % (H - 12) + 6, 3 + (i % 3), 2);
-  }
+  const P = paper('chain-letter'), IN = 5, TW = P.w - IN * 2;
+  const INK = '#3a3020';
+  // THE WHOLE PAGE IS TURNED, stock and all. 0.05 rad: the corners reach
+  // 38.3 x 87.6 from centre against the 96 x 89 the drawing space allows, so a
+  // crooked ribbon still lands entirely on the canvas and nothing is clipped.
   g.save();
-  g.translate(W / 2, H / 2);
-  g.rotate(0.026);                                   // fed in crooked, and stayed
-  g.translate(-W / 2, -H / 2);
-  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#2a2620'; g.font = UI.font(9, true);
-  g.fillText('DO NOT BREAK THE CHAIN', W / 2, 34);
-  fill(g, '#2a2620', 26, 38, W - 52, 2);
-  g.textAlign = 'left'; g.font = UI.font(8);
-  let y = 62;
-  for (const ln of l.lines) { g.fillText(ln.slice(0, COLS), 14, y); y += 13; }
-  g.textAlign = 'center'; g.font = UI.font(7, true);
-  g.fillText('SEND IT ON. DO NOT KEEP IT.', W / 2, H - 22);
+  g.translate(PAPER.w / 2, PAPER.h / 2);
+  g.rotate(0.05);
+  g.translate(-PAPER.w / 2, -PAPER.h / 2);
+  stock(g, P.x, P.y, P.w, P.h, '#e4d6a2', '#efe4bc', '#c2b276');
+  // copier blotches — deterministic, so the piece does not shimmer per frame
+  for (let i = 0; i < 22; i++) {
+    fill(g, 'rgba(0,0,0,0.09)', P.x + 4 + ((i * 29) % (P.w - 12)),
+         P.y + 6 + ((i * 53) % (P.h - 14)), 3 + (i % 3), 2);
+  }
+  // the head, TYPED not printed: stacked, flush left, ragged, and underscored
+  // with hyphens the way a typewriter has to do it
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = INK; g.font = UI.font(8, true);
+  let y = P.y + 18;
+  for (const w of ['DO NOT', 'BREAK THE', 'CHAIN']) { g.fillText(w, P.x + IN, y); y += 11; }
+  g.font = UI.font(6);
+  g.fillText('-'.repeat(13), P.x + IN, y + 2);
+  // and the body, dense, small, running to the foot of the strip
+  const end = flow(g, P.x + IN, y + 16, TW, l.lines, 6, INK);
+  g.fillStyle = INK; g.font = UI.font(6, true);
+  g.fillText('SEND IT ON.', P.x + IN, Math.min(end + 8, P.y + P.h - 8));
   g.restore();
 };
 
 /**
  * ── THE PENNY SAVER: A CLASSIFIED SHEET, SET IN COLUMNS ────────────────────
- * NEWSPRINT, and the only piece set in COLUMNS — two of them, rules between,
- * headings in reverse, and the ads themselves at 6 px because a free weekly
- * sells by the line and crams. Grey-brown stock so it reads as pulp beside the
- * white bank letter.
+ * 148 x 178, 1:1.20 — a free weekly is a tabloid, which is squatter than a
+ * letter and wider than everything else standing beside it in this table. It
+ * needs that width: it is the only piece set in COLUMNS, two of them with a
+ * rule between, headings in reverse, and the ads at 6 px because a free weekly
+ * sells by the line and crams. Grey-brown newsprint so it reads as pulp against
+ * the bank's white.
  */
 ART['classified-penny'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
-  stock(g, 0, 0, W, H, '#dcd7c4', '#e8e3d2', '#bdb8a4');
+  const P = paper('classified-penny'), IN = 6;
+  const cx = P.x + P.w / 2;
+  stock(g, P.x, P.y, P.w, P.h, '#dcd7c4', '#e8e3d2', '#bdb8a4');
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  fill(g, '#3a352c', 0, 6, W, 18);
+  fill(g, '#3a352c', P.x, P.y + 6, P.w, 18);
   g.fillStyle = '#dcd7c4'; g.font = UI.font(11, true);
-  g.fillText('PENNY SAVER', W / 2, 20);
+  g.fillText('PENNY SAVER', cx, P.y + 20);
   g.fillStyle = '#4a443a'; g.font = UI.font(6);
-  g.fillText('FREE · WEEKLY · TAKE ONE', W / 2, 32);
-  fill(g, '#8d8672', 8, 36, W - 16, 1);
+  g.fillText('FREE · WEEKLY · TAKE ONE', cx, P.y + 32);
+  g.fillText(l.lines[0] ?? '', cx, P.y + 42);
+  fill(g, '#8d8672', P.x + IN, P.y + 46, P.w - IN * 2, 1);
   // two columns with a rule between them, which is the whole look
-  const colW = (W - 24) / 2, cx = [10, 14 + colW];
-  fill(g, 'rgba(90,84,70,0.35)', W / 2, 40, 1, H - 52);
-  g.textAlign = 'left';
+  const colW = Math.floor((P.w - IN * 2 - 8) / 2);
+  const colX = [P.x + IN, P.x + IN + colW + 8];
+  fill(g, 'rgba(90,84,70,0.35)', cx, P.y + 50, 1, P.h - 74);
   const heads = ['CARS', 'ROOMS TO LET'];
   for (let c = 0; c < 2; c++) {
-    fill(g, '#3a352c', cx[c], 44, colW - 4, 9);
-    g.fillStyle = '#dcd7c4'; g.font = UI.font(6, true);
-    g.fillText(heads[c], cx[c] + 3, 51);
-    g.fillStyle = '#2b2620'; g.font = UI.font(6);
-    let y = 62;
-    for (const ln of l.lines) {
-      // wrapped by hand into the column, because a classified column is narrow
-      const t = ln.slice(c * 16, c * 16 + 22);
-      if (t.trim()) { g.fillText(t, cx[c] + 2, y); y += 9; }
-    }
+    fill(g, '#3a352c', colX[c], P.y + 54, colW, 9);
+    g.textAlign = 'left'; g.fillStyle = '#dcd7c4'; g.font = UI.font(6, true);
+    g.fillText(heads[c], colX[c] + 3, P.y + 61);
+    // one ad per column, flowed to the column measure, with a hairline under it
+    const end = flow(g, colX[c] + 2, P.y + 74, colW - 4, [l.lines[c + 1] ?? ''], 6, '#2b2620');
+    fill(g, 'rgba(90,84,70,0.30)', colX[c] + 2, end - 4, colW - 8, 1);
   }
-  g.fillStyle = '#5a544a'; g.font = UI.font(6);
-  g.fillText(l.lines[3]?.slice(0, COLS) ?? '', 10, H - 12);
+  flow(g, P.x + IN, P.y + P.h - 12, P.w - IN * 2, [l.lines[3] ?? ''], 6, '#5a544a');
 };
 
 
