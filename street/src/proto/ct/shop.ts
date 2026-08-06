@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makePanel, hudNote, type Panel } from './hud';
+import { makePanel, hudNote, type Panel, type Purse } from './hud';
 import { pixTex, declareSurface, dither } from './paint';
 import { give, fullWhy, itemOf } from './inventory';
 import type { CtxBuild, Spot } from './ctx';
@@ -56,8 +56,33 @@ export interface StockLine {
    * `ct/goods.ts` or wherever its system lives — or it arrives as a wrapped
    * parcel with a lower-case name, which is `itemOf`'s honest fallback and is
    * not what a shop should be selling.
+   *
+   * Omit it ONLY when the line has a `serve` — see below. Exactly one of the
+   * two must be present, and a line with neither sells nothing.
    */
-  id: string;
+  id?: string;
+  /**
+   * ── WHEN WHAT YOU BUY IS NOT AN OBJECT ───────────────────────────────────
+   *
+   * *"A night, not an object."* A hotel does not hand you a night; it advances
+   * the clock and takes your money, and there is nothing to put in a bag. Same
+   * counter, same card, same arithmetic — a different thing at the end of it.
+   *
+   * Return **true** if it happened and **false** to refuse. The money moves only
+   * on true, which is the same guarantee the bag path gives and the reason both
+   * live in one function: a shop that took payment for a night it did not give
+   * you would be the identical bug, one layer along.
+   *
+   * ⚠ A REFUSAL MUST SAY WHY, and only the caller knows why — the framework's
+   * `fullWhy` is about bags and has nothing to say about a room that is not
+   * free. So `serve` posts its own `hudNote` before returning false. A silent
+   * `false` is a key that does nothing, which is how a player concludes the
+   * whole shop is broken (`ct/inventory.ts`, on the same point).
+   *
+   * The CASH CHECK still happens first and is still the framework's, so a line
+   * you cannot afford never reaches this at all.
+   */
+  serve?: (p: Purse) => boolean;
   /**
    * How the BOARD says it, in the shop's own lettering: `BARN BURGER`, not
    * `barn burger`. Separate from `ItemDef.name` on purpose — the item is a
@@ -398,17 +423,27 @@ export function shopCounter(ctx: CtxBuild, spec: ShopSpec): Shop {
    */
   const buy = (line: StockLine): void => {
     const p = ctx.purse;
+    // WHAT TO CALL IT IN A REFUSAL. An item says its own name; a SERVICE has no
+    // `ItemDef` to ask, so the line's own board wording is the honest fallback.
+    const what = line.id ? itemOf(line.id).name : line.name.toLowerCase();
     if (p.cash < line.price) {
-      hudNote(`$${(line.price - p.cash).toFixed(2)} short of a ${itemOf(line.id).name}`);
+      hudNote(`$${(line.price - p.cash).toFixed(2)} short of a ${what}`);
       return;
     }
-    if (give(p, line.id, 1) < 1) {
+    if (line.serve) {
+      // A NIGHT, A HAIRCUT, A BUS TICKET — see `StockLine.serve`. It words its
+      // own refusal, because only it knows what went wrong.
+      if (!line.serve(p)) return;
+    } else if (!line.id) {
+      console.error(`[shop ${spec.id}] the line "${line.name}" has neither an item id nor a serve; it sells nothing.`);
+      return;
+    } else if (give(p, line.id, 1) < 1) {
       // `fullWhy` answers for the SPACE — a full bag, a full hand — and returns
       // '' when there is space and the refusal was the item's own `stack`. That
       // second case is the common one at a food counter (two burgers is a
       // stack) and it needs its own words, or the player is told nothing at all
       // by a shop that just declined to serve him.
-      hudNote(fullWhy(p) || `no room for another ${itemOf(line.id).name}`);
+      hudNote(fullWhy(p) || `no room for another ${what}`);
       return;
     }
     p.cash -= line.price;

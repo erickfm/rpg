@@ -6,6 +6,8 @@ import { type DoorDecl } from './doors';
 // the hard-texel text painter from the casino's facade — one signage hand for
 // both sides of this pair, and it is why the corridor sign is not soft
 import { hardLayer, leafPair } from './vice';
+import { screenFade, hudNote } from './hud';
+import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { VICE_DOOR_X } from './vice';
 
 // HOTEL ORPHEUS, the lobby.
@@ -885,7 +887,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // outside uses — the right altitude for a room, per notes/CITIZEN-STYLE.md,
   // and it owns the per-frame turn so the room does not wire one.
   const CLERK_X = DESK_X - 0.62, CLERK_Z = DESK_Z + 0.35;   // behind the counter
-  room.person({ jacket: '#8a8478', pants: '#3a3630', skin: '#8d5a34', hair: '#241a12',
+  const clerk = room.person({ jacket: '#8a8478', pants: '#3a3630', skin: '#8d5a34', hair: '#241a12',
       accent: '#6a2a30', fit: 'plain', cut: 'crop', build: 0, stride: 2 },
     CLERK_X, CLERK_Z,
     // Derived from where the GUEST stands, not typed and not aimed at the desk.
@@ -923,27 +925,125 @@ export function buildHotel(ctx: CtxBuild): void {
   holes.rotation.y = Math.PI / 2;                                // faces +x, into the room
   put(holes, -hw + 0.06, 1.85, DESK_Z);
 
-  // the rate card, framed under glass beside the pigeonholes. Weekly rates,
-  // because that is what a hotel quotes when it has stopped being a hotel for
-  // travellers and become one for residents — the whole fall, in four lines.
-  const rateT = declareSurface(pixTex(40, 28, (g) => {
-    g.fillStyle = '#e2dac4'; g.fillRect(0, 0, 40, 28);
-    g.fillStyle = '#5a4028'; g.fillRect(0, 0, 40, 1); g.fillRect(0, 27, 40, 1);
-    g.fillRect(0, 0, 1, 28); g.fillRect(39, 0, 1, 28);
-    g.fillStyle = '#3a2a1a'; g.font = 'bold 6px monospace';
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('WEEKLY', 20, 6);
-    g.font = '5px monospace'; g.textAlign = 'left';
-    const rows: [string, string][] = [['SINGLE', '42'], ['DOUBLE', '55'], ['BATH', '+6']];
-    rows.forEach(([a, b], i) => {
-      g.textAlign = 'left'; g.fillText(a, 4, 14 + i * 5);
-      g.textAlign = 'right'; g.fillText(b, 36, 14 + i * 5);
+  // ══ THE RATE CARD — AND YOU CAN TAKE A ROOM OFF IT ════════════════════════
+  //
+  // *"for every business i just want to be able to talk to the shop keeper or
+  //  cashier and see a diagetic list of options as like a sign or something for
+  //  everything you can buy."*   (2026-08-06)
+  //
+  // The card was already here, already framed under glass beside the
+  // pigeonholes, already one mesh, and already quoting the right thing: WEEKLY
+  // rates, because that is what a hotel quotes when it has stopped being a hotel
+  // for travellers and become one for residents. It is the shop now.
+  //
+  // ── WHAT YOU BUY HERE IS A NIGHT, WHICH IS NOT AN OBJECT ─────────────────
+  //
+  // Nothing goes in a bag. `StockLine.serve` is the seam for that — it exists
+  // for this counter — and the money moves on exactly the same rule as
+  // everywhere else: only if the thing you paid for actually happened. Here
+  // that means the clock advanced.
+  //
+  // THE CUT IS THE SLEEP CUT, borrowed from 301's bed rather than re-timed:
+  // 140/90/170 ms, the timing the user approved with *"make the sleep transition
+  // faster pls"*. A hotel bed and your own bed should not fade at two speeds.
+  //
+  // ── THE NIGHTLY RATE IS DERIVED FROM THE WEEKLY ONE ──────────────────────
+  //
+  // $42 a week is $6 a night at seven nights to the week, and a hotel that lets
+  // rooms by the night charges MORE per night than by the week — that is the
+  // entire economic reason weekly rates exist. So a single night is the weekly
+  // rate over five, not over seven: $8.50. Both numbers come off `WEEKLY` below,
+  // so the card cannot quote a week at one price and a night at a price that
+  // makes the week a bad deal.
+  const WEEKLY = { single: 42, double: 55 };
+  const nightly = (weekly: number) => Math.round((weekly / 5) * 2) / 2;
+  /** Take a room: the clock goes to 8 a.m. and the screen cuts through it. */
+  const takeRoom = (nights: number): boolean => {
+    const { hour, minute } = ctx.clock.now();
+    // TO EIGHT IN THE MORNING, however long that is from now. A room bought at
+    // two in the afternoon still ends at check-out, which is what makes a night
+    // a NIGHT rather than "eight hours from whenever you pressed the key".
+    const mins = ((8 * 60 - (hour * 60 + minute)) + 1440) % 1440 + (nights - 1) * 1440;
+    const SLEEP_OUT_MS = 140, SLEEP_HOLD_MS = 90, SLEEP_IN_MS = 170;
+    void screenFade({
+      mid: () => ctx.clock.advance(mins, { overSeconds: 0 }),
+      outMs: SLEEP_OUT_MS, holdMs: SLEEP_HOLD_MS, inMs: SLEEP_IN_MS,
     });
-    g.fillStyle = 'rgba(190,215,225,0.20)'; g.fillRect(1, 1, 38, 26);   // the glass over it
-  }), 'sign');
-  const rate = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.52), ctx.flat(rateT));
-  rate.rotation.y = Math.PI / 2;
-  put(rate, -hw + 0.06, 1.55, DESK_Z + 2.85);
+    hudNote(nights > 1
+      ? `A week upstairs. He takes a key off the board without looking up.`
+      : `One night. He takes a key off the board without looking up.`);
+    return true;
+  };
+  const RATES: ShopColumn[] = [
+    { head: 'ROOMS', lines: [
+      { name: 'NIGHT', price: nightly(WEEKLY.single), serve: () => takeRoom(1) },
+      { name: 'WEEK', price: WEEKLY.single, serve: () => takeRoom(7) },
+      { name: 'DOUBLE WK', price: WEEKLY.double, serve: () => takeRoom(7) },
+    ] },
+  ];
+  // The card's own two colours, kept exactly: #e2dac4 stock in a #5a4028 rule,
+  // the lettering #3a2a1a. `band: ''` — this was typed on a card and slid behind
+  // glass, not printed with a coloured masthead.
+  const RATE_LOOK: BoardLook = {
+    panel: '#e2dac4', frame: '#5a4028', band: '', bandInk: '#3a2a1a',
+    ink: '#3a2a1a', priceInk: '#6a2a30', rule: '#8a7450',
+    hover: 'rgba(58,42,26,0.13)', flash: 'rgba(216,168,58,0.42)',
+  };
+  // THE ONE ON THE WALL, kept where it always was and repainted from the table
+  // above so the two cards in this lobby cannot quote different money.
+  const RATE_W = 0.75, RATE_H = 0.52, RATE_Y = 1.55, RATE_Z = DESK_Z + 2.85;
+  const rate = new THREE.Mesh(new THREE.PlaneGeometry(RATE_W, RATE_H),
+    ctx.flat(boardTexture(Math.round(RATE_W * 460), Math.round(RATE_H * 460), RATES, RATE_LOOK)));
+  rate.rotation.y = Math.PI / 2;                 // faces +x, into the lobby
+  put(rate, -hw + 0.06, RATE_Y, RATE_Z);
+
+  // ══ AND THE TENT CARD ON THE COUNTER, WHICH IS THE ONE YOU READ ═══════════
+  //
+  // **The wall card cannot be the shop surface, and the reason is measured.**
+  // It hangs on the west wall; a card that size wants the eye about 0.68 m off
+  // it; and between that wall and the guest are a 0.75 m deep mahogany desk and
+  // the 0.62 m staff strip the CLERK HIMSELF STANDS IN. The focus pose put the
+  // camera at his shoulder, inside the counter, with his own sprite filling the
+  // frame — I looked at it. The bodega's wall had the identical geometry and the
+  // identical answer.
+  //
+  // So the sellable card is a tent card standing on the counter facing the
+  // guest, which is where a hotel puts its rates anyway. Same table, same look,
+  // same glass-and-card idiom; the eye settles at DESK_X + 1.0, on the guest's
+  // own side of the desk, with nothing in between.
+  const TENT_W = 0.44, TENT_H = 0.56;
+  const TENT_X = DESK_X + DESK_D / 2 - 0.06;     // the guest edge of the counter top
+  const TENT_Y = 1.12 + TENT_H / 2;              // stood on it: the desk is 1.12
+  const TENT_Z = DESK_Z + 0.95;                  // clear of the bell and the ledger
+  const TENT_PX = Math.round(TENT_W * 520), TENT_PY = Math.round(TENT_H * 520);
+  const tent = new THREE.Mesh(new THREE.PlaneGeometry(TENT_W, TENT_H),
+    ctx.flat(boardTexture(TENT_PX, TENT_PY, RATES, RATE_LOOK)));
+  tent.rotation.y = Math.PI / 2;                 // faces +x, at the guest
+  put(tent, TENT_X, TENT_Y, TENT_Z);
+  // the card's own thickness and the fold it stands on
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.012, TENT_H, TENT_W),
+    new THREE.MeshBasicMaterial({ color: 0x5a4028 })), TENT_X - 0.010, TENT_Y, TENT_Z);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.02, 0.16),
+    new THREE.MeshBasicMaterial({ color: 0x5c3826 })), TENT_X - 0.045, 1.13, TENT_Z);
+
+  // ── you take a room from the clerk ───────────────────────────────────────
+  //
+  // He is the aim and the outline; the tent card is what the view shows. The
+  // guest stands at the desk's +x face level with him — the same expression his
+  // own facing is derived from above, so the two cannot disagree about where a
+  // customer is.
+  shopCounter(ctx, {
+    id: 'ct-shop-hotel',
+    columns: RATES, look: RATE_LOOK,
+    w: TENT_PX, h: TENT_PY,
+    mesh: () => tent,
+    standoff: boardStandoff({ wM: TENT_W, hM: TENT_H, fov: 45, riseM: TENT_Y - 1.75 }),
+    fov: 45,
+    stand: { x: room.wx(DESK_X + DESK_D / 2 + 0.72), z: room.wz(TENT_Z) },
+    keeper: { x: clerk.mesh.position.x, z: clerk.mesh.position.z, obj: clerk.mesh },
+    who: 'the night clerk',
+    ok: room.inside,
+  });
 
   // ── the corridor mouth at the far end ────────────────────────────────
   //
