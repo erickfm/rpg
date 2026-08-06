@@ -77,6 +77,55 @@ import { BUILD, ORDER as HOOK } from './ctx';
  *  is: a fitting on the block. */
 export const ORDER = BUILD.PROPS;
 
+// ── THE MIXER, FOR ANYONE WHO WANTS TO DRIVE IT ─────────────────────────────
+//
+// A VCR-style options menu shipped in `7b728518` with handedness, invert look,
+// look speed and field of view — and no sound, because this module exported
+// `register` and `ORDER` and nothing else. Volume and mute existed, were
+// remembered across reloads, and were unreachable.
+//
+// GETTERS, NOT A COPY. The menu asks what the volume IS every time it paints
+// rather than keeping its own number in step with this one — the two-numbers-
+// that-must-agree bug, which this project has now hit repeatedly. There is one
+// number and it lives here.
+//
+// SETTERS GO THROUGH `commit()`, the same path `M`, `[`, `]` and the corner
+// widget take, so a change from the menu writes localStorage, re-gains the
+// master and repaints the widget exactly as a keypress does. The menu and the
+// keys cannot disagree, because there is nothing for them to disagree ABOUT.
+interface Mixer {
+  volume: () => number;
+  setVolume: (v: number) => void;
+  isMuted: () => boolean;
+  setMuted: (b: boolean) => void;
+}
+let mixer: Mixer | null = null;
+
+/**
+ * VOLUME IS CONTINUOUS, 0…1. Pass any float; it is clamped, never rejected.
+ *
+ * `[` and `]` move it in eighths and the corner widget draws eight blocks, so a
+ * menu offering the same 1/8 stops will land exactly on the readout the keys
+ * produce — but that is the KEYS' stride, not a constraint on the value. A
+ * continuous slider is fine and will display fine.
+ *
+ * Not a decibel scale: `applyMaster` squares it on the way to the gain, which
+ * is where the perceptual curve lives. 0…1 is what a slider should show.
+ */
+export const VOLUME_STEP = 1 / 8;
+const STEP = VOLUME_STEP;
+
+/** current volume, 0…1. Ask every paint; do not cache it. */
+export const volume = (): number => mixer?.volume() ?? 0.75;
+/** set volume, 0…1, clamped. Raising it un-mutes, exactly as `]` does. */
+export const setVolume = (v: number): void => mixer?.setVolume(v);
+/** is sound muted right now */
+export const isMuted = (): boolean => mixer?.isMuted() ?? false;
+/** mute or un-mute. Leaves the volume where it was, exactly as `M` does. */
+export const setMuted = (b: boolean): void => mixer?.setMuted(b);
+/** what `M` and the corner widget do */
+export const toggleMute = (): void => mixer?.setMuted(!mixer.isMuted());
+
 // ── the asset roster ────────────────────────────────────────────────────────
 const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain'] as const;
 type BedName = (typeof BEDS)[number];
@@ -321,6 +370,37 @@ export function register(ctx: CtxBuild): void {
   //                                                             ^^^^^^^ perceptual:
   // a linear slider on a linear gain spends its top half doing almost nothing.
 
+  /**
+   * THE ONLY WAY THE MIXER EVER CHANGES — the keys, the corner widget and the
+   * options menu all end here.
+   *
+   * `M`, `[`, `]`, a click on the speaker and `setVolume()` from `ct/hud.ts`'s
+   * VCR menu are four front doors onto two variables, and the failure they
+   * invite is the one this codebase keeps hitting: a caller that sets the value
+   * and forgets one of the three things that have to follow it. Persisting,
+   * applying and repainting are not three obligations on four callers, they are
+   * one function, and nothing above assigns `vol` or `muted` without calling it.
+   */
+  const commit = () => { save(); applyMaster(); paintWidget(); };
+
+  // The published handle. Assigned here rather than at module scope so that a
+  // second `register()` (an HMR rebuild) points the exports at the LIVE world
+  // and not at the closure of a page that is already gone.
+  mixer = {
+    volume: () => vol,
+    setVolume: (v) => {
+      if (!Number.isFinite(v)) return;
+      vol = Math.max(0, Math.min(1, v));
+      // Raising the volume un-mutes, exactly as `]` does. Dragging a slider up
+      // and hearing nothing is the same bug as pressing the key and hearing
+      // nothing, and it should not have two different answers.
+      if (vol > 0) muted = false;
+      commit();
+    },
+    isMuted: () => muted,
+    setMuted: (b) => { muted = !!b; commit(); },
+  };
+
   // ══ THE GESTURE ═══════════════════════════════════════════════════════════
   const AC: typeof AudioContext | undefined =
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -456,7 +536,7 @@ export function register(ctx: CtxBuild): void {
   // that lands here deliberately does NOT take pointer lock.
   wrap.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
-    muted = !muted; save(); applyMaster(); paintWidget();
+    muted = !muted; commit();
   });
   document.body.appendChild(wrap);
   // Registered NOW rather than at boot, so that a build which never got its
@@ -471,10 +551,10 @@ export function register(ctx: CtxBuild): void {
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     const k = e.key.toLowerCase();
     if (k === 'm') { muted = !muted; }
-    else if (k === '[') { vol = Math.max(0, Math.round(vol * 8 - 1) / 8); muted = false; }
-    else if (k === ']') { vol = Math.min(1, Math.round(vol * 8 + 1) / 8); muted = false; }
+    else if (k === '[') { vol = Math.max(0, Math.round(vol / STEP - 1) * STEP); muted = false; }
+    else if (k === ']') { vol = Math.min(1, Math.round(vol / STEP + 1) * STEP); muted = false; }
     else return;
-    save(); applyMaster(); paintWidget(); peek();
+    commit(); peek();
   });
 
   // ══ AMBIENCE ══════════════════════════════════════════════════════════════
