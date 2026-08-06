@@ -4793,9 +4793,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * extent to overshoot with. That is exactly what the ceiling halos could not
      * say — they are vertical billboards and their full height was vertical,
      * which is how they got 5 cm into the slabs. It sits 6 mm above the boards,
-     * the same clearance a dropped item uses against z-fighting. In plan it
-     * spans x -2.61…-0.51 and z 3.24…4.94 inside a room of x -3.2…0,
-     * z 2…5.5 — clear of every wall.
+     * the same clearance a dropped item uses against z-fighting. In plan the
+     * QUAD spans x -2.96…-0.16 and z 2.48…4.68 inside a room of x -3.2…0,
+     * z 2…5.5 — clear of every wall. The LIGHT inside it is narrower still: the
+     * widest disc is 15 of 16 half-texels, so it reaches x -2.87…-0.25 and
+     * stops 0.07 m short of the radiator (front face -2.94) and 0.18 m short of
+     * the east wall's skin (-0.072). Everything past that is transparent quad.
      *
      * BRIGHTER IN THE DARK, WHICH IS THE POINT. `TV_SPILL_DARK` 1.0 against
      * `TV_SPILL_LIT` 0.28: with the ceiling light on the set barely marks the
@@ -4842,7 +4845,52 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * world -z, the side the television is on. Drawn near-at-top, it points the
      * right way with no extra rotation to get backwards.
      */
-    const TV_SPILL_W = 2.4, TV_SPILL_D = 2.2;
+    /**
+     * ── IT STANDS OFF THE SET, AND IT IS WIDER AND SOFTER ─────────────────
+     *
+     * *"i want a bit more of non lit spot directly in front of the tv. so right
+     *  directly under and in front of the tv it shouldnt be lit."*
+     * *"also tv lighting could be a bit wider ands bit more diffuse"*
+     *                                                          (2026-08-06)
+     *
+     * THE DARK FOOT WAS A CURVE AND IS NOW A DISTANCE. The previous pass got
+     * the physics right — a screen throws ACROSS a room, not down its own front
+     * — but expressed it as an alpha hump that started at zero AT THE GLASS and
+     * was already climbing a texel later. The cabinet and the crate are opaque:
+     * they cast a real shadow at their own feet, and it has an EDGE, at a
+     * distance you can name. `TV_SPILL_GAP` is that distance, and the disc field
+     * now begins there instead of at the glass — the first disc's back edge sits
+     * exactly on it. One line to push either way.
+     *
+     * WIDER IS THE QUAD, NOT THE DISCS. The widest disc has to stay inside the
+     * 32-texel canvas or the light gets cut off square by the texture's own
+     * edge, which is the one thing a stepped shape must never do. So the discs
+     * keep their texel radii and the QUAD grows: 2.4 → 2.8 m, which is 0.0875 m
+     * per texel instead of 0.075, and the same 15-texel disc is 1.31 m of floor
+     * instead of 1.14. The taper is unchanged in ratio — 0.26 m half-width where
+     * it leaves the gap against 1.31 m at the far end — so it is still a wedge
+     * and still says the light comes from the screen.
+     *
+     * DIFFUSE WITHOUT A GRADIENT, which is the whole difficulty. `glowT`'s
+     * stepped discs ARE this world's soft falloff and an antialiased edge would
+     * be the first smooth thing on these boards. So the ladder gets LONGER
+     * rather than smoother: `TV_SPILL_STEPS` 14 → 26 discs, each at 0.19 alpha
+     * instead of 0.36 — the same light redistributed over twice as many rungs,
+     * exactly the sine-to-the-fourth argument from the sirens. Around 15 of them
+     * overlap at any lit point, so the ramp is fine-grained while every single
+     * edge is still a hard nearest-filtered arc. `TV_SPILL_FRINGE` 90 → 260
+     * scattered texels, and they now straddle the boundary — 4 texels inside to
+     * 3 outside — so the outer edge DISSOLVES instead of stopping. The level is
+     * untouched: `TV_SPILL_DARK` 0.72 is his own number and the peak lands on
+     * the same row of boards it did before, 0.61 m out from the glass.
+     */
+    const TV_SPILL_W = 2.8, TV_SPILL_D = 2.2;
+    /** dark boards between the glass and the near edge of the wedge, in metres */
+    const TV_SPILL_GAP = 0.30;
+    /** rungs in the disc ladder — more, dimmer steps read softer, edges stay hard */
+    const TV_SPILL_STEPS = 26;
+    /** scattered texels straddling the outer boundary, so it dissolves */
+    const TV_SPILL_FRINGE = 260;
     // ⚠ *"light from tv is a little too strong"* (2026-08-05) — the SPILL in the
     // dark, which is the one that reads as light in the room. `TV_SPILL_DARK`
     // 1.0 → 0.72. The halo on the glass is untouched (he did not say the set
@@ -4850,45 +4898,55 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the ceiling bulb on — that gap between the two states is the feature.
     const TV_SPILL_LIT = 0.28, TV_SPILL_DARK = 0.72;
     const wedgeT = surfTex('detail', 32, 48, (g) => {
-      const N = 14;
+      const N = TV_SPILL_STEPS;
+      /** the gap in canvas rows — 48 rows span `TV_SPILL_D` */
+      const GAP_ROW = (TV_SPILL_GAP / TV_SPILL_D) * 48;
+      // disc radius in texels, near → far. 15 < 16 half-texels is load-bearing:
+      // the widest disc must fit the canvas or the light ends in a straight cut.
+      const R0 = 3.0, R1 = 15;
+      const CY0 = GAP_ROW + R0;          // first disc's BACK edge lands on the gap
+      const CY1 = 48 - R1;               // last disc's FRONT edge on the far edge
+      /** where the peak sits along the LIT span (0 = the gap, 1 = the far edge) */
+      const TV_PEAK = 0.16;
+      /** per-disc alpha: the old 14 × 0.36 spread over 26 rungs */
+      const A = 0.19;
+      /** the union's outer boundary at a row, for scattering the fringe along */
+      const halfW = (y: number) => {
+        const t = Math.min(1, Math.max(0, (y - CY0) / (CY1 - CY0)));
+        const cy = CY0 + t * (CY1 - CY0), r = R0 + t * (R1 - R0);
+        return Math.sqrt(Math.max(0, r * r - (y - cy) * (y - cy)));
+      };
       for (let i = 0; i < N; i++) {
-        const t = i / (N - 1);                       // 0 at the glass, 1 at the far end
-        const cy = 3 + t * 40;                       // stepped down the axis
-        const r = 3.2 + t * 12;                      // narrow at the set, broad away
-        // ── AND IT IS DARK AT THE SET'S OWN FOOT ────────────────────────
-        //
-        // *"i think we need a dark area right in front of the tv right? it
-        //  wouldnt be lit directly below, right?"*   (2026-08-05)
-        //
-        // HE IS RIGHT AND IT IS THE COSINE TERM. A screen is a FORWARD-facing
-        // emitter: illuminance goes as cos(angle from the normal) over distance
-        // squared, and the floor at the cabinet's foot is at ~90 degrees off
-        // that normal. Near is not the same as bright — the set throws its light
-        // ACROSS the room, not down its own front. My first curve peaked at the
-        // glass (`(1-t)^1.6`, maximum at t = 0) and lit the one patch of floor
-        // that physically receives least.
-        //
-        // A HUMP INSTEAD: zero at the glass, rising to a peak `TV_PEAK` of the
-        // way out, then the usual falloff. The rise is the cosine term winning,
-        // the fall is inverse-square winning, and where they cross is the
-        // brightest part of a real screen's pool.
-        const TV_PEAK = 0.26;
-        const a = 0.36 * (t < TV_PEAK
+        const t = i / (N - 1);                   // 0 at the gap, 1 at the far end
+        const cy = CY0 + t * (CY1 - CY0);        // stepped down the axis
+        const r = R0 + t * (R1 - R0);            // narrow at the set, broad away
+        // BRIGHTEST AT THE NEAR END OF THE LIT PATCH, not in the middle of it.
+        // The gap is the cosine term now — the floor it covers is at ~90° off
+        // the screen's normal and is shadowed by the cabinet besides — so the
+        // curve only needs a short rise off that edge before inverse-square
+        // takes over. `TV_PEAK` 0.16 of a 1.9 m lit span puts the brightest
+        // band 0.61 m from the glass, the same boards it was on before. The
+        // fall is gentler than it was (1.35, was 1.5): a longer tail is the
+        // other half of "more diffuse", and it costs nothing at the level.
+        const a = A * (t < TV_PEAK
           ? Math.pow(t / TV_PEAK, 1.3)
-          : Math.pow((1 - t) / (1 - TV_PEAK), 1.5));
+          : Math.pow((1 - t) / (1 - TV_PEAK), 1.35));
         g.fillStyle = `rgba(255,240,206,${a.toFixed(3)})`;
         for (let y = 0; y < 48; y++) for (let x = 0; x < 32; x++) {
           const dx = x + 0.5 - 16, dy = y + 0.5 - cy;
           if (dx * dx + dy * dy <= r * r) g.fillRect(x, y, 1, 1);
         }
       }
-      // the falloff breaking into texels, at the WIDE end where it actually does
-      g.fillStyle = 'rgba(255,236,194,0.06)';
-      for (let i = 0; i < 90; i++) {
+      // the falloff breaking into texels — a band STRADDLING the outer edge, so
+      // the boundary dissolves rather than ending. Never above `GAP_ROW`: the
+      // dark foot is the point of the whole exercise and the fringe must not
+      // creep back into it.
+      g.fillStyle = 'rgba(255,236,194,0.055)';
+      for (let i = 0; i < TV_SPILL_FRINGE; i++) {
+        const y = Math.floor(GAP_ROW + Math.random() * (48 - GAP_ROW));
         const x = Math.floor(Math.random() * 32);
-        const y = Math.floor(20 + Math.random() * 28);   // clear of the dark foot
-        const dx = x + 0.5 - 16;
-        if (Math.abs(dx) < 4 + (y - 3) * 0.34) g.fillRect(x, y, 1, 1);
+        const d = Math.abs(x + 0.5 - 16) - halfW(y + 0.5);
+        if (d > -4 && d < 3) g.fillRect(x, y, 1, 1);
       }
     });
     const tvSpillM = new THREE.MeshBasicMaterial({
@@ -4898,9 +4956,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     tvSpillM.userData.selfLit = true; tvSpillM.userData.graded = true;
     const tvSpill = new THREE.Mesh(new THREE.PlaneGeometry(TV_SPILL_W, TV_SPILL_D), tvSpillM);
     tvSpill.rotation.x = -Math.PI / 2;                        // laid on the boards
-    // ⚠ THE NEAR EDGE IS AT THE GLASS, not a stand-off from it — that is what
-    // puts the bright end against the set and leaves nothing behind the
-    // cabinet. Centre = the screen face plus half the depth.
+    // ⚠ THE QUAD'S near edge is still at the glass and the quad has NOT moved —
+    // the stand-off lives in the texture, where `TV_SPILL_GAP` leaves the first
+    // rows transparent. That is deliberate: sliding the mesh out would have
+    // dragged the far edge into the bed, and there is nothing behind the
+    // cabinet either way. Centre = the screen face plus half the depth.
     tvSpill.position.set(AX(TV_X), RY + 0.006, AZI(WELL_Z + TV_SPILL_D / 2));
     tvSpill.name = 'tv-spill-301';
     tvSpill.visible = false;
