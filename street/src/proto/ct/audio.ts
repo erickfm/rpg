@@ -93,13 +93,54 @@ export const ORDER = BUILD.PROPS;
 // widget take, so a change from the menu writes localStorage, re-gains the
 // master and repaints the widget exactly as a keypress does. The menu and the
 // keys cannot disagree, because there is nothing for them to disagree ABOUT.
-interface Mixer {
-  volume: () => number;
-  setVolume: (v: number) => void;
-  isMuted: () => boolean;
-  setMuted: (b: boolean) => void;
+//
+// ── WHY THIS STATE IS AT MODULE SCOPE AND NOT INSIDE `register()` ───────────
+//
+// It was inside, and the exports delegated to a handle `register()` assigned.
+// They shipped correct and DEAD, and cost another builder an afternoon: the
+// menu called `setVolume` and nothing happened, so it fell back to writing this
+// module's own localStorage key by hand, which only takes effect on reload.
+//
+// The cause was not in this file at all. `crosstown.ts` threw at `rig.look2`
+// before it reached `buildWorld(ctx, BUILD.PROPS, 99)`, so `register()` never
+// ran, so the handle stayed null — and `mixer?.setVolume(v)` on a null handle
+// is SILENT. A setter that quietly does nothing is the worst possible shape for
+// this: the caller has no way to tell "not wired yet" from "wired and ignored",
+// and reasonably concluded the export was missing.
+//
+// So the volume and the mute flag live HERE, at module scope, loaded from
+// storage the moment the module is imported. They have nothing to do with an
+// `AudioContext` and never needed to wait for one. `register()` now only
+// INSTALLS the side effect — re-gain the master, repaint the widget — and
+// adopts whatever the state already is. The exports work from the first tick of
+// the first import, whether the world built, half-built or threw.
+const PREF = 'ct.audio';
+let vol = 0.75, muted = false;
+try {
+  const s = JSON.parse(localStorage.getItem(PREF) || '{}') as { v?: number; m?: boolean };
+  if (typeof s.v === 'number' && s.v >= 0 && s.v <= 1) vol = s.v;
+  if (typeof s.m === 'boolean') muted = s.m;
+} catch { /* a corrupt pref is not worth a broken world */ }
+
+/** What `register()` plugs in: push the state at the audio graph and the
+ *  widget. Null before the world builds, and that is FINE — the state is still
+ *  authoritative, still persisted, and still correct when this arrives. */
+let apply: (() => void) | null = null;
+
+/**
+ * THE ONLY WAY THE MIXER EVER CHANGES — the keys, the corner widget and the
+ * options menu all end here.
+ *
+ * `M`, `[`, `]`, a click on the speaker and `setVolume()` from the menu are
+ * five front doors onto two variables, and the failure they invite is the one
+ * this codebase keeps hitting: a caller that sets the value and forgets one of
+ * the things that must follow it. Persisting and applying are not two
+ * obligations on five callers, they are one function.
+ */
+function commit(): void {
+  try { localStorage.setItem(PREF, JSON.stringify({ v: vol, m: muted })); } catch { /* private mode */ }
+  apply?.();
 }
-let mixer: Mixer | null = null;
 
 /**
  * VOLUME IS CONTINUOUS, 0…1. Pass any float; it is clamped, never rejected.
@@ -109,22 +150,30 @@ let mixer: Mixer | null = null;
  * produce — but that is the KEYS' stride, not a constraint on the value. A
  * continuous slider is fine and will display fine.
  *
- * Not a decibel scale: `applyMaster` squares it on the way to the gain, which
- * is where the perceptual curve lives. 0…1 is what a slider should show.
+ * Not a decibel scale: the gain is `vol * vol`, which is where the perceptual
+ * curve lives. 0…1 is what a slider should show.
  */
 export const VOLUME_STEP = 1 / 8;
 const STEP = VOLUME_STEP;
 
 /** current volume, 0…1. Ask every paint; do not cache it. */
-export const volume = (): number => mixer?.volume() ?? 0.75;
+export const volume = (): number => vol;
 /** set volume, 0…1, clamped. Raising it un-mutes, exactly as `]` does. */
-export const setVolume = (v: number): void => mixer?.setVolume(v);
+export function setVolume(v: number): void {
+  if (!Number.isFinite(v)) return;
+  vol = Math.max(0, Math.min(1, v));
+  // Raising the volume un-mutes, exactly as `]` does. Dragging a slider up and
+  // hearing nothing is the same bug as pressing the key and hearing nothing,
+  // and it must not have two different answers.
+  if (vol > 0) muted = false;
+  commit();
+}
 /** is sound muted right now */
-export const isMuted = (): boolean => mixer?.isMuted() ?? false;
+export const isMuted = (): boolean => muted;
 /** mute or un-mute. Leaves the volume where it was, exactly as `M` does. */
-export const setMuted = (b: boolean): void => mixer?.setMuted(b);
+export function setMuted(b: boolean): void { muted = !!b; commit(); }
 /** what `M` and the corner widget do */
-export const toggleMute = (): void => mixer?.setMuted(!mixer.isMuted());
+export function toggleMute(): void { setMuted(!muted); }
 
 // ── the asset roster ────────────────────────────────────────────────────────
 const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain'] as const;
@@ -356,50 +405,17 @@ export function register(ctx: CtxBuild): void {
     s.start();
   }
 
-  // ── the mixer's saved state ───────────────────────────────────────────────
-  const PREF = 'ct.audio';
-  let vol = 0.75, muted = false;
-  try {
-    const s = JSON.parse(localStorage.getItem(PREF) || '{}') as { v?: number; m?: boolean };
-    if (typeof s.v === 'number' && s.v >= 0 && s.v <= 1) vol = s.v;
-    if (typeof s.m === 'boolean') muted = s.m;
-  } catch { /* a corrupt pref is not worth a broken world */ }
-  const save = () => { try { localStorage.setItem(PREF, JSON.stringify({ v: vol, m: muted })); } catch { /* private mode */ } };
-
+  // ── plug this world into the mixer ────────────────────────────────────────
+  //
+  // The state itself is at module scope and already loaded — see the note up
+  // there. All `register()` does is say what a change should now DO, and then
+  // do it once so a world that boots after a keypress catches up rather than
+  // starting at a default nobody chose. Reassigned on every `register()`, so an
+  // HMR rebuild points at the live graph and never at a dead page's closure.
   const applyMaster = () => { if (rig) rig.master.gain.value = muted ? 0 : vol * vol; };
   //                                                             ^^^^^^^ perceptual:
   // a linear slider on a linear gain spends its top half doing almost nothing.
-
-  /**
-   * THE ONLY WAY THE MIXER EVER CHANGES — the keys, the corner widget and the
-   * options menu all end here.
-   *
-   * `M`, `[`, `]`, a click on the speaker and `setVolume()` from `ct/hud.ts`'s
-   * VCR menu are four front doors onto two variables, and the failure they
-   * invite is the one this codebase keeps hitting: a caller that sets the value
-   * and forgets one of the three things that have to follow it. Persisting,
-   * applying and repainting are not three obligations on four callers, they are
-   * one function, and nothing above assigns `vol` or `muted` without calling it.
-   */
-  const commit = () => { save(); applyMaster(); paintWidget(); };
-
-  // The published handle. Assigned here rather than at module scope so that a
-  // second `register()` (an HMR rebuild) points the exports at the LIVE world
-  // and not at the closure of a page that is already gone.
-  mixer = {
-    volume: () => vol,
-    setVolume: (v) => {
-      if (!Number.isFinite(v)) return;
-      vol = Math.max(0, Math.min(1, v));
-      // Raising the volume un-mutes, exactly as `]` does. Dragging a slider up
-      // and hearing nothing is the same bug as pressing the key and hearing
-      // nothing, and it should not have two different answers.
-      if (vol > 0) muted = false;
-      commit();
-    },
-    isMuted: () => muted,
-    setMuted: (b) => { muted = !!b; commit(); },
-  };
+  apply = () => { applyMaster(); paintWidget(); };
 
   // ══ THE GESTURE ═══════════════════════════════════════════════════════════
   const AC: typeof AudioContext | undefined =
@@ -478,8 +494,7 @@ export function register(ctx: CtxBuild): void {
 
     rig = { ac, master, wall, beds };
     live = ac;
-    applyMaster();
-    paintWidget();
+    apply?.();   // the graph exists now: push the saved volume and mute at it
   }
 
   // Capture phase, so a gate that swallows the event for its own reasons cannot
@@ -536,7 +551,7 @@ export function register(ctx: CtxBuild): void {
   // that lands here deliberately does NOT take pointer lock.
   wrap.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
-    muted = !muted; commit();
+    toggleMute();
   });
   document.body.appendChild(wrap);
   // Registered NOW rather than at boot, so that a build which never got its
@@ -549,12 +564,16 @@ export function register(ctx: CtxBuild): void {
     if (!e.isTrusted || e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    // THE KEYS CALL THE EXPORTS. Not a parallel implementation that happens to
+    // agree — the same three functions the options menu calls, so "the keys and
+    // the menu can never disagree" is a property of there being one code path
+    // and not of two of them being written carefully.
     const k = e.key.toLowerCase();
-    if (k === 'm') { muted = !muted; }
-    else if (k === '[') { vol = Math.max(0, Math.round(vol / STEP - 1) * STEP); muted = false; }
-    else if (k === ']') { vol = Math.min(1, Math.round(vol / STEP + 1) * STEP); muted = false; }
+    if (k === 'm') toggleMute();
+    else if (k === '[') setVolume(Math.round(volume() / STEP - 1) * STEP);
+    else if (k === ']') setVolume(Math.round(volume() / STEP + 1) * STEP);
     else return;
-    commit(); peek();
+    peek();
   });
 
   // ══ AMBIENCE ══════════════════════════════════════════════════════════════
