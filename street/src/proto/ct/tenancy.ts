@@ -891,6 +891,9 @@ const COLS = Math.floor((SHEET.w - 20) / (8 * 0.6));      // = 35
 let page = 0;
 /** what you are reading: the pile you last took out of the box */
 let reading: Letter[] = [];
+/** is the open pile the BOX's, or a re-read of the archive? Only the first is
+ *  takeable — see the note in `takeCurrent`. */
+let readingLive = false;
 /** set by `register`, so the notice can print a live figure */
 let CTX: CtxBuild | null = null;
 let PANEL: Panel | null = null;
@@ -1977,7 +1980,8 @@ function buildPanel(): void {
  * back in the slot it vacated, so returning its own id is "use me and keep me".
  * A letter you read once and lost would be a bug on the rent notice.
  */
-let mailSeq = 0;
+/** the id a piece of mail carries in the bag — one per (day, sender), for ever */
+const mailId = (l: Letter) => `MAIL-${l.day}-${l.from.replace(/[^A-Z0-9]+/gi, '-').toUpperCase()}`;
 /** how a piece of mail is drawn in the bag — its own art, shrunk into the
  *  24-unit box every item icon is drawn in */
 function mailIcon(l: Letter): (g: CanvasRenderingContext2D) => void {
@@ -1994,7 +1998,14 @@ function mailIcon(l: Letter): (g: CanvasRenderingContext2D) => void {
 }
 /** put one piece in his bag, as its own item */
 function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): boolean {
-  const id = `MAIL-${l.day}-${mailSeq++}`;
+  // ⚠ DERIVED FROM THE PIECE, NEVER MINTED. This was `MAIL-${l.day}-${mailSeq++}`
+  // — a fresh unique id on every take — so the SAME letter could enter the bag
+  // any number of times under different ids and `stack: 1` could not stop it.
+  // That is half of the infinite mail source. Keyed on the day and the sender,
+  // which is what identifies a piece (`mailFor` is pure and never yields one
+  // sender twice on a day), so a second take of the same letter is the same id
+  // and `roomFor` refuses it at a stack of one.
+  const id = mailId(l);
   defineItem({
     id,
     // the sender IS the name — it is what a person calls a piece of post, and
@@ -2021,9 +2032,10 @@ function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): boolea
  * player against the last letter's position — which is this whole bug with an
  * extra frame in it.
  */
-function showLetters(pile: Letter[], at: Hold): void {
+function showLetters(pile: Letter[], at: Hold, live = false): void {
   if (!pile.length) return;
   reading = pile;
+  readingLive = live;
   page = 0;
   if (sheet) {
     sheet.position.set(at.x, at.y, at.z);
@@ -2058,6 +2070,26 @@ function showLetters(pile: Letter[], at: Hold): void {
 function takeCurrent(): void {
   const l = reading[page];
   if (!l || !CTX) return;
+  // ══ THE OTHER HALF OF THE DUPLICATION, AND THE ONE HE SAW ═══════════════
+  //
+  // *"mail doesnt leave the mail box so iu quickly fill my bag just clicking
+  //  through mail again and again"*   (2026-08-05)
+  //
+  // ⚠ THE PILE DID LEAVE. `waiting()` filters `POCKETED` and always did, and
+  // the box empties correctly. WHAT HE WAS CLICKING THROUGH THE SECOND TIME WAS
+  // THE ARCHIVE. With nothing waiting, the box falls through to
+  // `showLetters([...HELD].reverse())` — a re-read of everything he has ever
+  // taken — and this function took no interest in which of the two it was
+  // looking at. So every re-read minted the whole archive into his bag again,
+  // and with the id minted per take (above) nothing downstream could refuse it.
+  //
+  // TWO GUARDS, because one of them is a fact and the other is an assertion.
+  // `readingLive` is the fact: an archive is a thing you look at, not a thing
+  // you take. `POCKETED` is the assertion, and it is what makes a duplicate
+  // structurally impossible rather than merely unreachable — a piece he already
+  // has can never be taken again by any path, present or future.
+  if (!readingLive) return;
+  if (POCKETED.has(keyOf(l))) return;
   // ASKED BEFORE ANYTHING MOVES, so the refusal is readable and the piece is
   // untouched — this file's own rule for `give()`, applied to the mail.
   if (pocketsFull(CTX.purse)) { hudNote(fullWhy(CTX.purse)); return; }
@@ -2309,7 +2341,9 @@ export function register(ctx: CtxBuild): void {
       // ⚠ NOTHING IS COLLECTED HERE ANY MORE. `collectedDay` advances only when
       // the pile actually empties (in `takeCurrent`), so walking away mid-stack
       // leaves the rest in the box.
-      if (w.length) showLetters(w, HOLD_BOX);
+      // LIVE: this is the box's own pile and clicking takes from it. The
+      // fall-through below is a RE-READ of the archive and is not takeable.
+      if (w.length) showLetters(w, HOLD_BOX, true);
       else if (HELD.length) showLetters([...HELD].reverse(), HOLD_BOX);
     },
   });
