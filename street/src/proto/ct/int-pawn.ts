@@ -9,6 +9,8 @@ import { FACE } from './rng';
 // (BUILDER-BRIEF §8), and these two tables have to stay keyed on the same ids.
 import { bestFence, fencePrice, itemOf, takeOne } from './inventory';
 import { hudNote } from './hud';
+import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import './goods';   // for the side effect: it is what declares the stock
 
 // The PAWN SHOP, inside.
 //
@@ -368,6 +370,99 @@ export function buildPawn(ctx: CtxBuild): void {
       ctx.refreshWallet();
       hudNote(`He doesn’t ask. $${paid.toFixed(2)} for the ${itemOf(id).name}.`);
     },
+  });
+
+  // ══ …AND HE SELLS, WHICH IS THE OTHER HALF OF A PAWN SHOP ═════════════════
+  //
+  // *"for every business i just want to be able to talk to the shop keeper or
+  //  cashier and see a diagetic list of options as like a sign or something for
+  //  everything you can buy."*   (2026-08-06)
+  //
+  // A pawnbroker who only BUYS is a scrap dealer. The fence above is untouched —
+  // same prices, same prompt, same one-item-at-a-time joke — and this is the
+  // counter's other direction: a RATE CARD standing on the glass, with what he
+  // is asking for the same kinds of things he takes in.
+  //
+  // ── THE SPREAD IS THE POINT AND IT IS DERIVED, NOT TYPED ──────────────────
+  //
+  // Four of the six lines are items `FENCE` in `ct/inventory.ts` already prices,
+  // and the card's asking price is `MARKUP` times what he pays, rounded to the
+  // period's own price points. He gives you $2 for a tape and wants $4; $5 for
+  // the trainers and wants $12; **fifty cents for the socks and $1.50 for the
+  // socks**. Read one number off the prompt and the other off the card and the
+  // whole character of the shop is in the difference — which only works because
+  // both numbers describe the same object, so the resale prices come OFF the
+  // fence table (BUILDER-BRIEF §8) rather than being a second set of figures
+  // that could drift away from it.
+  //
+  // The two lines that are not in that table are the two things this room draws
+  // and could not sell: the radio on the shelf behind him and the watches lying
+  // on their tags under the counter glass you are reading the card over.
+  const ask = (id: string, mult: number, floor: number) =>
+    Math.max(floor, Math.round(fencePrice(id) * mult * 2) / 2);
+  const RATES: ShopColumn[] = [
+    { head: 'FOR SALE', lines: [
+      { id: 'WRISTWATCH', name: 'WATCH', price: 15.00 },
+      { id: 'TRAINERS', name: 'SHOES', price: ask('TRAINERS', 2.4, 6) },
+      { id: 'TOASTER', name: 'TOASTER', price: ask('TOASTER', 2.25, 4) },
+      { id: 'RADIO', name: 'RADIO', price: 7.00 },
+      { id: 'VHS', name: 'TAPE', price: ask('VHS', 2, 2) },
+      { id: 'SOCKS', name: 'SOCKS', price: ask('SOCKS', 3, 1.5) },
+    ] },
+  ];
+  // Card stock gone brown under a caged bulb, the shop's own gold for the
+  // figures. `band: ''`: a rule under the heading, because this was written by
+  // the man behind the counter and not printed for him.
+  const RATE_LOOK: BoardLook = {
+    panel: '#ded2b2', frame: '#8a7450', band: '', bandInk: '#3a2c22',
+    ink: '#3a2c22', priceInk: '#8a2c22', rule: '#8a7450',
+    hover: 'rgba(58,44,34,0.13)', flash: 'rgba(201,164,94,0.42)',
+  };
+  // 0.58 x 0.72 m of card at 500 texels per metre, STANDING ON THE COUNTER
+  // GLASS. The obvious place is the back wall, and there is not a centimetre of
+  // it left: the tool board, the guitars, the brass, the knife case, the bolt
+  // cutters and the gun cabinet already fill it wall to wall, and every one of
+  // them was placed to be visible OVER this counter. Nothing is moved for a
+  // sign.
+  //
+  // At x 1.2 — halfway between the tethered pen at −1.2 and the till at 3.6,
+  // which is the one clear stretch of glass, and derived from those two rather
+  // than chosen.
+  const CARD_W = 0.58, CARD_H = 0.72;
+  const CARD_X = (-1.2 + 3.6) / 2;
+  const CARD_Z = CTR_ZC + CTR_D / 2 - 0.07;
+  const CARD_Y = 1.26 + CARD_H / 2;               // the counter top is 1.26
+  const CARD_PX = Math.round(CARD_W * 500), CARD_PY = Math.round(CARD_H * 500);
+  const rateCard = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W, CARD_H),
+    ctx.flat(boardTexture(CARD_PX, CARD_PY, RATES, RATE_LOOK)));
+  put(rateCard, CARD_X, CARD_Y, CARD_Z);          // faces +z, at the customer
+  put(new THREE.Mesh(new THREE.BoxGeometry(CARD_W, CARD_H, 0.014),
+    new THREE.MeshBasicMaterial({ color: 0x8a7450 })), CARD_X, CARD_Y, CARD_Z - 0.011);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.10), woodM),
+    CARD_X, 1.275, CARD_Z - 0.035);
+
+  // ── AND IT AIMS AT THE CARD, NOT AT THE MAN ──────────────────────────────
+  //
+  // The one place this shop departs from the pattern, and it is forced: the
+  // broker ALREADY carries a prompt — the fence, 2.4 m along the same counter,
+  // aimed at him. `fp.ts`'s picker resolves aimed selection out to several
+  // metres, so two spots pointing at one sprite would trade the prompt back and
+  // forth as the player's head moved and neither would be reliably reachable.
+  //
+  // So `aimX/aimZ` and `obj` are the CARD, and the label names him instead. The
+  // two verbs stay legible and separable: you look at the man to sell, and at
+  // his card to buy.
+  shopCounter(ctx, {
+    id: 'ct-shop-pawn',
+    columns: RATES, look: RATE_LOOK,
+    w: CARD_PX, h: CARD_PY,
+    mesh: () => rateCard,
+    standoff: boardStandoff({ wM: CARD_W, hM: CARD_H, fov: 45, riseM: CARD_Y - 1.75 }),
+    fov: 45,
+    stand: { x: room.wx(CARD_X), z: room.wz(FENCE_Z) },
+    keeper: { x: room.wx(CARD_X), z: room.wz(CARD_Z), obj: rateCard },
+    who: 'the broker — his rate card',
+    ok: room.inside,
   });
 
   // ── the back wall, which is now what you walk in facing ──

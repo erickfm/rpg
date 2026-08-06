@@ -3,6 +3,8 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import './goods';   // for the side effect: it is what declares the stock
 
 // THE THRIFT STORE, inside.
 //
@@ -605,28 +607,104 @@ export function buildThrift(ctx: CtxBuild): void {
   // could see her before this change. 0.4 leaves 0.1 m clear on both sides:
   // behind the till's own back face and in front of the wall.
   const KEEP_AT = TILL_Z - 0.4;   // behind the counter, still inside the room
-  room.person({
+  const proprietor = room.person({
     jacket: '#6a5a48', pants: '#4a4a52', skin: '#c9a48a', hair: '#c8c4bc',
     fit: 'coat', accent: '#8a7a62', cut: 'short', build: 0,
   }, TILL_CX, KEEP_AT, { facing: Math.atan2(0, TILL_Z - KEEP_AT), h: 0.95, w: 0.94 });
-  // ── the till, which is also what makes the keeper check honest ──
+
+  // ══ THE PRICE CARD ON THE TILL — AND IT IS THE WHOLE SHOP ═════════════════
   //
-  // Same reason as the burger barn's order spot: the harness's authored
-  // customer station cannot falsify a keeper authored in the same file, and a
-  // published serve spot is the world's own answer to where a customer stands.
-  // Derived from the till case, on the shopper's side of it.
-  ctx.spot({
-    x: room.wx(TILL_CX), z: room.wz(TILL_Z + 1.05), r: 1.0,
+  // *"for every business i just want to be able to talk to the shop keeper or
+  //  cashier and see a diagetic list of options as like a sign or something for
+  //  everything you can buy."*   (2026-08-06)
+  //
+  // ── THE SURFACE IS ALREADY THIS ROOM'S VOICE ──────────────────────────────
+  //
+  // *"nobody designed this shop, somebody just kept adding notices to it"* is
+  // what `cardT` above was written for, and there are seven of its cards taped
+  // round the room ALREADY QUOTING PRICES — `ALL COATS $4`, `SHIRTS 2 FOR $3`,
+  // `BELTS $1 EACH`, `COATS HEAVY $6`. Every price below is read off one of
+  // those cards rather than invented, because a shop that contradicts its own
+  // window is worse than a shop with no prices at all. `SHIRTS 2 FOR $3` is
+  // $1.50; `AS FOUND` shoes are $3.
+  //
+  // The list is one more card in the same biro, propped on the till beside
+  // `AS SEEN / NO REFUND`, which is exactly where the shop would have put it.
+  // `band: ''` — a rule under the heading, not a printed colour bar.
+  //
+  // ── AND IT UNDERCUTS EVERYTHING ELSE IN THE WORLD ─────────────────────────
+  //
+  // Deliberately, and it is the one pricing statement this room makes: the same
+  // pack of tube socks is $2.00 at the bodega and $1.00 here, and the trainers
+  // the pawnbroker resells at $12 are $3 on this floor because these came in a
+  // bag somebody left at the door. Second-hand is cheaper than new; that is
+  // what the shop IS.
+  const RAIL: ShopColumn[] = [
+    { head: 'SECONDHAND', lines: [
+      { id: 'COAT', name: 'COAT', price: 4.00 },
+      { id: 'SHIRT', name: 'SHIRT', price: 1.50 },
+      { id: 'TRAINERS', name: 'SHOES', price: 3.00 },
+      { id: 'BELT', name: 'BELT', price: 1.00 },
+      { id: 'SOCKS', name: 'SOCKS', price: 1.00 },
+      { id: 'BOOK', name: 'PAPERBACK', price: 0.25 },
+    ] },
+  ];
+  // `cardT`'s own two colours, and a red second pen for the figures.
+  const RAIL_LOOK: BoardLook = {
+    panel: '#e2dcc6', frame: '#c8c0a4', band: '', bandInk: '#2a3a6a',
+    ink: '#2a3a6a', priceInk: '#8a2a22', rule: '#2a3a6a',
+    hover: 'rgba(42,58,106,0.13)', flash: 'rgba(160,40,32,0.34)',
+  };
+  // 0.54 x 0.70 m at 500 texels per metre — the density `ct/drawer.ts` uses for
+  // the other surface you put your face right up to.
+  const CARD_W = 0.54, CARD_H = 0.70;
+  // ON the till top (0.96), beside the `AS SEEN` card at TILL_Z + 0.33 and
+  // clear of it in x. Both are read off TILL_CX/TILL_Z so neither can be left
+  // standing over nothing if the till moves — the fault this room was pulled up
+  // for twice already.
+  const CARD_X = TILL_CX - 0.62, CARD_Z = TILL_Z + 0.30;
+  const CARD_Y = 0.96 + CARD_H / 2;
+  const CARD_PX = Math.round(CARD_W * 500), CARD_PY = Math.round(CARD_H * 500);
+  const railCard = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W, CARD_H),
+    ctx.flat(boardTexture(CARD_PX, CARD_PY, RAIL, RAIL_LOOK)));
+  put(railCard, CARD_X, CARD_Y, CARD_Z);          // faces +z, at the shopper
+  const cardBack = new THREE.Mesh(new THREE.BoxGeometry(CARD_W, CARD_H, 0.012),
+    new THREE.MeshBasicMaterial({ color: 0xc8c0a4 }));
+  put(cardBack, CARD_X, CARD_Y, CARD_Z - 0.010);
+  const prop = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.03, 0.09),
+    new THREE.MeshBasicMaterial({ color: 0x6a5a44 }));
+  put(prop, CARD_X, 0.975, CARD_Z - 0.03);
+
+  // ══ AND THE HAND-WRITTEN COAT SPOT IS GONE ════════════════════════════════
+  //
+  // It sold ONE thing — a coat — in a shop drawn with four rails, a shoe bin, a
+  // belt bin, a book table and four shelf runs, every one of them with a price
+  // card already taped to it. And it carried the defect the barn's and the
+  // bodega's carried, found by grepping for the same line:
+  //
+  //     ctx.purse.inv['COAT'] = (ctx.purse.inv['COAT'] ?? 0) + 1;
+  //
+  // **Two faults in one line.** It bypasses `give`, so a shopper with no room
+  // paid $4 and got nothing — and `'COAT'` was an id NOBODY HAD DECLARED, so
+  // even when it worked the coat arrived as `itemOf`'s generic wrapped parcel.
+  // It is a declared item now, and a bulky one: a wool coat goes in your hands,
+  // not into a bag, which is the rule the toaster already set.
+  //
+  // The station keeps its old job — `interiors-walk.mjs` looks for a spot near
+  // the room whose label matches `/buy|order|serve|till|counter/i`, and "talk to
+  // the woman at the till" still names the till. It is derived from the till
+  // case, on the shopper's side of it, exactly as before.
+  shopCounter(ctx, {
+    id: 'ct-shop-thrift',
+    columns: RAIL, look: RAIL_LOOK,
+    w: CARD_PX, h: CARD_PY,
+    mesh: () => railCard,
+    standoff: boardStandoff({ wM: CARD_W, hM: CARD_H, fov: 45, riseM: CARD_Y - 1.75 }),
+    fov: 45,
+    stand: { x: room.wx(TILL_CX), z: room.wz(TILL_Z + 1.05) },
+    keeper: { x: proprietor.mesh.position.x, z: proprietor.mesh.position.z, obj: proprietor.mesh },
+    who: 'the woman at the till',
     ok: room.inside,
-    label: () => (ctx.purse.cash >= 4
-      ? 'buy a coat at the till — $4.00'
-      : 'a coat is $4.00 — you’re short'),
-    act: () => {
-      if (ctx.purse.cash < 4) return;
-      ctx.purse.cash -= 4;
-      ctx.purse.inv['COAT'] = (ctx.purse.inv['COAT'] ?? 0) + 1;
-      ctx.refreshWallet();
-    },
   });
 
 }

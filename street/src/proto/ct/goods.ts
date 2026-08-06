@@ -267,8 +267,163 @@ export const CHIPS = defineItem({
   ),
 });
 
+// ── THE THRIFT STORE ───────────────────────────────────────────────────────
+//
+// **`COAT` ALREADY EXISTED AND NOBODY HAD DECLARED IT.** `int-thrift.ts` wrote
+// `purse.inv['COAT'] += 1` at its till, so the coat you bought for $4 arrived in
+// your bag as `itemOf`'s honest fallback — a wrapped parcel called "coat", with
+// no icon of its own and a generic box on the floor if you dropped it. That is
+// the fallback doing exactly its job (an unknown id must still be carryable),
+// and it is not a thing a shop should be selling. It is declared now.
+//
+// Palette off `ct/int-thrift.ts`: the shop is browns and greys under a strip
+// light, its handwritten cards are #e2dcc6 with #2a3a6a biro, and nothing in it
+// is new — everything is the colour it faded to.
+
+export const COAT = defineItem({
+  id: 'COAT', name: 'wool coat', stack: 1, bulky: true,
+  thick: 0.14,
+  blurb: 'somebody else’s shape is still in the shoulders.',
+  icon: (g) => {
+    box(g, '#5a4a36', 6, 3, 12, 19);                   // the body, folded
+    box(g, '#4a3c2c', 6, 3, 3, 19);                    // the shaded fold
+    box(g, '#6a5a44', 8, 5, 3, 14);                    // the lapel
+    box(g, '#3a3028', 11, 7, 1, 12);                   // the placket
+    box(g, '#8a7a5e', 12, 9, 2, 2); box(g, '#8a7a5e', 12, 14, 2, 2);   // buttons
+    box(g, '#3a3028', 6, 20, 12, 2);                   // the hem
+  },
+  // A FOLDED WOOL COAT, 34 x 14 x 26 — the biggest soft thing in the world's
+  // item table, which is why it is `bulky`: you carry it, you do not stow it.
+  // Same rule the toaster taught (*"dont like that i can take the toaster
+  // through all the floors of the apt"*), applied to the only garment for sale.
+  model: () => mOf(
+    mBox(0.34, 0.13, 0.26, '#5a4a36', 0, 0.065, 0),
+    mBox(0.342, 0.030, 0.262, '#4a3c2c', 0, 0.050, 0),
+    mBox(0.10, 0.020, 0.24, '#6a5a44', -0.06, 0.135, 0),
+    mBox(0.028, 0.012, 0.028, '#8a7a5e', 0.02, 0.138, 0.05),
+  ),
+});
+
+export const SHIRT = defineItem({
+  id: 'SHIRT', name: 'second-hand shirt', stack: 3,
+  thick: 0.045,
+  blurb: 'pressed by somebody who is not you, some time ago.',
+  icon: (g) => {
+    box(g, '#8a9aa8', 4, 5, 16, 15);                   // folded, on the board
+    box(g, '#7a8a98', 4, 5, 16, 2);                    // the collar band
+    box(g, '#e8e4d8', 9, 5, 6, 3);                     // the collar itself
+    box(g, '#6a7a88', 11, 8, 1, 11);                   // the buttoned front
+    box(g, '#9aaab8', 4, 12, 16, 1);                   // the fold
+    box(g, '#7a8a98', 4, 18, 16, 2);
+  },
+  // FOLDED ON THE BOARD, 26 x 4.5 x 20, the way a shop folds one.
+  model: () => mOf(
+    mBox(0.26, 0.040, 0.20, '#8a9aa8', 0, 0.020, 0),
+    mBox(0.262, 0.008, 0.202, '#9aaab8', 0, 0.040, 0),
+    mBox(0.08, 0.012, 0.05, '#e8e4d8', 0, 0.046, -0.07),
+  ),
+});
+
+export const BELT = defineItem({
+  id: 'BELT', name: 'leather belt', stack: 4,
+  thick: 0.05,
+  blurb: 'worn through at one hole and one hole only.',
+  icon: (g) => {
+    box(g, '#5a3a22', 3, 8, 18, 5);                    // the strap, coiled
+    box(g, '#4a2e1a', 3, 8, 18, 1);
+    box(g, '#6a4a2e', 3, 15, 14, 4);                   // the second turn
+    box(g, '#c9a45e', 15, 6, 6, 6);                    // the buckle
+    box(g, '#5a3a22', 17, 8, 2, 2);
+    box(g, '#3a2618', 6, 16, 1, 2); box(g, '#3a2618', 10, 16, 1, 2);   // the holes
+  },
+  // COILED, the way a belt lies on a table: a 13 cm ring of strap with the
+  // buckle sitting on top of it.
+  model: () => mOf(
+    mCyl(0.065, 0.035, '#5a3a22'),
+    mBox(0.13, 0.036, 0.030, '#4a2e1a', 0, 0.018, 0),
+    mBox(0.045, 0.012, 0.038, '#c9a45e', 0.04, 0.041, 0),
+  ),
+});
+
+export const BOOK = defineItem({
+  id: 'BOOK', name: 'paperback', stack: 4,
+  thick: 0.03,
+  blurb: 'the spine is broken at somebody else’s favourite page.',
+  icon: (g) => {
+    box(g, '#b8503a', 4, 3, 15, 19);                   // the cover
+    box(g, '#8a3a28', 4, 3, 3, 19);                    // the spine
+    box(g, '#e0d8c0', 19, 4, 2, 17);                   // the block of pages
+    box(g, '#e8e0cc', 8, 7, 9, 4);                     // the title panel
+    box(g, '#8a3a28', 9, 8, 7, 1); box(g, '#8a3a28', 9, 10, 5, 1);
+    box(g, '#d8c8a8', 8, 16, 8, 1);
+  },
+  // A MASS-MARKET PAPERBACK, 106 x 30 x 174 — the real size, lying face up.
+  model: () => mOf(
+    mBox(0.106, 0.028, 0.174, '#b8503a', 0, 0.014, 0),
+    mBox(0.020, 0.030, 0.176, '#8a3a28', -0.045, 0.015, 0),
+    mBox(0.098, 0.024, 0.166, '#e0d8c0', 0.006, 0.014, 0),
+    mBox(0.106, 0.002, 0.174, '#b8503a', 0, 0.028, 0),
+  ),
+});
+
+// ── THE PAWN SHOP ──────────────────────────────────────────────────────────
+//
+// He sells the same kinds of things he takes in, and the two new ones are the
+// two the room already shows you and could not hand over: a radio on the shelf
+// behind him, and the watches lying on tags under the counter glass. The other
+// four lines on his card are items the fence table already prices — the point of
+// the card is the SPREAD, and it only reads if both numbers are about the same
+// object. Palette off `ct/int-pawn.ts`: #c9a45e is its gold, #4a4238 its grime.
+
+export const RADIO = defineItem({
+  id: 'RADIO', name: 'transistor radio', stack: 2,
+  thick: 0.09,
+  blurb: 'the dial is off by a station and always will be.',
+  icon: (g) => {
+    box(g, '#3a3630', 2, 6, 20, 13);                   // the case
+    box(g, '#2a2620', 2, 6, 20, 2);
+    box(g, '#8a8478', 4, 9, 9, 8);                     // the speaker grille
+    for (let y = 10; y < 17; y += 2) box(g, '#3a3630', 4, y, 9, 1);
+    box(g, '#c9a45e', 14, 9, 6, 4);                    // the tuning scale
+    box(g, '#8a2c22', 17, 10, 1, 3);                   // the needle
+    box(g, '#b8c0c8', 15, 15, 3, 3);                   // the knob
+    box(g, '#b8c0c8', 20, 2, 1, 5);                    // the aerial
+  },
+  // A TABLE TRANSISTOR SET, 21 x 9 x 7, aerial up.
+  model: () => mOf(
+    mBox(0.21, 0.085, 0.070, '#3a3630', 0, 0.043, 0),
+    mBox(0.085, 0.060, 0.004, '#8a8478', -0.05, 0.045, 0.036),
+    mBox(0.060, 0.026, 0.004, '#c9a45e', 0.045, 0.050, 0.036),
+    mBox(0.006, 0.130, 0.006, '#b8c0c8', 0.095, 0.150, 0),
+  ),
+});
+
+export const WRISTWATCH = defineItem({
+  id: 'WRISTWATCH', name: 'wristwatch', stack: 4,
+  thick: 0.025,
+  blurb: 'running, and eleven minutes fast.',
+  icon: (g) => {
+    box(g, '#4a3a2a', 10, 2, 5, 7);                    // the strap, top
+    box(g, '#4a3a2a', 10, 16, 5, 6);                   // and bottom
+    box(g, '#c9a45e', 7, 8, 11, 9);                    // the case
+    box(g, '#e0d8c0', 9, 10, 7, 5);                    // the dial
+    box(g, '#2a2620', 12, 11, 1, 3);                   // the hands
+    box(g, '#2a2620', 12, 12, 3, 1);
+    box(g, '#8a7a4a', 18, 11, 1, 2);                   // the crown
+  },
+  // ON ITS SIDE ON A TAG, which is how it lies in his case: a 36 mm gold case
+  // with the strap falling either way off it.
+  model: () => mOf(
+    mCyl(0.018, 0.009, '#c9a45e'),
+    mBox(0.028, 0.010, 0.002, '#e0d8c0', 0, 0.006, 0),
+    mBox(0.016, 0.006, 0.075, '#4a3a2a', 0, 0.004, 0),
+  ),
+});
+
 /** every id this file declares, so a sweep can ask "does all stock have art?" */
 export const GOODS: string[] = [
   BURGER.id, CHICKEN.id, FRIES.id, PIE.id, SHAKE.id, COFFEE.id,
   EGGS.id, PLATTER.id, SANDWICH.id, CHIPS.id,
+  COAT.id, SHIRT.id, BELT.id, BOOK.id,
+  RADIO.id, WRISTWATCH.id,
 ];
