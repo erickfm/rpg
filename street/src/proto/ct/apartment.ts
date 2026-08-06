@@ -5129,6 +5129,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // the page and today is the page's own print; when they land on one
         // cell the print keeps the fill and the mark keeps the stroke, and both
         // are still visible.
+        // TODAY WINS THE NUMERAL, and that order is load-bearing: a biro
+        // numeral on the season's own block is the same luminance collision the
+        // two strokes below have, so the print keeps the fill and the hand-marks
+        // keep the strokes. Selection still inks the numeral when it is NOT
+        // today, which reinforces the ring without depending on it.
         const inked = gd === day ? '#f2e8cc'
           : sel !== null && gd === sel ? '#2f4f8c' : '#4a443a';
         if (S >= 3) text(String(n), cx, cy + 0.2, 3.4, inked);
@@ -5140,42 +5145,56 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           g.lineTo(u(cx + 2.1), u(cy + rowH / 2 - 0.9));
           g.stroke();
         }
-        // ── THE SELECTED DAY IS MARKED, NOT BOXED ──────────────────────
-        // The bag's highlight taught this one: an outset rectangle round a
-        // thing reads as a debug overlay, and the fix is to mark the THING.
-        // So the numeral goes over to the biro and a hand underlines it — the
-        // same pen that crosses off the past and rings the rent, which is what
-        // keeps it on the page rather than over it.
+        // ══ TWO BIRO MARKS, AND THEY MEAN DIFFERENT THINGS ═══════════════
         //
-        // TODAY STAYS THE RED BLOCK and they are different marks on purpose:
-        // once he scrolls to another season today is not even on the page, and
-        // when both land on the same cell the block is behind the underline and
-        // both still read.
-        if (sel !== null && gd === sel) {
-          // ⚠ THE UNDERLINE GOES CREAM WHEN IT LANDS ON TODAY'S BLOCK, and that
-          // is the one collision the season colours create. Biro blue on the
-          // FALL block is 1.05:1 — the same luminance, so the stroke simply
-          // stops existing on the day he is most likely to click. Measured
-          // across all four: fall 1.05, winter 1.25, spring 1.66, summer 1.84,
-          // none of them usable. On paper the biro is fine and stays; on the
-          // block it takes the same cream the numeral does.
-          biro(0.45);
-          if (gd === day) g.strokeStyle = '#f2e8cc';
+        // *"please underline a day if theres something on it and circle the day
+        //  that im selecting. so just swap the use for those."*  (2026-08-05)
+        //
+        //   UNDERLINE   there is SOMETHING ON THIS DAY. Drawn always.
+        //   CIRCLE      this is the day he has PICKED. Follows the selection.
+        //
+        // IT IS A SWAP PLUS ONE REAL CHANGE, and the change is the point of the
+        // ask: the underline is no longer part of the selection mark at all. It
+        // belongs to the DAY and is drawn without anything being clicked, so a
+        // page now tells him where the rent and the notice are the moment it is
+        // up. Before this, a fresh page said nothing until he started clicking.
+        //
+        // AND IT IS OFF `calEventOn`, the same function the foot prints from —
+        // so "underlined" and "prints something when you click it" cannot
+        // disagree. Two marks driven by one predicate. That covers rent day (the
+        // 5th) and notice day (the 2nd), and nothing else, because inventing a
+        // third event is not mine to do.
+        //
+        // ⚠ BOTH MARKS GO CREAM ON TODAY'S BLOCK, and this is the collision the
+        // season colours create rather than a nicety. Measured, biro against the
+        // block: FALL 1.05, WINTER 1.25, SPRING 1.66, SUMMER 1.84 — the same
+        // luminance, so a blue stroke on the season's own fill stops existing.
+        // On paper the biro is right and stays; on the block both take the cream
+        // the numeral already takes. Worst case reads: cream #f2e8cc on FALL
+        // #8c3a2e is 6.23:1, on SPRING #5f7a43 — the lightest of the four —
+        // 3.95:1, both well clear.
+        const ink = gd === day ? '#f2e8cc' : '#2f4f8c';
+        // THE UNDERLINE SITS BENEATH THE NUMERAL AND THE RING GOES ROUND IT, so
+        // a day that is both keeps two separate marks instead of one smudge:
+        // the ring's foot is at rowH/2 - 1.2 and the rule at rowH/2 - 0.4, which
+        // is 0.8 design units of daylight between them — about 5 px at the
+        // panel's own scale, and they never touch at any row height.
+        if (calEventOn(gd)) {
+          biro(0.45); g.strokeStyle = ink;
           g.beginPath();
-          g.moveTo(u(cx - 2.2), u(cy + rowH / 2 - 0.7));
-          g.lineTo(u(cx + 2.2), u(cy + rowH / 2 - 0.7));
+          g.moveTo(u(cx - 2.2), u(cy + rowH / 2 - 0.4));
+          g.lineTo(u(cx + 2.2), u(cy + rowH / 2 - 0.4));
           g.stroke();
         }
-        if (isRentDay(gd)) {                                 // ringed
-          biro(0.42);
+        if (sel !== null && gd === sel) {
+          biro(0.42); g.strokeStyle = ink;
           g.beginPath();
-          // ry pulled well inside the row. It was tuned when rent was WEEKLY
-          // and a page carried four or five rings: at `rowH/2 - 0.3` they ran
-          // into one another and a month of Wednesdays read as a chain down
-          // the page. There is exactly one ring on a page now — the 5th — so
-          // nothing can chain, and the figure is kept because an ellipse that
-          // touches the row above and below reads as a box, not as a ring.
-          g.ellipse(u(cx), u(cy), u(2.7), u(rowH / 2 - 1.0), 0, 0, Math.PI * 2);
+          // The figure the rent ring used to carry, kept: an ellipse that
+          // touched the rows above and below read as a BOX rather than a ring,
+          // which is why it is pulled well inside. It was also tuned when rent
+          // was weekly and a page carried four or five of these — there is only
+          // ever ONE on a page now, the one he clicked, so nothing can chain.
+          g.ellipse(u(cx), u(cy), u(2.7), u(rowH / 2 - 1.2), 0, 0, Math.PI * 2);
           g.stroke();
         }
       }
