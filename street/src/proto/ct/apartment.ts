@@ -5196,11 +5196,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // The ring round the 1st is still drawn and is still the thing that
       // catches your eye without being told — the calendar has always marked
       // rent day in biro and that has not changed.
+      //
+      // ── AND THE DATE LINE IS GONE ──────────────────────────────────────
+      //
+      // *"GET RID OF THE SPRING 1 TEXT. RENT DUE IS FINE but 'spring 1' is
+      //  redundant"*   (2026-08-05)
+      //
+      // He is right and the page said it three times: the banner reads SPRING /
+      // YEAR 1, the cell he clicked carries the season block and the biro
+      // underline, and then the foot spelled out "SPRING 1" underneath. The
+      // only line here that says something the page cannot already show is the
+      // EVENT, so the event is the only line left.
+      //
+      // IT MOVES UP TO THE FIRST OF THE TWO ROWS (58, not 62). A single line
+      // sitting in the second slot with blank paper above it reads as a line
+      // that has lost its heading — which is exactly what it would be.
+      //
+      // AN EVENTLESS DAY PRINTS NOTHING AT ALL, and that is the right answer
+      // rather than an omission: the ring, the underline and the inked numeral
+      // are what say "this one is selected", and they are on the cell where he
+      // clicked. A foot that said "SPRING 14" for a day with nothing on it was
+      // the calendar filling space, and the same instinct got descriptors
+      // removed from picked-up items.
       if (sel !== null) {
-        const sd = sel - page.day0 + 1;
-        text(`${page.season} ${sd}`, 24, 58, 3.2, '#2f4f8c');
         const ev = calEventOn(sel);
-        if (ev) text(ev, 24, 62, 3.2, '#2f4f8c');
+        if (ev) text(ev, 24, 58, 3.2, '#2f4f8c');
       }
 
       // Paper grain. The two inks and the 26-specks-per-30x40 density are
