@@ -2197,7 +2197,14 @@ export function makeHud(purse: Purse): Hud {
     // ONE BAND, the same skin tone and the same y 6…72 as the wrist, so there is
     // no seam to see: the wrist below is drawn by the identical `fillRect` it
     // always was, just further along the same band.
-    g.fillStyle = player.skin; g.fillRect(0, 6, WATCH_ARM, 66);
+    const LIMB_T = 6, LIMB_H = WATCH_LIMB_H - LIMB_T;   // 6…72, the limb's rows
+    g.fillStyle = player.skin;
+    // ⚠ THE LIMB'S OWN ROWS, NAMED. `6` and `66` were typed here and typed
+    // again in the sleeve below, and two hand-typed row ranges that have to
+    // agree is the single most common bug shape in this session. `LIMB_B` is
+    // `WATCH_LIMB_H`, the 72 the thumb and the end cap already measure from,
+    // so the band is derived at both ends.
+    g.fillRect(0, LIMB_T, WATCH_ARM, LIMB_H);
     // ── AND WHAT YOU HAVE ON OVER IT ──────────────────────────────────────
     //
     // *"tops (short shirts, long sleeves, jackets, sweaters, dresses, etc)"*.
@@ -2244,12 +2251,40 @@ export function makeHud(purse: Purse): Hud {
     // silhouette change and it is what makes it read as cloth and not as paint.
     // It is also the one hard edge that stops a longer sleeve reading as a
     // recolour of the whole limb.
+    // ── AND IT STOPS AT THE WRIST JOIN, NOT PAST IT ───────────────────────
+    //
+    // *"cuff is behind the wrist?"*   (2026-08-05)
+    //
+    // MEASURED, AND IT WAS A DRAW-ORDER BUG OF MINE FROM ONE COMMIT AGO. I ran
+    // SLEEVE_END out to 618 — 18 px PAST `WATCH_ARM` — and the WRIST band at
+    // `:2292` is `fillRect(0, 6, 104, 66)` inside a `translate(WATCH_ARM, 0)`,
+    // so it repaints skin over canvas 600…704 AFTERWARDS. It painted out the
+    // last 18 px of the sleeve across the limb's whole height, leaving only the
+    // cuff's 2 px proud slivers above and below. That is exactly what he is
+    // looking at: skin along the upper edge and a cuff that reads as tucked
+    // behind the arm.
+    //
+    // SO THE SLEEVE ENDS AT `WATCH_ARM` EXACTLY — the wrist join, where the
+    // forearm band stops and the hand block begins. Nothing is drawn over it
+    // any more, and it is the anatomically right place for a cuff anyway: cuff,
+    // then bare wrist, then the watch. 46 canvas px of wrist to the strap's
+    // leading edge, 126 CSS px at WATCH_S.
+    //
+    // AND IT SPANS THE LIMB'S WHOLE CROSS-SECTION, from the same `LIMB_T` and
+    // `LIMB_H` the skin band above uses rather than a second pair of literals.
+    // A sleeve is a tube; it cannot be shorter than the arm inside it, and now
+    // it cannot be by construction.
+    //
+    // THE CUFF IS ONE HARD VERTICAL EDGE across all of those rows, standing 2 px
+    // proud top and bottom — the limb's own rows plus 2, not the strap's 6, so
+    // it reads as a cuff thicker than the arm rather than as a second strap.
     const wtop = worn('top');
     if (wtop.sleeve === 2) {
-      const SLEEVE_GAP = 28;                              // bare wrist before the strap
-      const CUFF_W = 14, SLEEVE_END = WATCH_ARM + WATCH_POS + 38 - SLEEVE_GAP;
-      g.fillStyle = wtop.cloth; g.fillRect(0, 4, SLEEVE_END, 70);
-      g.fillStyle = wtop.trim; g.fillRect(SLEEVE_END - CUFF_W, 2, CUFF_W, 74);
+      const CUFF_W = 14, CUFF_PROUD = 2, SLEEVE_END = WATCH_ARM;
+      g.fillStyle = wtop.cloth;
+      g.fillRect(0, LIMB_T, SLEEVE_END, LIMB_H);
+      g.fillStyle = wtop.trim;
+      g.fillRect(SLEEVE_END - CUFF_W, LIMB_T - CUFF_PROUD, CUFF_W, LIMB_H + CUFF_PROUD * 2);
     }
     // AND IT IS FLAT. *"for the arm shape i dont want two colors just the one
     // skin tone on that rectangle"* (2026-08-04). There WAS a "recede" gradient
