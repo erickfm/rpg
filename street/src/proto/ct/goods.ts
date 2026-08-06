@@ -165,7 +165,110 @@ export const COFFEE = defineItem({
   },
 });
 
+// ── THE DINER ──────────────────────────────────────────────────────────────
+//
+// A sit-down place plates its food, and a plate is not a thing you put in a
+// bag — so what the diner actually SELLS you to carry is the foam clamshell it
+// goes home in, which is what a 1997 diner hands across the counter. Its
+// palette is `ct/int-diner.ts`'s: #cfc7b6 chrome, #c8bfa4 formica, #9a2f2c the
+// vinyl red, #d8a02a the heat lamp over the pass.
+//
+// Everything else on that menu board is an item the world already has. The
+// coffee and the apple pie are the burger barn's, dearer, which is the whole
+// of what "a diner is not a fast-food place" means in money.
+
+export const EGGS = defineItem({
+  id: 'EGGS', name: 'eggs any style', stack: 2,
+  thick: 0.06,
+  blurb: 'the yolk went hard somewhere between the pass and here.',
+  icon: (g) => {
+    box(g, '#e8e4d8', 2, 7, 20, 12);                   // the foam clamshell
+    box(g, '#d4d0c4', 2, 7, 20, 2);
+    box(g, '#c8bfa4', 2, 12, 20, 1);                   // the hinge line
+    box(g, '#4a7a6a', 4, 14, 9, 4);                    // the green order slip
+    box(g, '#e8e4d8', 5, 15, 5, 1);
+    box(g, '#c4c0b2', 2, 17, 20, 2);
+  },
+  // A SMALL WHITE FOAM CLAMSHELL, 17 x 6 x 15, the slip taped to the lid.
+  model: () => mOf(
+    mBox(0.17, 0.055, 0.15, '#e8e4d8', 0, 0.028, 0),
+    mBox(0.172, 0.006, 0.152, '#c8bfa4', 0, 0.028, 0),
+    mBox(0.07, 0.004, 0.05, '#4a7a6a', -0.02, 0.056, 0.02),
+  ),
+});
+
+export const PLATTER = defineItem({
+  id: 'PLATTER', name: 'burger platter', stack: 1,
+  thick: 0.08,
+  blurb: 'heavy, and the underneath is already going soft.',
+  icon: (g) => {
+    box(g, '#ded8c8', 1, 5, 22, 15);                   // the big clamshell
+    box(g, '#cac4b2', 1, 5, 22, 2);
+    box(g, '#9a2f2c', 1, 10, 22, 3);                   // the paper band round it
+    box(g, '#ded8c8', 4, 11, 4, 1);
+    box(g, '#b8b09a', 1, 17, 22, 3);                   // where the grease came through
+    box(g, '#a89e86', 6, 18, 9, 1);
+  },
+  // THE BIG ONE, 22 x 7 x 18, with a paper band round the middle to keep it
+  // shut. `stack: 1` — you are not carrying two dinners.
+  model: () => mOf(
+    mBox(0.22, 0.070, 0.18, '#ded8c8', 0, 0.035, 0),
+    mBox(0.224, 0.020, 0.184, '#9a2f2c', 0, 0.038, 0),
+    mBox(0.222, 0.006, 0.182, '#cac4b2', 0, 0.070, 0),
+  ),
+});
+
+// ── THE BODEGA ─────────────────────────────────────────────────────────────
+//
+// A corner shop sells what a corner shop sells, and five of its seven lines are
+// already in this world — cereal, soda, coffee, a newspaper, a pack of tube
+// socks. The two it needed are the two things behind its own deli glass and on
+// its own rack. Palette off `ct/int-bodega.ts`: #e4dcc4 the card stock its signs
+// are written on, #2a3a6a the marker, #6a5442 the timber.
+
+export const SANDWICH = defineItem({
+  id: 'SANDWICH', name: 'deli sandwich', stack: 2,
+  thick: 0.07,
+  blurb: 'cut on the diagonal, taped shut, and warm from the case.',
+  icon: (g) => {
+    box(g, '#e8e4d8', 2, 4, 20, 17);                   // white deli paper
+    box(g, '#d4d0c4', 2, 4, 20, 2);
+    box(g, '#c8c4b6', 11, 4, 1, 17);                   // the fold down the middle
+    box(g, '#d8b84a', 8, 10, 8, 3);                    // the tape across it
+    box(g, '#8a5a3a', 4, 15, 7, 3);                    // and the filling, showing
+    box(g, '#5a7a3a', 4, 17, 7, 1);
+  },
+  // WRAPPED IN DELI PAPER, 17 x 7 x 11, cut and taped.
+  model: () => mOf(
+    mBox(0.17, 0.065, 0.11, '#e8e4d8', 0, 0.033, 0),
+    mBox(0.05, 0.068, 0.112, '#d8b84a', 0, 0.034, 0),
+    mBox(0.172, 0.008, 0.112, '#d4d0c4', 0, 0.065, 0),
+  ),
+});
+
+export const CHIPS = defineItem({
+  id: 'CHIPS', name: 'bag of chips', stack: 2,
+  thick: 0.10,
+  blurb: 'mostly air, and it always was.',
+  icon: (g) => {
+    box(g, '#d8b84a', 3, 3, 18, 19);                   // the foil bag
+    box(g, '#c8a83a', 3, 3, 4, 19);                    // the shaded side
+    box(g, '#e8cc6a', 3, 3, 18, 2);                    // the crimped top
+    box(g, '#e8cc6a', 3, 20, 18, 2);
+    box(g, '#b8342a', 5, 9, 14, 6);                    // the printed panel
+    box(g, '#e8e4d8', 7, 11, 10, 2);
+  },
+  // A PUFFED FOIL BAG, 17 x 10 x 6, crimped top and bottom.
+  model: () => mOf(
+    mBox(0.16, 0.095, 0.055, '#d8b84a', 0, 0.048, 0),
+    mBox(0.09, 0.040, 0.058, '#b8342a', 0, 0.048, 0),
+    mBox(0.17, 0.014, 0.020, '#e8cc6a', 0, 0.093, 0),
+    mBox(0.17, 0.014, 0.020, '#e8cc6a', 0, 0.007, 0),
+  ),
+});
+
 /** every id this file declares, so a sweep can ask "does all stock have art?" */
 export const GOODS: string[] = [
   BURGER.id, CHICKEN.id, FRIES.id, PIE.id, SHAKE.id, COFFEE.id,
+  EGGS.id, PLATTER.id, SANDWICH.id, CHIPS.id,
 ];

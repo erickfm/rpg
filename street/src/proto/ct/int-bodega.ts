@@ -3,6 +3,8 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import './goods';   // for the side effect: it is what declares the stock
 
 // THE BODEGA, inside — rebuilt on the interior kit.
 //
@@ -745,31 +747,106 @@ export function buildBodega(ctx: CtxBuild): void {
   // `atan2(vx, vz)` with vx = -1 is -PI/2, which looks along -x: past the
   // counter, into the shop, at whoever is buying.
   const KEEP_AT = CTR_X + 0.55;   // the far side — 3.45, clear of the 4.40 wall
-  room.person({
+  const keeper = room.person({
     jacket: '#4a5a6a', pants: '#3a3a42', skin: '#a0703e', hair: '#2a2622',
     fit: 'plain', accent: '#d8d4c8', cut: 'short', build: 1,
   }, KEEP_AT, CTR_Z, { facing: Math.atan2(CTR_X - KEEP_AT, 0), h: 1.0, w: 0.98 });
 
-  // ── the two things you can buy ──
+  // ══ THE PRICE CARD ON THE COUNTER — AND IT IS THE WHOLE SHOP ══════════════
   //
-  // Kept exactly as they were: same items, same prices, same wallet. They move
-  // onto the counter and gate on `room.inside` instead of a hand-written
-  // `player.x() > 230`, which was the old room's own address showing through.
-  const buy = (lx: number, lz: number, item: string, price: number, what: string) => {
-    ctx.spot({
-      x: room.wx(lx), z: room.wz(lz), r: 1.0,
-      ok: room.inside,
-      label: () => (ctx.purse.cash >= price
-        ? `buy ${what} — $${price.toFixed(2)}`
-        : `${what} $${price.toFixed(2)} — you’re short`),
-      act: () => {
-        if (ctx.purse.cash < price) return;
-        ctx.purse.cash -= price;
-        ctx.purse.inv[item] = (ctx.purse.inv[item] ?? 0) + 1;
-        ctx.refreshWallet();
-      },
-    });
+  // *"for every business i just want to be able to talk to the shop keeper or
+  //  cashier and see a diagetic list of options as like a sign or something for
+  //  everything you can buy."*   (2026-08-06)
+  //
+  // ── THE SURFACE IS THE ONE THIS ROOM ALREADY USES ─────────────────────────
+  //
+  // A bodega does not have a menu board; it has HANDWRITTEN CARDS, and this room
+  // has been making them since it was built — `cardT` above paints `COFFEE .65`
+  // on the coffee bench, `NO LOITERING` on the counter, `ATM INSIDE CASH ONLY`
+  // by the door: cream card stock, blue marker, a shadow along the bottom edge.
+  // The price list is the same card, bigger, standing on the counter where the
+  // customer reads it. Same stock, same marker, prices in red because that is
+  // the second pen every corner shop owns.
+  //
+  // `band: ''` — the heading is WRITTEN with a rule under it. A filled colour
+  // bar is a printed sign's idiom and would look machine-made on card.
+  //
+  // ── WHY IT STANDS ON THE COUNTER AND NOT ON THE WALL ──────────────────────
+  //
+  // Measured, not preferred. The obvious place is the wall behind the till,
+  // beside the lottery rack — but that wall is 0.95 m behind the counter's far
+  // edge and the keeper stands against it, at the SAME z as the rack. A card
+  // small enough to be a card wants the eye about a metre off it, which puts the
+  // camera behind the counter and the shopkeeper's own sprite between the eye
+  // and the sign. On the counter's customer edge the eye settles at CTR_X−1.36,
+  // which is where a customer already stands, with nothing between.
+  //
+  // At the FAR end of the counter from the register (CTR_Z − 0.85) so it is not
+  // clutter standing in front of the till.
+  const PRICES: ShopColumn[] = [
+    { head: 'PRICES', lines: [
+      { id: 'SANDWICH', name: 'SANDWICH', price: 2.25 },
+      { id: 'CHIPS', name: 'CHIPS', price: 0.75 },
+      { id: 'CEREAL', name: 'CEREAL', price: 2.50 },
+      { id: 'SODA', name: 'SODA', price: 1.25 },
+      { id: 'COFFEE', name: 'COFFEE', price: 0.65 },
+      { id: 'NEWSPAPER', name: 'PAPER', price: 0.50 },
+      { id: 'SOCKS', name: 'SOCKS', price: 2.00 },
+    ] },
+  ];
+  // Every colour off this room's own `cardT`: #e4dcc4 card, #2a3a6a marker.
+  const PRICE_LOOK: BoardLook = {
+    panel: '#e4dcc4', frame: '#cbbf9f', band: '', bandInk: '#2a3a6a',
+    ink: '#2a3a6a', priceInk: '#8a2a22', rule: '#2a3a6a',
+    hover: 'rgba(42,58,106,0.13)', flash: 'rgba(160,40,32,0.34)',
   };
-  buy(CTR_X - 1.15, CTR_Z + 0.6, 'CEREAL', 2.5, 'cereal');
-  buy(CTR_X - 1.15, CTR_Z - 0.6, 'SODA', 1.25, 'soda');
+  // 0.56 x 0.72 m of card at 500 texels per metre — the density `ct/drawer.ts`
+  // uses for the other surface in this world you put your face right up to, and
+  // for the same reason: it is read at arm's length, not across a room.
+  const CARD_W = 0.56, CARD_H = 0.72;
+  const CARD_X = CTR_X - 0.42, CARD_Z = CTR_Z - 0.85;
+  const CARD_Y = 1.08 + CARD_H / 2;          // stood on the counter top
+  const CARD_PX = Math.round(CARD_W * 500), CARD_PY = Math.round(CARD_H * 500);
+  const cardFace = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W, CARD_H),
+    ctx.flat(boardTexture(CARD_PX, CARD_PY, PRICES, PRICE_LOOK)));
+  cardFace.rotation.y = -Math.PI / 2;        // faces −x, into the shop
+  put(cardFace, CARD_X, CARD_Y, CARD_Z);
+  // the card's own thickness and the batten holding it up, so it is an object
+  // standing on a counter rather than a picture floating over one
+  const cardBack = new THREE.Mesh(new THREE.BoxGeometry(0.014, CARD_H, CARD_W),
+    new THREE.MeshBasicMaterial({ color: 0xcbbf9f }));
+  put(cardBack, CARD_X + 0.010, CARD_Y, CARD_Z);
+  const prop = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.03, 0.16), woodM);
+  put(prop, CARD_X + 0.055, 1.095, CARD_Z);
+
+  // ══ AND THE TWO HAND-WRITTEN BUY SPOTS ARE GONE ═══════════════════════════
+  //
+  // They were `buy cereal` and `buy soda`, and they carried the same defect the
+  // burger barn's pair did, found the same way:
+  //
+  //     ctx.purse.inv[item] = (ctx.purse.inv[item] ?? 0) + 1;
+  //
+  // **That bypasses `give`**, which is the only thing that knows a bag holds
+  // twelve, a bare hand holds one, and cereal stacks four. So the shop took
+  // $2.50 off a player whose hands were full and handed him nothing — and there
+  // was no way to notice, because the money and the item were written by the
+  // same two lines with nothing between them to fail. Every price and both items
+  // survive into the card above; what changes is that the item goes in the bag
+  // FIRST and the cash only moves if it went.
+  //
+  // The five other lines are things this shop visibly stocks and could not sell:
+  // the deli case, the rack by the till, the coffee bench whose own card has
+  // said `.65` since the day it was built, the papers, and the socks.
+  shopCounter(ctx, {
+    id: 'ct-shop-bodega',
+    columns: PRICES, look: PRICE_LOOK,
+    w: CARD_PX, h: CARD_PY,
+    mesh: () => cardFace,
+    standoff: boardStandoff({ wM: CARD_W, hM: CARD_H, fov: 45, riseM: CARD_Y - 1.75 }),
+    fov: 45,
+    stand: { x: room.wx(CTR_X - 1.15), z: room.wz(CTR_Z) },
+    keeper: { x: keeper.mesh.position.x, z: keeper.mesh.position.z, obj: keeper.mesh },
+    who: 'the shopkeeper',
+    ok: room.inside,
+  });
 }

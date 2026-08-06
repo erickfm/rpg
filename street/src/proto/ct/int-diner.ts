@@ -3,6 +3,8 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom, seatTaken } from './interior';
 import { type DoorDecl } from './doors';
+import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import './goods';   // for the side effect: it is what declares the stock
 
 // The DINER, inside.
 //
@@ -434,18 +436,63 @@ export function buildDiner(ctx: CtxBuild): void {
     put(ph, WALL_X, 1.95, pz);
   }
 
-  // ── the menu board, over the pass ──
-  const menuT = declareSurface(pixTex(96, 32, (g) => {
-    g.fillStyle = '#22262a'; g.fillRect(0, 0, 96, 32);
-    g.fillStyle = '#d8d0b8'; g.font = 'bold 7px monospace'; g.textAlign = 'left';
-    const rows: [string, string][] = [
-      ['EGGS ANY STYLE', '2.25'], ['BURGER PLATTER', '3.75'],
-      ['COFFEE', '.65'], ['PIE  SLICE', '1.40'],
-    ];
-    rows.forEach(([a, b], i) => { g.fillText(a, 4, 8 + i * 7); g.textAlign = 'right'; g.fillText(b, 92, 8 + i * 7); g.textAlign = 'left'; });
-  }), 'sign');
-  const menu = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.0), ctx.flat(menuT));
-  put(menu, 0, 2.45, -hd + 0.06);
+  // ══ THE MENU BOARD OVER THE PASS — AND IT IS WHAT YOU ORDER FROM ══════════
+  //
+  // *"for every business i just want to be able to talk to the shop keeper or
+  //  cashier and see a diagetic list of options as like a sign or something for
+  //  everything you can buy."*   (2026-08-06)
+  //
+  // The board was already here, already one mesh, already over the pass where a
+  // diner's board goes — the four lines painted on it are the four lines it
+  // sold, in the sense that nobody could buy any of them. Now the same object
+  // is the shop: `ct/shop.ts` paints it and `shopCounter` below hangs the
+  // reading view on this mesh. **No merge was needed here** — unlike the burger
+  // barn's, which was three planes and could only ever have offered a third of
+  // its own menu.
+  //
+  // ── IT IS A BLACK LETTER BOARD AND IT KEEPS ITS LETTERING ─────────────────
+  //
+  // `band: ''` — the headings are written on the board with a rule under them,
+  // not reversed out of a coloured bar. A diner's board is white plastic letters
+  // pushed into black felt; a filled band is the fast-food idiom and belongs at
+  // the barn. Every colour is read off this room rather than picked: #22262a is
+  // the board's own felt, #d8d0b8 its letters, #d8a02a the heat lamp over the
+  // pass, #c8bfa4 the formica.
+  //
+  // ── AND A DINER IS DEARER THAN A FAST-FOOD PLACE ──────────────────────────
+  //
+  // Deliberately, and it is the only pricing statement this room makes: the
+  // coffee is the barn's 65 cents (a cup of coffee was 65 cents everywhere in
+  // 1997), but the shake is $1.55 against the barn's $1.29 and the pie is $1.40
+  // against $0.69 — you are paying for the stool. Two new items, both foam
+  // clamshells, because what a sit-down place hands you to CARRY is the box.
+  const MENU: ShopColumn[] = [
+    { head: 'BREAKFAST', lines: [
+      { id: 'EGGS', name: 'EGGS', price: 2.25 },
+      { id: 'COFFEE', name: 'COFFEE', price: 0.65 },
+    ] },
+    { head: 'PLATES', lines: [
+      { id: 'PLATTER', name: 'PLATTER', price: 3.75 },
+      { id: 'PIE', name: 'APPLE PIE', price: 1.40 },
+    ] },
+    { head: 'FOUNTAIN', lines: [
+      { id: 'SHAKE', name: 'SHAKE', price: 1.55 },
+      { id: 'SODA', name: 'SODA', price: 0.85 },
+    ] },
+  ];
+  const MENU_LOOK: BoardLook = {
+    panel: '#22262a', frame: '#8f8a7c', band: '', bandInk: '#d8d0b8',
+    ink: '#d8d0b8', priceInk: '#d8a02a', rule: '#6a6256',
+    hover: 'rgba(216,208,184,0.14)', flash: 'rgba(216,160,42,0.45)',
+  };
+  // 3.0 x 1.0 m — unchanged, this is the board that was already on the wall —
+  // repainted at 150 texels per metre instead of 32, because the old texture was
+  // a thing you glanced at and this is a thing you read.
+  const MENU_W = 3.0, MENU_H = 1.0, MENU_Y = 2.45;
+  const MENU_PX = 450, MENU_PY = Math.round(MENU_PX * MENU_H / MENU_W);
+  const menuT = boardTexture(MENU_PX, MENU_PY, MENU, MENU_LOOK);
+  const menu = new THREE.Mesh(new THREE.PlaneGeometry(MENU_W, MENU_H), ctx.flat(menuT));
+  put(menu, 0, MENU_Y, -hd + 0.06);
 
   // ── the waitress, behind the counter ──
   //
@@ -474,9 +521,32 @@ export function buildDiner(ctx: CtxBuild): void {
   //
   // Derived from the counter so it cannot drift if the counter moves.
   const KEEP_AT = CZ - 0.55;   // behind the counter
-  room.person({
+  const KEEP_X = -1.4;
+  const waitress = room.person({
     jacket: '#4a7a6a', pants: '#3a5a50', skin: '#b8845a', hair: '#5a3a22',
     fit: 'dress', accent: '#d8d4c8', cut: 'tied', build: -1,
-  }, -1.4, KEEP_AT, { facing: Math.atan2(0, CZ - KEEP_AT), h: 0.97, w: 0.95 });
+  }, KEEP_X, KEEP_AT, { facing: Math.atan2(0, CZ - KEEP_AT), h: 0.97, w: 0.95 });
+
+  // ── you order from her, off the board ────────────────────────────────────
+  //
+  // The customer stands in the AISLE, not on a stool — the stools are 0.34 m
+  // boxes at CZ + 1.0 and their padded colliders reach CZ + 1.53, so a station
+  // any closer than this is a station nobody can stand on. CZ + 1.55 is the
+  // first standable line in front of them, which is where you queue.
+  //
+  // She is the aim and the outline; the board is what the view shows. Both are
+  // read off the objects the room has already placed rather than recomputed.
+  shopCounter(ctx, {
+    id: 'ct-shop-diner',
+    columns: MENU, look: MENU_LOOK,
+    w: MENU_PX, h: MENU_PY,
+    mesh: () => menu,
+    standoff: boardStandoff({ wM: MENU_W, hM: MENU_H, fov: 55, riseM: MENU_Y - 1.75 }),
+    fov: 55,
+    stand: { x: room.wx(KEEP_X), z: room.wz(CZ + 1.55) },
+    keeper: { x: waitress.mesh.position.x, z: waitress.mesh.position.z, obj: waitress.mesh },
+    who: 'the waitress',
+    ok: room.inside,
+  });
 
 }

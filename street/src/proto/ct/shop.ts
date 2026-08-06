@@ -87,8 +87,20 @@ export interface BoardLook {
   panel: string;
   /** the surround: moulded plastic, a timber batten, a tin frame */
   frame: string;
-  /** the heading band across the top of each panel */
+  /**
+   * The heading band across the top of each panel — or `''` for NO BAND, and
+   * the heading is written straight onto the card with a rule under it.
+   *
+   * Both, because a printed sign and a hand-lettered one head their columns
+   * differently and getting that wrong is the whole difference between a shop
+   * and a spreadsheet. A backlit fast-food panel has a solid coloured band with
+   * the word reversed out of it. A grocer's price card written in marker has
+   * the word underlined, because a man with a marker does not fill in a
+   * rectangle.
+   */
   band: string;
+  /** the underline when `band` is `''`. Defaults to `ink`. */
+  rule?: string;
   /** the heading's own letters, which sit ON the band */
   bandInk: string;
   /** the list */
@@ -139,11 +151,68 @@ function layout(W: number, H: number, cols: ShopColumn[]): Layout {
       cells.push({ line, x, y: frame + band + r * rowH, w: pw, h: rowH });
     });
   });
-  return {
-    frame, panels, cells, pad,
-    headPx: Math.max(6, Math.round(band * 0.55)),
-    rowPx: Math.max(6, Math.round(rowH * 0.52)),
+  // ── AND THE TYPE IS SHRUNK UNTIL IT FITS, WHICH IS NOT A NICETY ───────────
+  //
+  // The height of a row is a fine FIRST guess at how big its letters should be,
+  // and it is only that: `BARN BURGER` fits a 284-texel panel at that size and
+  // `EGGS ANY STYLE` does not fit a 135-texel one. There are eight shops on
+  // this pattern and the failure is silent — canvas `fillText` does not wrap,
+  // it does not clip, it just draws the name straight through the price and out
+  // over the frame. A sign the player cannot read is exactly as broken as a
+  // sign with the wrong prices on it, and nobody would catch it until it was on
+  // screen.
+  //
+  // So the size is MEASURED against the longest line each panel actually holds
+  // — `measureText`, on the real font, not a guess at a character width — and
+  // the whole board steps down together so two columns never end up in two
+  // sizes. `GAP` is the minimum air between a name and its price; without it
+  // "GRILLED CHEESE2.15" fits and is unreadable.
+  const cv = document.createElement('canvas');
+  const g = cv.getContext('2d');
+  const fits = (px: number): boolean => {
+    if (!g) return true;
+    g.font = `bold ${px}px monospace`;
+    const GAP = px;
+    for (const c of cells) {
+      const w = g.measureText(c.line.name).width + g.measureText(boardPrice(c.line.price)).width;
+      if (w + GAP > pw - pad * 2) return false;
+    }
+    return true;
   };
+  let rowPx = Math.max(6, Math.round(rowH * 0.52));
+  while (rowPx > 6 && !fits(rowPx)) rowPx--;
+  // ── AND A SHRUNKEN LINE DOES NOT KEEP A TALL ROW ──────────────────────────
+  //
+  // When the width is what shrank the type — the diner's three columns are 1 m
+  // each and have to hold `APPLE PIE  1.40` — the rows were still spaced for
+  // the size the type would have been, so two lines sat at the very top and
+  // bottom of a panel with a hand's width of empty felt between them. It read
+  // as a board with things missing off it.
+  //
+  // So the rows close up to what the type actually needs and the BLOCK is
+  // centred in the space under the heading. A panel with room to spare gets a
+  // margin top and bottom, which is what a sign painter does; it does not get
+  // its two lines pushed to the corners. Nothing changes for a board whose type
+  // was never shrunk (the barn's, the bodega's card) — `Math.min` keeps the
+  // original spacing wherever it already fits.
+  const rowFit = Math.min(rowH, Math.max(rowPx + 4, Math.round(rowPx * 2.0)));
+  const lift = Math.round(((ph - band) - rowFit * most) / 2);
+  for (const c of cells) {
+    const r = Math.round((c.y - frame - band) / rowH);
+    c.y = frame + band + lift + r * rowFit;
+    c.h = rowFit;
+  }
+  // The heading follows the body down rather than towering over shrunken rows,
+  // and is measured against the same panel width — `SIDES  DRINKS` is a heading
+  // somebody will write one day.
+  const headFits = (px: number): boolean => {
+    if (!g) return true;
+    g.font = `bold ${px}px monospace`;
+    return cols.every((c) => g.measureText(c.head).width <= pw - pad * 2);
+  };
+  let headPx = Math.max(6, Math.min(Math.round(band * 0.55), Math.round(rowPx * 1.1)));
+  while (headPx > 6 && !headFits(headPx)) headPx--;
+  return { frame, panels, cells, pad, headPx, rowPx };
 }
 
 /**
@@ -172,11 +241,21 @@ export function paintBoard(
   g.textBaseline = 'middle';
   for (const p of L.panels) {
     g.fillStyle = look.panel; g.fillRect(p.x, p.y, p.w, p.h);
-    g.fillStyle = look.band; g.fillRect(p.x, p.y, p.w, p.band);
+    if (look.band) {
+      g.fillStyle = look.band; g.fillRect(p.x, p.y, p.w, p.band);
+    }
     g.fillStyle = look.bandInk;
     g.font = `bold ${L.headPx}px monospace`;
     g.textAlign = 'center';
     g.fillText(p.head, p.x + p.w / 2, p.y + p.band / 2);
+    if (!look.band) {
+      // hand-lettered: a rule under the word, not a filled bar. Its ends stop
+      // short of the panel edge because a drawn line does.
+      const inset = Math.round(p.w * 0.14);
+      g.fillStyle = look.rule ?? look.ink;
+      g.fillRect(p.x + inset, p.y + p.band - Math.max(2, Math.round(p.band * 0.12)),
+        p.w - inset * 2, Math.max(1, Math.round(p.band * 0.06)));
+    }
   }
   for (const c of L.cells) {
     if (o.flash === c.line) { g.fillStyle = look.flash; g.fillRect(c.x, c.y, c.w, c.h); }
