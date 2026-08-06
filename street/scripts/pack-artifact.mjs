@@ -112,9 +112,40 @@ if (named.length || emitted.length) {
   process.exit(1);
 }
 
+// ── THE AUDIO, WHICH CANNOT COME FROM A PATH ───────────────────────────────
+//
+// `public/audio/*.ogg` is copied verbatim to `dist/audio/` and served as real
+// files on :5177 and on Pages, which is right for both. It is NOT right here:
+// an artifact is one file opened from `file://`, and a relative fetch there is
+// a CORS failure rather than a 404, so no path could work. The bytes have to be
+// in the page.
+//
+// They go in as a `name → data: URI` table ahead of the bundle, which `ct/audio
+// .ts` reads before it falls back to a path. `fetch` accepts a data URI like
+// any other URL, so that is the entire special case.
+//
+// NOTE for the guards above: this directory is `dist/audio/`, NOT `dist/assets/`
+// — public/ is copied to the output ROOT — so it never trips the "the build
+// also emitted" floor, and it must not, because those files are correct output
+// for the two deploys that are not this one.
+const audioDir = join(outDir, 'audio');
+const audioFiles = existsSync(audioDir) ? readdirSync(audioDir).filter((f) => f.endsWith('.ogg')) : [];
+let audioTag = '', audioBytes = 0;
+if (audioFiles.length) {
+  const map = {};
+  for (const f of audioFiles) {
+    const b = readFileSync(join(audioDir, f));
+    audioBytes += b.length;
+    map[basename(f, '.ogg')] = `data:audio/ogg;base64,${b.toString('base64')}`;
+  }
+  // `</script>` cannot occur in base64, but JSON.stringify is what makes that a
+  // property of the encoder rather than of my confidence.
+  audioTag = `<script>window.__CT_AUDIO=${JSON.stringify(map)}</script>\n`;
+}
+
 const src = readFileSync(join(outDir, entry), 'utf8');
 const out = html.replace(/<script type="module"[^>]*><\/script>/,
-  () => `<script type="module">\n${src}\n</script>`);
+  () => `${audioTag}<script type="module">\n${src}\n</script>`);
 if (out.includes('<script type="module" crossorigin src=')) {
   console.error('the module tag was not replaced — dist/index.html changed shape');
   process.exit(1);
@@ -162,3 +193,6 @@ const when = new Date(+stamp[2]).toTimeString().slice(0, 5);
 const bytes = Buffer.byteLength(out, 'utf8');
 console.log(`packed ${outDir}/artifact.html — ${bytes.toLocaleString()} bytes, build ${stamp[1]} ${when}`);
 console.log(`  inlined ${entry} whole (${Buffer.byteLength(src, 'utf8').toLocaleString()} bytes); nothing else was emitted`);
+console.log(audioFiles.length
+  ? `  inlined ${audioFiles.length} audio files (${audioBytes.toLocaleString()} bytes of ogg, base64 in the page)`
+  : '  NO AUDIO — dist/audio/ is empty, so this artifact is silent. See ct/audio.ts.');
