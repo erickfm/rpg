@@ -102,6 +102,54 @@ function build(): void {
   document.body.appendChild(wrap);
 }
 
+/**
+ * ══ THE SET SWITCHING TO ITS MENU ═════════════════════════════════════════
+ *
+ * *"also lets make it so theres like a fuzz transition into the tv menu pls"*
+ *   (2026-08-05)
+ *
+ * A CRT does not cut cleanly to its OSD — it drops the signal, snows for a
+ * moment, and the menu comes up out of it. That is the sound of the whole
+ * conceit: this surface is allowed to be full-screen because it IS a
+ * television, so it should arrive like one.
+ *
+ * THREE STAGES OVER 200 ms, none of them a fade:
+ *   0.00-0.55   SNOW. Hard black-and-white texels, redrawn every frame, plus a
+ *               couple of bright rolling bars — the horizontal tear a set makes
+ *               while it is hunting for sync.
+ *   0.55-0.80   the blue field arrives UNDER the snow, which thins.
+ *   0.80-1.00   the menu paints, with a last few specks over it.
+ *
+ * TEXELS, NOT NOISE FUNCTIONS. The canvas is 320x240 and nearest-filtered, so
+ * `fillRect(x, y, 1, 1)` at random is already the right grain — the same reason
+ * every glow and every dither in this project is drawn rather than shaded. No
+ * gradient, no alpha ramp, no blur.
+ *
+ * IT IS NOT A GATE. The menu is fully interactive from the first frame: the
+ * fuzz is painted OVER a live screen, `sel` is already 0, and a keypress during
+ * it works and repaints normally. A transition that eats input is a transition
+ * that gets pressed twice.
+ */
+const FUZZ_MS = 200;
+let fuzzT = 0;                       // 0 = no transition running
+function snow(g: CanvasRenderingContext2D, density: number): void {
+  const n = Math.round(OW * OH * density);
+  for (let i = 0; i < n; i++) {
+    const x = Math.floor(Math.random() * OW), y = Math.floor(Math.random() * OH);
+    const v = Math.random();
+    g.fillStyle = v > 0.72 ? '#ffffff' : v > 0.4 ? '#9a9ab4' : '#101018';
+    g.fillRect(x, y, 1, 1);
+  }
+}
+/** the bright bar a set tears on while it hunts for sync */
+function rollBar(g: CanvasRenderingContext2D, t: number): void {
+  const y = Math.round(((t * 2.4) % 1) * (OH + 40)) - 20;
+  g.fillStyle = 'rgba(255,255,255,0.30)';
+  g.fillRect(0, y, OW, 6);
+  g.fillStyle = 'rgba(255,255,255,0.14)';
+  g.fillRect(0, y + 6, OW, 10);
+}
+
 /** the reference's own face: one weight, one size, no antialiased edges */
 const font = (px: number) => `bold ${px}px ui-monospace, Menlo, Consolas, monospace`;
 
@@ -265,7 +313,25 @@ function paintConfirm(g: CanvasRenderingContext2D): void {
 function paint(): void {
   const g = cv?.getContext('2d');
   if (!g) return;
+  // ⚠ THE FUZZ IS PAINTED OVER THE REAL SCREEN, never instead of it — see
+  // `FUZZ_MS`. The menu below is drawn first at every stage past the snow, so
+  // the thing arriving out of the static is the live one.
+  if (fuzzT > 0) {
+    const k = Math.min(1, (performance.now() - fuzzT) / FUZZ_MS);
+    if (k >= 1) { fuzzT = 0; } else {
+      if (k > 0.55) { if (confirming) paintConfirm(g); else paintMenu(g); }
+      else { g.fillStyle = '#0b0b12'; g.fillRect(0, 0, OW, OH); }
+      snow(g, k < 0.55 ? 0.55 : 0.34 * (1 - k) / 0.45);
+      if (k < 0.7) rollBar(g, k);
+      requestAnimationFrame(paint);
+      return;
+    }
+  }
   if (confirming) { paintConfirm(g); return; }
+  paintMenu(g);
+}
+
+function paintMenu(g: CanvasRenderingContext2D): void {
   osdFrame(g);
   heading(g, 'MENU', 46);
   let y = 92;
@@ -320,6 +386,7 @@ function onKey(e: KeyboardEvent): void {
     open = true; sel = 0;
     build();
     wrap!.style.display = 'flex';
+    fuzzT = performance.now();          // the set hunting for sync — see FUZZ_MS
     paint();
     e.stopImmediatePropagation();
     return;
