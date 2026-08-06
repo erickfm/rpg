@@ -90,6 +90,34 @@ export interface ItemDef {
    */
   icon?: (g: CanvasRenderingContext2D) => void;
   /**
+   * ══ THE THING ITSELF, IN THE WORLD ═══════════════════════════════════════
+   *
+   * *"when i said add depth to the item i didnt mean add depth to the sprite. i
+   *  meant lets make sure theres a real world item for these items so when we
+   *  drop them in the world they exist in it as they would."*  (2026-08-05)
+   *
+   * ⚠ I BUILT THE WRONG THING AND HIS CORRECTION IS EXACT. `472096eb` gave a
+   * dropped item a `thick` and extruded its ICON into a slab — the sprite with
+   * depth, which is precisely what he says he did not ask for. Two letters on a
+   * hallway floor read as two printed tiles standing on edge.
+   *
+   * SO AN ITEM MAY DECLARE A REAL OBJECT: a few flat-shaded boxes at REAL SIZE
+   * in the world's own idiom. A folded newspaper is 30 cm long, a soda can is
+   * 66 mm across and 115 tall, a VHS is a 188 x 104 x 25 slab. A BUILDER rather
+   * than a mesh, so every drop gets its own instance and nothing is shared into
+   * a scene it can be taken out of again.
+   *
+   * IT SAMPLES THE ICON'S OWN PALETTE, which is what stops the sprite in his bag
+   * and the object on his floor being two different objects. The icons were
+   * already built from "the PALETTE OF THE THING IT IS"; these take the same
+   * hexes.
+   *
+   * OPTIONAL, AND THE FALLBACK IS HONEST: an item with no model still drops as
+   * the textured box, so a new item works before anybody models it. `thick` is
+   * kept for exactly that path.
+   */
+  model?: () => THREE.Object3D;
+  /**
    * HOW THICK IT IS ON THE FLOOR, in metres.
    *
    * *"items dropped sometimes have no height and so they look graphically
@@ -148,6 +176,32 @@ export function itemOf(id: string): ItemDef {
 // Every one of them is drawn from the PALETTE OF THE THING IT IS, not from an
 // icon palette: the newspaper takes ct/props.ts's own newsprint greys so the
 // picture of it matches the object you just picked up off the pavement.
+// ── THE MODEL KIT ──────────────────────────────────────────────────────────
+//
+// Three helpers and nothing else. Flat `MeshBasicMaterial`, because this world
+// is unlit by construction and a shaded material here would be the only lit
+// thing in the room. Every part is positioned about the object's OWN BASE, so
+// `dropLoose` can sit it on the floor without knowing what it is.
+const mBox = (w: number, h: number, d: number, c: string,
+              x = 0, y = 0, z = 0, ry = 0): THREE.Mesh => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshBasicMaterial({ color: c }));
+  m.position.set(x, y, z);
+  m.rotation.y = ry;
+  return m;
+};
+// 10 sides: the count the ceiling rose uses, which is what makes a cylinder in
+// this world read as faceted rather than as something imported.
+const mCyl = (r: number, h: number, c: string): THREE.Mesh => new THREE.Mesh(
+  new THREE.CylinderGeometry(r, r, h, 10),
+  new THREE.MeshBasicMaterial({ color: c }),
+);
+const mOf = (...parts: THREE.Object3D[]): THREE.Group => {
+  const g = new THREE.Group();
+  for (const p of parts) g.add(p);
+  return g;
+};
+
 const box = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: number, h: number) => {
   g.fillStyle = c; g.fillRect(x, y, w, h);
 };
@@ -167,6 +221,13 @@ defineItem({
     box(g, '#544e44', 3, 13, 18, 1);                   // the fold, its darkest line
     box(g, '#7d7668', 3, 5, 18, 1);
   },
+  // A FOLDED TABLOID, 30 x 22, face up with the fold standing proud along its
+  // spine. Newsprint greys off its own icon.
+  model: () => mOf(
+    mBox(0.30, 0.022, 0.22, '#9d9483', 0, 0.011, 0),
+    mBox(0.30, 0.010, 0.030, '#7d7668', 0, 0.027, -0.095),
+    mBox(0.20, 0.002, 0.055, '#3a352d', -0.02, 0.023, -0.045),
+  ),
 });
 // Already purchasable at the bodega counter (ct/int-bodega.ts) and already in
 // the starting purse, so these two are declared rather than introduced.
@@ -180,6 +241,14 @@ defineItem({
     box(g, '#8a5a1e', 8, 9, 8, 1); box(g, '#8a5a1e', 8, 11, 6, 1);
     box(g, '#a8681f', 7, 16, 10, 3);
   },
+  // A CARTON ON ITS SIDE, which is how a box lands: 28 long, 19 on its face,
+  // 7 deep — a real cereal box, fallen.
+  model: () => mOf(
+    mBox(0.28, 0.19, 0.07, '#c8862e', 0, 0.095, 0),
+    mBox(0.28, 0.19, 0.002, '#e0a94a', 0, 0.095, 0.036),
+    mBox(0.17, 0.055, 0.004, '#8a5a1e', -0.03, 0.125, 0.038),
+    mBox(0.28, 0.030, 0.072, '#a8681f', 0, 0.176, 0),
+  ),
 });
 defineItem({
   id: 'SODA', name: 'can of soda', stack: 4, blurb: 'warm. It has been on that shelf a while.',
@@ -190,6 +259,13 @@ defineItem({
     box(g, '#d0d3d8', 8, 3, 9, 2);                     // the lid
     box(g, '#b03a2e', 8, 9, 9, 6);                     // the band
     box(g, '#e8e2d0', 10, 11, 5, 2);
+  },
+  // A CAN ON ITS SIDE — 66 across, 115 long — because a dropped can does not
+  // stand up. The label is a second cylinder a hair proud of the shell.
+  model: () => {
+    const c = mCyl(0.033, 0.115, '#b9bcc2'); c.rotation.z = Math.PI / 2; c.position.y = 0.033;
+    const l = mCyl(0.0335, 0.062, '#b03a2e'); l.rotation.z = Math.PI / 2; l.position.y = 0.033;
+    return mOf(c, l);
   },
 });
 
@@ -261,6 +337,14 @@ export const PACKAGE = defineItem({
     box(g, '#e8e4d8', 5, 14, 8, 5);                    // the label
     box(g, '#7d7668', 6, 16, 6, 1);                    // written on, unreadably
   },
+  // THE PARCEL, the same object as the ones on the landings: brown paper and a
+  // cross of string, at the size a hand carries.
+  model: () => mOf(
+    mBox(0.22, 0.16, 0.18, '#a98d63', 0, 0.08, 0),
+    mBox(0.226, 0.035, 0.186, '#8a7049', 0, 0.08, 0),
+    mBox(0.035, 0.166, 0.186, '#8a7049', 0, 0.08, 0),
+    mBox(0.075, 0.002, 0.055, '#e8e4d8', 0.05, 0.161, 0.04),
+  ),
 });
 
 export const PACKAGE_TABLE: string[] = [
@@ -274,7 +358,14 @@ export const PACKAGE_TABLE: string[] = [
       box(g, '#0d0e10', 6, 14, 12, 3);                 // the window
       box(g, '#5a5f66', 7, 15, 3, 1); box(g, '#5a5f66', 14, 15, 3, 1);
     },
-  }).id,
+      // A CASSETTE at its real 188 x 104 x 25, label up, two reel windows.
+    model: () => mOf(
+      mBox(0.188, 0.025, 0.104, '#1e2024', 0, 0.0125, 0),
+      mBox(0.150, 0.002, 0.062, '#c8c2ac', 0, 0.026, -0.008),
+      mBox(0.030, 0.003, 0.030, '#34383e', -0.042, 0.0265, 0.030),
+      mBox(0.030, 0.003, 0.030, '#34383e', 0.042, 0.0265, 0.030),
+    ),
+}).id,
   defineItem({
     id: 'TRAINERS', name: 'pair of trainers', stack: 1, blurb: 'two sizes too big, and white.',
     thick: 0.08,   // two sizes too big and tied together
@@ -286,7 +377,18 @@ export const PACKAGE_TABLE: string[] = [
       box(g, '#b03a2e', 6, 11, 9, 2);                  // the stripe, which is the whole read
       box(g, '#ffffff', 13, 7, 6, 1);
     },
-  }).id,
+      // TWO SHOES, not one — *"pair of trainers"* — at angles to each other the way
+    // a pair lands.
+    model: () => {
+      const shoe = (x: number, z: number, ry: number) => mOf(
+        mBox(0.26, 0.030, 0.095, '#e4e2da', x, 0.015, z, ry),
+        mBox(0.235, 0.055, 0.085, '#c6c3b8', x - 0.008, 0.055, z, ry),
+        mBox(0.090, 0.062, 0.088, '#8f8c83', x - 0.075, 0.070, z, ry),
+        mBox(0.070, 0.010, 0.090, '#b03a2e', x + 0.02, 0.070, z, ry),
+      );
+      return mOf(shoe(0, -0.055, 0.18), shoe(-0.02, 0.055, -0.12));
+    },
+}).id,
   defineItem({
     id: 'TOASTER', name: 'toaster', stack: 1, blurb: 'a toaster. You have stolen a toaster.',
     thick: 0.10,   // a block, and the joke is that he carried it
@@ -298,7 +400,17 @@ export const PACKAGE_TABLE: string[] = [
       box(g, '#5a5f66', 20, 10, 2, 5);                 // the lever
       box(g, '#7a5a2e', 21, 14, 2, 6);                 // and the flex, going off
     },
-  }).id,
+      // A TWO-SLOT TOASTER: chrome body, the slots recessed into a lit top plate,
+    // the lever down one side. 28 x 17 x 16 — the biggest thing in the table.
+    model: () => mOf(
+      mBox(0.28, 0.165, 0.16, '#b6b9bf', 0, 0.0825, 0),
+      mBox(0.28, 0.012, 0.16, '#d6d9de', 0, 0.171, 0),
+      mBox(0.085, 0.014, 0.105, '#26282c', -0.065, 0.176, 0),
+      mBox(0.085, 0.014, 0.105, '#26282c', 0.065, 0.176, 0),
+      mBox(0.020, 0.055, 0.030, '#5a5f66', 0.152, 0.115, 0.04),
+      mBox(0.055, 0.030, 0.004, '#7a5a2e', -0.04, 0.055, 0.082),
+    ),
+}).id,
   defineItem({
     id: 'CHEQUES', name: 'book of cheques', stack: 4, blurb: 'someone else’s name on every one.',
     thick: 0.02,   // a chequebook, the thinnest
@@ -309,7 +421,13 @@ export const PACKAGE_TABLE: string[] = [
       box(g, '#4a5a4e', 15, 13, 5, 3);                 // the amount box
       for (let x = 4; x < 21; x += 3) box(g, '#9aa79d', x, 18, 1, 2);  // the perforation
     },
-  }).id,
+      // A CHEQUEBOOK, 152 x 70, closed, the bound stub showing along one edge.
+    model: () => mOf(
+      mBox(0.152, 0.012, 0.070, '#9aa79d', 0, 0.006, 0),
+      mBox(0.152, 0.006, 0.070, '#eef1ec', 0, 0.015, 0),
+      mBox(0.030, 0.014, 0.070, '#4a5a4e', -0.061, 0.007, 0),
+    ),
+}).id,
   defineItem({
     id: 'SOCKS', name: 'pack of tube socks', stack: 4, blurb: 'six pairs, tube, white.',
     thick: 0.05,   // a soft pack that slumps
@@ -321,7 +439,14 @@ export const PACKAGE_TABLE: string[] = [
         box(g, '#2f4a8a', 19, y + 1, 2, 4);
       }
     },
-  }).id,
+      // A PACK OF TUBE SOCKS: a soft slab in a wrap with a card band round it.
+    // Softer proportions than a box, because a bag of socks holds no edge.
+    model: () => mOf(
+      mBox(0.185, 0.075, 0.115, '#eceade', 0, 0.037, 0),
+      mBox(0.190, 0.038, 0.120, '#d2d0c4', 0, 0.037, 0),
+      mBox(0.060, 0.078, 0.118, '#2f4a8a', 0.045, 0.038, 0),
+    ),
+}).id,
   defineItem({
     id: 'CATALOGUE', name: 'mail-order catalogue', stack: 2, blurb: 'the thing that sells the things.',
     thick: 0.02,   // the thing that sells the things, and it is a magazine
@@ -333,7 +458,15 @@ export const PACKAGE_TABLE: string[] = [
       box(g, '#9a8c68', 7, 11, 4, 4);
       box(g, '#6a5a3c', 6, 17, 8, 1);
     },
-  }).id,
+      // FOUR HUNDRED PAGES IS A SLAB — 21 x 27 and 30 thick, page edges showing
+    // along the open side. The one item you could prop a door with.
+    model: () => mOf(
+      mBox(0.21, 0.030, 0.27, '#d8cfae', 0, 0.015, 0),
+      mBox(0.21, 0.004, 0.27, '#b03a2e', 0, 0.032, 0),
+      mBox(0.012, 0.026, 0.27, '#8a7a58', 0.099, 0.015, 0),
+      mBox(0.012, 0.030, 0.27, '#6a5a3c', -0.099, 0.015, 0),
+    ),
+}).id,
   // …and the disappointment is weighted, because it should be the likeliest
   // single outcome without being the only one. Repetition is the weight; a
   // table of six with one entry twice is easier to read and to change than a
@@ -912,48 +1045,73 @@ const TAKEN: Stashed[] = [];
  */
 let dropN = 0;
 export function dropLoose(ctx: CtxBuild, id: string, x: number, z: number, gy: number): boolean {
+  const def = itemOf(id);
+  // ── THE REAL OBJECT, IF THE ITEM HAS ONE ────────────────────────────────
+  //
+  // *"lets make sure theres a real world item for these items so when we drop
+  //  them in the world they exist in it as they would."*
+  //
+  // A model's parts are built about ITS OWN BASE, so it sits on the floor by
+  // being placed at `gy` — no half-thickness, no lift, nothing to keep in step
+  // with a size the model owns. 2 mm of daylight against z-fighting, the same
+  // clearance the old box used.
+  if (def.model) {
+    const obj = def.model();
+    // A HAND DOES NOT SET THINGS DOWN SQUARE. The yaw is off the drop counter
+    // rather than random, so it is deterministic and nothing spins per frame.
+    obj.rotation.y = (dropN * 1.107) % (Math.PI * 2);
+    const k = dropN++;
+    const a = k * 2.39996;                             // the golden angle
+    const rad = k === 0 ? 0 : 0.10 + 0.02 * (k % 4);
+    obj.position.set(x + Math.cos(a) * rad, gy + 0.002, z + Math.sin(a) * rad);
+    obj.name = `dropped-${id}`;
+    ctx.scene.add(obj);
+    // ⚠ `lift` IS 0.002 AND NOT HALF A THICKNESS. The model's origin IS its
+    // base, so picking it up and dropping it on another storey lands it flush
+    // there too without anyone re-deriving a height.
+    takeable(ctx, { obj, id, lift: 0.002 });
+    return true;
+  }
+  // ── AND THE FALLBACK, FOR AN ITEM NOBODY HAS MODELLED YET ────────────────
+  //
+  // The textured box `472096eb` built: the icon on top, the art's own dominant
+  // colour on the sides. It is not what he asked for and it is not a lie
+  // either — an unmodelled thing is honestly a printed carton — so it stays as
+  // the path a NEW item takes before somebody gives it a shape. `ItemDef.thick`
+  // exists only for this branch.
   const cv = document.createElement('canvas');
   cv.width = 48; cv.height = 48;
   const g = cv.getContext('2d');
   if (!g) return false;
   g.save(); g.scale(2, 2);
-  try { itemOf(id).icon?.(g); } catch { /* an item with no art still drops */ }
+  try { def.icon?.(g); } catch { /* an item with no art still drops */ }
   g.restore();
   const tex = new THREE.CanvasTexture(cv);
   tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
-  // THE SIDES, READ OFF THE ART. Mean of every pixel the icon actually painted
-  // — `a > 128` skips the transparent surround, or every side would be washed
-  // toward whatever the empty canvas is. A fallback of mid-grey covers an item
-  // that drew nothing at all.
   let r = 0, gg = 0, b = 0, n = 0;
   try {
     const px = g.getImageData(0, 0, 48, 48).data;
     for (let i = 0; i < px.length; i += 4) {
       if (px[i + 3] > 128) { r += px[i]; gg += px[i + 1]; b += px[i + 2]; n++; }
     }
-  } catch { /* a tainted or zero-sized canvas is not a reason to refuse a drop */ }
-  const dim = 0.78;                                  // the sides are not the lit face
+  } catch { /* a tainted canvas is not a reason to refuse a drop */ }
+  const dim = 0.78;
   const side = n > 0
     ? new THREE.Color(r / n / 255 * dim, gg / n / 255 * dim, b / n / 255 * dim)
     : new THREE.Color(0x6a6459);
   const sideM = new THREE.MeshBasicMaterial({ color: side });
   const topM = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 });
-  const th = itemOf(id).thick ?? 0.05;
-  // BoxGeometry group order is [+x, -x, +y, -y, +z, -z] — index 2 is the top.
+  const th = def.thick ?? 0.05;
   const obj = new THREE.Mesh(new THREE.BoxGeometry(0.16, th, 0.16),
     [sideM, sideM, topM, sideM, sideM, sideM]);
-  // the little ring, so the second thing you drop is beside the first
   const k = dropN++;
-  const a = k * 2.39996;                             // the golden angle: never repeats a spoke
+  const a = k * 2.39996;
   const rad = k === 0 ? 0 : 0.10 + 0.02 * (k % 4);
-  obj.rotation.y = (k * 1.107) % (Math.PI / 2);      // dropped, not placed
+  obj.rotation.y = (k * 1.107) % (Math.PI / 2);
   const LIFT = th / 2 + 0.002;
   obj.position.set(x + Math.cos(a) * rad, gy + LIFT, z + Math.sin(a) * rad);
   obj.name = `dropped-${id}`;
   ctx.scene.add(obj);
-  // `lift` is stated rather than inferred: this mesh carries no `groundY` tag,
-  // and half a thickness plus 2 mm is what sits it ON the floor rather than in
-  // it — so picking it up and dropping it on another storey lands it flush too.
   takeable(ctx, { obj, id, lift: LIFT });
   return true;
 }
