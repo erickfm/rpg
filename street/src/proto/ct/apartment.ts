@@ -1952,6 +1952,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const dome = new THREE.Mesh(domeGeo, opalM);
       dome.position.set(wx, ceilY - 0.05, wz);
       scene.add(dome);
+      // ⚠ RETURNED SO A SWITCH CAN DRIVE IT. Only 301's fixture is ever
+      // switched; the hall and stair lamps ignore the return and are
+      // unaffected.
+      return { spill, dome };
       // ── THE HALO MUST NOT REACH THE SLAB IT HANGS UNDER ─────────────────
       // The user: *"sometimes the lights in the apt bleed into the floor
       // above, make sure this doesnt happen"* — a bright rectangular patch
@@ -5688,7 +5692,89 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Same instruction, same wall: 0.40 x 0.153 of taped-up photographs at
     // AX(-1.62), with their own 34 x 13 field. Also gone, also not replaced.
     // lit by the same fixture as the landing outside the door
-    ceilingLamp(2 * ST + 2.55, AZI(3.75), 0.55, AX(-1.6));
+    const flatLamp = ceilingLamp(2 * ST + 2.55, AZI(3.75), 0.55, AX(-1.6));
+
+    // ══ THE LIGHT SWITCH ══════════════════════════════════════════════════
+    //
+    // *"we need a light switch in the apt. put it left of the door."*
+    //   (2026-08-05)
+    //
+    // LEFT AS HE MEANT IT — standing IN the flat looking at his own door. The
+    // door is in the east wall at AZI(3.5) and he faces +x to leave, so his left
+    // hand is toward -z. A switch is on the wall your hand falls on as you walk
+    // out, which is this one. (The HALL side would want its own one day; that is
+    // a different plate on a different wall and is not built.)
+    //
+    // ⚠ CLEAR OF THE LEAF, MEASURED. 301's door hangs on the +z jamb at
+    // AZI(3.975) and its tip travels a 0.91 m circle about that pivot — the arc
+    // that has swallowed things before. The plate is at AZI(2.85), which is
+    // 1.125 m from the pivot: 0.215 m outside the swing at its widest, at every
+    // angle the leaf can take. It is also 2.6 m from the mirror on the south
+    // wall, so neither is near the other.
+    //
+    // 1.15 m off the boards, which is where a 1997 domestic switch sits, and
+    // 0.02 m proud of the plaster — nothing the 2 m lane can feel.
+    const SW_Z = AZI(2.85), SW_Y = RY + 1.15, SW_X = AX(-0.03);
+    const swPlateM = new THREE.MeshBasicMaterial({ color: 0xd8d2c4 });
+    const swRockM = new THREE.MeshBasicMaterial({ color: 0xe8e4d8 });
+    const swPlate = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.10, 0.10), swPlateM);
+    swPlate.position.set(SW_X, SW_Y, SW_Z);
+    scene.add(swPlate);
+    // the rocker: a smaller slab proud of the plate, tipped by the state
+    const swRock = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.055, 0.04), swRockM);
+    swRock.position.set(SW_X - 0.014, SW_Y, SW_Z);
+    scene.add(swRock);
+
+    /**
+     * ── WHAT THE SWITCH ACTUALLY DOES ────────────────────────────────────
+     *
+     * It drives 301's own ceiling fixture and nothing else: the HALO on the
+     * floor (`spill`) goes out, and the opal DOME goes from lit glass to the
+     * dead grey of a bulb that is off. The hall and stair lamps are untouched —
+     * they are other people's fixtures on other people's meters.
+     *
+     * WHAT SURVIVES IN THE DARK, because a room you cannot use is a bug: the
+     * window, the street lamps through it, the door's light from the landing,
+     * and the television if he left it on. Every surface in the flat is
+     * `MeshBasicMaterial` and unlit by construction, so the room does not go
+     * black — it loses the pool of light on the boards, which is the thing that
+     * reads as "the light is on" in the first place. **Said plainly: the
+     * surfaces themselves are not re-tinted.** Making the room genuinely dimmer
+     * needs the interior grading pass that `dimWorld` deliberately skips
+     * (`|x| > 100`), and that is a bigger change than a switch.
+     *
+     * IT PERSISTS, session-scoped, like `doorShut` beside it. Leave the flat and
+     * come back and it is as you left it; sleep with it on and you wake to it
+     * on, which is right. There is no save in this world, so it resets on
+     * reload — the same rule every other piece of flat state follows.
+     *
+     * ⚠ NOTHING HERE IS TOUCHED BY THE GRADER. The switch plate and rocker are
+     * positioned BEFORE `scene.add`, which is the exact fault that made the
+     * parcels darken at `0969f1c4`; `props.dimWorld` reads world position at
+     * collection time and this building stands at x 200, so both are skipped.
+     */
+    let lightOn = true;
+    const setLight = (on: boolean) => {
+      lightOn = on;
+      if (flatLamp) {
+        flatLamp.spill.visible = on;
+        (flatLamp.dome.material as THREE.MeshBasicMaterial).color.setHex(on ? 0xffffff : 0x6b6659);
+      }
+      // the rocker tips, which is the only moving part on the object
+      swRock.position.y = SW_Y + (on ? 0.012 : -0.012);
+    };
+    setLight(true);
+    ctx.spot({
+      x: AX(-0.55), z: SW_Z, r: 0.72,
+      obj: swPlate,
+      // ⚠ AIM AT THE PLATE, NOT AT THE PATCH OF FLOOR HE STANDS ON. A switch is
+      // 10 cm of wall at chest height and is exactly the case that fix was for.
+      aimX: SW_X, aimZ: SW_Z,
+      ok: () => Math.abs(lastGy - 2 * ST) < 0.5,
+      label: () => (lightOn ? 'the light switch — off' : 'the light switch — on'),
+      act: () => setLight(!lightOn),
+    });
+
     // ── 301'S COLLISION, FITTED TO THE MESHES IT STANDS FOR ──────────────────
     //
     // The user, 2026-08-04: *"make the collision on the object in the apt match
