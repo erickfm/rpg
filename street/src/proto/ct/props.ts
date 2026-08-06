@@ -2589,6 +2589,13 @@ uniform float uPoolAmb;`)
           pg.state = 'fly'; pg.t = 0;
           const a = Math.atan2(pg.x - px, pg.z - pz) + (rnd() - 0.5) * 0.8;
           pg.vx = Math.sin(a) * 3.2; pg.vz = Math.cos(a) * 3.2; pg.vy = 2.6;
+          // A BIRD LEAVING THE GROUND IS AN EVENT SOMEBODY ELSE MAY WANT.
+          // Published the same way as `rainLevel` and `addLamp` above: this
+          // file states the fact and never learns who listens. `ct/audio.ts`
+          // is the first taker and puts a wingbeat on it, panned to where the
+          // bird actually was. Optional chaining, so with nothing subscribed
+          // this costs one undefined check per spook and changes nothing.
+          (scene.userData.pigeonFlew as ((x: number, z: number) => void) | undefined)?.(pg.x, pg.z);
         }
         const pgy = Math.abs(pg.x) > ROAD_HALF && Math.abs(pg.x) < FACE + 0.3 ? KERB_H : 0;
         pg.m.position.set(pg.x, pgy + Math.max(0, Math.sin(t * 6 + pg.ph)) * 0.06, pg.z);

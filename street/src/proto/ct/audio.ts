@@ -81,6 +81,16 @@ export const ORDER = BUILD.PROPS;
 const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain'] as const;
 type BedName = (typeof BEDS)[number];
 
+/** The one-shots, cut from the three short sources. Eight outdoor footfalls and
+ *  six indoor ones is enough that the cycle never lines up with a stride; two
+ *  bird flurries is what `birdfly.wav` actually contained. */
+const OUT_STEPS = ['step-out-1', 'step-out-2', 'step-out-3', 'step-out-4',
+  'step-out-5', 'step-out-6', 'step-out-7', 'step-out-8'] as const;
+const IN_STEPS = ['step-in-1', 'step-in-2', 'step-in-3',
+  'step-in-4', 'step-in-5', 'step-in-6'] as const;
+const BIRDS = ['bird-1', 'bird-2'] as const;
+const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS] as const;
+
 /**
  * WHERE THE FILES ARE, resolved against the DOCUMENT rather than hardcoded.
  *
@@ -107,7 +117,26 @@ const LVL = {
   rain: 0.55,      // multiplied by rainLevel, so this is its DOWNPOUR level
   rainIndoors: 0.20, // …of the above, heard through a window
   site: 0.42,      // multiplied by distance and by the working day
+  stepOut: 0.55,
+  stepIn: 0.50,
+  bird: 0.70,      // multiplied by distance
 };
+
+/** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
+ *
+ *  A timer has to be told how fast he is going and gets it wrong on every
+ *  slope, every doorway and every collision slide. Distance does not: the step
+ *  falls when the leg has travelled far enough, so walking, sprinting and
+ *  scraping along a wall are all correct without any of them being a case. */
+const STRIDE = 0.78;
+/** No two footfalls closer than this, whatever the distance says. `fp.ts` ships
+ *  with the debug sprint at 42 m/s — 54 steps a second on stride alone, which
+ *  is not a run, it is a buzzsaw. */
+const STEP_MIN = 0.17;
+/** A frame that moves him further than this is a TELEPORT, not a stride: every
+ *  door in this world is a `jumpTo` and `px` crosses 1000 in one frame. Without
+ *  this, walking into a shop plays a footstep for a hundred metres of travel. */
+const TELEPORT = 1.2;
 
 /** How long a crossfade takes, in seconds, as an exponential time constant.
  *  Stepping through a door is a TELEPORT — `px` jumps from ~5 to ~1000 in one
@@ -170,7 +199,7 @@ export function register(ctx: CtxBuild): void {
   // time and are already warm by the time he clicks, and `boot()` only has to
   // decode. `null` for anything that failed — the artifact case, below.
   const bytes = new Map<string, ArrayBuffer | null>();
-  const fetching = [...BEDS].map((n) =>
+  const fetching = [...BEDS, ...SHOTS].map((n) =>
     fetch(url(n))
       .then((r) => (r.ok ? r.arrayBuffer() : null))
       .catch(() => null)
@@ -179,6 +208,35 @@ export function register(ctx: CtxBuild): void {
   let rig: Rig | null = null;
   let live: AudioContext | null = null;
   let booted = false;
+  const shots = new Map<string, AudioBuffer>();
+
+  /**
+   * Fire a one-shot: a source, a gain and a pan, built for this sound and
+   * disconnected when it ends.
+   *
+   * An `AudioBufferSourceNode` is single-use by specification — it cannot be
+   * restarted — so there is nothing to pool and nothing to reset. Building
+   * three nodes per footstep sounds extravagant and is not: they are the
+   * cheapest objects in the API, and the alternative (one shared chain) would
+   * make two overlapping steps cut each other off, which on a staircase is
+   * exactly when two overlap.
+   */
+  function fire(name: string, gain: number, rate: number, pan: number): void {
+    if (!rig || muted) return;
+    const buf = shots.get(name);
+    if (!buf) return;
+    const { ac } = rig;
+    const s = ac.createBufferSource();
+    s.buffer = buf;
+    s.playbackRate.value = rate;
+    const g = ac.createGain();
+    g.gain.value = gain;
+    const p = ac.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    s.connect(g).connect(p).connect(rig.master);
+    s.onended = () => { s.disconnect(); g.disconnect(); p.disconnect(); };
+    s.start();
+  }
 
   // ── the mixer's saved state ───────────────────────────────────────────────
   const PREF = 'ct.audio';
@@ -245,6 +303,16 @@ export function register(ctx: CtxBuild): void {
       }).catch((e) => console.warn(`[audio] ${n} would not decode:`, e));
     }
 
+    // One-shots decode into a plain table and are re-triggered from it. Unlike
+    // the beds they get no node until they are actually heard.
+    for (const n of SHOTS) {
+      const raw = bytes.get(n);
+      if (!raw) continue;
+      ac.decodeAudioData(raw.slice(0))
+        .then((buf) => { shots.set(n, buf); })
+        .catch((e) => console.warn(`[audio] ${n} would not decode:`, e));
+    }
+
     rig = { ac, master, beds };
     live = ac;
     applyMaster();
@@ -256,9 +324,9 @@ export function register(ctx: CtxBuild): void {
   // others. `isTrusted` because a synthetic event is not a gesture and would
   // burn the one chance at a running context.
   const armed: Array<[string, EventListener]> = [];
-  const fire = () => { for (const [t, f] of armed) window.removeEventListener(t, f, true); armed.length = 0; void boot(); };
+  const gesture = () => { for (const [t, f] of armed) window.removeEventListener(t, f, true); armed.length = 0; void boot(); };
   for (const t of ['pointerdown', 'keydown', 'touchstart', 'pointerlockchange']) {
-    const f: EventListener = (e) => { if (e.isTrusted) fire(); };
+    const f: EventListener = (e) => { if (e.isTrusted) gesture(); };
     armed.push([t, f]);
     window.addEventListener(t, f, true);
   }
@@ -359,6 +427,61 @@ export function register(ctx: CtxBuild): void {
   let sway = 0;           // the second street layer, breathing
   let lastRain = 0;       // the last rain level seen OUTDOORS — see below
 
+  // ══ FOOTSTEPS ═════════════════════════════════════════════════════════════
+  //
+  // Cadence comes from DISTANCE TRAVELLED, not from a timer and not from a
+  // speed the rig would have to publish — see `STRIDE`. Which means the two
+  // hard cases need no special handling at all:
+  //
+  //  · STANDING STILL is silent because he covers no ground.
+  //  · SEATED, or reading, or in the mirror is silent for the same reason —
+  //    `hud.ts` gates the input and the body does not move. Nothing here has to
+  //    know that a drawer is open, which is the point: this module cannot see
+  //    `hud.ts`, `bag.ts` or `mirror.ts` and does not need to.
+  //
+  // THE ONE THING IT CANNOT SEE is whether he is in the AIR. `Frame` carries
+  // `gy`, the GROUND height under him, not his own y, so a jump reads as
+  // ordinary forward travel and lays down its steps mid-flight. Fixing it needs
+  // one boolean off the rig — `fp.ts`'s own grounded flag — which is a trunk
+  // file this module deliberately does not open.
+  let lastX = NaN, lastZ = NaN;
+  let acc = 0;            // metres of stride banked since the last footfall
+  let stepAt = 0;         // when the last one played, on the frame clock
+  let stepPick = -1;      // which sample it was, so it is not picked twice
+  let px = 0, pz = 0;     // last seen player position, for the bird callback
+
+  /** pick a sample that is not the one before it — six or eight files stop
+   *  sounding like six or eight files the moment a repeat lands */
+  const pick = (n: number) => {
+    let i = Math.floor(roll() * n);
+    if (i === stepPick) i = (i + 1) % n;
+    return (stepPick = i);
+  };
+
+  // ══ BIRDS ═════════════════════════════════════════════════════════════════
+  //
+  // `props.ts` owns the pigeons and publishes the takeoff — one call at the
+  // moment a bird spooks, the same shape as the `rainLevel` and `addLamp`
+  // publications already on `scene.userData`. This module supplies the ear; if
+  // nothing supplies the call, nothing happens and neither file cares.
+  let birdAt = -99;
+  (scene.userData as { pigeonFlew?: (x: number, z: number) => void }).pigeonFlew = (bx, bz) => {
+    // Pigeons spook in a group and this is one flurry, not five overlapping
+    // copies of it — which is what a whole flock lifting off sounded like
+    // before the gate. `birdfly.wav` is itself a flurry of wingbeats, so one
+    // trigger already carries the flock.
+    const now = performance.now() / 1000;
+    if (now - birdAt < 0.45) return;
+    birdAt = now;
+    const d = Math.hypot(bx - px, bz - pz);
+    const near = Math.max(0, 1 - d / 24) ** 1.6;
+    if (near < 0.02) return;
+    fire(BIRDS[Math.floor(roll() * BIRDS.length)],
+      LVL.bird * near * (0.8 + roll() * 0.4),
+      0.94 + roll() * 0.12,
+      bearing(bx, bz, px, pz) * 0.8);
+  };
+
   ctx.onFrame((f) => {
     if (!rig) return;
     const { ac, beds } = rig;
@@ -413,6 +536,36 @@ export function register(ctx: CtxBuild): void {
       // an automation curve running against the next frame's write.
       b.cur = glide(b.cur, want[n], f.dt, n === 'site' ? 1.2 : TAU);
       b.g.gain.value = b.cur;
+    }
+
+    // ── footsteps ───────────────────────────────────────────────────────────
+    px = f.px; pz = f.pz;
+    const moved = Number.isNaN(lastX) ? 0 : Math.hypot(f.px - lastX, f.pz - lastZ);
+    lastX = f.px; lastZ = f.pz;
+
+    if (moved > TELEPORT) {
+      // A door, a stairwell, a bed. Bank nothing and do not let the arrival
+      // land a footstep — the transition already has a fade over it.
+      acc = 0;
+      stepAt = f.t;
+    } else {
+      acc = Math.min(acc + moved, STRIDE);   // clamped, so a sprint cannot queue
+      if (acc >= STRIDE && f.t - stepAt >= STEP_MIN) {
+        acc = 0;
+        stepAt = f.t;
+        // Indoors is the same |x| > 100 fact the ambience crossfades on, read
+        // RAW here rather than through `ins`: the bed slews over half a second
+        // and a footstep does not — the first step inside the door should be a
+        // floorboard even while the street is still fading out behind it.
+        const indoors = inside(f.px);
+        const pool = indoors ? IN_STEPS : OUT_STEPS;
+        fire(pool[pick(pool.length)],
+          (indoors ? LVL.stepIn : LVL.stepOut) * (0.78 + roll() * 0.44),
+          // Detune per step. Eight files played flat is eight files; eight
+          // files with ±7% on the rate is a walk.
+          0.93 + roll() * 0.14,
+          (roll() - 0.5) * 0.24);
+      }
     }
 
     if (peekUntil && performance.now() > peekUntil) { peekUntil = 0; wrap.style.opacity = '.28'; }
