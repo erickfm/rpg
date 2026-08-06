@@ -541,6 +541,15 @@ function figureFit(W: number, H: number) {
  * imports this module; the arrow cannot point both ways. Same shape as
  * `registerHeldView` in the hud.
  */
+/** How dark the FOCUSED view goes when the room's light is off — its own
+ *  number, not the room's. See the note in `paint`. */
+const FOCUS_DARK = 0.62;
+/** the room's own dim level, for mapping between the two. Mirrors
+ *  `ROOM_DARK` in `ct/apartment.ts`; it is a ratio here, not a second source. */
+const ROOM_DARK_REF = 0.34;
+/** how much of the dimming the FIGURE is spared — he is lit by the window he
+ *  is facing while the wall behind him is not. 1 = as dark as the room. */
+const FIGURE_LIFT = 0.45;
 let roomLight: () => number = () => 1;
 export function setRoomLight(fn: () => number): void { roomLight = fn; }
 
@@ -593,13 +602,55 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
   // wash alike — a highlight in a dark room is dim too. `multiply` is the same
   // arithmetic as scaling a material's colour, which is what the plate on the
   // wall gets for free. See `setRoomLight`.
+  // ══ THE ROOM'S LIGHT, BUT NOT THE ROOM'S AMOUNT ═══════════════════════
+  //
+  // *"mirror is a bit too dark when we click into it when the switch is off"*
+  //   (2026-08-05)
+  //
+  // THE MECHANISM WAS RIGHT AND THE NUMBER WAS BORROWED. I applied the room's
+  // own `ROOM_DARK` 0.34 straight through, and it is wrong for THIS surface
+  // because the two surfaces do different jobs: the plate on the wall is a thing
+  // he GLANCES AT across a room, where 0.34 reads as "the room is dark", and
+  // this one FILLS THE FRAME and is the only thing he is looking at, where the
+  // same 0.34 reads as "I cannot see". He is in here to look at clothes.
+  //
+  // SO IT IS ITS OWN CONSTANT, which is the honest answer rather than flooring
+  // the shared one — a floor would hide the fact that these are two different
+  // decisions. `FOCUS_DARK` 0.62 against the room's 0.34: unmistakably a lit
+  // room away from a dark one, and every garment still readable. One line to
+  // nudge, in either direction.
+  //
+  // ⚠ AND THE FIGURE DIMS LESS THAN THE REFLECTION BEHIND HIM. He is the point
+  // of the view — dimming him with the room makes the one thing he came to look
+  // at the darkest thing on screen. It is also true: a person standing at a
+  // mirror in an unlit flat is lit by the window he is facing and by whatever
+  // is on, while the wall behind him is not. So the multiply is laid down in
+  // TWO passes — the whole canvas at `FOCUS_DARK`, then the figure's own column
+  // lifted back toward daylight by `FIGURE_LIFT`. Cheap, because the second
+  // pass is a rectangle around the figure rather than a re-paint of it.
   const k = roomLight();
   if (k < 0.999) {
-    const v = Math.round(Math.max(0, Math.min(1, k)) * 255);
+    const room = 1 - (1 - k) * (1 - FOCUS_DARK) / (1 - ROOM_DARK_REF);
+    const wash = (v: number, x: number, y: number, w: number, h: number) => {
+      const c = Math.round(Math.max(0, Math.min(1, v)) * 255);
+      g.save();
+      g.globalCompositeOperation = 'multiply';
+      g.fillStyle = `rgb(${c},${c},${c})`;
+      g.fillRect(x, y, w, h);
+      g.restore();
+    };
+    // the reflected room, all of it, including the glass and the hover wash
+    wash(room, 0, 0, W, H);
+    // …and HIM, lifted back out of it. `screen` blending is multiply's inverse,
+    // so this returns exactly the light the pass above took, times `FIGURE_LIFT`
+    // — no second guess at what his colours were.
+    const fit = figureFit(W, H);
+    const back = 1 - (1 - room) * FIGURE_LIFT;
+    const c = Math.round(Math.max(0, Math.min(1, 1 - back / Math.max(room, 0.001))) * 255);
     g.save();
-    g.globalCompositeOperation = 'multiply';
-    g.fillStyle = `rgb(${v},${v},${v})`;
-    g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'screen';
+    g.fillStyle = `rgb(${c},${c},${c})`;
+    g.fillRect(fit.ox - fit.s, fit.oy - fit.s, MW * fit.s + fit.s * 2, MH * fit.s + fit.s * 2);
     g.restore();
   }
   // ── AND THERE IS NO CAPTION ON THE GLASS ───────────────────────────────
