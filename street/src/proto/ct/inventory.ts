@@ -118,6 +118,29 @@ export interface ItemDef {
    */
   model?: () => THREE.Object3D;
   /**
+   * ── TOO BIG TO POCKET ────────────────────────────────────────────────────
+   *
+   * *"dont like that i can take the toaster through all the floors of the apt"*
+   *   (2026-08-05)
+   *
+   * HE SAID IT THE MOMENT THE THINGS BECAME REAL OBJECTS, and that is not a
+   * coincidence. While a toaster was a 16 cm printed tile it could go in a bag
+   * without anyone minding; the model above is 28 x 17 x 16 cm of chrome, and
+   * carrying it up three flights inside a shoulder bag is the kind of thing you
+   * only notice once you can see it.
+   *
+   * A BULKY ITEM IS CARRIED, NOT STOWED. It takes the HANDS — `HAND_SLOTS`, the
+   * one-slot inventory he specified himself (*"if you have no bag you hold one
+   * thing in your right hand"*) — so you may have exactly one at a time and a
+   * bag does not help. He can still take the toaster; he has to carry it, and
+   * he cannot take anything else while he does.
+   *
+   * ⚠ USING HIS OWN RULE RATHER THAN INVENTING A WEIGHT SYSTEM. There is no
+   * encumbrance model here and there should not be one: one number on one item,
+   * and the hands slot already existed for exactly this shape of thing.
+   */
+  bulky?: boolean;
+  /**
    * HOW THICK IT IS ON THE FLOOR, in metres.
    *
    * *"items dropped sometimes have no height and so they look graphically
@@ -391,6 +414,14 @@ export const PACKAGE_TABLE: string[] = [
 }).id,
   defineItem({
     id: 'TOASTER', name: 'toaster', stack: 1, blurb: 'a toaster. You have stolen a toaster.',
+    // ⚠ THE ONLY BULKY THING IN THE TABLE, and it is the one he named. 28 x 17
+    // x 16 cm of chrome does not go in a shoulder bag. See `ItemDef.bulky`.
+    //
+    // NOTHING ELSE IS FLAGGED, deliberately. The CEREAL box (28 x 19 x 7) and
+    // the CATALOGUE (21 x 27 x 3) are the only other candidates and both are
+    // things a person genuinely does put in a bag — a cereal box is what a bag
+    // of shopping is FOR. If he wants either to join, it is one word each.
+    bulky: true,
     thick: 0.10,   // a block, and the joke is that he carried it
     icon: (g) => {
       box(g, '#b6b9bf', 3, 7, 18, 12);                 // chrome slab
@@ -708,8 +739,18 @@ export function carried(p: Purse): number {
  */
 export function roomFor(p: Purse, id: string): number {
   const byStack = Math.max(0, itemOf(id).stack - (p.inv[id] ?? 0));
-  const bySpace = Math.max(0, carrySlots() - carried(p));
+  // ⚠ A BULKY THING IS IN YOUR HANDS, SO A BAG DOES NOT HELP — see
+  // `ItemDef.bulky`. Its ceiling is HAND_SLOTS whatever is on your back, and it
+  // counts everything you are already carrying, so you cannot hold a toaster
+  // and a full bag's worth of anything else.
+  const ceiling = itemOf(id).bulky ? HAND_SLOTS : carrySlots();
+  const bySpace = Math.max(0, ceiling - carried(p));
   return Math.min(byStack, bySpace);
+}
+
+/** is he carrying something too big to stow? Ask this to WORD A PROMPT. */
+export function handsFull(p: Purse): boolean {
+  return slots(p).some((id) => itemOf(id).bulky);
 }
 
 /** Is there nowhere left to put anything at all? Ask this to WORD A PROMPT
@@ -726,6 +767,9 @@ export function pocketsFull(p: Purse): boolean {
  * callers should not each be deciding which — so they ask.
  */
 export function fullWhy(p: Purse): string {
+  // the bulky case first, because it is the surprising one: a bag with room in
+  // it that still cannot take this
+  if (handsFull(p)) return 'your hands are full';
   if (!pocketsFull(p)) return '';
   return bagWorn().kind === 'none'
     ? 'your hands are full'
