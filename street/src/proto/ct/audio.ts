@@ -1,0 +1,420 @@
+import type { CtxBuild } from './ctx';
+import { BUILD, ORDER as HOOK } from './ctx';
+
+// ════════════════════════════════════════════════════════════════════════════
+// SOUND
+//
+// The user, 2026-08-05: *"i want to add sounds. i have a bunch here
+// /home/erick/Documents/sound"* — eight WAVs, 41 MB of 44.1 kHz PCM.
+//
+// This is a LEAF MODULE. It exports `register` and `ORDER` and `ct/world.ts`
+// globs it in; it edits nothing else and imports nothing but `ctx`. That is
+// deliberate and it is achievable, because everything a soundtrack needs is
+// already on the context:
+//
+//   f.px, f.pz     where he is        →  indoors, and how far from a source
+//   f.dt           frame time         →  crossfades, and footstep cadence
+//   f.hourF        time of day        →  a building site knocks off at six
+//   ctx.player.yaw where he is LOOKING →  which ear a sound arrives in
+//   ctx.scene      userData.rainLevel →  how hard it is raining right now
+//
+// ── WHAT THE FILES ACTUALLY ARE ─────────────────────────────────────────────
+//
+// Measured, not assumed — the brief called them "street ambience" and one of
+// them is not:
+//
+//   city.wav   33.4 s  92.5% of its energy BELOW 250 Hz. Close traffic rumble
+//              and the loudest of the set (-16.9 dBFS peak).
+//   city2.wav  52.9 s  65% in 250 Hz–2 kHz, 8 dB quieter, and it DECAYS across
+//              its length (rms 0.007 → 0.005). NOT a variant of city.wav — a
+//              different, thinner, further-off recording. Two places, not two
+//              takes, which is why both are used and neither replaces the other.
+//   room.wav   52.2 s  interior hum, low, with slow swells every ~20 s.
+//   rain.wav   50.4 s  the only file with real content above 2 kHz.
+//   construction.wav  37.2 s  quiet, mid-heavy, distant site clatter.
+//
+// NONE of the five loops cleanly as delivered — rain fades in, city2 decays,
+// and every one of them simply stops mid-texture. `scripts/audio-encode.sh`
+// rebuilds each one so that it loops seamlessly by construction, and that
+// script's header is where the arithmetic lives.
+//
+// The three short files are not single sounds at all. `stepoutside` is 23
+// discrete footfalls at ~0.52 s spacing with true silence between them,
+// `stepinside` is 10 at ~0.41 s, `birdfly` is two separate wing flurries either
+// side of 1.2 s of quiet. They are cut at their measured onsets into samples
+// this module retriggers, so a footstep follows HIS legs instead of playing a
+// canned walk cycle you cannot stop mid-stride.
+//
+// ── THE GESTURE ─────────────────────────────────────────────────────────────
+//
+// No browser will start audio without one, so nothing here constructs an
+// `AudioContext` until the player has touched something. The world takes
+// pointer lock on a canvas click and that click is the gesture — but this does
+// NOT reach into `fp.ts` to find it. It listens on `window` for the first
+// trusted `pointerdown`, `keydown` or `pointerlockchange`, in the capture
+// phase so that a gate swallowing the event for its own reasons cannot also
+// swallow the boot. Whichever arrives first wins, all three then unregister,
+// and clicking the canvas to play is therefore the same click that starts the
+// sound. A player who opens the page and presses `W` boots it just as well.
+//
+// ── 41 MB IS NOT SHIPPABLE ──────────────────────────────────────────────────
+//
+// `public/audio/*.ogg`, 1.3 MB for all 21 of them, committed. Ogg Vorbis and
+// not mp3 for one specific reason: an mp3 carries encoder delay and padding
+// that `decodeAudioData` hands back as PCM, so a looped `AudioBufferSourceNode`
+// ticks on every wrap no matter how clean the source was. Vorbis carries an
+// exact sample count and loops gaplessly, and a bed with a click at the join is
+// worse than no bed. Most of the saving is not bitrate but SAMPLE RATE: four of
+// the five beds hold nothing above 2 kHz, so they are resampled to 22.05 kHz.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Nothing is drawn, so this could sit anywhere — but `rnd()` in `ct/rng.ts` is
+ *  one seeded stream and three.js burns four `Math.random()` calls per object
+ *  on `generateUUID`, so a module's position in the build order moves every
+ *  tree in the world (GOTCHAS §2). This one creates no three.js object and
+ *  takes no draw from the seeded stream, at build time or after it — see
+ *  `roll()` below — so it is inert either way. PROPS because that is what it
+ *  is: a fitting on the block. */
+export const ORDER = BUILD.PROPS;
+
+// ── the asset roster ────────────────────────────────────────────────────────
+const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain'] as const;
+type BedName = (typeof BEDS)[number];
+
+/**
+ * WHERE THE FILES ARE, resolved against the DOCUMENT rather than hardcoded.
+ *
+ * `/audio/x.ogg` would be correct on :5177 and wrong on Pages, which is served
+ * from `/rpg/` with `--base=./`. `document.baseURI` is the page's own URL in
+ * both, so this resolves to `/audio/…` in dev and `/rpg/audio/…` on Pages with
+ * no build-time constant to keep in step. It also means `import.meta.env` is
+ * not needed, which matters: `tsconfig.json` does not pull in `vite/client`.
+ *
+ * In the packed single-file artifact it resolves to a `file://` URL that does
+ * not exist — see `boot()` for what happens then, which is: nothing, quietly.
+ */
+const url = (n: string) => new URL(`audio/${n}.ogg`, document.baseURI).href;
+
+// ── mix levels, all in one place so they can be argued about ────────────────
+//
+// The beds were peak-normalised to -3 dBFS by the encoder because they arrived
+// up to 25 dB apart, so every balance decision is HERE, where it can be heard
+// against the world, rather than baked into a file at a level nobody can see.
+const LVL = {
+  streetA: 0.34,   // the base of the outdoor bed: close traffic rumble
+  streetB: 0.30,   // the further-off layer, which breathes — see `sway`
+  room: 0.30,
+  rain: 0.55,      // multiplied by rainLevel, so this is its DOWNPOUR level
+  rainIndoors: 0.20, // …of the above, heard through a window
+  site: 0.42,      // multiplied by distance and by the working day
+};
+
+/** How long a crossfade takes, in seconds, as an exponential time constant.
+ *  Stepping through a door is a TELEPORT — `px` jumps from ~5 to ~1000 in one
+ *  frame — so this is the whole difference between the street handing over to
+ *  the room and the street being cut off mid-rumble. */
+const TAU = 0.55;
+
+/** approach `cur` toward `want`, frame-rate independent */
+const glide = (cur: number, want: number, dt: number, tau = TAU) =>
+  cur + (want - cur) * (1 - Math.exp(-dt / tau));
+
+/** equal-power crossfade: `a` and `b` sum to constant ENERGY, not constant
+ *  amplitude, so the middle of a doorway does not sag. */
+const power = (x: number) => [Math.cos(x * Math.PI / 2), Math.sin(x * Math.PI / 2)] as const;
+
+/**
+ * INDOORS.
+ *
+ * Every interior in this world is built out at |x| > 100 — `props.ts` skips the
+ * night grade there, `interior.ts` excludes it from the sweep, `apartment.ts`
+ * tests `ctx.player.x() > 100` in six places. It is the established fact and
+ * this reads it rather than inventing a seventh convention.
+ */
+const inside = (px: number) => Math.abs(px) > 100;
+
+/**
+ * A private PRNG.
+ *
+ * Footsteps and birds need randomness at runtime and must take it from neither
+ * of the world's two streams. `rnd()` in `ct/rng.ts` is the SEEDED one that
+ * decides tree heights and pigeon placement, and pigeons keep drawing from it
+ * all session as they resettle — a footstep stealing a draw would move birds.
+ * `Math.random()` is what three.js's `generateUUID` uses. Eight bytes of state
+ * here costs nothing and touches neither.
+ */
+let seed = 0x9e3779b9;
+const roll = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+
+// ════════════════════════════════════════════════════════════════════════════
+
+interface Rig {
+  ac: AudioContext;
+  master: GainNode;
+  beds: Record<BedName, { g: GainNode; cur: number }>;
+}
+
+export function register(ctx: CtxBuild): void {
+  // HMR AND THE DOUBLE WORLD. Saving this file with the dev server up tears the
+  // page down and rebuilds it, but a stray `AudioContext` from a previous build
+  // survives an HMR boundary that a `<canvas>` does not — and the symptom is
+  // the street bed playing twice, slightly out of phase, getting worse with
+  // every save. Anything left over is closed before a new one is opened.
+  const W = window as unknown as { __ctAudio?: { close: () => void } };
+  W.__ctAudio?.close();
+
+  const scene = ctx.scene;
+
+  // ── prefetch, before any gesture ──────────────────────────────────────────
+  // Bytes need no permission; only PLAYING does. So the fetches go out at build
+  // time and are already warm by the time he clicks, and `boot()` only has to
+  // decode. `null` for anything that failed — the artifact case, below.
+  const bytes = new Map<string, ArrayBuffer | null>();
+  const fetching = [...BEDS].map((n) =>
+    fetch(url(n))
+      .then((r) => (r.ok ? r.arrayBuffer() : null))
+      .catch(() => null)
+      .then((b) => { bytes.set(n, b); }));
+
+  let rig: Rig | null = null;
+  let live: AudioContext | null = null;
+  let booted = false;
+
+  // ── the mixer's saved state ───────────────────────────────────────────────
+  const PREF = 'ct.audio';
+  let vol = 0.75, muted = false;
+  try {
+    const s = JSON.parse(localStorage.getItem(PREF) || '{}') as { v?: number; m?: boolean };
+    if (typeof s.v === 'number' && s.v >= 0 && s.v <= 1) vol = s.v;
+    if (typeof s.m === 'boolean') muted = s.m;
+  } catch { /* a corrupt pref is not worth a broken world */ }
+  const save = () => { try { localStorage.setItem(PREF, JSON.stringify({ v: vol, m: muted })); } catch { /* private mode */ } };
+
+  const applyMaster = () => { if (rig) rig.master.gain.value = muted ? 0 : vol * vol; };
+  //                                                             ^^^^^^^ perceptual:
+  // a linear slider on a linear gain spends its top half doing almost nothing.
+
+  // ══ THE GESTURE ═══════════════════════════════════════════════════════════
+  const AC: typeof AudioContext | undefined =
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    ?? window.AudioContext;
+
+  async function boot(): Promise<void> {
+    if (booted || !AC) return;
+    booted = true;
+    await Promise.all(fetching);
+
+    // EVERY bed missing means the audio directory is not reachable — the packed
+    // artifact opened from `file://`, where a relative fetch is a CORS failure
+    // rather than a 404. That is a known, accepted state and not an error: the
+    // world plays exactly as it did before there was any sound. Saying so once
+    // is worth it; throwing, or leaving a dead AudioContext open, is not.
+    if ([...BEDS].every((n) => !bytes.get(n))) {
+      console.info('[audio] no audio files reachable — running silent');
+      return;
+    }
+
+    const ac = new AC();
+    // A context constructed inside a gesture starts running; one constructed a
+    // frame late does not, and the difference is invisible until it is silent.
+    if (ac.state === 'suspended') void ac.resume();
+
+    const master = ac.createGain();
+    master.connect(ac.destination);
+
+    const beds = {} as Rig['beds'];
+    for (const n of BEDS) {
+      const raw = bytes.get(n);
+      const g = ac.createGain();
+      g.gain.value = 0;
+      g.connect(master);
+      beds[n] = { g, cur: 0 };
+      if (!raw) continue;
+      // decodeAudioData DETACHES the ArrayBuffer it is given, so a retry would
+      // be handed an empty one. It is called exactly once per buffer.
+      ac.decodeAudioData(raw.slice(0)).then((buf) => {
+        const s = ac.createBufferSource();
+        s.buffer = buf;
+        s.loop = true;
+        // Every bed runs for the whole session at whatever gain the frame hook
+        // gives it. Starting and stopping them on transitions would mean each
+        // one restarts from its first sample, so walking in and out of a
+        // doorway would replay the same eight seconds of street forever.
+        s.connect(g);
+        s.start(ac.currentTime + 0.02);
+      }).catch((e) => console.warn(`[audio] ${n} would not decode:`, e));
+    }
+
+    rig = { ac, master, beds };
+    live = ac;
+    applyMaster();
+    paintWidget();
+  }
+
+  // Capture phase, so a gate that swallows the event for its own reasons cannot
+  // also swallow the boot; `once` on each, and the first to fire cancels the
+  // others. `isTrusted` because a synthetic event is not a gesture and would
+  // burn the one chance at a running context.
+  const armed: Array<[string, EventListener]> = [];
+  const fire = () => { for (const [t, f] of armed) window.removeEventListener(t, f, true); armed.length = 0; void boot(); };
+  for (const t of ['pointerdown', 'keydown', 'touchstart', 'pointerlockchange']) {
+    const f: EventListener = (e) => { if (e.isTrusted) fire(); };
+    armed.push([t, f]);
+    window.addEventListener(t, f, true);
+  }
+
+  // ══ THE MIXER, ON SCREEN ══════════════════════════════════════════════════
+  //
+  // *"Nothing worse than a game you cannot silence."* So there are two ways to
+  // do it and they cover each other:
+  //
+  //  · `M`, and `[` / `]` for volume — registered in the BUBBLE phase, on
+  //    purpose. `ct/hud.ts` swallows keydown in CAPTURE while a panel is open,
+  //    which means these keys are automatically inert at a slot machine, where
+  //    `m` is already MAX BET. The conflict is resolved by the gate that
+  //    already exists rather than by a second guess at what is open.
+  //  · The widget itself is clickable, which is the path that still works when
+  //    a panel IS open and the pointer is free.
+  //
+  // Top right: `hud.ts` has the build stamp bottom-right, the watch and the
+  // prompt bottom-centre, and the fps readout top-left. This corner is empty.
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;right:8px;top:8px;z-index:13;'
+    + 'font:11px ui-monospace,Menlo,monospace;color:#cfd6e4;letter-spacing:.5px;'
+    + 'background:rgba(8,10,16,.55);border:1px solid rgba(180,200,230,.18);'
+    + 'border-radius:3px;padding:3px 6px;cursor:pointer;user-select:none;'
+    + 'display:flex;gap:5px;align-items:center;opacity:.28;transition:opacity .25s;';
+  wrap.title = 'M mute · [ ] volume';
+  const icon = document.createElement('span');
+  const bar = document.createElement('span');
+  bar.style.cssText = 'letter-spacing:1px;';
+  wrap.append(icon, bar);
+  wrap.addEventListener('pointerenter', () => { wrap.style.opacity = '1'; });
+  wrap.addEventListener('pointerleave', () => { wrap.style.opacity = '.28'; });
+
+  let peekUntil = 0;
+  function paintWidget(): void {
+    icon.textContent = muted || vol === 0 ? '\u{1F507}' : '\u{1F50A}';
+    const n = Math.round(vol * 8);
+    bar.textContent = (muted ? '·'.repeat(8) : '█'.repeat(n) + '·'.repeat(8 - n))
+      + (rig ? '' : ' …');
+  }
+  paintWidget();
+  // pointer-events stay on: this must be clickable even while a panel holds the
+  // rest of the input. It is 90 px in a corner nothing else uses, and a click
+  // that lands here deliberately does NOT take pointer lock.
+  wrap.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    muted = !muted; save(); applyMaster(); paintWidget();
+  });
+  document.body.appendChild(wrap);
+  // Registered NOW rather than at boot, so that a build which never got its
+  // gesture still leaves nothing behind: the widget is the part that is always
+  // there, and an orphaned one stacks up a corner full of speakers.
+  W.__ctAudio = { close: () => { rig = null; wrap.remove(); void live?.close(); } };
+
+  const peek =() => { peekUntil = performance.now() + 1400; wrap.style.opacity = '1'; };
+  window.addEventListener('keydown', (e) => {
+    if (!e.isTrusted || e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'm') { muted = !muted; }
+    else if (k === '[') { vol = Math.max(0, Math.round(vol * 8 - 1) / 8); muted = false; }
+    else if (k === ']') { vol = Math.min(1, Math.round(vol * 8 + 1) / 8); muted = false; }
+    else return;
+    save(); applyMaster(); paintWidget(); peek();
+  });
+
+  // ══ AMBIENCE ══════════════════════════════════════════════════════════════
+  //
+  // THE BUILDING SITE. There is no construction site in this world — no
+  // scaffold, no hoarding, no `ctx.site('construction')` on D's roster, which
+  // holds only `park`, `lot` and `jail`. So the sound is what a real block
+  // gives you: works you can hear and cannot see, anchored BEHIND the car lot
+  // and audible as you walk that end of the street. It knocks off at six,
+  // because a jackhammer at three in the morning is a bug report.
+  const lot = ctx.site('lot');
+  const siteAt = lot
+    ? { x: (lot.minX + lot.maxX) / 2 + (lot.minX > 0 ? 16 : -16), z: (lot.minZ + lot.maxZ) / 2 }
+    : { x: 18, z: -62 };
+  const SITE_RANGE = 38;
+
+  // The construction bed is a POINT in the world, so it gets a stereo image
+  // that turns with him. This is the only thing in here that needs
+  // `ctx.player.yaw()`, and it is the reason a bed can be a place rather than a
+  // wash: walk past it and it crosses from one ear to the other.
+  let sitePan: StereoPannerNode | null = null;
+
+  /** where a world point sits across the stereo field, -1 left … +1 right */
+  const bearing = (x: number, z: number, px: number, pz: number) => {
+    const dx = x - px, dz = z - pz;
+    const d = Math.hypot(dx, dz) || 1;
+    const yaw = ctx.player.yaw();
+    // the rig's convention: look is (sin yaw, -cos yaw), so right is (cos yaw, sin yaw)
+    return Math.max(-1, Math.min(1, (Math.cos(yaw) * dx + Math.sin(yaw) * dz) / d));
+  };
+
+  let ins = 0;            // 0 out on the street … 1 indoors
+  let sway = 0;           // the second street layer, breathing
+  let lastRain = 0;       // the last rain level seen OUTDOORS — see below
+
+  ctx.onFrame((f) => {
+    if (!rig) return;
+    const { ac, beds } = rig;
+
+    // Insert the panner the first time the site bed has a graph to sit in.
+    if (!sitePan) {
+      sitePan = ac.createStereoPanner();
+      beds.site.g.disconnect();
+      beds.site.g.connect(sitePan);
+      sitePan.connect(rig.master);
+    }
+
+    ins = glide(ins, inside(f.px) ? 1 : 0, f.dt);
+    const [out, inn] = power(ins);
+
+    // `props.ts` publishes the live rain on the scene and ZEROES it indoors
+    // (`if (px > 100) rainLevel = 0` — it never rains in a room). That is right
+    // for the drops and wrong for the sound: standing in 301 during a downpour
+    // you would still hear it on the window. So the last OUTDOOR reading is
+    // held, and indoors it plays at a fifth of its level.
+    const now = (scene.userData.rainLevel as number | undefined) ?? 0;
+    if (ins < 0.5) lastRain = now;
+    const rain = out * now + inn * lastRain * LVL.rainIndoors;
+
+    // THE STREET BREATHES. `street-a` is 30 s long and a 30 s loop announces
+    // itself inside two minutes. `street-b` is a different recording of a
+    // different place, 50 s long, and swinging it between a quarter and full
+    // over a 97 s cycle means the two never line up and the street never
+    // arrives back where it started. Two beds, no seam, no repeat you can hear.
+    sway = 0.5 + 0.5 * Math.sin(f.t * (Math.PI * 2 / 97));
+
+    // The site: inverse-square-ish falloff, outdoors only, working hours only.
+    const d = Math.hypot(siteAt.x - f.px, siteAt.z - f.pz);
+    const near = Math.max(0, 1 - d / SITE_RANGE) ** 2;
+    const shift = f.hourF > 7 && f.hourF < 18 ? 1 : 0;
+    sitePan.pan.value = glide(sitePan.pan.value, bearing(siteAt.x, siteAt.z, f.px, f.pz), f.dt, 0.12);
+
+    const want: Record<BedName, number> = {
+      'street-a': out * LVL.streetA,
+      'street-b': out * LVL.streetB * (0.25 + 0.75 * sway),
+      room: inn * LVL.room,
+      rain: rain * LVL.rain,
+      // the working day is glided like everything else, so six o'clock is a
+      // shift ending rather than a switch being thrown
+      site: out * LVL.site * near * shift,
+    };
+    for (const n of BEDS) {
+      const b = beds[n];
+      // The gain is smoothed HERE and written straight to `.value`. Web Audio
+      // applies it at the next 128-sample block, which at these rates of change
+      // is a ramp and not a step — and unlike `setTargetAtTime` it cannot leave
+      // an automation curve running against the next frame's write.
+      b.cur = glide(b.cur, want[n], f.dt, n === 'site' ? 1.2 : TAU);
+      b.g.gain.value = b.cur;
+    }
+
+    if (peekUntil && performance.now() > peekUntil) { peekUntil = 0; wrap.style.opacity = '.28'; }
+  }, HOOK.LATE);
+}
