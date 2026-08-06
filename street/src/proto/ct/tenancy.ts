@@ -247,26 +247,26 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'APT 301, 227 W 19TH',
     'THIS CITY',
   ] },
-  { from: 'VIDEO 2000 — MEMBER SERVICES', lines: [
+  { from: 'VIDEO 2000 — MEMBER SERVICES', art: 'dotmatrix-video2000', lines: [
     'Our records show two (2) tapes',
     'overdue on your account. Late fees',
     'now stand at $6.50 and are rising.',
     'Please return them.',
   ] },
-  { from: 'CITY LIGHT & POWER', lines: [
+  { from: 'CITY LIGHT & POWER', art: 'bill-utility', lines: [
     'ACCOUNT 227-3-01',
     'AMOUNT DUE $18.44',
     'Meter read 04/11. Estimated.',
     'Late charge applies after the 28th.',
     'Do not send cash through the mail.',
   ] },
-  { from: 'PALERMO PIZZA — 2 BLOCKS DOWN', lines: [
+  { from: 'PALERMO PIZZA — 2 BLOCKS DOWN', art: 'flyer-pizza', lines: [
     'LARGE PIE + 2 SODAS ..... $9.99',
     'WE DELIVER TILL 2AM',
     'ASK ABOUT THE BUCKET OF WINGS',
     '(coupon expired 03/97)',
   ] },
-  { from: 'A POSTCARD', lines: [
+  { from: 'A POSTCARD', art: 'postcard', lines: [
     'The weather here is exactly the',
     'same as the weather there. I have',
     'eaten nothing but shrimp.',
@@ -1038,6 +1038,149 @@ ART['envelope-prev'] = (g, l) => {
   g.fillText('NOT AT THIS ADDRESS', 0, 0);
   g.restore();
   g.textAlign = 'left';
+};
+
+
+/** tractor-feed holes down both edges — the tell of fanfold computer paper */
+function sprockets(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  fill(g, 'rgba(120,112,90,0.18)', x + 5, y, 1, h);
+  fill(g, 'rgba(120,112,90,0.18)', x + w - 6, y, 1, h);
+  for (let cy = y + 6; cy < y + h - 4; cy += 8) {
+    fill(g, '#2a2620', x + 2, cy, 3, 3);
+    fill(g, '#2a2620', x + w - 5, cy, 3, 3);
+  }
+}
+/** a perforation: the line you tear along */
+function perf(g: CanvasRenderingContext2D, x: number, y: number, w: number): void {
+  for (let i = 0; i < w; i += 4) fill(g, 'rgba(90,84,70,0.5)', x + i, y, 2, 1);
+}
+
+/**
+ * ── VIDEO 2000: A DOT-MATRIX STATEMENT ─────────────────────────────────────
+ * Fanfold computer paper with the sprocket strips still on and green bar
+ * stripes across it — the single most 1997 object in the mailbox. A rental
+ * chain does not write you a letter, it prints an account.
+ */
+ART['dotmatrix-video2000'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  stock(g, 0, 0, W, H, '#eceadd', '#f7f6ec', '#cfccbc');
+  for (let y = 22; y < H - 10; y += 16) fill(g, 'rgba(120,160,120,0.20)', 10, y, W - 20, 8);
+  sprockets(g, 0, 0, W, H);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#3a352c'; g.font = UI.font(8, true);
+  g.fillText('VIDEO 2000', 14, 14);
+  g.font = UI.font(7);
+  g.fillText('MEMBER SERVICES', 14, 22);
+  fill(g, '#8d8672', 12, 26, W - 24, 1);
+  g.font = UI.font(8);
+  let y = 40;
+  for (const line of l.lines) { g.fillText(line.slice(0, COLS), 14, y); y += 12; }
+  // the machine's own footer, right where a printer puts it
+  g.fillStyle = '#6b6455'; g.font = UI.font(7);
+  g.fillText('* * * THIS IS NOT A BILL * * *', 14, H - 16);
+};
+
+/**
+ * ── CITY LIGHT & POWER: A FORM WITH A TEAR-OFF STUB ────────────────────────
+ * Boxed fields at the top, the amount in a heavy rule of its own, and the
+ * bottom third is a payment stub below a perforation — which is what a utility
+ * bill IS, and it gives the piece two distinct halves at a glance.
+ */
+ART['bill-utility'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h, TEAR = H - 52;
+  stock(g, 0, 0, W, H, '#eae7d6', '#f6f4e6', '#c9c4b1');
+  const BLUE = '#2e4b6b';
+  fill(g, BLUE, 0, 0, W, 20);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#e8e4d4'; g.font = UI.font(8, true);
+  g.fillText('CITY LIGHT & POWER', 10, 14);
+  // the boxed fields
+  g.fillStyle = '#3a352c'; g.font = UI.font(7);
+  const rows = l.lines.slice(0, 2);
+  rows.forEach((ln, i) => {
+    const by = 28 + i * 18;
+    g.strokeStyle = 'rgba(46,75,107,0.55)'; g.lineWidth = 1;
+    g.strokeRect(10.5, by + 0.5, W - 21, 15);
+    g.fillStyle = i === 1 ? BLUE : '#3a352c';
+    g.font = UI.font(i === 1 ? 9 : 7, i === 1);
+    g.fillText(ln.slice(0, COLS), 15, by + 11);
+  });
+  g.fillStyle = '#4a443a'; g.font = UI.font(7);
+  let y = 74;
+  for (const ln of l.lines.slice(2)) { g.fillText(ln.slice(0, COLS), 10, y); y += 10; }
+  // the stub
+  perf(g, 6, TEAR, W - 12);
+  g.fillStyle = '#6b6455'; g.font = UI.font(6);
+  g.fillText('DETACH AND RETURN THIS PORTION WITH PAYMENT', 10, TEAR + 12);
+  fill(g, 'rgba(46,75,107,0.10)', 6, TEAR + 16, W - 12, H - TEAR - 22);
+  g.fillStyle = BLUE; g.font = UI.font(8, true);
+  g.fillText('227 W 19TH  APT 301', 10, TEAR + 30);
+  g.fillStyle = '#3a352c'; g.font = UI.font(7);
+  g.fillText('PAY AT ANY BRANCH OR BY MAIL', 10, TEAR + 42);
+};
+
+/**
+ * ── PALERMO PIZZA: A GLOSSY TAKEAWAY FLYER WITH A COUPON ───────────────────
+ * Red, white and green, the price as the loudest thing on it, and a coupon
+ * ruled off along a dashed cut line in the bottom corner — which is the shape
+ * of every pizza flyer that has ever come through a door.
+ */
+ART['flyer-pizza'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  const RED = '#a8322a', GREEN = '#3f6b3a';
+  stock(g, 0, 0, W, H, '#f2efe2', '#fbf9ef', '#d2cebd');
+  fill(g, GREEN, 0, 0, W, 5);
+  fill(g, RED, 0, 5, W, 24);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#f5efdc'; g.font = UI.font(12, true);
+  g.fillText('PALERMO', W / 2, 24);
+  g.fillStyle = GREEN; g.font = UI.font(7, true);
+  g.fillText('2 BLOCKS DOWN · WE DELIVER', W / 2, 40);
+  g.textAlign = 'left'; g.fillStyle = '#2b2620'; g.font = UI.font(8);
+  let y = 58;
+  for (const ln of l.lines.slice(0, 3)) { g.fillText(ln.slice(0, COLS), 10, y); y += 13; }
+  // the coupon, cut off along the dash
+  const cy = H - 54;
+  for (let i = 0; i < W - 16; i += 5) fill(g, 'rgba(90,84,70,0.55)', 8 + i, cy, 3, 1);
+  fill(g, 'rgba(168,50,42,0.10)', 8, cy + 3, W - 16, H - cy - 12);
+  g.strokeStyle = RED; g.lineWidth = 1;
+  g.strokeRect(8.5, cy + 3.5, W - 17, H - cy - 13);
+  g.textAlign = 'center'; g.fillStyle = RED; g.font = UI.font(10, true);
+  g.fillText('$1 OFF ANY PIE', W / 2, cy + 22);
+  g.fillStyle = '#6b6455'; g.font = UI.font(6);
+  g.fillText(l.lines[3] ?? '', W / 2, cy + 34);
+  g.textAlign = 'left';
+};
+
+/**
+ * ── A POSTCARD ─────────────────────────────────────────────────────────────
+ * LANDSCAPE AND SMALL — the only piece in the box wider than it is tall, which
+ * is most of what makes a postcard a postcard before you read a word. Its BACK:
+ * a rule down the middle, the message on the left in biro, and on the right a
+ * stamp box over three address lines.
+ */
+ART['postcard'] = (g, l) => {
+  const w = Math.round(PAPER.w * 0.94), h = Math.round(PAPER.h * 0.62);
+  const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
+  stock(g, x, y, w, h, '#e4dcc4', '#efe9d6', '#c2b898');
+  const mid = x + Math.round(w * 0.58);
+  fill(g, 'rgba(90,84,70,0.45)', mid, y + 8, 1, h - 16);
+  // the stamp, and the postmark rings over its corner
+  const sx = x + w - 34, sy = y + 8;
+  fill(g, '#b9a878', sx, sy, 26, 20);
+  fill(g, '#8a6f47', sx + 3, sy + 3, 20, 14);
+  g.strokeStyle = 'rgba(60,55,45,0.45)'; g.lineWidth = 1;
+  for (let k = 0; k < 3; k++) g.strokeRect(sx - 6 - k * 3, sy + 2 - k * 3, 26 + k * 6, 20 + k * 6);
+  // the address, ruled
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  for (let k = 0; k < 3; k++) fill(g, 'rgba(90,84,70,0.30)', mid + 8, y + 44 + k * 12, w - (mid - x) - 16, 1);
+  g.fillStyle = '#2f4f8c'; g.font = UI.font(7);
+  g.fillText('APT 301', mid + 10, y + 42);
+  g.fillText('227 W 19TH', mid + 10, y + 54);
+  // the message, in the same biro, cramped the way a postcard always is
+  g.font = UI.font(7);
+  let my = y + 18;
+  for (const ln of l.lines) { g.fillText(ln.slice(0, 26), x + 8, my); my += 10; }
 };
 
 function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
