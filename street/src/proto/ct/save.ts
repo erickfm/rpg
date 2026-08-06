@@ -1,6 +1,7 @@
 import { BUILD, type CtxBuild } from './ctx';
 import { drawerStock, drawerTake, drawerPut } from './inventory';
 import { SLOTS, options, wornIndex, wear, onWardrobeChange, type Slot } from './wardrobe';
+import { captureBody, restoreBody, onBodyChange } from './body';
 
 // ══ THE SAVE ═══════════════════════════════════════════════════════════════
 //
@@ -439,10 +440,30 @@ function builtins(ctx: CtxBuild): void {
     },
   });
 
+  // ── AND THE BODY UNDER THE CLOTHES ─────────────────────────────────────
+  //
+  // *"the options should simply be hair, height, build, skin color,
+  //  immutables."* (2026-08-05) — so `ct/body.ts` holds five facts about the
+  // CHARACTER, and unlike handedness or volume they are not facts about the
+  // machine. They belong in the save for the same reason the wardrobe does:
+  // *"other people playing is the whole requirement"*, and a character who
+  // arrives on another laptop bald and pale is not the character you made.
+  //
+  // BY NAME, never by index — that module stores itself the same way, and for
+  // the reason its neighbour already gives: a re-ordered table must not
+  // silently repaint somebody. It also keeps its own `localStorage` copy, so
+  // restoring through it updates both, exactly as `wear()` does.
+  registerSlice<Record<string, string>>('body', {
+    capture: () => captureBody(),
+    restore: (v) => { if (v && typeof v === 'object') restoreBody(v); },
+  });
+
   // Changing your clothes is the one thing a player can do that the ten-second
   // tick would otherwise be the only witness to, and the wardrobe already
-  // publishes a change signal. Free, so take it.
+  // publishes a change signal. Free, so take it. Your body changes far more
+  // rarely — once, at creation — but the signal is there and costs nothing.
   onWardrobeChange(() => { flush(); });
+  onBodyChange(() => { flush(); });
 }
 
 // ── boot ──────────────────────────────────────────────────────────────────

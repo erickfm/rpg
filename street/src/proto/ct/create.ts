@@ -16,13 +16,27 @@
 // static coming in. Every primitive below is IMPORTED from that file — there is
 // one OSD renderer in this project and this is not it.
 //
-// ── AND ONE WARDROBE ──────────────────────────────────────────────────────
+// ── AND IT IS ABOUT THE BODY, NOT THE CLOTHES ─────────────────────────────
 //
-// `ct/wardrobe.ts` is the single source of what he has on and `ct/mirror.ts`
-// already paints him from it at eight facings with per-part foreshortening. So
-// this screen owns NO model and NO painter: it cycles the same slots the mirror
-// cycles and calls the same `paintFigure`. Dress yourself here, walk to the
-// glass in 301, and it is the same person — because it is the same two modules.
+// *"in character creation the options should simply be hair, height, build,
+//  skin color, immutables. start them in some unisex boring outfit."*
+//   (2026-08-05)
+//
+// THE FIRST PASS AT THIS SCREEN OFFERED THE SEVEN WARDROBE SLOTS AND HE WAS
+// RIGHT TO CUT THEM. There is a mirror in 301 with exactly those seven controls
+// on it, so creation was a second copy of a thing you can already do any time —
+// and it was asking, once and for ever, about the one part of a person that is
+// not permanent. **Creation is for what you are stuck with.** Clothes are not.
+//
+// So the rows are `ct/body.ts`'s five immutables, and the outfit is set for him
+// — `resetOutfit()`, a plain navy long sleeve, jeans and sneakers, which is
+// what *"unisex boring"* buys and is assembled entirely from garments the rack
+// already had.
+//
+// THE DOLL IS STILL `ct/mirror.ts`'s. This screen owns NO painter: change a
+// trait here and the same `paintFigure` that draws the reflection in 301 draws
+// it, at the same eight facings, off the same leaf module. There is one figure
+// in this game.
 //
 // ⚠ WHY THIS IS ITS OWN FILE AND NOT PART OF `ct/osd.ts`. That module documents
 // itself as a NEAR-LEAF — audio and nothing else — precisely so it cannot close
@@ -38,7 +52,8 @@ import {
   setting, setName, setHand, registerOsdBusy,
 } from './osd';
 import { paintFigure } from './mirror';
-import { SLOTS, SLOT_NAME, showing, cycle, type Slot } from './wardrobe';
+import { resetOutfit } from './wardrobe';
+import { TRAITS, TRAIT_NAME, traitName, cycleTrait } from './body';
 
 /**
  * ── WHEN THIS RUNS, AND WHEN IT MUST NOT ──────────────────────────────────
@@ -118,16 +133,24 @@ const LINES: Line[] = [
     step: () => { /* typed, not stepped */ },
   },
   {
-    // offered here as well as in the menu so a new player sets it ONCE, and it
-    // is the same setting either way — one `ct-settings` entry, not two.
+    // NOT AN IMMUTABLE, and it stays anyway. Handedness is a fact about the
+    // PERSON AT THE KEYBOARD rather than about the character — it is why it
+    // lives in `ct-settings` beside the volume and not in the save — but it is
+    // also the one thing a new player should be asked once, before he has spent
+    // an hour with the watch on the wrong wrist. The menu still has it.
     text: () => `HAND:${setting('hand') === 'left' ? 'LEFT' : 'RIGHT'}`,
     step: () => setHand(setting('hand') === 'left' ? 'right' : 'left'),
   },
-  ...SLOTS.map((s: Slot): Line => ({
-    // `showing`, not `worn`: while a dress is on it claims the bottom slot, and
-    // the list has to say what is actually on him or it contradicts the doll.
-    text: () => `${SLOT_NAME[s]}:${showing(s).name}`,
-    step: (d) => cycle(s, d),
+  // ── THE FIVE YOU ARE STUCK WITH ────────────────────────────────────────
+  //
+  // HAIR AND ITS COLOUR ARE TWO ROWS, not one. Every other row on this screen
+  // is one axis with one answer, and folding a cut and a colour into a single
+  // stepper would mean 56 combinations reachable only in order — you would step
+  // through six colours of a bowl cut to see a ponytail. Two rows is the same
+  // gesture he already knows, twice.
+  ...TRAITS.map((t): Line => ({
+    text: () => `${TRAIT_NAME[t]}:${traitName(t)}`,
+    step: (d) => cycleTrait(t, d),
   })),
   {
     text: () => 'BEGIN',
@@ -136,14 +159,14 @@ const LINES: Line[] = [
 ];
 
 /**
- * TEN ROWS AND A FOUR-LINE LEGEND IN 240 TEXELS, which is the whole of the
- * layout arithmetic and it is tight enough to be worth writing down: the legend
- * anchors to the FOOT (`OH - 8` upwards, 14 apart), so four lines start at 190
- * and the last row's inverse block — which runs to `y + 5` — must finish above
- * the top of its glyphs at 179. `42 + 9*14 = 168`, block to 173, six clear.
- * `BEGIN` was sitting on `SELECT` before this.
+ * EIGHT ROWS AND A FOUR-LINE LEGEND IN 240 TEXELS. The legend anchors to the
+ * FOOT (`OH - 8` upwards, 14 apart), so four lines start at 190 and the last
+ * row's inverse block — which runs to `y + 5` — must finish above the top of
+ * its glyphs at 179: `50 + 7*16 = 162`, block to 167. It was ten rows at 11 px
+ * when this screen still offered the wardrobe, and `BEGIN` sat on `SELECT`;
+ * cutting seven clothing rows for five body ones bought the type a size back.
  */
-const ROW_Y = 42, ROW_H = 14, ROW_PX = 11, ROW_X = 16;
+const ROW_Y = 50, ROW_H = 16, ROW_PX = 12, ROW_X = 16;
 /** the doll, sized to stand clear of the legend and the longest garment name */
 const DOLL_X = 222, DOLL_Y = 34, DOLL_S = 1.2;
 
@@ -297,6 +320,11 @@ function start(): void {
   active = true;
   sel = 0; facing = 0;
   name = setting('name') || '';
+  // *"start them in some unisex boring outfit."* — and it has to happen HERE
+  // rather than at module load, because `ct-wardrobe` is its own storage key
+  // and survives NEW GAME clearing the save. Without this you begin your new
+  // life in the last character's jacket. See `STARTING` in `ct/wardrobe.ts`.
+  resetOutfit();
   wrap!.style.display = 'flex';
   fuzzT = performance.now();
   // capture, so this sees every key before the world, the proto switcher and

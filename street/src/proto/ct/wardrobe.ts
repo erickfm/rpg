@@ -256,9 +256,57 @@ export function options(slot: Slot): readonly Garment[] { return RACK[slot]; }
 // a save-less first load is pixel-identical to yesterday's world and nobody
 // wakes up dressed differently because a feature shipped.
 
-const wornAt: Record<Slot, number> = {
-  top: 1, bottom: 1, shoes: 1, hat: 0, glasses: 0, watch: 1, bag: 0,
+/**
+ * ── WHAT A NEW PERSON IS WEARING ──────────────────────────────────────────
+ *
+ * *"start them in some unisex boring outfit."*   (2026-08-05)
+ *
+ * BY ID, so this reads as an outfit rather than as five row numbers: a navy
+ * LONG SLEEVE, JEANS, SNEAKERS, nothing on the head or the face, the digital
+ * watch (it is how you tell the time in this world, not a statement) and no
+ * bag. Boring on purpose and unisex on purpose — every one of these is
+ * already in the rack above; *"do not add new garments for this"*.
+ *
+ * ⚠ NOT THE WHITE VEST AND BRIEFS. Those are what an EMPTY slot IS, which is
+ * the floor a player can cycle down to and not a place to begin. Nobody wakes
+ * up on the first morning in his underwear.
+ *
+ * ⚠ AND IT IS THE THING CHARACTER CREATION RESETS TO. `ct/create.ts` calls
+ * `startingOutfit()` when a NEW GAME reaches it, because `ct-wardrobe` is its
+ * own storage key and survives the save being cleared — without this you start
+ * your new life in the last one's clothes.
+ */
+const STARTING: Record<Slot, string> = {
+  top: 'longsleeve', bottom: 'jeans', shoes: 'sneakers',
+  hat: 'nohat', glasses: 'noglasses', watch: 'digital', bag: 'nobag',
 };
+
+const wornAt: Record<Slot, number> = {
+  top: 0, bottom: 0, shoes: 0, hat: 0, glasses: 0, watch: 0, bag: 0,
+};
+/**
+ * Put the starting outfit on. Indices ONLY — no `save()`, no watchers.
+ *
+ * ⚠ THAT IS LOAD-BEARING, not tidiness. This runs at module load, BEFORE
+ * `load()` has read storage; a `save()` in here would write the defaults over
+ * the outfit it is about to read and every player would lose their clothes on
+ * the next reload. The version with consequences is `resetOutfit` below.
+ */
+function startingOutfit(): void {
+  for (const s of SLOTS) {
+    const i = RACK[s].findIndex((g) => g.id === STARTING[s]);
+    wornAt[s] = i >= 0 ? i : 0;
+  }
+  lastPlainTop = wornAt.top;
+}
+
+/** Strip back to the starting outfit and tell everybody — character creation's
+ *  own verb. See `STARTING`. */
+export function resetOutfit(): void {
+  startingOutfit();
+  save();
+  for (const f of WATCHERS) f();
+}
 
 /**
  * THE BAG YOU HAVE ON, which is the bag you can open. `kind` is `'none'` when
@@ -372,4 +420,7 @@ function load(): void {
     if (!worn('top').full) lastPlainTop = wornAt.top;
   } catch { /* corrupt entry: keep the defaults rather than half-apply it */ }
 }
+// dressed FIRST, then whatever storage remembers on top of it — so a brand new
+// player is in the starting outfit and a returning one is in his own clothes.
+startingOutfit();
 load();
