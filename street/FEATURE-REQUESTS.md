@@ -4258,3 +4258,46 @@ becomes an item, giving him one is one `bagHas` in the label and one branch in
 
 `src/proto/ct/park.ts`, `src/proto/ct/loiter.ts`, `src/proto/ct/tenancy.ts`.
 `WORLD OK`. Live on 5177.
+
+### 2026-08-06 — "for every business i just want to be able to talk to the shop keeper or cashier and see a diagetic list of options as like a sign or something for everything you can buy. stock the burger barn, the diner, the bodega, etc all of them."
+
+**The first shop is the BURGER BARN, and the sign is the menu board that was
+already bolted over the counter.** `[E]` on the cashier leans the eye back and
+up onto that board; the board's own texture becomes the live panel; you click a
+line and it goes in your bag. Nothing is drawn over the world — this is the
+`ScreenFocus` machinery the calendar, the mirror and the dresser drawer use,
+and a wall board is the easy case because a vertical face derives its own
+heading.
+
+**One painter, two surfaces.** `ct/shop.ts` paints the board you read from
+across the room and the canvas you order off, at the same size, so the wall and
+the view cannot say different things. The only thing the view has that the wall
+does not is the wash under the line your pointer is on.
+
+**The board is one mesh now** — it was three planes with a metre of wall
+between them, and a focus surface is one mesh. Made contiguous, which is what a
+real backlit board is anyway.
+
+**Stock: 7 lines, all of them real.** BARN BURGER 1.89, CHICKEN 2.29, FRIES .89,
+APPLE PIE .69, SODA .79, SHAKE 1.29, COFFEE .65. The painted board used to
+carry fifteen lines of decor and sell two of them; every line on it is buyable
+now, so every line is a declared item. Six new ones in `ct/goods.ts`, each with
+a bag icon **and** a dropped model; the soda already existed.
+
+**What this replaces:** two hand-written `ctx.spot`s that wrote
+`purse.inv[id] += 1` directly — skipping `give`, so a full bag was charged
+$1.89 for a burger that went nowhere — against ids nobody had declared, which
+arrived in the bag as wrapped parcels. The item now goes in the bag BEFORE the
+money leaves the purse, so no path can take payment and hand you nothing.
+
+**Prices are 1997, and they do not fix the economy.** A meal is about three
+dollars against $14.50 starting cash. Eating here daily is ~$270 a season
+against a $500 rent bill that a fresh player can only reach ~$401 for. Nothing
+here rebalances that; it is a sink, and it is worth saying so out loud.
+
+`src/proto/ct/shop.ts` (new), `src/proto/ct/goods.ts` (new),
+`src/proto/ct/int-burger.ts`, `src/proto/ct/interior.ts` (`room.person` hands
+the figure back so an `[E]` can outline the keeper), `src/proto/ct/inventory.ts`
+(the model kit is exported). `WORLD OK`. Live on 5177. The diner, the bodega,
+the thrift store, the pawn shop, the video hut, VOLT VILLAGE and SLEEP CENTER
+follow on this pattern.

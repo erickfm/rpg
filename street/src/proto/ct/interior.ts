@@ -6,7 +6,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf, frontageWorld, alongU } from './tex-world';
 import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor, doorLeafFor, type DoorLeaf } from './doors';
 import { LEAF_AJAR } from './vice';   // item 193: the one door angle
-import { citizenSprite, type Look } from './citizens';
+import { citizenSprite, type Look, type CitizenSprite } from './citizens';
 import { clockFace } from './clockface';
 import { FACE } from './rng';
 
@@ -1029,7 +1029,26 @@ export interface Room {
      * not spent.
      */
     seatFwd?: number;
-  }) => void;
+    /**
+     * ── AND THE FIGURE IS HANDED BACK ──────────────────────────────────────
+     *
+     * This returned `void` until 2026-08-06, and one thing needed it: an `[E]`
+     * spot ON a person. *"i just want to be able to talk to the shop keeper or
+     * cashier"* — and `ctx.Spot.obj` is what makes the selection outline draw
+     * the thing the prompt names. A shop's spot stands the player on the
+     * CUSTOMER's side of the counter, so with no `obj` the fallback box is
+     * drawn at the player's own feet rather than round the keeper, which is
+     * `ctx.ts`'s documented dumb-but-honest default doing its job in a case
+     * where the room could simply say.
+     *
+     * The sprite also carries `setFacing`/`setWalking`, so a keeper that has to
+     * MOVE — the landlord in `ct/tenancy.ts` paces his lobby — no longer needs
+     * to bypass `room.person` and place a bare `citizenSprite` by hand.
+     *
+     * Purely additive: every existing caller ignores the value and is
+     * unchanged.
+     */
+  }) => CitizenSprite;
   /** true while the player is standing in THIS room */
   inside: () => boolean;
   /**
@@ -2211,6 +2230,9 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       // frame. LATE, after the world has moved: it is reacting to the finished
       // position, the same as the billboard pass.
       ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
+      // HANDED BACK so a caller can point an `[E]` at the person — see the
+      // note on `Room.person`. Every existing caller ignores it.
+      return s;
     },
     clock: (o) => {
       // A THIN WRAPPER over ct/clockface.ts, which is where the dial and the

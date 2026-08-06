@@ -205,7 +205,14 @@ export function itemOf(id: string): ItemDef {
 // is unlit by construction and a shaded material here would be the only lit
 // thing in the room. Every part is positioned about the object's OWN BASE, so
 // `dropLoose` can sit it on the floor without knowing what it is.
-const mBox = (w: number, h: number, d: number, c: string,
+//
+// ⚠ EXPORTED, so a module that declares its OWN items builds them out of the
+// same three shapes. `ct/goods.ts` — the things shops sell — is the first: the
+// alternative was a second copy of `mBox`/`mCyl`/`mOf` per file, and a world
+// where one file's dropped objects are 10-sided and another's are 12 is exactly
+// the drift `ItemDef` exists to stop. Declaring an item never needed this file
+// to own it (see `defineItem`); building one should not either.
+export const mBox = (w: number, h: number, d: number, c: string,
               x = 0, y = 0, z = 0, ry = 0): THREE.Mesh => {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
     new THREE.MeshBasicMaterial({ color: c }));
@@ -215,11 +222,11 @@ const mBox = (w: number, h: number, d: number, c: string,
 };
 // 10 sides: the count the ceiling rose uses, which is what makes a cylinder in
 // this world read as faceted rather than as something imported.
-const mCyl = (r: number, h: number, c: string): THREE.Mesh => new THREE.Mesh(
+export const mCyl = (r: number, h: number, c: string): THREE.Mesh => new THREE.Mesh(
   new THREE.CylinderGeometry(r, r, h, 10),
   new THREE.MeshBasicMaterial({ color: c }),
 );
-const mOf = (...parts: THREE.Object3D[]): THREE.Group => {
+export const mOf = (...parts: THREE.Object3D[]): THREE.Group => {
   const g = new THREE.Group();
   for (const p of parts) g.add(p);
   return g;

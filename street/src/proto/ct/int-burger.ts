@@ -3,6 +3,12 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+// FOR THE SIDE EFFECT, and it is the whole point of the import: `ct/goods.ts`
+// calls `defineItem` at module scope, so importing it is what puts a burger, a
+// carton of fries and the rest into the one item table the bag and the wallet
+// read. Without this the board would sell seven wrapped parcels.
+import './goods';
 
 // BURGER BARN, inside.
 //
@@ -21,6 +27,8 @@ import { type DoorDecl } from './doors';
 // rejected red/yellow twice and the mustard is what read as the second colour.
 const BB_RED = 0xc8302a;
 const BB_INSIDE = 0xe0d2b4;
+/** the same red, as a canvas colour — DERIVED, so the two cannot drift apart */
+const BB_RED_HEX = `#${BB_RED.toString(16).padStart(6, '0')}`;
 
 // WHERE IT IS is not written here. The room names its building and the kit
 // reads `frontageOf('BURGER BARN', 16)` — the same object the facade painter
@@ -171,47 +179,73 @@ export function buildBurger(ctx: CtxBuild): void {
   const crew = new THREE.Mesh(new THREE.PlaneGeometry(CL + 1.4, 2.4), ctx.flat(crewT));
   put(crew, CCX, 1.35, -hd + 0.05);
 
-  // ── the menu boards, backlit, over the crew wall ──
+  // ══ THE MENU BOARD — AND IT IS THE SHOP'S STOCK LIST ══════════════════════
   //
-  // Three panels, and they are the brightest thing in the room on purpose:
-  // in a 1997 fast-food place the board IS the decor. Text is drawn at 7 px
-  // on the texel grid — the door-plate complaint on file was numerals drawn
-  // at a size that did not land on the grid and aliased into mush.
-  // Three DIFFERENT panels. The first pass painted one texture and hung it
-  // three times, which reads instantly as a copy-paste rather than as a menu —
-  // a real board is split burgers / sides / drinks, and the eye checks.
-  const PANELS: [string, [string, string][]][] = [
-    ['SANDWICHES', [
-      ['BARN BURGER', '1.89'], ['DOUBLE BARN', '2.69'],
-      ['CHICKEN', '2.29'], ['FISH', '1.99'], ['BARN MELT', '2.49'],
-    ]],
-    ['COMBOS', [
-      ['NO 1  DOUBLE', '3.49'], ['NO 2  CHICKEN', '3.29'],
-      ['NO 3  FISH', '2.99'], ['ADD CHEESE', ' .30'], ['KIDS BARN BAG', '1.99'],
-    ]],
-    ['SIDES  DRINKS', [
-      ['FRIES  REG', ' .89'], ['FRIES  LG', '1.09'],
-      ['SODA  REG', ' .79'], ['SHAKE', '1.29'], ['COFFEE', ' .65'],
-    ]],
+  // *"for every business i just want to be able to talk to the shop keeper or
+  //  cashier and see a diagetic list of options as like a sign or something for
+  //  everything you can buy."*   (2026-08-06)
+  //
+  // **THIS BOARD IS THAT SIGN.** It is the same object it always was — three
+  // backlit panels over the crew wall, split sandwiches / sides / drinks, the
+  // brightest thing in the room because in a 1997 fast-food place the board IS
+  // the decor — and it is now also the thing you order off. `ct/shop.ts` paints
+  // it and `shopCounter` below hangs the reading view on this very mesh, so what
+  // is printed on the wall and what you buy from cannot drift apart: one table,
+  // one painter, two surfaces.
+  //
+  // ── IT IS ONE MESH NOW, AND THAT IS THE ONE REAL CHANGE ───────────────────
+  //
+  // It used to be three separate planes with a metre of wall showing between
+  // them. A focus surface is ONE mesh — `poseFor` takes the eye along a single
+  // face's normal and `screenSlot` borrows a single material — so three planes
+  // could only ever have offered one third of the menu. Made contiguous, which
+  // is also what a real board is: one long backlit box divided into panels, the
+  // divisions printed rather than built.
+  //
+  // ── AND THE STOCK IS SHORTER THAN THE OLD DECOR WAS ───────────────────────
+  //
+  // The painted board carried fifteen lines — a fish sandwich, three numbered
+  // combos, a kids' bag. **Every line on it is buyable now, so every line on it
+  // has to be a thing that exists**, and a board where four rows work and eleven
+  // do nothing teaches the player the menu lies (`ItemDef.use`'s note: a dead
+  // option is worse than a missing one). Seven lines, six of them new items in
+  // `ct/goods.ts` and one — the soda — already in the world.
+  const MENU: ShopColumn[] = [
+    { head: 'SANDWICHES', lines: [
+      { id: 'BURGER', name: 'BARN BURGER', price: 1.89 },
+      { id: 'CHICKEN', name: 'CHICKEN', price: 2.29 },
+    ] },
+    { head: 'SIDES', lines: [
+      { id: 'FRIES', name: 'FRIES', price: 0.89 },
+      { id: 'PIE', name: 'APPLE PIE', price: 0.69 },
+    ] },
+    { head: 'DRINKS', lines: [
+      { id: 'SODA', name: 'SODA', price: 0.79 },
+      { id: 'SHAKE', name: 'SHAKE', price: 1.29 },
+      { id: 'COFFEE', name: 'COFFEE', price: 0.65 },
+    ] },
   ];
-  PANELS.forEach(([head, rows], i) => {
-    const boardT = pixTex(128, 40, (g) => {
-      g.fillStyle = '#f2ead4'; g.fillRect(0, 0, 128, 40);         // the lit panel
-      g.fillStyle = '#c8302a'; g.fillRect(0, 0, 128, 7);
-      g.fillStyle = '#f2ead4'; g.font = 'bold 6px monospace';
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(head, 64, 4);
-      g.fillStyle = '#3a2a22'; g.font = 'bold 7px monospace';
-      rows.forEach(([a, b], r) => {
-        g.textAlign = 'left'; g.fillText(a, 5, 13 + r * 6);
-        g.textAlign = 'right'; g.fillText(b, 123, 13 + r * 6);
-      });
-    });
-    const bd = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.95), ctx.flat(boardT));
-    put(bd, CCX + (i - 1) * (CL / 3), 2.5, -hd + 0.07);
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.45, 1.08, 0.06), redM);
-    put(frame, CCX + (i - 1) * (CL / 3), 2.5, -hd + 0.03);
-  });
+  // The barn's own three colours, read off the constants at the head of this
+  // file rather than re-picked: the panel is the lit beige the facade promises,
+  // the surround is the red, and the type is the same near-black the posters and
+  // the bin are lettered in.
+  const MENU_LOOK: BoardLook = {
+    panel: '#f2ead4', frame: BB_RED_HEX, band: BB_RED_HEX, bandInk: '#f2ead4',
+    ink: '#3a2a22', priceInk: '#8a2a22',
+    hover: 'rgba(200,48,42,0.16)', flash: 'rgba(232,163,58,0.55)',
+  };
+  // 6.0 x 1.11 m and 150 texels per metre. The metres are the object; the
+  // canvas follows them, so the panel's own canvas — which is this same picture
+  // at this same size, swapped onto this same material while you read it — is
+  // never a different shape from the board on the wall.
+  const BOARD_W = 6.0, BOARD_H = 1.11, BOARD_Y = 2.35;
+  const BOARD_PX = 900, BOARD_PY = Math.round(BOARD_PX * BOARD_H / BOARD_W);
+  const boardT = boardTexture(BOARD_PX, BOARD_PY, MENU, MENU_LOOK);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(BOARD_W, BOARD_H), ctx.flat(boardT));
+  put(board, CCX, BOARD_Y, -hd + 0.07);
+  // the moulded surround, proud of the wall behind the printed one
+  const boardBox = new THREE.Mesh(new THREE.BoxGeometry(BOARD_W + 0.10, BOARD_H + 0.10, 0.07), redM);
+  put(boardBox, CCX, BOARD_Y, -hd + 0.03);
 
   // ── the seating: moulded, fixed, and bolted to the floor ──
   //
@@ -353,10 +387,13 @@ export function buildBurger(ctx: CtxBuild): void {
   //
   // Derived from the counter so it cannot drift if the counter moves.
   const KEEP_AT = CZ - 0.72;   // behind the counter
-  room.person({
+  const KEEP_X = CCX - 1.8;
+  // `keeper`, not `crew` — the stainless production wall a hundred lines up is
+  // already `crew`, and this is the person standing in front of it.
+  const keeper = room.person({
     jacket: '#c8302a', pants: '#4a4a52', skin: '#a87a52', hair: '#2a2622',
     fit: 'cap', accent: '#e6dcc6', cut: 'crop', build: 0,
-  }, CCX - 1.8, KEEP_AT, { facing: Math.atan2(0, CZ - KEEP_AT), h: 1.0, w: 0.95 });
+  }, KEEP_X, KEEP_AT, { facing: Math.atan2(0, CZ - KEEP_AT), h: 1.0, w: 0.95 });
 
   // ── the lobby side, because walking in you faced an empty floor ──
   //
@@ -430,35 +467,47 @@ export function buildBurger(ctx: CtxBuild): void {
     room.sign(posterT('COMBO', '2.99', '#c8902a'), 0.46, 0.58, LW + 0.04, 1.86, hd - 5.2, Math.PI / 2);
   }
 
-  // ── you can order at the counter ──
+  // ══ YOU TALK TO HER, AND YOU ORDER OFF THE BOARD ══════════════════════════
   //
-  // Not decoration: this is the spot that makes the keeper check MEAN
-  // something. Its authored customer station could not falsify a keeper
-  // authored in the same file - the bodega's version of that agreed with
-  // itself for weeks while the user kept filing the fault. A published serve
-  // spot is the world's own answer to "where does a customer stand", and the
-  // harness now prefers it over anything I type.
+  // WHAT THIS REPLACES, because the difference is the whole item. There used to
+  // be two hand-written `ctx.spot`s on this counter — `order a barn burger`,
+  // `order fries` — and three things were wrong with them:
   //
-  // Derived from the counter, on the CUSTOMER side of it. CZ is the counter
-  // line and the room opens toward +z, so a customer stands at CZ + 1.05.
-  {
-    const order = (lx: number, item: string, price: number, what: string) => {
-      ctx.spot({
-        x: room.wx(lx), z: room.wz(CZ + 1.05), r: 1.0,
-        ok: room.inside,
-        label: () => (ctx.purse.cash >= price
-          ? `order ${what} — $${price.toFixed(2)}`
-          : `${what} $${price.toFixed(2)} — you’re short`),
-        act: () => {
-          if (ctx.purse.cash < price) return;
-          ctx.purse.cash -= price;
-          ctx.purse.inv[item] = (ctx.purse.inv[item] ?? 0) + 1;
-          ctx.refreshWallet();
-        },
-      });
-    };
-    order(CCX - 1.8, 'BARN BURGER', 1.89, 'a barn burger');
-    order(CCX + 0.9, 'FRIES', 0.99, 'fries');
-  }
+  //   · they were a MENU MADE OF PROMPTS. Two of the fifteen lines painted on
+  //     the board above were buyable, and the only way to find out which was to
+  //     walk along the counter reading `[E]` captions. *"a diagetic list of
+  //     options as like a sign"* is the answer to exactly that.
+  //   · they wrote `purse.inv[item] += 1` DIRECTLY, which is the one thing
+  //     `ct/inventory.ts` asks nobody to do: it skips `give`, so it skipped the
+  //     twelve-slot bag, the one-slot hands and the per-item stack, and a
+  //     player with a full bag was charged $1.89 for a burger that went nowhere.
+  //   · `'BARN BURGER'` and `'FRIES'` were ids nobody had declared, so they
+  //     arrived in the bag as wrapped parcels called "barn burger".
+  //
+  // All three go away by DESCRIBING the shop rather than writing it: the table
+  // above, the board mesh, and the woman already standing behind the counter.
+  // `ct/shop.ts` owns the panel, the camera pose, the hit test and the money.
+  //
+  // The customer station is derived from the counter, on the CUSTOMER side of
+  // it — CZ is the counter line and the room opens toward +z — and the keeper's
+  // world position is read off the sprite the room just placed rather than
+  // recomputed from the locals that placed it (BUILDER-BRIEF §8).
+  shopCounter(ctx, {
+    id: 'ct-shop-burger',
+    columns: MENU, look: MENU_LOOK,
+    w: BOARD_PX, h: BOARD_PY,
+    mesh: () => board,
+    // WHERE THE EYE GOES, DERIVED FROM THE SIGN. 6 m of board needs a few
+    // metres of room to be read whole, and `poseFor` clamps the eye to 1.75 m
+    // over the floor against a board hung at 2.35 — so the rise is 0.60 and the
+    // standoff is the leg of that triangle, not its hypotenuse. See
+    // `boardStandoff`, which is where all of that arithmetic lives.
+    standoff: boardStandoff({ wM: BOARD_W, hM: BOARD_H, fov: 60, riseM: BOARD_Y - 1.75 }),
+    fov: 60,
+    stand: { x: room.wx(KEEP_X), z: room.wz(CZ + 1.05) },
+    keeper: { x: keeper.mesh.position.x, z: keeper.mesh.position.z, obj: keeper.mesh },
+    who: 'the cashier',
+    ok: room.inside,
+  });
 
 }
