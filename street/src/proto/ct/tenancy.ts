@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BUILD, type CtxBuild } from './ctx';
+import { BUILD, type CtxBuild, type Spot } from './ctx';
 import { declareSurface, pixTex } from './paint';
 import { APT_X0, APT_Z0, ST0 } from './apartment';
 import { citizenSprite } from './citizens';
@@ -1353,34 +1353,75 @@ ART['letterhead-bank'] = (g, l) => {
 };
 
 /**
- * ── CRIMEWATCH: A PRECINCT NOTICE, PHOTOCOPIED ─────────────────────────────
- * A xerox of a xerox — grey stock, a heavy black rule box round the whole
- * thing, all-caps type and a precinct shield stamped at the foot. The one piece
- * that is loud without being a sales pitch, and the copier's toner is uneven
- * down one edge, which is what a fifth-generation photocopy looks like.
+ * ── CRIMEWATCH: A PRECINCT NOTICE, WHICH IS A PRINTED FORM ─────────────────
+ *
+ * *"so the chain letter and the crime watch look identical they need to be
+ *  distinct"*   (2026-08-05)
+ *
+ * HE WAS RIGHT AND THE OLD PAIR WERE THE SAME DRAWING. Both were a full-bleed
+ * grey-cream sheet — `#dedcd2` against `#e6e3d6`, eight units apart and the same
+ * colour to an eye — carrying a CENTRED BOLD HEADING at y 34, a full-width dark
+ * rule immediately under it, and left-aligned all-caps 8 px body from y 60 at a
+ * 13 px pitch. Identical skeleton, identical palette. Everything that was meant
+ * to tell them apart was print-quality texture: a 22 px toner band at 7% alpha
+ * here, 26 blotches at 6% and a 1.5 deg skew there. NONE OF THAT SURVIVES — the
+ * page is 192 units wide and a 7% grey band is below the threshold of the
+ * material, let alone of a glance. The fix is not finer texture, it is different
+ * OBJECTS: this one is now the loudest structured form in the box and the chain
+ * letter is the least structured thing in it.
+ *
+ * SO IT IS A FORM. White stock rather than grey, a heavy black rule box round
+ * the whole page, a solid navy masthead with the crest and the department
+ * reversed out of it, a double rule, the advisory CENTRED inside its own ruled
+ * panel, and a second navy bar at the foot with the number to call. Type is
+ * centred everywhere, which is the other half of the split — the chain letter is
+ * flush left and ragged from top to bottom.
+ *
+ * NOT THE BANK'S WHITE PAGE EITHER, which is the near-miss worth naming:
+ * `letterhead-bank` is also white with a navy mark. It carries a 16 px shield in
+ * the top-left corner and one 2 px rule; this carries two solid navy bars and a
+ * 3 px black frame. The silhouettes have nothing in common.
  */
 ART['notice-precinct'] = (g, l) => {
   const W = PAPER.w, H = PAPER.h;
-  stock(g, 0, 0, W, H, '#dedcd2', '#e9e7de', '#bcb9ae');
-  // the toner band down one edge, the tell of a tired copier
-  fill(g, 'rgba(0,0,0,0.07)', W - 22, 0, 22, H);
-  g.strokeStyle = '#2a2620'; g.lineWidth = 3;
-  g.strokeRect(8.5, 8.5, W - 17, H - 17);
+  const NAVY = '#22344e', INK = '#1e1a16';
+  stock(g, 0, 0, W, H, '#f2f1ea', '#fbfaf4', '#d2d0c4');
+  // THE FRAME. A city notice is printed inside a rule box so it can be stapled
+  // to a board without losing its edge, and 3 px of solid black is the single
+  // loudest mark in the mailbox.
+  g.strokeStyle = INK; g.lineWidth = 3;
+  g.strokeRect(7.5, 7.5, W - 15, H - 15);
+  // the masthead, reversed out — department stationery, not a photocopy
+  fill(g, NAVY, 10, 10, W - 20, 40);
+  const sx = 18, sy = 16;                       // the crest, flat, inside the bar
+  fill(g, '#e8e6dc', sx, sy, 20, 28);
+  fill(g, NAVY, sx + 4, sy + 5, 12, 11);
+  fill(g, '#e8e6dc', sx + 6, sy + 19, 8, 5);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#2a2620'; g.font = UI.font(12, true);
-  g.fillText('CRIMEWATCH', W / 2, 34);
-  fill(g, '#2a2620', 24, 40, W - 48, 1);
-  g.textAlign = 'left'; g.font = UI.font(8, true);
-  let y = 60;
-  for (const ln of l.lines) { g.fillText(ln.slice(0, COLS), 16, y); y += 13; }
-  // the shield, flat, at the foot beside the precinct line
-  const sx = 16, sy = H - 40;
-  fill(g, '#3a4a5c', sx, sy, 18, 22);
-  fill(g, '#dedcd2', sx + 4, sy + 5, 10, 8);
-  g.font = UI.font(7, true); g.fillStyle = '#2a2620';
-  g.fillText('14TH PRECINCT', sx + 26, sy + 12);
-  g.font = UI.font(6); g.fillStyle = '#5a544a';
-  g.fillText('COMMUNITY AFFAIRS UNIT', sx + 26, sy + 21);
+  g.fillStyle = '#f2f1ea'; g.font = UI.font(13, true);
+  g.fillText('CRIMEWATCH', W / 2 + 8, 32);
+  g.fillStyle = '#a9bdd6'; g.font = UI.font(6);
+  g.fillText('14TH PRECINCT · COMMUNITY AFFAIRS', W / 2 + 8, 43);
+  // the double rule a form puts under its head
+  fill(g, INK, 10, 54, W - 20, 2);
+  fill(g, INK, 10, 58, W - 20, 1);
+  // THE ADVISORY, CENTRED IN ITS OWN PANEL. Centred rather than flush left is
+  // the layout half of the split, and the block is centred VERTICALLY off the
+  // line count so the panel stays right if the copy ever changes.
+  const boxY = 66, boxH = 68;
+  fill(g, 'rgba(34,52,78,0.07)', 16, boxY, W - 32, boxH);
+  g.strokeStyle = NAVY; g.lineWidth = 1;
+  g.strokeRect(16.5, boxY + 0.5, W - 33, boxH - 1);
+  g.fillStyle = '#1e2a3c'; g.font = UI.font(8, true);
+  let y = boxY + (boxH - (l.lines.length - 1) * 14) / 2 + 3;
+  for (const ln of l.lines) { g.fillText(ln.slice(0, COLS), W / 2, y); y += 14; }
+  // and the bar at the foot with the number on it
+  fill(g, NAVY, 10, H - 40, W - 20, 26);
+  g.fillStyle = '#f2f1ea'; g.font = UI.font(8, true);
+  g.fillText('REPORT ANYTHING SUSPICIOUS', W / 2, H - 26);
+  g.fillStyle = '#a9bdd6'; g.font = UI.font(6);
+  g.fillText('14TH PRECINCT DESK — 555-0114', W / 2, H - 17);
+  g.textAlign = 'left';
 };
 
 
@@ -2360,13 +2401,86 @@ export function register(ctx: CtxBuild): void {
   const LL_X = APT_X0 + 0.62;      // west side of the lobby, off the wall
   const LL_Z = APT_Z0 + 6.6;       // at the foot of the stairs, clear of 101's door
   const LL_FACING = Math.PI;       // atan2(vx, vz): π looks −z, at the front door
+
+  // ── HE MEANDERS ─────────────────────────────────────────────────────────
+  //
+  // *"landlord should meander downstairs not just always be in one
+  // orientation."* (2026-08-05.) He was a statue: one coordinate, one heading,
+  // for fifteen hours of every day he is owed money.
+  //
+  // FOUR POSTS AND A PAUSE, not pathfinding. He is WAITING, not patrolling —
+  // so the whole behaviour is: pick a post that is not this one, stroll to it
+  // at a slow walk, stand for a few seconds looking at something a man waiting
+  // in a lobby would look at, pick again. `citizenSprite` already owns the
+  // eight painted views, the walk cycle and the view hysteresis (`setFacing`,
+  // `setWalking`), so this borrows all of that and adds only WHERE and WHEN —
+  // exactly the split ct/crowd.ts uses on the street.
+  //
+  // ⚠ WHERE HE MAY NOT GO, and every bound here is somebody else's geometry:
+  //   · lz ≥ 6.30 keeps him 2.01 m off 101's landing parcel at (200.25, −15.69).
+  //     That parcel is the whole reason he stands where he does — C measured a
+  //     1.15 m trigger swallowing it whole (`notes/C-package-vs-rent-for-N.md`)
+  //     and the man moved rather than the door. A wander that drifts back up
+  //     the hall re-opens that bug by hand, so the near bound is derived from
+  //     it: 2.01 m clears the two 0.95 radii ADDED together, the same margin
+  //     his fixed post had.
+  //   · lz ≤ 7.55 stops him short of the stair foot at `STAIR_Z0` = 8.4 and of
+  //     the newel at 8.33. He does not go upstairs; the ask is that he meanders
+  //     DOWNSTAIRS.
+  //   · lx 0.55…1.70 against hall walls at lx 0 and lx 2.4, so his 0.30 m
+  //     half-width lands inside 0.25…2.00 and never touches either. The
+  //     mailboxes (lx 2.145…2.335, lz 0.55…2.05) and both flat doors (lz 3.5)
+  //     are outside the box entirely — he cannot reach them to walk through
+  //     them, which is cheaper and more reliable than testing against them.
+  // The box is 1.15 × 1.25 m. It is deliberately SMALL: the hall is 2.4 m wide
+  // and the 2 m lane is sacred indoors too, so a man taking the middle of it
+  // for a stroll is a worse bug than a man standing still.
+  const LL_MIN_X = APT_X0 + 0.55, LL_MAX_X = APT_X0 + 1.70;
+  const LL_MIN_Z = APT_Z0 + 6.30, LL_MAX_Z = APT_Z0 + 7.55;
+  /** where he stands, and what he turns to look at once he gets there. The
+   *  look-targets are real objects: the front door at (AX 1.2, AZI 0.09), the
+   *  stair foot at (AX 0.6, AZI 8.4), the mailboxes at (AX 2.28, AZI 1.3). A
+   *  man idling stares at SOMETHING; a random heading reads as a bug. */
+  const LL_POSTS: { x: number; z: number; lx: number; lz: number }[] = [
+    // his old post, at the foot of the stairs — looking up them
+    { x: APT_X0 + 0.62, z: APT_Z0 + 6.60, lx: APT_X0 + 0.60, lz: APT_Z0 + 8.40 },
+    // out into the hall a little — watching the front door for you
+    { x: APT_X0 + 1.30, z: APT_Z0 + 6.85, lx: APT_X0 + 1.20, lz: APT_Z0 + 0.09 },
+    // back against the west wall — reading the mailboxes down the hall
+    { x: APT_X0 + 0.58, z: APT_Z0 + 7.30, lx: APT_X0 + 2.28, lz: APT_Z0 + 1.30 },
+    // the east side, by the stair gate — the front door again, from the far side
+    { x: APT_X0 + 1.62, z: APT_Z0 + 6.40, lx: APT_X0 + 1.20, lz: APT_Z0 + 0.09 },
+  ];
+  const LL_SPEED = 0.42;           // m/s. A stroll. He is not going anywhere.
+  const LL_NOTICE = 2.6;           // m: inside this he stops and looks at YOU
+  let llx = LL_POSTS[0].x, llz = LL_POSTS[0].z;   // where he is, live
+  let llHead = LL_FACING;                          // eased heading, atan2(vx, vz)
+  let llPost = 0;                                  // the post he is at or heading for
+  let llWait = 3;                                  // seconds left standing still
+  let llMoving = false;
+  let llWasIn = false;
+  /** turn the short way round, at a human rate. Lifted from ct/crowd.ts, which
+   *  learned it the hard way: snapping the heading is the third source of the
+   *  sprite twitching between two painted columns. */
+  const llTurn = (want: number, dt: number, rate = 4.5) => {
+    let d = want - llHead;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    llHead += d * Math.min(1, dt * rate);
+  };
+
   // WHAT HE HANDS YOU IS HELD BETWEEN THE TWO OF YOU, not five metres away at
-  // the boxes, which is where it used to open from. `yaw = π` puts the normal
-  // on −z, so the eye is on the door side of the paper looking +z — at the
-  // page, and at the man behind it. The feet land 0.95 m back down the lobby
-  // from the page, which is a half-step back from where you pressed [E] and is
-  // clear of his collider.
-  const HOLD_HALL: Hold = { x: LL_X, y: 1.42, z: LL_Z - 0.55, yaw: Math.PI };
+  // the boxes, which is where it used to open from. The page's normal is
+  // (sin yaw, cos yaw), so aiming the yaw from HIM at YOU puts the eye on your
+  // side of the paper looking back at the page and at the man behind it. It is
+  // computed at [E] time from where he is actually standing now — a fixed hold
+  // would open the sheet at the post he left thirty seconds ago.
+  const HOLD_HALL = (): Hold => {
+    const yaw = Math.atan2(ctx.player.x() - llx, ctx.player.z() - llz);
+    // 0.55 m of his 0.95 m reach, so the feet land a half-step back from where
+    // you pressed [E] and clear of his collider.
+    return { x: llx + Math.sin(yaw) * 0.55, y: 1.42, z: llz + Math.cos(yaw) * 0.55, yaw };
+  };
   const landlord = citizenSprite(
     { jacket: '#3f4048', pants: '#2b2f36', skin: '#5a3a22', hair: '#1c1410',
       fit: 'coat', cut: 'short', build: 1 },
@@ -2408,17 +2522,86 @@ export function register(ctx: CtxBuild): void {
     const { totalMin } = ctx.clock.now();
     const here = landlordIn(totalMin);
     landlord.mesh.visible = here;
-    if (here) landlord.update(px, pz, dt);
+    if (here) {
+      // ARRIVING: he does not fade in mid-stride at wherever he happened to
+      // stop yesterday. Coming on shift puts him back on his own post, facing
+      // the door, standing still — which is also what he looked like before
+      // this item, so the first thing you ever see of him is unchanged.
+      if (!llWasIn) {
+        llPost = 0; llx = LL_POSTS[0].x; llz = LL_POSTS[0].z;
+        llHead = LL_FACING; llMoving = false; llWait = 2.5;
+      }
+      const post = LL_POSTS[llPost];
+      // ── DOES HE NOTICE YOU ─────────────────────────────────────────────
+      //
+      // Yes, and it is the cheapest line in the file for what it buys: inside
+      // 2.6 m on the lobby floor he STOPS WHERE HE IS and turns to face you.
+      // A man you owe money to who keeps pacing while you stand in front of
+      // him is a machine; a man who turns his head is a man waiting for you.
+      // Distance only — no sight line — because he is expecting you and this
+      // is his hall.
+      const near = gy < 0.5 && Math.hypot(px - llx, pz - llz) < LL_NOTICE;
+      if (near) {
+        llTurn(Math.atan2(px - llx, pz - llz), dt, 6);
+        landlord.setWalking(false);
+        // he keeps the post he was walking to, so he resumes rather than
+        // re-rolling the moment you step away
+        llWait = Math.max(llWait, 1.2);
+      } else if (llMoving) {
+        const dx = post.x - llx, dz = post.z - llz;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.06) {
+          // arrived. Stand a while and look at whatever this post looks at.
+          llx = post.x; llz = post.z;
+          llMoving = false;
+          llWait = 2.5 + Math.random() * 5;
+        } else {
+          const step = Math.min(d, LL_SPEED * dt);
+          llx += (dx / d) * step; llz += (dz / d) * step;
+          llTurn(Math.atan2(dx, dz), dt);       // HE FACES WHERE HE IS GOING
+          landlord.setWalking(true);
+        }
+      } else {
+        landlord.setWalking(false);
+        llTurn(Math.atan2(post.lx - llx, post.lz - llz), dt, 2.2);  // and looks at it
+        llWait -= dt;
+        if (llWait <= 0) {
+          // any post but this one, so he always actually goes somewhere
+          let n = Math.floor(Math.random() * (LL_POSTS.length - 1));
+          if (n >= llPost) n += 1;
+          llPost = n;
+          llMoving = true;
+        }
+      }
+      // BOUNDS ARE ENFORCED ON THE POSITION, not trusted to the posts. The
+      // posts are all inside the box, so this clamp never fires today — it is
+      // here so that editing a post by hand cannot walk him into a wall, the
+      // stair or 101's parcel without the clamp catching it first.
+      llx = Math.min(LL_MAX_X, Math.max(LL_MIN_X, llx));
+      llz = Math.min(LL_MAX_Z, Math.max(LL_MIN_Z, llz));
+      landlord.mesh.position.set(llx, 0, llz);
+      landlord.setFacing(llHead);
+      landlord.update(px, pz, dt);
+      // THE [E] SPOT FOLLOWS THE MAN. `pickSpot` reads these fields off the
+      // registered object every frame, so writing them here is the whole of it
+      // — and `aimX/aimZ` are declared so aim is measured to HIM and not to a
+      // floor marker he has walked away from (`Pickable.aimX` in fp.ts).
+      llSpot.x = llx; llSpot.z = llz;
+      llSpot.aimX = llx; llSpot.aimZ = llz;
+    }
+    llWasIn = here;
     // WITHHELD IF YOU ARE ALREADY STANDING IN IT — C's rule for the hermit and
     // for the landing packages, and it is not a nicety: a collider that appears
     // around the player shoves them, and being shoved by a man materialising is
-    // the kind of thing that reads as the world breaking.
-    const inIt = Math.abs(px - LL_X) < LL_HALF_X + 0.36 && Math.abs(pz - LL_Z) < LL_HALF_Z + 0.36;
+    // the kind of thing that reads as the world breaking. It matters MORE now
+    // that he moves: the box travels with him, so it can arrive around a player
+    // standing still. Same rule, same shove, so the same guard covers both.
+    const inIt = Math.abs(px - llx) < LL_HALF_X + 0.36 && Math.abs(pz - llz) < LL_HALF_Z + 0.36;
     const solid = here && !inIt && gy < 0.5;
-    llBox.minX = solid ? LL_X - LL_HALF_X : 999;
-    llBox.maxX = solid ? LL_X + LL_HALF_X : 999;
-    llBox.minZ = solid ? LL_Z - LL_HALF_Z : 999;
-    llBox.maxZ = solid ? LL_Z + LL_HALF_Z : 999;
+    llBox.minX = solid ? llx - LL_HALF_X : 999;
+    llBox.maxX = solid ? llx + LL_HALF_X : 999;
+    llBox.minZ = solid ? llz - LL_HALF_Z : 999;
+    llBox.maxZ = solid ? llz + LL_HALF_Z : 999;
   });
 
   /** A receipt is a letter you were handed rather than posted. Same sheet. */
@@ -2470,13 +2653,19 @@ export function register(ctx: CtxBuild): void {
     };
   }
 
-  ctx.spot({
+  // HELD IN A NAMED OBJECT because it MOVES. `crosstown.ts` pushes the very
+  // object you hand it onto `SPOTS` and `pickSpot` reads its fields fresh every
+  // frame, so the frame hook above rewrites `x/z/aimX/aimZ` in place and the
+  // prompt, the highlight and the trigger circle all travel with him. A spot
+  // left at his old post would offer you a man standing a metre to your left.
+  const llSpot: Spot = {
     // He is the object, so the prompt and the highlight name the same man.
     // r 0.95, not the 1.15 it was. C's second question — *"1.15 is the largest
     // radius on that landing and I do not know whether it is deliberate"* — and
     // the honest answer is that it was not: I picked it because a man is wide.
     // The door's is 0.95 and the parcel's is 0.95, so this is 0.95.
-    x: LL_X, z: LL_Z, r: 0.95,
+    // rewritten every frame by the hook above; these are only where he starts
+    x: LL_X, z: LL_Z, aimX: LL_X, aimZ: LL_Z, r: 0.95,
     obj: landlord.mesh,
     ok: () => landlordIn(ctx.clock.now().totalMin) && ctx.player.gy() < 0.5,
     // THE FIGURE IS IN THE PROMPT, both ways round. K's rule, and it is the
@@ -2512,9 +2701,10 @@ export function register(ctx: CtxBuild): void {
       const l = paid > 0 ? receipt(day, paid) : shortSlip(day);
       HELD.push(l);
       while (HELD.length > KEEP) HELD.shift();
-      showLetters([l], HOLD_HALL);
+      showLetters([l], HOLD_HALL());
     },
-  });
+  };
+  ctx.spot(llSpot);
 
   // ── THE SECOND NOTICE, UNDER YOUR DOOR ──────────────────────────────────
   //
@@ -2699,16 +2889,24 @@ export function register(ctx: CtxBuild): void {
       down: slipDown(ctx.clock.now().totalMin), visible: slip.visible }),
     /** the landlord: where he is, whether he is in the hall, and his box */
     landlord: () => ({
-      x: LL_X, z: LL_Z, in: landlordIn(ctx.clock.now().totalMin),
+      // LIVE, because he meanders now. `x/z` is where he is THIS frame and it
+      // is also what the [E] spot reads — an instrument quoting his old fixed
+      // post would be describing a man who is not there.
+      x: llx, z: llz, in: landlordIn(ctx.clock.now().totalMin),
+      /** which way he is turned, atan2(vx, vz), and whether he is walking */
+      facing: llHead, walking: llMoving,
+      /** the box he may never leave: the stair foot, clear of 101's parcel */
+      bounds: { minX: LL_MIN_X, maxX: LL_MAX_X, minZ: LL_MIN_Z, maxZ: LL_MAX_Z },
       /** stand HERE to be offered him — the LOBBY floor, which is what J could
        *  not resolve from x and z alone */
-      stand: { x: LL_X, z: LL_Z - 0.6, gy: 0 },
+      stand: { x: llx, z: llz - 0.6, gy: 0 },
       visible: landlord.mesh.visible,
       solid: llBox.minX < 900,
       /** the clear lane past him, against the 0.72 m player. GOTCHAS §29:
        *  this is a RAW GAP on an EMPTY lobby, quoted the way the rest of the
        *  project quotes one. */
-      lane: (APT_X0 + 2.395) - (LL_X + LL_HALF_X),
+      /** the clear lane past him RIGHT NOW — worst case is his east bound */
+      lane: (APT_X0 + 2.395) - (LL_MAX_X + LL_HALF_X),
     }),
     reading: () => (PANEL?.isOpen() ? { page, of: reading.length } : null),
     pay: () => payRent(ctx, Math.floor(ctx.clock.now().totalMin / 1440)),

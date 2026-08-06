@@ -4154,3 +4154,28 @@ direction — push it either way from there. Wedge shape, stepped discs,
 picture-coloured tint, `selfLit` and the 6 mm clearance all unchanged.
 
 `WORLD OK`. Live on 5177.
+
+### 2026-08-05 — "landlord should meander downstairs not just always be in one orientation."
+
+He was one coordinate and one heading for the fifteen hours a day he is owed
+money. Now he strolls between **four posts** at the foot of the stairs, faces
+the way he is walking, and on arrival stands 2.5–7.5 s looking at something a
+man waiting in a lobby looks at — up the stairs, at the front door, down at the
+mailboxes. All of it borrows `citizenSprite`'s eight views, walk cycle and view
+hysteresis (`setFacing`/`setWalking`), the same split `ct/crowd.ts` uses.
+
+**He notices you**: inside 2.6 m on the lobby floor he stops and turns to face
+the player, then resumes the post he was heading for.
+
+**Bounds** — a 1.15 × 1.25 m box, `lx 0.55…1.70`, `lz 6.30…7.55`, clamped on
+position and not merely on the posts. 2.01 m clear of 101's landing parcel (the
+overlap C measured), short of the stair foot at 8.4, and 0.25 m off both hall
+walls, so the mailboxes and both flat doors are outside his reach entirely.
+
+The `[E]` spot is now a named object whose `x/z` **and `aimX/aimZ`** are
+rewritten each frame, so prompt, highlight and trigger travel with him and aim
+is measured to the man. His collider travels with him too, with the existing
+"withheld if you are standing in it" guard now doing double duty. The handed
+receipt/short slip opens between the two of you wherever he happens to be.
+
+`src/proto/ct/tenancy.ts`. `WORLD OK`. Live on 5177.
