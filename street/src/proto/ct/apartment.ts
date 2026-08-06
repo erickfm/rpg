@@ -2220,6 +2220,99 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           slab(x0, x0 + T_LEG, FY + CLEAR, FY + ETAB.top - T_TOP, z0, z0 + T_LEG, darkM);
         }
       }
+      // ── THE TABLE LAMP ────────────────────────────────────────────────
+      //
+      // The user: *"make this look better add something to the table maybe a
+      // book? or actually a little lamp"* — he offered a book and then chose
+      // the lamp himself in the same breath, so it is the lamp. A book is one
+      // constant away if he changes his mind.
+      //
+      // THREE SHAPES: a weighted disc base, a slim stem, a tapered drum shade.
+      // This is a landlord's lamp in a shabby walk-up, not a designer piece,
+      // and the last four passes at this dead end were all corrected DOWN.
+      //
+      // SCALE, AGAINST THE TABLE AND THE CHAIR, because a lamp that swamps a
+      // small table looks worse than a bare one:
+      //   · the table top is 0.44 x 0.44. The base is 0.17 across (39% of it)
+      //     and the shade 0.25 at its widest (57%) — the shade overhangs
+      //     nothing, since it is centred on a top a metre and a half wider
+      //     than itself in neither direction.
+      //   · the whole lamp is 0.395 tall, standing on a 0.55 top, so its
+      //     finial-less crown is at **0.95** off the carpet against the
+      //     chair's back at **1.00** — 50 mm below it. It reads as a companion
+      //     to the chair rather than as the tallest thing in the corner.
+      //
+      // ⚠ NOT FLUSH WITH THE TABLE. Coplanar pairs are this world's most
+      // frequent visual bug; the base's underside sits at `ETAB.top + 0.005`,
+      // **5 mm proud** of the top it stands on. That gap is invisible at hall
+      // distance and it is the whole reason nothing here z-fights.
+      //
+      // THE PALETTE IS SAMPLED, BUILDER-BRIEF §8, nothing invented:
+      //   · the brass is `#c9b45e`, the door knobs' own brass 60 lines up,
+      //     pulled down to `#9c8a48` — tarnished, because everything else in
+      //     this hall is. It is the same metal as the hardware you just
+      //     touched to get here.
+      //   · the shade is three bands lifted straight off `opalT`, the ceiling
+      //     globe's own glass: `#d2c5a2` for the drum, `#b8ac8c` for the top
+      //     cap you look down onto, and the brightest band `#f6efd6` for the
+      //     underside the bulb is behind. The one warm cream in this building
+      //     lights both fixtures.
+      const brassM = new THREE.MeshBasicMaterial({ color: 0x9c8a48 });
+      const LB = FY + ETAB.top + 0.005;                   // 5 mm proud, see above
+      const lampAt = (m: THREE.Mesh, y0: number, h: number) => {
+        m.position.set(AX(1.72), y0 + h / 2, AZI(0.305));  // the table's own centre
+        scene.add(m); return m;
+      };
+      lampAt(new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.028, 12), brassM), LB, 0.028);
+      lampAt(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.215, 8), brassM), LB + 0.028, 0.215);
+      // cylinder material order is [side, top, bottom]
+      lampAt(new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.125, 0.155, 12), [
+        new THREE.MeshBasicMaterial({ color: 0xd2c5a2 }),
+        new THREE.MeshBasicMaterial({ color: 0xb8ac8c }),
+        new THREE.MeshBasicMaterial({ color: 0xf6efd6 }),
+      ]), LB + 0.240, 0.155);
+      // ── AND IT IS LIT ─────────────────────────────────────────────────
+      //
+      // WHY, when the hall already has a ceiling globe: that globe hangs at
+      // AZI(3.5) under a 2.55 m ceiling — 3.2 m down the hall and 1.6 m above
+      // the shade — so the two never overlap and there is nothing to fight.
+      // The dead end in his shot is the DIMMEST corner on the storey, lit only
+      // by that globe's falloff, which is precisely why a chair sitting in it
+      // reads as furniture in storage. A small warm wash is what makes it read
+      // as a corner somebody uses.
+      //
+      // THE SAME TECHNIQUE AS EVERY OTHER LIGHT HERE, not a second one:
+      // `glowT`, additive, `depthWrite: false`, a yaw-only billboard in
+      // `boards`, and `selfLit`/`graded` stamped so the sweep that hunts
+      // undimmed transparent quads sees it has been considered. Tinted well
+      // down from the ceiling halo's full white — a 40 W bulb under a fabric
+      // shade, not a fixture.
+      //
+      // ⚠ IT POKES THROUGH NOTHING, and the ceiling halos poked through the
+      // slab above them by up to 50 mm before being capped, so this is checked
+      // rather than assumed. The quad is 0.40 square about (1.72, 0.305, 0.87):
+      //   · DOWN to 0.67 — 120 mm clear above the table top at 0.55.
+      //   · UP to 1.07 — 1.48 m under the ceiling at 2.55.
+      //   · it is YAW-ONLY, so its 0.20 half-width swings in the horizontal
+      //     plane: worst case it reaches lz 0.105, **35 mm** off the end
+      //     wall's plaster face at lz 0.07, and lx 1.52…1.92, nowhere near
+      //     either flat wall.
+      const lampGlowM = new THREE.MeshBasicMaterial({
+        map: glowT, transparent: true, depthWrite: false,
+        blending: THREE.AdditiveBlending, color: 0x6e5a3c,
+      });
+      lampGlowM.userData.selfLit = true; lampGlowM.userData.graded = true;
+      const lampGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.40), lampGlowM);
+      lampGlow.name = 'hallLampHalo';
+      lampGlow.position.set(AX(1.72), FY + ETAB.top + 0.32, AZI(0.305));
+      boards.push({ m: lampGlow });
+      scene.add(lampGlow);
+      // NO COLLIDER, and no switch. It stands on a table you cannot walk
+      // through — `endTableCap` already stops you a whole table away from it —
+      // and its own 0.17 m footprint sits inside that cap's 0.44 m one. A cap
+      // of its own would be a second gated box guarding a volume the first one
+      // already guards. He asked for something ON the table, not for a new
+      // interaction, so there is no `[E]` either.
       // ── collision, taken off the meshes above ─────────────────────────
       //
       // ONE BOX EACH, at the footprint the meshes actually occupy, and `maxY`
