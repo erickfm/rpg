@@ -372,6 +372,43 @@ function bagRects(kind: string, facing: number): BagRect[] {
  * padding covers. Un-turning per family would mean inverting three curves at
  * the point rather than the rect and is not worth it at 40 units wide.
  */
+/**
+ * ── WHERE A SLOT'S GARMENT IS, FOR BOTH THE WASH AND THE CLICK ────────────
+ *
+ * *"its not highlighting the clutch its a static highlight regardless of item.
+ *  is this a difficult thing to fix?"*   (2026-08-05)
+ *
+ * NO, AND THE REASON IT WAS BROKEN IS THAT `47dd3229` FIXED ONLY HALF OF IT. I
+ * derived `bagRects` and had `zoneAt` measure it — so clicking the clutch
+ * started cycling bags correctly — and left the HIGHLIGHT still reading
+ * `HL.bag`, the old anatomy guess: a fixed shoulder-to-waist region. Click
+ * right, wash in the wrong place, which is what he is looking at. Exactly the
+ * split that produced the "janky highlight" complaint the first time, applied
+ * to one half instead of both.
+ *
+ * SO THERE IS ONE FUNCTION NOW AND BOTH READ IT. They cannot disagree again,
+ * because there is no second table left for either of them to read.
+ *
+ * THE BAG IS THE ONLY SLOT THAT NEEDED THIS. Watch, glasses and hat were
+ * already single-sourced — `HL` holds the painter's own rects for them, plus a
+ * unit of pad (the watch's `WRIST_T + 1, h 10` against the painter's
+ * `WRIST_T + 2, h 8`) — and they are checked, not assumed. The bag was the
+ * exception because a bag is not ON a body part: it moves per kind and per
+ * facing, and only `bagRects` knows where.
+ *
+ * EMPTY SLOTS KEEP THE ANATOMICAL FALLBACK, deliberately. With no bag on there
+ * is nothing drawn to wash, and the region he clicks to put one ON is the right
+ * thing to light. That is `HL.bag`, doing the job it is actually correct for.
+ */
+type Mark = { r: readonly [number, number, number, number]; f: BagRect['f'] };
+function wornRects(slot: Slot, facing: number): readonly Mark[] {
+  if (slot === 'bag') {
+    const bag = worn('bag');
+    if (bag.kind !== 'none') return bagRects(bag.kind, facing);
+  }
+  return HL[slot];
+}
+
 const HIT_PAD = 2;
 const ACCESSORY_ORDER: Slot[] = ['bag', 'watch', 'glasses', 'hat'];
 
@@ -388,15 +425,8 @@ function zoneAt(dx: number, dy: number, facing = 0): Slot | null {
     && dy >= r[1] - HIT_PAD && dy < r[1] + r[3] + HIT_PAD;
   // ── WHAT HE IS ACTUALLY WEARING, WHERE IT IS ACTUALLY DRAWN ────────────
   for (const slot of ACCESSORY_ORDER) {
-    if (slot === 'bag') {
-      const bag = worn('bag');
-      if (bag.kind !== 'none' && bagRects(bag.kind, facing).some((b) => inR(b.r))) return 'bag';
-      continue;
-    }
-    // watch, glasses and hat are already single-sourced: `HL` holds the rects
-    // the painter draws them from, which is what `6a892a47` built it to be.
     if (worn(slot).kind === 'none') continue;
-    if (HL[slot].some((h) => inR(h.r))) return slot;
+    if (wornRects(slot, facing).some((h) => inR(h.r))) return slot;
   }
   // ── AND THE BODY UNDER IT, plus the fat fallback for an empty slot ──────
   for (const z of ZONES) {
@@ -519,7 +549,12 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
       deep: scaler(g, fit.ox, fit.oy, fit.s, sp, COL_DEEP[col], flip),
     };
     const wash = `rgba(242,234,208,${(0.22 * lit).toFixed(3)})`;
-    for (const piece of HL[hover]) fam[piece.f](...piece.r, wash);
+    // ⚠ `wornRects`, NOT `HL` — see its note. The wash is now the rects the
+    // garment is DRAWN from, so it lands on the clutch at the hip instead of on
+    // the shoulder region a bag used to be assumed to occupy, and it follows
+    // the thing through all eight facings including the ones where it is hidden
+    // (a clutch at profile draws nothing, so it washes nothing).
+    for (const piece of wornRects(hover, facing)) fam[piece.f](...piece.r, wash);
   }
   // ── AND THERE IS NO CAPTION ON THE GLASS ───────────────────────────────
   //
