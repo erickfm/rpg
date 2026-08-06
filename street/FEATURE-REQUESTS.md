@@ -3985,3 +3985,49 @@ complaints of the session came from exactly this. It cost one number per spot.
 Landed the same day as `REACH_TRIM` 0.65 -> 0.52 (item: *"in general the radius
 for things to press e should be smaller"*), so the good feel is the two together:
 you must be closer, AND looking at the thing rather than at its floor.
+
+## 2026-08-05 — SOUND
+
+Verbatim: *"i want to add sounds. i have a bunch here /home/erick/Documents/sound"*
+
+Eight WAVs, 41 MB of 44.1 kHz PCM. **They were measured before anything was
+designed around them, and one guess in the brief was wrong:** `city.wav` and
+`city2.wav` are not two takes of one place. `city` is 92% of its energy below
+250 Hz — close traffic rumble, the loudest of the set. `city2` is mid-heavy,
+8 dB quieter, and decays across its 53 s. Two places. Both are used: `city` is
+the base and `city2` breathes over it on a 97 s cycle, so the 30 s street bed
+never announces its own length.
+
+Nor are the three short files single sounds. `stepoutside` is 23 discrete
+footfalls at 0.52 s spacing, `stepinside` is 10 at 0.41 s, `birdfly` is two wing
+flurries either side of 1.2 s of quiet. They are cut at their measured onsets
+into samples the engine retriggers.
+
+None of the five beds looped cleanly as delivered. `scripts/audio-encode.sh`
+rebuilds each so it loops seamlessly by construction, and 41 MB of WAV becomes
+**1.3 MB of ogg** in `public/audio/`, mostly by resampling — four of the five
+beds hold nothing above 2 kHz. Ogg and not mp3 because mp3 encoder padding
+survives `decodeAudioData` and ticks on every loop wrap.
+
+`src/proto/ct/audio.ts` is a leaf module — `register` + `ORDER`, globbed in by
+`ct/world.ts`. It opened **no trunk file**; the only edit outside it is one
+optional call in `props.ts` publishing pigeon takeoff on `scene.userData`, the
+same shape as `rainLevel` and `addLamp` already there.
+
+Three corrections came back within minutes of it going live, and all three were
+about level or feel, not about what was wired:
+
+- *"steps are too quick btw must be slower"* — 0.78 m of stride against a
+  3.2 m/s walk is 4.1 footfalls a second, a jog. **The right number was already
+  in the recording and I had measured it without using it:** 0.52 s spacing at
+  walking speed is a 1.66 m stride. Walking now plays the take at the cadence it
+  was walked at.
+- *"the ambiance sounds are too loud"* — every bed down ~7 dB, one-shots held
+  still.
+- *"step sounds are too loud"* — and holding the one-shots still through the
+  previous edit is what exposed it. Down ~8 dB.
+
+`M` mutes, `[` and `]` set volume, both remembered across reloads, and the
+corner widget stays clickable when a panel has the keyboard.
+
+Built by the standing builder. Live on 5177.
