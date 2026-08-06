@@ -3,8 +3,8 @@ import { BUILD, type CtxBuild } from './ctx';
 import { declareSurface, pixTex } from './paint';
 import { APT_X0, APT_Z0, ST0 } from './apartment';
 import { citizenSprite } from './citizens';
-import { UI, makePanel, screenFocusReady, type Panel } from './hud';
-import { defineItem, bagPut } from './inventory';
+import { UI, makePanel, screenFocusReady, hudNote, type Panel } from './hud';
+import { defineItem, bagPut, pocketsFull, fullWhy } from './inventory';
 import {
   RENT, DAYS_PER_SEASON, dateOf, dueDay, duePeriodsBy, isRentDay,
   nextDueDay, noDelivery, noticeDay,
@@ -117,6 +117,23 @@ let paidPeriods = RENT.prepaidMonths;
 let collectedDay = -1;
 /** mail you have taken but not thrown away, newest last. */
 const HELD: Letter[] = [];
+/**
+ * ══ WHAT HE HAS ALREADY TAKEN OUT OF THE BOX ══════════════════════════════
+ *
+ * *"do the click through mail flow... make it now. never wait."* (2026-08-05)
+ *
+ * Keyed `day|from`, which identifies a piece uniquely — `mailFor` is pure and
+ * never yields the same sender twice on one day (the junk picker refuses it by
+ * name). This is what makes PARTIAL PROGRESS work: take two of three, walk
+ * away, and the third is still in the box tomorrow.
+ *
+ * ⚠ IT IS WHY `collectedDay` NO LONGER ADVANCES ON OPENING THE BOX. That flag
+ * is a high-water mark over WHOLE DAYS and cannot express "he took two of
+ * these". It still bounds the 14-day walk-back, and it now advances only when a
+ * pile is emptied — so nothing it covers can be a piece he never took.
+ */
+const POCKETED = new Set<string>();
+const keyOf = (l: Letter) => `${l.day}|${l.from}`;
 /** how many letters you keep before the old ones go out with the rest. */
 const KEEP = 8;
 
@@ -491,7 +508,11 @@ function waiting(totalMin: number): Letter[] {
   // accumulate by sleeping and it keeps the loop honestly bounded.
   const from = Math.max(collectedDay + 1, last - 13);
   for (let d = from; d <= last; d++) out.push(...mailFor(d));
-  return out;
+  // ⚠ MINUS WHAT HE HAS ALREADY POCKETED. `mailFor` is pure and will happily
+  // hand back a piece he took an hour ago; `POCKETED` is the only thing that
+  // knows he did. Filtered HERE rather than at the box so the count in the
+  // prompt, the pile the panel shows and the envelopes on the bank all agree.
+  return out.filter((l) => !POCKETED.has(keyOf(l)));
 }
 
 /** When the post comes. Eleven in the morning, so a night's sleep to 07:00
@@ -829,11 +850,32 @@ type Hold = { x: number; y: number; z: number; yaw: number };
 function holdInFront(ctx: CtxBuild): Hold {
   const yaw = ctx.player.yaw();
   return {
+    // 0.42 m along his own facing — `standoff`, the distance a person holds
+    // something they are reading. `(sin yaw, -cos yaw)` is the direction he is
+    // looking; see `PlayerRef.yaw`.
     x: ctx.player.x() + Math.sin(yaw) * 0.42,
     y: ctx.player.gy() + 1.42,
     z: ctx.player.z() - Math.cos(yaw) * 0.42,
-    // the sheet must FACE him, which is his own yaw turned about
-    yaw: yaw + Math.PI,
+    // ⚠ `-yaw`, NOT `yaw + PI`, AND THAT ONE SIGN IS THE WHOLE BUG.
+    //
+    // *"reading letters from my bag turns me around?"*   (2026-08-05)
+    //
+    // The route HAD a Hold — I wrote this in `27fda3d1` — and the Hold was
+    // wrong, which is worse than missing because it looked handled. A plane's
+    // default normal is +z, so `rotation.y = t` points it at `(sin t, cos t)`.
+    // For the page to FACE HIM its normal must point back along his line of
+    // sight, `(-sin yaw, +cos yaw)`, and that is `t = -yaw`. `yaw + PI` gives
+    // `(-sin yaw, -cos yaw)` — the z term flipped, so the page faced AWAY.
+    //
+    // `poseFor` then did exactly its job: it stood the eye off along the sheet's
+    // normal, which put him on the far side of his own letter looking back at
+    // himself. Facing north he was spun 180 degrees.
+    //
+    // CHECKED AGAINST A KNOWN-GOOD HOLD rather than reasoned alone: the mailbox
+    // sheet is built at `rotation.y = -PI/2` "into the hall", and the reader
+    // stands on the -x side looking +x, i.e. yaw = +PI/2. `-yaw` = -PI/2. It
+    // agrees. So do HOLD_HALL and HOLD_301.
+    yaw: -yaw,
   };
 }
 /**
@@ -1498,6 +1540,59 @@ ART['classified-penny'] = (g, l) => {
 
 
 /**
+ * ══ TEXT THAT CANNOT LEAVE ITS OWN PAPER ═══════════════════════════════════
+ *
+ * *"the letter is bugged"*   (2026-08-05), on the pink carbon: the balance band
+ * painted ON TOP of a line of body text, "I told her no." clipped mid-word at
+ * the right edge, and the signature and page counter hanging off the sheet.
+ *
+ * THREE FAULTS, ONE CAUSE, AND IT IS THE ONE `4eebe533` FIXED ON THE TELEVISION:
+ * hand-typed y values that have to agree with each other, and a hand-typed
+ * COLUMN COUNT that has to agree with a paper width. `COLS` is 35 — measured
+ * against the FULL 192-unit sheet — and the carbon is 86% of that, so copy
+ * written to fit a notice runs straight off a duplicate. And the band sat at
+ * `y + h - 24` regardless of where the body had actually ended.
+ *
+ * ⚠ THESE THREE THINGS HAVE NEVER BEEN SEEN AT THEIR TRUE SIZE. Every bespoke
+ * painter was rendering at a third scale until `63060209`, so the whole set is
+ * effectively unreviewed at full size — which is exactly why this is a shared
+ * routine rather than three more hand-placed blocks. Fixing the carbon alone
+ * would leave the same trap in the other fourteen.
+ *
+ * `wrapTo` MEASURES rather than counting characters, so it is honest about the
+ * actual face at the actual width. `flow` returns the y it finished at, so
+ * whatever comes next is placed off the foot of what came before and cannot
+ * land on it.
+ */
+function wrapTo(g: CanvasRenderingContext2D, text: string, w: number): string[] {
+  if (!text) return [''];
+  if (g.measureText(text).width <= w) return [text];
+  const out: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && g.measureText(next).width > w) { out.push(line); line = word; }
+    else line = next;
+  }
+  if (line) out.push(line);
+  return out;
+}
+/** Draw `lines` inside `w`, wrapping, and return the y AFTER the last one. */
+function flow(g: CanvasRenderingContext2D, x: number, y: number, w: number,
+              lines: readonly string[], px: number, ink: string, bold = false): number {
+  g.font = UI.font(px, bold);
+  g.fillStyle = ink;
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  const lead = px + 4;
+  let cy = y;
+  for (const raw of lines) {
+    if (!raw.trim()) { cy += Math.round(lead * 0.5); continue; }   // a blank is half a line
+    for (const seg of wrapTo(g, raw.trim(), w)) { g.fillText(seg, x, cy); cy += lead; }
+  }
+  return cy;
+}
+
+/**
  * THE LIVE BALANCE BAND, read off the clock at the moment he unfolds the paper
  * rather than baked in when it was written. Factored out of `drawTyped` because
  * all three of the landlord's pieces carry it and three copies of a band that
@@ -1558,12 +1653,11 @@ function pastDue(g: CanvasRenderingContext2D, cx: number, cy: number): void {
  * reintroduce.
  */
 ART['notice-agent'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h;
+  const W = PAPER.w, H = PAPER.h, IN = 10, TW = W - IN * 2;
   stock(g, 0, 0, W, H, '#e4e2d6', '#f0eee4', '#c4c1b2');
   fill(g, 'rgba(90,110,130,0.07)', 0, 0, W, H);          // duplicate-book wash
   perf(g, 4, 4, W - 8);                                  // torn from the book
-  // the masthead
-  fill(g, '#2a2620', 0, 10, W, 26);
+  fill(g, '#2a2620', 0, 10, W, 26);                      // the masthead
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#e8e4d4'; g.font = UI.font(10, true);
   g.fillText(RENT.landlord, W / 2, 25);
@@ -1572,33 +1666,28 @@ ART['notice-agent'] = (g, l) => {
   // the RE: block, ruled the way a form is
   g.textAlign = 'left';
   g.fillStyle = '#3a352c'; g.font = UI.font(7, true);
-  g.fillText(l.lines[0] ?? '', 10, 48);
-  fill(g, '#8d8672', 10, 52, W - 20, 1);
-  // the demand, and THE AMOUNT SET APART
-  g.font = UI.font(8);
-  g.fillStyle = '#332d25';
+  g.fillText(wrapTo(g, l.lines[0] ?? '', TW)[0], IN, 48);
+  fill(g, '#8d8672', IN, 52, TW, 1);
+  // THE AMOUNT SET APART, so the page reads as a bill rather than as a letter
+  // that mentions money. The figure and the season both come off the lines the
+  // builder assembled from RENT.amount and dateOf — nothing is typed here.
   const body = l.lines.slice(1).filter((t) => t.trim());
   const money = body.find((t) => t.includes('$')) ?? '';
-  const rest = body.filter((t) => t !== money);
-  const amt = money.match(/\$[\d,.]+/)?.[0] ?? '';
   const when = body.find((t) => t.startsWith('OF ')) ?? '';
-  fill(g, '#d8d4c4', 10, 60, W - 20, 30);
+  fill(g, '#d8d4c4', IN, 60, TW, 30);
   g.strokeStyle = '#2a2620'; g.lineWidth = 1;
-  g.strokeRect(10.5, 60.5, W - 21, 29);
+  g.strokeRect(IN + 0.5, 60.5, TW - 1, 29);
   g.fillStyle = '#2a2620'; g.font = UI.font(13, true);
   g.textAlign = 'center';
-  g.fillText(amt, W / 2, 78);
+  g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', W / 2, 78);
   g.font = UI.font(6);
-  g.fillText(when.slice(0, COLS), W / 2, 87);
-  // and the rest of what he has to say, in the body
-  g.textAlign = 'left'; g.font = UI.font(8); g.fillStyle = '#332d25';
-  let y = 104;
-  for (const t of rest) {
-    if (t === when) continue;
-    g.fillText(t.slice(0, COLS), 10, y); y += 11;
-  }
-  balanceBand(g, 10, H - 34, W - 20);
-  pastDue(g, W - 48, H - 54);
+  g.fillText(wrapTo(g, when, TW - 8)[0], W / 2, 87);
+  // ⚠ THE REST IS FLOWED AND THE BAND FOLLOWS IT. Same fix as the carbon: the
+  // body wraps to the paper and the band is placed off its foot, not off a
+  // typed row that could land on a line.
+  const end = flow(g, IN, 104, TW, body.filter((t) => t !== money && t !== when), 8, '#332d25');
+  balanceBand(g, IN, Math.min(end + 4, H - 22), TW);
+  pastDue(g, W - 48, Math.min(end + 26, H - 40));
 };
 
 /**
@@ -1614,26 +1703,29 @@ ART['notice-agent'] = (g, l) => {
 ART['docket-receipt'] = (g, l) => {
   const w = Math.round(PAPER.w * 0.62), h = Math.round(PAPER.h * 0.42);
   const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
+  const IN = 10, TW = w - IN * 2;
   stock(g, x, y, w, h, '#f0ecd8', '#f8f5e6', '#d0cbb4');
   for (let i = 0; i < h; i += 4) fill(g, 'rgba(90,84,70,0.45)', x, y + i, 1, 2);  // the spine
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#2a2620'; g.font = UI.font(8, true);
   g.fillText('RECEIVED', x + w / 2, y + 15);
-  fill(g, '#2a2620', x + 8, y + 19, w - 16, 1);
+  fill(g, '#2a2620', x + IN, y + 19, TW, 1);
   g.fillStyle = '#5a544a'; g.font = UI.font(6);
   g.fillText(`${RENT.building} — APT ${RENT.flat}`, x + w / 2, y + 28);
   // the figure, on its own ruled line, which is what a docket is for
   const money = l.lines.find((t) => t.includes('$')) ?? '';
   g.fillStyle = '#2a2620'; g.font = UI.font(11, true);
-  g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', x + w / 2, y + 48);
-  fill(g, 'rgba(90,84,70,0.55)', x + 14, y + 52, w - 28, 1);
+  g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', x + w / 2, y + 46);
+  fill(g, 'rgba(90,84,70,0.55)', x + IN + 4, y + 50, TW - 8, 1);
   g.font = UI.font(6); g.fillStyle = '#5a544a';
-  g.fillText('WITH THANKS', x + w / 2, y + 62);
-  // his initials, in biro, across the foot
+  g.fillText('WITH THANKS', x + w / 2, y + 60);
+  // his initials, in biro, INSIDE the sheet — measured off the paper's own
+  // corner rather than placed at a fixed inset, so a narrow docket keeps them.
   g.save();
-  g.translate(x + w - 34, y + h - 12);
+  g.translate(x + w - 30, y + h - 14);
   g.rotate(-0.14);
   g.fillStyle = 'rgba(47,79,140,0.8)'; g.font = UI.font(10, true);
+  g.textAlign = 'center';
   g.fillText('V.O.', 0, 0);
   g.restore();
   g.textAlign = 'left';
@@ -1659,29 +1751,30 @@ ART['docket-receipt'] = (g, l) => {
  * job this piece does beyond flavour.
  */
 ART['carbon-prepaid'] = (g, l) => {
-  const w = Math.round(PAPER.w * 0.86), h = Math.round(PAPER.h * 0.80);
+  const w = Math.round(PAPER.w * 0.86), h = Math.round(PAPER.h * 0.86);
   const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
+  const IN = 8, TW = w - IN * 2;                       // the printable width
   stock(g, x, y, w, h, '#e8cfd0', '#f2dfe0', '#c9adae');
   perf(g, x + 4, y + 4, w - 8);
   // the printed form under the writing, faint because this is the third leaf
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
   g.fillStyle = 'rgba(120,90,95,0.45)'; g.font = UI.font(6, true);
-  g.fillText('RECEIPT — DUPLICATE — DO NOT DETACH', x + 8, y + 14);
-  fill(g, 'rgba(120,90,95,0.35)', x + 8, y + 18, w - 16, 1);
-  for (let k = 0; k < 5; k++) fill(g, 'rgba(120,90,95,0.22)', x + 8, y + 34 + k * 13, w - 16, 1);
-  // the writing, in carbon, each line ghosted by the pressure of the pen
+  g.fillText('RECEIPT — DUPLICATE — DO NOT DETACH', x + IN, y + 14);
+  fill(g, 'rgba(120,90,95,0.35)', x + IN, y + 18, TW, 1);
+  // ⚠ THE WRITING IS FLOWED, NOT PLACED. `flow` wraps to TW — the DUPLICATE's
+  // width, not the notice's — and hands back where it stopped, so the band
+  // below is positioned off the body instead of off the paper's foot.
   const CARBON = '#4a4250';
-  g.font = UI.font(8, true);
-  let ly = y + 32;
-  for (const t of l.lines) {
-    const line = t.slice(0, COLS);
-    g.fillStyle = 'rgba(74,66,80,0.30)';
-    g.fillText(line, x + 9, ly + 1);              // the impression
-    g.fillStyle = CARBON;
-    g.fillText(line, x + 8, ly);
-    ly += 13;
-  }
-  balanceBand(g, x + 8, y + h - 24, w - 16);
+  const top = y + 32;
+  // the impression first, one texel down and across: the pressure of a pen that
+  // was never touching this sheet. Same lines, same wrap, so it registers.
+  flow(g, x + IN + 1, top + 1, TW, l.lines, 8, 'rgba(74,66,80,0.30)', true);
+  const end = flow(g, x + IN, top, TW, l.lines, 8, CARBON, true);
+  // the ruled form lines, behind nothing — drawn only where the writing is not
+  for (let ly = y + 34; ly < end - 6; ly += 13) fill(g, 'rgba(120,90,95,0.16)', x + IN, ly, TW, 1);
+  // AND THE BAND SITS UNDER THE BODY, clamped inside the sheet. If the copy
+  // ever grows past the paper the band is the thing that gives, not the words.
+  balanceBand(g, x + IN, Math.min(end + 4, y + h - 22), TW);
 };
 
 function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
@@ -1825,12 +1918,15 @@ function buildPanel(): void {
       // thing to halve is `PANEL_W`, the supersampled width the framework
       // allocated. Halving `SHEET.w` here would put the divide a third of the
       // way across the page and every click past it would turn forward.
-      hot: () => reading.length > 1,
-      click: (x) => {
-        if (reading.length < 2) return;
-        page = (page + (x > PANEL_W / 2 ? 1 : reading.length - 1)) % reading.length;
-        PANEL?.repaint();
-      },
+      // ══ CLICK TAKES IT, AND THE NEXT ONE COMES UP ═══════════════════════
+      //
+      // *"the mail opens on the first piece. click: it goes into the bag, the
+      //  next piece appears."*
+      //
+      // The whole sheet is hot, not the outer fifths — turning the page was a
+      // second wheel and the wheel already turns it. One gesture, one verb.
+      hot: () => true,
+      click: () => { takeCurrent(); },
     },
     // THE PAPER IS ONLY THERE WHILE YOU ARE READING IT. Guarded on
     // `screenFocusReady()` rather than shown unconditionally: that is the exact
@@ -1897,7 +1993,7 @@ function mailIcon(l: Letter): (g: CanvasRenderingContext2D) => void {
   };
 }
 /** put one piece in his bag, as its own item */
-function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): void {
+function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): boolean {
   const id = `MAIL-${l.day}-${mailSeq++}`;
   defineItem({
     id,
@@ -1909,8 +2005,12 @@ function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): void {
     icon: mailIcon(l),
     use: { verb: 'read', act: () => { open(l); return id; } },
   });
-  bagPut(ctx.purse, id);
+  // ⚠ REPORTS WHETHER IT ACTUALLY WENT IN. It used to swallow the answer, which
+  // was harmless while the bag was infinite and is a lost letter at twelve
+  // slots. The caller refuses on false and leaves the piece in the box.
+  if (!bagPut(ctx.purse, id)) return false;
   ctx.refreshWallet();
+  return true;
 }
 
 /**
@@ -1936,6 +2036,49 @@ function showLetters(pile: Letter[], at: Hold): void {
   }
   buildPanel();
   PANEL?.open();
+}
+
+/**
+ * ══ TAKE THE PIECE HE IS LOOKING AT ═══════════════════════════════════════
+ *
+ * One click, one letter into the bag, and the piece behind it comes up. When
+ * the last one goes the view ends on its own — there is nothing left to read.
+ *
+ * ⚠ A REFUSAL NEVER EATS A LETTER. The bag is twelve slots (`3a1f21c8`), so it
+ * CAN fill mid-stack. `roomFor` is asked BEFORE the piece leaves anything, the
+ * refusal is worded by `fullWhy` — "your bag is full — 12 of 12" — and the
+ * piece stays exactly where it was, on screen and in the box. He can drop
+ * something and come back to it.
+ *
+ * ⚠ AND IT IS THE ONLY PLACE `collectedDay` MOVES. It advances when the pile
+ * empties, which is the one moment the box is genuinely empty. Leave halfway
+ * and the untaken pieces are still waiting, because `POCKETED` records the ones
+ * that went and `waiting()` subtracts them.
+ */
+function takeCurrent(): void {
+  const l = reading[page];
+  if (!l || !CTX) return;
+  // ASKED BEFORE ANYTHING MOVES, so the refusal is readable and the piece is
+  // untouched — this file's own rule for `give()`, applied to the mail.
+  if (pocketsFull(CTX.purse)) { hudNote(fullWhy(CTX.purse)); return; }
+  if (!pocketMail(CTX, l, (one) => showLetters([one], holdInFront(CTX!)))) {
+    hudNote(fullWhy(CTX.purse));
+    return;
+  }
+  POCKETED.add(keyOf(l));
+  HELD.push(l);
+  while (HELD.length > KEEP) HELD.shift();
+  reading = reading.filter((x) => x !== l);
+  if (!reading.length) {
+    // the box is genuinely empty now, so the day may be marked collected
+    const { totalMin } = CTX.clock.now();
+    const hour = (totalMin % 1440) / 60;
+    collectedDay = Math.floor(totalMin / 1440) - (hour >= POST_HOUR ? 0 : 1);
+    PANEL?.close();
+    return;
+  }
+  if (page >= reading.length) page = reading.length - 1;
+  PANEL?.repaint();
 }
 
 // ── the world ─────────────────────────────────────────────────────────────
@@ -2156,30 +2299,18 @@ export function register(ctx: CtxBuild): void {
     act: () => {
       const { totalMin } = ctx.clock.now();
       const w = waiting(totalMin);
-      if (w.length) {
-        const hour = (totalMin % 1440) / 60;
-        collectedDay = Math.floor(totalMin / 1440) - (hour >= POST_HOUR ? 0 : 1);
-        HELD.push(...w);
-        while (HELD.length > KEEP) HELD.shift();
-        // ⚠ AND EVERY PIECE GOES IN HIS BAG. *"reading the mail should take all
-        // the mail and put it in your bag."* The box is emptied by
-        // `collectedDay` above, which is a HIGH-WATER MARK rather than a
-        // per-piece flag — `waiting()` only walks forward from it — so taken
-        // mail stays taken across a sleep, a reload of the day, and a probe
-        // snapping the clock. There was nothing to build here: emptying already
-        // stuck, the way a stolen parcel's day key does.
-        //
-        // NOTHING CAN REFUSE IT. Capacity is infinite (`2628381a`) and
-        // `bagPut` forwards to `give`, whose only limit is `carrySlots()` —
-        // unbounded while a bag is worn. With NO bag on, the six-pocket rule
-        // applies and a big pile could exceed it; `give` refuses cleanly rather
-        // than destroying anything, and the pieces stay in `HELD` so the box
-        // spot still offers the read.
-        for (const l of w) pocketMail(ctx, l, (one) => showLetters([one], holdInFront(ctx)));
-        showLetters(w, HOLD_BOX);             // what you just took out
-      } else if (HELD.length) {
-        showLetters([...HELD].reverse(), HOLD_BOX);   // newest first, on a second look
-      }
+      // ══ THE BOX HANDS YOU THE PILE. CLICKING TAKES IT. ═══════════════════
+      //
+      // It used to pocket every piece the instant he opened the box and then
+      // show him what he had just taken, which made the reading view a
+      // read-only slideshow of a decision already made. Now the pile is offered
+      // and each click takes ONE — see the panel's `click`.
+      //
+      // ⚠ NOTHING IS COLLECTED HERE ANY MORE. `collectedDay` advances only when
+      // the pile actually empties (in `takeCurrent`), so walking away mid-stack
+      // leaves the rest in the box.
+      if (w.length) showLetters(w, HOLD_BOX);
+      else if (HELD.length) showLetters([...HELD].reverse(), HOLD_BOX);
     },
   });
 
