@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Proto } from './types';
 import { FPRig, RADIUS, SIT_EYE, PITCH_LIMIT, type AABB, type SeatPose } from './fp';
 import { showBag, bagOpen, bagEscaped, configureBag } from './ct/bag';
+import { installOsd, registerOsdBusy, menuOpen, setting, onSettingChange } from './ct/osd';
 import { dropLoose } from './ct/inventory';
 import { worn } from './ct/wardrobe';
 import { ColliderDebug } from './ct/debug-collision';
@@ -83,8 +84,13 @@ export function makeCrosstown(): Proto {
   //
   // THE TWO NUMBERS ARE COUPLED. Range and step have to be chosen together;
   // changing one alone is exactly what produced the second complaint.
-  const FOV_REST = 88, FOV_MIN = 52, FOV_STEP = 7;
-  let fovTarget = FOV_REST;
+  // ⚠ THE RESTING FOV IS THE MENU'S NOW. `FOV_REST` was 88 and is the default
+  // the menu itself carries, so nothing changes for a player who never opens it;
+  // `fovRest()` is read wherever the old constant was so a change lands on the
+  // next frame rather than needing a reload.
+  const FOV_MIN = 52, FOV_STEP = 7;
+  const fovRest = () => setting('fov');
+  let fovTarget = fovRest();
   /** which stop of the wrist-down carousel is up — see the block that cycles
    *  it. Remembered across looking up and down again: coming back to the same
    *  thing you left open is what a pocket does. */
@@ -143,7 +149,7 @@ export function makeCrosstown(): Proto {
     // scroll UP (deltaY < 0) zooms IN — the Google-Maps/Photoshop convention,
     // and the opposite sign from `ct/hud.ts`'s own "+1 forward" wheel, which
     // answers a different question (which menu item) and has no bearing here.
-    fovTarget = THREE.MathUtils.clamp(fovTarget + Math.sign(e.deltaY) * FOV_STEP, FOV_MIN, FOV_REST);
+    fovTarget = THREE.MathUtils.clamp(fovTarget + Math.sign(e.deltaY) * FOV_STEP, FOV_MIN, fovRest());
   };
   // BUBBLE phase, deliberately not capture, and the reason this needs no
   // import from `ct/hud.ts` at all: whenever a panel (ATM, slots, blackjack,
@@ -541,6 +547,24 @@ export function makeCrosstown(): Proto {
   // because hud is what `ct/bag.ts` imports for the pointer, and importing back
   // would close a cycle (GOTCHAS §28). See `heldViewUp` in `ct/hud.ts`.
   registerHeldView(bagOpen);
+  // ── WHO OWNS ESCAPE ────────────────────────────────────────────────────
+  //
+  // The menu opens on Escape ONLY when nothing else is claiming it. Asked as a
+  // predicate rather than raced as a listener — see the note at `registerOsdBusy`
+  // in `ct/osd.ts`. A panel closes itself (`ct/hud.ts`), the bag closes itself,
+  // and a seat stands you up (`fp.ts`); all three must win, or he gets a menu
+  // over a view he can no longer reach, which is this project's worst bug.
+  registerOsdBusy(() => !!panelUp() || bagOpen() || rig.seated);
+  // LOOK SPEED AND INVERT, read live off the menu rather than pushed — one
+  // object the rig holds, so a change is felt on the very next mouse move.
+  rig.look2 = { get sens() { return setting('sens'); },
+                get invertY() { return setting('invertY'); } };
+  installOsd();
+  // AND THE SETTINGS REACH THE WORLD. Handedness flips the watch arm — the one
+  // option with a visible consequence — and the rest are read live below.
+  const applyHand = () => hud.setHanded(setting('hand'));
+  onSettingChange(applyHand);
+  applyHand();
 
   const apt = buildApartment(ctx);
 

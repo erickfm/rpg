@@ -287,6 +287,8 @@ export class FPRig {
   private colliders: AABB[];
   private groundY?: (x: number, z: number) => number;
   private ceilY?: (x: number, z: number) => number | null;
+  /** the menu's look settings, read live. Null means "the defaults". */
+  look2?: { sens: number; invertY: boolean };
   private airY = 0;   // height above the ground while jumping
   private vy = 0;
   /** ARE YOUR FEET OFF THE FLOOR — see the `airborne` getter. Mirrors the local
@@ -676,8 +678,13 @@ export class FPRig {
     // mouse deltas accumulate only while pointer-locked OR dragging — apply either way.
     // convention: fwd = (sin yaw, 0, -cos yaw), so mouse-right = yaw INCREASES.
     if (input.mouseDX !== 0 || input.mouseDY !== 0) {
-      this.yaw += input.mouseDX * 0.0022;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - input.mouseDY * 0.0022, -PITCH_LIMIT, PITCH_LIMIT);
+      // LOOK SPEED AND INVERT COME FROM THE MENU, live. `look` is supplied by
+      // `crosstown.ts` and defaults to the identity, so a harness with no menu
+      // gets exactly the 0.0022 this line has always used.
+      const L = this.look2 ?? { sens: 1, invertY: false };
+      this.yaw += input.mouseDX * 0.0022 * L.sens;
+      const dy = input.mouseDY * 0.0022 * L.sens * (L.invertY ? -1 : 1);
+      this.pitch = THREE.MathUtils.clamp(this.pitch - dy, -PITCH_LIMIT, PITCH_LIMIT);
     }
     if (input.keys.has('arrowleft')) this.yaw -= dt * 1.7;
     if (input.keys.has('arrowright')) this.yaw += dt * 1.7;

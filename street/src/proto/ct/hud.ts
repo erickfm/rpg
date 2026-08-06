@@ -70,6 +70,9 @@ export interface Hud {
   setNight: (v: number) => void;
   /** look down → the watch slides up. Only repaints when the minute turns. */
   watch: (want: boolean, mins: number) => void;
+  /** Which hand the watch is on. The arm is one canvas and this mirrors the
+   *  wrapper — see `setHanded` for why the drawing is not touched. */
+  setHanded: (hand: 'left' | 'right') => void;
   /** The frame-rate readout, toggled with F. `null` hides it.
    *
    *  The user: *"i get awful performance drops in my room not sure why. can we
@@ -2147,8 +2150,11 @@ export function makeHud(purse: Purse): Hud {
    * arm, parked off-frame. Both read WATCH_TILT.
    */
   const WATCH_TILT = 16;
-  const WATCH_SHOWN = `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-${WATCH_TILT}deg)`;
-  const WATCH_HIDDEN = `translateX(-50%) translateY(140%) rotate(-${WATCH_TILT}deg)`;
+  let handed: 'left' | 'right' = 'left';
+  /** the mirror, when he is right-handed — see `setHanded` */
+  const HAND = () => (handed === 'left' ? '' : ' scaleX(-1)');
+  const WATCH_SHOWN = () => `translateX(-50%) translateY(-${WATCH_LIFT_PX}px) rotate(-${WATCH_TILT}deg)${HAND()}`;
+  const WATCH_HIDDEN = () => `translateX(-50%) translateY(140%) rotate(-${WATCH_TILT}deg)${HAND()}`;
   // whole pixels for the same reason as WATCH_BOTTOM above. Both are already
   // integers at today's constants; rounding is what keeps them integers when
   // WATCH_ARM next changes. (The `WATCH_X%` anchor they are added to is still
@@ -2160,7 +2166,7 @@ export function makeHud(purse: Purse): Hud {
   const WRAP_CSS = 'position:fixed;'
     + `left:calc(${WATCH_X}% + ${WATCH_LEFT}px);bottom:${WATCH_BOTTOM}px;z-index:11;pointer-events:none;`
     + `transform-origin:calc(100% - ${WATCH_PIVOT}px) ${WATCH_LIMB_H * WATCH_S / 2}px;`
-    + `transform:${WATCH_HIDDEN};transition:transform .18s ease-out;`;
+    + `transform:${WATCH_HIDDEN()};transition:transform .18s ease-out;`;
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
@@ -2822,6 +2828,33 @@ export function makeHud(purse: Purse): Hud {
     // this just tints what is left. nightAt() is unchanged — it is still the
     // canonical "how night is it" curve that drives the lamps.
     setNight: (v) => { nightDiv!.style.opacity = String(v * 0.28); },
+    /**
+     * ── WHICH HAND THE WATCH IS ON ──────────────────────────────────────
+     *
+     * *"the menu should contain options for left/right handedness"*
+     *
+     * THE ARM IS ONE CANVAS AND A MIRROR IS ONE TRANSFORM. Every coordinate in
+     * `drawWatch` — the limb, the sleeve, the wrist, the fist, the thumb, the
+     * strap, the case, the LCD — is written left-handed and approved that way
+     * over four days of his notes. Redrawing them mirrored would be a second
+     * set of numbers to keep in step with the first, which is the bug shape
+     * this file has hit more than any other. So the WRAPPER is flipped and not
+     * one number of the drawing moves.
+     *
+     * `scaleX(-1)` about the element's own centre, with `WATCH_X` reflected
+     * about 50% so the arm enters from the other edge — the two are one gesture
+     * and both belong to this line.
+     *
+     * ⚠ WHAT THIS DOES NOT FLIP, said plainly: the figure in the mirror still
+     * wears its watch on the same wrist, because that is `ct/mirror.ts`'s own
+     * `WRIST_T` band and its zone table. Flipping it there is a real change to
+     * a hit-tested layout and is not worth doing blind.
+     */
+    setHanded: (hand) => {
+      handed = hand;
+      watchWrap!.style.left = `${hand === 'left' ? WATCH_X : 100 - WATCH_X}%`;
+      watchWrap!.style.transform = watchHeld ? WATCH_SHOWN() : WATCH_HIDDEN();
+    },
     watch: (want, mins) => {
       // AN EMPTY WRIST HAS NOTHING TO CHECK. `crosstown.ts` asks for the arm
       // whenever the player looks far enough down; what it is really asking is
@@ -2831,7 +2864,7 @@ export function makeHud(purse: Purse): Hud {
       // and it needs no cooperation from the file that asks.
       const up = want && worn('watch').kind !== 'none';
       watchHeld = up;                          // see `heldViewUp`
-      watchWrap!.style.transform = up ? WATCH_SHOWN : WATCH_HIDDEN;
+      watchWrap!.style.transform = up ? WATCH_SHOWN() : WATCH_HIDDEN();
       if (up && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
     },
     setFps: (text: string | null) => {
