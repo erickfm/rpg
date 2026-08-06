@@ -100,10 +100,21 @@ const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS] as const;
  * no build-time constant to keep in step. It also means `import.meta.env` is
  * not needed, which matters: `tsconfig.json` does not pull in `vite/client`.
  *
- * In the packed single-file artifact it resolves to a `file://` URL that does
- * not exist — see `boot()` for what happens then, which is: nothing, quietly.
+ * THE PACKED ARTIFACT IS THE EXCEPTION and the reason for the first line. It is
+ * one HTML file opened from `file://`, where a relative fetch is a CORS failure
+ * rather than a 404, so there is no path that could work — the bytes have to be
+ * IN the page. `scripts/pack-artifact.mjs` reads `dist/audio/` and writes them
+ * out as `window.__CT_AUDIO`, a name → `data:` URI table, in a script tag ahead
+ * of the bundle. `fetch` takes a data URI exactly like any other URL, so that
+ * is the whole of the special case: one lookup, and nothing downstream knows.
+ *
+ * If the table is absent the fetch is attempted anyway and fails quietly — see
+ * `boot()`. An artifact packed by an older script is silent, not broken.
  */
-const url = (n: string) => new URL(`audio/${n}.ogg`, document.baseURI).href;
+const url = (n: string) => {
+  const inlined = (window as unknown as { __CT_AUDIO?: Record<string, string> }).__CT_AUDIO;
+  return inlined?.[n] ?? new URL(`audio/${n}.ogg`, document.baseURI).href;
+};
 
 // ── mix levels, all in one place so they can be argued about ────────────────
 //
@@ -124,9 +135,14 @@ const LVL = {
   rain: 0.30,      // multiplied by rainLevel, so this is its DOWNPOUR level
   rainIndoors: 0.20, // …of the above, heard through a window
   site: 0.20,      // multiplied by distance and by the working day
-  stepOut: 0.55,
-  stepIn: 0.50,
-  bird: 0.70,      // multiplied by distance
+  // *"step sounds are too loud"*, immediately after the beds came down — and
+  // holding the one-shots still through that edit is what exposed it. Down
+  // ~8 dB. A footstep is your own shoe a metre and a half below your ears, not
+  // an event in the world, and the encoder had already lifted `stepinside` by
+  // 12 dB to bring it level with the pavement.
+  stepOut: 0.22,
+  stepIn: 0.20,
+  bird: 0.45,      // multiplied by distance
 };
 
 /** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
