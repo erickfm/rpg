@@ -4198,3 +4198,31 @@ once `wipe()` has run, and a player with an account gets an empty document
 beaconed to the server so boot cannot fetch the old world back down the wire.
 
 `WORLD OK`. Live on 5177.
+
+### 2026-08-06 — "box of cereal work, this is correct but the notes/letters need to be flat. its paper"
+
+**Mail never had a model.** `ca77c50b` gave ten items real objects and the
+carton he says is correct is one of them — but a piece of mail is declared in
+`ct/tenancy.ts` at the moment he takes it, so a dropped letter fell to
+`dropLoose`'s fallback: a 16 cm square box, **50 mm deep**, art printed on the
+top. That is the white slab in his shot, and it was square as well as thick.
+
+**Every piece is a sheet now, at its own shape.** 1.2 mm thick, sitting 3 mm
+clear of the boards (`dropLoose`'s 2 mm plus 1 of its own) so a near-coplanar
+sheet cannot z-fight the floor. The rectangle is **measured off the painted
+canvas** rather than read out of `SHAPES`, because a painter may put its paper
+anywhere in the drawing space — the super's note is pinned high, the chain
+letter is rotated bodily off-square — so the envelope drops as a 2.26:1
+envelope and the chain letter as a 1:2.53 ribbon. Sheet height 178 units is US
+letter, 279 mm, and every piece scales off that.
+
+**Art on the face, plain edge** — the mistake paid for twice today. The edges
+and underside take the piece's own stock colour, read back off the canvas and
+dimmed a tenth, because the edge of a sheet is the same paper.
+
+**Bound things keep their depth:** `catalogue-order` 20 mm (its cover draws
+eight page edges), `catalogue-302` 8 mm, `classified-penny` 4 mm of folded
+newsprint. The chequebook, catalogue and folded newspaper in `ct/inventory.ts`
+were not touched — those already have real models and are not single sheets.
+
+`src/proto/ct/tenancy.ts`. `WORLD OK`. Live on 5177.

@@ -2121,6 +2121,117 @@ function mailIcon(l: Letter): (g: CanvasRenderingContext2D) => void {
     g.restore();
   };
 }
+/**
+ * ══ A DROPPED PIECE OF MAIL IS A SHEET OF PAPER ═════════════════════════════
+ *
+ * *"box of cereal work, this is correct but the notes/letters need to be flat.
+ *  its paper"*   (2026-08-06)
+ *
+ * ⚠ MAIL NEVER GOT A MODEL. `ca77c50b` gave ten items real objects at real size
+ * and that is right for the carton he says is correct — but a piece of mail is
+ * declared HERE, at the moment he takes it, so it fell to `dropLoose`'s
+ * fallback: a 16 cm square box, 50 mm deep, with the art printed on the top.
+ * That is the white slab in his shot. Paper is 0.1 mm thick and 50 mm is a
+ * ream.
+ *
+ * SO EVERY PIECE IS A SHEET, AND THE SHEET IS ITS OWN SHAPE. `8fd7977c` gave
+ * the fifteen junk kinds real paper rectangles, from a 2.26:1 window envelope
+ * to a 1:2.53 chain letter, and a dropped piece has no business being square
+ * when the thing in his bag is not. The rectangle is MEASURED off the painted
+ * canvas rather than read out of `SHAPES`, because a painter may sit its paper
+ * anywhere in the drawing space — the super's note is pinned high at y=16, the
+ * chain letter is rotated bodily off-square — and the alpha the sheet's own
+ * `alphaTest` already cuts away is exactly the answer to "where is the paper".
+ *
+ * THE ART IS ON THE FACE AND THE EDGE IS PLAIN, which is the mistake already
+ * paid for twice today: a parcel with its label on six sides, and dropped items
+ * repeating their icon all round. The four edges and the underside take the
+ * piece's OWN stock colour, read back off the canvas that was just painted and
+ * dimmed a tenth — an edge of paper is the same paper, not a dark rim.
+ *
+ * ⚠ AND IT IS LIFTED. A 1.2 mm sheet lying on the boards is the coplanar case
+ * that z-fights; `dropLoose` puts a model's base at `gy + 2 mm` and this adds
+ * 1 mm of its own, so the underside sits 3 mm clear and the face 4.2. The
+ * origin is still the BASE, so it lands flush on any storey.
+ */
+/** how thick a piece is, in metres. A single sheet is 1.2 mm — thinner than
+ *  the eye reads as paper and thicker than the depth buffer minds. Only the
+ *  pieces that are genuinely BOUND get more, because a catalogue is not a
+ *  sheet: `catalogue-order` draws its own eight page edges and says 400 pages
+ *  on the cover. */
+const MAIL_T: Record<string, number> = {
+  'catalogue-order': 0.020,      // 400 pages, and the cover already shows them
+  'catalogue-302':   0.008,      // a seed catalogue, thin but stitched
+  'classified-penny': 0.004,     // a free weekly — folded newsprint, not a sheet
+};
+const SHEET_T = 0.0012;
+/** ONE MILLIMETRE OF ITS OWN, on top of `dropLoose`'s two. */
+const SHEET_LIFT = 0.001;
+/** sheet units to metres: the drawing space's 178 units of height ARE US
+ *  letter, 279 mm, so every piece comes out the size its shape says it is —
+ *  a 148x178 tabloid at 232 x 279, the chain letter's ribbon at 107 x 270. */
+const PAPER_M = 0.279 / SHEET.h;
+/** the same supersample the page is read at: this is looked at from a metre
+ *  and a half, and 8 px type on a 1 px grid is the mush `LETTER_SS` exists to
+ *  fix. Painted once, when something is dropped — never per frame. */
+const MAIL_SS = 3;
+
+function mailModel(l: Letter): THREE.Object3D {
+  const art = l.art ?? '';
+  const full = document.createElement('canvas');
+  full.width = PAPER.w * MAIL_SS; full.height = PAPER.h * MAIL_SS;
+  const g = full.getContext('2d');
+  let cv: HTMLCanvasElement = full;
+  let w = PAPER.w, h = PAPER.h;
+  let edge = new THREE.Color(0xd8d4c4);
+  if (g) {
+    g.setTransform(MAIL_SS, 0, 0, MAIL_SS, 0, 0);
+    try { (ART[art] ?? drawTyped)(g, l); } catch { /* a piece with no art still drops */ }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    try {
+      // WHERE IS THE PAPER — the alpha bound of what was actually painted, so
+      // an offset note and a rotated ribbon both crop to themselves.
+      const px = g.getImageData(0, 0, full.width, full.height).data;
+      let x0 = full.width, y0 = full.height, x1 = -1, y1 = -1;
+      let r = 0, gg = 0, b = 0, n = 0;
+      for (let y = 0; y < full.height; y++) {
+        for (let x = 0; x < full.width; x++) {
+          const i = (y * full.width + x) * 4;
+          if (px[i + 3] <= 128) continue;
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (y < y0) y0 = y; if (y > y1) y1 = y;
+          r += px[i]; gg += px[i + 1]; b += px[i + 2]; n++;
+        }
+      }
+      if (n > 0) {
+        // the edge of a sheet is the sheet, one tenth down — not a dark rim
+        const dim = 0.9;
+        edge = new THREE.Color(r / n / 255 * dim, gg / n / 255 * dim, b / n / 255 * dim);
+      }
+      if (x1 >= x0 && y1 >= y0) {
+        const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+        const cut = document.createElement('canvas');
+        cut.width = cw; cut.height = ch;
+        cut.getContext('2d')?.drawImage(full, x0, y0, cw, ch, 0, 0, cw, ch);
+        cv = cut;
+        w = cw / MAIL_SS; h = ch / MAIL_SS;
+      }
+    } catch { /* a tainted canvas is not a reason to refuse a drop */ }
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  const face = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 });
+  const side = new THREE.MeshBasicMaterial({ color: edge });
+  const t = MAIL_T[art] ?? SHEET_T;
+  // +Y is material index 2 — the ONE face that carries the drawing.
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w * PAPER_M, t, h * PAPER_M),
+    [side, side, face, side, side, side]);
+  m.position.y = SHEET_LIFT + t / 2;
+  const grp = new THREE.Group();
+  grp.add(m);
+  return grp;
+}
+
 /** put one piece in his bag, as its own item */
 function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): boolean {
   // ⚠ DERIVED FROM THE PIECE, NEVER MINTED. This was `MAIL-${l.day}-${mailSeq++}`
@@ -2139,6 +2250,9 @@ function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): boolea
     stack: 1,
     blurb: '',
     icon: mailIcon(l),
+    // ⚠ A BUILDER, NOT A MESH — every drop gets its own sheet, so one taken
+    // back out of the scene cannot take another's texture with it.
+    model: () => mailModel(l),
     use: { verb: 'read', act: () => { open(l); return id; } },
   });
   // ⚠ REPORTS WHETHER IT ACTUALLY WENT IN. It used to swallow the answer, which
