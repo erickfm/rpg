@@ -89,10 +89,10 @@ export const ORDER = BUILD.PROPS;
 // that-must-agree bug, which this project has now hit repeatedly. There is one
 // number and it lives here.
 //
-// SETTERS GO THROUGH `commit()`, the same path `M`, `[`, `]` and the corner
-// widget take, so a change from the menu writes localStorage, re-gains the
-// master and repaints the widget exactly as a keypress does. The menu and the
-// keys cannot disagree, because there is nothing for them to disagree ABOUT.
+// SETTERS GO THROUGH `commit()`, the same path `M`, `[` and `]` take, so a
+// change from the menu writes localStorage and re-gains the master exactly as a
+// keypress does. The menu and the keys cannot disagree, because there is
+// nothing for them to disagree ABOUT.
 //
 // ── WHY THIS STATE IS AT MODULE SCOPE AND NOT INSIDE `register()` ───────────
 //
@@ -111,8 +111,8 @@ export const ORDER = BUILD.PROPS;
 // So the volume and the mute flag live HERE, at module scope, loaded from
 // storage the moment the module is imported. They have nothing to do with an
 // `AudioContext` and never needed to wait for one. `register()` now only
-// INSTALLS the side effect — re-gain the master, repaint the widget — and
-// adopts whatever the state already is. The exports work from the first tick of
+// INSTALLS the side effect — re-gain the master — and adopts whatever the
+// state already is. The exports work from the first tick of
 // the first import, whether the world built, half-built or threw.
 const PREF = 'ct.audio';
 let vol = 0.75, muted = false;
@@ -122,17 +122,17 @@ try {
   if (typeof s.m === 'boolean') muted = s.m;
 } catch { /* a corrupt pref is not worth a broken world */ }
 
-/** What `register()` plugs in: push the state at the audio graph and the
- *  widget. Null before the world builds, and that is FINE — the state is still
- *  authoritative, still persisted, and still correct when this arrives. */
+/** What `register()` plugs in: push the state at the audio graph. Null before
+ *  the world builds, and that is FINE — the state is still authoritative, still
+ *  persisted, and still correct when this arrives. */
 let apply: (() => void) | null = null;
 
 /**
- * THE ONLY WAY THE MIXER EVER CHANGES — the keys, the corner widget and the
- * options menu all end here.
+ * THE ONLY WAY THE MIXER EVER CHANGES — the keys and the options menu both
+ * end here.
  *
- * `M`, `[`, `]`, a click on the speaker and `setVolume()` from the menu are
- * five front doors onto two variables, and the failure they invite is the one
+ * `M`, `[`, `]` and `setVolume()` from the menu are four front doors onto two
+ * variables, and the failure they invite is the one
  * this codebase keeps hitting: a caller that sets the value and forgets one of
  * the things that must follow it. Persisting and applying are not two
  * obligations on five callers, they are one function.
@@ -145,10 +145,9 @@ function commit(): void {
 /**
  * VOLUME IS CONTINUOUS, 0…1. Pass any float; it is clamped, never rejected.
  *
- * `[` and `]` move it in eighths and the corner widget draws eight blocks, so a
- * menu offering the same 1/8 stops will land exactly on the readout the keys
- * produce — but that is the KEYS' stride, not a constraint on the value. A
- * continuous slider is fine and will display fine.
+ * `[` and `]` move it in eighths, so a menu offering the same 1/8 stops lands
+ * exactly where the keys do — but that is the KEYS' stride, not a constraint on
+ * the value. A continuous slider is fine and will display fine.
  *
  * Not a decibel scale: the gain is `vol * vol`, which is where the perceptual
  * curve lives. 0…1 is what a slider should show.
@@ -172,7 +171,7 @@ export function setVolume(v: number): void {
 export const isMuted = (): boolean => muted;
 /** mute or un-mute. Leaves the volume where it was, exactly as `M` does. */
 export function setMuted(b: boolean): void { muted = !!b; commit(); }
-/** what `M` and the corner widget do */
+/** what `M` does */
 export function toggleMute(): void { setMuted(!muted); }
 
 // ── the asset roster ────────────────────────────────────────────────────────
@@ -418,7 +417,12 @@ export function register(ctx: CtxBuild): void {
   const applyMaster = () => { if (rig) rig.master.gain.value = muted ? 0 : vol * vol; };
   //                                                             ^^^^^^^ perceptual:
   // a linear slider on a linear gain spends its top half doing almost nothing.
-  apply = () => { applyMaster(); paintWidget(); };
+  // With the corner widget gone this is the WHOLE of the apply step: push the
+  // master gain. `commit()` is persist-then-apply, and the repaint half it used
+  // to carry had exactly one subscriber — the widget. Checked: nothing else
+  // called `paintWidget`, and the menu does not need telling, because it reads
+  // `volume()` / `isMuted()` on every paint rather than being pushed at.
+  apply = applyMaster;
 
   // ══ THE GESTURE ═══════════════════════════════════════════════════════════
   const AC: typeof AudioContext | undefined =
@@ -512,57 +516,29 @@ export function register(ctx: CtxBuild): void {
     window.addEventListener(t, f, true);
   }
 
-  // ══ THE MIXER, ON SCREEN ══════════════════════════════════════════════════
+  // ══ THE KEYS ══════════════════════════════════════════════════════════════
   //
-  // *"Nothing worse than a game you cannot silence."* So there are two ways to
-  // do it and they cover each other:
+  // *"can you get rid of this top right corner?"* — and it went. There WAS a
+  // speaker glyph and eight volume blocks pinned top-right. It existed because
+  // when the sound shipped there was nowhere else for mute to live, and it
+  // stopped existing the moment the VCR menu grew VOLUME and MUTE rows reading
+  // these same exports on every paint. A second readout of state the menu
+  // already shows, painted over the world permanently, in a day he has spent
+  // taking exactly that kind of thing off the screen.
   //
-  //  · `M`, and `[` / `]` for volume — registered in the BUBBLE phase, on
-  //    purpose. `ct/hud.ts` swallows keydown in CAPTURE while a panel is open,
-  //    which means these keys are automatically inert at a slot machine, where
-  //    `m` is already MAX BET. The conflict is resolved by the gate that
-  //    already exists rather than by a second guess at what is open.
-  //  · The widget itself is clickable, which is the path that still works when
-  //    a panel IS open and the pointer is free.
+  // What remains is the keys, and they are registered in the BUBBLE phase on
+  // purpose. `ct/hud.ts` swallows keydown in CAPTURE while a panel is open,
+  // which makes these automatically inert at a slot machine, where `m` is
+  // already MAX BET — the conflict is resolved by the gate that already exists
+  // rather than by a second guess at what is open.
   //
-  // Top right: `hud.ts` has the build stamp bottom-right, the watch and the
-  // prompt bottom-centre, and the fps readout top-left. This corner is empty.
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed;right:8px;top:8px;z-index:13;'
-    + 'font:11px ui-monospace,Menlo,monospace;color:#cfd6e4;letter-spacing:.5px;'
-    + 'background:rgba(8,10,16,.55);border:1px solid rgba(180,200,230,.18);'
-    + 'border-radius:3px;padding:3px 6px;cursor:pointer;user-select:none;'
-    + 'display:flex;gap:5px;align-items:center;opacity:.28;transition:opacity .25s;';
-  wrap.title = 'M mute · [ ] volume';
-  const icon = document.createElement('span');
-  const bar = document.createElement('span');
-  bar.style.cssText = 'letter-spacing:1px;';
-  wrap.append(icon, bar);
-  wrap.addEventListener('pointerenter', () => { wrap.style.opacity = '1'; });
-  wrap.addEventListener('pointerleave', () => { wrap.style.opacity = '.28'; });
+  // NOTE, and it is the one thing lost with the widget: `[` and `]` now change
+  // the volume with NO on-screen feedback unless the menu is open. You hear it,
+  // which for a volume control is most of the answer, but a tap at the bottom
+  // of the range is silent in both senses. Not replacing it with a flash
+  // unasked — flagged rather than invented.
+  W.__ctAudio = { close: () => { rig = null; void live?.close(); } };
 
-  let peekUntil = 0;
-  function paintWidget(): void {
-    icon.textContent = muted || vol === 0 ? '\u{1F507}' : '\u{1F50A}';
-    const n = Math.round(vol * 8);
-    bar.textContent = (muted ? '·'.repeat(8) : '█'.repeat(n) + '·'.repeat(8 - n))
-      + (rig ? '' : ' …');
-  }
-  paintWidget();
-  // pointer-events stay on: this must be clickable even while a panel holds the
-  // rest of the input. It is 90 px in a corner nothing else uses, and a click
-  // that lands here deliberately does NOT take pointer lock.
-  wrap.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    toggleMute();
-  });
-  document.body.appendChild(wrap);
-  // Registered NOW rather than at boot, so that a build which never got its
-  // gesture still leaves nothing behind: the widget is the part that is always
-  // there, and an orphaned one stacks up a corner full of speakers.
-  W.__ctAudio = { close: () => { rig = null; wrap.remove(); void live?.close(); } };
-
-  const peek =() => { peekUntil = performance.now() + 1400; wrap.style.opacity = '1'; };
   window.addEventListener('keydown', (e) => {
     if (!e.isTrusted || e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
     const t = e.target as HTMLElement | null;
@@ -575,8 +551,6 @@ export function register(ctx: CtxBuild): void {
     if (k === 'm') toggleMute();
     else if (k === '[') setVolume(Math.round(volume() / STEP - 1) * STEP);
     else if (k === ']') setVolume(Math.round(volume() / STEP + 1) * STEP);
-    else return;
-    peek();
   });
 
   // ══ AMBIENCE ══════════════════════════════════════════════════════════════
@@ -818,7 +792,5 @@ export function register(ctx: CtxBuild): void {
       }
     }
     wasAir = air;
-
-    if (peekUntil && performance.now() > peekUntil) { peekUntil = 0; wrap.style.opacity = '.28'; }
   }, HOOK.LATE);
 }
