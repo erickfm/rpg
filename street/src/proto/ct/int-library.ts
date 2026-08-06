@@ -1879,12 +1879,84 @@ export function buildLibrary(ctx: CtxBuild): void {
       box(0.05, 0.80, 0.05, woodDark, TR_X + dx, 0.40, TR_Z + dz);
       box(0.07, 0.07, 0.07, metal, TR_X + dx, 0.035, TR_Z + dz);   // its castors
     }
-    for (const [y, len] of [[0.86, 0.66], [0.48, 0.78]] as [number, number][]) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.30),
-        new THREE.MeshBasicMaterial({ map: shelfTex(len, 0.30, 0x3f10 + Math.round(y * 100)) }));
-      m.rotation.y = Math.PI / 2;
-      put(m, TR_X + 0.20, y + 0.15, TR_Z);
+    // ══ THE RETURNS ARE MODELLED, AND ONLY THESE ═════════════════════════════
+    //
+    // *"bookshelf in the library looks bad because the graphic is flat here for
+    // the books"* (2026-08-05, on this cart beside the issue desk).
+    //
+    // He is right, and the honest finding is that the cart and the tall runs he
+    // can see behind it are THE SAME TECHNIQUE — a `shelfTex` plane hung in the
+    // opening. What differs is where you stand relative to it. A stack or a
+    // wall run is a 0.52 m deep case: shelf board over, kick under, end panels
+    // either side, a back board behind. The plane is framed by real geometry on
+    // four sides and you read it from 3–8 m nearly head-on, so it never has to
+    // carry the depth itself — the case around it does. This cart is two open
+    // boards on four legs with NOTHING around the plane, parked a metre from
+    // the desk everybody walks to, and you meet it obliquely. At that range and
+    // that angle a zero-thickness rectangle is a rectangle.
+    //
+    // So the cart — and only the cart — gets real books. Not modelled books:
+    // upright slabs, which is all the idiom wants. Spine art on the +x face,
+    // page-cream on the top because a standing eye looks DOWN at a 0.83 m
+    // shelf, plain cover colour on the other four faces. That last part is the
+    // rule two items today were fixed for breaking: one texture on six faces
+    // gives you a label on the back of the object.
+    //
+    // Nine materials total, shared by every book here. Variation comes from the
+    // book's INDEX through `bhash`, deliberately NOT from `rnd` above — that
+    // stream is consumed in draw order by the whole room and taking from it
+    // here would shift every prop built after this block.
+    /** deterministic per-book noise from an index, 0..1. Not `rnd`. */
+    const bhash = (i: number, salt: number) => {
+      let s = Math.imul((i + 1) ^ Math.imul(salt, 0x9e3779b1), 2246822519) >>> 0;
+      s ^= s >>> 13; s = Math.imul(s, 3266489917) >>> 0;
+      return (s >>> 8) / 16777216;
+    };
+    const dim = (hex: string, f: number) => {
+      const n = parseInt(hex.slice(1), 16);
+      return (Math.round(((n >> 16) & 255) * f) << 16)
+        | (Math.round(((n >> 8) & 255) * f) << 8) | Math.round((n & 255) * f);
+    };
+    const pages = new THREE.MeshBasicMaterial({ color: 0xd6cfb4 });
+    /** face order is [+x, −x, +y, −y, +z, −z] — GOTCHAS, same as the end panels */
+    const bookMats = SPINE.map((c) => {
+      // 6 × 32 px for a ~4 × 26 cm spine: ~150 px/m, the plate's density and for
+      // the plate's reason — this is read from under a metre away.
+      const face = new THREE.MeshBasicMaterial({
+        map: declareSurface(pixTex(6, 32, (g) => {
+          g.fillStyle = c; g.fillRect(0, 0, 6, 32);
+          g.fillStyle = 'rgba(0,0,0,0.32)';                       // the hinge joints
+          g.fillRect(0, 0, 1, 32); g.fillRect(5, 0, 1, 32);
+          g.fillStyle = 'rgba(236,230,208,0.72)'; g.fillRect(1, 7, 4, 4);   // the title
+          g.fillStyle = 'rgba(226,220,200,0.55)'; g.fillRect(1, 26, 4, 3);  // the Dewey label
+          dither(g, 6, 32, 12);
+        }), 'detail'),
+      });
+      const cover = new THREE.MeshBasicMaterial({ color: dim(c, 0.7) });
+      return [face, cover, pages, cover, cover, cover] as THREE.Material[];
+    });
+    // The board TOPS, derived: the two 0.06 m shelves are centred at 0.80 and
+    // 0.42, so their surfaces are 0.83 and 0.45 and the books stand ON them
+    // rather than 3 cm over them the way the planes did. Tallest book is 0.30
+    // against the lower shelf's 0.32 m of clearance to the board above it.
+    for (const [top, len, salt] of [[0.83, 0.66, 3], [0.45, 0.78, 7]] as [number, number, number][]) {
+      let z = TR_Z - len / 2 + 0.012;
+      const zEnd = TR_Z + len / 2 - 0.012;
+      for (let i = 0; i < 40 && z < zEnd; i++) {
+        const w = 0.028 + bhash(i, salt) * 0.030;        // 2.8–5.8 cm spines
+        if (z + w > zEnd) break;
+        const h = 0.20 + bhash(i, salt + 31) * 0.10;     // 20–30 cm tall
+        const d = 0.13 + bhash(i, salt + 61) * 0.04;     // 13–17 cm deep
+        // the front edge varies by up to 3 cm, because a cart of returns is not
+        // a faced shelf — and because it means no two neighbours are coplanar.
+        const fx = TR_X + 0.20 - bhash(i, salt + 89) * 0.03;
+        box(d, h, w, bookMats[Math.floor(bhash(i, salt + 97) * SPINE.length)],
+          fx - d / 2, top + h / 2, z + w / 2);
+        z += w + (bhash(i, salt + 127) < 0.14 ? 0.024 : 0.004);   // the odd gap
+      }
     }
+    // unchanged: the books' front faces reach TR_X + 0.20, inside this
+    // collider's own +0.31 half-width, so nothing new stands in the lane.
     solid(TR_X, TR_Z, 0.62, 0.96);
 
     // the globe, on the floor west of the reading table
