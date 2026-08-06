@@ -110,13 +110,20 @@ const url = (n: string) => new URL(`audio/${n}.ogg`, document.baseURI).href;
 // The beds were peak-normalised to -3 dBFS by the encoder because they arrived
 // up to 25 dB apart, so every balance decision is HERE, where it can be heard
 // against the world, rather than baked into a file at a level nobody can see.
+//
+// **The user, on hearing the first cut: *"the ambiance sounds are too loud"*.**
+// Every bed came down about 7 dB and the one-shots did not move — a bed is the
+// room you are standing in and belongs UNDER everything, and the encoder hands
+// them over peak-normalised to -3 dBFS, which is as hot as a file gets. The
+// footsteps and the birds are events and stayed where they were, so the balance
+// tipped the right way round in the same edit.
 const LVL = {
-  streetA: 0.34,   // the base of the outdoor bed: close traffic rumble
-  streetB: 0.30,   // the further-off layer, which breathes — see `sway`
-  room: 0.30,
-  rain: 0.55,      // multiplied by rainLevel, so this is its DOWNPOUR level
+  streetA: 0.15,   // the base of the outdoor bed: close traffic rumble
+  streetB: 0.13,   // the further-off layer, which breathes — see `sway`
+  room: 0.13,
+  rain: 0.30,      // multiplied by rainLevel, so this is its DOWNPOUR level
   rainIndoors: 0.20, // …of the above, heard through a window
-  site: 0.42,      // multiplied by distance and by the working day
+  site: 0.20,      // multiplied by distance and by the working day
   stepOut: 0.55,
   stepIn: 0.50,
   bird: 0.70,      // multiplied by distance
