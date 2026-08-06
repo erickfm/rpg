@@ -33,7 +33,7 @@ import { screenFade, makePanel, type Panel } from './hud';
  *  `GLASS` is the palette the wall plate below paints with, so the mirror seen
  *  from across the room and the mirror you step into cannot drift apart in
  *  colour (BUILDER-BRIEF §8). */
-import { mirrorPanel, glassCanvas, paintGlass } from './mirror';
+import { mirrorPanel, glassCanvas, paintGlass, setRoomLight } from './mirror';
 import { drawerPanel, liningCanvas, paintLiningOnly, DRAWER_W, DRAWER_D } from './drawer';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
@@ -4346,6 +4346,71 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     // The badge, buttons, LED and band all derive their z from RAIL_Z and
     // RAIL_D, so they follow the face in and nothing here is retyped.
+    /**
+     * ══ THE SET THROWS LIGHT INTO THE ROOM ════════════════════════════════
+     *
+     * *"tv should have some glow"*   (2026-08-05)
+     *
+     * A CRT lights the room it is in, and with the ceiling switch off it is the
+     * only thing in 301 that does.
+     *
+     * SAME TECHNIQUE AS THE CEILING HALOS, not a second one: `glowT`, the
+     * stepped nearest-filtered blob those are built from, on an additive
+     * `depthWrite: false` plane flagged `selfLit` so the room dimmer skips it —
+     * a screen's light does not go out because the ceiling light did.
+     *
+     * ⚠ IT CANNOT POKE THROUGH ANYTHING, which is the lesson the fixture halos
+     * paid for by overshooting their slabs by up to 5 cm. This quad is PARALLEL
+     * TO THE SCREEN and sits 8 mm in front of it, so the wall behind the set is
+     * never in question — the set's own case is between them. Its half-height is
+     * 0.26, against a screen centre at RY + 0.625, so its bottom edge is
+     * RY + 0.365: 0.365 m of clear air above the boards. Nothing above it either;
+     * the ceiling is at RY + 2.55.
+     *
+     * IT DOES NOT SWALLOW THE BEZEL, which the surround's own comment is
+     * explicit about — *"a glowing rectangle on a wall is a poster; a glowing
+     * rectangle behind a chunky surround is a television"*. The rails are drawn
+     * AFTER this, at RAIL_Z, which is 4 mm further into the room, so the chunky
+     * surround is in front of the glow and reads exactly as it did.
+     *
+     * COLOURED BY WHAT IS ON SCREEN, and it is cheap because the cadence is
+     * already gated: the screen canvas is only repainted on `tvRedraw` (about
+     * nine times a second, and only while he is SEATED at it), so the average is
+     * sampled there rather than per frame. An ad that cuts to a red end card
+     * throws red on the room, which is most of what a television at night looks
+     * like.
+     *
+     * ON ONLY WHEN THE SET IS ON: `tvLit`, the same flag the picture itself
+     * runs off, which is true while he is in the seat and false the moment he
+     * stands up.
+     */
+    const TV_GLOW_W = 0.86, TV_GLOW_H = 0.52;
+    const tvGlowM = new THREE.MeshBasicMaterial({
+      map: glowT, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: 0x000000, side: THREE.DoubleSide,
+    });
+    tvGlowM.userData.selfLit = true; tvGlowM.userData.graded = true;
+    const tvGlow = new THREE.Mesh(new THREE.PlaneGeometry(TV_GLOW_W, TV_GLOW_H), tvGlowM);
+    tvGlow.position.set(AX(TV_X), SCR_Y, AZI(WELL_Z + 0.008));
+    tvGlow.name = 'tv-glow-301';
+    tvGlow.visible = false;
+    scene.add(tvGlow);
+    /** the picture's own average, sampled where the canvas is already redrawn */
+    const tvGlowSample = () => {
+      try {
+        const cv = tvScreenT.image as HTMLCanvasElement;
+        const g2 = cv.getContext('2d');
+        if (!g2) return;
+        const px = g2.getImageData(0, 0, cv.width, cv.height).data;
+        let r = 0, gg = 0, b = 0;
+        // every 16th pixel — the picture is flat colour blocks, so a sparse
+        // sample is the same answer for a sixteenth of the cost
+        for (let i = 0; i < px.length; i += 64) { r += px[i]; gg += px[i + 1]; b += px[i + 2]; }
+        const n = Math.max(1, Math.floor(px.length / 64));
+        const k = 0.42 / 255;                       // how much of it reaches the room
+        tvGlowM.color.setRGB((r / n) * k, (gg / n) * k, (b / n) * k);
+      } catch { /* a tainted canvas is not a reason to lose the television */ }
+    };
     const RAIL_D = 0.04, RAIL_Z = WELL_Z + RAIL_D / 2 + 0.012;
     const topH = (TV_Y + CASE_H / 2) - (SCR_Y + SCR_H / 2);
     const botH = (SCR_Y - SCR_H / 2) - (TV_Y - CASE_H / 2);
@@ -4417,6 +4482,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       tvMinRow = TVH;                     // reset the witness for THIS paint
       SEGMENTS[tvSeg].draw(g, tvClock);
       tvScreenT.needsUpdate = true;
+      tvGlowSample();                          // the spill is the picture's light
     };
     ctx.onFrame(({ dt, px, pz }) => {
       // Only while somebody is on this floor. A canvas redrawn 8 times a
@@ -4425,6 +4491,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const seated = Math.abs(px - TV_SEAT_X) < 0.20 && Math.abs(pz - TV_SEAT_Z) < 0.20;
       if (seated !== tvLit) {
         tvLit = seated;
+        tvGlow.visible = seated;               // the set is only on in the seat
         if (seated) { tvWarm = 0.5; tvBag = []; tvLeft = 0.01; }   // a fresh pack each sitting
         else { tvDead(tvG()); tvScreenT.needsUpdate = true; }
       }
@@ -5813,6 +5880,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     }
 
     let lightOn = true;
+    // ⚠ THE MIRROR'S FOCUSED VIEW CANNOT BE DIMMED BY THE MATERIAL — the panel
+    // framework forces its colour white on open so a letter is readable after
+    // dark. So it asks instead, and paints the room's light into the picture.
+    // The plate on the wall needs none of this: it is an ordinary mesh inside
+    // the bounds and the sweep already scales its colour.
+    setRoomLight(() => (lightOn ? 1 : ROOM_DARK));
     const setLight = (on: boolean) => {
       lightOn = on;
       flatLamp.spill.visible = on;

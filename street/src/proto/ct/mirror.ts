@@ -512,6 +512,38 @@ function figureFit(W: number, H: number) {
   return { s, ox: Math.round((W - MW * s) / 2), oy: Math.round((H - MH * s) / 2) };
 }
 
+/**
+ * ══ THE GLASS SHOWS THE ROOM, SO IT DOES WHAT THE ROOM DOES ═══════════════
+ *
+ * *"mirror should match the lighting of the room"*   (2026-08-05)
+ *
+ * ⚠ ONE OF THE TWO SURFACES WAS ALREADY RIGHT, and finding which mattered more
+ * than the fix. The mirror is inside 301's bounds, its mesh is named
+ * `mirror-301` and matches no exemption, so `428ea23a`'s dimmer clones its
+ * material and scales `color` — which MULTIPLIES the canvas texture. THE PLATE
+ * ON THE WALL HAS BEEN DIMMING CORRECTLY SINCE THAT COMMIT.
+ *
+ * THE FOCUSED VIEW IS THE ONE THAT DOES NOT, and it is deliberate elsewhere:
+ * `ct/hud.ts:1648` does `mat.color.setHex(0xffffff)` when a panel opens, "so
+ * the evening wash cannot dim what you are reading". That override is correct
+ * for a letter and wrong for a mirror — a letter is a thing you hold up to
+ * whatever light there is, a mirror is a picture OF the room. So the dimming
+ * has to happen in the PAINT rather than on the material, where the framework's
+ * white cannot reach it.
+ *
+ * A MULTIPLY OVER THE FINISHED CANVAS, which is exactly what scaling a
+ * material's colour does, applied one layer up. It takes the glass, the
+ * reflected wall, the floor and THE FIGURE together — he is standing in the
+ * same dark room, so he dims with it — without touching a single one of the
+ * dozens of colour literals the figure is built from.
+ *
+ * REGISTERED, NOT IMPORTED. `ct/apartment.ts` owns the switch and already
+ * imports this module; the arrow cannot point both ways. Same shape as
+ * `registerHeldView` in the hud.
+ */
+let roomLight: () => number = () => 1;
+export function setRoomLight(fn: () => number): void { roomLight = fn; }
+
 function paint(g: CanvasRenderingContext2D, W: number, H: number,
                hover: Slot | null, facing: number, lit: number): void {
   // the glass: ONE drawing of it, shared with the plate on the wall — minus
@@ -555,6 +587,20 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
     // the thing through all eight facings including the ones where it is hidden
     // (a clutch at profile draws nothing, so it washes nothing).
     for (const piece of wornRects(hover, facing)) fam[piece.f](...piece.r, wash);
+  }
+  // ── AND THE WHOLE THING TAKES THE ROOM'S LIGHT ─────────────────────────
+  // Last, so it catches the glass, the reflection, the figure and the hover
+  // wash alike — a highlight in a dark room is dim too. `multiply` is the same
+  // arithmetic as scaling a material's colour, which is what the plate on the
+  // wall gets for free. See `setRoomLight`.
+  const k = roomLight();
+  if (k < 0.999) {
+    const v = Math.round(Math.max(0, Math.min(1, k)) * 255);
+    g.save();
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = `rgb(${v},${v},${v})`;
+    g.fillRect(0, 0, W, H);
+    g.restore();
   }
   // ── AND THERE IS NO CAPTION ON THE GLASS ───────────────────────────────
   //
