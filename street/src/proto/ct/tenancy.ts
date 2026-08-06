@@ -214,6 +214,24 @@ function hash01(day: number, salt: number): number {
  * These are written as they would be printed, in their own voice, because the
  * joke of junk mail is the register rather than the content.
  *
+ * ── WHAT A PIECE OF MAIL MAY SAY ─────────────────────────────────────────
+ *
+ * *"this makes no sense. delete this"*   (2026-08-05), on a piece that read
+ * *"Wrong street, right number. Someone named MARGUERITE is owed $312 by a
+ * garage, and now you know that."*
+ *
+ * ⚠ EVERY LINE HERE IS INK ON PAPER THAT SOMEBODY SENT. It is not a caption
+ * about the paper. That entry described the situation to the reader in the
+ * second person — "and now you know that" — which is a voice nobody in this
+ * world is speaking in, and it read as a stage direction rather than as post.
+ * Deleted, painter and all.
+ *
+ * THE TEST, for the next entry: could this text be PRINTED OR WRITTEN on the
+ * object? A flyer says what the shop sells. A statement lists figures. The
+ * super's note is what the super wrote. If a line explains the object, or
+ * addresses "you", or knows what you can and cannot make out, it is narration
+ * and it does not belong in this table.
+ *
  * THE LENGTH OF THIS TABLE IS PART OF THE SEED. The picker below indexes it by
  * `hash01(day, …) * JUNK.length`, so adding or removing an entry reshuffles
  * WHICH piece lands on which day for every day in the world. It does not change
@@ -221,6 +239,10 @@ function hash01(day: number, salt: number): number {
  * not touch the rent notice, which is on its own `noticeLead` schedule. Nothing
  * outside this file reads the table; the `junkKinds` probe surface derives its
  * count from it.
+ *
+ * It has gone 14 -> 13 (the clearing house), 13 -> 16 (three new formats) and
+ * now 16 -> 15. Each of those reshuffled WHICH piece lands on which day and
+ * none of them changed HOW MANY arrive.
  */
 const JUNK: { from: string; lines: string[]; art?: string }[] = [
   // ── the three that are not letters, and do not look like one ────────────
@@ -316,12 +338,6 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'broke it and lost his job in',
     'nine days.',
   ] },
-  { from: 'SOMEBODY ELSE ENTIRELY', art: 'envelope-misrouted', lines: [
-    'Wrong street, right number.',
-    'Someone named MARGUERITE is',
-    'owed $312 by a garage, and now',
-    'you know that.',
-  ] },
   { from: 'PENNY SAVER — WEEKLY', art: 'classified-penny', lines: [
     'CARS · APPLIANCES · ROOMS TO LET',
     '"1977 SEDAN, RUNS, $400 OBO"',
@@ -350,7 +366,7 @@ function prepaidReceipt(): Letter {
   const here = dateOf(0).season;
   const next = dateOf(DAYS_PER_SEASON).season;
   return {
-    day: 0, kind: 'receipt', from: `${RENT.landlord} — PAID IN ADVANCE`,
+    day: 0, kind: 'receipt', art: 'carbon-prepaid', from: `${RENT.landlord} — PAID IN ADVANCE`,
     lines: [
       `RE: APT ${RENT.flat}, ${RENT.building}`,
       '',
@@ -405,7 +421,7 @@ function mailFor(day: number): Letter[] {
     const due = dueDay(n);
     const left = due - day;
     out.push({
-      day, kind: 'rent', from: `${RENT.landlord} — MANAGING AGENT`,
+      day, kind: 'rent', art: 'notice-agent', from: `${RENT.landlord} — MANAGING AGENT`,
       lines: [
         `RE: APT ${RENT.flat}, ${RENT.building}`,
         '',
@@ -429,7 +445,7 @@ function mailFor(day: number): Letter[] {
     const since = day - dueDay(duePeriodsBy(day) - 1);
     if (since > 0 && since % 3 === 1) {
       out.push({
-        day, kind: 'late', from: `${RENT.landlord} — SECOND NOTICE`,
+        day, kind: 'late', art: 'notice-agent', from: `${RENT.landlord} — SECOND NOTICE`,
         lines: [
           `RE: APT ${RENT.flat}. ARREARS $${(late * RENT.amount).toFixed(2)}.`,
           '',
@@ -858,9 +874,33 @@ const fill = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: n
 function drawLetter(g: CanvasRenderingContext2D): void {
   const l = reading[page];
   if (!l) return;
-  // EACH SENDER ITS OWN DRAWING — see `Letter.art`. Anything unnamed is the
-  // typewritten letter this function has always been.
+  // ══ THE SUPERSAMPLE IS APPLIED HERE, ONCE, FOR EVERY PAINTER ═══════════
+  //
+  // *"i like this but again this is not an original letter or flyer."* — on a
+  // piece that HAS its own painter and was not showing it.
+  //
+  // ⚠ THE DISPATCH WAS NEVER THE BUG. Every `art` key in JUNK resolves, none is
+  // missing, and there is one reading path. THE SCALE WAS. `g.scale(LETTER_SS,
+  // LETTER_SS)` lived inside `drawTyped` — so the typewritten letter was
+  // composed at 192x178 on the 576x534 canvas correctly, and all sixteen
+  // bespoke painters, which are written in the same 192x178 units, drew at a
+  // THIRD of that size in the top-left corner of the sheet. The rest of the
+  // canvas went unpainted and the sheet's `alphaTest` cut it away.
+  //
+  // Sixteen correct drawings, none of them reachable at the right size, and the
+  // one piece that DID look right was the only one still using drawTyped —
+  // which is exactly the shape of "they all look the same" he reported three
+  // times running.
+  //
+  // So it is hoisted out of `drawTyped` to here, where every branch gets it.
+  // `scale`, NOT `setTransform`: the framework's screen-space fallback
+  // (`ct/hud.ts:1422`) does `g.translate(SX, SY)` first to seat the page in the
+  // cabinet's recess, and `setTransform` would wipe that. Both call sites wrap
+  // this in `g.save()`/`g.restore()`, so nothing accumulates across repaints.
+  g.save();
+  g.scale(LETTER_SS, LETTER_SS);
   (ART[l.art ?? ''] ?? drawTyped)(g, l);
+  g.restore();
   // ── WHICH ONE OF HOW MANY, PRINTED ON IT ────────────────────────────────
   // Bottom right, in the corner a page number goes in, small and grey — so the
   // pile says how deep it is without the framework's caption saying it. Only
@@ -870,7 +910,7 @@ function drawLetter(g: CanvasRenderingContext2D): void {
   // inside the same `LETTER_SS` scale every piece is composed at.
   if (reading.length > 1) {
     g.save();
-    g.scale(LETTER_SS, LETTER_SS);
+    g.scale(LETTER_SS, LETTER_SS);          // its own, since the dispatch closed
     g.fillStyle = 'rgba(90,84,70,0.75)';
     g.font = UI.font(7);
     g.textAlign = 'right'; g.textBaseline = 'alphabetic';
@@ -1419,45 +1459,6 @@ ART['chain-letter'] = (g, l) => {
 };
 
 /**
- * ── SOMEBODY ELSE ENTIRELY: A WINDOW ENVELOPE, RE-ROUTED ───────────────────
- * The second envelope in the box and NOT a repeat of the previous tenant's —
- * that one was never opened and this one has been through the system twice.
- * Buff stock rather than white, a yellow POST OFFICE redirect label stuck at an
- * angle over the address, and a hand's ring-and-arrow round the house number.
- * Wrong street, right number.
- */
-ART['envelope-misrouted'] = (g, l) => {
-  const W = PAPER.w, h = Math.round(PAPER.h * 0.56), y0 = Math.round((PAPER.h - h) / 2);
-  stock(g, 0, y0, W, h, '#ded4b8', '#eae2ca', '#b9ae90');
-  fill(g, 'rgba(120,105,70,0.20)', 0, y0 + Math.round(h * 0.30), W, 1);   // the flap seam
-  // the window and the address showing through
-  const wx = 12, wy = y0 + Math.round(h * 0.40), ww = Math.round(W * 0.54), wh = 34;
-  fill(g, '#c9bf9e', wx - 2, wy - 2, ww + 4, wh + 4);
-  fill(g, '#d8cfae', wx, wy, ww, wh);
-  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#3a352c'; g.font = UI.font(7);
-  g.fillText('MARGUERITE A. DUFRESNE', wx + 5, wy + 12);
-  g.fillText('227 W 19TH  APT 301', wx + 5, wy + 23);
-  // the hand that circled the number and pointed at it
-  g.strokeStyle = 'rgba(47,79,140,0.75)'; g.lineWidth = 1;
-  g.strokeRect(wx + 26, wy + 15, 22, 11);
-  fill(g, 'rgba(47,79,140,0.75)', wx + 50, wy + 20, 10, 1);
-  fill(g, 'rgba(47,79,140,0.75)', wx + 50, wy + 18, 4, 1);
-  // THE REDIRECT LABEL, stuck on crooked the way a hand sticks one
-  g.save();
-  g.translate(W - 66, y0 + 12);
-  g.rotate(-0.11);
-  fill(g, '#d8c24a', 0, 0, 58, 22);
-  fill(g, 'rgba(0,0,0,0.18)', 0, 0, 58, 4);
-  g.fillStyle = '#3a352c'; g.font = UI.font(6, true);
-  g.fillText('RETURN TO', 5, 12);
-  g.fillText('SENDER', 5, 19);
-  g.restore();
-  g.fillStyle = '#5a544a'; g.font = UI.font(6);
-  g.fillText(l.lines[0]?.slice(0, COLS) ?? '', 10, y0 + h - 8);
-};
-
-/**
  * ── THE PENNY SAVER: A CLASSIFIED SHEET, SET IN COLUMNS ────────────────────
  * NEWSPRINT, and the only piece set in COLUMNS — two of them, rules between,
  * headings in reverse, and the ads themselves at 6 px because a free weekly
@@ -1495,16 +1496,199 @@ ART['classified-penny'] = (g, l) => {
   g.fillText(l.lines[3]?.slice(0, COLS) ?? '', 10, H - 12);
 };
 
+
+/**
+ * THE LIVE BALANCE BAND, read off the clock at the moment he unfolds the paper
+ * rather than baked in when it was written. Factored out of `drawTyped` because
+ * all three of the landlord's pieces carry it and three copies of a band that
+ * quotes real state is three chances to disagree about it.
+ *
+ * ⚠ WHAT IT MAY NOT SAY is "PAID IN FULL", which is what the first version
+ * printed the moment `owed()` came back 0 — including on the day the notice
+ * arrives, before any money is due. A notice that congratulates you for paying
+ * rent you have not been asked for yet is worse than no band at all. Nothing
+ * outstanding and paid up are different sentences.
+ */
+function balanceBand(g: CanvasRenderingContext2D, x: number, y: number, w: number): void {
+  if (!CTX) return;
+  const bal = owed(Math.floor(CTX.clock.now().totalMin / 1440));
+  fill(g, '#c9c3ac', x, y, w, 16);
+  g.fillStyle = '#2b2620'; g.font = UI.font(8, true);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillText(bal > 0 ? `OUTSTANDING NOW: $${bal.toFixed(2)}` : 'NOTHING OUTSTANDING TODAY', x + 4, y + 11);
+}
+/** the rubber stamp, struck off-square the way one lands on a desk */
+function pastDue(g: CanvasRenderingContext2D, cx: number, cy: number): void {
+  if (!CTX || owed(Math.floor(CTX.clock.now().totalMin / 1440)) <= 0) return;
+  g.save();
+  g.translate(cx, cy);
+  g.rotate(-0.17);
+  g.strokeStyle = 'rgba(150,46,38,0.75)'; g.lineWidth = 2;
+  g.strokeRect(-30, -12, 60, 24);
+  g.fillStyle = 'rgba(150,46,38,0.85)'; g.font = UI.font(9, true);
+  g.textAlign = 'center';
+  g.fillText('PAST DUE', 0, 3);
+  g.restore();
+  g.textAlign = 'left';
+}
+
+/**
+ * ══ THE MANAGING AGENT'S NOTICE ═══════════════════════════════════════════
+ *
+ * *"this looks identical to that other note, same dimensions, font,
+ *  everything."*   (2026-08-05)
+ *
+ * HE IS RIGHT AND IT WAS THE ONE PIECE THAT COULD NOT AFFORD TO BE. Sixteen
+ * junk pieces got their own drawing while the three that do real work were held
+ * back — so the most consequential piece of paper in the game ended up looking
+ * exactly like a chain letter.
+ *
+ * A MANAGING AGENT'S OWN STATIONERY, and every difference is a printer's:
+ * a heavy black masthead with his name REVERSED OUT of it rather than typed
+ * into the body, a rule under it, a ruled RE: block with the flat and the
+ * building, then the demand — and THE AMOUNT SET APART in a boxed panel at 13
+ * px so the page reads as a BILL at a glance rather than as a letter that
+ * happens to mention money. Duplicate-book stock: the faint blue-grey wash and
+ * the perforated top edge of a page torn out of a receipt book.
+ *
+ * ⚠ EVERY FIGURE STILL COMES FROM THE CONSTANTS. `mailFor` builds the lines
+ * from `RENT.amount`, `RENT.dueDayOfSeason`, `RENT.flat` and `RENT.building`
+ * and this only draws them. Nothing is typed here — the notice said "the 1ST"
+ * hard-typed once already today and that is exactly the bug this must not
+ * reintroduce.
+ */
+ART['notice-agent'] = (g, l) => {
+  const W = PAPER.w, H = PAPER.h;
+  stock(g, 0, 0, W, H, '#e4e2d6', '#f0eee4', '#c4c1b2');
+  fill(g, 'rgba(90,110,130,0.07)', 0, 0, W, H);          // duplicate-book wash
+  perf(g, 4, 4, W - 8);                                  // torn from the book
+  // the masthead
+  fill(g, '#2a2620', 0, 10, W, 26);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#e8e4d4'; g.font = UI.font(10, true);
+  g.fillText(RENT.landlord, W / 2, 25);
+  g.font = UI.font(6);
+  g.fillText('MANAGING AGENT', W / 2, 33);
+  // the RE: block, ruled the way a form is
+  g.textAlign = 'left';
+  g.fillStyle = '#3a352c'; g.font = UI.font(7, true);
+  g.fillText(l.lines[0] ?? '', 10, 48);
+  fill(g, '#8d8672', 10, 52, W - 20, 1);
+  // the demand, and THE AMOUNT SET APART
+  g.font = UI.font(8);
+  g.fillStyle = '#332d25';
+  const body = l.lines.slice(1).filter((t) => t.trim());
+  const money = body.find((t) => t.includes('$')) ?? '';
+  const rest = body.filter((t) => t !== money);
+  const amt = money.match(/\$[\d,.]+/)?.[0] ?? '';
+  const when = body.find((t) => t.startsWith('OF ')) ?? '';
+  fill(g, '#d8d4c4', 10, 60, W - 20, 30);
+  g.strokeStyle = '#2a2620'; g.lineWidth = 1;
+  g.strokeRect(10.5, 60.5, W - 21, 29);
+  g.fillStyle = '#2a2620'; g.font = UI.font(13, true);
+  g.textAlign = 'center';
+  g.fillText(amt, W / 2, 78);
+  g.font = UI.font(6);
+  g.fillText(when.slice(0, COLS), W / 2, 87);
+  // and the rest of what he has to say, in the body
+  g.textAlign = 'left'; g.font = UI.font(8); g.fillStyle = '#332d25';
+  let y = 104;
+  for (const t of rest) {
+    if (t === when) continue;
+    g.fillText(t.slice(0, COLS), 10, y); y += 11;
+  }
+  balanceBand(g, 10, H - 34, W - 20);
+  pastDue(g, W - 48, H - 54);
+};
+
+/**
+ * ══ THE RECEIPT: A DOCKET, AND THE SMALLEST PAPER IN THE GAME ═════════════
+ *
+ * Proof of payment is not a letter and should not be shaped like one. A stub
+ * torn off a duplicate book: narrow, short, a perforation down its left edge
+ * where it left the spine, a printed RECEIVED heading, the figure on a ruled
+ * line, and the agent's initials scratched across the bottom in biro. It
+ * occupies about a fifth of the space a notice does, which is most of what
+ * says "this is a different object" before a word is read.
+ */
+ART['docket-receipt'] = (g, l) => {
+  const w = Math.round(PAPER.w * 0.62), h = Math.round(PAPER.h * 0.42);
+  const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
+  stock(g, x, y, w, h, '#f0ecd8', '#f8f5e6', '#d0cbb4');
+  for (let i = 0; i < h; i += 4) fill(g, 'rgba(90,84,70,0.45)', x, y + i, 1, 2);  // the spine
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#2a2620'; g.font = UI.font(8, true);
+  g.fillText('RECEIVED', x + w / 2, y + 15);
+  fill(g, '#2a2620', x + 8, y + 19, w - 16, 1);
+  g.fillStyle = '#5a544a'; g.font = UI.font(6);
+  g.fillText(`${RENT.building} — APT ${RENT.flat}`, x + w / 2, y + 28);
+  // the figure, on its own ruled line, which is what a docket is for
+  const money = l.lines.find((t) => t.includes('$')) ?? '';
+  g.fillStyle = '#2a2620'; g.font = UI.font(11, true);
+  g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', x + w / 2, y + 48);
+  fill(g, 'rgba(90,84,70,0.55)', x + 14, y + 52, w - 28, 1);
+  g.font = UI.font(6); g.fillStyle = '#5a544a';
+  g.fillText('WITH THANKS', x + w / 2, y + 62);
+  // his initials, in biro, across the foot
+  g.save();
+  g.translate(x + w - 34, y + h - 12);
+  g.rotate(-0.14);
+  g.fillStyle = 'rgba(47,79,140,0.8)'; g.font = UI.font(10, true);
+  g.fillText('V.O.', 0, 0);
+  g.restore();
+  g.textAlign = 'left';
+};
+
+/**
+ * ══ HIS MOTHER'S CARBON ═══════════════════════════════════════════════════
+ *
+ * *"ur mom already paid for your first month when she kicked you out"*
+ *
+ * THE ONE PIECE WITH A PERSON BEHIND IT, and it should feel unlike anything a
+ * business sent. A FLIMSY PINK DUPLICATE: the third leaf of a receipt book, so
+ * the stock is pink rather than cream, the printed form beneath is faint, and
+ * the writing is in the SMUDGED PURPLE-GREY of carbon rather than in ink.
+ *
+ * ⚠ THE IMPRESSION IS DRAWN, AND IT IS THE WHOLE TELL. A carbon copy carries
+ * the pressure of a pen that was never touching it: each line gets a 1 px
+ * offset ghost under it, so the writing reads as pressed THROUGH rather than
+ * printed ON. Nobody typed this and nobody printed it — she stood at the door
+ * and he wrote it out.
+ *
+ * The words are untouched. They explain why day one is silent, which is the
+ * job this piece does beyond flavour.
+ */
+ART['carbon-prepaid'] = (g, l) => {
+  const w = Math.round(PAPER.w * 0.86), h = Math.round(PAPER.h * 0.80);
+  const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
+  stock(g, x, y, w, h, '#e8cfd0', '#f2dfe0', '#c9adae');
+  perf(g, x + 4, y + 4, w - 8);
+  // the printed form under the writing, faint because this is the third leaf
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = 'rgba(120,90,95,0.45)'; g.font = UI.font(6, true);
+  g.fillText('RECEIPT — DUPLICATE — DO NOT DETACH', x + 8, y + 14);
+  fill(g, 'rgba(120,90,95,0.35)', x + 8, y + 18, w - 16, 1);
+  for (let k = 0; k < 5; k++) fill(g, 'rgba(120,90,95,0.22)', x + 8, y + 34 + k * 13, w - 16, 1);
+  // the writing, in carbon, each line ghosted by the pressure of the pen
+  const CARBON = '#4a4250';
+  g.font = UI.font(8, true);
+  let ly = y + 32;
+  for (const t of l.lines) {
+    const line = t.slice(0, COLS);
+    g.fillStyle = 'rgba(74,66,80,0.30)';
+    g.fillText(line, x + 9, ly + 1);              // the impression
+    g.fillStyle = CARBON;
+    g.fillText(line, x + 8, ly);
+    ly += 13;
+  }
+  balanceBand(g, x + 8, y + h - 24, w - 16);
+};
+
 function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
   const l = letter;
-  // Supersample. `scale`, NOT `setTransform`, and that is not a style choice:
-  // the framework's screen-space fallback (`ct/hud.ts:1422`) does
-  // `g.translate(SX, SY)` before calling this, to seat the page inside the
-  // cabinet's recess — and `setTransform` would wipe that translate and paint
-  // the letter in the corner of the canvas instead. `scale` composes with it.
-  // Nothing accumulates across repaints: both call sites wrap the call in
-  // `g.save()` / `g.restore()`.
-  g.scale(LETTER_SS, LETTER_SS);
+  // ⚠ NO SUPERSAMPLE HERE. `drawLetter` applies it for every painter now — see
+  // the note there. It used to live in this function, which is precisely why
+  // the other sixteen drew a third of the size.
   const w = SHEET.w, h = SHEET.h;
 
   // cheap paper gone slightly yellow, and the crease it was folded on
@@ -2121,7 +2305,7 @@ export function register(ctx: CtxBuild): void {
     // own paperwork, which is what this file's own notice comment warns about.
     const months = Math.round(amount / RENT.amount);
     return {
-      day, kind: 'receipt', from: `${RENT.landlord} — RECEIVED`,
+      day, kind: 'receipt', art: 'docket-receipt', from: `${RENT.landlord} — RECEIVED`,
       lines: [
         `RECEIVED OF APT ${RENT.flat}`,
         '',
