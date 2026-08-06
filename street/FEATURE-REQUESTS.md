@@ -4094,3 +4094,33 @@ are unpushed and Railway builds from a pushed branch.
 **The Pages deploy and the packed artifact are untouched.** Neither has a server
 behind it, so `ct/save.ts` probes for one and falls back to `localStorage` —
 which is exactly what `ct/wardrobe.ts` already did.
+
+### 2026-08-05 — "hm i wanted like a leather armchair, classic, slightly turned in"
+
+Three corrections to the chair above; the end table was not mentioned and did
+not move.
+
+**Leather, tan.** `#8a6238` — the stair treads' own `#6a5038` raised ~30 levels
+and pushed redder, so it stays in the building's brown family. Oxblood was the
+other classic option and is wrong *here*: the hall carpet is `#663832` and an
+oxblood chair on it is a dark lump on a dark floor at hall distance. Creases,
+one rubbed highlight, a lighter up-face so an unlit box still reads as a seat.
+
+**Classic in silhouette, not in detail.** Back up 0.88 → 1.00, seat deeper and
+lower on four short dark legs instead of a plinth, arms standing proud of the
+seat with a cylinder rolled along each — nine shapes against five. No piping, no
+buttons.
+
+**Turned 0.35 rad (20°) in toward the middle of the hall**, and the collider
+turns with it: `AABB.rot`, the opt-in turned box `fp.ts` already carries for the
+bodega's chamfer, taking the group's own `rotation.y` about the group's own
+centre. Not an enclosing axis-aligned box — at 20° that is 1.07 x 1.02 against a
+chair 0.86 x 0.77, and the quarter that is not chair would be invisible wall.
+The seat pose turns too: `yaw = PI - turn`.
+
+Re-measured after turning, because corners reach further than faces did: rear
+corner **21 mm** off the plaster, feet **6 mm** above the carpet, **114 mm** off
+the west wall, **244 mm** clear of the table, and **2.391 m** of full-width hall
+between the chair's outermost corner and the door line.
+
+Live on 5177.

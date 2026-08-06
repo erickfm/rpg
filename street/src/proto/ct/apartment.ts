@@ -433,13 +433,34 @@ export function buildApartment(ctx: CtxBuild): Apartment {
    *  "collider that outlives its mesh" bug waiting to happen. Local hall
    *  coordinates: the hall is `lx` 0…2.4 between the two flat walls and `lz`
    *  0…8.4 from the dead end to the stairwell mouth, with 401/402 at `lz` 3.5.
-   *  Everything below lives in `lz` < 0.83 — the last 0.83 m of a 3.5 m stub
+   *  Everything below lives in `lz` < 1.11 — the last metre of a 3.5 m stub
    *  BEYOND the doors, so the corridor keeps its full 2.4 m width everywhere
-   *  and the doors are 2.6 m clear of the nearest leg.
+   *  and the doors are 2.39 m clear of the chair's outermost corner.
+   *
+   *  ── THE CHAIR IS TURNED, AND SO IS ITS COLLIDER ────────────────────────
+   *  *"slightly turned in"*. `CHAIR` is therefore a CENTRE, a footprint and an
+   *  ANGLE rather than four world-axis bounds: the chair is drawn as a group
+   *  standing at (`cx`, `cz`) with `rotation.y = turn`, and the collider is the
+   *  same rectangle with `rot: turn` — `fp.ts`'s opt-in turned-box support,
+   *  the one the bodega's chamfer uses. `blocked`, `standTop` and `escapeFrom`
+   *  all run their tests through `inFrame`, and `rot` takes `mesh.rotation.y`'s
+   *  own convention, so the collider takes the group's angle rather than a
+   *  second one derived by hand. An enclosing axis-aligned box would have been
+   *  the alternative and it is strictly worse here: at 20° it is 1.07 x 1.02 m
+   *  against a chair 0.86 x 0.77, so a quarter of it would have been invisible
+   *  wall standing off the corners.
+   *
+   *  ⚠ `rot`, like `maxY`, is set HERE and survives `setCap`, which only ever
+   *  writes the four horizontal bounds. Do not "simplify" either into the call.
    */
-  const CHAIR = { x0: 0.38, x1: 1.18, z0: 0.085, z1: 0.825, backD: 0.14, seat: 0.42, arm: 0.60, back: 0.88 };
+  const CHAIR = {
+    cx: 0.72, cz: 0.60,          // where it stands in the hall's local frame
+    w: 0.86, d: 0.77,            // its own footprint, before it is turned
+    turn: 0.35,                  // ~20° in toward the middle of the hall
+    backD: 0.15, legH: 0.10, seat: 0.44, armTop: 0.68, back: 1.00,
+  };
   const ETAB = { x0: 1.50, x1: 1.94, z0: 0.085, z1: 0.525, top: 0.55 };
-  const chairCap: AABB = { ...mkCap(), maxY: TOP_Y + CHAIR.seat };
+  const chairCap: AABB = { ...mkCap(), maxY: TOP_Y + CHAIR.seat, rot: CHAIR.turn };
   const endTableCap: AABB = { ...mkCap(), maxY: TOP_Y + ETAB.top };
 
   // ── 301's door, open and shut ────────────────────────────────────────────
@@ -2054,67 +2075,127 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // same storey — see `chairCap` at the head of this file for why a plain
     // collider here would furnish all four landings with invisible chairs.
     //
-    // WHERE IT ALL SITS, in the local frame `CHAIR`/`ETAB` are written in:
+    // WHERE IT ALL SITS, re-measured AFTER the chair was turned, because a
+    // turned rectangle's CORNERS reach 0.14 m further than its faces did:
     //   · the end wall is a 0.14 m box centred on AZI(0), so its PLASTER FACE
-    //     is at lz 0.07. Both backs stand at lz 0.085 — **15 mm of daylight**,
-    //     which is a shabby gap-behind-the-furniture and, more to the point,
-    //     not a coplanar pair.
-    //   · the hall carpet is a plane at `TOP_Y + 0.006`. Everything here starts
+    //     is at lz 0.07. The chair's rear corner swings back to lz 0.0909 —
+    //     **21 mm of daylight** — and the table's back is at lz 0.085, **15 mm**.
+    //     Both are gaps behind the furniture, and neither is a coplanar pair.
+    //   · the hall carpet is a plane at `TOP_Y + 0.006`. Every foot here starts
     //     at `TOP_Y + 0.012` — **6 mm clear** — so nothing z-fights the floor.
-    //   · the corridor is untouched: the furniture ends at lz 0.825 and 401/402
-    //     are at lz 3.5, so there is **2.635 m** of full-width hall between the
-    //     chair's front and the door line, and the hall keeps all 2.4 m of its
-    //     width at every z. You reach both doors and turn round without ever
-    //     coming near it.
+    //   · SIDEWAYS, the turned chair spans lx 0.184…1.256: **114 mm** off the
+    //     west wall's plaster face at lx 0.07, and **244 mm** clear of the end
+    //     table's west edge at lx 1.50. It grew 0.27 m in x by turning and
+    //     still touches nothing.
+    //   · THE LANE. The chair's furthest corner is lz 1.109 and 401/402 are at
+    //     lz 3.5, so **2.391 m** of hall at its full 2.4 m width lies between
+    //     the chair and the door line. Nothing narrows the corridor: the
+    //     furniture is entirely inside the last metre of a 3.5 m blind stub
+    //     BEYOND both doors, and you reach either door and turn round without
+    //     coming within a body's width of it.
     //   · the ceiling globe hangs at AZI(3.5) under a ceiling at TOP_Y + 2.55.
-    //     The tallest thing here is the chair back at TOP_Y + 0.88, 2.6 m away
-    //     in z and 1.67 m below the lamp's own halo. Nothing meets it.
+    //     The tallest thing here is the chair back at TOP_Y + 1.00, 2.4 m away
+    //     in z and 1.55 m below the lamp's own halo. Nothing meets it.
     //
-    // THE STYLE IS A LANDLORD'S CAST-OFF, not a nice armchair: five boxes for
-    // the chair, five for the table, flat colours off this building's own
-    // palette — the skirting's `#3e3024` and the stair treads' `#6a5038` for
-    // the timber — and a drab olive vinyl that is the one thing in the hall not
-    // already brown, so it reads against both the red carpet and the buff
-    // paper. No cushions, no piping, no lamp on the table.
+    // THE STYLE. *"i wanted like a leather armchair, classic, slightly turned
+    // in"*, which replaced the olive vinyl box that went out first. Classic is
+    // carried by the SILHOUETTE and not by detail — a tall back, arms rolled
+    // proud of a deep seat, short legs instead of a plinth — so it is nine
+    // shapes where the box was five, and there is still no piping, no buttoning
+    // and nothing on the table.
     {
       const FY = TOP_Y;                                  // floor 3's carpet
       const CLEAR = 0.012;                               // above the carpet plane
-      const vinylT = surfTex('detail', 32, 32, (g) => {
-        g.fillStyle = '#55604a'; g.fillRect(0, 0, 32, 32);
-        // wear: a few bald patches, darker rather than lighter — this chair has
-        // been sat on by strangers for twenty years
-        g.fillStyle = 'rgba(0,0,0,0.18)';
-        for (const [x, y, w, h] of [[3, 6, 5, 3], [19, 2, 4, 4], [11, 21, 6, 2], [25, 17, 3, 5]] as const) g.fillRect(x, y, w, h);
+      // ── THE LEATHER: WORN TAN, AND IT IS SAMPLED ──────────────────────
+      // Oxblood was the other classic option and it is the wrong one HERE: the
+      // hall carpet is `#663832`, a dark red-brown, and an oxblood chair
+      // standing on it at this distance is a silhouette-coloured lump on a
+      // silhouette-coloured floor. Tan is the one leather that separates from
+      // everything already in the picture — `#663832` carpet, `#57402c` doors,
+      // `#3e3024` skirting, `#7e7460` paper.
+      //
+      // `#8a6238` IS THIS BUILDING'S OWN BROWN, RAISED. It is the stair treads'
+      // `#6a5038` (the warmest timber in the walk-up) taken up ~30 levels and
+      // pushed a little redder, so the chair belongs to the same family as the
+      // doors and the stairs rather than arriving from another palette — the
+      // shared-palette rule, BUILDER-BRIEF §8.
+      const hideT = surfTex('detail', 32, 32, (g) => {
+        g.fillStyle = '#8a6238'; g.fillRect(0, 0, 32, 32);
+        // old leather creases: a few darker strokes, not a pattern. Two
+        // horizontals and a break, which is what a seat that has been sat in
+        // for twenty years does and all it does.
+        g.fillStyle = 'rgba(0,0,0,0.20)';
+        for (const [x, y, w, h] of [[2, 9, 20, 1], [7, 20, 18, 1], [24, 4, 1, 9], [11, 26, 9, 1]] as const) g.fillRect(x, y, w, h);
+        // and the rubbed-bare highlight along one crease — the only light mark
+        // on it, because leather shines where it is worn and nowhere else
+        g.fillStyle = 'rgba(255,232,190,0.10)'; g.fillRect(2, 8, 20, 1);
         dither(g, 32, 32, 90);
       });
-      const vinylM = new THREE.MeshBasicMaterial({ map: vinylT });   // solid: front faces only
+      const hideM = new THREE.MeshBasicMaterial({ map: hideT });   // solid: front faces only
+      // UP-FACES ONLY, a shade lighter. Every material in this world is
+      // unlit, so a box of one material has no form at all from any angle; one
+      // lighter top face is the cheapest thing that makes a seat read as a
+      // horizontal plane you could sit on. Box material order is
+      // [+x, -x, +y, -y, +z, -z], so this replaces exactly the third.
+      const hideTopM = new THREE.MeshBasicMaterial({ color: 0xa07647 });
+      const hideMats = [hideM, hideM, hideTopM, hideM, hideM, hideM];
       const darkM = new THREE.MeshBasicMaterial({ color: 0x3e3024 }); // the skirting's own brown
       const woodM = new THREE.MeshBasicMaterial({ color: 0x6a5038 }); // the stair treads' own
       /** a box given by its own extents, so every number below is the face it
-       *  names and nothing is a centre plus half a size worked out by hand */
+       *  names and nothing is a centre plus half a size worked out by hand.
+       *  `into` is the chair's group when the piece belongs to the chair, and
+       *  then the extents are in the CHAIR's own frame — see `chair` below. */
       const slab = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number,
-                    m: THREE.Material) => {
+                    m: THREE.Material | THREE.Material[], into?: THREE.Object3D) => {
         const b = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), m);
-        b.position.set(AX((x0 + x1) / 2), (y0 + y1) / 2, AZI((z0 + z1) / 2));
-        scene.add(b);
+        if (into) { b.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); into.add(b); }
+        else { b.position.set(AX((x0 + x1) / 2), (y0 + y1) / 2, AZI((z0 + z1) / 2)); scene.add(b); }
         return b;
       };
       // ── the armchair ──────────────────────────────────────────────────
-      const PLINTH = 0.09;                               // the dark base it stands on
-      // recessed 0.06 all round, so the shadow line under the upholstery reads
-      // as a chair on a base rather than as one solid block on the carpet
-      slab(CHAIR.x0 + 0.06, CHAIR.x1 - 0.06, FY + CLEAR, FY + PLINTH,
-           CHAIR.z0 + 0.06, CHAIR.z1 - 0.06, darkM);
-      const ARM_W = 0.12;
-      // the seat block: full width, from the front of the back slab forward
-      slab(CHAIR.x0, CHAIR.x1, FY + PLINTH, FY + CHAIR.seat, CHAIR.z0 + CHAIR.backD, CHAIR.z1, vinylM);
-      // the back, standing on the plinth against the wall
-      slab(CHAIR.x0, CHAIR.x1, FY + PLINTH, FY + CHAIR.back, CHAIR.z0, CHAIR.z0 + CHAIR.backD, vinylM);
-      // two arms, flush with the sides — a hall chair has no upholstered roll
-      for (const x0 of [CHAIR.x0, CHAIR.x1 - ARM_W]) {
-        slab(x0, x0 + ARM_W, FY + CHAIR.seat, FY + CHAIR.arm, CHAIR.z0 + CHAIR.backD, CHAIR.z1, vinylM);
+      //
+      // BUILT IN ITS OWN FRAME, inside a group that carries the turn. Origin at
+      // the footprint's centre and at floor level, front toward local +z — so
+      // the group's `rotation.y` and `chairCap.rot` are the SAME number applied
+      // about the SAME point, which is the only arrangement in which the chair
+      // and its collision cannot be turned by different amounts.
+      const chair = new THREE.Group();
+      chair.position.set(AX(CHAIR.cx), FY, AZI(CHAIR.cz));
+      chair.rotation.y = CHAIR.turn;
+      scene.add(chair);
+      const HW = CHAIR.w / 2, HD = CHAIR.d / 2;
+      const BACK_Z = -HD + CHAIR.backD;                  // front face of the back
+      const ARM_W = 0.15, ROLL_R = ARM_W / 2;
+      // the seat mass: full width, from the back's front face forward. Deep —
+      // 0.62 against the 0.60 the box had, and it sits lower on legs — which is
+      // the "deeper seat" half of classic.
+      slab(-HW, HW, CHAIR.legH, CHAIR.seat, BACK_Z, HD, hideMats, chair);
+      // the back, and it is TALL: 1.00 m off the carpet against the 0.88 the
+      // box had. A high back over a low seat is most of what reads as a proper
+      // armchair from down the hall.
+      slab(-HW, HW, CHAIR.legH, CHAIR.back, -HD, BACK_Z, hideMats, chair);
+      for (const s of [-1, 1]) {
+        const xo = s * (HW - ARM_W);                     // the arm's inner face
+        const xi = Math.min(xo, s * HW), xa = Math.max(xo, s * HW);
+        // the arm standing PROUD of the seat, and a roll along the top of it.
+        // The cylinder is the whole of "rolled or scrolled": its round end
+        // faces down the hall, which is the profile the shape is named for, and
+        // it costs one primitive per arm.
+        slab(xi, xa, CHAIR.seat, CHAIR.armTop - ROLL_R, BACK_Z, HD, hideMats, chair);
+        const roll = new THREE.Mesh(
+          new THREE.CylinderGeometry(ROLL_R, ROLL_R, HD - BACK_Z, 10), hideM);
+        roll.rotation.x = Math.PI / 2;                   // lie it along z, arm-wise
+        roll.position.set(s * (HW - ROLL_R), CHAIR.armTop - ROLL_R, (BACK_Z + HD) / 2);
+        chair.add(roll);
+        // short legs, dark timber, inset — a plinth reads as a sofa base and a
+        // classic chair stands ON something you can see under.
+        const lx = s * (HW - 0.09);                      // the leg's centre, inset
+        for (const z of [BACK_Z - 0.06, HD - 0.10]) {
+          slab(lx - 0.03, lx + 0.03, CLEAR, CHAIR.legH, z, z + 0.06, darkM, chair);
+        }
       }
       // ── the end table ─────────────────────────────────────────────────
+      // UNCHANGED — he did not mention it.
       const T_TOP = 0.04, T_LEG = 0.055, T_IN = 0.05;    // top thickness, leg, inset
       slab(ETAB.x0, ETAB.x1, FY + ETAB.top - T_TOP, FY + ETAB.top, ETAB.z0, ETAB.z1, woodM);
       for (const x0 of [ETAB.x0 + T_IN, ETAB.x1 - T_IN - T_LEG]) {
@@ -2124,11 +2205,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       }
       // ── collision, taken off the meshes above ─────────────────────────
       //
-      // ONE BOX EACH, at the union footprint the slabs actually occupy, and
-      // `maxY` at the surface you would land ON: the chair's seat (0.42) and
-      // the table's top (0.55). Both are under the 0.555 m the hop reaches
+      // ONE BOX EACH, at the footprint the meshes actually occupy, and `maxY`
+      // at the surface you would land ON: the chair's seat (0.44) and the
+      // table's top (0.55). Both are under the 0.555 m the hop reaches
       // (fp.ts's jump block, and the note on 301's furniture), so both are
       // genuinely standable rather than decoratively topped.
+      //
+      // THE CHAIR'S BOX TURNS WITH THE CHAIR — `chairCap.rot` is `CHAIR.turn`,
+      // the same radians the group above carries, about the same centre. It is
+      // the chair's OWN rectangle, 0.86 x 0.77, and not an enclosing
+      // axis-aligned one: the enclosing box at this angle would be 1.07 x 1.02
+      // and the quarter of it that is not chair would stop you a hand's width
+      // off thin air at each corner.
       //
       // ⚠ STANDING ON EITHER REACHES NOTHING NEW. This is a blind end: the
       // three surfaces around it are the full-height end wall and the two flat
@@ -2138,7 +2226,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // between. There is no route up that did not exist before.
       //
       // The bounds are not typed here — they are `CHAIR`/`ETAB`, the same two
-      // records the slabs above are drawn from.
+      // records the meshes above are drawn from.
       sevColliders.push(chairCap, endTableCap);
     }
     // ── SITTABLE, because a chair at a dead end that you cannot sit in is a
@@ -2149,18 +2237,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     //   · `h` IS THE MESH'S OWN SEAT, `CHAIR.seat` — the cushion you can see,
     //     not a number that agrees with it today.
-    //   · yaw PI is the CAMERA convention (0 looks along −z), so PI faces +z:
-    //     out of the chair and down the hall toward the stairs. The wall is
-    //     behind the backrest, which is where a backrest goes.
+    //   · THE POSE TURNS WITH THE CHAIR, both halves of it. The seat pan's
+    //     centre sits `backD / 2` forward of the footprint's centre in the
+    //     chair's OWN frame, so where it ends up in the hall is that offset
+    //     carried round by `turn` — `sin`/`cos` of the one angle, never a
+    //     second pair of coordinates. And `yaw` is `PI - turn`: the rig's yaw
+    //     ψ looks along `(sin ψ, −cos ψ)`, the chair faces its own local +z
+    //     which the group sends to `(sin turn, cos turn)`, and PI − turn is the
+    //     ψ that solves those — PI exactly when the turn is zero. Sit down and
+    //     you are looking where the chair is pointed, which is the whole point
+    //     of turning it.
     //   · NO `approach` IS NEEDED and none is given. The seat point is inside
     //     `chairCap`, so you cannot stand on it; the nearest you can stand is
-    //     the cap's front face plus the rig's own RADIUS, which is 0.646 m from
-    //     the point — inside `r` with 0.20 m to spare. Same shape as the bed.
+    //     the cap's front face plus the rig's own RADIUS — 0.656 m from the
+    //     point, measured in the box's own frame, where the padding is applied.
+    //     Inside `r` with 0.19 m to spare, and the turn does not change it:
+    //     both the seat and the face it is measured from turned together.
     //   · `ok` is the storey, exactly as the bed's is: the hall is stacked four
     //     deep and a seat with no floor gate is three phantom chairs.
     ctx.seat({
-      x: AX((CHAIR.x0 + CHAIR.x1) / 2), z: AZI((CHAIR.z0 + CHAIR.backD + CHAIR.z1) / 2),
-      yaw: Math.PI, h: CHAIR.seat, r: 0.85,
+      x: AX(CHAIR.cx + Math.sin(CHAIR.turn) * CHAIR.backD / 2),
+      z: AZI(CHAIR.cz + Math.cos(CHAIR.turn) * CHAIR.backD / 2),
+      yaw: Math.PI - CHAIR.turn, h: CHAIR.seat, r: 0.85,
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - TOP_Y) < 0.5,
       label: 'sit in the armchair',
     });
@@ -6634,8 +6732,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // test: everything walkable in this hall's x-span below 8.10 is a storey
     // 2.7 m down. `px > 100` because the interior is parked out east and the
     // street's own ground must never switch a collider on in here.
+    //
+    // The chair's four bounds are its UNTURNED rectangle about its own centre,
+    // which is what `rot` wants: `fp.ts` reads the centre back out of them and
+    // turns the world point into the box's frame before any min/max test. So
+    // this is the same call it was before the chair was turned, and the angle
+    // lives on the cap where `setCap` cannot touch it.
     const onTop = px > 100 && lastGy > TOP_Y - 0.5;
-    setCap(chairCap, onTop, AX(CHAIR.x0), AX(CHAIR.x1), AZI(CHAIR.z0), AZI(CHAIR.z1));
+    setCap(chairCap, onTop, AX(CHAIR.cx - CHAIR.w / 2), AX(CHAIR.cx + CHAIR.w / 2),
+      AZI(CHAIR.cz - CHAIR.d / 2), AZI(CHAIR.cz + CHAIR.d / 2));
     setCap(endTableCap, onTop, AX(ETAB.x0), AX(ETAB.x1), AZI(ETAB.z0), AZI(ETAB.z1));
   };
 
