@@ -1,0 +1,16 @@
+{
+  "name": "crosstown-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Serves the built CROSSTOWN '97 game and the save API. Postgres on Railway, SQLite locally.",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node index.mjs",
+    "dev": "node --watch index.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.16.3"
+  }
+}

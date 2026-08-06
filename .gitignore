@@ -21,3 +21,10 @@ street/notes/QUEUE.md
 # worktree cleanup long enough to publish. A build product, not source.
 street/artifact/
 street/notes/.queue-history/
+
+# The local SQLite save database (server/db.mjs). It is what you get when
+# DATABASE_URL is unset — a dev convenience, never a source of truth, and it
+# holds whatever outfit you happened to be wearing when you last pressed a key.
+server/*.db
+server/*.db-shm
+server/*.db-wal
