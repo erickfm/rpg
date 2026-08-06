@@ -1,5 +1,10 @@
+import type * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { BUILD, ORDER as HOOK } from './ctx';
+// Read-only, and the same three constants `ct/tenancy.ts` already imports from
+// there. Nothing in this module writes to `apartment.ts` or depends on its
+// internals — only on where the building stands and how tall a storey is.
+import { APT_X0, ST0 } from './apartment';
 
 // ════════════════════════════════════════════════════════════════════════════
 // SOUND
@@ -305,6 +310,32 @@ const WALL_OUT = 20000;
 /** How much of the outdoor mix still reaches him through the wall. */
 const MUFFLE = 0.42;
 
+// ── AND 301'S OWN FRONT DOOR ────────────────────────────────────────────────
+//
+// *"closing the door in the apt should make it a bit quieter"* — one more step
+// of the same wall, and it needed no new mechanism, only the door's angle.
+//
+// NOTHING IS PUBLISHED FOR THIS AND NOTHING NEEDED TO BE. `apartment.ts` holds
+// `doorShut` as a closure local, but it also names the leaf (`leaf301`) and
+// publishes its two end poses on `scene.userData.doorTravel.leaf301` — put
+// there so `scripts/swing.mjs` would stop guessing the arc. The leaf's live
+// `rotation.y` between those two poses is a better fact than the boolean ever
+// was: it is the ACTUAL angle, mid-swing included, so the sound follows the
+// leaf through its 0.7 s travel instead of stepping when the flag flips. A
+// door closing is a fade because the door is moving, not because a fade was
+// applied to it.
+//
+// The two constants come from the same file's own exports, the way `tenancy.ts`
+// already reads them.
+//
+/** Corner multiplier with the door shut: 520 Hz becomes 260, one octave down. */
+const DOOR_HZ = 0.5;
+/** Bleed multiplier with the door shut: 0.42 becomes ~0.26, about -4 dB.
+ *  MODEST on purpose. A 1997 flat door is thin and you still hear the
+ *  building; taking this to silence would read as broken, for exactly the
+ *  reason the beds bleed through at all rather than muting indoors. */
+const DOOR_BLEED = 0.62;
+
 /** How long a crossfade takes, in seconds, as an exponential time constant.
  *  Stepping through a door is a TELEPORT — `px` jumps from ~5 to ~1000 in one
  *  frame — so this is the whole difference between the street handing over to
@@ -584,6 +615,42 @@ export function register(ctx: CtxBuild): void {
 
   let ins = 0;            // 0 out on the street … 1 indoors
   let wallHz = WALL_OUT;  // the lowpass corner, glided in LOG frequency
+  let shutK = 0;          // 0 301's door is open (or he is not in 301) … 1 shut
+
+  // ── 301's front door, read straight off the scene ─────────────────────────
+  //
+  // Looked up lazily and cached: `ct/apartment.ts` builds in the INTERIOR band
+  // (BUILD.INTERIOR), which is after this module's PROPS band, so at register
+  // time the leaf does not exist yet. Re-looked-up until it does, then never
+  // again.
+  let leaf: THREE.Object3D | null = null;
+  let travel: { shut: number; open: number } | null = null;
+
+  /**
+   * How shut 301's door is, 0…1, and 0 whenever he is not standing in 301.
+   *
+   * ONLY THIS DOOR AND ONLY FROM INSIDE. The building's front door, 302's, and
+   * the basement gate are all different leaves and none of them is named
+   * `leaf301`. The room test is `apartment.ts`'s own: 301's doorway is cut in
+   * the hall's WEST wall at `AX(0)` — i.e. `APT_X0` — so the flat is west of it
+   * and the hall runs east from it, and the floor is pinned to storey 2. Stand
+   * in the hall with the door shut and this is 0, which is the point: the hall
+   * should sound like the hall.
+   */
+  const doorShutness = (px: number, gy: number): number => {
+    if (!leaf) {
+      leaf = scene.getObjectByName('leaf301') ?? null;
+      travel = (scene.userData.doorTravel as Record<string, { shut: number; open: number }> | undefined)?.leaf301 ?? null;
+    }
+    if (!leaf || !travel) return 0;
+    if (px >= APT_X0 || Math.abs(gy - 2 * ST0) > 0.5) return 0;   // hall, or another floor
+    const span = travel.shut - travel.open;
+    if (!span) return 0;
+    // Distance from the OPEN pose as a fraction of the whole arc. Handedness
+    // free: 301's shut pose is -pi/2 with one hand and +pi/2 with the other,
+    // and a ratio of two differences does not care which.
+    return Math.max(0, Math.min(1, Math.abs(leaf.rotation.y - travel.open) / Math.abs(span)));
+  };
   let sway = 0;           // the second street layer, breathing
   let lastRain = 0;       // the last rain level seen OUTDOORS — see below
 
@@ -670,13 +737,20 @@ export function register(ctx: CtxBuild): void {
     // cliff at the end — it sounds like a switch with a delay on it. Pitch is
     // logarithmic, so the interpolation has to be, and then the whole half
     // second is audibly one door closing.
-    wallHz = Math.exp(glide(Math.log(wallHz), Math.log(ins > 0.5 ? WALL_IN : WALL_OUT), f.dt, 0.45));
+    //
+    // 301's door is one more step of the same wall. `shutK` is glided too, but
+    // only lightly — the leaf already takes 0.7 s to swing and this FOLLOWS it,
+    // so the smoothing here is for the moment he crosses the threshold and the
+    // room test flips, not for the door itself.
+    shutK = glide(shutK, doorShutness(f.px, f.gy), f.dt, 0.35);
+    const indoorHz = WALL_IN * (1 - shutK * (1 - DOOR_HZ));
+    wallHz = Math.exp(glide(Math.log(wallHz), Math.log(ins > 0.5 ? indoorHz : WALL_OUT), f.dt, 0.45));
     rig.wall.frequency.value = wallHz;
 
     // How much of the outside is still THERE, filtered. 1 on the street, MUFFLE
     // in a room — never 0, because a room with the city switched off is a
     // vacuum, and that is what the first cut sounded like.
-    const bleed = out + inn * MUFFLE;
+    const bleed = out + inn * MUFFLE * (1 - shutK * (1 - DOOR_BLEED));
 
     // `props.ts` publishes the live rain on the scene and ZEROES it indoors
     // (`if (px > 100) rainLevel = 0` — it never rains in a room). That is right
