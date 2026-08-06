@@ -3,6 +3,7 @@ import { BUILD, type CtxBuild, type Spot } from './ctx';
 import { declareSurface, pixTex } from './paint';
 import { APT_X0, APT_Z0, ST0 } from './apartment';
 import { citizenSprite } from './citizens';
+import { loiter, type LoiterPost } from './loiter';
 import { UI, makePanel, screenFocusReady, hudNote, type Panel } from './hud';
 import { defineItem, bagPut, pocketsFull, fullWhy } from './inventory';
 import {
@@ -2703,7 +2704,7 @@ export function register(ctx: CtxBuild): void {
    *  look-targets are real objects: the front door at (AX 1.2, AZI 0.09), the
    *  stair foot at (AX 0.6, AZI 8.4), the mailboxes at (AX 2.28, AZI 1.3). A
    *  man idling stares at SOMETHING; a random heading reads as a bug. */
-  const LL_POSTS: { x: number; z: number; lx: number; lz: number }[] = [
+  const LL_POSTS: LoiterPost[] = [
     // his old post, at the foot of the stairs — looking up them
     { x: APT_X0 + 0.62, z: APT_Z0 + 6.60, lx: APT_X0 + 0.60, lz: APT_Z0 + 8.40 },
     // out into the hall a little — watching the front door for you
@@ -2713,23 +2714,7 @@ export function register(ctx: CtxBuild): void {
     // the east side, by the stair gate — the front door again, from the far side
     { x: APT_X0 + 1.62, z: APT_Z0 + 6.40, lx: APT_X0 + 1.20, lz: APT_Z0 + 0.09 },
   ];
-  const LL_SPEED = 0.42;           // m/s. A stroll. He is not going anywhere.
-  const LL_NOTICE = 2.6;           // m: inside this he stops and looks at YOU
-  let llx = LL_POSTS[0].x, llz = LL_POSTS[0].z;   // where he is, live
-  let llHead = LL_FACING;                          // eased heading, atan2(vx, vz)
-  let llPost = 0;                                  // the post he is at or heading for
-  let llWait = 3;                                  // seconds left standing still
-  let llMoving = false;
   let llWasIn = false;
-  /** turn the short way round, at a human rate. Lifted from ct/crowd.ts, which
-   *  learned it the hard way: snapping the heading is the third source of the
-   *  sprite twitching between two painted columns. */
-  const llTurn = (want: number, dt: number, rate = 4.5) => {
-    let d = want - llHead;
-    while (d > Math.PI) d -= 2 * Math.PI;
-    while (d < -Math.PI) d += 2 * Math.PI;
-    llHead += d * Math.min(1, dt * rate);
-  };
 
   // WHAT HE HANDS YOU IS HELD BETWEEN THE TWO OF YOU, not five metres away at
   // the boxes, which is where it used to open from. The page's normal is
@@ -2738,10 +2723,10 @@ export function register(ctx: CtxBuild): void {
   // computed at [E] time from where he is actually standing now — a fixed hold
   // would open the sheet at the post he left thirty seconds ago.
   const HOLD_HALL = (): Hold => {
-    const yaw = Math.atan2(ctx.player.x() - llx, ctx.player.z() - llz);
+    const yaw = Math.atan2(ctx.player.x() - ll.x, ctx.player.z() - ll.z);
     // 0.55 m of his 0.95 m reach, so the feet land a half-step back from where
     // you pressed [E] and clear of his collider.
-    return { x: llx + Math.sin(yaw) * 0.55, y: 1.42, z: llz + Math.cos(yaw) * 0.55, yaw };
+    return { x: ll.x + Math.sin(yaw) * 0.55, y: 1.42, z: ll.z + Math.cos(yaw) * 0.55, yaw };
   };
   const landlord = citizenSprite(
     { jacket: '#3f4048', pants: '#2b2f36', skin: '#5a3a22', hair: '#1c1410',
@@ -2751,6 +2736,13 @@ export function register(ctx: CtxBuild): void {
   landlord.mesh.position.set(LL_X, 0, LL_Z);     // the atlas puts the origin at the FEET
   landlord.mesh.visible = false;
   scene.add(landlord.mesh);
+  /** and this is what actually walks him. `ct/loiter.ts` owns the stroll, the
+   *  pauses, the look-targets and the head turn; the lobby floor is flat, so
+   *  it needs no `y`. */
+  const ll = loiter(landlord, {
+    posts: LL_POSTS, facing: LL_FACING, speed: 0.42, notice: 2.6,
+    bounds: { minX: LL_MIN_X, maxX: LL_MAX_X, minZ: LL_MIN_Z, maxZ: LL_MAX_Z },
+  });
 
   // He is SOLID while he is standing there, the same way C's hermit is —
   // otherwise the man you owe money to is a hologram you walk through. The AABB
@@ -2789,67 +2781,18 @@ export function register(ctx: CtxBuild): void {
       // stop yesterday. Coming on shift puts him back on his own post, facing
       // the door, standing still — which is also what he looked like before
       // this item, so the first thing you ever see of him is unchanged.
-      if (!llWasIn) {
-        llPost = 0; llx = LL_POSTS[0].x; llz = LL_POSTS[0].z;
-        llHead = LL_FACING; llMoving = false; llWait = 2.5;
-      }
-      const post = LL_POSTS[llPost];
-      // ── DOES HE NOTICE YOU ─────────────────────────────────────────────
-      //
-      // Yes, and it is the cheapest line in the file for what it buys: inside
-      // 2.6 m on the lobby floor he STOPS WHERE HE IS and turns to face you.
-      // A man you owe money to who keeps pacing while you stand in front of
-      // him is a machine; a man who turns his head is a man waiting for you.
-      // Distance only — no sight line — because he is expecting you and this
-      // is his hall.
-      const near = gy < 0.5 && Math.hypot(px - llx, pz - llz) < LL_NOTICE;
-      if (near) {
-        llTurn(Math.atan2(px - llx, pz - llz), dt, 6);
-        landlord.setWalking(false);
-        // he keeps the post he was walking to, so he resumes rather than
-        // re-rolling the moment you step away
-        llWait = Math.max(llWait, 1.2);
-      } else if (llMoving) {
-        const dx = post.x - llx, dz = post.z - llz;
-        const d = Math.hypot(dx, dz);
-        if (d < 0.06) {
-          // arrived. Stand a while and look at whatever this post looks at.
-          llx = post.x; llz = post.z;
-          llMoving = false;
-          llWait = 2.5 + Math.random() * 5;
-        } else {
-          const step = Math.min(d, LL_SPEED * dt);
-          llx += (dx / d) * step; llz += (dz / d) * step;
-          llTurn(Math.atan2(dx, dz), dt);       // HE FACES WHERE HE IS GOING
-          landlord.setWalking(true);
-        }
-      } else {
-        landlord.setWalking(false);
-        llTurn(Math.atan2(post.lx - llx, post.lz - llz), dt, 2.2);  // and looks at it
-        llWait -= dt;
-        if (llWait <= 0) {
-          // any post but this one, so he always actually goes somewhere
-          let n = Math.floor(Math.random() * (LL_POSTS.length - 1));
-          if (n >= llPost) n += 1;
-          llPost = n;
-          llMoving = true;
-        }
-      }
-      // BOUNDS ARE ENFORCED ON THE POSITION, not trusted to the posts. The
-      // posts are all inside the box, so this clamp never fires today — it is
-      // here so that editing a post by hand cannot walk him into a wall, the
-      // stair or 101's parcel without the clamp catching it first.
-      llx = Math.min(LL_MAX_X, Math.max(LL_MIN_X, llx));
-      llz = Math.min(LL_MAX_Z, Math.max(LL_MIN_Z, llz));
-      landlord.mesh.position.set(llx, 0, llz);
-      landlord.setFacing(llHead);
-      landlord.update(px, pz, dt);
+      if (!llWasIn) ll.reset();
+      // He strolls, pauses, looks at the stairs or the door, and TURNS TO FACE
+      // YOU inside 2.6 m — all of it `ct/loiter.ts`. The `gy < 0.5` is the
+      // notice gate: distance alone would have him turning to follow somebody
+      // two storeys up his own stairwell.
+      ll.tick(px, pz, dt, gy < 0.5);
       // THE [E] SPOT FOLLOWS THE MAN. `pickSpot` reads these fields off the
       // registered object every frame, so writing them here is the whole of it
       // — and `aimX/aimZ` are declared so aim is measured to HIM and not to a
       // floor marker he has walked away from (`Pickable.aimX` in fp.ts).
-      llSpot.x = llx; llSpot.z = llz;
-      llSpot.aimX = llx; llSpot.aimZ = llz;
+      llSpot.x = ll.x; llSpot.z = ll.z;
+      llSpot.aimX = ll.x; llSpot.aimZ = ll.z;
     }
     llWasIn = here;
     // WITHHELD IF YOU ARE ALREADY STANDING IN IT — C's rule for the hermit and
@@ -2858,12 +2801,12 @@ export function register(ctx: CtxBuild): void {
     // the kind of thing that reads as the world breaking. It matters MORE now
     // that he moves: the box travels with him, so it can arrive around a player
     // standing still. Same rule, same shove, so the same guard covers both.
-    const inIt = Math.abs(px - llx) < LL_HALF_X + 0.36 && Math.abs(pz - llz) < LL_HALF_Z + 0.36;
+    const inIt = Math.abs(px - ll.x) < LL_HALF_X + 0.36 && Math.abs(pz - ll.z) < LL_HALF_Z + 0.36;
     const solid = here && !inIt && gy < 0.5;
-    llBox.minX = solid ? llx - LL_HALF_X : 999;
-    llBox.maxX = solid ? llx + LL_HALF_X : 999;
-    llBox.minZ = solid ? llz - LL_HALF_Z : 999;
-    llBox.maxZ = solid ? llz + LL_HALF_Z : 999;
+    llBox.minX = solid ? ll.x - LL_HALF_X : 999;
+    llBox.maxX = solid ? ll.x + LL_HALF_X : 999;
+    llBox.minZ = solid ? ll.z - LL_HALF_Z : 999;
+    llBox.maxZ = solid ? ll.z + LL_HALF_Z : 999;
   });
 
   /** A receipt is a letter you were handed rather than posted. Same sheet. */
@@ -3154,14 +3097,14 @@ export function register(ctx: CtxBuild): void {
       // LIVE, because he meanders now. `x/z` is where he is THIS frame and it
       // is also what the [E] spot reads — an instrument quoting his old fixed
       // post would be describing a man who is not there.
-      x: llx, z: llz, in: landlordIn(ctx.clock.now().totalMin),
+      x: ll.x, z: ll.z, in: landlordIn(ctx.clock.now().totalMin),
       /** which way he is turned, atan2(vx, vz), and whether he is walking */
-      facing: llHead, walking: llMoving,
+      facing: ll.facing, walking: ll.walking,
       /** the box he may never leave: the stair foot, clear of 101's parcel */
       bounds: { minX: LL_MIN_X, maxX: LL_MAX_X, minZ: LL_MIN_Z, maxZ: LL_MAX_Z },
       /** stand HERE to be offered him — the LOBBY floor, which is what J could
        *  not resolve from x and z alone */
-      stand: { x: llx, z: llz - 0.6, gy: 0 },
+      stand: { x: ll.x, z: ll.z - 0.6, gy: 0 },
       visible: landlord.mesh.visible,
       solid: llBox.minX < 900,
       /** the clear lane past him, against the 0.72 m player. GOTCHAS §29:

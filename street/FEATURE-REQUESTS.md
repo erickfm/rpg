@@ -4226,3 +4226,35 @@ newsprint. The chequebook, catalogue and folded newspaper in `ct/inventory.ts`
 were not touched — those already have real models and are not single sheets.
 
 `src/proto/ct/tenancy.ts`. `WORLD OK`. Live on 5177.
+
+### 2026-08-06 — "add a guy in the park with this dialog: "Hey man! Do you have any smokes? I'm old enough to smoke, it's just.. I.. uh.. er.. forget my ID at home! Please?""
+
+A kid loitering just inside the park's field on the gate side, 0.9 m clear of
+the loop path so the whole 1.5 m circuit stays walkable, and 1.8–3.4 m off the
+gate axis — where somebody cadging cigarettes actually stands. Clear of the
+fountain, the noticeboard, the mound and every tree run.
+
+**He reads as a teenager out of the existing atlas** — `build: -1`, `fit:
+'hoodie'`, scaled to 0.88 against the adults' 0.97–1.06, a head shorter than
+anyone else in the world. No new painting.
+
+**The line is delivered by `hudNote`**, which is already how this world has a
+person speak to you — `ct/int-pawn.ts` puts the pawnbroker's line through it.
+No dialogue system, no panel, no reply tree. The only thing tuned is the dwell:
+7.2 s instead of the default 2.4, because a 130-character gag you cannot finish
+reading is not a gag. The string is verbatim to the character, straight
+apostrophes and all — the `.. I.. uh.. er..` is the joke.
+
+**He wanders**, and this is the reuse: the landlord's meander was extracted to
+`src/proto/ct/loiter.ts` — posts, pauses, look-targets, the head turn when you
+come near — and both men now run on it. Three posts, watching the gate and the
+noticeboard; he turns to face you inside 3 m. Solid at ±0.25, matching every
+citizen on the street (`ct/crowd.ts`), the box following him with the same
+"withheld if you are standing in it" guard. There all day and all night.
+
+There are no cigarettes in this world, so nothing checks for one. If a pack ever
+becomes an item, giving him one is one `bagHas` in the label and one branch in
+`act`.
+
+`src/proto/ct/park.ts`, `src/proto/ct/loiter.ts`, `src/proto/ct/tenancy.ts`.
+`WORLD OK`. Live on 5177.

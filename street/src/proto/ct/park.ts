@@ -6,9 +6,12 @@ import type { AABB } from '../fp';
 // only three and a type, so this cannot make a cycle — `no-import-cycles` is
 // registered and green on it.
 import { RADIUS, TOUCH_MARGIN } from '../fp';
-import { BUILD, type CtxBuild, type Site } from './ctx';
+import { BUILD, type CtxBuild, type Site, type Spot } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { weedTuft } from './weeds';
+import { citizenSprite } from './citizens';
+import { loiter } from './loiter';
+import { hudNote } from './hud';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
 // party walls the gap exposed, the rear elevation and the low boundary along
@@ -2885,6 +2888,130 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     scene.add(wheel);
   }
   solid({ minX: tx - 0.35, maxX: tx + 0.75, minZ: tz - 0.35, maxZ: tz + 0.5 });
+
+  // ── THE KID WHO WANTS A CIGARETTE ────────────────────────────────────────
+  //
+  // The user, verbatim and in full:
+  //
+  //   *"add a guy in the park with this dialog: "Hey man! Do you have any
+  //   smokes? I'm old enough to smoke, it's just.. I.. uh.. er.. forget my ID
+  //   at home! Please?""*
+  //
+  // ⚠ THE LINE IS HIS, TO THE CHARACTER. The `.. I.. uh.. er..` IS THE JOKE —
+  // a kid claiming to be old enough and coming apart mid-sentence — and the
+  // missing "forgot" is his too. Tidying the stammer, closing the ellipses up
+  // to three dots or fixing the tense would delete the whole gag. Anyone
+  // editing this string is editing the feature.
+  //
+  // HE READS AS A TEENAGER, and the atlas can express that without a redraw:
+  // `build: -1` is the slight silhouette, `fit: 'hoodie'` is the one garment in
+  // `Fit` a fifteen-year-old owns, and the mesh is scaled to 0.88 against the
+  // adults' 0.97–1.06 — a head shorter than everybody else in the world, which
+  // is the read. No new painting, so he cannot drift from the other citizens
+  // (`notes/CITIZEN-STYLE.md`: four cardboard people got in that way).
+  // ⚠ STRAIGHT APOSTROPHES, against this world's own house style (`ct/int-pawn.ts`
+  // types a curly one). *"Erick's words outrank any diagnosis"* — he typed
+  // `I'm` and `it's`, and "verbatim" is the instruction on this string.
+  const KID_LINE = "Hey man! Do you have any smokes? I'm old enough to smoke, "
+    + "it's just.. I.. uh.. er.. forget my ID at home! Please?";
+  // ⚠ WHERE HE STANDS IS INSIDE THE FIELD, NEVER ON THE PATH. `fx1` is the
+  // field's east edge, which is also the loop path's inner edge — so a box that
+  // ends 0.9 m short of it leaves the whole 1.5 m circuit clear plus a strip of
+  // grass, and his ±0.25 collider still has 0.65 m of grass behind it. The 2 m
+  // lane rule is about the pavement and this is a park, but the principle is
+  // the same one the benches got two items ago: *"benches need space away from
+  // the path."* A person is a bench that argues back.
+  //
+  // AND HE IS ON THE GATE SIDE, 1.8–3.4 m off the gate's own axis. That is
+  // where somebody cadging cigarettes actually stands — you meet him on the way
+  // in — and it is far enough off the gate-to-shelter desire line that he is
+  // never standing in the doorway. Clear of the fountain (outside the loop
+  // entirely), the noticeboard (`nbZ = gateMid - 2.6`, the other side), the
+  // mound and every tree run: the field-framing trees stop 4.5 m either side of
+  // `gateMid` precisely so the entry stays open.
+  const kidMinX = fx1 - 2.2, kidMaxX = fx1 - 0.9;
+  const kidMinZ = gateMid + 1.8, kidMaxZ = gateMid + 3.4;
+  const kid = citizenSprite(
+    { jacket: '#4a4f58', pants: '#2f3a4a', skin: '#c79a70', hair: '#2a1d14',
+      fit: 'hoodie', cut: 'crop', build: -1, grime: 0 },
+    { facing: Math.PI / 2, h: 0.88, w: 0.92 },
+  );
+  scene.add(kid.mesh);
+  // ── AND HE LOITERS, WHICH IS THE SAME MACHINERY THE LANDLORD GOT ─────────
+  //
+  // `ct/loiter.ts`, written for *"landlord should meander downstairs"* an hour
+  // earlier and extracted precisely because a kid hanging about a park is that
+  // behaviour word for word. Three posts, a pause at each, and he turns to face
+  // you inside 3 m. The look-targets are real: the gate he is watching for
+  // somebody to come through, and the noticeboard he pretends to read.
+  //
+  // ⚠ `y` IS NOT OPTIONAL HERE. The lobby is a flat floor; this park has
+  // relief, and `parkY` is what the benches, the trees and the weeds all stand
+  // on. A citizen placed at `KERB_H` would sink into the mound's skirt or float
+  // over the dish.
+  const GATE_X = EDGE_X, GATE_Z = gateMid;      // the opening in the railings
+  const kidWalk = loiter(kid, {
+    posts: [
+      { x: fx1 - 1.05, z: gateMid + 2.0, lx: GATE_X, lz: GATE_Z },
+      { x: fx1 - 2.05, z: gateMid + 3.2, lx: GATE_X, lz: GATE_Z },
+      { x: fx1 - 1.35, z: gateMid + 2.9, lx: nbX, lz: nbZ },
+    ],
+    bounds: { minX: kidMinX, maxX: kidMaxX, minZ: kidMinZ, maxZ: kidMaxZ },
+    facing: Math.PI / 2, speed: 0.36, notice: 3.0, pause: [3, 8],
+    y: parkY,
+  });
+  // SOLID, at the STREET's ±0.25 and not the landlord's ±0.30. Every citizen
+  // outdoors is solid — `ct/crowd.ts` registers exactly this box for every
+  // walker on the block, with its own note on why 0.25 and not 0.30 ("bodies
+  // read the tiniest bit too wide to slip past"). A park loiterer you walk
+  // through would be the only person outdoors who is a hologram.
+  const kidBox = obstacle({ minX: 999, maxX: 999, minZ: 999, maxZ: 999 });
+  const KID_HALF = 0.25;
+  // ⚠ NOT in `colliders`. That list is returned to the caller and read by the
+  // placement checks; a box that moves every frame is not a footprint anything
+  // can be placed against.
+  const kidSpot: Spot = {
+    // he IS the object, so the prompt and the highlight name the same person.
+    // Rewritten every frame below — these are only where he starts.
+    x: kidWalk.x, z: kidWalk.z, aimX: kidWalk.x, aimZ: kidWalk.z, r: 0.95,
+    obj: kid.mesh,
+    // ALWAYS, day or night. He is not gated on a clock: the user asked for a
+    // guy in the park, and a kid who is only there in daylight is a shop.
+    // Nothing in this park closes.
+    ok: () => true,
+    label: () => 'talk to the kid',
+    // ── HOW THE LINE IS DELIVERED ──────────────────────────────────────────
+    //
+    // `hudNote`, which is the world's existing "somebody said something to
+    // you" — `ct/int-pawn.ts` puts the pawnbroker's line through it verbatim
+    // (*"He doesn't ask. $x for the …"*). NO dialogue system, no panel, no
+    // reply tree: he asks a question and you walk away, which is the joke.
+    //
+    // The only thing tuned is the DWELL. The note's default is 2400 ms, which
+    // is written for "you paid the rent" — this is 130 characters with four
+    // stumbles in it, and a gag you cannot finish reading is not a gag.
+    act: () => { hudNote(KID_LINE, 7200); },
+  };
+  ctx.spot(kidSpot);
+  ctx.onFrame(({ px, pz, dt, gy }) => {
+    // `gy < 0.5` — he does not turn to follow somebody up on a floor of the
+    // walk-up next door. Park ground is the low one.
+    kidWalk.tick(px, pz, dt, gy < 0.5);
+    kidSpot.x = kidWalk.x; kidSpot.z = kidWalk.z;
+    kidSpot.aimX = kidWalk.x; kidSpot.aimZ = kidWalk.z;
+    // the box travels with him, and is WITHHELD if the player is already
+    // standing in it — a collider that arrives around you shoves you, which is
+    // the same guard the landlord's box carries for the same reason
+    const inIt = Math.abs(px - kidWalk.x) < KID_HALF + 0.36
+      && Math.abs(pz - kidWalk.z) < KID_HALF + 0.36;
+    kidBox.minX = inIt ? 999 : kidWalk.x - KID_HALF;
+    kidBox.maxX = inIt ? 999 : kidWalk.x + KID_HALF;
+    kidBox.minZ = inIt ? 999 : kidWalk.z - KID_HALF;
+    kidBox.maxZ = inIt ? 999 : kidWalk.z + KID_HALF;
+  });
+  // THERE ARE NO CIGARETTES IN THIS WORLD, so there is nothing to give him and
+  // nothing here checks for one. If a pack ever becomes an item, giving him one
+  // is one `bagHas` in the label and one branch in `act` — and not a line more.
 
   return { colliders };
 }
