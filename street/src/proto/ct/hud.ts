@@ -2278,14 +2278,12 @@ export function makeHud(purse: Purse): Hud {
     // THE CUFF IS ONE HARD VERTICAL EDGE across all of those rows, standing 2 px
     // proud top and bottom — the limb's own rows plus 2, not the strap's 6, so
     // it reads as a cuff thicker than the arm rather than as a second strap.
+    // ⚠ THE SLEEVE IS NOT DRAWN HERE ANY MORE — see `drawSleeve`, called after
+    // the wrist band inside the hand block. It has to be, because it now
+    // reaches PAST `WATCH_ARM` and the wrist band would paint over it. That is
+    // the exact bug `0b62bf6c` fixed by shortening the sleeve; lengthening it
+    // again means fixing the ORDER instead.
     const wtop = worn('top');
-    if (wtop.sleeve === 2) {
-      const CUFF_W = 14, CUFF_PROUD = 2, SLEEVE_END = WATCH_ARM;
-      g.fillStyle = wtop.cloth;
-      g.fillRect(0, LIMB_T, SLEEVE_END, LIMB_H);
-      g.fillStyle = wtop.trim;
-      g.fillRect(SLEEVE_END - CUFF_W, LIMB_T - CUFF_PROUD, CUFF_W, LIMB_H + CUFF_PROUD * 2);
-    }
     // AND IT IS FLAT. *"for the arm shape i dont want two colors just the one
     // skin tone on that rectangle"* (2026-08-04). There WAS a "recede" gradient
     // here — `rgba(0,0,0,0.18)` ramped over the 240 canvas px nearest the wrist,
@@ -2325,6 +2323,39 @@ export function makeHud(purse: Purse): Hud {
     g.save();
     g.translate(WATCH_ARM, 0);
     g.fillStyle = player.skin; g.fillRect(0, 6, 104, 66);        // wrist, cut by the frame
+    // ══ AND THE SLEEVE, OVER THE WRIST IT REACHES ONTO ═══════════════════
+    //
+    // *"make long sleeve a little bit longer"*   (2026-08-05)
+    //
+    //     SLEEVE_END   600 -> 618   (+18 canvas px, +50 CSS px at WATCH_S)
+    //     bare wrist   46 -> 28 canvas px, 126 -> 77 CSS px to the strap
+    //
+    // ⚠ IT MOVED HERE RATHER THAN JUST GETTING A BIGGER NUMBER. At 600 the
+    // sleeve stopped exactly at the wrist join and could be drawn before the
+    // hand block; past 600 the wrist band above — `fillRect(0, 6, 104, 66)`
+    // inside this same translate — repaints skin straight over it, which is the
+    // fault `0b62bf6c` fixed by SHORTENING the sleeve. Lengthening it again
+    // means fixing the ORDER instead, so it is painted after the wrist and
+    // offset by -WATCH_ARM to stay in the same canvas coordinates it always
+    // used. Not one number of the drawing changed.
+    //
+    // `SLEEVE_GAP` IS THE ONE NUMBER TO NUDGE and it is DERIVED FROM THE WATCH:
+    // the strap's leading edge is `WATCH_ARM + WATCH_POS + 38`, so sliding the
+    // watch with WATCH_POS carries the cuff with it instead of stranding it.
+    // Everything else is as `0b62bf6c` built it — the sleeve spans the limb's
+    // full height off LIMB_T/LIMB_H so it cannot be shorter than the arm inside
+    // it, and the cuff is one hard vertical edge across all those rows, 2 px
+    // proud top and bottom (the limb's rows plus 2, not the strap's 6).
+    if (wtop.sleeve === 2) {
+      const SLEEVE_GAP = 28;                              // bare wrist before the strap
+      const SLEEVE_END = WATCH_ARM + WATCH_POS + 38 - SLEEVE_GAP;
+      const CUFF_W = 14, CUFF_PROUD = 2;
+      const x0 = -WATCH_ARM;                              // canvas 0, in this space
+      g.fillStyle = wtop.cloth;
+      g.fillRect(x0, LIMB_T, SLEEVE_END, LIMB_H);
+      g.fillStyle = wtop.trim;
+      g.fillRect(x0 + SLEEVE_END - CUFF_W, LIMB_T - CUFF_PROUD, CUFF_W, LIMB_H + CUFF_PROUD * 2);
+    }
     // ── THE FIST ──────────────────────────────────────────────────────────
     //
     // *"it actually should be really minimal considering it would be the top of
