@@ -4179,3 +4179,22 @@ is measured to the man. His collider travels with him too, with the existing
 receipt/short slip opens between the two of you wherever he happens to be.
 
 `src/proto/ct/tenancy.ts`. `WORLD OK`. Live on 5177.
+
+### 2026-08-06 — "starting a new gamre should start a new game the day stays the same"
+
+**The reload was saving the old game back.** NEW GAME removed `ct-save` and
+called `location.reload()` — and `ct/save.ts`'s `pagehide` *and*
+`visibilitychange` listeners both fire on a reload, so the dying page captured
+the world still standing there and wrote it back over the key just deleted. The
+clock is one number in that blob, so the date, the rent that had come due and
+the emptied mailbox all came back with it, along with the purse and the drawer.
+
+**`src/proto/ct/newgame.ts` is now the one place that knows the list** — this
+had gone wrong twice in the same shape (`ct-wardrobe` first, the clock second),
+because nobody owned the question. Cleared: `ct-save`, `ct-created`, `ct-body`,
+`ct-wardrobe`. Kept: `ct-settings` (handedness, look speed, name), `ct.audio`
+(volume, mute), `ct-player` (the account, not the character). `flush()` refuses
+once `wipe()` has run, and a player with an account gets an empty document
+beaconed to the server so boot cannot fetch the old world back down the wire.
+
+`WORLD OK`. Live on 5177.
