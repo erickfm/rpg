@@ -131,7 +131,7 @@ export function owed(day: number): number {
  * PARTIAL PAYMENT IS ALLOWED and it is deliberate: a landlord who will only
  * take the full amount turns "you are $3 short" into a locked door, and the
  * player has no way to see how close they were. Money moves in whole rent
- * periods, so paying $45 of a $90 arrears clears the older week and leaves the
+ * periods, so paying one period of a two-period arrears clears the older one and leaves the
  * newer one standing — which is what the second notice will then say.
  *
  * The landlord himself is the next item; this is the verb he will call, put
@@ -409,7 +409,7 @@ function mailFor(day: number): Letter[] {
       lines: [
         `RE: APT ${RENT.flat}, ${RENT.building}`,
         '',
-        `RENT OF $${RENT.amount.toFixed(2)} IS DUE ON THE 1ST`,
+        `RENT OF $${RENT.amount.toFixed(2)} IS DUE ON THE 5TH`,
         `OF ${dateOf(due).season} — ${left} DAY${left === 1 ? '' : 'S'} FROM TODAY.`,
         '',
         'I collect in person. I am in the',
@@ -2408,14 +2408,14 @@ export function register(ctx: CtxBuild): void {
      * A FIXTURE, not a fake: put `n` dollars in the purse so the paying path
      * can be measured at all.
      *
-     * The purse starts at $14.50 and a week's rent is $45, so without this
+     * The purse starts at $14.50 and a season's rent is `RENT.amount`, so without this
      * every clause about money leaving the wallet is a verdict over an empty
      * set — green because it never happened (GOTCHAS §34). `ct/atm.ts` is the
      * one thing in the world that adds cash, and driving K's machine to fund my
      * own check would redden this suite every time K's ATM moved.
      *
      * It sets up a PRECONDITION and cannot make any assertion true: whether
-     * exactly $45 leaves, whether the arrears clear, and whether a refusal
+     * exactly one period's rent leaves, whether the arrears clear, and whether a refusal
      * takes nothing are all still the code's answer. Same class as
      * `__ct.warp` and `__ct.clock`, which write the world for the same reason.
      */

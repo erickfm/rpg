@@ -5202,7 +5202,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // ── AND WHAT THE PAGE HAS TO SAY, IN THE SAME BIRO ─────────────────
       //
       // *"and get rid of this in cal"*   (2026-08-05), pointing at
-      // *"RENT $45  V. OKONKWO"* and *"DUE TODAY"* standing permanently under
+      // *"RENT $45  V. OKONKWO"* (the figure of the day) and *"DUE TODAY"* under
       // the grid.
       //
       // THE FOOT IS BLANK UNTIL HE PICKS A DAY. That lease summary was written
@@ -5211,7 +5211,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // he asked for *"click a day … it just says, rent due"* and got it, and
       // the standing banner became the same fact stated twice, permanently, in
       // the space a selected day's answer belongs in. Nothing is lost: click
-      // the 5th and `RENT DUE $45` is there in the same ink, because he asked a
+      // the 5th and `RENT DUE $500` is there in the same ink, because he asked a
       // question.
       //
       // The ring round the 5th is still drawn and is still the thing that

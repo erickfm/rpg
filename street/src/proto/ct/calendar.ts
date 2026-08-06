@@ -227,20 +227,43 @@ export function noDelivery(day: number): boolean { return fmod(day, 7) === 6; }
 
 export const RENT = {
   /**
-   * $45, unchanged in figure and changed entirely in meaning: it used to buy a
-   * WEEK and it now buys a MONTH, which is a season. Left at 45 deliberately —
-   * the old comment's reasoning still holds and is now much safer:
+   * ── $500 A SEASON ────────────────────────────────────────────────────────
    *
-   *   *"it is set against the economy that exists rather than against realism:
-   *    you start with $14.50 and a box of cereal costs $2.50. A realistic $325
-   *    a month would be a debt you could never clear, which is a failure state
-   *    rather than a feature."*
+   * *"rent is 500/mo"*   (2026-08-05)
    *
-   * You now have a whole season to find $45 instead of a week, so the lease got
-   * dramatically kinder without a single number moving. It is also the figure
-   * already stamped on the wall calendar in 301, which the user has looked at.
+   * A "month" here is a SEASON — 28 days — because that is the cycle he built,
+   * so this is $500 per 28 days, four times a year.
+   *
+   * IT REPLACES $45, AND THE OLD ARGUMENT FOR $45 IS WHAT MAKES THIS WORTH
+   * FLAGGING RATHER THAN JUST SETTING. That number was chosen against the
+   * economy that exists: *"you start with $14.50 and a box of cereal costs
+   * $2.50. A realistic $325 a month would be a debt you could never clear,
+   * which is a failure state rather than a feature."* $500 is above the figure
+   * that reasoning already rejected.
+   *
+   * ⚠ IT IS NOT PAYABLE TODAY, MEASURED RATHER THAN GUESSED. Everything a
+   * player can currently turn into cash:
+   *
+   *     starting cash                            $14.50
+   *     the bank account (`atm.ts`)              $312.40
+   *     the fence's whole table, best first      CHEQUES $8, TRAINERS $5,
+   *                                              TOASTER $4, VHS $2,
+   *                                              SOCKS $0.50, CATALOGUE $0.25
+   *     slots and blackjack, per unit            $0.25
+   *
+   * Liquid on a fresh start is $326.90. Parcels arrive at 10% per door per day
+   * across 8 doors, so ~0.8 a day, and a season of stealing every one of them
+   * yields on the order of $70 at those fence prices. That is ~$400 against a
+   * $500 bill, and the tables move a quarter at a time.
+   *
+   * SO THE FIGURE IS HIS AND IT IS SET; the numbers that would have to move for
+   * it to be reachable are the fence table, the account, or an income source
+   * that does not exist yet — and none of those is mine to change unasked. The
+   * consequence of not paying is not a failure state: arrears accrue, the
+   * notice and the PAST DUE stamp appear, and the landlord stands in the lobby.
+   * Nothing evicts him, so a high rent reads as pressure rather than a wall.
    */
-  amount: 45,
+  amount: 500,
   /**
    * ── WHICH DAY OF THE SEASON THE RENT FALLS ON ────────────────────────────
    *

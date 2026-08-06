@@ -2638,7 +2638,7 @@ export function makeHud(purse: Purse): Hud {
   // header said from the first day (*"the wallet is a view onto this, nothing
   // more"*). Thirteen modules read `purse.cash`: the ATM, both banks, the pawn
   // shop, the bodega, the burger bar, the thrift store, the diner, slots,
-  // blackjack, tenancy and inventory. Rent is $45 a season and is charged
+  // blackjack, tenancy and inventory. Rent is `RENT.amount` a season and is charged
   // against it. Every one of them is untouched.
   //
   // `refreshWallet` SURVIVES AND IS A MISNOMER NOW, kept deliberately: it is
