@@ -44,8 +44,14 @@
  *
  *   ct-save      CLEAR  the world — the clock (and therefore the date, the
  *                       season, the year, what rent has come due), the purse,
- *                       the dresser drawer, the outfit and the body, all in
+ *                       the dresser drawer, the outfit, the body and the
+ *                       TENANCY (rent settled, the mail taken), all in
  *                       `ct/save.ts`'s slices. This is the one he noticed.
+ *                       ⚠ ONE KEY, EVERY SLICE — a module that adds a slice
+ *                       adds NOTHING here. The wipe is already total, and the
+ *                       reload puts every closure local back at its declared
+ *                       default. Only a module that invents a SEPARATE
+ *                       localStorage key owes this table a row.
  *   ct-created   CLEAR  "somebody has made a character on this browser".
  *                       A fact about the character, so it goes with him.
  *   ct-body      CLEAR  hair, its colour, height, build, skin — `ct/body.ts`

@@ -571,23 +571,6 @@ async function boot(): Promise<void> {
 // the module that owns it — a `registerSlice` call beside the state — and no
 // change at all here or in the server.
 //
-//   ct/tenancy.ts   `paidPeriods`, `collectedDay`, `HELD` (the letters in your
-//                   box), `POCKETED` (the ones you took). This is the biggest
-//                   gap: rent paid and rent OWED are the closest thing the game
-//                   has to a score, and `owed(day)` is computed from
-//                   `paidPeriods` against a restored clock — so a returning
-//                   player finds the date advanced and `paidPeriods` back at 0,
-//                   i.e. billed again for every season he already settled.
-//                   ⚠ THIS GOT WORSE ON 2026-08-05, when the prepaid first month
-//                   was removed: the seed used to be 1, so the miss read as
-//                   "arrears the wrong way round" and only cost the player a
-//                   free month. At 0 it reads as a landlord who forgot he was
-//                   paid. Still the biggest gap, still two lines in tenancy.
-//                   `__rent` publishes `paidPeriods()` and `held()` READ ONLY
-//                   and says why: *"a probe that could set `paidPeriods` could
-//                   make its own assertions come true."* A slice is not a
-//                   probe, and it belongs inside that file for the same reason.
-//
 //   ct/inventory.ts `TAKEN` — the litter you dropped, and where. `dropLoose`
 //                   is exported and takes (id, x, z, gy), so restoring is
 //                   possible from outside; CAPTURING is not, because nothing
@@ -607,7 +590,8 @@ async function boot(): Promise<void> {
 //   doors, flags    there is no general flag store in this world today. When
 //                   one appears it is one more slice.
 //
-// Adding one, in full:
+// Adding one, in full — and `ct/tenancy.ts` is the worked example, added on
+// 2026-08-06 with no line in this file and no line in the server:
 //
 //     import { registerSlice } from './save';
 //     registerSlice('tenancy', {
@@ -616,3 +600,10 @@ async function boot(): Promise<void> {
 //     });
 //
 // No import in this file, no line in the server, no deploy.
+//
+// ⚠ ONE RULE THE TENANCY SLICE PAID FOR: RESTORE EXACTLY. The 'clock' slice
+// above only ever winds FORWARD, and that is a property of the clock (a fresh
+// world starts at the earliest moment there is) rather than a house style. A
+// slice that copied it would keep whichever of the saved and the fresh value
+// was larger, which for rent already paid is a season given away. Write back
+// what was written down.

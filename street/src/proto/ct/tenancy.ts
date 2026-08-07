@@ -6,6 +6,7 @@ import { citizenSprite } from './citizens';
 import { loiter, type LoiterPost } from './loiter';
 import { UI, makePanel, screenFocusReady, hudNote, type Panel } from './hud';
 import { defineItem, bagPut, pocketsFull, fullWhy } from './inventory';
+import { registerSlice } from './save';
 import {
   RENT, dateOf, dueDay, duePeriodsBy, isRentDay,
   nextDueDay, noDelivery, noticeDay,
@@ -100,9 +101,10 @@ export const ORDER = BUILD.PROPS + 6;      // after ct/inventory.ts (+5) adopts 
 
 // ── the tenancy's own state ───────────────────────────────────────────────
 //
-// Three numbers, and they are the only things in this file that are remembered
-// rather than derived. Session-scoped, like C's `doorShut` — this world has no
-// save, and inventing one here would be a second thing to get wrong.
+// Three numbers and a set, and they are the only things in this file that are
+// remembered rather than derived. They used to be session-scoped, like C's
+// `doorShut`, because this world had no save. It has one now, and all four go
+// into it — see the slice below them.
 
 /**
  * Rent days settled so far. `paidPeriods === duePeriodsBy(day)` means square.
@@ -116,13 +118,10 @@ export const ORDER = BUILD.PROPS + 6;      // after ct/inventory.ts (+5) adopts 
  * presence, the stamp on the notice, the slip under your door — turns on in the
  * FIRST season now, without any of them knowing why.
  *
- * ⚠ IT IS STILL NOT SAVED. `ct/save.ts` restores the clock and the purse but has
- * no tenancy slice, so a returning player finds the DATE advanced and this back
- * at 0. That gap got worse, not better, with this change: it used to restore a
- * player as prepaid (arrears the wrong way round), and now it restores one as
- * having never paid anything — so a player who settled a season comes back to
- * the landlord asking for it again. Named rather than fixed; the two-line slice
- * `ct/save.ts` sketches at its foot is the fix when someone is asked for it.
+ * ⚠ AND IT IS SAVED NOW. It was not, for two builds — the clock restored and
+ * this did not, so a returning player found the DATE advanced and this back at
+ * 0, i.e. billed again for every season he had already settled. Fixed by the
+ * 'tenancy' slice below; the note there is the argument.
  */
 let paidPeriods = 0;
 /** the last day whose post you have taken out of the box. -1 = you never have. */
@@ -148,6 +147,99 @@ const POCKETED = new Set<string>();
 const keyOf = (l: Letter) => `${l.day}|${l.from}`;
 /** how many letters you keep before the old ones go out with the rest. */
 const KEEP = 8;
+
+// ══ AND ALL FOUR OF THEM ARE SAVED ═════════════════════════════════════════
+//
+// The block above used to end *"this world has no save"*. It has one now, and
+// this file was the biggest thing missing from it — named twice, in
+// `ct/save.ts`'s own list of gaps and in the note on `paidPeriods`, and fixed
+// neither time:
+//
+//     *"rent paid and rent OWED are the closest thing the game has to a score,
+//      and `owed(day)` is computed from `paidPeriods` against a RESTORED clock
+//      — so a returning player finds the date advanced and `paidPeriods` back
+//      at 0, i.e. billed again for every season he already settled."*
+//
+// At $500 a season that is real money, and it is the exact shape of the bug the
+// clock slice is careful not to have.
+//
+// ⚠ RESTORE IS EXACT, NOT FORWARD-ONLY, and that is the one place this differs
+// from the clock. `ct/save.ts` only ever winds the clock FORWARD because a
+// fresh world starts at the earliest moment that exists, so the saved value is
+// always the later one. Nothing of the sort is true here: `paidPeriods` can
+// only be compared with `duePeriodsBy(day)`, never with itself, and "keep the
+// larger" would quietly hand a season to anyone whose save was behind. What
+// was written down is what comes back.
+//
+// ⚠ IT LIVES HERE AND NOT IN `ct/save.ts` FOR THE REASON THAT FILE ARGUES: the
+// module that owns the state owns the verb. These four are closure locals with
+// no setter and `__rent` publishes them READ ONLY on purpose — *"a probe that
+// could set `paidPeriods` could make its own assertions come true"* — so the
+// only honest place to write them is inside the closure that owns them.
+//
+// ── WHAT IS IN IT, AND WHY `HELD` IS IN IT ────────────────────────────────
+//
+//   paid       `paidPeriods`. The whole point.
+//   collected  `collectedDay`, the high-water mark. Without it a returning
+//              player's box refills with up to fourteen days of post he has
+//              already carried upstairs.
+//   pocketed   `POCKETED`, keyed `day|from` — WHICH pieces he took. This is
+//              what makes partial progress survive: take two of three, reload,
+//              and the third is still in the box rather than all three again.
+//   held       `HELD`, the archive. ⚠ ITS ONLY READER IS A REPORT SURFACE and
+//              on that alone it would not be worth a byte. It goes in for a
+//              second reason that has nothing to do with the archive: it is
+//              the only surviving COPY OF THE LETTERS THEMSELVES, and the mail
+//              in his bag is items whose definitions are minted at take time.
+//              The purse slice restores `MAIL-3-VIDEO-HUT` into the bag; only
+//              this can restore what that id IS. See `defineMail`. Eight
+//              letters of short lines — a few hundred bytes.
+//
+// `newGame()` needs no row of its own: this is inside `ct-save`, which
+// `ct/newgame.ts` already clears, and `flush()` refuses once `wiped()` is true
+// so the dying page cannot write the old tenant's paid seasons back. A reload
+// re-runs this module and every one of the four is back at its declared
+// default — 0, -1, empty, empty.
+registerSlice<{ paid: number; collected: number; pocketed: string[]; held: Letter[] }>('tenancy', {
+  capture: () => ({
+    paid: paidPeriods,
+    collected: collectedDay,
+    pocketed: [...POCKETED],
+    // COPIED, not handed over: the blob is stringified on a later tick and a
+    // live array would let a take between here and there edit what was captured.
+    held: HELD.map((l) => ({ ...l, lines: [...l.lines] })),
+  }),
+  restore: (v) => {
+    if (!v || typeof v !== 'object') return;
+    // Each field is checked on its own and a bad one is SKIPPED, never
+    // half-applied — `Slice.restore`'s contract. A corrupt `held` must not cost
+    // him the rent he paid.
+    if (Number.isFinite(v.paid) && v.paid >= 0) paidPeriods = Math.floor(v.paid);
+    if (Number.isFinite(v.collected) && v.collected >= -1) collectedDay = Math.floor(v.collected);
+    if (Array.isArray(v.pocketed)) {
+      POCKETED.clear();
+      for (const k of v.pocketed) if (typeof k === 'string') POCKETED.add(k);
+    }
+    if (Array.isArray(v.held)) {
+      HELD.length = 0;
+      for (const l of v.held) {
+        if (!l || typeof l !== 'object') continue;
+        if (typeof l.day !== 'number' || typeof l.from !== 'string' || !Array.isArray(l.lines)) continue;
+        const piece: Letter = {
+          day: Math.floor(l.day),
+          from: l.from,
+          lines: l.lines.filter((s): s is string => typeof s === 'string'),
+          kind: typeof l.kind === 'string' ? l.kind : 'junk',
+          art: typeof l.art === 'string' ? l.art : undefined,
+        };
+        HELD.push(piece);
+        // …and this is what makes the post in his bag readable again.
+        defineMail(piece);
+      }
+      while (HELD.length > KEEP) HELD.shift();
+    }
+  },
+});
 
 /** What you owe right now, in dollars. */
 export function owed(day: number): number {
@@ -2233,15 +2325,27 @@ function mailModel(l: Letter): THREE.Object3D {
   return grp;
 }
 
-/** put one piece in his bag, as its own item */
-function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): boolean {
+/**
+ * DECLARE THE PIECE AS AN ITEM — its name, its icon, its sheet and its READ.
+ *
+ * Split out of `pocketMail` because THE SAVE HAS TO CALL IT TOO. The bag is
+ * `purse.inv` and `ct/save.ts`'s 'purse' slice restores it faithfully — so a
+ * reload gives you back a bag with `MAIL-3-VIDEO-HUT` in it, and `itemOf` has
+ * never heard of that id, so what you had carefully collected came back as
+ * `mail-3-video-hut` under a generic parcel icon with no way to read it. The
+ * definition is minted at take time and lived only in that session. Restoring
+ * `HELD` and re-declaring from it is what makes the post in your bag still be
+ * post; see the slice at the head of this file.
+ */
+function defineMail(l: Letter): string {
   // ⚠ DERIVED FROM THE PIECE, NEVER MINTED. This was `MAIL-${l.day}-${mailSeq++}`
   // — a fresh unique id on every take — so the SAME letter could enter the bag
   // any number of times under different ids and `stack: 1` could not stop it.
   // That is half of the infinite mail source. Keyed on the day and the sender,
   // which is what identifies a piece (`mailFor` is pure and never yields one
   // sender twice on a day), so a second take of the same letter is the same id
-  // and `roomFor` refuses it at a stack of one.
+  // and `roomFor` refuses it at a stack of one. It is also why a SAVED piece
+  // lands back on exactly the id the purse slice restored.
   const id = mailId(l);
   defineItem({
     id,
@@ -2254,8 +2358,17 @@ function pocketMail(ctx: CtxBuild, l: Letter, open: (l: Letter) => void): boolea
     // ⚠ A BUILDER, NOT A MESH — every drop gets its own sheet, so one taken
     // back out of the scene cannot take another's texture with it.
     model: () => mailModel(l),
-    use: { verb: 'read', act: () => { open(l); return id; } },
+    // Held in front of HIM, wherever he is standing — a piece out of the bag
+    // has no place in the world. Guarded on `CTX` because a restored definition
+    // exists before anybody has pressed anything.
+    use: { verb: 'read', act: () => { if (CTX) showLetters([l], holdInFront(CTX)); return id; } },
   });
+  return id;
+}
+
+/** put one piece in his bag, as its own item */
+function pocketMail(ctx: CtxBuild, l: Letter): boolean {
+  const id = defineMail(l);
   // ⚠ REPORTS WHETHER IT ACTUALLY WENT IN. It used to swallow the answer, which
   // was harmless while the bag was infinite and is a lost letter at twelve
   // slots. The caller refuses on false and leaves the piece in the box.
@@ -2333,7 +2446,7 @@ function takeCurrent(): void {
   // ASKED BEFORE ANYTHING MOVES, so the refusal is readable and the piece is
   // untouched — this file's own rule for `give()`, applied to the mail.
   if (pocketsFull(CTX.purse)) { hudNote(fullWhy(CTX.purse)); return; }
-  if (!pocketMail(CTX, l, (one) => showLetters([one], holdInFront(CTX!)))) {
+  if (!pocketMail(CTX, l)) {
     hudNote(fullWhy(CTX.purse));
     return;
   }
