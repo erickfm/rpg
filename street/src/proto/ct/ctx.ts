@@ -215,6 +215,19 @@ export interface PlayerRef {
    * mid-air tuck on, so it cannot disagree with the body.
    */
   airborne: () => boolean;
+  /**
+   * IS HE SITTING DOWN.
+   *
+   * Added 2026-08-07 for the dialog bubble, which must end when the player sits
+   * or stands — *"a panel you cannot close is the worst bug this project
+   * ships"*, and "standing up closes it" is a rule no module could obey while
+   * `rig.seated` lived only in the entry point.
+   *
+   * Read straight off the rig at the moment it is asked, like `airborne` above,
+   * so there is no second copy of the seated flag to fall out of step with the
+   * one `fp.ts` actually acts on.
+   */
+  seated: () => boolean;
   jumpTo: (x: number, z: number, yaw: number, gy: number) => void;
 }
 
@@ -259,6 +272,23 @@ export const ORDER = {
 
 export interface CtxBuild {
   scene: THREE.Scene;
+  /**
+   * THE EYE, for the handful of things that have to be drawn AT the player
+   * rather than merely near him.
+   *
+   * Handed over 2026-08-07 for the floating chat bubble — *"i want it to be
+   * like a chat bubble that looks like an overlay but when you move the chat
+   * exists in the world and stays tied to the npc speaking"*. Holding a
+   * constant apparent size needs the live `fov` (which this world's scroll
+   * zoom writes every frame) and the camera's own orientation for a true
+   * billboard, and neither can be derived from `Frame`'s `px`/`pz`.
+   *
+   * ⚠ READ IT, NEVER WRITE IT. `crosstown.ts` and `ct/hud.ts`'s focus
+   * controller are the only things that may move this camera, and the focus
+   * lock deliberately gets the last word on it every frame — a module writing
+   * `position` or `fov` here is fighting a system that will win, intermittently.
+   */
+  camera: THREE.PerspectiveCamera;
   /** unlit material off a painted texture — the whole world is MeshBasic */
   flat: (m: THREE.Texture) => THREE.MeshBasicMaterial;
   /** register a ground material for the rain's wet-look tint */

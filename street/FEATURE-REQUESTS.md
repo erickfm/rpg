@@ -4787,3 +4787,80 @@ The fifteen surviving paper shapes still share no aspect and still run 2.26:1 to
 1:2.53, so the shape table's whole argument survives the cut.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-07 — *"lets create a dialog system so we dont have to manage it in the e prompt style"*
+
+And, one minute later, the message that settles the shape of it:
+
+> *"i want it to be like a chat bubble that looks like an overlay but when you
+> move the chat exists in the world and stays tied to the npc speaking. like a
+> floating chat message"*
+
+**Built: `src/proto/ct/dialog.ts`. First speaker ported: the park kid.**
+
+### What it was
+
+Everything anybody in this world had to say went out through `hudNote` — the
+HUD's transient strip, the same one that prints "you paid the rent". That is a
+notice board, not a mouth. It sits in the corner of the screen, it says nothing
+about who is talking, and every speaker had to hand-tune its own dwell in
+milliseconds: the kid's line carried a literal `7200` with a paragraph beside it
+explaining why the strip's 2400 ms default cut the gag off.
+
+### What it is
+
+A **chat bubble in world space**, one per world, hanging at the speaker's crown.
+
+- **It looks like an overlay.** The quad is re-scaled every frame so it covers
+  the same number of screen pixels at any distance, any window size, and any
+  zoom (the camera's live `fov` is read, so it does not swim when he scrolls).
+  That is also what keeps it crisp: the canvas is painted once at 248 x 128
+  texels and lands on exactly 496 x 256 CSS pixels forever, so with
+  `NearestFilter` every texel is a hard 2 x 2 block at every range. There is no
+  distance at which it goes soft, because the mapping never changes. Every draw
+  origin in the painter is an integer texel.
+- **It is in the world.** Full camera-facing billboard at the speaker's head,
+  so walking sideways tracks it across the screen, walking away takes it with
+  them, and turning round puts it behind you.
+- **It draws over everything** (`depthTest: false`, renderOrder 12000), which
+  is the "overlay" half of the ask and also why it can never be half-swallowed
+  by a railing.
+
+### It is not a panel, and it closes five ways
+
+It swallows **nothing** — no pointer lock, no captured keys, no frozen feet, no
+dimmed world. You can walk, look, jump and press `[E]` on something else with a
+bubble up, so the trap this project fears cannot be built out of it. It still
+closes from Escape (from every screen, and the press is *not* swallowed, so
+Escape still stands you out of a seat on the same keystroke), from `[E]` again,
+from walking more than 5 m away, from sitting down or standing up, and from its
+own length-derived timer.
+
+**One voice at a time.** A second speaker takes the bubble over. Two cards
+overlapping at head height is unreadable, and a queue would have a shopkeeper
+finishing a sentence you walked away from three rooms ago.
+
+### What a speaker costs now
+
+    const kid = talker(ctx, { obj: kid.mesh, name: 'kid', lines: [KID_LINE] });
+    ...
+    act: () => kid.say(),
+
+Two lines. `say()` with an argument speaks something worked out on the spot (the
+pawnbroker's price), `say()` with none speaks the script, and `say()` while it is
+already up **turns the page** — which is how `[E]` pages a conversation without
+this file touching the input system at all. Long speeches paginate themselves;
+`lines: ['…', '…']` is a two-beat NPC.
+
+### Trunk
+
+Two additions, both read-only verbs the entry point already owned:
+`ctx.camera` (the bubble needs the live fov and orientation) and
+`ctx.player.seated` (so "standing up closes it" is a rule a module can obey).
+
+The pawn shop, the landlord and the shop counters still speak through `hudNote`
+and are unchanged — they port one line at a time.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

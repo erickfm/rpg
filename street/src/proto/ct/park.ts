@@ -11,7 +11,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { weedTuft } from './weeds';
 import { citizenSprite } from './citizens';
 import { loiter } from './loiter';
-import { hudNote } from './hud';
+import { talker } from './dialog';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
 // party walls the gap exposed, the rear elevation and the low boundary along
@@ -2970,6 +2970,10 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // ⚠ NOT in `colliders`. That list is returned to the caller and read by the
   // placement checks; a box that moves every frame is not a footprint anything
   // can be placed against.
+  // HIS VOICE. Registered once, at build time; the bubble finds his crown by
+  // measuring him the first time he speaks, so nothing here carries a head
+  // height that would go wrong if his 0.88 scale ever changed.
+  const kidTalk = talker(ctx, { obj: kid.mesh, name: 'kid', lines: [KID_LINE] });
   const kidSpot: Spot = {
     // he IS the object, so the prompt and the highlight name the same person.
     // Rewritten every frame below — these are only where he starts.
@@ -2982,15 +2986,24 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     label: () => 'talk to the kid',
     // ── HOW THE LINE IS DELIVERED ──────────────────────────────────────────
     //
-    // `hudNote`, which is the world's existing "somebody said something to
-    // you" — `ct/int-pawn.ts` puts the pawnbroker's line through it verbatim
-    // (*"He doesn't ask. $x for the …"*). NO dialogue system, no panel, no
-    // reply tree: he asks a question and you walk away, which is the joke.
+    // A CHAT BUBBLE OVER HIS HEAD — `ct/dialog.ts`, and he is the first speaker
+    // on it. *"lets create a dialog system so we dont have to manage it in the
+    // e prompt style"* / *"i want it to be like a chat bubble that looks like
+    // an overlay but when you move the chat exists in the world and stays tied
+    // to the npc speaking"* (2026-08-07).
     //
-    // The only thing tuned is the DWELL. The note's default is 2400 ms, which
-    // is written for "you paid the rent" — this is 130 characters with four
-    // stumbles in it, and a gag you cannot finish reading is not a gag.
-    act: () => { hudNote(KID_LINE, 7200); },
+    // WHAT THIS REPLACED, and what it bought: the line used to go through
+    // `hudNote(KID_LINE, 7200)` — the HUD's transient strip, in the corner of
+    // the screen, saying nothing about who was talking, with a dwell hand-typed
+    // here because the strip's 2400 ms default cut the gag off. The bubble is
+    // pinned to HIM, so the joke has a face on it; and the dwell is derived
+    // from the line's own length, which for these 130 characters comes out at
+    // 7050 ms — his number, no longer typed.
+    //
+    // He follows his own loiter walk with the bubble over his head, it ends if
+    // you wander off, Escape kills it, and `[E]` again dismisses it. Nothing
+    // here had to know any of that.
+    act: () => { kidTalk.say(); },
   };
   ctx.spot(kidSpot);
   ctx.onFrame(({ px, pz, dt, gy }) => {

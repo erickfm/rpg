@@ -468,6 +468,9 @@ export function makeCrosstown(): Proto {
     // to come from the apartment's floor stack. There is no state here to keep
     // in step — the flag is read at the moment it is asked for.
     airborne: () => rig.airborne,
+    // straight off the rig for the same reason as `airborne` — one seated flag
+    // in the world, read at the moment it is asked
+    seated: () => rig.seated,
     jumpTo: (x, z, yaw, gy) => jumpToImpl(x, z, yaw, gy),
   };
   // per-frame hooks, sorted by declared order once the world is built — so
@@ -479,6 +482,9 @@ export function makeCrosstown(): Proto {
 
   const ctx: CtxBuild = {
     scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H,
+    // READ-ONLY, by contract — see `CtxBuild.camera`. The dialog bubble needs
+    // the live fov and orientation to hold a constant apparent size.
+    camera: cam,
     spot: (sp) => { SPOTS.push(sp); },
     purse,
     refreshWallet: () => hud.refreshWallet(),
