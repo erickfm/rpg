@@ -4388,3 +4388,25 @@ the game.
 `ct/shop.ts`, `ct/inventory.ts`, the six shop interiors, `ct/slots.ts`,
 `ct/atm.ts`, `ct/tex-world.ts`, `ct/tenancy.ts`, `ct/props.ts`. `WORLD OK`.
 Live on 5177.
+### 2026-08-06 — "can you make the tv glow less strong on the ground?"
+
+**One number, one notch down: `TV_SPILL_DARK` 0.72 → 0.55** in `ct/apartment.ts`.
+That is his own 0.72 from the 2026-08-05 pass, taken down about a quarter.
+
+**The LEVEL, not the distribution** — and that was the call worth making. The
+pass earlier the same day had already redistributed the same light across 26
+rungs instead of 14 with a longer tail, exactly the sine-to-the-fourth reshape
+that fixed the sirens. He looked at that and still called the boards too bright,
+so the shape is not what is loud and turning it down is the honest answer.
+
+**Nothing about the wedge moved** — `TV_SPILL_GAP` 0.30, `TV_SPILL_W` 2.8,
+26 discs at 0.19, the fringe, the 1.35 tail. He approved each of those and
+"less strong" is not a request to redraw them.
+
+**`TV_SPILL_LIT` stays 0.28.** He is describing the dark room, where the spill IS
+the light in the flat; the lit state is already barely a mark on the floor with
+the bulb on. Dropping both would have closed the gap between the two states,
+which is the feature. 0.55 against 0.28 is still twice the floor in the dark.
+
+**The halo on the glass is untouched** — a different surface, and he did not say
+the set looks bright.

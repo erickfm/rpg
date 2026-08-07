@@ -4800,7 +4800,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * stops 0.07 m short of the radiator (front face -2.94) and 0.18 m short of
      * the east wall's skin (-0.072). Everything past that is transparent quad.
      *
-     * BRIGHTER IN THE DARK, WHICH IS THE POINT. `TV_SPILL_DARK` 1.0 against
+     * BRIGHTER IN THE DARK, WHICH IS THE POINT. `TV_SPILL_DARK` against
      * `TV_SPILL_LIT` 0.28: with the ceiling light on the set barely marks the
      * floor, because a CRT does not compete with a bulb; with it off the
      * television IS the light in the flat.
@@ -4896,7 +4896,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // 1.0 → 0.72. The halo on the glass is untouched (he did not say the set
     // looks bright) and so is `TV_SPILL_LIT`, which is already barely there with
     // the ceiling bulb on — that gap between the two states is the feature.
-    const TV_SPILL_LIT = 0.28, TV_SPILL_DARK = 0.72;
+    //
+    // ⚠ *"can you make the tv glow less strong on the ground?"* (2026-08-06) —
+    // the SAME lever again, one more notch: `TV_SPILL_DARK` 0.72 → 0.55. It is
+    // the LEVEL and not the distribution this time: the pass above already
+    // redistributed the light across 26 rungs with a longer tail, and he looked
+    // at that and still called the boards too bright, so the shape is not what
+    // is loud. Nothing about the wedge, the gap, the width or the disc ladder
+    // moves. `TV_SPILL_LIT` stays 0.28 — he is describing the dark room, where
+    // the spill is the light, and dropping the lit state too would close the
+    // gap between them, which is the feature. 0.55 against 0.28 is still twice
+    // as much floor with the bulb off. One number to push again either way.
+    const TV_SPILL_LIT = 0.28, TV_SPILL_DARK = 0.55;
     const wedgeT = surfTex('detail', 32, 48, (g) => {
       const N = TV_SPILL_STEPS;
       /** the gap in canvas rows — 48 rows span `TV_SPILL_D` */
