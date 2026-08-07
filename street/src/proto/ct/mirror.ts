@@ -608,11 +608,29 @@ function figureFit(W: number, H: number) {
  *
  * ⚠ THE HIT TEST GOES THROUGH THIS TOO (`slotAtCanvas`), or a short player
  * clicks his own trousers and cycles his shirt.
+ *
+ * ⚠ AND THE ORIGIN IS ROUNDED, WHICH IS WHY THE OTHER FOUR STOPS ARE AS HARD
+ * AS AVERAGE. *"all the other heights are blurry for some reason"* (2026-08-06)
+ * — and they were, all four of them, while AVERAGE alone was crisp. `scaler`
+ * rounds every rect it draws, so the SCALE was never the problem; the offsets
+ * `figureFit` hands out are whole pixels and these two put the figure back down
+ * on a FRACTION of one (at the creation doll, 223.92 and 48.59), so every edge
+ * on the body straddled a pixel and the canvas antialiased both sides of it.
+ * At `k === 1` the early return handed back `figureFit`'s integers untouched,
+ * which is exactly why the default looked right and nothing else did.
+ * `Math.round` here rather than in the painter because THE HIT TEST TAKES THE
+ * SAME PATH — `slotAtCanvas` inverts these very numbers — so rounding at the
+ * one place both callers already share keeps the zones on the pixels he can
+ * see, for free.
  */
 function stand(ox: number, oy: number, s: number) {
   const k = heightScale();
   if (k === 1) return { ox, oy, s };
-  return { ox: ox + (MW * s * (1 - k)) / 2, oy: oy + MH * s * (1 - k), s: s * k };
+  return {
+    ox: Math.round(ox + (MW * s * (1 - k)) / 2),
+    oy: Math.round(oy + MH * s * (1 - k)),
+    s: s * k,
+  };
 }
 
 /**
