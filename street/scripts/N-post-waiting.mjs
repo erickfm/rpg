@@ -70,7 +70,7 @@ if (ARGS.rest.length) {
 // asserted below is free over an empty set: no letters means no overrun, no
 // envelopes means nothing misplaced, no junk table means a box that is empty
 // for ever and passes every clause about what is in it.
-const MIN_JUNK = 10;          // the table ships 14
+const MIN_JUNK = 10;          // the table ships 12 (17 before the fake ads went)
 const MIN_PLATES = 8;         // eight flats in the building, eight numbered boxes
 
 const browser = await chromium.launch();

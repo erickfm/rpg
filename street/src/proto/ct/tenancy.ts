@@ -357,6 +357,34 @@ function hash01(day: number, salt: number): number {
  * addresses "you", or knows what you can and cannot make out, it is narration
  * and it does not belong in this table.
  *
+ * ── AND THE SECOND TEST: WHO SENT IT, AND ARE THEY HERE? ──────────────────
+ *
+ * *"get rid of the fake ads in the mail pls"*   (2026-08-07)
+ *
+ * FIVE OF THE SEVENTEEN WERE ADVERTISING SHOPS THAT DO NOT EXIST. A pizza place
+ * "2 BLOCKS DOWN" you cannot walk to; a dentist at 227 W 21ST, one number off
+ * the building you live in, whose surgery is not there; VIDEO 2000 dunning you
+ * for tapes from a second video shop this street does not have, beside the
+ * VIDEO HUT it does; a free classified weekly selling a sedan nobody is selling;
+ * and a utility bill for $18.44 from a company you cannot pay. **A piece of mail
+ * must not sell you something you cannot go and buy.** The post is the one part
+ * of this world that speaks about places you have not been to yet, and every
+ * fake sender spends that credit on nothing.
+ *
+ * ⚠ THE BOUNDARY IS "COULD YOU WALK TO IT". The two catalogues are mail order,
+ * which by definition has no shopfront anywhere and never did — a catalogue is
+ * post, not a shop that is missing. The utility bill was the closest call and it
+ * went for a HARDER reason than being an ad: it is a DEMAND FOR MONEY YOU CANNOT
+ * PAY, sitting in the same box as the rent notice, which is the one demand in
+ * this world that is real and has to be read. A fake bill beside a real one is
+ * worse than a fake flyer beside a real one.
+ *
+ * WHAT SURVIVES IS PERSONAL MAIL AND REAL SHOPS: the aunt, the sister's message
+ * slip, the super, DEB's postcard, the chain letter, the envelope for the tenant
+ * before him, the precinct's notice (which sells nothing), the two catalogues,
+ * and the three that quote a counter you can stand at — VIDEO HUT, THE DINER and
+ * FIRST FEDERAL, all three of which now read their figures off the shop itself.
+ *
  * THE LENGTH OF THIS TABLE IS PART OF THE SEED. The picker below indexes it by
  * `hash01(day, …) * JUNK.length`, so adding or removing an entry reshuffles
  * WHICH piece lands on which day for every day in the world. It does not change
@@ -366,11 +394,16 @@ function hash01(day: number, salt: number): number {
  * count from it.
  *
  * It has gone 14 -> 13 (the clearing house), 13 -> 16 (three new formats),
- * 16 -> 15, and now 15 -> 17 — the pink phone slip and the airmail lettersheet,
- * added because *"no color"* (2026-08-07) is answered by pieces whose COLOUR is
- * their identity, not by tinting the fifteen that were there. Each of those
- * reshuffled WHICH piece lands on which day and none of them changed HOW MANY
- * arrive.
+ * 16 -> 15, 15 -> 17 (the pink phone slip and the airmail lettersheet, added
+ * because *"no color"* is answered by pieces whose COLOUR is their identity),
+ * and now 17 -> 12 — the five fake advertisers above. Each of those reshuffled
+ * WHICH piece lands on which day and none of them changed HOW MANY arrive.
+ *
+ * TWELVE IS NOT THIN AT THE NEW RATE. Junk arrives about once every eight or
+ * nine days now, so twelve pieces is roughly a season of post before one
+ * repeats — against seventeen at the old rate, which repeated inside a
+ * fortnight. The pool got smaller and the gap between repeats got LONGER. If it
+ * ever wants filling, it wants a shop built first and a flyer for it second.
  */
 const JUNK: { from: string; lines: string[]; art?: string }[] = [
   // ── the three that are not letters, and do not look like one ────────────
@@ -395,25 +428,6 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'D. R. KOVACS',
     'APT 301, 227 W 19TH',
     'THIS CITY',
-  ] },
-  { from: 'VIDEO 2000 — MEMBER SERVICES', art: 'dotmatrix-video2000', lines: [
-    'Our records show two (2) tapes',
-    'overdue on your account. Late fees',
-    'now stand at $6.50 and are rising.',
-    'Please return them.',
-  ] },
-  { from: 'CITY LIGHT & POWER', art: 'bill-utility', lines: [
-    'ACCOUNT 227-3-01',
-    'AMOUNT DUE $18.44',
-    'Meter read 04/11. Estimated.',
-    'Late charge applies after the 28th.',
-    'Do not send cash through the mail.',
-  ] },
-  { from: 'PALERMO PIZZA — 2 BLOCKS DOWN', art: 'flyer-pizza', lines: [
-    'LARGE PIE + 2 SODAS ..... $9.99',
-    'WE DELIVER TILL 2AM',
-    'ASK ABOUT THE BUCKET OF WINGS',
-    '(coupon expired 03/97)',
   ] },
   { from: 'A POSTCARD', art: 'postcard', lines: [
     'The weather here is exactly the',
@@ -471,12 +485,6 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'KETTLE|11.99',
     'LAMP|14.99',
   ] },
-  { from: 'DR. R. HALVERSEN, D.D.S.', art: 'card-dentist', lines: [
-    'THIS IS A REMINDER that you are',
-    'due for a cleaning. Our records',
-    'show your last visit was 1993.',
-    'Please call for an appointment.',
-  ] },
   { from: 'A CHAIN LETTER', art: 'chain-letter', lines: [
     'DO NOT BREAK THE CHAIN. Copy',
     'this letter twenty (20) times',
@@ -497,12 +505,6 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'Your uncle has bought a boat.',
     'It does not go in the water.',
     '                    — LEONORA',
-  ] },
-  { from: 'PENNY SAVER — WEEKLY', art: 'classified-penny', lines: [
-    'CARS · APPLIANCES · ROOMS TO LET',
-    '"1977 SEDAN, RUNS, $400 OBO"',
-    '"WANTED: DRUMMER. NO TIMEWASTERS"',
-    'Twelve pages, four classified.',
   ] },
 ];
 
@@ -1163,11 +1165,17 @@ const ART: Record<string, (g: CanvasRenderingContext2D, l: Letter) => void> = {}
 // a masthead or a band — 5% of the piece's area — floating on the identical
 // sheet. From across a room you read AREA, and the area was one beige.
 //
-// So the stock carries the colour now: goldenrod, kraft manila, greenbar,
-// utility blue, canary legal pad, orange catalogue board, aqua card, carbon
-// yellow, message-slip pink, airmail blue. 1997 junk mail was garish and it was
-// garish on purpose — a piece of post that cost nothing to print announced
-// itself with the paper it was printed on.
+// So the stock carries the colour now: goldenrod, mint, kraft manila, canary
+// legal pad, orange catalogue board, a four-colour seed cover, carbon yellow,
+// message-slip pink, airmail blue. 1997 junk mail was garish and it was garish
+// on purpose — a piece of post that cost nothing to print announced itself with
+// the paper it was printed on.
+//
+// ⚠ FOUR OF THOSE STOCKS LEFT WITH THEIR SENDERS on 2026-08-07 — greenbar
+// fanfold, utility blue, the pizza tricolore and the aqua appointment card, all
+// of them advertising a shop that is not in this world. The stocks that remain
+// are still nine distinct hues, so the argument above holds; it is just made by
+// twelve pieces instead of seventeen.
 //
 // THE TWO DELIBERATELY PALE PIECES EARN IT. The bank's white letterhead and the
 // chain letter's sixth-generation grey are the only unsaturated stocks left,
@@ -1222,7 +1230,15 @@ function stock(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
  * letter sheet a managing agent writes a demand on; the receipt is 124x64, 1.94:1,
  * a stub torn off a duplicate book, moved out of 1.59:1 where it sat inside 4% of
  * the dentist's card at nearly the same size — two small landscape rectangles a
- * glance could not tell apart. Seventeen pieces, seventeen shapes.
+ * glance could not tell apart.
+ *
+ * FIFTEEN PIECES, FIFTEEN SHAPES. It was twenty; the five fake advertisers went
+ * out with their paper (see the second test on `JUNK`), and their aspects went
+ * with them — the pizza half-sheet at 1.38:1, the fanfold at 1.26:1, the tabloid
+ * at 1:1.20, the utility statement at 1:1.53 and the dentist's card at 1.65:1.
+ * ⚠ THE SPREAD SURVIVED THAT: no two of the fifteen share an aspect and the set
+ * still runs 2.26:1 to 1:2.53, so the widest gap between neighbours is where a
+ * new shape goes if this world ever grows a shop to print one.
  *
  * SO THIS TABLE IS THE DRAWING. No two pieces share an aspect; the set runs
  * from 2.26:1 landscape to 1:2.53 portrait; and every painter takes its
@@ -1237,7 +1253,7 @@ function stock(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
  * does not hold a 30-character line. Every painter below FLOWS its copy
  * (`flow`/`wrapTo`, which measure the real face at the real width) instead of
  * slicing at `COLS` — that constant is 35, measured against the full 192 sheet,
- * and it is now wrong for fourteen of the fifteen. Slicing at `COLS` on a
+ * and it is wrong for every piece in the table. Slicing at `COLS` on a
  * narrow piece is the carbon's overflow bug on a different piece of paper, and
  * the whole point of `wrapTo` existing is that it cannot happen again.
  *
@@ -1252,20 +1268,15 @@ const SHAPES: Record<string, { w: number; h: number }> = {
   // ── LANDSCAPE: the things that are wider than they are tall ──────────────
   'envelope-prev':       { w: 190, h:  84 },   // 2.26 : 1   a #10 window envelope
   'docket-receipt':      { w: 124, h:  64 },   // 1.94 : 1   a stub off a duplicate book
-  'card-dentist':        { w: 132, h:  80 },   // 1.65 : 1   an appointment card
   'postcard':            { w: 168, h: 108 },   // 1.56 : 1   a 6x4 postcard
   'slip-phone':          { w: 100, h:  68 },   // 1.47 : 1   a message pad slip
-  'flyer-pizza':         { w: 188, h: 136 },   // 1.38 : 1   a half-sheet flyer
-  'dotmatrix-video2000': { w: 192, h: 152 },   // 1.26 : 1   a fanfold tractor sheet
   // ── THE ONE SQUARE THING, AND IT IS A NOTE ───────────────────────────────
   'note-super':          { w: 104, h: 100 },   // 1.04 : 1   torn off a legal pad
   // ── PORTRAIT: everything that came off a ream ────────────────────────────
   'catalogue-order':     { w: 154, h: 172 },   // 1 : 1.12   400 pages, and thick
-  'classified-penny':    { w: 148, h: 178 },   // 1 : 1.20   a free weekly tabloid
   'catalogue-302':       { w: 138, h: 178 },   // 1 : 1.29   a seed catalogue
   'notice-agent':        { w: 120, h: 162 },   // 1 : 1.35   the agent's letter sheet
   'letterhead-bank':     { w: 126, h: 178 },   // 1 : 1.41   proper letter stock
-  'bill-utility':        { w: 116, h: 178 },   // 1 : 1.53   a statement with a stub
   'airmail-aunt':        { w: 108, h: 175 },   // 1 : 1.62   an airmail lettersheet
   'menu-diner':          { w: 104, h: 178 },   // 1 : 1.71   a takeaway menu
   'typed':               { w:  99, h: 178 },   // 1 : 1.80   a leaf off a memo pad
@@ -1450,117 +1461,16 @@ ART['envelope-prev'] = (g, l) => {
 };
 
 
-/** tractor-feed holes down both edges — the tell of fanfold computer paper */
-function sprockets(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
-  fill(g, 'rgba(120,112,90,0.18)', x + 5, y, 1, h);
-  fill(g, 'rgba(120,112,90,0.18)', x + w - 6, y, 1, h);
-  for (let cy = y + 6; cy < y + h - 4; cy += 8) {
-    fill(g, '#2a2620', x + 2, cy, 3, 3);
-    fill(g, '#2a2620', x + w - 5, cy, 3, 3);
-  }
-}
+// ⚠ `sprockets` LIVED HERE and went with VIDEO 2000, its only caller — tractor
+// holes down both edges, which is the tell of fanfold computer paper and is
+// nothing any surviving piece is printed on. Git history has it if a real shop
+// ever prints an account. `perf` below stayed: the rent receipt tears off a
+// duplicate book and still needs it.
+
 /** a perforation: the line you tear along */
 function perf(g: CanvasRenderingContext2D, x: number, y: number, w: number): void {
   for (let i = 0; i < w; i += 4) fill(g, 'rgba(90,84,70,0.5)', x + i, y, 2, 1);
 }
-
-/**
- * ── VIDEO 2000: A DOT-MATRIX STATEMENT ─────────────────────────────────────
- * 192 x 152, 1.26:1 — LANDSCAPE, because a 14 7/8" tractor sheet is wider than
- * it is deep and that is the one proportion nothing else in the box has. The
- * sprocket strips are still on it and the green bar stripes run the full width.
- * A rental chain does not write you a letter, it prints an account.
- */
-ART['dotmatrix-video2000'] = (g, l) => {
-  const P = paper('dotmatrix-video2000'), IN = 14, TW = P.w - IN * 2;
-  stock(g, P.x, P.y, P.w, P.h, '#f4f3ea', '#fcfbf4', '#d2d0c4');
-  for (let y = P.y + 30; y < P.y + P.h - 10; y += 16) {
-    fill(g, '#a9d59a', P.x + 10, y, P.w - 20, 8);
-  }
-  sprockets(g, P.x, P.y, P.w, P.h);
-  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#3a352c'; g.font = UI.font(8, true);
-  g.fillText('VIDEO 2000', P.x + IN, P.y + 14);
-  g.font = UI.font(7);
-  g.fillText('MEMBER SERVICES', P.x + IN, P.y + 23);
-  fill(g, '#8d8672', P.x + 12, P.y + 27, P.w - 24, 1);
-  flow(g, P.x + IN, P.y + 44, TW, l.lines, 8, '#3a352c');
-  // the machine's own footer, right where a printer puts it
-  g.fillStyle = '#6b6455'; g.font = UI.font(7);
-  g.fillText('* * * THIS IS NOT A BILL * * *', P.x + IN, P.y + P.h - 14);
-};
-
-/**
- * ── CITY LIGHT & POWER: A FORM WITH A TEAR-OFF STUB ────────────────────────
- * 116 x 178, 1:1.53 — narrow and long, which is what a statement printed to be
- * torn in two has to be: boxed fields at the top, the amount in a rule of its
- * own, and the bottom quarter a payment stub below a perforation. The
- * perforation gives the piece two distinct halves at a glance and the aspect
- * gives it a distinct outline before that.
- */
-ART['bill-utility'] = (g, l) => {
-  const P = paper('bill-utility'), IN = 8, TW = P.w - IN * 2;
-  const TEAR = P.y + P.h - 46, BLUE = '#173f6b';
-  stock(g, P.x, P.y, P.w, P.h, '#cadff0', '#e2eefa', '#9db6cd');
-  fill(g, BLUE, P.x, P.y, P.w, 18);
-  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#e8e4d4'; g.font = UI.font(7, true);
-  g.fillText('CITY LIGHT & POWER', P.x + IN, P.y + 13);
-  // the boxed fields — account, then the figure they want you to see
-  l.lines.slice(0, 2).forEach((ln, i) => {
-    const by = P.y + 26 + i * 20;
-    g.strokeStyle = 'rgba(46,75,107,0.55)'; g.lineWidth = 1;
-    g.strokeRect(P.x + IN + 0.5, by + 0.5, TW - 1, 16);
-    g.fillStyle = i === 1 ? BLUE : '#3a352c';
-    g.font = UI.font(i === 1 ? 8 : 6, i === 1);
-    g.fillText(ln, P.x + IN + 5, by + 11);
-  });
-  flow(g, P.x + IN, P.y + 78, TW, l.lines.slice(2), 6, '#4a443a');
-  // the stub
-  perf(g, P.x + 6, TEAR, P.w - 12);
-  g.fillStyle = '#6b6455'; g.font = UI.font(6);
-  g.fillText('DETACH AND RETURN', P.x + IN, TEAR + 12);
-  fill(g, '#e9c94a', P.x + 6, TEAR + 16, P.w - 12, P.h - (TEAR - P.y) - 22);
-  g.fillStyle = BLUE; g.font = UI.font(7, true);
-  g.fillText('227 W 19TH  APT 301', P.x + IN, TEAR + 29);
-  g.fillStyle = '#3a352c'; g.font = UI.font(6);
-  g.fillText('PAY AT ANY BRANCH', P.x + IN, TEAR + 40);
-};
-
-/**
- * ── PALERMO PIZZA: A GLOSSY TAKEAWAY FLYER WITH A COUPON ───────────────────
- * 188 x 136, 1.38:1 — a half-sheet, LANDSCAPE, because a pizza flyer is printed
- * two-up on a letter sheet and guillotined across the middle. Red, white and
- * green, the price as the loudest thing on it, and the coupon ruled off along a
- * dashed cut line across the foot — which is the shape of every pizza flyer
- * that has ever come through a door.
- */
-ART['flyer-pizza'] = (g, l) => {
-  const P = paper('flyer-pizza'), IN = 8, TW = P.w - IN * 2;
-  const cx = P.x + P.w / 2, RED = '#cd1f1a', GREEN = '#1f8038';
-  stock(g, P.x, P.y, P.w, P.h, '#f8ead0', '#fdf7e6', '#d8c69f');
-  fill(g, GREEN, P.x, P.y, P.w / 3, 30);
-  fill(g, '#f6f2e4', P.x + P.w / 3, P.y, P.w / 3, 30);
-  fill(g, RED, P.x + (P.w * 2) / 3, P.y, P.w - (P.w * 2) / 3, 30);
-  fill(g, RED, P.x, P.y + 30, P.w, 4);
-  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = RED; g.font = UI.font(13, true);
-  g.fillText('PALERMO', cx, P.y + 23);
-  g.fillStyle = GREEN; g.font = UI.font(7, true);
-  g.fillText('2 BLOCKS DOWN · WE DELIVER', cx, P.y + 46);
-  flow(g, P.x + IN, P.y + 60, TW, l.lines.slice(0, 3), 8, '#2b2620');
-  // the coupon, cut off along the dash
-  const cy = P.y + 96;
-  for (let i = 0; i < P.w - 16; i += 5) fill(g, 'rgba(90,84,70,0.55)', P.x + 8 + i, cy, 3, 1);
-  fill(g, '#f6d84e', P.x + 8, cy + 3, TW, P.h - 96 - 11);
-  g.strokeStyle = RED; g.lineWidth = 1;
-  g.strokeRect(P.x + 8.5, cy + 3.5, TW - 1, P.h - 96 - 12);
-  g.textAlign = 'center'; g.fillStyle = RED; g.font = UI.font(10, true);
-  g.fillText('$4 OFF ANY PIE', cx, cy + 20);
-  g.fillStyle = '#6b6455'; g.font = UI.font(6);
-  g.fillText(l.lines[3] ?? '', cx, cy + 29);
-  g.textAlign = 'left';
-};
 
 /**
  * ── A POSTCARD ─────────────────────────────────────────────────────────────
@@ -1923,34 +1833,6 @@ ART['catalogue-order'] = (g, l) => {
 };
 
 /**
- * ── THE DENTIST: A REMINDER CARD ───────────────────────────────────────────
- * 132 x 80, 1.65:1 — SMALL, STIFF AND LANDSCAPE, because that is the shape a
- * surgery's reminder card is cut to and it is barely a third of the area of the
- * sheets around it. Pale blue stock, the practice's name across the top, and a
- * ruled APPOINTMENT panel with the date left blank, which is the joke: they
- * want him to call and fill it in, and his last visit was 1993.
- */
-ART['card-dentist'] = (g, l) => {
-  const P = paper('card-dentist'), IN = 8, TW = P.w - IN * 2;
-  const cx = P.x + P.w / 2, TEAL = '#0f4b47';
-  stock(g, P.x, P.y, P.w, P.h, '#a9dcd6', '#c8ece7', '#7cb2ab');
-  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = TEAL; g.font = UI.font(8, true);
-  g.fillText('R. HALVERSEN, D.D.S.', cx, P.y + 14);
-  g.font = UI.font(6); g.fillStyle = '#5a6b6a';
-  g.fillText('GENERAL DENTISTRY · 227 W 21ST', cx, P.y + 23);
-  fill(g, TEAL, P.x + IN, P.y + 28, TW, 1);
-  flow(g, P.x + IN, P.y + 38, TW, l.lines.slice(0, 3), 6, '#2b3a39');
-  // the blank appointment panel — the point of the card
-  const py = P.y + P.h - 20;
-  g.strokeStyle = TEAL; g.lineWidth = 1;
-  g.strokeRect(P.x + IN + 0.5, py + 0.5, TW - 1, 14);
-  g.textAlign = 'left'; g.fillStyle = TEAL; g.font = UI.font(6, true);
-  g.fillText('APPOINTMENT', P.x + IN + 4, py + 9);
-  fill(g, 'rgba(47,93,90,0.45)', P.x + IN + 50, py + 10, TW - 56, 1);
-};
-
-/**
  * ── THE CHAIN LETTER: A RIBBON THAT HAS BEEN THROUGH SIX COPIERS ───────────
  *
  * *"so the chain letter and the crime watch look identical"*   (2026-08-05)
@@ -2090,43 +1972,6 @@ ART['airmail-aunt'] = (g, l) => {
   // and the letter itself, in her fountain pen, close-set the way a thin sheet
   // is written on when it is being paid for by weight
   flow(g, P.x + IN, P.y + 44, TW, l.lines, 6, '#1a2f5c');
-};
-
-/**
- * ── THE PENNY SAVER: A CLASSIFIED SHEET, SET IN COLUMNS ────────────────────
- * 148 x 178, 1:1.20 — a free weekly is a tabloid, which is squatter than a
- * letter and wider than everything else standing beside it in this table. It
- * needs that width: it is the only piece set in COLUMNS, two of them with a
- * rule between, headings in reverse, and the ads at 6 px because a free weekly
- * sells by the line and crams. Grey-brown newsprint so it reads as pulp against
- * the bank's white.
- */
-ART['classified-penny'] = (g, l) => {
-  const P = paper('classified-penny'), IN = 6;
-  const cx = P.x + P.w / 2;
-  stock(g, P.x, P.y, P.w, P.h, '#ddd6bd', '#eae4cf', '#b6ae94');
-  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  fill(g, '#d2286a', P.x, P.y + 6, P.w, 18);       // the second plate, hot pink
-  g.fillStyle = '#fbf3e2'; g.font = UI.font(11, true);
-  g.fillText('PENNY SAVER', cx, P.y + 20);
-  g.fillStyle = '#d2286a'; g.font = UI.font(6);
-  g.fillText('FREE · WEEKLY · TAKE ONE', cx, P.y + 32);
-  g.fillText(l.lines[0] ?? '', cx, P.y + 42);
-  fill(g, '#8d8672', P.x + IN, P.y + 46, P.w - IN * 2, 1);
-  // two columns with a rule between them, which is the whole look
-  const colW = Math.floor((P.w - IN * 2 - 8) / 2);
-  const colX = [P.x + IN, P.x + IN + colW + 8];
-  fill(g, 'rgba(90,84,70,0.35)', cx, P.y + 50, 1, P.h - 74);
-  const heads = ['CARS', 'ROOMS TO LET'];
-  for (let c = 0; c < 2; c++) {
-    fill(g, '#d2286a', colX[c], P.y + 54, colW, 9);
-    g.textAlign = 'left'; g.fillStyle = '#fbf3e2'; g.font = UI.font(6, true);
-    g.fillText(heads[c], colX[c] + 3, P.y + 61);
-    // one ad per column, flowed to the column measure, with a hairline under it
-    const end = flow(g, colX[c] + 2, P.y + 74, colW - 4, [l.lines[c + 1] ?? ''], 6, '#2b2620');
-    fill(g, 'rgba(90,84,70,0.30)', colX[c] + 2, end - 4, colW - 8, 1);
-  }
-  flow(g, P.x + IN, P.y + P.h - 12, P.w - IN * 2, [l.lines[3] ?? ''], 6, '#5a544a');
 };
 
 
@@ -2339,6 +2184,11 @@ ART['notice-agent'] = (g, l) => {
  * clear of one and 14% of the other — and a stub off a spine is long and
  * shallow anyway. The rows tightened to suit: nothing here is a percentage of
  * the full sheet any more, it all comes off `SHAPES`.
+ *
+ * (The dentist's card has since left the table with the other fake advertisers,
+ * so 1.59:1 is free again. IT STAYS AT 1.94:1: the shape was chosen because a
+ * stub off a spine IS long and shallow, and going back would be reasoning from
+ * the collision rather than from the object.)
  */
 ART['docket-receipt'] = (g, l) => {
   const P = paper('docket-receipt'), x = P.x, y = P.y, w = P.w, h = P.h;
@@ -2601,7 +2451,7 @@ function mailIcon(l: Letter): (g: CanvasRenderingContext2D) => void {
  * ream.
  *
  * SO EVERY PIECE IS A SHEET, AND THE SHEET IS ITS OWN SHAPE. `8fd7977c` gave
- * the fifteen junk kinds real paper rectangles, from a 2.26:1 window envelope
+ * the junk kinds real paper rectangles, from a 2.26:1 window envelope
  * to a 1:2.53 chain letter, and a dropped piece has no business being square
  * when the thing in his bag is not. The rectangle is MEASURED off the painted
  * canvas rather than read out of `SHAPES`, because a painter may sit its paper
@@ -2628,14 +2478,13 @@ function mailIcon(l: Letter): (g: CanvasRenderingContext2D) => void {
 const MAIL_T: Record<string, number> = {
   'catalogue-order': 0.020,      // 400 pages, and the cover already shows them
   'catalogue-302':   0.008,      // a seed catalogue, thin but stitched
-  'classified-penny': 0.004,     // a free weekly — folded newsprint, not a sheet
 };
 const SHEET_T = 0.0012;
 /** ONE MILLIMETRE OF ITS OWN, on top of `dropLoose`'s two. */
 const SHEET_LIFT = 0.001;
 /** sheet units to metres: the drawing space's 178 units of height ARE US
  *  letter, 279 mm, so every piece comes out the size its shape says it is —
- *  a 148x178 tabloid at 232 x 279, the chain letter's ribbon at 107 x 270. */
+ *  a 190x84 window envelope at 298 x 132, the chain letter's ribbon at 107 x 270. */
 const PAPER_M = 0.279 / SHEET.h;
 /** the same supersample the page is read at: this is looked at from a metre
  *  and a half, and 8 px type on a 1 px grid is the mush `LETTER_SS` exists to

@@ -4719,3 +4719,71 @@ advertise businesses that are not in the world, so there is nothing for them to
 agree with and they are unchanged.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-07 — *"get rid of the fake ads in the mail pls"*
+
+Straight after the three-part fix above, which ended by naming five pieces that
+advertise businesses not in this world. He read that and wants them gone.
+
+**THE TEST IS HIS: a piece of mail must not sell you something you cannot go and
+buy.** The post is the one part of this world that speaks about places you have
+not been to yet, and every fake sender spends that credit on nothing.
+
+### Removed — five pieces, painters, paper shapes and all
+
+| piece | why |
+|---|---|
+| **PALERMO PIZZA — 2 BLOCKS DOWN** | a takeaway "2 blocks down" you cannot walk to, with a $4-off coupon for a pie that does not exist |
+| **DR. R. HALVERSEN, D.D.S.** | a surgery at 227 W 21ST — one number off the building he lives in — that is not there |
+| **VIDEO 2000 — MEMBER SERVICES** | a SECOND video shop dunning him for tapes, on a street that has VIDEO HUT and only VIDEO HUT |
+| **PENNY SAVER — WEEKLY** | a whole sheet of classifieds: a sedan nobody is selling, a room nobody is letting |
+| **CITY LIGHT & POWER** | the closest call — see below |
+
+**The utility bill went for a HARDER reason than being an ad.** It is not an ad;
+it is a **demand for $18.44 you cannot pay**, sitting in the same box as the rent
+notice, which is the one demand in this world that is real and has to be read.
+A fake bill beside a real one is worse than a fake flyer beside a real one — and
+it was the same fault as the VIDEO HUT late fee deleted an hour earlier: a
+system advertised that nobody built. (Its money was pre-rescale too — $18.44 is
+1997 money in a world rescaled x4.)
+
+Deleted with them: five bespoke painters, their five entries in `SHAPES`
+(1.38:1 half-sheet, 1.26:1 fanfold, 1:1.20 tabloid, 1:1.53 statement, 1.65:1
+appointment card), the `classified-penny` thickness, and `sprockets`, whose only
+caller was the fanfold. Git history has all of it.
+
+### Kept, and why
+
+**The boundary is "could you walk to it."** Twelve pieces survive:
+
+- **Three that quote a counter you can stand at** — VIDEO HUT, THE DINER,
+  FIRST FEDERAL — all three of which now read their figures off the shop itself.
+- **Seven that are personal mail and sell nothing** — the aunt's airmail, the
+  sister's message slip, the super's note, DEB's postcard, the chain letter, the
+  envelope for the tenant before him, and the precinct's CRIMEWATCH notice.
+- **Two catalogues** — GLADSTONE'S and the seed catalogue addressed to 302.
+
+**⚠ THE TWO CATALOGUES ARE THE JUDGEMENT CALL AND HE SHOULD OVERRULE ME IF I
+HAVE IT WRONG.** Mail order by definition has no shopfront anywhere and never
+did — a catalogue is post, not a shop that is missing, which is why it does not
+fail the walk-to test the pizza place fails. It also cuts the other way: he
+asked me to make GLADSTONE'S legible one message ago, not to delete it, so
+removing it now on my own reading of a later sentence would be me overruling him
+rather than the reverse. **If he meant the catalogues too, they go the same way
+and the table drops to ten.**
+
+### The table is 17 -> 12, and that is not thin
+
+Junk now arrives about **once every eight or nine days** (measured: 147 pieces
+over 1,200 days, one sender per day, never two). Twelve pieces is roughly a
+season of post before one repeats — against seventeen at the OLD rate, which
+repeated inside a fortnight. **The pool got smaller and the gap between repeats
+got longer.** No filler was invented: if it ever wants filling, it wants a shop
+built first and a flyer for it second.
+
+The fifteen surviving paper shapes still share no aspect and still run 2.26:1 to
+1:2.53, so the shape table's whole argument survives the cut.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
