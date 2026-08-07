@@ -94,8 +94,17 @@ export function makeCrosstown(): Proto {
    *  it. Remembered across looking up and down again: coming back to the same
    *  thing you left open is what a pocket does. */
   /** the two things you can have in your hands while looking down. Two
-   *  booleans, not a cycle — see the block that reads them. */
-  let bagUp = false, watchUp = false;
+   *  booleans, not a cycle — see the block that reads them.
+   *
+   *  ⚠ THE WATCH STARTS RAISED. *"make watch on by default pls so user doesnt
+   *  have to toggle"* (2026-08-06). It is still gated on looking down past
+   *  `WATCH_PITCH` — this is not a watch drawn across the middle of the screen,
+   *  it is the first look down already having the wrist there instead of
+   *  costing a right-click. Right-click still lowers it and raises it again;
+   *  he asked to skip the first press, not to lose the arm. Nothing about this
+   *  is stored — it is a per-session view state and lives only here, so a new
+   *  session starts raised and nothing overwrites a choice he made earlier. */
+  let bagUp = false, watchUp = true;
   /** E's rising edge for the bag toggle, kept apart from `feedHeld` so the
    *  world's own [E] edge detector is not disturbed by it */
   let eDownHeld = false;
