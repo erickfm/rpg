@@ -4912,3 +4912,36 @@ base back to grey (now 22), and the camcorder glass at 0.26 read as a blue-grey
 slab laid over the stock (now 0.14).
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-07 — "extend this street out so theres an on ramp to a high way out of town"
+
+> "extend this street out so theres an on ramp to a high way out of town"
+
+He was standing in the main street in the rain looking NORTH — TAX SERVICE on his
+left, the car lot's bunting past it, the maroon sedan at the kerb. What closed the
+far end of that shot was `ct/street.ts`'s cap building, a 2 x FACE brick shell at
+z 14.2…20.2 put there so the block would not simply end in fog.
+
+**The cap is gone and the street runs out through it.** Past the building line the
+walks carry on, chain link closes both sides, and at z 18.0 the road is shut with
+jersey barriers, a chain-link panel, ROAD CLOSED and NO PEDESTRIANS. Beyond that —
+visible, not reachable — the roadway lifts on embankment and piers, swings east on
+a banked 14 m curve, and merges at 8.5 m into ROUTE 97, elevated on hammerhead
+piers and running out of town. A green overhead guide sign on a cantilever gantry
+says NORTH · 97 · PORT ELDRIDGE, and a MERGE diamond stands on the ramp's shoulder.
+
+New leaf module `ct/onramp.ts` (ORDER 90, globbed in by `ct/world.ts`); the only
+edit outside it is the deletion of the cap block in `ct/street.ts`.
+
+**The closure is at z 18 for a reason, and there is one trunk line behind it.**
+`crosstown.ts:1223` clamps the player at `maxZ: Math.max(13, interiorMaxZ())`,
+which today lands at about z 19 — a hard invisible wall in `fp.ts`. So the
+diegetic stop is put SOUTH of it: the barrier line at 18.0 halts a 0.36 m body at
+17.64 and the clamp is never what he meets. To walk the last 30 m and stand under
+the viaduct, that one line has to become `Math.max(50, interiorMaxZ())`; then
+`Z_BAR` moves north and the whole closure walks with it. Not taken here — another
+builder holds the trunk.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
