@@ -5,6 +5,9 @@ import { BUILD, ORDER as HOOK } from './ctx';
 // there. Nothing in this module writes to `apartment.ts` or depends on its
 // internals — only on where the building stands and how tall a storey is.
 import { APT_X0, ST0 } from './apartment';
+// Read-only, and no cycle: `hud.ts` does not import this module. `ct/osd.ts`
+// DOES (for the menu's VOLUME row), which is why nothing here imports osd.
+import { panelUp } from './hud';
 
 // ════════════════════════════════════════════════════════════════════════════
 // SOUND
@@ -197,6 +200,7 @@ const BIRDS = ['bird-1', 'bird-2'] as const;
 const EVENTS = [
   'land-soft', 'land-hard', 'wall-hit',
   'light-on', 'light-off', 'drawer-open', 'door-open', 'door-close',
+  'register-1', 'register-2', 'mail-open', 'mail-close', 'sleep',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -273,6 +277,9 @@ const LVL = {
   door: 0.55,      // multiplied by distance
   light: 0.60,
   drawer: 0.50,
+  register: 0.45,
+  mail: 0.55,
+  sleep: 0.50,
 };
 
 /** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
@@ -696,7 +703,59 @@ export function register(ctx: CtxBuild): void {
   const leaves = new Map<string, { o: THREE.Object3D; shut: number; open: number; prev: number }>();
   let leavesFound = false;
 
+  // ── the till ──────────────────────────────────────────────────────────────
+  //
+  // ONE WATCHER COVERS EVERY SHOP. `ctx.purse` is on `CtxBuild`, so money
+  // leaving his pocket is visible here without knowing a single shop exists —
+  // and `ct/shop.ts`, the pawnbroker, the ATM, rent and the six new shopfronts
+  // all go through it. A register that had to be wired per counter would have
+  // been six edits and would have missed the seventh.
+  //
+  // GATED ON THE PANEL, because money also moves at a slot machine and on every
+  // blackjack hand, and a ka-ching per spin is the difference between charming
+  // and unbearable. `hud.ts` names the live panel, so the machines can be named
+  // and excluded rather than guessed at by amount.
+  const MACHINES = new Set(['ct-slots', 'ct-blackjack', 'ct-atm']);
+  let lastCash = ctx.purse.cash;
+  let tillAt = -99;
+
+  // ── the mailbox ───────────────────────────────────────────────────────────
+  // `tenancy.ts` raises and lowers a named sheet (`tenancy-letter-sheet`) as
+  // the letter view opens and closes. There is no animated brass door in this
+  // world — checked — so the sheet is the honest signal, and it means "a letter
+  // came up", which is what the sound is for.
+  let sheet: THREE.Object3D | null = null, sheetUp = false;
+
+  // ── sleeping ──────────────────────────────────────────────────────────────
+  // `ctx.clock` is on the context and the bed advances it with `overSeconds: 0`,
+  // so a sleep is a jump no frame time can explain. Everything else moves the
+  // clock smoothly.
+  let lastMin = ctx.clock.now().totalMin;
+
   const watchScene = (t: number) => {
+    // the till
+    const cash = ctx.purse.cash;
+    if (cash < lastCash - 0.001 && t - tillAt > 0.9 && !MACHINES.has(panelUp() ?? '')) {
+      tillAt = t;
+      fire(roll() < 0.5 ? 'register-1' : 'register-2', LVL.register * (0.9 + roll() * 0.2), 1, (roll() - 0.5) * 0.2);
+    }
+    lastCash = cash;
+
+    // the mailbox
+    if (!sheet) sheet = scene.getObjectByName('tenancy-letter-sheet') ?? null;
+    if (sheet && sheet.visible !== sheetUp) {
+      sheetUp = sheet.visible;
+      worldOf(sheet);
+      atPoint(sheetUp ? 'mail-open' : 'mail-close', WP.x, WP.z, LVL.mail, 10);
+    }
+
+    // sleeping. Anything above a couple of game-minutes in one frame is a cut,
+    // not the clock running: at the world's own rate a frame is a fraction of a
+    // minute, and `advance` lands the whole night inside one.
+    const now = ctx.clock.now().totalMin;
+    if (now - lastMin > 5) fire('sleep', LVL.sleep, 1, 0);
+    lastMin = now;
+
     if (!rocker) { rocker = scene.getObjectByName('switch-301-rocker') ?? null; if (rocker) rockY = rocker.position.y; }
     else {
       const y = rocker.position.y;
