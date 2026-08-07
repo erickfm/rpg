@@ -929,6 +929,7 @@ export function register(ctx: CtxBuild): void {
   // covers the rise, the apex and the fall alike, and a crouch jump reads
   // airborne because tucking your knees changes neither term.
   let lastX = NaN, lastZ = NaN;
+  let wasAir = false;     // last frame's answer, so touchdown is an EDGE
   let acc = 0;            // metres of stride banked since the last footfall
   let stepAt = 0;         // when the last one played, on the frame clock
   let stepPick = -1;      // which sample it was, so it is not picked twice
@@ -1087,6 +1088,22 @@ export function register(ctx: CtxBuild): void {
     const indoors = inside(f.px);
     const pool = indoors ? IN_STEPS : OUT_STEPS;
 
+    /** ONE FOOTFALL for this surface. The walk and the touchdown both go
+     *  through here so there is no second opinion about what a step sounds
+     *  like — a landing that differed by so much as a level would read as an
+     *  event, and he asked for a step.
+     *
+     *  `indoors` is the same |x| > 100 fact the ambience crossfades on, read
+     *  RAW rather than through `ins`: the bed slews over half a second and a
+     *  footstep does not — the first step inside the door should be a
+     *  floorboard while the street is still fading out behind it. */
+    const step = () => fire(pool[pick(pool.length)],
+      (indoors ? LVL.stepIn : LVL.stepOut) * (0.78 + roll() * 0.44),
+      // Detune per step. Eight files played flat is eight files; eight files
+      // with ±7% on the rate is a walk.
+      0.93 + roll() * 0.14,
+      (roll() - 0.5) * 0.24);
+
     if (moved > TELEPORT) {
       // A door, a stairwell, a bed. Bank nothing and do not let the arrival
       // land a footstep — the transition already has a fade over it.
@@ -1097,28 +1114,35 @@ export function register(ctx: CtxBuild): void {
       // ground, and holding the metres would pay them all out the instant he
       // landed, which is the same wrong sound arriving late.
       acc = 0;
-      // TOUCHDOWN IS SILENT. *"get rid of all the landing sounds"* (2026-08-06).
-      // There was a footstep played harder and pitched down, then dedicated
-      // `body land` / `body land feet` recordings chosen by air time; both are
-      // gone, along with their files. Landing needs no edge case at all now —
-      // the frame he touches down carries one frame of movement against a bank
-      // this branch has been holding at zero, so the walk simply resumes.
+    } else if (wasAir) {
+      // TOUCHDOWN: ONE FOOTSTEP, and nothing else. *"on land just play a single
+      // step please. of whatever the step should be for the given env"*
+      // (2026-08-06, refining *"get rid of all the landing sounds"* the same
+      // day). What he threw out was the DEDICATED thud — `body land` and `body
+      // land feet`, picked by air time, deleted and not coming back. What he
+      // wants is a step.
+      //
+      // So this is `step()` with no argument: the identical call the walk makes,
+      // off `pool`, which is `indoors` — the same surface test the cadence on
+      // either side of the landing uses, so a jump indoors can never touch down
+      // on pavement. NO louder and NO lower: it shipped once at 1.35x and -14%,
+      // which is a stylised landing, and he asked for a single step.
+      //
+      // ONE step, not two: this branch is `else if`, so the stride case below
+      // does not also run this frame, and it hands over with the bank empty and
+      // the clock reset — `acc` has been held at 0 all the way down, and
+      // `stepAt` makes the next stride wait out STEP_MIN like any other.
+      acc = 0;
+      stepAt = f.t;
+      step();
     } else {
       acc = Math.min(acc + moved, STRIDE);   // clamped, so a sprint cannot queue
       if (acc >= STRIDE && f.t - stepAt >= STEP_MIN) {
         acc = 0;
         stepAt = f.t;
-        // `indoors` above is the same |x| > 100 fact the ambience crossfades
-        // on, read RAW rather than through `ins`: the bed slews over half a
-        // second and a footstep does not — the first step inside the door
-        // should be a floorboard while the street is still fading out behind it.
-        fire(pool[pick(pool.length)],
-          (indoors ? LVL.stepIn : LVL.stepOut) * (0.78 + roll() * 0.44),
-          // Detune per step. Eight files played flat is eight files; eight
-          // files with ±7% on the rate is a walk.
-          0.93 + roll() * 0.14,
-          (roll() - 0.5) * 0.24);
+        step();
       }
     }
+    wasAir = air;
   }, HOOK.LATE);
 }
