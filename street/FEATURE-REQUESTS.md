@@ -4935,13 +4935,29 @@ says NORTH · 97 · PORT ELDRIDGE, and a MERGE diamond stands on the ramp's shou
 New leaf module `ct/onramp.ts` (ORDER 90, globbed in by `ct/world.ts`); the only
 edit outside it is the deletion of the cap block in `ct/street.ts`.
 
-**The closure is at z 18 for a reason, and there is one trunk line behind it.**
-`crosstown.ts:1223` clamps the player at `maxZ: Math.max(13, interiorMaxZ())`,
-which today lands at about z 19 — a hard invisible wall in `fp.ts`. So the
-diegetic stop is put SOUTH of it: the barrier line at 18.0 halts a 0.36 m body at
-17.64 and the clamp is never what he meets. To walk the last 30 m and stand under
-the viaduct, that one line has to become `Math.max(50, interiorMaxZ())`; then
-`Z_BAR` moves north and the whole closure walks with it. Not taken here — another
-builder holds the trunk.
+**AND THEN THE TRUNK OPENED AND HE CAN WALK IT.** The first cut closed the whole
+section at z 18, because `crosstown.ts:1223` clamped the player at
+`maxZ: Math.max(13, interiorMaxZ())` — about z 19, a hard invisible wall in
+`fp.ts` — so the diegetic stop had to go south of it. That delivered a freeway he
+could see and not reach, which is not the ask. The floor of that max is now **60**,
+and the closure is what a closed road actually is: it shuts the CARRIAGEWAY at the
+ramp mouth and **the west footway walks straight past it**, 38 metres out
+alongside the ramp behind a chain-link fence, ending under the viaduct deck with
+ROUTE 97 seven metres over his head.
+
+Four boxes hold him and between them they are a closed pen with one way in — west
+fence on the building line, the road closure across x −5…7.4, the ramp fence with
+its face on the kerb line at x −5.00, and the end closure under the deck. He comes
+to rest at z 57.24, **2.76 m short of the clamp**, so the clamp is still never the
+thing he meets. The footway is the block's own 2.0 m section the whole way: both
+fences put their FACE on a line the walk already ended at and their BODY outside
+it, so the clear span is 2.000 m by construction, not by tuning.
+
+The `Math.max` against the belt is kept — it is what stops a deep interior room
+being clamped short of its own front wall, and the bound only ever grows, so no
+room can be hurt by raising the floor. The w85 measurement that defended the old
+13 (*"a collider stops him first everywhere he can stand"*) is now historical: the
+wall at 14.20 that it measured has been deleted. The principle it established is
+what the four boxes are built to.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

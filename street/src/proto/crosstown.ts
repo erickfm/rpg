@@ -1226,7 +1226,11 @@ export function makeCrosstown(): Proto {
   // Published below as `__ct.bounds()`. The literal lives here rather than at
   // the call site so that the two readings can never disagree.
   const WORLD_BOUNDS = { minX: westBound(), maxX: interiorMaxX(),
-    minZ: -110.6, maxZ: Math.max(13, interiorMaxZ()) };
+    // 60, not 13: the street runs out to a freeway now and the footway reaches
+    // z 57.6. See the long note on `bounds:` below for what the 13 was and why
+    // the measurement that defended it has expired. Still a `Math.max` against
+    // the belt, so no room can be clamped short of its own front wall.
+    minZ: -110.6, maxZ: Math.max(60, interiorMaxZ()) };
   rig = new FPRig(cam, { x: SPAWN.x, z: SPAWN.z, yaw: SPAWN.yaw }, {
     // maxX reaches only as far as the interiors actually built — every room
     // is constructed by now, so this is the real east edge, not a reservation
@@ -1249,40 +1253,51 @@ export function makeCrosstown(): Proto {
     // That check holds and is worth keeping written down. The number is
     // derived rather than typed because that is the part that cannot go stale:
     // the next site to deepen would need someone to remember this line again.
-    // maxZ ASKS THE BELT, the way maxX always has. 13 is the end of the
-    // street; a room deeper than 26 m reaches past it and the player was
-    // clamped short of its own front wall, unable to reach the way-out spot at
-    // `hd - 0.55`. Measured by G on the casino at d 30 (BLOCKED-G 1b).
+    // maxZ ASKS THE BELT, the way maxX always has, and the floor of that max
+    // is the end of the WALKABLE WORLD to the north. A room deeper than
+    // 2 x floor reaches past it and the player is clamped short of its own
+    // front wall, unable to reach the way-out spot at `hd - 0.55`. Measured by
+    // G on the casino at d 30 (BLOCKED-G 1b). The `Math.max` is what protects
+    // interiors from this number; raising the floor cannot hurt them, because
+    // the bound only ever grows.
     //
-    // ── THIS ONE RECTANGLE HAS NOW BEEN QUEUED AS A DEFECT TWICE. IT IS NOT
-    //    ONE. DO NOT MAKE IT REGIONAL WITHOUT RE-MEASURING THE BELOW.
+    // ── THE FLOOR WAS 13 AND IS NOW 60. WHY IT MOVED (2026-08-07) ─────────
     //
-    // The complaint, both times, is that ONE bounds rectangle covers the street
-    // AND the interior belt 600 m east, so `Math.max(13, interiorMaxZ())` hands
-    // the STREET 6 m of north walking it has no geometry for. The arithmetic is
-    // right: the clamp really does sit at z 19 while the street's own end is 13.
+    // *"extend this street out so theres an on ramp to a high way out of town"*.
+    // The block's north cap at z 14.2 is gone and `ct/onramp.ts` runs the
+    // street out to an elevated freeway: a footway on x -7…-5 out to z 57.6,
+    // ending under the viaduct deck. At 13 he was clamped at z 19 and could see
+    // the whole thing and reach none of it.
     //
-    // **It buys the player nothing, because a collider stops him first
-    // everywhere he can stand.** Walked, not reasoned about (w85, item 230,
-    // `scripts/probes/w85-item230-walk-the-claims.mjs`): held `w` northward from
-    // twelve starting points swept across x 8…30, plus the road at x -6…6, and
-    // the furthest north ANY of them reached is **z 13.83** — the north end wall
-    // at 14.20 less the player's 0.36 radius. That is 5.17 m short of the clamp,
-    // so the clamp is never the thing that stops him.
+    // ── WHAT THE OLD TEXT HERE SAID, AND WHY IT NO LONGER APPLIES ────────
     //
-    // And there is nothing out there to reach: north of the car lot the drawn
-    // floor ends at z 14.0 (exact triangle raycast; `w75-site-contained`'s
-    // bounding-box predicate claims floor out to 16.5 and its header's "real
-    // pavement out to z 16.75" is that over-reach, not pavement — photographed
-    // at `shots/w85-north-z16-down.png`, where the ground ends in a hard edge
-    // and the rest of the frame is sky). The strip beyond is a separate open
-    // component with ZERO floor cells in it, unreachable from any component that
-    // has any.
+    // This rectangle had been queued as a defect twice and was correctly
+    // defended twice: **the clamp bought the player nothing, because a collider
+    // stopped him first everywhere he could stand.** Walked, not reasoned about
+    // (w85, item 230, `scripts/probes/w85-item230-walk-the-claims.mjs`): `w`
+    // held northward from twelve starting points across x 8…30 plus the road at
+    // x -6…6, and the furthest north ANY reached was **z 13.83** — the north end
+    // wall at 14.20 less the 0.36 radius. North of the car lot the drawn floor
+    // ended at z 14.0 and the strip beyond had ZERO floor cells.
     //
-    // So a regional bound would be a change to `fp.ts` — the world's movement
-    // core — that moves the player's reachable set by exactly nothing. The
-    // standing check is `scripts/world-contained.mjs`: if it ever reports a
-    // reachable cell north of z 13, this reasoning has expired.
+    // **That measurement is now historical: the geometry it measured has been
+    // deleted.** The wall at 14.20 is gone, there is drawn floor to 58, and the
+    // strip beyond IS reachable and is meant to be. What has NOT changed is the
+    // principle it established, and `ct/onramp.ts` is built to it — the four
+    // boxes that close the new ground (two fences, the road closure at the ramp
+    // mouth, the end closure under the deck) stop a 0.36 m body at z 57.24,
+    // 2.76 m short of this clamp, so the clamp is STILL never what he meets.
+    //
+    // Everywhere else north of 14.2 is sealed by geometry that did not move:
+    // the car lot's north flank over x 7…30.2 (`ct/street.ts`, the FLANK_T
+    // note) and the bank's own shell west of the street.
+    //
+    // So a regional bound would still be a change to `fp.ts` — the world's
+    // movement core — that moves the player's reachable set by exactly nothing.
+    // The standing check is `scripts/world-contained.mjs`: it should now report
+    // reachable cells north of 13 as far as **z 57.24 on x -7…-5 only**, and
+    // nowhere else. A reachable cell north of 14.2 at any other x means one of
+    // `ct/onramp.ts`'s four boxes has a seam in it.
     bounds: WORLD_BOUNDS,
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
     // THE ONE COMMITTING CALL. FPRig asks this only at `this.pos.x/z` (fp.ts

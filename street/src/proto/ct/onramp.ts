@@ -12,42 +12,47 @@ import type { CtxBuild } from './ctx';
 // — `ct/street.ts`'s "cross building closing the north end". That cap is gone;
 // this module is what you see through the hole it left.
 //
-// ── the shape of it, north to south as you look up the street ─────────────
+// ── the shape of it, north from the block ─────────────────────────────────
 //
-//   z 14.2   the block's building line. Nothing stands across it any more.
-//   z 18.0   THE CLOSURE. Jersey barriers, a chain-link panel, ROAD CLOSED and
-//            NO PEDESTRIANS. This is as far as anyone walks.
-//   z 20-34  the roadway carries on and LIFTS, straight up the middle of the
-//            street, on embankment and then on piers.
-//   z 34-48  it swings east on a banked 14 m curve.
-//   x 14-38  the deck runs east at 15 % to 8.5 m and merges.
-//   z 52-68  ROUTE 97, elevated on hammerhead piers, running out of town.
+//   z 14.2      the block's building line. Nothing stands across it any more.
+//   z 19.8      THE ROAD CLOSURE, across the carriageway and the EAST walk:
+//               jersey barriers, chain link, ROAD CLOSED, NO PEDESTRIANS.
+//   z 20-34     the roadway carries on and LIFTS, straight up the middle of
+//               the street, on embankment and then on piers.
+//   z 34-48     it swings east on a banked 14 m curve.
+//   x 14-38     the deck runs east at 15 % to 8.5 m and merges.
+//   z 52-68     ROUTE 97, elevated on hammerhead piers, running out of town.
 //
-// ── WHY THE CLOSURE IS AT z 18 AND NOT AT THE RAMP MOUTH ─────────────────
+//   x -7…-5     AND THE WEST FOOTWAY GOES THE WHOLE WAY, z 14.2 → 57.6,
+//               fenced from the ramp, and ends under the viaduct deck.
 //
-// Because `crosstown.ts:1223` clamps the player at
-// `maxZ: Math.max(13, interiorMaxZ())`, which today lands at about z 19 — and
-// that clamp is a HARD invisible wall in `fp.ts`, the exact thing the ask says
-// this must not feel like. So the diegetic stop is put SOUTH of it: the
-// barrier line at 18.0 stops a 0.36 m body at 17.64, a metre and a third clear
-// of the clamp, and the clamp is therefore never the thing he meets.
+// ── HOW HE IS KEPT IN, AND WHY IT IS NOT A WALL ACROSS THE STREET ────────
 //
-// That is also why the ramp is not walkable and never will be from here. To
-// give the player the last 30 m the world bound has to move, and that is one
-// line in a trunk file this module is not allowed to enter:
+// The first cut of this closed the whole section at z 18 and he could see the
+// freeway and never reach it. That is not the ask: he said extend the street
+// OUT to an on-ramp OUT OF TOWN, and being stopped six metres short of it is
+// the thing looked at, not the thing arrived at.
 //
-//     crosstown.ts:1223   maxZ: Math.max(13, interiorMaxZ())
-//                      →  maxZ: Math.max(50, interiorMaxZ())
+// So the closure is now what a closed road actually is — it shuts the
+// CARRIAGEWAY, and the footway walks past it. Four boxes hold the player, and
+// between them they are a closed pen with one way in:
 //
-// If that ever lands, move `Z_BAR` north to the ramp mouth and the closure
-// walks with it — everything here is measured off that one constant.
+//   · west fence      x -7.45…-7.05   z 14.2 … 58.4   (the building line)
+//   · road closure    x -5.00… 7.40   z 19.5 … 20.1   (the ramp mouth)
+//   · ramp fence      x -5.00…-4.70   z 19.5 … 58.4   (footway | ramp)
+//   · end closure     x -7.45…-4.70   z 57.6 … 58.2   (under the deck)
 //
-// ── THE 2 m LANE IS UNTOUCHED ────────────────────────────────────────────
+// Nothing else on the route is new ground: everywhere else north of 14.2 was
+// already sealed by the car lot's north flank (x 7…30.2) and the bank's own
+// shell, and those did not move.
 //
-// The walks continue at x ±5.1…7 exactly as they run through the block. The
-// side fences stand at x ±7.05…7.45 — their FACE is on the building line and
-// their body is outside it, the same rule `ct/street.ts`'s site frontage rail
-// was moved for. Nothing this module builds stands in the walk.
+// ── THE 2 m LANE IS UNTOUCHED, THE WHOLE 43 m ────────────────────────────
+//
+// The footway is x -7…-5, which is the same 2.0 m section it has through the
+// block. Both fences put their FACE on a line the walk already ended at and
+// their BODY outside it — the west one at -7.05 (west of FACE), the ramp one
+// at -5.00 (east of the kerb, standing in the closed roadway). The clear span
+// between them is 2.000 m by construction, not by tuning.
 
 export const ORDER = 90;   // dead last: this creates textures, and every
                            // texture painted after a new one is re-grained
@@ -56,7 +61,10 @@ export const ORDER = 90;   // dead last: this creates textures, and every
 
 // ── the survey ────────────────────────────────────────────────────────────
 const Z_BLOCK = 14.2;      // the block's north building line
-const Z_BAR = 18.0;        // the closure. As far north as anyone stands.
+const Z_BAR = 19.8;        // the road closure, at the ramp mouth
+const Z_END = 57.6;        // where the footway stops, under the viaduct deck
+const WALK_X0 = -FACE;     // the footway, and it is the block's own section
+const WALK_X1 = -ROAD_HALF;
 const KERB = 0.14;
 
 // ── WHY THE RAMP CLIMBS STRAIGHT BEFORE IT TURNS ─────────────────────────
@@ -78,18 +86,29 @@ const RISE_S = 2.0;        // flat for 2 m, then it climbs
 const DECK_Y = 8.5;        // the freeway's road surface
 const RAMP_HW = 4.2;       // deck half-width
 const DECK_T = 0.5;
+// The deck's first metre. NOT 0.03: `crosstown.ts` lays the street's centre
+// line as a plane at y 0.03 and it runs to z 36, straight under here, and two
+// coplanar surfaces z-fight (GOTCHAS §6).
+const DECK_Y0 = 0.07;
 // ~15 %, steeper than a real ramp, and it is the right lie. The rise has to
 // happen INSIDE the fog (FOG_FAR is 100 and the block's own end is at 14): at
 // a true 6 % the deck is still at knee height where the haze takes it and the
 // whole thing reads as a flat plate, which is exactly what the first cut did.
-const GRADE = (DECK_Y - 0.03) / (S3 - RISE_S);
+const GRADE = (DECK_Y - DECK_Y0) / (S3 - RISE_S);
 
 // The mainline. Its south edge is where the ramp's north deck edge lands —
 // `RAMP_Z0 + S1 + R_ARC + RAMP_HW` — so the two abut rather than overlap
 // (GOTCHAS §6), and both are stated once here.
 const VIA_Z0 = RAMP_Z0 + S1 + R_ARC + RAMP_HW;   // 52.2
 const VIA_Z1 = VIA_Z0 + 16;                      // 68.2
-const VIA_X0 = -60, VIA_X1 = 88;                 // and how far it runs in x
+// x IS BOUNDED BY THE REGION CULL, not by taste. `crosstown.ts` classifies a
+// top-level child as street geometry — hideable while the player is in the
+// interior belt — only if its bounding SPHERE's east extent is under
+// REGION_X = 100, and it errs towards keeping. A viaduct 148 m long centred at
+// x 14 has a 74 m sphere radius and lands at 88.4; the wasteland plane under it
+// was worse at 106.8, i.e. permanently drawn behind a wall you cannot see past.
+// Both are sized to clear it now.
+const VIA_X0 = -60, VIA_X1 = 80;                 // and how far it runs in x
 const VIA_T = 1.0;
 const GIRDER_H = 1.7;      // the edge beam. THE SILHOUETTE IS THIS DEEP, not
                            // the slab — a 1 m plate on sticks reads as an
@@ -109,7 +128,7 @@ function at(s: number): Sample {
     z = RAMP_Z0 + S1 + R_ARC * Math.sin(t);
     yaw = t;
   } else { x = R_ARC + (s - S2); z = RAMP_Z0 + S1 + R_ARC; yaw = Math.PI / 2; }
-  const y = 0.03 + Math.max(0, s - RISE_S) * GRADE;
+  const y = DECK_Y0 + Math.max(0, s - RISE_S) * GRADE;
   // banked INTO the turn, eased over 4 m either side of the arc. `rotation.z`
   // is applied inside the yawed group, so it turns about the deck's own
   // longitudinal axis; positive lifts local +x, which at yaw 0 is world +x —
@@ -262,13 +281,13 @@ function chainLinkTex(): THREE.Texture {
 }
 
 /** the tile's real size on the wall — one diamond of mesh */
-const LINK_M = 0.62;
+const LINK_M = 0.50;
 
 export function register(ctx: CtxBuild): void {
   const { scene, flat, wet, obstacle } = ctx;
 
   const concreteM = flat(concreteTex());
-  const barrierM = flat(concreteTex('#a29d94', '#8f8a80'));
+  const barrierM = flat(concreteTex('#8e8a82', '#7c786f'));
   const pierM = flat(concreteTex('#4e4c47', '#413f3b'));
   const steelM = new THREE.MeshBasicMaterial({ color: 0x5a6068 });
   const deckTop = flat(rampTopTex());
@@ -299,26 +318,40 @@ export function register(ctx: CtxBuild): void {
       for (let i = 0; i < 14; i++) g.fillRect((i * 41) % 64, (i * 23) % 64, 6, 4);
     }), 'ground');
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(24, 16);
-    const g0 = new THREE.Mesh(new THREE.PlaneGeometry(160, 94), wet(flat(t)));
+    const g0 = new THREE.Mesh(new THREE.PlaneGeometry(150, 88), wet(flat(t)));
     g0.rotation.x = -Math.PI / 2;
-    g0.position.set(14, -0.02, 50);
+    g0.position.set(8, -0.02, 56);
     add(g0);
   }
 
-  // ── 2. the walks run on to the closure ──────────────────────────────────
+  // ── 2. the walks run on — the west one all the way ──────────────────────
   //
-  // `ct/tex-ground.ts` lays them to z 16.5. Four more metres, on the same
-  // `walkTex` sheet and at the same KERB_H + 0.04 box, so the joint at 16.5 is
-  // a slab joint and not a change of material.
-  const WZ0 = 16.5, WZ1 = Z_BAR + 0.7;
+  // `ct/tex-ground.ts` lays them to z 16.5. These carry on from there on the
+  // same `walkTex` sheet and in the same KERB_H + 0.04 box, so the joint at
+  // 16.5 is a slab joint and not a change of material.
+  //
+  // NOTHING REGISTERS A GROUND HEIGHT FOR THEM AND NOTHING NEEDS TO.
+  // `crosstown.ts`'s `groundPick` already ends in
+  // `Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0`, which
+  // is a rule about x alone and answers for every z. So the slab I lay and the
+  // height he stands on are the same 0.14 by construction — a `ctx.ground`
+  // registration here would be a SECOND statement of it, and two statements of
+  // one height is how you get a walk you sink into (GOTCHAS §7).
   const walkDark = new THREE.MeshBasicMaterial({ color: 0x605d56 });
-  for (const [x0, x1] of [[-FACE, -ROAD_HALF - 0.1], [ROAD_HALF + 0.1, FACE]] as [number, number][]) {
+  const walkSlab = (x0: number, x1: number, z0: number, z1: number) => {
     const h = KERB + 0.04;
-    const top = wet(flat(walkTex(x0, x1, WZ0, WZ1)));
-    const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, h, WZ1 - WZ0),
+    const top = wet(flat(walkTex(x0, x1, z0, z1)));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, h, z1 - z0),
       [walkDark, walkDark, top, walkDark, walkDark, walkDark]);
-    m.position.set((x0 + x1) / 2, h / 2 - 0.04, (WZ0 + WZ1) / 2);
+    m.position.set((x0 + x1) / 2, h / 2 - 0.04, (z0 + z1) / 2);
     add(m);
+  };
+  // the east walk stops at the closure; the west one is the way out of town.
+  // Laid in 14 m lengths because `walkTex` paints a sheet per region and one
+  // 42 m sheet would stretch its slab joints along z.
+  walkSlab(ROAD_HALF + 0.1, FACE, 16.5, Z_BAR + 0.7);
+  for (let z = 16.5; z < Z_END + 0.6; z += 14) {
+    walkSlab(WALK_X0, WALK_X1 - 0.1, z, Math.min(z + 14, Z_END + 0.6));
   }
 
   // ── 3. the sides close, so the corridor is exactly the street ───────────
@@ -354,36 +387,54 @@ export function register(ctx: CtxBuild): void {
     t.repeat.set(wM / LINK_M, hM / LINK_M); t.needsUpdate = true;
     return new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.25, side: THREE.DoubleSide });
   };
-  for (const side of [-1, 1]) {
-    const zA = Z_BLOCK, zB = side > 0 ? 30 : 34;     // the east run stops short
-    const H = 2.4, len = zB - zA, fx = side * 7.22;
+  /** One run of chain link along z, on a given x. Posts, top rail, weeds. */
+  const fenceRun = (fx: number, zA: number, zB: number, H: number, weedX: number) => {
+    const len = zB - zA;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(len, H), linkMat(len, H));
     mesh.rotation.y = Math.PI / 2;
-    mesh.position.set(fx, H / 2, (zA + zB) / 2);
+    mesh.position.set(fx, H / 2 + KERB * 0.5, (zA + zB) / 2);
     add(mesh);
-    // posts and the top rail, so it is a fence and not a decal
-    for (let z = zA; z <= zB + 0.01; z += 2.6) box(0.09, H, 0.09, steelM, fx, H / 2, z);
-    box(0.07, 0.07, len, steelM, fx, H - 0.06, (zA + zB) / 2);
-    // weeds at its foot, outside the walk, where nobody mows
-    for (let i = 0; i < 7; i++) {
-      add(weedTuft({ x: side * (7.42 + (i % 3) * 0.2), z: zA + 1.2 + i * 2.3, y: 0, scale: 0.9 + (i % 4) * 0.16, seed: i * 7 + side }));
+    for (let z = zA; z <= zB + 0.01; z += 2.6) box(0.09, H, 0.09, steelM, fx, H / 2 + KERB * 0.5, z);
+    box(0.07, 0.07, len, steelM, fx, H + KERB * 0.5 - 0.06, (zA + zB) / 2);
+    for (let i = 0; i * 2.9 < len - 1.5; i++) {
+      add(weedTuft({ x: weedX + (i % 3) * 0.18, z: zA + 1.2 + i * 2.9, y: 0,
+        scale: 0.9 + (i % 4) * 0.16, seed: i * 7 + Math.round(fx) }));
     }
-    // and it is SOLID for as far as the player can reach. Face on the building
-    // line at ±7.05, body outside it — the walk keeps all 2 m.
-    obstacle({ minX: Math.min(side * 7.05, side * 7.45), maxX: Math.max(side * 7.05, side * 7.45),
-      minZ: Z_BLOCK, maxZ: Z_BAR + 0.8 });
+  };
+  // WEST — the building line, and it runs the whole way out
+  fenceRun(-7.22, Z_BLOCK, Z_END + 0.6, 2.4, -7.42);
+  obstacle({ minX: -7.45, maxX: -7.05, minZ: Z_BLOCK, maxZ: Z_END + 0.8 });
+  // EAST — only as far as the closure; past it the ramp swings over this line
+  fenceRun(7.22, Z_BLOCK, Z_BAR + 0.6, 2.4, 7.42);
+  obstacle({ minX: 7.05, maxX: 7.45, minZ: Z_BLOCK, maxZ: Z_BAR + 0.8 });
+
+  // ── 4b. THE FENCE THAT KEEPS HIM OFF THE RAMP ───────────────────────────
+  //
+  // This is the one that matters. Between the footway and a rising carriageway
+  // there has to be something for 38 m, and it has to be continuous — the ramp
+  // deck is at knee height at z 22 and at eye height by z 34, so a gap anywhere
+  // along it is a place to step up onto a road.
+  //
+  // ITS FACE IS THE KERB LINE, x -5.00, and its body stands in the CLOSED
+  // roadway east of it. The footway keeps -7…-5 entire.
+  {
+    const H = 2.2, zA = Z_BAR - 0.3, zB = Z_END + 0.6;
+    box(0.30, 0.34, zB - zA, concreteM, -4.85, 0.17, (zA + zB) / 2);   // its kerb
+    fenceRun(-4.85, zA, zB, H, -4.62);
+    obstacle({ minX: -5.00, maxX: -4.70, minZ: zA, maxZ: zB });
   }
 
-  // ── 5. THE CLOSURE ──────────────────────────────────────────────────────
+  // ── 5. THE ROAD CLOSURE, AT THE RAMP MOUTH ──────────────────────────────
   //
-  // Six jersey barriers across the full section, a chain-link panel standing
-  // behind them, ROAD CLOSED on the road half and NO PEDESTRIANS on the walk.
-  // This is the only thing between the player and 60 m of freeway ramp, and it
-  // is the thing he should see coming from 40 m away.
+  // ACROSS THE CARRIAGEWAY AND THE EAST WALK ONLY — x -5.00 to 7.40. It stops
+  // at the west kerb line, and the footway walks past its end. That is what a
+  // closed road looks like and it is the whole reason he can get out of town
+  // on foot at all.
+  const BAR_X0 = WALK_X1, BAR_X1 = 7.4;
   {
-    const BH = 0.85, BW = 0.36;
-    for (let i = 0; i < 6; i++) {
-      const x0 = -7.1 + i * 2.38, len = 2.3;
+    const BH = 0.85, BW = 0.36, N = 6, pitch = (BAR_X1 - BAR_X0) / N;
+    for (let i = 0; i < N; i++) {
+      const x0 = BAR_X0 + i * pitch, len = pitch - 0.08;
       const onWalk = Math.abs(x0 + len / 2) > ROAD_HALF;
       const base = onWalk ? KERB : 0;
       // the profile: a wide foot and a narrower top, which is what reads as a
@@ -395,25 +446,24 @@ export function register(ctx: CtxBuild): void {
         x0 + 0.12, base + BH * 0.78, Z_BAR - BW * 0.32);
     }
     // the fence panel behind the barriers
-    const PH = 2.1, PW = 14.5;
+    const PH = 2.1, PW = BAR_X1 - BAR_X0, PX = (BAR_X0 + BAR_X1) / 2;
     const pm = new THREE.MeshBasicMaterial({ map: linkT.clone(), alphaTest: 0.25, side: THREE.DoubleSide });
     pm.map!.repeat.set(PW / LINK_M, PH / LINK_M); pm.map!.needsUpdate = true;
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(PW, PH), pm);
-    panel.position.set(0, PH / 2 + 0.05, Z_BAR + 0.34);
+    panel.position.set(PX, PH / 2 + 0.05, Z_BAR + 0.34);
     add(panel);
-    for (let x = -7.1; x <= 7.2; x += 2.38) box(0.1, PH, 0.1, steelM, x, PH / 2 + 0.05, Z_BAR + 0.34);
-    box(0.08, 0.08, 0.08, steelM, 0, PH + 0.05, Z_BAR + 0.34);
+    for (let x = BAR_X0; x <= BAR_X1 + 0.01; x += pitch) box(0.1, PH, 0.1, steelM, x, PH / 2 + 0.05, Z_BAR + 0.34);
     const rail = new THREE.Mesh(new THREE.BoxGeometry(PW, 0.07, 0.07), steelM);
-    rail.position.set(0, PH + 0.02, Z_BAR + 0.34); add(rail);
+    rail.position.set(PX, PH + 0.02, Z_BAR + 0.34); add(rail);
 
     // ROAD CLOSED, hung on the barriers in the middle of the carriageway
     const bd = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.9),
       new THREE.MeshBasicMaterial({ map: closedBoardTex(), side: THREE.DoubleSide }));
-    bd.position.set(-1.3, 1.42, Z_BAR - 0.24);
+    bd.position.set(0.3, 1.42, Z_BAR - 0.24);
     bd.rotation.y = Math.PI;                       // painted face turned south
     add(bd);
-    box(0.09, 1.5, 0.09, steelM, -2.7, 0.75, Z_BAR - 0.24);
-    box(0.09, 1.5, 0.09, steelM, 0.1, 0.75, Z_BAR - 0.24);
+    box(0.09, 1.5, 0.09, steelM, -1.1, 0.75, Z_BAR - 0.24);
+    box(0.09, 1.5, 0.09, steelM, 1.7, 0.75, Z_BAR - 0.24);
 
     // NO PEDESTRIANS, on the east walk where a person would actually try
     const sg = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 1.22),
@@ -423,9 +473,45 @@ export function register(ctx: CtxBuild): void {
     add(sg);
     box(0.09, 2.6, 0.09, steelM, 5.95, KERB + 1.3, Z_BAR - 0.5);
 
-    // COLLISION. One box, the width of the world's corridor, standing where
-    // the barriers stand. A 0.36 m body comes to rest at z 17.64.
-    obstacle({ minX: -7.3, maxX: 7.3, minZ: Z_BAR - 0.28, maxZ: Z_BAR + 0.5 });
+    // COLLISION. It reaches the WEST KERB LINE and stops there — it must not
+    // round up into the footway or the way out of town closes itself. It abuts
+    // the ramp fence's own box at exactly x -5.00, so there is no seam between
+    // them for a 0.36 m body to find.
+    obstacle({ minX: BAR_X0, maxX: BAR_X1 - 0.1, minZ: Z_BAR - 0.19, maxZ: Z_BAR + 0.5 });
+  }
+
+  // ── 5b. THE END OF THE FOOTWAY, UNDER THE DECK ──────────────────────────
+  //
+  // 38 m out, standing between the viaduct's two girders with ROUTE 97 seven
+  // metres over your head, the pavement runs into the pier line and stops.
+  // Chain link across it, one barrier, and a sign that says so.
+  {
+    const H = 2.3, W = WALK_X1 - 0.15 - (WALK_X0 - 0.25);
+    const CX = (WALK_X0 - 0.25 + WALK_X1 - 0.15) / 2;
+    const pm = new THREE.MeshBasicMaterial({ map: linkT.clone(), alphaTest: 0.25, side: THREE.DoubleSide });
+    pm.map!.repeat.set(W / LINK_M, H / LINK_M); pm.map!.needsUpdate = true;
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(W, H), pm);
+    panel.position.set(CX, KERB + H / 2, Z_END + 0.15);
+    add(panel);
+    for (const x of [WALK_X0 - 0.2, CX, WALK_X1 - 0.2]) box(0.1, H, 0.1, steelM, x, KERB + H / 2, Z_END + 0.15);
+    const rl = new THREE.Mesh(new THREE.BoxGeometry(W, 0.07, 0.07), steelM);
+    rl.position.set(CX, KERB + H - 0.04, Z_END + 0.15); add(rl);
+    // the barrier in front of it, so the stop has weight
+    box(W - 0.3, 0.36, 0.34, barrierM, CX, KERB + 0.18, Z_END - 0.15);
+    box(W - 0.3, 0.50, 0.22, barrierM, CX, KERB + 0.61, Z_END - 0.15);
+    const sg = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 1.08),
+      new THREE.MeshBasicMaterial({ map: regSignTex(['SIDEWALK', 'ENDS']), side: THREE.DoubleSide }));
+    // NORTH OF THE STOP LINE, and hard against the ramp fence. It stood on a
+    // post at z 57.18 in the middle of the footway — 6 cm SOUTH of where the
+    // closure brings a 0.36 m body to rest, so he walked through the post. A
+    // prop the player can reach needs a collider or needs to be out of reach;
+    // this one is out of reach, which costs nothing.
+    sg.position.set(WALK_X1 - 0.42, KERB + 1.85, Z_END + 0.02);
+    sg.rotation.y = Math.PI;
+    add(sg);
+    box(0.09, 2.2, 0.09, steelM, WALK_X1 - 0.42, KERB + 1.1, Z_END + 0.07);
+    // reaches the ramp fence's own box at -4.70, so the pen has no seam
+    obstacle({ minX: WALK_X0 - 0.45, maxX: -4.70, minZ: Z_END, maxZ: Z_END + 0.6 });
   }
 
   // ── 6. the guide sign, cantilevered over the roadway ────────────────────
