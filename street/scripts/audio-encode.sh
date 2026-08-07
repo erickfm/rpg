@@ -227,8 +227,9 @@ sfx register-1   "Cash Register 1.wav"     0.00 1.55 32000
 sfx register-2   "Cash Register 3.wav"     0.00 1.90 32000
 
 echo "the body:"
-sfx land-soft    "body land feet.wav"      0.00 0.58 22050
-sfx land-hard    "body land.wav"           0.01 1.00 22050
+# `land-soft`/`land-hard` (body land feet / body land) were cut 2026-08-06:
+# *"get rid of all the landing sounds"*. Landing is silent, so the files are not
+# encoded — the artifact inlines this whole directory and dead oggs ship with it.
 sfx wall-hit     "body wall hit.wav"       0.08 0.34 22050
 
 echo "the block, and the alley:"

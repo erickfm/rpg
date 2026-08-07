@@ -198,7 +198,7 @@ const BIRDS = ['bird-1', 'bird-2'] as const;
 /** The second delivery — 26 more files, named for their purpose. These are
  *  EVENTS: one file, one thing happening, nothing looped. */
 const EVENTS = [
-  'land-soft', 'land-hard', 'wall-hit',
+  'wall-hit',
   'light-on', 'light-off', 'drawer-open', 'door-open', 'door-close',
   'register-1', 'register-2', 'mail-open', 'mail-close', 'sleep',
   'truck-pass-1', 'truck-pass-2', 'bus-arrive', 'bus-depart',
@@ -274,7 +274,6 @@ const LVL = {
   stepOut: 0.55,
   stepIn: 0.50,
   bird: 0.70,      // multiplied by distance
-  land: 0.60,
   door: 0.55,      // multiplied by distance
   light: 0.60,
   drawer: 0.50,
@@ -930,8 +929,6 @@ export function register(ctx: CtxBuild): void {
   // covers the rise, the apex and the fall alike, and a crouch jump reads
   // airborne because tucking your knees changes neither term.
   let lastX = NaN, lastZ = NaN;
-  let wasAir = false;     // last frame's answer, so touchdown is an EDGE
-  let airFrom = 0;        // when he left the ground — air time IS the fall
   let acc = 0;            // metres of stride banked since the last footfall
   let stepAt = 0;         // when the last one played, on the frame clock
   let stepPick = -1;      // which sample it was, so it is not picked twice
@@ -1100,27 +1097,12 @@ export function register(ctx: CtxBuild): void {
       // ground, and holding the metres would pay them all out the instant he
       // landed, which is the same wrong sound arriving late.
       acc = 0;
-    } else if (wasAir) {
-      // TOUCHDOWN. This used to be a footstep played harder and pitched down,
-      // because a footstep was all there was. `body land feet` and `body land`
-      // are the real thing and they replace it.
-      //
-      // WHICH OF THE TWO IS CHOSEN BY HOW LONG HE WAS OFF THE GROUND, which is
-      // the only severity measure available without the rig publishing a fall
-      // speed — and it is a good one, because air time IS the fall. `fp.ts`
-      // jumps at vy 4.0 against gravity 14, so a flat hop hangs for 4/14 up and
-      // the same down: 0.57 s. Anything longer than that came off something.
-      const airFor = f.t - airFrom;
-      const hard = airFor > 0.72;
-      acc = 0;
-      stepAt = f.t;
-      fire(hard ? 'land-hard' : 'land-soft',
-        // Louder the further he fell, but flattening out — a 6 m drop and a
-        // 12 m drop are both just "hard", and this world has no fall damage to
-        // make the difference mean anything.
-        LVL.land * Math.min(1.25, 0.72 + airFor * 0.55),
-        0.95 + roll() * 0.1,
-        (roll() - 0.5) * 0.16);
+      // TOUCHDOWN IS SILENT. *"get rid of all the landing sounds"* (2026-08-06).
+      // There was a footstep played harder and pitched down, then dedicated
+      // `body land` / `body land feet` recordings chosen by air time; both are
+      // gone, along with their files. Landing needs no edge case at all now —
+      // the frame he touches down carries one frame of movement against a bank
+      // this branch has been holding at zero, so the walk simply resumes.
     } else {
       acc = Math.min(acc + moved, STRIDE);   // clamped, so a sprint cannot queue
       if (acc >= STRIDE && f.t - stepAt >= STEP_MIN) {
@@ -1138,7 +1120,5 @@ export function register(ctx: CtxBuild): void {
           (roll() - 0.5) * 0.24);
       }
     }
-    if (air && !wasAir) airFrom = f.t;
-    wasAir = air;
   }, HOOK.LATE);
 }
