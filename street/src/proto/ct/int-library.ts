@@ -1371,23 +1371,53 @@ export function buildLibrary(ctx: CtxBuild): void {
     box(0.09, 0.02, 0.11, beigeDM, lx - 0.42, y + 0.015, lz + 0.30); // …and its mouse
   };
 
-  // ── the public OPAC bank ──
+  // ── the public OPAC bank, UNDER THE BALCONY ──
   //
-  // On the open reading floor rather than against a wall, because the whole
-  // point of a 1997 catalogue terminal is that it is the thing everybody is
-  // queueing at. Screens face WEST, into the room, so you meet them looking at
-  // you as you come through the doors rather than as three grey backs.
+  // *"library layout needs a reorg … the librarian desk the shelves the
+  // computer area, the reading tables. also use the underneath of the balcony.
+  // i cant currently walk under the balcony"* (2026-08-05). `b9e9c26e` made the
+  // floor level-aware and gave the room back the 34.8 m² under the deck; this
+  // is the half that was held back so he could walk it first.
   //
-  // Placed in the strip between the issue desk and the stair, which was the
-  // only large piece of floor in here doing nothing. Checked against both
-  // neighbours rather than eyeballed: the table runs x 3.22..3.98, the desk's
-  // U stops at x -1.85 and the gallery starts at x 6.90, so the walk from the
-  // doors to the bottom tread is 2.9 m clear and the main aisle west of the
-  // bank is 4.5 m.
+  // THE BANK WAS AN ISLAND IN THE MAIN WALK. It stood at x 3.07..4.13,
+  // z 2.35..5.65 — dead in the line from the doorway (x 0, z 11) to the foot of
+  // the flight (x 6.90..9.90, z 5.40), which is the one route across this room
+  // that everybody takes twice. A bank of terminals is not a thing to walk
+  // round; the queue at it stands where the queue for the stair is.
+  //
+  // AND UNDER THE DECK IS EXACTLY THE ROOM FOR IT. 2.64 m of headroom over a
+  // 3.0 x 11.6 m strip: too low for a 1.95 m stack to stand under without
+  // reading as a cellar, and precisely right for a bench of machines you sit
+  // at. A low-ceilinged bay of beige boxes under a timber gallery is what a
+  // branch that has just been given four PCs actually does with them, and it
+  // gives the deck something to be OVER — from the reading floor the soffit now
+  // roofs a room instead of hanging over nothing.
+  //
+  // AGAINST THE EAST WALL, at the SOUTH end of the bay, so you meet it the
+  // moment you duck under the deck coming from the hall. Screens still face
+  // WEST, so the amber prompt is read from the reading floor between the deck's
+  // posts rather than being sealed in.
+  //
+  // ⚠ EVERY COLLIDER UNDER THIS DECK IS `solidAt(0, …)`, NOT `solid`. A
+  // collider is a 2D AABB extruded to infinite height, so a bench registered
+  // with a plain `solid` down here would stand in the middle of the GALLERY
+  // 2.90 m above it — an invisible wall in a library, which is the worst thing
+  // this room can ship. `solidAt(0, …)` is live while the player is on the
+  // ground and parked while they are on the deck. Same fix, one level down,
+  // as the balustrade above.
+  //
+  // Measured, ground level, under the deck:
+  //   deck posts (collider) east face   x 7.12
+  //   bench collider          west face x 8.97      1.85 m of clear lane
+  //   bench collider         south face z -0.75     1.35 m to the stair-head fence
+  //   bench collider         north face z -4.05     1.05 m to the printer stand
+  // and the bay is open to the hall along the WHOLE 11.6 m of its west side —
+  // three 0.26 m posts in 11.6 m — so the lane is a bay you step into sideways,
+  // never a corridor you have to commit to.
   // hoisted out of the block below: the seated reader further down this file
   // needs the middle terminal's chair, and a sitter placed from a second copy
   // of these numbers is the two-authorings fault this whole file keeps fixing.
-  const BX = 3.60, BZ0 = 2.40, BZ1 = 5.60;
+  const BX = 9.50, BZ0 = -4.00, BZ1 = -0.80;
   const BZC = (BZ0 + BZ1) / 2, BL = BZ1 - BZ0, BENCH_TOP = 0.74;
   const TERM_CX = BX - 1.00;              // where its chairs stand
   // WHICH terminal has somebody at it, read by the chair loop below and by the
@@ -1397,6 +1427,18 @@ export function buildLibrary(ctx: CtxBuild): void {
   // queue asked for by name ("give at least one screen a lit amber or green
   // catalogue prompt"). Shot it, saw the amber gone, moved the person.
   const TERM_TAKEN_Z = BZ0 + 0.55;
+  // ⚠ A SEAT UNDER THE DECK IS OFFERED FROM UNDER THE DECK ONLY.
+  //
+  // `Seat` carries no level and `fp.ts`'s picker is 2D, so a chair at
+  // (8.50, -3.45) is within `r` of the very same x/z on the GALLERY 2.90 m
+  // above it. Without this the prompt reads through the floor and pressing E on
+  // the deck seats you on a chair you are standing over.
+  //
+  // `ctx.player.gy()` is documented as "the GROUND under him, never his own y",
+  // which is exactly the quantity wanted: 0 on this floor, GALLERY_Y on the
+  // deck. Halfway between them is the test, derived rather than typed, so it
+  // follows the deck if the deck ever moves.
+  const underDeck = () => room.inside() && ctx.player.gy() < GALLERY_Y / 2;
   {
     const TOP = BENCH_TOP;
     // 0.92 m deep, not 0.76. The user: *"check they are not clipping their
@@ -1414,7 +1456,7 @@ export function buildLibrary(ctx: CtxBuild): void {
     // machines on a table reading as three machines abandoned on a table, and
     // it hides the cable run the way the real thing does
     box(0.05, 0.46, BL, woodDark, BX + 0.42, TOP + 0.23, BZC);
-    solid(BX, BZC, 1.06, BL + 0.1);
+    solidAt(0, BX, BZC, 1.06, BL + 0.1);
 
     // THREE, and one of them is out — the same fact as the dead troffer in the
     // ceiling. A room where every machine works has a facilities budget.
@@ -1456,9 +1498,16 @@ export function buildLibrary(ctx: CtxBuild): void {
     // while fixing item 5g, unfixed until now (item 5j). Derived from
     // `PASSABLE` rather than a bigger literal, so it stays provably clear if
     // the bench ever changes depth.
+    //
+    // IT MOVED TO THE OTHER END OF THE BENCH when the bank went under the deck.
+    // Derived off the bench's SOUTH face it landed at z 0.66, standing on the
+    // stair-head fence at the mouth of the bay — the one 3 m of this strip that
+    // has to stay clear, because it is where you walk in. Off the NORTH face it
+    // sits deeper in the bay with the same `PASSABLE`-derived gap, which is
+    // also where a printer belongs: away from the door, next to nobody.
     {
-      const BENCH_BACK = BZC + (BL + 0.1) / 2;
-      const px = BX, pz = BENCH_BACK + PASSABLE + 0.10 + 0.36;   // +0.36 = the stand's own half-depth
+      const BENCH_NORTH = BZC - (BL + 0.1) / 2;
+      const px = BX, pz = BENCH_NORTH - PASSABLE - 0.10 - 0.36;   // -0.36 = the stand's own half-depth
       box(0.70, 0.06, 0.62, wood, px, 0.72, pz);                  // the stand
       for (const dx of [-0.28, 0.28]) for (const dz of [-0.25, 0.25]) {
         box(0.06, 0.72, 0.06, woodDark, px + dx, 0.36, pz + dz);
@@ -1482,7 +1531,7 @@ export function buildLibrary(ctx: CtxBuild): void {
       // and the fan-fold carton it feeds from, on the shelf below
       box(0.40, 0.30, 0.50, card, px, 0.15, pz);
       box(0.34, 0.05, 0.44, paper, px, 0.32, pz);                 // the stack in it
-      solid(px, pz, 0.8, 0.72);
+      solidAt(0, px, pz, 0.8, 0.72);                              // ground only — see the bank
     }
 
     // ── and you can sit at them ──
@@ -1521,7 +1570,7 @@ export function buildLibrary(ctx: CtxBuild): void {
         // unplayable for days. A terminal is a dumb glass teletype; what is
         // drawn here is a beige mid-90s PC.
         label: 'sit at the computer',
-        ok: () => room.inside(),
+        ok: underDeck,
       });
     }
   }
