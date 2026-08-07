@@ -1831,23 +1831,52 @@ export function buildLibrary(ctx: CtxBuild): void {
   // tables under the windows, and that is one object, in one place, that a
   // player reads as the point of the room.
   //
-  // Placed in the west-centre, the largest piece of floor doing nothing, and
-  // checked against all four of its neighbours rather than eyeballed:
+  // ══ AND IT IS A RANK NOW, AND IT IS IN THE DAYLIGHT ══════════════════════
   //
-  //   the stacks end at z -2.00      the north chairs sit at z -0.35   1.65 m
-  //   the issue desk starts at 3.20  the south chairs sit at z  1.55   1.65 m
-  //   the alcove chair is at x -7.8  the table's west end is at -6.40  0.85 m
-  //   the wear decal runs x ±0.75 from z 3.80 — no overlap at all
+  // *"library layout needs a reorg … the reading tables"* (2026-08-05).
   //
-  // It is an ISLAND, not a run: nothing about it divides the floor, which is
-  // the failure mode the auditor measured when this room doubled in area and
-  // its clear aisle fell to 2.10 m.
-  const RT_X = -4.0, RT_Z = 0.6, RT_LEN = 4.8, RT_D = 1.10;
+  // The comment above says a Carnegie hall's centrepiece is "a RANK of long
+  // tables under the windows" and then built ONE table, at x -4.0, z 0.6 — the
+  // dead centre of a 22 m room, 10.4 m from the doorway. **THIS ROOM HAS NO
+  // WINDOWS.** `DOOR.leaf.glazing` is `'none'` and there is not a pane in any
+  // of the four walls: the doorway and its fanlight are the only daylight in
+  // 440 m², and the table was as far from them as it is possible to sit.
+  //
+  // So the rank is real — two tables, not one — and it comes FORWARD, into the
+  // half of the room the doors actually light. It is also what you now see on
+  // entering, which the single table never was: from the threshold you look
+  // down a hall of lamp-lit tables with the stacks behind them, and the room
+  // states what it is in one glance instead of reading as a corridor.
+  //
+  // Nothing in it is taller than 1.17 m (the lamp shades), so the rank does not
+  // block the sightline to the stacks, the stair or the gallery. That is the
+  // whole argument for putting TABLES in front of the door and shelving behind
+  // them, rather than the other way round.
+  //
+  // Measured against every neighbour, collider face to collider face:
+  //
+  //   the issue desk's U   z 6.085   the north table's collider ends 5.05  1.03 m
+  //   the two tables                 2.10 m between their colliders
+  //   the stacks begin at  z -1.96   the south table's collider ends 0.35  2.31 m
+  //   the deck posts at    x  6.86   the tables' east end is at      1.10  5.76 m
+  //   the alcove case at   x -9.42   the tables' west end is at     -3.90  5.52 m
+  //
+  // The two chairs that face each other across the 2.10 m gap leave 1.06 m
+  // between their backs, which is the aisle between two ranks of a reading
+  // room and is what that gap is for.
+  const RT_X = -1.4, RT_LEN = 4.8, RT_D = 1.10;
+  // THE RANK: the near table in the doorway's light, the far one behind it.
+  const RT_Z_N = 4.4, RT_Z_S = 1.0;
   // WHICH CHAIRS HAVE SOMEBODY IN THEM — one list, read twice: once to skip
   // registering the chair as free, and once to place the reader. Two lists
   // would drift, and this file has fixed that fault four times already.
-  const TAKEN = [{ dx: -1.6, side: -1 }, { dx: 1.6, side: 1 }] as const;
-  {
+  // It carries the TABLE now as well as the chair, because there are two.
+  const TAKEN = [{ z: RT_Z_N, dx: -1.6, side: -1 },
+    { z: RT_Z_S, dx: 1.6, side: 1 }] as const;
+  // ONE TABLE, BUILT TWICE. The rank has to be two authorings of one object or
+  // the pair drifts — the fault this file has fixed four times — so everything
+  // below is a function of the table's own z and nothing else.
+  const readingTable = (RT_Z: number) => {
     boxFace(RT_LEN, 0.08, RT_D, wood, RT_X, 0.74, RT_Z,
       FACE_PY, RT_LEN, RT_D, '#6b5334');
     for (const dx of [-RT_LEN / 2 + 0.3, 0, RT_LEN / 2 - 0.3]) {
@@ -1890,7 +1919,7 @@ export function buildLibrary(ctx: CtxBuild): void {
         // which chairs are offered, so the two can never disagree. When I first
         // shipped the readers all six chairs were still registered and you
         // could sit down INSIDE one of them.
-        if (TAKEN.some((t) => t.dx === dx && t.side === side)) continue;
+        if (TAKEN.some((t) => t.z === RT_Z && t.dx === dx && t.side === side)) continue;
         ctx.seat({
           x: room.wx(cx), z: room.wz(cz),
           yaw: side < 0 ? Math.PI : 0, h: SEAT_TOP,
@@ -1900,7 +1929,9 @@ export function buildLibrary(ctx: CtxBuild): void {
         });
       }
     }
-  }
+  };
+  readingTable(RT_Z_N);
+  readingTable(RT_Z_S);
 
   // ── PEOPLE, SEATED, FROM THE ATLAS ───────────────────────────────────────
   //
@@ -1952,7 +1983,7 @@ export function buildLibrary(ctx: CtxBuild): void {
       fit: 'plain', cut: 'long', build: 1 },
   ] as const;
   TAKEN.forEach((t, i) => {
-    sitter(LOOKS[i % LOOKS.length], RT_X + t.dx, RT_Z + t.side * 0.95,
+    sitter(LOOKS[i % LOOKS.length], RT_X + t.dx, t.z + t.side * 0.95,
       t.side < 0 ? 0 : Math.PI);
   });
 
@@ -2113,10 +2144,20 @@ export function buildLibrary(ctx: CtxBuild): void {
     }
     solid(UM_X, UM_Z, 0.4, 0.4);
 
-    // and what the readers left on the table
-    box(0.30, 0.04, 0.22, new THREE.MeshBasicMaterial({ color: 0xe4dfcd }), RT_X - 1.6, 0.80, RT_Z - 0.30);
-    box(0.24, 0.14, 0.18, woodDark, RT_X + 1.0, 0.85, RT_Z + 0.20);
-    box(0.22, 0.12, 0.16, wood, RT_X + 1.0, 0.98, RT_Z + 0.20);
+    // and what the readers left on the table — ONE ITEM IN FRONT OF EACH OF
+    // THEM, off `TAKEN` rather than off a table constant, so a paper cannot end
+    // up on an empty table while a reader sits at a bare one. The open sheet
+    // goes to the first reader and the pile of books to the second, each on
+    // THEIR side of THEIR table.
+    const paperM = new THREE.MeshBasicMaterial({ color: 0xe4dfcd });
+    box(0.30, 0.04, 0.22, paperM,
+      RT_X + TAKEN[0].dx, 0.80, TAKEN[0].z + TAKEN[0].side * 0.30);
+    // two books, the upper one smaller than the lower, so no pair of sides is
+    // coplanar (GOTCHAS §6) — the same footprint twice would z-fight down both
+    // long edges of the pile.
+    const pileZ = TAKEN[1].z + TAKEN[1].side * 0.20;
+    box(0.24, 0.14, 0.18, woodDark, RT_X + TAKEN[1].dx, 0.85, pileZ);
+    box(0.22, 0.12, 0.16, wood, RT_X + TAKEN[1].dx, 0.98, pileZ);
   }
 
   // ── THE PERIODICALS ALCOVE ───────────────────────────────────────────────
@@ -2354,6 +2395,12 @@ export function buildLibrary(ctx: CtxBuild): void {
   //
   // One decal down the middle of the room, from the door toward the stacks.
   // Municipal lino wears in a line, and the line is where everybody goes.
+  //
+  // IT STOPS AT THE READING RANK NOW. It ran z 3.80..10.20 and the near table's
+  // collider reaches 5.05, so with the tables forward the worn walking line ran
+  // UNDER a table — a wear mark where nobody can walk. The traffic forks here
+  // anyway, west to the issue desk and east to the stair, so the honest line is
+  // the one length everybody shares: the doorway into the hall.
   const wearT = declareSurface(pixTex(24, 96, (g) => {
     g.clearRect(0, 0, 24, 96);
     for (let y = 0; y < 96; y++) {
@@ -2366,8 +2413,9 @@ export function buildLibrary(ctx: CtxBuild): void {
       }
     }
   }), 'ground');
-  const wear = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 6.4),
+  const WEAR_L = 4.6;
+  const wear = new THREE.Mesh(new THREE.PlaneGeometry(1.5, WEAR_L),
     new THREE.MeshBasicMaterial({ map: wearT, transparent: true, depthWrite: false }));
   wear.rotation.x = -Math.PI / 2;
-  put(wear, room.doorAt, 0.004, D / 2 - 4.0);
+  put(wear, room.doorAt, 0.004, D / 2 - WEAR_L / 2);
 }
