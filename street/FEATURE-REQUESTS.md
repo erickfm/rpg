@@ -4469,3 +4469,47 @@ can receive furniture, and that is a real piece of work and not a line of code.
 No facade was touched — both rooms declare their door where the painter is
 already drawing it, so the street is unchanged and the ROOM is now the authority.
 15 doors declared, 15 arrived. `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-06 — the library layout, the half that was held back
+
+> *"library layout needs a reorg. try to find a better way to use the space to
+> organize all the stuff in it. the librarian desk the shelves the computer
+> area, the reading tables. also use the underneath of the balcony. **i cant
+> currently walk under the balcony**"*
+
+The last clause was cleared first: `b9e9c26e` made interiors level-aware, so the
+room's floor function can offer several candidate heights and the 34.8 m² under
+the deck is real floor with 2.64 m of headroom. The layout half was deliberately
+held back so he could walk it before anything was arranged in it. This is that
+half, shipped in five pieces to one builder.
+
+**WHAT WAS WRONG.** The OPAC bank was an island in the one route everybody walks
+twice — x 3.07..4.13, z 2.35..5.65, dead in the line from the doorway to the
+foot of the flight. The reading table was a single table at the dead centre of a
+22 m room, 10.4 m from the doorway, in a room whose only daylight is that
+doorway (`glazing: 'none'` — there is not a pane in any of the four walls). 50 m²
+behind the stacks held one wall run and was not on the way to anywhere. And
+34.8 m² under the deck had just become floor and had nothing in it.
+
+**THE NEW ZONING.** Entrance hall: issue desk and card catalogue where they were
+(a librarian watches who comes in), and the periodicals moved out of the west
+alcove to the east wall beside the doors, where the light is. Reading hall: a
+rank of two long tables brought forward into that light, on the room's spine,
+nothing in it taller than a lamp shade so the sightline to the stacks, the stair
+and the gallery survives. Stacks unchanged. Behind them, the reference bay — a
+plan chest of oversize atlases, a four-seat table, the globe at its mouth, and a
+sign naming it. Under the balcony: the computer bay at the south end and three
+study carrels at the north, which is what a 2.64 m ceiling wants — nothing down
+there stands taller than 1.19 m.
+
+**Every collider under the deck is `solidAt(0, …)`**, because a collider is a 2D
+AABB extruded to infinite height and a plain `solid` down there is an invisible
+wall standing in the middle of the gallery. **Every seat under the deck carries a
+level test** the `Seat` interface does not have (`ctx.player.gy() < GALLERY_Y/2`),
+because the spot picker is 2D and the prompt would otherwise read up through the
+floor of the deck. 25 seats registered — including the alcove chair, which had
+stood unregistered since the alcove was built.
+
+`ct/int-library.ts` only. `WORLD OK`. Live on 5177.
