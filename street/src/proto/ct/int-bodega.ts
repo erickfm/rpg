@@ -598,7 +598,16 @@ export function buildBodega(ctx: CtxBuild): void {
   // room was pulled up for twice. It now reads CF_X/CF_Z/CF_H, so the card
   // goes wherever the bench goes.
   room.sign(cardT('COFFEE', '2.50'), 0.5, 0.25, CF_X + 0.02, CF_H + 0.125, CF_Z, Math.PI / 2);
-  room.sign(cardT('NO', 'LOITERING'), 0.5, 0.25, CTR_X - 0.6, 1.72, CTR_Z);
+  // ✗ `NO LOITERING` USED TO BE HERE, AND IT HUNG IN OPEN AIR.
+  //   (2026-08-06) *"get rid of this floating sign"* — it was typed at
+  //   `CTR_X - 0.6, 1.72, CTR_Z`, which is 0.1 m PAST the counter's customer
+  //   face and 0.67 m above its top: nothing under it, nothing behind it, and
+  //   the nearest wall 2.3 m away. Same fault as the COFFEE card two lines up
+  //   — a typed y with no surface named — but it survived that sweep because
+  //   the sweep only re-derived the cards it could pair with a fixture. This
+  //   one could not be paired with anything, which was the finding, not an
+  //   exemption. Removed rather than re-hung; if the room wants the notice
+  //   back it belongs taped to the door glass or the till's back wall.
   room.sign(cardT('ATM INSIDE', 'CASH ONLY'), 0.52, 0.26, 0, 1.9, hd - 0.08);
 
   // ── the bell on the door ──
@@ -762,7 +771,7 @@ export function buildBodega(ctx: CtxBuild): void {
   //
   // A bodega does not have a menu board; it has HANDWRITTEN CARDS, and this room
   // has been making them since it was built — `cardT` above paints `COFFEE .65`
-  // on the coffee bench, `NO LOITERING` on the counter, `ATM INSIDE CASH ONLY`
+  // on the coffee bench, `ICE COLD` taped to the cooler, `ATM INSIDE CASH ONLY`
   // by the door: cream card stock, blue marker, a shadow along the bottom edge.
   // The price list is the same card, bigger, standing on the counter where the
   // customer reads it. Same stock, same marker, prices in red because that is
