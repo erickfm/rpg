@@ -420,10 +420,88 @@ export const WRISTWATCH = defineItem({
   ),
 });
 
+// ── THE VIDEO HUT ──────────────────────────────────────────────────────────
+//
+// **A RENTED TAPE AND A TAPE YOU OWN ARE DIFFERENT OBJECTS, and that is what
+// makes the shop's two tape lines two lines rather than one line priced twice.**
+// The world's `VHS` is *"no label. Somebody taped over something."* — a home
+// tape, a black slab with biro on it. What a rental shop hands over is a great
+// yellow clamshell with the cover art slid under the sleeve and the shop's own
+// sticker on the spine. Ex-rentals are those same cases sold off at $10, which
+// is the `2 FOR $20` painted on the shopfront; a home tape is not.
+//
+// Palette straight off `videoFront` in `ct/tex-world.ts`: #1e5aa8 the blue,
+// #f2c22a the yellow, and the five spine colours the facade cycles through its
+// racks — so the boxes on the shelves inside are the boxes painted in the glass.
+
+export const RENTAL = defineItem({
+  id: 'RENTAL', name: 'rental tape', stack: 2,
+  thick: 0.035,
+  blurb: 'BE KIND, REWIND. Somebody did not.',
+  icon: (g) => {
+    box(g, '#f2c22a', 3, 2, 18, 20);                   // the clamshell
+    box(g, '#d8a81e', 3, 2, 3, 20);                    // the spine
+    box(g, '#e8e0cc', 7, 4, 12, 12);                   // the cover art, slid in
+    box(g, '#2f3d6a', 8, 5, 10, 7);
+    box(g, '#b8402c', 8, 13, 10, 2);
+    box(g, '#1e5aa8', 6, 18, 12, 3);                   // the shop's own sticker
+    box(g, '#f2c22a', 8, 19, 6, 1);
+  },
+  // THE BIG CLAMSHELL, 200 x 30 x 120 — the real size, lying face up.
+  model: () => mOf(
+    mBox(0.120, 0.030, 0.200, '#f2c22a', 0, 0.015, 0),
+    mBox(0.096, 0.032, 0.150, '#e8e0cc', 0, 0.016, -0.012),
+    mBox(0.080, 0.034, 0.090, '#2f3d6a', 0, 0.017, -0.030),
+    mBox(0.122, 0.012, 0.036, '#1e5aa8', 0, 0.020, 0.080),
+  ),
+});
+
+export const BLANKS = defineItem({
+  id: 'BLANKS', name: 'three blank tapes', stack: 2,
+  thick: 0.08,
+  blurb: 'shrink-wrapped, and one of them will eat something.',
+  icon: (g) => {
+    box(g, '#241f1a', 3, 5, 18, 15);                   // three tapes, banded
+    box(g, '#3a352d', 3, 5, 18, 2);
+    box(g, '#241f1a', 3, 10, 18, 1); box(g, '#241f1a', 3, 15, 18, 1);
+    box(g, '#1e5aa8', 6, 5, 12, 15);                   // the paper band round them
+    box(g, '#f2c22a', 7, 9, 10, 4);
+    box(g, '#1e5aa8', 8, 10, 7, 2);
+    box(g, 'rgba(255,255,255,0.18)', 3, 5, 18, 2);     // the wrap catching the light
+  },
+  // THREE TAPES IN A SLEEVE — 188 x 78 x 104, a real three-pack.
+  model: () => mOf(
+    mBox(0.188, 0.078, 0.104, '#241f1a', 0, 0.039, 0),
+    mBox(0.110, 0.080, 0.106, '#1e5aa8', 0, 0.040, 0),
+    mBox(0.070, 0.026, 0.108, '#f2c22a', 0, 0.044, 0),
+  ),
+});
+
+export const POPCORN = defineItem({
+  id: 'POPCORN', name: 'microwave popcorn', stack: 4,
+  thick: 0.03,
+  blurb: 'the box says two and a half minutes. It is lying.',
+  icon: (g) => {
+    box(g, '#c8302a', 2, 6, 20, 13);                   // the flat carton
+    box(g, '#a82820', 2, 6, 20, 2);
+    box(g, '#e8e0cc', 5, 9, 14, 7);                    // the label panel
+    box(g, '#c8302a', 6, 10, 12, 2);
+    box(g, '#d8b84a', 6, 13, 8, 2);                    // the kernels printed on it
+    box(g, '#a82820', 2, 17, 20, 2);
+  },
+  // A FLAT CARTON OF THREE BAGS, 190 x 30 x 130.
+  model: () => mOf(
+    mBox(0.190, 0.030, 0.130, '#c8302a', 0, 0.015, 0),
+    mBox(0.130, 0.032, 0.070, '#e8e0cc', 0, 0.016, 0),
+    mBox(0.192, 0.008, 0.132, '#a82820', 0, 0.030, 0),
+  ),
+});
+
 /** every id this file declares, so a sweep can ask "does all stock have art?" */
 export const GOODS: string[] = [
   BURGER.id, CHICKEN.id, FRIES.id, PIE.id, SHAKE.id, COFFEE.id,
   EGGS.id, PLATTER.id, SANDWICH.id, CHIPS.id,
   COAT.id, SHIRT.id, BELT.id, BOOK.id,
   RADIO.id, WRISTWATCH.id,
+  RENTAL.id, BLANKS.id, POPCORN.id,
 ];
