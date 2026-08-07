@@ -668,6 +668,26 @@ const FOCUS_DARK = 0.62;
 /** the room's own dim level, for mapping between the two. Mirrors
  *  `ROOM_DARK` in `ct/apartment.ts`; it is a ratio here, not a second source. */
 const ROOM_DARK_REF = 0.34;
+/**
+ * ── THE ROOM'S LIGHT, AS A FOCUSED SURFACE TAKES IT ─────────────────────────
+ *
+ * `k` is the room's own multiplier — 1 lit, `ROOM_DARK` 0.34 for the switch off
+ * by day, `ROOM_NIGHT` 0.16 at night. The answer is what to multiply a painted
+ * view that FILLS THE FRAME by, which is a gentler curve for the reason set out
+ * at `FOCUS_DARK`: a thing you glance at across a room and a thing that is the
+ * only thing on your screen do not want the same number.
+ *
+ * ⚠ EXPORTED BECAUSE 301 HAS TWO OF THESE AND THEY HAVE TO AGREE. The mirror
+ * and the wall calendar are both `PanelSpec.surface` views in the same flat,
+ * both have their material whitened by `ct/hud.ts`'s `mat.color.setHex(0xffffff)`
+ * on open, and both therefore have to dim in their own paint. Two separately
+ * tuned numbers would mean stepping from the mirror to the calendar in an unlit
+ * room changed how dark the room appeared to be. `ct/apartment.ts` imports this
+ * rather than keeping a second copy — one line to nudge, and both move.
+ */
+export function focusDim(k: number): number {
+  return 1 - (1 - k) * (1 - FOCUS_DARK) / (1 - ROOM_DARK_REF);
+}
 /** how much of the dimming the FIGURE is spared — he is lit by the window he
  *  is facing while the wall behind him is not. 1 = as dark as the room. */
 const FIGURE_LIFT = 0.45;
@@ -755,7 +775,7 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
   // pass is a rectangle around the figure rather than a re-paint of it.
   const k = roomLight();
   if (k < 0.999) {
-    const room = 1 - (1 - k) * (1 - FOCUS_DARK) / (1 - ROOM_DARK_REF);
+    const room = focusDim(k);
     const wash = (v: number, x: number, y: number, w: number, h: number) => {
       const c = Math.round(Math.max(0, Math.min(1, v)) * 255);
       g.save();

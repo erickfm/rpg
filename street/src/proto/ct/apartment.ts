@@ -33,7 +33,7 @@ import { screenFade, makePanel, nightAt as hudNightAt, type Panel } from './hud'
  *  `GLASS` is the palette the wall plate below paints with, so the mirror seen
  *  from across the room and the mirror you step into cannot drift apart in
  *  colour (BUILDER-BRIEF §8). */
-import { mirrorPanel, glassCanvas, paintGlass, setRoomLight } from './mirror';
+import { mirrorPanel, glassCanvas, paintGlass, setRoomLight, focusDim } from './mirror';
 import { drawerPanel, liningCanvas, paintLiningOnly, DRAWER_W, DRAWER_D } from './drawer';
 /** THE WORLD'S ONE CALENDAR. `ct/calendar.ts` imports NOTHING — that is the
  *  whole reason it exists — so this import cannot close the cycle that made the
@@ -6054,6 +6054,51 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       for (let i = 0; i < specks; i++) {
         g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.1)';
         g.fillRect(Math.floor(Math.random() * (W - sp)), Math.floor(Math.random() * (H - sp)), sp, sp);
+      }
+
+      // ── AND THE PAGE TAKES THE ROOM'S LIGHT ────────────────────────────
+      //
+      // *"CALENDAR IS A Lil too illuminated in the dark room"*   (2026-08-07)
+      //
+      // ⚠ THE PARAMETER WAS ALREADY HERE AND NOTHING READ IT. `19febc3e`
+      // answered *"when i click into the cal it becomes bright, i want it to
+      // maintain the current light level"* by adding `dim`, threading `roomLitK`
+      // into the panel's `draw`, and writing the note above that call promising
+      // this — and then never wrote the block. The call site has been correct
+      // and the page has been painting at full brightness for two days. Look for
+      // the hole in the PAINT, not in the wiring, when a `lit`/`dim` argument
+      // appears to have no effect: an unused parameter is silent in TypeScript.
+      //
+      // IT HAS TO BE IN THE PAINT, WHICH IS THE MIRROR'S LESSON REPEATED.
+      // `ct/hud.ts` does `mat.color.setHex(0xffffff)` when a surface panel opens
+      // — "so the evening wash cannot dim what you are reading" — which is right
+      // for a lit CRT and wrong for a piece of card nailed to a wall. It throws
+      // away the dimmer's scaling of this mesh's colour for exactly as long as
+      // you stand reading it, which is why the PLATE dims correctly when you
+      // walk past and the FOCUSED page does not. A multiply over the finished
+      // canvas is the same arithmetic, one layer up, where the white cannot
+      // reach it.
+      //
+      // LAST, AFTER THE GRAIN, so it takes the banner, the biro, today's block,
+      // the selected cell and the specks together — paper in a dark room is dark
+      // paper, not dark paper with bright dust on it.
+      //
+      // NOT ITS OWN NUMBER. `focusDim` is the mirror's, tuned against his eye
+      // when he said the mirror had gone *"a bit too dark"* at the room's own
+      // 0.34; see the note on it for why the two surfaces in this flat share it
+      // rather than each holding an opinion.
+      //
+      // THE WALL TEXTURE IS UNTOUCHED and must stay so: it calls in with `dim`
+      // defaulted to 1 and is an ordinary mesh inside the room's bounds, so the
+      // dimmer already scales its material. Dimming it here would apply the
+      // evening twice.
+      if (dim < 0.999) {
+        const v = Math.round(Math.max(0, Math.min(1, focusDim(dim))) * 255);
+        g.save();
+        g.globalCompositeOperation = 'multiply';
+        g.fillStyle = `rgb(${v},${v},${v})`;
+        g.fillRect(0, 0, W, H);
+        g.restore();
       }
     };
 

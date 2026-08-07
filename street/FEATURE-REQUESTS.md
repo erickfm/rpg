@@ -4539,3 +4539,36 @@ their work when you leave. `ct/loiter.ts` deliberately not called — it is a
 stroll that needs two posts and drives its own `spr.update`, which `room.person`
 has already registered. Nothing new on the customer floor and no new collider.
 `WORLD OK`. Live on 5177.
+
+### 2026-08-07 — "CALENDAR IS A Lil too illuminated in the dark room"
+
+**DONE** — one builder, `ct/apartment.ts` + `ct/mirror.ts`.
+
+**The dimming was wired up and never written.** `19febc3e` (2026-08-05) answered
+his earlier *"when i click into the cal it becomes bright, i want it to maintain
+the current light level"* by giving `drawCalendar` a `dim` parameter, passing
+`roomLitK` into the panel's `draw`, and writing the comment that promises the
+page keeps the room's light — and the body of `drawCalendar` never read `dim`
+once. An unused parameter is silent in TypeScript, so the call site looked right
+and the focused page has painted at full brightness ever since.
+
+Why it cannot be fixed at the material: `ct/hud.ts` does
+`mat.color.setHex(0xffffff)` when a surface panel opens, *"so the evening wash
+cannot dim what you are reading"*. Right for a lit CRT, wrong for a piece of card
+on a wall — it discards the room dimmer's scaling of that mesh for exactly as
+long as you stand reading it, which is why the **plate dims correctly when you
+walk past** and the **focused page did not**. So the page dims in its own PAINT:
+one multiply over the finished canvas, drawn last so it takes the banner, the
+biro, today's block, the selected cell and the paper grain together.
+
+**It shares the mirror's number rather than inventing one.** The mirror and the
+calendar are the only two focused surfaces in 301, both whitened by the same line
+of the hud; two separately tuned constants would mean stepping from one to the
+other in an unlit flat changed how dark the flat looked. `FOCUS_DARK`'s mapping
+is now `focusDim(k)`, exported from `ct/mirror.ts` and imported here — 0.62 with
+the switch off by day, 0.52 at night, the value his own eye settled on when he
+said the mirror had gone *"a bit too dark"*. One line to nudge and both move.
+
+The wall texture is untouched: it calls in with `dim` defaulted to 1 and the
+dimmer already scales its material, so dimming it here would apply the evening
+twice. `WORLD OK`. Live on 5177.
