@@ -248,3 +248,39 @@ done
 echo "ui:"
 sfx click-1      "click.wav"               0.01 0.12 44100
 sfx click-2      "click.wav"               0.14 0.12 44100
+
+# ── the street: cars, trucks, and the bus ───────────────────────────────────
+#
+# `bus.wav` is not one sound, it is a whole VISIT, and the half-second envelope
+# says so: 2-10 s approaching (rms 0.003 climbing to 0.149), 11-24 s standing at
+# the stop idling (steady 0.06), 24.5-28 s pulling away (surging to 0.242), then
+# thirty seconds of receding into nothing. Played whole it would be a fifty
+# second event that could not be aligned with anything. Cut at those boundaries
+# it is three pieces a bus stop can actually use, and the middle one loops.
+echo "the bus, cut at its own boundaries:"
+sfx bus-arrive "bus.wav"  2.00  8.60 22050
+sfx bus-depart "bus.wav" 24.00 12.00 22050
+
+# `bed` normalises a whole file, and the idle is a WINDOW of one — so it is cut
+# first and looped second. Two steps, because a seamless loop needs the tail and
+# the head of the SAME material and the crossfade cannot know which 13 seconds
+# were meant.
+ffmpeg -hide_banner -loglevel error -y -ss 11.0 -t 13.0 -i "$SRC/bus.wav" \
+  -ac 1 -ar 44100 -c:a pcm_s16le "$OUT/.bus-idle-cut.wav"
+SRC_SAVE=$SRC; SRC=$OUT
+bed bus-idle ".bus-idle-cut.wav" 22050 1 1.2 -20
+SRC=$SRC_SAVE
+rm -f "$OUT/.bus-idle-cut.wav"
+
+echo "cars and trucks:"
+sfx truck-pass-1 "truck pass.wav"    0.10 8.45 22050
+sfx truck-pass-2 "truck pass 2.wav"  0.20 9.60 22050
+sfx car-start    "car start.wav"     0.00 3.00 22050
+sfx car-door-open  "car door open.wav"  0.22 0.96 32000
+sfx car-door-close "car door close.wav" 0.06 0.40 22050
+# car idle is 3.7 s of steady four-stroke firing — the one vehicle file that is
+# a texture rather than an event, so it is the one that loops.
+bed car-idle "car idle.wav" 22050 1 0.4 -20
+# `car start + idle.wav` is deliberately NOT used: it is `car start` followed by
+# `car idle`, both of which are here separately and can be sequenced by the
+# engine at whatever gap the world needs. One file cannot be.

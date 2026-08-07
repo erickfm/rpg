@@ -196,6 +196,7 @@ const BIRDS = ['bird-1', 'bird-2'] as const;
  *  EVENTS: one file, one thing happening, nothing looped. */
 const EVENTS = [
   'land-soft', 'land-hard', 'wall-hit',
+  'light-on', 'light-off', 'drawer-open', 'door-open', 'door-close',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -269,6 +270,9 @@ const LVL = {
   stepIn: 0.50,
   bird: 0.70,      // multiplied by distance
   land: 0.60,
+  door: 0.55,      // multiplied by distance
+  light: 0.60,
+  drawer: 0.50,
 };
 
 /** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
@@ -340,6 +344,18 @@ const MUFFLE = 0.42;
 // The two constants come from the same file's own exports, the way `tenancy.ts`
 // already reads them.
 //
+/**
+ * How shut a leaf is, 0…1, from its angle and its two published end poses.
+ *
+ * Handedness free: 301's shut pose is -pi/2 with one hand and +pi/2 with the
+ * other, and a ratio of two differences does not care which.
+ */
+const shutFrac = (a: number, t: { shut: number; open: number }): number => {
+  const span = t.shut - t.open;
+  if (!span) return 0;
+  return Math.max(0, Math.min(1, Math.abs(a - t.open) / Math.abs(span)));
+};
+
 /** Corner multiplier with the door shut: 520 Hz becomes 260, one octave down. */
 const DOOR_HZ = 0.5;
 /** Bleed multiplier with the door shut: 0.42 becomes ~0.26, about -4 dB.
@@ -629,6 +645,108 @@ export function register(ctx: CtxBuild): void {
   let wallHz = WALL_OUT;  // the lowpass corner, glided in LOG frequency
   let shutK = 0;          // 0 301's door is open (or he is not in 301) … 1 shut
 
+  // ══ WATCHING THINGS THAT MOVE ═════════════════════════════════════════════
+  //
+  // The second delivery is mostly sounds for things the player DOES — a light
+  // switch, a drawer, a door — and none of those publish an event. The obvious
+  // move is to ask three owners for three callbacks; the cheaper one is to
+  // notice that all three ALREADY move a named object, and that a thing which
+  // moves can be watched without its owner knowing or caring:
+  //
+  //   switch-301-rocker        position.y tips +/-0.012 (apartment.ts:6571)
+  //   dresser-drawer-lining    rides `drawerG`, which slides in z (…:4058)
+  //   leaf301 / leaf302        rotation.y, with both end poses published on
+  //                            scene.userData.doorTravel (…:1640, 1728)
+  //
+  // So this module subscribes to the WORLD rather than to its authors: zero
+  // lines in anyone else's file, nothing to keep in step, and a door that
+  // starts publishing travel tomorrow gets a sound with no code at all. What it
+  // costs is that a state change is detected one frame late, which for a latch
+  // is inaudible.
+  //
+  // The alternative was three publications in `apartment.ts`, which another
+  // agent is editing. This needed none.
+
+  /** Fire a one-shot AT A PLACE — distance falloff and a stereo image that
+   *  turns with him, the same arithmetic the pigeons use. */
+  const atPoint = (name: string, wx: number, wz: number, gain: number, range: number, rate = 1) => {
+    const d = Math.hypot(wx - px, wz - pz);
+    const near = Math.max(0, 1 - d / range) ** 1.5;
+    if (near < 0.03) return;
+    fire(name, gain * near, rate, bearing(wx, wz, px, pz) * 0.7);
+  };
+
+  const WP = { x: 0, y: 0, z: 0 };
+  /** world position of an object, into the scratch above */
+  const worldOf = (o: THREE.Object3D) => { o.updateWorldMatrix(true, false); const m = o.matrixWorld.elements; WP.x = m[12]; WP.y = m[13]; WP.z = m[14]; };
+
+  // ── the light switch in 301 ───────────────────────────────────────────────
+  // The rocker TIPS: `swRock.position.y = SW_Y + (on ? 0.012 : -0.012)`. Which
+  // way it moved is which way the light went, so the direction of the change is
+  // the whole read — no need to know SW_Y, and nothing to get out of step with
+  // the light's actual state.
+  let rocker: THREE.Object3D | null = null, rockY = NaN;
+  // ── the dresser drawer ────────────────────────────────────────────────────
+  // The lining is a child of the group that slides, so its WORLD z moves even
+  // though the lining itself never does.
+  let lining: THREE.Object3D | null = null, linZ = NaN;
+  // ── every door that publishes its travel ──────────────────────────────────
+  // Keyed off `doorTravel` itself rather than a list of names, so this covers
+  // 301 and 302 today and anything that publishes tomorrow for free.
+  const leaves = new Map<string, { o: THREE.Object3D; shut: number; open: number; prev: number }>();
+  let leavesFound = false;
+
+  const watchScene = (t: number) => {
+    if (!rocker) { rocker = scene.getObjectByName('switch-301-rocker') ?? null; if (rocker) rockY = rocker.position.y; }
+    else {
+      const y = rocker.position.y;
+      if (!Number.isNaN(rockY) && Math.abs(y - rockY) > 0.004) {
+        worldOf(rocker);
+        atPoint(y > rockY ? 'light-on' : 'light-off', WP.x, WP.z, LVL.light, 14);
+      }
+      rockY = y;
+    }
+
+    if (!lining) { lining = scene.getObjectByName('dresser-drawer-lining') ?? null; if (lining) { worldOf(lining); linZ = WP.z; } }
+    else {
+      worldOf(lining);
+      const z = WP.z;
+      // The slide is a SNAP between two poses, not an animation, so any real
+      // movement is the whole travel. 0.02 m is far more than float noise and
+      // far less than the drawer's own throw.
+      if (!Number.isNaN(linZ) && Math.abs(z - linZ) > 0.02) {
+        // One recording, both directions: a drawer sounds much the same going
+        // in, and pitching the shut a little lower is enough to tell them apart
+        // without a second file that does not exist.
+        atPoint('drawer-open', WP.x, z, LVL.drawer, 12, z > linZ ? 1.0 : 0.92);
+      }
+      linZ = z;
+    }
+
+    if (!leavesFound) {
+      const tr = scene.userData.doorTravel as Record<string, { shut: number; open: number }> | undefined;
+      if (tr) {
+        for (const [n, v] of Object.entries(tr)) {
+          const o = scene.getObjectByName(n);
+          if (o) leaves.set(n, { o, shut: v.shut, open: v.open, prev: shutFrac(o.rotation.y, v) });
+        }
+        if (leaves.size) leavesFound = true;
+      }
+    }
+    for (const L of leaves.values()) {
+      const s = shutFrac(L.o.rotation.y, L);
+      // OPEN fires as the leaf LEAVES the shut pose; CLOSE fires as it ARRIVES.
+      // That is where each sound actually lives — a door's noise on the way out
+      // is the latch releasing, and on the way back it is the latch catching,
+      // 0.7 s later at the far end of the swing. Firing both at the start would
+      // put the catch before the door got there.
+      if (L.prev > 0.985 && s <= 0.985) { worldOf(L.o); atPoint('door-open', WP.x, WP.z, LVL.door, 20); }
+      else if (L.prev < 0.985 && s >= 0.985) { worldOf(L.o); atPoint('door-close', WP.x, WP.z, LVL.door, 20); }
+      L.prev = s;
+    }
+    void t;
+  };
+
   // ── 301's front door, read straight off the scene ─────────────────────────
   //
   // Looked up lazily and cached: `ct/apartment.ts` builds in the INTERIOR band
@@ -656,12 +774,7 @@ export function register(ctx: CtxBuild): void {
     }
     if (!leaf || !travel) return 0;
     if (px >= APT_X0 || Math.abs(gy - 2 * ST0) > 0.5) return 0;   // hall, or another floor
-    const span = travel.shut - travel.open;
-    if (!span) return 0;
-    // Distance from the OPEN pose as a fraction of the whole arc. Handedness
-    // free: 301's shut pose is -pi/2 with one hand and +pi/2 with the other,
-    // and a ratio of two differences does not care which.
-    return Math.max(0, Math.min(1, Math.abs(leaf.rotation.y - travel.open) / Math.abs(span)));
+    return shutFrac(leaf.rotation.y, travel);
   };
   let sway = 0;           // the second street layer, breathing
   let lastRain = 0;       // the last rain level seen OUTDOORS — see below
@@ -829,8 +942,11 @@ export function register(ctx: CtxBuild): void {
       b.g.gain.value = b.cur;
     }
 
-    // ── footsteps ───────────────────────────────────────────────────────────
+    // ── things in the world that moved since last frame ─────────────────────
     px = f.px; pz = f.pz;
+    watchScene(f.t);
+
+    // ── footsteps ───────────────────────────────────────────────────────────
     const moved = Number.isNaN(lastX) ? 0 : Math.hypot(f.px - lastX, f.pz - lastZ);
     lastX = f.px; lastZ = f.pz;
 
