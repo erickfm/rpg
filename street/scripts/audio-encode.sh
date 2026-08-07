@@ -174,3 +174,77 @@ one bird-2 birdfly.wav 4.00 2.60 2.40 44100 0
 
 echo
 du -ch "$OUT"/*.ogg | tail -1
+
+# ── the second delivery: 26 more files, named for their purpose ─────────────
+#
+#   sfx NAME SRCFILE START DUR RATE
+#
+# One event, one file, trimmed to its CONTENT and peak-normalised to -3 dBFS
+# like the beds. Every start/dur below came from an envelope pass at 0.8% of
+# peak, not from eyeballing a waveform — several of these carry half a second
+# of room tone before the event and `mail open` carries 0.17 s of it.
+#
+# Peak normalisation IS right for these, and it is worth saying why after the
+# rain bed proved it wrong there: a thud, a click and a latch ARE their peak.
+# There is no sparse body for the loudest frame to misrepresent, because the
+# whole file is the loudest frame. Nine of them arrive quiet enough to need
+# 8-20 dB of lift — `light on` peaks at 0.083 — and normalising is the only
+# thing that puts them in the same room as each other.
+#
+# SAMPLE RATE IS PER FILE, from what the file contains:
+#   44100  click (54% of its energy above 8 kHz), sleep (38%)
+#   32000  the bright latches and rattles: fence, keyboard, the registers,
+#          the light switch, page turn, mail
+#   22050  everything low: thuds, doors, the drawer, the cat, the alarm
+sfx() {
+  local name=$1 src=$2 st=$3 dur=$4 rate=$5
+  local g fo
+  g=$(peak_gain "$SRC/$src")
+  fo=$(python3 -c "print(f'{max(0.0, $dur - 0.06):.3f}')")
+  ffmpeg -hide_banner -loglevel error -y -ss "$st" -t "$dur" -i "$SRC/$src" \
+    -af "afade=t=in:st=0:d=0.004,afade=t=out:st=$fo:d=0.055,volume=${g}dB" \
+    -ac 1 -ar "$rate" -c:a libvorbis -q:a 2 "$OUT/$name.ogg"
+  echo "  $name.ogg  <- $src  ${rate}Hz  ${g}dB  ${dur}s"
+}
+
+echo "the flat, and the things you touch in it:"
+sfx light-on     "light on.wav"            0.00 0.24 32000
+sfx light-off    "light off.wav"           0.00 0.24 32000
+sfx drawer-open  "drawer open.wav"         0.04 1.02 22050
+sfx mail-open    "mail open.wav"           0.15 1.40 32000
+sfx mail-close   "mail close.wav"          0.04 0.64 32000
+sfx page-turn    "page turn.wav"           0.00 0.56 32000
+sfx sleep        "sleep time away.wav"     0.01 1.50 44100
+sfx alarm        "digital alarm clock.wav" 0.00 2.01 22050
+
+echo "doors:"
+sfx door-open    "door open.wav"           0.11 1.12 22050
+sfx door-close   "door close.wav"          0.02 1.42 22050
+sfx door-knock   "door knock single.wav"   0.00 0.30 22050
+
+echo "shops:"
+sfx register-1   "Cash Register 1.wav"     0.00 1.55 32000
+sfx register-2   "Cash Register 3.wav"     0.00 1.90 32000
+
+echo "the body:"
+sfx land-soft    "body land feet.wav"      0.00 0.58 22050
+sfx land-hard    "body land.wav"           0.01 1.00 22050
+sfx wall-hit     "body wall hit.wav"       0.08 0.34 22050
+
+echo "the block, and the alley:"
+sfx meow         "meow.wav"                0.11 1.14 22050
+sfx fence        "fence.wav"               0.02 0.53 32000
+
+# keyboard is THREE keystrokes at 0.02/0.17/0.30, and a terminal you type at
+# wants them separately or every keypress is the same triplet.
+echo "the terminal:"
+i=0
+for t in 0.01 0.16 0.29; do
+  i=$((i+1)); sfx "key-$i" "keyboard.wav" "$t" 0.13 32000
+done
+
+# click is TWO clicks, 0.02 and 0.15. Two so a menu does not tick identically
+# every row; short so it cannot become a texture.
+echo "ui:"
+sfx click-1      "click.wav"               0.01 0.12 44100
+sfx click-2      "click.wav"               0.14 0.12 44100
