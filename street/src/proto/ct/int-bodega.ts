@@ -456,11 +456,90 @@ export function buildBodega(ctx: CtxBuild): void {
   const DELI_X = -hw + 0.03 + DELI_W / 2, DELI_Z = hd - 1.5;
   /** the customer side of the case — the face everything else must clear */
   const DELI_FRONT = DELI_Z - DELI_D / 2;
-  const deli = new THREE.Mesh(new THREE.BoxGeometry(DELI_W, DELI_H, DELI_D), woodM);
-  put(deli, DELI_X, DELI_H / 2, DELI_Z);
-  const deliGlass = new THREE.Mesh(new THREE.PlaneGeometry(DELI_W - 0.1, 0.6),
-    new THREE.MeshBasicMaterial({ map: deliT, transparent: true, opacity: 0.92, side: THREE.DoubleSide }));
-  put(deliGlass, DELI_X, 0.72, DELI_FRONT - 0.01);   // proud of the face, not inside it
+
+  // ══ WHY THIS CORNER READ AS ONE JAMMED LUMP ═══════════════════════════════
+  //
+  // *"this whole area of the bodega is fucked up"*  (2026-08-06)
+  //
+  // THE TWO CARCASSES DO NOT INTERPENETRATE and have not since the last pass —
+  // `CF_GAP` below holds a 60 mm shadow gap and the z is derived from
+  // `DELI_FRONT`, so a nudge was never the fix. Two other things made them
+  // read as one object with a seam through it:
+  //
+  //  1. THE CASE WAS A FEATURELESS SLAB. One `BoxGeometry` in flat `woodM`:
+  //     no top, no edge, no plinth, no texture, 2.2 m of it. The bench 60 mm
+  //     away was rebuilt for exactly this fault — *"a flat colour is not a
+  //     material. an untextured quad has no grain for the eye to attach to
+  //     and no joints to give it scale"* — and the rebuild stopped at the
+  //     bench. Two flat brown areas meeting produce no corner: with nothing
+  //     to read the near edge against, the eye takes the pair for one solid.
+  //
+  //  2. THE DISPLAY RAN STRAIGHT THROUGH THE BENCH. The glass was sized
+  //     `DELI_W - 0.1` — from the case's own width and nothing else — so
+  //     2.1 m of meat tray crossed a counter standing in front of the middle
+  //     of it. What you saw wedged in the join was the far sliver of that
+  //     display re-emerging past the bench: a shop fitting apparently driven
+  //     through another one. Same fault class as the sign above and as the
+  //     `hd - 2.2` collision this comment block already records — a dimension
+  //     taken from one fixture with no knowledge of the one beside it.
+  //
+  // THE SHARED CAUSE IS THE BENCH'S x, WHICH I AM NOT MOVING. `CF_X = -hw + 1`
+  // stands it against the MIDDLE of the case's face, so the pair is a T and
+  // not the L the comment downstream claims. Turning that T into an L means
+  // taking the bench to the case's open end, which is the mouth of the left
+  // aisle — 0.98 m of it, and the aisle that was already unwalkable once. That
+  // is a floor decision for Erick, not one to slip into a texture fix. So the
+  // pieces keep their footprints and their colliders; the case is built like
+  // furniture, and the display stops where the bench starts.
+  const CF_W = 1.4, CF_D = 0.55, CF_H = 0.92;
+  const CF_X = -hw + 1.0;
+  /** the span of the case's face the bench stands against, +40 mm each side so
+   *  the display's cut edge is not flush with the bench's corner */
+  const BLOCK_A = CF_X - CF_D / 2 - 0.04, BLOCK_B = CF_X + CF_D / 2 + 0.04;
+
+  const DELI_TOP = 0.06, DELI_KICK = 0.09;
+  const DELI_BODY = DELI_H - DELI_TOP - DELI_KICK;
+  const kickM = new THREE.MeshBasicMaterial({ color: 0x40342a });
+  // the carcass, standing on the plinth rather than on the floor
+  const deli = new THREE.Mesh(new THREE.BoxGeometry(DELI_W, DELI_BODY, DELI_D), woodM);
+  put(deli, DELI_X, DELI_KICK + DELI_BODY / 2, DELI_Z);
+  // THE PLINTH — 60 mm recessed at the front, 30 mm at the ends. The cheapest
+  // thing that stops a box reading as a box: the carcass's bottom edge lands
+  // in shadow instead of flat on the tile.
+  const deliKick = new THREE.Mesh(
+    new THREE.BoxGeometry(DELI_W - 0.06, DELI_KICK, DELI_D - 0.08), kickM);
+  put(deliKick, DELI_X, DELI_KICK / 2, DELI_Z + 0.02);
+  // THE TOP, proud 50 mm at the front and 30 mm at the open end, and NOT at
+  // the wall end — the case is scribed 30 mm off the wall and an overhang
+  // there would sit exactly on the wall collider's face.
+  const deliTopT = declareSurface(slabTex({
+    wMeters: DELI_W, dMeters: DELI_D, base: '#6a5442', joint: 0.45, grain: 0.14,
+  }), 'detail');
+  const deliTop = new THREE.Mesh(new THREE.BoxGeometry(DELI_W + 0.03, DELI_TOP, DELI_D + 0.05),
+    new THREE.MeshBasicMaterial({ map: deliTopT }));
+  put(deliTop, DELI_X + 0.015, DELI_H - DELI_TOP / 2, DELI_Z - 0.025);
+  // the front, a recessed panel — the same one the bench wears, so the corner
+  // is two pieces of one shop's joinery and not two different mistakes
+  const deliFrontT = declareSurface(pixTex(44, 16, (g) => {
+    g.fillStyle = '#5e4a3a'; g.fillRect(0, 0, 44, 16);
+    g.fillStyle = '#6a5442'; g.fillRect(2, 2, 40, 12);
+    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(2, 2, 40, 1);
+    g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(2, 13, 40, 1);
+    dither(g, 44, 16, 40);
+  }), 'detail');
+  const deliFront = new THREE.Mesh(new THREE.PlaneGeometry(DELI_W - 0.04, DELI_BODY - 0.03),
+    ctx.flat(deliFrontT));
+  put(deliFront, DELI_X, DELI_KICK + DELI_BODY / 2, DELI_FRONT - 0.008);
+  // THE DISPLAY, in the runs the bench leaves clear — derived from the bench's
+  // footprint, so move the bench and the glass reflows rather than being cut
+  // through again. Off the case's face by 22 mm, 14 mm proud of the panel.
+  for (const [a, b] of [[DELI_X - DELI_W / 2 + 0.05, BLOCK_A],
+                        [BLOCK_B, DELI_X + DELI_W / 2 - 0.05]] as [number, number][]) {
+    if (b - a < 0.18) continue;                      // too narrow to read as a case
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(b - a, 0.6),
+      new THREE.MeshBasicMaterial({ map: deliT, transparent: true, opacity: 0.92, side: THREE.DoubleSide }));
+    put(pane, (a + b) / 2, 0.72, DELI_FRONT - 0.022);
+  }
   solid(DELI_X, DELI_Z, DELI_W, DELI_D);
 
   // ── the coffee station, which has to SAY coffee station ──
@@ -510,8 +589,8 @@ export function buildBodega(ctx: CtxBuild): void {
   // So the bench's z is no longer a coordinate at all. It is "as far forward as
   // it can go while still clearing the case", and if the case ever moves the
   // bench moves with it. `hd - 2.2` is gone; this evaluates to hd - 2.62.
-  const CF_W = 1.4, CF_D = 0.55, CF_H = 0.92;
-  const CF_X = -hw + 1.0;
+  // (`CF_W`, `CF_D`, `CF_H` and `CF_X` are declared up with the deli case now:
+  //  the case's display has to know where this bench stands.)
   /** the shadow gap between the two carcasses. Deliberately not zero: butted
    *  flush, the bench's end face and the case's front face are coplanar over
    *  the bench's whole footprint, which is a z-fight. 60 mm reads as joinery. */
@@ -532,8 +611,15 @@ export function buildBodega(ctx: CtxBuild): void {
   // face parallel to the sightline from the entrance, so you saw its 0.55 m
   // END and the three urns lined up one behind another. Along z, its face and
   // all three urns are square to you as you walk in.
-  put(new THREE.Mesh(new THREE.BoxGeometry(CF_D * 0.92, CF_H - 0.06, CF_W), woodM),
-    CF_X, (CF_H - 0.06) / 2, CF_Z);                       // the carcass, set back
+  // ON A PLINTH, like the case beside it. The bench had the top and the front
+  // panel already but sat flat on the tile, which is the one joinery cue the
+  // deli case now has and it did not — and a pair that agrees everywhere but
+  // the floor line still reads as mismatched.
+  const CF_KICK = 0.09, CF_BODY = CF_H - 0.06 - CF_KICK;
+  put(new THREE.Mesh(new THREE.BoxGeometry(CF_D * 0.92, CF_BODY, CF_W), woodM),
+    CF_X, CF_KICK + CF_BODY / 2, CF_Z);                   // the carcass, set back
+  put(new THREE.Mesh(new THREE.BoxGeometry(CF_D * 0.78, CF_KICK, CF_W - 0.06), kickM),
+    CF_X, CF_KICK / 2, CF_Z);
   const top = new THREE.Mesh(new THREE.BoxGeometry(CF_D + 0.06, 0.06, CF_W + 0.06),
     new THREE.MeshBasicMaterial({ map: benchTopT }));
   put(top, CF_X, CF_H - 0.03, CF_Z);                      // the top, proud: an EDGE
@@ -544,9 +630,9 @@ export function buildBodega(ctx: CtxBuild): void {
     g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(2, 15, 24, 1);
     dither(g, 28, 18, 40);
   }), 'detail');
-  const front = new THREE.Mesh(new THREE.PlaneGeometry(CF_W, CF_H - 0.12), ctx.flat(frontT));
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(CF_W, CF_BODY - 0.06), ctx.flat(frontT));
   front.rotation.y = Math.PI / 2;                         // faces +x, into the shop
-  put(front, CF_X + CF_D / 2 + 0.01, (CF_H - 0.12) / 2, CF_Z);
+  put(front, CF_X + CF_D / 2 + 0.01, CF_KICK + CF_BODY / 2, CF_Z);
 
   for (const dz of [-0.42, 0, 0.42]) {
     const ux = CF_X, uz = CF_Z + dz;
@@ -577,7 +663,11 @@ export function buildBodega(ctx: CtxBuild): void {
   for (let i = 0; i < 3; i++) {
     const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.034, 0.11, 8),
       new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }));
-    put(cup, CF_X, CF_H + 0.055 + i * 0.105, CF_Z + 0.62);
+    // AT THE SHOP END, not the deli end. At `CF_Z + 0.62` the stack stood
+    // 110 mm off the bench's back edge, in the 60 mm join with the case —
+    // the "something wedged between the two counters" in Erick's shot, and
+    // the one thing on this bench a customer actually has to reach.
+    put(cup, CF_X, CF_H + 0.055 + i * 0.105, CF_Z - 0.55);
   }
   solid(CF_X, CF_Z, CF_D, CF_W);
 
