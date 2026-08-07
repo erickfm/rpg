@@ -4436,3 +4436,36 @@ of rent, the camcorder is three seasons and is the thing under glass you look at
 rather than buy. The small end — batteries $12, blanks $7, a radio $56 — is
 where a player actually shops. `BLANKS` is $7 here against the video hut's $9
 and `RADIO` $56 against the pawn shop's $28, both spreads on purpose.
+
+**SLEEP CENTER** — `ct/int-sleep.ts`, the fifteenth. 11.8 × 12.0 × 3.3, east
+side, one storey — **the largest floor in the belt**, because a bed is 2.0 m long
+and the lane rule is 2 m, so a row of beds costs 4 m of depth before anything
+else. Five beds on divan bases in `mattressFront`'s own five parts and five
+colours — headboard, base, the pale slab with a lit top edge and three stitch
+lines, pillows, and a price card on a wire. Three in the window with the middle
+one the taller divan set, exactly as painted; two up the west wall. Pale vinyl
+floor and a lit ceiling, because the facade paints *"a hard pale floor"* and
+says why. The MATTRESS SALE banner and the NO PAYMENTS TIL '98 / FREE DELIVERY
+bills hang inside the glass where the facade tapes them, in the top third, clear
+of the stock.
+
+**WHAT BUYING A MATTRESS DOES: NOTHING, SO IT IS NOT SOLD — and that is the
+answer rather than a gap.** The hotel can sell a night because advancing the
+clock is an act this world can perform. A queen set is neither an object you can
+carry nor an act anything can carry out: the only place it could meaningfully
+arrive is the bed in room 301, which has no state to change and is nobody's ask.
+A bed line at the till would take $1,600 and hand over a note — the same
+half-a-system the video hut refused when it declined to invent a return clock,
+and a dead option teaches the player the menu lies. **So the shop sells every
+part of a bed a person can carry home** — `FRAME` $160 and `BLANKET` $72 (both
+`bulky`), `SHEETS` $100, `PILLOW` $48, all new in `ct/goods.ts` — and the
+mattresses are priced the way a showroom prices them, on the card at the foot of
+each bed and on a list on the west wall, both painted from **one** `BEDS` table:
+twin $800, full $1,200, queen $1,600. If it is ever wanted, the prices, the cards
+and the FREE DELIVERY bill are already there; what does not exist is a flat that
+can receive furniture, and that is a real piece of work and not a line of code.
+
+`ct/int-volt.ts`, `ct/int-sleep.ts`, `ct/goods.ts`. Eight new items, two reused.
+No facade was touched — both rooms declare their door where the painter is
+already drawing it, so the street is unchanged and the ROOM is now the authority.
+15 doors declared, 15 arrived. `WORLD OK`. Live on 5177.

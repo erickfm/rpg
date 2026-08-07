@@ -632,6 +632,123 @@ export const BATTERIES = defineItem({
   },
 });
 
+// ── SLEEP CENTER ───────────────────────────────────────────────────────────
+//
+// **THIS SHOP SELLS EVERY PART OF A BED A PERSON CAN CARRY HOME, AND THE
+// MATTRESS IS THE ONE PART THAT IS NOT.** The long version of that argument is
+// in `ct/int-sleep.ts` where the decision belongs; the consequence here is that
+// the four things declared are a frame, a pillow, a sheet set and a blanket, and
+// there is no `MATTRESS` id — because nothing in this world could receive one.
+//
+// Palette off `mattressFront` in `ct/tex-world.ts`: #b8642c the rust the whole
+// showroom is painted in, #efe6d2 its cream, #2f5c86 the one blue accent every
+// discount showroom of the period had somewhere in it, #8f938f the aluminium,
+// and #faf4e4 the white of a pillow under a strip light — which is the facade's
+// own pillow colour, so the one you buy is the one painted in the window.
+//
+// ⚠ TWO OF THESE ARE `bulky` AND TWO ARE NOT, AND THE LINE IS RIGIDITY rather
+// than size. `ItemDef.bulky` exists because *"x 16 cm of chrome does not go in a
+// shoulder bag"* — a metal frame and a folded wool blanket hold their shape and
+// go in your arms; a pillow and a bagged sheet set SQUASH, which is the whole
+// reason bedding is sold in a bag you can sit on.
+
+export const FRAME = defineItem({
+  id: 'FRAME', name: 'folding bed frame', stack: 1, bulky: true,
+  thick: 0.11,
+  blurb: 'angle iron and four castors, banded up with the fittings taped on.',
+  icon: (g) => {
+    box(g, '#8f938f', 2, 6, 20, 3);                    // the two long rails, bundled
+    box(g, '#6e726e', 2, 6, 20, 1);
+    box(g, '#8f938f', 2, 11, 20, 3);
+    box(g, '#6e726e', 2, 11, 20, 1);
+    box(g, '#6e726e', 4, 15, 16, 2);                   // the cross rails under them
+    box(g, '#b8642c', 8, 4, 4, 15);                    // the strapping band
+    box(g, '#efe6d2', 9, 8, 2, 3);                     // the label on it
+    box(g, '#3a3630', 3, 18, 3, 3); box(g, '#3a3630', 18, 18, 3, 3);   // the castors, taped on
+  },
+  // A BUNDLE, 1.00 m long — a twin frame folds to about that and it is why this
+  // is a both-arms object. Two rails, two cross members and the castor bag.
+  model: () => mOf(
+    mBox(1.000, 0.045, 0.060, '#8f938f', 0, 0.023, -0.045),
+    mBox(1.000, 0.045, 0.060, '#8f938f', 0, 0.023, 0.045),
+    mBox(0.820, 0.035, 0.045, '#6e726e', 0, 0.062, 0),
+    mBox(0.090, 0.115, 0.170, '#b8642c', -0.20, 0.058, 0),   // the strapping band
+    mBox(0.100, 0.070, 0.100, '#3a3630', 0.34, 0.035, 0),    // the castors, taped on
+  ),
+});
+
+export const PILLOW = defineItem({
+  id: 'PILLOW', name: 'pillow', stack: 2,
+  thick: 0.16,
+  blurb: 'still square, which it will not be for long.',
+  icon: (g) => {
+    box(g, '#faf4e4', 1, 6, 22, 13);                   // the pillow
+    box(g, '#e8e0cc', 1, 6, 22, 2);                    // the shaded top edge
+    box(g, '#e8e0cc', 1, 17, 22, 2);
+    box(g, '#efe6d2', 3, 9, 18, 6);                    // where it dips in the middle
+    box(g, '#d8cfb8', 2, 12, 20, 1);                   // the seam down the side
+    box(g, '#2f5c86', 15, 8, 6, 3);                    // the shop's own paper band
+    box(g, '#faf4e4', 16, 9, 4, 1);
+  },
+  // 70 x 16 x 45, which is a real pillow and is why it fills a shoulder. It is
+  // NOT `bulky`: it squashes, and that is the whole difference between it and
+  // the frame it goes on.
+  model: () => mOf(
+    mBox(0.700, 0.150, 0.450, '#faf4e4', 0, 0.075, 0),
+    mBox(0.640, 0.165, 0.400, '#efe6d2', 0, 0.078, 0),
+    mBox(0.706, 0.020, 0.456, '#e8e0cc', 0, 0.012, 0),
+    mBox(0.120, 0.155, 0.460, '#2f5c86', 0.26, 0.078, 0),    // the paper band
+  ),
+});
+
+export const SHEETS = defineItem({
+  id: 'SHEETS', name: 'sheet set', stack: 2,
+  thick: 0.09,
+  blurb: 'folded by a machine, in a bag with a zip that will not last.',
+  icon: (g) => {
+    box(g, '#efe6d2', 2, 5, 20, 15);                   // the vinyl bag
+    box(g, '#e0d6bc', 2, 5, 20, 2);
+    box(g, 'rgba(255,255,255,0.22)', 3, 6, 18, 4);     // the clear panel
+    box(g, '#c8bfa4', 4, 10, 16, 6);                   // the sheets showing through
+    box(g, '#d8cfb8', 4, 12, 16, 1);
+    box(g, '#b8642c', 2, 16, 20, 3);                   // the printed band
+    box(g, '#efe6d2', 5, 17, 9, 1);
+    box(g, '#8f938f', 2, 5, 20, 1);                    // the zip
+  },
+  // A ZIPPED VINYL BAG, 34 x 9 x 26 — the way every sheet set of the period was
+  // sold, and the reason it goes in a bag rather than in your arms.
+  model: () => mOf(
+    mBox(0.340, 0.085, 0.260, '#efe6d2', 0, 0.043, 0),
+    mBox(0.300, 0.090, 0.220, '#c8bfa4', 0, 0.044, 0),
+    mBox(0.342, 0.030, 0.262, '#b8642c', 0, 0.020, 0),
+    mBox(0.344, 0.008, 0.264, '#8f938f', 0, 0.085, 0),       // the zip along the top
+  ),
+});
+
+export const BLANKET = defineItem({
+  id: 'BLANKET', name: 'wool blanket', stack: 1, bulky: true,
+  thick: 0.15,
+  blurb: 'the binding is satin and the wool is not, which is most of the price.',
+  icon: (g) => {
+    box(g, '#2f5c86', 3, 4, 18, 17);                   // folded, on the shelf
+    box(g, '#26496a', 3, 4, 18, 2);
+    box(g, '#3f6f9c', 5, 7, 14, 5);                    // the fold catching the light
+    box(g, '#2f5c86', 3, 12, 18, 1);
+    box(g, '#8fb0cc', 3, 19, 18, 2);                   // the satin binding
+    box(g, '#26496a', 3, 21, 18, 1);
+    box(g, '#efe6d2', 8, 8, 8, 3);                     // the card banded round it
+    box(g, '#b8642c', 9, 9, 6, 1);
+  },
+  // FOLDED IN FOUR, 42 x 15 x 32 — about a coat's bulk, which is why it carries
+  // the coat's flag. It holds that shape; a pillow does not.
+  model: () => mOf(
+    mBox(0.420, 0.140, 0.320, '#2f5c86', 0, 0.070, 0),
+    mBox(0.424, 0.026, 0.324, '#8fb0cc', 0, 0.013, 0),       // the satin binding
+    mBox(0.380, 0.146, 0.150, '#3f6f9c', 0, 0.073, -0.06),   // the top fold
+    mBox(0.150, 0.150, 0.070, '#efe6d2', 0, 0.075, 0.130),   // the card round it
+  ),
+});
+
 /** every id this file declares, so a sweep can ask "does all stock have art?" */
 export const GOODS: string[] = [
   BURGER.id, CHICKEN.id, FRIES.id, PIE.id, SHAKE.id, COFFEE.id,
@@ -640,4 +757,5 @@ export const GOODS: string[] = [
   RADIO.id, WRISTWATCH.id,
   RENTAL.id, BLANKS.id, POPCORN.id,
   TV.id, VCR.id, CAMCORDER.id, BATTERIES.id,
+  FRAME.id, PILLOW.id, SHEETS.id, BLANKET.id,
 ];
