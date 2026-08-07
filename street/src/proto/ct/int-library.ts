@@ -1575,6 +1575,86 @@ export function buildLibrary(ctx: CtxBuild): void {
     }
   }
 
+  // ── THE STUDY CARRELS, THE REST OF THE UNDER-DECK BAY ────────────────────
+  //
+  // *"also use the underneath of the balcony."* The terminals take the south
+  // 3.2 m of an 11.6 m strip; this is what the other end is for.
+  //
+  // CARRELS ARE THE OBJECT THE LOW CEILING WANTS. The deck's soffit is at
+  // 2.64 m and its edge beam at 2.45 — a metre of air over a 1.62 m eye, which
+  // is fine to walk under and wrong to stand a 1.95 m bay of books under: a
+  // stack down here would leave 0.69 m of daylight over it and read as a
+  // cellar. A desk you sit at is 0.74 m tall and its divider tops out at 1.19,
+  // so the whole bay stays under half the headroom and the deck reads as a
+  // ceiling rather than as a lid.
+  //
+  // Three of them, one continuous top with fins between, against the east wall
+  // and hard up to the back wall — which is also what fixes the clearances.
+  // Stood 0.5 m off the back wall the run left a 0.51 m slot behind it, inside
+  // `gap.ts`'s 0.40-0.95 trap band; abutted, the only gap it has is the one in
+  // front of it, and that is the lane.
+  //
+  //   back wall inner face   z -11.00   the run's north end   -10.95   abuts
+  //   the printer stand      z  -5.82   the run's collider    -7.41    1.59 m
+  //   the deck posts         x   7.12   the run's collider     9.30    2.18 m
+  //
+  // Colliders `solidAt(0, …)` for the reason at the head of the bank: a plain
+  // `solid` here is a wall standing in the middle of the gallery above.
+  {
+    const CAR_X = W / 2 - 0.30 - 0.06;              // 0.60 deep, off the east wall
+    const CAR_D = 0.60, CAR_TOP = 0.74, FIN = 0.06, FIN_H = 0.45;
+    const CAR_N = 3, CAR_LEN = 3.50;
+    const CAR_Z1 = -D / 2 + 0.05;                   // the north end, against the wall
+    const CAR_Z0 = CAR_Z1 + CAR_LEN;                // …and the south end
+    const CAR_CZ = (CAR_Z0 + CAR_Z1) / 2;
+    const BAY = (CAR_LEN - (CAR_N + 1) * FIN) / CAR_N;
+    boxFace(CAR_D, 0.05, CAR_LEN, wood, CAR_X, CAR_TOP, CAR_CZ,
+      FACE_PY, CAR_D, CAR_LEN, '#6b5334');          // the one worktop
+    // the fins, and a leg under each: four of them, so every carrel is a bay
+    // with a divider on both sides rather than a share of one long table
+    for (let i = 0; i <= CAR_N; i++) {
+      const fz = CAR_Z1 + FIN / 2 + i * (BAY + FIN);
+      box(CAR_D, FIN_H, FIN, woodDark, CAR_X, CAR_TOP + FIN_H / 2, fz);
+      for (const dx of [-0.24, 0.24]) {
+        box(0.06, CAR_TOP, 0.06, woodDark, CAR_X + dx, CAR_TOP / 2, fz);
+      }
+    }
+    solidAt(0, CAR_X, CAR_CZ, CAR_D + 0.08, CAR_LEN + 0.08);
+    // A LAMP AND A CHAIR PER BAY, and the chair is a seat. Same pan constant as
+    // every other chair in the room, same `underDeck` guard as the terminals —
+    // the picker is 2D and these sit directly under the gallery's own walkway.
+    const brassM = new THREE.MeshBasicMaterial({ color: 0xa8863c });
+    const shadeM = new THREE.MeshBasicMaterial({ color: 0x2f5744 });
+    const glowM = new THREE.MeshBasicMaterial({ color: 0xe8dcb0 });
+    for (let i = 0; i < CAR_N; i++) {
+      const cz = CAR_Z1 + FIN + BAY / 2 + i * (BAY + FIN);
+      box(0.07, 0.26, 0.07, brassM, CAR_X + 0.20, CAR_TOP + 0.15, cz);   // the stem
+      box(0.20, 0.08, 0.16, shadeM, CAR_X + 0.10, CAR_TOP + 0.30, cz);   // its shade
+      box(0.16, 0.02, 0.12, glowM, CAR_X + 0.10, CAR_TOP + 0.255, cz);   // and the light in it
+      // the chair, pulled up to the desk: 0.32 m of knee room off its front face
+      const cx = CAR_X - CAR_D / 2 - 0.32 - 0.22;
+      box(0.44, PAN_T, 0.44, wood, cx, PAN_Y, cz);
+      box(0.05, 0.5, 0.42, wood, cx - 0.20, 0.70, cz);                   // the back
+      for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
+        box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, cz + fz);
+      }
+      ctx.seat({
+        // yaw PI/2 is the CAMERA convention (GOTCHAS §33) and looks along +x,
+        // which is at the desk — the same number as the terminals two blocks
+        // up, for the same reason: same wall, same side of it.
+        x: room.wx(cx), z: room.wz(cz), yaw: Math.PI / 2, h: SEAT_TOP,
+        approach: { x: room.wx(cx - 0.85), z: room.wz(cz) },
+        label: 'sit at the study carrel',
+        ok: underDeck,
+      });
+    }
+    // somebody has left their work out in the middle bay
+    const midZ = CAR_Z1 + FIN + BAY * 1.5 + FIN;
+    box(0.26, 0.03, 0.20, new THREE.MeshBasicMaterial({ color: 0xe4dfcd }),
+      CAR_X - 0.10, CAR_TOP + 0.04, midZ);
+    box(0.20, 0.09, 0.15, woodDark, CAR_X + 0.06, CAR_TOP + 0.07, midZ - 0.30);
+  }
+
   // ── the STAFF terminal, on the back worktop ──
   //
   // Faces +x rather than -x: it is on the librarian's own bench and she turns
