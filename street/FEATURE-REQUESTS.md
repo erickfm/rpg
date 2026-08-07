@@ -4636,3 +4636,86 @@ line so a sentence written for 35 columns broke into orphans ("for a line",
 
 Twenty pieces, twenty silhouettes, twenty stocks. `npx tsc --noEmit` clean,
 `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-07 — *"what is this? also a ton of mail, way too much. make mail rare. unless it is necessary. also is the add for the diner accurate to the diner?"*
+
+Three asks in one message, screenshot attached: the focused view of one piece of
+mail — an orange EVERYTHING catalogue, a 3x3 grid of plain coloured rectangles,
+a body line ending mid-sentence at "and a", counter reading **6/18**.
+
+### 1. *"what is this?"* — the catalogue
+
+**HE WAS LOOKING STRAIGHT AT IT AND COULD NOT NAME IT**, which is as complete as
+a drawing failure gets. Two faults, compounding:
+
+- **The cover had no subject.** Nine tiles of flat blue, red and green — no
+  goods in them, no names, no prices; `fill` rectangles standing in for a picture
+  nobody drew — under the single word EVERYTHING, which names no shop and is not
+  the word "catalogue".
+- **The only copy on it was narration, and then it was cut.** *"Four hundred
+  pages. Trainers, tube socks, a toaster, and a small appliance you cannot make
+  out from the picture."* — a caption ABOUT the object, in a voice nobody in 1997
+  is printing, and the exact thing the JUNK table's own written test forbids.
+  The painter then sliced it to `lines.slice(0, 2)` and flowed it, so it broke
+  off at "and a".
+
+A general catalogue's cover prints **goods and prices**, so that is what is on it
+now: **GLADSTONE'S** over **CATALOGUE at 12 px**, SPRING 1997 · 400 PAGES, six
+pictured items each with what it is and what it costs (TRAINERS $12.99, SOCKS
+$2.49, TOASTER $19.99, RADIO $24.99, KETTLE $11.99, LAMP $14.99), and POST FREE ·
+SEND NO MONEY NOW across the foot. Six and not nine because a tile you can read a
+name and a price in is 39 units wide — the count follows the type size. The six
+silhouettes are flat rectangles, never more than eight per item, which is a 1997
+catalogue's own halftone budget at 35 units.
+
+### 2. *"a ton of mail, way too much. make mail rare. unless it is necessary."*
+
+**IT WAS NOT RARE, IT WAS A DAILY NEWSPAPER.** `hash01 < 0.30 ? 0 : < 0.72 ? 1 : 2`
+put junk in the box on **seven delivery days in ten**, two pieces on nearly two in
+ten — about 0.9 pieces every day the post ran. Over the eighteen days behind his
+screenshot that is a stack of eighteen, clicked through one at a time. Junk mail
+at that rate is not a joke you find, it is a chore you do.
+
+**One piece, on about one delivery day in seven, and never two.** Measured over
+400 days against the running world rather than read off the constant: **46
+pieces, 354 days with none, no day with two** — one flyer every eight or nine
+days.
+
+**WHAT IS NECESSARY IS UNTOUCHED, and that is the whole clause.** The landlord's
+RENT NOTICE (`noticeDay(n)`), the SECOND NOTICE on its every-third-day arrears
+schedule, and the RECEIPT handed over at the door do not consult `hash01` and did
+not change. The upside is that the notice now lands in an EMPTY BOX six times out
+of seven instead of being the third thing in a pile.
+
+### 3. *"is the add for the diner accurate to the diner?"*
+
+**NO, AND NOT CLOSE.** The flyer advertised two eggs 1.95, short stack 2.25,
+grilled cheese 2.50, chili cup 1.75, meatloaf plate 4.95, liver + onions 4.50,
+coffee 0.65, pie 1.25 — **eight dishes, of which the diner sells none**, at
+prices from before the world was rescaled x4.
+
+**The shop is the source of truth, so the ad reads the shop.** New leaf module
+`ct/menus.ts` holds `DINER_MENU`; `ct/int-diner.ts` builds its board from it and
+`ct/tenancy.ts` prints `adLines(DINER_MENU)` on the takeaway menu. The flyer now
+reads BREAKFAST — EGGS 9.00, COFFEE 2.50 / PLATES — PLATTER 15.00, APPLE PIE
+5.50 / FOUNTAIN — SHAKE 6.00, SODA 3.50. They cannot drift; there is one copy.
+
+**Two other ads were lying about real businesses:**
+
+- **FIRST FEDERAL** offered *"a line of credit up to $2,500 at 24.9% APR"* while
+  the loan officer twelve feet inside the door writes that same $2,500 at 9.75%.
+  The loan sheet moved to `ct/menus.ts` too (three readers now: officer, rate
+  board, mail), and the letter quotes it: $200 to $5,000, rates from 8.90% APR,
+  ask for the loan officer.
+- **VIDEO HUT** advertised *"Two for one, Tuesdays"* and a **LATE FEE** — and
+  `ct/int-video.ts` is explicit that there is no return clock in this world, so
+  that was an ad for a system nobody built. The box now reads NEW RELEASES $6.00
+  A DAY, which is the rate board, and the body line is EX-RENTALS $10 EACH.
+
+The dentist, PALERMO PIZZA, VIDEO 2000, CITY LIGHT & POWER and the PENNY SAVER
+advertise businesses that are not in the world, so there is nothing for them to
+agree with and they are unchanged.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

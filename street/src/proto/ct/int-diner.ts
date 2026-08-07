@@ -4,6 +4,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom, seatTaken } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { DINER_MENU } from './menus';
 import './goods';   // for the side effect: it is what declares the stock
 
 // The DINER, inside.
@@ -461,25 +462,17 @@ export function buildDiner(ctx: CtxBuild): void {
   //
   // ── AND A DINER IS DEARER THAN A FAST-FOOD PLACE ──────────────────────────
   //
-  // Deliberately, and it is the only pricing statement this room makes: the
-  // coffee is the barn's 65 cents (a cup of coffee was 65 cents everywhere in
-  // 1997), but the shake is $1.55 against the barn's $1.29 and the pie is $1.40
-  // against $0.69 — you are paying for the stool. Two new items, both foam
-  // clamshells, because what a sit-down place hands you to CARRY is the box.
-  const MENU: ShopColumn[] = [
-    { head: 'BREAKFAST', lines: [
-      { id: 'EGGS', name: 'EGGS', price: 9.00 },
-      { id: 'COFFEE', name: 'COFFEE', price: 2.50 },
-    ] },
-    { head: 'PLATES', lines: [
-      { id: 'PLATTER', name: 'PLATTER', price: 15.00 },
-      { id: 'PIE', name: 'APPLE PIE', price: 5.50 },
-    ] },
-    { head: 'FOUNTAIN', lines: [
-      { id: 'SHAKE', name: 'SHAKE', price: 6.00 },
-      { id: 'SODA', name: 'SODA', price: 3.50 },
-    ] },
-  ];
+  // Deliberately, and it is the only pricing statement this room makes — see
+  // `ct/menus.ts`, where the six dishes and their prices now live. Two of them
+  // are foam clamshells, because what a sit-down place hands you to CARRY is
+  // the box.
+  //
+  // ⚠ THE BOARD NO LONGER OWNS ITS OWN PRICES, and that is the point: the
+  // takeaway menu that arrives in your mail (`ct/tenancy.ts`) prints this exact
+  // list, and when it carried a second copy it advertised eight dishes this
+  // room has never sold. *"is the add for the diner accurate to the diner?"*
+  // (2026-08-07) — it is now, by construction rather than by agreement.
+  const MENU: ShopColumn[] = DINER_MENU;
   const MENU_LOOK: BoardLook = {
     panel: '#22262a', frame: '#8f8a7c', band: '', bandInk: '#d8d0b8',
     ink: '#d8d0b8', priceInk: '#d8a02a', rule: '#6a6256',

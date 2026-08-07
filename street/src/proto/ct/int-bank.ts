@@ -17,6 +17,10 @@ import { makePanel, UI } from './hud';
 // to this module while `ct/doors.ts` is still resolving its glob. Verified
 // against the built bundle with scripts/doors-declared.mjs, not assumed.
 import { BANK_DOOR } from './bank';
+// The loan sheet, which the mail also advertises — see the note at `AMOUNTS`.
+// A leaf module with no runtime imports, so it cannot be in a cycle with the
+// `./int-*.ts` glob above.
+import { LOAN_AMOUNTS, LOAN_RATE } from './menus';
 import { leafPair } from './vice';
 
 // FIRST FEDERAL, inside.
@@ -131,18 +135,25 @@ const facadeUtoLocalX = (u: number) =>
   FR_SIDE * (FR_Z0 - u * FR_W - FR_CZ) * (RW / FR_W);
 
 /**
- * WHAT FIRST FEDERAL LENDS, AND AT WHAT PRICE — declared once, at module scope,
- * because TWO things in this room quote it: the loan officer at her desk and the
- * RATE BOARD on the east wall. Those are exactly the two consumers that come to
- * disagree if each carries its own copy, which is the fault this project has now
- * paid for four times over — the door position, the door leaf, the ATM's u, the
- * facade's window. One authoring, both readers.
+ * WHAT FIRST FEDERAL LENDS, AND AT WHAT PRICE — declared once, because THREE
+ * things quote it: the loan officer at her desk, the RATE BOARD on the east wall
+ * and, off this street entirely, the PRE-APPROVAL LETTER that arrives in your
+ * mail (`ct/tenancy.ts`). Those are exactly the consumers that come to disagree
+ * if each carries its own copy, which is the fault this project has now paid for
+ * five times over — the door position, the door leaf, the ATM's u, the facade's
+ * window, and the mail, which was advertising 24.9% APR against this desk's
+ * 9.75% on the same $2,500. One authoring, three readers.
+ *
+ * It moved OUT of this file to `ct/menus.ts` for the third reader's sake: the
+ * mail cannot import a room (`interior.ts` imports tenancy, so that closes a
+ * cycle), and `ct/menus.ts` is a leaf with no runtime imports at all. The two
+ * local names are unchanged, so everything below reads exactly as it did.
  *
  * The rate FALLS AS THE AMOUNT RISES, which is true of a 1997 personal loan and
  * is the reason the amount is worth choosing at all.
  */
-const AMOUNTS = [200, 500, 1000, 2500, 5000];
-const RATE: Record<number, number> = { 200: 13.5, 500: 12.5, 1000: 11.25, 2500: 9.75, 5000: 8.9 };
+const AMOUNTS = LOAN_AMOUNTS;
+const RATE = LOAN_RATE;
 /** the headline the board quotes: an unsecured personal loan of $500 */
 const HEADLINE_RATE = RATE[500];
 

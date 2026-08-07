@@ -7,6 +7,10 @@ import { loiter, type LoiterPost } from './loiter';
 import { UI, makePanel, screenFocusReady, hudNote, type Panel } from './hud';
 import { defineItem, bagPut, pocketsFull, fullWhy } from './inventory';
 import { registerSlice } from './save';
+// WHAT THE STREET'S SHOPS ACTUALLY SELL. An advertisement is a second reader of
+// a shop's prices, so the mail reads the same table the counter is built from —
+// see `ct/menus.ts`, which is a leaf and must stay one.
+import { DINER_MENU, adLines, LOAN_BEST_RATE, LOAN_MAX, LOAN_MIN } from './menus';
 import {
   RENT, dateOf, dueDay, duePeriodsBy, isRentDay,
   nextDueDay, noDelivery, noticeDay,
@@ -356,7 +360,7 @@ function hash01(day: number, salt: number): number {
  * THE LENGTH OF THIS TABLE IS PART OF THE SEED. The picker below indexes it by
  * `hash01(day, …) * JUNK.length`, so adding or removing an entry reshuffles
  * WHICH piece lands on which day for every day in the world. It does not change
- * HOW MANY pieces arrive (salts 1 and 2, independent of the table) and it does
+ * HOW MANY pieces arrive (salt 1, independent of the table) and it does
  * not touch the rent notice, which is on its own `noticeLead` schedule. Nothing
  * outside this file reads the table; the `junkKinds` probe surface derives its
  * count from it.
@@ -370,24 +374,23 @@ function hash01(day: number, salt: number): number {
  */
 const JUNK: { from: string; lines: string[]; art?: string }[] = [
   // ── the three that are not letters, and do not look like one ────────────
+  // ⚠ THE BOTTOM LINE AND THE RULED BOX ARE THE SHOP'S REAL RATE BOARD. This
+  // flyer used to advertise "Two for one, Tuesdays" and a LATE FEE — and
+  // `ct/int-video.ts` is explicit that there is no return clock in this world,
+  // so the late fee was an ad for a system nobody built. The $6.00 in the box is
+  // real: it is NEW RELEASE on the board, and $10 is EX-RENTAL beside it. The
+  // three titles are invented, which is allowed — the shop names no tapes.
   { from: 'VIDEO HUT', art: 'flyer-video', lines: [
     'BLOOD HARBOUR II  (18)',
     'THE LONG WEEKEND  (15)',
     'KARATE DOG  (PG)',
-    'Two for one, Tuesdays.',
+    'EX-RENTALS $10 EACH.',
   ] },
-  { from: 'THE DINER', art: 'menu-diner', lines: [
-    'ALL DAY',
-    'Two eggs, any way|1.95',
-    'Short stack|2.25',
-    'Grilled cheese|2.50',
-    'Chili, cup|1.75',
-    'AFTER SIX',
-    'Meatloaf plate|4.95',
-    'Liver + onions|4.50',
-    'Coffee, bottomless|0.65',
-    'Pie, slice|1.25',
-  ] },
+  // ⚠ NOT TYPED. *"is the add for the diner accurate to the diner?"*
+  // (2026-08-07) — it was not, and it was not close: eight dishes, none of which
+  // the diner sells, at pre-rescale prices. `adLines(DINER_MENU)` prints the
+  // board over the pass, so the flyer and the counter cannot drift.
+  { from: 'THE DINER', art: 'menu-diner', lines: adLines(DINER_MENU) },
   { from: 'FOR THE PREVIOUS TENANT', art: 'envelope-prev', lines: [
     'D. R. KOVACS',
     'APT 301, 227 W 19TH',
@@ -431,11 +434,14 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'and he gets this every month',
     'without fail.',
   ] },
+  // ⚠ THE FIGURES COME OFF THE LOAN SHEET, not off this table. FIRST FEDERAL is
+  // a real building with a real loan officer twelve feet inside its door, and
+  // this letter was offering 24.9% APR on a $2,500 advance she writes at 9.75%.
   { from: 'FIRST FEDERAL SAVINGS', art: 'letterhead-bank', lines: [
-    'YOU ARE PRE-APPROVED for a line',
-    'of credit up to $2,500 at a',
-    'variable rate of 24.9% APR.',
-    'No obligation. No fee.',
+    'YOU ARE PRE-APPROVED for a personal',
+    `loan of $${LOAN_MIN} to $${LOAN_MAX.toLocaleString('en-US')}, at rates`,
+    `from ${LOAN_BEST_RATE.toFixed(2)}% APR.`,
+    'Ask for the loan officer at the branch.',
   ] },
   { from: 'CRIMEWATCH — 14TH PRECINCT', art: 'notice-precinct', lines: [
     'THERE HAVE BEEN BREAK-INS ON',
@@ -443,11 +449,27 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'NOT BUZZ ANYONE IN THAT YOU DO',
     'NOT KNOW.',
   ] },
-  { from: 'THE MAIL-ORDER CATALOGUE', art: 'catalogue-order', lines: [
-    'Four hundred pages. Trainers,',
-    'tube socks, a toaster, and a',
-    'small appliance you cannot make',
-    'out from the picture.',
+  // ⚠ *"what is this?"* (2026-08-07), asked of this piece with it filling his
+  // screen. TWO FAULTS AND THEY COMPOUND. The cover said EVERYTHING and nothing
+  // else — no shop, no word "catalogue" — over nine coloured blanks that were
+  // literally blank, `fill` rectangles with no goods in them; and the only copy
+  // on it was NARRATION of exactly the kind this table's own test forbids
+  // ("a small appliance YOU CANNOT MAKE OUT from the picture" — a caption about
+  // the object, in a voice nobody in 1997 is printing), which the painter then
+  // sliced to `lines.slice(0, 2)` and flowed, so it broke off at "and a".
+  //
+  // A catalogue cover prints GOODS AND THEIR PRICES. So these lines are stock,
+  // in the `NAME|price` form the diner's menu already uses, and the painter
+  // draws each one as a pictured item in a tile. Six rather than nine: a tile
+  // big enough to hold a legible name and price is a tile you can see the
+  // picture in.
+  { from: "GLADSTONE'S — THE SPRING BOOK", art: 'catalogue-order', lines: [
+    'TRAINERS|12.99',
+    'SOCKS|2.49',
+    'TOASTER|19.99',
+    'RADIO|24.99',
+    'KETTLE|11.99',
+    'LAMP|14.99',
   ] },
   { from: 'DR. R. HALVERSEN, D.D.S.', art: 'card-dentist', lines: [
     'THIS IS A REMINDER that you are',
@@ -576,12 +598,36 @@ function mailFor(day: number): Letter[] {
     }
   }
 
-  // …and the junk, nought to two pieces, which is what makes opening the box
-  // worth doing on a day when nobody wants anything from you.
-  // Measured over 200 days rather than assumed from the constants: 50 empty,
-  // 82 with one piece, 40 with two. A box that is empty a third of the time is
-  // what makes the days it is not worth walking down for.
-  const count = hash01(day, 1) < 0.30 ? 0 : hash01(day, 2) < 0.72 ? 1 : 2;
+  // ══ …AND THE JUNK, WHICH IS NOW RARE ══════════════════════════════════════
+  //
+  // *"also a ton of mail, way too much. make mail rare. unless it is
+  //  necessary."*   (2026-08-07)
+  //
+  // IT WAS NOT RARE, IT WAS A DAILY NEWSPAPER. `< 0.30 ? 0 : < 0.72 ? 1 : 2`
+  // put junk in the box on SEVEN DELIVERY DAYS IN TEN and two pieces on nearly
+  // two in ten — about 0.9 pieces every day the post ran, which over a week of
+  // sleeping is six or seven flyers, and over the eighteen days behind his
+  // screenshot was a stack of eighteen he had to click through one at a time.
+  // Junk mail at that rate is not a joke you find, it is a chore you do.
+  //
+  // ONE PIECE, ON ROUGHLY ONE DELIVERY DAY IN SEVEN. Never two. `< 0.15` on the
+  // same salt-1 stream, and the salt-2 draw that used to decide "one or two" is
+  // gone rather than left dangling — there is nothing left for it to decide.
+  // MEASURED OVER 400 DAYS rather than read off the constant, the same way the
+  // old rate was: 46 pieces, 354 days with none, and NEVER TWO IN ONE DAY. One
+  // piece of junk every eight or nine days — often enough that the box is worth
+  // opening, rare enough that finding the seed catalogue in it is an event.
+  //
+  // ⚠ WHAT IS NECESSARY IS NOT TOUCHED, and that is the whole clause. The
+  // landlord's RENT NOTICE is on `noticeDay(n)`, the SECOND NOTICE on its every-
+  // third-day arrears schedule, and the RECEIPT is handed over at the door —
+  // all three are above this line, none of them consults `hash01`, and none of
+  // them changed. The mail you must read to not be blindsided arrives exactly as
+  // it always did; it is only the flyers that thinned out. The upside is that
+  // the notice now arrives into an EMPTY BOX six times out of seven instead of
+  // being the third thing in a pile, which is the one delivery in this world
+  // that has to be read.
+  const count = hash01(day, 1) < 0.15 ? 1 : 0;
   for (let i = 0; i < count; i++) {
     const j = JUNK[Math.floor(hash01(day, 11 + i * 7) * JUNK.length) % JUNK.length];
     if (out.some((l) => l.from === j.from)) continue;         // not twice in one day
@@ -1310,7 +1356,7 @@ ART['flyer-video'] = (g, l) => {
   fill(g, '#c9241a', P.x + IN, by + 38, TW, 2);
   g.textAlign = 'center';
   g.fillStyle = '#c9241a'; g.font = UI.font(8, true);
-  g.fillText('LATE FEES ARE', cx, by + 15);
+  g.fillText('NEW RELEASES', cx, by + 15);
   g.font = UI.font(9, true);
   g.fillText('$6.00 A DAY', cx, by + 27);
   g.fillStyle = '#3a3126'; g.font = UI.font(6);
@@ -1667,7 +1713,8 @@ ART['letterhead-bank'] = (g, l) => {
   // would rather you did not read. Still legible, because that is the standard.
   fill(g, 'rgba(40,64,94,0.35)', P.x + IN, P.y + P.h - 34, TW, 1);
   flow(g, P.x + IN, P.y + P.h - 24, TW,
-       ['Rate variable. Offer subject to approval.'], 6, '#6b6455');
+       ['The rate falls as the amount rises. Subject to approval.'],
+       6, '#6b6455');
 };
 
 /**
@@ -1750,13 +1797,87 @@ ART['notice-precinct'] = (g, l) => {
 
 
 /**
+ * ONE GOOD, PICTURED, in a 35 x 24 box — the whole difference between a
+ * catalogue cover and an abstract.
+ *
+ * ⚠ THESE ARE FLAT RECTANGLES ON PURPOSE and there are never more than eight of
+ * them per item. At 35 units the picture is ~105 texels wide after `LETTER_SS`,
+ * which is a 1997 catalogue's own halftone budget: a shoe is a sole, an upper, a
+ * toe and a heel tab, and adding a ninth rectangle makes mud rather than detail.
+ * Every colour here is already in this file's mail palette.
+ */
+function good(g: CanvasRenderingContext2D, n: number, px: number, py: number): void {
+  const STEEL = '#b8bcc0', DARK = '#2a2a2e', CREAM = '#f0e6cc';
+  if (n === 0) {                                        // TRAINERS, side on
+    fill(g, '#c8451e', px + 7, py + 9, 20, 9);
+    fill(g, '#c8451e', px + 4, py + 13, 6, 5);
+    fill(g, CREAM, px + 24, py + 6, 4, 6);              // the heel tab
+    for (let k = 0; k < 3; k++) fill(g, CREAM, px + 11 + k * 4, py + 11, 2, 2);
+    fill(g, DARK, px + 4, py + 18, 27, 4);              // the sole
+  } else if (n === 1) {                                 // SOCKS, a pair
+    for (let k = 0; k < 2; k++) {
+      const sx = px + 7 + k * 12;
+      fill(g, '#e8e2d0', sx, py + 4, 9, 13);
+      fill(g, '#1d5c8c', sx, py + 4, 9, 3);
+      fill(g, '#8c1610', sx, py + 8, 9, 2);
+      fill(g, '#e8e2d0', sx, py + 16, 11, 5);           // the foot, turned out
+    }
+  } else if (n === 2) {                                 // TOASTER
+    fill(g, '#d8dce0', px + 5, py + 6, 21, 3);
+    fill(g, STEEL, px + 5, py + 9, 21, 12);
+    fill(g, DARK, px + 9, py + 7, 5, 2);
+    fill(g, DARK, px + 17, py + 7, 5, 2);               // the two slots
+    fill(g, DARK, px + 26, py + 11, 3, 6);              // the lever
+    fill(g, DARK, px + 7, py + 21, 3, 2);
+    fill(g, DARK, px + 21, py + 21, 3, 2);
+  } else if (n === 3) {                                 // TABLE RADIO
+    fill(g, '#3a2a18', px + 12, py + 4, 11, 2);         // the carry handle
+    fill(g, '#7a4a22', px + 4, py + 7, 27, 15);
+    fill(g, '#3a2a18', px + 7, py + 10, 13, 9);
+    for (let k = 0; k < 3; k++) fill(g, '#7a4a22', px + 7, py + 12 + k * 3, 13, 1);
+    fill(g, '#e8dcb8', px + 23, py + 10, 6, 6);         // the dial
+    fill(g, '#8c1610', px + 25, py + 11, 1, 4);
+  } else if (n === 4) {                                 // KETTLE
+    fill(g, DARK, px + 15, py + 3, 10, 2);
+    fill(g, DARK, px + 14, py + 4, 2, 4);
+    fill(g, DARK, px + 24, py + 4, 2, 4);               // the bail handle
+    fill(g, DARK, px + 19, py + 5, 3, 2);               // the lid knob
+    fill(g, STEEL, px + 14, py + 7, 12, 2);
+    fill(g, STEEL, px + 12, py + 9, 16, 12);
+    fill(g, STEEL, px + 7, py + 10, 6, 3);              // the spout
+  } else {                                              // DESK LAMP
+    fill(g, '#d8a02a', px + 11, py + 4, 13, 3);
+    fill(g, '#d8a02a', px + 9, py + 7, 17, 3);
+    fill(g, '#d8a02a', px + 7, py + 10, 21, 3);         // the shade, stepped
+    fill(g, DARK, px + 16, py + 13, 2, 6);
+    fill(g, DARK, px + 11, py + 19, 12, 3);
+  }
+}
+
+/**
  * ── THE MAIL-ORDER CATALOGUE: A THICK BOOK, NOT A SHEET ────────────────────
  * 154 x 172, 1:1.12 — the SQUAREST of the printed pieces without being square,
  * because a 400-page general catalogue is bound short and fat rather than long.
  * The one piece with DEPTH: a cover with a stack of page edges down its right
  * side and a spine shadow, the only thing in the box you could prop a door open
- * with. A grid of small goods on the cover, because that is exactly what a 1997
- * general catalogue put there.
+ * with.
+ *
+ * ── *"what is this?"*   (2026-08-07) ──────────────────────────────────────
+ *
+ * ASKED WITH THE PIECE FILLING HIS SCREEN, which is as complete a failure as a
+ * drawing can have: the reader is looking straight at the object and cannot name
+ * it. THE COVER HAD NO SUBJECT. Nine tiles of flat blue, red and green — no
+ * goods in them, no names, no prices, `fill` rectangles standing in for a picture
+ * that was never drawn — under the single word EVERYTHING, which names no shop
+ * and is not the word "catalogue". Everything that would have identified it was
+ * in the body copy, and the body copy was sliced to two lines and broke off at
+ * "and a".
+ *
+ * WHAT A GENERAL CATALOGUE PUTS ON ITS COVER IS GOODS AND PRICES, so that is
+ * what is on it: six pictured items, each with what it is and what it costs,
+ * under the shop's name and the word CATALOGUE at 12 px. Six and not nine —
+ * a tile you can read a name and a price in is 39 units wide, and three of those
+ * across 145 is two rows, not three. The count follows the type size.
  */
 ART['catalogue-order'] = (g, l) => {
   const P = paper('catalogue-order'), w = P.w - 9, h = P.h;
@@ -1767,19 +1888,38 @@ ART['catalogue-order'] = (g, l) => {
   }
   stock(g, x, y, w, h, '#e07a1e', '#f09a3e', '#a8540c');
   fill(g, 'rgba(0,0,0,0.16)', x, y, 4, h);                     // the spine
-  fill(g, RUST, x + 8, y + 8, w - 16, 22);
+  // the masthead: WHO SENT IT over WHAT IT IS, and the second one is the big
+  // word. A reader who takes nothing else off this cover takes "CATALOGUE".
+  fill(g, RUST, x + 10, y + 6, w - 20, 30);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#fdf0d4'; g.font = UI.font(9, true);
-  g.fillText('EVERYTHING', cx, y + 23);
+  g.fillStyle = '#f2c98a'; g.font = UI.font(7, true);
+  g.fillText("GLADSTONE'S", cx, y + 17);
+  g.fillStyle = '#fdf0d4'; g.font = UI.font(12, true);
+  g.fillText('CATALOGUE', cx, y + 32);
   g.fillStyle = '#3a1a06'; g.font = UI.font(6);
-  g.fillText('SPRING · 400 PAGES · POST FREE', cx, y + 40);
-  // a grid of small goods, flat blocks — a general catalogue's whole cover
-  const gx = x + 12, gy = y + 48, cw = Math.floor((w - 24) / 3);
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-    fill(g, '#fbf1dc', gx + c * cw, gy + r * 30, cw - 6, 24);
-    fill(g, ['#1d5c8c', '#8c1610', '#2f6f22'][(r + c) % 3], gx + c * cw + 6, gy + r * 30 + 5, cw - 18, 14);
-  }
-  flow(g, x + 8, y + h - 22, w - 16, l.lines.slice(0, 2), 6, '#3a1a06');
+  g.fillText('SPRING 1997 · 400 PAGES', cx, y + 46);
+  // SIX GOODS, PICTURED, NAMED AND PRICED — 3 across, 2 down, off `l.lines` in
+  // the `NAME|price` form the diner's menu uses.
+  // gx/cw/tw agree with the band above and the bar below BY ARITHMETIC: three
+  // 39-unit tiles on a 43 pitch span 125, and x + 10 … x + w - 10 is 125 wide.
+  const gx = x + 10, gy = y + 54, cw = 43, tw = 39, th = 44;
+  l.lines.slice(0, 6).forEach((line, i) => {
+    const [name, price] = line.split('|');
+    const tx = gx + (i % 3) * cw, ty = gy + Math.floor(i / 3) * 48;
+    fill(g, '#fbf1dc', tx, ty, tw, th);
+    fill(g, 'rgba(58,26,6,0.18)', tx, ty + th - 1, tw, 1);
+    good(g, i, tx + 2, ty + 2);
+    g.textAlign = 'center';
+    g.fillStyle = '#3a3126'; g.font = UI.font(6);
+    g.fillText(name, tx + tw / 2, ty + 34);
+    g.fillStyle = RUST; g.font = UI.font(6, true);
+    g.fillText(price === undefined ? '' : `$${price}`, tx + tw / 2, ty + 42);
+  });
+  // and the thing every 1997 catalogue printed across the foot of its cover
+  fill(g, RUST, x + 10, y + h - 22, w - 20, 15);
+  g.fillStyle = '#fdf0d4'; g.font = UI.font(6, true);
+  g.fillText('POST FREE · SEND NO MONEY NOW', cx, y + h - 11);
+  g.textAlign = 'left';
 };
 
 /**
