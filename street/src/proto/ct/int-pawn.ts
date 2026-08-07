@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { CtxBuild } from './ctx';
+import { ORDER as HOOK, type CtxBuild } from './ctx';
+import type { CitizenSprite } from './citizens';
 import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
@@ -271,38 +272,238 @@ export function buildPawn(ctx: CtxBuild): void {
   // second run of anything. This is the ONE counter and it does not turn.
   solid(0, CTR_ZC, room.W, CTR_D);
 
-  // the till, and a tethered pen on the customer's side of the glass
+  // THE TILL, and it is not a loose detail any more — it is one of the two
+  // things that tell the SALES end of this counter apart from the LOAN end.
+  // See the station block below; the tethered pad that used to sit at x −1.2 in
+  // the middle of an empty run of glass has gone with it, to the window where
+  // the ticket is actually written.
+  const TILL_X = 3.6;
   put(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.26, 0.34),
-    new THREE.MeshBasicMaterial({ color: 0x4a4a44 })), 3.6, 1.39, CTR_ZC);
+    new THREE.MeshBasicMaterial({ color: 0x4a4a44 })), TILL_X, 1.39, CTR_ZC);
+
+  // ══ TWO MEN, TWO STATIONS ═════════════════════════════════════════════════
+  //
+  // *"pawn shop should have a buy guy and a sell guy each diagetic somehow"*
+  //  (2026-08-06)
+  //
+  // Until today ONE man carried both verbs, and the price of that is written
+  // down further in this file, in the note this block replaces: the BUY prompt
+  // could not aim at him, *because the SELL prompt already did* and `fp.ts`
+  // resolves aimed selection out to several metres. So the stock board had to
+  // be reached by looking at a piece of CARD instead of at a person. One sprite
+  // with two jobs made the room lie about which was which.
+  //
+  // Two stations at opposite ends of the same counter fixes that at the cause,
+  // and the distinction is made BY THE ROOM rather than by a label or a menu:
+  //
+  //   x −5.2  THE LOAN WINDOW — a steel grille standing on the counter from the
+  //           glass to head height with a serving slot cut in it, his scale and
+  //           his loupe BEHIND the bars, the ticket pad and pen on YOUR side of
+  //           them, the safe at his back. Everything about it says: hand it
+  //           through and wait to be told what it is worth.
+  //   x +3.2  THE SALES COUNTER — open glass, no bars, the till on one side of
+  //           him and the rate card on the other, a parcel already wrapped.
+  //           Nothing between you and the man. Everything about it says: this
+  //           is where something LEAVES the shop.
+  //
+  // Two hand-lettered boards hang over them on rods, in the idiom this room
+  // already writes its notices in — the same card stock, the same brown border,
+  // the same red as NO CHECKS below: **LOANS & BUYING** over the cage,
+  // **SALES** over the till. Hung and not fixed to the wall because there is
+  // not a centimetre of back wall left, and nothing already on it is moved for
+  // a sign.
+  //
+  // 8.4 m APART along a 13.8 m counter, and that is the number that matters.
+  // Both spots stand the player 0.55 m off the counter's customer face, so they
+  // are 8.4 m apart with a reach of 1.0 each against `pickSpot`'s 6 m — they
+  // cannot both be candidates, let alone trade the prompt between them. That is
+  // the whole reason the buy prompt gets to aim at a man again.
+  //
+  // ⚠ NOTHING NEW STANDS ON THE CUSTOMER FLOOR, and no `solid()` is registered
+  // anywhere in this block. Every fitting added here is ON the counter, BEHIND
+  // it, or HUNG from the ceiling above it, and the counter already seals the
+  // staff strip wall to wall. The lane from the door to either station is the
+  // floor that was there before — which the first thing ever reported about
+  // this room (*"i immediately hit a counter"*) makes non-negotiable.
+  const SELL_X = -5.2, BUY_X = 3.2;
+  /** the staff strip, behind the glass. One number, so both men stand in line */
+  const KEEP_Z = CTR_ZC - 0.62;
+  /**
+   * A MAN BEHIND A COUNTER DOES NOT WANDER — BUT HE LOOKS UP.
+   *
+   * `ct/loiter.ts` owns exactly this head-turn already, for the landlord and
+   * the park kid, and it is deliberately NOT called here. It is a STROLL: it
+   * demands at least two posts, it writes `mesh.position` every frame, and it
+   * calls `spr.update` itself — which `room.person` has already registered on
+   * every figure it places. Handing it two identical posts to hold a man still
+   * would be a lie in the data and a double update in the frame. What is worth
+   * reusing is its RULE, and that is the four lines below: turn the short way
+   * round, at a human rate, and go back to your work when he leaves.
+   *
+   * Gated on `room.inside` and not on distance alone: this counter is 2.5 m
+   * from the shopfront, and a keeper who swivelled to follow somebody along the
+   * pavement outside would be worse than one who never moved at all.
+   */
+  const looksUp = (spr: CitizenSprite, wx: number, wz: number, rest: number) => {
+    let head = rest;
+    ctx.onFrame(({ px, pz, dt }) => {
+      const want = room.inside() && Math.hypot(px - wx, pz - wz) < 3.2
+        ? Math.atan2(px - wx, pz - wz) : rest;
+      let d = want - head;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      head += d * Math.min(1, dt * 4);
+      spr.setFacing(head);
+    }, HOOK.LATE);
+  };
+  // FACING DERIVED FROM THE COUNTER, not typed — it is the resting heading both
+  // men return to. This read `facing: Math.PI` once, with the comment "atan2(vx,
+  // vz) toward +z, which is out toward the door": the SAME sentence, wrong the
+  // same way, as the tax office had. `person` takes 0 = +z, so PI is −z and the
+  // broker faced the back wall with his customer behind him. Two rooms carrying
+  // one copied mistake is GOTCHAS §23 exactly.
+  const KEEP_FACE = Math.atan2(0, (CTR_ZC + CTR_D) - KEEP_Z);
+
+  // ── THE LOAN WINDOW: THE MAN YOU SELL TO ──────────────────────────────────
+  //
+  // The broker himself, moved west into his cage — same look, same grime,
+  // because he is the one who works the bench. The user: *"the people inside
+  // these places are always flat and not like the people on the street"*, and
+  // `room.person` is the kit's wrapper over the same 8-angle atlas the street
+  // citizens use (notes/CITIZEN-STYLE.md). It hands the sprite back, which is
+  // what lets the `[E]` outline draw HIM.
+  const broker = room.person({ jacket: '#4a4238', pants: '#2e2a26', skin: '#c9946a',
+      hair: '#6a6058', accent: '#8a2c22', fit: 'plain', cut: 'bald',
+      build: 1, stride: 2, grime: 0.35 },
+    SELL_X, KEEP_Z, { facing: KEEP_FACE, h: 1.0, w: 1.03 });
+  looksUp(broker, room.wx(SELL_X), room.wz(KEEP_Z), KEEP_FACE);
+
+  // THE GRILLE. One alphaTest plane and not thirty boxes, the same call the
+  // window bars at the front of the room make. It stands ON the counter — 1.29
+  // is 3 cm above the 1.26 top — so it costs the floor nothing and adds no
+  // collider: the counter's own wall-to-wall `solid()` is what stops you, and it
+  // is untouched.
+  // ⚠ `Math.round` on BOTH axes and not `2.6 * 40` bare: that product is
+  // 104.00000000000001 in this language, and a canvas sized to a fraction is a
+  // texture whose texels do not land on the metre grid the rest of the room's
+  // art is drawn to.
+  const CAGE_W = 2.6, CAGE_H = 1.30, CAGE_PPM = 40;
+  const CAGE_PX = Math.round(CAGE_W * CAGE_PPM), CAGE_PY = Math.round(CAGE_H * CAGE_PPM);
+  const cageT = declareSurface(pixTex(CAGE_PX, CAGE_PY, (g) => {
+    const W = CAGE_PX, H = CAGE_PY;
+    g.clearRect(0, 0, W, H);
+    const GX0 = Math.round(W / 2) - 10, GX1 = Math.round(W / 2) + 10, GY = 30;
+    // the frame — sides and head all the way across, and the bottom rail
+    // EVERYWHERE EXCEPT the slot, which is the one gap the goods go through
+    g.fillStyle = '#5a5348';
+    g.fillRect(0, 0, W, 3); g.fillRect(0, 0, 3, H); g.fillRect(W - 3, 0, 3, H);
+    g.fillRect(0, H - 3, GX0 - 3, 3); g.fillRect(GX1 + 3, H - 3, W - GX1 - 3, 3);
+    // the bars, stopping short of the slot
+    for (let x = 6; x < W - 5; x += 5) {
+      const inSlot = x >= GX0 - 3 && x < GX1 + 3;
+      const len = inSlot ? GY - 3 : H - 6;
+      g.fillStyle = '#7a736a'; g.fillRect(x, 3, 2, len);
+      g.fillStyle = '#9a938a'; g.fillRect(x, 3, 1, len);        // one texel of edge light
+    }
+    g.fillStyle = '#5a5348'; g.fillRect(3, 15, W - 6, 2);        // a mid rail
+    g.fillRect(GX0 - 3, GY, GX1 - GX0 + 6, 2);                   // the slot's head
+    g.fillStyle = '#6a6258';                                     // and its jambs
+    g.fillRect(GX0 - 3, GY, 3, H - GY); g.fillRect(GX1, GY, 3, H - GY);
+    g.fillStyle = '#8a7c50'; g.fillRect(GX0 - 3, H - 4, GX1 - GX0 + 6, 4);   // brass sill
+  }), 'detail', CAGE_PPM);
+  put(new THREE.Mesh(new THREE.PlaneGeometry(CAGE_W, CAGE_H),
+    new THREE.MeshBasicMaterial({ map: cageT, alphaTest: 0.5, side: THREE.DoubleSide })),
+    SELL_X, 1.29 + CAGE_H / 2, CTR_ZC - 0.05);
+
+  // HIS SIDE OF THE BARS: the scale he weighs it on and the loupe he reads the
+  // hallmark with. Behind the grille on purpose — you hand it through and
+  // watch him decide, which is the whole difference between this end of the
+  // counter and the other one.
+  const brassM = new THREE.MeshBasicMaterial({ color: 0xb08a3a });
+  const SCALE_X = SELL_X - 0.62, SCALE_Z = CTR_ZC - 0.20;
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.05, 0.20),
+    new THREE.MeshBasicMaterial({ color: 0x4a453c })), SCALE_X, 1.285, SCALE_Z);
+  put(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.22, 6), steelM),
+    SCALE_X, 1.42, SCALE_Z);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.012, 0.16), brassM),
+    SCALE_X, 1.536, SCALE_Z);
+  put(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.05, 8), brassM),
+    SELL_X - 0.30, 1.285, CTR_ZC - 0.22);                        // the loupe, set down
+
+  // YOUR SIDE OF THEM: the pad the ticket is written on, and the pen tethered to
+  // it. This is the mesh that used to sit at x −1.2 for no reason.
   put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24),
-    new THREE.MeshBasicMaterial({ color: 0xded4b8 })), -1.2, 1.27, CTR_ZC + 0.22);
+    new THREE.MeshBasicMaterial({ color: 0xded4b8 })), SELL_X + 0.60, 1.27, CTR_ZC + 0.22);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.014),
+    new THREE.MeshBasicMaterial({ color: 0x2e2a26 })), SELL_X + 0.66, 1.288, CTR_ZC + 0.17);
 
-  // ── the broker, behind the counter where he belongs ───────────────────
-  //
-  // The user: *"the people inside these places are always flat and not like the
-  // people on the street"*. This shop had nobody in it, which undercut the
-  // whole point of the room — a counter built to keep you at arm's length is
-  // just furniture if there is nobody on the other side of it holding the line.
-  //
-  // He stands in the staff strip behind the counter, facing the customer floor:
-  // FACING DERIVED FROM THE COUNTER, not typed. This read `facing: Math.PI` with
-  // the comment "atan2(vx, vz) toward +z, which is out toward the door" — the
-  // SAME sentence, wrong the same way, as the tax office had. `person` takes
-  // 0 = +z, so PI is -z: the broker was facing the back wall with the customer
-  // behind him. Two rooms carrying one copied mistake is GOTCHAS §23 exactly.
-  //
-  // He now faces across his own counter at whoever is on the customer side, so
-  // moving the counter moves his head. A little grime, because this is a shop
-  // where the proprietor works the bench himself. `room.person` is the kit's
-  // wrapper over the same atlas the street citizens use, and it owns the
-  // per-frame turn — see notes/CITIZEN-STYLE.md.
-  const BROKER_X = room.doorAt + 1.6, BROKER_Z = CTR_ZC - 0.62;   // behind his counter
-  room.person({ jacket: '#4a4238', pants: '#2e2a26', skin: '#c9946a', hair: '#6a6058',
-      accent: '#8a2c22', fit: 'plain', cut: 'bald', build: 1, stride: 2, grime: 0.35 },
-    BROKER_X, BROKER_Z,
-    { facing: Math.atan2(0, (CTR_ZC + CTR_D) - BROKER_Z), h: 1.0, w: 1.03 });
+  // THE SAFE, at his back — the one fitting in the room that answers "and then
+  // where does it go". In the staff strip, clear of the back wall art above it
+  // (the knife case starts at y 1.45 and this is 0.70 tall) and 0.16 m clear of
+  // the counter's own collider face at CTR_ZC − CTR_D / 2.
+  const SAFE_X = SELL_X - 0.95;
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.70, 0.44),
+    new THREE.MeshBasicMaterial({ color: 0x2a2a2e })), SAFE_X, 0.35, -hd + 0.34);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.56, 0.02),
+    new THREE.MeshBasicMaterial({ color: 0x35353a })), SAFE_X, 0.36, -hd + 0.58);
+  put(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 10), brassM),
+    SAFE_X, 0.36, -hd + 0.61).rotation.x = Math.PI / 2;
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.02), brassM),
+    SAFE_X + 0.17, 0.36, -hd + 0.60);                            // the handle
 
-  // ── …and he fences ────────────────────────────────────────────────────
+  // ── THE SALES COUNTER: THE MAN YOU BUY FROM ───────────────────────────────
+  //
+  // A second figure, and deliberately NOT the same silhouette: a capped, clean,
+  // slighter man in shirt sleeves against the broker's bald, grimy, broad one.
+  // At this pixel scale the silhouette IS the identification — you have to be
+  // able to tell which of them you are looking at from the door, 6 m away,
+  // which is the same argument the knife case's blades are drawn under.
+  const clerk = room.person({ jacket: '#7a7a70', pants: '#3a3630', skin: '#8a5a34',
+      hair: '#241f1a', accent: '#3d5a4a', fit: 'cap', cut: 'short',
+      build: -1, stride: 2, grime: 0.10 },
+    BUY_X, KEEP_Z, { facing: KEEP_FACE, h: 0.98, w: 0.98 });
+  looksUp(clerk, room.wx(BUY_X), room.wz(KEEP_Z), KEEP_FACE);
+
+  // a parcel already wrapped and tied, waiting on the glass beyond the till.
+  // The counterpart of the ticket pad at the other end: one says something is
+  // being assessed, this one says something is being taken away.
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.16, 0.20),
+    new THREE.MeshBasicMaterial({ color: 0x9a8a6a })), TILL_X + 0.65, 1.34, CTR_ZC + 0.10);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.012, 0.03),
+    new THREE.MeshBasicMaterial({ color: 0x3a2c22 })), TILL_X + 0.65, 1.426, CTR_ZC + 0.10);
+
+  // ── AND THE TWO BOARDS THAT NAME THEM ─────────────────────────────────────
+  //
+  // The room's own hand: the NO CHECKS notice's card, border, red heading and
+  // brown subline, at the size the words need. They hang from the ceiling on
+  // rods OVER the counter rather than being fixed to the wall, for the reason
+  // the rate card is on the glass and not on the plaster — the back wall is
+  // full, and nothing already on it is moved for a sign.
+  const SIGN_Y = 2.44, SIGN_Z = CTR_ZC + 0.30, SIGN_PY = 20;
+  const stationSign = (wPx: number, head: string, sub: string, lx: number, wM: number) => {
+    const t = declareSurface(pixTex(wPx, SIGN_PY, (g) => {
+      g.fillStyle = '#ded4b8'; g.fillRect(0, 0, wPx, SIGN_PY);
+      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, wPx, 1); g.fillRect(0, SIGN_PY - 1, wPx, 1);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#8a2c22'; g.font = 'bold 8px monospace';
+      g.fillText(head, wPx / 2, 7);
+      g.fillStyle = '#3a2c22'; g.font = '5px monospace';
+      g.fillText(sub, wPx / 2, 15);
+    }), 'sign');
+    const hM = (wM * SIGN_PY) / wPx;
+    put(new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), ctx.flat(t)), lx, SIGN_Y, SIGN_Z);
+    // the two rods it hangs on, DERIVED from the board so a resized sign cannot
+    // leave its own hangers floating
+    const rod = room.H - (SIGN_Y + hM / 2);
+    for (const dx of [-wM / 2 + 0.10, wM / 2 - 0.10]) {
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, rod, 6), steelM),
+        lx + dx, room.H - rod / 2, SIGN_Z);
+    }
+  };
+  stationSign(112, 'LOANS & BUYING', 'HAND IT THROUGH THE WINDOW', SELL_X, 1.80);
+  stationSign(64, 'SALES', 'ASK TO SEE ANYTHING', BUY_X, 1.05);
+
+  // ── …and the loan window FENCES ───────────────────────────────────────
   //
   // *"it should also serve as a fence for the stuff you steal from neighbors."*
   //
@@ -320,11 +521,18 @@ export function buildPawn(ctx: CtxBuild): void {
   //
   // DERIVED FROM THE COUNTER, so it cannot strand itself if the counter moves:
   // the collider spans `CTR_ZC ± CTR_D / 2`, and the player stands 0.55 m clear
-  // of its customer face. `BROKER_X` puts him in front of the man, not in front
-  // of the middle of an empty run.
+  // of its customer face. `SELL_X` puts him at the WINDOW, not in front of the
+  // middle of an empty run — and the same `FENCE_Z` serves the sales counter
+  // 8.4 m east, so the two customer stations are one line off one number.
   const FENCE_Z = CTR_ZC + CTR_D / 2 + 0.55;
   ctx.spot({
-    x: room.wx(BROKER_X), z: room.wz(FENCE_Z), r: 1.0,
+    x: room.wx(SELL_X), z: room.wz(FENCE_Z), r: 1.0,
+    // ⚠ IT AIMS AT THE MAN NOW, which it could not do while he also carried the
+    // buy prompt. `x/z` stays the stand-point on the customer floor and the aim
+    // goes to him behind the grille (`Spot.aimX`, and the calendar item that
+    // paid for it); `obj` is his sprite, so the selection outline draws the
+    // person the prompt is talking about instead of a box at your own feet.
+    aimX: room.wx(SELL_X), aimZ: room.wz(KEEP_Z), obj: broker.mesh,
     ok: room.inside,
     // THE PROMPT NAMES THE THING AND THE PRICE BEFORE YOU PRESS, which is this
     // project's rule for a refusal being honest (`give()`'s own note): you are
@@ -356,8 +564,11 @@ export function buildPawn(ctx: CtxBuild): void {
     // player-facing text anyway — it is the house habit ("out to the street").
     label: () => {
       const id = bestFence(ctx.purse);
-      if (!id) return 'the pawn counter — he doesn’t want anything you’re carrying';
-      return `sell the ${itemOf(id).name} at the counter — $${fencePrice(id).toFixed(2)}, no questions`;
+      // BOTH WORDINGS STILL CARRY THE WORD "COUNTER" — see the note above; the
+      // station now has a name of its own but the harness's `/buy|order|serve|
+      // till|counter/i` is not what decides player-facing text, so it keeps it.
+      if (!id) return 'the loan counter — he doesn’t want anything you’re carrying';
+      return `sell the ${itemOf(id).name} at the loan counter — $${fencePrice(id).toFixed(2)}, no questions`;
     },
     act: () => {
       const id = bestFence(ctx.purse);
@@ -425,11 +636,14 @@ export function buildPawn(ctx: CtxBuild): void {
   // them was placed to be visible OVER this counter. Nothing is moved for a
   // sign.
   //
-  // At x 1.2 — halfway between the tethered pen at −1.2 and the till at 3.6,
-  // which is the one clear stretch of glass, and derived from those two rather
-  // than chosen.
+  // IT LIVES AT THE SALES STATION, and that is the point of it: the card is one
+  // of the three things that say which end of this counter you are standing at.
+  // It sat at x 1.2 in the middle of an empty run when it was the only way to
+  // reach the stock at all — now the man is, and the card is what he has beside
+  // him. `BUY_X − 0.9` puts it on his west hand with the till on his east, so
+  // the station reads card · man · till and moving him moves both.
   const CARD_W = 0.58, CARD_H = 0.72;
-  const CARD_X = (-1.2 + 3.6) / 2;
+  const CARD_X = BUY_X - 0.9;
   const CARD_Z = CTR_ZC + CTR_D / 2 - 0.07;
   const CARD_Y = 1.26 + CARD_H / 2;               // the counter top is 1.26
   const CARD_PX = Math.round(CARD_W * 500), CARD_PY = Math.round(CARD_H * 500);
@@ -441,17 +655,19 @@ export function buildPawn(ctx: CtxBuild): void {
   put(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.10), woodM),
     CARD_X, 1.275, CARD_Z - 0.035);
 
-  // ── AND IT AIMS AT THE CARD, NOT AT THE MAN ──────────────────────────────
+  // ── AND IT AIMS AT THE MAN ───────────────────────────────────────────────
   //
-  // The one place this shop departs from the pattern, and it is forced: the
-  // broker ALREADY carries a prompt — the fence, 2.4 m along the same counter,
-  // aimed at him. `fp.ts`'s picker resolves aimed selection out to several
-  // metres, so two spots pointing at one sprite would trade the prompt back and
-  // forth as the player's head moved and neither would be reliably reachable.
+  // It used to aim at the CARD, and the note that stood here explained why it
+  // was forced to: the broker already carried the fence prompt on the same
+  // sprite, `fp.ts` resolves aimed selection out to several metres, and two
+  // spots on one man would have traded the prompt back and forth as the
+  // player's head moved. So you looked at a piece of card to buy.
   //
-  // So `aimX/aimZ` and `obj` are the CARD, and the label names him instead. The
-  // two verbs stay legible and separable: you look at the man to sell, and at
-  // his card to buy.
+  // **That was the fault, and the fix was two people, not a cleverer aim.** The
+  // sales counter has its own keeper 8.4 m from the loan window, so `aimX/aimZ`
+  // and `obj` are HIM — the outline draws the man the prompt names, the same as
+  // every other shop in the world, and the card goes back to being what it is:
+  // the thing you read while he serves you.
   shopCounter(ctx, {
     id: 'ct-shop-pawn',
     columns: RATES, look: RATE_LOOK,
@@ -459,9 +675,9 @@ export function buildPawn(ctx: CtxBuild): void {
     mesh: () => rateCard,
     standoff: boardStandoff({ wM: CARD_W, hM: CARD_H, fov: 45, riseM: CARD_Y - 1.75 }),
     fov: 45,
-    stand: { x: room.wx(CARD_X), z: room.wz(FENCE_Z) },
-    keeper: { x: room.wx(CARD_X), z: room.wz(CARD_Z), obj: rateCard },
-    who: 'the broker — his rate card',
+    stand: { x: room.wx(BUY_X), z: room.wz(FENCE_Z) },
+    keeper: { x: room.wx(BUY_X), z: room.wz(KEEP_Z), obj: clerk.mesh },
+    who: 'the man at the sales counter',
     ok: room.inside,
   });
 

@@ -4513,3 +4513,29 @@ floor of the deck. 25 seats registered — including the alcove chair, which had
 stood unregistered since the alcove was built.
 
 `ct/int-library.ts` only. `WORLD OK`. Live on 5177.
+
+### 2026-08-06 — "pawn shop should have a buy guy and a sell guy each diagetic somehow"
+
+**DONE** — one builder, `ct/int-pawn.ts` only.
+
+One man was doing both jobs, and the cost of that was written into the file: the
+BUY prompt could not aim at him *because the SELL prompt already did*, so the
+stock board had to be reached by looking at a piece of card instead of a person.
+
+Two stations at opposite ends of the same 13.8 m counter, told apart by the room
+and not by a label. **x −5.2, the LOAN WINDOW** — a steel grille standing on the
+counter with a serving slot cut in it, his scale and loupe behind the bars, the
+ticket pad and pen on your side of them, the safe at his back; the broker works
+it and `[E]` fences your stolen goods, unchanged, item out first and pay only if
+it left. **x +3.2, the SALES COUNTER** — open glass, a second capped clerk with
+the till on one hand and the rate card on the other, a wrapped parcel waiting;
+`[E]` opens the stock board. Hand-lettered boards hang over each on rods, in the
+NO CHECKS notice's own card, border and red: **LOANS & BUYING** and **SALES**.
+
+**8.4 m between the two spots**, so they cannot both be candidates and the buy
+prompt aims at a man again — `aimX/aimZ` and `obj` are the keeper's sprite on
+both. Neither man wanders; both turn to face you inside 3.2 m and go back to
+their work when you leave. `ct/loiter.ts` deliberately not called — it is a
+stroll that needs two posts and drives its own `spr.update`, which `room.person`
+has already registered. Nothing new on the customer floor and no new collider.
+`WORLD OK`. Live on 5177.
