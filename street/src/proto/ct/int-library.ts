@@ -48,6 +48,19 @@ import { hardLayer as hardLayerLib, LEAF_AJAR, doorRebate } from './vice';
 // across the courtyard, and the way back out lands at the foot of the steps —
 // far enough clear of the way-in trigger that pressing E to leave cannot suck
 // you straight back in, which the kit checks and has caught before.
+//
+// THE DOOR POINT IS THE DOOR PLANE, NOT THE MIDDLE OF THE REVEAL.
+//
+// The user: *"move the public library entry more into the doors, its too far
+// out"* (2026-08-06). It was declared at XF - 0.8 = -11.0, half way down the
+// reveal, which `doorStandFor`'s 0.75 m standoff turned into a way-in spot at
+// x -10.25 — the TOP NOSING of the flight — and a 1.6 m trigger round that
+// reached x -8.65, which is the foot of the steps. The prompt was up while he
+// was still climbing.
+//
+// Declared at the leaf plane instead (XF - 1.6 = -11.8), the spot lands at
+// -11.05: inside the reveal, in front of the doors, which is what the kit's
+// standoff means everywhere else. See the trigger note in the spec below.
 const XF = -10.2;                       // the recessed facade plane, from civic.ts
 const DOOR_Z = -13.0;                   // the library's axis, and the flight's
 
@@ -84,7 +97,7 @@ export const DOOR: DoorDecl = {
     clearW: 2.5, h: 4.0, leaves: 2,
     frame: { colour: 0x4a3a26, material: 'timber' }, glazing: 'none',
   },
-  face: { x: XF - 0.8, z: DOOR_Z, nx: 1, nz: 0 },
+  face: { x: XF - 1.6, z: DOOR_Z, nx: 1, nz: 0 },
 };
 
 // The gallery's own numbers, above buildRoom because the floor function inside
@@ -183,16 +196,23 @@ export function buildLibrary(ctx: CtxBuild): void {
     },
     frontage: { name: 'LIBRARY', w: 16, cz: -13, side: -1 },
     door: {
-      // 1.6, not the kit's 1.05. Every other room's trigger sits on an open
-      // pavement where you stop AT the facade; this one is at the back of a
-      // 1.6 m doorway reveal at the top of a flight, and walking up the steps
-      // carries you to x -11.61 — 1.36 m past a 1.05 m trigger centred on
-      // -10.25. The prompt appeared as you passed through it and was gone by
-      // the time you came to rest, so pressing E at the doors did nothing at
-      // all. Measured, after it did exactly that to me. 1.6 covers the whole
-      // platform from the top nosing to the back of the reveal, and still
-      // leaves the way-out landing 2.35 m clear of it.
-      r: 1.6, at: DOOR.at, width: DOOR.width,
+      // BACK TO THE KIT'S 1.05, because the spot itself moved.
+      //
+      // 1.6 was here, and it was the right answer to the wrong problem: with
+      // the door point half way down the reveal the spot sat at x -10.25, on
+      // the top nosing, and only a radius that big could still reach the back
+      // of the reveal at -11.61 where the steps actually leave you. It reached
+      // — and it also reached x -8.65, the FOOT of the flight, which is what
+      // *"its too far out"* is. A big trigger round a spot in the wrong place
+      // is eager in both directions.
+      //
+      // The spot is now at -11.05 (see the `face` note at the top of the file)
+      // and 1.05 covers x -12.10 … -10.00: the whole standable platform, from
+      // the doors at -11.8 out to a hand's breadth past the reveal mouth at
+      // -10.2. It comes up as you step off the top tread into the doorway, and
+      // not while you are still on the flight. The way-out landing at -7.9 is
+      // 3.15 m clear of it, against the 1.40 m the kit demands.
+      r: 1.05, at: DOOR.at, width: DOOR.width,
       // the foot of the flight, in the courtyard, facing back out of it
       outX: -7.9, outZ: DOOR_Z, outYaw: Math.PI / 2, outGy: 0.14,
     },
@@ -1003,19 +1023,47 @@ export function buildLibrary(ctx: CtxBuild): void {
     // Hinged on their own jamb by arithmetic, not by a pivot Group: a child of
     // a nested group carries a LOCAL position and `dimWorld` reads that, which
     // is the note in ct/interior.ts and the reason the kit does it this way.
-    const leafT = declareSurface(pixTex(16, 48, (g) => {
+    // TWO textures, and they are each other's mirror. The panels are already
+    // symmetric about the leaf's centre line (2..14 of 16), so the only thing
+    // that mirrors is the BRASS — but the brass is the whole tell.
+    const leafTex = (mirror: boolean) => declareSurface(pixTex(16, 48, (g) => {
       g.fillStyle = TIMBER; g.fillRect(0, 0, 16, 48);
       g.fillStyle = 'rgba(0,0,0,0.22)';                 // two sunk panels
       g.fillRect(2, 4, 12, 18); g.fillRect(2, 25, 12, 18);
       g.fillStyle = 'rgba(226,214,186,0.10)';
       g.fillRect(2, 4, 12, 1); g.fillRect(2, 25, 12, 1);
-      g.fillStyle = BRASS; g.fillRect(11, 27, 3, 6);    // the push plate, leading edge
+      // the push plate, on the LEADING edge — 11..14 of 16, or its mirror 2..5
+      g.fillStyle = BRASS; g.fillRect(mirror ? 2 : 11, 27, 3, 6);
       dither(g, 16, 48, 70);
     }), 'detail');
-    // BACK TO BACK, NOT DOUBLE-SIDED, and the rear plane takes the SAME texture
-    // unflipped — GOTCHAS §35. The rotation has already done the mirroring, and
-    // flipping it again would put the brass on the hinge stile, which is the
-    // one place a door handle is never.
+    const leafT = leafTex(false), leafTM = leafTex(true);
+    // BACK TO BACK, NOT DOUBLE-SIDED — GOTCHAS §35.
+    //
+    // *"one of the library interior doors needs to be flipped"* (2026-08-06,
+    // photographed from inside): both push plates sat at the same offset within
+    // their own leaf instead of mirroring about the meeting stile, so one of
+    // them was on a HINGE stile, which is the one place a door handle is never.
+    //
+    // The old note here said "the rotation has already done the mirroring". It
+    // does that for ONE of the two leaves and undoes it for the other, and the
+    // arithmetic says which. A plane at `rotation.y = R` runs its local +x —
+    // and so its u — along world (cos R, 0, -sin R), so u = 1 is at the world
+    // +x end whenever cos R > 0. The front face has R = th = -sx·OPEN, and
+    // |OPEN| < 90°, so cos R > 0 and u = 1 is always at +x; the back face has
+    // R = th + PI, so u = 1 is always at -x. The leading edge, meanwhile, is
+    // the end the leaf swings TOWARD the middle from its jamb, which is -sx.
+    // Line those up and exactly one combination is wrong on each face:
+    //
+    //   face  sx   u=1 at   leading edge at   plate lands on
+    //   +1    -1     +x          +x            the meeting stile   ok
+    //   +1    +1     +x          -x            the HINGE           mirror
+    //   -1    -1     -x          +x            the HINGE           mirror
+    //   -1    +1     -x          -x            the meeting stile   ok
+    //
+    // — which is `face === sx`, and it covers BOTH views by construction. From
+    // inside you read the two `face` rows on the room side; from the courtyard
+    // you read the other two; left and right swap between them and so does the
+    // texture, so the pair is symmetrical from either side.
     // `0.85` — *"~49 deg, matching the kit"* — was here, and matching the kit
     // was the problem: the kit's angle is not a decision anybody made about a
     // library, and the user's own words about this entrance were *"the door
@@ -1046,7 +1094,7 @@ export function buildLibrary(ctx: CtxBuild): void {
       const nx = Math.sin(th), nz = Math.cos(th);       // the leaf's own normal
       for (const face of [1, -1]) {
         const m = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH * 0.98),
-          new THREE.MeshBasicMaterial({ map: leafT }));
+          new THREE.MeshBasicMaterial({ map: face === sx ? leafTM : leafT }));
         m.rotation.y = face > 0 ? th : th + Math.PI;
         // a hair apart ALONG THE LEAF'S OWN NORMAL, not along z: two planes
         // separated on a world axis are still coplanar when the leaf is raked,
