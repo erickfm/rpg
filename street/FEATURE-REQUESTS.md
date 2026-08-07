@@ -4572,3 +4572,67 @@ said the mirror had gone *"a bit too dark"*. One line to nudge and both move.
 The wall texture is untouched: it calls in with `dim` defaulted to 1 and the
 dimmer already scales its material, so dimming it here would apply the evening
 twice. `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-07 — *"also all the mail still looks drab and the same, no color, no dimension variety"*
+
+**DONE** — one builder, `ct/tenancy.ts`.
+
+**THE FOURTH REJECTION OF THE MAIL, AND THE FIRST THREE WERE FIXING DRAWINGS
+NOBODY COULD SEE.** `mailFor()` builds each junk piece as
+`{ day, kind: 'junk', from: j.from, lines: j.lines }` — and **`art` was never
+copied off the `JUNK` table.** So `drawLetter`'s `ART[l.art ?? '']` missed on
+every junk piece in the game and fell through to `drawTyped`: the same 192x178
+near-square yellowed sheet, the same 8 px sender rule under a hairline, the same
+8 px body, for all fifteen senders. Seventeen bespoke painters and seventeen
+distinct paper shapes existed in the file and **not one of them was reachable
+from the mailbox**; only the landlord's notice and the receipt, which set `art`
+at their own push sites, ever drew themselves. `mailIcon` and `mailModel` read
+`l.art` too, so the bag icon and the dropped sheet were square and beige for the
+same reason.
+
+*"all the mail still looks drab and the same, no color, no dimension variety"*
+is a literal description of one drawing wearing fifteen names — and it is why
+`8fd7977c`'s shape table and `63060209`'s supersample fix both landed, both
+verified, and both changed nothing he could see.
+
+**AND HE IS RIGHT ABOUT THE COLOUR TOO,** which would have shown the moment the
+painters became visible. Sixteen of the seventeen `stock()` calls sat between
+`#dcd7c4` and `#f4f2ea` — one cream, a hue swing under 10 degrees, saturation
+never past 12%. Colour was only ever a rule or a masthead, about 5% of a piece's
+area, floating on the identical sheet. From across a room you read AREA.
+
+So **the stock carries the colour now**: goldenrod handbill, mint diner menu,
+kraft-manila window envelope, real greenbar fanfold, utility blue with a yellow
+stub, tricolore pizza flyer, canary legal pad, a four-colour seed-catalogue
+cover, orange catalogue board, aqua appointment card, hot-pink second plate on
+the Penny Saver, carbon-yellow receipt, duplicate-book blue on the agent's
+demand. The bank's white letterhead and the chain letter's sixth-generation grey
+are the only unsaturated stocks left, and each is unsaturated as a statement
+about its sender.
+
+**TWO NEW FORMATS, because "no color" is answered by pieces whose colour IS
+their identity, not by tinting the fifteen that were there.** A hot-pink WHILE
+YOU WERE OUT message slip (100x68, 1.47:1 — the smallest paper in the game) and
+a PAR AVION airmail lettersheet with the red-and-blue chevron border round all
+four edges (108x175, 1:1.62). Table 15 -> 17, which reshuffles which piece lands
+on which day and does not change how many arrive.
+
+**AND THE FALLBACK STOPPED BEING THE BIGGEST SQUARE IN THE BOX.** `drawTyped`
+drew the full 192x178 drawing space — 1.08:1, both the largest and the most
+nearly square object in the game — and it is reached by the landlord's two
+HANDWRITTEN pieces, which is exactly the wrong pair of things to be broadsides.
+It is 99x178 now, 1:1.80, a narrow leaf off a memo pad with a red double rule at
+the head and a red margin down the left, and its copy is FLOWED rather than
+sliced at `COLS` (35 columns measured against a sheet twice its width would have
+clipped every line silently).
+
+**Also fixed, seen only by rendering all twenty pieces to one contact sheet:**
+the postcard's POST CARD heading ran under the stamp, the phone slip's last line
+fell off the bottom of the pad, and the bank's body copy was flowed per source
+line so a sentence written for 35 columns broke into orphans ("for a line",
+"at a") — it is joined into one paragraph before flowing now.
+
+Twenty pieces, twenty silhouettes, twenty stocks. `npx tsc --noEmit` clean,
+`WORLD OK`. Live on 5177.
