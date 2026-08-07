@@ -497,6 +497,141 @@ export const POPCORN = defineItem({
   ),
 });
 
+// ── VOLT VILLAGE ───────────────────────────────────────────────────────────
+//
+// **THE FACADE NAMES THE STOCK AND THE BOARD OWES IT.** `electroFront` in
+// `ct/tex-world.ts` tapes one price card inside the glass and it reads
+// `TV · VCR · CAMCORDER` — three words, so three lines, and they are the three
+// declared here. The rest of what the shop sells is already in this world (a
+// transistor radio at the pawn shop, blank tapes at the video hut) and is not
+// redeclared: an electronics discounter selling the same three-pack of tapes as
+// the rental place is the POINT, and it is one item at two prices.
+//
+// Palette straight off `electroFront` so the thing in your hands is the thing
+// painted behind the glass: #2a2d33 the graphite the whole shop is finished in,
+// #c8322a its red, #9aa0a6 the silver of a 1997 fascia, #5f8fa8 the one colour
+// of a lit tube, #17191d the dead black of a screen that is off.
+//
+// ⚠ TWO OF THESE ARE `bulky` AND THAT IS THE TOASTER'S RULE, NOT A GUESS. *"dont
+// like that i can take the toaster through all the floors of the apt"* — a thing
+// you carry in both arms goes to the one-slot hands rather than into a shoulder
+// bag. A 13" set and a VCR are the two heaviest objects for sale in this world;
+// a camcorder is 1.5 kg in a soft case and genuinely does go in a bag, so it
+// does not get the flag just for being expensive.
+
+export const TV = defineItem({
+  id: 'TV', name: 'portable colour television', stack: 1, bulky: true,
+  thick: 0.37,
+  blurb: 'the handle is on the top and it is not enough handle.',
+  icon: (g) => {
+    box(g, '#2a2d33', 1, 4, 22, 17);                   // the cabinet
+    box(g, '#3a3e46', 1, 4, 22, 2);                    // its lit top edge
+    box(g, '#17191d', 3, 6, 14, 13);                   // the screen well
+    box(g, '#5f8fa8', 4, 7, 12, 11);                   // the picture, on
+    box(g, '#cfe4ee', 4, 7, 12, 3);                    // the pale band across the top
+    box(g, '#c8322a', 4, 16, 12, 2);                   // and the red one under it
+    box(g, '#9aa0a6', 18, 7, 3, 11);                   // the control strip
+    box(g, '#2a2d33', 19, 9, 2, 2); box(g, '#2a2d33', 19, 13, 2, 2);
+    box(g, '#17191d', 3, 21, 3, 1); box(g, '#17191d', 17, 21, 3, 1);   // the feet
+  },
+  // A 13" PORTABLE, 40 x 37 x 36 over its plinth — the size a discounter stacks
+  // ten of on a shelf, which is exactly what the wall inside is built from.
+  model: () => mOf(
+    mBox(0.360, 0.030, 0.320, '#17191d', 0, 0.015, 0),
+    mBox(0.400, 0.340, 0.360, '#2a2d33', 0, 0.200, 0),
+    mBox(0.300, 0.240, 0.004, '#17191d', -0.035, 0.205, 0.181),
+    mBox(0.260, 0.200, 0.004, '#5f8fa8', -0.035, 0.205, 0.184),
+    mBox(0.260, 0.055, 0.004, '#cfe4ee', -0.035, 0.278, 0.186),
+    mBox(0.070, 0.260, 0.004, '#9aa0a6', 0.155, 0.205, 0.181),
+  ),
+});
+
+export const VCR = defineItem({
+  id: 'VCR', name: 'four-head VCR', stack: 1, bulky: true,
+  thick: 0.09,
+  blurb: 'the clock on the front is flashing twelve and always will be.',
+  icon: (g) => {
+    box(g, '#2a2d33', 1, 7, 22, 11);                   // the case
+    box(g, '#3a3e46', 1, 7, 22, 2);                    // the lid
+    box(g, '#9aa0a6', 2, 11, 20, 5);                   // the silver fascia
+    box(g, '#17191d', 3, 12, 9, 3);                    // the cassette flap
+    box(g, '#2a3a30', 14, 12, 6, 3);                   // the clock window
+    box(g, '#5ad07a', 15, 13, 4, 1);                   // twelve o'clock
+    box(g, '#17191d', 2, 18, 20, 1);                   // where it sits
+  },
+  // A FLAT WIDE SLAB, 430 x 88 x 330 — the real footprint, which is why it is a
+  // both-arms object rather than a bag one.
+  model: () => mOf(
+    mBox(0.430, 0.075, 0.330, '#2a2d33', 0, 0.038, 0),
+    mBox(0.432, 0.014, 0.332, '#3a3e46', 0, 0.082, 0),
+    mBox(0.410, 0.040, 0.004, '#9aa0a6', 0, 0.038, 0.167),
+    mBox(0.190, 0.026, 0.004, '#17191d', -0.090, 0.038, 0.170),
+    mBox(0.070, 0.014, 0.004, '#2a3a30', 0.100, 0.040, 0.170),
+  ),
+});
+
+export const CAMCORDER = defineItem({
+  id: 'CAMCORDER', name: 'camcorder', stack: 1,
+  thick: 0.13,
+  blurb: 'the date is stamped in the corner of everything you will ever shoot.',
+  icon: (g) => {
+    box(g, '#3a3e46', 5, 6, 13, 13);                   // the body
+    box(g, '#4a4e56', 5, 6, 13, 2);                    // the top plate
+    box(g, '#2a2d33', 2, 9, 5, 7);                     // the lens barrel
+    box(g, '#5f8fa8', 2, 11, 2, 3);                    // the glass
+    box(g, '#17191d', 18, 8, 4, 5);                    // the eyecup
+    box(g, '#c8322a', 15, 9, 2, 2);                    // the record lamp
+    box(g, '#9aa0a6', 5, 15, 13, 1);                   // the trim band
+    box(g, '#6a6258', 7, 19, 9, 2);                    // the grip strap
+  },
+  // A VHS-C SHOULDER CAM, 110 x 130 x 230 with the barrel out the front.
+  model: () => {
+    const lens = mCyl(0.036, 0.060, '#2a2d33');
+    lens.rotation.x = Math.PI / 2; lens.position.set(0, 0.065, 0.140);
+    const glass = mCyl(0.026, 0.006, '#5f8fa8');
+    glass.rotation.x = Math.PI / 2; glass.position.set(0, 0.065, 0.172);
+    return mOf(
+      mBox(0.110, 0.115, 0.230, '#3a3e46', 0, 0.058, 0),
+      mBox(0.112, 0.020, 0.232, '#4a4e56', 0, 0.108, 0),
+      lens, glass,
+      mBox(0.050, 0.050, 0.030, '#17191d', 0, 0.075, -0.128),
+      mBox(0.014, 0.014, 0.004, '#c8322a', 0.040, 0.095, 0.116),
+      mBox(0.116, 0.016, 0.090, '#6a6258', 0, 0.020, 0),
+    );
+  },
+});
+
+export const BATTERIES = defineItem({
+  id: 'BATTERIES', name: 'four D cells', stack: 4,
+  thick: 0.04,
+  blurb: 'the card says HEAVY DUTY, which in 1997 means the cheap ones.',
+  icon: (g) => {
+    box(g, '#c8322a', 2, 2, 20, 20);                   // the blister card
+    box(g, '#2a2d33', 2, 2, 20, 5);                    // its printed header
+    box(g, '#e8eef2', 4, 4, 13, 2);
+    for (const x of [3, 8, 13, 18]) {
+      box(g, '#4a4e56', x, 9, 4, 11);                  // a cell
+      box(g, '#9aa0a6', x, 9, 4, 2);                   // its cap
+      box(g, '#17191d', x, 19, 4, 1);
+    }
+    box(g, 'rgba(255,255,255,0.16)', 3, 9, 19, 3);     // the blister catching the light
+  },
+  // FOUR D CELLS LYING ON THEIR CARD, 34 mm across and 61 long, which is the
+  // real size and the reason they read as batteries and not as pipe.
+  model: () => {
+    const cells = [-0.054, -0.018, 0.018, 0.054].map((x) => {
+      const c = mCyl(0.017, 0.061, '#4a4e56');
+      c.rotation.x = Math.PI / 2; c.position.set(x, 0.021, 0.012);
+      return c;
+    });
+    return mOf(
+      mBox(0.170, 0.004, 0.090, '#c8322a', 0, 0.002, 0),
+      mBox(0.150, 0.005, 0.024, '#2a2d33', 0, 0.005, -0.030),
+      ...cells,
+    );
+  },
+});
+
 /** every id this file declares, so a sweep can ask "does all stock have art?" */
 export const GOODS: string[] = [
   BURGER.id, CHICKEN.id, FRIES.id, PIE.id, SHAKE.id, COFFEE.id,
@@ -504,4 +639,5 @@ export const GOODS: string[] = [
   COAT.id, SHIRT.id, BELT.id, BOOK.id,
   RADIO.id, WRISTWATCH.id,
   RENTAL.id, BLANKS.id, POPCORN.id,
+  TV.id, VCR.id, CAMCORDER.id, BATTERIES.id,
 ];

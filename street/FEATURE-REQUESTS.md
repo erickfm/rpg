@@ -4410,3 +4410,29 @@ which is the feature. 0.55 against 0.28 is still twice the floor in the dark.
 
 **The halo on the glass is untouched** — a different surface, and he did not say
 the set looks bright.
+### 2026-08-06 — "build out the remaining stores that atrent built yet pls"
+
+Two shopfronts were painted with nothing behind them. Both are rooms now, each
+furnished around a `shopCounter` rather than having one fitted afterwards, and
+each is built as *the facade seen from the other side* — the colours, the stock
+and the door position are all lifted off `ct/tex-world.ts` rather than re-picked.
+
+**VOLT VILLAGE** — `ct/int-volt.ts`, the fourteenth interior. 10.8 × 9.6 × 3.2,
+main street west side. `electroFront` says *"THE WALL OF TELEVISIONS IS THE WHOLE
+FRONT … a grid of lit screens, all showing the SAME picture, stacked three high"*,
+so the back wall is **thirty 14" sets in three tiers sharing ONE screen material**
+— "all showing the same thing" is a fact of the geometry, not a thing to
+remember. Hi-fi separates up the west wall, camcorders under glass on the one
+island, counter in the half you walk into. Plate glass to 0.29 m, because
+`BANDS.electro` took the showroom sill gap for exactly that reason.
+
+Its facade tapes one card in the window reading `TV · VCR · CAMCORDER`, so those
+three are the board's VIDEO column. Four new items in `ct/goods.ts` — `TV`,
+`VCR` (both `bulky`, the toaster's rule), `CAMCORDER`, `BATTERIES` — and two
+reused. Prices are the world's ×4 scale off real 1997 money: **$520 a
+television, $600 a VCR, $1,920 a camcorder**, against a purse that reaches ~$623
+a season. That is deliberate and it is written down in the file: a TV is 29 days
+of rent, the camcorder is three seasons and is the thing under glass you look at
+rather than buy. The small end — batteries $12, blanks $7, a radio $56 — is
+where a player actually shops. `BLANKS` is $7 here against the video hut's $9
+and `RADIO` $56 against the pawn shop's $28, both spreads on purpose.
