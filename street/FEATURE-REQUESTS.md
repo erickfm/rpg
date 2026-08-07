@@ -4864,3 +4864,51 @@ The pawn shop, the landlord and the shop counters still speak through `hudNote`
 and are unchanged — they port one line at a time.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-07 — *"the electronics shop needs to give more like 90s sharper image, beige and wood and sleek and computers and stuff out and about"*
+
+VOLT VILLAGE shipped a day earlier as a **dark** room, and the note in
+`ct/int-volt.ts` argued for it at length off the facade: *"in a shop like this
+the merchandise IS the lighting."* He looked at it and named a different shop
+type — the **catalogue showroom**, where the machine is set up on a desk and you
+are invited to touch it, not stacked on a wall behind a counter.
+
+**His words outrank the earlier note, which was mine.** Four things changed and
+each one inverts a decision the first build defended:
+
+**The shell.** Graphite floor, blue-grey walls and four cool battens became warm
+oatmeal carpet, sand walls, a near-white ceiling and **seven warm-white** strips.
+Beige under a cool tube goes grey, and grey is the one thing the room must not
+be.
+
+**The materials.** Every MACHINE is now beige and every FIXTURE it stands on is
+oak — that division is the whole of *"beige and wood"* and it costs two shared
+materials. Thirty black television cabinets went beige with a moulded darker
+bezel; the shelving carcass, the hi-fi racks, the camcorder plinth, the counter
+front and the price-board frame all went to light-oak veneer. The price board
+was white-on-graphite, a departure board; it is printed black on cream in an oak
+frame. Only the red keyline and the salesman's shirt are still the fascia's, so
+the sign over the door and the room behind it are one shop.
+
+**Computers, out and about.** Two oak demo desks came onto the floor with **four
+1997 desktop systems running on them** — flat beige case, 14" monitor on top of
+it, keyboard 0.30 m forward, mouse on a pad, and one shared teal-desktop screen
+so all four show the same thing the way a real shop floor did. A printer between
+the pair on the east run, three cordless phones on their bases along the
+counter. The island faces the door: it is the first thing you see.
+
+**And the lane held.** The island is 2.0 x 0.8 with 2.05 m to the glass and
+2.25 m to the camcorder case; the east run is 0.8 x 3.2 with 4.20 m of floor
+west of it and 2.00 m to the counter. Both were moved off the lane arithmetic
+rather than off the look — the island wanted to be centred and that left 1.80 m,
+so it moved 0.25 m south instead of getting narrower. The corridor from the door
+to the till is 3.60 m wide.
+
+Two things only a look caught and both were the same failure — a value tuned for
+a dark room, wrong in a bright one. The carpet's dither at 44 dragged the warm
+base back to grey (now 22), and the camcorder glass at 0.26 read as a blue-grey
+slab laid over the stock (now 0.14).
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
