@@ -2463,21 +2463,89 @@ export function buildLibrary(ctx: CtxBuild): void {
       }), 'detail');
     };
     // ONE case, against the wall, where three slabs stood in the open. Its
-    // length is the alcove's own strip and its build is `wallRun` — the same
-    // painter, kick, ends, shelves and back board as the stacks, which is the
-    // point: it reads because they read.
-    wallRun(-W / 2 + BAY_D / 2 + 0.06, 0.0, 5.2, 'z', 1, 0x4c11, 0, magT);
+    // build is `wallRun` — the same painter, kick, ends, shelves and back board
+    // as the stacks, which is the point: it reads because they read.
+    //
+    // ══ AND IT IS AT THE DOORS NOW, WHICH IS THE WHOLE OF THE ARGUMENT ═══════
+    //
+    // *"library layout needs a reorg. try to find a better way to use the space
+    // to organize all the stuff in it."*
+    //
+    // The periodicals were in the west alcove, x -9.68, z ±2.6 — the deepest,
+    // darkest corner of a room with **no windows at all**. Newspapers are the
+    // one thing in a branch that is read STANDING, in the light, by somebody who
+    // came in for ten minutes and is not going to walk 13 m to do it. This room
+    // has exactly one source of daylight and it is the doorway, so the papers go
+    // beside it, on the east wall of the entrance hall — the corner that emptied
+    // when the terminals went under the deck.
+    //
+    // The entrance table is 2.33 m west of the case and already faces into the
+    // room, so it becomes what a table beside a newspaper rack is for.
+    //
+    //   the front wall inside face  z 10.79  the case's collider  0.21 m — shut
+    //   the foot of the flight      z  5.40  the case's collider  1.36 m
+    //   the entrance table          x  7.05  the case's collider  2.33 m
+    //
+    // 0.21 m at the front wall is deliberate: under `ENTERABLE`, so it is a
+    // shut end rather than a slot you can walk into and not turn round in.
+    const PER_Z0 = 6.80, PER_Z1 = 10.75;
+    wallRun(W / 2 - BAY_D / 2 - 0.06, (PER_Z0 + PER_Z1) / 2, PER_Z1 - PER_Z0,
+      'z', -1, 0x4c11, 0, magT);
+    // …and the alcove keeps a case, because a stripped wall is not an
+    // improvement on a badly-placed one. Same run, same length, same position:
+    // BOOKS instead of covers, which is what the rest of that wall is anyway.
+    wallRun(-W / 2 + BAY_D / 2 + 0.06, 0.0, 5.2, 'z', 1, 0x4c33);
+    // a chair at the papers, out of the entrance table's z-band so the two
+    // colliders never form a gap between them, and derived off the case's own
+    // west face the way the alcove chair below is off its east one
+    {
+      const perFace = W / 2 - BAY_D - 0.06;              // the case's west face
+      const cx = perFace - PASSABLE - 0.25 - 0.15, cz = 7.5;
+      box(0.46, PAN_T, 0.46, wood, cx, PAN_Y, cz);
+      box(0.06, 0.52, 0.46, wood, cx - 0.22, 0.72, cz);   // the back, away from the case
+      for (const lx of [-0.18, 0.18]) for (const lz of [-0.18, 0.18]) {
+        box(0.05, 0.45, 0.05, woodDark, cx + lx, 0.225, cz + lz);
+      }
+      solid(cx, cz, 0.5, 0.5);
+      ctx.seat({
+        // yaw PI/2 is the CAMERA convention and looks along +x, at the case
+        x: room.wx(cx), z: room.wz(cz), yaw: Math.PI / 2, h: SEAT_TOP,
+        approach: { x: room.wx(cx - 0.85), z: room.wz(cz) },
+        label: 'sit and read the papers',
+        ok: () => room.inside(),
+      });
+    }
     // The last newspaper stand stood here, at z -1.9, inside the magazine case
     // above. It is removed — see the note at the top of this block. Its
     // `solid()` went with it, so the strip in front of the case is now clear
     // floor rather than a 0.6 m obstruction a metre off the chair.
-    // a chair to sit and read in, turned into the alcove rather than facing the room
-    box(0.46, 0.06, 0.46, wood, CHAIR_X, 0.44, 0.9);
-    box(0.46, 0.52, 0.06, wood, CHAIR_X, 0.72, 1.12);
+    // a chair to sit and read in, turned into the alcove rather than facing the
+    // room.
+    //
+    // AND YOU CAN ACTUALLY SIT IN IT NOW. Found while moving the papers: this
+    // chair has stood here since the alcove was built and was never registered
+    // — the one seat in a room of fourteen that the user's standing rule
+    // (*"for every seat in the game i want to be able to sit down"*) had missed.
+    // It also carried its OWN pan height, a 0.06 board at y 0.44 giving a top of
+    // 0.47 against the room's `SEAT_TOP` of 0.475, which is the two-authorings
+    // fault the SEAT_TOP note at the head of this file exists to end. It reads
+    // the room's constant now, like every other chair in here.
+    const ALC_Z = 0.9;
+    box(0.46, PAN_T, 0.46, wood, CHAIR_X, PAN_Y, ALC_Z);
+    box(0.46, 0.52, 0.06, wood, CHAIR_X, 0.72, ALC_Z + 0.22);
     for (const lx of [-0.18, 0.18]) for (const lz of [-0.18, 0.18]) {
-      box(0.05, 0.44, 0.05, woodDark, CHAIR_X + lx, 0.22, 0.9 + lz);
+      box(0.05, 0.45, 0.05, woodDark, CHAIR_X + lx, 0.225, ALC_Z + lz);
     }
-    solid(CHAIR_X, 0.9, 0.5, 0.5);
+    solid(CHAIR_X, ALC_Z, 0.5, 0.5);
+    ctx.seat({
+      // the back is at HIGHER z than the pan, so the sitter looks along -z,
+      // which is camera yaw 0 (GOTCHAS §33 — the chair's own geometry says
+      // which way it faces, and this is derived from it rather than guessed).
+      x: room.wx(CHAIR_X), z: room.wz(ALC_Z), yaw: 0, h: SEAT_TOP,
+      approach: { x: room.wx(CHAIR_X), z: room.wz(ALC_Z - 0.85) },
+      label: 'sit and read',
+      ok: () => room.inside(),
+    });
 
     // ── AND SOMETHING ON THE WALL ABOVE THEM ──
     //
