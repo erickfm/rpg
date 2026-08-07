@@ -4907,7 +4907,46 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the spill is the light, and dropping the lit state too would close the
     // gap between them, which is the feature. 0.55 against 0.28 is still twice
     // as much floor with the bulb off. One number to push again either way.
-    const TV_SPILL_LIT = 0.28, TV_SPILL_DARK = 0.55;
+    /**
+     * ── WHY TWO REDUCTIONS DID NOT LAND ───────────────────────────────────
+     *
+     * *"still sooooo bright, reduce pls"*   (2026-08-06, the THIRD time)
+     *
+     * MEASURED OFF HIS OWN SCREENSHOT rather than guessed, because 1.0 → 0.72
+     * → 0.55 moved this by almost nothing and a fourth guess was not worth his
+     * time. In `Screenshot from 2026-08-06 17-45-01.png` the brightest boards
+     * inside the wedge are (106,94,80) against (52,40,28) of unlit floor
+     * beside them — the spill ADDS (54,54,52), a neutral near-white, while the
+     * picture on the glass averages (37,44,58), plainly blue.
+     *
+     * 1. THE TINT IS APPLIED, AND THE CANVAS CANCELS IT. Work the numbers:
+     *    tint = (37,44,58)·0.42/255 = (0.061,0.072,0.096); × `TV_SPILL_DARK`
+     *    0.55 = (0.034,0.040,0.053); × the wedge's own cream ink 255,240,206,
+     *    which is LINEAR (1.0,0.871,0.617), = (0.034,0.034,0.033) — dead
+     *    neutral, and sRGB-encoded that is (53,53,52) against the (54,54,52)
+     *    measured. A blue picture times a warm canvas is a WHITE floor, every
+     *    time. So the ink goes white and the picture's own colour is the only
+     *    thing colouring the boards, which is what "coloured by the picture"
+     *    was always supposed to mean.
+     *
+     * 2. THE KNOB IS COMPRESSED BY THE sRGB ENCODE, which is why 0.72 → 0.55
+     *    read as no change at all. Three.js encodes to sRGB in the fragment
+     *    shader, so the additive blend lands on ENCODED values: what the eye
+     *    gets is the 2.4-root of what this number does. 0.72 → 0.55 is a 24%
+     *    cut in the constant and 6 levels out of 255 on his screen. Anything
+     *    that reads as "half as bright" needs the constant cut by roughly
+     *    FIVE, not by a fifth — and that, not timidity about the shape, is
+     *    the whole of why he has had to ask three times.
+     *
+     * SO: 0.55 → 0.10, and `TV_SPILL_LIT` 0.28 → 0.05 with it. That looks
+     * like flattening the two states and is the opposite: the RATIO is held at
+     * 0.51 exactly, so the bulb-off floor still gets twice the bulb-on floor,
+     * which is the feature. Dropping only one of them would have inverted it.
+     * On his screen the added light goes (54,54,52) → about (19,22,24) — a
+     * cut of two and a half to one, the first one of these he will actually
+     * see, and now cool rather than white. One number, both directions.
+     */
+    const TV_SPILL_LIT = 0.05, TV_SPILL_DARK = 0.10;
     const wedgeT = surfTex('detail', 32, 48, (g) => {
       const N = TV_SPILL_STEPS;
       /** the gap in canvas rows — 48 rows span `TV_SPILL_D` */
@@ -4942,7 +4981,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         const a = A * (t < TV_PEAK
           ? Math.pow(t / TV_PEAK, 1.3)
           : Math.pow((1 - t) / (1 - TV_PEAK), 1.35));
-        g.fillStyle = `rgba(255,240,206,${a.toFixed(3)})`;
+        // WHITE INK, NOT CREAM, and it is the fix rather than a tidy-up: the
+        // material's colour IS the picture's average, and a warm canvas
+        // multiplied into a cool picture is the neutral white patch he has
+        // complained about three times. White here means the boards take the
+        // hue of whatever is on the glass and nothing else.
+        g.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
         for (let y = 0; y < 48; y++) for (let x = 0; x < 32; x++) {
           const dx = x + 0.5 - 16, dy = y + 0.5 - cy;
           if (dx * dx + dy * dy <= r * r) g.fillRect(x, y, 1, 1);
@@ -4952,7 +4996,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // the boundary dissolves rather than ending. Never above `GAP_ROW`: the
       // dark foot is the point of the whole exercise and the fringe must not
       // creep back into it.
-      g.fillStyle = 'rgba(255,236,194,0.055)';
+      g.fillStyle = 'rgba(255,255,255,0.055)';   // white for the same reason
       for (let i = 0; i < TV_SPILL_FRINGE; i++) {
         const y = Math.floor(GAP_ROW + Math.random() * (48 - GAP_ROW));
         const x = Math.floor(Math.random() * 32);
@@ -5007,14 +5051,38 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         tvApplyTint();
       } catch { /* a tainted canvas is not a reason to lose the television */ }
     };
+    /**
+     * THE FLOOR IS DIMMED AND THE LIGHT ON IT WAS NOT, WHICH IS BACKWARDS.
+     * The spill is `selfLit`, so the room sweep skips it and it holds full
+     * strength while the boards under it are multiplied to `ROOM_DARK` by day
+     * and `ROOM_NIGHT` at midnight. The darker the room got, the LOUDER the
+     * patch — the exact opposite of how a room reads as it goes dark, and half
+     * of why he keeps seeing a white shape on black boards.
+     *
+     * So the room hands the set its own grade and the spill rides it, NORMALISED
+     * so that 1.0 is the state each constant above was authored against — the
+     * bulb off in daylight. Nothing changes in the picture he is looking at
+     * right now; what changes is that at 3 a.m. the spill falls with the floor
+     * instead of standing over it. `applyRoomLight` is the one caller and one
+     * line to drop if it ever reads as the television dimming itself.
+     */
+    let tvRoomDim = 1;
     /** the picture's colour on both surfaces, at whatever the room allows */
     const tvApplyTint = () => {
+      const k = tvSpillGain * tvRoomDim;
       tvGlowM.color.copy(tvTint);
-      tvSpillM.color.setRGB(tvTint.r * tvSpillGain, tvTint.g * tvSpillGain, tvTint.b * tvSpillGain);
+      tvSpillM.color.setRGB(tvTint.r * k, tvTint.g * k, tvTint.b * k);
     };
     /** the ceiling switch tells the set how much of the room is its to light */
     const tvSetRoomLit = (on: boolean) => {
       tvSpillGain = on ? TV_SPILL_LIT : TV_SPILL_DARK;
+      tvApplyTint();
+    };
+    /** the room's grade, 1 = the state the constants above were written for */
+    const tvSetRoomDim = (f: number) => {
+      const g2 = Math.min(1, Math.max(0, f));
+      if (Math.abs(g2 - tvRoomDim) < 0.005) return;
+      tvRoomDim = g2;
       tvApplyTint();
     };
     const RAIL_D = 0.04, RAIL_Z = WELL_Z + RAIL_D / 2 + 0.012;
@@ -5028,9 +5096,58 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // and the furniture of the thing, on the bottom rail's own face
     const FZ = RAIL_Z + RAIL_D / 2 + 0.002;
     const BY = SCR_Y - SCR_H / 2 - botH / 2;
-    box(CASE_W - 0.06, 0.055, 0.010, TV_X, BY, FZ, tvBandM);
-    box(0.10, 0.020, 0.008, TV_X - 0.16, BY, FZ + 0.006,
-      new THREE.MeshBasicMaterial({ color: 0x8f897c }));                 // brand badge
+    /**
+     * ── AND THE BAND CARRIES A TAPE SLOT ──────────────────────────────────
+     *
+     * *"widen this bottom left bar i want it to look a bit like a slot for a
+     *  vhs"*   (2026-08-06)
+     *
+     * The bar he is pointing at was a 100 × 20 mm brand badge, and a combi set
+     * is exactly the right television for 1997 — so it becomes the loading
+     * mouth: 200 × 30 mm, which is a real cassette (187 mm) with a moulding's
+     * clearance either side, on a 520 mm cabinet.
+     *
+     * A SLOT IS AN OPENING, NOT A DARKER STRIPE, and a stripe is all a single
+     * flat box can ever be here — every material on this set is
+     * `MeshBasicMaterial`, so a recess gets NO shading for free and would read
+     * as paint. It has to be built. The band is therefore four boxes with a
+     * hole in the middle rather than one box: top and bottom strips full
+     * width, a stub at the left end so the mouth does not run off the
+     * cabinet, and the long right-hand piece that still carries the buttons
+     * and the standby LED. The mouth is a fifth box behind the hole, its face
+     * 5 mm back from the band's — a depth you can see at the seated angle,
+     * and 2 mm clear of the bottom rail behind it, so nothing new is
+     * coplanar with anything.
+     *
+     * THE LIP IS WHAT SELLS IT. With no shading the recess reads only by
+     * contrast, so the moulding above the mouth stands 2 mm PROUD of the band
+     * and keeps the badge's own grey — the one light accent this corner of the
+     * bezel already had, widened from 100 to 200 mm exactly as he asked,
+     * rather than deleted. Under it the mouth is the darkest value on the set,
+     * a shade below the dark well the glass sits in.
+     *
+     * IT IS SCENERY. The world has a `VHS` and a `RENTAL` clamshell and this
+     * takes NO interaction — he asked for it to look like a slot. If putting a
+     * tape in ever becomes an ask, the hole is already here.
+     */
+    const SLOT_W = 0.20, SLOT_H = 0.030;
+    const SLOT_X = TV_X - 0.115, SLOT_Y = BY - 0.003;      // the opening's centre
+    const BAND_W = CASE_W - 0.06, BAND_H = 0.055;
+    const bandT = (BY + BAND_H / 2) - (SLOT_Y + SLOT_H / 2);   // strip above
+    const bandB = (SLOT_Y - SLOT_H / 2) - (BY - BAND_H / 2);   // strip below
+    const bandL = (SLOT_X - SLOT_W / 2) - (TV_X - BAND_W / 2); // stub at the left end
+    const bandR = (TV_X + BAND_W / 2) - (SLOT_X + SLOT_W / 2); // and the long right piece
+    box(BAND_W, bandT, 0.010, TV_X, SLOT_Y + SLOT_H / 2 + bandT / 2, FZ, tvBandM);
+    box(BAND_W, bandB, 0.010, TV_X, SLOT_Y - SLOT_H / 2 - bandB / 2, FZ, tvBandM);
+    box(bandL, SLOT_H, 0.010, SLOT_X - SLOT_W / 2 - bandL / 2, SLOT_Y, FZ, tvBandM);
+    box(bandR, SLOT_H, 0.010, SLOT_X + SLOT_W / 2 + bandR / 2, SLOT_Y, FZ, tvBandM);
+    // the mouth, 4 mm oversize all round so the hole never shows a seam, its
+    // face at FZ — 5 mm behind the band's, 2 mm in front of the bottom rail
+    box(SLOT_W + 0.008, SLOT_H + 0.008, 0.008, SLOT_X, SLOT_Y, FZ - 0.004,
+      new THREE.MeshBasicMaterial({ color: 0x0c0c10 }));                 // the opening
+    // and the lip over it, 2 mm proud, in the badge's grey
+    box(SLOT_W + 0.004, 0.005, 0.006, SLOT_X, SLOT_Y + SLOT_H / 2 + 0.0005, FZ + 0.004,
+      new THREE.MeshBasicMaterial({ color: 0x8f897c }));                 // the moulding
     for (let k = 0; k < 3; k++)
       box(0.020, 0.020, 0.008, TV_X + 0.04 + k * 0.032, BY, FZ + 0.006,
         new THREE.MeshBasicMaterial({ color: 0x40404a }));               // buttons, lighter than the band
@@ -6584,6 +6701,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       lastK = k;
       for (const d of dimmable) d.m.color.setRGB(d.base.r * k, d.base.g * k, d.base.b * k);
       setRoomLightLevel(k);
+      // ⚠ AND THE TELEVISION'S SPILL RIDES THE SAME GRADE. Normalised against
+      // the state each constant was authored for — bulb off in daylight is
+      // `ROOM_DARK`, bulb on in daylight is 1 — so today's look is unchanged
+      // and only the small hours move. See `tvSetRoomDim`.
+      tvSetRoomDim(lightOn ? k : k / ROOM_DARK);
     };
     ctx.onFrame(() => { if (Math.abs(lastGy - 2 * ST) < 0.6) applyRoomLight(); });
     setLight(true);
