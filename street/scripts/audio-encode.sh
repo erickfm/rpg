@@ -258,8 +258,12 @@ sfx click-2      "click.wav"               0.14 0.12 44100
 # second event that could not be aligned with anything. Cut at those boundaries
 # it is three pieces a bus stop can actually use, and the middle one loops.
 echo "the bus, cut at its own boundaries:"
-sfx bus-arrive "bus.wav"  2.00  8.60 22050
-sfx bus-depart "bus.wav" 24.00 12.00 22050
+# The ARRIVAL is the last four seconds of the approach, not all eight: it is
+# fired when the bus starts braking, and a recording that took 8.6 s to reach
+# its stop would land the hiss and settle long after the real bus had parked.
+sfx bus-arrive "bus.wav"  6.80  4.00 22050
+# The DEPARTURE is the surge, not the thirty seconds of receding behind it.
+sfx bus-depart "bus.wav" 24.00  6.00 22050
 
 # `bed` normalises a whole file, and the idle is a WINDOW of one — so it is cut
 # first and looped second. Two steps, because a seamless loop needs the tail and
@@ -273,8 +277,14 @@ SRC=$SRC_SAVE
 rm -f "$OUT/.bus-idle-cut.wav"
 
 echo "cars and trucks:"
-sfx truck-pass-1 "truck pass.wav"    0.10 8.45 22050
-sfx truck-pass-2 "truck pass 2.wav"  0.20 9.60 22050
+# CUT TO THE PASS ITSELF, not the whole recording. Both files are 8-10 s of
+# approach, whoosh and recede, and their half-second envelopes peak at 4.0-4.75 s
+# (rms 0.169) and 4.0-4.5 s (0.105). Played whole against a car that crosses the
+# player in about two seconds, the recording's arc and the vehicle's would drift
+# apart and the sound would arrive from nowhere. A 3.2 s window centred on the
+# peak IS the pass, and it can be fired at closest approach and stay in step.
+sfx truck-pass-1 "truck pass.wav"    3.00 3.20 22050
+sfx truck-pass-2 "truck pass 2.wav"  2.90 3.20 22050
 sfx car-start    "car start.wav"     0.00 3.00 22050
 sfx car-door-open  "car door open.wav"  0.22 0.96 32000
 sfx car-door-close "car door close.wav" 0.06 0.40 22050

@@ -183,7 +183,7 @@ export function setMuted(b: boolean): void { muted = !!b; commit(); }
 export function toggleMute(): void { setMuted(!muted); }
 
 // ── the asset roster ────────────────────────────────────────────────────────
-const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain'] as const;
+const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain', 'bus-idle'] as const;
 type BedName = (typeof BEDS)[number];
 
 /** The one-shots, cut from the three short sources. Eight outdoor footfalls and
@@ -201,6 +201,7 @@ const EVENTS = [
   'land-soft', 'land-hard', 'wall-hit',
   'light-on', 'light-off', 'drawer-open', 'door-open', 'door-close',
   'register-1', 'register-2', 'mail-open', 'mail-close', 'sleep',
+  'truck-pass-1', 'truck-pass-2', 'bus-arrive', 'bus-depart',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -280,6 +281,9 @@ const LVL = {
   register: 0.45,
   mail: 0.55,
   sleep: 0.50,
+  pass: 0.50,      // multiplied by distance
+  bus: 0.55,       // multiplied by distance
+  busIdle: 0.30,   // the looping bed while it stands at the flag
 };
 
 /** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
@@ -638,6 +642,8 @@ export function register(ctx: CtxBuild): void {
   // `ctx.player.yaw()`, and it is the reason a bed can be a place rather than a
   // wash: walk past it and it crosses from one ear to the other.
   let sitePan: StereoPannerNode | null = null;
+  /** the bus idling at its flag is a PLACE too, so it gets the same treatment */
+  let busPan: StereoPannerNode | null = null;
 
   /** where a world point sits across the stereo field, -1 left … +1 right */
   const bearing = (x: number, z: number, px: number, pz: number) => {
@@ -731,6 +737,68 @@ export function register(ctx: CtxBuild): void {
   // so a sleep is a jump no frame time can explain. Everything else moves the
   // clock smoothly.
   let lastMin = ctx.clock.now().totalMin;
+
+  // ── the traffic ───────────────────────────────────────────────────────────
+  //
+  // NOT ONE VEHICLE IS NAMED, but every one carries `userData.carKind`
+  // (`ct/cars.ts:1577`) and `ct/traffic.ts` adds them as direct scene children,
+  // so the fleet is one filter over `scene.children`. The bus is the only one
+  // with a `doorZ`, which is how it is told from the cars without a name.
+  //
+  // AND SPEED IS RECONSTRUCTED, NOT ASKED FOR. `traffic.ts` keeps `v.spd` on a
+  // closure this module cannot see — but it also writes each vehicle's position
+  // from the path every frame, so |Δposition|/dt is the same number by a
+  // different route. Nothing needs publishing.
+  interface Veh { o: THREE.Object3D; bus: boolean; x: number; z: number; spd: number; d: number }
+  let fleet: Veh[] | null = null;
+  let passAt = -99;
+  let busIdleWant = 0, busIdlePan = 0;
+
+  const watchTraffic = (t: number, dt: number) => {
+    if (!fleet) {
+      const f: Veh[] = [];
+      for (const o of scene.children) {
+        const u = o.userData as { carKind?: string; doorZ?: number };
+        if (!u || !u.carKind) continue;
+        f.push({ o, bus: u.doorZ !== undefined, x: o.position.x, z: o.position.z, spd: 0, d: 999 });
+      }
+      if (f.length) fleet = f; else return;
+    }
+    busIdleWant = 0;
+    for (const v of fleet) {
+      const nx = v.o.position.x, nz = v.o.position.z;
+      const moved = Math.hypot(nx - v.x, nz - v.z);
+      // A retired vehicle is parked off-path and re-placed, which is a teleport
+      // and not a speed. Same guard, same reason, as the player's own.
+      const spd = moved > 4 ? 0 : moved / Math.max(dt, 1e-4);
+      const d = Math.hypot(nx - px, nz - pz);
+      const wasSpd = v.spd, wasD = v.d;
+      v.x = nx; v.z = nz; v.spd = spd; v.d = d;
+      if (!v.o.visible) continue;
+
+      if (v.bus) {
+        // Braking onset and pulling away, both read off the speed alone.
+        if (wasSpd >= 5 && spd < 5) atPoint('bus-arrive', nx, nz, LVL.bus, 46);
+        else if (wasSpd < 0.8 && spd >= 0.8 && wasSpd > 0) atPoint('bus-depart', nx, nz, LVL.bus, 46);
+        if (spd < 0.8) {
+          // standing at the flag: the idle bed, placed where the bus is
+          const near = Math.max(0, 1 - d / 34) ** 1.5;
+          if (near > busIdleWant) { busIdleWant = near; busIdlePan = bearing(nx, nz, px, pz) * 0.6; }
+        }
+        continue;
+      }
+
+      // A PASS-BY FIRES AT CLOSEST APPROACH — the frame the distance stops
+      // shrinking and starts growing. The recording is cut to the whoosh
+      // itself, so that instant is where it belongs; firing on proximity alone
+      // would trigger it again every frame the car stayed near.
+      if (spd > 5 && d < 15 && d > wasD && wasD < 900 && t - passAt > 2.4) {
+        passAt = t;
+        atPoint(roll() < 0.5 ? 'truck-pass-1' : 'truck-pass-2',
+          nx, nz, LVL.pass * (0.85 + roll() * 0.3), 26, 0.96 + roll() * 0.1);
+      }
+    }
+  };
 
   const watchScene = (t: number) => {
     // the till
@@ -912,6 +980,13 @@ export function register(ctx: CtxBuild): void {
       beds.site.g.connect(sitePan);
       sitePan.connect(rig.wall);   // the site is outdoors: it goes through the wall
     }
+    if (!busPan) {
+      busPan = ac.createStereoPanner();
+      beds['bus-idle'].g.disconnect();
+      beds['bus-idle'].g.connect(busPan);
+      busPan.connect(rig.wall);
+    }
+    busPan.pan.value = glide(busPan.pan.value, busIdlePan, f.dt, 0.15);
 
     ins = glide(ins, inside(f.px) ? 1 : 0, f.dt);
     const [out, inn] = power(ins);
@@ -990,6 +1065,7 @@ export function register(ctx: CtxBuild): void {
       // the working day is glided like everything else, so six o'clock is a
       // shift ending rather than a switch being thrown
       site: bleed * LVL.site * near * shift,
+      'bus-idle': bleed * LVL.busIdle * busIdleWant,
     };
     for (const n of BEDS) {
       const b = beds[n];
@@ -1004,6 +1080,7 @@ export function register(ctx: CtxBuild): void {
     // ── things in the world that moved since last frame ─────────────────────
     px = f.px; pz = f.pz;
     watchScene(f.t);
+    watchTraffic(f.t, f.dt);
 
     // ── footsteps ───────────────────────────────────────────────────────────
     const moved = Number.isNaN(lastX) ? 0 : Math.hypot(f.px - lastX, f.pz - lastZ);
