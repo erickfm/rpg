@@ -580,6 +580,106 @@ export function buildLibrary(ctx: CtxBuild): void {
   wallRun((2.2 + (GALLERY_X0 - 0.3)) / 2, -D / 2 + BAY_D / 2 + 0.06,
     (GALLERY_X0 - 0.3) - 2.2, 'x', 1, 0x71a3);
 
+  // ── THE REFERENCE BAY — GIVING THE BACK-EAST QUARTER A REASON ────────────
+  //
+  // *"library layout needs a reorg. try to find a better way to use the space
+  // to organize all the stuff in it."*
+  //
+  // The measured dead area. The five free-standing runs stop at x 1.0 and the
+  // gallery's posts stand at 6.86, so x 1.30..6.86 by z -11..-2 — **50 m², an
+  // eighth of the room** — held the wall run above and nothing else. It was not
+  // a route to anywhere either: the stacks are entered from their own ends and
+  // the gallery from the far side, so a player had no reason to walk into it
+  // and, walking in by accident, found a back wall.
+  //
+  // It has BOTH now. It is the way to the computer bay under the deck, which is
+  // traffic, and it is a room in its own right — the reference end, which is
+  // what a branch does with the floor behind its stacks: the oversize atlases,
+  // a table to open them on, and the shelving that is already on that wall.
+  //
+  // NOT CLOSED OFF. The other honest answer was a wall, and a wall here would
+  // seal the only way to the bay under the balcony from the north.
+  //
+  // Clearances, collider face to collider face:
+  //   the last stack run   x 1.30   the table's collider     2.40   1.10 m
+  //   the deck posts       x 6.86   the table's collider     4.40   2.46 m
+  //   the wall run         z -10.42 the plan chest           -9.05  1.37 m
+  //   the plan chest       z -7.95  the table                -5.20  2.75 m
+  //   the table            z -4.00  the globe                -2.83  1.17 m
+  {
+    const REF_X = 3.4;
+    // the table: 1.8 x 1.0, chairs on its two long sides. Four seats, all
+    // registered — the room's standing rule is *"for every seat in the game i
+    // want to be able to sit down"*.
+    const RF_Z = -4.6, RF_W = 1.8, RF_D = 1.0;
+    boxFace(RF_W, 0.07, RF_D, wood, REF_X, 0.74, RF_Z, FACE_PY, RF_W, RF_D, '#6b5334');
+    for (const dx of [-RF_W / 2 + 0.16, RF_W / 2 - 0.16]) {
+      for (const dz of [-RF_D / 2 + 0.14, RF_D / 2 - 0.14]) {
+        box(0.09, 0.74, 0.09, woodDark, REF_X + dx, 0.37, RF_Z + dz);
+      }
+    }
+    solid(REF_X, RF_Z, RF_W + 0.2, RF_D + 0.2);
+    for (const side of [-1, 1] as const) {
+      for (const dx of [-0.55, 0.55]) {
+        const cx = REF_X + dx, cz = RF_Z + side * 0.90;
+        box(0.44, PAN_T, 0.44, wood, cx, PAN_Y, cz);
+        box(0.44, 0.5, 0.05, wood, cx, 0.70, cz + side * 0.20);
+        for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
+          box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, cz + fz);
+        }
+        ctx.seat({
+          // the CAMERA convention, as everywhere in this file: a chair on the
+          // -z side of the table faces +z, which is yaw PI. Derived from the
+          // side, so the two sides cannot disagree (GOTCHAS §33).
+          x: room.wx(cx), z: room.wz(cz), yaw: side < 0 ? Math.PI : 0, h: SEAT_TOP,
+          approach: { x: room.wx(cx), z: room.wz(cz + side * 0.85) },
+          label: 'sit at the reference table',
+          ok: () => room.inside(),
+        });
+      }
+    }
+    // THE PLAN CHEST, and it is the object that says "reference" rather than
+    // "another table". Oversize atlases and the borough's own sheets live flat
+    // in a chest of shallow drawers, which is why one is always standing in
+    // this corner of a branch — and it is 0.85 m tall, so it does not stand in
+    // the sightline from the hall the way a case would.
+    const PC_Z = -8.5, PC_W = 1.6, PC_D = 0.9, PC_H = 0.85;
+    boxFace(PC_W, PC_H, PC_D, woodDark, REF_X, PC_H / 2, PC_Z,
+      FACE_PZ, PC_W, PC_H, '#4a3826');
+    box(PC_W + 0.06, 0.06, PC_D + 0.06, wood, REF_X, PC_H + 0.03, PC_Z);   // its top slab
+    // five shallow drawers, each with a brass pull, drawn as members rather
+    // than painted: a plan chest read from 2 m is its drawer lines
+    // …each one 5 mm INTO the carcass and its pull 5 mm into the drawer, so no
+    // pair of faces is flush (GOTCHAS §6). A drawer front laid exactly on the
+    // face it sits in is the z-fight this file has already paid for twice.
+    const brassPull = new THREE.MeshBasicMaterial({ color: 0xc9a45e });
+    for (let i = 0; i < 5; i++) {
+      const y = 0.10 + i * 0.145;
+      box(PC_W - 0.06, 0.10, 0.03, wood, REF_X, y, PC_Z + PC_D / 2 + 0.010);
+      box(0.16, 0.03, 0.03, brassPull, REF_X, y, PC_Z + PC_D / 2 + 0.035);
+    }
+    solid(REF_X, PC_Z, PC_W + 0.1, PC_D + 0.1);
+    // an atlas left open on top of it — the boards under the leaves, each layer
+    // overlapping the one below by 5 mm rather than resting on it
+    box(0.66, 0.02, 0.48, woodDark, REF_X, PC_H + 0.045, PC_Z);
+    box(0.62, 0.03, 0.44, new THREE.MeshBasicMaterial({ color: 0xd8d2be }),
+      REF_X, PC_H + 0.065, PC_Z);
+    // AND THE BAY IS NAMED. A zone a player cannot name is a zone they walk
+    // through; the stack ends carry their Dewey bands for exactly this reason,
+    // and this is the same argument one scale up. Over the wall run, clear of
+    // the STAFF ONLY door at x 3.6.
+    const refSignT = declareSurface(pixTex(48, 12, (g) => {
+      g.fillStyle = '#4a4638'; g.fillRect(0, 0, 48, 12);
+      hardLayerLib(g, '#d8d2c0', (h) => {
+        h.fillStyle = '#d8d2c0'; h.font = 'bold 7px monospace';
+        h.textAlign = 'center'; h.textBaseline = 'middle';
+        h.fillText('REFERENCE', 24, 6);
+      });
+    }), 'sign');
+    put(new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.30), ctx.flat(refSignT)),
+      5.4, 2.50, -D / 2 + 0.08);
+  }
+
   // ── THE VESTIBULE — REMOVED, 2026-07-25 ──────────────────────────────────
   //
   // The user, on `Screenshot from 2026-07-25 22-05-35.png`, standing in the
@@ -2189,8 +2289,18 @@ export function buildLibrary(ctx: CtxBuild): void {
     // collider's own +0.31 half-width, so nothing new stands in the lane.
     solid(TR_X, TR_Z, 0.62, 0.96);
 
-    // the globe, on the floor west of the reading table
-    const GL_X = -7.0, GL_Z = -0.9;
+    // THE GLOBE, AND IT MOVED WITH THE ROOM. It stood at (-7.0, -0.9), which
+    // was "on the floor west of the reading table" when the table was at
+    // x -4.0, z 0.6. The rank is 5 m north-east of that now and the globe was
+    // left standing on its own in the middle of the floor — the same
+    // a-constant-that-was-right-stopped-being-right fault this file has fixed
+    // for the desk, the trolley and the bin.
+    //
+    // It goes to the mouth of the reference bay, which is where a globe belongs
+    // anyway: it stands at the turn off the hall and announces the bay, the way
+    // the stack end plates announce the ranges. 1.17 m clear of the reference
+    // table, 1.87 m west to the last stack run, 3.23 m east to the deck posts.
+    const GL_X = 3.4, GL_Z = -2.6;
     box(0.34, 0.05, 0.34, woodDark, GL_X, 0.025, GL_Z);
     box(0.07, 0.66, 0.07, woodDark, GL_X, 0.36, GL_Z);
     box(0.40, 0.06, 0.40, new THREE.MeshBasicMaterial({ color: 0xa8863c }), GL_X, 0.72, GL_Z);
