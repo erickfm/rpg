@@ -491,6 +491,20 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
  * and settled was never sent, so it should not be sitting in the box when you
  * come back down.
  */
+/**
+ * "5TH" from a 5, because the notice may not TYPE the day it is about.
+ *
+ * ⚠ IT WAS TYPED. The notice read "IS DUE ON THE 5TH" as a literal while the
+ * amount beside it came off `RENT.amount` — the same bug as the "1ST" that had
+ * to be pulled out of it earlier, one rent-day move away from the notice, the
+ * wall calendar and the landlord saying three different things.
+ */
+function ordinal(n: number): string {
+  const t = n % 100;
+  const s = t >= 11 && t <= 13 ? 'TH' : ['TH', 'ST', 'ND', 'RD'][n % 10] ?? 'TH';
+  return `${n}${s}`;
+}
+
 function mailFor(day: number): Letter[] {
   const out: Letter[] = [];
   if (day < 0 || noDelivery(day)) return out;
@@ -511,7 +525,7 @@ function mailFor(day: number): Letter[] {
       lines: [
         `RE: APT ${RENT.flat}, ${RENT.building}`,
         '',
-        `RENT OF $${RENT.amount.toFixed(2)} IS DUE ON THE 5TH`,
+        `RENT OF $${RENT.amount.toFixed(2)} IS DUE ON THE ${ordinal(RENT.dueDayOfSeason)}`,
         `OF ${dateOf(due).season} — ${left} DAY${left === 1 ? '' : 'S'} FROM TODAY.`,
         '',
         'I collect in person. I am in the',
@@ -1099,6 +1113,15 @@ function stock(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
  * being the only one makes it the most recognisable object in the box instead
  * of the most generic.
  *
+ * AND THE LANDLORD'S TWO ARE IN IT NOW, which is the loose end `8fd7977c` left.
+ * The junk got its fifteen rectangles while the notice stayed on the full 192x178
+ * sheet — 1.08:1 — so the ONE PIECE THAT IS NOT A NOTE was left square, in a
+ * table whose whole point is that only a note may be. It is 120x162, 1:1.35, the
+ * letter sheet a managing agent writes a demand on; the receipt is 124x64, 1.94:1,
+ * a stub torn off a duplicate book, moved out of 1.59:1 where it sat inside 4% of
+ * the dentist's card at nearly the same size — two small landscape rectangles a
+ * glance could not tell apart. Seventeen pieces, seventeen shapes.
+ *
  * SO THIS TABLE IS THE DRAWING. No two pieces share an aspect; the set runs
  * from 2.26:1 landscape to 1:2.53 portrait; and every painter takes its
  * rectangle from here rather than typing its own percentage of the sheet, so
@@ -1126,6 +1149,7 @@ function stock(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
 const SHAPES: Record<string, { w: number; h: number }> = {
   // ── LANDSCAPE: the things that are wider than they are tall ──────────────
   'envelope-prev':       { w: 190, h:  84 },   // 2.26 : 1   a #10 window envelope
+  'docket-receipt':      { w: 124, h:  64 },   // 1.94 : 1   a stub off a duplicate book
   'card-dentist':        { w: 132, h:  80 },   // 1.65 : 1   an appointment card
   'postcard':            { w: 168, h: 108 },   // 1.56 : 1   a 6x4 postcard
   'flyer-pizza':         { w: 188, h: 136 },   // 1.38 : 1   a half-sheet flyer
@@ -1136,6 +1160,7 @@ const SHAPES: Record<string, { w: number; h: number }> = {
   'catalogue-order':     { w: 154, h: 172 },   // 1 : 1.12   400 pages, and thick
   'classified-penny':    { w: 148, h: 178 },   // 1 : 1.20   a free weekly tabloid
   'catalogue-302':       { w: 138, h: 178 },   // 1 : 1.29   a seed catalogue
+  'notice-agent':        { w: 120, h: 162 },   // 1 : 1.35   the agent's letter sheet
   'letterhead-bank':     { w: 126, h: 178 },   // 1 : 1.41   proper letter stock
   'bill-utility':        { w: 116, h: 178 },   // 1 : 1.53   a statement with a stub
   'menu-diner':          { w: 104, h: 178 },   // 1 : 1.71   a takeaway menu
@@ -1868,17 +1893,27 @@ function flow(g: CanvasRenderingContext2D, x: number, y: number, w: number,
 function balanceBand(g: CanvasRenderingContext2D, x: number, y: number, w: number): void {
   if (!CTX) return;
   const bal = owed(Math.floor(CTX.clock.now().totalMin / 1440));
+  const txt = bal > 0 ? `OUTSTANDING NOW: $${bal.toFixed(2)}` : 'NOTHING OUTSTANDING TODAY';
   fill(g, '#c9c3ac', x, y, w, 16);
-  g.fillStyle = '#2b2620'; g.font = UI.font(8, true);
+  g.fillStyle = '#2b2620';
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.fillText(bal > 0 ? `OUTSTANDING NOW: $${bal.toFixed(2)}` : 'NOTHING OUTSTANDING TODAY', x + 4, y + 11);
+  // ⚠ MEASURED DOWN TO THE BAND, never clipped by it. 8 px held 25 characters on
+  // the 172-unit sheet the notice used to be; on 104 it holds 21, and "NOTHING
+  // OUTSTANDING TODAY" is 25. Shrink until it fits, and never below 6 — the
+  // legibility floor this file keeps everywhere else.
+  let px = 8;
+  g.font = UI.font(px, true);
+  while (px > 6 && g.measureText(txt).width > w - 8) { px--; g.font = UI.font(px, true); }
+  g.fillText(txt, x + 4, y + 11);
 }
-/** the rubber stamp, struck off-square the way one lands on a desk */
-function pastDue(g: CanvasRenderingContext2D, cx: number, cy: number): void {
+/** the rubber stamp, struck off-square the way one lands on a desk. `s` scales
+ *  it to the paper — 60 units of stamp is half the width of a 120-unit sheet. */
+function pastDue(g: CanvasRenderingContext2D, cx: number, cy: number, s = 1): void {
   if (!CTX || owed(Math.floor(CTX.clock.now().totalMin / 1440)) <= 0) return;
   g.save();
   g.translate(cx, cy);
   g.rotate(-0.17);
+  g.scale(s, s);
   g.strokeStyle = 'rgba(150,46,38,0.75)'; g.lineWidth = 2;
   g.strokeRect(-30, -12, 60, 24);
   g.fillStyle = 'rgba(150,46,38,0.85)'; g.font = UI.font(9, true);
@@ -1912,78 +1947,116 @@ function pastDue(g: CanvasRenderingContext2D, cx: number, cy: number): void {
  * and this only draws them. Nothing is typed here — the notice said "the 1ST"
  * hard-typed once already today and that is exactly the bug this must not
  * reintroduce.
+ *
+ * ── AND IT IS A LETTER SHEET NOW, NOT A SQUARE ────────────────────────────
+ *
+ * *"basically none of the dimensions should be square unless its like a note or
+ *  a post-it"*   (2026-08-05)
+ *
+ * 120 x 162, 1:1.35. It was the last piece filling the whole 192x178 drawing
+ * space — 1.08:1, the near-square every painter used to share — which made it
+ * the only square thing in the box that is NOT a note, in a set where being
+ * square is the super's note's entire identity. 1:1.35 is a letter sheet, which
+ * is what a demand is written on, and it is the widest gap left in the table:
+ * 4.7% off the seed catalogue's 1:1.29 and 4.3% off the bank's 1:1.41, and no
+ * other piece is 162 tall — every other portrait sheet is 178 or 172.
+ *
+ * ⚠ AND THE COPY IS RE-FITTED, WHICH IS THE HALF THAT BITES. 104 units of text
+ * width is 28 monospace characters at 6 px against the 35 the old full sheet
+ * held, so the body drops from 8 px to 6, the RE: line is FLOWED instead of
+ * having its first wrapped line taken (the second notice's RE carries the
+ * arrears figure and would have lost it off the end), the band measures its own
+ * text down until it fits, and the boxed amount is drawn only when there IS a
+ * figure — the late notice quotes its arrears in the RE: line and was drawing an
+ * empty 30-unit box under it. Worst case is 6 flowed lines on the notice and 9
+ * on a long-overdue second notice, both of which land above the band.
  */
 ART['notice-agent'] = (g, l) => {
-  const W = PAPER.w, H = PAPER.h, IN = 10, TW = W - IN * 2;
-  stock(g, 0, 0, W, H, '#e4e2d6', '#f0eee4', '#c4c1b2');
-  fill(g, 'rgba(90,110,130,0.07)', 0, 0, W, H);          // duplicate-book wash
-  perf(g, 4, 4, W - 8);                                  // torn from the book
-  fill(g, '#2a2620', 0, 10, W, 26);                      // the masthead
+  const P = paper('notice-agent'), IN = 8, TW = P.w - IN * 2;
+  const cx = P.x + P.w / 2, foot = P.y + P.h;
+  stock(g, P.x, P.y, P.w, P.h, '#e4e2d6', '#f0eee4', '#c4c1b2');
+  fill(g, 'rgba(90,110,130,0.07)', P.x, P.y, P.w, P.h);  // duplicate-book wash
+  perf(g, P.x + 3, P.y + 3, P.w - 6);                    // torn from the book
+  fill(g, '#2a2620', P.x, P.y + 6, P.w, 20);             // the masthead
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#e8e4d4'; g.font = UI.font(10, true);
-  g.fillText(RENT.landlord, W / 2, 25);
+  g.fillStyle = '#e8e4d4'; g.font = UI.font(9, true);
+  g.fillText(RENT.landlord, cx, P.y + 18);
   g.font = UI.font(6);
-  g.fillText('MANAGING AGENT', W / 2, 33);
-  // the RE: block, ruled the way a form is
+  g.fillText('MANAGING AGENT', cx, P.y + 25);
+  // the RE: block, ruled the way a form is — FLOWED, because the second notice
+  // puts the arrears figure at the end of this line and 104 units will not hold
+  // it on one; the rule is placed off the foot of however many it took.
   g.textAlign = 'left';
-  g.fillStyle = '#3a352c'; g.font = UI.font(7, true);
-  g.fillText(wrapTo(g, l.lines[0] ?? '', TW)[0], IN, 48);
-  fill(g, '#8d8672', IN, 52, TW, 1);
+  let y = flow(g, P.x + IN, P.y + 34, TW, [l.lines[0] ?? ''], 7, '#3a352c', true);
+  fill(g, '#8d8672', P.x + IN, y - 4, TW, 1);
   // THE AMOUNT SET APART, so the page reads as a bill rather than as a letter
   // that mentions money. The figure and the season both come off the lines the
   // builder assembled from RENT.amount and dateOf — nothing is typed here.
   const body = l.lines.slice(1).filter((t) => t.trim());
   const money = body.find((t) => t.includes('$')) ?? '';
   const when = body.find((t) => t.startsWith('OF ')) ?? '';
-  fill(g, '#d8d4c4', IN, 60, TW, 30);
-  g.strokeStyle = '#2a2620'; g.lineWidth = 1;
-  g.strokeRect(IN + 0.5, 60.5, TW - 1, 29);
-  g.fillStyle = '#2a2620'; g.font = UI.font(13, true);
-  g.textAlign = 'center';
-  g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', W / 2, 78);
-  g.font = UI.font(6);
-  g.fillText(wrapTo(g, when, TW - 8)[0], W / 2, 87);
+  if (money) {
+    fill(g, '#d8d4c4', P.x + IN, y + 3, TW, 26);
+    g.strokeStyle = '#2a2620'; g.lineWidth = 1;
+    g.strokeRect(P.x + IN + 0.5, y + 3.5, TW - 1, 25);
+    g.fillStyle = '#2a2620'; g.font = UI.font(13, true);
+    g.textAlign = 'center';
+    g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', cx, y + 20);
+    g.font = UI.font(6);
+    g.fillText(wrapTo(g, when, TW - 8)[0], cx, y + 27);
+    g.textAlign = 'left';
+    y += 29;
+  }
   // ⚠ THE REST IS FLOWED AND THE BAND FOLLOWS IT. Same fix as the carbon: the
   // body wraps to the paper and the band is placed off its foot, not off a
   // typed row that could land on a line.
-  const end = flow(g, IN, 104, TW, body.filter((t) => t !== money && t !== when), 8, '#332d25');
-  balanceBand(g, IN, Math.min(end + 4, H - 22), TW);
-  pastDue(g, W - 48, Math.min(end + 26, H - 40));
+  const end = flow(g, P.x + IN, y + 10, TW, body.filter((t) => t !== money && t !== when), 6, '#332d25');
+  balanceBand(g, P.x + IN, Math.min(end + 4, foot - 20), TW);
+  pastDue(g, P.x + P.w - 36, Math.min(end - 6, foot - 32), 0.72);
 };
 
 /**
  * ══ THE RECEIPT: A DOCKET, AND THE SMALLEST PAPER IN THE GAME ═════════════
  *
  * Proof of payment is not a letter and should not be shaped like one. A stub
- * torn off a duplicate book: narrow, short, a perforation down its left edge
+ * torn off a duplicate book: long, shallow, a perforation down its left edge
  * where it left the spine, a printed RECEIVED heading, the figure on a ruled
  * line, and the agent's initials scratched across the bottom in biro. It
- * occupies about a fifth of the space a notice does, which is most of what
+ * occupies about two fifths of the space a notice does, which is most of what
  * says "this is a different object" before a word is read.
+ *
+ * ⚠ 124 x 64, 1.94:1, AND IT MOVED THERE OUT OF A COLLISION. It used to size
+ * itself off `PAPER` at 0.62 x 0.42 — 119 x 75, 1.59:1 — which put it inside 4%
+ * of the dentist's 132 x 80 card in aspect AND within a dozen units of it in
+ * both dimensions: two small pale landscape rectangles a glance cannot tell
+ * apart, which is the exact failure the shape table exists to prevent. 1.94:1
+ * is the empty band between that card and the window envelope's 2.26:1 — 17%
+ * clear of one and 14% of the other — and a stub off a spine is long and
+ * shallow anyway. The rows tightened to suit: nothing here is a percentage of
+ * the full sheet any more, it all comes off `SHAPES`.
  */
 ART['docket-receipt'] = (g, l) => {
-  const w = Math.round(PAPER.w * 0.62), h = Math.round(PAPER.h * 0.42);
-  const x = Math.round((PAPER.w - w) / 2), y = Math.round((PAPER.h - h) / 2);
+  const P = paper('docket-receipt'), x = P.x, y = P.y, w = P.w, h = P.h;
   const IN = 10, TW = w - IN * 2;
   stock(g, x, y, w, h, '#f0ecd8', '#f8f5e6', '#d0cbb4');
   for (let i = 0; i < h; i += 4) fill(g, 'rgba(90,84,70,0.45)', x, y + i, 1, 2);  // the spine
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#2a2620'; g.font = UI.font(8, true);
-  g.fillText('RECEIVED', x + w / 2, y + 15);
-  fill(g, '#2a2620', x + IN, y + 19, TW, 1);
+  g.fillText('RECEIVED', x + w / 2, y + 13);
+  fill(g, '#2a2620', x + IN, y + 17, TW, 1);
   g.fillStyle = '#5a544a'; g.font = UI.font(6);
-  g.fillText(`${RENT.building} — APT ${RENT.flat}`, x + w / 2, y + 28);
+  g.fillText(`${RENT.building} — APT ${RENT.flat}`, x + w / 2, y + 26);
   // the figure, on its own ruled line, which is what a docket is for
   const money = l.lines.find((t) => t.includes('$')) ?? '';
   g.fillStyle = '#2a2620'; g.font = UI.font(11, true);
-  g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', x + w / 2, y + 46);
-  fill(g, 'rgba(90,84,70,0.55)', x + IN + 4, y + 50, TW - 8, 1);
+  g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', x + w / 2, y + 44);
+  fill(g, 'rgba(90,84,70,0.55)', x + IN + 4, y + 48, TW - 8, 1);
   g.font = UI.font(6); g.fillStyle = '#5a544a';
-  g.fillText('WITH THANKS', x + w / 2, y + 60);
+  g.fillText('WITH THANKS', x + w / 2 - 12, y + 57);
   // his initials, in biro, INSIDE the sheet — measured off the paper's own
-  // corner rather than placed at a fixed inset, so a narrow docket keeps them.
+  // corner rather than placed at a fixed inset, so a shallow docket keeps them.
   g.save();
-  g.translate(x + w - 30, y + h - 14);
+  g.translate(x + w - 24, y + h - 8);
   g.rotate(-0.14);
   g.fillStyle = 'rgba(47,79,140,0.8)'; g.font = UI.font(10, true);
   g.textAlign = 'center';
