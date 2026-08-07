@@ -1911,10 +1911,10 @@ function buildLot(o: {
     // Each one goes where its reason is. Bay 1 is the south flank's first
     // slot, the one you pass on the way in — a lot always has a car being
     // looked at, and that is what makes the place read as WORKING rather than
-    // as thirteen parked cars. The jacked one is at the back beside the tyre
-    // stacks, which have stood there since the first pass with nothing to
-    // explain them. The one on blocks is the furthest bay from the street:
-    // not stock, a donor.
+    // as thirteen parked cars. The north back corner is the tired one, beside
+    // the tyre stacks — a jack until the user rejected it, a `beater` now, and
+    // the note under NOT_PARKED is the one to read for why. The one on blocks
+    // is the furthest bay from the street: not stock, a donor.
     //
     /* ── ONE ROW HELD EVERY DAMAGED CAR ON THE LOT ─────────────────────────
      * Found while grading the walk, not by a check. Bay indices alternate
@@ -1936,24 +1936,39 @@ function buildLot(o: {
      * the two derelicts now sit as a matched pair at the back, which is where a
      * lot actually keeps them — the clean stock up front where customers look,
      * the donor and the one on the jack behind it.
+     *
+     * STALE IN ITS LAST CLAUSE ONLY: the north back corner still holds the
+     * tired car and the balance across the two rows is unchanged, but it is no
+     * longer on a jack. See NOT_PARKED below.
+     */
+    /* ── THE JACK IS GONE FROM THIS LOT, AND THAT IS THE FIX ───────────────
+     *
+     * The user, on this exact car — the $695 hatch in the north back corner:
+     * *"fix this car, just make it loks janky, not actually janky"*.
+     *
+     * It had been `{ jack: 'fr' }` through three separate passes, every one of
+     * them trying to make a raised car read as a car being worked on, and every
+     * one of them reported back as a car with its wheels off it: *"it sits
+     * nose-high with its wheels not meeting the ground, and there is nothing
+     * under it holding it there"*, then a tilted car with nothing visible under
+     * it from the aisle, and now this. Measured on the shipped tilt, the reason
+     * is not the jack's placement at all — `body.rotation` drops the JACKED
+     * corner 79 mm and hangs the opposite rear wheel 121 mm clear of the
+     * tarmac, so what a customer walks up to is a body sagging onto a black
+     * `noLight` blob with a wheel floating beside it. After dark the jack, the
+     * spare and the tyre are all the same unlit black and none of the three
+     * reads as an object.
+     *
+     * So this bay stops being a car in pieces. `beater` (ct/cars.ts) is the
+     * distinction he drew, built: four wheels on, four tyres on the ground, and
+     * every signal of a $695 car carried by paint and stance. The leaning spare
+     * below is keyed off `jack`, so it leaves with it — nothing on this lot now
+     * has a wheel off except the donor on blocks, which has visible block
+     * stacks under it and has never been reported.
      */
     const NOT_PARKED = new Map<number, CarState>([
       [1, { hood: true }],                    // S, first bay you pass
-      // 'fl', NOT 'rl'. The user, on a frame from beside the office: "it sits
-      // nose-high with its wheels not meeting the ground, and there is nothing
-      // under it holding it there ... either the jack is on the far side and
-      // invisible from the aisle a customer walks down, or it is still not with
-      // this car." It was the first: `jack` puts the stand at the named corner,
-      // and on this car REAR-LEFT lands between the car and the back wall.
-      // 'fr', and this took two goes because I derived the flank instead of
-      // measuring it. This car's nose reads (-0.91, -0.41), so walking its
-      // heading the LEFT flank faces +z -- away from the aisle and into the back
-      // wall. 'fl' put the stand at z 7.63 against a car centred at 7.30, i.e.
-      // further from the customer than the car itself, and the shot from the
-      // aisle showed a tilted car with nothing under it, exactly as reported.
-      // The RIGHT flank is the one a customer sees. Verified by measuring where
-      // the jack mesh lands, not by re-deriving it.
-      [BAY.length - 2, { jack: 'fr' }],       // N back corner, beside the tyre stacks
+      [BAY.length - 2, { beater: true }],     // N back corner, the $695 hatch
       [BAY.length - 1, { blocks: true }],     // S back corner, the donor
     ]);
 
@@ -2039,16 +2054,17 @@ function buildLot(o: {
       {
         const tiers = carColliderSpec(it.kind);
         const cy = Math.cos(yaw), sy = Math.sin(yaw);
-        // ⚠ A JACKED CAR TILTS, AND lot.ts CANNOT SEE BY HOW MUCH. `makeCar`
-        // rolls the body inside an inner group (ct/cars.ts, `state.jack`), which
-        // lifts one corner ~0.10 m — so a height CAP on a jacked car would sit
-        // that much too low on the raised side. Today's jacked bay is a HATCH,
-        // whose spec is a full-height wall with no cap at all, so there is no
-        // cap here to be wrong. That is a fact about the current stock list, not
-        // a guarantee, so it is asserted rather than assumed:
-        // scripts/probes/w118-item231-lot-colliders.mjs fails if a jacked bay
-        // ever draws a kind that HAS a capped tier. Fixing it properly needs the
-        // tilt exported from ct/cars.ts, which item 231 does not name.
+        // ⚠ A TILTED CAR TILTS, AND lot.ts CANNOT SEE BY HOW MUCH. `makeCar`
+        // rolls the body inside an inner group for `state.jack` and again, far
+        // more gently, for `state.beater` — so a height CAP on either would sit
+        // wrong on the raised side. NO BAY IS JACKED ANY MORE (see NOT_PARKED),
+        // and the beater's sag is 0.020 rad, which over a 3.8 m hatch is 38 mm
+        // at the nose; the beater bay is a HATCH besides, whose spec is a
+        // full-height wall with no cap at all, so there is no cap here to be
+        // wrong. That is a fact about the current stock list, not a guarantee:
+        // scripts/probes/w118-item231-lot-colliders.mjs asserts it, and it is
+        // written against `jack` rather than against tilt in general, so it will
+        // need re-aiming at `beater` when the QC sprint reaches it.
         for (const t of tiers) {
           const lx = (t.minX + t.maxX) / 2, lz = (t.minZ + t.maxZ) / 2;
           // three's Ry(t) sends local (x, z) to (x cos t + z sin t, -x sin t + z cos t)

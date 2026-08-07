@@ -1134,6 +1134,10 @@ export interface CarState {
   jack?: Corner;
   /** Off the road for good: all four wheels off, body down on block stacks. */
   blocks?: boolean;
+  /** A CHEAP car rather than a damaged one — every wheel on and every tyre on
+   *  the ground, with the cheapness carried by paint and stance. See the block
+   *  at the foot of `makeCar` for what it actually does and why it exists. */
+  beater?: boolean;
 }
 
 export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: CarState = {}): THREE.Group {
@@ -1508,6 +1512,10 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   if (state.jack) off.add(state.jack);
   if (state.blocks) for (const c of ['fl', 'fr', 'rl', 'rr'] as Corner[]) off.add(c);
 
+  /** Every road wheel that was actually fitted. Collected because `state.beater`
+   *  below sags the BODY and must leave the wheels exactly where they are —
+   *  a tired spring drops the car onto its tyres, it does not lift them. */
+  const wheels: THREE.Mesh[] = [];
   for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
     const corner = `${wz < 0 ? 'f' : 'r'}${wx < 0 ? 'l' : 'r'}` as Corner;
     if (off.has(corner)) continue;
@@ -1520,6 +1528,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     w.rotation.set(0, 0, Math.PI / 2);
     w.position.set(wx, 0.34, wz);
     g.add(w);
+    wheels.push(w);
     if (wz === -spec.wheelZ) front.push(w);
   }
   // The paint, published rather than left to be guessed at: scripts/carstate.mjs
@@ -1704,6 +1713,101 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
       }
     }
     g.userData.onBlocks = true;
+  }
+
+  // ── A CHEAP CAR, WHICH IS NOT THE SAME THING AS A BROKEN ONE ─────────────
+  //
+  // The user, on the lot's $695 hatch: *"fix this car, just make it loks janky,
+  // not actually janky"*. That car was carrying `jack: 'fr'`, and from the
+  // aisle the state did not read as a car being worked on — it read as a model
+  // that had come apart. Its front-right wheel was gone, its rear-left hung
+  // clear of the tarmac, the black jack under the wing was `noLight` so after
+  // dark it was a shapeless hole, and the spare leaning on the wing was a
+  // second black blob beside the first.
+  //
+  // So the distinction he drew is the whole design here. NOTHING IN THIS BLOCK
+  // MOVES A WHEEL, TAKES ONE OFF, OR LIFTS A TYRE. Every signal is paint or
+  // stance, which is what actually says "$695" about a 1997 car:
+  //
+  //     a bonnet off another car, never painted     the panel you see first
+  //     one headlamp out                            the one asymmetry
+  //     rust along both rockers                     where a car really goes
+  //     tired springs                               a stance, not a fault
+  //
+  // FOUR, and no more. Debris, broken glass and modelled damage are all
+  // deliberately absent: three or four clear signals read as a cheap car and
+  // ten read as a wreck, and the wreck is precisely what was rejected.
+  if (state.beater) {
+    const PRIMER = '#77726a';
+    const primM = new THREE.MeshBasicMaterial({ color: new THREE.Color(PRIMER) });
+
+    // 1. THE MISMATCHED PANEL. `hoodPanel` is whichever bonnet this kind built,
+    //    so the seam fraction and the panel's own size are read off it rather
+    //    than re-typed — a sedan hood and a pickup hood are different sizes and
+    //    this must not know which it got.
+    if (hoodPanel) {
+      const p = (hoodPanel.geometry as THREE.BoxGeometry).parameters;
+      hoodPanel.material = [primM, primM,
+        flatT(panelTopTex(PRIMER, 40 / 48, p.width, p.depth)), primM, primM, primM];
+    }
+
+    // 2. ONE HEADLAMP OUT, covered rather than repainted — `carFrontTex` is
+    //    shared by the whole fleet and must not learn about this. Its lamps sit
+    //    0.15 m in from the edge of the 1.80 m nose and 0.125 m down from the
+    //    beltline, 0.26 x 0.16; those four numbers are quoted from it, so this
+    //    plate lands on the lamp on every kind.
+    const LW = 0.26, LH = 0.16, noseZ = slabZ - slabLen / 2;
+    const deadLamp = new THREE.Mesh(new THREE.PlaneGeometry(LW, LH), flatT(pixTex(13, 8, (g2) => {
+      g2.fillStyle = '#26282b'; g2.fillRect(0, 0, 13, 8);                 // dead glass
+      g2.fillStyle = '#7c7868'; g2.fillRect(0, 0, 13, 1); g2.fillRect(0, 7, 13, 1);
+      g2.fillStyle = '#45484d'; g2.fillRect(3, 2, 5, 1); g2.fillRect(7, 3, 1, 3);
+    })));
+    deadLamp.position.set(0.9 - 0.15 - LW / 2, BELT - 0.125 - LH / 2, noseZ - 0.004);
+    deadLamp.rotation.y = Math.PI;                    // PlaneGeometry faces +z; the nose is -z
+    g.add(deadLamp);
+
+    // 3. RUST, in this world's idiom: texel blotches, alpha-CUT and not blended,
+    //    so it grades with the rest of the car after dark instead of glowing
+    //    over a black yard the way an ungraded translucent sheet does. Along
+    //    the bottom of both flanks, 4 mm proud of the slab so it cannot z-fight.
+    const rustT = pixTex(96, 8, (g2) => {
+      g2.clearRect(0, 0, 96, 8);
+      for (const [rx, rw] of [[6, 11], [31, 7], [44, 17], [76, 12]] as [number, number][]) {
+        for (let x = rx; x < rx + rw; x++) {
+          const h = 3 + ((x * 7) % 4);                                     // a ragged top edge
+          g2.fillStyle = '#6b3a22'; g2.fillRect(x, 8 - h, 1, h);
+          if ((x * 5) % 3 === 0) { g2.fillStyle = '#8a5330'; g2.fillRect(x, 8 - 2, 1, 2); }
+        }
+      }
+    });
+    const rustM = flatT(rustT);
+    rustM.alphaTest = 0.4;
+    const RUST_H = 0.17;
+    for (const sx of [-1, 1]) {
+      const r = new THREE.Mesh(new THREE.PlaneGeometry(slabLen - 0.12, RUST_H), rustM);
+      r.position.set(sx * 0.904, ROCKER + RUST_H / 2 - 0.01, slabZ);
+      r.rotation.y = sx * Math.PI / 2;
+      g.add(r);
+    }
+
+    // 4. TIRED SPRINGS. The sag goes on the BODY, never on `g` — `g.rotation.y`
+    //    belongs to whoever parked the car, and the wheels stay out of the inner
+    //    group entirely, so all four tyres are still on the tarmac exactly where
+    //    the rest of the fleet's are. That is the honest version of the nose-down
+    //    stance, and it is the difference between this and what it replaced:
+    //    0.02 rad over a 3.8 m hatch drops the nose 38 mm and lifts nothing.
+    //
+    //    Skipped outright if this car is also on a jack or on blocks — those
+    //    build their own body group, and two nestings of the same trick is how
+    //    a car ends up tilted twice.
+    if (!state.jack && !state.blocks) {
+      const sagged = new THREE.Group();
+      for (const c of [...g.children]) if (!wheels.includes(c as THREE.Mesh)) sagged.add(c);
+      sagged.rotation.x = -0.020;                     // nose down: front is -z
+      sagged.rotation.z = 0.013;                      // and a shade down on the left
+      g.add(sagged);
+    }
+    g.userData.beater = true;
   }
 
   return g;
