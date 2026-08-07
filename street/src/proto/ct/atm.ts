@@ -116,10 +116,12 @@ const CAB_INK_DIM = shade(CAB_BODY, 40);
 
 /** What the bank holds for you before you have ever touched the machine. */
 const OPENING_BALANCE = 312.4;
-/** Notes it will actually give you. A machine has a stock of twenties. */
+/** Notes it will actually give you. A machine has a stock of twenties.
+ *  The DEPOSIT screen offers the same four, because it is the same machine
+ *  running the same list in the other direction — see `deposit` in `rows`. */
 const NOTES = [40, 100, 200, 400];
 
-type Screen = 'idle' | 'pin' | 'menu' | 'balance' | 'withdraw' | 'wait' | 'cash' | 'receipt' | 'card' | 'thanks';
+type Screen = 'idle' | 'pin' | 'menu' | 'balance' | 'withdraw' | 'deposit' | 'feed' | 'wait' | 'cash' | 'receipt' | 'card' | 'thanks';
 
 /** Left buttons are 1–4 top to bottom, right buttons 5–8. */
 interface Row { left?: string; right?: string; act?: () => void; actR?: () => void }
@@ -129,6 +131,16 @@ let PURSE: Purse | null = null;
 let screen: Screen = 'idle';
 let pin = '';
 let pending = 0;              // notes counted out, waiting in the mouth
+/**
+ * The sum you told the machine you were about to put IN, while it is still in
+ * your hand. A LABEL, NOT A HOLDING — no money has left the purse while this is
+ * set, so nothing can be lost by walking away mid-deposit and `onClose` has
+ * nothing to give back for it. That is why it is not `pending`: `pending` is
+ * money the ACCOUNT has already paid out and the mouth is holding, which is why
+ * `onClose` must return it. Reusing the one variable for both would have made
+ * escaping a half-finished DEPOSIT pay you the amount you were trying to bank.
+ */
+let depositing = 0;
 let message = '';
 let timer = 0;
 
@@ -202,6 +214,12 @@ const softKey = (i: number, right: boolean) => `${SOFT}${right ? i + 4 : i}`;
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const acct = (p: Purse) => (p.account ?? (p.account = OPENING_BALANCE));
+/** Cents, because a deposit is the one place two of this world's numbers get
+ *  ADDED to each other: cash arrives in odd sums (the pawnbroker pays $32.00
+ *  for a chequebook) and `a - b` then `c + b` in binary floats drifts. Rounded
+ *  the same way `ct/tenancy.ts` rounds rent, so the purse never shows a cent
+ *  that came from arithmetic rather than from the world. */
+const cents = (n: number) => Math.round(n * 100) / 100;
 
 function go(s: Screen, msg = ''): void {
   screen = s; message = msg;
@@ -237,6 +255,61 @@ function endSession(): void {
   panel?.close();
 }
 
+/**
+ * YOU SAID YOU WOULD PUT THIS MUCH IN. The machine checks it against what you
+ * are actually carrying and REFUSES BEFORE IT TOUCHES ANYTHING.
+ *
+ * The refusal is the whole reason this is a function and not two lines inside a
+ * button. The five-spot bug was found three times in three rooms and it was
+ * always the same shape — the money moved and then the thing it bought did not —
+ * and a deposit is the exact mirror image of it: take the cash, then discover
+ * there was not that much cash. So there is ONE early return, before any
+ * assignment, and it says so in the machine's own voice on the machine's own
+ * error line. `INSUFFICIENT FUNDS` is what `withdraw` says when the ACCOUNT is
+ * short; this says CASH, because the thing that is short is in your pocket, and
+ * a machine that gives one message for two different problems is a machine you
+ * cannot debug while standing at it.
+ *
+ * A HALF-CENT OF SLACK on the comparison. `ALL` passes `p.cash` straight back in
+ * and a float that came from `32.4 + 12.35` must not fail to be `≤` itself.
+ */
+function putIn(p: Purse, n: number): void {
+  if (n <= 0) { go('deposit', 'NO CASH TO DEPOSIT'); return; }
+  if (p.cash < n - 0.005) { go('deposit', 'INSUFFICIENT CASH'); return; }
+  depositing = n;
+  go('feed');
+}
+
+/**
+ * THE ONE PRESS THAT MOVES THE MONEY, and it moves BOTH ENDS OF IT IN ONE STEP.
+ *
+ * Withdrawal debits the account when you choose, and the notes then sit in
+ * `pending` through a 1.4 s count where they belong to neither side — safe only
+ * because `onClose` is written to hand them back. A deposit does not need that
+ * window and must not have one: the cash leaves the pocket and lands in the
+ * account on the same line, so there is no instant, and no way to leave, in
+ * which the sum exists nowhere.
+ *
+ * RE-CHECKED, not trusted. `putIn` already refused an over-deposit one screen
+ * ago, and this asks again anyway — it is two lines, and the alternative is
+ * trusting that nothing between the two presses touched the purse.
+ */
+function takeIn(p: Purse): void {
+  const n = depositing;
+  if (n <= 0) { depositing = 0; go('deposit'); return; }
+  if (p.cash < n - 0.005) { depositing = 0; go('deposit', 'INSUFFICIENT CASH'); return; }
+  p.cash = cents(p.cash - n);
+  p.account = cents(acct(p) + n);
+  depositing = 0;
+  // NO KA-CHING, and it is already handled rather than newly avoided: the till
+  // in `ct/audio.ts` fires on `purse.cash` FALLING, which is exactly what this
+  // line does — but it is gated on the live panel and `ct-atm` has been in that
+  // exclusion set since the machine was built. A deposit is silent for the same
+  // reason a withdrawal is.
+  go('wait');
+  after(1400, () => go('receipt', `${money(n)} DEPOSITED`));
+}
+
 function rows(p: Purse): Row[] {
   switch (screen) {
     case 'idle':
@@ -255,7 +328,11 @@ function rows(p: Purse): Row[] {
       return [
         { left: 'BALANCE', act: () => go('balance') },
         { left: 'WITHDRAW', act: () => go('withdraw') },
-        {},
+        // *"atm needs deposit, please add it"*. It goes in the empty third row
+        // that has been sitting under WITHDRAW since the menu was written — the
+        // two halves of the same service, one above the other, which is where a
+        // real fascia puts them.
+        { left: 'DEPOSIT', act: () => go('deposit') },
         // ONE PRESS, NOT TWO. The user: *"theres still 2 take card options. it
         // should be take card and then the exit not take card > take card"*.
         //
@@ -283,6 +360,41 @@ function rows(p: Purse): Row[] {
         right: i === 3 ? 'BACK' : undefined,
         actR: i === 3 ? () => go('menu') : undefined,
       }));
+    // ── DEPOSIT: THE SAME SCREEN, THE OTHER WAY ROUND ────────────────────────
+    //
+    // Deliberately built out of `NOTES`, the same list `withdraw` above is built
+    // out of, in the same order, against the same four buttons, with BACK in the
+    // same corner. Stand at the machine and DEPOSIT and WITHDRAW are one screen
+    // with one word changed, which is the point: it is one machine, not a second
+    // one bolted on.
+    //
+    // WITH ONE KEY WITHDRAW DOES NOT HAVE, AND IT IS THE IMPORTANT ONE.
+    // Denominations alone would be a machine you usually cannot use here, because
+    // NOTHING IN THIS WORLD PAYS IN ROUND NUMBERS — there are no wages, and cash
+    // arrives as whatever the pawnbroker felt a chequebook was worth. A player
+    // holding $132.00 could bank $100 and would be stuck carrying the $32
+    // forever. So `ALL` banks the lot, and it prints the sum on its own face so
+    // you can read what it is about to do before you press it.
+    case 'deposit':
+      return NOTES.map((n, i) => ({
+        left: money(n),
+        act: () => putIn(p, n),
+        // ALL on the TOP RIGHT, facing the smallest note across the tube, and
+        // BACK stays on the bottom right where `withdraw` already trained the
+        // hand to look for it.
+        right: i === 0 ? `ALL ${money(p.cash)}` : i === 3 ? 'BACK' : undefined,
+        actR: i === 0 ? () => putIn(p, cents(p.cash)) : i === 3 ? () => go('menu') : undefined,
+      }));
+    case 'feed':
+      // THE MIRROR OF `cash`, and the press that ends it is the only place a
+      // deposit moves money. Nothing has left your pocket yet at this screen,
+      // so BACK is honest and costs nothing.
+      return [
+        { left: 'CASH IN', act: () => takeIn(p) },
+        {},
+        {},
+        { right: 'BACK', actR: () => { depositing = 0; go('deposit'); } },
+      ];
     case 'cash':
       return [{
         left: 'TAKE CASH',
@@ -456,6 +568,17 @@ function drawScreen(g: CanvasRenderingContext2D): void {
   } else if (screen === 'withdraw') {
     line('SELECT AMOUNT', HEAD, CAB_TEXT_LIT, 10);
     if (message) line(message, BODY, '#e06a3c', 10);
+  } else if (screen === 'deposit') {
+    // The pocket total is NOT printed as its own line here, and that is on
+    // purpose: it is already on the face of the `ALL` key, where it is the thing
+    // that key is about to do rather than a second statement of the same number
+    // sitting somewhere else on the tube.
+    line('AMOUNT TO DEPOSIT', HEAD, CAB_TEXT_LIT, 10);
+    if (message) line(message, BODY, '#e06a3c', 10);
+  } else if (screen === 'feed') {
+    line('INSERT CASH', HEAD, CAB_TEXT_LIT, 10);
+    line(money(depositing), BODY, CAB_TEXT_LIT, 20);
+    line('PUT IT IN THE MOUTH BELOW', SUB, CAB_TEXT_DIM, 7);
   } else if (screen === 'wait') {
     line('PLEASE WAIT', BODY, CAB_TEXT_LIT, 15);
     line('COUNTING NOTES', SUB, CAB_TEXT_DIM, 8);
@@ -753,7 +876,7 @@ function screenMesh(): THREE.Object3D | null {
 export function openAtm(): void {
   if (!panel || !PURSE) return;
   clearTimeout(timer);
-  screen = 'idle'; pin = ''; pending = 0; message = '';
+  screen = 'idle'; pin = ''; pending = 0; depositing = 0; message = '';
   panel.open();
 }
 
@@ -825,7 +948,12 @@ export function register(ctx: CtxBuild): void {
       // that is a good detail and a bad rule: the framework promises ESC always
       // works, so ESC must never be the expensive choice. Anything in the mouth
       // goes in your pocket and the card comes back.
-      if (pending > 0) { ctx.purse.cash += pending; pending = 0; ctx.refreshWallet(); }
+      if (pending > 0) { ctx.purse.cash = cents(ctx.purse.cash + pending); pending = 0; ctx.refreshWallet(); }
+      // NOTHING TO GIVE BACK FOR A HALF-FINISHED DEPOSIT. `depositing` is a
+      // label on cash that never left the pocket (see its declaration), so this
+      // is a reset, not a refund — walking away from `INSERT CASH` costs you
+      // nothing and pays you nothing.
+      depositing = 0;
       ctx.refreshWallet();
       screen = 'idle'; pin = '';
     },
@@ -912,6 +1040,9 @@ export function register(ctx: CtxBuild): void {
      */
     enrolledOnPurse: () => ctx.purse.pin !== undefined,
     pending: () => pending,
+    /** the sum the DEPOSIT flow is holding a label for — always 0 once the
+     *  panel is shut, and never money that has left the purse */
+    depositing: () => depositing,
     setCard: (v: boolean) => { ctx.purse.card = v; panel?.repaint(); },
     /**
      * MUTATION, for `--selftest` only: jam the dispenser. The account has been
