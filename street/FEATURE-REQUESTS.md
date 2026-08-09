@@ -4961,3 +4961,35 @@ wall at 14.20 that it measured has been deleted. The principle it established is
 what the four boxes are built to.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-08 — *"character creation looks so bad i hate the aesthetic, try another based off of everything you know about my tastes in this game and this work you've done with me. think a lot"*
+
+Went to a builder. The old screen was the menu's own VCR OSD — blue field,
+inverse cursor, static — which the menu earned by being a television and this
+screen never did: nothing in 1997 made a person through an OSD.
+
+### What it is now
+
+The 1997 object that actually made you a resident: **FORM R-9, a City of
+Crosstown resident card application**, lying on an oak desk with an instant
+photo of you beside it. The five immutables are near-verbatim the fields on a
+period ID card, so the activity and the object agree.
+
+- the paper is the world's own stock (`#f2ead0`) on VOLT VILLAGE oak — warm
+  beige-and-wood, US-letter proportions, drop shadow, nothing square
+- the doll is now the **photo**: full length in an instant-film frame against
+  a cold grey wall with height ticks (HEIGHT reads at a glance); scroll — or
+  click the photo — and it is re-taken at the next of the eight facings
+- the typed name is hand-written on the film's bottom border in blue pen
+- HAND is two checkboxes, the selected field is a **yellow highlighter
+  swipe**, BEGIN is the signature line (`X ______`, blue ballpoint on the desk
+  waiting)
+- the only instructions are the form's own small print; no heading, no legend
+  block, no OSD static
+
+Same machine underneath: same rows in the same order (NAME, HAND, HAIR, HAIR
+COL, HEIGHT, BUILD, SKIN, sign), same keys, Escape still finishes and drops
+you into the world, `paintFigure` still the mirror's one painter, integer
+draw origins throughout. `src/proto/ct/create.ts` only.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
