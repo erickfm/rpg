@@ -5124,3 +5124,19 @@ builder). Warnings at 4 h and 1 h of margin, re-arming if a dose buys the
 margin back. Awake time, boost and last-slept persist as the `fatigue` save
 slice. The dealer NPC and the bodega shelf are the other builder's; the
 per-food healing table is a third's.
+
+## 2026-08-08 — *"health is derived from str and con... that means we need a gym"*
+
+The gym half of the stats message, to this builder. `src/proto/ct/int-gym.ts`
+— FLEX GYM, on the side street's south face where GARAGE stood (an identity
+change in the roster, the RADIO → VOLT VILLAGE move: `w` stays 12, the run
+still totals 64). Rubber-tile floor, a painted mirror wall with a NO PAIN · NO
+GAIN banner, a dumbbell rack, a bench with a racked bar that trains STR, a
+bank of two treadmills that trains CON, a water cooler, and a sign-in desk
+with an open sign-up book and a trainer behind it. A day pass is $15 and a
+28-day season is $120 off the desk's rate board (rent $500/season is the
+ruler); each session is an E-hold at the equipment, takes an hour of clock,
+is limited to one per stat per day, and lands its +1 through `stats.ts`'s
+`raiseStat` with chance (10−stat)/5 — so the wallet buys the door and only the
+mornings buy the muscle. Pass and session-spent days persist as the `gym`
+save slice.

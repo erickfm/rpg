@@ -388,10 +388,23 @@ export function buildStreet(o: {
     // is DELI's browner of the two — the darker wall carries an 18 m frontage
     // better than the redder one did at 8.5.
     { nm: 'VIDEO HUT', col: '#1e5aa8', w: 18, brick: '#6b4034', floors: 3 },
-    { nm: 'GARAGE', col: '#5a5f66', w: 12, brick: '#5c4436', floors: 3 },
+    // GARAGE BECAME A GYM — *"health is derived from str and con... that means
+    // we need a gym"* (2026-08-08). An IDENTITY change only, the RADIO → VOLT
+    // VILLAGE move: `w` stays 12 so this run still totals 64 and still ends
+    // dead on x = 57, and nothing either side of it moves. Teal, because 1997
+    // fitness is teal and magenta and no fascia on the block wears either;
+    // ct/int-gym.ts lifts the same value for the counter and the staff shirt.
+    { nm: 'FLEX GYM', col: '#17766b', w: 12, brick: '#5c4436', floors: 3 },
     { nm: 'BILLIARDS', col: '#2c5a3a', w: 12, brick: '#835444', floors: 4 },
     { nm: 'SMOKES', col: '#8a6a22', w: 11, brick: '#6b4034', floors: 3 },
-    { nm: 'LOANS', col: '#7a6a2c', w: 11, brick: '#7a4a3a', floors: 4 },
+    // LOANS became the community college — *"that means we need a gym and a
+    // crosstown community college"* (2026-08-08). An IDENTITY change only,
+    // the SLEEP CENTER precedent: `w` stays 11 so the run still ends dead on
+    // x = 57 where the cross building begins. A storefront evening division
+    // moving into a dead loan office is exactly the 1997 of it; the maroon is
+    // collegiate and is spent again on the dado and the course board inside
+    // (ct/int-college.ts, which declares the door).
+    { nm: 'COMMUNITY COLLEGE', col: '#6a2430', w: 11, brick: '#7a4a3a', floors: 4 },
   ];
   // Buildings ABUT — a shell is exactly b.w deep, never b.w + slop. Two
   // neighbours share the boundary plane; their facade quads meet edge to
