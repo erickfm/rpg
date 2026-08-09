@@ -4,6 +4,8 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { hudNote } from './hud';
+import { glassCanvas, paintGlass, fittingPanel, type FitLine } from './mirror';
 import './goods';   // for the side effect: it is what declares the stock
 
 // THE THRIFT STORE, inside.
@@ -601,6 +603,94 @@ export function buildThrift(ctx: CtxBuild): void {
   ];
   for (const [a, b, cx2, cy, cz2, ry] of MORE) room.sign(cardT(a, b), 0.4, 0.2, cx2, cy, cz2, ry);
 
+  // ══ THE DRESSING MIRROR — WHERE THE CLOTHES ARE ACTUALLY SOLD ═════════════
+  //
+  // *"in general add a dressing mirror in thrift store when you can buy
+  //  clothes so you can try on before buying. stuff you buy automatically
+  //  goes to warddrobe in apt mirror."*   (2026-08-09)
+  //
+  // THE CHANGING CORNER: the left wall between the crockery shelf (ends at
+  // z 0.2) and the donation boxes by the door (from z ≈ 3.75) — the one
+  // stretch of wall this shop had left, which is exactly how a real thrift
+  // sites its mirror. Flush to the wall like the crockery, so the 2 m aisle
+  // between this wall and rail A stays a 2 m aisle; the mannequin on rail A's
+  // line ends at z 1.8 and the stand-point at z 2.4 is open floor.
+  //
+  // The glass is `ct/mirror.ts`'s — same painted cold plate, same canvas
+  // derived from its metres — and the panel is `fittingPanel`: click a part
+  // of yourself to try the shop's garments on, a paper tag prices whatever
+  // you have on that is not yours, clicking the tag buys it (straight into
+  // the 301 wardrobe), and walking away hangs it all back on the rail.
+  const FIT_Z = 2.4;
+  const FIT_GW = 0.48, FIT_GH = 1.50;
+  const fitFrame = new THREE.Mesh(new THREE.BoxGeometry(0.06, FIT_GH + 0.12, FIT_GW + 0.12),
+    new THREE.MeshBasicMaterial({ color: 0x3f3125 }));
+  put(fitFrame, -hw + 0.05, 0.12 + (FIT_GH + 0.12) / 2, FIT_Z);
+  const fgc = glassCanvas(FIT_GW, FIT_GH);
+  const fitGlassT = declareSurface(pixTex(fgc.w, fgc.h, (g) => paintGlass(g, fgc.w, fgc.h)), 'detail');
+  const fitGlass = new THREE.Mesh(new THREE.PlaneGeometry(FIT_GW, FIT_GH), ctx.flat(fitGlassT));
+  fitGlass.rotation.y = Math.PI / 2;               // faces into the room (+x)
+  fitGlass.name = 'mirror-thrift';
+  put(fitGlass, -hw + 0.085, 0.18 + FIT_GH / 2, FIT_Z);
+  solid(-hw + 0.05, FIT_Z, 0.12, FIT_GW + 0.16);
+  // and the shop says what the mirror is for, in its own biro
+  room.sign(cardT('TRY ON', 'B4 U BUY'), 0.44, 0.22, -hw + 0.1, 1.95, FIT_Z, Math.PI / 2);
+
+  // ── the rail, priced ──────────────────────────────────────────────────────
+  //
+  // Every garment the 301 wardrobe knows and the spawn kit does not — *"every
+  // item we have should go in thrift as a purchase option"*. 1997 secondhand
+  // against the ×4 economy, and the prices agree with the cards already taped
+  // round the room: `ALL COATS $16` is the denim jacket, `SHIRTS 2 FOR $12`
+  // is the $6 tee. The old COAT/SHIRT/SHOES till lines folded into this —
+  // buying clothes never puts cloth in the bag any more.
+  const TRY: FitLine[] = [
+    { slot: 'top', id: 'tee', price: 6.00 },
+    { slot: 'top', id: 'sweater', price: 10.00 },
+    { slot: 'top', id: 'denim', price: 16.00 },
+    { slot: 'top', id: 'dress', price: 12.00 },
+    { slot: 'bottom', id: 'track', price: 8.00 },
+    { slot: 'bottom', id: 'shorts', price: 6.00 },
+    { slot: 'bottom', id: 'skirt', price: 8.00 },
+    { slot: 'shoes', id: 'sandals', price: 8.00 },
+    { slot: 'shoes', id: 'boots', price: 18.00 },
+    { slot: 'hat', id: 'cap', price: 4.00 },
+    { slot: 'hat', id: 'sunhat', price: 6.00 },
+    { slot: 'glasses', id: 'specs', price: 10.00 },
+    { slot: 'glasses', id: 'shades', price: 8.00 },
+    { slot: 'watch', id: 'analog', price: 20.00 },
+    { slot: 'bag', id: 'backpack', price: 14.00 },
+    { slot: 'bag', id: 'tote', price: 8.00 },
+    { slot: 'bag', id: 'crossbody', price: 10.00 },
+    { slot: 'bag', id: 'clutch', price: 6.00 },
+  ];
+  // the shop's own arithmetic — cash check, debit, wallet refresh — worded
+  // the way `shopCounter` words the same refusal
+  const payFit = (price: number, name: string): boolean => {
+    const p = ctx.purse;
+    if (p.cash < price) {
+      hudNote(`$${(price - p.cash).toFixed(2)} short of the ${name.toLowerCase()}`);
+      return false;
+    }
+    p.cash -= price;
+    ctx.refreshWallet();
+    return true;
+  };
+  const FIT_FOV = 52;
+  const FIT_STANDOFF = (FIT_GH / 2) / Math.tan((FIT_FOV * Math.PI) / 360) * 1.18;
+  const openFitting = fittingPanel(() => fitGlass, {
+    standoff: FIT_STANDOFF, fov: FIT_FOV, glassW: FIT_GW, glassH: FIT_GH,
+    stock: TRY, pay: payFit, cash: () => ctx.purse.cash,
+  });
+  ctx.spot({
+    x: room.wx(-hw + 1.15), z: room.wz(FIT_Z), r: 0.8,
+    obj: fitGlass,
+    aimX: room.wx(-hw + 0.085), aimZ: room.wz(FIT_Z),
+    ok: room.inside,
+    label: () => 'try the mirror',
+    act: openFitting,
+  });
+
   // ── the proprietor, behind the till ──
   //
   // From the citizen atlas. She was a hand-painted plane — the third copy of
@@ -670,11 +760,18 @@ export function buildThrift(ctx: CtxBuild): void {
   // the pawnbroker resells at $12 are $3 on this floor because these came in a
   // bag somebody left at the door. Second-hand is cheaper than new; that is
   // what the shop IS.
+  // ── AND THE CLOTHES ARE OFF THE CARD (2026-08-09) ─────────────────────────
+  //
+  // *"every item we have should go in thrift as a purchase option… stuff you
+  //  buy automatically goes to warddrobe in apt mirror."* The COAT, SHIRT and
+  //  SHOES lines sold cloth INTO THE BAG — a parcel you carried, not a thing
+  //  you wore. Clothes are sold at the DRESSING MIRROR now (see it, above the
+  //  till in this file), where they are tried on and unlock in the wardrobe;
+  //  the till keeps what is genuinely a thing in a bag. The COAT/SHIRT/
+  //  TRAINERS ItemDefs stay declared — the pawn and the fence still trade
+  //  them — this shop just no longer sells wearing-clothes as luggage.
   const RAIL: ShopColumn[] = [
     { head: 'SECONDHAND', lines: [
-      { id: 'COAT', name: 'COAT', price: 16.00 },
-      { id: 'SHIRT', name: 'SHIRT', price: 6.00 },
-      { id: 'TRAINERS', name: 'SHOES', price: 12.00 },
       { id: 'BELT', name: 'BELT', price: 4.00 },
       { id: 'SOCKS', name: 'SOCKS', price: 4.00 },
       { id: 'BOOK', name: 'PAPERBACK', price: 1.00 },

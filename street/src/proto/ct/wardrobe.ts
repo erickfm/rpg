@@ -249,6 +249,46 @@ const RACK: Record<Slot, readonly Garment[]> = {
 /** Everything that can be put in a slot. The mirror scrubs through this. */
 export function options(slot: Slot): readonly Garment[] { return RACK[slot]; }
 
+// ── WHAT YOU ACTUALLY OWN ──────────────────────────────────────────────────
+//
+// *"in general lets get rid of all the clothes in closet. we spawn with basic
+//  clothes. watch, no bag. every item we have should go in thrift as a
+//  purchase option."*   (2026-08-09)
+//
+// The rack above is the CATALOGUE — every garment this world can draw. What
+// hangs in YOUR wardrobe is this set: the empty states (they are your own
+// skin and underwear, not possessions), the starting outfit, and whatever the
+// thrift till has unlocked since. `cycle` skips what you do not own, so the
+// 301 mirror only ever offers your own clothes; the thrift's fitting mirror
+// reaches past this on purpose (try-on) via `wear`, which stays raw.
+//
+// PERSISTED INSIDE `ct-wardrobe` — same key as the outfit, so NEW GAME
+// clearing that key resets the closet too, and no new row is owed to
+// `ct/newgame.ts`'s table.
+
+function defaultOwned(): Set<string> {
+  const s = new Set<string>();
+  for (const sl of SLOTS) {
+    s.add(RACK[sl][0].id);      // the empty states — see the header
+    s.add(STARTING[sl]);        // the unisex boring outfit, and the watch
+  }
+  return s;
+}
+/** ⚠ FILLED AT THE FOOT OF THE FILE, beside `startingOutfit()`/`load()` —
+ *  `STARTING` is declared below this line and a call here would hit its TDZ. */
+let OWNED = new Set<string>();
+
+/** Is this garment in the wardrobe — spawn kit or bought at the thrift. */
+export function owns(id: string): boolean { return OWNED.has(id); }
+
+/** The thrift till's verb: bought clothes go straight to the 301 wardrobe. */
+export function unlock(id: string): void {
+  if (OWNED.has(id)) return;
+  OWNED.add(id);
+  save();
+  for (const f of WATCHERS) f();
+}
+
 // ── WHAT IS ON RIGHT NOW ───────────────────────────────────────────────────
 //
 // THE DEFAULT IS WHAT THE PLAYER ALREADY LOOKED LIKE. A tee (bare forearm) and
@@ -301,9 +341,30 @@ function startingOutfit(): void {
 }
 
 /** Strip back to the starting outfit and tell everybody — character creation's
- *  own verb. See `STARTING`. */
+ *  own verb. See `STARTING`. Also empties the closet back to the spawn kit:
+ *  a new life does not inherit the last one's thrift purchases. */
 export function resetOutfit(): void {
+  OWNED = defaultOwned();
   startingOutfit();
+  save();
+  for (const f of WATCHERS) f();
+}
+
+/**
+ * Put a whole (partial) outfit on BY ID, bypassing the dress-swap rule — the
+ * fitting mirror's revert. Restoring a snapshot through `wear` would replay
+ * the swap logic against garments that are being taken away in the same
+ * breath; this sets the slots to exactly what was recorded and tells everyone
+ * once. Unknown ids leave the slot alone.
+ */
+export function setOutfit(ids: Partial<Record<Slot, string>>): void {
+  for (const s of SLOTS) {
+    const id = ids[s];
+    if (typeof id !== 'string') continue;
+    const i = RACK[s].findIndex((g) => g.id === id);
+    if (i >= 0) wornAt[s] = i;
+  }
+  if (!worn('top').full) lastPlainTop = wornAt.top;
   save();
   for (const f of WATCHERS) f();
 }
@@ -375,13 +436,22 @@ export function wear(slot: Slot, index: number): void {
   for (const f of WATCHERS) f();
 }
 
-/** Next/previous in a slot. `dir` is +1 or −1 and it wraps. */
+/** Next/previous in a slot. `dir` is +1 or −1 and it wraps.
+ *
+ *  ⚠ OWNED GARMENTS ONLY. The rack is the catalogue and the closet is `OWNED`
+ *  — cycling steps past anything the thrift has not sold you yet, so the 301
+ *  mirror cannot offer clothes you do not have. Index 0 is always owned, so
+ *  the walk always terminates. Try-on at the thrift goes through `wear`,
+ *  which stays raw on purpose. */
 export function cycle(slot: Slot, dir: number): void {
   // FROM WHAT IS SHOWING, not from what is stored: while a dress is on, the
   // bottoms slot reads as the dress, and stepping forward from a remembered
   // pair of jeans would look like the control skipped.
   const from = slot === 'bottom' && worn('top').full ? -1 : wornAt[slot];
-  wear(slot, from + dir);
+  const n = RACK[slot].length;
+  let i = from + dir;
+  for (let k = 0; k < n && !OWNED.has(RACK[slot][clamp(i, n)].id); k++) i += dir;
+  wear(slot, i);
 }
 
 // ── IT SURVIVES A RELOAD ───────────────────────────────────────────────────
@@ -399,8 +469,9 @@ const KEY = 'ct-wardrobe';
 
 function save(): void {
   try {
-    const out: Record<string, string> = {};
+    const out: Record<string, unknown> = {};
     for (const s of SLOTS) out[s] = RACK[s][wornAt[s]].id;
+    out.own = [...OWNED];               // the closet rides in the same key
     localStorage.setItem(KEY, JSON.stringify(out));
   } catch { /* private mode, sandboxed iframe, quota — none of it is fatal */ }
 }
@@ -411,16 +482,35 @@ function load(): void {
   if (!raw) return;
   try {
     const got = JSON.parse(raw) as Record<string, unknown>;
+    // THE CLOSET FIRST, because the slots below are checked against it. The
+    // stored set is ADDED to the defaults rather than replacing them — the
+    // spawn kit and the empty states can never be un-owned by a stale entry.
+    const own = got.own;
+    const hadOwn = Array.isArray(own);
+    if (hadOwn) for (const id of own as unknown[]) {
+      if (typeof id === 'string') OWNED.add(id);
+    }
     for (const s of SLOTS) {
       const id = got[s];
       if (typeof id !== 'string') continue;
       const i = RACK[s].findIndex((g) => g.id === id);
-      if (i >= 0) wornAt[s] = i;
+      if (i < 0) continue;
+      // A SAVE FROM BEFORE THE CLOSET EXISTED (no `own` array) keeps what it
+      // was wearing — those clothes were honestly free when it was written.
+      // A save WITH a closet does not get to wear what it does not own: that
+      // is a page closed mid-try-on at the thrift, and the garment goes back
+      // on the rail rather than home in the reload.
+      if (hadOwn && !OWNED.has(id)) continue;
+      if (!hadOwn) OWNED.add(id);
+      wornAt[s] = i;
     }
     if (!worn('top').full) lastPlainTop = wornAt.top;
   } catch { /* corrupt entry: keep the defaults rather than half-apply it */ }
 }
 // dressed FIRST, then whatever storage remembers on top of it — so a brand new
 // player is in the starting outfit and a returning one is in his own clothes.
+// The closet fills the same way: the spawn kit first, then what storage says
+// the thrift has sold this life.
+OWNED = defaultOwned();
 startingOutfit();
 load();

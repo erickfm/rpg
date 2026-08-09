@@ -5823,3 +5823,25 @@ still hands an unknown id back as an honest parcel. Set dressing stays —
 the bodega keeper's counter radio, the pawn's shelf radio, the painted
 table radio on the Gladstone's catalogue cover (`ct/tenancy.ts`), and
 patchwork's RADIO FIX sign are pictures, not stock.
+
+## 2026-08-09 — *"in general lets get rid of all the clothes in closet. we spawn with basic clothes. watch, no bag. every item we have should go in thrift as a purchase option. in general add a dressing mirror in thrift store when you can buy clothes so you can try on before buying. stuff you buy automatically goes to warddrobe in apt mirror."*
+
+To a builder. Clothing is now ACQUIRED, not granted. The wardrobe rack in
+`ct/wardrobe.ts` became a catalogue with an OWNED set over it: a new game
+owns the empty states (vest, briefs, bare feet, no-hat/glasses/watch/bag),
+the unisex boring outfit (long sleeve, jeans, sneakers) and the digital
+watch — nothing else, and no bag. The closet persists inside `ct-wardrobe`
+beside the outfit, so NEW GAME wipes it for free and `resetOutfit()`
+re-empties it; an old save with no closet keeps what it was wearing. The
+301 mirror's `cycle` skips what you do not own. Every other garment is
+thrift stock, priced 1997-secondhand against the ×4 economy and sold at a
+new DRESSING MIRROR on the thrift's left wall (`fittingPanel` in
+`ct/mirror.ts`): click a part of yourself to try the shop's garments on
+free, a paper tag on the glass prices whatever you have on that is not
+yours, clicking the tag buys it — money out, garment unlocked straight
+into the apartment wardrobe, still on your back — and walking away
+(Escape, `[E]`, any exit) hangs every unpaid garment back on the rail.
+The till card's COAT $16 / SHIRT $6 / SHOES $12 lines folded into the
+mirror (denim jacket $16, tee $6, boots/sandals; buying clothes never puts
+cloth in the bag any more); the till keeps BELT, SOCKS, PAPERBACK. The
+COAT/SHIRT/TRAINERS ItemDefs stay declared for the pawn and the fence.

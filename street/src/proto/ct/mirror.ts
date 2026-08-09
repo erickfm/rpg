@@ -4,6 +4,7 @@ import { viewAt } from './citizens';
 import { makePanel, type Panel } from './hud';
 import {
   SLOTS, cycle, showing, worn, onWardrobeChange, type Slot,
+  options, owns, wear, unlock, setOutfit,
 } from './wardrobe';
 import {
   skin, hair, hairColour, build, heightScale, onBodyChange,
@@ -701,7 +702,11 @@ let roomLight: () => number = () => 1;
 export function setRoomLight(fn: () => number): void { roomLight = fn; }
 
 function paint(g: CanvasRenderingContext2D, W: number, H: number,
-               hover: Slot | null, facing: number, lit: number): void {
+               hover: Slot | null, facing: number, lit: number,
+               // the room's light — 301's switch by default; the thrift's
+               // fitting glass passes 1, because that shop has no switch and
+               // `roomLight` is the FLAT's, wherever you are standing
+               lightK = roomLight()): void {
   // the glass: ONE drawing of it, shared with the plate on the wall — minus
   // its sheen, which belongs to the plate you walk past and not to the view you
   // stand in. See `paintGlass`.
@@ -779,7 +784,7 @@ function paint(g: CanvasRenderingContext2D, W: number, H: number,
   // TWO passes — the whole canvas at `FOCUS_DARK`, then the figure's own column
   // lifted back toward daylight by `FIGURE_LIFT`. Cheap, because the second
   // pass is a rectangle around the figure rather than a re-paint of it.
-  const k = roomLight();
+  const k = lightK;
   if (k < 0.999) {
     const room = focusDim(k);
     const wash = (v: number, x: number, y: number, w: number, h: number) => {
@@ -1482,6 +1487,211 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
       onWardrobeChange(() => { if (panel?.isOpen()) panel.repaint(); });
       // and handedness moves the watch to the other wrist, which is a repaint
       // for exactly the same reason a garment change is
+      onSettingChange(() => { if (panel?.isOpen()) panel.repaint(); });
+    }
+    panel.open();
+  };
+  return open;
+}
+
+// ══ THE FITTING MIRROR, AT THE THRIFT ══════════════════════════════════════
+//
+// *"in general add a dressing mirror in thrift store when you can buy clothes
+//  so you can try on before buying. stuff you buy automatically goes to
+//  warddrobe in apt mirror."*   (2026-08-09)
+//
+// THE SAME GLASS, A DIFFERENT RACK. The 301 mirror cycles what you OWN; this
+// one cycles what the SHOP SELLS — clicking a part of yourself tries the
+// shop's garments for that slot on, free and temporary, with your own garment
+// as the first stop so a click always has somewhere honest to come back to.
+//
+// A TRIED-ON GARMENT GETS A PAPER TAG on the glass — the shop's biro card
+// palette, name and price — and clicking the tag is buying it. Bought clothes
+// `unlock` straight into the wardrobe (persisted with the outfit under
+// `ct-wardrobe`) and stay on your back; there is no parcel and nothing enters
+// the bag, which is the whole point of the rework this arrived in.
+//
+// WALKING AWAY REVERTS. `onClose` puts every slot still wearing an unowned
+// garment back to what you walked up in — Escape, `[E]`, standing off: every
+// way out of the panel runs through it, so you cannot leave the shop in
+// clothes you did not pay for. The revert goes through `setOutfit`, not
+// `wear`, so the dress-swap rule cannot fire against a snapshot.
+
+/** One thing the shop will let you try: which slot, which garment, what it costs. */
+export interface FitLine { slot: Slot; id: string; price: number }
+
+interface FitTag {
+  slot: Slot; name: string; price: number;
+  x: number; y: number; w: number; h: number;
+}
+
+export function fittingPanel(mesh: () => THREE.Object3D | null, o: {
+  standoff: number; fov: number;
+  /** the glass in metres — the canvas derives from it, like every mirror */
+  glassW: number; glassH: number;
+  /** the rail: everything the shop sells, priced */
+  stock: readonly FitLine[];
+  /** take the money — the SHOP's arithmetic, with its own refusal note.
+   *  Returns false and this panel changes nothing. */
+  pay: (price: number, name: string) => boolean;
+  /** what is in the purse, for the caption's `$x in hand` */
+  cash: () => number;
+}): () => void {
+  const PW = Math.round(o.glassW * PANEL_PPM), PH = Math.round(o.glassH * PANEL_PPM);
+  let panel: Panel | null = null;
+  let hover: Slot | null = null;
+  const FACING = 0;
+  /** what you walked up wearing, by slot — the state walking away restores */
+  let snap: Partial<Record<Slot, string>> = {};
+  const repaint = () => panel?.repaint();
+
+  const lineFor = (id: string) => o.stock.find((l) => l.id === id);
+  const wearId = (slot: Slot, id: string): void => {
+    const i = options(slot).findIndex((g) => g.id === id);
+    if (i >= 0) wear(slot, i);
+  };
+
+  /** step a slot through [what you came in wearing, ...the shop's rail] */
+  const tryCycle = (slot: Slot, dir: number): void => {
+    const ids = [snap[slot] ?? worn(slot).id,
+      ...o.stock.filter((l) => l.slot === slot && !owns(l.id)).map((l) => l.id)]
+      .filter((id, i, a) => a.indexOf(id) === i);
+    if (ids.length < 2) { cycle(slot, dir); return; }  // sold out: your own rack
+    const at = Math.max(0, ids.indexOf(worn(slot).id));
+    wearId(slot, ids[(at + dir + ids.length) % ids.length]);
+  };
+
+  // ── the paper tags ───────────────────────────────────────────────────────
+  // One per slot currently wearing something unowned, pinned down the left
+  // edge of the glass in the shop's own card colours. Derived from the worn
+  // state at draw time and again at click time, so the drawing and the hit
+  // test cannot disagree.
+  const TAG_W = Math.min(PW - 8, 96), TAG_H = 26;
+  const tags = (): FitTag[] => {
+    const out: FitTag[] = [];
+    let y = 6;
+    for (const s of SLOTS) {
+      const g = worn(s);
+      if (owns(g.id)) continue;
+      const l = lineFor(g.id);
+      if (!l) continue;
+      out.push({ slot: s, name: g.name, price: l.price, x: 4, y, w: TAG_W, h: TAG_H });
+      y += TAG_H + 4;
+    }
+    return out;
+  };
+  const tagAt = (x: number, y: number): FitTag | null =>
+    tags().find((t) => x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h) ?? null;
+
+  const drawTags = (g: CanvasRenderingContext2D): void => {
+    for (const t of tags()) {
+      g.fillStyle = '#e2dcc6'; g.fillRect(t.x, t.y, t.w, t.h);
+      g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(t.x, t.y + t.h - 2, t.w, 2);
+      if (hover === t.slot) {
+        g.fillStyle = 'rgba(42,58,106,0.13)'; g.fillRect(t.x, t.y, t.w, t.h);
+      }
+      g.textBaseline = 'middle';
+      g.font = 'bold 9px monospace';
+      g.textAlign = 'left';
+      g.fillStyle = '#2a3a6a';
+      g.fillText(t.name, t.x + 4, t.y + 8);
+      g.fillStyle = '#8a2a22';
+      g.fillText(`$${t.price.toFixed(2)}`, t.x + 4, t.y + 19);
+      g.font = '9px monospace';
+      g.textAlign = 'right';
+      g.fillStyle = '#2a3a6a';
+      g.fillText('BUY', t.x + t.w - 4, t.y + 19);
+    }
+  };
+
+  const buy = (slot: Slot): void => {
+    const g = worn(slot);
+    if (owns(g.id)) return;
+    const l = lineFor(g.id);
+    if (!l) return;
+    if (!o.pay(l.price, g.name)) return;
+    // PAY FIRST, THEN UNLOCK — `pay` is the only refusal, and once the money
+    // moved the garment is in the 301 wardrobe for good. It stays on your
+    // back: the snapshot is updated so the walk-away revert keeps it.
+    unlock(g.id);
+    snap[slot] = g.id;
+    repaint();
+  };
+
+  // the same 90 ms hover fade as the 301 glass, for the same reason
+  let lit = 0;
+  let litTimer = 0;
+  const LIT_MS = 90;
+  const relight = () => {
+    if (litTimer) return;
+    let last = performance.now();
+    litTimer = window.setInterval(() => {
+      const now = performance.now(), dt = now - last; last = now;
+      const want = hover ? 1 : 0;
+      lit += Math.sign(want - lit) * (dt / LIT_MS);
+      lit = Math.max(0, Math.min(1, lit));
+      repaint();
+      if (lit === want) { clearInterval(litTimer); litTimer = 0; }
+    }, 16);
+  };
+
+  const open = () => {
+    if (!panel) {
+      panel = makePanel({
+        id: 'ct-fitting', w: PW, h: PH, chrome: 'none', scale: 1,
+        // NOT silent — a shop serves you, and the one framework line carries
+        // the money, exactly as `shopCounter` argues it.
+        hint: () => `$${o.cash().toFixed(2)} in hand`,
+        // the shop is LIT: `roomLight` is 301's switch and has no say here
+        draw: (g, w, h) => { paint(g, w, h, hover, FACING, lit, 1); drawTags(g); },
+        key: (k) => {
+          const i = hover ? SLOTS.indexOf(hover) : -1;
+          if (k === 'arrowdown') hover = SLOTS[(i + 1 + SLOTS.length) % SLOTS.length];
+          else if (k === 'arrowup') hover = SLOTS[(i - 1 + SLOTS.length) % SLOTS.length];
+          else if (k === 'arrowright') { if (hover) tryCycle(hover, 1); }
+          else if (k === 'arrowleft') { if (hover) tryCycle(hover, -1); }
+          else if (k === 'b' || k === 'enter') { if (hover) buy(hover); }
+          else return;
+          repaint();
+        },
+        surface: {
+          mesh,
+          standoff: o.standoff,
+          fov: o.fov,
+          hot: (x, y) => tagAt(x, y) !== null || slotAtCanvas(x, y, PW, PH, FACING) !== null,
+          move: (x, y) => {
+            const t = tagAt(x, y);
+            const z = t ? t.slot : slotAtCanvas(x, y, PW, PH, FACING);
+            if (z === hover) return;
+            if (!hover || !z) relight();
+            hover = z;
+            repaint();
+          },
+          click: (x, y) => {
+            // THE TAG IS THE TILL. The body is the rail.
+            const t = tagAt(x, y);
+            if (t) { hover = t.slot; buy(t.slot); return; }
+            const z = slotAtCanvas(x, y, PW, PH, FACING);
+            if (!z) return;
+            hover = z;
+            tryCycle(z, 1);
+            repaint();
+          },
+        },
+        onOpen: () => {
+          hover = null; lit = 0;
+          snap = {};
+          for (const s of SLOTS) snap[s] = worn(s).id;
+        },
+        onClose: () => {
+          if (litTimer) { clearInterval(litTimer); litTimer = 0; }
+          // ── WALKING AWAY PUTS IT BACK ON THE RAIL ──────────────────────
+          const back: Partial<Record<Slot, string>> = {};
+          for (const s of SLOTS) if (!owns(worn(s).id)) back[s] = snap[s];
+          if (Object.keys(back).length) setOutfit(back);
+        },
+      });
+      onWardrobeChange(() => { if (panel?.isOpen()) panel.repaint(); });
       onSettingChange(() => { if (panel?.isOpen()) panel.repaint(); });
     }
     panel.open();
