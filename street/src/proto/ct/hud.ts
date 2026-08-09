@@ -2966,27 +2966,43 @@ export function makeHud(purse: Purse): Hud {
   // bottom-right, the watch is bottom — checked by grepping every
   // `position:fixed` in `src/proto/`.
   //
-  // One row each, no captions. The health row leads with a MINIMAL pixel
-  // heart, on his 2026-08-09 note: *"the health bar is quite small and non
-  // descriptive, maybe a minimal icon would help understand it it health?
-  // funds are also similarly boring."* — with not a word of text beyond the
-  // till figure, because a LABEL is the floating-widget look that got the
-  // corner audio panel deleted. The money row had a gold coin from the same
-  // note and lost it the same day — *"you can remove the coin i think"* — so
-  // cash is now the bare figure, which the `$` names on its own.
+  // One row each, no captions — each leads with a MINIMAL pixel icon, on his
+  // 2026-08-09 note: *"the health bar is quite small and non descriptive,
+  // maybe a minimal icon would help understand it it health? funds are also
+  // similarly boring."* — with not a word of text beyond the till figure,
+  // because a LABEL is the floating-widget look that got the corner audio
+  // panel deleted. The coin came off for an hour the same day (*"you can
+  // remove the coin i think"*) and was asked back (*"put coin symbol back
+  // near the money polease"*); it is the approved 8x8, texel for texel.
   //
-  // AND THE LOSS TICKS, same note: *"whenever you lose money i want to see
-  // the number lost on top right as like a red number with negative sign,
+  // AND THE TICKS, same note: *"whenever you lose money i want to see the
+  // number lost on top right as like a red number with negative sign,
   // animated kinda. should be little. this should also be tyhe caSE FOR
-  // HEALTH TOO"* — so a DROP in either number spawns a little red figure
-  // under its own row (`-$4.50` right, `-70` left) that sinks 10 px and fades
-  // over ~a second, the classic damage float read from a top corner (upward
-  // would leave the screen). Losses only — he did not ask for green gains, so
-  // there are none. Ticks landing close together stack a row apart instead of
-  // overprinting; they are children of the corner anchors, so they inherit
-  // `pointer-events:none` and z 12, die on their own timer even while the
-  // world is paused, and the fade sweeps them so nothing floats over a black
-  // screen or the GAME OVER card.
+  // HEALTH TOO"* — then, asking after them: *"i never saw that change about
+  // the green numbers when you get money red when you lose that flash on
+  // that corner updating the total? did you finish those changes?"*. His
+  // memory of the feature includes green, so green is in it: money ticks
+  // BOTH WAYS — a little red `-$4.50` under the figure on a drop, a green
+  // `+$32.00` on a rise — and health ticks its LOSSES (`-70`). Health gains
+  // stay silent on purpose: his sentence is about money, and sleep's nightly
+  // full restore flashing `+85` over the bar every morning would be noise,
+  // not news. Ticks sink 10 px and fade over ~a second (the damage-float
+  // read; upward exits a top corner), stack a row apart when several land
+  // together, inherit `pointer-events:none` and z 12 from the corner
+  // anchors, die on a plain timer even while the frame loop is frozen, and
+  // the fade sweeps survivors so nothing floats over the black or the GAME
+  // OVER card.
+  //
+  // ⚠ WHY HE NEVER SAW A RED ONE. Nearly every loss in this world happens
+  // INSIDE A PANEL — the bodega counter, the diner, the ATM, slots, the
+  // blackjack felt are all `makePanel` cabinets — and a tick at z 12 spawned
+  // there lived and died (~1 s) behind the z 14 backdrop before the cabinet
+  // ever closed. The z-order is correct and stays: nothing may draw over a
+  // machine screen. So the fix is TIME, not z — a tick born while a panel or
+  // a fade is up is HELD, netted with anything else that lands while the
+  // glass is up (three slots spins are one figure, a deposit and its fee are
+  // one figure), and released the moment the world is back. Walk out of the
+  // bodega and what you just spent floats off the corner.
   //
   // The icons are tiny canvases blown up 2x with `image-rendering:pixelated` —
   // the watch's own trick, so their texels stay hard — under a 1 px hard
@@ -3008,9 +3024,9 @@ export function makeHud(purse: Purse): Hud {
   // SIZES, since *"quite small"* is half the note: the bar grew 84x6 → 120x12
   // inside its well and the figure 13 → 15 px, which is legible at arm's
   // length without tipping into the modern floating-widget look he deleted.
-  // Each row is exactly 16 CSS px tall — the heart's own height at 2x — one
-  // tight line per corner, ~146 px of health on the left, the bare figure on
-  // the right.
+  // Each row is exactly 16 CSS px tall — the icons' own height at 2x — one
+  // tight line per corner, ~146 px of health on the left, the figure and its
+  // coin on the right.
   const BAR_W = 120, BAR_H = 12, ICON_S = 2, ICON_GAP = 6;
   /** paint a texel chart onto its own canvas, blown up ICON_S with hard pixels. */
   const pixIcon = (art: string[], ink: Record<string, string>): HTMLCanvasElement => {
@@ -3038,8 +3054,20 @@ export function makeHud(purse: Purse): Hud {
     '..XXXX..',
     '...XX...',
   ], { X: '#c2503e', h: '#e0796a' });
-  // (The 8x8 gold coin that sat beside the figure lived one day — 2026-08-09,
-  // *"you can remove the coin i think"* — and history holds its texels.)
+  // The coin: 8x8 in the machines' own gold (`UI.amber` and its dim rim), an
+  // embossed slit down the middle and a top-left shine — money at a glance,
+  // with the `$` itself left to the figure beside it. Removed and restored on
+  // the same day's two notes; these are the approved texels, unchanged.
+  const COIN = pixIcon([
+    '..RRRR..',
+    '.RhGGGR.',
+    'RhGLLGGR',
+    'RGGLLGGR',
+    'RGGLLGGR',
+    'RGGLLGGR',
+    '.RGGGGR.',
+    '..RRRR..',
+  ], { R: '#8a6620', G: '#e0a63c', L: '#b5832a', h: '#f2cd7d' });
   let statsDiv = document.getElementById('ct-stats') as HTMLDivElement | null;
   if (!statsDiv) {
     statsDiv = document.createElement('div');
@@ -3079,7 +3107,11 @@ export function makeHud(purse: Purse): Hud {
     + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
   hpRow.appendChild(HEART);
   hpRow.appendChild(hpBox);
+  // MIRRORED for the right edge: figure first, the coin riding the corner —
+  // the icon sits nearest its own edge exactly as the heart does on the left,
+  // and the figure grows leftward away from the pinned anchor.
   cashRow.appendChild(cashDiv);
+  cashRow.appendChild(COIN);
   statsDiv.appendChild(hpRow);
   cashWrap.appendChild(cashRow);
   const paintStats = (): void => {
@@ -3101,17 +3133,23 @@ export function makeHud(purse: Purse): Hud {
   // lower row would seat a newcomer on top of it.
   const liveTicks = { left: 0, right: 0 };
   const nextSlot = { left: 0, right: 0 };
-  const spawnTick = (side: 'left' | 'right', text: string): void => {
+  // THE TWO EVENT INKS. Red is a shade brighter than the bar's standing brick
+  // so it reads as an EVENT beside it; green follows the identical logic
+  // against the world's own green — the watch LCD's `#9cab8b` is furniture,
+  // sage and settled, so the gain tick brightens the same way the loss tick
+  // brightens the brick. Both carry the same hard dark shadow, so either
+  // reads on the day sky and the night street alike.
+  const TICK_RED = '#e8604a', TICK_GREEN = '#7dc86e';
+  const spawnTick = (side: 'left' | 'right', text: string, ink: string): void => {
     const host = side === 'left' ? statsDiv! : cashWrap!;
     const el = document.createElement('div');
     el.dataset.tick = '1';                       // what the fade sweeps
     liveTicks[side]++;
     const slot = nextSlot[side]++;
-    // a shade brighter than the bar's brick so it reads as an EVENT against
-    // the standing red beside it; children of a fixed anchor, so `absolute`
-    // positions off the corner and inherits its pointer-events:none and z.
+    // children of a fixed anchor, so `absolute` positions off the corner and
+    // inherits its pointer-events:none and z.
     el.style.cssText = `position:absolute;top:${TICK_TOP + slot * TICK_ROW}px;${side}:0;`
-      + 'font:bold 13px/1 ui-monospace,Menlo,monospace;color:#e8604a;'
+      + `font:bold 13px/1 ui-monospace,Menlo,monospace;color:${ink};`
       + 'text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;white-space:nowrap;'
       + `opacity:1;transition:transform ${TICK_MS}ms ease-out,opacity ${TICK_MS}ms ease-in;`;
     el.textContent = text;
@@ -3142,22 +3180,58 @@ export function makeHud(purse: Purse): Hud {
   // handshake because `ct/save.ts` deliberately promises no ready signal.
   const ticksArmedAt = performance.now() + 5000;
   const armed = (): boolean => performance.now() >= ticksArmedAt;
+  // ── HELD TICKS — the "why he never saw one" fix from the header ─────────
+  //
+  // A tick born while the world is hidden (a panel's backdrop is over the
+  // corners, or a fade is running) goes into `pend` instead of the DOM, and
+  // everything that lands while the glass is up NETS into one figure — three
+  // slots spins are one number, a withdrawal minus its fee is one number,
+  // which is also what *"flash on that corner updating the total"* asks for.
+  // A 250 ms poll then releases it the moment the world is visible again.
+  // Polled rather than hooked into `close()` because a hook covers panels
+  // only — the poll covers the fade with the same four lines, and its cost
+  // exists only while something is actually pending.
+  const pend = { left: 0, right: 0 };
+  let pendPoll = 0;
+  const worldHidden = (): boolean => panelUp() !== null || fading !== null;
+  const emitTick = (side: 'left' | 'right', v: number): void => {
+    const text = side === 'right'
+      ? `${v < 0 ? '-' : '+'}$${Math.abs(v).toFixed(2)}`
+      : String(Math.round(v));
+    spawnTick(side, text, v < 0 ? TICK_RED : TICK_GREEN);
+  };
+  const queueTick = (side: 'left' | 'right', v: number): void => {
+    if (!worldHidden()) { emitTick(side, v); return; }
+    pend[side] += v;
+    if (pendPoll) return;
+    pendPoll = window.setInterval(() => {
+      if (worldHidden()) return;
+      window.clearInterval(pendPoll); pendPoll = 0;
+      for (const s of ['left', 'right'] as const) {
+        const v2 = pend[s]; pend[s] = 0;
+        // a held column that netted to nothing (won it back, healed it back)
+        // shows nothing — and health still only ever ticks a net LOSS.
+        if (s === 'right' ? Math.abs(v2) > 0.004 : v2 <= -0.5) emitTick(s, v2);
+      }
+    }, 250);
+  };
   let lastHp = health(), lastCash = purse.cash;
   onHealthChange(() => {
     const d = health() - lastHp;
     lastHp = health();
-    if (d < 0 && armed()) spawnTick('left', String(d));
+    if (d < 0 && armed()) queueTick('left', d);
     paintStats();
   });
   // fired by `refreshWallet`, which everything that spends or earns already
   // calls — the whole reason PURSE_WATCH exists (see its note above). The
   // signal also fires for pocket changes that move no money, hence the delta
-  // check rather than "a signal is a loss"; the epsilon keeps float dust from
-  // ticking `-$0.00`.
+  // check rather than "a signal is a move"; the epsilon keeps float dust from
+  // ticking `$0.00` either way. BOTH directions since his second note — red
+  // down, green up.
   onPurseChange(() => {
     const d = purse.cash - lastCash;
     lastCash = purse.cash;
-    if (d < -0.004 && armed()) spawnTick('right', `-$${Math.abs(d).toFixed(2)}`);
+    if (Math.abs(d) > 0.004 && armed()) queueTick('right', d);
     paintStats();
   });
   paintStats();

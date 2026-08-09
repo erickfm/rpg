@@ -5908,3 +5908,24 @@ NIGHT 29.00 / WEEK 145.00 / DOUBLE WK 190.00, `int-hotel.ts`). It was the
 decorative duplicate — the selling surface is and remains the tent card on
 the front desk that `shopCounter` shows, so taking a room off the night
 clerk is untouched. The wall mesh is gone; the lobby quotes its money once.
+
+## 2026-08-09 — *"put coin symbol back near the money polease. also i never saw that change about the green numbers when you get money red when you lose that flash on that corner updating the total? did you finish those changes?"*
+
+Went to the same builder, fifth pass on the stats. The 8x8 gold coin is back
+beside the top-right figure, texel for texel the approved one, riding the
+corner edge as before. Green was honestly never built — the earlier ask named
+losses only — but his memory of the feature includes it, so it exists now:
+money ticks BOTH ways, red `-$4.50` on a drop, green `+$32.00` on a rise
+(`#7dc86e`, brightened off the world's sage LCD green exactly as the red is
+brightened off the bar's brick), same size, motion and stacking. Health still
+ticks only losses — sleep's nightly full restore flashing `+85` every morning
+would be noise, not news; say the word and it gets the green too. AND THE BUG
+BEHIND "i never saw": every ordinary loss in this world happens inside a
+panel — bodega counter, diner, ATM, slots, blackjack are all `makePanel`
+cabinets — and a tick at z 12 lived and died in ~1 s behind the z 14 panel
+backdrop, invisible by design, before the cabinet closed. The z-order is
+correct (nothing may draw over a machine screen), so the fix is time: a tick
+born under a panel or a fade is HELD, netted with everything else that lands
+while the glass is up (three slots spins = one figure, "updating the total"
+in his words), and released the moment the world is visible again. Walk out
+of the bodega and what you spent floats off the corner.
