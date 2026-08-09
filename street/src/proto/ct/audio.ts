@@ -7,7 +7,7 @@ import { BUILD, ORDER as HOOK } from './ctx';
 import { APT_X0, ST0 } from './apartment';
 // Read-only, and no cycle: `hud.ts` does not import this module. `ct/osd.ts`
 // DOES (for the menu's VOLUME row), which is why nothing here imports osd.
-import { panelUp } from './hud';
+import { panelUp, screenFadeLeftMs } from './hud';
 // A pure-ish leaf (it imports only ct/stats.ts) — read for the car-hit thump
 // in `watchTraffic`, which is the same observation trick as everything else
 // there: a health DROP with a moving car beside him can only be a collision.
@@ -467,7 +467,7 @@ export function register(ctx: CtxBuild): void {
    * make two overlapping steps cut each other off, which on a staircase is
    * exactly when two overlap.
    */
-  function fire(name: string, gain: number, rate: number, pan: number): void {
+  function fire(name: string, gain: number, rate: number, pan: number, capS?: number): void {
     if (!rig || muted) return;
     const buf = shots.get(name);
     if (!buf) return;
@@ -482,6 +482,16 @@ export function register(ctx: CtxBuild): void {
     s.connect(g).connect(p).connect(rig.master);
     s.onended = () => { s.disconnect(); g.disconnect(); p.disconnect(); };
     s.start();
+    // `capS` cuts the shot short: ramp to silence and stop AT the cap, for a
+    // sound that must end with something on screen (the sleep cue ends with
+    // its fade) rather than run its recorded length. `stop()` fires `onended`,
+    // so the cleanup above is the same either way.
+    if (capS !== undefined && capS < buf.duration / rate) {
+      const t0 = ac.currentTime;
+      g.gain.setValueAtTime(gain, t0);
+      g.gain.linearRampToValueAtTime(0, t0 + Math.max(0.05, capS));
+      s.stop(t0 + Math.max(0.05, capS));
+    }
   }
 
   // ── plug this world into the mixer ────────────────────────────────────────
@@ -849,8 +859,18 @@ export function register(ctx: CtxBuild): void {
     // sleeping. Anything above a couple of game-minutes in one frame is a cut,
     // not the clock running: at the world's own rate a frame is a fraction of a
     // minute, and `advance` lands the whole night inside one.
+    //
+    // *"the sound on sleep is too long. please make it shorter to match the
+    // transition time which is already short"* (2026-08-09). The file is 1.5 s
+    // and the bed's whole cut is 400 ms, so the cue was mostly tail over the
+    // woken world. The jump lands in `mid`, i.e. at the black midpoint, so
+    // `screenFadeLeftMs()` is exactly how long the black-and-fade-in still
+    // has — cap the cue there and sound and screen end together. That answer
+    // is per-fade, so the bed's 140/90/170 and the pass-out's slower
+    // 520/140/620 each get their own length from one line. The 0.25 s floor
+    // is for a jump with no fade over it, where a blip beats a 1.5 s tail.
     const now = ctx.clock.now().totalMin;
-    if (now - lastMin > 5) fire('sleep', LVL.sleep, 1, 0);
+    if (now - lastMin > 5) fire('sleep', LVL.sleep, 1, 0, Math.max(0.25, screenFadeLeftMs() / 1000));
     lastMin = now;
 
     if (!rocker) { rocker = scene.getObjectByName('switch-301-rocker') ?? null; if (rocker) rockY = rocker.position.y; }

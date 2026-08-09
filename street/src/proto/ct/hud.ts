@@ -1885,6 +1885,12 @@ export function makePanel(spec: PanelSpec): Panel {
  */
 const FADE_OUT_MS = 260, FADE_HOLD_MS = 170, FADE_IN_MS = 300;
 let LIVE: Hud | null = null;
+/** when the running fade expects the screen fully back up (performance.now()
+ *  ms). Written by `fade()` from its OWN outMs/holdMs/inMs, so a caller that
+ *  passed custom timings (the bed's 140/90/170, the pass-out's 520/140/620) is
+ *  reported with those, never the defaults. Stale between fades — read it only
+ *  through `screenFadeLeftMs`, which gates on `fading()`. */
+let fadeUpAt = 0;
 export function screenFade(o?: { mid?: () => void; outMs?: number; holdMs?: number; inMs?: number }): Promise<void> {
   // No HUD means no screen to fade, and the caller's `mid` must still happen —
   // a sleep that silently did not pass the night because a screen effect was
@@ -1894,6 +1900,14 @@ export function screenFade(o?: { mid?: () => void; outMs?: number; holdMs?: numb
 }
 /** is the screen mid-cut? Anything that must not fire during one asks here. */
 export function screenFading(): boolean { return LIVE ? LIVE.fading() : false; }
+/** ms until the running fade is fully back up; 0 when none is. For a sound
+ *  that must END WITH THE CUT rather than tail over the woken world — the
+ *  sleep cue asks this at the black midpoint and stops itself on the answer,
+ *  which is how one cue fits both the bed's short cut and the pass-out's
+ *  slower one without a compromise length. */
+export function screenFadeLeftMs(): number {
+  return LIVE && LIVE.fading() ? Math.max(0, fadeUpAt - performance.now()) : 0;
+}
 
 export function makeHud(purse: Purse): Hud {
   let watchShown = -1;
@@ -2943,24 +2957,77 @@ export function makeHud(purse: Purse): Hud {
   // *"lets track the following stats (health, current cash on hand) put them
   //  on a hud overlay pls."*   (2026-08-08)
   //
-  // Top-left, the corner nothing else draws in (the F readout moved down a row
-  // to keep that true). Two lines and no captions: a red bar IS health and a
-  // `$` IS cash — a label on either is the floating-widget look that got the
-  // corner audio panel deleted. DOM rather than canvas, because a rect and a
-  // line of type are exactly what the browser already draws crisp (the prompt,
-  // the note and the stamp all made the same call), and every offset is a
-  // whole px so the type never lands on a half pixel.
+  // Top-left, the corner nothing else draws in (the F readout moved down to
+  // keep that true). Two rows, no captions — but each row leads with a MINIMAL
+  // pixel icon, on his 2026-08-09 note: *"the health bar is quite small and
+  // non descriptive, maybe a minimal icon would help understand it it health?
+  // funds are also similarly boring."* A pixel heart says health and a gold
+  // coin says money, the 1997 read, with not a word of text beyond the till
+  // figure — a LABEL is the floating-widget look that got the corner audio
+  // panel deleted, so the fix is a better-drawn small thing, never a louder one.
+  //
+  // The icons are tiny canvases blown up 2x with `image-rendering:pixelated` —
+  // the watch's own trick, so their texels stay hard — under a 1 px hard
+  // drop-shadow (offset, zero blur) so they read against the sky the way the
+  // note's type does. The bar and the figure stay DOM, which the browser
+  // already draws crisp (the prompt, the note and the stamp all made the same
+  // call), and every offset is a whole px so nothing lands on a half pixel.
   //
   // z 12 — over the night wash (5) and the watch (11), UNDER the panel
   // backdrop (14), the prompt (16) and the fade (20). A panel dims it with the
   // rest of the world, so it can never sit on top of a machine screen, a chat
   // bubble or the [E] line; `pointer-events:none`, so it can never trap input.
   //
-  // The bar's ink is the world's brick red, flat — no gradient, no glow, and
-  // no low-health colour states invented ahead of anything that deals damage.
-  // Cash prints the way every till in this world already prints it:
+  // The bar's ink is the heart's own brick red, flat — no gradient, no glow,
+  // and no low-health colour states invented ahead of anything that deals
+  // damage. Cash prints the way every till in this world already prints it:
   // `shop.ts`'s `$xx.xx`, signed if a loan ever takes the purse negative.
-  const BAR_W = 84, BAR_H = 6;
+  //
+  // SIZES, since *"quite small"* is half the note: the bar grew 84x6 → 120x12
+  // inside its well and the figure 13 → 15 px, which is legible at arm's
+  // length without tipping into the modern floating-widget look he deleted.
+  // Each row is exactly 16 CSS px tall — the icons' own height at 2x — so the
+  // strip stays two tight lines, ~146 px wide.
+  const BAR_W = 120, BAR_H = 12, ICON_S = 2, ICON_GAP = 6, ROW_GAP = 5;
+  /** paint a texel chart onto its own canvas, blown up ICON_S with hard pixels. */
+  const pixIcon = (art: string[], ink: Record<string, string>): HTMLCanvasElement => {
+    const w = art[0].length, h = art.length;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    cv.style.cssText = `width:${w * ICON_S}px;height:${h * ICON_S}px;display:block;`
+      + 'image-rendering:pixelated;filter:drop-shadow(0 1px 0 rgba(0,0,0,.55));';
+    const g = cv.getContext('2d')!;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const c = ink[art[y][x]];
+      if (c) { g.fillStyle = c; g.fillRect(x, y, 1, 1); }
+    }
+    return cv;
+  };
+  // The heart: 8x7, solid brick red with the classic two-texel top-left
+  // shine. Round-shouldered, hard-stepped — the same "steps read as curves"
+  // rule the analog watch dial and the fist's chamfers already follow.
+  const HEART = pixIcon([
+    '.XX..XX.',
+    'XhXXXXXX',
+    'XhXXXXXX',
+    'XXXXXXXX',
+    '.XXXXXX.',
+    '..XXXX..',
+    '...XX...',
+  ], { X: '#c2503e', h: '#e0796a' });
+  // The coin: 8x8 in the machines' own gold (`UI.amber` and its dim rim), an
+  // embossed slit down the middle and a top-left shine — money at a glance,
+  // with the `$` itself left to the figure beside it.
+  const COIN = pixIcon([
+    '..RRRR..',
+    '.RhGGGR.',
+    'RhGLLGGR',
+    'RGGLLGGR',
+    'RGGLLGGR',
+    'RGGLLGGR',
+    '.RGGGGR.',
+    '..RRRR..',
+  ], { R: '#8a6620', G: '#e0a63c', L: '#b5832a', h: '#f2cd7d' });
   let statsDiv = document.getElementById('ct-stats') as HTMLDivElement | null;
   if (!statsDiv) {
     statsDiv = document.createElement('div');
@@ -2972,6 +3039,13 @@ export function makeHud(purse: Purse): Hud {
   // trust anything it carries.
   statsDiv.style.cssText = 'position:fixed;left:10px;top:8px;z-index:12;pointer-events:none;';
   statsDiv.innerHTML = '';
+  const statsRow = (): HTMLDivElement => {
+    const d = document.createElement('div');
+    d.style.cssText = `display:flex;align-items:center;gap:${ICON_GAP}px;height:16px;`;
+    return d;
+  };
+  const hpRow = statsRow(), cashRow = statsRow();
+  cashRow.style.marginTop = `${ROW_GAP}px`;
   const hpBox = document.createElement('div');
   // a dark hairline outside so it reads against the sky, a 1 px well inside so
   // a part-full bar shows how much is gone — the classic '97 health bar.
@@ -2981,10 +3055,14 @@ export function makeHud(purse: Purse): Hud {
   hpFill.style.cssText = `height:${BAR_H}px;width:${BAR_W}px;background:#c2503e;`;
   hpBox.appendChild(hpFill);
   const cashDiv = document.createElement('div');
-  cashDiv.style.cssText = 'margin-top:4px;font:bold 13px/1 ui-monospace,Menlo,monospace;'
+  cashDiv.style.cssText = 'font:bold 15px/1 ui-monospace,Menlo,monospace;'
     + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
-  statsDiv.appendChild(hpBox);
-  statsDiv.appendChild(cashDiv);
+  hpRow.appendChild(HEART);
+  hpRow.appendChild(hpBox);
+  cashRow.appendChild(COIN);
+  cashRow.appendChild(cashDiv);
+  statsDiv.appendChild(hpRow);
+  statsDiv.appendChild(cashRow);
   const paintStats = (): void => {
     hpFill.style.width = `${Math.round((health() / maxHealth()) * BAR_W)}px`;
     const c = purse.cash;
@@ -3080,9 +3158,9 @@ export function makeHud(purse: Purse): Hud {
         // bottom-centre, the prompt bottom-centre and the caption under the
         // panel glass — top-left is the quietest corner, so the readout cannot
         // cover something the player is trying to read while diagnosing a
-        // stutter. `top:44` clears the stats strip (2026-08-08), which now
-        // holds the top of that corner: 8 + a 10 px bar + 4 + a 13 px line.
-        fpsDiv.style.cssText = 'position:fixed;left:10px;top:44px;z-index:20;pointer-events:none;'
+        // stutter. `top:52` clears the stats strip (2026-08-08), which now
+        // holds the top of that corner: 8 + two 16 px rows + a 5 px gap.
+        fpsDiv.style.cssText = 'position:fixed;left:10px;top:52px;z-index:20;pointer-events:none;'
           + 'font:11px ui-monospace,monospace;color:#9cab8b;background:rgba(10,14,12,0.55);'
           + 'padding:3px 7px;border-radius:3px;letter-spacing:.5px;white-space:pre;';
         document.body.appendChild(fpsDiv);
@@ -3177,6 +3255,7 @@ export function makeHud(purse: Purse): Hud {
     fade: (o = {}) => {
       if (fading) return fading;                 // two fades would fight one opacity
       const outMs = o.outMs ?? FADE_OUT_MS, holdMs = o.holdMs ?? FADE_HOLD_MS, inMs = o.inMs ?? FADE_IN_MS;
+      fadeUpAt = performance.now() + outMs + holdMs + inMs;
       const unlock = lockInput();
       const settled = (ms: number, then: () => void) => {
         let called = false;
@@ -3199,6 +3278,10 @@ export function makeHud(purse: Purse): Hud {
         settled(outMs, () => {
           // BLACK. Everything that changes the world happens in here.
           try { o.mid?.(); } catch (e) { console.error('[hud.fade] mid threw:', e); }
+          // re-anchor now that the out has actually settled — transitionend,
+          // not the schedule, said so, and `screenFadeLeftMs` readers fire off
+          // the mid, so hold + in from HERE is the honest remainder
+          fadeUpAt = performance.now() + holdMs + inMs;
           setTimeout(() => {
             fadeDiv!.style.transition = `opacity ${inMs}ms ease-out`;
             fadeDiv!.style.opacity = '0';

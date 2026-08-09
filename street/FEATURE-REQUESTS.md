@@ -5427,3 +5427,31 @@ for the same pattern and don't carry it; the bodega's end caps are offset
 planes, not coplanar boxes.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"the health bar is quite small and non descriptive, maybe a minimal icon would help understand it it health? funds are also similarly boring."*
+
+Went to the same builder for a second pass on the stats strip. Each row now
+leads with a minimal pixel icon, drawn as a tiny canvas blown up 2x with
+`image-rendering:pixelated` (the watch's own trick) under a hard 1 px
+drop-shadow: an 8x7 brick-red pixel heart with the classic two-texel shine
+beside the health bar, and an 8x8 gold coin — `UI.amber` body, dim-gold rim,
+embossed slit — beside the cash figure. No text labels anywhere; the icons do
+the naming. "Quite small" answered by size: the bar grew 84x6 → 120x12 in its
+well and the figure 13 → 15 px bold, each row a tight 16 px tall, the whole
+strip ~146 px wide — a better-drawn small thing, not a louder one. The F
+frame-rate readout dropped to top 52 so the two still never meet. Everything
+structural kept: top-left, z 12 under panel backdrops and the [E] prompt,
+`pointer-events:none`, till-format `$xx.xx` off `purse.cash`.
+
+## 2026-08-09 — *"the sound on sleep is too long. please make it shorter to match the transition time which is already short"*
+
+Went to a builder. The cue is `sleep.ogg`, 1.5 s, fired by `ct/audio.ts`'s
+clock-jump watcher — against a bed/hotel cut of 140/90/170 ms (400 ms total),
+so over a second of it played over the woken world. The asset was left alone:
+the same cue also serves the pass-out in `ct/fatigue.ts`, whose fall is a
+slower 520/140/620 ms on purpose, so one trimmed length would fit neither.
+Instead `hud.ts` now answers `screenFadeLeftMs()` — how long the running fade
+still has, from its OWN timings — and the sleep cue, which fires at the black
+midpoint, ramps to silence and stops exactly there. Sound and screen come back
+together on the bed, on the hotel night, and on the pass-out, each to its own
+transition. `fire()` grew an optional cap; nothing else uses it.
