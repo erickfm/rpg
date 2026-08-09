@@ -5408,3 +5408,22 @@ partition had the same disease (64x12, 6px font) and got the same 4x. The
 framed course board is cream at 150 px/m already and was untouched.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"graphics issues on the tops of all of these shelves"*
+
+Routed to a builder. `ct/int-video.ts` only. Screenshot: the VIDEO HUT gondola
+tops showing a jagged brown bleed through the blue.
+
+Z-fighting by construction: the gondola carcass box ran the full GOND_H, so its
+brown top face sat at exactly y = 1.50 — the same plane as the blue cap's top
+face (cap centred at GOND_H − GOND_CAP/2, so its top is also GOND_H). Two
+coplanar faces, and the depth buffer picked a different winner per pixel per
+frame. Both runs (COMEDY/ACTION and DRAMA/HORROR) come from the one `gondola()`
+function, hence "all of these shelves". Fixed by stopping the carcass halfway
+through the cap (CARC_H = GOND_H − GOND_CAP/2) so its top face is buried inside
+the cap box — no shared plane left from any angle. Footprint, collider and the
+2 m lanes untouched. The NEW RELEASES wall, counter and drop bin were checked
+for the same pattern and don't carry it; the bodega's end caps are offset
+planes, not coplanar boxes.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

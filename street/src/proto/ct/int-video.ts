@@ -262,7 +262,13 @@ export function buildVideo(ctx: CtxBuild): void {
   }), 'sign');
   const gondola = (cz: number, west: string, east: string) => {
     const cx = (GOND_X0 + GOND_X1) / 2, w = GOND_X1 - GOND_X0;
-    put(new THREE.Mesh(new THREE.BoxGeometry(w, GOND_H, GOND_D), carcM), cx, GOND_H / 2, cz);
+    // ⚠ The carcass stops HALFWAY THROUGH the cap, not at GOND_H: at full height
+    // its brown top face and the cap's blue top face shared the y = GOND_H plane
+    // exactly, and the two fought in the depth buffer — a jagged brown bleed all
+    // over the top of every run. Burying the carcass top inside the cap box
+    // removes the shared plane; the footprint is unchanged.
+    const CARC_H = GOND_H - GOND_CAP / 2;
+    put(new THREE.Mesh(new THREE.BoxGeometry(w, CARC_H, GOND_D), carcM), cx, CARC_H / 2, cz);
     // the two rack faces, a hair proud of the carcass so nothing is coplanar
     // THREE WHOLE SHELVES, 1.20 m of face from 0.20 to 1.40. A fractional row
     // wraps to a sliced box at the top edge, which reads as a texture bug rather
