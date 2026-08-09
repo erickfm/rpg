@@ -5674,3 +5674,17 @@ gone — no transaction pauses on a question any more. The screen is now a
 confirmation beat: the sum (`$x.xx TAKEN` / `$x.xx DEPOSITED`) flashes on the
 tube with `NO RECEIPT — NO PAPER IN THIS MACHINE` under it, then the machine
 moves on to TAKE YOUR CARD on its own clock, like the PLEASE WAIT beat.
+
+## 2026-08-09 — *"move the coffee station over to the empty space on the left here inside the bodega"*
+
+Routed to a builder, with his screenshot: the coffee bench was crowding the
+deli case's face (the two counters read as one lump with urns over the join),
+while the front wall under the ATM card and the window stood over empty floor.
+The whole station — bench, plinth, top, front panel, three urns with taps and
+lids, drip tray, cup stack, COFFEE card and its collider — now stands against
+the front wall, long side along it, urns facing into the shop. Position is
+derived, not typed: 0.03 scribe off the wall like the deli case, 0.7 m clear
+of the case's open end so the strip behind the case stays walkable, urn lids
+(1.50 m) under the ATM card (1.77 m) and clear of the glass. The deli case's
+display runs its full width again now that nothing stands against it; the
+vacated corner is bare floor.
