@@ -1038,13 +1038,12 @@ export function makeCrosstown(): Proto {
     if (p.kind !== 'sedan' || hitched) continue;
     hitched = true;
     const sz = p.car.position.z;
-    // Same convention as `carColliderBoxes`: every parked car collider in this
-    // world is axis-aligned, so `dir` only has to answer "which world end is
-    // the boot", which needs the SIGN of cos(ry), not its value. parkYaw()'s
-    // few degrees of jitter never get near flipping that sign.
+    // `dir` answers "which world end is the boot" for the trailer MESH's flip
+    // below, which needs the SIGN of cos(ry), not its value — parkYaw()'s few
+    // degrees of jitter never get near flipping that sign. (The deck COLLIDER
+    // no longer consults it: since `rot: p.ry` it turns with the car, like
+    // every vehicle collider does now.)
     const dir = Math.cos(p.ry) >= 0 ? 1 : -1;
-    const localZ = (a: number, b: number): [number, number] =>
-      (dir === 1 ? [sz + a, sz + b] : [sz - b, sz - a]);
     const DECK_Y = PICKUP_BED.floorY;         // 0.50 — imported, not retyped
     const DRAW_L = 0.30;                      // drawbar seen between car and deck
     const DECK_L = 1.50;
@@ -1053,10 +1052,24 @@ export function makeCrosstown(): Proto {
     // the car and the trailer present ONE continuous solid at ground level. A
     // gap here would be 0.65 m of exactly the 0.40–0.95 m band `ct/gap.ts`
     // calls a trap, manufactured between two things added on purpose.
-    const deckZ = localZ(p.half, deckZ1);
+    //
+    // AND IT WEARS THE SEDAN'S OWN YAW (`rot: p.ry`, 2026-08-09). The trailer
+    // is a CHILD of the car, so the planks inherit the parkYaw() rake — this
+    // box was the last vehicle collider still square to the world after
+    // *"i want collision to match the visual geometry"* put every car's tiers
+    // at their real angle (ct/cars.ts `carColliderBoxes`). Same construction
+    // as that function: the span in the car's LOCAL frame (tail `p.half` to
+    // `deckZ1`, full collider width), its centre turned by Ry(ry) about the
+    // car, extents kept local — which also retires `dir`'s role here, because
+    // a real rotation answers "which world end is the boot" by itself.
+    const lzMid = (p.half + deckZ1) / 2, hzDeck = (deckZ1 - p.half) / 2;
     const deckBox: Top = {
-      tag: 'sedan-trailer-deck', minX: p.cb.minX, maxX: p.cb.maxX,
-      minZ: deckZ[0], maxZ: deckZ[1], maxY: DECK_Y,
+      tag: 'sedan-trailer-deck',
+      minX: p.car.position.x + lzMid * Math.sin(p.ry) - CAR_HALF_W,
+      maxX: p.car.position.x + lzMid * Math.sin(p.ry) + CAR_HALF_W,
+      minZ: sz + lzMid * Math.cos(p.ry) - hzDeck,
+      maxZ: sz + lzMid * Math.cos(p.ry) + hzDeck,
+      maxY: DECK_Y, rot: p.ry,
     };
 
     // ── the trailer itself, as a child of the car it is hitched to ──────────
