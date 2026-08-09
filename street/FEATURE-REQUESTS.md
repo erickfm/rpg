@@ -5493,3 +5493,25 @@ that collapses does not keep the bed's appointments. The bed's E prompt is the
 one word `sleep`, same rule as the NPC `talk` prompt. The fatigue detector,
 last-slept recording, sleep-heals-to-full and the 64b0c466 sleep-cue cap all
 ride on the fade-covered clock jump and are unchanged by the length.
+
+## 2026-08-09 — *"this shouldnt be in front of the door in the thrift shop. re organize the shop pls"*
+
+To a builder, with the screenshot. The thing in front of the door was the
+WINDOW DISPLAY plinth (`ct/int-thrift.ts`): at local x −3.0 its collider
+overlapped the door span at −2.2 AND the way-out trigger circle — and the
+wall it was "displaying" through has no glass in it (the glazing is right of
+the door). Reorganised the whole room, layout only, stock and prices
+untouched: the door now opens onto a clear 2 m+ lane running to the back
+wall; the garment rails turn front-to-back into browsable columns (one
+single rail, the two middle rails pushed together as a back-to-back island,
+the coat rail east of that — every aisle 2 m, the sidewalk-lane rule
+indoors); the TILL moves to the front wall right of the door, keeper turned
+with it, price card, stand spot, register, book bin and 'AS SEEN' card all
+following by derivation; the window display now stands behind the actual
+glazing between the door lane and the till; the donation boxes land just
+inside the door on the blind side, where donations get dumped; crockery
+moves to the bare left wall. Also found and fixed while in there: a stray
+brace had the folded-goods back wall built THREE times, straight through the
+crockery shelf that shared the wall. Belt bin and mannequin now cap the
+fixture lines instead of sitting in lanes. `tsc` clean, WORLD OK, live on
+5177.

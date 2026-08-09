@@ -14,19 +14,27 @@ import './goods';   // for the side effect: it is what declares the stock
 // warm and settled, the burger barn is bright and hard, and this is CROWDED.
 // If you can see the floor, it has failed.
 //
-// Which puts it in direct tension with the one rule that cannot bend: the
-// player is 0.72 m across and every room must be walkable end to end. The
-// resolution is not to space everything out — that loses the brief — but to
-// give the room a SPINE and let the aisles be genuinely tight:
+// REORGANISED 2026-08-09. Erick: *"this shouldnt be in front of the door in
+// the thrift shop. re organize the shop pls."* The window-display plinth sat
+// across the doorway (its collider overlapped the door span AND the way-out
+// trigger), the crockery shelf and the folded-goods wall were built on top of
+// each other on the back wall, and a stray brace built that wall three times
+// over. The plan now reads like a shop:
 //
-//   · the rails fill the left two thirds and the aisles between them clear
-//     the player by about 0.19 m a side. You turn sideways. That is the feel.
-//   · the right third is an open run from the door to the till, so you can
-//     always get from one end to the other without squeezing at all.
-//
-// Every measurement below is chosen against the 0.36 m capsule radius and
-// then WALKED — `scripts/interiors-walk.mjs` drives the aisles, not just the
-// spine, because a room that is only passable down one lane is a corridor.
+//   · the DOOR LANE: the door is at local x −2.2 and a 2 m+ clear lane runs
+//     from it straight to the back wall. Nothing sits in the door's swing,
+//     its approach, or the way-out trigger circle.
+//   · rails run FRONT-TO-BACK in browsable columns — one single rail west of
+//     the door lane, the two middle rails pushed together back-to-back as one
+//     island (a packed double rail is how a real thrift keeps three rails'
+//     stock on two rails' floor), and the coat rail east of that. Every aisle
+//     between them is 2 m clear — the sidewalk-lane rule, indoors.
+//   · the TILL is at the FRONT, right of the door, where a real thrift keeps
+//     it (you pay on the way out and the keeper can see the door). The
+//     donation boxes land by the door on the other side, which is where
+//     donations actually get dumped.
+//   · perimeter stock: crockery down the left wall, shoes down the right,
+//     folded goods across the whole back wall — built ONCE now.
 //
 // WHERE IT IS is not written here. The room names its building and the kit
 // reads `frontageOf('THRIFT', 12.5)` for the door, its width, the glazing and
@@ -94,14 +102,17 @@ export function buildThrift(ctx: CtxBuild): void {
 
   // ── the rails ──
   //
-  // Three runs down the left two thirds, packed. A rail is uprights, a bar,
+  // Three rails running FRONT-TO-BACK, packed. A rail is uprights, a bar,
   // and a SOLID BLOCK of garments — the block matters: hanging clothes on a
   // full rail are a mass, not separate items, and drawing them as a mass is
   // both truer and cheaper than fifty planes.
   //
-  // Rows sit 1.35 m apart with a 0.44 m garment block, so the clear aisle is
-  // 0.91 m and the player's 0.72 m leaves ~0.19 m. Tight on purpose. Anything
-  // wider and the room reads as a boutique; anything narrower and it is a wall.
+  // One single rail west of the door lane, and the two middle rails pushed
+  // together back-to-back as one island east of it — their garment blocks
+  // touch, which is the thrift tell (a gap would be wasted floor). The clear
+  // lanes either side of every run are 2 m: crockery face −5.31 → rail A face
+  // −3.31 → door lane to the island face −0.67 → island → coat rail → shoe
+  // wall, at 2.0 / 2.2 / 2.2 / 2.4 m respectively.
   const garmentT = declareSurface(pixTex(64, 32, (g) => {
     // a jumbled run of coats and shirts, muted and mismatched — thrift stock
     // is everything nobody wanted, so no two neighbours agree
@@ -121,26 +132,30 @@ export function buildThrift(ctx: CtxBuild): void {
     g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 0, 64, 3);   // shoulders in shadow
     dither(g, 64, 32, 90);
   }), 'detail');
-  const RAIL_X0 = -3.7, RAIL_X1 = -0.3;
-  const RAIL_L = RAIL_X1 - RAIL_X0, RAIL_CX = (RAIL_X0 + RAIL_X1) / 2;
-  const ROWS = [1.1, -0.25, -1.6];
-  for (const rz of ROWS) {
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(RAIL_L, 0.04, 0.04), steelM);
-    put(bar, RAIL_CX, 1.55, rz);
-    for (const ux of [RAIL_X0 + 0.1, RAIL_CX, RAIL_X1 - 0.1]) {
+  const RAIL_Z0 = -2.2, RAIL_Z1 = 1.2;
+  const RAIL_L = RAIL_Z1 - RAIL_Z0, RAIL_CZ = (RAIL_Z0 + RAIL_Z1) / 2;
+  // rail A alone, then the island pair back-to-back (blocks touching at −0.23)
+  const COLS = [-3.09, -0.45, -0.01];
+  for (const rx of COLS) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, RAIL_L), steelM);
+    put(bar, rx, 1.55, RAIL_CZ);
+    for (const uz of [RAIL_Z0 + 0.1, RAIL_CZ, RAIL_Z1 - 0.1]) {
       const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.55, 0.05), steelM);
-      put(post, ux, 0.775, rz);
-      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.04, 0.44), steelM);
-      put(foot, ux, 0.02, rz);
+      put(post, rx, 0.775, uz);
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.04, 0.09), steelM);
+      put(foot, rx, 0.02, uz);
     }
     const gt = garmentT.clone();
     gt.wrapS = gt.wrapT = THREE.RepeatWrapping;
     gt.repeat.set(RAIL_L / 2.6, 1);                  // texel density off real metres
     gt.needsUpdate = true;
-    const clothes = new THREE.Mesh(new THREE.BoxGeometry(RAIL_L - 0.15, 1.05, 0.44), ctx.flat(gt));
-    put(clothes, RAIL_CX, 0.98, rz);
-    solid(RAIL_CX, rz, RAIL_L, 0.44);
+    const clothes = new THREE.Mesh(new THREE.BoxGeometry(0.44, 1.05, RAIL_L - 0.15), ctx.flat(gt));
+    put(clothes, rx, 0.98, RAIL_CZ);
   }
+  // one collider for the single rail, ONE for the island — two touching boxes
+  // as separate colliders leave a zero-width seam the capsule can snag on
+  solid(COLS[0], RAIL_CZ, 0.44, RAIL_L);
+  solid((COLS[1] + COLS[2]) / 2, RAIL_CZ, 0.88, RAIL_L);
 
   // ── the wall of shoes, down the right-hand wall ──
   //
@@ -181,9 +196,12 @@ export function buildThrift(ctx: CtxBuild): void {
   put(shoeEnd.clone(), hw - 0.18, 1.05, SHOE_Z1 + 0.03);
   solid(hw - 0.17, SHOE_CZ, 0.34, SHOE_L + 0.1);
 
-  // ── the crockery shelf, along the back wall to the left ──
+  // ── the crockery shelf, down the left wall ──
   //
   // Chipped, mismatched, stacked two deep. Nobody is buying it.
+  // It used to share the back wall with the folded-goods runs — the two were
+  // literally built through each other at the same z. The left wall was bare;
+  // now it isn't, and the back wall belongs to one fixture.
   const crockT = declareSurface(pixTex(96, 24, (g) => {
     g.fillStyle = '#8a8274'; g.fillRect(0, 0, 96, 24);
     const cols = ['#d8d0c0', '#c8bca8', '#e0d8c8', '#b8ac98', '#d0c4b0'];
@@ -198,27 +216,32 @@ export function buildThrift(ctx: CtxBuild): void {
     }
     dither(g, 96, 24, 40);
   }), 'detail');
-  const CR_X0 = -3.8, CR_X1 = -0.4;
-  const CR_L = CR_X1 - CR_X0, CR_CX = (CR_X0 + CR_X1) / 2;
+  const CR_Z0 = -3.2, CR_Z1 = 0.2;
+  const CR_L = CR_Z1 - CR_Z0, CR_CZ = (CR_Z0 + CR_Z1) / 2;
   for (let i = 0; i < 3; i++) {
     const y = 0.55 + i * 0.5;
-    const shelf = new THREE.Mesh(new THREE.BoxGeometry(CR_L, 0.04, 0.3), woodM);
-    put(shelf, CR_CX, y, -hd + 0.16);
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, CR_L), woodM);
+    put(shelf, -hw + 0.16, y, CR_CZ);
     const ct = crockT.clone();
     ct.wrapS = ct.wrapT = THREE.RepeatWrapping;
     ct.repeat.set(CR_L / 3.0, 1);
     ct.needsUpdate = true;
     const stack = new THREE.Mesh(new THREE.PlaneGeometry(CR_L, 0.4), ctx.flat(ct));
-    put(stack, CR_CX, y + 0.22, -hd + 0.03);
+    stack.rotation.y = Math.PI / 2;                  // faces into the room (+x)
+    put(stack, -hw + 0.03, y + 0.22, CR_CZ);
   }
-  solid(CR_CX, -hd + 0.16, CR_L, 0.34);
+  solid(-hw + 0.16, CR_CZ, 0.34, CR_L);
 
   // ── the till, and the glass case with the good stuff in it ──
   //
   // The one locked thing in the shop. Everything else is on an open rail; the
   // jewellery is behind glass at the counter where it can be watched, and that
   // single difference says more about the place than a sign would.
-  const TILL_CX = 2.2, TILL_Z = -hd + 0.5;
+  //
+  // AT THE FRONT NOW, right of the door, facing into the room — where a real
+  // thrift keeps it: you pay on the way out, and the keeper minds the door.
+  // Everything counter-shaped below is derived from these two numbers.
+  const TILL_CX = 3.4, TILL_Z = hd - 0.5;
   const caseT = declareSurface(pixTex(64, 24, (g) => {
     g.fillStyle = 'rgba(196,214,220,0.30)'; g.fillRect(0, 0, 64, 24);
     g.fillStyle = '#6a6258'; g.fillRect(0, 11, 64, 2);            // the middle shelf
@@ -237,7 +260,8 @@ export function buildThrift(ctx: CtxBuild): void {
   const tillBody = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.94, 0.6), woodM);
   put(tillBody, TILL_CX, 0.47, TILL_Z);
   const tillGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.66), glassM);
-  put(tillGlass, TILL_CX, 0.6, TILL_Z + 0.31);
+  tillGlass.rotation.y = Math.PI;                    // shopper side is −z now
+  put(tillGlass, TILL_CX, 0.6, TILL_Z - 0.31);
   const tillTop = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.05, 0.68), woodM);
   put(tillTop, TILL_CX, 0.96, TILL_Z);
   solid(TILL_CX, TILL_Z, 2.6, 0.6);
@@ -245,8 +269,9 @@ export function buildThrift(ctx: CtxBuild): void {
     new THREE.MeshBasicMaterial({ color: 0x4a4a4e }));
   put(register, TILL_CX + 0.9, 1.13, TILL_Z);
 
-  // a bin of loose paperbacks, jammed in beside the till because there was
-  // nowhere else — the shop has run out of room for its own stock
+  // a bin of loose paperbacks, jammed in beside the till (between it and the
+  // window display) because there was nowhere else — the shop has run out of
+  // room for its own stock
   const bookT = declareSurface(pixTex(32, 16, (g) => {
     g.fillStyle = '#5a4a3a'; g.fillRect(0, 0, 32, 16);
     const cols = ['#8a3a3a', '#3a5a6a', '#7a6a3a', '#5a3a5a', '#4a6a4a'];
@@ -257,11 +282,11 @@ export function buildThrift(ctx: CtxBuild): void {
     dither(g, 32, 16, 16);
   }), 'detail');
   const bin = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.55, 0.6), woodM);
-  put(bin, TILL_CX - 2.0, 0.275, TILL_Z + 0.05);
+  put(bin, TILL_CX - 2.0, 0.275, TILL_Z - 0.05);
   const books = new THREE.Mesh(new THREE.PlaneGeometry(0.76, 0.5), ctx.flat(bookT));
   books.rotation.x = -Math.PI / 2;
-  put(books, TILL_CX - 2.0, 0.56, TILL_Z + 0.05);
-  solid(TILL_CX - 2.0, TILL_Z + 0.05, 0.8, 0.6);
+  put(books, TILL_CX - 2.0, 0.56, TILL_Z - 0.05);
+  solid(TILL_CX - 2.0, TILL_Z - 0.05, 0.8, 0.6);
 
   // ── the handwritten card signs ──
   //
@@ -284,18 +309,20 @@ export function buildThrift(ctx: CtxBuild): void {
   // used one and `ALL COATS` came out backwards from the aisle on the far
   // side of its own rail. That is the failure the kit helper now prevents for
   // every room, not just this one.
-  const CARDS: [string, string, number, number, number][] = [
-    ['ALL COATS', '$16', -2.0, 1.72, 1.1],
-    ['SHIRTS', '2 FOR $12', -2.0, 1.72, -0.25],
-    ['SKIRTS', 'DRESSES', -2.0, 1.72, -1.6],
+  // Rail cards hang on rails that now run along z, so they turn π/2 to face
+  // the aisles — `room.sign` draws both sides, so one card reads from both.
+  const CARDS: [string, string, number, number, number, number][] = [
+    ['ALL COATS', '$16', COLS[0], 1.72, -0.5, Math.PI / 2],
+    ['SHIRTS', '2 FOR $12', -0.23, 1.72, 0.3, Math.PI / 2],
+    ['SKIRTS', 'DRESSES', -0.23, 1.72, -1.3, Math.PI / 2],
     // propped ON the counter top (0.96 + the card's own half-height), not at
     // a typed height above it — that is how it ended up hanging in mid-air
-    ['AS SEEN', 'NO REFUND', TILL_CX, 0.96 + 0.11, TILL_Z + 0.33],
+    ['AS SEEN', 'NO REFUND', TILL_CX, 0.96 + 0.11, TILL_Z - 0.33, 0],
   ];
-  for (const [a, b, cx2, cy, cz2] of CARDS) room.sign(cardT(a, b), 0.44, 0.22, cx2, cy, cz2);
+  for (const [a, b, cx2, cy, cz2, ry] of CARDS) room.sign(cardT(a, b), 0.44, 0.22, cx2, cy, cz2, ry);
   // …and one taped up in the window, which you read from inside because there
   // is no outside: interiors are not behind their facades.
-  room.sign(cardT('OPEN', 'CASH ONLY'), 0.6, 0.3, 1.2, 1.45, hd - 0.06);
+  room.sign(cardT('OPEN', 'CASH ONLY'), 0.6, 0.3, 0.8, 1.45, hd - 0.06);
 
   // ═══════════════════════════════════════════════════════════════════════
   // THE DENSITY PASS
@@ -348,10 +375,10 @@ export function buildThrift(ctx: CtxBuild): void {
     }
     dither(g, 24, 20, 90);
   }), 'detail');
-  for (const rz of ROWS) {
-    const lower = new THREE.Mesh(new THREE.BoxGeometry(RAIL_L - 0.5, 0.52, 0.4),
+  for (const rx of COLS) {
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.52, RAIL_L - 0.5),
       ctx.flat(dblT));
-    put(lower, RAIL_CX + 0.12, 0.62, rz);
+    put(lower, rx, 0.62, RAIL_CZ + 0.12);
   }
 
   // ── the coat rail, sagging under what is on it ──
@@ -361,7 +388,8 @@ export function buildThrift(ctx: CtxBuild): void {
   // says the shop is coping. Three segments stepping down and back up reads as
   // a curve at this scale and costs three boxes, which is the same trick the
   // kerb profile uses.
-  const COAT_X = 3.4, COAT_Z0 = -2.3, COAT_Z1 = 0.9;
+  // east of the island, its front end held 2.0 m clear of the till's face
+  const COAT_X = 2.66, COAT_Z0 = -1.3, COAT_Z1 = 1.9;
   const COAT_L = COAT_Z1 - COAT_Z0, COAT_CZ = (COAT_Z0 + COAT_Z1) / 2;
   const coatT = declareSurface(pixTex(20, 28, (g) => {
     // Same fault as `dblT` above, on the same defect report: columns reach
@@ -409,14 +437,14 @@ export function buildThrift(ctx: CtxBuild): void {
     }
   }), 'detail');
   const beltBin = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.42, 0.62), woodM);
-  // z 2.55, not 2.0: the spine aisle the harness walks runs along local z = 1.8,
-  // and at 2.0 this bin's 0.62 m depth plus the 0.36 m capsule sat right across
-  // it. Dense is the brief; blocking the one route to the till is not.
-  put(beltBin, 0.7, 0.21, 2.55);
+  // On the ISLAND'S OWN LINE, at its front end — an island end-cap occupies a
+  // fixture line, not a lane. Free-standing in the middle of a 2 m lane it
+  // would BE the thing this reorganise removes from in front of the door.
+  put(beltBin, -0.23, 0.21, 1.55);
   const belts = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.58), ctx.flat(beltT));
   belts.rotation.x = -Math.PI / 2;
-  put(belts, 0.7, 0.44, 2.55);
-  solid(0.7, 2.55, 0.82, 0.62);
+  put(belts, -0.23, 0.44, 1.55);
+  solid(-0.23, 1.55, 0.82, 0.62);
 
   // ── the mannequin, at the wrong angle ──
   //
@@ -424,8 +452,9 @@ export function buildThrift(ctx: CtxBuild): void {
   // which is the single most thrift-store thing in the room: a boutique's
   // mannequin is aimed at you, and this one is aimed at nothing because the
   // person who moved it was carrying something else at the time.
-  // likewise clear of the z = 1.8 spine once the capsule is allowed for
-  const MAN_X = -0.4, MAN_Z = 2.68;
+  // On rail A's line at its front end, like the belt bin on the island's —
+  // a fixture line, not a lane, and well clear of the door corridor.
+  const MAN_X = -3.09, MAN_Z = 1.6;
   const formM = new THREE.MeshBasicMaterial({ color: 0xc8bda8 });
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.62, 0.22), formM);
   torso.rotation.y = 0.9;                            // the wrong angle
@@ -444,25 +473,27 @@ export function buildThrift(ctx: CtxBuild): void {
   put(dress, MAN_X, 1.22, MAN_Z);
   solid(MAN_X, MAN_Z, 0.4, 0.4);
 
-  // ── boxes behind the counter, not sorted yet ──
+  // ── the donation boxes, dumped inside the door ──
   //
-  // The back of a thrift store is where the donations land and wait. Stacked
-  // three high and not squared to each other, because they were put down, not
-  // placed. They sit BEHIND the till, so they are scenery you look past the
-  // keeper at rather than anything you walk into.
+  // Donations land where people drop them: just inside the door, against the
+  // blind stretch of front wall on the hinge side, waiting to be sorted.
+  // Stacked two high and not squared to each other, because they were put
+  // down, not placed. Scenery, no colliders — and every box keeps at least
+  // 0.6 m clear of the door opening and the way-out trigger circle.
   const boxM = new THREE.MeshBasicMaterial({ color: 0xa08a68 });
+  const BOX_X = -4.25, BOX_Z = 4.35;
   const BOXES: [number, number, number, number][] = [
     // 0.44 m tall, so tier one centres at 0.22 and tier two at 0.66. These were
     // eyeballed at 0.24…0.28 and 0.70…0.76, which left every one of them a few
     // centimetres off its own floor or the box below it.
-    [-0.3, 0.22, -0.18, 0.5], [-0.22, 0.66, -0.12, 0.2],
-    [0.55, 0.22, 0.1, -0.35], [0.62, 0.66, 0.06, 0.15],
-    [1.35, 0.22, -0.05, 0.6],
+    [-0.3, 0.22, -0.1, 0.5], [-0.22, 0.66, -0.05, 0.2],
+    [0.45, 0.22, 0.1, -0.35], [0.52, 0.66, 0.05, 0.15],
+    [0.1, 0.22, -0.15, 0.6],
   ];
   for (const [dx, y, dz, rot] of BOXES) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.44, 0.4), boxM);
     b.rotation.y = rot;
-    put(b, TILL_CX + dx, y, TILL_Z - 0.95 + dz);
+    put(b, BOX_X + dx, y, BOX_Z + dz);
   }
 
   // ── the window display, which is what A's glass looks into ──
@@ -477,7 +508,15 @@ export function buildThrift(ctx: CtxBuild): void {
   // window because that is the only part the street sees; everything two metres
   // behind it is a heap. The contrast is the joke, and it only works if the
   // window is genuinely neat.
-  const WIN_X = -3.0, WIN_Z = hd - 0.55;
+  //
+  // THIS USED TO SIT AT x −3.0 — ACROSS THE DOOR (2026-08-09, Erick: *"this
+  // shouldnt be in front of the door in the thrift shop"*). The door is at
+  // −2.2 and the plinth's collider overlapped both the door span and the
+  // way-out trigger circle, and the wall left of the door has NO GLASS in it
+  // anyway — the kit keeps the bigger glazed run, which is RIGHT of the door.
+  // So the display now stands behind the actual glass, between the door lane
+  // and the book bin, a clear 1.4 m from the door's edge.
+  const WIN_X = 0.0, WIN_Z = hd - 0.55;
   const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.42, 0.5), woodM);
   put(plinth, WIN_X, 0.21, WIN_Z);
   solid(WIN_X, WIN_Z, 1.5, 0.5);
@@ -491,6 +530,7 @@ export function buildThrift(ctx: CtxBuild): void {
     const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18),
       new THREE.MeshBasicMaterial({ color: [0xb8a24e, 0x8a9aa8, 0xa06a72][i] }));
     put(g2, WIN_X + 0.15 + i * 0.28, 0.53, WIN_Z);
+  }
 
   // ── the folded-goods wall, because a thrift store is PACKED ──
   //
@@ -519,21 +559,13 @@ export function buildThrift(ctx: CtxBuild): void {
     }
     dither(g, 64, 16, 50);
   }), 'detail');
-  // ONE run centred on x=0 used to span the ENTIRE back wall — including the
-  // till at TILL_CX (2.2), which is also built against this wall (SH_Z lands
-  // inside the till's own 0.5 m gap to the wall). The shelf's goods plane and
-  // its solid collider both covered the keeper's only possible standing spot,
-  // so she was walled in on one side and shelved over on the other — never
-  // drawn, from any angle a customer can reach. Found the same way as the
-  // KEEP_AT fix above: a scene traversal for her `userData.citizen` mesh
-  // showed no standable line-of-sight point anywhere in the room.
-  //
-  // Split the run around the till instead of through it, with a 0.3 m margin
-  // either side of its 2.6 m counter (0.9…3.5) so the goods don't touch the
-  // register or brush the keeper's sprite.
+  // ONE run, the full width of the back wall. It used to be split around the
+  // till (and, by a stray brace, built three times over, straight through the
+  // crockery shelf that shared this wall) — the till lives at the FRONT now
+  // and the crockery moved to the left wall, so the back wall belongs to this
+  // fixture alone and the split is gone with the reason for it.
   const SH_Z = -hd + 0.16;
-  const TILL_GAP0 = TILL_CX - 1.3 - 0.3, TILL_GAP1 = TILL_CX + 1.3 + 0.3;
-  const runs: [number, number][] = [[-(room.W - 1.4) / 2, TILL_GAP0], [TILL_GAP1, (room.W - 1.4) / 2]];
+  const runs: [number, number][] = [[-(room.W - 1.4) / 2, (room.W - 1.4) / 2]];
   for (const [x0, x1] of runs) {
     const w = x1 - x0, cx2 = (x0 + x1) / 2;
     if (w <= 0.4) continue;               // too thin to bother shelving
@@ -557,18 +589,17 @@ export function buildThrift(ctx: CtxBuild): void {
     }
     solid(cx2, SH_Z, w, 0.34);
   }
-  }
 
   // ── more card signs, because one notice is never the last notice ──
-  const MORE: [string, string, number, number, number][] = [
-    ['ALL SALES', 'FINAL', TILL_CX - 1.5, 1.62, TILL_Z + 0.1],
-    ['COATS', 'HEAVY $24', COAT_X - 0.32, 1.92, COAT_CZ],
+  const MORE: [string, string, number, number, number, number][] = [
+    ['ALL SALES', 'FINAL', TILL_CX - 1.5, 1.62, TILL_Z + 0.28, 0],
+    ['COATS', 'HEAVY $24', COAT_X - 0.32, 1.92, COAT_CZ, Math.PI / 2],
     // propped ON the bin rim (0.42 top + the card's own half-height), not at a
     // typed height above a bin that has no wall behind it to tape it to
-    ['BELTS', '$4 EACH', 0.7, 0.42 + 0.10, 2.55],
-    ['SHOES', 'AS FOUND', hw - 0.42, 1.86, SHOE_CZ],
+    ['BELTS', '$4 EACH', -0.23, 0.42 + 0.10, 1.55, 0],
+    ['SHOES', 'AS FOUND', hw - 0.42, 1.86, SHOE_CZ, Math.PI / 2],
   ];
-  for (const [a, b, cx2, cy, cz2] of MORE) room.sign(cardT(a, b), 0.4, 0.2, cx2, cy, cz2);
+  for (const [a, b, cx2, cy, cz2, ry] of MORE) room.sign(cardT(a, b), 0.4, 0.2, cx2, cy, cz2, ry);
 
   // ── the proprietor, behind the till ──
   //
@@ -594,19 +625,19 @@ export function buildThrift(ctx: CtxBuild): void {
   //
   // Derived from the counter so it cannot drift if the counter moves.
   //
-  // THIS OFFSET USED TO BE 0.55, WHICH PUT HER INSIDE THE BACK WALL. The gap
-  // between the till (TILL_Z = -hd + 0.5) and the wall's inner face (-hd) is
-  // only 0.5 m, and the wall itself is 0.18 m of solid collider beyond that
-  // (`interior.ts`'s `T`) — so 0.55 landed her at -hd - 0.05, five centimetres
-  // into the wall's own volume. A billboard has no back face to catch this on
-  // a screenshot the way a boxy prop would: she was never clipping, she was
-  // never drawn at all, painted over by the wall's own plaster from every
-  // angle a customer can stand at. Verified live with a scene traversal for
-  // `userData.citizen` meshes and a line-of-sight camera search
-  // (`scripts/interior-people-close.mjs`) — no standable point in the room
-  // could see her before this change. 0.4 leaves 0.1 m clear on both sides:
-  // behind the till's own back face and in front of the wall.
-  const KEEP_AT = TILL_Z - 0.4;   // behind the counter, still inside the room
+  // THIS OFFSET WAS ONCE 0.55, WHICH PUT HER INSIDE THE WALL BEHIND HER. The
+  // gap between the till and the wall's inner face is only 0.5 m, and the wall
+  // is 0.18 m of solid collider beyond that (`interior.ts`'s `T`) — so 0.55
+  // landed her 0.05 m into the wall's own volume. A billboard has no back face
+  // to catch this on a screenshot the way a boxy prop would: she was never
+  // clipping, she was never drawn at all, painted over by the wall's own
+  // plaster from every angle a customer can stand at. 0.4 leaves 0.1 m clear
+  // on both sides: behind the till's own back face and in front of the wall.
+  //
+  // The till faces the room from the FRONT wall now, so "behind the counter"
+  // is +z — between the till and the shopfront — and the derived facing
+  // (atan2 toward the till) turns her round with it, into the room.
+  const KEEP_AT = TILL_Z + 0.4;   // behind the counter, still inside the room
   const proprietor = room.person({
     jacket: '#6a5a48', pants: '#4a4a52', skin: '#c9a48a', hair: '#c8c4bc',
     fit: 'coat', accent: '#8a7a62', cut: 'short', build: 0,
@@ -662,18 +693,19 @@ export function buildThrift(ctx: CtxBuild): void {
   // clear of it in x. Both are read off TILL_CX/TILL_Z so neither can be left
   // standing over nothing if the till moves — the fault this room was pulled up
   // for twice already.
-  const CARD_X = TILL_CX - 0.62, CARD_Z = TILL_Z + 0.30;
+  const CARD_X = TILL_CX - 0.62, CARD_Z = TILL_Z - 0.30;
   const CARD_Y = 0.96 + CARD_H / 2;
   const CARD_PX = Math.round(CARD_W * 500), CARD_PY = Math.round(CARD_H * 500);
   const railCard = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W, CARD_H),
     ctx.flat(boardTexture(CARD_PX, CARD_PY, RAIL, RAIL_LOOK)));
-  put(railCard, CARD_X, CARD_Y, CARD_Z);          // faces +z, at the shopper
+  railCard.rotation.y = Math.PI;                  // faces −z, at the shopper
+  put(railCard, CARD_X, CARD_Y, CARD_Z);
   const cardBack = new THREE.Mesh(new THREE.BoxGeometry(CARD_W, CARD_H, 0.012),
     new THREE.MeshBasicMaterial({ color: 0xc8c0a4 }));
-  put(cardBack, CARD_X, CARD_Y, CARD_Z - 0.010);
+  put(cardBack, CARD_X, CARD_Y, CARD_Z + 0.010);
   const prop = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.03, 0.09),
     new THREE.MeshBasicMaterial({ color: 0x6a5a44 }));
-  put(prop, CARD_X, 0.975, CARD_Z - 0.03);
+  put(prop, CARD_X, 0.975, CARD_Z + 0.03);
 
   // ══ AND THE HAND-WRITTEN COAT SPOT IS GONE ════════════════════════════════
   //
@@ -701,7 +733,7 @@ export function buildThrift(ctx: CtxBuild): void {
     mesh: () => railCard,
     standoff: boardStandoff({ wM: CARD_W, hM: CARD_H, fov: 45, riseM: CARD_Y - 1.75 }),
     fov: 45,
-    stand: { x: room.wx(TILL_CX), z: room.wz(TILL_Z + 1.05) },
+    stand: { x: room.wx(TILL_CX), z: room.wz(TILL_Z - 1.05) },
     keeper: { x: proprietor.mesh.position.x, z: proprietor.mesh.position.z, obj: proprietor.mesh },
     who: 'the woman at the till',
     ok: room.inside,
