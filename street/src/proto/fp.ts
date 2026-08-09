@@ -1262,11 +1262,13 @@ export const TOUCH_MARGIN = 0.15;
  *  0.13-0.34 values a grep for `r:` turns up are `room.clock` faces, not spots.)
  *
  *  WHAT IT DOES NOT MOVE, and he should know both:
- *   · THE AIMED TIER, which is what offers the bed from across the room. That
- *     is `d < reach` (6 m) with `lookTolerance(s.r, d)`, and this constant is
+ *   · THE AIMED TIER, which is what offered the bed from across the room. That
+ *     was `d < reach` (6 m) with `lookTolerance(s.r, d)`, and this constant is
  *     deliberately not applied to it — see the two paragraphs above, and the
- *     four builders in `lookTolerance`. If he wants the ACROSS-THE-ROOM offer
- *     cut, the honest lever is the spot radius fed to `lookTolerance`, not this.
+ *     four builders in `lookTolerance`. (THE ACROSS-THE-ROOM OFFER WAS CUT ON
+ *     2026-08-09, and not through this constant: the aimed tier now runs to
+ *     `LOOK_REACH_PER_R * s.r`, capped by `reach`. See that constant — this
+ *     one still touches only the aim-free reaches, exactly as below.)
  *   · SEATED REACH. Seated sets `near = false` and selects purely through
  *     `looked && d < s.r + RADIUS + REACH_MARGIN`, where this constant does not
  *     appear. Sitting reaches exactly as far today as it did yesterday.
@@ -1318,6 +1320,57 @@ export const REACH_TRIM = 0.52;
  *  stay above the 0.322 m the calendar and the door stand apart. At 0.16 the
  *  overlap is 0.32 and the two stop competing, which is the bug he reported. */
 export const ON_IT = 0.234;
+
+/** **HOW FAR THE AIMED TIER REACHES, PER METRE OF SPOT RADIUS.**
+ *  The aimed test used to run to the caller's flat `reach` (6 m, a room's
+ *  width) for every spot alike. The apartment never let anyone feel that —
+ *  flat 301 is 3.3 m deep, so its door physically cannot be offered from 4 m —
+ *  but the bank lobby can, and did: *"shouldnt be able to exit from this
+ *  distance. the changes we made to e prompts in the apt should apply
+ *  everywhere. i want the e prompt to feel just a good everywhere in the world
+ *  as they do in the apt"* (2026-08-09, standing ~3.7 m from the exit spot with
+ *  `[E] out to the street` already up). The same tier is what offered the 301
+ *  bed from across the room and the library's reading tables from the stacks —
+ *  the library fixed it room-level with a 1.6 m gate in the seat's own `ok`
+ *  (`int-library.ts`, `besideSeat`); this is that judgement made world-wide.
+ *
+ *  PER RADIUS, NOT ONE DISTANCE, because the feel being copied is "offered
+ *  when you are actually at the thing", and how far away "at" starts scales
+ *  with the size of the thing. Three measurements that already exist agree on
+ *  the slope, and none of them was taken for this change:
+ *
+ *    the walked table at `REACH_TRIM`: doors and counters at r 0.95–1.05
+ *      were recorded good at "2.4 m, unmoved"          → 2.3–2.5 per r
+ *    the library's own seat gate: 1.6 m at r 0.75      → 2.13 per r
+ *    the bank complaint: r 1.0 offered at ~3.7 m, bad  → well under 3.7
+ *
+ *  2.3 sits on all three. What it gives, at the radii the world registers:
+ *
+ *      r 0.60  the 301 calendar          1.38 m   (a reading distance)
+ *      r 0.75  every default seat        1.73 m   (the library's gate, ~)
+ *      r 0.95  301's own door            2.19 m
+ *      r 1.00  the bank exit, counters   2.30 m   (the screenshot offer dies)
+ *      r 1.05  No. 227's entry           2.42 m   (the walked-good figure)
+ *      r 1.40  bus bench, cut-face exits 3.22 m   (wide on purpose — see them)
+ *      r 1.80  the bodega's corner door  4.14 m
+ *
+ *  IT MULTIPLIES THE SPOT'S OWN `r`, so the deliberate wide spots (the bus
+ *  bench sized for walking pace, the bodega's diagonal corner approach) keep
+ *  proportionally long reach — consistency of feel, not one number everywhere.
+ *
+ *  THE CALLER'S `reach` STILL CAPS IT (`min`), so nothing reaches further than
+ *  it did. And it is min'd, not replaced: the two documented seated cases both
+ *  still clear — the loan officer from the client chair (r 1.0, d 1.67 against
+ *  a 2.30 cap) and the application form (r 0.7, d 0.952 against 1.61).
+ *
+ *  ⚠ THIS IS THE ROW `REACH_TRIM`'s docstring said must never be capped — two
+ *  builders were turned back from `s.r + REACH_MARGIN` (≈1.6 m at a door),
+ *  which collapsed aimed reach onto the proximity radius and killed selection
+ *  at 3 and 5 m. 2.3 per r is NOT that: a door still takes a look from 2.3 m
+ *  out, which is the half of the feature that was asked for by name. What died
+ *  is only the offer from across a lobby, which is what was asked for today,
+ *  by the user, over that docstring's earlier rule. His words outrank it. */
+export const LOOK_REACH_PER_R = 2.3;
 
 /** The look cone's CEILING, in radians — the widest half-angle that can ever
  *  count as "looking at" something, whatever the spot's radius or distance.
@@ -1412,10 +1465,13 @@ export function lookTolerance(r: number, d: number): number {
  * Choose the spot an `[E]` should act on, and say WHY it won, so the caller can
  * outline exactly what it is about to fire.
  *
- * `reach` is how far the look test may act — beyond it you must be inside the
- * spot's own radius. 6 m is a room's width; further than that and you would be
- * offering doors through walls, which this cannot see (there is no occlusion
- * test here, and adding one is the obvious next step if it ever bites).
+ * `reach` is the OUTER BOUND on how far the look test may act — 6 m is a
+ * room's width; further than that and you would be offering doors through
+ * walls, which this cannot see (there is no occlusion test here, and adding
+ * one is the obvious next step if it ever bites). Since 2026-08-09 the bound a
+ * spot actually gets is `min(reach, LOOK_REACH_PER_R * s.r)` — the flat 6 m
+ * was only ever felt in rooms bigger than the apartment, and the bank lobby
+ * proved it: *"shouldnt be able to exit from this distance."*
  */
 export function pickSpot<T extends Pickable>(
   spots: readonly T[], view: PickView, reach = 6,
@@ -1666,7 +1722,13 @@ export function pickSpot<T extends Pickable>(
     // as `onIt` forty lines down, which was `d < 1e-4` until the world proved
     // the player is not a point. See the derivation in `opts.seated` above.
     const seated = opts?.seated === true;
-    const looked = d < reach && offAxis < lookTolerance(s.r, d)
+    // PER-SPOT, NOT THE FLAT 6 m — see `LOOK_REACH_PER_R`. The caller's `reach`
+    // is still the outer bound; the spot's own size sets how far "at the thing"
+    // extends inside it. This line is what stopped the bank lobby offering its
+    // exit from 4 m while the apartment, whose rooms never reached the old cap,
+    // does not move by so much as a float that matters.
+    const looked = d < Math.min(reach, LOOK_REACH_PER_R * s.r)
+      && offAxis < lookTolerance(s.r, d)
       && (!seated || d < s.r + RADIUS + REACH_MARGIN);
     // Seated, the aim-free pass is off entirely: `near` is what hands a sitting
     // player the chair he is already in. `opts` absent -> this line is

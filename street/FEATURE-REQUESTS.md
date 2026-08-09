@@ -5620,3 +5620,28 @@ strand them, never persist anywhere, and `hud.fade` sweeps any survivors so
 nothing red floats over the black or the GAME OVER card. Spurious boot ticks
 guarded: a save restore repainting the purse in the first seconds is not a
 loss, so the ticks arm 5 s after the HUD builds.
+
+## 2026-08-09 — *"shouldnt be able to exist from this distance. the changes we made to e prompts in the apt should apply everywhere. i want the e prompt to feel just a good everywhere in the world as they do in the apt"*
+
+("exist" = exit.) Screenshot: the bank lobby, `[E] out to the street` already
+up ~3.7 m from the exit spot. Went to the sweep builder with the trunk grant —
+mass QC across every `[E]` in the world.
+
+The sweep found the fault is the PICKER, not per-spot numbers: `pickSpot`'s
+aimed tier ran to a flat 6 m for every spot alike, and the apartment only ever
+felt right because flat 301 is 3.3 m deep — its geometry cannot produce the
+offer a bank lobby can. Same root the library builder had just hit from the
+other side (`bae92fd3`). Fixed in the trunk, world-wide: the aimed tier now
+reaches `LOOK_REACH_PER_R * r` (2.3 per metre of spot radius, still capped by
+the caller's 6 m), a slope three existing measurements already agreed on —
+the walked-good "2.4 m, unmoved" record for r≈1.0 doors, the library's own
+1.6 m gate for r 0.75 seats, and the apartment's dimensions. Doors now offer
+from ~2.2–2.4 m aimed, seats from ~1.7 m, the calendar from 1.4 m; the
+deliberately wide spots (bus bench r 1.40, bodega corner door r 1.80) keep
+proportionally longer reach on purpose. Aim-free touch reach, seated reach and
+both documented bank-chair cases are untouched. Also settled the known kit-wide
+way-out under-reach while in there: interior arrivals stand 0.60 m from the
+exit spot whose aim-free reach was 0.598 m — two millimetres of float noise
+deciding whether a room lets you leave — flat-wall way-out r 1.0 → 1.1
+(reach 0.65 m, clears by 5 cm). The library's room-level seat gate is kept;
+it and the global cap agree.

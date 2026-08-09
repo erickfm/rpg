@@ -2015,7 +2015,16 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     // diagonally and from a wider arc — the natural standing point works out
     // ~1.1 m from the spot, which a 1.0 m trigger misses by a hand's breadth.
     // Measured: prompt=null at (2.05, 3.15) against a spot at (2.83, 3.93).
-    x: spotX, z: spotZ, r: CH ? 1.4 : 1.0, rank: WAY_OUT,
+    // 1.1 ON A FLAT WALL, NOT 1.0 — the arrival is 2 mm out of reach at 1.0.
+    // `arriveZ` is `wz(hd - 1.15)` and the spot sits at `wz(hd - 0.55)`, so a
+    // player who just walked in stands exactly 0.60 m from this spot; the
+    // aim-free reach at r 1.0 is `(1.0 + TOUCH_MARGIN) * REACH_TRIM` = 0.598 m.
+    // Turn around without quite lining up on the door and the way out is dead
+    // by two millimetres — float noise decides whether a room lets you leave.
+    // r 1.1 reaches 0.65 m: the arrival gap clears by 5 cm, a margin the world
+    // can absorb (GOTCHAS 72) instead of one it cannot. The cut face was never
+    // short — its gap is 0.55 m against 0.81 m of reach at 1.4.
+    x: spotX, z: spotZ, r: CH ? 1.4 : 1.1, rank: WAY_OUT,
     ok: () => player.x() >= x0 && player.x() < x1,
     label: () => 'out to the street',
     act: () => player.jumpTo(outAt.x, outAt.z, outAt.yaw, outAt.gy),
