@@ -352,31 +352,37 @@ export const SHIRT = defineItem({
   ),
 });
 
-export const BELT = defineItem({
-  id: 'BELT', name: 'leather belt', stack: 4,
-  thick: 0.05,
-  blurb: 'worn through at one hole and one hole only.',
-  icon: (g) => {
-    box(g, '#5a3a22', 3, 8, 18, 5);                    // the strap, coiled
-    box(g, '#4a2e1a', 3, 8, 18, 1);
-    box(g, '#6a4a2e', 3, 15, 14, 4);                   // the second turn
-    box(g, '#c9a45e', 15, 6, 6, 6);                    // the buckle
-    box(g, '#5a3a22', 17, 8, 2, 2);
-    box(g, '#3a2618', 6, 16, 1, 2); box(g, '#3a2618', 10, 16, 1, 2);   // the holes
-  },
-  // COILED, the way a belt lies on a table: a 13 cm ring of strap with the
-  // buckle sitting on top of it.
-  model: () => mOf(
-    mCyl(0.065, 0.035, '#5a3a22'),
-    mBox(0.13, 0.036, 0.030, '#4a2e1a', 0, 0.018, 0),
-    mBox(0.045, 0.012, 0.038, '#c9a45e', 0.04, 0.041, 0),
-  ),
-});
+// (A BELT item was declared here until 2026-08-09 — the item audit: no belt
+// slot exists anywhere in the wardrobe, so buying one did nothing at all, and
+// *"belt socks and paper back in thrift is that it? are those usable?"* is the
+// question that killed it. The belt BIN in the thrift and its `BELTS $4 EACH`
+// card are set dressing and stay, the way the pawn's shelf radio did. Old
+// saves are safe: `itemOf()` hands an unknown id back as an honest parcel.)
+
+/**
+ * ── AND THE PAPERBACK IS USABLE ────────────────────────────────────────────
+ *
+ * READ passes an hour, wherever you are standing — the ramped
+ * `ctx.clock.advance` the massage chair uses, so the sky and the clocks sweep
+ * rather than step, and the fade of the light IS the feedback: no hudNote.
+ * The book survives its own reading (the act returns its own id, which is
+ * `bag.ts`'s replace-with-itself), because a paperback is not consumed by
+ * being read — it is re-read at somebody else's favourite page.
+ *
+ * An `ItemDef` is built at module scope with no `ctx` in reach, so the clock
+ * is WIRED by the room that sells the book — `ct/int-thrift.ts` calls
+ * `wireRead` at build. Registered from the owner, declared here: exactly the
+ * split `ItemDef.use`'s own note asks for. Unwired (impossible once the
+ * thrift builds), READ quietly does nothing rather than crashing the bag.
+ */
+let readHour: (() => void) | null = null;
+export function wireRead(f: () => void): void { readHour = f; }
 
 export const BOOK = defineItem({
   id: 'BOOK', name: 'paperback', stack: 4,
   thick: 0.03,
   blurb: 'the spine is broken at somebody else’s favourite page.',
+  use: { verb: 'read', act: () => { readHour?.(); return 'BOOK'; } },
   icon: (g) => {
     box(g, '#b8503a', 4, 3, 15, 19);                   // the cover
     box(g, '#8a3a28', 4, 3, 3, 19);                    // the spine
@@ -730,7 +736,7 @@ export const BLANKET = defineItem({
 export const GOODS: string[] = [
   BURGER.id, CHICKEN.id, FRIES.id, PIE.id, SHAKE.id, COFFEE.id,
   EGGS.id, PLATTER.id, SANDWICH.id, CHIPS.id, SMOKES.id,
-  COAT.id, SHIRT.id, BELT.id, BOOK.id,
+  COAT.id, SHIRT.id, BOOK.id,
   WRISTWATCH.id,
   RENTAL.id, BLANKS.id, POPCORN.id,
   TV.id, VCR.id, CAMCORDER.id,

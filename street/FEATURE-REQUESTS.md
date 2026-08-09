@@ -5860,3 +5860,24 @@ shopCounter yet and joins the table when its teller gets one. APPLY rolls
 period voice with a 3-day reapply file; one job at a time (a new hire quits
 the old), WORK A SHIFT once a day fades the clock forward the shift and
 pays cash. State is a `jobs` save slice, wiped whole by new game.
+
+## 2026-08-09 — *"belt socks and paper back in thrift is that it? are those usable? socks seems like not usable at all. also some graphics bugs on the racks in thrift store"*
+
+To the same builder, both halves. THE CARD: BELT is axed from the world
+(the audit found no belt slot exists — buying one did nothing; declaration
+and GOODS sweep entry gone from `ct/goods.ts` the way RADIO went, the belt
+bin and its `BELTS $4 EACH` card staying as set dressing, old saves safe
+via the `itemOf()` parcel). SOCKS stay in the world — the packages'
+weighted disappointment, the fence's $2, the drawer — but the till line
+was a $4 trap and is off the thrift card AND off the bodega's $8 line,
+same logic. The PAPERBACK earned its keep: READ in the bag passes an hour
+through the ramped clock — the light sweeping is the whole feedback, no
+hudNote — and the book survives its own reading. The till card is down to
+one honest line (PAPERBACK $1); the dressing mirror is the clothes shop.
+THE RACKS, looked at from the door and both aisles: two real bugs. The
+garment blocks' TOP faces smeared the 32-row texture down 3.25 m of rail —
+rainbow strata on top of every rail at eye height — fixed by construction
+with a material array, tops now flat shadow (`hangBlock`). And the
+mannequin FLOATED a third of a metre up: it kept its window-plinth heights
+when the reorganise moved it to the floor. Based on the boards now, stem
+lengthened to still meet the torso.

@@ -1081,7 +1081,11 @@ export function buildBodega(ctx: CtxBuild): void {
       // with the rest of the bodega's stock.
       { id: 'SMOKES', name: 'SMOKES', price: 8.00 },
       { id: 'NEWSPAPER', name: 'PAPER', price: 2.00 },
-      { id: 'SOCKS', name: 'SOCKS', price: 8.00 },
+      // (SOCKS $8 sold here until 2026-08-09 — *"socks seems like not usable
+      // at all"*. The item stays in the world: the packages' weighted
+      // disappointment, the fence's $2 and the dresser drawer all lean on it.
+      // A till line for a thing that does nothing you'd want is a trap, so no
+      // shop prints one any more — this card's and the thrift's went together.)
     ] },
   ];
   // Every colour off this room's own `cardT`: #e4dcc4 card, #2a3a6a marker.

@@ -6,7 +6,7 @@ import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { hudNote } from './hud';
 import { glassCanvas, paintGlass, fittingPanel, type FitLine } from './mirror';
-import './goods';   // for the side effect: it is what declares the stock
+import { wireRead } from './goods';   // and the side effect: it declares the stock
 
 // THE THRIFT STORE, inside.
 //
@@ -101,6 +101,21 @@ export function buildThrift(ctx: CtxBuild): void {
   const hw = room.W / 2, hd = room.D / 2;
   const woodM = new THREE.MeshBasicMaterial({ color: 0x7a6248 });
   const steelM = new THREE.MeshBasicMaterial({ color: 0xa8a49a });
+  // ══ THE TOP OF A GARMENT BLOCK IS SHADOW, NOT TEXTURE (2026-08-09) ════════
+  //
+  // *"also some graphics bugs on the racks in thrift store"* — LOOKED AT from
+  // the door lane and both aisles: a BoxGeometry maps the FULL garment texture
+  // to EVERY face, so on the +y face the canvas's 32 rows stretched down the
+  // whole 3.25 m of rail — long rainbow strata smeared along the top, and the
+  // block tops sit at 1.505 m against a 1.75 m eye, so every rail showed it
+  // from everywhere. Fixed BY CONSTRUCTION, the video-hut shelf-top way: the
+  // blocks take a material ARRAY and the top and bottom faces get this flat
+  // dark instead of the smear — which is also simply what the top of a packed
+  // rail looks like, shoulders falling away into shadow between the hangers.
+  // BoxGeometry order: [+x, -x, +y, -y, +z, -z].
+  const railTopM = new THREE.MeshBasicMaterial({ color: 0x241f1a });
+  const hangBlock = (geo: THREE.BoxGeometry, m: THREE.Material): THREE.Mesh =>
+    new THREE.Mesh(geo, [m, m, railTopM, railTopM, m, m]);
 
   // ── the rails ──
   //
@@ -151,7 +166,7 @@ export function buildThrift(ctx: CtxBuild): void {
     gt.wrapS = gt.wrapT = THREE.RepeatWrapping;
     gt.repeat.set(RAIL_L / 2.6, 1);                  // texel density off real metres
     gt.needsUpdate = true;
-    const clothes = new THREE.Mesh(new THREE.BoxGeometry(0.44, 1.05, RAIL_L - 0.15), ctx.flat(gt));
+    const clothes = hangBlock(new THREE.BoxGeometry(0.44, 1.05, RAIL_L - 0.15), ctx.flat(gt));
     put(clothes, rx, 0.98, RAIL_CZ);
   }
   // one collider for the single rail, ONE for the island — two touching boxes
@@ -410,7 +425,7 @@ export function buildThrift(ctx: CtxBuild): void {
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, COAT_L / 3),
       new THREE.MeshBasicMaterial({ color: 0x9a9690 }));
     put(bar, COAT_X, 1.78 - drop, COAT_CZ + seg * (COAT_L / 3));
-    const coats = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1.02, COAT_L / 3 - 0.04),
+    const coats = hangBlock(new THREE.BoxGeometry(0.46, 1.02, COAT_L / 3 - 0.04),
       ctx.flat(coatT));
     put(coats, COAT_X, 1.22 - drop, COAT_CZ + seg * (COAT_L / 3));
   }
@@ -456,16 +471,23 @@ export function buildThrift(ctx: CtxBuild): void {
   // person who moved it was carrying something else at the time.
   // On rail A's line at its front end, like the belt bin on the island's —
   // a fixture line, not a lane, and well clear of the door corridor.
+  //
+  // ⚠ IT WAS FLOATING (2026-08-09, *"some graphics bugs on the racks"*). The
+  // base sat at y 0.37 and the stem's foot at 0.35 — the heights it had when
+  // it stood on the 0.42 m window plinth, kept when the reorganise moved it
+  // to the bare floor, so the whole form hung a third of a metre in the air.
+  // The base is on the boards now and the stem is LENGTHENED to keep meeting
+  // the torso at 0.97 rather than the torso coming down with it.
   const MAN_X = -3.09, MAN_Z = 1.6;
   const formM = new THREE.MeshBasicMaterial({ color: 0xc8bda8 });
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.62, 0.22), formM);
   torso.rotation.y = 0.9;                            // the wrong angle
   put(torso, MAN_X, 1.28, MAN_Z);
-  const stem = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.62, 0.05), formM);
-  put(stem, MAN_X, 0.66, MAN_Z);
+  const stem = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.93, 0.05), formM);
+  put(stem, MAN_X, 0.505, MAN_Z);
   const base = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.04, 0.34), formM);
-  put(base, MAN_X, 0.37, MAN_Z);
-  const dress = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.5, 0.26),
+  put(base, MAN_X, 0.02, MAN_Z);
+  const dress = hangBlock(new THREE.BoxGeometry(0.38, 0.5, 0.26),
     ctx.flat(declareSurface(pixTex(16, 20, (g) => {
       g.fillStyle = '#8a5a62'; g.fillRect(0, 0, 16, 20);
       for (let i = 0; i < 16; i += 3) { g.fillStyle = '#a06a72'; g.fillRect(i, 0, 1, 20); }
@@ -525,7 +547,7 @@ export function buildThrift(ctx: CtxBuild): void {
   const wTorso = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.56, 0.2), formM);
   wTorso.rotation.y = Math.PI;                        // facing the street
   put(wTorso, WIN_X - 0.35, 0.42 + 0.28, WIN_Z);   // plinth top + half the torso
-  const wCoat = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, 0.24), ctx.flat(coatT));
+  const wCoat = hangBlock(new THREE.BoxGeometry(0.36, 0.62, 0.24), ctx.flat(coatT));
   wCoat.rotation.y = Math.PI;
   put(wCoat, WIN_X - 0.35, 0.42 + 0.31, WIN_Z);    // …and half the coat
   for (let i = 0; i < 3; i++) {
@@ -770,10 +792,21 @@ export function buildThrift(ctx: CtxBuild): void {
   //  the till keeps what is genuinely a thing in a bag. The COAT/SHIRT/
   //  TRAINERS ItemDefs stay declared — the pawn and the fence still trade
   //  them — this shop just no longer sells wearing-clothes as luggage.
+  //
+  // ── WHICH LEFT ONE LINE (2026-08-09) ──────────────────────────────────────
+  //
+  // *"belt socks and paper back in thrift is that it? are those usable? socks
+  //  seems like not usable at all."* — the no-useless-items doctrine, applied:
+  //  BELT is AXED from the world (no belt slot exists in the wardrobe; buying
+  //  one did nothing — its bin and the `BELTS $4 EACH` card stay as set
+  //  dressing, like the pawn's shelf radio). SOCKS stay in the world — the
+  //  packages' weighted disappointment, the fence's $2, the drawer — but a $4
+  //  till line for a thing that does nothing you'd want is a trap, so it is
+  //  off this card (and off the bodega's, same logic). The PAPERBACK earned
+  //  its place instead: it is READable from the bag now — an hour passes, the
+  //  light does the talking — wired below via `wireRead`.
   const RAIL: ShopColumn[] = [
     { head: 'SECONDHAND', lines: [
-      { id: 'BELT', name: 'BELT', price: 4.00 },
-      { id: 'SOCKS', name: 'SOCKS', price: 4.00 },
       { id: 'BOOK', name: 'PAPERBACK', price: 1.00 },
     ] },
   ];
@@ -835,5 +868,11 @@ export function buildThrift(ctx: CtxBuild): void {
     who: 'the woman at the till',
     ok: room.inside,
   });
+
+  // READ, wired. The paperback's hour goes through this world's own ramped
+  // clock — the sky and the clocks sweep, and that fade is the whole feedback,
+  // no hudNote. Registered here because an `ItemDef` is built at module scope
+  // with no `ctx` in reach; see `wireRead` in `ct/goods.ts`.
+  wireRead(() => ctx.clock.advance(60));
 
 }
