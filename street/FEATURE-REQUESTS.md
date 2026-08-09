@@ -5845,3 +5845,18 @@ The till card's COAT $16 / SHIRT $6 / SHOES $12 lines folded into the
 mirror (denim jacket $16, tee $6, boots/sandals; buying clothes never puts
 cloth in the bag any more); the till keeps BELT, SOCKS, PAPERBACK. The
 COAT/SHIRT/TRAINERS ItemDefs stay declared for the pawn and the fence.
+
+## 2026-08-09 — *"need to be able to submit job application at all of the shops. with varying degrees of int needed"*
+
+To a builder. The job-giver `ct/stats.ts`'s `jobChance()` was waiting for:
+a new leaf `ct/jobs.ts` holds ONE table keyed by shop id — title, required
+INT, wage, shift hours — and `ct/shop.ts`'s `shopCounter` appends its card
+to every counter panel, so all eleven boarded businesses (barn, bodega,
+video, thrift, diner, gym, pawn, sleep, volt, hotel, college) hire off the
+same machinery with no interior touched. INT tiers run req 2 (grill crew,
+$32) to req 8 (adjunct tutor, $80); the bank (his highest, INT 8+) has no
+shopCounter yet and joins the table when its teller gets one. APPLY rolls
+`jobChance` once on `Math.random`; hired plainly or rejected plainly in
+period voice with a 3-day reapply file; one job at a time (a new hire quits
+the old), WORK A SHIFT once a day fades the clock forward the shift and
+pays cash. State is a `jobs` save slice, wiped whole by new game.
