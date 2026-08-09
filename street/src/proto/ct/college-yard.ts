@@ -126,7 +126,12 @@ export function register(ctx: CtxBuild): void {
       c, KERB_H + WALL_H / 2, WALL_Z);
     put(new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.07, WALL_T + 0.08), stoneM),
       c, KERB_H + WALL_H + 0.035, WALL_Z);
-    obstacle({ minX: a, maxX: b, minZ: WALL_Z - WALL_T / 2 - 0.04, maxZ: WALL_Z + WALL_T / 2 + 0.04 });
+    // capped at the coping's top face (2026-08-09, "collision that goes to
+    // the moon") — a 0.86 m wall is a jump-on ledge, not a wall to the sky
+    obstacle({
+      minX: a, maxX: b, minZ: WALL_Z - WALL_T / 2 - 0.04, maxZ: WALL_Z + WALL_T / 2 + 0.04,
+      maxY: KERB_H + WALL_H + 0.07,
+    });
   }
   // the piers, and the two lamps that make it an evening school from the street
   for (const px of [CX - 1.25, CX + 1.25]) {
@@ -138,7 +143,11 @@ export function register(ctx: CtxBuild): void {
       new THREE.MeshBasicMaterial({ color: 0x2e2a24 })), px, KERB_H + 1.76, WALL_Z);
     put(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.17, 0.15),
       new THREE.MeshBasicMaterial({ color: 0xf2c86a })), px, KERB_H + 1.755, WALL_Z);
-    obstacle({ minX: px - 0.31, maxX: px + 0.31, minZ: WALL_Z - 0.31, maxZ: WALL_Z + 0.31 });
+    // the lamp's top face: pier cap 1.59 + lantern body + finial band
+    obstacle({
+      minX: px - 0.31, maxX: px + 0.31, minZ: WALL_Z - 0.31, maxZ: WALL_Z + 0.31,
+      maxY: KERB_H + 1.89,
+    });
   }
 
   // ── the name, built in masonry, not hung: a brick stub west of the gate ────
@@ -161,7 +170,11 @@ export function register(ctx: CtxBuild): void {
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.72),
       flat(signT));
     put(plate, SX, KERB_H + 1.10, SZ + 0.181);          // faces the street
-    obstacle({ minX: SX - 1.0, maxX: SX + 1.0, minZ: SZ - 0.18, maxZ: SZ + 0.18 });
+    // the stub's coping top: 1.59 centre + 0.04 half-thickness
+    obstacle({
+      minX: SX - 1.0, maxX: SX + 1.0, minZ: SZ - 0.18, maxZ: SZ + 0.18,
+      maxY: KERB_H + 1.63,
+    });
   }
 
   // ── the notice board east of the gate, glazed, on two posts ───────────────
@@ -192,7 +205,11 @@ export function register(ctx: CtxBuild): void {
     put(new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.86, 0.09), dark), NX, KERB_H + 1.22, NZ);
     const face = new THREE.Mesh(new THREE.PlaneGeometry(1.32, 0.74), flat(noteT));
     put(face, NX, KERB_H + 1.22, NZ + 0.051);           // read from the pavement
-    obstacle({ minX: NX - 0.70, maxX: NX + 0.70, minZ: NZ - 0.10, maxZ: NZ + 0.10 });
+    // the posts' top: 0.825 centre + 0.825 half-height
+    obstacle({
+      minX: NX - 0.70, maxX: NX + 0.70, minZ: NZ - 0.10, maxZ: NZ + 0.10,
+      maxY: KERB_H + 1.65,
+    });
   }
 
   // ── the planting: two beds along the facade, two young trees in planters ──
@@ -215,7 +232,8 @@ export function register(ctx: CtxBuild): void {
     const top = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.10, BD - 0.10), flat(t));
     top.rotation.x = -Math.PI / 2;
     put(top, c, KERB_H + 0.33, BZ);
-    obstacle({ minX: a, maxX: b, minZ: BZ - BD / 2, maxZ: BZ + BD / 2 });
+    // capped at the soil plane, a 0.33 m kerb of planting, not a wall
+    obstacle({ minX: a, maxX: b, minZ: BZ - BD / 2, maxZ: BZ + BD / 2, maxY: KERB_H + 0.33 });
   }
   // the trees: young, in square brick planters — a quaint campus is planted,
   // and two is a colonnade at this scale. Park grammar: bark box, crossed
@@ -243,7 +261,9 @@ export function register(ctx: CtxBuild): void {
       pl.rotation.y = (i * Math.PI) / 3;
       put(pl, tx, KERB_H + 3.15, TZ);
     }
-    obstacle({ minX: tx - 0.62, maxX: tx + 0.62, minZ: TZ - 0.62, maxZ: TZ + 0.62 });
+    // capped at the planter's stone rim (0.48 + 0.03); the young trunk pokes
+    // through the stand plane the way a bench's back slats do
+    obstacle({ minX: tx - 0.62, maxX: tx + 0.62, minZ: TZ - 0.62, maxZ: TZ + 0.62, maxY: KERB_H + 0.51 });
   }
 
   // ── two benches facing each other across the path ─────────────────────────
@@ -262,6 +282,8 @@ export function register(ctx: CtxBuild): void {
     const back = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.44, 1.62), slatM);
     back.rotation.z = s * 0.22;
     put(back, BX - s * 0.26, KERB_H + 0.70, BZ);
-    obstacle({ minX: BX - 0.36, maxX: BX + 0.36, minZ: BZ - 0.85, maxZ: BZ + 0.85 });
+    // capped at the seat boards' top face — a bench is a jump-on, and standing
+    // on it puts the tilted back beside your shins, not a wall over your head
+    obstacle({ minX: BX - 0.36, maxX: BX + 0.36, minZ: BZ - 0.85, maxZ: BZ + 0.85, maxY: KERB_H + 0.47 });
   }
 }

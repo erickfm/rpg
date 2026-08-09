@@ -165,9 +165,15 @@ export function buildCivic(o: {
   // so nothing is lost in the conversion.
   const host = scene as unknown as THREE.Object3D;
   const hostPt = (x: number, z: number) => new THREE.Vector3(x, 0, z).applyMatrix4(host.matrixWorld);
-  /** register a solid box given in the HOST's frame */
-  const solidLocal = (x0: number, x1: number, z0: number, z1: number) => {
+  /** register a solid box given in the HOST's frame. `topY` is a world height
+   *  — an optional `maxY` cap (fp.ts): heights survive the quarter turn
+   *  unchanged, so unlike x/z it needs no conversion. Added 2026-08-09 for
+   *  *"some i can jump on and another has collision that goes to the moon"* —
+   *  the churchyard's dwarf wall, piers and beds were walls at every height
+   *  over furniture nothing like that tall. */
+  const solidLocal = (x0: number, x1: number, z0: number, z1: number, topY?: number) => {
     const box: AABB = { minX: 9e5, maxX: 9e5, minZ: 9e5, maxZ: 9e5 };
+    if (topY !== undefined) box.maxY = topY;
     solid(box);
     PENDING.push(() => {
       host.updateWorldMatrix(true, false);
@@ -585,10 +591,14 @@ export function buildCivic(o: {
         if (u >= f.uTop) return f.yTop;
         return f.yBase + ((u - f.uNose) / (f.uTop - f.uNose)) * (f.yTop - f.yBase);
       },
-      /** the cheeks, in approach coords, for the caller to register */
+      /** the cheeks, in approach coords, for the caller to register. `topY` is
+       *  the cheek wall's own top face — the `f.yTop + 0.5` the geometry above
+       *  is built to — published so a caller capping its collider (fp.ts
+       *  `maxY`, 2026-08-09) reads the same number the mesh was built from. */
       cheeks: [-1, 1].map((s) => ({
         u0: f.uNose, u1: f.uBack,
         v0: s * (f.width / 2) - (s < 0 ? f.cheek : 0), v1: s * (f.width / 2) + (s > 0 ? f.cheek : 0),
+        topY: f.yTop + 0.5,
       })),
     };
   };
@@ -949,7 +959,9 @@ export function buildCivic(o: {
     // world is a floor-picker answer, never a collider (GOTCHAS §7).
     if (COURT.climbable) {
       for (const c of st.cheeks) {
-        solid({ minX: XF - BAY_D, maxX: XBOT, minZ: cz + c.v0, maxZ: cz + c.v1 });
+        // capped at the cheek wall's own top (published by flight() itself) —
+        // a knee-high stair wall was solid to the sky (2026-08-09)
+        solid({ minX: XF - BAY_D, maxX: XBOT, minZ: cz + c.v0, maxZ: cz + c.v1, maxY: c.topY });
       }
       // …and the doors you climb TO stop you, 0.36 m short of the leaf
       solid({ minX: XF - BAY_D - 8, maxX: XF - BAY_D, minZ: cz - BAY_W / 2, maxZ: cz + BAY_W / 2 });
@@ -1635,7 +1647,11 @@ export function buildCivic(o: {
       const rail = new THREE.Mesh(new THREE.PlaneGeometry(w, RAIL_H), railM(w));
       rail.position.set((wx0 + wx1) / 2, WALL_H + 0.1 + RAIL_H / 2, zStreet - 0.15);
       scene.add(rail);
-      solidLocal(wx0, wx1, zStreet - 0.3, zStreet);
+      // capped at the RAILING's top, not the stone's — the iron is see-through
+      // but it is a fence, and a fence is solid to its spears and open above
+      // them. (Unreachable by any jump from the walk regardless: 1.44 m
+      // against a 1.05 m crouch-jump ceiling off the kerb.)
+      solidLocal(wx0, wx1, zStreet - 0.3, zStreet, WALL_H + 0.1 + RAIL_H);
     }
     for (const gx of [gate0 - 0.25, gate1 + 0.25]) {             // the gate piers
       const pier = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.55, 0.5), stoneFace(DRESSED, 0.5, 1.55));
@@ -1644,7 +1660,8 @@ export function buildCivic(o: {
       const pc = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.14, 0.62), capM2);
       pc.position.set(gx, 1.62, zStreet - 0.25);
       scene.add(pc);
-      solidLocal(gx - 0.25, gx + 0.25, zStreet - 0.5, zStreet);
+      // the pier cap's top face: 1.62 is its centre, 0.14 its thickness
+      solidLocal(gx - 0.25, gx + 0.25, zStreet - 0.5, zStreet, 1.62 + 0.07);
       // its leaf, standing open INTO the yard — hinged on the pier and swung
       // back, which is how a parish gate spends every hour it is not locked
       const leaf = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.06), railM(1.15));
@@ -1666,11 +1683,15 @@ export function buildCivic(o: {
         yew.position.set(px + dx, KERB_H + 0.26 + h / 2, zFront + 0.5 + dz);
         scene.add(yew);
       }
-      solidLocal(px - 1.0, px + 1.0, zFront, zFront + SET_C - 1.1);
+      // capped at the TALLER yew's crown (h 1.5 planted on the bed), so the
+      // corner planting stops being a wall to the sky. The yews inside still
+      // read solid — the cap is at their own top, not the soil's.
+      solidLocal(px - 1.0, px + 1.0, zFront, zFront + SET_C - 1.1, KERB_H + 0.26 + 1.5);
     }
-    // the flight's cheeks, and the facade you stop at
+    // the flight's cheeks, and the facade you stop at — each cheek capped at
+    // its own top face, the height flight() built it to (2026-08-09)
     for (const c of cst.cheeks) {
-      solidLocal(naveCx + c.v0, naveCx + c.v1, zStreet - c.u1, zStreet - c.u0);
+      solidLocal(naveCx + c.v0, naveCx + c.v1, zStreet - c.u1, zStreet - c.u0, c.topY);
     }
     solidLocal(YARD_X0, YARD_X1, zFront - 8, zFront);
     // The churchyard floor: flags, and the flight where it climbs. Written in

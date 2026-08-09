@@ -526,7 +526,13 @@ export function buildAlley(a: {
       [dumpSideM, dumpSideM, dumpInsideM, dumpInsideM, dumpFrontM, dumpFrontM],
     );
     dump.position.set(-11.2, 0.69, AZ0 - 1.15);
-    solid({ minX: -12.5, maxX: -9.9, minZ: AZ0 - 1.75, maxZ: AZ0 - 0.55 });
+    // CAPPED AT THE BODY'S RIM (0.69 centre + 0.55 half-height = 1.24) —
+    // 2026-08-09, *"collision that goes to the moon"*. The open lid leans up
+    // past it, thin as a bench back, and pokes through the stand plane the
+    // way those do. (1.24 m is above the 0.905 m crouch-jump ceiling, so this
+    // opens the air over the dumpster; climbing it needs a leg-up that the
+    // alley does not currently offer.)
+    solid({ minX: -12.5, maxX: -9.9, minZ: AZ0 - 1.75, maxZ: AZ0 - 0.55, maxY: 1.24 });
     scene.add(dump);
     const lid = new THREE.Mesh(new THREE.BoxGeometry(2.44, 0.06, 1.12), new THREE.MeshBasicMaterial({ color: 0x24482f }));
     lid.geometry.translate(0, 0.03, -0.56); // pivot runs along its hinge edge

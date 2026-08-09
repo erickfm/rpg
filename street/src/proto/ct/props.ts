@@ -2401,8 +2401,11 @@ uniform float uPoolAmb;`)
   // The collider is the shelter's own footprint and NOTHING MORE. It ends at
   // x = -7.07, so the walk (x -7.00 … -5.06) is untouched and no walker can be
   // pushed toward the road by it.
+  // …and capped at the canopy's top (2026-08-09): a 2.3 m shelter should not
+  // wall off the sky above itself. Nothing can reach it — the cap opens air.
   obstacle({ minX: PHONE_X - P_W / 2 - 0.05, maxX: PHONE_X + P_W / 2 + 0.05,
-             minZ: PHONE_Z - P_D / 2 - 0.05, maxZ: PHONE_Z + P_D / 2 + 0.05 });
+             minZ: PHONE_Z - P_D / 2 - 0.05, maxZ: PHONE_Z + P_D / 2 + 0.05,
+             maxY: P_Y + P_H });
 
   // weather: the rain comes and goes by the hour, and the ground
   // remembers it — every registered wet surface darkens as it comes in
@@ -3133,7 +3136,14 @@ uniform float uPoolAmb;`)
   // because the walking lane is decided by whichever prop reaches furthest and
   // this is now a candidate for that.
   const BENCH_MAX_X = BX_BACK + 0.035 + 0.035 * Math.cos(RECLINE) + BACK_LEN * Math.sin(RECLINE);
-  obstacle({ minX: BX_FRONT, maxX: BENCH_MAX_X, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
+  // CAPPED AT THE SEAT'S TOP FACE (2026-08-09, "collision that goes to the
+  // moon"): the slats' top is SEAT_Y (their centre sits 0.025 under it), so
+  // that is where a jump lands you — on the boards, with the reclined ad
+  // panel beside your shins, not floating at the backrest's 0.88.
+  obstacle({
+    minX: BX_FRONT, maxX: BENCH_MAX_X, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92,
+    maxY: SEAT_Y,
+  });
   // ── and you can sit on it ────────────────────────────────────────────────
   // It never was registered, which is a real gap rather than a refinement: the
   // standing instruction quoted at the top of ct/ctx.ts is "for every seat in

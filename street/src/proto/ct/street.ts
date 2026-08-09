@@ -898,7 +898,14 @@ export function buildStreet(o: {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, rz1 - rz0), railM);
       wall.position.set(XB + side * 0.18, KERB_H + 0.31, (rz0 + rz1) / 2);
       scene.add(wall);
-      solid({ minX: Math.min(XB, XB + side * 0.36), maxX: Math.max(XB, XB + side * 0.36), minZ: rz0, maxZ: rz1 });
+      // capped at the wall's own top (2026-08-09, "collision that goes to the
+      // moon"): 0.62 m of boundary is a hop-over ledge, not a wall to the sky.
+      // Both sites it bounds (the lot, the park) are walkable ground already
+      // open through their own mouths, so the hop seals nothing.
+      solid({
+        minX: Math.min(XB, XB + side * 0.36), maxX: Math.max(XB, XB + side * 0.36),
+        minZ: rz0, maxZ: rz1, maxY: KERB_H + 0.62,
+      });
     }
     return { minX: lo, maxX: hi, minZ: z0, maxZ: z1, y: KERB_H, displace };
   };

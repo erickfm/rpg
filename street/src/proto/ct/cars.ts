@@ -327,6 +327,49 @@ export const PICKUP_COWL_Z = PICKUP_CAB.baseZ0
   + (HOOD_TOP - PICKUP_CAB.baseY) / (PICKUP_CAB.roofY - PICKUP_CAB.baseY)
   * (PICKUP_CAB.roofZ0 - PICKUP_CAB.baseZ0);
 
+/** ── THE OTHER THREE GREENHOUSES, AS A TABLE (2026-08-09) ────────────────
+ *
+ *  The sedan's, hatch's and van's loft dimensions were inline literals in
+ *  `makeCar`, which was fine while nothing else needed them. Item "collision
+ *  on all the vehicles… some i can jump on and another has collision that
+ *  goes to the moon" ended that: the collider spec below now needs each
+ *  kind's roof height and windscreen line, and reading them from a second
+ *  hand-typed copy is BUILDER-BRIEF §8's most expensive habit. Same contract
+ *  as `PICKUP_CAB`: `makeCar` READS these fields, so the tier a collider
+ *  builds from them cannot drift from the glass it describes. */
+export const CABIN: Record<Exclude<CarKind, 'pickup'>, {
+  baseZ0: number; baseZ1: number; roofZ0: number; roofZ1: number;
+  roofY: number; baseHalfW: number; roofHalfW: number;
+}> = {
+  sedan: { baseZ0: -1.0, baseZ1: 1.4, roofZ0: -0.35, roofZ1: 0.9, roofY: 1.46, baseHalfW: 0.81, roofHalfW: 0.74 },
+  hatch: {
+    baseZ0: -0.85, baseZ1: CAR_SPEC.hatch.len / 2 - 0.15,
+    roofZ0: -0.25, roofZ1: CAR_SPEC.hatch.len / 2 - 0.95,
+    roofY: 1.44, baseHalfW: 0.81, roofHalfW: 0.72,
+  },
+  van: {
+    baseZ0: -CAR_SPEC.van.len / 2 + 0.85, baseZ1: CAR_SPEC.van.len / 2 - 0.1,
+    roofZ0: -CAR_SPEC.van.len / 2 + 1.35, roofZ1: CAR_SPEC.van.len / 2 - 0.2,
+    roofY: 1.78, baseHalfW: 0.85, roofHalfW: 0.8,
+  },
+};
+
+/** The kind's cowl — where its windscreen rises past `HOOD_TOP` — by the same
+ *  derivation as `PICKUP_COWL_Z`, on the same reasoning: it is the seam
+ *  between the hood tier and the cabin tier, and a typed copy would leave a
+ *  standable shelf inside the glass the day anyone moves the beltline. */
+export function cowlZOf(kind: Exclude<CarKind, 'pickup'>): number {
+  const c = CABIN[kind];
+  return c.baseZ0 + (HOOD_TOP - BELT) / (c.roofY - BELT) * (c.roofZ0 - c.baseZ0);
+}
+
+/** Every kind's roof-plate top face — the height nothing about a parked or
+ *  moving car should block above. `ct/traffic.ts` caps its per-frame vehicle
+ *  boxes with this, so a car mid-junction stops being a wall to the moon. */
+export function roofYOf(kind: CarKind): number {
+  return kind === 'pickup' ? PICKUP_CAB.roofY : CABIN[kind].roofY;
+}
+
 // ══ ONE COLLIDER PER CarKind ═══════════════════════════════════════════════
 //
 // THE USER, twice, the second time with the V collision-debug view on and
@@ -408,25 +451,42 @@ export function carColliderSpec(kind: CarKind): CarTier[] {
       { tag: 'pickup-rail-right', minX: railIn, maxX: hw, minZ: PICKUP_BED.z0, maxZ: PICKUP_BED.half, maxY: PICKUP_BED.railY },
     ];
   }
+  // ── EVERY KIND IS TIERED TO ITS OWN PANELS NOW (2026-08-09) ─────────────
+  //
+  // *"i dont like that some i can jump on and another has collision that goes
+  //  to the moon."* The pickup was the only fully honest vehicle; the sedan's
+  //  nose and greenhouse were a wall at every height, and the hatch and the
+  //  van were one bare box each. Both of those were DECISIONS with reasons,
+  //  and both reasons are dead:
+  //
+  //  · The sedan body stayed a wall because a boot-lid → roof hop "lands only
+  //    on a coin flip" (w29). That was measured BEFORE the crouch jump
+  //    (fp.ts TUCK_LIFT, 2026-08-04) raised the tucked ceiling to 0.905 m at
+  //    the dt clamp — the 0.53 m boot→roof rise is now comfortably inside it.
+  //  · The hatch/van stayed bare because "there is nothing on them a standing
+  //    jump can gain". Same staleness: kerb → hood is a 0.80 m rise, which
+  //    the crouch jump reaches with margin.
+  //
+  //  So every kind now tiers exactly as the pickup always has: hood to the
+  //  cowl at HOOD_TOP, greenhouse to the next panel at the kind's own roofY,
+  //  every number read from the panel constants (PICKUP_CAB / CABIN /
+  //  SEDAN_BOOT), never typed twice. The greenhouse tier runs at roofY all
+  //  the way to the panel behind it — over the sloped rear glass too — which
+  //  is the convention the pickup's cab tier shipped with and the user
+  //  approved on it.
+  const cowl = cowlZOf(kind);
+  const roof = CABIN[kind].roofY;
   if (kind === 'sedan') {
-    // The body forward of the boot lid stays a PLAIN WALL — no `maxY` — so the
-    // nose, the engine bay and the greenhouse behave as every other car does:
-    // solid at every height. That absence is asserted by
-    // scripts/w29-sedan-climb.mjs, because a boot-lid -> roof hop lands only on
-    // a coin flip and a standable roof nobody can reliably reach is a collider
-    // nobody meets. It is tagged anyway so the walk can assert "still a wall"
-    // against THIS box rather than whichever it finds first.
     return [
-      { tag: 'sedan-body', minX: -hw, maxX: hw, minZ: -hl, maxZ: SEDAN_BOOT.z0 },
+      { tag: 'sedan-hood', minX: -hw, maxX: hw, minZ: -hl, maxZ: cowl, maxY: HOOD_TOP },
+      { tag: 'sedan-cabin-roof', minX: -hw, maxX: hw, minZ: cowl, maxZ: SEDAN_BOOT.z0, maxY: roof },
       { tag: 'sedan-boot-lid', minX: -hw, maxX: hw, minZ: SEDAN_BOOT.z0, maxZ: hl, maxY: SEDAN_BOOT.topY },
     ];
   }
-  // The hatch and the van have no flat panel between the pavement at 0.14 and
-  // the beltline at 0.84, so there is nothing on them a standing jump can gain
-  // and nothing to tier. One box, the body plus its skin, solid at every
-  // height — which is what they have always had. The point of this branch is
-  // that they now have it CONSISTENTLY, from the same derivation.
-  return [{ tag: `${kind}-body`, minX: -hw, maxX: hw, minZ: -hl, maxZ: hl }];
+  return [
+    { tag: `${kind}-hood`, minX: -hw, maxX: hw, minZ: -hl, maxZ: cowl, maxY: HOOD_TOP },
+    { tag: `${kind}-cabin-roof`, minX: -hw, maxX: hw, minZ: cowl, maxZ: hl, maxY: roof },
+  ];
 }
 
 /** The kind's tiers placed in the world at `(x, z)` and turned to `yaw`, as
@@ -1115,6 +1175,10 @@ export function makeBus(): THREE.Group {
   g.userData.wheelbase = BUS_AXLE_R - BUS_AXLE_F;   // 5.5 m
   g.userData.steer = (a: number) => { for (const w of busFront) w.rotation.y = a; };
   g.userData.halfLen = BUS_LEN / 2;   // the traffic collider is longer for this one
+  // the roof cap's top face — BUS_Y0 + BUS_H is the shell, +0.05 the cap's
+  // centre, +0.06 its half-thickness. ct/traffic.ts caps the moving box here
+  // so the bus stops blocking the sky (unreachable by any jump regardless).
+  g.userData.roofY = BUS_Y0 + BUS_H + 0.11;
   g.userData.laneX = 1.35;            // hugs the centre line to clear parked cars
   g.userData.speed = 6.4;             // and it is slower than the cars
   // the kerb-side door panel swaps to a leaves-open version while it stands
@@ -1246,13 +1310,21 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // BELT plus half the lid thickness, same disguise as the hood
     trunk.position.set(0, BELT + SEDAN_BOOT.t / 2, SEDAN_BOOT.midZ);
     g.add(trunk);
-    g.add(loftCabin(0.81, 0.74, BELT, 1.46, -1.0, 1.4, -0.35, 0.9, glassM, roofOf(1.48, 1.25), flatT(cabinSideTex(plan.glass, -1.0, 1.4))));
+    // Every number here is READ from CABIN.sedan — the kind's collider tiers
+    // (carColliderSpec above) build from that same object, so the roof you
+    // stand on cannot drift from the roof that is drawn.
+    const K = CABIN.sedan;
+    g.add(loftCabin(K.baseHalfW, K.roofHalfW, BELT, K.roofY, K.baseZ0, K.baseZ1, K.roofZ0, K.roofZ1,
+      glassM, roofOf(1.48, 1.25), flatT(cabinSideTex(plan.glass, K.baseZ0, K.baseZ1))));
   } else if (kind === 'hatch') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.75), hoodM(40 / 48, 1.7, half - 0.75));
     hood.position.set(0, BELT + 0.05, -(half + 0.8) / 2 + 0.02);
     hoodPanel = hood; g.add(hood);
     // no trunk: the rear glass slopes all the way to the tail
-    g.add(loftCabin(0.81, 0.72, BELT, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofOf(1.44, half - 0.7), flatT(cabinSideTex(plan.glass, -0.85, half - 0.15))));
+    // READ from CABIN.hatch, same contract as the sedan above.
+    const K = CABIN.hatch;
+    g.add(loftCabin(K.baseHalfW, K.roofHalfW, BELT, K.roofY, K.baseZ0, K.baseZ1, K.roofZ0, K.roofZ1,
+      glassM, roofOf(1.44, half - 0.7), flatT(cabinSideTex(plan.glass, K.baseZ0, K.baseZ1))));
   } else if (kind === 'pickup') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, HOOD_T, 1.5), hoodM(40 / 48, 1.7, 1.5));
     hood.position.set(0, HOOD_TOP - HOOD_T / 2, -half + 0.85);
@@ -1496,7 +1568,10 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.8), hoodM(40 / 48, 1.7, 0.8));
     hood.position.set(0, BELT + 0.05, -half + 0.5);
     hoodPanel = hood; g.add(hood);
-    g.add(loftCabin(0.85, 0.8, BELT, 1.78, -half + 0.85, half - 0.1, -half + 1.35, half - 0.2, glassM, roofOf(1.6, 2 * half - 1.55), flatT(cabinSideTex(plan.glass, -half + 0.85, half - 0.1))));
+    // READ from CABIN.van, same contract as the sedan above.
+    const K = CABIN.van;
+    g.add(loftCabin(K.baseHalfW, K.roofHalfW, BELT, K.roofY, K.baseZ0, K.baseZ1, K.roofZ0, K.roofZ1,
+      glassM, roofOf(1.6, 2 * half - 1.55), flatT(cabinSideTex(plan.glass, K.baseZ0, K.baseZ1))));
   }
 
   if (taxi) {
@@ -1601,6 +1676,10 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
    *  kind from its own call site instead of from the object. One line, and it
    *  is the enabler `carColliderSpec` needs at every site. */
   g.userData.carKind = kind;
+  /** the kind's roof-plate top — ct/traffic.ts reads this to height-cap a
+   *  MOVING vehicle's box the same way the parked tiers are capped, so no
+   *  vehicle anywhere blocks the air above its own roof. */
+  g.userData.roofY = roofYOf(kind);
   /** Half the collider's length for this kind. `ct/traffic.ts` reads exactly
    *  this off the group (`userData.halfLen ?? 2.5`) to size a moving vehicle's
    *  box, to space one car behind another, and to decide whether it is short

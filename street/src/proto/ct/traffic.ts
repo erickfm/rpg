@@ -299,7 +299,18 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
   const active: Vehicle[] = [];
   const boxes = new Map<THREE.Group, AABB>();
   for (const c of fleet) {
-    boxes.set(c, o.vehicleBox({ minX: IDLE_XZ, maxX: IDLE_XZ, minZ: IDLE_XZ, maxZ: IDLE_XZ }));
+    const b: AABB = { minX: IDLE_XZ, maxX: IDLE_XZ, minZ: IDLE_XZ, maxZ: IDLE_XZ };
+    // HEIGHT-CAPPED AT THE VEHICLE'S OWN ROOF (2026-08-09) — *"some i can
+    // jump on and another has collision that goes to the moon"*. The parked
+    // fleet's tiers stop at their panels (ct/cars.ts carColliderSpec); a
+    // MOVING vehicle's box now stops at the same roof plate, read from the
+    // group the mesh was built from (`userData.roofY`), so a car crossing the
+    // junction no longer walls off the sky. No roof in the fleet (1.415-2.96)
+    // is reachable by any jump from road or kerb — the crouch-jump ceiling is
+    // 0.905 m — so this opens AIR, never a ride.
+    const roofY = c.userData.roofY as number | undefined;
+    if (roofY !== undefined) b.maxY = roofY;
+    boxes.set(c, o.vehicleBox(b));
   }
   let wait = 5;                 // gap between vehicles
   let maxActive = 1;            // one on the block at a time — a deliberate choice

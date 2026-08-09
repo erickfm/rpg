@@ -1506,7 +1506,14 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     scene.add(g);
     const along = Math.abs(Math.round(Math.cos(yaw)));
     const hx = along ? L / 2 : SEAT_D, hz = along ? SEAT_D : L / 2;
-    solid({ minX: bx - hx, maxX: bx + hx, minZ: bz - hz, maxZ: bz + hz });
+    // CAPPED AT THE SEAT'S TOP FACE (2026-08-09): *"some i can jump on and
+    // another has collision that goes to the moon"*. A bench is the classic
+    // jump-on object and its top is SEAT_TOP over this bench's own ground
+    // (y0 — the park undulates, and maxY is an absolute world Y, fp.ts).
+    // The cap is the SEAT, not the backrest: standing "on a bench" means on
+    // the boards, with the 5 cm back slats beside your shins — capping at the
+    // back's 0.99 would float you half a metre over the seat you can see.
+    solid({ minX: bx - hx, maxX: bx + hx, minZ: bz - hz, maxZ: bz + hz, maxY: y0 + SEAT_TOP });
     // …AND THE SAME BOX, ON THE GROUP, so a check can ask about THE COLLIDER a
     // walker actually hits rather than about the geometry inside it — the two
     // differ by 0.20 m here, and it is the collider that decides whether passing
@@ -1738,7 +1745,9 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     const seg = new THREE.Mesh(new THREE.BoxGeometry(0.65, h, end - z), shrubM);
     seg.position.set(hedgeX, KERB_H + h / 2, (z + end) / 2);
     scene.add(seg);
-    solid({ minX: site.minX, maxX: site.minX + 0.7, minZ: z, maxZ: end });
+    // capped at this run's own crown — a hedge is a plant, not a wall to the
+    // sky (2026-08-09; unreachable by any jump at 1.64+, so this opens air)
+    solid({ minX: site.minX, maxX: site.minX + 0.7, minZ: z, maxZ: end, maxY: KERB_H + h });
     z = end + 0.9 + rb() * 1.6;                     // the gaps where it died out
   }
   // and a shrub in each corner by the railings, where the mower never reaches
@@ -1752,7 +1761,8 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // taller than the run, so it still breaks the top line.
     sh.userData.massed = true;
     scene.add(sh);
-    solid({ minX: lx1 - 0.2 - w / 2, maxX: lx1 - 0.2 + w / 2, minZ: cz - w / 2, maxZ: cz + w / 2 });
+    // capped at the shrub's own crown, same honesty as the hedge runs
+    solid({ minX: lx1 - 0.2 - w / 2, maxX: lx1 - 0.2 + w / 2, minZ: cz - w / 2, maxZ: cz + w / 2, maxY: KERB_H + h });
   }
 
   // Bins where the benches are, because that is where the litter is.
@@ -1827,7 +1837,13 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     board.add(post);
   }
   scene.add(board);
-  solid({ minX: nbX - 0.3, maxX: nbX + 0.3, minZ: nbZ - 0.55, maxZ: nbZ + 0.55 });
+  // capped at the panel's own top edge (centre KERB_H+1.28, half-height 0.36)
+  // — a 1.6 m noticeboard was a wall to the sky (2026-08-09, "collision that
+  // goes to the moon"). Unreachable by any jump; the cap opens air only.
+  solid({
+    minX: nbX - 0.3, maxX: nbX + 0.3, minZ: nbZ - 0.55, maxZ: nbZ + 0.55,
+    maxY: KERB_H + 1.28 + 0.36,
+  });
 
   // ── the loop, edged ──────────────────────────────────────────────────────
   //
@@ -2401,8 +2417,11 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     shelterBench.add(end);
   }
   scene.add(shelterBench);
+  // capped at the slats' top face (KERB_H + 0.45 centre + 0.025), like every
+  // bench() bench — this hand-built one missed the seat cap the same way it
+  // once missed its [E] registration (2026-08-09)
   solid({ minX: shX - 0.32, maxX: shX + 0.32,
-    minZ: shZ - SB_L / 2 - 0.1, maxZ: shZ + SB_L / 2 + 0.1 });
+    minZ: shZ - SB_L / 2 - 0.1, maxZ: shZ + SB_L / 2 + 0.1, maxY: KERB_H + 0.475 });
   // …AND YOU CAN SIT ON IT. Eleven benches on the loop take [E] and the one
   // destination the loop exists for did not — you walk 26 m to the thing that
   // terminates the axis and it turns out to be scenery. It was the only bench

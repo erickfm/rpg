@@ -5947,3 +5947,37 @@ hourly × 8 in cash at punch-out, one a day. Hourly table: bodega $3.75,
 barn $4.00, hut $4.25, thrift $5.00, diner $5.50, gym $6.00, pawn $6.50,
 SLEEP $7.25, VOLT $7.75, hotel $8.50, college $10.00. All eleven boarded
 shops carry both stations; the bank still waits on a teller who hires.
+
+## 2026-08-09 — *"collision on vehicles needs to be better. i dont like that some i can jump on and another has collision that goes to the moon. like fix the collision on objects pls."* / *"FIX COLLISION HERE. nothing should be sticking out"*
+
+Went to the builder who did the yaw sweep. Same architecture fp.ts already
+carries — `maxY` means "solid to here, standable at here, open air above" —
+applied to everything the mass sweep proved dishonest (635 colliders measured
+against the meshes above their own footprints, ray-cast on the live world).
+
+VEHICLES: the pickup was the only fully honest one. Now every kind tiers to
+its own panels, read from the panel constants (new `CABIN` table in ct/cars.ts;
+`makeCar` and `carColliderSpec` read the same object): hood to the derived
+cowl at 0.94, greenhouse to the kind's roof (sedan 1.46 / hatch 1.44 /
+van 1.78 / pickup 1.415), sedan boot lid 0.93 as before. The two old reasons
+for leaving sedan/hatch/van uncapped both predate the crouch jump (0.905 m
+tucked ceiling) and are quoted-and-retired in the code. MOVING vehicles too:
+ct/traffic.ts caps each box at `userData.roofY` (bus 2.96) — a car crossing
+the junction no longer walls the sky.
+
+OBJECTS (walls-to-the-moon over low furniture, 31 found, 0 left): park benches
+×8 capped at the SEAT top (0.53 over their own ground — standing on a bench
+means on the boards, not floating at the backrest), shelter bench, park
+noticeboard, park hedges and corner shrubs at their crowns; bus bench at seat
+0.59; phone shelter at its 2.3 m canopy; alley dumpster at its 1.24 rim;
+churchyard dwarf wall at the railing's 1.44, gate piers 1.69, corner yews,
+both civic stair-cheek pairs (flight() now publishes `topY`); college yard
+low wall 1.03 / piers / sign stub / noticeboard / beds / tree planters /
+benches; the lot & park street-line rails at 0.76. Deliberately NOT capped:
+building shells, flank/party walls, the onramp road-closure barriers (world
+seals), and thin poles/trunks (nothing to stand on).
+
+The screenshot's "sticking out" boxes measured as the churchyard set drawn at
+the overlay's 2.4 m default height — capped now, the overlay draws them at
+their true tops. Skipped by instruction: int-casino (being rebuilt height-
+honest from scratch by its own builder).
