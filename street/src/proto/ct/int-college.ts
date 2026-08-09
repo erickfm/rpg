@@ -6,6 +6,7 @@ import { type DoorDecl } from './doors';
 import { frontageWorld, alongU } from './tex-world';
 import { screenFade, hudNote } from './hud';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import { stat, raiseStat } from './stats';
 
 // CROSSTOWN COMMUNITY COLLEGE, inside.
@@ -477,4 +478,11 @@ export function buildCollege(ctx: CtxBuild): void {
     who: 'the registrar',
     ok: room.inside,
   });
+
+  // ══ AND THE COLLEGE HIRES — application and punch clock (ct/jobs.ts) ═══════
+  //
+  // On the east wall of the LOBBY, between the corridor gap in the partition
+  // (x 1.9 … 4.9 at z 0.6) and the front wall: the section spans z 2.67 … 4.08,
+  // its stand points 0.79 m out on the open lobby floor.
+  jobStation(ctx, room, 'ct-shop-college', { x: hw - 0.04, z: 3.3, rotY: -Math.PI / 2 });
 }

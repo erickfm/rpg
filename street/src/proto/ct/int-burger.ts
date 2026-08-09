@@ -4,6 +4,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 // FOR THE SIDE EFFECT, and it is the whole point of the import: `ct/goods.ts`
 // calls `defineItem` at module scope, so importing it is what puts a burger, a
 // carton of fries and the rest into the one item table the bag and the wallet
@@ -509,5 +510,14 @@ export function buildBurger(ctx: CtxBuild): void {
     who: 'the cashier',
     ok: room.inside,
   });
+
+  // ══ AND THE BARN HIRES — the application and the punch clock (ct/jobs.ts) ══
+  //
+  // On the west wall at the counter end of the queue lane, just south of the
+  // COMBO poster (which ends at z -1.24; the HELP WANTED card starts -1.37) —
+  // and the lobby's own NOW HIRING poster up the wall now points at a real
+  // application. Section spans z -1.37 … -2.78, clear of the counter's west
+  // end (x -5.56) by 1.8 m of floor.
+  jobStation(ctx, room, 'ct-shop-burger', { x: -hw + 0.05, z: -2.0, rotY: Math.PI / 2 });
 
 }

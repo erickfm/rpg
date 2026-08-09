@@ -4,6 +4,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import './goods';   // for the side effect: it is what declares the stock
 
 // SLEEP CENTER, inside.
@@ -577,4 +578,11 @@ export function buildSleep(ctx: CtxBuild): void {
     who: 'the salesman',
     ok: room.inside,
   });
+
+  // ══ AND THE SHOWROOM HIRES — application and punch clock (ct/jobs.ts) ══════
+  //
+  // On the east wall between the linen run (ends z 2.00… its run is z ±2.00)
+  // and the counter (front face z -4.35): the section spans z -2.32 … -3.73,
+  // on the walking floor's east edge.
+  jobStation(ctx, room, 'ct-shop-sleep', { x: hw - 0.04, z: -3.1, rotY: -Math.PI / 2 });
 }

@@ -5,6 +5,7 @@ import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { frontageWorld, alongU } from './tex-world';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import './goods';   // for the side effect: it is what declares the stock
 
 // VIDEO HUT, inside.
@@ -548,4 +549,11 @@ export function buildVideo(ctx: CtxBuild): void {
     who: 'the clerk',
     ok: room.inside,
   });
+
+  // ══ AND THE HUT HIRES — the application and the punch clock (ct/jobs.ts) ═══
+  //
+  // On the east wall in the open east floor, between the counter's run
+  // (z -2.95, where it meets this wall) and the drop bin by the door
+  // (solid starts z 3.39): the section spans z -0.23 … 1.18.
+  jobStation(ctx, room, 'ct-shop-video', { x: hw - 0.04, z: 0.4, rotY: -Math.PI / 2 });
 }

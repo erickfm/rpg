@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { makePanel, hudNote, type Panel, type Purse } from './hud';
 import { pixTex, declareSurface, dither } from './paint';
 import { give, fullWhy, itemOf } from './inventory';
-import { jobColumn } from './jobs';
 import type { CtxBuild, Spot } from './ctx';
 
 // ══ BUYING THINGS, OVER A COUNTER, OFF A SIGN ══════════════════════════════
@@ -93,13 +92,6 @@ export interface StockLine {
   name: string;
   /** dollars. 1997 money — see the note on prices at the foot of this file. */
   price: number;
-  /**
-   * What the price column prints INSTEAD of the price, for a line whose right
-   * side is not money — a help-wanted card says `$34/DAY` or `NO VACANCY`,
-   * not `.00`. The arithmetic still runs on `price` (a tagged line usually
-   * costs 0); this changes only the lettering.
-   */
-  tag?: string;
 }
 
 /** One panel of the board: a heading and what is under it. */
@@ -207,7 +199,7 @@ function layout(W: number, H: number, cols: ShopColumn[]): Layout {
     g.font = `bold ${px}px monospace`;
     const GAP = px;
     for (const c of cells) {
-      const w = g.measureText(c.line.name).width + g.measureText(priceText(c.line)).width;
+      const w = g.measureText(c.line.name).width + g.measureText(boardPrice(c.line.price)).width;
       if (w + GAP > pw - pad * 2) return false;
     }
     return true;
@@ -256,9 +248,6 @@ function layout(W: number, H: number, cols: ShopColumn[]): Layout {
 export const boardPrice = (p: number): string =>
   (p < 1 ? p.toFixed(2).slice(1) : p.toFixed(2));
 
-/** what a line's right column actually prints — its `tag`, or its price */
-const priceText = (l: StockLine): string => l.tag ?? boardPrice(l.price);
-
 /**
  * THE SIGN ITSELF. One painter for the object on the wall and for the view you
  * read it in — see the note at the head of this file.
@@ -303,7 +292,7 @@ export function paintBoard(
     g.fillText(c.line.name, c.x + L.pad, my);
     g.fillStyle = look.priceInk ?? look.ink;
     g.textAlign = 'right';
-    g.fillText(priceText(c.line), c.x + c.w - L.pad, my);
+    g.fillText(boardPrice(c.line.price), c.x + c.w - L.pad, my);
   }
   // the same speckle every painted surface in this world carries (ct/paint.ts).
   // Light — a board is printed matter, not weathered brick.
@@ -406,28 +395,8 @@ export function shopCounter(ctx: CtxBuild, spec: ShopSpec): Shop {
   let flashT: ReturnType<typeof setTimeout> | null = null;
   const repaint = () => panel?.repaint();
 
-  // ── THE HELP-WANTED CARD, APPENDED AT THE COUNTER ─────────────────────────
-  //
-  // *"need to be able to submit job application at all of the shops. with
-  //  varying degrees of int needed"*   (2026-08-09)
-  //
-  // `ct/jobs.ts` holds the ONE table, keyed by this spec's id — a counter with
-  // a position in it grows one more column while you are being served, and a
-  // counter without one changes nothing. Rebuilt per paint because the card's
-  // words ARE its state: HELP WANTED, NO VACANCY, or STAFF once you're hired.
-  //
-  // ⚠ THE PANEL ONLY — a deliberate one-column exception to the one-painter
-  // identity at the head of this file. The board on the wall is printed matter
-  // and cannot change the day you are hired; the help-wanted card lives by the
-  // till, and you only see it when the person behind the counter is serving
-  // you. `boardTexture` (the wall) still paints exactly the shop's own columns.
-  const colsNow = (): ShopColumn[] => {
-    const jc = jobColumn(ctx, spec.id);
-    return jc ? [...spec.columns, jc] : spec.columns;
-  };
-
   const cellAt = (x: number, y: number): StockLine | null => {
-    for (const c of layout(spec.w, spec.h, colsNow()).cells) {
+    for (const c of layout(spec.w, spec.h, spec.columns).cells) {
       if (x >= c.x && y >= c.y && x < c.x + c.w && y < c.y + c.h) return c.line;
     }
     return null;
@@ -501,7 +470,7 @@ export function shopCounter(ctx: CtxBuild, spec: ShopSpec): Shop {
         // "can I afford that" is the only question the board itself cannot
         // answer: a menu board does not know what is in your pocket.
         hint: () => `$${ctx.purse.cash.toFixed(2)} in hand`,
-        draw: (g, W, H) => paintBoard(g, W, H, colsNow(), spec.look, { hover, flash }),
+        draw: (g, W, H) => paintBoard(g, W, H, spec.columns, spec.look, { hover, flash }),
         surface: {
           mesh: spec.mesh,
           standoff: spec.standoff,

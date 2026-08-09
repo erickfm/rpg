@@ -5,6 +5,7 @@ import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { frontageWorld, alongU } from './tex-world';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import { stat, raiseStat, type StatName } from './stats';
 import { hudNote } from './hud';
 import { registerSlice } from './save';
@@ -632,4 +633,11 @@ export function buildGym(ctx: CtxBuild): void {
     who: 'the trainer',
     ok: room.inside,
   });
+
+  // ══ AND THE PLACE HIRES — the application and the punch clock (ct/jobs.ts) ═
+  //
+  // On the east wall between the rower (solid ends z 0.90) and the counter
+  // (front face z -3.15): the section spans z -2.30 … -0.82 and its stand
+  // points sit 0.75 m off the wall, clear of both.
+  jobStation(ctx, room, 'ct-shop-gym', { x: hw - 0.04, z: -1.6, rotY: -Math.PI / 2 });
 }

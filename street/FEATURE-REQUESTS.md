@@ -5929,3 +5929,21 @@ born under a panel or a fade is HELD, netted with everything else that lands
 while the glass is up (three slots spins = one figure, "updating the total"
 in his words), and released the moment the world is visible again. Walk out
 of the bodega and what you spent floats off the corner.
+
+## 2026-08-09 — *"so instead of help wanted being an option i just want a little section of the interior to have an application. similar to loan app. diagetic in that way. then apply if you get a job theres a clock in station that you can 'work' at. it's like [E] sleep. just [E] work. at the clock in part of the interior. each place you work has this. each shift is 8 hrs long. on the app it states the hourly wage."*
+
+To the same builder, second pass on jobs. The counter card is gone — HELP
+WANTED comes off every shop board and `StockLine.tag` goes with it. In its
+place `ct/jobs.ts` grew `jobStation()`: one ~1.5 m wall section per hiring
+shop, built once in the leaf and placed by one call in each interior. Left
+half: a HELP WANTED card over a clipboard whose paper is the loan form's own
+grammar — [E] apply leans you onto the sheet, which states POSITION, WAGE
+($/HR, his spec) and SHIFT (8 HOURS); SIGN AND SUBMIT rolls the same
+`jobChance`; HIRED gets a rubber stamp, a rejection tapes a POSITION FILLED
+slip over the fields for 3 days. Right half: a punch clock (real kit face,
+dome bell, card throat) and a rack of time cards — prompt is exactly
+`[E] work`, only where you are hired; every shift is 8 hours, fade + snap,
+hourly × 8 in cash at punch-out, one a day. Hourly table: bodega $3.75,
+barn $4.00, hut $4.25, thrift $5.00, diner $5.50, gym $6.00, pawn $6.50,
+SLEEP $7.25, VOLT $7.75, hotel $8.50, college $10.00. All eleven boarded
+shops carry both stations; the bank still waits on a teller who hires.

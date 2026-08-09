@@ -4,6 +4,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import { hudNote } from './hud';
 import { glassCanvas, paintGlass, fittingPanel, type FitLine } from './mirror';
 import { wireRead } from './goods';   // and the side effect: it declares the stock
@@ -868,6 +869,12 @@ export function buildThrift(ctx: CtxBuild): void {
     who: 'the woman at the till',
     ok: room.inside,
   });
+
+  // ══ AND THE THRIFT HIRES — the application and the punch clock (ct/jobs.ts) ═
+  //
+  // On the east wall between the shoe run's south end (z -2.23) and the
+  // back-wall shelving (solid starts z -4.37): the section spans z -2.62 … -4.03.
+  jobStation(ctx, room, 'ct-shop-thrift', { x: hw - 0.04, z: -3.4, rotY: -Math.PI / 2 });
 
   // READ, wired. The paperback's hour goes through this world's own ramped
   // clock — the sky and the clocks sweep, and that fade is the whole feedback,

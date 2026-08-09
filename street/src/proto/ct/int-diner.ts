@@ -4,6 +4,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom, seatTaken } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import { DINER_MENU } from './menus';
 import './goods';   // for the side effect: it is what declares the stock
 
@@ -542,4 +543,14 @@ export function buildDiner(ctx: CtxBuild): void {
     ok: room.inside,
   });
 
+  // ══ AND THE DINER HIRES — the application and the punch clock (ct/jobs.ts) ═
+  //
+  // On the side wall OPPOSITE the jukebox wall (the `away` side, wherever the
+  // door has pushed it — nothing in this room may hard-code which end is
+  // free), in the aisle band between the counter front (z -1.69) and the
+  // booth bank (solid starts z 1.74).
+  jobStation(ctx, room, 'ct-shop-diner', {
+    x: away * (hw - 0.04), z: 0.2,
+    rotY: away > 0 ? -Math.PI / 2 : Math.PI / 2,
+  });
 }

@@ -4,6 +4,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import { hudNote } from './hud';
 import { talker } from './dialog';
 import { heal } from './health';
@@ -1178,4 +1179,12 @@ export function buildVolt(ctx: CtxBuild): void {
     who: 'the salesman',
     ok: room.inside,
   });
+
+  // ══ AND THE VILLAGE HIRES — application and punch clock (ct/jobs.ts) ═══════
+  //
+  // On the east wall in the pocket between the wall-side desk (south end
+  // z -1.15) and the counter's front face (z -3.15) — the pocket the desk was
+  // trimmed to leave at exactly 2.00 m. The section is wall furniture, 0.13 m
+  // proud at most, so the pocket's lane survives; it spans z -1.37 … -2.85.
+  jobStation(ctx, room, 'ct-shop-volt', { x: hw - 0.04, z: -2.15, rotY: -Math.PI / 2 });
 }

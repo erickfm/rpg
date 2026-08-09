@@ -11,6 +11,7 @@ import { FACE } from './rng';
 import { bestFence, fencePrice, itemOf, takeOne } from './inventory';
 import { hudNote } from './hud';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import './goods';   // for the side effect: it is what declares the stock
 
 // The PAWN SHOP, inside.
@@ -681,6 +682,15 @@ export function buildPawn(ctx: CtxBuild): void {
     who: 'the man at the sales counter',
     ok: room.inside,
   });
+
+  // ══ AND THE SHOP HIRES — the application and the punch clock (ct/jobs.ts) ══
+  //
+  // On the FRONT wall's solid west run — the one stretch of bare plaster the
+  // customer floor has left: the west wall is pegboard + locked cabinet +
+  // bikes end to end, the east wall is the stereo shelves and the amp corner.
+  // The window glazing starts at x 0.8 and the door opening ends near x -0.7;
+  // the section spans x -2.77 … -4.30, clear of both.
+  jobStation(ctx, room, 'ct-shop-pawn', { x: -3.4, z: hd - 0.05, rotY: Math.PI });
 
   // ── the back wall, which is now what you walk in facing ──
   //

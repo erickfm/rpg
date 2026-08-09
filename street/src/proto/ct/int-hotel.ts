@@ -8,6 +8,7 @@ import { type DoorDecl } from './doors';
 import { hardLayer, leafPair } from './vice';
 import { screenFade, hudNote } from './hud';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import { VICE_DOOR_X } from './vice';
 
 // HOTEL ORPHEUS, the lobby.
@@ -1070,6 +1071,14 @@ export function buildHotel(ctx: CtxBuild): void {
     who: 'the night clerk',
     ok: room.inside,
   });
+
+  // ══ AND THE HOTEL HIRES — the application and the punch clock (ct/jobs.ts) ═
+  //
+  // On the east wall in the clear band between the lounge suite (solid ends
+  // 1.05 m off this wall, z hd-4.7 … hd-2.5) and the stair run further south:
+  // the section spans z hd-5.22 … hd-6.78, and its stand points sit past the
+  // suite's padded corner.
+  jobStation(ctx, room, 'ct-shop-hotel', { x: hw - 0.04, z: hd - 6.0, rotY: -Math.PI / 2 });
 
   // ── the corridor mouth at the far end ────────────────────────────────
   //

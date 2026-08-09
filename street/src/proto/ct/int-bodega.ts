@@ -4,6 +4,7 @@ import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { jobStation } from './jobs';
 import './goods';   // for the side effect: it is what declares the stock
 
 // THE BODEGA, inside — rebuilt on the interior kit.
@@ -1143,4 +1144,11 @@ export function buildBodega(ctx: CtxBuild): void {
     who: 'the shopkeeper',
     ok: room.inside,
   });
+
+  // ══ AND THE BODEGA HIRES — the application and the punch clock (ct/jobs.ts) ═
+  //
+  // On the east wall between the calendar (ends z -1.31) and the back-wall
+  // cooler (solid starts z -5.7): the section spans z -3.26 … -1.94, in the
+  // walking lane east of the gondola ends (x 1.1).
+  jobStation(ctx, room, 'ct-shop-bodega', { x: hw - 0.04, z: -2.6, rotY: -Math.PI / 2 });
 }
