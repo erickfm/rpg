@@ -5645,3 +5645,11 @@ exit spot whose aim-free reach was 0.598 m — two millimetres of float noise
 deciding whether a room lets you leave — flat-wall way-out r 1.0 → 1.1
 (reach 0.65 m, clears by 5 cm). The library's room-level seat gate is kept;
 it and the global cap agree.
+
+## 2026-08-09 — *"get rid of no credit sign in volt village pls"*
+
+Routed to a builder. The sign was a standalone painted card (`saleT` in
+`src/proto/ct/int-volt.ts`) — cream with red top/bottom bands, "NO CREDIT" in
+graphite — hung on the interior front wall beside the glazing. The texture and
+its `room.sign` call are deleted whole; the TV · VCR · CAMCORDER price card,
+which shares the wall, is untouched.

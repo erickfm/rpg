@@ -1156,7 +1156,7 @@ export function buildVolt(ctx: CtxBuild): void {
     }
   });
 
-  // ── the two things taped in the glass, from this side ──
+  // ── the price card taped in the glass, from this side ──
   //
   // The facade tapes one price card inside the window and paints its fascia
   // tube over the top; from in here the card is the back of the same sheet, so
@@ -1168,13 +1168,6 @@ export function buildVolt(ctx: CtxBuild): void {
     g.fillStyle = RED; g.fillText('TV · VCR · CAMCORDER', 32, 6);
   }), 'sign');
   room.sign(cardT, 1.60, 0.30, -3.60, 0.70, hd - 0.09, Math.PI);
-  const saleT = declareSurface(pixTex(48, 14, (g) => {
-    g.fillStyle = CREAM; g.fillRect(0, 0, 48, 14);
-    g.fillStyle = RED; g.fillRect(0, 0, 48, 2); g.fillRect(0, 12, 48, 2);
-    g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = GRAPHITE; g.fillText('NO CREDIT', 24, 7);
-  }), 'sign');
-  room.sign(saleT, 1.10, 0.32, -0.40, 2.30, hd - 0.09, Math.PI);
 
   // ══ AND YOU BUY FROM HIM, OFF THE BOARD ════════════════════════════════════
   //
