@@ -5256,3 +5256,28 @@ lands back on the card — the save cannot resurrect; the pass-out's 1 HP floor
 in `ct/fatigue.ts` is untouched. No trunk files entered.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"cars dont seem to run me over btw. they stop for me"*
+
+Rejected pass on the car-hit mechanic, back to the same builder. Found by
+arithmetic, not guessing: the first cut had left the player inside the
+drivers' clairvoyant braking and only made the final clamp "honest" — a
+panic stop from 8.5 m/s needs 4.5 m, but detection reached 2.0 m either side
+of the path across a 14 m lookahead with zero reaction time, so a walking
+player was seen ~0.85 m before even entering the car's swept width and the
+car always had triple the room it needed. Landing a hit required a
+frame-perfect dash into a bumper. Now (`ct/traffic.ts`) the player gets a
+period-correct driver: no pre-slowing at all for someone merely near the
+road, obstruction only inside the true swept path (1.5 m half-width — the
+kerb line is 3.5 m off the lane centre, so the sidewalk cannot draw so much
+as a dab of brakes), a 0.6 s reaction delay once you are genuinely in the
+lane, and only then a full 8 m/s² emergency stop. Envelope ~14 m at car
+speed: step out inside it and the car arrives before the brakes do; plant
+yourself beyond it and it screeches to a halt just short. The crowd keeps
+the old absolute never-hit guarantee, foresight and all. `ct/carhit.ts`'s
+contact floor drops 2.0 → 1.0 m/s (a bumper that arrives still rolling is a
+hit however much speed the driver shed) and the thump's filter in
+`ct/audio.ts` follows it down. Damage, invulnerability, the card: unchanged.
+No trunk files entered.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

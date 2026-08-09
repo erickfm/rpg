@@ -156,6 +156,9 @@ interface Vehicle {
   /** last applied front-wheel angle, so a probe can check the wheels agree
    *  with the body instead of guessing which child mesh is a front wheel */
   steer: number;
+  /** seconds the PLAYER has been in this vehicle's path — the driver's
+   *  brakes only come on past REACT. Reset the moment the path is clear. */
+  react: number;
 }
 
 export interface Traffic {
@@ -185,18 +188,41 @@ const CLEAR_R = 2.0;
 /** …and how far short of them a driver comes to rest */
 const STOP_GAP = 2.0;
 /**
- * The hardest a driver can ACTUALLY brake for the player, m/s². *"make cars
- * hit you and cause damage"* (2026-08-08) — which was impossible while the
- * `v.spd = safe` clamp below stopped a car in ONE FRAME however late you
- * stepped out: physics-defying brakes meant the front bumper could never
- * reach anybody. So for the PLAYER the clamp now sheds speed at this rate — a
- * real panic stop — and a car still brakes for you from distance, but step
- * into the lane inside its stopping length and it arrives before the brakes
- * do (`ct/carhit.ts` owns what that costs). THE CROWD KEEPS THE OLD
- * GUARANTEE: citizens cannot dodge and have no health, so "traffic will not
- * drive through a person" stays absolute for them — see `blockedAt`.
+ * ── HOW A DRIVER TREATS THE PLAYER, and why it is three constants ──────────
+ *
+ * *"make cars hit you and cause damage"* (2026-08-08), and the rejected
+ * first cut: *"cars dont seem to run me over btw. they stop for me"*
+ * (2026-08-09). The first cut kept the player inside the same clairvoyant
+ * braking the crowd gets and only made the last clamp "honest" — and the
+ * arithmetic never let a hit land: a panic stop from 8.5 m/s needs 4.5 m,
+ * detection reached 2.0 m EITHER SIDE of the path across a 14 m lookahead
+ * with zero reaction time, so a walking player was seen ~0.85 m before even
+ * entering the car's swept width and the car always had triple the distance
+ * it needed. Being hit required a frame-perfect dash into a bumper.
+ *
+ * So the player now gets a PERIOD-CORRECT DRIVER instead of a guardian:
+ *
+ *   · no foresight — nobody pre-slows for a person who is merely NEAR the
+ *     road; the comfort easing ignores the player entirely
+ *   · PLAYER_R — you are an obstruction only inside the car's actual swept
+ *     path (1.15 m half-body + 0.35 m of you), not a 2 m aura. The kerb
+ *     line is 3.5 m off the lane centre, so the sidewalk can never trigger
+ *     so much as a dab of brakes
+ *   · REACT — the driver notices you 0.6 s after you are truly in the path,
+ *     and only then stands on the brakes at A_PANIC, a real emergency stop.
+ *     Total envelope ~14 m at car speed: step out closer than that and the
+ *     car arrives before the brakes do (`ct/carhit.ts` owns the cost);
+ *     plant yourself further out and it screeches to a stop just short
+ *
+ * THE CROWD KEEPS THE OLD ABSOLUTE GUARANTEE, foresight, instant clamp and
+ * all: citizens cannot dodge and have no health, so "traffic will not drive
+ * through a person" stays physics-defying for them — see `blockedAt`.
  */
 const A_PANIC = 8.0;
+/** the swept-path half-width the player must actually be inside */
+const PLAYER_R = 1.5;
+/** seconds between the player entering the path and the brakes going on */
+const REACT = 0.6;
 /** overlap slack for a hit: LESS than the player's own body radius (`fp.ts`
  *  RADIUS 0.3456), so standing at rest-contact beside a passing car — where
  *  the collision push already holds you — is a brush, and a hit needs real
@@ -283,7 +309,7 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
     const v: Vehicle = {
       obj: c, box: boxes.get(c)!, route: routeFor(name, laneOf(c)), name, s,
       spd: (c.userData.speed ?? 8.5) as number,   // already rolling
-      lat: 0, dwell: 0, served: false, held: 0, steer: 0,
+      lat: 0, dwell: 0, served: false, held: 0, steer: 0, react: 0,
     };
     c.visible = true;
     bus.userData.setDoors(false);
@@ -362,15 +388,17 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
   //
   // TWO ANSWERS SINCE THE CARS LEARNED TO HIT (2026-08-08): `folk` is the
   // crowd and the vehicle ahead — the ABSOLUTE stops, exactly as before —
-  // and `ply` is the player, whose stop is limited to real brakes (A_PANIC)
-  // so that stepping out too late is a collision rather than a miracle.
+  // and `ply` is the player, measured against the TIGHT swept path
+  // (PLAYER_R, not CLEAR_R) and acted on only after the driver's REACT
+  // delay, so that stepping out too late is a collision rather than a
+  // miracle. See the constants block for the whole argument.
   const blockedAt = (v: Vehicle, ahead: number): { folk: number; ply: number } => {
     const people = o.peopleAt();
     const px = player.x(), pz = player.z();
     let folk = Infinity, ply = Infinity;
     for (let u = 1; u <= ahead; u += 1.5) {
       const p = v.route!.at(v.s + u);
-      if (ply === Infinity && Math.hypot(px - p.x, pz - p.z) < CLEAR_R) ply = u;
+      if (ply === Infinity && Math.hypot(px - p.x, pz - p.z) < PLAYER_R) ply = u;
       if (folk === Infinity) {
         for (const f of people) if (Math.hypot(f.x - p.x, f.z - p.z) < CLEAR_R) { folk = u; break; }
       }
@@ -426,7 +454,12 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
       // is the case this exists for, but it holds anywhere on the route.
       const stopDist = Math.max(4, (v.spd * v.spd) / (2 * A_BRAKE) + 4);
       const b = blockedAt(v, stopDist);
-      const block = Math.min(b.folk, b.ply);
+      // the driver's reaction: the player in the path starts a clock, and
+      // only past REACT does he exist as something to brake for. Cleared the
+      // moment the path is clear, so every step out is noticed afresh.
+      if (b.ply < Infinity) v.react += dt; else v.react = 0;
+      const plyBlk = v.react >= REACT ? b.ply : Infinity;
+      const block = Math.min(b.folk, plyBlk);
       // The braking curve, not a proportional one: the fastest it may be going
       // and still stop in the room left is sqrt(2·a·room). Proportional braking
       // reads fine but the eased speed LAGS the target, and the lag is about
@@ -457,10 +490,12 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
       // always was, because a citizen cannot dodge and has no health to lose
       const safeF = safeFor(b.folk);
       if (v.spd > safeF) v.spd = safeF;
-      // …the PLAYER gets real brakes instead: full effort, bounded by A_PANIC,
-      // so a car still stops for you from distance but cannot cheat a late
-      // step-out. What happens when it arrives anyway is the hit check below.
-      const safeP = safeFor(b.ply);
+      // …the PLAYER gets a startled human instead: nothing at all until the
+      // reaction clock runs out, then full effort bounded by A_PANIC. A car
+      // you stepped in front of from the far side of its envelope screeches
+      // to a stop just short; one inside ~14 m arrives before the brakes do,
+      // and what happens then is the hit check below.
+      const safeP = safeFor(plyBlk);
       if (v.spd > safeP) v.spd = Math.max(safeP, v.spd - A_PANIC * dt);
       if (v.spd < 0.02) v.spd = 0;
       v.s += v.spd * dt;

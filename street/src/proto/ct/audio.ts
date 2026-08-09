@@ -820,7 +820,8 @@ export function register(ctx: CtxBuild): void {
     const hp = health();
     if (hp <= lastHp - 30) {
       for (const v of fleet) {
-        if (!v.o.visible || v.spd < 1.5 || v.d > 4.5) continue;
+        // 0.8, under carhit's own 1.0 floor: a hit that counted must thump
+        if (!v.o.visible || v.spd < 0.8 || v.d > 4.5) continue;
         fire('wall-hit', LVL.carHit, 0.55, bearing(v.x, v.z, px, pz) * 0.6);
         break;
       }

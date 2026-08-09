@@ -39,8 +39,11 @@ export const HIT_DAMAGE = 70;
 /** no second hit inside this window — "two hits" must mean two events */
 const INVULN_MS = 2000;
 /** below this the car is creeping to a stop against you and `fp.ts`'s box
- *  push is the whole of the event — a nudge, not a hit */
-const MIN_SPEED = 2.0;
+ *  push is the whole of the event — a nudge, not a hit. 1.0, down from a
+ *  first-cut 2.0 that quietly swallowed real hits: a car braking hard from
+ *  8.5 m/s can reach you at walking pace, and a bumper that arrives still
+ *  rolling is a hit however much speed the driver managed to shed. */
+const MIN_SPEED = 1.0;
 /** how far he is thrown, metres. A touch, not a ragdoll: mostly along the
  *  car's own travel, partly away from its body, so he lands beside the lane
  *  rather than under the rear axle. */
