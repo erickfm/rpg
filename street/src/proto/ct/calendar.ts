@@ -313,9 +313,18 @@ export const RENT = {
   // It seeded `ct/tenancy.ts`'s `paidPeriods` at 1, which held `owed()` at 0
   // through the whole first season. The field is deleted rather than zeroed so
   // that reinstating the conceit takes a decision and not a keystroke.
-  /** the flat, the landlord, and the man's name on the bottom of the notice */
+  /**
+   * The flat, the landlord, and what goes on the bottom of the notice.
+   *
+   * ⚠ NOT A NAME ANY MORE. *"instead of this guys name just write landlord"*
+   * (2026-08-09), on the rent notice signing itself "— V. OKONKWO". The man on
+   * the stairs has no name the player is ever told, so his paper does not get
+   * one either — every sender line, sign-off and initial reads off this field,
+   * and the field says what he IS. Git history has the name if a character who
+   * needs one ever moves in.
+   */
   flat: '301',
-  landlord: 'V. OKONKWO',
+  landlord: 'THE LANDLORD',
   building: 'No. 227',
 } as const;
 

@@ -557,23 +557,32 @@ function mailFor(day: number): Letter[] {
   // `duePeriodsBy(day)` is the index of the NEXT rent day whenever `day` is not
   // one itself, and of the one after when it is — which is the period this
   // notice should be warning about either way.
+  // ⚠ ONE SENTENCE PER ENTRY, AND THE PAINTER FLOWS IT. These used to be
+  // PRE-BROKEN at a width no sheet has ("I collect in person. I am in the" /
+  // "hall or on the stairs. Cash only."), so `flow` — which wraps each entry
+  // separately — rewrapped each fragment on its own and the breaks landed
+  // mid-clause: *"what is the text formatting on this?"* (2026-08-09). Worse,
+  // the due date was SPLIT ACROSS TWO ENTRIES so the painter's line-plucking
+  // could orphan half of it — see the note on `ART['notice-agent']`. An entry
+  // here is now a whole sentence or a whole paragraph; where it breaks on the
+  // paper is the paper's business.
   const n = duePeriodsBy(day);
   if (day === noticeDay(n)) {
     const due = dueDay(n);
     const left = due - day;
+    const when = left <= 0 ? 'today' : left === 1 ? 'tomorrow'
+      : `${left} days from today`;
     out.push({
-      day, kind: 'rent', art: 'notice-agent', from: `${RENT.landlord} — MANAGING AGENT`,
+      day, kind: 'rent', art: 'notice-agent', from: RENT.landlord,
       lines: [
-        `RE: APT ${RENT.flat}, ${RENT.building}`,
+        `APT ${RENT.flat}, ${RENT.building}`,
         '',
-        `RENT OF $${RENT.amount.toFixed(2)} IS DUE ON THE ${ordinal(RENT.dueDayOfSeason)}`,
-        `OF ${dateOf(due).season} — ${left} DAY${left === 1 ? '' : 'S'} FROM TODAY.`,
+        `Rent of $${RENT.amount.toFixed(2)} for ${dateOf(due).season} is due on the ${ordinal(RENT.dueDayOfSeason).toLowerCase()} — ${when}.`,
         '',
-        'I collect in person. I am in the',
-        'hall or on the stairs. Cash only.',
+        'I collect in person. I am in the hall or on the stairs. Cash only.',
         '',
         'Do not put it in the box.',
-        `                      — ${RENT.landlord}`,
+        `— ${RENT.landlord}`,
       ],
     });
   }
@@ -588,13 +597,14 @@ function mailFor(day: number): Letter[] {
       out.push({
         day, kind: 'late', art: 'notice-agent', from: `${RENT.landlord} — SECOND NOTICE`,
         lines: [
-          `RE: APT ${RENT.flat}. ARREARS $${(late * RENT.amount).toFixed(2)}.`,
+          `APT ${RENT.flat}, ${RENT.building}`,
           '',
-          `${since} DAY${since === 1 ? '' : 'S'} LATE. I have knocked.`,
-          'I know you are in there — the light',
-          'is on and the television is on.',
+          `Your rent is ${since} day${since === 1 ? '' : 's'} late. Arrears stand at $${(late * RENT.amount).toFixed(2)}.`,
+          '',
+          'I have knocked. I know you are in there — the light is on and the television is on.',
           '',
           'Find me. Do not make me find you.',
+          `— ${RENT.landlord}`,
         ],
       });
     }
@@ -1463,14 +1473,10 @@ ART['envelope-prev'] = (g, l) => {
 
 // ⚠ `sprockets` LIVED HERE and went with VIDEO 2000, its only caller — tractor
 // holes down both edges, which is the tell of fanfold computer paper and is
-// nothing any surviving piece is printed on. Git history has it if a real shop
-// ever prints an account. `perf` below stayed: the rent receipt tears off a
-// duplicate book and still needs it.
-
-/** a perforation: the line you tear along */
-function perf(g: CanvasRenderingContext2D, x: number, y: number, w: number): void {
-  for (let i = 0; i < w; i += 4) fill(g, 'rgba(90,84,70,0.5)', x + i, y, 2, 1);
-}
+// nothing any surviving piece is printed on. `perf` — the torn-edge dotting —
+// followed it when the rent notice stopped being a page ripped from a receipt
+// book and became a letter (2026-08-09): the receipt's spine draws its own
+// dotting inline. Git history has both.
 
 /**
  * ── A POSTCARD ─────────────────────────────────────────────────────────────
@@ -2030,9 +2036,14 @@ function flow(g: CanvasRenderingContext2D, x: number, y: number, w: number,
 
 /**
  * THE LIVE BALANCE BAND, read off the clock at the moment he unfolds the paper
- * rather than baked in when it was written. Factored out of `drawTyped` because
- * all three of the landlord's pieces carry it and three copies of a band that
- * quotes real state is three chances to disagree about it.
+ * rather than baked in when it was written.
+ *
+ * ⚠ ONLY THE CARBON NOTE OF ACCOUNT CARRIES IT NOW (via `drawTyped`). It used
+ * to sit on the rent notice too, and it is exactly what made that piece read
+ * as a docket instead of a letter — *"it doesnt look anything like a letter"*
+ * (2026-08-09). A running-balance chip belongs on a page torn from an account
+ * book; on correspondence the live state is the PAST DUE stamp, and nothing
+ * else.
  *
  * ⚠ WHAT IT MAY NOT SAY is "PAID IN FULL", which is what the first version
  * printed the moment `owed()` came back 0 — including on the day the notice
@@ -2084,18 +2095,48 @@ function pastDue(g: CanvasRenderingContext2D, cx: number, cy: number, s = 1): vo
  * back — so the most consequential piece of paper in the game ended up looking
  * exactly like a chain letter.
  *
- * A MANAGING AGENT'S OWN STATIONERY, and every difference is a printer's:
- * a heavy black masthead with his name REVERSED OUT of it rather than typed
- * into the body, a rule under it, a ruled RE: block with the flat and the
- * building, then the demand — and THE AMOUNT SET APART in a boxed panel at 13
- * px so the page reads as a BILL at a glance rather than as a letter that
- * happens to mention money. Duplicate-book stock: the faint blue-grey wash and
- * the perforated top edge of a page torn out of a receipt book.
+ * ── AND THEN THE BILL CONSTRUCTION WAS REJECTED WHOLE ─────────────────────
+ *
+ * *"instead of this guys name just write landlord. also what is the text
+ *  formatting on this? also it doesnt look anything like a letter make it look
+ *  like an actual letter same as all other mail thats not a flyer. also also
+ *  whats up with the text below 500. "of spring - 3 days from"? like its
+ *  nonsensical."*   (2026-08-09)
+ *
+ * FOUR COUNTS, AND THE WORST TWO WERE THIS PAINTER'S OWN CLEVERNESS. The
+ * previous version argued itself into "a BILL at a glance rather than a
+ * letter" — black masthead, the amount reversed into a display box, a balance
+ * chip at the foot — and he has now said the opposite in his own words: it is
+ * a LETTER, the same register as everything in the box that is not a flyer.
+ *
+ * "OF SPRING — 3 DAYS FROM" WAS DISMEMBERMENT, NOT A TYPO. The due date came
+ * off `mailFor` as two half-sentences ("RENT OF $500.00 IS DUE ON THE 5TH" /
+ * "OF SPRING — 3 DAYS FROM TODAY."). This painter plucked the $-line to print
+ * ONLY its figure in the box, plucked the OF-line for the caption under it and
+ * kept `wrapTo(...)[0]` — the first wrapped segment — so "TODAY." fell off the
+ * end. Half of one sentence, minus its last word, under a number torn out of
+ * the other half. Both halves of that machinery are gone: the source is whole
+ * sentences now, and the painter plucks NOTHING — it draws every line in
+ * order, wrapped to the paper, like a page of type.
+ *
+ * The ugly mid-clause wraps were the same fault from the other side: source
+ * lines pre-broken for a 35-column sheet, re-wrapped individually at 28 by
+ * `flow`, every break landing where neither the writer nor the wrapper chose
+ * it. One sentence per source entry is the fix, same as the bank letter's.
+ *
+ * WHAT A LETTER CARRIES, and nothing else: a typed date top right, the
+ * addressee line over a rule, body paragraphs, a sign-off set to the right —
+ * the exact anatomy of `drawTyped` and the airmail. The amount lives IN ITS
+ * SENTENCE. The balance chip ("NOTHING OUTSTANDING TODAY") is deleted from
+ * this piece as docket furniture — live state on correspondence is carried by
+ * the PAST DUE rubber stamp alone, which is a mark a landlord actually strikes
+ * on a letter; the chip survives on the carbon NOTE OF ACCOUNT, which IS a
+ * docket and is where a running balance belongs.
  *
  * ⚠ EVERY FIGURE STILL COMES FROM THE CONSTANTS. `mailFor` builds the lines
  * from `RENT.amount`, `RENT.dueDayOfSeason`, `RENT.flat` and `RENT.building`
  * and this only draws them. Nothing is typed here — the notice said "the 1ST"
- * hard-typed once already today and that is exactly the bug this must not
+ * hard-typed once already and that is exactly the bug this must not
  * reintroduce.
  *
  * ── AND IT IS A LETTER SHEET NOW, NOT A SQUARE ────────────────────────────
@@ -2111,58 +2152,46 @@ function pastDue(g: CanvasRenderingContext2D, cx: number, cy: number, s = 1): vo
  * 4.7% off the seed catalogue's 1:1.29 and 4.3% off the bank's 1:1.41, and no
  * other piece is 162 tall — every other portrait sheet is 178 or 172.
  *
- * ⚠ AND THE COPY IS RE-FITTED, WHICH IS THE HALF THAT BITES. 104 units of text
- * width is 28 monospace characters at 6 px against the 35 the old full sheet
- * held, so the body drops from 8 px to 6, the RE: line is FLOWED instead of
- * having its first wrapped line taken (the second notice's RE carries the
- * arrears figure and would have lost it off the end), the band measures its own
- * text down until it fits, and the boxed amount is drawn only when there IS a
- * figure — the late notice quotes its arrears in the RE: line and was drawing an
- * empty 30-unit box under it. Worst case is 6 flowed lines on the notice and 9
- * on a long-overdue second notice, both of which land above the band.
+ * ⚠ AND THE COPY IS FITTED BY MEASUREMENT, WHICH IS THE HALF THAT BITES. The
+ * body is 6 px flowed to 102 units — worst case (a long-overdue second notice,
+ * whose arrears sentence and knocked paragraph both wrap to three lines) is
+ * eleven baselines plus the head and sign-off, which lands inside the 162-unit
+ * sheet with the stamp clear of the last line. Every line is wrapped by
+ * `wrapTo`'s measurement, never sliced at a column count.
  */
 ART['notice-agent'] = (g, l) => {
-  const P = paper('notice-agent'), IN = 8, TW = P.w - IN * 2;
-  const cx = P.x + P.w / 2, foot = P.y + P.h;
+  const P = paper('notice-agent'), IN = 9, TW = P.w - IN * 2;
+  const foot = P.y + P.h;
+  // the landlord's paper keeps its blue-grey — the colour is this piece's
+  // identity in the box, and a letter is still allowed a stock
   stock(g, P.x, P.y, P.w, P.h, '#c9d6dd', '#dde7ec', '#9cadb6');
-  fill(g, 'rgba(60,90,120,0.10)', P.x, P.y, P.w, P.h);   // duplicate-book wash
-  perf(g, P.x + 3, P.y + 3, P.w - 6);                    // torn from the book
-  fill(g, '#2a2620', P.x, P.y + 6, P.w, 20);             // the masthead
-  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
-  g.fillStyle = '#e8e4d4'; g.font = UI.font(9, true);
-  g.fillText(RENT.landlord, cx, P.y + 18);
-  g.font = UI.font(6);
-  g.fillText('MANAGING AGENT', cx, P.y + 25);
-  // the RE: block, ruled the way a form is — FLOWED, because the second notice
-  // puts the arrears figure at the end of this line and 104 units will not hold
-  // it on one; the rule is placed off the foot of however many it took.
+  creases(g, P.x, P.y, P.w, P.h, 2);            // folded to come through a slot
+  // the typed date, top right, which is where a letter starts. `season +
+  // dayOfSeason` rather than `dateStr`, whose "YEAR 1" era does not belong on
+  // a piece of post; the two words are the wall calendar's own.
+  const d = dateOf(l.day);
+  g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#4a4e56'; g.font = UI.font(6);
+  g.fillText(`${d.season} ${d.dayOfSeason}`, P.x + P.w - IN, P.y + 16);
+  // who it is from, over a rule — the exact head `drawTyped` gives every other
+  // typed letter, which is the register he named
   g.textAlign = 'left';
-  let y = flow(g, P.x + IN, P.y + 34, TW, [l.lines[0] ?? ''], 7, '#3a352c', true);
-  fill(g, '#8d8672', P.x + IN, y - 4, TW, 1);
-  // THE AMOUNT SET APART, so the page reads as a bill rather than as a letter
-  // that mentions money. The figure and the season both come off the lines the
-  // builder assembled from RENT.amount and dateOf — nothing is typed here.
-  const body = l.lines.slice(1).filter((t) => t.trim());
-  const money = body.find((t) => t.includes('$')) ?? '';
-  const when = body.find((t) => t.startsWith('OF ')) ?? '';
-  if (money) {
-    fill(g, '#d8d4c4', P.x + IN, y + 3, TW, 26);
-    g.strokeStyle = '#2a2620'; g.lineWidth = 1;
-    g.strokeRect(P.x + IN + 0.5, y + 3.5, TW - 1, 25);
-    g.fillStyle = '#2a2620'; g.font = UI.font(13, true);
-    g.textAlign = 'center';
-    g.fillText(money.match(/\$[\d,.]+/)?.[0] ?? '', cx, y + 20);
-    g.font = UI.font(6);
-    g.fillText(wrapTo(g, when, TW - 8)[0], cx, y + 27);
-    g.textAlign = 'left';
-    y += 29;
-  }
-  // ⚠ THE REST IS FLOWED AND THE BAND FOLLOWS IT. Same fix as the carbon: the
-  // body wraps to the paper and the band is placed off its foot, not off a
-  // typed row that could land on a line.
-  const end = flow(g, P.x + IN, y + 10, TW, body.filter((t) => t !== money && t !== when), 6, '#332d25');
-  balanceBand(g, P.x + IN, Math.min(end + 4, foot - 20), TW);
-  pastDue(g, P.x + P.w - 36, Math.min(end - 6, foot - 32), 0.72);
+  let y = flow(g, P.x + IN, P.y + 16, TW - 40, [l.from], 7, '#2b2a30', true);
+  y = flow(g, P.x + IN, y + 1, TW, [l.lines[0] ?? ''], 6, '#4a4e56');
+  fill(g, '#8494a0', P.x + IN, y - 3, TW, 1);
+  // the body, whole sentences flowed to the sheet — NOTHING is plucked out.
+  // The sign-off is the one exception: it is set to the right, because that is
+  // where a letter signs.
+  const sig = [...l.lines].reverse().find((t) => t.trim().startsWith('—')) ?? '';
+  const body = l.lines.slice(1).filter((t) => t !== sig);
+  const end = flow(g, P.x + IN, y + 12, TW, body, 6, '#2f2e34');
+  g.textAlign = 'right';
+  g.fillStyle = '#2b2a30'; g.font = UI.font(7, true);
+  g.fillText(sig.trim(), P.x + P.w - IN, Math.min(end + 10, foot - 10));
+  g.textAlign = 'left';
+  // and the one live mark a letter may carry: the stamp, struck when there is
+  // money owing. The balance chip is gone from this piece — see the note above.
+  pastDue(g, P.x + P.w * 0.62, Math.min(end + 26, foot - 24), 0.8);
 };
 
 /**
@@ -2208,14 +2237,21 @@ ART['docket-receipt'] = (g, l) => {
   fill(g, 'rgba(90,84,70,0.55)', x + IN + 4, y + 48, TW - 8, 1);
   g.font = UI.font(6); g.fillStyle = '#5a544a';
   g.fillText('WITH THANKS', x + w / 2 - 12, y + 57);
-  // his initials, in biro, INSIDE the sheet — measured off the paper's own
-  // corner rather than placed at a fixed inset, so a shallow docket keeps them.
+  // his signature, in biro, INSIDE the sheet — measured off the paper's own
+  // corner rather than placed at a fixed inset, so a shallow docket keeps it.
+  // ⚠ A SCRAWL, NOT INITIALS. It signed "V.O." until *"instead of this guys
+  // name just write landlord"* (2026-08-09) took the name off every paper he
+  // touches — and a signature nobody can read is truer to a carbon book than
+  // a legible monogram anyway.
   g.save();
-  g.translate(x + w - 24, y + h - 8);
+  g.translate(x + w - 30, y + h - 10);
   g.rotate(-0.14);
-  g.fillStyle = 'rgba(47,79,140,0.8)'; g.font = UI.font(10, true);
-  g.textAlign = 'center';
-  g.fillText('V.O.', 0, 0);
+  g.strokeStyle = 'rgba(47,79,140,0.8)'; g.lineWidth = 2; g.lineCap = 'round';
+  g.beginPath();
+  g.moveTo(-8, 2);
+  g.bezierCurveTo(-4, -8, 2, 6, 6, -3);
+  g.bezierCurveTo(9, -8, 12, 4, 20, 0);
+  g.stroke();
   g.restore();
   g.textAlign = 'left';
 };
@@ -3345,7 +3381,7 @@ export function register(ctx: CtxBuild): void {
           'were in and did not answer.',
           '',
           'I will come again tomorrow.',
-          `                      — ${RENT.landlord}`,
+          `— ${RENT.landlord}`,
         ],
       };
       HELD.push(l);

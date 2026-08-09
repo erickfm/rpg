@@ -5515,3 +5515,61 @@ brace had the folded-goods back wall built THREE times, straight through the
 crockery shelf that shared the wall. Belt bin and mannequin now cap the
 fixture lines instead of sitting in lanes. `tsc` clean, WORLD OK, live on
 5177.
+
+---
+
+## 2026-08-09 — *"instead of this guys name just write landlord. also what is the text formatting on this? also it doesnt look anything like a letter make it look like an actual letter same as all other mail thats not a flyer. also also whats up with the text below 500. "of spring - 3 days from"? like its nonsensical."*
+
+Four counts against the rent notice, with a screenshot of the piece. All four
+land on the same painter, and the two worst were its own cleverness.
+
+### 1. The name
+
+Every paper the man touches now says **THE LANDLORD** — the sender line, the
+sign-offs on both notices and on the slip pushed under the door, and the
+receipt, which signed "V.O." in biro and now signs an illegible biro scrawl,
+which is truer to a carbon book anyway. One authoring: `RENT.landlord` in
+`ct/calendar.ts` is the string, changed there, read everywhere. The name
+survives only in git history.
+
+### 2. *"whats up with the text below 500"* — the mangled line
+
+**DISMEMBERMENT, NOT A TYPO.** The due date left `mailFor` as two
+half-sentences ("RENT OF $500.00 IS DUE ON THE 5TH" / "OF SPRING — 3 DAYS FROM
+TODAY."). The painter plucked the $-line and printed ONLY its figure in the
+display box, plucked the OF-line as the caption under it, and kept
+`wrapTo(...)[0]` — the first wrapped segment — so "TODAY." fell off the end.
+Half of one sentence, minus its last word, under a number torn out of the other
+half. Both halves of the machinery are gone: the source is one whole sentence —
+*"Rent of $500.00 for SPRING is due on the 5th — 3 days from today."* — and the
+painter plucks nothing.
+
+**Every branch checked against the running world**: notice day prints "3 days
+from today" (or "tomorrow"/"today" if the lead ever moves), and the arrears
+notice prints "Your rent is 1 day late / 4 days late / 13 days late. Arrears
+stand at $500.00." — English at every day count, both kinds.
+
+### 3. *"what is the text formatting on this?"* — the wraps
+
+Source lines were PRE-BROKEN for a 35-column sheet that no longer exists, and
+`flow` re-wrapped each fragment separately at 28 — so every break landed where
+neither the writer nor the wrapper chose it ("I am in the / hall or on the
+stairs. Cash / only."). Same fix as the bank letter: one sentence per source
+entry, wrapped once by measurement on the paper it is actually printed on.
+
+### 4. *"make it look like an actual letter"*
+
+The old painter argued itself into "a BILL at a glance rather than a letter" —
+black masthead with the name reversed out, the amount in a boxed display panel,
+a live balance chip at the foot. All deleted. The piece is now the anatomy of
+every other typed letter in the box: the blue-grey sheet (its identity), fold
+creases, a typed date top right (SPRING 2), the sender over a rule, body
+sentences, and the sign-off set to the right. The amount lives in its sentence.
+
+**The "NOTHING OUTSTANDING TODAY" chip was docket furniture and is off the
+letter.** Live state on correspondence is carried by the PAST DUE rubber stamp
+alone — a mark a landlord actually strikes on a letter. The chip survives on
+the carbon NOTE OF ACCOUNT he hands you, which IS a docket and is where a
+running balance belongs.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
