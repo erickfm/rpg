@@ -1,5 +1,13 @@
 import * as THREE from 'three';
 import type { Input } from './types';
+// the character's DEX, as a walk-speed multiplier — *"speed is derived from
+// dex"* (2026-08-08). `ct/stats.ts` is a PURE LEAF (it imports nothing, its
+// header forbids it ever gaining an import), so this cannot close a cycle;
+// and it answers 1.0 exactly until somebody specs away from the average, so
+// every other world using this body walks precisely as it always did. The
+// range is held to 0.9…1.15 by the stats module itself — doorways, kerbs and
+// the 2 m lane were all tuned at 1.0 and stay reachable across all of it.
+import { speedMul } from './ct/stats';
 
 // Harness-level utilities shared by every take: the first-person rig (the one
 // fixed constraint — you are on foot, wide FOV, on this street) plus a couple
@@ -762,7 +770,7 @@ export class FPRig {
     this.stanceT += ((this.airY > 0 ? AIR_CROUCH_DIP : 1) * this.crouchT - this.stanceT) * Math.min(1, dt * 9);
     const moving = mv.lengthSq() > 0;
     if (moving) {
-      const sp = (input.keys.has('shift') ? this.run : this.speed) * (1 - 0.55 * this.stanceT);
+      const sp = (input.keys.has('shift') ? this.run : this.speed) * speedMul() * (1 - 0.55 * this.stanceT);
       mv.normalize().multiplyScalar(sp * dt);
       const nx = THREE.MathUtils.clamp(this.pos.x + mv.x, this.bounds.minX, this.bounds.maxX);
       if (!this.blocked(nx, this.pos.z, atY)) this.pos.x = nx;
