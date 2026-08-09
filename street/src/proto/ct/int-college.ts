@@ -54,21 +54,25 @@ const OAK_D = '#7a5936';
 //
 // A SIDE-STREET frontage, so this is the `face` form — `ct/int-video.ts` is
 // the precedent and its note is the argument: a position along the roster's z
-// axis means nothing on a face that runs along x. The point below is the
-// painter's own default for this name (doorFrac('COMMUNITY COLLEGE') = 0.82,
-// door centre 8.287 m along the 11 m front, world x 46 + 8.287 = 54.287 on
-// the facade plane z = -110, outward +z) — the room is built FROM the
-// registry at build time, so these typed values are the fallbacks the type
-// requires, not a second authority.
+// axis means nothing on a face that runs along x.
+//
+// CENTRED, AND RECESSED, since the courtyard (2026-08-09, *"feel free to make
+// a little courtyard"*): `BANDS.college` in ct/tex-world.ts centres the door
+// on the 11 m front (world x 51.5), and the whole facade stands
+// `COLLEGE_YARD_D` behind the building line (plane z = -114.5) with the
+// gate–path–doorcase axis of ct/college-yard.ts running straight to it. The
+// room is built FROM the registry at build time, so these typed values are
+// the fallbacks the type requires, not a second authority.
 export const DOOR: DoorDecl = {
-  building: 'COMMUNITY COLLEGE', w: 11, cz: -110, side: 1, at: 2.483,
-  // What the default painter draws in that opening: a timber-framed leaf,
-  // glazed above a solid lower panel. 1.05 is the default band's own `dw`.
+  building: 'COMMUNITY COLLEGE', w: 11, cz: -114.5, side: 1, at: 0,
+  // What collegeFront paints in that opening: a maroon timber DOUBLE leaf,
+  // glazed above the lock rail, under a fanlight. 1.2 is BANDS.college's own
+  // `dw`, so the opening you walk through and the painted one are one number.
   leaf: {
-    clearW: 1.05, h: 2.4, leaves: 1,
-    frame: { colour: 0x4a4034, material: 'timber' }, glazing: 'half',
+    clearW: 1.2, h: 2.4, leaves: 2,
+    frame: { colour: 0x6a2430, material: 'timber' }, glazing: 'half',
   },
-  face: { x: 54.287, z: -110, nx: 0, nz: 1 },
+  face: { x: 51.5, z: -114.5, nx: 0, nz: 1 },
 };
 
 export function buildCollege(ctx: CtxBuild): void {
@@ -82,8 +86,8 @@ export function buildCollege(ctx: CtxBuild): void {
   }
   const W = 9.8;                        // roomWidthFor(11): the kit's own rule
   const K = W / FW.frontageM;
-  const AT = alongU(FW, FW.doorWorld) * K - W / 2;      // ≈ +2.48, east end
-  const standZ = FW.facePos + FW.outward * 0.75;
+  const AT = alongU(FW, FW.doorWorld) * K - W / 2;      // 0.0 — the campus axis
+  const standZ = FW.facePos + FW.outward * 0.75;        // in the courtyard, on the path
 
   const room = buildRoom(ctx, {
     id: 'college',
@@ -103,19 +107,19 @@ export function buildCollege(ctx: CtxBuild): void {
     // six of them, because an evening class is lit like an office, not a shop.
     light: { kind: 'strip', tint: 0xf0f2e6, count: 6 },
     door: {
-      at: AT, r: 1.05,
+      at: AT, r: 1.2,
       x: FW.doorWorld, z: standZ,
-      // The landing goes WEST along the walk (video hut's rule — the door's
-      // own normal points into the carriageway). West, not east: the block's
-      // corner building starts at x 57, 2.7 m from this door.
-      outX: FW.doorWorld - 1.5, outZ: standZ,
+      // You come out ON the courtyard path (ct/college-yard.ts's axis), a
+      // step down it toward the gate — not out along the walk, because the
+      // walk is 4.5 m away across the yard now.
+      outX: FW.doorWorld, outZ: standZ + FW.outward * 1.0,
       // fwd = (sin yaw, −cos yaw): facing the outward normal +z is yaw π.
       outYaw: Math.PI, outGy: ctx.KERB_H,
     },
-    // The shopfront glass west of the door — the glazed run is local
-    // -4.35…+4.35 and the door opening takes 1.96…3.01, so the window is the
-    // big run west of it, stopped 0.3 m short of the opening.
-    window: { at: -1.20, w: 5.7, h: 2.0, sill: 0.5 },
+    // One sash-run of glass west of the centred door — collegeFront paints
+    // two tall windows in each flank; the room's opening is the west pair.
+    // Door opening is local -0.72…+0.72 with its margin; this stops at -0.9.
+    window: { at: -2.55, w: 3.3, h: 2.0, sill: 0.5 },
   });
 
   const { put, solid } = room;
@@ -151,9 +155,9 @@ export function buildCollege(ctx: CtxBuild): void {
   // ══ THE FLOOR PLAN, AND THE LANE ARITHMETIC ════════════════════════════════
   //
   // The 2 m lane is sacred indoors. Room is 9.8 x 12.0, hw 4.9, hd 6.0; the
-  // door lands you at local x +2.48 on the front wall.
+  // door lands you at local x 0 on the front wall — the campus axis.
   //
-  //   z  6.00   the front wall: door at +2.48, glass -4.05 … +1.65
+  //   z  6.00   the front wall: door at 0, glass -4.20 … -0.90
   //             ── 3.60 m ──                       the lobby
   //   z  2.40   the registrar counter, front face  (x -4.35 … -0.35)
   //   z  1.70   …and its back face
@@ -181,8 +185,9 @@ export function buildCollege(ctx: CtxBuild): void {
   //
   // Stud wall to the ceiling, painted the room's own wall tone with the
   // maroon dado line a corridor of this period always has — one line at rail
-  // height and a kick at the floor. The corridor gap (x +1.9 … +4.9) is on the
-  // door's side, so you walk straight in past the office and into the class.
+  // height and a kick at the floor. The corridor gap (x +1.9 … +4.9) is east
+  // of the centred door: you walk in on the axis, the counter ahead-left, the
+  // way to the classroom a half-turn to your left.
   const partT = declareSurface(pixTex(64, 32, (g) => {
     g.fillStyle = '#d8d2c0'; g.fillRect(0, 0, 64, 32);
     // canvas covers 3.4 x 1.7 m at the repeat below: dado at ~1.1 m, kick at 0

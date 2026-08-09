@@ -598,6 +598,12 @@ const BANDS = {
   // chest height against the back wall, so it gains nothing from low glass —
   // what it wants is a DEEP fascia, because the sign is the whole shop.
   video: { fy: 0.09, fh: 1.02, ox: 0.38, og: 0.18, gi: 0.22, sg: 0.57, dw: 1.05 },
+  // The college is CIVIC, not retail: the fascia band is a cast-stone frieze
+  // with the name incised in it, the "glazing" is four sash windows either
+  // side of a doorcase, and the door is a 1.2 m double leaf — wider than any
+  // shop's because an evening class arrives two abreast. Everything else is
+  // the default band so the relief mouldings frame it like its neighbours.
+  college: { fy: 0.10, fh: 0.92, ox: 0.40, og: 0.18, gi: 0.22, sg: 0.57, dw: 1.2 },
 } as const;
 type Character = keyof typeof BANDS;
 
@@ -611,6 +617,7 @@ function characterOf(name: string): Character {
   if (name === 'SLEEP CENTER') return 'mattress';
   if (name === 'VOLT VILLAGE') return 'electro';
   if (name === 'VIDEO HUT') return 'video';
+  if (name === 'COMMUNITY COLLEGE') return 'college';
   return 'default';
 }
 
@@ -718,6 +725,9 @@ function layoutOf(name: string, wMeters: number): Layout {
   // door LEFT edge along the glazing, by character
   const dx =
     k === 'burger' ? glazingStartM + gw * 0.5 - dw / 2 :
+    // dead centre, because a campus entrance is AXIAL: the courtyard gate,
+    // the path and the doorcase are one line (ct/college-yard.ts walks it)
+    k === 'college' ? glazingStartM + gw * 0.5 - dw / 2 :
     k === 'tax' ? glazingStartM + gw * 0.72 :
     k === 'diner' ? glazingEndM - dw - 0.15 :
     k === 'thrift' ? glazingStartM + 0.2 :
@@ -1359,6 +1369,7 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
   if (name === 'THRIFT') return thriftFront(brick, name, awning, wMeters);
   if (name === 'VOLT VILLAGE') return electroFront(brick, name, wMeters);
   if (name === 'VIDEO HUT') return videoFront(brick, name, wMeters);
+  if (name === 'COMMUNITY COLLEGE') return collegeFront(brick, wMeters);
   const surf = masonry(wMeters, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   // The block default. It should NOT have a character — a barber, a deli and
@@ -2877,6 +2888,122 @@ const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
       g.fillRect(ox + Math.round((ow * i) / panels), ry + m(0.1), Math.max(1, m(0.09)), rh - m(0.2));
     }
     g.fillStyle = 'rgba(28,24,18,0.34)'; g.fillRect(ox, H - m(0.2), ow, m(0.2));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 5));
+  });
+};
+
+/**
+ * CROSSTOWN COMMUNITY COLLEGE — a CIVIC front, not a shop.
+ *
+ * *"hey please improve the ourdoor facade of the community college … make it
+ *  nice. a little quiant campus."*   (2026-08-09)
+ *
+ * The register is the library's and the church's — the block's two civic
+ * anchors — without copying either: masonry openings punched in brick, cast
+ * stone where they said stone, and the name CARVED, not signwritten. What
+ * sells "campus" at 8 px/m is three things and this paints exactly those:
+ *
+ *   1. the NAME IN A STONE FRIEZE where every shop hangs a painted fascia —
+ *      an institution's name is part of the building, not applied to it;
+ *   2. TALL SASH WINDOWS in pairs with stone sills and lintels, WARM-LIT,
+ *      because the whole building type reads at dusk as "evening classes";
+ *   3. an AXIAL DOORCASE — stone pilasters, a fanlight, a 1.2 m double leaf —
+ *      dead centre, on one line with the courtyard gate and path that
+ *      `ct/college-yard.ts` builds in front of it.
+ *
+ * Geometry answers to BANDS.college through `frontageOf`, so the relief
+ * mouldings and the room's door (ct/int-college.ts) frame what is painted.
+ * MAROON is the roster colour and is spent only on the doors and the lamp
+ * brackets — stone and brick carry everything else, which is the difference
+ * between a college and a franchise.
+ */
+export const collegeFront = (brick: string, wM: number) => {
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const F = frontageOf('COMMUNITY COLLEGE', wM);
+  const STONE = '#d3c9ae', STONE_D = '#b0a68b', MAROON = '#6a2430';
+  const GLOW = '#7a6238';                       // a lit classroom behind glass
+  return surf.paint((g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
+    surf.courses(g);
+    const B = BANDS.college;
+    const fy = m(B.fy), fh = m(B.fh);
+    // ── the frieze: cast stone, name incised ────────────────────────────────
+    proud(g, surf, m(0.25), fy, W - m(0.5), fh, STONE);
+    g.fillStyle = STONE_D;
+    g.fillRect(m(0.25), fy + m(0.10), W - m(0.5), Math.max(1, m(0.045)));
+    g.fillRect(m(0.25), fy + fh - m(0.14), W - m(0.5), Math.max(1, m(0.045)));
+    g.font = `bold ${m(0.40)}px monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    // incised: the dark cut first, the lit lower edge under it
+    g.fillStyle = 'rgba(250,244,225,0.35)';
+    g.fillText('CROSSTOWN COMMUNITY COLLEGE', W / 2, fy + fh * 0.52 + m(0.045));
+    g.fillStyle = '#5a4f3c';
+    g.fillText('CROSSTOWN COMMUNITY COLLEGE', W / 2, fy + fh * 0.52);
+    // ── the doorcase, dead centre ───────────────────────────────────────────
+    const dcM = F.doorCentreM, dwM = F.doorWidthM;
+    const dL = m(dcM - dwM / 2), dR = m(dcM + dwM / 2), dw = dR - dL;
+    const oy = fy + fh + m(B.og);                // head of the openings
+    const pilW = m(0.34);
+    proud(g, surf, dL - pilW, oy, pilW, H - oy - m(0.05), STONE);   // pilasters
+    proud(g, surf, dR, oy, pilW, H - oy - m(0.05), STONE);
+    proud(g, surf, dL - pilW - m(0.10), oy, dw + 2 * pilW + m(0.20), m(0.30), STONE);  // entablature
+    g.fillStyle = STONE_D;                                          // its shadow line
+    g.fillRect(dL - pilW - m(0.10), oy + m(0.30), dw + 2 * pilW + m(0.20), Math.max(1, m(0.06)));
+    // the fanlight, warm, with radiating bars — the last window lit at night
+    const fanY = oy + m(0.42), fanH = m(0.50);
+    reveal(g, surf, dL, fanY, dw, fanH);
+    g.fillStyle = GLOW; g.fillRect(dL + m(0.05), fanY + m(0.05), dw - m(0.10), fanH - m(0.10));
+    g.fillStyle = 'rgba(40,30,20,0.75)';
+    for (let i = 1; i < 4; i++)
+      g.fillRect(dL + Math.round((dw * i) / 4), fanY + m(0.05), Math.max(1, m(0.05)), fanH - m(0.10));
+    // the double leaf: maroon timber, glazed above the lock rail, panelled below
+    const doorY = fanY + fanH + m(0.08), doorH = H - doorY - m(0.06);
+    reveal(g, surf, dL, doorY, dw, doorH);
+    g.fillStyle = MAROON; g.fillRect(dL + m(0.03), doorY, dw - m(0.06), doorH);
+    g.fillStyle = 'rgba(255,240,220,0.14)'; g.fillRect(dL + m(0.03), doorY, dw - m(0.06), Math.max(1, m(0.05)));
+    const stile = Math.max(1, m(0.06));
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(Math.round((dL + dR) / 2), doorY, stile, doorH);
+    for (const lx of [dL + m(0.14), Math.round((dL + dR) / 2) + stile + m(0.08)]) {
+      const lw = dw / 2 - m(0.25);
+      g.fillStyle = GLOW; g.fillRect(lx, doorY + m(0.10), lw, m(0.85));          // vision glass
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(lx, doorY + m(1.05), lw, m(0.60));  // the panel
+    }
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(dL, H - m(0.30), dw, m(0.24));  // kick plates
+    g.fillStyle = '#c8b06a';                                                     // brass pulls
+    g.fillRect(Math.round((dL + dR) / 2) - m(0.16), doorY + m(1.12), Math.max(1, m(0.05)), m(0.28));
+    g.fillRect(Math.round((dL + dR) / 2) + stile + m(0.11), doorY + m(1.12), Math.max(1, m(0.05)), m(0.28));
+    // two lantern brackets on the pilasters, lit — evening classes
+    for (const lx of [dL - pilW / 2, dR + pilW / 2]) {
+      g.fillStyle = '#3a332a'; g.fillRect(lx - m(0.09), oy + m(0.85), m(0.18), m(0.30));
+      g.fillStyle = '#f2c86a'; g.fillRect(lx - m(0.06), oy + m(0.90), m(0.12), m(0.20));
+    }
+    // ── the sash windows, two each side, warm-lit ───────────────────────────
+    const winY = oy + m(0.22), winB = H - m(0.65);                  // head … sill
+    const sillY = winB, winH = winB - winY;
+    const westRun: [number, number] = [m(0.62), dL - pilW - m(0.10)];
+    const eastRun: [number, number] = [dR + pilW + m(0.10), W - m(0.62)];
+    for (const [a, b] of [westRun, eastRun]) {
+      const run = b - a, ww = m(1.40), gap = (run - 2 * ww) / 3;
+      for (let i = 0; i < 2; i++) {
+        const x = Math.round(a + gap + i * (ww + gap));
+        proud(g, surf, x - m(0.06), winY - m(0.14), ww + m(0.12), m(0.14), STONE);   // lintel
+        reveal(g, surf, x, winY, ww, winH);
+        g.fillStyle = '#efe8d4'; g.fillRect(x, winY, ww, winH);                       // frame
+        const gx = x + m(0.07), gy2 = winY + m(0.07), gw2 = ww - m(0.14), gh2 = winH - m(0.14);
+        glazed(g, surf, gx, gy2, gw2, gh2, GLOW);
+        g.fillStyle = 'rgba(58,48,36,0.80)';                                          // sash bars
+        for (let c = 1; c < 3; c++) g.fillRect(gx + Math.round((gw2 * c) / 3), gy2, Math.max(1, m(0.045)), gh2);
+        for (let r = 1; r < 4; r++) g.fillRect(gx, gy2 + Math.round((gh2 * r) / 4), gw2, Math.max(1, m(0.045)));
+        g.fillStyle = 'rgba(0,0,0,0.35)';                                             // meeting rail
+        g.fillRect(gx, gy2 + Math.round(gh2 / 2) - 1, gw2, Math.max(2, m(0.08)));
+        proud(g, surf, x - m(0.08), sillY, ww + m(0.16), m(0.12), STONE);             // sill
+        g.fillStyle = STONE_D; g.fillRect(x - m(0.08), sillY + m(0.12), ww + m(0.16), Math.max(1, m(0.04)));
+      }
+    }
+    // ── the plinth the whole front stands on ────────────────────────────────
+    proud(g, surf, 0, H - m(0.28), W, m(0.23), STONE_D);
+    g.fillStyle = 'rgba(28,24,18,0.30)'; g.fillRect(0, H - m(0.10), W, m(0.10));
     dither(g, W, H, Math.round(wM * SHOP_BAND_H * 5));
   });
 };

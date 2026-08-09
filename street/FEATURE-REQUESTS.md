@@ -5705,3 +5705,26 @@ Kept: rubber floor, mirror wall (now under a CROSSTOWN | FITNESS logo band),
 dumbbell rack, sign-in book, trainer. Added: entry mat, wall clock, towels,
 a decor flat bench under the east glass. Save slice migrates: old lastStrDay
 carries to the press, the old treadmill day is dropped.
+
+## 2026-08-09 — *"hey please improve the ourdoor facade of the community college. feel free to make a little courtyard. make it nice. a little quiant campus."*
+
+To this builder (the college is mine). The shell is RECESSED 4.5 m behind the
+building line (`ct/street.ts` shifts one `placeBldZ` argument; shells are
+14–23.5 m deep, so the court is carved from the building's own depth and the
+sacred 2 m walk is untouched). The notch between SMOKES' and the corner
+block's party walls is now a walled forecourt, built by the new leaf
+`src/proto/ct/college-yard.ts`: clay-paviour paving, a stone-flag path on the
+gate–door axis, a 0.82 m brick wall with stone coping, two gate piers with
+lit lanterns, a masonry name stub (CROSSTOWN COMMUNITY COLLEGE · EST 1971 ·
+EVENING DIVISION), a glazed notice board, two beds of maroon-and-gold
+planting, two young trees in brick planters, and two benches facing the path.
+The facade itself left the default shopfront register: `collegeFront` in
+`ct/tex-world.ts` paints a civic front — the name incised in a cast-stone
+frieze, four warm-lit sash windows with stone sills and lintels, and a
+centred stone doorcase with a fanlight and a maroon double leaf
+(`BANDS.college`, dw 1.2). The interior door follows the registry to the new
+centred, recessed position (`ct/int-college.ts` — window shifted west, r 1.2).
+Coordination note: the gym builder's commits 4a505c57 and 3e11f52b each swept
+in this builder's in-flight `ct/street.ts` hunks (staged whole-file while
+shared); 3e11f52b therefore imports `ct/college-yard.ts` one commit before the
+file lands here.
