@@ -406,7 +406,7 @@ export function makeCrosstown(): Proto {
    *  moving occluder can invalidate one, so this is the reaction time of the
    *  prompt to somebody walking in front of it. */
   const SEE_TTL = 0.10;
-  const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
+  const purse: Purse = { cash: 14.5, inv: {} }; // some cash, empty pockets
   const hud = makeHud(purse);
   // Modules that answer for a patch of floor. Asked in declared order, first
   // non-null wins — see ctx.ground. The entry point no longer names any of
