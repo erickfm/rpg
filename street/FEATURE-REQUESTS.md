@@ -5027,3 +5027,21 @@ door-muffling) untouched, as it keys off the same single bed.
 The one surviving copy of the OLD recording was a stale local `dist/` build
 from 2026-08-05 (gitignored, served nowhere); its `rain.ogg` was deleted so the
 old rain no longer exists on disk. No source change was needed.
+
+## 2026-08-08 — *"lets track the following stats (health, current cash on hand) put them on a hud overlay pls."*
+
+Went to a builder. A stats strip now sits top-left, always on: a flat brick-red
+health bar (no caption — the bar is the caption) with cash on hand under it in
+the world's own till format (`$14.50`, off `purse.cash`, the pocket — not the
+bank account, which stays the ATM's business). DOM like the prompt/note/stamp,
+integer offsets so the type stays crisp, z 12 so a panel backdrop dims it and
+it can never cover a machine screen, chat bubble or the `[E]` line;
+`pointer-events:none` so it can trap nothing. The F frame-rate readout moved
+down a row (top 8 → 44) so the two never overlap. Health did not exist before:
+`ct/health.ts` is a new leaf module (imports nothing, like wardrobe/body) —
+100/100 by default, clamped, whole points, `damage`/`heal`/`setHealth`/
+`onHealthChange` as the API for whatever hurts the player later, `__health` on
+the console. Persisted as a `health` slice in `ct/save.ts`'s builtins; NEW
+GAME needs no entry — the `ct-save` wipe is total and the reload resets the
+default, per `ct/newgame.ts`'s own table. Nothing damages the player today, so
+it sits at full — the ask was to track it.

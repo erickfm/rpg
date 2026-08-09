@@ -9,6 +9,8 @@ import { worn, onWardrobeChange } from './wardrobe';
 // a leaf that imports nothing, exactly like `./wardrobe` and for the same
 // reason (GOTCHAS §28) — see its header.
 import { skin as bodySkin, onBodyChange } from './body';
+// a third leaf, same rule, same reason — the stats strip below reads it.
+import { health, maxHealth, onHealthChange } from './health';
 
 // ── the sky the clock drags around, the watch, and the wallet ─────────────
 //
@@ -2936,6 +2938,64 @@ export function makeHud(purse: Purse): Hud {
     stampDiv.textContent = `${SHA}${DIRTY ? '+' : ''} ${p2(t.getHours())}:${p2(t.getMinutes())}`;
   }
 
+  // ── the stats strip: health, and cash on hand ─────────────────────────────
+  //
+  // *"lets track the following stats (health, current cash on hand) put them
+  //  on a hud overlay pls."*   (2026-08-08)
+  //
+  // Top-left, the corner nothing else draws in (the F readout moved down a row
+  // to keep that true). Two lines and no captions: a red bar IS health and a
+  // `$` IS cash — a label on either is the floating-widget look that got the
+  // corner audio panel deleted. DOM rather than canvas, because a rect and a
+  // line of type are exactly what the browser already draws crisp (the prompt,
+  // the note and the stamp all made the same call), and every offset is a
+  // whole px so the type never lands on a half pixel.
+  //
+  // z 12 — over the night wash (5) and the watch (11), UNDER the panel
+  // backdrop (14), the prompt (16) and the fade (20). A panel dims it with the
+  // rest of the world, so it can never sit on top of a machine screen, a chat
+  // bubble or the [E] line; `pointer-events:none`, so it can never trap input.
+  //
+  // The bar's ink is the world's brick red, flat — no gradient, no glow, and
+  // no low-health colour states invented ahead of anything that deals damage.
+  // Cash prints the way every till in this world already prints it:
+  // `shop.ts`'s `$xx.xx`, signed if a loan ever takes the purse negative.
+  const BAR_W = 84, BAR_H = 6;
+  let statsDiv = document.getElementById('ct-stats') as HTMLDivElement | null;
+  if (!statsDiv) {
+    statsDiv = document.createElement('div');
+    statsDiv.id = 'ct-stats';
+    document.body.appendChild(statsDiv);
+  }
+  // styled and rebuilt UNCONDITIONALLY, like the prompt's z fix above: a HUD
+  // built over a live one (every HMR save) reuses the old node and must not
+  // trust anything it carries.
+  statsDiv.style.cssText = 'position:fixed;left:10px;top:8px;z-index:12;pointer-events:none;';
+  statsDiv.innerHTML = '';
+  const hpBox = document.createElement('div');
+  // a dark hairline outside so it reads against the sky, a 1 px well inside so
+  // a part-full bar shows how much is gone — the classic '97 health bar.
+  hpBox.style.cssText = `width:${BAR_W}px;height:${BAR_H}px;padding:1px;`
+    + 'border:1px solid rgba(0,0,0,.55);background:rgba(10,14,12,.6);';
+  const hpFill = document.createElement('div');
+  hpFill.style.cssText = `height:${BAR_H}px;width:${BAR_W}px;background:#c2503e;`;
+  hpBox.appendChild(hpFill);
+  const cashDiv = document.createElement('div');
+  cashDiv.style.cssText = 'margin-top:4px;font:bold 13px/1 ui-monospace,Menlo,monospace;'
+    + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
+  statsDiv.appendChild(hpBox);
+  statsDiv.appendChild(cashDiv);
+  const paintStats = (): void => {
+    hpFill.style.width = `${Math.round((health() / maxHealth()) * BAR_W)}px`;
+    const c = purse.cash;
+    cashDiv.textContent = `${c < 0 ? '-' : ''}$${Math.abs(c).toFixed(2)}`;
+  };
+  onHealthChange(paintStats);
+  // fired by `refreshWallet`, which everything that spends or earns already
+  // calls — the whole reason PURSE_WATCH exists (see its note above).
+  onPurseChange(paintStats);
+  paintStats();
+
   const hud: Hud = {
     skyAt, nightAt,
     // The wash is now a THIN cool cast, not the darkness itself. It used to
@@ -3018,10 +3078,11 @@ export function makeHud(purse: Purse): Hud {
         fpsDiv = document.createElement('div');
         // Top-LEFT, deliberately. The watch is bottom-centre, the wallet
         // bottom-centre, the prompt bottom-centre and the caption under the
-        // panel glass — the top-left corner is the one place nothing else in
-        // this world ever draws, so the readout cannot cover something the
-        // player is trying to read while diagnosing a stutter.
-        fpsDiv.style.cssText = 'position:fixed;left:10px;top:8px;z-index:20;pointer-events:none;'
+        // panel glass — top-left is the quietest corner, so the readout cannot
+        // cover something the player is trying to read while diagnosing a
+        // stutter. `top:44` clears the stats strip (2026-08-08), which now
+        // holds the top of that corner: 8 + a 10 px bar + 4 + a 13 px line.
+        fpsDiv.style.cssText = 'position:fixed;left:10px;top:44px;z-index:20;pointer-events:none;'
           + 'font:11px ui-monospace,monospace;color:#9cab8b;background:rgba(10,14,12,0.55);'
           + 'padding:3px 7px;border-radius:3px;letter-spacing:.5px;white-space:pre;';
         document.body.appendChild(fpsDiv);

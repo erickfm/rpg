@@ -2,6 +2,7 @@ import { BUILD, type CtxBuild } from './ctx';
 import { drawerStock, drawerTake, drawerPut } from './inventory';
 import { SLOTS, options, wornIndex, wear, onWardrobeChange, type Slot } from './wardrobe';
 import { captureBody, restoreBody, onBodyChange } from './body';
+import { health, setHealth, onHealthChange } from './health';
 import { wiped, onWipe } from './newgame';
 
 // ══ THE SAVE ═══════════════════════════════════════════════════════════════
@@ -467,12 +468,26 @@ function builtins(ctx: CtxBuild): void {
     restore: (v) => { if (v && typeof v === 'object') restoreBody(v); },
   });
 
+  // ── HEALTH ─────────────────────────────────────────────────────────────
+  //
+  // One number off `ct/health.ts`, a leaf like the wardrobe and the body, so
+  // the slice lives here for the same reason theirs do. Restored exactly —
+  // `setHealth` clamps and rounds, so a corrupt blob cannot land him outside
+  // 0…max. NEW GAME needs no entry anywhere: the wipe of `ct-save` is total
+  // and the reload puts the module local back at full, which is the rule
+  // `ct/newgame.ts`'s own table states.
+  registerSlice<{ hp: number }>('health', {
+    capture: () => ({ hp: health() }),
+    restore: (v) => { if (v && typeof v.hp === 'number') setHealth(v.hp); },
+  });
+
   // Changing your clothes is the one thing a player can do that the ten-second
   // tick would otherwise be the only witness to, and the wardrobe already
   // publishes a change signal. Free, so take it. Your body changes far more
   // rarely — once, at creation — but the signal is there and costs nothing.
   onWardrobeChange(() => { flush(); });
   onBodyChange(() => { flush(); });
+  onHealthChange(() => { flush(); });
 }
 
 // ── boot ──────────────────────────────────────────────────────────────────
