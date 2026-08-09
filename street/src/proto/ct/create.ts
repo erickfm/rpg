@@ -61,6 +61,7 @@ import {
 import { paintFigure } from './mirror';
 import { resetOutfit } from './wardrobe';
 import { TRAITS, TRAIT_NAME, traitName, cycleTrait } from './body';
+import { STAT_NAMES, STAT_LABEL, stat, specStep, pointsLeft } from './stats';
 
 /**
  * ── WHEN THIS RUNS, AND WHEN IT MUST NOT ──────────────────────────────────
@@ -163,6 +164,20 @@ const LINES: Line[] = [
     value: () => traitName(t),
     step: (d) => cycleTrait(t, d),
   })),
+  // ── SECTION II: THE FIVE APTITUDES ─────────────────────────────────────
+  //
+  // *"you can spec them on start. make a spider chart actually."* (2026-08-08)
+  //
+  // Same gesture as every other row — ◀▶ steps, and `ct/stats.ts`'s
+  // `specStep` is the budget: up only while the 30-point pool has a point
+  // left, down only to 1. These rows are the short ruled lines on the left;
+  // the PENTAGON printed beside them re-plots in ballpoint as they move,
+  // because a chart that lags its own form is a broken instrument.
+  ...STAT_NAMES.map((s): Line => ({
+    label: STAT_LABEL[s],
+    value: () => String(stat(s)),
+    step: (d) => specStep(s, d),
+  })),
   {
     label: 'SIGN',
     value: () => '',
@@ -172,6 +187,8 @@ const LINES: Line[] = [
 
 /** row indexes the painter treats specially */
 const ROW_NAME = 0, ROW_HAND = 1, ROW_SIGN = LINES.length - 1;
+/** first aptitude row — these get the short rule and the narrow highlighter */
+const ROW_STAT0 = 2 + TRAITS.length;
 
 // ── THE DESK, THE PAPER, THE PHOTO — every number is a texel ───────────────
 //
@@ -180,10 +197,20 @@ const ROW_NAME = 0, ROW_HAND = 1, ROW_SIGN = LINES.length - 1;
 
 /** the paper sheet — US-letter proportions, and deliberately NOT square */
 const PAPER_X = 14, PAPER_Y = 8, PAPER_W = 172, PAPER_H = 224;
-/** rows: baselines down the form. Uniform, because the click map divides by it */
-const ROW_Y = 64, ROW_H = 17, ROW_X = 24;
+/** rows: baselines down the form. Uniform, because the click map divides by
+ *  it. 13 px and not the old 17: SECTION II added five rows and a chart to
+ *  the same sheet, and a second page would cost more than tighter type —
+ *  this is still a municipal form, and municipal forms are cramped. */
+const ROW_Y = 50, ROW_H = 13, ROW_X = 24;
 /** where typed values start, and where the ruled lines run to */
 const VAL_X = 70, LINE_R = PAPER_X + PAPER_W - 12;
+/** aptitude rows stop their rule and highlighter here — the chart owns the
+ *  right half of the section */
+const STAT_R = 100;
+/** the pentagon: centre and outer radius (a value of 10), sharing the section
+ *  with the five short rows. Every plotted point is `Math.round`ed — the
+ *  blur lesson (`ct/body.ts`) applies to a chart as much as to a photo. */
+const CH_CX = 138, CH_CY = 172, CH_R = 26;
 /** the instant photo — frame, then the image inset with the fat film bottom */
 const PH_X = 196, PH_Y = 24, PH_W = 106, PH_H = 158;
 const IMG_X = PH_X + 8, IMG_Y = PH_Y + 8, IMG_W = 90, IMG_H = 116;
@@ -235,6 +262,30 @@ function fitText(g: CanvasRenderingContext2D, text: string, x: number, y: number
   }
 }
 
+/** a 1 px line plotted a texel at a time (Bresenham) — the chart's rings and
+ *  pen strokes go through here so the one instrument on the sheet has the
+ *  same hard pixels as the type around it. Caller sets `fillStyle`. */
+function pixLine(g: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): void {
+  const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (;;) {
+    g.fillRect(x0, y0, 1, 1);
+    if (x0 === x1 && y0 === y1) return;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+/** vertex k of a pentagon of radius r — k 0 at the top, then clockwise, the
+ *  same order as the five rows: INT up, STR, CHA, DEX, CON. Rounded HERE so
+ *  rings, spokes, plot and dots all agree on the same texel. */
+function chVert(r: number, k: number): [number, number] {
+  const a = -Math.PI / 2 + k * (2 * Math.PI / 5);
+  return [Math.round(CH_CX + r * Math.cos(a)), Math.round(CH_CY + r * Math.sin(a))];
+}
+
 /** an X in a checkbox, drawn a pixel at a time — a diagonal through the
  *  antialiaser would be the one soft edge on the sheet */
 function checkbox(g: CanvasRenderingContext2D, x: number, y: number, on: boolean): void {
@@ -270,12 +321,61 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   g.fillRect(PAPER_X + PAPER_W - 1, PAPER_Y, 1, PAPER_H);
 
   // letterhead — what the form is, said once, by the form
-  fitText(g, 'CITY OF CROSSTOWN', PAPER_X + PAPER_W / 2, 26, PAPER_W - 20, 10, PRINT_DK, true);
-  fitText(g, 'RESIDENT CARD APPLICATION', PAPER_X + PAPER_W / 2, 38, PAPER_W - 20, 8, PRINT, true);
-  g.fillStyle = PRINT_DK; g.fillRect(PAPER_X + 10, 43, PAPER_W - 20, 2);
-  g.fillStyle = RULE; g.fillRect(PAPER_X + 10, 47, PAPER_W - 20, 1);
+  fitText(g, 'CITY OF CROSSTOWN', PAPER_X + PAPER_W / 2, 24, PAPER_W - 20, 10, PRINT_DK, true);
+  fitText(g, 'RESIDENT CARD APPLICATION', PAPER_X + PAPER_W / 2, 34, PAPER_W - 20, 8, PRINT, true);
+  g.fillStyle = PRINT_DK; g.fillRect(PAPER_X + 10, 38, PAPER_W - 20, 2);
+  g.fillStyle = RULE; g.fillRect(PAPER_X + 10, 41, PAPER_W - 20, 1);
   g.font = font(8); g.fillStyle = STAMP_RED;
   g.textAlign = 'right'; g.fillText('FORM R-9', LINE_R, 16); g.textAlign = 'left';
+
+  // ── SECTION II's printed instrument: the pentagon, then the pen ──────
+  //
+  // Drawn BEFORE the fields so the highlighter swipe lands over it the way a
+  // marker lands over print. Rings and spokes are the form's own faint ink;
+  // the applicant's spec goes on in ballpoint — dots at the five values,
+  // pen-ruled joins, and a light blue wash inside (the wash is the one
+  // path-filled shape here, and the pen lines over it keep its edge honest).
+  const sectY = ROW_Y + (ROW_STAT0 - 1) * ROW_H + 4;     // between SKIN and INT
+  g.fillStyle = RULE; g.fillRect(PAPER_X + 10, sectY, PAPER_W - 20, 1);
+  g.fillStyle = RULE;
+  for (let k = 0; k < 5; k++) {
+    const [vx, vy] = chVert(CH_R, k);
+    pixLine(g, CH_CX, CH_CY, vx, vy);                    // spokes
+  }
+  for (let v = 2; v <= 10; v += 2) {                     // rings at 2,4,6,8,10
+    g.fillStyle = v === 10 ? PRINT : RULE;
+    for (let k = 0; k < 5; k++) {
+      const [ax, ay] = chVert((CH_R * v) / 10, k);
+      const [bx, by] = chVert((CH_R * v) / 10, (k + 1) % 5);
+      pixLine(g, ax, ay, bx, by);
+    }
+  }
+  // axis labels, in the form's small print, at the five points
+  g.font = font(8); g.fillStyle = PRINT;
+  const CH_LAB: [number, number, CanvasTextAlign][] = [
+    [CH_CX, CH_CY - CH_R - 4, 'center'],                 // INT, above the top
+    [CH_CX + 28, CH_CY - 5, 'left'],                     // STR
+    [CH_CX + 18, CH_CY + 30, 'left'],                    // CHA
+    [CH_CX - 18, CH_CY + 30, 'right'],                   // DEX
+    [CH_CX - 28, CH_CY - 5, 'right'],                    // CON
+  ];
+  STAT_NAMES.forEach((s, k) => {
+    const [lx, ly, al] = CH_LAB[k];
+    g.textAlign = al; g.fillText(STAT_LABEL[s], lx, ly);
+  });
+  g.textAlign = 'left';
+  // the plot: wash first, then pen lines, then the dots on top
+  const plot = STAT_NAMES.map((s, k) => chVert((CH_R * stat(s)) / 10, k));
+  g.fillStyle = 'rgba(43,63,126,0.14)';
+  g.beginPath();
+  plot.forEach(([px, py], k) => { if (k === 0) g.moveTo(px, py); else g.lineTo(px, py); });
+  g.closePath(); g.fill();
+  g.fillStyle = PEN;
+  plot.forEach(([ax, ay], k) => {
+    const [bx, by] = plot[(k + 1) % 5];
+    pixLine(g, ax, ay, bx, by);
+  });
+  for (const [px, py] of plot) g.fillRect(px - 1, py - 1, 2, 2);
 
   // ── the fields ───────────────────────────────────────────────────────
   let y = ROW_Y;
@@ -287,6 +387,22 @@ function paintCreate(g: CanvasRenderingContext2D): void {
       g.fillStyle = PRINT_DK; g.fillRect(ROW_X + 14, y + 3, LINE_R - ROW_X - 14, 1);
       g.font = font(8); g.fillStyle = RULE;
       g.fillText('APPLICANT SIGNATURE', ROW_X + 14, y + 13);
+      // unspent aptitude points, flagged where a clerk would flag them — in
+      // the office's own red, sitting ON the empty end of the line you are
+      // about to sign (the label below is wide; the line above is blank).
+      // Signing anyway is allowed; an average man is 5s across the board.
+      const pts = pointsLeft();
+      if (pts > 0) {
+        g.fillStyle = STAMP_RED;
+        g.fillText(`${pts} PTS TO PLACE`, ROW_X + 18, y + 1);
+      }
+    } else if (i >= ROW_STAT0) {
+      // an aptitude row: same label, a SHORT rule (the chart owns the right
+      // of this section), and the value is one typed digit
+      g.font = font(8); g.fillStyle = PRINT;
+      g.fillText(l.label, ROW_X, y);
+      g.fillStyle = RULE; g.fillRect(VAL_X - 2, y + 3, STAT_R - VAL_X + 2, 1);
+      fitText(g, l.value(), VAL_X + 2, y, STAT_R - VAL_X - 4, 9, TYPED);
     } else {
       g.font = font(8); g.fillStyle = PRINT;
       g.fillText(l.label, ROW_X, y);
@@ -304,19 +420,20 @@ function paintCreate(g: CanvasRenderingContext2D): void {
     }
     // ── the highlighter, on whichever field is in hand ───────────────
     // two overlapping strokes at low alpha, offset a texel, because one clean
-    // rectangle is a UI and two lazy passes are a marker
+    // rectangle is a UI and two lazy passes are a marker. On an aptitude row
+    // the swipe stops where its rule does — a marker dragged across the
+    // chart would say the CHART is in hand, and it is not.
     if (i === sel) {
+      const swR = i >= ROW_STAT0 && i !== ROW_SIGN ? STAT_R + 4 : LINE_R;
       g.fillStyle = 'rgba(255,222,74,0.30)';
-      g.fillRect(ROW_X - 4, y - 9, LINE_R - ROW_X + 6, 12);
-      g.fillRect(ROW_X - 2, y - 8, LINE_R - ROW_X + 2, 12);
+      g.fillRect(ROW_X - 4, y - 9, swR - ROW_X + 6, 12);
+      g.fillRect(ROW_X - 2, y - 8, swR - ROW_X + 2, 12);
     }
     y += ROW_H;
   });
 
   // small print — the only instructions, and they are the form's own
-  g.font = font(8); g.fillStyle = FAINT;
-  g.fillText('▲▼ FIELD   ◀▶ CHANGE', ROW_X, 212);
-  g.fillText('SCROLL TURN   ENTER SIGN', ROW_X, 223);
+  fitText(g, '▲▼ FIELD  ◀▶ CHANGE  SCROLL TURN  ENTER SIGN', ROW_X, 229, LINE_R - ROW_X, 8, FAINT);
 
   // ── the photo ────────────────────────────────────────────────────────
   g.fillStyle = 'rgba(0,0,0,0.28)';
@@ -464,7 +581,7 @@ function onClick(e: MouseEvent): void {
     paint();
     return;
   }
-  const i = Math.floor((y - (ROW_Y - 11)) / ROW_H);
+  const i = Math.floor((y - (ROW_Y - 10)) / ROW_H);
   if (i < 0 || i >= LINES.length) return;
   if (i === sel) LINES[sel].step(1); else sel = i;
   if (active) paint();
