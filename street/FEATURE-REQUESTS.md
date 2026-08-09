@@ -5881,3 +5881,22 @@ with a material array, tops now flat shadow (`hangBlock`). And the
 mannequin FLOATED a third of a metre up: it kept its window-plinth heights
 when the reorganise moved it to the floor. Based on the boards now, stem
 lengthened to still meet the torso.
+
+## 2026-08-09 — *"reading letters shouldnt trigger the mailbox sound, it should trigger the page turn sound"*
+
+To a builder. The one letter sheet (`tenancy-letter-sheet`) served every
+letter view and the audio watcher played `mail-open`/`mail-close` on any
+raise — so re-reading a pocketed letter from the bag, the landlord's
+receipt, and the slip under the door all sounded like a mailbox.
+`tenancy.ts` already knew which was which (`live` — the box's own pile vs
+a read) and now stamps it on the sheet's userData, plus a counter of real
+wheel/arrow page turns. `audio.ts` branches on it: the box keeps the mail
+sounds, a read opens and closes on `page-turn.ogg` (already in the asset
+set, previously unused, close pitched a shade down), and turning pages
+inside any view rustles too.
+
+## 2026-08-09 — *"also make rain a bit less loud"*
+
+Same builder, same pass. `LVL.rain` 0.40 -> 0.30, about -2.5 dB.
+`rainIndoors` is relative to it, so the indoor/outdoor balance is
+unchanged.

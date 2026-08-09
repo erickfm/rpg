@@ -204,7 +204,7 @@ const BIRDS = ['bird-1', 'bird-2'] as const;
 const EVENTS = [
   'wall-hit',
   'light-on', 'light-off', 'drawer-open', 'door-open', 'door-close',
-  'register-1', 'register-2', 'mail-open', 'mail-close', 'sleep',
+  'register-1', 'register-2', 'mail-open', 'mail-close', 'page-turn', 'sleep',
   'truck-pass-1', 'truck-pass-2', 'bus-arrive', 'bus-depart',
 ] as const;
 
@@ -258,7 +258,11 @@ const LVL = {
   // the in-world level deliberately did not: the old bed sat at -16.9 LUFS and
   // the new one at -19.4, so 0.30 became 0.40 purely to cancel that 2.5 dB. He
   // asked for a different recording, not a louder rainstorm.
-  rain: 0.40,      // multiplied by rainLevel, so this is its DOWNPOUR level
+  // Then *"also make rain a bit less loud"* (2026-08-09): 0.40 -> 0.30, about
+  // -2.5 dB — a step, not a gutting. `rainIndoors` below is RELATIVE (it
+  // multiplies inside the mix that this then scales), so the indoor/outdoor
+  // ratio he has heard is untouched by moving this one number.
+  rain: 0.30,      // multiplied by rainLevel, so this is its DOWNPOUR level
   // …of the above, heard through a window. Raised from 0.20 when the wall
   // filter went in: rain is the ONE bed with real content above 2 kHz, so a
   // 520 Hz corner takes far more off it than off the traffic, and the level it
@@ -283,6 +287,8 @@ const LVL = {
   drawer: 0.50,
   register: 0.45,
   mail: 0.55,
+  // quieter than the mailbox door: paper moving at arm's length, not a latch
+  page: 0.45,
   sleep: 0.50,
   pass: 0.50,      // multiplied by distance
   bus: 0.55,       // multiplied by distance
@@ -742,12 +748,19 @@ export function register(ctx: CtxBuild): void {
   let lastCash = ctx.purse.cash;
   let tillAt = -99;
 
-  // ── the mailbox ───────────────────────────────────────────────────────────
-  // `tenancy.ts` raises and lowers a named sheet (`tenancy-letter-sheet`) as
-  // the letter view opens and closes. There is no animated brass door in this
-  // world — checked — so the sheet is the honest signal, and it means "a letter
-  // came up", which is what the sound is for.
+  // ── the mailbox, and the letter in his hands ──────────────────────────────
+  // `tenancy.ts` raises and lowers ONE named sheet (`tenancy-letter-sheet`)
+  // for every letter view — and "a letter came up" was two different events
+  // wearing one sound. *"reading letters shouldnt trigger the mailbox sound,
+  // it should trigger the page turn sound"* (2026-08-09). The sheet's own
+  // userData now says which it was: `livePile` true is the BOX handing over
+  // its own pile (the mailbox interaction — it keeps `mail-open`/`mail-close`),
+  // false is READING a piece already his — the bag, the landlord's receipt,
+  // the slip under the door — which is paper, not a latch. `pageTurns` counts
+  // wheel/arrow turns inside a view, so leafing through a pile rustles too.
   let sheet: THREE.Object3D | null = null, sheetUp = false;
+  let sheetBox = false;   // which cue OPENED the view, so the close matches it
+  let sheetTurns = 0;     // last seen pageTurns, so a turn is an edge
 
   // ── sleeping ──────────────────────────────────────────────────────────────
   // `ctx.clock` is on the context and the bed advances it with `overSeconds: 0`,
@@ -848,12 +861,29 @@ export function register(ctx: CtxBuild): void {
     }
     lastCash = cash;
 
-    // the mailbox
+    // the mailbox, and the letter in his hands — see the note at `sheet`
     if (!sheet) sheet = scene.getObjectByName('tenancy-letter-sheet') ?? null;
-    if (sheet && sheet.visible !== sheetUp) {
-      sheetUp = sheet.visible;
-      worldOf(sheet);
-      atPoint(sheetUp ? 'mail-open' : 'mail-close', WP.x, WP.z, LVL.mail, 10);
+    if (sheet) {
+      const u = sheet.userData as { livePile?: boolean; pageTurns?: number };
+      if (sheet.visible !== sheetUp) {
+        sheetUp = sheet.visible;
+        // latched on the way UP, so a view opened as the box closes as the
+        // box — the flag on the sheet may already belong to the next view
+        if (sheetUp) sheetBox = u.livePile === true;
+        worldOf(sheet);
+        if (sheetBox) atPoint(sheetUp ? 'mail-open' : 'mail-close', WP.x, WP.z, LVL.mail, 10);
+        // putting a letter away is paper too — the same file a shade lower,
+        // the drawer's one-recording-both-directions trick
+        else atPoint('page-turn', WP.x, WP.z, LVL.page, 10, sheetUp ? 1 : 0.9);
+        sheetTurns = u.pageTurns ?? 0;
+      } else if (sheetUp) {
+        const n = u.pageTurns ?? 0;
+        if (n !== sheetTurns) {
+          worldOf(sheet);
+          atPoint('page-turn', WP.x, WP.z, LVL.page, 10, 0.95 + roll() * 0.1);
+        }
+        sheetTurns = n;
+      }
     }
 
     // sleeping. Anything above a couple of game-minutes in one frame is a cut,

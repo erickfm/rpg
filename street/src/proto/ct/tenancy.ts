@@ -2371,11 +2371,12 @@ function buildPanel(): void {
     draw: drawLetter,
     // The wheel turns the page, the same gesture the pockets use to choose.
     // ESC is the framework's and needs no line here.
-    wheel: (d) => { page = (page + (d > 0 ? 1 : reading.length - 1)) % reading.length; PANEL?.repaint(); },
+    wheel: (d) => { page = (page + (d > 0 ? 1 : reading.length - 1)) % reading.length; turned(); PANEL?.repaint(); },
     key: (k) => {
       if (k === 'arrowright' || k === 'arrowdown') page = (page + 1) % reading.length;
       else if (k === 'arrowleft' || k === 'arrowup') page = (page + reading.length - 1) % reading.length;
       else return;
+      turned();
       PANEL?.repaint();
     },
     surface: {
@@ -2643,12 +2644,33 @@ function pocketMail(ctx: CtxBuild, l: Letter): boolean {
  * player against the last letter's position — which is this whole bug with an
  * extra frame in it.
  */
+/**
+ * A page ACTUALLY turned — count it on the sheet's own userData, where
+ * `ct/audio.ts`'s watcher reads it the way it reads `doorTravel`: a published
+ * fact on a named object, no callback, no import. Guarded on the pile's
+ * length because the wheel on a one-piece read wraps back to the same page —
+ * nothing moved, so nothing should sound.
+ */
+const turned = (): void => {
+  if (sheet && reading.length > 1) {
+    sheet.userData.pageTurns = ((sheet.userData.pageTurns as number | undefined) ?? 0) + 1;
+  }
+};
+
 function showLetters(pile: Letter[], at: Hold, live = false): void {
   if (!pile.length) return;
   reading = pile;
   readingLive = live;
   page = 0;
   if (sheet) {
+    // WHICH DOOR OPENED THIS VIEW, published for `ct/audio.ts`. `live` is
+    // already the honest split — true is the box handing over its own pile,
+    // which is the MAILBOX being opened; false is READING a piece that is
+    // already yours (the bag, the landlord's receipt, the slip under the
+    // door). *"reading letters shouldnt trigger the mailbox sound, it should
+    // trigger the page turn sound"* (2026-08-09) — the two contexts should
+    // not share a sound, and this one flag is the fact that tells them apart.
+    sheet.userData.livePile = live;
     sheet.position.set(at.x, at.y, at.z);
     // `rotation.set` first, THEN roll: `rotateZ` is about the object's local z,
     // which after the yaw IS the page's normal, so it rolls the page in its own
