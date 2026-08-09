@@ -16,6 +16,7 @@ import { buildAlley } from './alley';
 import { buildPawnAlley } from './pawn-alley';
 import { buildBodegaCorner } from './bodega-corner';
 import { buildBank } from './bank';
+import { COLLEGE_YARD_D } from './college-yard';
 
 // The alley's floor height lives in `ct/alley-floor.ts`, a LEAF module with no
 // imports, and is re-exported here so nothing that already asked this file has
@@ -394,7 +395,11 @@ export function buildStreet(o: {
     // dead on x = 57, and nothing either side of it moves. Teal, because 1997
     // fitness is teal and magenta and no fascia on the block wears either;
     // ct/int-gym.ts lifts the same value for the counter and the staff shirt.
-    { nm: 'FLEX GYM', col: '#17766b', w: 12, brick: '#5c4436', floors: 3 },
+    //
+    // …and FLEX GYM became CROSSTOWN FITNESS — *"the gym should be crosstown
+    // fitness"* (2026-08-09). One string: the painter takes the name from here
+    // and the room re-derives its door off the registry, so nothing else knows.
+    { nm: 'CROSSTOWN FITNESS', col: '#17766b', w: 12, brick: '#5c4436', floors: 3 },
     { nm: 'BILLIARDS', col: '#2c5a3a', w: 12, brick: '#835444', floors: 4 },
     { nm: 'SMOKES', col: '#8a6a22', w: 11, brick: '#6b4034', floors: 3 },
     // LOANS became the community college — *"that means we need a gym and a
@@ -1077,6 +1082,13 @@ export function buildStreet(o: {
   let xs = -7;
   for (const b of SOUTH2) {
     if (b.kind === 'church') { const m = scene.children.length; placeChurch(xs, -111.7, b); stampFrom(m, 'civic'); }
+    // THE COLLEGE IS RECESSED — *"feel free to make a little courtyard"*
+    // (2026-08-09). Its shell sits COLLEGE_YARD_D behind the building line,
+    // carving an 11 x 4.5 m court out of the shell's own 14+ m depth between
+    // its neighbours' party walls. The pavement is untouched; the notch is
+    // dressed (paving, low wall, gate, planting, sign) by ct/college-yard.ts,
+    // which owns the one number both files build from.
+    else if (b.nm === 'COMMUNITY COLLEGE') placeBldZ(xs, -111.7 - COLLEGE_YARD_D, b, 1);
     else placeBldZ(xs, -111.7, b, 1);
     xs += b.w;
   }

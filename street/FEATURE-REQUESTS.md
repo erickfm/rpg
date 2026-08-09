@@ -5688,3 +5688,20 @@ of the case's open end so the strip behind the case stays walkable, urn lids
 (1.50 m) under the ATM card (1.77 m) and clear of the glass. The deli case's
 display runs its full width again now that nothing stands against it; the
 vacated corner is bare floor.
+
+## 2026-08-09 — *"also improve the gym the gym should be crosstown fitness. make a nice interior with gym equipment. you pay a fee at the front desk to be able to use all the equipment there 3 machines. one that improve str specifically, one that improves dex specifically, another that improves both but less."*
+
+Back to the gym's own builder. FLEX GYM is CROSSTOWN FITNESS now (one roster
+string; the painter and the room both derive from it — the rename moved the
+hashed door from x 20.1 to 15.4 and the room re-laid itself around it). The
+bench and treadmills are gone; the floor's stars are THREE MACHINES on their
+own mat inlays: a weight-stack PRESS (trains STR, chance (10−stat)/5), a
+ceiling-hung HEAVY BAG (trains DEX, same odds), and a ROWER along the east
+wall (trains BOTH at half those odds — "both but less" as arithmetic). One
+fee at the desk unlocks all three — day pass $15, season $120 — one session
+per machine per day, an hour of clock each, stats clamped at 10. CON training
+left the building with the treadmills; NOTHING in the world trains CON now.
+Kept: rubber floor, mirror wall (now under a CROSSTOWN | FITNESS logo band),
+dumbbell rack, sign-in book, trainer. Added: entry mat, wall clock, towels,
+a decor flat bench under the east glass. Save slice migrates: old lastStrDay
+carries to the press, the old treadmill day is dropped.
