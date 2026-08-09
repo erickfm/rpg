@@ -5573,3 +5573,17 @@ the carbon NOTE OF ACCOUNT he hands you, which IS a docket and is where a
 running balance belongs.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"also put money on top right corner"*
+
+Went to the same builder, third pass on the stats. The cash row (figure + gold
+coin) now holds the top-RIGHT corner, mirrored for the edge it lives on: the
+coin rides the corner where the heart rides the left one, and the row is
+anchored by `right:10px` so a longer figure grows leftward off a pinned edge
+instead of crawling across the screen. Health stays top-left, unchanged.
+Top-right checked clean before placing — the old corner audio widget is
+deleted, the stamp is bottom-right, the watch is bottom (grepped every
+`position:fixed` in `src/proto/`). The F frame-rate readout came back up to
+top 30, since the left corner now holds only the one health row. Everything
+else as established: z 12 under panel backdrops/prompt/fade,
+`pointer-events:none`, integer origins, till-format `$xx.xx`.

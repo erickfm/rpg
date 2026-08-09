@@ -2952,19 +2952,28 @@ export function makeHud(purse: Purse): Hud {
     stampDiv.textContent = `${SHA}${DIRTY ? '+' : ''} ${p2(t.getHours())}:${p2(t.getMinutes())}`;
   }
 
-  // ── the stats strip: health, and cash on hand ─────────────────────────────
+  // ── the stats: health top-left, cash on hand top-right ────────────────────
   //
   // *"lets track the following stats (health, current cash on hand) put them
   //  on a hud overlay pls."*   (2026-08-08)
+  // *"also put money on top right corner"*   (2026-08-09)
   //
-  // Top-left, the corner nothing else draws in (the F readout moved down to
-  // keep that true). Two rows, no captions — but each row leads with a MINIMAL
-  // pixel icon, on his 2026-08-09 note: *"the health bar is quite small and
-  // non descriptive, maybe a minimal icon would help understand it it health?
-  // funds are also similarly boring."* A pixel heart says health and a gold
-  // coin says money, the 1997 read, with not a word of text beyond the till
-  // figure — a LABEL is the floating-widget look that got the corner audio
-  // panel deleted, so the fix is a better-drawn small thing, never a louder one.
+  // So the two rows hold the two top corners: health where it started, money
+  // mirrored across — anchored by `right`, never a computed `left`, so a
+  // longer figure grows LEFTWARD off a pinned edge instead of crawling across
+  // the screen (the watch's own anchor-from-the-other-edge lesson). Nothing
+  // else lives up there: the old corner audio widget is deleted, the stamp is
+  // bottom-right, the watch is bottom — checked by grepping every
+  // `position:fixed` in `src/proto/`.
+  //
+  // One row each, no captions — each carries a MINIMAL pixel icon riding its
+  // own outer edge, on his 2026-08-09 note: *"the health bar is quite small
+  // and non descriptive, maybe a minimal icon would help understand it it
+  // health? funds are also similarly boring."* A pixel heart says health and a
+  // gold coin says money, the 1997 read, with not a word of text beyond the
+  // till figure — a LABEL is the floating-widget look that got the corner
+  // audio panel deleted, so the fix is a better-drawn small thing, never a
+  // louder one.
   //
   // The icons are tiny canvases blown up 2x with `image-rendering:pixelated` —
   // the watch's own trick, so their texels stay hard — under a 1 px hard
@@ -2986,9 +2995,10 @@ export function makeHud(purse: Purse): Hud {
   // SIZES, since *"quite small"* is half the note: the bar grew 84x6 → 120x12
   // inside its well and the figure 13 → 15 px, which is legible at arm's
   // length without tipping into the modern floating-widget look he deleted.
-  // Each row is exactly 16 CSS px tall — the icons' own height at 2x — so the
-  // strip stays two tight lines, ~146 px wide.
-  const BAR_W = 120, BAR_H = 12, ICON_S = 2, ICON_GAP = 6, ROW_GAP = 5;
+  // Each row is exactly 16 CSS px tall — the icons' own height at 2x — one
+  // tight line per corner, ~146 px of health on the left, the coin and the
+  // figure on the right.
+  const BAR_W = 120, BAR_H = 12, ICON_S = 2, ICON_GAP = 6;
   /** paint a texel chart onto its own canvas, blown up ICON_S with hard pixels. */
   const pixIcon = (art: string[], ink: Record<string, string>): HTMLCanvasElement => {
     const w = art[0].length, h = art.length;
@@ -3039,13 +3049,21 @@ export function makeHud(purse: Purse): Hud {
   // trust anything it carries.
   statsDiv.style.cssText = 'position:fixed;left:10px;top:8px;z-index:12;pointer-events:none;';
   statsDiv.innerHTML = '';
+  // …and the money's own node on the other corner, same treatment throughout.
+  let cashWrap = document.getElementById('ct-cash') as HTMLDivElement | null;
+  if (!cashWrap) {
+    cashWrap = document.createElement('div');
+    cashWrap.id = 'ct-cash';
+    document.body.appendChild(cashWrap);
+  }
+  cashWrap.style.cssText = 'position:fixed;right:10px;top:8px;z-index:12;pointer-events:none;';
+  cashWrap.innerHTML = '';
   const statsRow = (): HTMLDivElement => {
     const d = document.createElement('div');
     d.style.cssText = `display:flex;align-items:center;gap:${ICON_GAP}px;height:16px;`;
     return d;
   };
   const hpRow = statsRow(), cashRow = statsRow();
-  cashRow.style.marginTop = `${ROW_GAP}px`;
   const hpBox = document.createElement('div');
   // a dark hairline outside so it reads against the sky, a 1 px well inside so
   // a part-full bar shows how much is gone — the classic '97 health bar.
@@ -3059,10 +3077,13 @@ export function makeHud(purse: Purse): Hud {
     + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
   hpRow.appendChild(HEART);
   hpRow.appendChild(hpBox);
-  cashRow.appendChild(COIN);
+  // MIRRORED for the right edge: figure first, the coin riding the corner —
+  // the icon sits nearest its own edge exactly as the heart does on the left,
+  // and the figure grows leftward away from the pinned anchor.
   cashRow.appendChild(cashDiv);
+  cashRow.appendChild(COIN);
   statsDiv.appendChild(hpRow);
-  statsDiv.appendChild(cashRow);
+  cashWrap.appendChild(cashRow);
   const paintStats = (): void => {
     hpFill.style.width = `${Math.round((health() / maxHealth()) * BAR_W)}px`;
     const c = purse.cash;
@@ -3158,9 +3179,10 @@ export function makeHud(purse: Purse): Hud {
         // bottom-centre, the prompt bottom-centre and the caption under the
         // panel glass — top-left is the quietest corner, so the readout cannot
         // cover something the player is trying to read while diagnosing a
-        // stutter. `top:52` clears the stats strip (2026-08-08), which now
-        // holds the top of that corner: 8 + two 16 px rows + a 5 px gap.
-        fpsDiv.style.cssText = 'position:fixed;left:10px;top:52px;z-index:20;pointer-events:none;'
+        // stutter. `top:30` clears the health row (2026-08-08; the money row
+        // moved to the top-RIGHT corner 2026-08-09), which holds the top of
+        // this corner: 8 + one 16 px row.
+        fpsDiv.style.cssText = 'position:fixed;left:10px;top:30px;z-index:20;pointer-events:none;'
           + 'font:11px ui-monospace,monospace;color:#9cab8b;background:rgba(10,14,12,0.55);'
           + 'padding:3px 7px;border-radius:3px;letter-spacing:.5px;white-space:pre;';
         document.body.appendChild(fpsDiv);
