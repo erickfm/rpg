@@ -5281,3 +5281,41 @@ hit however much speed the driver shed) and the thump's filter in
 No trunk files entered.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-09 — *"not a fan of the text dialog at the bottom. for the massage chair just have the player sit in it for 15 min locked perspective slightly tilted up with the screen vibrating every other minute. it heals you the same as like a burger or something idk"*
+
+The knead-line hudNotes are deleted. The chair went through `ctx.seat` — the
+same registration as every stool and pew, so sitting, standing, the prompt and
+the Escape hatch are all the rig's. **This module never owns the exit**, which
+is the whole defence against the trapped-in-the-TV-seat bug: E stands you up,
+Escape stands you up, at any second of the fifteen minutes.
+
+**The sit:** `[E] sink into the massage chair` puts you in it; the view tilts
+up ~20° once (he is reclined — the recline reading through the camera).
+Fifteen game-minutes then pass at 0.9 real seconds each (~13.5 s in the chair),
+each minute a ramped `ctx.clock.advance(1)` so the sky and every clock face
+sweep instead of stepping. Minutes 1, 3, 5 … 15 each carry a soft screen
+shiver — a 2.5 px sine swell on <body>, the gentle cousin of `ct/carhit.ts`'s
+7 px decaying crash, token-guarded and always cleared. At the fifteenth minute
+it heals `FOOD_HEAL.BURGER` — **read from `ct/food.ts` (currently 15), not
+copied**, so "same as a burger" stays true if the burger ever moves. No text
+anywhere. You stay reclined until you feel like getting up; the prompt while
+seated reads `end the massage`.
+
+**Standing up early** ends it at any minute and pays nothing: the minutes
+already granted stay on the clock (time passed — not refundable), but the heal
+is the fifteenth minute's or nobody's. Sit again for a fresh massage.
+
+**Pass-out safe:** `ct/fatigue.ts` defers while seated, so a 24-hour limit
+crossed mid-massage fires one frame after you stand — deferred, never
+deadlocked, because standing is always available.
+
+**One caveat, reported rather than trunk-entered:** the rig gives every seated
+player free mouse-look and no ctx verb pins pitch, so the view STARTS tilted up
+but is not hard-locked. A true look-lock for this one seat needs a flag in
+`fp.ts`'s seated branch (`if (this.seat)` block, ~line 709) — TRUNK, queued for
+whoever holds it if the free look bothers him.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

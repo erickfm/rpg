@@ -6,6 +6,8 @@ import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { hudNote } from './hud';
 import { talker } from './dialog';
+import { heal } from './health';
+import { FOOD_HEAL } from './food';
 import './goods';   // for the side effect: it is what declares the stock
 
 // VOLT VILLAGE, inside.
@@ -110,7 +112,8 @@ const CREAM = '#efe6d2';
 //     small money already shops
 //
 // And both exhibits ANSWER [E], because an exhibit you cannot try is stock
-// with a pedestal. The chair kneads, the mic is live, and the salesman — via
+// with a pedestal. The chair is a SEAT you ride out, the mic is live, and the
+// salesman — via
 // `ct/dialog.ts`, which did not exist when this room was built — has seen it
 // all before.
 const LEATHER = '#6b4a33', LEATHER_D = '#503522';
@@ -981,8 +984,9 @@ export function buildVolt(ctx: CtxBuild): void {
   //
   // An exhibit you cannot try is stock with a pedestal, and the film scene this
   // room now answers to is two customers USING the karaoke machine while the
-  // staff let them. So: the chair kneads when you sit in range of it, the mic
-  // is live, and the salesman has a line for the singing — through
+  // staff let them. So: the chair is a real seat with a real massage (its own
+  // section below), the mic is live, and the salesman has a line for the
+  // singing — through
   // `ct/dialog.ts`'s bubble, which is what lets him heckle from behind the
   // counter without a panel opening.
   //
@@ -1016,19 +1020,140 @@ export function buildVolt(ctx: CtxBuild): void {
       sung++;
     },
   });
-  const KNEAD = [
-    'the rollers walk up your spine, find the knot, and lean on it',
-    'ten seconds of shiatsu, then the little pod blinks: had enough?',
-    'it hums, it kneads, and for one long minute the rent does not exist',
-  ];
-  let kneaded = 0;
-  ctx.spot({
-    x: room.wx(CHAIR_CX), z: room.wz(CHAIR_CZ + 1.35),
-    aimX: room.wx(CHAIR_CX), aimZ: room.wz(CHAIR_CZ),
-    r: 0.95, obj: chairG,
+  // ══ THE MASSAGE CHAIR IS A SEAT, AND THE MASSAGE IS A THING THAT HAPPENS ═══
+  //
+  // *"not a fan of the text dialog at the bottom. for the massage chair just
+  //  have the player sit in it for 15 min locked perspective slightly tilted up
+  //  with the screen vibrating every other minute. it heals you the same as
+  //  like a burger or something idk"*   (2026-08-09)
+  //
+  // So the knead-line hudNotes are GONE and the chair went through `ctx.seat`,
+  // the same registration as every stool and pew in the world — sitting,
+  // standing, the prompt and the ESCAPE HATCH are the rig's, which is the whole
+  // defence against the trapped-in-the-TV-seat bug: this module never owns the
+  // exit. E stands you up, Escape stands you up, and both work at any second
+  // of the fifteen minutes because nothing here can intercept them.
+  //
+  // ── THE SHAPE OF THE SIT ──────────────────────────────────────────────────
+  //
+  //   sit     -> the view tilts up ~20° (he is RECLINED — the chair's recline
+  //              reading through the camera), set once through the rig
+  //   then    -> 15 game-minutes pass at 0.9 real seconds each (~13.5 s in the
+  //              chair), each minute a ramped `ctx.clock.advance(1)` so the
+  //              sky and the clocks sweep instead of stepping
+  //   odd     -> minutes 1, 3, 5 … 15 each carry a soft screen shiver — the
+  //              rollers — a low sine swell on <body>, the gentle cousin of
+  //              `ct/carhit.ts`'s decaying crash jolt, cleared to '' always
+  //   done    -> heal(FOOD_HEAL.BURGER) — READ from `ct/food.ts`, not copied,
+  //              so "same as a burger" stays true if the burger moves. No text.
+  //              You stay reclined until you feel like getting up.
+  //
+  // ── STANDING UP EARLY ─────────────────────────────────────────────────────
+  //
+  // Ends it, at any minute, and pays NOTHING: the minutes already granted stay
+  // on the clock (time passed; that is not refundable) but the heal is the
+  // fifteenth minute's or nobody's. A half-massage that half-heals would make
+  // the chair a tap you sip from; this way it is a thing you commit a quarter
+  // hour to, which is what the TRY ME card is offering.
+  //
+  // ── WHAT "LOCKED" COULD NOT BE, FROM A LEAF ───────────────────────────────
+  //
+  // The rig lets every seated player mouse-look ("seated: you can look, and
+  // that is all" — `fp.ts`), and no ctx verb sets or pins pitch. The one door
+  // a module has is `__ct.warp`'s pitch argument, used ONCE at sit — a
+  // per-frame re-pin through it would clear the citizens' sight cache every
+  // frame and fight the mouse. So: the view STARTS tilted up, and the player
+  // can still look around. A true look-lock for this one seat needs a flag in
+  // `fp.ts`'s seated branch (the block at "if (this.seat)"), which is TRUNK.
+  //
+  // ── AND THE PASS-OUT CANNOT DEADLOCK IT ───────────────────────────────────
+  //
+  // `ct/fatigue.ts` defers while `ctx.player.seated()` — so if the 24-hour
+  // limit expires mid-massage (fifteen minutes is exactly the kind of nudge
+  // that could cross it), nothing fires until the player stands, and standing
+  // is always available. Deferred, not lost: he collapses on his own two feet,
+  // one frame after leaving the chair.
+  const SEAT_LABEL = 'sink into the massage chair';
+  ctx.seat({
+    x: room.wx(CHAIR_CX), z: room.wz(CHAIR_CZ), yaw: Math.PI, h: 0.48,
+    // 1.05, not the default 0.75: the chair's own collider is 1.06 x 1.15 and
+    // the seat point is its centre, so a standing player's nearest reach is
+    // ~0.94 m from it — the default radius could register but never offer.
+    r: 1.05,
     ok: room.inside,
-    label: () => 'try the massage chair',
-    act: () => { hudNote(KNEAD[kneaded++ % KNEAD.length]); },
+    label: SEAT_LABEL,
+    // a verb for the ACTIVITY, per the Seat contract: the player wants to stop
+    // the massage, not the posture
+    standLabel: 'end the massage',
+  });
+
+  // Whose seat is the player on? The library PC's own pattern, label-matched
+  // through `__ct.seats()` — the same `seated()` flag the rig acts on, no
+  // second copy of the state.
+  interface CtSeats {
+    seated: () => { x: number; z: number; yaw: number } | null;
+    seats: () => { pose: unknown; label: string }[];
+    warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => void;
+  }
+  const ctw = (): CtSeats | undefined =>
+    (globalThis as unknown as { __ct?: CtSeats }).__ct;
+  const inChair = (): boolean => {
+    const ct = ctw();
+    const pose = ct?.seated();
+    if (!ct || !pose) return false;
+    return ct.seats().find((s) => s.pose === pose)?.label === SEAT_LABEL;
+  };
+
+  // ── the shiver ────────────────────────────────────────────────────────────
+  // A sine swell, not carhit's decaying crash: amplitude 2.5 px against its 7,
+  // rising and falling over half a second. Token-guarded and ALWAYS cleared to
+  // '' — a leftover transform on <body> re-anchors every position:fixed element
+  // in the game, which is carhit's own warning taken as law.
+  let vibToken = 0;
+  const shiver = (): void => {
+    const token = ++vibToken;
+    const t0 = performance.now();
+    const DUR = 520, AMP = 2.5;
+    const step = (): void => {
+      if (token !== vibToken) return;              // a stand or a newer pulse owns <body>
+      const k = (performance.now() - t0) / DUR;
+      if (k >= 1) { document.body.style.transform = ''; return; }
+      const a = AMP * Math.sin(Math.PI * k);
+      document.body.style.transform =
+        `translate(${((Math.random() * 2 - 1) * a).toFixed(1)}px,`
+        + `${((Math.random() * 2 - 1) * a).toFixed(1)}px)`;
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+
+  // ── the massage itself, driven off the frame hook ─────────────────────────
+  const MIN_REAL = 0.9;                            // real seconds per game minute
+  const MINS = 15;
+  let mg: { given: number; nextAt: number; done: boolean } | null = null;
+  ctx.onFrame((f) => {
+    if (!inChair()) {
+      if (mg) {                                    // stood up — mid-pulse or not,
+        mg = null; ++vibToken;                     // the screen settles NOW
+        document.body.style.transform = '';
+      }
+      return;
+    }
+    if (!mg) {
+      mg = { given: 0, nextAt: f.t + MIN_REAL, done: false };
+      // the recline: pitch up ~20°, once. x/z are his own (the seat's), yaw
+      // and gy deliberately left alone.
+      ctw()?.warp(ctx.player.x(), ctx.player.z(), undefined, undefined, 0.35);
+      return;
+    }
+    if (mg.done || f.t < mg.nextAt) return;
+    mg.given++; mg.nextAt = f.t + MIN_REAL;
+    ctx.clock.advance(1, { overSeconds: MIN_REAL * 0.95 });
+    if (mg.given % 2 === 1) shiver();              // every other minute
+    if (mg.given >= MINS) {
+      heal(FOOD_HEAL.BURGER ?? 15);                // the burger number, read live
+      mg.done = true;                              // one massage per sit; sit again for more
+    }
   });
 
   // ── the two things taped in the glass, from this side ──
