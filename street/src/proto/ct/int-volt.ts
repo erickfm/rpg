@@ -4,6 +4,8 @@ import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+import { hudNote } from './hud';
+import { talker } from './dialog';
 import './goods';   // for the side effect: it is what declares the stock
 
 // VOLT VILLAGE, inside.
@@ -82,6 +84,36 @@ const SCREEN = '#5f8fa8';
 const BEIGE = '#d8cdb2', BEIGE_D = '#b3a88d';
 const OAK = '#a8804f', OAK_D = '#7a5936';
 const CREAM = '#efe6d2';
+
+// ══ AND HE LOOKED AGAIN ═════════════════════════════════════════════════════
+//
+// *"voltage village should be a bit more like that store from when harry met
+//  sally"*   (2026-08-08)
+//
+// The store in that film is Sharper Image, and the scene everybody remembers is
+// two grown men singing "Surrey with the Fringe on Top" INTO A KARAOKE MACHINE
+// on the shop floor while everyone browses around them. What that names, which
+// the beige pass did not deliver: an upscale gadget PLAYGROUND. Not rows of
+// identical stock — one-of-a-kind demo units stood out like exhibits, each on
+// its own plinth, and you are INVITED TO TOUCH.
+//
+// *"A bit more"* is his phrase, so this is a nudge, not a rebuild: the shell,
+// the counter, the demo desks and their computers all stay. What moves —
+//
+//   two columns of televisions come OFF the wall (30 sets -> 24), because
+//     "fewer identical TVs" is the direct trade for exhibit floor
+//   THE KARAOKE MACHINE goes on a plinth in the window — the mandatory piece,
+//     and the window is where the street gets to see it
+//   A MASSAGE CHAIR takes the freed back bay, facing the door down the length
+//     of the room, wearing a TRY ME card
+//   two counter-top gadgets (a plasma globe, a lava lamp) light up where the
+//     small money already shops
+//
+// And both exhibits ANSWER [E], because an exhibit you cannot try is stock
+// with a pedestal. The chair kneads, the mic is live, and the salesman — via
+// `ct/dialog.ts`, which did not exist when this room was built — has seen it
+// all before.
+const LEATHER = '#6b4a33', LEATHER_D = '#503522';
 
 // ══ THE DOOR ═══════════════════════════════════════════════════════════════
 //
@@ -275,6 +307,27 @@ export function buildVolt(ctx: CtxBuild): void {
   //   west aisle    -4.78 → -1.60   3.18 m
   //   east floor     0.40 →  5.40   5.00 m
   //
+  // ══ THE EXHIBITS, AND WHERE THE FLOOR FOR THEM CAME FROM ═══════════════════
+  //
+  // The TV wall gives up its two easternmost columns (x1 0.60 -> -0.60), which
+  // opens a BAY on the back wall between the sets and the counter. The massage
+  // chair stands in it facing the door, so it is the thing you see at the end
+  // of the corridor when you walk in:
+  //
+  //   THE MASSAGE CHAIR   x -0.33 … 0.73   z -4.68 … -3.53
+  //     north, to the camcorder case        -0.90 - (-3.53) = 2.63 m
+  //     the two slivers to the TV wall and the counter (0.27 m each) are dead
+  //     corners between fixtures on the same wall, like the staff strip — no
+  //     lane runs into them
+  //
+  //   THE KARAOKE PLINTH  x -3.38 … -2.53   z  3.48 … 4.33   (0.85 sq)
+  //     west, to the wall (hi-fi stops at z 2.40)   -3.38 - (-5.40) = 2.02 m
+  //     south, into the open floor                   3.48 - 2.75    = open
+  //     north, 0.47 m to the plate glass — a WINDOW DISPLAY pocket, not a
+  //     lane, and exactly why it is there: the machine shows to the street
+  //
+  // Both stand-points ([E]) are out in the lanes they face, not in the pockets.
+  //
   // ══ AND THEN TWO DEMO DESKS CAME OUT ONTO THAT FLOOR ═══════════════════════
   //
   // *"computers and stuff out and about"* — so the machines are no longer only
@@ -313,7 +366,11 @@ export function buildVolt(ctx: CtxBuild): void {
   // thing this shop is for.
   //
   // Nothing is within 4.2 m of the doorway.
-  const TVW_X0 = -hw, TVW_X1 = 0.60;
+  // ⚠ TVW_X1 WAS 0.60. The two columns that stood on x -0.60 … 0.60 are the
+  // price of the massage-chair bay — *"fewer identical TVs"* traded at exactly
+  // two of them. COLS below derives from the run, so 10 across became 8 and no
+  // second number had to remember it.
+  const TVW_X0 = -hw, TVW_X1 = -0.60;
   const TVW_CX = (TVW_X0 + TVW_X1) / 2, TVW_W = TVW_X1 - TVW_X0;
   const CTR_X0 = 1.00, CTR_X1 = hw, CTR_D = 0.70, CTR_Z = -3.50;
   const CTR_CX = (CTR_X0 + CTR_X1) / 2, CTR_W = CTR_X1 - CTR_X0;
@@ -321,6 +378,8 @@ export function buildVolt(ctx: CtxBuild): void {
   const CASE_CX = -0.60, CASE_CZ = -0.60, CASE_W = 2.00, CASE_D = 0.60;
   const ISL_CX = 0.00, ISL_CZ = 2.35, ISL_W = 2.00, ISL_D = 0.80;
   const EDK_CX = 5.00, EDK_CZ = 0.45, EDK_W = 0.80, EDK_D = 3.20;
+  const CHAIR_CX = 0.20, CHAIR_CZ = -4.10;
+  const KAR_CX = -2.95, KAR_CZ = 3.90;
 
   // ══ THE WALL OF TELEVISIONS ════════════════════════════════════════════════
   //
@@ -359,7 +418,7 @@ export function buildVolt(ctx: CtxBuild): void {
     // grid sized off the 6 m run instead of off a television would have given
     // ten 0.60 m sets, which from the door reads as a wall of microwaves.
     const SET_W = 0.50, SET_H = 0.44, SET_D = 0.40, PITCH = 0.60;
-    const COLS = Math.floor(TVW_W / PITCH);          // 10 across a 6.0 m run
+    const COLS = Math.floor(TVW_W / PITCH);          // 8 across a 4.8 m run
     const CARC_D = 0.40, CARC_H = 1.90;
     const CARC_Z = -hd + CARC_D / 2;                 // hard against the back wall
     // ── the carcass, and it is JOINERY now, not a dark slab ──
@@ -401,7 +460,7 @@ export function buildVolt(ctx: CtxBuild): void {
       g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillStyle = RED; g.fillText('EVERY SET ON DEMO', 48, 6);
     }), 'sign');
-    room.sign(hdrT, 4.2, 0.30, TVW_CX, 2.12, -hd + 0.10);
+    room.sign(hdrT, 3.4, 0.30, TVW_CX, 2.12, -hd + 0.10);   // 3.4 on the 4.8 run
     // ONE collider for the run, at its real reach: the carcass stops at -4.40
     // but the sets stand 0.02 proud of the wall and are 0.40 deep, so the thing
     // your shoulder meets is at -4.37. A collider drawn to the carcass would let
@@ -497,6 +556,97 @@ export function buildVolt(ctx: CtxBuild): void {
     put(new THREE.Mesh(new THREE.BoxGeometry(CASE_W, 0.04, CASE_D), silvM),
       CASE_CX, BASE_H + 0.04 + GLASS_H, CASE_CZ);
     solid(CASE_CX, CASE_CZ, CASE_W, CASE_D);
+  }
+
+  // ══ THE MASSAGE CHAIR, IN THE BAY THE TELEVISIONS PAID FOR ═════════════════
+  //
+  // The one Sharper Image fixture that is FURNITURE: a fat leather recliner on
+  // a plinth, wearing a card that says you may sit in it. It faces the door —
+  // walk in and it is the thing at the far end of the corridor, which is how a
+  // store that wants you to try the chair aims it. Saddle leather, not black:
+  // black is the 2005 chair, and this one has to live with the oak.
+  const chairG = new THREE.Group();
+  {
+    const leathM = new THREE.MeshBasicMaterial({ color: LEATHER });
+    const seamM = new THREE.MeshBasicMaterial({ color: LEATHER_D });
+    const add = (m: THREE.Mesh, x: number, y: number, z: number) => {
+      m.position.set(x, y, z); chairG.add(m); return m;
+    };
+    // the plinth it demos on, oak like every fixture here
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.10, 1.10), oakDM), 0, 0.05, 0);
+    // base, seat, and the footrest kicked up at the front (+z, doorward)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.90, 0.22, 0.95), seamM), 0, 0.21, 0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.80, 0.16, 0.60), leathM), 0, 0.40, 0.08);
+    const foot = add(new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.12, 0.42), leathM),
+      0, 0.34, 0.52);
+    foot.rotation.x = 0.55;
+    // the backrest, reclined the way a demo chair is always left
+    const back = add(new THREE.Mesh(new THREE.BoxGeometry(0.80, 0.85, 0.24), leathM),
+      0, 0.80, -0.34);
+    back.rotation.x = -0.22;
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.16, 0.14), seamM), 0, 1.16, -0.44);
+    // arms, and the control pod on the right one — beige, because it plugs in
+    for (const s of [-1, 1])
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.30, 0.72), leathM), s * 0.44, 0.52, -0.02);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.20), beigeM), 0.44, 0.69, 0.10);
+    add(new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.03),
+      new THREE.MeshBasicMaterial({ color: 0xc8322a })), 0.44, 0.712, 0.10)
+      .rotation.x = -Math.PI / 2;
+    put(chairG, CHAIR_CX, 0, CHAIR_CZ);
+    solid(CHAIR_CX, CHAIR_CZ, 1.06, 1.15);
+    // the TRY ME card, on the plinth's front lip where the invitation goes
+    const tryT = declareSurface(pixTex(36, 14, (g) => {
+      g.fillStyle = CREAM; g.fillRect(0, 0, 36, 14);
+      g.fillStyle = OAK_D; g.fillRect(0, 0, 36, 1); g.fillRect(0, 13, 36, 1);
+      g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = RED; g.fillText('TRY ME', 18, 7);
+    }), 'sign');
+    room.sign(tryT, 0.42, 0.16, CHAIR_CX, 0.30, CHAIR_CZ + 0.58);
+  }
+
+  // ══ THE KARAOKE MACHINE, IN THE WINDOW, WHICH IS THE WHOLE REFERENCE ═══════
+  //
+  // The plinth stands in the glazed run's display pocket so the machine shows
+  // to the street, and the mic waits on the top next to it. One beige cabinet:
+  // a big grille, twin tape doors, a title strip — a 1997 home karaoke was a
+  // boombox with ideas, and that is all the geometry it costs.
+  const karG = new THREE.Group();
+  {
+    const kadd = (m: THREE.Mesh, x: number, y: number, z: number) => {
+      m.position.set(x, y, z); karG.add(m); return m;
+    };
+    const plinthT = woodT.clone();
+    plinthT.wrapS = plinthT.wrapT = THREE.RepeatWrapping;
+    plinthT.repeat.set(0.4, 0.35);
+    plinthT.needsUpdate = true;
+    kadd(new THREE.Mesh(new THREE.BoxGeometry(0.80, 0.55, 0.80), ctx.flat(plinthT)), 0, 0.275, 0);
+    kadd(new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.04, 0.84), creamM), 0, 0.57, 0);
+    // the machine, face toward -z: into the room, at the player who walks up
+    kadd(new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.50, 0.36), beigeM), 0, 0.84, 0.02);
+    const face = (m: THREE.Mesh, x: number, y: number) => {
+      m.rotation.y = Math.PI; kadd(m, x, y, -0.162); return m;
+    };
+    face(new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.20), darkM), 0, 0.72);      // the grille
+    face(new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.08), beigeDM), -0.12, 0.90); // tape door
+    face(new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.08), beigeDM), 0.12, 0.90);  // tape door
+    face(new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.05),
+      new THREE.MeshBasicMaterial({ color: 0xe67828 })), 0, 1.00);   // the amber title strip
+    // the mic, lying on the plinth top on its coiled lead
+    const mic = kadd(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.18), darkM),
+      -0.26, 0.615, -0.24);
+    mic.rotation.y = 0.6;
+    kadd(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06),
+      new THREE.MeshBasicMaterial({ color: 0x4a4e56 })), -0.30, 0.62, -0.30);
+    put(karG, KAR_CX, 0, KAR_CZ);
+    solid(KAR_CX, KAR_CZ, 0.85, 0.85);
+    // the invitation, printed on the plinth where the price would be
+    const singT = declareSurface(pixTex(48, 12, (g) => {
+      g.fillStyle = CREAM; g.fillRect(0, 0, 48, 12);
+      g.fillStyle = OAK_D; g.fillRect(0, 0, 48, 1); g.fillRect(0, 11, 48, 1);
+      g.font = 'bold 6px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = RED; g.fillText('SING ALONG', 24, 6);
+    }), 'sign');
+    room.sign(singT, 0.52, 0.14, KAR_CX, 0.40, KAR_CZ - 0.42, Math.PI);
   }
 
   // ══ THE COMPUTERS, OUT ON THE FLOOR AND SWITCHED ON ════════════════════════
@@ -631,6 +781,19 @@ export function buildVolt(ctx: CtxBuild): void {
     put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.40), beigeM), EDK_CX, y + 0.08, EDK_CZ);
     put(new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.01, 0.22), creamM), EDK_CX, y + 0.165, EDK_CZ + 0.06);
     put(new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.02), beigeDM), EDK_CX, y + 0.12, EDK_CZ - 0.20);
+    // ── the lava lamp, at the desk's south end ──
+    //
+    // The gadget-store tell at its cheapest: a gold cone, a tapered glass and
+    // one orange blob, lit because everything on a demo desk is switched on.
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.055, 0.07, 10),
+      new THREE.MeshBasicMaterial({ color: 0xb08d4a })), EDK_CX, y + 0.035, EDK_CZ + 1.30);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.048, 0.20, 10),
+      new THREE.MeshBasicMaterial({ color: 0xe8742a, transparent: true, opacity: 0.65 })),
+      EDK_CX, y + 0.17, EDK_CZ + 1.30);
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 6),
+      new THREE.MeshBasicMaterial({ color: 0xffb066 })), EDK_CX, y + 0.14, EDK_CZ + 1.30);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.028, 0.035, 10),
+      new THREE.MeshBasicMaterial({ color: 0xb08d4a })), EDK_CX, y + 0.285, EDK_CZ + 1.30);
   }
 
   // ── the counter ──
@@ -701,6 +864,14 @@ export function buildVolt(ctx: CtxBuild): void {
     put(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.22, 0.012), beigeDM),
       x + 0.04, 1.24, CTR_Z - 0.05);
   }
+  // ── and the plasma globe at the till end, the impulse buy that glows ──
+  put(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.07, 10), darkM),
+    3.80, 1.055, CTR_Z);
+  put(new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0x9a6ae0, transparent: true, opacity: 0.30 })),
+    3.80, 1.17, CTR_Z);
+  put(new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6),
+    new THREE.MeshBasicMaterial({ color: 0xe8c4ff })), 3.80, 1.17, CTR_Z);
 
   // ══ THE PRICE BOARD, AND EVERY LINE OF IT ANSWERS TO SOMETHING ═════════════
   //
@@ -805,6 +976,60 @@ export function buildVolt(ctx: CtxBuild): void {
     jacket: '#c8322a', pants: '#2a2d33', skin: '#8a5a3a', hair: '#221c18',
     fit: 'plain', accent: '#9aa0a6', cut: 'short', build: 0,
   }, KEEP_X, KEEP_Z, { facing: Math.atan2(0, CTR_Z - KEEP_Z), h: 1.00, w: 0.98 });
+
+  // ══ AND THE EXHIBITS ANSWER [E] ═════════════════════════════════════════════
+  //
+  // An exhibit you cannot try is stock with a pedestal, and the film scene this
+  // room now answers to is two customers USING the karaoke machine while the
+  // staff let them. So: the chair kneads when you sit in range of it, the mic
+  // is live, and the salesman has a line for the singing — through
+  // `ct/dialog.ts`'s bubble, which is what lets him heckle from behind the
+  // counter without a panel opening.
+  //
+  // ⚠ leave: 12, NOT THE DEFAULT 5. The bubble ends when the player walks off,
+  // measured to the SPEAKER — and this speaker is 9.5 m from the karaoke
+  // plinth where his audience is standing. At the default his heckle would
+  // close on the frame it opened.
+  const salesTalk = talker(ctx, {
+    obj: clerk.mesh, name: 'the salesman', leave: 12,
+    lines: ['Everything on the floor is plugged in. That is the whole idea.'],
+  });
+  const SUNG = [
+    'you give it "…surrey with the fringe on top…" — the mic is LIVE, and the whole shop gets it',
+    'you go again, lower, with feeling. a camcorder in the case records none of it, thankfully',
+  ];
+  const HECKLE = [
+    'Sir— no, you know what, finish it. Everybody finishes it in here.',
+    'That model comes with two microphones. For duets.',
+    'Four people a day sing that exact song. You placed second.',
+  ];
+  let sung = 0;
+  ctx.spot({
+    x: room.wx(KAR_CX), z: room.wz(KAR_CZ - 1.05),
+    aimX: room.wx(KAR_CX), aimZ: room.wz(KAR_CZ),
+    r: 0.95, obj: karG,
+    ok: room.inside,
+    label: () => 'pick up the karaoke mic',
+    act: () => {
+      hudNote(SUNG[sung % SUNG.length]);
+      salesTalk.say(HECKLE[sung % HECKLE.length]);
+      sung++;
+    },
+  });
+  const KNEAD = [
+    'the rollers walk up your spine, find the knot, and lean on it',
+    'ten seconds of shiatsu, then the little pod blinks: had enough?',
+    'it hums, it kneads, and for one long minute the rent does not exist',
+  ];
+  let kneaded = 0;
+  ctx.spot({
+    x: room.wx(CHAIR_CX), z: room.wz(CHAIR_CZ + 1.35),
+    aimX: room.wx(CHAIR_CX), aimZ: room.wz(CHAIR_CZ),
+    r: 0.95, obj: chairG,
+    ok: room.inside,
+    label: () => 'try the massage chair',
+    act: () => { hudNote(KNEAD[kneaded++ % KNEAD.length]); },
+  });
 
   // ── the two things taped in the glass, from this side ──
   //

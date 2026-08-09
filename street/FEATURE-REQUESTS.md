@@ -5190,3 +5190,42 @@ SANDWICH 18, BURGER 15, CEREAL 12, SHAKE 10, PIE 8, FRIES 6, CHIPS 4, SODA 3.
 COFFEE heals nothing — it is a stimulant, fatigue.ts's tenant — and POPCORN
 gets no verb: raw microwave bags, and this world has no microwave. Receipt is
 one short hudNote line and the HUD bar moving; no panel.
+
+---
+
+## 2026-08-08 — *"voltage village should be a bit more like that store from when harry met sally"*
+
+The store in that film is Sharper Image, and the scene is the karaoke machine —
+sung into, on the shop floor, while the staff let it happen. What that names
+that the beige pass didn't deliver: a gadget PLAYGROUND. One-of-a-kind demo
+units out like exhibits, each on its own plinth, and you are invited to touch.
+*"A bit more"* is his phrase, so this was a nudge on the same room, same
+builder: the shell, the counter and the demo computers all stayed.
+
+**Two columns of televisions came off the wall** (30 sets -> 24) — "fewer
+identical TVs" traded at exactly two of them — and the freed back bay took
+**the massage chair**: saddle leather on an oak plinth, reclined, control pod
+on the arm, TRY ME card on the lip, facing the door so it is the thing at the
+end of the corridor when you walk in.
+
+**The karaoke machine went on a plinth in the window** — the mandatory piece,
+and the window is where the street gets to see it. Beige cabinet, big grille,
+twin tape doors, amber title strip, the mic lying on the plinth top, SING
+ALONG printed where the price would be.
+
+**Both exhibits answer [E]**, because an exhibit you cannot try is stock with a
+pedestal. The chair kneads (three lines, cycling). The mic is live — and the
+salesman heckles the singing through the new chat bubble (`ct/dialog.ts`,
+`talker()`, `leave: 12` because he is 9.5 m from his audience and the default
+5 would close his line on the frame it opened). *"Sir— no, you know what,
+finish it. Everybody finishes it in here."*
+
+Small gadgets where the small money shops: a lit plasma globe at the till end
+of the counter, a lava lamp going on the east demo desk.
+
+Lanes held without touching anything that stands: the chair bay's two 0.27 m
+slivers to the TV wall and the counter are dead corners on the back wall, not
+lanes; the karaoke plinth keeps 2.02 m to the west wall and its 0.47 m window
+pocket is a display, which is the point of it.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
