@@ -178,11 +178,18 @@ export function buildBodega(ctx: CtxBuild): void {
   //
   // Deterministic from the index — no Math.random. GOTCHAS 2: one seeded
   // stream, and its order is load-bearing, so a texture must not draw from it.
-  const stockT = declareSurface(pixTex(64, 48, (g) => {
-    g.fillStyle = '#7a7263'; g.fillRect(0, 0, 64, 48);
+  //
+  // A PAINTER PER ROW COUNT, one drawing. The mid-floor gondolas dropped to
+  // 1.4 m (2026-08-09, below) and a 5-row texture squeezed onto a 3-row face
+  // is squashed stock — cans half their own height. So the row count is the
+  // parameter and the canvas is cut to it: 9 px per shelf course, same goods,
+  // same gaps, same price ticks, at every height honestly.
+  const stockRows = (rows: number) => (g: CanvasRenderingContext2D) => {
+    const H = rows * 9 + 3;
+    g.fillStyle = '#7a7263'; g.fillRect(0, 0, 64, H);
     const cols = ['#b8342a', '#d8b84a', '#3a6a8a', '#4a7a52', '#c86a2a', '#8a4a7a',
       '#d8d0c0', '#6a5a3a', '#2a8a7a', '#b85a5a'];
-    for (let sh = 0; sh < 5; sh++) {
+    for (let sh = 0; sh < rows; sh++) {
       const y0 = 2 + sh * 9, shelfY = y0 + 7;
       g.fillStyle = '#5a5348'; g.fillRect(0, shelfY, 64, 2);        // the shelf edge
       let x = 0, i = sh * 11 + 3;
@@ -214,106 +221,113 @@ export function buildBodega(ctx: CtxBuild): void {
         g.fillStyle = '#4a443a'; g.fillRect(lx + 1, shelfY + 1, 3, 1);
       }
     }
-    dither(g, 64, 48, 60);
-  }), 'detail');
-  // THE RUNS CLEAR THE CORNER ENTRY.
+    dither(g, 64, H, 60);
+  };
+  /** five courses: the tall WALL fixtures (the front-wall rack) */
+  const stockT = declareSurface(pixTex(64, 48, stockRows(5)), 'detail');
+  /** three courses: the 1.4 m mid-floor gondolas */
+  const stockLowT = declareSurface(pixTex(64, 30, stockRows(3)), 'detail');
+  // THE RUNS TURNED BROADSIDE, AND DROPPED TO CHEST HEIGHT.
   //
-  // With the door in the CUT, you no longer arrive on the front wall's
-  // centreline — you arrive diagonally at the front-right corner, and the runs
-  // were still laid out against the old front-wall door. Walking in gave
-  // 0.44 m ahead and about a metre each way: the user's "cramped", produced by
-  // furniture placed against a door that had moved.
+  // (2026-08-09) *"make shorter shelves which are horizontal here instead of
+  // vertical pls"* — from beside the till the three 1.95 m runs ran AWAY from
+  // him, deep into the room: three corridors that neither the keeper at the
+  // till nor a player at the door could see into. Both words of the ask are
+  // the fix:
   //
-  // "Cramped is a statement about SHAPE, not area" — so this is measured as
-  // the largest continuous free run from where you actually come to rest, not
-  // in square metres. The runs are shortened and pushed back off the corner,
-  // and the extra 1.6 m of depth goes into the approach rather than into more
-  // shelving.
-  const GOND_L = room.D - 5.6;            // was -3.2: the front end comes back
-  const GOND_Z = -1.35;                   // was -0.35: pushed toward the cooler
-  const AISLE = 1.15;                     // was 0.95: a capsule is 0.72 across
-  const GOND_W = 0.62;
-  // THE DOOR LOOKS DOWN AN AISLE, not into the end of a run.
+  //   HORIZONTAL — the runs lie ACROSS the room now, parallel to the front
+  //   wall, so from the door and from the till you look along their faces,
+  //   never into a corridor.
+  //   SHORTER — 1.40 m, the corner-store gondola you see OVER: the keeper
+  //   watches the whole floor from the till, the player reads the whole shop
+  //   from the door. The WALL fixtures keep their 1.95 — it is the
+  //   freestanding mid-floor runs he named.
   //
-  // The user, with a screenshot: *"THE FIRST THING YOU SEE WALKING INTO THE
-  // BODEGA IS A BLANK GREY SLAB filling the middle of the view."* It was a
-  // gondola carcass — a 0.62 x 1.95 x 7.8 steel box whose near END sat at
-  // z 3.55, 0.8 m in front of where the player comes to rest, on the door's
-  // centreline. Untextured, because only the two long FACES ever carried stock.
-  // "a grey wall a metre away", precisely.
-  //
-  // Two things were wrong and both are fixed here. The runs are shifted so the
-  // door's centreline falls in an AISLE — walk in and you see down the shop,
-  // which is the second half of what the user asked for — and the near end of
-  // every run now carries an end cap rather than bare steel.
+  // Two earlier layout lessons carry over, transposed, not dropped:
+  //  · "the first thing you see is a blank grey slab" — every exposed steel
+  //    end still wears a promo-stack cap; there are two per run and both now
+  //    face the walking lanes (east: the till and the door approach; west:
+  //    the perimeter lane).
+  //  · the door-line slide (runs shifted so an aisle met the doorway) dies
+  //    with the old orientation: broadside runs cannot wall off the door,
+  //    because at 1.4 m you see over every one of them.
+  const GOND_W = 0.62;                    // a run's depth, along z now
+  const AISLE = 1.15;                     // held from the tall layout: a capsule is 0.72 across
   const PITCH = GOND_W + AISLE;
-  const doorLine = room.doorAt ?? 0;
-  const raw = [-hw + 1.5, -hw + 1.5 + PITCH, -hw + 1.5 + 2 * PITCH];
-  // slide the whole set so the nearest AISLE centre lands on the door line
-  const nearest = raw.reduce((b, g) => Math.abs(g + PITCH / 2 - doorLine) < Math.abs(b + PITCH / 2 - doorLine) ? g : b);
-  const shift = doorLine - (nearest + PITCH / 2);
-  const gondXs = raw.map((g) => g + shift);
-  for (const gx of gondXs) {
-    const body = new THREE.Mesh(new THREE.BoxGeometry(GOND_W, 1.95, GOND_L), steelM);
-    put(body, gx, 0.975, GOND_Z);
-    // the END CAP: a run's end is the most-seen face in the shop and was the
-    // only one with nothing on it. Bagged stock, stacked, facing the door.
-    // A run's end is the most-seen face in the shop: the dump says these two
-    // sit 1.11 m from where you stop walking in, flanking the aisle. The first
-    // version drew ONE full-width colour per row, which at that distance is a
-    // 0.5 m × 0.22 m slab — seven of them stacked read as colour banding, not
-    // as goods, and that is what I graded myself down for last commit.
-    //
-    // A real end cap is a promo stack: cases of soda and boxes, two or three
-    // across, uneven, with a hand-lettered price card over it. Two or three
-    // ACROSS is the whole fix — width variation is what stops a row being a band.
-    const capT = declareSurface(pixTex(24, 48, (g) => {
-      g.fillStyle = '#8a8478'; g.fillRect(0, 0, 24, 48);
-      const cols = ['#b8452f', '#3f6a8a', '#c8a33a', '#4a7a4a', '#8a5a7a', '#c05a3a'];
-      let y = 46;                                    // stack upward from the floor
-      for (let r = 0; r < 9 && y > 9; r++) {
-        const rh = 3 + ((r * 5) % 4);                // 3…6 px: case, box, case
-        const k = (r * 7 + 2) % 13;
-        const across = k % 3 === 0 ? 3 : 2;          // two or three items across
-        const pad = 1;
-        const cw = Math.floor((22 - pad * (across - 1)) / across);
-        for (let c = 0; c < across; c++) {
-          if ((k + c * 5) % 11 === 3) continue;      // a case taken off the stack
-          const x = 1 + c * (cw + pad);
-          const jitter = (k + c) % 3 === 0 ? 1 : 0;  // not a tidy stack
-          g.fillStyle = cols[(r * 3 + c * 2) % cols.length];
-          g.fillRect(x, y - rh + jitter, cw, rh - jitter);
-          g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x, y - rh + jitter, cw, 1);
-          g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(x, y - 1, cw, 1);
-        }
-        y -= rh + 1;
+  const GOND_H = 1.4;
+  // ENDS AND ROWS DERIVED FROM THE LANES, so no end butts a wall and traps a
+  // browsing player:
+  //  · west end 1.1 m off the left wall — a walkable perimeter lane, open at
+  //    both aisle mouths
+  //  · east end at x 1.1, where the tall layout's right aisle stood: 1.26 m
+  //    short of the till counter top's west corner (2.36, from CTR_X below),
+  //    which keeps the queue aisle exactly as wide as it was
+  //  · the doorway centreline (x - z = hw - hd, the counter's own derivation)
+  //    crosses the east-end line x = 1.1 at z = 3.0; the north run's face
+  //    stops at z 1.8, 1.2 m south of it, so the entry diamond stays open
+  //  · FOUR runs, not three: turning 7.0 m runs into 4.4 m runs costs a third
+  //    of the shop's shelving, and "use the space fully" is two days old. The
+  //    fourth run's south face still leaves 1.57 m of lane in front of the
+  //    cooler — the tall layout left 0.85.
+  const GX_W = -hw + 1.1, GX_E = 1.1;
+  const GOND_L = GX_E - GX_W, GX_C = (GX_W + GX_E) / 2;
+  const gondZs = [0, 1, 2, 3].map((i) => 1.8 - GOND_W / 2 - i * PITCH);
+  // the END CAP: a run's end is the most-seen face from the lanes and bare
+  // steel there is the "blank grey slab" of the original complaint. A real
+  // end cap is a promo stack: cases of soda and boxes, two or three across,
+  // uneven, with a hand-lettered price card over it — width variation is what
+  // stops a row reading as colour banding. RE-CUT for the 1.4 m carcass: the
+  // canvas is 34 px at the same ~26 px/m the tall cap used, and the stack
+  // just piles fewer cases — not the old drawing squashed.
+  const capT = declareSurface(pixTex(24, 34, (g) => {
+    g.fillStyle = '#8a8478'; g.fillRect(0, 0, 24, 34);
+    const cols = ['#b8452f', '#3f6a8a', '#c8a33a', '#4a7a4a', '#8a5a7a', '#c05a3a'];
+    let y = 32;                                    // stack upward from the floor
+    for (let r = 0; r < 9 && y > 9; r++) {
+      const rh = 3 + ((r * 5) % 4);                // 3…6 px: case, box, case
+      const k = (r * 7 + 2) % 13;
+      const across = k % 3 === 0 ? 3 : 2;          // two or three items across
+      const pad = 1;
+      const cw = Math.floor((22 - pad * (across - 1)) / across);
+      for (let c = 0; c < across; c++) {
+        if ((k + c * 5) % 11 === 3) continue;      // a case taken off the stack
+        const x = 1 + c * (cw + pad);
+        const jitter = (k + c) % 3 === 0 ? 1 : 0;  // not a tidy stack
+        g.fillStyle = cols[(r * 3 + c * 2) % cols.length];
+        g.fillRect(x, y - rh + jitter, cw, rh - jitter);
+        g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x, y - rh + jitter, cw, 1);
+        g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(x, y - 1, cw, 1);
       }
-      // the promo card, hand-lettered, taped over the top of the stack
-      g.fillStyle = '#e8e2d0'; g.fillRect(3, 3, 18, 8);
-      g.fillStyle = '#a8302a';
-      g.fillRect(5, 5, 14, 2); g.fillRect(5, 8, 9, 2);
-      dither(g, 24, 48, 70);
-    }), 'detail');
-    const cap = new THREE.Mesh(new THREE.PlaneGeometry(GOND_W - 0.04, 1.8), ctx.flat(capT));
-    put(cap, gx, 0.95, GOND_Z + GOND_L / 2 + 0.012);
-    // AND THE FAR END. Capping only the door end left the same bare
-    // 0.62 x 1.95 steel face at the back of every run — the user's original
-    // complaint reproduced exactly, just seen from the cooler instead of from
-    // the door. A sweep for untextured boxes in my rooms is what turned these
-    // up; nothing about standing at the entrance would have.
-    const capFar = new THREE.Mesh(new THREE.PlaneGeometry(GOND_W - 0.04, 1.8), ctx.flat(capT));
-    capFar.rotation.y = Math.PI;
-    put(capFar, gx, 0.95, GOND_Z - GOND_L / 2 - 0.012);
-    for (const sx of [-1, 1]) {
-      const st = stockT.clone();
+      y -= rh + 1;
+    }
+    // the promo card, hand-lettered, taped over the top of the stack
+    g.fillStyle = '#e8e2d0'; g.fillRect(3, 3, 18, 8);
+    g.fillStyle = '#a8302a';
+    g.fillRect(5, 5, 14, 2); g.fillRect(5, 8, 9, 2);
+    dither(g, 24, 34, 70);
+  }), 'detail');
+  for (const gz of gondZs) {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(GOND_L, GOND_H, GOND_W), steelM);
+    put(body, GX_C, GOND_H / 2, gz);
+    // caps on BOTH ends, aimed where the approach now comes from: +x toward
+    // the till and the door, -x toward the perimeter lane
+    for (const [sx, ry] of [[1, Math.PI / 2], [-1, -Math.PI / 2]] as [number, number][]) {
+      const cap = new THREE.Mesh(new THREE.PlaneGeometry(GOND_W - 0.04, GOND_H - 0.12), ctx.flat(capT));
+      cap.rotation.y = ry;
+      put(cap, (sx > 0 ? GX_E : GX_W) + sx * 0.012, (GOND_H - 0.12) / 2 + 0.03, gz);
+    }
+    // the stock faces, on the long sides — the three-course cut, not the
+    // five-course texture squeezed
+    for (const sz of [-1, 1]) {
+      const st = stockLowT.clone();
       st.wrapS = st.wrapT = THREE.RepeatWrapping;
       st.repeat.set(GOND_L / 2.4, 1);
       st.needsUpdate = true;
-      const face = new THREE.Mesh(new THREE.PlaneGeometry(GOND_L, 1.85), ctx.flat(st));
-      face.rotation.y = sx > 0 ? Math.PI / 2 : -Math.PI / 2;
-      put(face, gx + sx * (GOND_W / 2 + 0.01), 0.98, GOND_Z);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(GOND_L, GOND_H - 0.1), ctx.flat(st));
+      face.rotation.y = sz > 0 ? 0 : Math.PI;
+      put(face, GX_C, GOND_H / 2 + 0.01, gz + sz * (GOND_W / 2 + 0.01));
     }
-    solid(gx, GOND_Z, GOND_W, GOND_L);
+    solid(GX_C, gz, GOND_L, GOND_W);
   }
 
   // ── the cooler, the whole back wall ──

@@ -5796,3 +5796,17 @@ One rough pass, live for his eye, no variants. Old paint is one `git show`
 away, not a flag.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"make shorter shelves which are horizontal here instead of vertical pls"*
+
+Same builder, on the bodega gondolas. The three 1.95 m runs that ran away
+from the till are now FOUR 1.40 m runs lying across the room, parallel to
+the front wall — from the till and from the door you look along their faces
+and over their tops, so the keeper sees the whole floor and so does the
+player. Ends derived from the lanes (1.1 m off the left wall, 1.26 m short
+of the till counter — the queue aisle unchanged; the north face 1.2 m clear
+of the doorway centreline), aisles held at 1.15, and the fourth run keeps
+the total shelving near the old footage while leaving 1.57 m in front of
+the cooler, more than the tall layout did. Stock texture re-cut at three
+shelf courses for the low face — not the five-course texture squashed — and
+the promo end caps re-cut to 1.4 m and re-aimed at both lane ends.
