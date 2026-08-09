@@ -894,9 +894,7 @@ export function buildVolt(ctx: CtxBuild): void {
   //     13" colour portable   $130 in 1997   ->  $520
   //     four-head VCR          $150          ->  $600
   //     VHS-C camcorder        $480          ->  $1920
-  //     new transistor radio    $14          ->  $56
   //     3-pack of blank T-120    $1.75       ->  $7
-  //     four D cells             $3          ->  $12
   //
   // ── WHAT THAT MEANS, WHICH IS THE PART WORTH SAYING OUT LOUD ──────────────
   //
@@ -906,8 +904,9 @@ export function buildVolt(ctx: CtxBuild): void {
   // is three seasons of it and is not a purchase at all this year — it is the
   // thing under glass that you look at, which is precisely why the shop keeps
   // it in a case and why the case is the one fixture on the open floor. The
-  // small end of the board is where a player actually shops: batteries, tapes
-  // and a radio are all inside a day's rent.
+  // small end of the board is where a player actually shops: blank tapes are
+  // inside a day's rent. (The board also carried a SOUND column — RADIO $56,
+  // D CELL 4PK $12 — until 2026-08-09: *"kill radio and batteries."*)
   //
   // Nothing here invents an income to make the big lines reachable. That is a
   // decision for the user (`ct/shop.ts` says the same at the foot of the price
@@ -915,26 +914,19 @@ export function buildVolt(ctx: CtxBuild): void {
   //
   // ── AND WHERE THE SAME OBJECT IS SOLD TWICE, THE SPREAD IS DELIBERATE ─────
   //
-  // Two lines here are already sold elsewhere and both are cheaper HERE, which
-  // is the relationship the ×4 note asks to be preserved rather than a
+  // One line here is already sold elsewhere and it is cheaper HERE, which is
+  // the relationship the ×4 note asks to be preserved rather than a
   // coincidence:
   //
   //     BLANKS   $7 here against the VIDEO HUT's $9 — a rental shop marks up
   //              the tape you buy at the till on your way out; a discounter two
   //              streets away is what it is discounting against.
-  //     RADIO    $56 here against the PAWN shop's $28 — exactly double, because
-  //              one of them is new in a box and the other has somebody else's
-  //              thumbprints on the dial.
   const STOCK: ShopColumn[] = [
     { head: 'VIDEO', lines: [
       { id: 'TV', name: '13" COLOUR', price: 520.00 },
       { id: 'VCR', name: '4-HEAD VCR', price: 600.00 },
       { id: 'CAMCORDER', name: 'CAMCORDER', price: 1920.00 },
       { id: 'BLANKS', name: 'BLANKS 3PK', price: 7.00 },
-    ] },
-    { head: 'SOUND', lines: [
-      { id: 'RADIO', name: 'RADIO', price: 56.00 },
-      { id: 'BATTERIES', name: 'D CELL 4PK', price: 12.00 },
     ] },
   ];
   // ⚠ THE BOARD IS PRINTED BLACK-ON-CREAM, NOT LIT WHITE-ON-BLACK. It was a

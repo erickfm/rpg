@@ -396,35 +396,15 @@ export const BOOK = defineItem({
 
 // ── THE PAWN SHOP ──────────────────────────────────────────────────────────
 //
-// He sells the same kinds of things he takes in, and the two new ones are the
-// two the room already shows you and could not hand over: a radio on the shelf
-// behind him, and the watches lying on tags under the counter glass. The other
-// four lines on his card are items the fence table already prices — the point of
-// the card is the SPREAD, and it only reads if both numbers are about the same
-// object. Palette off `ct/int-pawn.ts`: #c9a45e is its gold, #4a4238 its grime.
-
-export const RADIO = defineItem({
-  id: 'RADIO', name: 'transistor radio', stack: 2,
-  thick: 0.09,
-  blurb: 'the dial is off by a station and always will be.',
-  icon: (g) => {
-    box(g, '#3a3630', 2, 6, 20, 13);                   // the case
-    box(g, '#2a2620', 2, 6, 20, 2);
-    box(g, '#8a8478', 4, 9, 9, 8);                     // the speaker grille
-    for (let y = 10; y < 17; y += 2) box(g, '#3a3630', 4, y, 9, 1);
-    box(g, '#c9a45e', 14, 9, 6, 4);                    // the tuning scale
-    box(g, '#8a2c22', 17, 10, 1, 3);                   // the needle
-    box(g, '#b8c0c8', 15, 15, 3, 3);                   // the knob
-    box(g, '#b8c0c8', 20, 2, 1, 5);                    // the aerial
-  },
-  // A TABLE TRANSISTOR SET, 21 x 9 x 7, aerial up.
-  model: () => mOf(
-    mBox(0.21, 0.085, 0.070, '#3a3630', 0, 0.043, 0),
-    mBox(0.085, 0.060, 0.004, '#8a8478', -0.05, 0.045, 0.036),
-    mBox(0.060, 0.026, 0.004, '#c9a45e', 0.045, 0.050, 0.036),
-    mBox(0.006, 0.130, 0.006, '#b8c0c8', 0.095, 0.150, 0),
-  ),
-});
+// He sells the same kinds of things he takes in, and the one new one is the
+// thing the room already shows you and could not hand over: the watches lying
+// on tags under the counter glass. The other four lines on his card are items
+// the fence table already prices — the point of the card is the SPREAD, and it
+// only reads if both numbers are about the same object. Palette off
+// `ct/int-pawn.ts`: #c9a45e is its gold, #4a4238 its grime.
+//
+// (A RADIO item was declared here until 2026-08-09 — *"kill radio and
+// batteries."* The radio on the shelf behind him is set dressing and stays.)
 
 export const WRISTWATCH = defineItem({
   id: 'WRISTWATCH', name: 'wristwatch', stack: 4,
@@ -530,10 +510,10 @@ export const POPCORN = defineItem({
 // **THE FACADE NAMES THE STOCK AND THE BOARD OWES IT.** `electroFront` in
 // `ct/tex-world.ts` tapes one price card inside the glass and it reads
 // `TV · VCR · CAMCORDER` — three words, so three lines, and they are the three
-// declared here. The rest of what the shop sells is already in this world (a
-// transistor radio at the pawn shop, blank tapes at the video hut) and is not
-// redeclared: an electronics discounter selling the same three-pack of tapes as
-// the rental place is the POINT, and it is one item at two prices.
+// declared here. The rest of what the shop sells is already in this world
+// (blank tapes at the video hut) and is not redeclared: an electronics
+// discounter selling the same three-pack of tapes as the rental place is the
+// POINT, and it is one item at two prices.
 //
 // Palette straight off `electroFront` so the thing in your hands is the thing
 // painted behind the glass: #2a2d33 the graphite the whole shop is finished in,
@@ -625,37 +605,6 @@ export const CAMCORDER = defineItem({
       mBox(0.050, 0.050, 0.030, '#17191d', 0, 0.075, -0.128),
       mBox(0.014, 0.014, 0.004, '#c8322a', 0.040, 0.095, 0.116),
       mBox(0.116, 0.016, 0.090, '#6a6258', 0, 0.020, 0),
-    );
-  },
-});
-
-export const BATTERIES = defineItem({
-  id: 'BATTERIES', name: 'four D cells', stack: 4,
-  thick: 0.04,
-  blurb: 'the card says HEAVY DUTY, which in 1997 means the cheap ones.',
-  icon: (g) => {
-    box(g, '#c8322a', 2, 2, 20, 20);                   // the blister card
-    box(g, '#2a2d33', 2, 2, 20, 5);                    // its printed header
-    box(g, '#e8eef2', 4, 4, 13, 2);
-    for (const x of [3, 8, 13, 18]) {
-      box(g, '#4a4e56', x, 9, 4, 11);                  // a cell
-      box(g, '#9aa0a6', x, 9, 4, 2);                   // its cap
-      box(g, '#17191d', x, 19, 4, 1);
-    }
-    box(g, 'rgba(255,255,255,0.16)', 3, 9, 19, 3);     // the blister catching the light
-  },
-  // FOUR D CELLS LYING ON THEIR CARD, 34 mm across and 61 long, which is the
-  // real size and the reason they read as batteries and not as pipe.
-  model: () => {
-    const cells = [-0.054, -0.018, 0.018, 0.054].map((x) => {
-      const c = mCyl(0.017, 0.061, '#4a4e56');
-      c.rotation.x = Math.PI / 2; c.position.set(x, 0.021, 0.012);
-      return c;
-    });
-    return mOf(
-      mBox(0.170, 0.004, 0.090, '#c8322a', 0, 0.002, 0),
-      mBox(0.150, 0.005, 0.024, '#2a2d33', 0, 0.005, -0.030),
-      ...cells,
     );
   },
 });
@@ -782,8 +731,8 @@ export const GOODS: string[] = [
   BURGER.id, CHICKEN.id, FRIES.id, PIE.id, SHAKE.id, COFFEE.id,
   EGGS.id, PLATTER.id, SANDWICH.id, CHIPS.id, SMOKES.id,
   COAT.id, SHIRT.id, BELT.id, BOOK.id,
-  RADIO.id, WRISTWATCH.id,
+  WRISTWATCH.id,
   RENTAL.id, BLANKS.id, POPCORN.id,
-  TV.id, VCR.id, CAMCORDER.id, BATTERIES.id,
+  TV.id, VCR.id, CAMCORDER.id,
   FRAME.id, PILLOW.id, SHEETS.id, BLANKET.id,
 ];

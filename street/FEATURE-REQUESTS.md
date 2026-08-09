@@ -5810,3 +5810,16 @@ the total shelving near the old footage while leaving 1.57 m in front of
 the cooler, more than the tall layout did. Stock texture re-cut at three
 shelf courses for the low face — not the five-course texture squashed — and
 the promo end caps re-cut to 1.4 m and re-aimed at both lane ends.
+
+## 2026-08-09 — *"kill radio and batteries."*
+
+His ruling on the item audit. The RADIO and BATTERIES items are out of the
+world: declarations and `GOODS` sweep entries gone from `ct/goods.ts`, the
+whole SOUND column (RADIO $56, D CELL 4PK $12) off VOLT VILLAGE's board in
+`ct/int-volt.ts`, and RADIO $28 off the pawn's FOR SALE card in
+`ct/int-pawn.ts`. Neither id was ever in the `FENCE` table, so `fencePrice`
+and the pawn's derived asks are untouched. Old saves are safe: `itemOf()`
+still hands an unknown id back as an honest parcel. Set dressing stays —
+the bodega keeper's counter radio, the pawn's shelf radio, the painted
+table radio on the Gladstone's catalogue cover (`ct/tenancy.ts`), and
+patchwork's RADIO FIX sign are pictures, not stock.

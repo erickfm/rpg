@@ -596,7 +596,7 @@ export function buildPawn(ctx: CtxBuild): void {
   //
   // ── THE SPREAD IS THE POINT AND IT IS DERIVED, NOT TYPED ──────────────────
   //
-  // Four of the six lines are items `FENCE` in `ct/inventory.ts` already prices,
+  // Four of the five lines are items `FENCE` in `ct/inventory.ts` already prices,
   // and the card's asking price is `MARKUP` times what he pays, rounded to the
   // period's own price points. He gives you $2 for a tape and wants $4; $5 for
   // the trainers and wants $12; **fifty cents for the socks and $1.50 for the
@@ -606,9 +606,11 @@ export function buildPawn(ctx: CtxBuild): void {
   // fence table (BUILDER-BRIEF §8) rather than being a second set of figures
   // that could drift away from it.
   //
-  // The two lines that are not in that table are the two things this room draws
-  // and could not sell: the radio on the shelf behind him and the watches lying
-  // on their tags under the counter glass you are reading the card over.
+  // The one line that is not in that table is the thing this room draws and
+  // could not sell: the watches lying on their tags under the counter glass you
+  // are reading the card over. (RADIO $28 was the card's other drawn-not-priced
+  // line until 2026-08-09 — *"kill radio and batteries."* The radio on the
+  // shelf behind him stays; it is set dressing, not stock.)
   const ask = (id: string, mult: number, floor: number) =>
     Math.max(floor, Math.round(fencePrice(id) * mult * 2) / 2);
   const RATES: ShopColumn[] = [
@@ -616,7 +618,6 @@ export function buildPawn(ctx: CtxBuild): void {
       { id: 'WRISTWATCH', name: 'WATCH', price: 60.00 },
       { id: 'TRAINERS', name: 'SHOES', price: ask('TRAINERS', 2.4, 24) },
       { id: 'TOASTER', name: 'TOASTER', price: ask('TOASTER', 2.25, 16) },
-      { id: 'RADIO', name: 'RADIO', price: 28.00 },
       { id: 'VHS', name: 'TAPE', price: ask('VHS', 2, 8) },
       { id: 'SOCKS', name: 'SOCKS', price: ask('SOCKS', 3, 6) },
     ] },
