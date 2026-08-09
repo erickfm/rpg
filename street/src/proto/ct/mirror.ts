@@ -42,7 +42,13 @@ import { setting, onSettingChange } from './osd';
 //     me true proportions in the mirror i feel stretched"*
 //   · PER-PART FORESHORTENING on the figure, from *"i squish and distort in
 //     some"* — see `COL_SPAN`/`COL_ROUND`/`COL_DEEP`
-//   · the EIGHT FACINGS on the wheel, from *"scroll to turn self in mirror?"*
+//   · the EIGHT FACINGS the painter can draw, from *"scroll to turn self in
+//     mirror?"* — though the WHEEL itself is gone again: *"dont allow for
+//     rotation in the mirror and in the character create screen pls."*
+//     (2026-08-09). The focus view is pinned front-on; the five painted
+//     columns stay because `ct/create.ts` and this file share one figure
+//     painter and the machinery is the fix for the squish reports, not the
+//     rotation gesture.
 
 /**
  * TEXELS PER METRE ON THE PLATE, and the reason this number exists at all.
@@ -1352,9 +1358,21 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
   const PW = Math.round(o.glassW * PANEL_PPM), PH = Math.round(o.glassH * PANEL_PPM);
   let panel: Panel | null = null;
   let hover: Slot | null = null;
-  /** which way the reflection is facing, 0…7. Front-on again on every open — a
-   *  mirror left turned away is a state with no visible cause. */
-  let facing = 0;
+  /**
+   * THE REFLECTION IS FRONT-ON, ALWAYS.
+   *
+   * *"dont allow for rotation in the mirror and in the character create screen
+   *  pls."*   (2026-08-09)
+   *
+   * The wheel used to step through `viewAt`'s eight stops here; that handler is
+   * DELETED, not disabled — looking in a mirror is front-on, which is what a
+   * mirror actually is. One constant, read by the draw, the hit test and the
+   * highlight alike (`wornRects` takes it through all three), so the clothing
+   * you click is exactly the clothing that is drawn. Wheel events are still
+   * eaten by the panel's own capture-phase gate (`BLOCKED` in `ct/hud.ts`), so
+   * dropping the handler cannot leak a scroll into the world's zoom.
+   */
+  const FACING = 0;
   const repaint = () => panel?.repaint();
 
   // ── AND IT FADES, WHICH IS THE OTHER HALF OF "JANKY" ────────────────────
@@ -1396,17 +1414,8 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
         // caption carried both halves of what he asked to have removed: the
         // instruction on the left and `[E] leave` on the right.
         silent: true,
-        draw: (g, w, h) => paint(g, w, h, hover, facing, lit),
-        // ── THE WHEEL TURNS YOU ────────────────────────────────────────
-        // *"scroll to turn self in mirror?"* — eight stops, `viewAt`'s own, so
-        // the reflection steps through exactly the angles `ct/citizens.ts`
-        // paints and never lands between two. It is not part of dressing and
-        // never was — turning to look at the back of a jacket is its own thing.
-        //
-        // It cannot steal the world's zoom: that listener is BUBBLE-phase and
-        // this panel's gate is CAPTURE-phase with `stopImmediatePropagation`,
-        // so while the mirror is up the world never sees a wheel event.
-        wheel: (d) => { facing = (facing + d + 8) % 8; repaint(); },
+        draw: (g, w, h) => paint(g, w, h, hover, FACING, lit),
+        // NO `wheel` — rotation was removed at his word, see `FACING` above.
         key: (k) => {
           // THE KEYBOARD DOES EVERYTHING THE MOUSE DOES. A panel that can only
           // be worked with a pointer is one a player with a trackpad, a
@@ -1424,7 +1433,7 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
           mesh,
           standoff: o.standoff,
           fov: o.fov,
-          hot: (x, y) => slotAtCanvas(x, y, PW, PH, facing) !== null,
+          hot: (x, y) => slotAtCanvas(x, y, PW, PH, FACING) !== null,
           // ── ONE VERB: CLICK ────────────────────────────────────────────
           //
           // *"get rid of drag to dress instead you just click the highlighted
@@ -1437,7 +1446,7 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
           // are gone, so there is one gesture in this panel and no second path
           // through the wardrobe that could disagree with it.
           move: (x, y) => {
-            const z = slotAtCanvas(x, y, PW, PH, facing);
+            const z = slotAtCanvas(x, y, PW, PH, FACING);
             if (z === hover) return;
             // MOVING BETWEEN TWO PARTS DOES NOT DIM AND RE-LIGHT. The wash
             // stays up and the shape under it changes, so crossing from your
@@ -1447,7 +1456,7 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
             repaint();
           },
           click: (x, y) => {
-            const z = slotAtCanvas(x, y, PW, PH, facing);
+            const z = slotAtCanvas(x, y, PW, PH, FACING);
             if (!z) return;
             hover = z;
             // `cycle` WRAPS OVER THE WHOLE RACK INCLUDING INDEX 0, and index 0
@@ -1465,7 +1474,7 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
         // the point. Nothing starts lit, so walking up to the mirror never
         // highlights a part of you that you last touched an hour ago and
         // cannot remember choosing.
-        onOpen: () => { hover = null; facing = 0; lit = 0; },
+        onOpen: () => { hover = null; lit = 0; },
         onClose: () => { if (litTimer) { clearInterval(litTimer); litTimer = 0; } },
       });
       // and if something else dresses the player — a shop, a laundrette, a

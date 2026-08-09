@@ -5455,3 +5455,26 @@ still has, from its OWN timings — and the sleep cue, which fires at the black
 midpoint, ramps to silence and stops exactly there. Sound and screen come back
 together on the bed, on the hotel night, and on the pass-out, each to its own
 transition. `fire()` grew an optional cap; nothing else uses it.
+
+## 2026-08-09 — *"dont allow for rotation in the mirror and in the character create screen pls."*
+
+Went to a builder. Two surfaces had the eight-facing turn from *"scroll to
+turn self in mirror?"* (2026-08-04); both are pinned front-on now.
+
+- **Character creation** (`ct/create.ts`): the instant photo no longer
+  re-takes at the next angle on scroll or on click — one fixed front-on
+  frame, the mugshot a resident card wants. The wheel listener stays as a
+  swallow so a scroll cannot leak through the screen to the world; clicking
+  the photo is inert. `SCROLL TURN` is gone from the form's small print.
+- **The mirror in 301** (`ct/mirror.ts`): the panel's `wheel` handler is
+  deleted — the reflection is front-on, which is what looking in a mirror
+  is. `FACING = 0` is one constant read by the draw, the hit test and the
+  highlight alike (`wornRects` all the way through), so clothing clicks
+  still land exactly on what is drawn. Wheel events are still eaten by the
+  hud's own `BLOCKED` gate, so the world's zoom sees nothing.
+
+Removal of one interaction only — Escape, closing, rows, keys all untouched.
+The five painted facing columns stay in the painter: they are the squish
+fix, not the rotation gesture.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

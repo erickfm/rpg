@@ -25,7 +25,10 @@
 //     in the game) on VOLT VILLAGE's oak — warm beige-and-wood, his palette
 //   · the doll is now the PHOTO: full length against a cold grey wall with
 //     height ticks (which is what makes HEIGHT read at a glance), in an
-//     instant-film frame — scroll and the photo is re-taken at another angle
+//     instant-film frame — ONE fixed front-on frame, the mugshot a card
+//     wants. It turned with the scroll wheel for a day; *"dont allow for
+//     rotation in the mirror and in the character create screen pls."*
+//     (2026-08-09) removed that, here and at the mirror in 301 alike
 //   · the name you type is hand-written on the photo's bottom border in blue
 //     pen, because that is where a name goes on a photo
 //   · HAND is two checkboxes, the selected field is a yellow HIGHLIGHTER
@@ -45,7 +48,7 @@
 //
 // THE FIGURE IN THE PHOTO IS STILL `ct/mirror.ts`'s. This screen owns NO
 // painter of him: the same `paintFigure` that draws the reflection in 301
-// draws the photo, at the same eight facings. There is one figure in this game.
+// draws the photo, front-on. There is one figure in this game.
 //
 // ⚠ WHY THIS IS ITS OWN FILE AND NOT PART OF `ct/osd.ts`. That module is a
 // NEAR-LEAF — audio and nothing else — precisely so it cannot close an import
@@ -114,10 +117,8 @@ function wanted(): boolean {
 let wrap: HTMLDivElement | null = null;
 let cv: HTMLCanvasElement | null = null;
 let active = false;
-/** which way he is standing in the photo, 0…7 — `viewAt`'s own eight stops,
- *  the same ones the mirror scrolls through, so he never lands between two
- *  painted angles. */
-let facing = 0;
+/** the photo is front-on, always — see the header. `paintFigure`'s sector 0. */
+const FACING = 0;
 let sel = 0;
 let name = '';
 
@@ -433,7 +434,7 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   });
 
   // small print — the only instructions, and they are the form's own
-  fitText(g, '▲▼ FIELD  ◀▶ CHANGE  SCROLL TURN  ENTER SIGN', ROW_X, 229, LINE_R - ROW_X, 8, FAINT);
+  fitText(g, '▲▼ FIELD  ◀▶ CHANGE  ENTER SIGN', ROW_X, 229, LINE_R - ROW_X, 8, FAINT);
 
   // ── the photo ────────────────────────────────────────────────────────
   g.fillStyle = 'rgba(0,0,0,0.28)';
@@ -456,7 +457,7 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   paintFigure(g,
     IMG_X + Math.round((IMG_W - 40 * FIG_S) / 2),
     FOOT_Y - Math.round(146 * FIG_S),
-    FIG_S, facing);
+    FIG_S, FACING);
   g.restore();
   // the name, hand-written on the film's bottom border in pen — that is
   // where a name goes on a photo, and it is written as he types it
@@ -520,6 +521,20 @@ function finish(): void {
   window.removeEventListener('click', onClick, true);
 }
 
+/**
+ * THE WHEEL DOES NOTHING HERE ANY MORE — *"dont allow for rotation in the
+ * mirror and in the character create screen pls."* (2026-08-09). It used to
+ * re-take the photo at the next of the eight facings. The listener STAYS,
+ * as a swallow: this screen is the only thing being asked a question, and a
+ * scroll leaking through it to whatever the world binds the wheel to would
+ * be an input with an invisible effect.
+ */
+function onWheel(e: WheelEvent): void {
+  if (!active) return;
+  e.stopImmediatePropagation();
+  e.preventDefault();
+}
+
 /** letters, digits, space, `_` and `-`, up to 20 — the same shape `ct/save.ts`
  *  accepts for a username, so a name typed here can never be one the server
  *  would refuse. */
@@ -557,18 +572,10 @@ function onKey(e: KeyboardEvent): void {
   if (active) paint();
 }
 
-/** *"scroll to turn self in mirror?"* — the same eight stops, here too: the
- *  photo is re-taken at the next angle */
-function onWheel(e: WheelEvent): void {
-  if (!active) return;
-  facing = (facing + (e.deltaY > 0 ? 1 : -1) + 8) % 8;
-  e.stopImmediatePropagation();
-  e.preventDefault();
-  paint();
-}
-
-/** click a field to select it, click it again to step it — and a click on the
- *  photo turns him, the pointer's copy of the scroll */
+/** click a field to select it, click it again to step it. The photo is INERT
+ *  — it used to turn him, removed with the wheel (see `onWheel`) — and the
+ *  early return keeps a click on it from selecting whatever row shares its
+ *  screen rows. */
 function onClick(e: MouseEvent): void {
   if (!active || !cv) return;
   const r = cv.getBoundingClientRect();
@@ -576,11 +583,7 @@ function onClick(e: MouseEvent): void {
   const y = (e.clientY - r.top) * (OH / r.height);
   e.stopImmediatePropagation();
   e.preventDefault();
-  if (x >= PH_X && x < PH_X + PH_W && y >= PH_Y && y < PH_Y + PH_H) {
-    facing = (facing + 1) % 8;
-    paint();
-    return;
-  }
+  if (x >= PH_X && x < PH_X + PH_W && y >= PH_Y && y < PH_Y + PH_H) return;
   const i = Math.floor((y - (ROW_Y - 10)) / ROW_H);
   if (i < 0 || i >= LINES.length) return;
   if (i === sel) LINES[sel].step(1); else sel = i;
@@ -591,7 +594,7 @@ function start(): void {
   if (active) return;
   build();
   active = true;
-  sel = 0; facing = 0;
+  sel = 0;
   name = setting('name') || '';
   // *"start them in some unisex boring outfit."* — and it has to happen HERE
   // rather than at module load, because `ct-wardrobe` is its own storage key
