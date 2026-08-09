@@ -432,21 +432,34 @@ export function carColliderSpec(kind: CarKind): CarTier[] {
 /** The kind's tiers placed in the world at `(x, z)` and turned to `yaw`, as
  *  colliders `fp.ts` can use.
  *
- *  AXIS-ALIGNED, ON THE CAR'S DOMINANT AXIS, WHICH IS WHAT EVERY CAR COLLIDER
- *  IN THIS WORLD HAS ALWAYS BEEN. A parked car is drawn within a few degrees of
- *  its kerb — `parkYaw()` jitters it by at most 0.1 rad — and both hand-written
- *  blocks this replaces resolved that the same way: take the SIGN of cos(yaw)
- *  and ignore the rest, because the only question is which world end the bed is
- *  at. Blending the box through the jitter instead would INFLATE it (0.1 rad on
- *  a 2.6 m half-length adds 0.26 m of width), which would change the ground
- *  footprint every car has shipped with and could manufacture the very
- *  trap-band gaps `ct/gap.ts` exists to remove.
+ *  TURNED TO THE CAR'S REAL YAW, via `AABB.rot` — the same mapping the lot's
+ *  item-231 block wrote for its raked bays, hoisted here so it is THE mapping
+ *  rather than the lot's private one. This function used to snap to the car's
+ *  dominant axis instead (take the SIGN of cos(yaw), ignore the rest), which
+ *  was right when it was written: without `rot` the only alternative was an
+ *  INFLATED bounding box. But `rot` exists now and is honoured by collision
+ *  (`fp.ts` inFrame/outOfFrame — walls, standable tops and push-out alike), by
+ *  the trap-band rule (`ct/gap.ts`) and by the V overlay
+ *  (`ct/debug-collision.ts`) — and the snap was the last visible seam in
+ *  *"collision on all the vehicles is not consistent. i want collision to
+ *  match the visual geometry."* (2026-08-08). Measured before this landed: the
+ *  eleven lot cars sat in their boxes to 0.00°, while every kerb-parked car
+ *  wore its `parkYaw()` rake OUTSIDE its box — 4.01° on the main-street hatch,
+ *  0.143 m of nose past the collider's corner.
  *
- *  The short axis is NOT mirrored, deliberately. Every tier is symmetric across
- *  the car's centre line except the two bed rails, which are a symmetric PAIR —
- *  so the set of boxes is identical either way, and leaving the mapping alone
- *  keeps `pickup-rail-left` naming the same physical rail it has always named
- *  (scripts/stepoff-walk.mjs:175 looks it up by that name).
+ *  THE GROUND FOOTPRINT IS THE SAME RECTANGLE, merely turned by the parked
+ *  jitter (at most 0.1 rad) about the same centre — not grown, not moved. The
+ *  union of the tiers still tiles the kind's length end to end, so the
+ *  `nudgeClear` reservation each caller ran at placement time still describes
+ *  this box to within `hl·sin(0.1)` at the extreme corners, exactly the
+ *  tolerance the lot accepted when it shipped real angles ("the colliders are
+ *  now the real ones").
+ *
+ *  TAGS NOW FOLLOW THE CAR'S OWN FRAME: `pickup-rail-left` is the car's left
+ *  rail, so on a south-facing truck it sits on the opposite world side from
+ *  the dominant-axis days. The rails are a symmetric pair, and the harnesses
+ *  that walk them derive their strafe from the box's measured centre
+ *  (`scripts/stepoff-walk.mjs:201`), not from the name.
  *
  *  `site` is an instance label appended to every tag, e.g. `@side`. Two
  *  physical surfaces must not answer to one name: `w21-roof-climb.mjs` and
@@ -458,13 +471,17 @@ export function carColliderBoxes(
   kind: CarKind, x: number, z: number, yaw: number, site = '',
 ): (AABB & { tag: string })[] {
   const c = Math.cos(yaw), s = Math.sin(yaw);
-  const longIsZ = Math.abs(c) >= Math.abs(s);
-  const nose = longIsZ ? c : s;                 // which way the car's own +z runs
   return carColliderSpec(kind).map((t) => {
-    const [lo, hi] = nose >= 0 ? [t.minZ, t.maxZ] : [-t.maxZ, -t.minZ];
-    const b: AABB & { tag: string } = longIsZ
-      ? { tag: t.tag + site, minX: x + t.minX, maxX: x + t.maxX, minZ: z + lo, maxZ: z + hi }
-      : { tag: t.tag + site, minX: x + lo, maxX: x + hi, minZ: z + t.minX, maxZ: z + t.maxX };
+    const lx = (t.minX + t.maxX) / 2, lz = (t.minZ + t.maxZ) / 2;
+    const hx = (t.maxX - t.minX) / 2, hz = (t.maxZ - t.minZ) / 2;
+    // three's Ry(t) sends local (x, z) to (x cos t + z sin t, -x sin t + z cos t)
+    const wx = x + lx * c + lz * s, wz = z - lx * s + lz * c;
+    const b: AABB & { tag: string } = {
+      tag: t.tag + site,
+      minX: wx - hx, maxX: wx + hx,
+      minZ: wz - hz, maxZ: wz + hz,
+      rot: yaw,
+    };
     if (t.maxY !== undefined) b.maxY = t.maxY;
     return b;
   });

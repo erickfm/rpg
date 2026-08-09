@@ -655,10 +655,38 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     });
   });
 
+  // ── TURNED BOXES ARE TESTED IN THEIR OWN FRAME (2026-08-08) ─────────────
+  //
+  // A box with `AABB.rot` stores its extents in its OWN frame, so a raw
+  // min/max read here tests a DIFFERENT box — gap.ts:34 learned this first.
+  // It started to matter to the crowd the day every parked car's collider
+  // took its real yaw (*"i want collision to match the visual geometry"*,
+  // ct/cars.ts `carColliderBoxes`): the side street's cars are yawed ~90°, so
+  // their raw rectangle pokes ~1.5 m into the walk the citizens use while
+  // leaving the car's real ends uncovered. These are fp.ts's own transforms
+  // (fp.ts:64, fp.ts:74), copied with their lines cited because fp.ts keeps
+  // them private — a point mapped into the frame makes every plain min/max
+  // test below exact again, and a circle's radius survives the turn.
+  const inFrame = (c: AABB, x: number, z: number) => {
+    if (!c.rot) return { x, z };
+    const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+    const s = Math.sin(c.rot), k = Math.cos(c.rot);
+    const dx = x - cx, dz = z - cz;
+    return { x: cx + dx * k - dz * s, z: cz + dx * s + dz * k };
+  };
+  const outOfFrame = (c: AABB, dx: number, dz: number) => {
+    if (!c.rot) return { dx, dz };
+    const s = Math.sin(c.rot), k = Math.cos(c.rot);
+    return { dx: dx * k + dz * s, dz: -dx * s + dz * k };
+  };
+
   // is a citizen's footprint clear of every solid PROP (trees, cars, …)?
   // (the player isn't in this set — people phase the player, never props)
   const clearAt = (x: number, z: number) =>
-    !o.citAvoid.some((a) => x + 0.28 > a.minX && x - 0.28 < a.maxX && z + 0.28 > a.minZ && z - 0.28 < a.maxZ);
+    !o.citAvoid.some((a) => {
+      const p = inFrame(a, x, z);
+      return p.x + 0.28 > a.minX && p.x - 0.28 < a.maxX && p.z + 0.28 > a.minZ && p.z - 0.28 < a.maxZ;
+    });
   /** …and clear of everybody ELSE. The old sim never checked this: people
    *  walked straight through one another, which is the one thing the brief
    *  called a non-negotiable. A candidate position is only taken if it is clear
@@ -700,7 +728,8 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    *  refuses on, so "this candidate failed" and "a vehicle is why" agree. */
   const moverAt = (x: number, z: number) => {
     for (const a of movers) {
-      if (x + 0.28 > a.minX && x - 0.28 < a.maxX && z + 0.28 > a.minZ && z - 0.28 < a.maxZ) return a;
+      const p = inFrame(a, x, z);
+      if (p.x + 0.28 > a.minX && p.x - 0.28 < a.maxX && p.z + 0.28 > a.minZ && p.z - 0.28 < a.maxZ) return a;
     }
     return null;
   };
@@ -739,13 +768,17 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   const escapeFrom = (c: AABB, x: number, z: number,
     /** the walk line to stay near: the edge being walked, if there is one */
     line?: { ax: number; az: number; bx: number; bz: number }) => {
-    const left = x - (c.minX - CIT_R);
-    const right = (c.maxX + CIT_R) - x;
-    const back = z - (c.minZ - CIT_R);
-    const front = (c.maxZ + CIT_R) - z;
+    // worked out in the BOX's frame — the four exits of a turned box run along
+    // its own axes, not the world's — then each push is turned back into world
+    // axes below, which is exactly fp.ts's outOfFrame contract
+    const p = inFrame(c, x, z);
+    const left = p.x - (c.minX - CIT_R);
+    const right = (c.maxX + CIT_R) - p.x;
+    const back = p.z - (c.minZ - CIT_R);
+    const front = (c.maxZ + CIT_R) - p.z;
     if (left <= 0 || right <= 0 || back <= 0 || front <= 0) return null;   // outside
     const opts = [{ dx: -left, dz: 0 }, { dx: right, dz: 0 },
-      { dx: 0, dz: -back }, { dx: 0, dz: front }];
+      { dx: 0, dz: -back }, { dx: 0, dz: front }].map((e) => outOfFrame(c, e.dx, e.dz));
     if (!line) {
       const d = Math.min(left, right, back, front);
       if (d === left) return opts[0];

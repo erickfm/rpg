@@ -168,9 +168,11 @@ export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
     //  the good one said `.find()`.
     //
     // `carColliderBoxes` reads the kind's ONE spec and turns it to this car's
-    // yaw, so the side street cannot drift from the main street again. The
-    // union of the tiers is exactly `box(x)` — a kind's tiers tile its length
-    // end to end — so the nudge above still governs the ground footprint and
+    // yaw — the REAL yaw since 2026-08-08 (`AABB.rot`), so the box wears the
+    // same ±0.03 rad rake the mesh does. The union of the tiers is exactly
+    // `box(x)` turned about its own centre by that rake — a kind's tiers tile
+    // its length end to end — so the nudge above still governs the ground
+    // footprint to within `hl·sin(0.03)` ≈ 8 cm at the extreme corners, and
     // the walk past these cars is unchanged.
     //
     // `@side` labels every tag: two physical surfaces must not answer to one

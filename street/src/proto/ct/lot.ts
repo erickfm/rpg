@@ -19,7 +19,7 @@ const surfTex = (kind: SurfaceKind, w: number, h: number,
                  draw: (g: CanvasRenderingContext2D) => void) =>
   declareSurface(pixTex(w, h, draw), kind);
 import { FACE } from './rng';
-import { makeCar, carColliderSpec, type CarKind, type CarState } from './cars';
+import { makeCar, carColliderBoxes, type CarKind, type CarState } from './cars';
 import { citizenSprite } from './citizens';
 import { weedTuft } from './weeds';
 
@@ -2017,9 +2017,11 @@ function buildLot(o: {
       // NOT that every car in the world ends up height-capped.
       //
       // `AABB.rot` is what makes this possible at all, and w81 was right to
-      // refuse the dominant-axis `carColliderBoxes()` for this lot: at 31.5 deg
-      // it snaps the box to the wrong world axis, which is worse than the bare
-      // box it would replace. A TURNED box is honoured by collision
+      // refuse the dominant-axis `carColliderBoxes()` OF ITS DAY for this lot:
+      // at 31.5 deg it snapped the box to the wrong world axis, which is worse
+      // than the bare box it would replace. (That refusal has since won
+      // outright — `carColliderBoxes` IS this block's real-angle mapping now,
+      // and the loop below calls it.) A TURNED box is honoured by collision
       // (`fp.ts` inFrame/outOfFrame), by the trap-band rule (`ct/gap.ts`) and by
       // the V overlay the user filed this from (`ct/debug-collision.ts`) — all
       // three, checked, or this would have shipped a wall the debug view draws
@@ -2052,8 +2054,6 @@ function buildLot(o: {
       // all the same no?"* re-created in a new place.
       // scripts/probes/w72-car-collider-consistency.mjs caught it doing that.
       {
-        const tiers = carColliderSpec(it.kind);
-        const cy = Math.cos(yaw), sy = Math.sin(yaw);
         // ⚠ A TILTED CAR TILTS, AND lot.ts CANNOT SEE BY HOW MUCH. `makeCar`
         // rolls the body inside an inner group for `state.jack` and again, far
         // more gently, for `state.beater` — so a height CAP on either would sit
@@ -2065,24 +2065,16 @@ function buildLot(o: {
         // scripts/probes/w118-item231-lot-colliders.mjs asserts it, and it is
         // written against `jack` rather than against tilt in general, so it will
         // need re-aiming at `beater` when the QC sprint reaches it.
-        for (const t of tiers) {
-          const lx = (t.minX + t.maxX) / 2, lz = (t.minZ + t.maxZ) / 2;
-          // three's Ry(t) sends local (x, z) to (x cos t + z sin t, -x sin t + z cos t)
-          const wx = x + lx * cy + lz * sy, wz = z - lx * sy + lz * cy;
-          const hx = (t.maxX - t.minX) / 2, hz = (t.maxZ - t.minZ) / 2;
-          // Two physical surfaces must not answer to one name (item 202c): the
-          // SHAPE is the kind's, the NAME is per bay, so a harness building
-          // `Object.fromEntries` over the tags cannot silently resolve one lot
-          // car's roof to another's.
-          const box: AABB & { tag: string } = {
-            tag: `${t.tag}@lot${b}`,
-            minX: wx - hx, maxX: wx + hx,
-            minZ: wz - hz, maxZ: wz + hz,
-            rot: yaw,
-          };
-          if (t.maxY !== undefined) box.maxY = t.maxY;
-          solid(box);
-        }
+        // The rotate-and-tag mapping that was written HERE for item 231 is now
+        // `carColliderBoxes` itself (2026-08-08, *"collision on all the
+        // vehicles is not consistent"*): the kerb-parked callers needed the
+        // same real-angle placement this lot pioneered, so the maths moved to
+        // ct/cars.ts and this file went back to being a caller. `@lot${b}`
+        // keeps the per-bay name — two physical surfaces must not answer to
+        // one name (item 202c), so a harness building `Object.fromEntries`
+        // over the tags cannot silently resolve one lot car's roof to
+        // another's.
+        for (const box of carColliderBoxes(it.kind, x, z, yaw, `@lot${b}`)) solid(box);
       }
       const g0 = new THREE.Group();
       g0.add(makeCar(it.kind, it.col, false, NOT_PARKED.get(b)));

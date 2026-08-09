@@ -5045,3 +5045,30 @@ the console. Persisted as a `health` slice in `ct/save.ts`'s builtins; NEW
 GAME needs no entry — the `ct-save` wipe is total and the reload resets the
 default, per `ct/newgame.ts`'s own table. Nothing damages the player today, so
 it sits at full — the ask was to track it.
+
+## 2026-08-08 — *"collision on all the vehicles is not consistent. i want collision to match the visual geometry. it seems we did this for one or two vehicles but not all. please fix this"*
+
+Went to a builder, as mass QC — every vehicle in the world was measured before
+anything moved. He was right, and the "one or two" he remembered were the used
+car lot's eleven: item 231 gave them their real angles via `AABB.rot`
+(residual 0.00° each), while all six kerb-parked cars — three on the main
+street, three on the side street — still carried dominant-axis boxes that
+ignored their `parkYaw()` rake. Worst was the main-street hatch at 4.01°,
+0.143 m of nose hanging outside its own collider.
+
+The fix moved the lot's real-angle placement INTO `carColliderBoxes`
+(ct/cars.ts), so every caller — main street, side street, and the lot itself,
+which now just calls it — places the kind's one declared spec at the car's
+true yaw with `rot`. Measured after: all 17 placed vehicles at 0.00° residual.
+The crowd's three box tests (clearAt / moverAt / escapeFrom, ct/crowd.ts) were
+made rot-aware at the same time, because they read raw min/max and a turned
+box stores extents in its own frame — without that, the ~90°-yawed sidestreet
+cars would have pushed a phantom rectangle into the walk.
+
+Left for the trunk holder: the trailer deck's box (`sedan-trailer-deck`,
+crosstown.ts:1057-1060) is still axis-aligned while the trailer visually
+inherits its sedan's rake — 0.75°/4 cm on this seed, up to ~0.3 m if the sedan
+ever draws the "out" park class. One-box fix: build it about the rotated deck
+centre with `rot: p.ry`. Traffic's per-frame boxes (ct/traffic.ts pose()) were
+left alone deliberately: they equal the visual body exactly whenever a vehicle
+drives straight and only over-cover (never under-cover) mid-turn.
