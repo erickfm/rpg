@@ -5154,3 +5154,21 @@ if you're a cop"), after which `[E]` buys the bag for $100 even (1997 street
 price, a fifth of the $500 rent baseline). The pills join the bodega's price
 card at $6.00 — dearer than the $2.50 coffee, a working stiff's tool — through
 the same `shopCounter` every other line on the card sells by.
+
+## 2026-08-08 — *"int allows you to get better jobs, but you always have a small chance of getting the job or passing the application of whatever and that small chance is slightly more likely from having high charisma. that means we need a gym and a crosstown community college"*
+
+The college half, to this builder (the job-chance formula is `ct/stats.ts`'s
+`jobChance`, already landed; the gym went to another builder and took the old
+GARAGE frontage at the park end of the side street). CROSSTOWN COMMUNITY
+COLLEGE is `src/proto/ct/int-college.ts`, in the old LOANS frontage at the
+east end of the side street's south row (x 46…57 — identity change only,
+SLEEP CENTER precedent, the run still ends dead on x = 57): a 1997 storefront
+evening division — lino, fluorescent battens, a registrar's counter with a
+corkboard of course flyers, and a partitioned classroom behind with six combo
+desks, a chalkboard mid-lecture and an instructor at the lectern. Enrolment is
+the shop pattern off a framed course board: NIGHT CLASS $150 (3 hours, trains
+INT to at most 6), CERTIFICATE $400 (7 days, to 8), SEMESTER $850 (14 days, to
+10) — each completion is `raiseStat('int', 1)`, the clock advances the hotel's
+way, refusals say why and the money never moves on one. 5 → 10 costs $2,650
+and 36 days against the $500/season rent baseline, which is what a better job
+ought to cost.
