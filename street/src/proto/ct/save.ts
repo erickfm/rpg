@@ -3,6 +3,7 @@ import { drawerStock, drawerTake, drawerPut } from './inventory';
 import { SLOTS, options, wornIndex, wear, onWardrobeChange, type Slot } from './wardrobe';
 import { captureBody, restoreBody, onBodyChange } from './body';
 import { health, setHealth, onHealthChange } from './health';
+import { captureStats, restoreStats, onStatsChange } from './stats';
 import { wiped, onWipe } from './newgame';
 
 // ══ THE SAVE ═══════════════════════════════════════════════════════════════
@@ -468,6 +469,19 @@ function builtins(ctx: CtxBuild): void {
     restore: (v) => { if (v && typeof v === 'object') restoreBody(v); },
   });
 
+  // ── THE FIVE STATS ─────────────────────────────────────────────────────
+  //
+  // `ct/stats.ts`, a pure leaf like health and for the same cycle reason its
+  // header spells out, so the slice lives here. ⚠ REGISTERED BEFORE HEALTH,
+  // and the order is load-bearing: restore walks the registry in registration
+  // order, max health is derived from STR and CON, and a 140-point body
+  // restored the other way round would have its hp clamped to the default
+  // 100 before the stats that justify it had arrived.
+  registerSlice<Record<string, number>>('stats', {
+    capture: () => captureStats(),
+    restore: (v) => { if (v && typeof v === 'object') restoreStats(v); },
+  });
+
   // ── HEALTH ─────────────────────────────────────────────────────────────
   //
   // One number off `ct/health.ts`, a leaf like the wardrobe and the body, so
@@ -488,6 +502,7 @@ function builtins(ctx: CtxBuild): void {
   onWardrobeChange(() => { flush(); });
   onBodyChange(() => { flush(); });
   onHealthChange(() => { flush(); });
+  onStatsChange(() => { flush(); });
 }
 
 // ── boot ──────────────────────────────────────────────────────────────────

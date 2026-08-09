@@ -5084,3 +5084,16 @@ b356de57, and the player's north walk bound in `crosstown.ts` back to
 `Math.max(13, interiorMaxZ())` with its pre-freeway defence comments restored.
 The two 2026-08-07 on-ramp entries above are left standing — they record what
 was asked and built when it was true.
+
+## 2026-08-08 — *"lets also make the character have intelligence, strength, charisma, dexterity, constitution and you can spec them on start. make a spider chart actually. that would rule. also health is derived from str and con, speed is derived from dex, int allows you to get better jobs, but you always have a small chance of getting the job or passing the application of whatever and that small chance is slightly more likely from having high charisma."*
+
+Split across three builders. THIS builder: the stats core (`src/proto/ct/stats.ts`
+— five stats 1…10, point-buy pool of 30 at creation, save slice, and the three
+derivations: `maxHealthFor(str,con) = 60 + 4×(STR+CON)`, `speedMulFor(dex)` a
+modest 0.9…1.125 walk multiplier, and `jobChance(reqInt)` — INT gates, but an
+unqualified applicant always keeps a 4.6–10% chance that rises with CHA); the
+pentagon spider chart plotted in blue ballpoint on FORM R-9 with five spec rows;
+max health live from STR/CON in `ct/health.ts`; and the DEX walk-speed hook in
+`fp.ts` once the highway-removal builder frees the trunk. The gym (trains
+STR/CON) and the community college (trains INT) from the same message are with
+two other builders, calling `raiseStat` here.
