@@ -1019,18 +1019,14 @@ export function buildHotel(ctx: CtxBuild): void {
     ink: '#3a2a1a', priceInk: '#6a2a30', rule: '#8a7450',
     hover: 'rgba(58,42,26,0.13)', flash: 'rgba(216,168,58,0.42)',
   };
-  // THE ONE ON THE WALL, kept where it always was and repainted from the table
-  // above so the two cards in this lobby cannot quote different money.
-  const RATE_W = 0.75, RATE_H = 0.52, RATE_Y = 1.55, RATE_Z = DESK_Z + 2.85;
-  const rate = new THREE.Mesh(new THREE.PlaneGeometry(RATE_W, RATE_H),
-    ctx.flat(boardTexture(Math.round(RATE_W * 460), Math.round(RATE_H * 460), RATES, RATE_LOOK)));
-  rate.rotation.y = Math.PI / 2;                 // faces +x, into the lobby
-  put(rate, -hw + 0.06, RATE_Y, RATE_Z);
+  // THERE USED TO BE A SECOND CARD ON THE WALL behind the desk, printed from
+  // the same table. Removed 2026-08-09: *"get rid of this sign"*. The tent card
+  // below is the only card in the lobby now, so the money is quoted once.
 
-  // ══ AND THE TENT CARD ON THE COUNTER, WHICH IS THE ONE YOU READ ═══════════
+  // ══ THE TENT CARD ON THE COUNTER, WHICH IS THE ONE YOU READ ═══════════════
   //
-  // **The wall card cannot be the shop surface, and the reason is measured.**
-  // It hangs on the west wall; a card that size wants the eye about 0.68 m off
+  // **The wall card could not be the shop surface, and the reason is measured.**
+  // It hung on the west wall; a card that size wants the eye about 0.68 m off
   // it; and between that wall and the guest are a 0.75 m deep mahogany desk and
   // the 0.62 m staff strip the CLERK HIMSELF STANDS IN. The focus pose put the
   // camera at his shoulder, inside the counter, with his own sprite filling the

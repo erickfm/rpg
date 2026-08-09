@@ -5900,3 +5900,11 @@ inside any view rustles too.
 Same builder, same pass. `LVL.rain` 0.40 -> 0.30, about -2.5 dB.
 `rainIndoors` is relative to it, so the indoor/outdoor balance is
 unchanged.
+
+## 2026-08-09 — *"get rid of this sign"*
+
+To a builder. The framed rate card on the hotel lobby's west wall (ROOMS /
+NIGHT 29.00 / WEEK 145.00 / DOUBLE WK 190.00, `int-hotel.ts`). It was the
+decorative duplicate — the selling surface is and remains the tent card on
+the front desk that `shopCounter` shows, so taking a room off the night
+clerk is untouched. The wall mesh is gone; the lobby quotes its money once.
