@@ -5097,3 +5097,30 @@ max health live from STR/CON in `ct/health.ts`; and the DEX walk-speed hook in
 `fp.ts` once the highway-removal builder frees the trunk. The gym (trains
 STR/CON) and the community college (trains INT) from the same message are with
 two other builders, calling `raiseStat` here.
+
+## 2026-08-08 — *"you can stay awake only for 24 straight hours. if you're awake for longer you pass out and wake up wherever you slept but with some amount of money lost, its a percentage between 1-10%."*
+
+Plus three extensions in the same thread: *"coffee can keep you going for 6
+extra hours, caffeine pills can keep you going for 8 extra hours, cocaine can
+keep you going for 12 extra hours. you can buy cocaine from a skeevy guy in the
+long alley by the door. caffeine pills you can buy in the bodega."* — *"oh also
+if you fall asleep from staying up too long you lose 10% of health too"* — and
+the sleep half of *"you can heal by sleeping or by eating food with food giving
+diff amounts of health"*.
+
+Went to a builder: the clock side is `src/proto/ct/fatigue.ts`, a leaf module.
+Awake game-minutes accumulate per frame; a sleep is OBSERVED (a clock snap
+behind a `screenFade` — the bed in 301 and the hotel both do exactly that) so
+no trunk file was touched. Past 24 h + stimulant hours the player blacks out
+(a slower fade than the bed's), wakes where they last slept — the 301 bed if
+they never have — minus a whole 1–10% of CASH ON HAND ONLY (the bank shelters
+money from the mugging; flagged as the default, unobjected) and a flat 10% of
+max health, FLOORED AT 1 HP because nothing about death exists yet — the
+pass-out is a mugging, not an ending. A proper sleep heals to full; the
+pass-out does not. Stimulant doses are ADDITIVE within one waking stretch and
+clear when you sleep; item ids `COFFEE` (existing, now drinkable from the bag),
+`PILLS` and `COCAINE` (declared in fatigue.ts — the sellers are with a second
+builder). Warnings at 4 h and 1 h of margin, re-arming if a dose buys the
+margin back. Awake time, boost and last-slept persist as the `fatigue` save
+slice. The dealer NPC and the bodega shelf are the other builder's; the
+per-food healing table is a third's.
