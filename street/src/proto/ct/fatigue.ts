@@ -47,8 +47,6 @@ const BASE_MIN = 24 * 60;
 /** A one-frame clock delta above this is a jump, not passage — 10× the
  *  biggest honest frame (0.05 game-min) and far below the smallest night. */
 const JUMP_MIN = 0.5;
-/** Wake at 07:00, the same morning the bed in 301 means by "morning". */
-const WAKE_H = 7;
 
 // ── THE STIMULANT TABLE — the one copy, keyed by inventory id ──────────────
 //
@@ -176,10 +174,12 @@ function passOut(ctx: CtxBuild): void {
   const pct = 1 + Math.floor(Math.random() * 10);
   let lost = 0;
 
-  const { totalMin } = ctx.clock.now();
-  // minutes to the NEXT 07:00 — the bed's own formula, `|| 1440` included, so
-  // being out cold and sleeping mean the same morning.
-  const mins = (((WAKE_H * 60 - (totalMin % 1440)) % 1440) + 1440) % 1440 || 1440;
+  // EIGHT HOURS OUT COLD — the same span every sleep in this world now is
+  // (*"you always just sleep 8 hours"*, 2026-08-09, and the bed and the hotel
+  // both follow it). This used to snap to the next 07:00 like the old bed;
+  // a body that collapses does not keep the bed's appointments, it is simply
+  // gone for eight hours, and one rule everywhere beats two.
+  const mins = 8 * 60;
 
   // Slower than the bed's 140/90/170 on purpose: that cut is chosen, this one
   // happens TO you, and a heavier fall reads as one. The hold stays above the

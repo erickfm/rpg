@@ -978,13 +978,22 @@ export function buildHotel(ctx: CtxBuild): void {
   // is $29 — you pay 62% more for the night you did not have to commit to.
   const WEEKLY = { single: 145, double: 190 };
   const nightly = (weekly: number) => Math.round((weekly / 5) * 2) / 2;
-  /** Take a room: the clock goes to 8 a.m. and the screen cuts through it. */
+  /** Take a room: eight hours of sleep, and the screen cuts through it. */
   const takeRoom = (nights: number): boolean => {
-    const { hour, minute } = ctx.clock.now();
-    // TO EIGHT IN THE MORNING, however long that is from now. A room bought at
-    // two in the afternoon still ends at check-out, which is what makes a night
-    // a NIGHT rather than "eight hours from whenever you pressed the key".
-    const mins = ((8 * 60 - (hour * 60 + minute)) + 1440) % 1440 + (nights - 1) * 1440;
+    // EIGHT HOURS FROM WHEN YOU TAKE THE KEY, not to the 8 a.m. check-out.
+    // *"instead of sleep until morning you always just sleep 8 hours"*
+    // (2026-08-09) — the same rule as the bed in 301, because a hotel bed and
+    // your own must not mean two different nights. The paragraph this replaces
+    // argued the opposite ("a night a NIGHT rather than eight hours from
+    // whenever you pressed the key") and his words outrank it.
+    //
+    // A WEEK IS STILL A WEEK OF RESIDENCY: tonight's eight hours plus the six
+    // further nights you paid for, so the week keeps being the time-skip it
+    // has always been — only its anchor moved off check-out. The prices do
+    // not move either: you were always paying for the room and the key, not
+    // for where the clock lands, and the night/week ratio the card argues
+    // from ($203 in nights against $145 the week) is untouched.
+    const mins = 8 * 60 + (nights - 1) * 1440;
     const SLEEP_OUT_MS = 140, SLEEP_HOLD_MS = 90, SLEEP_IN_MS = 170;
     void screenFade({
       mid: () => ctx.clock.advance(mins, { overSeconds: 0 }),

@@ -5478,3 +5478,18 @@ The five painted facing columns stay in the painter: they are the squish
 fix, not the rotation gesture.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"instead of sleep until morning you always just sleep 8 hours. the e dialog is just 'sleep'"*
+
+Went to the fatigue builder (its system). Every sleep is now exactly eight
+hours from when you lie down, no snap-to-morning: the 301 bed
+(`ct/apartment.ts`, trunk, granted for this task and only the sleep block
+touched), the hotel night (`ct/int-hotel.ts` — a NIGHT is 8 h from taking the
+key rather than to the 8 a.m. check-out; a WEEK is still a week of residency,
+tonight's 8 h plus the six further paid nights, prices untouched), and the
+pass-out in `ct/fatigue.ts`, which used to borrow the bed's next-07:00 formula
+and now puts you out cold for the same 8 h — one rule everywhere, and a body
+that collapses does not keep the bed's appointments. The bed's E prompt is the
+one word `sleep`, same rule as the NPC `talk` prompt. The fatigue detector,
+last-slept recording, sleep-heals-to-full and the 64b0c466 sleep-cue cap all
+ride on the fade-covered clock jump and are unchanged by the length.

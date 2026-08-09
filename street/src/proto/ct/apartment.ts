@@ -3480,11 +3480,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // The user: *"sleep in your room"*. It is the one thing a bed is for and
     // the room has had a bed since it was furnished.
     //
-    // UNTIL MORNING, NOT EIGHT HOURS — the desk's ruling, and it is what makes
-    // the verb mean the same thing whenever you use it. Lie down at 23:00 and
-    // you get eight hours; lie down at 04:00 and you get three; either way you
-    // wake at 07:00, which is what "sleep" means to a player. A fixed span
-    // would put you back to bed in the dark half the time.
+    // EIGHT HOURS, NOT UNTIL MORNING. *"instead of sleep until morning you
+    // always just sleep 8 hours. the e dialog is just 'sleep'"*  (2026-08-09)
+    //
+    // ⚠ THAT SUPERSEDES the desk's until-morning ruling this block carried
+    // ("either way you wake at 07:00") — his words outrank any diagnosis,
+    // the desk's included. Lie down at 23:00 and wake at 07:00; lie down at
+    // 14:00 and wake at 22:00. The verb now means the same LENGTH every time
+    // instead of the same morning, and the hotel's night runs on the same
+    // rule (`ct/int-hotel.ts`), so the two beds cannot mean different nights.
     //
     // RAMPED, NOT SNAPPED, and this is where the desk's ruling and F's kit
     // needed reconciling rather than one overriding the other. The ruling says
@@ -3497,7 +3501,6 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // own schedule."* Passing overSeconds: 0 here would break the sky, the
     // lamps and the rain schedule to save 1.5 seconds. So: the default ramp,
     // and no overlay. Both halves of the instruction are satisfied.
-    const WAKE_H = 7;
     // WHERE IT STANDS MATTERS AS MUCH AS WHAT IT DOES. At AX(-2.1)/r 0.9 this
     // sat close enough to 301's door spot to win the prompt from it: door301
     // pressed E expecting to shut the door and got "sleep until morning"
@@ -3512,13 +3515,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     ctx.spot({
       x: AX(-2.6), z: AZI(4.2), r: 0.75,
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
-      label: () => 'sleep until morning',
+      // ONE WORD — *"the e dialog is just 'sleep'"* — same rule as the talk
+      // prompt on NPCs: the verb, never a description of the verb.
+      label: () => 'sleep',
       act: () => {
-        const { totalMin } = ctx.clock.now();
-        // minutes to the NEXT 07:00. `|| 1440` covers standing on it exactly:
-        // sleeping at 07:00 means the next morning, not a no-op that reads as
-        // a broken interaction.
-        const mins = (((WAKE_H * 60 - (totalMin % 1440)) % 1440) + 1440) % 1440 || 1440;
+        // Eight hours from when you lie down — see the block comment above.
+        // No arithmetic left to get wrong: the old next-07:00 formula (and
+        // its `|| 1440` edge for sleeping AT 07:00) went with the rule.
+        const mins = 8 * 60;
         // THE FADE. This row read CONFIRMED while the fade never fired: the
         // bed advanced the clock and nothing else, so K's capability worked
         // and nothing called it. A and D both reproduced it — the control
