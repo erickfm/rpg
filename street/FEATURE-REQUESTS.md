@@ -5653,3 +5653,24 @@ Routed to a builder. The sign was a standalone painted card (`saleT` in
 graphite — hung on the interior front wall beside the glazing. The texture and
 its `room.sign` call are deleted whole; the TV · VCR · CAMCORDER price card,
 which shares the wall, is untouched.
+
+## 2026-08-09 — *"i want to be able to withdraw all funds from atm too tysm"*
+
+Routed to a builder. Both `[E]` machines (the pair on the bank facade) run the
+one interface in `src/proto/ct/atm.ts`, so one change covers the system; the
+bodega's `ATM INSIDE` is a painted sign only. WITHDRAW now carries `ALL $x.xx`
+on its top-right button — the same key, in the same corner, DEPOSIT already
+has, printing the account balance on its own face. It empties the account into
+the mouth through the same count-and-take flow as a fixed note; pressed on an
+empty account it refuses on the tube (`NO FUNDS TO WITHDRAW`), the machine's
+existing voice for impossible actions. Deposit, fees and the cash/account
+split untouched.
+
+## 2026-08-09 — *"never ask for receipt pls"*
+
+Same builder, seconds after the withdraw-all ask, same machine. The
+`DO YOU WANT A RECEIPT?` YES/NO screen after every withdrawal and deposit is
+gone — no transaction pauses on a question any more. The screen is now a
+confirmation beat: the sum (`$x.xx TAKEN` / `$x.xx DEPOSITED`) flashes on the
+tube with `NO RECEIPT — NO PAPER IN THIS MACHINE` under it, then the machine
+moves on to TAKE YOUR CARD on its own clock, like the PLEASE WAIT beat.

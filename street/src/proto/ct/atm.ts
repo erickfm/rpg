@@ -20,9 +20,10 @@ import { PAD_KEYS, padCells, padKeyAtUV, PAD_V_SCALE, setPadPickable, padPickabl
 //
 // It is a 1997 bank machine and it behaves like one, which mostly means it is
 // SLOW AND LITERAL. Insert card. Enter PIN. A menu whose items line up against
-// chunky buttons down both sides. Balance. Withdraw in fixed notes. Take your
-// cash. Take your card. It asks about a receipt and the answer is always the
-// same, because the machine on that corner has never had paper in it.
+// chunky buttons down both sides. Balance. Withdraw in fixed notes, or the
+// lot. Take your cash. Take your card. It does NOT ask about a receipt —
+// *"never ask for receipt pls"* — it just tells you there is no paper in it,
+// because the machine on that corner never has had any.
 //
 // Everything about money goes through the ONE purse in `ct/hud.ts` — cash you
 // withdraw lands in the same wallet the bodega spends from. There is no second
@@ -307,7 +308,30 @@ function takeIn(p: Purse): void {
   // exclusion set since the machine was built. A deposit is silent for the same
   // reason a withdrawal is.
   go('wait');
-  after(1400, () => go('receipt', `${money(n)} DEPOSITED`));
+  // The confirmation flashes and the machine moves on BY ITSELF — *"never ask
+  // for receipt pls"*. See the `receipt` case in `rows` for what that screen
+  // is now.
+  after(1400, () => { go('receipt', `${money(n)} DEPOSITED`); after(1400, () => go('card')); });
+}
+
+/**
+ * THE ACCOUNT PAYS OUT — a fixed note or the lot through the one gate, for the
+ * same reason `putIn` is a function and not two lines in a button: the refusal
+ * happens BEFORE anything moves. `INSUFFICIENT FUNDS` names the account because
+ * the account is what is short; `NO FUNDS TO WITHDRAW` is the ALL key's own
+ * case — an account with nothing in it — and the machine says so rather than
+ * counting out $0.00.
+ *
+ * The same HALF-CENT OF SLACK as `putIn`, for the same reason: ALL passes
+ * `acct(p)` straight back in and a float must not fail to be `≤` itself.
+ */
+function payOut(p: Purse, n: number): void {
+  if (n <= 0) { go('withdraw', 'NO FUNDS TO WITHDRAW'); return; }
+  if (acct(p) < n - 0.005) { go('withdraw', 'INSUFFICIENT FUNDS'); return; }
+  p.account = cents(acct(p) - n);
+  pending = n;
+  go('wait');
+  after(1400, () => go('cash'));
 }
 
 function rows(p: Purse): Row[] {
@@ -339,7 +363,8 @@ function rows(p: Purse): Row[] {
         // This used to `go('card')` — a screen whose ONLY button is also
         // labelled TAKE CARD, so ending a session meant pressing the same words
         // twice. The `card` screen still exists and is still right on the path
-        // that reaches it after a withdrawal (`receipt` -> NO -> `card`), where
+        // that reaches it after a transaction (`receipt` -> `card`, on the
+        // machine's own clock now the receipt question is gone), where
         // the machine really is handing your card back and TAKE CARD is the
         // first time you have been asked. From the MENU there is nothing to
         // hand back yet, so it goes straight to the farewell.
@@ -348,17 +373,17 @@ function rows(p: Purse): Row[] {
     case 'balance':
       return [{ right: 'BACK', actR: () => go('menu') }];
     case 'withdraw':
+      // ALL on the TOP RIGHT — *"i want to be able to withdraw all funds from
+      // atm too"*. The SAME key in the SAME corner DEPOSIT already has, printing
+      // the account on its own face exactly as deposit's ALL prints the pocket,
+      // so you read what it is about to hand you before you press it. The two
+      // screens stay one screen with one word changed, which was always the
+      // point of building them out of the same list.
       return NOTES.map((n, i) => ({
         left: money(n),
-        act: () => {
-          if (acct(p) < n) { go('withdraw', 'INSUFFICIENT FUNDS'); return; }
-          p.account = acct(p) - n;
-          pending = n;
-          go('wait');
-          after(1400, () => go('cash'));
-        },
-        right: i === 3 ? 'BACK' : undefined,
-        actR: i === 3 ? () => go('menu') : undefined,
+        act: () => payOut(p, n),
+        right: i === 0 ? `ALL ${money(acct(p))}` : i === 3 ? 'BACK' : undefined,
+        actR: i === 0 ? () => payOut(p, cents(acct(p))) : i === 3 ? () => go('menu') : undefined,
       }));
     // ── DEPOSIT: THE SAME SCREEN, THE OTHER WAY ROUND ────────────────────────
     //
@@ -399,18 +424,23 @@ function rows(p: Purse): Row[] {
       return [{
         left: 'TAKE CASH',
         act: () => {
-          p.cash += pending;
+          // `cents`, because ALL can put an odd sum in the mouth — $312.40 into
+          // a pocket holding $32.35 must not print float dust on the wallet.
+          p.cash = cents(p.cash + pending);
           const took = pending; pending = 0;
           go('receipt', `${money(took)} TAKEN`);
+          after(1400, () => go('card'));
         },
       }];
     case 'receipt':
-      // YES and NO on the TOP PAIR, facing each other across the tube. A yes
-      // four rows above its no is a machine asking two questions.
-      return [{
-        left: 'YES', act: () => go('receipt', 'NO PAPER'),
-        right: 'NO', actR: () => go('card'),
-      }];
+      // NOT A QUESTION ANY MORE — *"never ask for receipt pls"*. This used to
+      // be YES/NO across the top pair, and the answer was always the same
+      // because the machine has never had paper in it. Now it is the
+      // transaction's confirmation beat: the sum lands on the tube, the no-paper
+      // line says why nothing is printing, and the machine moves on to TAKE
+      // YOUR CARD on its own clock, exactly like `wait` — no live buttons, no
+      // press needed. The timer is armed by whoever sent us here.
+      return [];
     case 'card':
       // TAKE CARD: FLASH THE FAREWELL, THEN LET GO ON ITS OWN.
       //
@@ -587,9 +617,8 @@ function drawScreen(g: CanvasRenderingContext2D): void {
     line(money(pending), BODY, CAB_TEXT_LIT, 20);
     line('TAKE IT FROM THE MOUTH BELOW', SUB, CAB_TEXT_DIM, 7);
   } else if (screen === 'receipt') {
-    line(message || '', HEAD, CAB_TEXT_LIT, 10);
-    line('DO YOU WANT A RECEIPT?', BODY, CAB_TEXT_LIT, 11);
-    if (message === 'NO PAPER') line('NO PAPER IN THIS MACHINE', SUB, '#e06a3c', 8);
+    line(message || '', BODY, CAB_TEXT_LIT, 15);
+    line('NO RECEIPT — NO PAPER IN THIS MACHINE', SUB, CAB_TEXT_DIM, 7);
   } else if (screen === 'card') {
     line('TAKE YOUR CARD', BODY, CAB_TEXT_LIT, 15);
   } else if (screen === 'thanks') {
