@@ -5602,3 +5602,21 @@ seat's `ok` now also requires the player within 1.6 m of the seat pan
 and dies beyond it. Applied to all five seat groups — the two reading tables,
 the reference table, the entrance table, the computer bench and the study
 carrels. Who may sit and the seats themselves are unchanged.
+
+## 2026-08-09 — *"you can remove the coin i think. also whenever you lose money i want to see the number lost on top right as like a red number with negative sign, animated kinda. should be little. this should also be tyhe caSE FOR HEALTH TOO"*
+
+Went to the same builder, fourth pass on the stats. The gold coin is deleted
+(one day of life; git history holds its texels) — the top-right money row is
+now the bare `$xx.xx` figure, which the `$` names on its own; health keeps its
+heart, which he did not name. And the loss ticks: any DROP in cash spawns a
+little red `-$4.50` under the top-right figure, any drop in health a red `-70`
+under the top-left bar — bold 13 px monospace in a brighter brick (`#e8604a`),
+sinking 10 px and fading over ~0.95 s (downward, since upward exits the
+screen from a top corner). Losses only — no green gains, not asked. Ticks
+landing together stack a row apart rather than overprinting; they ride the
+corner anchors so they inherit `pointer-events:none` and z 12 (under panels/
+prompt/fade), die on a plain `setTimeout` so a paused frame loop cannot
+strand them, never persist anywhere, and `hud.fade` sweeps any survivors so
+nothing red floats over the black or the GAME OVER card. Spurious boot ticks
+guarded: a save restore repainting the purse in the first seconds is not a
+loss, so the ticks arm 5 s after the HUD builds.
