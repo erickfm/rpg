@@ -5072,3 +5072,15 @@ ever draws the "out" park class. One-box fix: build it about the rotated deck
 centre with `rot: p.ry`. Traffic's per-frame boxes (ct/traffic.ts pose()) were
 left alone deliberately: they equal the visual body exactly whenever a vehicle
 drives straight and only over-cover (never under-cover) mid-turn.
+
+## 2026-08-08 — *"also i dont want this whole highway thing anymore, you can get rid of it"*
+
+Went to a builder. The whole freeway on-ramp (commits `b356de57` and `649b031b`,
+2026-08-07, "extend this street out so theres an on ramp to a high way out of
+town") is removed: `src/proto/ct/onramp.ts` deleted (it was a leaf module, so
+deleting the file unwires it), the brick cap building that closes the north end
+of the block at z 14.2 restored in `ct/street.ts` exactly as it was before
+b356de57, and the player's north walk bound in `crosstown.ts` back to
+`Math.max(13, interiorMaxZ())` with its pre-freeway defence comments restored.
+The two 2026-08-07 on-ramp entries above are left standing — they record what
+was asked and built when it was true.
