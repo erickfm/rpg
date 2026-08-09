@@ -5229,3 +5229,30 @@ lanes; the karaoke plinth keeps 2.02 m to the west wall and its 0.47 m window
 pocket is a display, which is the point of it.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-08 — *"make cars hit you and cause damage, should be a consistent amount of damage but on game start two cars hitting you should always kill you and end your game."*
+
+To one builder, both halves. The damage is a flat **70** — max health is
+60 + 4×(STR+CON) (`ct/stats.ts`) and stats clamp at 10 forever, so the biggest
+possible body is 140 and two hits always finish it, any build, any training;
+frail builds die in one. `ct/carhit.ts` (new leaf) owns the hit: 70 through
+`ct/health.ts`, ~2 s invulnerability so one car crossing you is one hit and
+"two cars" means two, a red screen flash, a quarter-second screen jolt, a
+1.4 m throw clear of the lane (`ctx.player.jumpTo`, yaw and floor kept), and
+the car drives on. `ct/traffic.ts` detects the overlap against its own
+per-frame boxes and — the part that made hits possible at all — braking for
+the PLAYER is now real panic braking (8 m/s²) instead of the one-frame
+physics-defying stop, so a car still stops for you from distance but a late
+step into the lane connects; the crowd keeps the old absolute never-hit
+guarantee. The thump is `ct/audio.ts`'s watching trick: a 30+ hp drop in one
+frame with a moving car within arm's reach is a collision, `wall-hit` at half
+speed. Death is `ct/gameover.ts` (new, auto-registered): health 0 from any
+damage source fades 1.15 s to black, snows in a 320×240 VCR card — ■ STOP,
+`--------- GAME OVER ---------`, the cause, one inverse-video **NEW GAME**
+row, `START : ENTER KEY` — terminal but never stuck (panels/bag closed every
+frame, OSD told it's busy, keys armed after a beat, ENTER/SPACE/E/→/click all
+start over through `ct/newgame.ts`'s wipe). Dying saves hp 0, so a reload
+lands back on the card — the save cannot resurrect; the pass-out's 1 HP floor
+in `ct/fatigue.ts` is untouched. No trunk files entered.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

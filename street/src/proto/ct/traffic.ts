@@ -3,6 +3,7 @@ import type { AABB } from '../fp';
 import { ROAD_HALF, DRIVE_X, rnd } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
 import { type CarKind, makeCar, makeBus } from './cars';
+import { carHit } from './carhit';
 
 // ── TRAFFIC — the road network, and what drives on it ──────────────────────
 //
@@ -183,6 +184,24 @@ const STEER_MAX = 0.61;              // 35°, about a real lock
 const CLEAR_R = 2.0;
 /** …and how far short of them a driver comes to rest */
 const STOP_GAP = 2.0;
+/**
+ * The hardest a driver can ACTUALLY brake for the player, m/s². *"make cars
+ * hit you and cause damage"* (2026-08-08) — which was impossible while the
+ * `v.spd = safe` clamp below stopped a car in ONE FRAME however late you
+ * stepped out: physics-defying brakes meant the front bumper could never
+ * reach anybody. So for the PLAYER the clamp now sheds speed at this rate — a
+ * real panic stop — and a car still brakes for you from distance, but step
+ * into the lane inside its stopping length and it arrives before the brakes
+ * do (`ct/carhit.ts` owns what that costs). THE CROWD KEEPS THE OLD
+ * GUARANTEE: citizens cannot dodge and have no health, so "traffic will not
+ * drive through a person" stays absolute for them — see `blockedAt`.
+ */
+const A_PANIC = 8.0;
+/** overlap slack for a hit: LESS than the player's own body radius (`fp.ts`
+ *  RADIUS 0.3456), so standing at rest-contact beside a passing car — where
+ *  the collision push already holds you — is a brush, and a hit needs real
+ *  penetration: the car driving into you, or you walking into it. */
+const HIT_R = 0.30;
 
 export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
   const { scene, player } = ctx;
@@ -340,16 +359,22 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
    *  A distance rather than a yes/no, so the braking can be proportional: a
    *  car that slams to a halt 19 m short of somebody reads as stopping for no
    *  reason, which is exactly what the first cut of this did. */
-  const blockedAt = (v: Vehicle, ahead: number): number => {
-    const folk = o.peopleAt();
+  //
+  // TWO ANSWERS SINCE THE CARS LEARNED TO HIT (2026-08-08): `folk` is the
+  // crowd and the vehicle ahead — the ABSOLUTE stops, exactly as before —
+  // and `ply` is the player, whose stop is limited to real brakes (A_PANIC)
+  // so that stepping out too late is a collision rather than a miracle.
+  const blockedAt = (v: Vehicle, ahead: number): { folk: number; ply: number } => {
+    const people = o.peopleAt();
     const px = player.x(), pz = player.z();
-    let hit = Infinity;
+    let folk = Infinity, ply = Infinity;
     for (let u = 1; u <= ahead; u += 1.5) {
       const p = v.route!.at(v.s + u);
-      if (Math.hypot(px - p.x, pz - p.z) < CLEAR_R) { hit = u; break; }
-      let stop = false;
-      for (const f of folk) if (Math.hypot(f.x - p.x, f.z - p.z) < CLEAR_R) { stop = true; break; }
-      if (stop) { hit = u; break; }
+      if (ply === Infinity && Math.hypot(px - p.x, pz - p.z) < CLEAR_R) ply = u;
+      if (folk === Infinity) {
+        for (const f of people) if (Math.hypot(f.x - p.x, f.z - p.z) < CLEAR_R) { folk = u; break; }
+      }
+      if (folk < Infinity && ply < Infinity) break;
     }
     // …and don't drive into the back of the one in front. Measured in ROUTE
     // space, not as a radius around its body: the two movements' arcs pass 2 ×
@@ -365,9 +390,10 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
       if (w === v || w.name !== v.name) continue;
       const back = w.s - ((w.obj.userData.halfLen ?? 2.5) as number);
       const gap = back - v.s - ((v.obj.userData.halfLen ?? 2.5) as number);
-      if (gap > 0 && gap < ahead) hit = Math.min(hit, gap);
+      // rides with `folk`: rear-ending the vehicle in front stays impossible
+      if (gap > 0 && gap < ahead) folk = Math.min(folk, gap);
     }
-    return hit;
+    return { folk, ply };
   };
 
   ctx.onFrame(({ dt, px, pz }) => {
@@ -399,7 +425,8 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
       // and give way to anybody in the road ahead — the crossing at the corner
       // is the case this exists for, but it holds anywhere on the route.
       const stopDist = Math.max(4, (v.spd * v.spd) / (2 * A_BRAKE) + 4);
-      const block = blockedAt(v, stopDist);
+      const b = blockedAt(v, stopDist);
+      const block = Math.min(b.folk, b.ply);
       // The braking curve, not a proportional one: the fastest it may be going
       // and still stop in the room left is sqrt(2·a·room). Proportional braking
       // reads fine but the eased speed LAGS the target, and the lag is about
@@ -418,13 +445,23 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
       // cleared, and it drove on. Two correct behaviours composing into a car
       // that shoves pedestrians along the street.
       const nose = (v.obj.userData.halfLen ?? 2.5) as number;
-      const room = block === Infinity ? Infinity : Math.max(0, block - nose - STOP_GAP);
-      const safe = room === Infinity ? Infinity : Math.sqrt(2 * A_BRAKE * room);
+      const safeFor = (blk: number): number => {
+        if (blk === Infinity) return Infinity;
+        return Math.sqrt(2 * A_BRAKE * Math.max(0, blk - nose - STOP_GAP));
+      };
+      const safe = safeFor(block);
       if (block < Infinity) { want = Math.min(want, safe); v.held += dt; } else v.held = 0;
       v.spd += (want - v.spd) * Math.min(1, dt * 1.7);
-      // comfort caps (the corner) may be eased through; a person in the road
-      // may not be
-      if (v.spd > safe) v.spd = safe;
+      // comfort caps (the corner) may be eased through; a CITIZEN in the road
+      // may not be — the crowd's clamp stays the physics-defying guarantee it
+      // always was, because a citizen cannot dodge and has no health to lose
+      const safeF = safeFor(b.folk);
+      if (v.spd > safeF) v.spd = safeF;
+      // …the PLAYER gets real brakes instead: full effort, bounded by A_PANIC,
+      // so a car still stops for you from distance but cannot cheat a late
+      // step-out. What happens when it arrives anyway is the hit check below.
+      const safeP = safeFor(b.ply);
+      if (v.spd > safeP) v.spd = Math.max(safeP, v.spd - A_PANIC * dt);
       if (v.spd < 0.02) v.spd = 0;
       v.s += v.spd * dt;
       // ── end of the line ─────────────────────────────────────────────────
@@ -445,6 +482,22 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
         }
       }
       pose(v);
+      // ── the hit ─────────────────────────────────────────────────────────
+      // A MOVING vehicle whose freshly-posed box has real overlap with the
+      // player's body is a collision — the parked cars are furniture and the
+      // idle pool sits at 999, so only something actually driving can get
+      // here. `ct/carhit.ts` owns everything past this line: the flat 70, the
+      // 2 s invulnerability, the flash, the throw. HIT_R is deliberately
+      // under the body radius — see its declaration.
+      if (v.spd > 0.5
+        && px > v.box.minX - HIT_R && px < v.box.maxX + HIT_R
+        && pz > v.box.minZ - HIT_R && pz < v.box.maxZ + HIT_R) {
+        carHit({
+          player: ctx.player, spd: v.spd,
+          hx: -Math.sin(v.obj.rotation.y), hz: -Math.cos(v.obj.rotation.y),
+          cx: v.obj.position.x, cz: v.obj.position.z,
+        });
+      }
     }
   }, ORDER.LATE);
 

@@ -8,6 +8,10 @@ import { APT_X0, ST0 } from './apartment';
 // Read-only, and no cycle: `hud.ts` does not import this module. `ct/osd.ts`
 // DOES (for the menu's VOLUME row), which is why nothing here imports osd.
 import { panelUp } from './hud';
+// A pure-ish leaf (it imports only ct/stats.ts) — read for the car-hit thump
+// in `watchTraffic`, which is the same observation trick as everything else
+// there: a health DROP with a moving car beside him can only be a collision.
+import { health } from './health';
 
 // ════════════════════════════════════════════════════════════════════════════
 // SOUND
@@ -283,6 +287,10 @@ const LVL = {
   pass: 0.50,      // multiplied by distance
   bus: 0.55,       // multiplied by distance
   busIdle: 0.30,   // the looping bed while it stands at the flag
+  // being HIT by one of them (2026-08-08). Hot on purpose: it is the loudest
+  // thing that can happen to you and it is happening to your own body, so it
+  // takes no distance falloff — the distance is zero by definition.
+  carHit: 0.95,
 };
 
 /** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
@@ -752,6 +760,15 @@ export function register(ctx: CtxBuild): void {
   let fleet: Veh[] | null = null;
   let passAt = -99;
   let busIdleWant = 0, busIdlePan = 0;
+  // ── being hit by one (2026-08-08) ────────────────────────────────────────
+  // `ct/carhit.ts` deals a flat 70 through `ct/health.ts` and publishes no
+  // event — none needed. A drop that size in ONE FRAME with a moving vehicle
+  // within arm's reach is a collision and nothing else in this world: food
+  // heals, sleep heals, and the pass-out's cut (≤14, a tenth of max) is both
+  // too small and nowhere near a moving car. The threshold rides well under
+  // the 70 so a rebalance cannot silently mute the thump, and well over the
+  // pass-out so a mugging cannot borrow it.
+  let lastHp = health();
 
   const watchTraffic = (t: number, dt: number) => {
     if (!fleet) {
@@ -797,6 +814,18 @@ export function register(ctx: CtxBuild): void {
           nx, nz, LVL.pass * (0.85 + roll() * 0.3), 26, 0.96 + roll() * 0.1);
       }
     }
+
+    // the hit — see `lastHp` above. `wall-hit` slowed to half speed is a
+    // deep body thump; no `atPoint`, because the range to your own ribs is 0.
+    const hp = health();
+    if (hp <= lastHp - 30) {
+      for (const v of fleet) {
+        if (!v.o.visible || v.spd < 1.5 || v.d > 4.5) continue;
+        fire('wall-hit', LVL.carHit, 0.55, bearing(v.x, v.z, px, pz) * 0.6);
+        break;
+      }
+    }
+    lastHp = hp;
   };
 
   const watchScene = (t: number) => {
