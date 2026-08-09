@@ -5172,3 +5172,21 @@ INT to at most 6), CERTIFICATE $400 (7 days, to 8), SEMESTER $850 (14 days, to
 way, refusals say why and the money never moves on one. 5 → 10 costs $2,650
 and 36 days against the $500/season rent baseline, which is what a better job
 ought to cost.
+
+## 2026-08-08 — *"you can heal by sleeping or by eating food with food giving diff amounts of health"*
+
+The FOOD half, to this builder (the sleep half landed with `ct/fatigue.ts`:
+a real night restores to full, the pass-out does not). `src/proto/ct/food.ts`
+— one healing table, `FOOD_HEAL`, keyed by inventory id, and an EAT/DRINK
+verb attached to every food item at registration by mutation, exactly the way
+fatigue.ts made COFFEE drinkable. There is only one eating path in this world:
+every food line at every counter `give()`s the parcel into the bag
+(`ct/shop.ts`; only the hotel sells through `serve`), so you buy it, then eat
+it out of the bag and the bag consumes it — no counter-eating path existed to
+wire. Healing goes through `ct/health.ts`'s `heal`, which clamps at max, so
+overeating past full just wastes the food. Roughly two points a dollar with a
+sit-down meal earning a better rate than a snack: PLATTER 30, CHICKEN / EGGS /
+SANDWICH 18, BURGER 15, CEREAL 12, SHAKE 10, PIE 8, FRIES 6, CHIPS 4, SODA 3.
+COFFEE heals nothing — it is a stimulant, fatigue.ts's tenant — and POPCORN
+gets no verb: raw microwave bags, and this world has no microwave. Receipt is
+one short hudNote line and the HUD bar moving; no panel.
