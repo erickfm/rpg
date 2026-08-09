@@ -5728,3 +5728,34 @@ Coordination note: the gym builder's commits 4a505c57 and 3e11f52b each swept
 in this builder's in-flight `ct/street.ts` hunks (staged whole-file while
 shared); 3e11f52b therefore imports `ct/college-yard.ts` one commit before the
 file lands here.
+
+## 2026-08-09 — *"not using the space fully here. but yea its better"*
+
+Follow-up on the coffee-station move, same builder. The bare run of front
+wall from the coffee bench to the cut door, and the lino in front of it, is
+now used the way a corner shop uses every inch: a 1.1 m wall rack in the
+gondolas' own steel and stock grain with a promo-stack end cap facing the
+door, the white ICE merchandiser by the door with a pinned corkboard on the
+wall over it, a stack of soda multipacks waiting on the floor in front of the
+rack, and the morning papers, still twine-tied, dropped at the till's door
+end. All set dressing — the till card stays the shop. Every corner keeps at
+least 1.1 m off the doorway centreline (the thrift-shop lane sin, measured
+against, not eyeballed).
+
+## 2026-08-09 — *"move the resiter closer to the door, also i want to be able to buy smokes at the bodega"*
+
+Same builder, same pass. The till was a mid-room island 6 m from the exit;
+its z is now SOLVED against the entry diagonal rather than picked — the
+counter's exposed corner keeps 1.43 m off the doorway centreline (the two
+earlier positions that blocked the door are recorded in the file and stayed
+avoided) while the counter ends 3.1 m from the doorway. Keeper, register,
+radio, cat, price card, cigarette/LOTTO rack, calendar, lottery machine and
+the shop spot all derive from CTR_Z and travelled with it; the register sits
+at the counter's door end, so you get rung up on the way out.
+
+Smokes: `SMOKES` (pack of smokes, $8) added to the till card between PILLS
+and PAPER — 1997's ~$2 pack at this economy's ×4. Declared in ct/goods.ts
+with icon and real-size dropped model in the rack's own red-and-white. No
+use verb: a pack is twenty, and a SMOKE verb that consumed the pack in one
+puff would be the menu lying — if smoking gets a system, the verb is one
+line at the declaration, like PILLS' TAKE.

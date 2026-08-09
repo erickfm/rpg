@@ -267,6 +267,34 @@ export const CHIPS = defineItem({
   ),
 });
 
+export const SMOKES = defineItem({
+  id: 'SMOKES', name: 'pack of smokes', stack: 4,
+  blurb: 'the cellophane comes off in one strip if you get the tab.',
+  // The pack off the bodega's own rack: `backT` in ct/int-bodega.ts has drawn
+  // its cigarettes in #d8d0c0 white and #b8342a red since the room was built,
+  // so the pack you buy is one of the ones you have been looking at. NO USE
+  // VERB — a pack is twenty, and a SMOKE verb that ate the whole pack in one
+  // puff would be the menu lying (the same honesty rule that keeps the socks
+  // verbless). If smoking ever gets a system, the verb declares here in one
+  // line, like PILLS' TAKE does in ct/fatigue.ts.
+  icon: (g) => {
+    box(g, '#d8d0c0', 6, 3, 12, 18);                   // the pack
+    box(g, '#b8342a', 6, 3, 12, 7);                    // the red crown
+    box(g, '#e8e4d8', 8, 5, 8, 3);                     // the crest panel
+    box(g, '#b0a898', 6, 19, 12, 2);                   // the foil showing at the base
+    box(g, '#8a8478', 6, 3, 1, 18);                    // the shaded edge
+    box(g, '#c8b84a', 9, 12, 6, 2);                    // the tax stripe
+  },
+  // A CIGARETTE PACK AT REAL SIZE: 55 x 85 x 22 mm, red top, white body,
+  // the cellophane read as a faint proud shell.
+  model: () => mOf(
+    mBox(0.055, 0.085, 0.022, '#d8d0c0', 0, 0.043, 0),
+    mBox(0.056, 0.030, 0.023, '#b8342a', 0, 0.071, 0),
+    mBox(0.030, 0.010, 0.024, '#e8e4d8', 0, 0.070, 0),
+    mBox(0.057, 0.006, 0.023, '#c8b84a', 0, 0.048, 0),
+  ),
+});
+
 // ── THE THRIFT STORE ───────────────────────────────────────────────────────
 //
 // **`COAT` ALREADY EXISTED AND NOBODY HAD DECLARED IT.** `int-thrift.ts` wrote
@@ -752,7 +780,7 @@ export const BLANKET = defineItem({
 /** every id this file declares, so a sweep can ask "does all stock have art?" */
 export const GOODS: string[] = [
   BURGER.id, CHICKEN.id, FRIES.id, PIE.id, SHAKE.id, COFFEE.id,
-  EGGS.id, PLATTER.id, SANDWICH.id, CHIPS.id,
+  EGGS.id, PLATTER.id, SANDWICH.id, CHIPS.id, SMOKES.id,
   COAT.id, SHIRT.id, BELT.id, BOOK.id,
   RADIO.id, WRISTWATCH.id,
   RENTAL.id, BLANKS.id, POPCORN.id,

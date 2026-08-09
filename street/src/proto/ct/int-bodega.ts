@@ -357,7 +357,21 @@ export function buildBodega(ctx: CtxBuild): void {
   // 3.0 and the diagonal you enter along ran straight into its front. A corner
   // shop puts the counter where it can watch the door — beside the entry, not
   // blocking it — so it moves back off the approach.
-  const CTR_X = hw - 1.5, CTR_Z = hd - 7.0;
+  //
+  // …AND THEN `hd - 7.0` OVERSHOT. (2026-08-09) *"move the resiter closer to
+  // the door"* — at z -0.7 the till was a mid-room island 6 m from the exit,
+  // which is a supermarket layout, not a bodega guarding its door. The history
+  // above is why it cannot simply go back to `hd - 2.6` or `hd - 4.6`: both
+  // put the counter's near corner inside the entry diagonal. So the z is now
+  // SOLVED AGAINST THAT DIAGONAL rather than picked. The doorway's centreline
+  // is the 45° line x - z = hw - hd through the cut's midpoint; the counter's
+  // exposed corner is its top's NW point (CTR_X - 0.54, CTR_Z + 1.34); its
+  // distance to the line is |x - z - (hw - hd)| / √2. `hd - 5.4` puts that at
+  // 1.43 m — a full 2 m lane through the door with margin — while the counter
+  // ends 3.1 m from the doorway instead of 6. The register sits at the
+  // counter's DOOR end (CTR_Z + 0.7), so the keeper rings you up on your way
+  // out, which is the whole point of a bodega till.
+  const CTR_X = hw - 1.5, CTR_Z = hd - 5.4;
   const ctrTopT = declareSurface(pixTex(64, 16, (g) => {
     g.fillStyle = '#b0a692'; g.fillRect(0, 0, 64, 16);
     g.fillStyle = 'rgba(90,70,50,0.22)';
@@ -670,6 +684,155 @@ export function buildBodega(ctx: CtxBuild): void {
   }
   solid(CF_X, CF_Z, CF_W, CF_D);
 
+  // ── the rest of the front wall, which was bare for metres ──
+  //
+  // (2026-08-09) *"not using the space fully here. but yea its better"* — the
+  // run of front wall from the coffee bench's door end to the cut corner, and
+  // the lino in front of it, was painted wall and nothing else. A 1997 bodega
+  // does not own an empty wall: it racks it, stands a chest freezer against
+  // it, and stacks the overflow on the floor in front. Everything here is set
+  // dressing — the till card stays the shop.
+  //
+  // THE ONE CONSTRAINT IS THE DOOR. The entry diagonal is the line
+  // x - z = hw - hd through the cut's midpoint (same line the counter's z is
+  // solved against, above), and every corner below keeps at least 1.1 m off
+  // it — the thrift shop was rebuilt for exactly the sin of furniture in the
+  // doorway's lane.
+
+  // THE WALL RACK: a gondola turned against the wall — same steel, same 1.95
+  // height, same stock texture the runs wear, so it reads as this shop's own
+  // shelving and not a new species. From the bench's end toward the cut.
+  const RACK_A = CF_X + CF_W / 2 + 0.15;            // 0.15 scribe off the bench end
+  const RACK_B = RACK_A + 1.1;
+  const RACK_W = RACK_B - RACK_A, RACK_X = (RACK_A + RACK_B) / 2;
+  const RACK_D = 0.38, RACK_Z = hd - 0.03 - RACK_D / 2;
+  put(new THREE.Mesh(new THREE.BoxGeometry(RACK_W, 1.95, RACK_D), steelM),
+    RACK_X, 0.975, RACK_Z);
+  const rackSt = stockT.clone();
+  rackSt.wrapS = rackSt.wrapT = THREE.RepeatWrapping;
+  rackSt.repeat.set(RACK_W / 2.4, 1);
+  rackSt.needsUpdate = true;
+  const rackFace = new THREE.Mesh(new THREE.PlaneGeometry(RACK_W, 1.85), ctx.flat(rackSt));
+  rackFace.rotation.y = Math.PI;                    // faces -z, into the shop
+  put(rackFace, RACK_X, 0.98, RACK_Z - RACK_D / 2 - 0.01);
+  // the DOOR-SIDE end cap — the face you see walking in. Bare steel here is
+  // the exact "grey slab a metre from the eye" the gondola ends were pulled
+  // up for, so it gets the same promo-stack treatment, narrower.
+  const rackCapT = declareSurface(pixTex(20, 48, (g) => {
+    g.fillStyle = '#8a8478'; g.fillRect(0, 0, 20, 48);
+    const cols = ['#b8452f', '#3f6a8a', '#c8a33a', '#4a7a4a'];
+    let y = 46;
+    for (let r = 0; r < 8 && y > 9; r++) {
+      const rh = 3 + ((r * 3) % 4);
+      const k = (r * 5 + 1) % 11;
+      const across = k % 2 === 0 ? 2 : 1;
+      const cw = Math.floor((18 - (across - 1)) / across);
+      for (let c = 0; c < across; c++) {
+        if ((k + c * 3) % 7 === 2) continue;         // a case sold off the stack
+        g.fillStyle = cols[(r * 2 + c * 3) % cols.length];
+        g.fillRect(1 + c * (cw + 1), y - rh, cw, rh);
+        g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(1 + c * (cw + 1), y - rh, cw, 1);
+      }
+      y -= rh + 1;
+    }
+    g.fillStyle = '#e8e2d0'; g.fillRect(2, 3, 16, 7);
+    g.fillStyle = '#a8302a'; g.fillRect(4, 5, 12, 2);
+    dither(g, 20, 48, 70);
+  }), 'detail');
+  const rackCap = new THREE.Mesh(new THREE.PlaneGeometry(RACK_D - 0.04, 1.8), ctx.flat(rackCapT));
+  rackCap.rotation.y = Math.PI / 2;                 // faces +x, toward the door
+  put(rackCap, RACK_B + 0.01, 0.95, RACK_Z);
+  solid(RACK_X, RACK_Z, RACK_W, RACK_D);
+
+  // THE ICE MERCHANDISER, between the rack and the cut — the white chest with
+  // blue letters every corner shop in 1997 kept by its door. Its east face
+  // stops 0.26 short of where the cut begins: the near corner then sits 1.1 m
+  // off the doorway centreline (measured with the formula above), outside the
+  // entry lane.
+  const ICE_B = (hw - 2.0) - 0.26, ICE_W = 0.8, ICE_D = 0.7, ICE_H = 0.95;
+  const ICE_X = ICE_B - ICE_W / 2, ICE_Z = hd - 0.03 - ICE_D / 2;
+  const iceM = new THREE.MeshBasicMaterial({ color: 0xe4e6e0 });
+  put(new THREE.Mesh(new THREE.BoxGeometry(ICE_W, ICE_H - 0.05, ICE_D), iceM),
+    ICE_X, (ICE_H - 0.05) / 2, ICE_Z);
+  // the lid, proud, in the same white — the step is what says chest
+  put(new THREE.Mesh(new THREE.BoxGeometry(ICE_W + 0.04, 0.05, ICE_D + 0.04), iceM),
+    ICE_X, ICE_H - 0.025, ICE_Z);
+  const iceT = declareSurface(pixTex(32, 24, (g) => {
+    g.fillStyle = '#e4e6e0'; g.fillRect(0, 0, 32, 24);
+    g.fillStyle = '#2a4a8a'; g.fillRect(0, 0, 32, 3);              // the blue band
+    g.fillStyle = '#2a4a8a'; g.font = 'bold 9px monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('ICE', 16, 10);
+    g.fillStyle = '#8a8e88'; g.fillRect(2, 16, 28, 1);             // the seam
+    // a printed bag of cubes, small, under the letters
+    g.fillStyle = '#bcd8e0'; g.fillRect(12, 18, 8, 5);
+    g.fillStyle = '#e4f0f4'; g.fillRect(13, 19, 2, 2); g.fillRect(16, 20, 2, 2);
+    g.fillStyle = '#3a3e3a'; g.fillRect(0, 23, 32, 1);             // compressor vent
+    dither(g, 32, 24, 25);
+  }), 'detail');
+  const iceFace = new THREE.Mesh(new THREE.PlaneGeometry(ICE_W - 0.04, ICE_H - 0.1), ctx.flat(iceT));
+  iceFace.rotation.y = Math.PI;
+  put(iceFace, ICE_X, (ICE_H - 0.05) / 2, ICE_Z - ICE_D / 2 - 0.01);
+  solid(ICE_X, ICE_Z, ICE_W, ICE_D);
+
+  // THE CORKBOARD, on the wall over the ice chest — room notices, a lotto
+  // card, a missing-cat card. The one wall band this stretch has left
+  // (the rack takes its run to 1.95; the chest stops at 0.95).
+  const corkT = declareSurface(pixTex(36, 26, (g) => {
+    g.fillStyle = '#a8845a'; g.fillRect(0, 0, 36, 26);             // the cork
+    g.fillStyle = '#6a5442'; g.fillRect(0, 0, 36, 1); g.fillRect(0, 25, 36, 1);
+    g.fillStyle = '#6a5442'; g.fillRect(0, 0, 1, 26); g.fillRect(35, 0, 1, 26);
+    // pinned cards, askew the way a real board is
+    g.fillStyle = '#e4dcc4'; g.fillRect(3, 4, 9, 7);
+    g.fillStyle = '#2a3a6a'; g.fillRect(4, 6, 7, 1); g.fillRect(4, 8, 5, 1);
+    g.fillStyle = '#e0c84a'; g.fillRect(15, 3, 8, 10);             // the lotto flyer
+    g.fillStyle = '#a8302a'; g.fillRect(16, 5, 6, 3);
+    g.fillStyle = '#e4dcc4'; g.fillRect(26, 6, 7, 9);
+    g.fillStyle = '#6a6458'; g.fillRect(27, 8, 5, 4);              // the cat photo
+    g.fillStyle = '#2a3a6a'; g.fillRect(27, 13, 5, 1);
+    g.fillStyle = '#e4dcc4'; g.fillRect(6, 14, 8, 8);
+    g.fillStyle = '#2a3a6a'; g.fillRect(7, 16, 6, 1); g.fillRect(7, 18, 6, 1); g.fillRect(7, 20, 4, 1);
+    dither(g, 36, 26, 30);
+  }), 'sign');
+  room.sign(corkT, 0.72, 0.52, ICE_X, 1.5, hd - 0.06);
+
+  // THE OVERFLOW ON THE FLOOR: soda multipacks stacked in front of the rack,
+  // two up two across, the way stock that has no shelf left waits. Front face
+  // 0.8 m into the room; the apron to the gondola ends keeps over 3 m.
+  const PK_X = RACK_X, PK_Z = RACK_Z - RACK_D / 2 - 0.23;
+  const pkCols = ['#b8342a', '#3a5a8a', '#c8a33a', '#b8342a'];
+  const pk: [number, number, number][] =
+    [[-0.16, 0, 0.25], [0.16, 0, 0.25], [-0.10, 0.25, 0.25], [0.13, 0.5, 0.22]];
+  pk.forEach(([dx, dy, h], i) => {
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.30, h - 0.01, 0.40),
+      new THREE.MeshBasicMaterial({ color: pkCols[i] })), PK_X + dx, dy + h / 2, PK_Z);
+    // the printed side band that says case-of-cans and not painted box
+    const band = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.08),
+      new THREE.MeshBasicMaterial({ color: 0xe8e4d8 }));
+    band.rotation.y = Math.PI;
+    put(band, PK_X + dx, dy + h / 2, PK_Z - 0.201);
+  });
+  solid(PK_X, PK_Z, 0.66, 0.44);
+
+  // THE MORNING PAPERS, still twine-tied, dropped at the counter's door end
+  // where they get cut open — the till sells the PAPER on its card.
+  const NP_X = CTR_X, NP_Z = CTR_Z + 1.3 + 0.04 + 0.18;
+  const npM = new THREE.MeshBasicMaterial({ color: 0xc8c4b8 });
+  const twM = new THREE.MeshBasicMaterial({ color: 0x4a443a });
+  for (const [dy, ry] of [[0, 0.06], [0.13, -0.09]] as [number, number][]) {
+    // bale + the twine that wraps it, grouped so the skew turns them together
+    const bale = new THREE.Group();
+    bale.add(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.12, 0.32), npM));
+    for (const sx of [-0.12, 0.12]) {
+      const strap = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.126, 0.33), twM);
+      strap.position.set(sx, 0, 0);
+      bale.add(strap);
+    }
+    bale.rotation.y = ry;
+    put(bale, NP_X, dy + 0.06, NP_Z);
+  }
+  solid(NP_X, NP_Z, 0.46, 0.36);
+
   // ── the handwritten signs ──
   const cardT = (a: string, bl: string) => declareSurface(pixTex(48, 24, (g) => {
     g.fillStyle = '#e4dcc4'; g.fillRect(0, 0, 48, 24);
@@ -895,6 +1058,14 @@ export function buildBodega(ctx: CtxBuild): void {
       // whose STIMULANT_HOURS table keys on that id — sell anything else here
       // and the pills would go in the bag and do nothing.
       { id: 'PILLS', name: 'PILLS', price: 6.00 },
+      // *"i want to be able to buy smokes at the bodega"* (2026-08-09). The
+      // rack behind the till has drawn cigarette packs since the room was
+      // built (`backT` above) — this makes them sellable. $8: a 1997 pack ran
+      // about $2 and this economy prices at roughly ×4, which also seats it
+      // where it belongs on the card — dearer than the pills beside it,
+      // cheaper than the cereal. The item is `SMOKES`, declared in ct/goods.ts
+      // with the rest of the bodega's stock.
+      { id: 'SMOKES', name: 'SMOKES', price: 8.00 },
       { id: 'NEWSPAPER', name: 'PAPER', price: 2.00 },
       { id: 'SOCKS', name: 'SOCKS', price: 8.00 },
     ] },
