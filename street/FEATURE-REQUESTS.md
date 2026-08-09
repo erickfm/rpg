@@ -5372,3 +5372,24 @@ What that unmade, and what replaced it:
 reader. Left in place — trunk is off-limits this pass; flagged to the desk.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"umbrellas still look janky, the pole on the umbrella doesnt go straight up. it goes to the umbrella base right above the person. but in real life it goes more or less straight up and the umbrella covers them fine just abit off center"*
+
+Routed to a builder. `ct/crowd.ts` only — the citizen atlas's raised arm and
+fist were already right, so nothing in `ct/citizens.ts` moved.
+
+This reverses the 2026-08-05 item's geometry. That pass kept the canopy centred
+over the head and tilted the shaft ~23° out to reach the fist; his eye read
+exactly that tilt as the jank. Now the shaft rises from the fist near-vertical
+(2 texels of inboard drift across 21 rows, ~5° — the "more or less") and the
+canopy is drawn centred on the shaft's top, so it hangs beside the head, ~0.2 m
+off-centre with a 0.57 m canopy radius — covered fine, just a bit off centre,
+which is his sentence.
+
+The texture sheet grew from 38 to 56 texels wide (same 0.03 m/texel density,
+plane widened to match) so the off-centre canopy fits; it stays symmetric about
+the person's centre line, so the existing mirror flip for the far four sectors
+carries the whole umbrella to the other arm unchanged. Looked at front, back
+and profile in both mirror states, three carriers, both sidewalks.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

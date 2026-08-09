@@ -302,6 +302,17 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   // a first cut at 0.95 m / 32 px read as a HAT rather than a brolly — a canopy
   // has to be wider than the shoulders it is keeping dry.
   const UMB_M = 1.14, UMB_PX = 38;
+  /**
+   * THE SHEET IS WIDER THAN THE CANOPY NOW — `UMB_M`/`UMB_PX` are the CANOPY,
+   * and the sheet carries `HOLD_X` texels of clear margin on EACH side so the
+   * canopy can sit centred over the hand instead of over the head (see
+   * `UMB_LEAN`). Both sides, though only one is used: the sheet stays symmetric
+   * about the person's centre line, so the mirror flip for the far four sectors
+   * (`umbMap.repeat.x = -1` below) carries the canopy to the other arm with no
+   * second set of offsets to keep in agreement.
+   */
+  const UMB_SHEET_PX = UMB_PX + 2 * HOLD_X;
+  const UMB_SHEET_M = UMB_SHEET_PX * (UMB_M / UMB_PX);
   /** muted, 1997, and no two of the six alike — indexed, never drawn from
    *  `rnd()`: that stream's ORDER is load-bearing (GOTCHAS 2) and one extra
    *  draw here would re-grain every texture built after the crowd. */
@@ -381,23 +392,30 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    */
   const UMB_GRIP = UMB_HEM + Math.round((UMB_CLEAR + HOLD_DROP_M) / UMB_ROW_M);
   /**
-   * AND THE SHAFT LEANS OUT TO MEET IT.
+   * THE SHAFT GOES STRAIGHT UP FROM THE HAND, AND THE CANOPY GOES WITH IT.
    *
-   * The other half of "weird", and the half that only appears once the hand
-   * comes down: a shaft drawn straight down the sprite's centre line runs
-   * through the citizen's face. It always did — at the old grip row it merely
-   * stopped at the forehead instead of passing the chin.
+   * *"umbrellas still look janky, the pole on the umbrella doesnt go straight
+   * up. it goes to the umbrella base right above the person. but in real life
+   * it goes more or less straight up and the umbrella covers them fine just
+   * abit off center"* (2026-08-09.)
    *
-   * The fist is `HOLD_X` texels outboard on the citizen sheet, and a texel
-   * there is a texel here, so the shaft's foot goes to the same column.
+   * This REVERSES the last item's call. That item kept the canopy centred over
+   * the head — "the silhouette that reads as shelter" — and tilted the shaft
+   * 9 texels out to reach the fist, about 23°. Erick looked at exactly that
+   * tilt and named it the jank: a real stick umbrella pivots at the HAND, so
+   * the pole rises more or less vertically from the fist and the dome tops it
+   * out wherever that puts it — beside the head, not over it — and still
+   * covers fine, because a 0.57 m canopy radius dwarfs the 0.2 m offset.
    *
-   * THE CANOPY STAYS CENTRED. A dome centred over the head is the silhouette
-   * that reads as shelter, and it is what the last two items on this prop were
-   * spent getting right — so the shaft tilts under it rather than the whole
-   * umbrella sliding sideways. That is also what a real one held out to one
-   * side does: 6 texels across the shaft's 21 is about 16°.
+   * So now: the fist is `HOLD_X` texels outboard on the citizen sheet, a texel
+   * there is a texel here, and BOTH ends of the shaft live at that column —
+   * the foot exactly, the top `UMB_LEAN` texels back inboard. Two texels
+   * across 21 rows is ~5°, the "more or less" in his words: dead vertical
+   * reads like the umbrella is glued to the arm, and a real one carried at
+   * your side tips a touch in over the shoulder. The canopy is drawn centred
+   * on the shaft's TOP, so pole and dome agree by construction.
    */
-  const UMB_LEAN = HOLD_X;
+  const UMB_LEAN = 2;
   /**
    * TALLER THAN IT IS WIDE, and only now.
    *
@@ -412,9 +430,15 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    */
   const UMB_PXH = UMB_GRIP + 8;
   const UMB_MH = UMB_PXH * UMB_ROW_M;
-  const umbrellaTex = (canopy: string) => pixTex(UMB_PX, UMB_PXH, (g) => {
-    const cx = UMB_PX / 2, top = 2, wide = UMB_PX / 2 - 1;
-    g.clearRect(0, 0, UMB_PX, UMB_PXH);
+  const umbrellaTex = (canopy: string) => pixTex(UMB_SHEET_PX, UMB_PXH, (g) => {
+    // The hand's column: the sheet's centre is the person's centre line, and
+    // the fist is HOLD_X texels outboard of it. `cx` is the CANOPY's centre —
+    // the shaft's top, UMB_LEAN texels back inboard of the hand — so every
+    // dome row, rib, flank and scallop below stays written against `cx`
+    // exactly as before; only where `cx` IS has moved.
+    const hand = UMB_SHEET_PX / 2 + HOLD_X;
+    const cx = hand - UMB_LEAN, top = 2, wide = UMB_PX / 2 - 1;
+    g.clearRect(0, 0, UMB_SHEET_PX, UMB_PXH);
     const halfAt = (y: number) =>
       2 + (wide - 2) * Math.sqrt(Math.max(0, (y - top) / (UMB_HEM - top)));
     // the dome, drawn row by row so its edge stays a hard pixel step rather
@@ -537,7 +561,10 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   const FIG_TOP = 1.9 * (56 / 64);
   /** hem's distance below the plane's top edge, in metres */
   const UMB_HEM_M = UMB_HEM * UMB_ROW_M;
-  const umbGeo = new THREE.PlaneGeometry(UMB_M, UMB_MH);
+  // SHEET width, not canopy width — the sheet grew margins so the canopy can
+  // sit off-centre over the hand; a plane still cut at UMB_M would squeeze
+  // 56 texels into 38's metres and shrink every pixel by a third.
+  const umbGeo = new THREE.PlaneGeometry(UMB_SHEET_M, UMB_MH);
   /** raise at, and lower below — two thresholds, not one. See the frame hook. */
   const UMB_UP = 0.12, UMB_DOWN = 0.05;
   /**
@@ -1367,14 +1394,15 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       const [col, mirror] = viewAt(c.sector);
       // ── AND THE UMBRELLA MIRRORS WITH THE PERSON ──────────────────────
       //
-      // NEW, AND ONLY BECAUSE THE SHAFT LEANS. A dome is symmetric, so for
-      // four of the eight facings this sprite could be drawn either way round
-      // and nobody could tell — which is the whole argument for it being one
-      // prop instead of five painted views. A leaning shaft is not symmetric:
-      // it points at the raised arm, that arm is the +x one on the painted
-      // sheet, and `viewAt` mirrors the sheet for the far four sectors. Left
-      // alone, half the block would hold an umbrella that leans away into the
-      // empty hand.
+      // NEW, AND ONLY BECAUSE THE UMBRELLA SITS OFF-CENTRE. A dome centred on
+      // its sheet is symmetric, so for four of the eight facings this sprite
+      // could be drawn either way round and nobody could tell — which is the
+      // whole argument for it being one prop instead of five painted views.
+      // The whole umbrella now stands HOLD_X texels out on the raised-arm
+      // side (shaft straight up from the fist, canopy over the shaft), that
+      // arm is the +x one on the painted sheet, and `viewAt` mirrors the
+      // sheet for the far four sectors. Left alone, half the block would
+      // carry an umbrella hovering over the empty hand.
       //
       // Same repeat/offset flip the citizen sheet takes below, on the
       // umbrella's own texture — each walker was given their own by
