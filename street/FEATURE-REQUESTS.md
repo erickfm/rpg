@@ -5140,3 +5140,17 @@ is limited to one per stat per day, and lands its +1 through `stats.ts`'s
 `raiseStat` with chance (10−stat)/5 — so the wallet buys the door and only the
 mornings buy the muscle. Pass and session-spent days persist as the `gym`
 save slice.
+
+## 2026-08-08 — *"you can buy cocaine from a skeevy guy in the long alley by the door. caffeine pills you can buy in the bodega."*
+
+The sellers half of the stimulant thread, to this builder (the effects and the
+awake clock are `ct/fatigue.ts`, another builder's — its ids `PILLS` and
+`COCAINE` are what both sellers put in the bag, so what is sold and what works
+are one definition). The skeevy guy is `src/proto/ct/dealer.ts`: an 8-angle
+citizen in a long coat loitering in the pawn alley by the pawn shop's back
+door under its lamp, posts-pauses-and-turns via `ct/loiter.ts`, and NO shop
+board — first `[E]` is his pitch in the chat bubble ("You a cop? You gotta say
+if you're a cop"), after which `[E]` buys the bag for $100 even (1997 street
+price, a fifth of the $500 rent baseline). The pills join the bodega's price
+card at $6.00 — dearer than the $2.50 coffee, a working stiff's tool — through
+the same `shopCounter` every other line on the card sells by.

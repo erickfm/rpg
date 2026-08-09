@@ -889,6 +889,13 @@ export function buildBodega(ctx: CtxBuild): void {
       { id: 'CEREAL', name: 'CEREAL', price: 10.00 },
       { id: 'SODA', name: 'SODA', price: 5.00 },
       { id: 'COFFEE', name: 'COFFEE', price: 2.50 },
+      // *"caffeine pills you can buy in the bodega"* (2026-08-08). Rack by the
+      // till, next to the coffee it outlasts: dearer than the cup, cheaper than
+      // the cereal — a working stiff's tool, priced like one. The item is
+      // `PILLS`, declared in ct/fatigue.ts with the rest of the awake mechanic,
+      // whose STIMULANT_HOURS table keys on that id — sell anything else here
+      // and the pills would go in the bag and do nothing.
+      { id: 'PILLS', name: 'PILLS', price: 6.00 },
       { id: 'NEWSPAPER', name: 'PAPER', price: 2.00 },
       { id: 'SOCKS', name: 'SOCKS', price: 8.00 },
     ] },
