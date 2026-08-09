@@ -4993,3 +4993,37 @@ you into the world, `paintFigure` still the mirror's one painter, integer
 draw origins throughout. `src/proto/ct/create.ts` only.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-08 — *"also lets have the user start with nothing in inventory pls"*
+
+Went to a builder. The starting inventory was three boxes of cereal, declared
+in one place: `src/proto/crosstown.ts` line 409 —
+
+    const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } };
+
+That line is TRUNK, so the builder stopped at the boundary and reported it
+rather than editing it: the change is `inv: { CEREAL: 3 }` → `inv: {}` (the
+trailing comment's "a box of cereal" clause goes with it; `cash: 14.5` stays —
+this ask is items only, not money). Nothing else seeds the pockets: NEW GAME
+(`ct/newgame.ts`) wipes `ct-save` whole and blocks the dying page from
+re-saving, and `ct/save.ts` restores the purse by mutation from that blob, so
+with an empty declared default a fresh start genuinely starts empty. The
+no-bag hand-holds-one-thing rule is fine with this: the player starts holding
+nothing.
+
+## 2026-08-08 — *"are we using both rain audios in the game, lets just use rain better pls"*
+
+Went to a builder. Answer: **no — only one rain recording is in the game, and
+it is already "rain better".** The earlier ask (*"replace the rain sound with
+rain better in sounds"*) was done for real on 2026-08-06, commit `5367e5ee`:
+`public/audio/rain.ogg` kept its filename but its content became the encode of
+`rain better.wav` (45.5 s, 32 kHz, centroid 5811 Hz — the patter, not the
+wash). Verified today by blob hash: the shipped file is byte-identical to that
+commit's. `ct/audio.ts` is the only module that loads audio, it has exactly one
+`rain` bed, and the old `rain.wav` is referenced by nothing — there was never a
+second rain file shipping. Indoor/outdoor rain mixing (`LVL.rainIndoors`, the
+door-muffling) untouched, as it keys off the same single bed.
+
+The one surviving copy of the OLD recording was a stale local `dist/` build
+from 2026-08-05 (gitignored, served nowhere); its `rain.ogg` was deleted so the
+old rain no longer exists on disk. No source change was needed.
