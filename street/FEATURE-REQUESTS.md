@@ -5393,3 +5393,18 @@ carries the whole umbrella to the other arm unchanged. Looked at front, back
 and profile in both mirror states, three carriers, both sidewalks.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"make the text on the black boards in the community college easier to read. its blurry"*
+
+Routed to a builder. `ct/int-college.ts` only.
+
+The blur was texel starvation, not filtering: the chalkboard was a 160x44
+canvas stretched over its 4.80 x 1.30 m face (~33 px/m against the course
+board's 150) with the lecture painted in 6-7px fonts — a canvas glyph that
+small is antialiased mush before the face ever magnifies it. Repainted at 4x
+(640x176, ~133 px/m) with the writing scaled to match; same words, same chalk
+alpha, ghosts and eraser smears. The maroon CLASSROOM A → sign on the
+partition had the same disease (64x12, 6px font) and got the same 4x. The
+framed course board is cream at 150 px/m already and was untouched.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

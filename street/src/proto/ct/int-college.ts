@@ -198,10 +198,12 @@ export function buildCollege(ctx: CtxBuild): void {
 
   // the room sign over the corridor gap — white letters on maroon, screwed to
   // the partition's end where you read it on the way through
-  const wayT = declareSurface(pixTex(64, 12, (g) => {
-    g.fillStyle = MAROON; g.fillRect(0, 0, 64, 12);
-    g.font = 'bold 6px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = CREAM; g.fillText('CLASSROOM A →', 32, 6);
+  // 256x48 — ~197 px/m; the first pass was 64x12 with a 6px font, which canvas
+  // antialiases into a smear before the face stretches it (same as the chalkboard)
+  const wayT = declareSurface(pixTex(256, 48, (g) => {
+    g.fillStyle = MAROON; g.fillRect(0, 0, 256, 48);
+    g.font = 'bold 24px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = CREAM; g.fillText('CLASSROOM A →', 128, 24);
   }), 'sign');
   room.sign(wayT, 1.30, 0.24, 1.15, 2.35, PART_Z + PART_T / 2 + 0.008);
 
@@ -295,21 +297,26 @@ export function buildCollege(ctx: CtxBuild): void {
   // ══ THE CLASSROOM ═══════════════════════════════════════════════════════════
 
   // ── the chalkboard, the whole back wall's reason ──
-  const chalkT = declareSurface(pixTex(160, 44, (g) => {
-    g.fillStyle = '#2f4f3e'; g.fillRect(0, 0, 160, 44);              // the slate green
-    g.fillStyle = OAK_D; g.fillRect(0, 0, 160, 2); g.fillRect(0, 42, 160, 2);
-    g.fillRect(0, 0, 2, 44); g.fillRect(158, 0, 2, 44);
-    g.font = 'bold 7px monospace'; g.textAlign = 'left'; g.textBaseline = 'middle';
+  //
+  // Painted at 640x176 — ~133 px/m over the 4.80 x 1.30 m face, near the course
+  // board's 150. The first pass was 160x44 (33 px/m) with 6-7px fonts, and a
+  // canvas glyph that small is antialiased mush before the face ever stretches
+  // it — *"its blurry"*. Same writing, four times the texels.
+  const chalkT = declareSurface(pixTex(640, 176, (g) => {
+    g.fillStyle = '#2f4f3e'; g.fillRect(0, 0, 640, 176);             // the slate green
+    g.fillStyle = OAK_D; g.fillRect(0, 0, 640, 8); g.fillRect(0, 168, 640, 8);
+    g.fillRect(0, 0, 8, 176); g.fillRect(632, 0, 8, 176);
+    g.font = 'bold 28px monospace'; g.textAlign = 'left'; g.textBaseline = 'middle';
     g.fillStyle = 'rgba(240,238,225,0.85)';
-    g.fillText('WK 6: COMPOUND INTEREST', 8, 10);
-    g.font = '6px monospace';
-    g.fillText('A = P(1+r/n)^nt', 8, 20);
-    g.fillText('MIDTERM THURSDAY — BRING A PENCIL', 8, 30);
+    g.fillText('WK 6: COMPOUND INTEREST', 32, 40);
+    g.font = '24px monospace';
+    g.fillText('A = P(1+r/n)^nt', 32, 80);
+    g.fillText('MIDTERM THURSDAY — BRING A PENCIL', 32, 120);
     g.fillStyle = 'rgba(240,238,225,0.30)';                          // half-erased ghosts
-    g.fillText('no. 2', 118, 20); g.fillRect(100, 34, 34, 1);
+    g.fillText('no. 2', 472, 80); g.fillRect(400, 136, 136, 3);
     g.fillStyle = 'rgba(255,255,255,0.10)';
-    for (let i = 0; i < 5; i++) g.fillRect(10 + i * 30, 36, 18, 3);  // eraser smears
-    dither(g, 160, 44, 12);
+    for (let i = 0; i < 5; i++) g.fillRect(40 + i * 120, 144, 72, 12); // eraser smears
+    dither(g, 640, 176, 48);
   }), 'sign');
   room.sign(chalkT, 4.80, 1.30, -0.90, 1.75, -hd + 0.09);
   // the chalk rail under it, with the eraser sitting where it was left
