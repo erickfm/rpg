@@ -5319,3 +5319,56 @@ but is not hard-locked. A true look-lock for this one seat needs a flag in
 whoever holds it if the free look bothers him.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+---
+
+## 2026-08-09 — *"e prompts shouldnt be descriptive. it should just say talk. also the speech bubble shouldnt rotate with my view it should rotate with the character, it is his speech."*
+
+Two corrections to the dialog system, both applied in `ct/dialog.ts` and its
+three speakers.
+
+### The prompt is one word
+
+`talker()` now hands out the label — `t.label`, which says **`talk`** and
+nothing else. The highlight is already drawn around the person and the bubble
+prints his name the moment he speaks, so "talk to the kid" was saying
+everything twice. Ported: the park kid and the dealer's PRE-pitch prompt. The
+dealer's post-pitch `buy the bag — $100` / `he wants $100 — you're short` stays
+descriptive on purpose: that `[E]` is a purchase, not speech, and its label
+carries the price and the refusal (`give()`'s rule that you are never told "no"
+by nothing happening). The VOLT karaoke spot never was a talk prompt and is
+untouched. His first sentence reads wider than talk prompts — the desk is
+taking the general question back to him; nothing else was swept.
+
+### The bubble is his, so it turns with him
+
+No longer a camera-facing billboard. The card's yaw is the SPEAKER's own
+facing, read live off `userData.citizenFacing` (the flag `ct/citizens.ts`
+keeps current on every sprite — the sprite mesh itself is useless for this,
+it billboards at the camera, which is exactly the orientation he vetoed).
+Walk around the kid and you see his speech edge-on; stand behind him and you
+are behind the words — the material is DoubleSide, so the back of his speech
+is there, mirrored, like the back of a hand-held sign.
+
+What that unmade, and what replaced it:
+
+- **Constant screen size is gone** — it was derived from facing the camera. The
+  card now has one FIXED WORLD SIZE (1.61 m wide, 6.5 mm per texel), sized to
+  read at the metre-or-two the `[E]` radius holds a conversation at, and it
+  shrinks with range like everything else in the room.
+- **Nearest filtering is gone with it** — right when texel-to-pixel never
+  changed, shimmer once the card is sampled at every distance and angle. Linear
+  with mipmaps and anisotropy 4, so it stays clean edge-on.
+- **Legibility in the normal case is carried by the speakers, not the card**:
+  the kid (notice 3.0) and the dealer (notice 2.8) turn to face you through
+  `loiter` before you are close enough to press `[E]`, and the VOLT salesman
+  faces the room from his counter. When talked to, his card faces you because
+  HE faces you.
+- **`depthTest: false` kept, deliberately** — the bubble is ink, not
+  furniture, and the dealer talks in an alley where a 1.6 m card angled by his
+  facing would otherwise clip mid-sentence into the wall he loiters against.
+
+`ctx.camera` (trunk, added for the first pass's screen-size math) now has no
+reader. Left in place — trunk is off-limits this pass; flagged to the desk.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

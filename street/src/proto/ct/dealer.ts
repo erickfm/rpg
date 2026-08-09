@@ -128,7 +128,11 @@ export function register(ctx: CtxBuild): void {
     // ALWAYS, day or night. A dealer who keeps shop hours is a shop.
     ok: () => true,
     label: () => {
-      if (!pitched) return 'talk to the guy in the coat';
+      // pre-pitch, the offer is speech and the prompt is the talker's one
+      // word — *"e prompts shouldnt be descriptive. it should just say
+      // talk."* After the pitch it is a BUY, priced, and stays descriptive:
+      // `give()`'s rule that you are never told "no" by nothing happening.
+      if (!pitched) return talk.label();
       if (ctx.purse.cash < PRICE) return `he wants $${PRICE} — you’re short`;
       return `buy the bag — $${PRICE}`;
     },

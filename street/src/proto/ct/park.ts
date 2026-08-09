@@ -2983,7 +2983,10 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // guy in the park, and a kid who is only there in daylight is a shop.
     // Nothing in this park closes.
     ok: () => true,
-    label: () => 'talk to the kid',
+    // *"e prompts shouldnt be descriptive. it should just say talk."*
+    // (2026-08-09.) The talker owns the word; the highlight and the bubble's
+    // own name line already say WHO.
+    label: kidTalk.label,
     // ── HOW THE LINE IS DELIVERED ──────────────────────────────────────────
     //
     // A CHAT BUBBLE OVER HIS HEAD — `ct/dialog.ts`, and he is the first speaker

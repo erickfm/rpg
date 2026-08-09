@@ -24,29 +24,33 @@ import { registerOsdBusy } from './osd';
  *
  * So: a BUBBLE, and his second message is the whole specification of it.
  *
- *   · **It looks like an overlay.** Constant apparent size — the quad is
- *     re-scaled every frame so it covers the same number of screen pixels no
- *     matter how far away the speaker is, and the camera's own zoom is read
- *     live so it does not swim when he scrolls. That is what makes it CRISP:
- *     the canvas is painted once at `CW × CH` texels and lands on exactly
- *     `CW*2 × CH*2` CSS pixels forever, so with `NearestFilter` every texel is
- *     a hard 2×2 block at every distance. There is no distance at which this
- *     goes soft, because there is no distance at which the mapping changes.
+ *   · **It is HIS speech, so it faces where HE faces.** (2026-08-09: *"the
+ *     speech bubble shouldnt rotate with my view it should rotate with the
+ *     character, it is his speech."* The first pass billboarded it to the
+ *     camera; he overruled that on sight.) The card hangs at the speaker's
+ *     crown and turns with the speaker's own facing — walk around him and you
+ *     see it edge-on, stand behind him and you are behind the words (the
+ *     material is DoubleSide, so from the back you see the back of his speech,
+ *     mirrored, exactly like a hand-held sign). Legibility in the normal case
+ *     is carried by the SPEAKERS, not the card: every talker so far turns to
+ *     face the player — the kid and the dealer through `loiter`'s notice turn,
+ *     the salesman by standing at a counter that faces the room — so the
+ *     moment you are close enough to talk, you are the thing he is facing.
  *
- *   · **It is in the world, not on the camera.** The mesh sits at the
- *     speaker's crown and faces the camera outright (full quaternion copy, not
- *     the y-only turn `crosstown.ts` gives the billboard list) so it behaves
- *     like a card pinned to a point in the room: walk sideways and it tracks
- *     the NPC across the screen, walk away and it goes with them, turn round
- *     and it is behind you.
+ *   · **It is in the world, at a fixed WORLD size.** `MPT` metres per texel,
+ *     sized so the type reads comfortably at conversation range (a metre or
+ *     two, where the `[E]` spot puts you). It shrinks with distance like
+ *     everything else in the room, because it is a thing in the room; a card
+ *     that held its screen size while turned edge-on would be neither overlay
+ *     nor object.
  *
- *   · **It draws over everything.** `depthTest: false` and a renderOrder past
- *     everything else, which is the "overlay" half of the ask and also the
- *     answer to getting buried in geometry — a bubble half-swallowed by a
- *     railing is the one failure that would read as broken. It can be seen
- *     through a wall, and that costs nothing, because a conversation ENDS the
- *     moment you walk out of its `leave` radius and there is no wall inside
- *     five metres of a speaker you are talking to.
+ *   · **It still draws over geometry.** `depthTest: false` and a renderOrder
+ *     past everything else. Deliberately kept from the first pass even though
+ *     the card is now a world object: the bubble is INK, not furniture, and
+ *     the dealer talks in an alley where a 1.6 m card angled by his facing
+ *     would otherwise clip mid-sentence into the wall he loiters against. A
+ *     bubble a wall can eat half of is unreadable in a worse way than one
+ *     that overdraws a railing.
  *
  * ── IT IS NOT A PANEL, AND THAT IS DELIBERATE ─────────────────────────────
  *
@@ -91,17 +95,23 @@ import { registerOsdBusy } from './osd';
 
 // ── THE CANVAS ─────────────────────────────────────────────────────────────
 //
-// Texels, and every draw origin below is an INTEGER of them. A builder earlier
-// today chased blurry type back to an origin landing on a fractional pixel;
-// with `NearestFilter` and the fixed 1 texel = 2 CSS px mapping this file
-// guarantees, integers here are hard edges on the screen and nothing else is.
+// Texels, and every draw origin below is an INTEGER of them — the paint is
+// still hard-edged in its own pixels even though the card now lives at world
+// scale and is sampled like any other surface in the room.
 const CW = 248, CH = 128;
-/** CSS pixels per texel. 2, the same scale every `makePanel` screen is drawn
- *  at, so the bubble's type is the same size as the world's other type. */
-const PXPT = 2;
-/** transparent texels below the tail's tip, so the point of the tail can sit
- *  ON the speaker's crown and the gap above their head is measured in SCREEN
- *  pixels like the rest of the bubble, not in metres that shrink with range. */
+/**
+ * METRES PER TEXEL — the card's one size, fixed in the world.
+ *
+ * 0.0065 makes the card 1.61 m wide and at most 0.83 m tall, and puts the
+ * 11-texel type at ~7 mm per texel — which at the 1–2 m the `[E]` spot radius
+ * holds a conversation at is comfortably larger on screen than the HUD's own
+ * type. It shrinks with range after that, as a thing in the world must; the
+ * far case that exists today (the VOLT salesman heckling from 9.5 m) stays
+ * legible because his lines are six words long, not because the card cheats.
+ */
+const MPT = 0.0065;
+/** transparent texels below the tail's tip, so the point of the tail sits ON
+ *  the speaker's crown with a 5 cm air gap drawn into the texture itself. */
 const GAP = 8;
 const TAIL = 8, TAIL_W = 7;
 const BX = 4, BW = CW - BX * 2;
@@ -136,6 +146,10 @@ let tex: THREE.CanvasTexture | null = null;
 interface Live {
   /** the speaker's crown, in world coordinates, read fresh every frame */
   head: () => THREE.Vector3 | null;
+  /** which way the SPEAKER faces, read fresh every frame — the card turns
+   *  with this, never with the camera. Citizen convention: atan2(vx, vz),
+   *  0 faces +z, forward is (sin f, cos f). */
+  yaw: () => number;
   name?: string;
   pages: string[][];
   page: number;
@@ -193,20 +207,30 @@ function ensure(ctx: CtxBuild): void {
   g2 = cv.getContext('2d')!;
   tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
-  // NEAREST BOTH WAYS, and no mipmaps. The quad's screen size is pinned to
-  // `CW*PXPT` CSS px at every distance, so there is never a minified sample to
-  // want a mipmap for — and a mip chain on a canvas that is repainted every
-  // page is a re-upload of the whole pyramid for nothing.
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
+  // LINEAR, WITH MIPMAPS. The first pass used Nearest because the texel-to-
+  // screen-pixel mapping never changed; a card at world scale is sampled at
+  // every distance and every obliquity, and Nearest there is shimmer, not
+  // crispness. The anisotropy is for reading the card at an angle, which is
+  // now the DESIGN — you see his speech edge-on when you are not the person
+  // he is talking to.
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = 4;
   // Origin at the BOTTOM CENTRE — the tip of the tail — so `mesh.position` is
   // literally the point being spoken from and the card hangs above it.
   const geo = new THREE.PlaneGeometry(1, 1);
   geo.translate(0, 0.5, 0);
   mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
     map: tex, transparent: true, depthTest: false, depthWrite: false,
+    // FROM BEHIND YOU SEE THE BACK OF HIS SPEECH — mirrored, like the back of
+    // a hand-held sign. His words face where he faces; being behind them is a
+    // state the design now has, and an invisible card there would read as the
+    // bubble cutting out whenever he turns.
+    side: THREE.DoubleSide,
   }));
+  // The card's size is fixed in the world and never touched again.
+  mesh.scale.set(CW * MPT, CH * MPT, 1);
   mesh.renderOrder = 12000;
   mesh.frustumCulled = false;
   mesh.visible = false;
@@ -314,6 +338,20 @@ function paint(): void {
 
 export interface Talker {
   /**
+   * WHAT THE `[E]` PROMPT SAYS: `'talk'`, always.
+   *
+   * *"e prompts shouldnt be descriptive. it should just say talk."*
+   * (2026-08-09.) The prompt does not name the person — the highlight is
+   * already drawn around him and the name is printed in the bubble the moment
+   * he speaks, so "talk to the kid" was saying everything twice. A spot whose
+   * `[E]` offers something that is NOT speech (the dealer's post-pitch buy)
+   * writes its own label; a spot that offers talk uses this and never types
+   * the word again:
+   *
+   *     label: t.label,
+   */
+  label: () => string;
+  /**
    * Speak — or, if this bubble is already up, TURN THE PAGE, and close off the
    * last one. That re-entrancy is what lets `[E]` page through a conversation
    * without this file touching the input system at all: the `[E]` dispatch in
@@ -339,6 +377,18 @@ export interface TalkerOpts {
   lines?: string[] | (() => string[]);
   /** metres of separation that end the conversation. Default 5. */
   leave?: number;
+  /**
+   * WHICH WAY THE SPEAKER FACES, if the object cannot say for itself.
+   *
+   * The card turns with the character — *"it is his speech"* — so every talker
+   * needs a live facing. Omitted, it is read off the object's
+   * `userData.citizenFacing`, which `ct/citizens.ts` keeps current on every
+   * sprite for exactly this kind of reader (the sprite MESH is useless here:
+   * it billboards toward the camera, which is the orientation this card was
+   * just told to stop having). Pass this only for a speaker that is not a
+   * citizen sprite. Convention is the citizens' own: atan2(vx, vz), 0 = +z.
+   */
+  facing?: () => number;
   /** override the crown height above the object's own origin, in metres.
    *  Omitted, it is MEASURED off the object's bounds at the moment it speaks,
    *  which is right for every sprite in this world and needs no magic number
@@ -363,6 +413,14 @@ export function talker(ctx: CtxBuild, o: TalkerOpts): Talker {
     return out.set(wp.x, wp.y + crown, wp.z);
   };
 
+  // his facing, read live: the caller's function, else the flag every citizen
+  // sprite publishes, else the object's own heading for a non-citizen speaker.
+  const yaw = (): number => {
+    if (o.facing) return o.facing();
+    const f = (o.obj.userData as { citizenFacing?: number }).citizenFacing;
+    return typeof f === 'number' ? f : o.obj.rotation.y;
+  };
+
   const say = (text?: string | string[]): void => {
     if (mine()) { turn(); return; }
     const src = text ?? o.lines ?? [];
@@ -381,7 +439,7 @@ export function talker(ctx: CtxBuild, o: TalkerOpts): Talker {
     }
     const pages = paginate(speeches);
     live = {
-      head, name: o.name, pages, page: 0,
+      head, yaw, name: o.name, pages, page: 0,
       until: performance.now() + dwellFor(pages[0]),
       leave: o.leave ?? 5, seated: ctx.player.seated(),
     };
@@ -389,7 +447,7 @@ export function talker(ctx: CtxBuild, o: TalkerOpts): Talker {
     paint();
   };
 
-  return { say, stop: () => { if (mine()) endDialog(); }, speaking: mine };
+  return { say, label: () => 'talk', stop: () => { if (mine()) endDialog(); }, speaking: mine };
 }
 
 /** advance a page, or close if that was the last one */
@@ -437,21 +495,15 @@ function install(ctx: CtxBuild): void {
     if (ctx.player.seated() !== l.seated) { endDialog(); return; }
     if (performance.now() >= l.until) { turn(); if (!live) { mesh.visible = false; return; } }
 
-    const cam = ctx.camera;
     mesh.position.copy(p);
-    // ── CONSTANT APPARENT SIZE ────────────────────────────────────────────
-    // The world height the camera can see at this distance, divided by the
-    // viewport's height in CSS pixels, is metres-per-pixel at the bubble. Scale
-    // the quad by that and it covers `CW*PXPT × CH*PXPT` pixels at any range,
-    // any fov (the zoom is read fresh, so it does not swim when he scrolls) and
-    // any window size.
-    const d = Math.max(0.35, mesh.position.distanceTo(cam.position));
-    const vh = 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2);
-    const mpp = vh / Math.max(1, window.innerHeight);
-    mesh.scale.set(CW * PXPT * mpp, CH * PXPT * mpp, 1);
-    // FULL camera facing, not the y-only turn the billboard list does. A card
-    // pinned to a point on the screen does not shear when you look up at it.
-    mesh.quaternion.copy(cam.quaternion);
+    // ── IT TURNS WITH HIM, NEVER WITH THE CAMERA ──────────────────────────
+    // *"it is his speech."* The card's yaw is the speaker's own facing, read
+    // live — so it swings when the loiter walk turns him to notice you, holds
+    // still when you circle him, and shows you its edge or its back when you
+    // are not the person being spoken to. Citizen facing is atan2(vx, vz)
+    // with 0 = +z, which is exactly a plane's rest orientation, so the angle
+    // is used unconverted. Upright always: a speech card has no pitch.
+    mesh.rotation.set(0, l.yaw(), 0);
     mesh.visible = true;
   }, ORDER.LATE);
 }
