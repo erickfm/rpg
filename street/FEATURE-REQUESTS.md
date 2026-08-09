@@ -5587,3 +5587,18 @@ deleted, the stamp is bottom-right, the watch is bottom (grepped every
 top 30, since the left corner now holds only the one health row. Everything
 else as established: z 12 under panel backdrops/prompt/fade,
 `pointer-events:none`, integer origins, till-format `$xx.xx`.
+
+## 2026-08-09 — *"i shouldnt be able to sit at the reading table from this distance"*
+
+Went to a builder with the screenshot: standing behind the librarian's desk,
+reading tables 4 m off across the floor, prompt reading `[E] sit at the
+reading table`. Not a radius fault and not a mis-centred spot — every library
+seat already sits on the kit's default r 0.75 with a per-chair stand point.
+The reach was `fp.ts`'s aimed tier, which by design offers any aimed-at spot
+to 6 m so doors work at a distance, and a seat is built out of two ordinary
+spots so it inherits that. Fixed in the room, no trunk touched: every library
+seat's `ok` now also requires the player within 1.6 m of the seat pan
+(`besideSeat`, int-library.ts), so the offer comes up a step from the chair
+and dies beyond it. Applied to all five seat groups — the two reading tables,
+the reference table, the entrance table, the computer bench and the study
+carrels. Who may sit and the seats themselves are unchanged.

@@ -261,6 +261,26 @@ export function buildLibrary(ctx: CtxBuild): void {
   const SEAT_TOP = 0.475, PAN_T = 0.05;
   const PAN_Y = SEAT_TOP - PAN_T / 2;          // where the pan's CENTRE goes
 
+  // ── A CHAIR IS OFFERED BESIDE THE CHAIR, NOT ACROSS THE ROOM ─────────────
+  //
+  // *"i shouldnt be able to sit at the reading table from this distance"*
+  // (2026-08-09) — said from behind the circulation desk, 4 m from the nearest
+  // reading chair, with the prompt live. Not a radius fault and not a
+  // mis-centred spot: every seat here already sits on the kit's default r 0.75
+  // with its own per-chair stand point. It is `fp.ts`'s AIMED tier, which by
+  // design reaches 6 m so a door can be opened by looking at it — and a seat
+  // spot inherits that reach because a seat is two ordinary spots
+  // (`crosstown.ts`, `ctx.seat`). Shrinking `r` cannot help: `lookTolerance`'s
+  // 11.5° floor keeps a distant spot selectable however small it is.
+  //
+  // So the seat's own `ok` gates on the player actually standing by the chair.
+  // 1.6 m from the seat pan: the 0.85 m stand point plus 0.75 of slack, so the
+  // offer comes up a step away and the aim-free touch reach (0.47 m about the
+  // stand point, all inside 1.6) is untouched. Beyond that the seat is simply
+  // not live, whatever you are looking at.
+  const besideSeat = (cx: number, cz: number) =>
+    Math.hypot(ctx.player.x() - room.wx(cx), ctx.player.z() - room.wz(cz)) < 1.6;
+
   // ── GRAIN ON THE BIG FLAT FACES ──────────────────────────────────────────
   //
   // The queue's last row: *"any large blank surface left in the room takes A's
@@ -654,7 +674,7 @@ export function buildLibrary(ctx: CtxBuild): void {
           x: room.wx(cx), z: room.wz(cz), yaw: side < 0 ? Math.PI : 0, h: SEAT_TOP,
           approach: { x: room.wx(cx), z: room.wz(cz + side * 0.85) },
           label: 'sit at the reference table',
-          ok: () => room.inside(),
+          ok: () => room.inside() && besideSeat(cx, cz),
         });
       }
     }
@@ -1394,8 +1414,9 @@ export function buildLibrary(ctx: CtxBuild): void {
       x: room.wx(cx), z: room.wz(cz), yaw: Math.PI, h: SEAT_TOP,
       approach: { x: room.wx(cx), z: room.wz(cz - 0.85) },
       label: 'sit at the table',
-      // only offered while you are actually in here, like every kit seat
-      ok: () => room.inside(),
+      // only offered while you are actually in here AND beside the chair —
+      // see `besideSeat` at the top of the file
+      ok: () => room.inside() && besideSeat(cx, cz),
     });
   }
 
@@ -1718,7 +1739,7 @@ export function buildLibrary(ctx: CtxBuild): void {
         // unplayable for days. A terminal is a dumb glass teletype; what is
         // drawn here is a beige mid-90s PC.
         label: 'sit at the computer',
-        ok: underDeck,
+        ok: () => underDeck() && besideSeat(cx, tz),
       });
     }
   }
@@ -1793,7 +1814,7 @@ export function buildLibrary(ctx: CtxBuild): void {
         x: room.wx(cx), z: room.wz(cz), yaw: Math.PI / 2, h: SEAT_TOP,
         approach: { x: room.wx(cx - 0.85), z: room.wz(cz) },
         label: 'sit at the study carrel',
-        ok: underDeck,
+        ok: () => underDeck() && besideSeat(cx, cz),
       });
     }
     // somebody has left their work out in the middle bay
@@ -2153,7 +2174,7 @@ export function buildLibrary(ctx: CtxBuild): void {
           yaw: side < 0 ? Math.PI : 0, h: SEAT_TOP,
           approach: { x: room.wx(cx), z: room.wz(cz + side * 0.85) },
           label: 'sit at the reading table',
-          ok: () => room.inside(),
+          ok: () => room.inside() && besideSeat(cx, cz),
         });
       }
     }
