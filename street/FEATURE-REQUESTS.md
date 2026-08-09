@@ -5759,3 +5759,40 @@ with icon and real-size dropped model in the rack's own red-and-white. No
 use verb: a pack is twenty, and a SMOKE verb that consumed the pack in one
 puff would be the menu lying — if smoking gets a system, the verb is one
 line at the declaration, like PILLS' TAKE.
+
+---
+
+## 2026-08-09 — *"i dont like the dialog bubbles they need a redesign. try again."*
+
+A rejection of the LOOK, no diagnosis attached — the mechanics (world-anchored
+over the head, turning with the speaker's facing, the one-word `talk` prompt,
+`[E]` paging) are all his own specs and are untouched. What went: the dark navy
+card with the amber name and cream terminal type, which read as a CRT window
+floating in the world — the register `hud.ts` uses for MACHINES, worn by
+speech.
+
+### The new look: a comic-strip speech bubble
+
+- **Warm white paper** (`#f7f2e2`, newsprint rather than sterile), **thin dark
+  ink outline** (2 texels), **dark crisp centred type**.
+- **Corners rounded in pixel STEPS**, not CSS-smooth: the bubble is a union of
+  six rects whose insets are one quadrant of a radius-8 pixel circle — the way
+  an SNES window rounded a corner. Outline drawn by two fills (ink shape, paper
+  shape inset 2) so the steps carry the same ink line as the straight edges and
+  nothing anti-aliases.
+- **A pointed tail that LEANS** — root pulled 4 texels off centre, tip dead on
+  the speaker's crown — so it sweeps like a pen stroke instead of hanging like
+  a plumb line. The throat is opened through the outline.
+- **Sized to the line.** The box is measured from the widest line of the
+  current page, floored at MIN_W — a short line gets a small bubble, where the
+  old fixed card left three words swimming in navy.
+- **The name line is GONE.** The tail says who is speaking; a label repeating
+  what the picture shows is the thing the talk-prompt fix just deleted.
+  `TalkerOpts.name` is kept as the talker's identity token only.
+- Multi-page unchanged; the page indicator is a small ink triangle tucked in
+  the bubble's bottom-right.
+
+One rough pass, live for his eye, no variants. Old paint is one `git show`
+away, not a flag.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

@@ -113,19 +113,33 @@ const MPT = 0.0065;
 /** transparent texels below the tail's tip, so the point of the tail sits ON
  *  the speaker's crown with a 5 cm air gap drawn into the texture itself. */
 const GAP = 8;
-const TAIL = 8, TAIL_W = 7;
+/** the tail: 12 texels tall, 10 wide at the root, tip pulled 4 texels off
+ *  the bubble's centre — a comic tail leans, it does not plumb. */
+const TAIL = 12, TAIL_W = 10, TAIL_LEAN = 4;
 const BX = 4, BW = CW - BX * 2;
-const PAD = 9;
+const PAD = 8;
 const LH = 14, FS = 11;
-const NAME_H = 13, NAME_FS = 9;
-/** lines of speech per page. 5 × 14 + name + padding fits `CH` with room. */
+/** lines of speech per page. 5 × 14 + padding fits `CH` with room. */
 const MAXL = 5;
 const TEXT_W = BW - PAD * 2;
+/** a one-line bubble never shrinks below this — a bare "No." floating in a
+ *  postage stamp reads as a tooltip, not speech. */
+const MIN_W = 64;
 
-const INK = UI.ink;
-const FILL = 'rgba(24,25,29,0.92)';
-const EDGE = '#08080a';
-const LIP = '#565861';
+// ── THE LOOK: a comic-strip speech bubble ──────────────────────────────────
+//
+// *"i dont like the dialog bubbles they need a redesign. try again."*
+// (2026-08-09.) The first look was a dark navy card with an amber name and
+// cream terminal type — a floating CRT window, the exact register `hud.ts`
+// uses for MACHINES. Speech is not a machine. So: newspaper-comic / SNES-era
+// RPG — warm white paper, thin dark outline, corners rounded in pixel STEPS
+// (drawn, not CSS-smooth), a leaning pointed tail down to the speaker, dark
+// crisp type. The name line is GONE entirely: the tail says who is speaking,
+// and he hates a label that repeats what the picture already shows.
+const PAPER = '#f7f2e2';       // warm white — newsprint, not sterile
+const PAPER_LO = '#e6dfc9';    // one shade down, laid along the bottom edge
+const OUTLINE = '#2a241c';     // near-black warm ink, 2 texels
+const INK = '#241d13';         // the words
 
 // ── the one bubble ─────────────────────────────────────────────────────────
 //
@@ -150,7 +164,6 @@ interface Live {
    *  with this, never with the camera. Citizen convention: atan2(vx, vz),
    *  0 faces +z, forward is (sin f, cos f). */
   yaw: () => number;
-  name?: string;
   pages: string[][];
   page: number;
   /** `performance.now()` at which this page turns itself */
@@ -278,58 +291,91 @@ const paginate = (speeches: string[]): string[][] => {
 };
 
 // ── painting ───────────────────────────────────────────────────────────────
+
+/**
+ * A PIXEL-ROUNDED RECT AS A UNION OF SIX RECTS — the classic way an SNES
+ * window rounds a corner. No path, no arc, no anti-aliased diagonal: every
+ * edge lands on whole texels, so the rounding is drawn in steps the way the
+ * era drew it. The inset pairs are one quadrant of a radius-8 pixel circle.
+ */
+const ROUND: [number, number][] = [[0, 8], [1, 5], [2, 3], [3, 2], [5, 1], [8, 0]];
+function roundRect(g: CanvasRenderingContext2D, x: number, y: number,
+  w: number, h: number, color: string): void {
+  g.fillStyle = color;
+  for (const [ix, iy] of ROUND) g.fillRect(x + ix, y + iy, w - ix * 2, h - iy * 2);
+}
+
 function paint(): void {
   const g = g2!, l = live!;
   const lines = l.pages[l.page];
   const more = l.page < l.pages.length - 1;
   g.clearRect(0, 0, CW, CH);
 
-  const nameH = l.name ? NAME_H : 0;
-  const boxH = PAD * 2 + nameH + lines.length * LH;
-  const y1 = CH - GAP - TAIL;              // the box's bottom edge
+  // ── SIZED TO THE LINE ────────────────────────────────────────────────────
+  // A comic bubble hugs its words. The old card was one fixed slab and three
+  // words swam in it; here the box is measured from the widest line of THIS
+  // page, floored at MIN_W so a bare "No." still reads as a bubble.
+  g.font = UI.font(FS, true);
+  let maxw = 0;
+  for (const line of lines) maxw = Math.max(maxw, g.measureText(line).width);
+  const bw = Math.min(BW, Math.max(MIN_W, Math.ceil(maxw) + PAD * 2 + 4)) & ~1;
+  const boxH = PAD * 2 + lines.length * LH;
+  const y1 = CH - GAP - TAIL;              // the bubble's bottom edge
   const y0 = y1 - boxH;
   const cx = CW >> 1;
+  const bx0 = Math.max(BX, cx - (bw >> 1));
 
-  // ONE PATH for the box and its tail, so the shared edge is never stroked
-  // across. Square corners: this world's 1997 chrome has no rounded anything.
+  // ── the bubble: ink shape, then paper inset 2 texels ─────────────────────
+  // Outline by TWO FILLS rather than a stroke, so the stepped corners carry
+  // the same 2-texel ink line as the straight edges and nothing anti-aliases.
+  roundRect(g, bx0, y0, bw, boxH, OUTLINE);
+  roundRect(g, bx0 + 2, y0 + 2, bw - 4, boxH - 4, PAPER);
+
+  // ── the tail: pointed, and it LEANS ──────────────────────────────────────
+  // Tip dead on the canvas centre — the mesh anchor, so it points at the
+  // crown — with the root pulled sideways so the tail sweeps like a stroke of
+  // the pen instead of hanging like a plumb line. Ink triangle, then a paper
+  // triangle inset at the sides and run 3 texels up INTO the bubble to open
+  // the throat through the outline.
+  const rx = cx + TAIL_LEAN;               // root centre
   g.beginPath();
-  g.moveTo(BX, y0);
-  g.lineTo(BX + BW, y0);
-  g.lineTo(BX + BW, y1);
-  g.lineTo(cx + TAIL_W, y1);
+  g.moveTo(rx - (TAIL_W >> 1), y1 - 2);
+  g.lineTo(rx + (TAIL_W >> 1), y1 - 2);
   g.lineTo(cx, y1 + TAIL);
-  g.lineTo(cx - TAIL_W, y1);
-  g.lineTo(BX, y1);
   g.closePath();
-  g.fillStyle = FILL; g.fill();
-  g.lineWidth = 2; g.strokeStyle = EDGE; g.lineJoin = 'miter'; g.stroke();
-  // the moulded lip, one texel in from the edge on the two lit sides
+  g.fillStyle = OUTLINE; g.fill();
   g.beginPath();
-  g.moveTo(BX + 2.5, y1 - 1); g.lineTo(BX + 2.5, y0 + 2.5); g.lineTo(BX + BW - 2, y0 + 2.5);
-  g.lineWidth = 1; g.strokeStyle = LIP; g.stroke();
+  g.moveTo(rx - (TAIL_W >> 1) + 2, y1 - 3);
+  g.lineTo(rx + (TAIL_W >> 1) - 2, y1 - 3);
+  g.lineTo(cx, y1 + TAIL - 3);
+  g.closePath();
+  g.fillStyle = PAPER; g.fill();
 
-  let ty = y0 + PAD;
-  if (l.name) {
-    g.font = UI.font(NAME_FS, true);
-    g.fillStyle = UI.amber;
-    g.textBaseline = 'top';
-    g.fillText(l.name.toUpperCase(), BX + PAD, ty | 0);
-    ty += NAME_H;
-  }
+  // a single shade of ageing along the inside of the bottom edge — newsprint,
+  // not printer paper. One rect; the whole of the shading budget.
+  g.fillStyle = PAPER_LO;
+  g.fillRect(bx0 + 6, y1 - 4, bw - 12, 2);
+
+  // ── the words: dark ink, CENTRED, as a strip cartoon sets them ───────────
   g.font = UI.font(FS, true);
   g.fillStyle = INK;
   g.textBaseline = 'top';
-  for (const line of lines) { g.fillText(line, BX + PAD, ty | 0); ty += LH; }
+  let ty = y0 + PAD;
+  for (const line of lines) {
+    const lw = g.measureText(line).width;
+    g.fillText(line, (bx0 + (bw - lw) / 2) | 0, ty | 0);
+    ty += LH;
+  }
 
-  // MORE TO COME: a small solid chevron in the bottom right of the box. Drawn
-  // rather than typed, because a `▾` glyph is a bet on a font this world has
-  // not chosen and would land as a tofu box on the one machine that lacks it.
+  // MORE TO COME: a small ink triangle tucked in the bottom-right corner.
+  // Drawn rather than typed, because a `▾` glyph is a bet on a font this
+  // world has not chosen and would land as a tofu box where it is missing.
   if (more) {
-    const ax = BX + BW - PAD, ay = y1 - PAD + 2;
+    const ax = bx0 + bw - 7, ay = y1 - 7;
     g.beginPath();
-    g.moveTo(ax - 5, ay - 3); g.lineTo(ax, ay - 3); g.lineTo(ax - 2.5, ay + 1);
+    g.moveTo(ax - 6, ay - 2); g.lineTo(ax, ay - 2); g.lineTo(ax - 3, ay + 2);
     g.closePath();
-    g.fillStyle = UI.dim; g.fill();
+    g.fillStyle = OUTLINE; g.fill();
   }
   tex!.needsUpdate = true;
 }
@@ -342,8 +388,8 @@ export interface Talker {
    *
    * *"e prompts shouldnt be descriptive. it should just say talk."*
    * (2026-08-09.) The prompt does not name the person — the highlight is
-   * already drawn around him and the name is printed in the bubble the moment
-   * he speaks, so "talk to the kid" was saying everything twice. A spot whose
+   * already drawn around him and the bubble's tail points at whoever is
+   * speaking, so "talk to the kid" was saying everything twice. A spot whose
    * `[E]` offers something that is NOT speech (the dealer's post-pitch buy)
    * writes its own label; a spot that offers talk uses this and never types
    * the word again:
@@ -371,7 +417,10 @@ export interface TalkerOpts {
   /** WHO IS TALKING. The bubble hangs at the top of this object's bounds and
    *  follows it, so a speaker who walks is handled with no extra wiring. */
   obj: THREE.Object3D;
-  /** printed small and amber above the line. Omit for an unnamed voice. */
+  /** NOT PAINTED. The 2026-08-09 redesign dropped the name line — the tail
+   *  says who is speaking, and he hates a label repeating what the picture
+   *  shows. Kept as the talker's identity for its ownership token, and in case
+   *  a future look wants it back. */
   name?: string;
   /** the default script. Each entry is a speech; long ones page themselves. */
   lines?: string[] | (() => string[]);
@@ -439,7 +488,7 @@ export function talker(ctx: CtxBuild, o: TalkerOpts): Talker {
     }
     const pages = paginate(speeches);
     live = {
-      head, yaw, name: o.name, pages, page: 0,
+      head, yaw, pages, page: 0,
       until: performance.now() + dwellFor(pages[0]),
       leave: o.leave ?? 5, seated: ctx.player.seated(),
     };
