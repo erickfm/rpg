@@ -469,3 +469,16 @@ ffmpeg -hide_banner -loglevel error -y -ss 0.36 -t 3.64 -i "$SRC/slot coin win.w
   -af "afade=t=in:st=0:d=0.006,afade=t=out:st=3.14:d=0.50,volume=${g}dB" \
   -ac 1 -ar 22050 -c:a libvorbis -q:a 2 "$OUT/slot-coin-full.ogg"
 echo "  slot-coin-full.ogg  <- slot coin win.wav  22050Hz  ${g}dB  3.64s"
+
+# ── and the loss (2026-08-10, later still) ──────────────────────────────────
+#
+# *"can you make losses more apparent in slots? use
+# '/home/erick/Documents/sound/loss.flac' also use it in other games"* — the
+# womp that sat in the drop unassigned since the sixth delivery. 0.57 s of
+# file, all of it in the first 0.15 s: a soft low-mid wrong-answer blip
+# (centroid 718 Hz, 86% of its energy 250 Hz-2 kHz, nothing above). It
+# arrives 8.6 dB shy of peak — normalised like every other one-shot, since
+# the mix constant is where its manners live: this fires on roughly every
+# other pull now that five paylines put the hit rate at 44%.
+echo "the loss:"
+sfx loss "loss.flac" 0.00 0.22 22050

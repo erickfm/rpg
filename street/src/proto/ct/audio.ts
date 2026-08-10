@@ -247,6 +247,11 @@ const EVENTS = [
   // for the jackpot. LAYERED under the win cues, never replacing them —
   // the ding is the machine announcing, the coins are the tray paying.
   'slot-coin-short', 'slot-coin-full',
+  // *"can you make losses more apparent in slots? use loss.flac … also use
+  // it in other games"* (2026-08-10) — the 0.15 s wrong-answer womp, fired
+  // when a slot spin settles empty, a blackjack hand loses or busts, and
+  // the roulette ball lands against him.
+  'loss',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -378,6 +383,12 @@ const LVL = {
   // the coins into the tray, layered UNDER whichever announcement they ride
   // (0.50 / 0.60): the payout is the texture, the ding is the event
   slotCoins: 0.40,  // multiplied by distance
+  // the womp. *"make losses more apparent"* pulls it up; five paylines put
+  // the hit rate at 44%, so it lands on every other pull and grating pulls
+  // it down — the clicks' shelf (0.40) is where those meet: clearly a
+  // verdict, still smaller than the win it is the absence of. 0.15 s of
+  // low-mid blip has nothing in it to wear on the ear at that length.
+  loss: 0.45,
   busIdle: 0.30,   // the looping bed while it stands at the flag
   // ── the skateboard (2026-08-10) ──
   // the roll sits UNDER the footsteps it replaces (0.55) and over the beds:
@@ -1131,6 +1142,9 @@ export function register(ctx: CtxBuild): void {
      *  starts and stops it */
     arp: { g: GainNode; s: AudioBufferSourceNode } | null;
     wasSpin: boolean;
+    /** when this machine's spin ended, pending a verdict — the loss watcher.
+     *  −1 is no verdict owed; the win strobe cancels it. */
+    lossAt: number;
   }
   let slots: Slot[] | null = null;
   let slotScanAt = -9;
@@ -1203,7 +1217,7 @@ export function register(ctx: CtxBuild): void {
           topper, flash: (topper.userData as { flash?: boolean }).flash === true,
           x: WP.x, z: WP.z, reels,
           kind: (o.userData as { kind?: string }).kind ?? 'seven',
-          arp: null, wasSpin: false,
+          arp: null, wasSpin: false, lossAt: -1,
         });
       });
       if (!found.length) return;
@@ -1240,11 +1254,26 @@ export function register(ctx: CtxBuild): void {
       // moving, so the loop starts with the first kick and the fade begins
       // the frame the LAST reel rests, right under its click.
       if (live && !s.wasSpin) startArp(s);
-      else if (!live && s.wasSpin) stopArp(s);
+      else if (!live && s.wasSpin) {
+        stopArp(s);
+        // the reels have rested: a verdict is now owed — see `lossAt`
+        s.lossAt = t;
+      }
       s.wasSpin = live;
 
       const fl = (s.topper.userData as { flash?: boolean }).flash === true;
       if (fl && !s.flash && winT < 0) { winT = t; winCash = ctx.purse.cash; winX = s.x; winZ = s.z; }
+      // *"make losses more apparent in slots"* — the womp is the verdict the
+      // machine never speaks. `settleIfDone` rests the reels and starts the
+      // win strobe in the SAME frame, so a strobe inside the grace cancels
+      // the debt and anything else IS the loss: 0.35 s of the machine sitting
+      // quiet after the third click, then the womp. The beat is deliberate —
+      // silence first is what makes the nothing land.
+      if (fl) s.lossAt = -1;
+      else if (s.lossAt >= 0 && t - s.lossAt >= 0.35) {
+        s.lossAt = -1;
+        atPoint('loss', s.x, s.z, LVL.loss, 14, 0.97 + roll() * 0.06);
+      }
       s.flash = fl;
     }
     if (winT >= 0 && t - winT >= 0.18) {
@@ -1278,9 +1307,9 @@ export function register(ctx: CtxBuild): void {
   // the natural settle at 6.0 s (a no-op, the recording died at 5.3) or the
   // panel closing — fades what remains in 0.12 s. A wheel you walked away
   // from must not keep ticking behind you.
-  interface RouV { phase: string }
+  interface RouV { phase: string; won: boolean }
   interface BjV {
-    hands: readonly { cards: readonly unknown[] }[];
+    hands: readonly { cards: readonly unknown[]; outcome: string | null }[];
     dealer: { cards: readonly unknown[] };
     holeTurnT: number;
   }
@@ -1290,7 +1319,7 @@ export function register(ctx: CtxBuild): void {
   };
   let rouPhase = '';
   let spinShot: { g: GainNode; s: AudioBufferSourceNode } | null = null;
-  let bjCards = -1, bjHole = -1;
+  let bjCards = -1, bjHole = -1, bjLost = -1;
 
   const stopSpin = () => {
     if (!spinShot || !rig) { spinShot = null; return; }
@@ -1325,9 +1354,18 @@ export function register(ctx: CtxBuild): void {
     const up = panelUp();
 
     if (up === 'ct-roulette' && TABLES.__roulette) {
-      const ph = TABLES.__roulette.view().phase;
+      const v = TABLES.__roulette.view();
+      const ph = v.phase;
       if (ph === 'spinning' && rouPhase !== 'spinning') startSpin();
       else if (ph !== 'spinning' && rouPhase === 'spinning') stopSpin();
+      // *"also use it in other games"* — the ball landing against him. The
+      // show runs spinning → settle with `won` decided at that edge; a win
+      // goes on to count its chips, a loss just sits there, so the womp is
+      // what marks it. A mid-spin LEAVE resolves straight to betting and
+      // stays silent — he walked, the table does not chase him with it.
+      if (ph === 'settle' && rouPhase === 'spinning' && !v.won) {
+        fire('loss', LVL.loss, 0.97 + roll() * 0.06, 0);
+      }
       rouPhase = ph;
     } else if (rouPhase) { stopSpin(); rouPhase = ''; }
 
@@ -1349,8 +1387,18 @@ export function register(ctx: CtxBuild): void {
       if (bjCards >= 0 && bjHole < 0 && v.holeTurnT >= 0) {
         fire('card-deal', LVL.card * (0.85 + roll() * 0.15), 0.86, 0.1);
       }
-      bjCards = n; bjHole = v.holeTurnT;
-    } else { bjCards = -1; bjHole = -1; }
+      // the womp, per losing hand: outcomes arrive at the settle (a bust
+      // lands mid-play, which is exactly when its womp belongs), and a
+      // split can lose twice — count the lost hands and speak once per
+      // increment, so two hands dying together still read as one verdict
+      // per frame rather than a chord.
+      let lost = 0;
+      for (const h of v.hands) if (h.outcome === 'lose' || h.outcome === 'bust') lost++;
+      if (bjLost >= 0 && lost > bjLost) {
+        fire('loss', LVL.loss, 0.97 + roll() * 0.06, 0);
+      }
+      bjCards = n; bjHole = v.holeTurnT; bjLost = lost;
+    } else { bjCards = -1; bjHole = -1; bjLost = -1; }
   };
 
   const watchScene = (t: number) => {
