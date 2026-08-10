@@ -12,6 +12,8 @@ import { weedTuft } from './weeds';
 import { citizenSprite } from './citizens';
 import { loiter } from './loiter';
 import { talker } from './dialog';
+import { give, slots, takeOne } from './inventory';
+import { registerSlice, flush } from './save';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
 // party walls the gap exposed, the rear elevation and the low boundary along
@@ -2993,6 +2995,50 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // measuring him the first time he speaks, so nothing here carries a head
   // height that would go wrong if his 0.88 scale ever changed.
   const kidTalk = talker(ctx, { obj: kid.mesh, name: 'kid', lines: [KID_LINE] });
+  // ── THE TRADE ────────────────────────────────────────────────────────────
+  //
+  // *"make it so i can give the guy smokes in the park and he gives me a
+  //  skateboard i can use finally"*   (2026-08-10)
+  //
+  // The comment that used to close this file said it in advance: *"If a pack
+  // ever becomes an item, giving him one is one `bagHas` in the label and one
+  // branch in `act` — and not a line more."* Packs are items now — SMOKES in
+  // ct/goods.ts, and ct/smoking.ts's part-used SMOKES_19…SMOKES_1 — so here
+  // are the label and the branch.
+  //
+  // HE TAKES ANY PACK, SEALED OR PART-SMOKED. A kid cadging cigarettes is not
+  // fussy, and gating on a sealed pack would punish anybody who lit one on the
+  // walk over. What LEAVES the bag is the EMPTIEST pack carried: you keep your
+  // fresh one, he is thrilled anyway, and nobody has to open the bag to
+  // choose. What arrives is his skateboard (ct/skateboard.ts), into the slot
+  // the pack vacated, so the give cannot be refused for room — and the one
+  // case where it can (a second board against `stack: 1`) hands the smokes
+  // straight back rather than eating them.
+  //
+  // ONCE. He has one board. The flag survives a reload through its own save
+  // slice, or a refresh would respawn his skateboard for the price of a pack.
+  let kidTraded = false;
+  registerSlice<{ traded: boolean }>('park-kid', {
+    capture: () => ({ traded: kidTraded }),
+    restore: (v) => { kidTraded = v?.traded === true; },
+  });
+  /** the emptiest pack in the bag — a sealed SMOKES counts 20 — or null */
+  const packHeld = (): string | null => {
+    let best: string | null = null, fewest = 99;
+    for (const id of slots(ctx.purse)) {
+      const n = id === 'SMOKES' ? 20
+        : id.startsWith('SMOKES_') ? parseInt(id.slice(7), 10) : NaN;
+      if (Number.isFinite(n) && n < fewest) { fewest = n; best = id; }
+    }
+    return best;
+  };
+  // HIS LINES ARE HIS — the KID_LINE rule again: the register is a kid trying
+  // to make the transaction sound normal, and failing happily.
+  const KID_TRADE = [
+    "No way!! Okay okay, deal. Take my board, man. For real, it's yours.",
+    'I was gonna quit skating anyway. Probably. You are SO the man!',
+  ];
+  const KID_AFTER = "S'up. No takebacks on the board. And you never saw me with these.";
   const kidSpot: Spot = {
     // he IS the object, so the prompt and the highlight name the same person.
     // Rewritten every frame below — these are only where he starts.
@@ -3004,8 +3050,11 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     ok: () => true,
     // *"e prompts shouldnt be descriptive. it should just say talk."*
     // (2026-08-09.) The talker owns the word; the highlight and the bubble's
-    // own name line already say WHO.
-    label: kidTalk.label,
+    // own name line already say WHO. The one exception is the trade — a spot
+    // whose [E] offers something that is NOT speech writes its own label, the
+    // dealer's own rule — and it reads 'give smokes' only while there is a
+    // pack to give and a board to get.
+    label: () => (!kidTraded && packHeld() ? 'give smokes' : kidTalk.label()),
     // ── HOW THE LINE IS DELIVERED ──────────────────────────────────────────
     //
     // A CHAT BUBBLE OVER HIS HEAD — `ct/dialog.ts`, and he is the first speaker
@@ -3025,7 +3074,21 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     // He follows his own loiter walk with the bubble over his head, it ends if
     // you wander off, Escape kills it, and `[E]` again dismisses it. Nothing
     // here had to know any of that.
-    act: () => { kidTalk.say(); },
+    //
+    // …AND THE TRADE BRANCH. `stop()` before the trade line, because `say()`
+    // while he is already begging would only turn the beg's page — the deal
+    // deserves its own bubble from its first word.
+    act: () => {
+      const pack = kidTraded ? null : packHeld();
+      if (!pack) { if (kidTraded) kidTalk.say(KID_AFTER); else kidTalk.say(); return; }
+      takeOne(ctx.purse, pack);
+      if (give(ctx.purse, 'SKATEBOARD', 1) < 1) { give(ctx.purse, pack, 1); kidTalk.say(); return; }
+      ctx.refreshWallet();
+      kidTraded = true;
+      flush();                       // a skateboard is worth writing down
+      kidTalk.stop();
+      kidTalk.say(KID_TRADE);
+    },
   };
   ctx.spot(kidSpot);
   ctx.onFrame(({ px, pz, dt, gy }) => {
@@ -3044,9 +3107,9 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     kidBox.minZ = inIt ? 999 : kidWalk.z - KID_HALF;
     kidBox.maxZ = inIt ? 999 : kidWalk.z + KID_HALF;
   });
-  // THERE ARE NO CIGARETTES IN THIS WORLD, so there is nothing to give him and
-  // nothing here checks for one. If a pack ever becomes an item, giving him one
-  // is one `bagHas` in the label and one branch in `act` — and not a line more.
+  // (The note that stood here — *"THERE ARE NO CIGARETTES IN THIS WORLD"* —
+  // came true in reverse on 2026-08-10: packs exist, and the label-and-branch
+  // it promised is THE TRADE above, at the kid's spot.)
 
   return { colliders };
 }

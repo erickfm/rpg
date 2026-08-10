@@ -258,6 +258,48 @@ const BHOP_GAIN = 0.25;
 const BHOP_DECAY = 2.5;
 
 /**
+ * ── THE SKATEBOARD ───────────────────────────────────────────────────────────
+ *
+ * The user, 2026-08-10: *"make it so i can give the guy smokes in the park and
+ * he gives me a skateboard i can use finally"*. The trade is the park kid's
+ * (ct/park.ts) and the item is ct/skateboard.ts's; what lives HERE is the ride.
+ * `setRiding` is the one switch, flipped by the item's own RIDE verb in the
+ * bag — this file neither knows nor asks whether a board is carried;
+ * ct/skateboard.ts stands that guard every frame and flips the switch off the
+ * moment the board leaves the bag or the rider takes a seat.
+ *
+ * HOW IT MOVES: the walk/sprint base is REPLACED, not multiplied — cruise
+ * `RIDE_SPEED` on the keys, shift is a push at `RIDE_PUSH` — and the speed
+ * carries MOMENTUM: it eases up toward the target while a direction is held
+ * and bleeds off slowly when the keys are released, so letting go is a coast,
+ * not a halt. Direction stays on the keys with no inertia of its own —
+ * carving reads better than drifting, and a board that understeered into the
+ * road would be a worse feel than one that turns on a texel.
+ *
+ * WHAT COMPOSES — deliberately all of it: DEX through the same `speedMul()`
+ * every gait takes, the crouch cut (a tucked rider is doing a manual, slower),
+ * and the bunny-hop stack, because a hop off a board is an ollie and chaining
+ * them is the same hidden tech it is on foot. The worst legal step is
+ * therefore 7.5 × 1.15 × 1.25 = 10.78 m/s × the 0.05 s dt clamp = 0.539 m —
+ * still well inside the 0.691 m reject band the bhop block derives, so
+ * nothing tunnels. The fall detector's walked-there bound takes
+ * `max(run, RIDE_PUSH)` below for the same reason.
+ */
+const RIDE_SPEED = 6.0;
+const RIDE_PUSH = 7.5;
+/** how quickly a push takes hold, 1/s — ~95% of target inside a second */
+const RIDE_ACCEL = 3.0;
+/** how quickly a coast bleeds off, 1/s — let go at cruise and you roll on for
+ *  a couple of seconds before you are back at walking pace. The feel. */
+const RIDE_BLEED = 1.1;
+
+/** Is he on the board. Module scope, one player — the same shape `speedMul()`
+ *  takes for stats, pointed the other way. */
+let ride = false;
+export function setRiding(on: boolean): void { ride = on; }
+export function riding(): boolean { return ride; }
+
+/**
  * HOW FAR THE FLOOR HAS TO DROP IN ONE FRAME BEFORE IT COUNTS AS A FALL, in
  * metres. **THIS IS THE ONE NUMBER TO TURN.**
  *
@@ -411,6 +453,12 @@ export class FPRig {
   private bhop = 0;
   private groundT = 999;
   private bobT = 0;
+  // ── the skateboard (see the RIDE constants block) ──
+  //
+  // `glide` is the rolled speed in m/s — the momentum. `rideDir` is the last
+  // direction the keys asked for, which a coast continues along.
+  private glide = 0;
+  private rideDir = new THREE.Vector3();
   // ── sitting ──
   //
   // The seat you are on, and the spot you were standing on when you sat. Both
@@ -508,7 +556,8 @@ export class FPRig {
     this.airY = 0; this.vy = 0; this.jumpHeld = false; this.air = false;
     // ...and any hop chain with it — a chair is not a hop, and a stale
     // `groundT` of 0 here would let standing up re-chain off the seat.
-    this.bhop = 0; this.groundT = 999;
+    // The board's momentum goes the same way: a chair is not a rolling start.
+    this.bhop = 0; this.groundT = 999; this.glide = 0;
     // A chair is not a surface you stepped off — RE-BASE whatever was holding
     // you up onto where you now are, so standing back up cannot read it as a
     // floor that dropped away.
@@ -824,7 +873,31 @@ export class FPRig {
     // eased below against THIS frame's, after the integrator has run.
     this.stanceT += ((this.airY > 0 ? AIR_CROUCH_DIP : 1) * this.crouchT - this.stanceT) * Math.min(1, dt * 9);
     const moving = mv.lengthSq() > 0;
-    if (moving) {
+    if (!ride) this.glide = 0;   // off the board, the momentum is gone
+    if (ride) {
+      // ── ON THE BOARD (see the RIDE constants block) ──────────────────────
+      // The base is REPLACED — cruise or push, never walk/sprint — and every
+      // multiplier the feet take still composes: DEX, the crouch cut, the hop
+      // stack. Speed carries momentum through `glide`; direction stays on the
+      // keys, so a coast rolls straight on along the last thing asked for.
+      // The step below goes through the SAME clamp and the SAME two `blocked`
+      // tests as walking — nothing about collision knows about wheels.
+      const sp = (input.keys.has('shift') ? RIDE_PUSH : RIDE_SPEED) * speedMul()
+        * (1 - 0.55 * this.stanceT) * (1 + BHOP_GAIN * this.bhop);
+      if (moving) this.rideDir.copy(mv).normalize();
+      const target = moving ? sp : 0;
+      this.glide += (target - this.glide)
+        * Math.min(1, dt * (target > this.glide ? RIDE_ACCEL : RIDE_BLEED));
+      if (!moving && this.glide < 0.05) this.glide = 0;   // rolled to a stop
+      if (this.glide > 0) {
+        const nx = THREE.MathUtils.clamp(this.pos.x + this.rideDir.x * this.glide * dt, this.bounds.minX, this.bounds.maxX);
+        if (!this.blocked(nx, this.pos.z, atY)) this.pos.x = nx;
+        const nz = THREE.MathUtils.clamp(this.pos.z + this.rideDir.z * this.glide * dt, this.bounds.minZ, this.bounds.maxZ);
+        if (!this.blocked(this.pos.x, nz, atY)) this.pos.z = nz;
+        // wheels, not feet: a slow roll of the head, no footstep cadence
+        this.bobT += dt * 3;
+      }
+    } else if (moving) {
       // The bunny-hop stack multiplies LAST and applies in the air too — the
       // whole point of a hop is that the speed it earned carries through the
       // flight. Walk × full stack is 4.1 m/s, still under the flat sprint, so
@@ -1030,7 +1103,9 @@ export class FPRig {
     // picker answers for.
     const walked = Math.hypot(this.pos.x - this.lastX, this.pos.z - this.lastZ);
     const dropped = this.support - gy;
-    if (dropped > FALL_MIN_DROP && walked <= this.run * speedMul() * (1 + BHOP_GAIN) * dt + 1e-3) {
+    // `max(run, RIDE_PUSH)`: the board's push can outrun the shipping sprint,
+    // and a kerb rolled off at speed must still read as a fall, not a warp.
+    if (dropped > FALL_MIN_DROP && walked <= Math.max(this.run, RIDE_PUSH) * speedMul() * (1 + BHOP_GAIN) * dt + 1e-3) {
       this.airY += dropped;
     }
     this.support = gy;
