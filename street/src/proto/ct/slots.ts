@@ -1063,7 +1063,12 @@ export interface Paint2D {
   clearRect(x: number, y: number, w: number, h: number): void;
   save(): void; restore(): void;
   translate(x: number, y: number): void; scale(x: number, y: number): void;
-  beginPath(): void; arc(x: number, y: number, r: number, a: number, b: number): void; fill(): void;
+  beginPath(): void; fill(): void;
+  // the optional anticlockwise flag and the path verbs below were added for
+  // ct/roulette.ts's wheel (wedge pockets, a ring track); a real 2D context
+  // has always had them, so nothing that satisfied this interface stops
+  arc(x: number, y: number, r: number, a: number, b: number, ccw?: boolean): void;
+  moveTo(x: number, y: number): void; closePath(): void;
   rect(x: number, y: number, w: number, h: number): void; clip(): void;
 }
 

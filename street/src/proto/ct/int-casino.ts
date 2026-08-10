@@ -19,6 +19,10 @@ import { buildSlots } from './slotcab';
 // imports only ./ctx, ./hud (dynamically) and ./slots (dynamically), never
 // this file.
 import { SEAT_LABEL as BLACKJACK_SEAT } from './blackjack';
+// Same bridge, other table: the four stools at the wheel carry roulette's own
+// label, imported for the same anti-drift reason. Same no-cycle shape too —
+// roulette.ts imports only ./ctx at runtime, never this file.
+import { SEAT_LABEL as ROULETTE_SEAT } from './roulette';
 
 // SEVENS, inside.
 //
@@ -1026,7 +1030,6 @@ export function buildCasino(ctx: CtxBuild): void {
       Math.atan2(tx - gx, -(tz - gz));
     // roulette: two at the layout's foot, two along its open east side — the
     // avenue side, so the players ring the wheel from the floor you walk down
-    const ROULETTE_SEAT = 'sit at the roulette wheel';   // ct/roulette.ts bridges on this exact string
     for (const [gx, gz, tx, tz] of [
       [RX - 0.5, RZ + 1.65, RX - 0.5, RZ + 0.5],
       [RX + 0.5, RZ + 1.65, RX + 0.5, RZ + 0.5],
