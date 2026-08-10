@@ -6026,3 +6026,36 @@ Wages unchanged. The consequence is the point: a fresh average character
 the never-zero small chance or through the community college, which is now
 the ladder between every rung. No paper prints a number, so only the table
 moved.
+
+## 2026-08-09 — *"gotta fix this"* (screenshot: sky through a slot east of the college yard) · *"i cant walk into the community college and the sign is too blurry. make things readable"*
+
+To this builder (the yard is mine). Three causes found:
+
+1. **The sky slot** — the report that the yard was "flanked by already-painted
+party walls" was half wrong: the jail sits BACK behind its forecourt
+(`ct/jail.ts` FX = site.minX + FORE), so nothing has ever stood at x = 57
+below the street line — LOANS's own east wall was the seal, and the recess
+removed that stretch. Fixed in `ct/college-yard.ts`: a full-height (17.2 m)
+party wall in the corner block's family — granite ashlar base, sooted brick —
+fills x 56.5…56.98, z −110.05…−114.5, with a collider so nobody slips into
+the void. Its east face stops 0.02 shy of the x = 57 plane the jail publishes
+its frontage on (the coplanar z-fight that demolished the old cross building).
+The west flank was checked and really is sealed by SMOKES' 14 m box.
+
+2. **The blur** — texel starvation, three surfaces: the frieze was incised
+into the 16 px/m facade band (WALL_PPM 8 × SHOP_MULT 2 → 6-texel letters);
+the stub plate was 53 px/m with an 8 px font; the notice board 55 px/m with a
+5 px font. Fixed: a 64 px/m applied stone frieze plane sits exactly over the
+painted one (carved look kept), and the plate and board repaint at 160 px/m —
+the shop-board standard. The interior corkboard header (50 px/m) got the same
+treatment; the chalkboard and corridor sign were already sharpened by another
+builder in ce962c90.
+
+3. **"i cant walk into the community college" — TRUNK, not fixed here.** The
+player is clamped at the world's south walk bound: `src/proto/crosstown.ts`
+line ~1242, `WORLD_BOUNDS = { …, minZ: -110.6, … }`. The yard runs to
+z −114.5, so he stops 0.4 m past the gate; the door spot at z −113.75 is
+unreachable. One line: `minZ: -110.6` → `-114.6` (or derive from the yard's
+face plane). Everything yard-side is already correct — ground registered at
+kerb height, gate 2.0 m clear, no collider on the path, door spot derived at
+the recessed plane — a builder with the trunk needs only that line.

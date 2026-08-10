@@ -151,15 +151,18 @@ export function register(ctx: CtxBuild): void {
   }
 
   // ── the name, built in masonry, not hung: a brick stub west of the gate ────
-  const signT = declareSurface(pixTex(96, 40, (g) => {
-    g.fillStyle = '#6a2430'; g.fillRect(0, 0, 96, 40);
-    g.strokeStyle = '#c9bfa4'; g.lineWidth = 2; g.strokeRect(3, 3, 90, 34);
+  // 288 x 120 for a 1.8 x 0.72 m plate = 160 px/m — the shop-board standard,
+  // because a plate at the pavement is read from two metres. The first cut was
+  // 53 px/m with an 8 px font: *"the sign is too blurry"*.
+  const signT = declareSurface(pixTex(288, 120, (g) => {
+    g.fillStyle = '#6a2430'; g.fillRect(0, 0, 288, 120);
+    g.strokeStyle = '#c9bfa4'; g.lineWidth = 5; g.strokeRect(9, 9, 270, 102);
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = 'bold 8px monospace'; g.fillStyle = '#efe8d4';
-    g.fillText('CROSSTOWN', 48, 12);
-    g.fillText('COMMUNITY COLLEGE', 48, 21);
-    g.font = '6px monospace'; g.fillStyle = '#d8b86a';
-    g.fillText('EST 1971 · EVENING DIVISION', 48, 32);
+    g.font = 'bold 26px monospace'; g.fillStyle = '#efe8d4';
+    g.fillText('CROSSTOWN', 144, 36);
+    g.fillText('COMMUNITY COLLEGE', 144, 63);
+    g.font = '15px monospace'; g.fillStyle = '#d8b86a';
+    g.fillText('EST 1971 · EVENING DIVISION', 144, 96);
   }), 'sign');
   {
     const SX = X0 + 1.7, SZ = WALK_Z - 1.1;
@@ -178,24 +181,26 @@ export function register(ctx: CtxBuild): void {
   }
 
   // ── the notice board east of the gate, glazed, on two posts ───────────────
-  const noteT = declareSurface(pixTex(72, 42, (g) => {
-    g.fillStyle = '#b08a54'; g.fillRect(0, 0, 72, 42);               // the cork
+  // 216 x 126 for 1.32 x 0.74 m = 163 px/m, same argument as the plate: the
+  // headline is read from the pavement, the flyers only need to read AS flyers.
+  const noteT = declareSurface(pixTex(216, 126, (g) => {
+    g.fillStyle = '#b08a54'; g.fillRect(0, 0, 216, 126);             // the cork
     g.fillStyle = '#3a332a';
-    g.fillRect(0, 0, 72, 2); g.fillRect(0, 40, 72, 2);
-    g.fillRect(0, 0, 2, 42); g.fillRect(70, 0, 2, 42);
-    g.fillStyle = '#6a2430'; g.fillRect(4, 4, 64, 8);
-    g.font = 'bold 5px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = '#efe8d4'; g.fillText('EVENING DIVISION', 36, 8);
+    g.fillRect(0, 0, 216, 6); g.fillRect(0, 120, 216, 6);
+    g.fillRect(0, 0, 6, 126); g.fillRect(210, 0, 6, 126);
+    g.fillStyle = '#6a2430'; g.fillRect(12, 12, 192, 24);
+    g.font = 'bold 15px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#efe8d4'; g.fillText('EVENING DIVISION', 108, 25);
     const PAPER = ['#f4efe0', '#ffffff', '#f0e4c8'];
     for (let i = 0; i < 4; i++) {
-      const x = 5 + i * 17, y = 15 + (i % 2) * 4;
-      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(x + 1, y + 1, 14, 18);
-      g.fillStyle = PAPER[i % PAPER.length]; g.fillRect(x, y, 14, 18);
+      const x = 15 + i * 51, y = 45 + (i % 2) * 12;
+      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(x + 3, y + 3, 42, 54);
+      g.fillStyle = PAPER[i % PAPER.length]; g.fillRect(x, y, 42, 54);
       g.fillStyle = 'rgba(40,30,20,0.60)';
-      for (let l = 0; l < 4; l++) g.fillRect(x + 2, y + 3 + l * 3, 10 - (l % 2) * 3, 1);
+      for (let l = 0; l < 5; l++) g.fillRect(x + 6, y + 9 + l * 9, 30 - (l % 2) * 9, 3);
     }
-    g.fillStyle = 'rgba(200,220,235,0.15)'; g.fillRect(2, 2, 30, 38);  // the glass
-    dither(g, 72, 42, 14);
+    g.fillStyle = 'rgba(200,220,235,0.15)'; g.fillRect(6, 6, 90, 114);  // the glass
+    dither(g, 216, 126, 40);
   }), 'sign');
   {
     const NX = X1 - 1.6, NZ = WALK_Z - 1.1;
@@ -264,6 +269,76 @@ export function register(ctx: CtxBuild): void {
     // capped at the planter's stone rim (0.48 + 0.03); the young trunk pokes
     // through the stand plane the way a bench's back slats do
     obstacle({ minX: tx - 0.62, maxX: tx + 0.62, minZ: TZ - 0.62, maxZ: TZ + 0.62, maxY: KERB_H + 0.51 });
+  }
+
+  // ══ THE EAST PARTY WALL — closing the slot to the sky ══════════════════════
+  //
+  // *"gotta fix this"* (2026-08-09, with a photograph of rain falling through
+  // a full-height crack between the buildings). The recess assumed the corner
+  // block sealed the yard's east side. IT DOES NOT: the jail sits BACK behind
+  // its own forecourt (`ct/jail.ts`, `FX = site.minX + FORE`), so there has
+  // never been a wall at x = 57 below the street line — LOANS's own east
+  // party wall was what filled it, and recessing the shell removed exactly
+  // that stretch. The west side really is sealed (SMOKES' box runs 14 m deep
+  // past the yard); this wall is the east side's missing four metres, built
+  // in the corner block's own family — granite ashlar base, sooted brick
+  // above — to the college shell's full 17.2 m, so the yard reads as a notch
+  // carved between solid buildings.
+  //
+  // Its east face stops at x 56.98, 0.02 shy of the x = 57 plane the jail
+  // publishes its frontage on — the exact coplanar z-fight that got the old
+  // cross building demolished (GOTCHAS §6).
+  {
+    const PW_X0 = 56.50, PW_X1 = 56.98;
+    const PW_Z0 = -114.5, PW_Z1 = WALK_Z - 0.05;
+    const PW_H = 17.2;                    // gh 4.2 + 3.4 + 4 floors x 2.4
+    const partyT = declareSurface(pixTex(34, 138, (g) => {
+      // 4.15 x 17.2 m at 8 px/m — masonry wants courses, not letters
+      g.fillStyle = '#6b4034'; g.fillRect(0, 0, 34, 138);            // the brick field
+      g.fillStyle = 'rgba(30,22,16,0.35)';
+      for (let y = 0; y < 138; y += 4) g.fillRect(0, y, 34, 1);      // the courses
+      g.fillStyle = 'rgba(0,0,0,0.22)';                              // the soot, heavier up top
+      for (let i = 0; i < 30; i++) g.fillRect((i * 11) % 34, (i * 17) % 90, 3, 2);
+      // the granite ashlar base, 3.0 m of it — the corner block's own move
+      g.fillStyle = '#8a8d88'; g.fillRect(0, 114, 34, 24);
+      g.fillStyle = 'rgba(40,42,40,0.45)';
+      for (let y = 114; y < 138; y += 6) g.fillRect(0, y, 34, 1);
+      for (let r = 0; r < 4; r++)
+        for (let c = 0; c < 3; c++) g.fillRect((c * 12 + (r % 2) * 6) % 34, 114 + r * 6, 1, 6);
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 114, 34, 1);  // the string course
+      dither(g, 34, 138, 40);
+    }), 'detail');
+    put(new THREE.Mesh(
+      new THREE.BoxGeometry(PW_X1 - PW_X0, PW_H, PW_Z1 - PW_Z0), flat(partyT)),
+      (PW_X0 + PW_X1) / 2, PW_H / 2, (PW_Z0 + PW_Z1) / 2);
+    obstacle({ minX: PW_X0, maxX: 57.0, minZ: PW_Z0, maxZ: PW_Z1 + 0.05 });
+  }
+
+  // ══ THE NAME, READABLE — a high-density applied frieze ═════════════════════
+  //
+  // *"the sign is too blurry. make things readable"* (2026-08-09). The band
+  // texture the facade is painted at is 16 px/m (WALL_PPM 8 x SHOP_MULT 2), so
+  // the 0.4 m incised letters were six texels tall — mush at any distance.
+  // The world's answer to a surface that must be READ is an applied one at
+  // its own density (the shop boards are 150 px/m): this plane sits exactly
+  // over the painted frieze, 64 px/m, and keeps the incised-stone look —
+  // carved is fine, mushy isn't.
+  {
+    const FR_W = 8.9, FR_H = 0.86;
+    const frT = declareSurface(pixTex(Math.round(FR_W * 64), Math.round(FR_H * 64), (g) => {
+      const W = Math.round(FR_W * 64), H = Math.round(FR_H * 64);
+      g.fillStyle = '#d3c9ae'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#b0a68b';
+      g.fillRect(0, 4, W, 3); g.fillRect(0, H - 7, W, 3);            // the stone rails
+      g.font = 'bold 30px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(250,244,225,0.55)';                        // the lit cut edge
+      g.fillText('CROSSTOWN COMMUNITY COLLEGE', W / 2 + 1, H / 2 + 3);
+      g.fillStyle = '#5a4f3c';                                       // the incision
+      g.fillText('CROSSTOWN COMMUNITY COLLEGE', W / 2, H / 2 + 1);
+      dither(g, W, H, 30);
+    }), 'sign');
+    put(new THREE.Mesh(new THREE.PlaneGeometry(FR_W, FR_H), flat(frT)),
+      CX, 3.64, FACE_Z + 0.035);          // over the painted frieze, proud of the band
   }
 
   // ── two benches facing each other across the path ─────────────────────────

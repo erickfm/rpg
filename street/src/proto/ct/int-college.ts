@@ -278,25 +278,27 @@ export function buildCollege(ctx: CtxBuild): void {
   // *"a corkboard of course flyers"* — cream and white sheets pinned at odd
   // heights, pull-tab fringes cut into the bottoms, one maroon header strip.
   // Flyer positions CYCLE rather than randomise (GOTCHAS §31).
-  const corkT = declareSurface(pixTex(120, 68, (g) => {
-    g.fillStyle = '#b08a54'; g.fillRect(0, 0, 120, 68);              // the cork
-    g.fillStyle = OAK_D; g.fillRect(0, 0, 120, 2); g.fillRect(0, 66, 120, 2);
-    g.fillRect(0, 0, 2, 68); g.fillRect(118, 0, 2, 68);              // the frame
-    g.fillStyle = MAROON; g.fillRect(6, 5, 108, 9);                  // the header
-    g.font = 'bold 6px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = CREAM; g.fillText("SPRING '97 · EVENING DIVISION", 60, 10);
+  // 360 x 204 for 2.4 x 1.35 m = 150 px/m — the shop-board standard, after
+  // *"make things readable"* (2026-08-09) caught every 50 px/m surface here.
+  const corkT = declareSurface(pixTex(360, 204, (g) => {
+    g.fillStyle = '#b08a54'; g.fillRect(0, 0, 360, 204);             // the cork
+    g.fillStyle = OAK_D; g.fillRect(0, 0, 360, 6); g.fillRect(0, 198, 360, 6);
+    g.fillRect(0, 0, 6, 204); g.fillRect(354, 0, 6, 204);            // the frame
+    g.fillStyle = MAROON; g.fillRect(18, 15, 324, 27);               // the header
+    g.font = 'bold 17px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = CREAM; g.fillText("SPRING '97 · EVENING DIVISION", 180, 30);
     const PAPER = ['#f4efe0', '#ffffff', '#f0e4c8', '#e8d8e0'];
     for (let i = 0; i < 7; i++) {
-      const x = 7 + (i * 16) % 102, y = 19 + ((i * 11) % 3) * 13;
-      const w = 13 + (i % 3) * 2, h = 16 + (i % 2) * 3;
-      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x + 1, y + 1, w, h);
+      const x = 21 + (i * 48) % 306, y = 57 + ((i * 11) % 3) * 39;
+      const w = 39 + (i % 3) * 6, h = 48 + (i % 2) * 9;
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x + 3, y + 3, w, h);
       g.fillStyle = PAPER[i % PAPER.length]; g.fillRect(x, y, w, h);
       g.fillStyle = 'rgba(40,30,20,0.65)';
-      for (let l = 0; l < 4; l++) g.fillRect(x + 2, y + 3 + l * 3, w - 4 - (l % 2) * 3, 1);
-      for (let t = 0; t < 4; t++) g.fillRect(x + 1 + t * 3, y + h - 3, 2, 3);   // pull tabs
-      g.fillStyle = MAROON; g.fillRect(x + Math.floor(w / 2), y - 1, 2, 2);     // the pin
+      for (let l = 0; l < 4; l++) g.fillRect(x + 6, y + 9 + l * 9, w - 12 - (l % 2) * 9, 3);
+      for (let t = 0; t < 4; t++) g.fillRect(x + 3 + t * 9, y + h - 9, 6, 9);   // pull tabs
+      g.fillStyle = MAROON; g.fillRect(x + Math.floor(w / 2), y - 3, 6, 6);     // the pin
     }
-    dither(g, 120, 68, 16);
+    dither(g, 360, 204, 48);
   }), 'sign');
   room.sign(corkT, 2.40, 1.35, hw - 0.06, 1.62, 3.90, -Math.PI / 2);
 
