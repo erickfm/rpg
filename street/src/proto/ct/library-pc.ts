@@ -330,6 +330,242 @@ function msCheckWin(s: MsState): void {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// APP 3 — TRADE-NET, THE STOCK TERMINAL
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// *"add stock trading to the pcs in the library"* (2026-08-10). REAL MONEY:
+// buys and sells settle through `ctx.purse.cash` + `ctx.refreshWallet()`, the
+// same seam the blackjack table and the slots use, so the HUD's cash tick
+// rides along for free (hud.ts diffs `purse.cash` itself). Holdings and
+// prices persist via a `registerSlice('stocks', …)` — reached by DYNAMIC
+// import for the same two reasons `makePanel` is (see that note): this file
+// stays out of the static runtime graph.
+//
+// SIX FICTIONAL TICKERS, tuned so day-trading is a hustle and a hazard both:
+// geometric Brownian motion stepped every 15 game minutes, drift and
+// volatility per ticker, plus the odd news jump. ZAPP can double in an
+// afternoon and can also become a lottery ticket you wallpaper the flat with.
+interface TickerDef { sym: string; name: string; start: number; mu: number; sig: number }
+/** `mu` is drift and `sig` volatility, both per GAME DAY of log return. */
+const TICKERS: TickerDef[] = [
+  { sym: 'WEBZ', name: 'WebZone Online', start: 34.00, mu: 0.012, sig: 0.16 },   // dot-com rocket
+  { sym: 'NRDW', name: 'NerdWare Systems', start: 88.00, mu: 0.006, sig: 0.08 },   // solid software
+  { sym: 'BEEP', name: 'BeeperTech Corp', start: 21.00, mu: -0.008, sig: 0.10 },   // pagers, sinking
+  { sym: 'KOLA', name: 'Kola Nation Bottling', start: 55.00, mu: 0.002, sig: 0.04 },   // blue chip
+  { sym: 'EDSN', name: 'Edison United Power', start: 27.00, mu: 0.001, sig: 0.02 },   // the utility
+  { sym: 'ZAPP', name: 'ZapWare Interactive', start: 2.50, mu: -0.004, sig: 0.45 },   // the junk stock
+];
+const MKT_STEP = 15;           // game minutes per price step
+const HIST_EVERY = 2;          // a chart sample every 2 steps = 30 game min
+const HIST_MAX = 96;           // two game days across the chart
+const COMMISSION = 2;          // $2 a trade, 1997's discount-broker grammar
+const STEPS_PER_DAY = 1440 / MKT_STEP;
+
+interface Holding { sh: number; cost: number }   // cost = dollars paid for current shares
+interface Mkt {
+  /** game minute the prices are current to; null until first touched or restored */
+  lastMin: number | null;
+  stepN: number;
+  price: Record<string, number>;
+  hist: Record<string, number[]>;
+  hold: Record<string, Holding>;
+}
+const mkt: Mkt = { lastMin: null, stepN: 0, price: {}, hist: {}, hold: {} };
+
+/** Box-Muller. `Math.random`, not the seeded stream — this runs at PLAY time,
+ *  long after the world is built, so it cannot move a tree (GOTCHAS §2). */
+function gauss(): number {
+  let u = 0; while (u === 0) u = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random());
+}
+
+function mktEnsure(): void {
+  for (const t of TICKERS) {
+    if (typeof mkt.price[t.sym] !== 'number') mkt.price[t.sym] = t.start;
+    if (!Array.isArray(mkt.hist[t.sym])) mkt.hist[t.sym] = [];
+    if (!mkt.hold[t.sym]) mkt.hold[t.sym] = { sh: 0, cost: 0 };
+  }
+}
+
+function mktStep(): void {
+  for (const t of TICKERS) {
+    let lr = (t.mu - t.sig * t.sig / 2) / STEPS_PER_DAY + (t.sig / Math.sqrt(STEPS_PER_DAY)) * gauss();
+    // the odd headline: rare, sized by how twitchy the stock already is
+    if (Math.random() < 0.004) {
+      lr += (Math.random() < 0.5 ? -1 : 1) * (0.04 + Math.random() * 0.16) * (0.5 + t.sig * 2);
+    }
+    // floored at a nickel — a stock that hits zero would strand the holding
+    mkt.price[t.sym] = Math.max(0.05, mkt.price[t.sym] * Math.exp(lr));
+  }
+  mkt.stepN++;
+  if (mkt.stepN % HIST_EVERY === 0) {
+    for (const t of TICKERS) {
+      const h = mkt.hist[t.sym];
+      h.push(mkt.price[t.sym]);
+      if (h.length > HIST_MAX) h.shift();
+    }
+  }
+}
+
+/** Catch the tape up to `totalMin`. Lazy — called when the terminal is looked
+ *  at, so nights slept and days skipped play out as many small steps and the
+ *  chart stays honest. Work is bounded: past ~2 game weeks the gap is clipped. */
+function mktAdvance(totalMin: number): void {
+  if (mkt.lastMin === null) {
+    mktEnsure();
+    // backfill two days so the first open already has a chart to read
+    mkt.lastMin = totalMin - HIST_MAX * HIST_EVERY * MKT_STEP;
+  }
+  let steps = Math.floor((totalMin - mkt.lastMin) / MKT_STEP);
+  if (steps <= 0) return;
+  const CAP = 14 * STEPS_PER_DAY;
+  if (steps > CAP) { mkt.lastMin = totalMin - CAP * MKT_STEP; steps = CAP; }
+  for (let i = 0; i < steps; i++) mktStep();
+  mkt.lastMin += steps * MKT_STEP;
+}
+
+/** change vs one game day ago, as a fraction — what the CHG column prints */
+function mktDayChange(sym: string): number | null {
+  const h = mkt.hist[sym];
+  const back = STEPS_PER_DAY / HIST_EVERY;      // samples in a day
+  if (!h || h.length < 2) return null;
+  const ref = h[Math.max(0, h.length - 1 - back)];
+  return ref > 0 ? mkt.price[sym] / ref - 1 : null;
+}
+
+const cents = (n: number): number => Math.round(n * 100) / 100;
+const money = (n: number): string => `$${n.toFixed(2)}`;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APP 4 — SNAKE, THE OTHER REAL GAME
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Nibbles-tier: a DOS box in a window, arrows steer, walls and your own tail
+// kill you. Pure state + step function, like Minesweeper above, so a node
+// script can import and drive it without a browser.
+const SN_COLS = 30, SN_ROWS = 21;
+interface SnCell { x: number; y: number }
+interface SnState {
+  body: SnCell[];               // head first
+  dir: SnCell; nextDir: SnCell;
+  food: SnCell;
+  grow: number;
+  score: number;
+  live: boolean;                // has the run started
+  dead: boolean;
+}
+function snFood(body: SnCell[]): SnCell {
+  for (; ;) {
+    const f = { x: Math.floor(Math.random() * SN_COLS), y: Math.floor(Math.random() * SN_ROWS) };
+    if (!body.some((b) => b.x === f.x && b.y === f.y)) return f;
+  }
+}
+function snBlank(): SnState {
+  const body = [{ x: 8, y: 10 }, { x: 7, y: 10 }, { x: 6, y: 10 }];
+  return {
+    body, dir: { x: 1, y: 0 }, nextDir: { x: 1, y: 0 },
+    food: snFood(body), grow: 0, score: 0, live: false, dead: false,
+  };
+}
+function snTurn(s: SnState, dx: number, dy: number): void {
+  // no 180s: reversing into your own neck is the classic accidental suicide
+  if (dx === -s.dir.x && dy === -s.dir.y) return;
+  s.nextDir = { x: dx, y: dy };
+}
+function snStep(s: SnState): void {
+  if (!s.live || s.dead) return;
+  s.dir = s.nextDir;
+  const head = { x: s.body[0].x + s.dir.x, y: s.body[0].y + s.dir.y };
+  if (head.x < 0 || head.x >= SN_COLS || head.y < 0 || head.y >= SN_ROWS
+    || s.body.some((b) => b.x === head.x && b.y === head.y)) { s.dead = true; return; }
+  s.body.unshift(head);
+  if (head.x === s.food.x && head.y === s.food.y) {
+    s.score++; s.grow += 3; s.food = snFood(s.body);
+  }
+  if (s.grow > 0) s.grow--; else s.body.pop();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APP 5 — SOLITAIRE
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Klondike, draw one, CLICK-TO-AUTO-MOVE: click a card and it goes to the
+// foundation if it fits, else to the first tableau pile that takes it (with
+// its run). No dragging — `ScreenSurface.click` is a click, not a drag, and
+// 1997's grandmother played it one click at a time anyway.
+interface Card { r: number; s: number; up: boolean }   // r 1..13; s 0♠ 1♥ 2♦ 3♣
+const SUIT_CH = ['♠', '♥', '♦', '♣'];
+const RANK_CH = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const isRed = (s: number): boolean => s === 1 || s === 2;
+interface SolState {
+  stock: Card[]; waste: Card[];
+  found: Card[][];              // four, by suit-agnostic slot
+  tab: Card[][];                // seven
+  won: boolean; moves: number;
+}
+function solDeal(): SolState {
+  const deck: Card[] = [];
+  for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) deck.push({ r, s, up: false });
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  const tab: Card[][] = [];
+  for (let c = 0; c < 7; c++) {
+    const pile = deck.splice(0, c + 1);
+    pile[pile.length - 1].up = true;
+    tab.push(pile);
+  }
+  return { stock: deck, waste: [], found: [[], [], [], []], tab, won: false, moves: 0 };
+}
+function solDraw(s: SolState): void {
+  if (s.won) return;
+  if (s.stock.length) {
+    const c = s.stock.pop()!; c.up = true; s.waste.push(c);
+  } else if (s.waste.length) {
+    while (s.waste.length) { const c = s.waste.pop()!; c.up = false; s.stock.push(c); }
+  }
+  s.moves++;
+}
+type SolSrc = { pile: 'waste' } | { pile: 'tab'; col: number; idx: number };
+type SolMove = { to: 'found'; f: number } | { to: 'tab'; col: number };
+/** where the clicked card CAN go, or null — hot and click both read this, so
+ *  the hand cursor only ever lights a card a click will actually move */
+function solFindMove(s: SolState, src: SolSrc): SolMove | null {
+  const cards = src.pile === 'waste'
+    ? (s.waste.length ? [s.waste[s.waste.length - 1]] : [])
+    : s.tab[src.col].slice(src.idx);
+  if (!cards.length || !cards[0].up) return null;
+  const head = cards[0];
+  if (cards.length === 1) {                     // single cards may go up
+    for (let f = 0; f < 4; f++) {
+      const top = s.found[f][s.found[f].length - 1];
+      if (top ? (top.s === head.s && head.r === top.r + 1) : head.r === 1) return { to: 'found', f };
+    }
+  }
+  for (let c = 0; c < 7; c++) {
+    if (src.pile === 'tab' && c === src.col) continue;
+    const pile = s.tab[c];
+    const top = pile[pile.length - 1];
+    if (top ? (top.up && isRed(top.s) !== isRed(head.s) && top.r === head.r + 1) : head.r === 13) {
+      return { to: 'tab', col: c };
+    }
+  }
+  return null;
+}
+function solApply(s: SolState, src: SolSrc, mv: SolMove): void {
+  const cards = src.pile === 'waste' ? [s.waste.pop()!] : s.tab[src.col].splice(src.idx);
+  if (src.pile === 'tab') {
+    const pile = s.tab[src.col];
+    if (pile.length && !pile[pile.length - 1].up) pile[pile.length - 1].up = true;
+  }
+  if (mv.to === 'found') s.found[mv.f].push(cards[0]);
+  else s.tab[mv.col].push(...cards);
+  s.moves++;
+  s.won = s.found.every((f) => f.length === 13);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // THE MACHINE — one screen, three faces
 // ═══════════════════════════════════════════════════════════════════════════
 // ── THE FACE, AND WHY IT IS 320 x 256 AND NOT 320 x 220 ────────────────────
@@ -395,6 +631,28 @@ const FIELD: Rect = { x: 6, y: 18, w: W - 12 - 34, h: 12 };
  *  and the part the machine was missing are the same object. */
 const NEW_BTN: Rect = { x: W - 38, y: 17, w: 32, h: 12 };
 const FLAG_BTN: Rect = { x: W - 38 - 44, y: 17, w: 40, h: 12 };
+/** TRADE-NET's pressables — ticker rows, and the three order-desk buttons */
+const TR_ROW = (i: number): Rect => ({ x: 4, y: 40 + i * 13, w: W - 8, h: 13 });
+const TR_BUY: Rect = { x: 6, y: 234, w: 62, h: 16 };
+const TR_SELL: Rect = { x: 74, y: 234, w: 62, h: 16 };
+const TR_QTY: Rect = { x: 142, y: 234, w: 74, h: 16 };
+/** solitaire's table: stock, waste, four foundations, seven tableau columns */
+const SOL_CW = 40, SOL_CH = 30;
+const SOL_STOCK: Rect = { x: 8, y: 20, w: SOL_CW, h: SOL_CH };
+const SOL_WASTE: Rect = { x: 52, y: 20, w: SOL_CW, h: SOL_CH };
+const solFoundR = (f: number): Rect => ({ x: 152 + f * 42, y: 20, w: SOL_CW, h: SOL_CH });
+const SOL_NEW: Rect = { x: 98, y: 28, w: 40, h: 14 };
+const SOL_TX = (c: number): number => 8 + c * 44;    // tableau column x
+const SOL_TY = 58;                                    // tableau top y
+const SOL_DN = 5, SOL_UP = 10;                        // fan offsets, face-down / face-up
+/** where each card of a tableau pile sits — draw and hit-test read ONE math */
+const solYs = (pile: Card[]): number[] => {
+  const ys: number[] = []; let y = SOL_TY;
+  for (let i = 0; i < pile.length; i++) { ys.push(y); y += pile[i].up ? SOL_UP : SOL_DN; }
+  return ys;
+};
+/** snake's pit */
+const SN_CELL = 10, SN_X0 = (W - SN_COLS * SN_CELL) / 2, SN_Y0 = 30;
 /** Not `UI.font` from `./hud` — see the note on the dynamic import of
  *  `makePanel` below. Plain `monospace`, the same fallback `blackjack.ts`
  *  and `slots.ts` draw their own screens in for the identical reason. */
@@ -432,10 +690,15 @@ function drawCloseBox(g: CanvasRenderingContext2D): void {
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
 }
 
-type Screen = 'desktop' | 'catalog' | 'minesweeper';
+type Screen = 'desktop' | 'catalog' | 'minesweeper' | 'trader' | 'snake' | 'solitaire';
+/** `hue` is the icon's plate colour — an abstract tile, per the note in
+ *  `drawDesktop`: the label under it is what actually says what it opens. */
 const ICONS = [
-  { key: 'catalog' as const, label: 'CARD CATALOG' },
-  { key: 'minesweeper' as const, label: 'MINESWEEP' },
+  { key: 'catalog' as const, label: 'CARD CATALOG', hue: '#7a3b30' },
+  { key: 'minesweeper' as const, label: 'MINESWEEP', hue: '#4a4a4a' },
+  { key: 'trader' as const, label: 'TRADE-NET', hue: '#0f4a1a' },
+  { key: 'snake' as const, label: 'SNAKE', hue: '#3a5a10' },
+  { key: 'solitaire' as const, label: 'SOLITAIRE', hue: '#0a5a30' },
 ];
 
 export function register(ctx: CtxBuild): void {
@@ -449,6 +712,23 @@ export function register(ctx: CtxBuild): void {
    *  right-click to flag with; this is the mode that replaces it. The keyboard
    *  is unaffected — `F` still flags at the cursor whatever this says. */
   let msFlagMode = false;
+  // ── trader / snake / solitaire state ──
+  // ⚠ `sn` and `sol` are created LAZILY, on first open of their icons, and
+  // that is load-bearing: `snFood` and `solDeal` burn `Math.random`, and
+  // `register()` runs at BUILD time inside the seeded stream (GOTCHAS §2) —
+  // 51 draws here would shift every dither painted after this module.
+  // `msBlank()` above is safe only because Minesweeper seeds after the first
+  // dig.
+  let trSel = 0;
+  let trQty = 10;                 // 1 → 10 → 100; Q or the QTY button cycles
+  let trMsg = '';
+  let sn: SnState | null = null;
+  let snNext = 0;                 // wall time of the next snake step
+  let snakeHi = 0;
+  let sol: SolState | null = null;
+  let solWins = 0;
+  let solWinCounted = false;      // one win is one win however long you admire it
+  let nextLive = 0;               // wall time of the next live-ticker repaint
   /** the aspect of the CRT this open landed on, or `null` when the panel is
    *  shut or fell back to the screen-space cabinet. Written by `surface.mesh`,
    *  cleared by `onClose`, published through `__librarypc.face()`. */
@@ -479,7 +759,7 @@ export function register(ctx: CtxBuild): void {
       // you what it opens
       g.fillStyle = '#d8d4c0'; g.fillRect(x, y, 24, 20);
       g.fillStyle = '#8a8578'; g.fillRect(x, y + 20, 24, 3);
-      g.fillStyle = icon.key === 'catalog' ? '#7a3b30' : '#4a4a4a';
+      g.fillStyle = icon.hue;
       g.fillRect(x + 3, y + 3, 18, 14);
       g.fillStyle = sel ? '#ffffff' : '#e8e2d0';
       g.font = font(6, sel); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
@@ -619,9 +899,230 @@ export function register(ctx: CtxBuild): void {
     }
   };
 
+  // ── THE ORDER DESK: the only two verbs that touch the purse ──────────────
+  //
+  // Settled straight through `ctx.purse.cash` + `ctx.refreshWallet()`, the
+  // same seam the blackjack chips ride, so the HUD's green/red cash tick
+  // fires by itself (hud.ts diffs `purse.cash` per frame). Prices are caught
+  // up to the clock FIRST — an order fills at the tape's price, not at the
+  // price that was on the glass when you sat down.
+  const trBuy = (): void => {
+    mktAdvance(clockNow().totalMin);
+    const tk = TICKERS[trSel];
+    const p = mkt.price[tk.sym] ?? tk.start;
+    const cost = cents(trQty * p + COMMISSION);
+    if (ctx.purse.cash < cost) { trMsg = 'INSUFFICIENT FUNDS'; panel?.repaint(); return; }
+    ctx.purse.cash = cents(ctx.purse.cash - cost);
+    mktEnsure();
+    const h = mkt.hold[tk.sym];
+    h.sh += trQty; h.cost = cents(h.cost + trQty * p);
+    ctx.refreshWallet();
+    trMsg = `BOUGHT ${trQty} ${tk.sym} @ ${p.toFixed(2)}`;
+    panel?.repaint();
+  };
+  const trSell = (): void => {
+    mktAdvance(clockNow().totalMin);
+    const tk = TICKERS[trSel];
+    const h = mkt.hold[tk.sym];
+    const n = Math.min(trQty, h?.sh ?? 0);
+    if (!h || n <= 0) { trMsg = 'NO SHARES TO SELL'; panel?.repaint(); return; }
+    const p = mkt.price[tk.sym] ?? tk.start;
+    // proceeds can go NEGATIVE on a junk stock — selling one ZAPP at a nickel
+    // still costs the $2 ticket, which is the joke and the lesson both
+    const proceeds = cents(n * p - COMMISSION);
+    if (ctx.purse.cash + proceeds < 0) { trMsg = 'CANNOT COVER COMMISSION'; panel?.repaint(); return; }
+    const basisOut = h.sh > 0 ? h.cost * (n / h.sh) : 0;
+    h.sh -= n; h.cost = h.sh === 0 ? 0 : cents(h.cost - basisOut);
+    ctx.purse.cash = cents(ctx.purse.cash + proceeds);
+    ctx.refreshWallet();
+    trMsg = `SOLD ${n} ${tk.sym} @ ${p.toFixed(2)}`;
+    panel?.repaint();
+  };
+
+  // ── DRAW: TRADE-NET — a DOS box in a '95 window, green phosphor ──────────
+  const drawTrader = (g: CanvasRenderingContext2D) => {
+    g.fillStyle = '#c3c0b4'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#000078'; g.fillRect(2, 2, W - 4, 12);
+    g.fillStyle = '#ffffff'; g.font = font(7, true); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillText('TRADENET.EXE', 6, 11);
+    drawCloseBox(g);
+    g.fillStyle = '#050c05'; g.fillRect(2, 14, W - 4, H - 16);     // the glass
+    const GRN = '#3ddf60', DIM = '#1c7a33', AMB = '#e0b040', RED = '#e05050';
+    const t = clockNow();
+    g.fillStyle = AMB; g.font = font(7, true); g.textAlign = 'left';
+    g.fillText('TRADE-NET ONLINE BROKERAGE v2.1', 6, 26);
+    g.textAlign = 'right';
+    g.fillText(`DAY ${Math.floor(t.totalMin / 1440)}  ${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`, W - 6, 26);
+    // column heads aligned exactly as the values under them
+    g.fillStyle = DIM; g.font = font(6);
+    g.textAlign = 'left'; g.fillText('SYM', 8, 37);
+    g.textAlign = 'right';
+    g.fillText('LAST', 110, 37); g.fillText('CHG', 172, 37);
+    g.fillText('SHRS', 232, 37); g.fillText('VALUE', W - 8, 37);
+    TICKERS.forEach((tk, i) => {
+      const r = TR_ROW(i);
+      const p = mkt.price[tk.sym] ?? tk.start;
+      const h = mkt.hold[tk.sym];
+      const chg = mktDayChange(tk.sym);
+      if (i === trSel) { g.fillStyle = '#0e3a18'; g.fillRect(r.x, r.y, r.w, r.h); }
+      g.font = font(7, i === trSel);
+      g.fillStyle = i === trSel ? '#8affa0' : GRN;
+      g.textAlign = 'left'; g.fillText(tk.sym, 8, r.y + 10);
+      g.textAlign = 'right'; g.fillText(p.toFixed(2), 110, r.y + 10);
+      g.fillStyle = chg === null ? DIM : chg >= 0 ? GRN : RED;
+      g.fillText(chg === null ? '--' : `${chg >= 0 ? '+' : ''}${(chg * 100).toFixed(1)}%`, 172, r.y + 10);
+      g.fillStyle = h && h.sh > 0 ? GRN : DIM;
+      g.fillText(String(h?.sh ?? 0), 232, r.y + 10);
+      g.fillText(h && h.sh > 0 ? (h.sh * p).toFixed(2) : '--', W - 8, r.y + 10);
+    });
+    // the selected position, in the broker's own grammar
+    const sel = TICKERS[trSel];
+    const sp = mkt.price[sel.sym] ?? sel.start;
+    const hd = mkt.hold[sel.sym] ?? { sh: 0, cost: 0 };
+    g.font = font(6); g.textAlign = 'left';
+    if (hd.sh > 0) {
+      const pl = hd.sh * sp - hd.cost;
+      g.fillStyle = DIM;
+      g.fillText(`${sel.name.toUpperCase()} — ${hd.sh} SHRS @ AVG ${(hd.cost / hd.sh).toFixed(2)}`, 8, 128);
+      g.fillStyle = pl >= 0 ? GRN : RED; g.textAlign = 'right';
+      g.fillText(`P/L ${pl >= 0 ? '+' : '-'}${money(Math.abs(pl))}`, W - 8, 128);
+    } else {
+      g.fillStyle = DIM; g.fillText(`${sel.name.toUpperCase()} — NO POSITION`, 8, 128);
+    }
+    // two game days of tape for the selected ticker
+    const CX0 = 8, CX1 = W - 8, CY0 = 134, CY1 = 200;
+    g.strokeStyle = DIM; g.strokeRect(CX0 + 0.5, CY0 + 0.5, CX1 - CX0 - 1, CY1 - CY0 - 1);
+    const hist = mkt.hist[sel.sym] ?? [];
+    if (hist.length >= 2) {
+      let lo = Infinity, hi = -Infinity;
+      for (const v of hist) { if (v < lo) lo = v; if (v > hi) hi = v; }
+      if (hi - lo < 1e-9) { hi += 0.5; lo = Math.max(0, lo - 0.5); }
+      g.strokeStyle = GRN; g.beginPath();
+      hist.forEach((v, i) => {
+        const x = CX0 + 2 + (i / (hist.length - 1)) * (CX1 - CX0 - 4);
+        const y = CY1 - 3 - ((v - lo) / (hi - lo)) * (CY1 - CY0 - 6);
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      });
+      g.stroke();
+      g.fillStyle = DIM; g.font = font(5); g.textAlign = 'left';
+      g.fillText(hi.toFixed(2), CX0 + 3, CY0 + 8);
+      g.fillText(lo.toFixed(2), CX0 + 3, CY1 - 4);
+    } else {
+      g.fillStyle = DIM; g.font = font(6); g.textAlign = 'center';
+      g.fillText('NO TAPE YET', (CX0 + CX1) / 2, (CY0 + CY1) / 2);
+    }
+    // the purse line, and the message of the moment
+    let port = 0;
+    for (const tk of TICKERS) port += (mkt.hold[tk.sym]?.sh ?? 0) * (mkt.price[tk.sym] ?? tk.start);
+    g.font = font(7, true);
+    g.fillStyle = GRN; g.textAlign = 'left'; g.fillText(`CASH ${money(ctx.purse.cash)}`, 8, 214);
+    g.fillStyle = port > 0 ? GRN : DIM; g.textAlign = 'right'; g.fillText(`PORT ${money(port)}`, W - 8, 214);
+    g.fillStyle = trMsg ? AMB : DIM; g.font = font(6); g.textAlign = 'left';
+    g.fillText(trMsg || `COMM $${COMMISSION}/TRADE · B BUY · S SELL · Q QTY`, 8, 226);
+    // phosphor buttons — outlined, not beige: this window is a terminal
+    const trBtn = (r: Rect, label: string, live: boolean) => {
+      g.strokeStyle = live ? GRN : DIM; g.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+      g.fillStyle = live ? GRN : DIM; g.font = font(7, true);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    };
+    trBtn(TR_BUY, `BUY ${trQty}`, ctx.purse.cash >= cents(trQty * sp + COMMISSION));
+    trBtn(TR_SELL, `SELL ${trQty}`, hd.sh > 0);
+    trBtn(TR_QTY, `QTY x${trQty}`, true);
+  };
+
+  // ── DRAW: snake ──
+  const drawSnake = (g: CanvasRenderingContext2D) => {
+    g.fillStyle = '#c3c0b4'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#000078'; g.fillRect(2, 2, W - 4, 12);
+    g.fillStyle = '#ffffff'; g.font = font(7, true); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillText('SNAKE.EXE', 6, 11);
+    drawCloseBox(g);
+    g.fillStyle = '#050c05'; g.fillRect(2, 14, W - 4, H - 16);
+    g.fillStyle = '#3ddf60'; g.font = font(7, true); g.textAlign = 'left';
+    g.fillText(`SCORE ${sn?.score ?? 0}`, 8, 26);
+    g.textAlign = 'right'; g.fillText(`HI ${snakeHi}`, W - 8, 26);
+    g.strokeStyle = '#1c7a33';
+    g.strokeRect(SN_X0 - 1.5, SN_Y0 - 1.5, SN_COLS * SN_CELL + 3, SN_ROWS * SN_CELL + 3);
+    if (sn) {
+      g.fillStyle = '#e05050';
+      g.fillRect(SN_X0 + sn.food.x * SN_CELL + 1, SN_Y0 + sn.food.y * SN_CELL + 1, SN_CELL - 2, SN_CELL - 2);
+      sn.body.forEach((b, i) => {
+        g.fillStyle = i === 0 ? '#8affa0' : '#3ddf60';
+        g.fillRect(SN_X0 + b.x * SN_CELL + 1, SN_Y0 + b.y * SN_CELL + 1, SN_CELL - 2, SN_CELL - 2);
+      });
+    }
+    g.font = font(7, true); g.textAlign = 'center';
+    if (!sn || !sn.live) { g.fillStyle = '#e0b040'; g.fillText('SPACE TO START · ARROWS STEER', W / 2, H - 6); }
+    else if (sn.dead) { g.fillStyle = '#e05050'; g.fillText(`DEAD AT ${sn.score} — SPACE FOR ANOTHER GO`, W / 2, H - 6); }
+    else { g.fillStyle = '#1c7a33'; g.font = font(6); g.fillText('arrows steer', W / 2, H - 6); }
+    g.textAlign = 'left';
+  };
+
+  // ── DRAW: solitaire ──
+  const drawSolitaire = (g: CanvasRenderingContext2D) => {
+    const s = sol ?? (sol = solDeal());        // reachable via goto() before a deal
+    g.fillStyle = '#c3c0b4'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#000078'; g.fillRect(2, 2, W - 4, 12);
+    g.fillStyle = '#ffffff'; g.font = font(7, true); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillText('SOLITAIRE.EXE', 6, 11);
+    drawCloseBox(g);
+    g.fillStyle = '#0a6b1e'; g.fillRect(2, 14, W - 4, H - 16);    // the felt
+    const card = (x: number, y: number, c: Card | null | undefined) => {
+      if (!c) {
+        g.strokeStyle = 'rgba(255,255,255,0.35)';
+        g.strokeRect(x + 0.5, y + 0.5, SOL_CW - 1, SOL_CH - 1);
+        return;
+      }
+      if (!c.up) {
+        g.fillStyle = '#2846a8'; g.fillRect(x, y, SOL_CW, SOL_CH);
+        g.strokeStyle = '#101a50'; g.strokeRect(x + 0.5, y + 0.5, SOL_CW - 1, SOL_CH - 1);
+        g.fillStyle = 'rgba(255,255,255,0.22)';
+        for (let i = 4; i < SOL_CW - 4; i += 6) g.fillRect(x + i, y + 4, 2, SOL_CH - 8);
+        return;
+      }
+      g.fillStyle = '#f4f1e6'; g.fillRect(x, y, SOL_CW, SOL_CH);
+      g.strokeStyle = '#404040'; g.strokeRect(x + 0.5, y + 0.5, SOL_CW - 1, SOL_CH - 1);
+      g.fillStyle = isRed(c.s) ? '#c02020' : '#181818';
+      g.font = font(8, true); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      g.fillText(`${RANK_CH[c.r]}${SUIT_CH[c.s]}`, x + 3, y + 10);
+    };
+    if (s.stock.length) card(SOL_STOCK.x, SOL_STOCK.y, { r: 1, s: 0, up: false });
+    else {
+      card(SOL_STOCK.x, SOL_STOCK.y, null);
+      g.strokeStyle = 'rgba(255,255,255,0.5)'; g.beginPath();
+      g.arc(SOL_STOCK.x + SOL_CW / 2, SOL_STOCK.y + SOL_CH / 2, 8, 0, Math.PI * 2); g.stroke();
+    }
+    card(SOL_WASTE.x, SOL_WASTE.y, s.waste[s.waste.length - 1] ?? null);
+    for (let f = 0; f < 4; f++) {
+      const r = solFoundR(f);
+      card(r.x, r.y, s.found[f][s.found[f].length - 1] ?? null);
+    }
+    drawButton(g, SOL_NEW, 'NEW', true);
+    for (let c = 0; c < 7; c++) {
+      const pile = s.tab[c];
+      if (!pile.length) { card(SOL_TX(c), SOL_TY, null); continue; }
+      const ys = solYs(pile);
+      pile.forEach((cd, i) => card(SOL_TX(c), ys[i], cd));
+    }
+    g.font = font(7, true); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    if (s.won) {
+      g.fillStyle = '#ffe860';
+      g.fillText(`YOU WIN — ${solWins} WIN${solWins === 1 ? '' : 'S'} ON THIS MACHINE`, W / 2, H - 6);
+    } else {
+      g.fillStyle = 'rgba(255,255,255,0.55)'; g.font = font(6);
+      g.fillText('click a card to move it · click the deck to draw', W / 2, H - 6);
+    }
+    g.textAlign = 'left';
+  };
+
   const draw = (g: CanvasRenderingContext2D) => {
     if (screen === 'desktop') drawDesktop(g);
     else if (screen === 'catalog') drawCatalog(g);
+    else if (screen === 'trader') drawTrader(g);
+    else if (screen === 'snake') drawSnake(g);
+    else if (screen === 'solitaire') drawSolitaire(g);
     else drawMinesweeper(g);
   };
 
@@ -632,9 +1133,34 @@ export function register(ctx: CtxBuild): void {
       else if (k === 'arrowdown') iconSel = (iconSel + 1) % ICONS.length;
       else if (k === 'enter' || k === ' ') {
         const chosen = ICONS[iconSel].key;
-        if (chosen === 'catalog') { screen = 'catalog'; query = ''; }
-        else { screen = 'minesweeper'; ms = msBlank(); }
+        screen = chosen;
+        if (chosen === 'catalog') query = '';
+        else if (chosen === 'minesweeper') ms = msBlank();
+        else if (chosen === 'trader') { mktAdvance(clockNow().totalMin); trMsg = ''; }
+        else if (chosen === 'snake') { if (!sn || sn.dead) sn = snBlank(); }
+        else if (chosen === 'solitaire') { if (!sol) sol = solDeal(); }
       }
+    } else if (screen === 'trader') {
+      if (k === 'tab' || k === 'backquote') toDesktop();
+      else if (k === 'arrowup') { trSel = (trSel + TICKERS.length - 1) % TICKERS.length; trMsg = ''; }
+      else if (k === 'arrowdown') { trSel = (trSel + 1) % TICKERS.length; trMsg = ''; }
+      else if (k === 'b') trBuy();
+      else if (k === 's') trSell();
+      else if (k === 'q') trQty = trQty === 1 ? 10 : trQty === 10 ? 100 : 1;
+    } else if (screen === 'snake') {
+      if (k === 'tab' || k === 'backquote') toDesktop();
+      else if (k === 'arrowup') { if (sn) snTurn(sn, 0, -1); }
+      else if (k === 'arrowdown') { if (sn) snTurn(sn, 0, 1); }
+      else if (k === 'arrowleft') { if (sn) snTurn(sn, -1, 0); }
+      else if (k === 'arrowright') { if (sn) snTurn(sn, 1, 0); }
+      else if (k === ' ' || k === 'enter') {
+        if (!sn || sn.dead) sn = snBlank();
+        sn.live = true; snNext = 0;
+      }
+    } else if (screen === 'solitaire') {
+      if (k === 'tab' || k === 'backquote') toDesktop();
+      else if (k === 'd' || k === ' ') { if (sol && !sol.won) solDraw(sol); }
+      else if (k === 'n') { sol = solDeal(); solWinCounted = false; }
     } else if (screen === 'catalog') {
       if (k === 'backspace') query = query.slice(0, -1);
       else if (k === 'escape') { /* handled by hud.ts: closes the WHOLE panel.
@@ -664,6 +1190,32 @@ export function register(ctx: CtxBuild): void {
   // framework is never told where a control is. That seam is w41's; this is the
   // whole of using it.
 
+  /** what a pixel on the solitaire table IS — one answer for `hot` and
+   *  `click`, same authoring rule as `msCellAt` */
+  type SolHit = { kind: 'stock' } | { kind: 'new' } | { kind: 'src'; src: SolSrc };
+  const solHitAt = (x: number, y: number): SolHit | null => {
+    if (!sol) return null;
+    if (inRect(SOL_NEW, x, y)) return { kind: 'new' };
+    if (inRect(SOL_STOCK, x, y)) return { kind: 'stock' };
+    if (inRect(SOL_WASTE, x, y)) return sol.waste.length ? { kind: 'src', src: { pile: 'waste' } } : null;
+    for (let c = 0; c < 7; c++) {
+      const x0 = SOL_TX(c);
+      if (x < x0 || x >= x0 + SOL_CW) continue;
+      const pile = sol.tab[c];
+      const ys = solYs(pile);
+      // topmost first: the exposed sliver belongs to the card under it, the
+      // full face to the top card
+      for (let i = pile.length - 1; i >= 0; i--) {
+        const h = i === pile.length - 1 ? SOL_CH : ys[i + 1] - ys[i];
+        if (y >= ys[i] && y < ys[i] + h) {
+          return pile[i].up ? { kind: 'src', src: { pile: 'tab', col: c, idx: i } } : null;
+        }
+      }
+      return null;
+    }
+    return null;
+  };
+
   /** is there something PRESSABLE here? Drives the hand cursor, so it is true
    *  only where a click actually does something — w41's rule. */
   const hotAt = (x: number, y: number): boolean => {
@@ -671,6 +1223,29 @@ export function register(ctx: CtxBuild): void {
     if (screen === 'catalog') {
       if (inRect(CLOSE_BOX, x, y)) return true;
       return inRect(CLR_BTN, x, y) && query.length > 0;
+    }
+    if (screen === 'trader') {
+      if (inRect(CLOSE_BOX, x, y) || inRect(TR_QTY, x, y)) return true;
+      if (TICKERS.some((_, i) => i !== trSel && inRect(TR_ROW(i), x, y))) return true;
+      const p = mkt.price[TICKERS[trSel].sym] ?? TICKERS[trSel].start;
+      if (inRect(TR_BUY, x, y)) return ctx.purse.cash >= cents(trQty * p + COMMISSION);
+      if (inRect(TR_SELL, x, y)) return (mkt.hold[TICKERS[trSel].sym]?.sh ?? 0) > 0;
+      return false;
+    }
+    if (screen === 'snake') {
+      if (inRect(CLOSE_BOX, x, y)) return true;
+      // the pit is a start button while nothing is running
+      return (!sn || !sn.live || sn.dead)
+        && x >= SN_X0 && x < SN_X0 + SN_COLS * SN_CELL
+        && y >= SN_Y0 && y < SN_Y0 + SN_ROWS * SN_CELL;
+    }
+    if (screen === 'solitaire') {
+      if (inRect(CLOSE_BOX, x, y)) return true;
+      const hit = solHitAt(x, y);
+      if (!hit || !sol) return false;
+      if (hit.kind === 'new') return true;
+      if (hit.kind === 'stock') return sol.stock.length > 0 || sol.waste.length > 0;
+      return !sol.won && solFindMove(sol, hit.src) !== null;
     }
     if (inRect(CLOSE_BOX, x, y) || inRect(NEW_BTN, x, y)) return true;
     if (inRect(FLAG_BTN, x, y)) return !ms.dead && !ms.won && !ms.firstClick;
@@ -702,6 +1277,29 @@ export function register(ctx: CtxBuild): void {
       // CLEAR is `backspace` held down, which is exactly what it is on the
       // keyboard — not a second way to empty the field that could disagree.
       if (inRect(CLR_BTN, x, y)) { while (query.length) onKey('backspace'); }
+      return;
+    }
+    if (screen === 'trader') {
+      // the buttons send the same letters the keyboard does — one dispatch
+      if (inRect(TR_BUY, x, y)) { onKey('b'); return; }
+      if (inRect(TR_SELL, x, y)) { onKey('s'); return; }
+      if (inRect(TR_QTY, x, y)) { onKey('q'); return; }
+      const i = TICKERS.findIndex((_, n) => inRect(TR_ROW(n), x, y));
+      if (i >= 0) { trSel = i; trMsg = ''; panel?.repaint(); }
+      return;
+    }
+    if (screen === 'snake') { onKey(' '); return; }         // the pit starts a run
+    if (screen === 'solitaire') {
+      const hit = solHitAt(x, y);
+      if (!hit || !sol) return;
+      if (hit.kind === 'new') { onKey('n'); return; }
+      if (hit.kind === 'stock') { onKey('d'); return; }
+      const mv = solFindMove(sol, hit.src);
+      if (mv) {
+        solApply(sol, hit.src, mv);
+        if (sol.won && !solWinCounted) { solWinCounted = true; solWins++; }
+        panel?.repaint();
+      }
       return;
     }
     if (inRect(NEW_BTN, x, y)) { onKey('r'); msFlagMode = false; panel?.repaint(); return; }
@@ -747,11 +1345,14 @@ export function register(ctx: CtxBuild): void {
       // TAB and ENTER stay bare because they are THIS machine's own keys; the
       // one that leaves the machine is bracketed, because that is how the world
       // names it everywhere else — `[E] use the machine` over every spot.
-      hint: () => (screen === 'desktop'
-        ? 'click an icon · arrows · ENTER · [E] step back'
-        : screen === 'catalog'
-          ? 'type to search · TAB desktop · [ESC] step back'
-          : 'click a square · TAB desktop · [E] step back'),
+      hint: () => ({
+        desktop: 'click an icon · arrows · ENTER · [E] step back',
+        catalog: 'type to search · TAB desktop · [ESC] step back',
+        minesweeper: 'click a square · TAB desktop · [E] step back',
+        trader: 'B buy · S sell · Q qty · TAB desktop · [E] step back',
+        snake: 'arrows steer · SPACE go · TAB desktop · [E] step back',
+        solitaire: 'click a card · D draw · TAB desktop · [E] step back',
+      }[screen]),
       typing: () => screen === 'catalog',
       // ── ON THE CRT, NOT OVER THE CAMERA ────────────────────────────────
       //
@@ -939,7 +1540,75 @@ export function register(ctx: CtxBuild): void {
       return;
     }
     if (seat === null && dismissed !== null) { panel.close(); return; }
+    // ── the two screens that move on their own while you watch ──
+    if (screen === 'trader') {
+      // the tape crawls with the game clock; a half-second repaint is plenty
+      // for 6 px type and costs nothing the other screens don't already pay
+      mktAdvance(ctx.clock.now().totalMin);
+      if (f.t >= nextLive) { nextLive = f.t + 0.5; panel.repaint(); }
+    } else if (screen === 'snake' && sn && sn.live && !sn.dead) {
+      const speed = Math.max(0.06, 0.13 - sn.score * 0.003);   // it hurries as you score
+      if (f.t >= snNext) {
+        snNext = f.t + speed;
+        snStep(sn);
+        if (sn.dead && sn.score > snakeHi) snakeHi = sn.score;
+        panel.repaint();
+      }
+    }
   }, HOOK.LATE);
+
+  // ── THE SAVE: holdings, the tape, and the bragging rights ────────────────
+  //
+  // `./save` by DYNAMIC import, exactly as `./hud` above and for the same two
+  // reasons — no new edge in the static module graph (GOTCHAS §28/§75), and
+  // this file stays importable by plain node. Slices land well before the
+  // restore does (ORDER 99 plus a network round trip), per save.ts's own note.
+  //
+  // RESTORE EXACTLY — the tenancy slice's rule. `lastMin` comes back as
+  // written; the first look at the terminal then plays the gap between the
+  // saved minute and the restored clock as ordinary steps.
+  void import('./save').then(({ registerSlice }) => {
+    registerSlice<{
+      lastMin: number | null;
+      price: Record<string, number>;
+      hist: Record<string, number[]>;
+      hold: Record<string, Holding>;
+    }>('stocks', {
+      capture: () => ({
+        lastMin: mkt.lastMin,
+        price: { ...mkt.price },
+        hist: Object.fromEntries(TICKERS.map((t) => [t.sym, [...(mkt.hist[t.sym] ?? [])]])),
+        hold: Object.fromEntries(TICKERS.map((t) => [t.sym, { ...(mkt.hold[t.sym] ?? { sh: 0, cost: 0 }) }])),
+      }),
+      restore: (v) => {
+        if (!v || typeof v !== 'object' || typeof v.lastMin !== 'number' || !Number.isFinite(v.lastMin)) return;
+        mkt.lastMin = v.lastMin;
+        for (const t of TICKERS) {
+          const p = v.price?.[t.sym];
+          if (typeof p === 'number' && Number.isFinite(p) && p > 0) mkt.price[t.sym] = p;
+          const h = v.hist?.[t.sym];
+          if (Array.isArray(h)) {
+            mkt.hist[t.sym] = h.filter((n): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0)
+              .slice(-HIST_MAX);
+          }
+          const hd = v.hold?.[t.sym];
+          if (hd && typeof hd.sh === 'number' && Number.isFinite(hd.sh) && hd.sh >= 0
+            && typeof hd.cost === 'number' && Number.isFinite(hd.cost)) {
+            mkt.hold[t.sym] = { sh: Math.floor(hd.sh), cost: Math.max(0, hd.cost) };
+          }
+        }
+        mktEnsure();
+      },
+    });
+    registerSlice<{ snakeHi: number; solWins: number }>('library-games', {
+      capture: () => ({ snakeHi, solWins }),
+      restore: (v) => {
+        if (!v || typeof v !== 'object') return;
+        if (typeof v.snakeHi === 'number' && v.snakeHi >= 0) snakeHi = Math.floor(v.snakeHi);
+        if (typeof v.solWins === 'number' && v.solWins >= 0) solWins = Math.floor(v.solWins);
+      },
+    });
+  });
 
   // Test affordance, same shape as __atm / __slots / __blackjack: a way to
   // open and drive this from a script without first landing item 3's rename
@@ -972,7 +1641,14 @@ export function register(ctx: CtxBuild): void {
      */
     dismissHere: () => { const s = seatedAtComputer(); panel?.close(); dismissed = s; },
     screen: () => screen,
-    goto: (s: Screen) => { screen = s; if (s === 'minesweeper') ms = msBlank(); panel?.repaint(); },
+    goto: (s: Screen) => {
+      screen = s;
+      if (s === 'minesweeper') ms = msBlank();
+      else if (s === 'trader') mktAdvance(clockNow().totalMin);
+      else if (s === 'snake') { if (!sn || sn.dead) sn = snBlank(); }
+      else if (s === 'solitaire') { if (!sol) sol = solDeal(); }
+      panel?.repaint();
+    },
     key: (k: string) => onKey(k),
     // ITEM 157's own affordances, same shape as the rest of this object.
     /** the canvas the panel draws in, and the aspect of the CRT it last landed
@@ -996,6 +1672,8 @@ export function register(ctx: CtxBuild): void {
       icons: ICONS.map((_, i) => iconRect(i)), close: CLOSE_BOX,
       clear: CLR_BTN, field: FIELD, flag: FLAG_BTN, newGame: NEW_BTN,
       cell: (r: number, c: number) => msRectOf(r, c),
+      trRow: (i: number) => TR_ROW(i), trBuy: TR_BUY, trSell: TR_SELL, trQty: TR_QTY,
+      solStock: SOL_STOCK, solWaste: SOL_WASTE, solNew: SOL_NEW,
     }),
     catalogQuery: () => query,
     catalogResults: () => search(query).map((b) => b.title),
@@ -1003,6 +1681,30 @@ export function register(ctx: CtxBuild): void {
       cols: MS_COLS, rows: MS_ROWS, mines: MS_MINES,
       dead: ms.dead, won: ms.won, cx: ms.cx, cz: ms.cz,
       open: ms.grid.reduce((n, row) => n + row.filter((c) => c.open).length, 0),
+    }),
+    // ── the new tenants, same shapes as __slots / __blackjack publish, so
+    // audio can be wired later without surgery here ──
+    trader: () => ({
+      sel: TICKERS[trSel].sym, qty: trQty, commission: COMMISSION,
+      cash: ctx.purse.cash, msg: trMsg,
+      tickers: TICKERS.map((t) => ({
+        sym: t.sym, name: t.name,
+        price: mkt.price[t.sym] ?? t.start,
+        sh: mkt.hold[t.sym]?.sh ?? 0,
+        cost: mkt.hold[t.sym]?.cost ?? 0,
+      })),
+    }),
+    buy: () => trBuy(),
+    sell: () => trSell(),
+    market: () => ({ lastMin: mkt.lastMin, prices: { ...mkt.price } }),
+    snake: () => ({
+      live: sn?.live ?? false, dead: sn?.dead ?? false,
+      score: sn?.score ?? 0, len: sn?.body.length ?? 0, hi: snakeHi,
+    }),
+    solitaire: () => ({
+      dealt: sol !== null, won: sol?.won ?? false, wins: solWins,
+      moves: sol?.moves ?? 0,
+      founded: sol ? sol.found.reduce((n, fp) => n + fp.length, 0) : 0,
     }),
   };
 }

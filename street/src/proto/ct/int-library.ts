@@ -2028,13 +2028,14 @@ export function buildLibrary(ctx: CtxBuild): void {
     // crossing this closes is under the descending flight anyway.
     solidAt(0, GCX, GALLERY_Z1 + 0.06, GW, 0.12);
 
-    // a table up there, because a gallery with nothing on it is a walkway
-    box(1.5, 0.06, 0.7, wood, GCX + 0.5, GALLERY_Y + 0.72, deckCZ + 1.4);
-    for (const lx of [-0.6, 0.6]) for (const lz of [-0.25, 0.25]) {
-      box(0.07, 0.72, 0.07, woodDark, GCX + 0.5 + lx, GALLERY_Y + 0.36, deckCZ + 1.4 + lz);
-    }
+    // THE TABLE THAT STOOD HERE IS GONE — *"get rid of this table on top of
+    // the balcony"* (2026-08-10). It was placed "because a gallery with
+    // nothing on it is a walkway", and then the shelves below arrived and gave
+    // the deck its real reason; after that it was furniture blocking the run
+    // in front of the books. It never had a collider or a seat, so its removal
+    // is exactly these deleted meshes and nothing else.
 
-    // AND SHELVES, which is what a gallery in a Carnegie branch is FOR. It ran
+    // SHELVES, which is what a gallery in a Carnegie branch is FOR. It ran
     // round the room to reach the high books; a gallery with a rail and a table
     // is a viewing platform, and the user climbed it once to look down and had
     // no second reason to go up. Two runs against the east wall, books facing
