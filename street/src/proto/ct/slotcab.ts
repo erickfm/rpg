@@ -723,7 +723,7 @@ function emptyPane(): THREE.Texture {
 }
 
 interface Rect { x: number; y: number; w: number; h: number }
-interface SessionLay { cash: Rect; pull: Rect; leave: Rect; lever: Rect; glass: Rect }
+interface SessionLay { led: Rect; collect: Rect; lever: Rect; glass: Rect }
 const inR = (r: Rect, x: number, y: number): boolean =>
   x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 
@@ -738,20 +738,27 @@ function layFor(k: KindSpec): SessionLay {
   const yMax = paneYMin(k) + ph;
   const X = (lx: number) => ((lx - xMin) / pw) * SESSION_PX.w;
   const Y = (ly: number) => ((yMax - ly) / ph) * SESSION_PX.h;
-  const box = (x0: number, x1: number, yLo: number, yHi: number): Rect =>
-    ({ x: X(x0), y: Y(yHi), w: X(x1) - X(x0), h: Y(yLo) - Y(yHi) });
+  // WHOLE CANVAS PIXELS — a rect on a fraction is painted antialiased, and
+  // the KING's face (fewest texels per metre) showed it as fuzz on every edge
+  const box = (x0: number, x1: number, yLo: number, yHi: number): Rect => {
+    const x = Math.round(X(x0)), y = Math.round(Y(yHi));
+    return { x, y, w: Math.round(X(x1)) - x, h: Math.round(Y(yLo)) - y };
+  };
   const winY = k.h * 0.78;
   const span3 = 0.145 * 3 + 0.015 * 2;
-  // the printed strip: a readout band on the body under the reel glass, above
-  // the deck. Three cells — CASH (the purse, read off the machine), PULL $N
-  // (the spin verb in print, beside the lever that is the same verb), LEAVE
-  // (the law).
-  const sx0 = -k.w / 2 + 0.03, sx1 = k.w / 2 - 0.03, all = sx1 - sx0, gap = 0.012;
-  const c1 = sx0 + all * 0.38, c2 = c1 + gap + all * 0.31;
+  // the machine parts on the body under the reel glass — 2026-08-10, on the
+  // three-cell strip this replaces: "not a fan of this bottom bit here it
+  // looks bad and clunky. make it more diagetic". So not a toolbar of equal
+  // blocks: a CREDIT WINDOW (backlit seven-segment glass, the watch face and
+  // ATM tube's own amber) at the left, and one chunky convex COLLECT button
+  // set into the fascia at the right — which is what a real cabinet has, and
+  // collecting your money IS leaving. The stake is already silkscreened on
+  // the belly card and the attract sign, so no printed PULL: the lever is
+  // the pull.
+  const yLo = winY - 0.275, yHi = winY - 0.178;
   L = {
-    cash: box(sx0, c1, winY - 0.262, winY - 0.183),
-    pull: box(c1 + gap, c2, winY - 0.262, winY - 0.183),
-    leave: box(c2 + gap, sx1, winY - 0.262, winY - 0.183),
+    led: box(-k.w / 2 + 0.03, 0.02, yLo, yHi),
+    collect: box(0.06, k.w / 2 - 0.03, yLo, yHi),
     lever: box(k.w / 2, xMin + pw - 0.005, k.h * 0.74 - 0.06, k.h * 0.74 + 0.44),
     glass: box(-span3 / 2 - 0.05, span3 / 2 + 0.05, winY - 0.17, winY + 0.17),
   };
@@ -759,32 +766,89 @@ function layFor(k: KindSpec): SessionLay {
   return L;
 }
 
-/** The session canvas: TRANSPARENT except the printed strip — the machine is
- *  the interface, this only adds the three cells the lock needs. */
+// ── the seven-segment digits the credit window glows with ───────────────────
+// Horizontal-and-vertical bars only, drawn with fillRect — the same pixel
+// idiom as everything else painted in this world. Segment order: top,
+// top-right, bottom-right, bottom, bottom-left, top-left, middle.
+const SEG: Record<string, number[]> = {
+  '0': [1, 1, 1, 1, 1, 1, 0], '1': [0, 1, 1, 0, 0, 0, 0],
+  '2': [1, 1, 0, 1, 1, 0, 1], '3': [1, 1, 1, 1, 0, 0, 1],
+  '4': [0, 1, 1, 0, 0, 1, 1], '5': [1, 0, 1, 1, 0, 1, 1],
+  '6': [1, 0, 1, 1, 1, 1, 1], '7': [1, 1, 1, 0, 0, 0, 0],
+  '8': [1, 1, 1, 1, 1, 1, 1], '9': [1, 1, 1, 1, 0, 1, 1],
+};
+/** one digit, top-left (x, y), `t` the bar thickness; 5t wide, 9t tall */
+function seg7(g: CanvasRenderingContext2D, x: number, y: number, t: number,
+              ch: string, color: string): void {
+  const on = SEG[ch];
+  if (!on) return;
+  const w = 5 * t, h = 9 * t, mid = y + 4 * t;
+  g.fillStyle = color;
+  if (on[0]) g.fillRect(x + t, y, w - 2 * t, t);
+  if (on[1]) g.fillRect(x + w - t, y + t, t, 3 * t);
+  if (on[2]) g.fillRect(x + w - t, mid + t, t, 3 * t);
+  if (on[3]) g.fillRect(x + t, y + h - t, w - 2 * t, t);
+  if (on[4]) g.fillRect(x, mid + t, t, 3 * t);
+  if (on[5]) g.fillRect(x, y + t, t, 3 * t);
+  if (on[6]) g.fillRect(x + t, mid, w - 2 * t, t);
+}
+
+/** The session canvas: TRANSPARENT except the machine parts — the credit
+ *  window and the COLLECT button, each drawn as the hardware it would be. */
 function paintSession(
   g: CanvasRenderingContext2D, w: number, h: number, m: Machine | null, cash: number,
 ): void {
   g.clearRect(0, 0, w, h);
   if (!m) return;
-  const L = layFor(m.kind);
-  // the recessed readout band the three cells sit in — cabinet furniture, not
-  // floating chips: dark well the full width of the body, gold rules top and
-  // bottom in the machine's own trim
-  const pad = 4;
-  const bx = L.cash.x - pad, bw = L.leave.x + L.leave.w + pad - bx;
-  const by = L.cash.y - pad, bh = L.cash.h + pad * 2;
-  g.fillStyle = '#100a0c'; g.fillRect(bx, by, bw, bh);
-  g.fillStyle = '#d8a83a'; g.fillRect(bx, by, bw, 1); g.fillRect(bx, by + bh - 1, bw, 1);
-  const cell = (r: Rect, bg: string, fg: string, text: string) => {
-    g.fillStyle = bg; g.fillRect(r.x, r.y, r.w, r.h);
-    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(r.x, r.y, r.w, 1);
-    g.fillStyle = fg; g.font = 'bold 10px monospace'; g.textAlign = 'center';
-    g.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + 3.5);
-  };
-  cell(L.cash, '#1c1216', '#f2e6c8', `$${Math.floor(cash)}`);
-  if (m.state === 'idle') cell(L.pull, '#c81e28', '#f2e6c8', `PULL $${m.kind.stake}`);
-  else cell(L.pull, '#2a2024', '#6a6258', m.state === 'spinning' ? '· · ·' : 'PAYING');
-  cell(L.leave, '#d8a83a', '#14100e', 'LEAVE');
+  const k = m.kind;
+  const L = layFor(k);
+  const trim = '#' + k.trim.toString(16).padStart(6, '0');
+  // gold caps read best under ink, dark red ones under cream — decided off
+  // the trim's own green channel, so each personality wears its own colour
+  const capInk = ((k.trim >> 8) & 0xff) > 0x80 ? '#14100e' : '#f2e6c8';
+
+  // ── THE CREDIT WINDOW: a backlit seven-segment meter behind dark glass,
+  //    in the amber every lit readout in this world speaks (watch, ATM) ──
+  const led = L.led;
+  g.fillStyle = '#2a2420'; g.fillRect(led.x - 2, led.y - 2, led.w + 4, led.h + 4);
+  g.fillStyle = '#0e0805'; g.fillRect(led.x, led.y, led.w, led.h);
+  g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(led.x, led.y, led.w, 2);
+  g.fillStyle = 'rgba(255,182,56,0.10)'; g.fillRect(led.x, led.y + led.h - 3, led.w, 3);
+  // the silkscreen, printed on the glass edge — just the $, so the window's
+  // width goes to digits ('CASH $' left the narrow cabinets a 3-digit meter,
+  // under their own $750 jackpot)
+  g.fillStyle = '#8a8072'; g.font = 'bold 9px monospace'; g.textAlign = 'left';
+  g.fillText('$', led.x + 5, led.y + led.h / 2 + 3.5);
+  // digits: ghost 8s in the unlit phosphor, the value burning over them. The
+  // bar thickness comes off the window's own height so the KING's coarser
+  // face (fewest canvas texels per metre) gets digits that still FIT its
+  // glass rather than spilling under it. Five digits at most — a meter, not
+  // an odometer.
+  const t = Math.max(1, Math.floor((led.h - 4) / 9));
+  const dw = 5 * t + t, dh = 9 * t;
+  const nFit = Math.min(5, Math.max(3, Math.floor((led.w - 20) / dw)));
+  const val = String(Math.min(Math.floor(cash), 10 ** nFit - 1));
+  const y0 = Math.round(led.y + (led.h - dh) / 2);
+  for (let i = 0; i < nFit; i++) {
+    const x0 = led.x + led.w - 5 - (nFit - i) * dw;
+    seg7(g, x0, y0, t, '8', 'rgba(255,182,56,0.09)');
+    const ch = val[val.length - nFit + i];
+    if (ch !== undefined) seg7(g, x0, y0, t, ch, '#ffb638');
+  }
+
+  // ── COLLECT: one chunky convex button set into the fascia — bezel well,
+  //    chrome ring, raised cap in the cabinet's own trim. Collecting your
+  //    money IS leaving, which is why a real cabinet has this and no LEAVE. ──
+  const c = L.collect;
+  g.fillStyle = '#1a1410'; g.fillRect(c.x - 2, c.y - 2, c.w + 4, c.h + 4);   // the well
+  g.fillStyle = '#b8b4a8'; g.fillRect(c.x, c.y, c.w, c.h);                   // chrome ring
+  const cap = { x: c.x + 2, y: c.y + 2, w: c.w - 4, h: c.h - 4 };
+  g.fillStyle = trim; g.fillRect(cap.x, cap.y, cap.w, cap.h);
+  g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(cap.x, cap.y, cap.w, 2); // convex: lit crown
+  g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(cap.x, cap.y + 2, cap.w, Math.floor(cap.h / 2) - 2);
+  g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(cap.x, cap.y + cap.h - 2, cap.w, 2); // and shade
+  g.fillStyle = capInk; g.font = 'bold 9px monospace'; g.textAlign = 'center';
+  g.fillText('COLLECT', cap.x + cap.w / 2, cap.y + cap.h / 2 + 3);
 }
 
 /**
@@ -890,17 +954,19 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
           const m = active;
           if (!m) return false;
           const L = layFor(m.kind);
-          if (inR(L.leave, x, y)) return true;          // the way out never greys
+          if (inR(L.collect, x, y)) return true;        // the way out never greys
           if (m.state !== 'idle') return false;
-          return inR(L.pull, x, y) || inR(L.lever, x, y) || inR(L.glass, x, y);
+          return inR(L.lever, x, y) || inR(L.glass, x, y);
         },
         click: (x, y) => {
           const m = active;
           if (!m) return;
           const L = layFor(m.kind);
-          if (inR(L.leave, x, y)) { panel?.close(); return; }
+          // COLLECT is the exit: the money is already in the purse (the
+          // machine pays it direct), so collecting is standing up
+          if (inR(L.collect, x, y)) { panel?.close(); return; }
           if (m.state !== 'idle') return;
-          if (inR(L.pull, x, y) || inR(L.lever, x, y) || inR(L.glass, x, y)) {
+          if (inR(L.lever, x, y) || inR(L.glass, x, y)) {
             pull(m, ctx);
             panel?.repaint();
           }

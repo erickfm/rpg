@@ -6501,3 +6501,28 @@ from diegetic:
 Everything else stands: hooks and names, SPACE/Enter pull, click regions
 (lever, glass, printed PULL), LEAVE/ESC/[E]/stand-up exits, purse-direct
 money. All three personalities and the spin state looked at.
+
+## 2026-08-10 — *"not a fan of this bottom bit here it looks bad and clunky. make it more diagetic"*
+
+On the locked slot session's readout strip ($248 | PULL $10 | LEAVE — three
+equal blocks, a toolbar glued to the cabinet). Same builder. Each element is
+now the machine part it would actually be, set INTO the fascia at hardware
+sizes rather than three equal cells:
+
+- **The balance** is a CREDIT WINDOW: recessed dark glass with a "$"
+  silkscreen and glowing seven-segment digits over ghost 8s of unlit
+  phosphor — the amber the watch face and ATM already speak. Digit size
+  derives from the window so the KING's coarser face still fits its glass;
+  five digits at most, a meter not an odometer.
+- **The PULL button is gone.** The lever is the pull verb (it and the reel
+  glass stay clickable, cursor says so), and the stake is already
+  silkscreened on the belly card and the attract sign.
+- **LEAVE became COLLECT**: one chunky convex button set into the fascia —
+  bezel well, chrome ring, raised cap in each cabinet's own trim colour —
+  because collecting your money IS leaving on a real cabinet. It never
+  greys; clicking it closes the session (the money is already in the purse,
+  paid direct). ESC/[E]/standing still leave from every state.
+
+All three personalities looked at; COLLECT driven by mouse to prove the
+exit; rects snapped to whole canvas pixels (fractional rects were fuzzing
+every edge on the KING).
