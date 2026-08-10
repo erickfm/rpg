@@ -3535,21 +3535,30 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // from notes/K-screen-fade.md.
         //
         // ── HOW LONG THE SLEEP CUT TAKES ─────────────────────────────────
-        // The user: *"make the sleep transition faster pls"*. `screenFade`'s
-        // shared defaults are 260/170/300 = 730 ms and they are SHARED — every
-        // other cut in the game rides on them — so the sleep states its own
-        // timing here rather than re-timing the world. One line to nudge again.
+        // *"make sleep animation a little longer"* (2026-08-09), which walks
+        // back part of *"make the sleep transition faster pls"* — the 140/90/
+        // 170 ≈ 400 ms cut that answered it read as a blink, not a night.
+        // 1300 ms now, a slow drift down and a slower rise, still stated HERE
+        // rather than re-timing `screenFade`'s shared 260/170/300 defaults,
+        // which every other cut in the game rides on. One line to nudge again.
         //
-        // 400 ms total, a 45% cut, and still three real beats rather than a
-        // hard cut. THE FLOOR IS `SLEEP_HOLD_MS`, and it is a frame count, not
-        // taste: `mid` is awaited on `transitionend`, so the screen is already
-        // at opacity 1 before the clock moves and `hold` is purely the black
+        // Three riders on this number, none of which may drift:
+        //   · `ct/int-hotel.ts` carries the same three constants — the two
+        //     beds must not fade at two speeds (its own stated rule).
+        //   · the pass-out in `ct/fatigue.ts` is REBALANCED against this so
+        //     collapse still reads harsher than bedtime: its lid slams in
+        //     140 ms where this drifts over 500.
+        //   · the sleep cue caps to `screenFadeLeftMs()` (`ct/audio.ts`), so
+        //     the longer hold+in hands its 1.5 s sample ~800 ms of real room
+        //     and it still ends WITH the black by construction.
+        //
+        // THE FLOOR IS `SLEEP_HOLD_MS`, and it is a frame count, not taste:
+        // `mid` is awaited on `transitionend`, so the screen is already at
+        // opacity 1 before the clock moves and `hold` is purely the black
         // beat AFTER it — it only has to outlast the one frame the renderer
-        // needs to draw the advanced world. `main.ts:130` clamps dt to 0.05 s,
-        // so ~50 ms is the hard floor and 90 ms keeps two frames of margin on
-        // the worst frame the sim will admit to. Do not take it under that or
-        // the clock jump lands on a screen that is on its way back up.
-        const SLEEP_OUT_MS = 140, SLEEP_HOLD_MS = 90, SLEEP_IN_MS = 170;
+        // needs to draw the advanced world (`main.ts:130` clamps dt to
+        // 0.05 s; ~50 ms is the hard floor). 150 keeps that margin whole.
+        const SLEEP_OUT_MS = 500, SLEEP_HOLD_MS = 150, SLEEP_IN_MS = 650;
         void screenFade({
           mid: () => ctx.clock.advance(mins, { overSeconds: 0 }),
           outMs: SLEEP_OUT_MS, holdMs: SLEEP_HOLD_MS, inMs: SLEEP_IN_MS,

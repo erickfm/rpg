@@ -945,8 +945,8 @@ export function buildHotel(ctx: CtxBuild): void {
   // that means the clock advanced.
   //
   // THE CUT IS THE SLEEP CUT, borrowed from 301's bed rather than re-timed:
-  // 140/90/170 ms, the timing the user approved with *"make the sleep transition
-  // faster pls"*. A hotel bed and your own bed should not fade at two speeds.
+  // 500/150/650 ms since *"make sleep animation a little longer"* (2026-08-09).
+  // A hotel bed and your own bed should not fade at two speeds.
   //
   // ── THE NIGHTLY RATE IS DERIVED FROM THE WEEKLY ONE ──────────────────────
   //
@@ -995,7 +995,7 @@ export function buildHotel(ctx: CtxBuild): void {
     // for where the clock lands, and the night/week ratio the card argues
     // from ($203 in nights against $145 the week) is untouched.
     const mins = 8 * 60 + (nights - 1) * 1440;
-    const SLEEP_OUT_MS = 140, SLEEP_HOLD_MS = 90, SLEEP_IN_MS = 170;
+    const SLEEP_OUT_MS = 500, SLEEP_HOLD_MS = 150, SLEEP_IN_MS = 650;
     void screenFade({
       mid: () => ctx.clock.advance(mins, { overSeconds: 0 }),
       outMs: SLEEP_OUT_MS, holdMs: SLEEP_HOLD_MS, inMs: SLEEP_IN_MS,

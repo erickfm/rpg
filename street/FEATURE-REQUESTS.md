@@ -6371,3 +6371,20 @@ To the same builder that moved the tables onto their felts.
   from every state.
 
 Both games driven end to end by mouse alone and looked at.
+
+## 2026-08-09 — *"make sleep animation a little longer"*
+
+Went to the fatigue builder (its system; trunk granted for the bed's timing
+constants). The sleep cut grows from 140/90/170 ms (~400 ms, the answer to
+"make the sleep transition faster pls", which read as a blink) to
+**500/150/650 ms** (~1.3 s) — a slow drift down and a slower rise, stated in
+`ct/apartment.ts` and mirrored in `ct/int-hotel.ts` because the two beds must
+not fade at two speeds. The pass-out in `ct/fatigue.ts` is REBALANCED so
+collapse still reads harsher than bedtime: 520/140/620 becomes **140/260/880**
+— the slam is the attack now, a 140 ms lid-drop in the blinks' own grammar
+(the blink that doesn't open), then the longest black and slowest rise in the
+game. The sleep audio cue caps to `screenFadeLeftMs()` (64b0c466) so the
+longer hold+in hands its 1.5 s sample ~800 ms of real room and it still ends
+with the black by construction; the fatigue sleep detector keys off the
+fade-covered clock jump and is length-agnostic — both verified wires, neither
+touched.

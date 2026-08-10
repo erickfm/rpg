@@ -315,10 +315,15 @@ function passOut(ctx: CtxBuild): void {
   // gone for eight hours, and one rule everywhere beats two.
   const mins = 8 * 60;
 
-  // Slower than the bed's 140/90/170 on purpose: that cut is chosen, this one
-  // happens TO you, and a heavier fall reads as one. The hold stays above the
-  // 90 ms floor `ct/apartment.ts` documents (the renderer needs a frame to
-  // draw the advanced world before the screen comes back up).
+  // REBALANCED against the bed's 500/150/650 (*"make sleep animation a little
+  // longer"*, 2026-08-09): when bedtime became a slow drift, a 520 ms fall
+  // here stopped reading harsher than it. So the collapse is now the SLAM —
+  // down in 140 ms, the exact grammar of the blinks above (their lids drop in
+  // 90) arriving as the one that doesn't open — then the longest dead black
+  // and the slowest rise in the game, because coming to is slower than waking.
+  // Chosen 140 / happens-to-you 880: the distinction lives in the ATTACK now,
+  // not the total. The hold stays above the 90 ms floor `ct/apartment.ts`
+  // documents (the renderer needs a frame to draw the advanced world).
   void screenFade({
     mid: () => {
       // CASH ON HAND ONLY — the purse the HUD shows, never `purse.account`.
@@ -341,7 +346,7 @@ function passOut(ctx: CtxBuild): void {
       slept = { ...wake };
       clearApproach();      // he wakes with open eyes and a clear rim
     },
-    outMs: 520, holdMs: 140, inMs: 620,
+    outMs: 140, holdMs: 260, inMs: 880,
   }).then(() => {
     passing = false;
     // One HUD line, no panel — waking must never trap input. The note fades
