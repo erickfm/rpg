@@ -6472,3 +6472,32 @@ doing stuff"*). Executed by one builder:
   dead. **SPACE keeps exactly one meaning: PULL.**
 - Every printed hint that named a dead key is rewritten; Escape and [E] as
   panel exits are framework law and untouched everywhere.
+
+## 2026-08-10 — *"also the diagetic view is worse than the sit down view."*
+
+Same builder as the slots rework. Resolved by LOOKING, not assuming: the
+stool lock and the walk-up E lock render pixel-identical (shot side by side),
+and the retired ct/slots.ts sit-down panel cannot even open — so the
+comparison is against the composed, designed face the old sit-down panel had,
+and the fix is closing that quality gap in the locked view, not retreating
+from diegetic:
+
+- **Dead-on:** the session pane is now symmetric about the cabinet's
+  centreline (it was biased 7 cm toward the lever), so the lock looks
+  straight down the machine's axis like a face you sat down in front of.
+- **Composed, not photographed:** the lock is a telephoto — fov 70 → 50,
+  stood off exactly far enough (derived per kind, `standoffFor`) that the
+  frame brackets the face between the pay card's top and the win sign's top
+  (`faceFrame`). Reel glass a breath above centre, win sign upper third,
+  readout band lower third, flat verticals, neighbours pushed to the edges.
+  The KING's belly card had crept back under the caption at the first pass of
+  this framing; deriving the frame from the card's own top is what keeps it
+  and the caption apart on all three kinds, permanently.
+- **The lever stays in shot:** mount moved to 0.03 off the front corner and
+  the rest lean tuned to −0.10 — upright cropped the ball at the frame's top
+  edge, the old −0.30 mid-depth mount hid the whole arm, and the KING's deep
+  side is nearly edge-on from the new on-axis eye.
+
+Everything else stands: hooks and names, SPACE/Enter pull, click regions
+(lever, glass, printed PULL), LEAVE/ESC/[E]/stand-up exits, purse-direct
+money. All three personalities and the spin state looked at.

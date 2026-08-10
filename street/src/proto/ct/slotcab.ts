@@ -532,8 +532,11 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
   // "the lever is on the wrong side."
   // …and at the FRONT corner of the side, not mid-depth: at z 0.04 the body's
   // own side face hid the whole arm from the locked view's near-frontal eye
-  // (the sightline crossed the side plane before it reached the ball).
-  const leverZ = D / 2 - 0.075;
+  // (the sightline crossed the side plane before it reached the ball). 0.03
+  // off the corner, because the composed lock now looks dead down the
+  // cabinet's axis and the KING's deep side is nearly edge-on from there —
+  // any further back and his arm vanishes again.
+  const leverZ = D / 2 - 0.03;
   const lever = new THREE.Group();
   lever.position.set(W / 2 + 0.05, H * 0.74, leverZ);
   const housing = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.16, 0.12), bm(0x8a8478));
@@ -544,11 +547,12 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.052, 8, 6), bm(0xc81e28));
   ball.position.y = 0.36;
   lever.add(arm, ball);
-  // Rest NEAR-VERTICAL, not −0.30: leaned back that far, the arm sat edge-on
-  // behind the body from the locked view and the play verb was invisible.
-  // Upright, the ball rides clear of the cabinet's silhouette at the player's
-  // right — where a bandit's arm waits. tickLever's `rest` is the same value.
-  lever.rotation.x = -0.06;
+  // Rest at a slight back-lean: upright (−0.06) put the ball at the very top
+  // edge of the composed frame and cropped it in half; −0.30 (with the old
+  // mid-depth mount) hid the whole arm behind the body. −0.10 at the front
+  // corner keeps the ball inside the frame on all three kinds and clear of
+  // the silhouette. tickLever's `rest` is the same value.
+  lever.rotation.x = -0.10;
   lever.name = `slot-lever-${i}`;
   g.add(lever);
 
@@ -559,10 +563,11 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
   const pane = new THREE.Mesh(
     new THREE.PlaneGeometry(spw, sph),
     new THREE.MeshBasicMaterial({ map: emptyPane(), transparent: true, depthWrite: false }));
-  // reaches 0.18 past the body on the lever's side (+x), in front of every
-  // face mesh (the payline nicks are the proudest at +0.016); the lever
-  // swings in y/z at fixed x, so it never crosses the pane
-  pane.position.set(0.07, paneYMin(k) + sph / 2, D / 2 + 0.022);
+  // symmetric about the cabinet's centreline (the lock looks dead-on the
+  // axis) and reaching 0.18 past the body both sides, so the lever at +x is
+  // clickable; in front of every face mesh (the payline nicks are the
+  // proudest at +0.016); the lever swings in y/z, never crossing the pane
+  pane.position.set(0, paneYMin(k) + sph / 2, D / 2 + 0.022);
   pane.name = `slot-face-${i}`;
   g.add(pane);
 
@@ -662,16 +667,49 @@ function tickCoins(m: Machine, sincePay: number): void {
 // onto the old 320×483 face, which is exactly the quarter-scale strip
 // floating off the cabinet's edge in Erick's screenshot.
 
-/** pane width / height — the playing face is nearly square-ish on every kind */
-const PANE_RATIO = 0.94;
-/** the pane's lower edge sits this far under the reel-window centre */
-const PANE_DROP = 0.32;
-/** the one session canvas, square texels on every kind by the shared ratio */
-const SESSION_PX = { w: 220, h: 234 } as const;
+// ── THE COMPOSED FRAME ── 2026-08-10: "also the diagetic view is worse than
+// the sit down view." Looked at, not assumed: the stool lock and the E lock
+// were already pixel-identical, and the retired sit-down panel cannot even
+// open — so the comparison is against the DESIGNED face the old panel had:
+// dead-on, composed, legible. The first locked view was photographed instead:
+// the pane was biased toward the lever so the camera stood 7 cm off the
+// cabinet's axis, the glass sat below centre, and fov 70 at 0.7 m made the
+// neighbours loom and the verticals splay. So now:
+//   · the pane is SYMMETRIC about the cabinet's centreline — the eye is
+//     dead-on the axis, like a face you sat down in front of;
+//   · the reel glass sits a breath above frame centre, the readout band in
+//     the lower third, the win sign in the upper — composed, not cropped;
+//   · the lock is a TELEPHOTO: fov 50, stood off so the pane exactly fills
+//     the frame height. Flat verticals, one machine, the room at the edges.
 
-const paneW = (k: KindSpec): number => k.w + 0.22;
-const paneXMin = (k: KindSpec): number => -(k.w / 2 + 0.04);
-const paneYMin = (k: KindSpec): number => k.h * 0.78 - PANE_DROP;
+/** pane width / height — one proportion for every kind, so one canvas serves */
+const PANE_RATIO = 1.04;
+/** the lock's field of view; standoffFor derives the exact framing distance */
+const PANE_FOV = 50;
+/** the one session canvas, square texels on every kind by the shared ratio */
+const SESSION_PX = { w: 250, h: 240 } as const;
+
+const paneW = (k: KindSpec): number => k.w + 0.36;
+const paneXMin = (k: KindSpec): number => -(k.w / 2 + 0.18);
+
+/**
+ * THE FRAME IS THE FACE BETWEEN THE PAY CARD AND THE WIN SIGN — derived from
+ * the same numbers the geometry is built with, per kind, so the KING's tall
+ * belly card cannot drift back into shot (it did: his card came up under the
+ * caption, the exact collision the first pass had). Bottom edge a hair above
+ * the card's top, top edge a hair over the sign, centre between them.
+ */
+function faceFrame(k: KindSpec): { center: number; frameH: number } {
+  const cardTop = k.h * 0.31 + (k.w * 0.8 * 84 / 96) / 2;
+  const signTop = k.h * 0.78 + 0.275;
+  const bottom = cardTop - 0.01, top = signTop + 0.045;
+  return { center: (top + bottom) / 2, frameH: top - bottom };
+}
+const paneYMin = (k: KindSpec): number =>
+  faceFrame(k).center - paneW(k) / PANE_RATIO / 2;
+/** the standoff at which fov PANE_FOV frames exactly the face */
+const standoffFor = (k: KindSpec): number =>
+  faceFrame(k).frameH / (2 * Math.tan((PANE_FOV / 2) * Math.PI / 180));
 
 let PANE_TEX: THREE.Texture | null = null;
 /** a 1×1 fully-transparent map — the pane while nobody is locked onto it */
@@ -838,15 +876,16 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
       },
       surface: {
         mesh: () => active?.pane ?? null,
-        // CLOSE — "then also closer disgetic persprective on the slots". The
-        // lock frames the playing face: reel glass dominant, win sign above,
-        // lever at the right edge, the pay card at the bottom edge of frame
-        // or just out of it. The KING's face is half again as wide and his
-        // strip sits lower under the glass, so he gets a longer step back.
-        // A getter, because the framework reads this at open time and ONE
-        // panel serves the floor.
-        get standoff() { return active && active.kind.w > 0.8 ? 1.05 : 0.72; },
-        fov: 70,
+        // CLOSE AND COMPOSED — "closer disgetic persprective", then "the
+        // diagetic view is worse than the sit down view". The telephoto lock
+        // stands off exactly far enough that the pane fills the frame height
+        // (see THE COMPOSED FRAME): reel glass a breath above centre, win
+        // sign upper third, readout band lower third, lever at the right
+        // edge, pay card just out of frame. Derived per kind, so the KING's
+        // wider face simply reads a longer step back. A getter, because the
+        // framework reads this at open time and ONE panel serves the floor.
+        get standoff() { return active ? standoffFor(active.kind) : 1.0; },
+        fov: PANE_FOV,
         hot: (x, y) => {
           const m = active;
           if (!m) return false;
@@ -963,7 +1002,7 @@ function pull(m: Machine, ctx: CtxBuild): void {
 }
 
 function tickLever(m: Machine): void {
-  const t = m.t, rest = -0.06, down = 1.35;   // rest matches the built pose
+  const t = m.t, rest = -0.10, down = 1.35;   // rest matches the built pose
   let a = rest;
   if (t < FEEL.leverDown) {
     const k = t / FEEL.leverDown;
