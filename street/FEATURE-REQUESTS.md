@@ -6175,3 +6175,31 @@ the same branch as the thump (no bank, no cooldown — a car that hits you
 honks, reliably), and the braking horn's bank no longer resets on >10 m/s²
 spike frames (holds instead) and fills at 0.18 s — a car that panic-brakes
 for you MAY honk.
+
+## 2026-08-09 — *"oh also for the character create screen lets make sure the text isnt overlapping in places. also lets make it so you actually have to sign for signature like you have to draw"*
+
+Went to a builder. Looked at the live sheet in every state (long name, HAND
+both ways, stat row selected, SIGN row selected, points unspent) and found
+the collisions, all in the crowded foot of FORM R-9 after SECTION II landed:
+
+- the pentagon's DEX and CHA labels (y 202) sat inside the signature band —
+  the SIGN highlighter swiped through them, and DEX touched the red
+  `N PTS TO PLACE` note. Chart raised (`CH_CY` 172 → 169) and the bottom
+  labels pulled in (+30 → +28); glyphs now end at 197, one texel clear.
+- the red clerk's note itself crowded the X on the line it sat on — moved
+  to the blank end of the line, right-aligned, below the chart.
+- the office FILE box's border touched the small print's glyph tops —
+  parted by two texels each way.
+
+**And the signature is signed now.** Mouse-down on the line and draw: the
+ink is the world's blue biro, Bresenham texels clamped to the blank of the
+line, over the print like a real pen. 50 texels of path is the threshold —
+a dot is not a signature. Once it counts, a dashed red FILE box comes up in
+the office's own voice; clicking it is what BEGIN used to be. Red VOID under
+the X (only once there is ink) clears it to re-sign, as does the X itself.
+Enter on the line still works for keyboard players — it auto-scrawls a wavy
+signature and starts the day, because the no-trap rule outranks the
+flourish. Escape unchanged, new-game and day-start unchanged. The scrawl is
+session-only cosmetic identity.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

@@ -33,6 +33,12 @@
 //     pen, because that is where a name goes on a photo
 //   · HAND is two checkboxes, the selected field is a yellow HIGHLIGHTER
 //     swipe, and BEGIN is the signature line at the foot
+//   · and the signature is SIGNED — *"lets make it so you actually have to
+//     sign for signature like you have to draw"* (2026-08-09). You put the
+//     pen down on the line and draw; the ink is the world's blue biro, a
+//     texel at a time. VOID under the X clears it to re-sign; enough ink
+//     raises the red FILE box, which submits. Enter still auto-scrawls and
+//     signs for keyboard players — the no-trap rule outranks the flourish.
 //   · nothing is labelled that shows itself; the only instructions are the
 //     small print a real form carries
 //
@@ -121,6 +127,28 @@ let active = false;
 const FACING = 0;
 let sel = 0;
 let name = '';
+/** the signature: strokes of canvas texels, and the ink laid down so far.
+ *  Session-only — the scrawl is cosmetic identity, not a record. */
+let strokes: [number, number][][] = [];
+let inkLen = 0;
+let penDown = false;
+
+function signed(): boolean { return inkLen >= SIG_MIN; }
+function clearSig(): void { strokes = []; inkLen = 0; penDown = false; }
+/**
+ * A keyboard player's signature — Enter on the line must still start the
+ * game, so it signs FOR him: one seeded wavy scrawl across the box. The
+ * no-trap rule outranks the flourish; nobody is ever stuck unable to begin
+ * because they have no mouse.
+ */
+function autoScrawl(): void {
+  const s: [number, number][] = [];
+  for (let x = SIG_X0 + 6; x <= SIG_X0 + 96; x += 3) {
+    s.push([x, 202 + Math.round(3 * Math.sin((x - SIG_X0) * 0.55))]);
+  }
+  strokes.push(s);
+  inkLen = SIG_MIN;
+}
 
 /** the OSD is not allowed to open on top of this. Asked as a predicate, never
  *  raced as a listener — `ct/osd.ts` argues this out at `registerOsdBusy`. */
@@ -182,7 +210,10 @@ const LINES: Line[] = [
   {
     label: 'SIGN',
     value: () => '',
-    step: () => finish(),
+    // NOT a stepper any more — the signature is drawn (`onDown`) or
+    // auto-scrawled by Enter (`onKey`). A ◀▶ on this row starting the game
+    // would be signing a form by nudging it.
+    step: () => { /* signed, not stepped */ },
   },
 ];
 
@@ -210,8 +241,34 @@ const VAL_X = 70, LINE_R = PAPER_X + PAPER_W - 12;
 const STAT_R = 100;
 /** the pentagon: centre and outer radius (a value of 10), sharing the section
  *  with the five short rows. Every plotted point is `Math.round`ed — the
- *  blur lesson (`ct/body.ts`) applies to a chart as much as to a photo. */
-const CH_CX = 138, CH_CY = 172, CH_R = 26;
+ *  blur lesson (`ct/body.ts`) applies to a chart as much as to a photo.
+ *  ⚠ CH_CY 169, NOT 172, and the bottom labels hang 28 below, not 30 — at
+ *  172/+30 the DEX and CHA labels reached y 202 and collided with the
+ *  signature band and the clerk's red note: *"lets make sure the text isnt
+ *  overlapping in places"* (2026-08-09). 169/+28 puts their glyphs at
+ *  191…197, one texel clear of the note's 198 and of `SIG_Y0`. */
+const CH_CX = 138, CH_CY = 169, CH_R = 26;
+/**
+ * ── THE SIGNATURE IS DRAWN, NOT CLICKED ───────────────────────────────────
+ *
+ * *"lets make it so you actually have to sign for signature like you have to
+ *  draw"*   (2026-08-09)
+ *
+ * The box is the blank of the line: X to the line's end, the strip above the
+ * rule. Strokes are polylines in canvas texels, clamped to the box and drawn
+ * through `pixLine` in the ballpoint's own blue — hard pixels, like every
+ * other mark on this sheet. `SIG_MIN` is the ink that counts as a signature:
+ * 50 texels of path, about two honest strokes — a single dot is not a
+ * signature. Below it the FILE box does not appear and Enter auto-scrawls.
+ */
+const SIG_X0 = 38, SIG_X1 = 174, SIG_Y0 = 196, SIG_Y1 = 208;
+const SIG_MIN = 50;
+/** the office-use FILE box, up only once there is a signature — clicking it
+ *  is what BEGIN used to be. Bottom at 222: the small print's glyphs start
+ *  at 224 and the two must not touch. */
+const FILE_X0 = 142, FILE_X1 = 174, FILE_Y0 = 210, FILE_Y1 = 222;
+/** the VOID mark under the X — click it (or the X) to clear and re-sign */
+const VOID_X0 = 18, VOID_X1 = 36, VOID_Y0 = 196, VOID_Y1 = 223;
 /** the instant photo — frame, then the image inset with the fat film bottom */
 const PH_X = 196, PH_Y = 24, PH_W = 106, PH_H = 158;
 const IMG_X = PH_X + 8, IMG_Y = PH_Y + 8, IMG_W = 90, IMG_H = 116;
@@ -356,8 +413,8 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   const CH_LAB: [number, number, CanvasTextAlign][] = [
     [CH_CX, CH_CY - CH_R - 4, 'center'],                 // INT, above the top
     [CH_CX + 28, CH_CY - 5, 'left'],                     // STR
-    [CH_CX + 18, CH_CY + 30, 'left'],                    // CHA
-    [CH_CX - 18, CH_CY + 30, 'right'],                   // DEX
+    [CH_CX + 18, CH_CY + 28, 'left'],                    // CHA
+    [CH_CX - 18, CH_CY + 28, 'right'],                   // DEX
     [CH_CX - 28, CH_CY - 5, 'right'],                    // CON
   ];
   STAT_NAMES.forEach((s, k) => {
@@ -382,20 +439,25 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   let y = ROW_Y;
   LINES.forEach((l, i) => {
     if (i === ROW_SIGN) {
-      // the signature line. Signing it is BEGIN — see `finish`.
+      // the signature line — SIGNED IN INK, see `SIG_X0`. The strokes, the
+      // VOID mark and the FILE box paint after this loop so the pen lies
+      // over the print and the highlighter, never under.
       g.font = font(12); g.fillStyle = PEN;
       g.fillText('X', ROW_X, y + 1);
       g.fillStyle = PRINT_DK; g.fillRect(ROW_X + 14, y + 3, LINE_R - ROW_X - 14, 1);
       g.font = font(8); g.fillStyle = RULE;
-      g.fillText('APPLICANT SIGNATURE', ROW_X + 14, y + 13);
+      g.fillText('APPLICANT SIGNATURE', ROW_X + 24, y + 13);
       // unspent aptitude points, flagged where a clerk would flag them — in
-      // the office's own red, sitting ON the empty end of the line you are
-      // about to sign (the label below is wide; the line above is blank).
-      // Signing anyway is allowed; an average man is 5s across the board.
+      // the office's own red, right-aligned on the blank end of the line,
+      // one texel BELOW the chart's DEX/CHA labels and clear of them (the
+      // overlap ruling, see `CH_CY`). Signing anyway is allowed; an average
+      // man is 5s across the board.
       const pts = pointsLeft();
       if (pts > 0) {
         g.fillStyle = STAMP_RED;
-        g.fillText(`${pts} PTS TO PLACE`, ROW_X + 18, y + 1);
+        g.textAlign = 'right';
+        g.fillText(`${pts} PTS TO PLACE`, LINE_R, y - 2);
+        g.textAlign = 'left';
       }
     } else if (i >= ROW_STAT0) {
       // an aptitude row: same label, a SHORT rule (the chart owns the right
@@ -433,8 +495,36 @@ function paintCreate(g: CanvasRenderingContext2D): void {
     y += ROW_H;
   });
 
+  // ── the signature's ink, over everything the pen would lie over ──────
+  g.fillStyle = PEN;
+  for (const s of strokes) {
+    if (s.length === 1) { g.fillRect(s[0][0], s[0][1], 1, 1); continue; }
+    for (let k = 1; k < s.length; k++) {
+      pixLine(g, s[k - 1][0], s[k - 1][1], s[k][0], s[k][1]);
+    }
+  }
+  // VOID, under the X, only once there is ink to void — click it to re-sign
+  if (strokes.length > 0) {
+    g.font = font(8); g.fillStyle = STAMP_RED;
+    g.fillText('VOID', ROW_X, 219);
+  }
+  // the FILE box, office red, up only when the ink counts — see `SIG_MIN`
+  if (signed()) {
+    g.fillStyle = STAMP_RED;
+    for (let dx = FILE_X0; dx < FILE_X1; dx += 4) {       // dashed border
+      g.fillRect(dx, FILE_Y0, 2, 1); g.fillRect(dx, FILE_Y1, 2, 1);
+    }
+    for (let dy = FILE_Y0; dy < FILE_Y1; dy += 4) {
+      g.fillRect(FILE_X0, dy, 1, 2); g.fillRect(FILE_X1, dy, 1, 2);
+    }
+    g.font = font(8);
+    g.textAlign = 'center';
+    g.fillText('FILE', (FILE_X0 + FILE_X1) / 2, FILE_Y1 - 3);
+    g.textAlign = 'left';
+  }
+
   // small print — the only instructions, and they are the form's own
-  fitText(g, '▲▼ FIELD  ◀▶ CHANGE  ENTER SIGN', ROW_X, 229, LINE_R - ROW_X, 8, FAINT);
+  fitText(g, '▲▼ FIELD  ◀▶ CHANGE  ENTER SIGN', ROW_X, 230, LINE_R - ROW_X, 8, FAINT);
 
   // ── the photo ────────────────────────────────────────────────────────
   g.fillStyle = 'rgba(0,0,0,0.28)';
@@ -519,6 +609,9 @@ function finish(): void {
   window.removeEventListener('keydown', onKey, true);
   window.removeEventListener('wheel', onWheel, true);
   window.removeEventListener('click', onClick, true);
+  window.removeEventListener('mousedown', onDown, true);
+  window.removeEventListener('mousemove', onMove, true);
+  window.removeEventListener('mouseup', onUp, true);
 }
 
 /**
@@ -545,9 +638,11 @@ function onKey(e: KeyboardEvent): void {
   if (!active) return;
   const k = e.key.toLowerCase();
   if (k === 'escape' || k === 'enter') {
-    // Enter on any row but the signature steps it; Enter on the signature,
-    // and Escape from anywhere, leaves. See `finish`.
-    if (k === 'escape' || sel === ROW_SIGN) { finish(); }
+    // Enter on any row but the signature steps it; Enter on the signature —
+    // auto-scrawling first if the line is blank, see `autoScrawl` — and
+    // Escape from anywhere, leaves. See `finish`.
+    if (k === 'escape') { finish(); }
+    else if (sel === ROW_SIGN) { if (!signed()) autoScrawl(); finish(); }
     else if (sel !== 0) LINES[sel].step(1);
     else sel = Math.min(sel + 1, LINES.length - 1);
   } else if (k === 'arrowup') sel = (sel + LINES.length - 1) % LINES.length;
@@ -572,20 +667,80 @@ function onKey(e: KeyboardEvent): void {
   if (active) paint();
 }
 
+/** a mouse event in canvas texels — the one mapping all four pointer
+ *  handlers share, so they cannot disagree about where the pen is */
+function at(e: MouseEvent): { x: number; y: number } {
+  const r = cv!.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (OW / r.width),
+    y: (e.clientY - r.top) * (OH / r.height),
+  };
+}
+
+/**
+ * ── THE PEN ───────────────────────────────────────────────────────────────
+ * Down inside the box starts a stroke; moving drags ink after the cursor,
+ * clamped to the box; up lifts the pen. Down on the X/VOID column voids the
+ * signature instead. Everything is swallowed — this screen is modal.
+ */
+function onDown(e: MouseEvent): void {
+  if (!active || !cv) return;
+  const { x, y } = at(e);
+  e.stopImmediatePropagation();
+  e.preventDefault();
+  if (x >= VOID_X0 && x < VOID_X1 && y >= VOID_Y0 && y < VOID_Y1) {
+    if (strokes.length) { clearSig(); paint(); }
+    return;
+  }
+  if (x >= SIG_X0 && x < SIG_X1 && y >= SIG_Y0 && y <= SIG_Y1) {
+    penDown = true;
+    sel = ROW_SIGN;
+    strokes.push([[Math.round(x), Math.round(y)]]);
+    paint();
+  }
+}
+
+function onMove(e: MouseEvent): void {
+  if (!active || !penDown || !cv) return;
+  const { x, y } = at(e);
+  e.stopImmediatePropagation();
+  e.preventDefault();
+  const s = strokes[strokes.length - 1];
+  const px = Math.round(Math.max(SIG_X0, Math.min(SIG_X1 - 1, x)));
+  const py = Math.round(Math.max(SIG_Y0, Math.min(SIG_Y1, y)));
+  const [lx, ly] = s[s.length - 1];
+  if (px === lx && py === ly) return;
+  s.push([px, py]);
+  inkLen += Math.hypot(px - lx, py - ly);
+  paint();
+}
+
+function onUp(e: MouseEvent): void {
+  if (!active) return;
+  if (penDown) { penDown = false; e.stopImmediatePropagation(); e.preventDefault(); }
+}
+
 /** click a field to select it, click it again to step it. The photo is INERT
- *  — it used to turn him, removed with the wheel (see `onWheel`) — and the
- *  early return keeps a click on it from selecting whatever row shares its
- *  screen rows. */
+ *  — it used to turn him, removed with the wheel (see `onWheel`). The
+ *  signature band is the pen's (`onDown`), so a click there only selects the
+ *  row — it can never finish the form; FILE is what submits, and only once
+ *  the ink counts. */
 function onClick(e: MouseEvent): void {
   if (!active || !cv) return;
-  const r = cv.getBoundingClientRect();
-  const x = (e.clientX - r.left) * (OW / r.width);
-  const y = (e.clientY - r.top) * (OH / r.height);
+  const { x, y } = at(e);
   e.stopImmediatePropagation();
   e.preventDefault();
   if (x >= PH_X && x < PH_X + PH_W && y >= PH_Y && y < PH_Y + PH_H) return;
+  if (signed() && x >= FILE_X0 && x <= FILE_X1 && y >= FILE_Y0 && y <= FILE_Y1) {
+    finish();
+    return;
+  }
+  if (y >= SIG_Y0) {
+    if (sel !== ROW_SIGN) { sel = ROW_SIGN; paint(); }
+    return;
+  }
   const i = Math.floor((y - (ROW_Y - 10)) / ROW_H);
-  if (i < 0 || i >= LINES.length) return;
+  if (i < 0 || i >= ROW_SIGN) return;
   if (i === sel) LINES[sel].step(1); else sel = i;
   if (active) paint();
 }
@@ -595,6 +750,7 @@ function start(): void {
   build();
   active = true;
   sel = 0;
+  clearSig();
   name = setting('name') || '';
   // *"start them in some unisex boring outfit."* — and it has to happen HERE
   // rather than at module load, because `ct-wardrobe` is its own storage key
@@ -608,6 +764,9 @@ function start(): void {
   window.addEventListener('keydown', onKey, true);
   window.addEventListener('wheel', onWheel, { capture: true, passive: false });
   window.addEventListener('click', onClick, true);
+  window.addEventListener('mousedown', onDown, true);
+  window.addEventListener('mousemove', onMove, true);
+  window.addEventListener('mouseup', onUp, true);
   paint();
 }
 
