@@ -18,7 +18,13 @@ import { buildSlots } from './slotcab';
 // SEAT_LABEL and 'sit at the table' already had. No cycle: blackjack.ts
 // imports only ./ctx, ./hud (dynamically) and ./slots (dynamically), never
 // this file.
-import { SEAT_LABEL as BLACKJACK_SEAT } from './blackjack';
+// …and since 2026-08-09's "blackjack and roulettte need to be diagetic" the
+// FELT PAINTERS come over the same edge: each table's top is painted by its
+// own game's painter in the idle state (`paintTable(g, w, h, null)`), on a
+// NAMED mesh the game hangs its live canvas on when you sit down. One
+// painter, two moments — the printed felt and the played felt cannot drift.
+import { SEAT_LABEL as BLACKJACK_SEAT, FELT as BJ_FELT,
+  paintTable as paintBlackjackFelt } from './blackjack';
 // Same bridge, other table: the four stools at the wheel carry roulette's own
 // label, imported for the same anti-drift reason. Same no-cycle shape too —
 // roulette.ts imports only ./ctx at runtime, never this file.
@@ -740,15 +746,12 @@ export function buildCasino(ctx: CtxBuild): void {
   // single table in it is what a neighbourhood casino actually looks like —
   // the tables are where the house pays staff, so there is exactly as much
   // table as the room can justify.
-  const feltT = declareSurface(pixTex(64, 34, (g) => {
-    g.fillStyle = '#1e5a3e'; g.fillRect(0, 0, 64, 34);
-    g.strokeStyle = 'rgba(216,208,192,0.55)'; g.lineWidth = 1;
-    for (const r of [13, 18, 23]) { g.beginPath(); g.arc(32, 40, r, Math.PI, Math.PI * 2); g.stroke(); }
-    g.fillStyle = 'rgba(216,208,192,0.5)';
-    g.fillRect(6, 6, 12, 1); g.fillRect(46, 6, 12, 1);
-    g.fillStyle = '#c9a45e'; g.fillRect(29, 3, 6, 2);            // the house's own mark
-    dither(g, 64, 34, 40);
-  }), 'detail');
+  // THE GAME'S OWN FELT, idle. `paintTable(g, …, null)` is ct/blackjack.ts's
+  // one painter with nothing live on it — arc, printed rules, shoe, betting
+  // spot — at the same 320 px/m the live canvas plays at. No dither: the live
+  // canvas has none (GOTCHAS §1) and the two must be the same picture.
+  const feltT = declareSurface(pixTex(BJ_FELT.w, BJ_FELT.h, (g) =>
+    paintBlackjackFelt(g, BJ_FELT.w, BJ_FELT.h, null)), 'detail');
   // In the PIT, east side, mirrored by the roulette table across the avenue.
   // The pit sits past the slot bank at mid-floor — you walk the avenue through
   // the machines and come out at the tables, with the cage still the furthest
@@ -760,10 +763,20 @@ export function buildCasino(ctx: CtxBuild): void {
   const railM = new THREE.MeshBasicMaterial({ color: 0x3a2226 });
   put(new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.72, 1.0), woodM), TX, 0.36, TZ);
   put(new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.1, 1.15), railM), TX, 0.77, TZ);
+  // ONE MESH, NAMED — ct/blackjack.ts finds `blackjack-felt` at open time,
+  // hangs its live canvas on it and locks the view down onto the table (the
+  // focus-surface rule: a screen is one mesh, like the mirror's glass). The
+  // 1.6 × 0.85 plane and the 512 × 272 canvas are the same 1.882 aspect, so
+  // nothing stretches. Canvas TOP faces −z: the dealer's side, where he
+  // stands. rotation.x = −π/2 maps local +y (canvas top) to world −z.
   const felt = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.85), ctx.flat(feltT));
+  felt.name = 'blackjack-felt';
   felt.rotation.x = -Math.PI / 2;
   put(felt, TX, 0.83, TZ);
-  put(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.07, 0.12), brassM), TX, 0.86, TZ - 0.34);
+  // the chip tray, moved OFF the felt to the dealer's lip of the wood — at
+  // TZ − 0.34 it sat on the playing surface, exactly where the live canvas
+  // now deals the dealer's cards
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.07, 0.12), brassM), TX, 0.84, TZ - 0.50);
   solid(TX, TZ, 1.9, 1.2);
 
   // The dealer, on the house side of the table, from the 8-ANGLE ATLAS.

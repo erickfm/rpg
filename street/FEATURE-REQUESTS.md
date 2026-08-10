@@ -6118,3 +6118,30 @@ module's rule:
   tolled), range enough to carry the whole street.
 - **shop-bell** — the bodega's over-door bell, both directions through the
   cut-corner door, read off the entry/exit teleport's two ends.
+
+## 2026-08-09 — *"blackjack and roulettte need to be diagetic similar to all the other locked perspective UIs"*
+
+His verdict on the just-rebuilt casino: the slots are in-world but the two
+table games still present as floating panel cabinets. To one builder (both
+games — same ask, same files).
+
+- **Blackjack** — the FELT is the interface now. `ct/int-casino.ts` paints the
+  1.6 × 0.85 m tabletop with the game's own painter (idle state) on a mesh
+  named `blackjack-felt`; sitting down, `ct/blackjack.ts` hangs its live
+  canvas on that one mesh and the view locks straight down onto the table
+  (the drawer's grammar — a felt is horizontal, `faceYaw` squares you at the
+  dealer). Cards are dealt big (40 × 58 px at 320 px/m) and lie on the baize;
+  DEAL/BET/HIT/STAND/DOUBLE/SPLIT are printed regions of the felt you click
+  (keys still work); the dealer stands across the table in the room. All
+  rules kept — 6 decks, S17, 3:2, double/split, $2–$50 even stakes.
+- **Roulette** — lock onto the wheel-and-layout: the whole tabletop is one
+  printed baize (`roulette-felt`, 1.94 × 1.18 m, viewed side-on — layout
+  left, wheel right). The betting layout printed on it is where the chip
+  goes: click a number, RED/BLACK/ODD/EVEN, then click the wheel to spin.
+  The REAL 3D wheel head got numbered pockets in true European wheel order,
+  aligned so the ball rides home into the pocket the game drew; the 8-spin
+  history is printed on the baize by the wheel. Same bets, same 97.30%.
+
+Escape and standing both close either table from any state; a mid-hand exit
+cashes the rail out and forfeits only the bet already in the middle —
+blackjack's "not seated means not open" stays law, and roulette follows it.

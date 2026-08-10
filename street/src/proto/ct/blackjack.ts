@@ -834,18 +834,25 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
 // `scripts/L-blackjack-felt.mjs` assert the table through a recording context
 // rather than a screenshot (GOTCHAS §1).
 //
-// The user: "'Very nice and impressive' is about the presentation: the felt, the
-// cards, the chips, the deal animation, the dealer's hole card turning over.
-// Same 1997 idiom, same shared panel."
+// 2026-08-09, the user: *"blackjack and roulettte need to be diagetic similar
+// to all the other locked perspective UIs."* So this painter no longer draws a
+// PICTURE of a table into a floating cabinet — it paints the TABLETOP ITSELF.
+// The canvas hangs on the `blackjack-felt` mesh in ct/int-casino.ts (one mesh,
+// the mirror/calendar rule), the view locks straight down onto it, the world's
+// own wood rail frames it, and the dealer stands across the table in the room.
+// `paintTable(g, w, h, null)` is the same felt with nothing live on it — the
+// texture the world mesh wears whenever nobody is sitting at it, so the printed
+// felt and the played felt are ONE painter (shop.ts's one-painter rule).
 //
 // THE CARDS ARE DRAWN, NOT TYPED. The pips are pixel shapes rather than the
 // Unicode ♠♥♦♣, because a glyph is whatever font the browser happens to have and
 // this world draws everything by hand at a known density. It also means the
 // check can tell a heart from a diamond, which it could not do with text.
 
-/** Same logical size as the slot machine's face, so the two games sit in the
- *  same cabinet rather than resizing K's bezel between them. */
-export const FELT = { w: 320, h: 256 } as const;
+/** The tabletop canvas. 512 × 272 over the 1.6 × 0.85 m felt mesh is the same
+ *  aspect exactly (1.882) and an even 320 px/m — BUILDER-BRIEF §7b's
+ *  same-both-ways rule, so nothing stretches between build and play. */
+export const FELT = { w: 512, h: 272 } as const;
 
 /** What one chip costs, for the ONE question the felt has to answer about money:
  *  can this player buy in at all. The authority is `CREDIT` in `ct/slots.ts` and
@@ -868,19 +875,47 @@ const T = {
 
 /** Where things sit on the felt. Exported so the check can ask rather than
  *  hard-code — every coordinate hand-typed into a probe on this project has
- *  eventually been wrong (GOTCHAS §20). */
+ *  eventually been wrong (GOTCHAS §20). Canvas TOP is the dealer's side of the
+ *  table (the mesh's −z edge), which is where he stands in the room. */
 export const LAYOUT = {
-  shoe: { x: 292, y: 30 },
-  dealer: { x: 160, y: 56 },
-  player: { x: 160, y: 148 },
-  // 18, not 15. At 15 of a 26 px card the second card covered more than half
-  // the first and a five-card hand was a stack of edges; 18 leaves each card's
-  // corner and its pip readable, which is how a hand is actually fanned.
-  cardW: 26, cardH: 38, overlap: 18,
-  say: [22, 186, 276, 14] as const,
-  meterY: 204, meterH: 20,
-  btnY: 230, btnH: 15,
+  shoe: { x: 448, y: 46 },
+  dealer: { x: 256, y: 46 },
+  player: { x: 256, y: 158 },
+  // The overlap keeps each card's corner index readable — how a hand is
+  // actually fanned. Cards grew from 26 × 38 with the move onto the tabletop:
+  // *"cards … lie ON the felt, big and pixel-crisp."*
+  cardW: 40, cardH: 58, overlap: 26,
+  say: [126, 208, 242, 18] as const,
+  meterY: 208, meterH: 18,
+  btnY: 234, btnH: 30,
 } as const;
+
+/** The four action regions printed along the player's edge of the felt —
+ *  *"bet/hit/stand/double live as printed regions of the felt"* — declared once
+ *  and read by the painter AND the click handler (the loan form's BOX rule). */
+export const BTN = { x: 14, y: 234, w: 115, h: 30, gap: 8 } as const;
+export const buttonIx = (x: number, y: number): number | null => {
+  if (y < BTN.y || y > BTN.y + BTN.h) return null;
+  for (let i = 0; i < 4; i++) {
+    const bx = BTN.x + i * (BTN.w + BTN.gap);
+    if (x >= bx && x <= bx + BTN.w) return i;
+  }
+  return null;
+};
+
+export type BtnAct = 'deal' | 'betdown' | 'betup' | 'buyin' | 'hit' | 'stand' | 'double' | 'split';
+/** What the four regions mean RIGHT NOW. The rules speaking, never a fixed row
+ *  greyed out by the painter's own opinion — `moves` is the authority. */
+export const buttonsFor = (v: TableView): { label: string; act: BtnAct; live: boolean }[] =>
+  v.phase === 'betting'
+    ? [{ label: 'DEAL', act: 'deal', live: v.chips >= v.bet },
+       { label: 'BET −', act: 'betdown', live: true },
+       { label: 'BET +', act: 'betup', live: true },
+       { label: 'BUY IN', act: 'buyin', live: true }]
+    : [{ label: 'HIT', act: 'hit', live: v.moves.includes('hit') },
+       { label: 'STAND', act: 'stand', live: v.moves.includes('stand') },
+       { label: 'DOUBLE', act: 'double', live: v.moves.includes('double') },
+       { label: 'SPLIT', act: 'split', live: v.moves.includes('split') }];
 
 const PIP: Record<number, (g: Paint2D, x: number, y: number, s: number) => void> = {
   // 0 spade, 1 heart, 2 diamond, 3 club — the order of `SUITS`.
@@ -916,40 +951,45 @@ export function paintCard(
   const w = LAYOUT.cardW * Math.max(0.02, Math.abs(flip)), h = LAYOUT.cardH;
   const left = x - w / 2, top = y - h / 2 - lift;
   g.fillStyle = 'rgba(0,0,0,0.28)';
-  g.fillRect(left + 1, top + 2 + lift, w, h);            // its shadow stays on the felt
+  g.fillRect(left + 2, top + 3 + lift, w, h);            // its shadow stays on the felt
   if (!c) {
     // face down: the house's own back, a red lattice
     g.fillStyle = T.cardEdge; g.fillRect(left, top, w, h);
-    g.fillStyle = T.back; g.fillRect(left + 1, top + 1, w - 2, h - 2);
-    if (w > 8) {
+    g.fillStyle = T.back; g.fillRect(left + 2, top + 2, w - 4, h - 4);
+    if (w > 12) {
       g.fillStyle = T.backHi;
-      for (let i = 2; i < h - 2; i += 4) g.fillRect(left + 2, top + i, w - 4, 1);
+      for (let i = 4; i < h - 4; i += 5) g.fillRect(left + 4, top + i, w - 8, 2);
       g.fillStyle = T.gold;
-      g.fillRect(left + w / 2 - 2, top + h / 2 - 2, 4, 4);
+      g.fillRect(left + w / 2 - 3, top + h / 2 - 3, 6, 6);
     }
     return;
   }
   g.fillStyle = T.cardEdge; g.fillRect(left, top, w, h);
-  g.fillStyle = T.card; g.fillRect(left + 1, top + 1, w - 2, h - 2);
-  g.fillStyle = T.cardLo; g.fillRect(left + 1, top + h - 2, w - 2, 1);
-  if (w < 9) return;                                     // edge-on: no face to read
+  g.fillStyle = T.card; g.fillRect(left + 2, top + 2, w - 4, h - 4);
+  g.fillStyle = T.cardLo; g.fillRect(left + 2, top + h - 4, w - 4, 2);
+  if (w < 14) return;                                    // edge-on: no face to read
   const red = c.s === 1 || c.s === 2;
   g.fillStyle = red ? T.red : T.black;
-  g.font = 'bold 8px monospace'; g.textAlign = 'left';
-  g.fillText(RANKS[c.r], left + 2, top + 9);
-  PIP[c.s](g, x, y - lift + 4, 1);
+  g.font = 'bold 13px monospace'; g.textAlign = 'left';
+  g.fillText(RANKS[c.r], left + 4, top + 16);
+  // the pip, at 2× — the shapes are integer fillRects, so an integer scale
+  // keeps every edge on a texel and the mark pixel-crisp at the bigger size
+  g.save();
+  g.translate(x, y - lift + 8); g.scale(2, 2);
+  PIP[c.s](g, 0, 0, 1);
+  g.restore();
 }
 
 /** The value badge under a hand — what it is worth, said plainly, because a
  *  player should never be counting in their head at a table that knows. */
 const badge = (g: Paint2D, v: HandValue, x: number, y: number, lit: boolean) => {
   const label = v.bust ? 'BUST' : `${v.total}${v.soft && v.total !== 21 ? ' SOFT' : ''}`;
-  const w = Math.max(22, label.length * 5 + 8);
+  const w = Math.max(30, label.length * 7 + 10);
   g.fillStyle = v.bust ? T.lose : lit ? T.gold : T.feltLo;
-  g.fillRect(x - w / 2, y, w, 11);
+  g.fillRect(x - w / 2, y, w, 14);
   g.fillStyle = v.bust || lit ? T.black : T.ink;
-  g.font = 'bold 7px monospace'; g.textAlign = 'center';
-  g.fillText(label, x, y + 8);
+  g.font = 'bold 10px monospace'; g.textAlign = 'center';
+  g.fillText(label, x, y + 11);
 };
 
 /** One hand's cards, fanned, each flying in from the shoe if it is still
@@ -976,12 +1016,16 @@ const paintHand = (
       const q = (t - holeTurnT) / PACE.holeTurn;
       if (q >= 0 && q < 1) { flip = Math.abs(1 - 2 * q); card = q < 0.5 ? null : p.card; }
     }
-    paintCard(g, card, x, y, flip, k < 1 ? (1 - e) * 6 : 0);
+    paintCard(g, card, x, y, flip, k < 1 ? (1 - e) * 9 : 0);
   });
 };
 
 /**
- * Draw the table, letterboxed into whatever the panel gives us.
+ * Draw the TABLETOP, full bleed. This canvas IS the felt: it hangs on the
+ * `blackjack-felt` mesh, so there is no painted rail any more — the table's
+ * own wood and leather frame it in the world, which is the whole point of the
+ * move. `v` is `null` for the WORLD COPY: the same felt with nothing live on
+ * it, painted once at build time onto the mesh (one painter, two moments).
  *
  * `t` is the TABLE's own clock, the same one the cards were timed against —
  * not a wall clock. Handing it anything else would make cards fly from the
@@ -989,152 +1033,147 @@ const paintHand = (
  * caller to keep its own.
  */
 export function paintTable(
-  g: Paint2D, w: number, h: number, v: TableView,
+  g: Paint2D, w: number, h: number, v: TableView | null,
   /** the player's POCKETS, in the wallet's units. Same contract as the slot
    *  machine's: the table knows nothing about dollars and is handed the one
    *  fact it cannot derive — whether "BUY IN TO PLAY" is advice or a taunt. */
   cash?: number,
+  /** which printed region the pointer is over, from `buttonIx`, or null */
+  hover: number | null = null,
 ): void {
   const s = Math.max(0.1, Math.min(w / FELT.w, h / FELT.h));
   g.save();
-  g.fillStyle = T.rail; g.fillRect(0, 0, w, h);
+  g.fillStyle = T.felt; g.fillRect(0, 0, w, h);
   g.translate((w - FELT.w * s) / 2, (h - FELT.h * s) / 2);
   g.scale(s, s);
 
-  // the felt, and the rail round it
-  g.fillStyle = T.rail; g.fillRect(0, 0, FELT.w, FELT.h);
-  g.fillStyle = T.felt; g.fillRect(6, 6, FELT.w - 12, 190);
-  g.fillStyle = T.feltHi; g.fillRect(6, 6, FELT.w - 12, 1);
-  g.fillStyle = T.feltLo; g.fillRect(6, 195, FELT.w - 12, 1);
+  // the baize, with a printed border line where the wood begins
+  g.fillStyle = T.felt; g.fillRect(0, 0, FELT.w, FELT.h);
+  g.fillStyle = T.feltHi;
+  g.fillRect(4, 4, FELT.w - 8, 1); g.fillRect(4, 4, 1, FELT.h - 8);
+  g.fillRect(FELT.w - 5, 4, 1, FELT.h - 8);
+  g.fillStyle = T.feltLo; g.fillRect(4, FELT.h - 5, FELT.w - 8, 1);
 
   // THE ARC, and the two lines every real table has printed on it. The user
   // asked for the dealer's rule to be visible; `dealerRule()` derives it from
   // RULES so the printed line and the behaviour cannot drift.
-  // THE ARC. A real table has a curve swept across the felt between the dealer
-  // and the players, with the two printed lines sitting inside it. This was a
-  // `strokeRect` — an axis-aligned box, which is the one shape a betting arc is
-  // not, and it read as a stray empty frame around nothing.
   g.fillStyle = T.feltHi;
-  for (let x = 16; x < FELT.w - 16; x += 1) {
-    const k = (x - FELT.w / 2) / (FELT.w / 2 - 16);
-    g.fillRect(x, 96 + Math.round(k * k * 10), 1, 1);
+  for (let x = 28; x < FELT.w - 28; x += 1) {
+    const k = (x - FELT.w / 2) / (FELT.w / 2 - 28);
+    g.fillRect(x, 98 + Math.round(k * k * 14), 1, 1);
   }
-  g.textAlign = 'center'; g.font = 'bold 9px monospace';
+  g.textAlign = 'center'; g.font = 'bold 13px monospace';
   g.fillStyle = T.gold;
-  g.fillText('BLACKJACK PAYS 3 TO 2', FELT.w / 2, 114);
-  g.font = '7px monospace'; g.fillStyle = T.dim;
-  g.fillText(dealerRule(), FELT.w / 2, 126);
+  g.fillText('BLACKJACK PAYS 3 TO 2', FELT.w / 2, 118);
+  g.font = '9px monospace'; g.fillStyle = T.dim;
+  g.fillText(dealerRule(), FELT.w / 2, 132);
 
-  // the shoe, top right, which is where every card comes from
-  g.fillStyle = T.railHi; g.fillRect(LAYOUT.shoe.x - 12, LAYOUT.shoe.y - 16, 24, 30);
-  g.fillStyle = T.rail; g.fillRect(LAYOUT.shoe.x - 10, LAYOUT.shoe.y - 14, 20, 26);
-  g.fillStyle = T.back; g.fillRect(LAYOUT.shoe.x - 8, LAYOUT.shoe.y - 12, 16, 20);
-  // HOW MANY DECKS ARE IN IT, said on the table.
-  //
-  // The user asked for this in as many words — *"Real cards, real deck, shuffled
-  // — and if you shoe it, say how many"* — and I had said it in a comment, in a
-  // commit message and in the ledger, which is everywhere except the one place
-  // a player can see. A shoe with an unstated deck count is exactly the thing he
-  // was guarding against: six decks and one deck are different games and the
-  // difference is invisible from the outside.
-  //
-  // Read from RULES, so the placard and the shoe cannot disagree.
-  g.fillStyle = T.gold; g.font = 'bold 6px monospace'; g.textAlign = 'center';
-  g.fillText(`${RULES.decks} DECKS`, LAYOUT.shoe.x, LAYOUT.shoe.y + 22);
-  g.fillStyle = T.dim; g.font = '6px monospace';
-  g.fillText(String(Math.max(0, v.shoeLeft)), LAYOUT.shoe.x, LAYOUT.shoe.y + 30);
+  // the shoe, printed at the dealer's right hand, where every card comes from
+  g.fillStyle = T.railHi; g.fillRect(LAYOUT.shoe.x - 17, LAYOUT.shoe.y - 22, 34, 42);
+  g.fillStyle = T.rail; g.fillRect(LAYOUT.shoe.x - 14, LAYOUT.shoe.y - 19, 28, 36);
+  g.fillStyle = T.back; g.fillRect(LAYOUT.shoe.x - 11, LAYOUT.shoe.y - 16, 22, 28);
+  // HOW MANY DECKS ARE IN IT, said on the table — the user asked for this in
+  // as many words. Read from RULES, so the placard and the shoe cannot
+  // disagree.
+  g.fillStyle = T.gold; g.font = 'bold 8px monospace'; g.textAlign = 'center';
+  g.fillText(`${RULES.decks} DECKS`, LAYOUT.shoe.x, LAYOUT.shoe.y + 32);
+
+  // the betting spot, printed on the felt whether anyone is sitting or not —
+  // an empty table still says where the hand goes
+  if (!v || !v.hands.length) {
+    g.fillStyle = T.feltHi;
+    g.beginPath();
+    g.arc(LAYOUT.player.x, LAYOUT.player.y, 34, 0, Math.PI * 2);
+    g.arc(LAYOUT.player.x, LAYOUT.player.y, 32, 0, Math.PI * 2, true);
+    g.fill();
+  }
+
+  // ── THE WORLD COPY STOPS HERE — printed felt, no live game on it ──
+  if (!v) { g.restore(); return; }
+
+  g.fillStyle = T.dim; g.font = '8px monospace'; g.textAlign = 'center';
+  g.fillText(String(Math.max(0, v.shoeLeft)), LAYOUT.shoe.x, LAYOUT.shoe.y + 42);
 
   // ── the dealer ──
   if (v.dealer.cards.length) {
     paintHand(g, v.dealer, LAYOUT.dealer.x, LAYOUT.dealer.y, v.t, v.holeTurnT);
     const showing = v.dealer.cards.every((c) => !c.faceDown);
-    badge(g, v.dealer.value, LAYOUT.dealer.x, LAYOUT.dealer.y + 24, showing && v.phase === 'dealer');
+    badge(g, v.dealer.value, LAYOUT.dealer.x, LAYOUT.dealer.y + 38, showing && v.phase === 'dealer');
   }
 
   // ── the player, one hand or two ──
   v.hands.forEach((hand, i) => {
     const many = v.hands.length > 1;
-    const hx = many ? LAYOUT.player.x + (i === 0 ? -68 : 68) : LAYOUT.player.x;
+    const hx = many ? LAYOUT.player.x + (i === 0 ? -96 : 96) : LAYOUT.player.x;
     paintHand(g, hand, hx, LAYOUT.player.y, v.t, -1);
-    badge(g, hand.value, hx, LAYOUT.player.y + 24, i === v.active);
-    // THE STAKE, as a chip BESIDE the badge rather than under it. It was at
-    // `player.y + 44`, which is inside the message strip — the chip was drawn
-    // and then painted over, so a split hand's individual bet was invisible
-    // exactly when two of them mattered.
+    badge(g, hand.value, hx, LAYOUT.player.y + 36, i === v.active);
+    // THE STAKE, as a chip BESIDE the badge rather than under it — on a split
+    // the two hands' bets can differ and both have to be readable.
     g.fillStyle = T.chip;
-    g.beginPath(); g.arc(hx - 32, LAYOUT.player.y + 29, 7, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(hx - 58, LAYOUT.player.y + 43, 10, 0, Math.PI * 2); g.fill();
     g.fillStyle = T.goldLo;
-    g.beginPath(); g.arc(hx - 32, LAYOUT.player.y + 29, 4, 0, Math.PI * 2); g.fill();
-    g.fillStyle = T.black; g.font = 'bold 7px monospace'; g.textAlign = 'center';
-    g.fillText(String(hand.bet), hx - 32, LAYOUT.player.y + 32);
+    g.beginPath(); g.arc(hx - 58, LAYOUT.player.y + 43, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = T.black; g.font = 'bold 9px monospace'; g.textAlign = 'center';
+    g.fillText(String(hand.bet), hx - 58, LAYOUT.player.y + 46);
     if (hand.outcome) {
-      // OPPOSITE THE CHIP, on the badge's line — not above the cards, which is
-      // where it was and which is where the printed rule already is. It landed
-      // across "DEALER MUST DRAW TO 16" on every settled hand.
-      //
-      // Kept per-hand even though the message strip says it too, because on a
-      // SPLIT the two hands can differ and the strip can only say "1 WON 1
-      // LOST" — which does not tell you which.
+      // OPPOSITE THE CHIP, on the badge's line. Kept per-hand even though the
+      // message strip says it too, because on a SPLIT the two hands can differ
+      // and the strip can only say "1 WON 1 LOST" — which does not tell you
+      // which.
       const won = hand.outcome === 'win' || hand.outcome === 'blackjack';
       g.fillStyle = won ? T.win : hand.outcome === 'push' ? T.dim : T.lose;
-      g.font = 'bold 7px monospace'; g.textAlign = 'center';
-      g.fillText(hand.outcome.toUpperCase(), hx + 34, LAYOUT.player.y + 32);
+      g.font = 'bold 10px monospace'; g.textAlign = 'center';
+      g.fillText(hand.outcome.toUpperCase(), hx + 58, LAYOUT.player.y + 46);
     }
     if (many && i === v.active) {
       g.strokeStyle = T.gold; g.lineWidth = 1;
-      g.strokeRect(hx - 44.5, LAYOUT.player.y - 23.5, 89, 60);
+      g.strokeRect(hx - 64.5, LAYOUT.player.y - 33.5, 129, 76);
     }
   });
 
   // ── what the table is saying ──
   const [sx, sy, sw, sh] = LAYOUT.say;
-  g.fillStyle = T.rail; g.fillRect(sx, sy, sw, sh);
-  g.fillStyle = T.railHi; g.fillRect(sx, sy, sw, 1);
-  g.textAlign = 'center'; g.font = '7px monospace';
+  g.fillStyle = T.feltLo; g.fillRect(sx, sy, sw, sh);
+  g.fillStyle = T.feltHi; g.fillRect(sx, sy, sw, 1);
+  g.textAlign = 'center'; g.font = '9px monospace';
   g.fillStyle = v.phase === 'settle' || v.phase === 'paying' ? T.win : T.dim;
   // Telling a player with nothing in their pockets to BUY IN is the same taunt
   // the slot machine used to give — see the note beside `NO CASH IN YOUR
   // POCKETS` in ct/slots.ts. One fact, two games, said the same way.
   const says = (v.phase === 'betting' && v.chips < v.bet
     && cash !== undefined && cash < CHIP_HINT) ? 'NO CASH IN YOUR POCKETS' : v.says;
-  if (says) g.fillText(says, FELT.w / 2, sy + 10);
+  if (says) g.fillText(says, sx + sw / 2, sy + 13);
 
-  // ── the meters ──
+  // ── the meters, printed like a scoreboard let into the felt ──
   const meter = (mx: number, mw: number, label: string, val: string, lit: boolean) => {
     g.fillStyle = '#12180f'; g.fillRect(mx, LAYOUT.meterY, mw, LAYOUT.meterH);
     g.strokeStyle = T.railHi; g.lineWidth = 1;
     g.strokeRect(mx + 0.5, LAYOUT.meterY + 0.5, mw - 1, LAYOUT.meterH - 1);
-    g.fillStyle = '#2c4a24'; g.font = '6px monospace'; g.textAlign = 'left';
-    g.fillText(label, mx + 4, LAYOUT.meterY + 8);
+    g.fillStyle = '#2c4a24'; g.font = '7px monospace'; g.textAlign = 'left';
+    g.fillText(label, mx + 4, LAYOUT.meterY + 13);
     g.fillStyle = lit ? T.win : '#7ae05a';
-    g.font = 'bold 10px monospace'; g.textAlign = 'right';
-    g.fillText(val, mx + mw - 4, LAYOUT.meterY + 17);
+    g.font = 'bold 12px monospace'; g.textAlign = 'right';
+    g.fillText(val, mx + mw - 4, LAYOUT.meterY + 14);
   };
-  meter(22, 130, 'CHIPS', String(v.chips), v.phase === 'paying');
-  meter(160, 66, 'BET', String(v.bet), false);
-  meter(232, 66, 'PAID', String(v.paid), v.phase === 'paying');
+  meter(14, 104, 'CHIPS', String(v.chips), v.phase === 'paying');
+  meter(374, 56, 'BET', String(v.bet), false);
+  meter(436, 62, 'PAID', String(v.paid), v.phase === 'paying');
 
-  // ── the buttons ──
+  // ── the action regions, printed along the player's edge of the felt ──
   //
   // What the TABLE says you may do, never a fixed row greyed out by the
-  // painter's own opinion. `moves` is the rules speaking; a button drawn live
-  // here and refused by `act` would be the interface disagreeing with the game,
-  // which is the fault this whole feature is arranged to prevent.
-  const btns: [string, string, boolean][] = v.phase === 'betting'
-    ? [['DEAL', 'deal', v.chips >= v.bet], ['BET -', 'betdown', true], ['BET +', 'betup', true],
-      ['BUY IN', 'buyin', true]]
-    : [['HIT', 'hit', v.moves.includes('hit')], ['STAND', 'stand', v.moves.includes('stand')],
-      ['DOUBLE', 'double', v.moves.includes('double')], ['SPLIT', 'split', v.moves.includes('split')]];
-  const bw = (FELT.w - 44 - 3 * 6) / 4;
-  btns.forEach(([label, , live], i) => {
-    const bx = 22 + i * (bw + 6);
-    g.fillStyle = live ? T.gold : '#4a4842';
-    g.fillRect(bx, LAYOUT.btnY, bw, LAYOUT.btnH);
-    g.fillStyle = live ? '#f0d68a' : '#5a5852';
-    g.fillRect(bx, LAYOUT.btnY, bw, 1);
-    g.fillStyle = live ? T.black : '#7a7872';
-    g.font = 'bold 7px monospace'; g.textAlign = 'center';
-    g.fillText(label, bx + bw / 2, LAYOUT.btnY + 10);
+  // painter's own opinion. `buttonsFor` reads `moves` — the rules speaking —
+  // and the click handler reads the SAME table, so a region drawn live here
+  // and refused by `act` cannot happen.
+  buttonsFor(v).forEach((b, i) => {
+    const bx = BTN.x + i * (BTN.w + BTN.gap);
+    g.fillStyle = b.live ? (i === hover ? '#f0d68a' : T.gold) : '#3c443c';
+    g.fillRect(bx, BTN.y, BTN.w, BTN.h);
+    g.fillStyle = b.live ? '#f8e6ac' : '#4c544c';
+    g.fillRect(bx, BTN.y, BTN.w, 2);
+    g.fillStyle = b.live ? T.black : '#6c746c';
+    g.font = 'bold 12px monospace'; g.textAlign = 'center';
+    g.fillText(b.label, bx + BTN.w / 2, BTN.y + 20);
   });
 
   g.restore();
@@ -1241,26 +1280,31 @@ export function register(ctx: CtxBuild): void {
     table.buyIn(chips);
   };
 
+  /** which printed region the pointer is over, for the painter's wash */
+  let hover: number | null = null;
   void Promise.all([import('./hud'), import('./slots')]).then(([{ makePanel }, slots]) => {
     CHIP = slots.CREDIT;
     setChipValue(CHIP);          // one rate, and the felt reads the same one
     panel = makePanel({
-      // FRAMELESS. `paintTable` already paints a complete table — rail, felt,
-      // and its own `BLACKJACK PAYS 3 TO 2` legend (line 1024) — filling the
-      // whole FELT.w×FELT.h canvas. The framework's moulded 'machine' bezel
-      // used to wrap a SECOND rail around that picture of a first one and
-      // stamp the game's name a second time in its title bar. Item 0c,
-      // *"i never want there to be menus popping up unless they are embedded
-      // to look as if they are in the actual game."*
+      // ON THE FELT ITSELF. 2026-08-09: *"blackjack and roulettte need to be
+      // diagetic similar to all the other locked perspective UIs."* The canvas
+      // hangs on the `blackjack-felt` mesh ct/int-casino.ts names for it, and
+      // the view locks straight down onto the table — the drawer's grammar,
+      // not the calendar's, because a felt is horizontal and its normal
+      // carries no heading (`faceYaw` says which way to square up: the seats
+      // face −z, at the dealer). Cards land ON the table, the action regions
+      // are printed on the baize, and the world's own rail and dealer frame
+      // it. `mesh()` returning null still degrades to the screen-space
+      // cabinet, the framework's own promise.
       id: 'ct-blackjack',
       w: FELT.w, h: FELT.h, scale: 2,
       chrome: 'none',
       hint: () => (table.view().phase === 'betting'
         ? (ctx.purse.cash < CHIP
-          ? 'SPACE deal · +/- bet · C cash out'          // no I: nothing to buy in with
-          : 'SPACE deal · +/- bet · I buy in $20 · C cash out')
-        : 'H hit · S stand · D double · P split'),
-      draw: (g, w, h) => paintTable(g, w, h, table.view(), ctx.purse.cash),
+          ? 'click the felt · SPACE deal · +/− bet · C cash out'   // no I: nothing to buy in with
+          : 'click the felt · SPACE deal · +/− bet · I buy in $20 · C cash out')
+        : 'click the felt · H hit · S stand · D double · P split'),
+      draw: (g, w, h) => paintTable(g, w, h, table.view(), ctx.purse.cash, hover),
       key: (k) => {
         const v = table.view();
         if (v.phase === 'betting') {
@@ -1277,10 +1321,38 @@ export function register(ctx: CtxBuild): void {
         }
         panel?.repaint();
       },
+      surface: {
+        mesh: () => ctx.scene.getObjectByName('blackjack-felt') ?? null,
+        // the eye clamps to 1.75 m over the floor (`poseFor`), so 0.92 above
+        // the 0.83 m felt lands exactly on the clamp — as high over the table
+        // as a body gets. The fov is what fits the 1.6 m width, derived with
+        // boardStandoff's pessimistic 1.5 window aspect.
+        standoff: 0.92,
+        fov: 62,
+        faceYaw: 0,
+        hot: (x, y) => {
+          const i = buttonIx(x, y);
+          return i !== null && buttonsFor(table.view())[i].live;
+        },
+        move: (x, y) => { hover = buttonIx(x, y); },
+        click: (x, y) => {
+          const i = buttonIx(x, y);
+          if (i === null) return;
+          const b = buttonsFor(table.view())[i];
+          if (!b.live) return;
+          if (b.act === 'deal') table.deal();
+          else if (b.act === 'betdown') table.betBy(-1);
+          else if (b.act === 'betup') table.betBy(1);
+          else if (b.act === 'buyin') buyIn();
+          else table.act(b.act);
+          panel?.repaint();
+        },
+      },
       // Same contract as the slot machine's: the chips always come back, so
       // "what you win is in your wallet when you stand up" is true by
-      // construction rather than by remembering to press a button.
-      onClose: () => { dismissed = seatedAtTable(); cashOut(); },
+      // construction rather than by remembering to press a button — a mid-hand
+      // exit forfeits only the bet already in the middle, as at a real table.
+      onClose: () => { hover = null; dismissed = seatedAtTable(); cashOut(); },
     });
   });
 
