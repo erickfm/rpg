@@ -128,6 +128,14 @@ export const SKATEBOARD = defineItem({
 //            0.12 m threshold is the audio module's own — slope flicker
 //            (FALL_MIN_DROP, fp.ts) stays under it, so riding down the road's
 //            crown does not levitate the picture.
+//   PITCH    *"make it more diagetic, so looking up you shouldnt see a
+//            skateboard, looking down you should, etc."* — the whole picture
+//            rides the camera's own pitch (negative is down, fp.ts's
+//            convention), sliding under the frame's bottom edge as the eye
+//            comes level and back in as it drops. CONTINUOUS in pitch, so a
+//            half glance shows half a deck and nothing ever pops: gone at
+//            level or above, fully in by 0.7 rad down — a rider's glance,
+//            about half the 1.3 rad pitch limit.
 
 const SCALE = 3;
 let cv: HTMLCanvasElement | null = null;
@@ -163,13 +171,19 @@ function drawBoard(t: number): void {
   if (!g) return;
   g.clearRect(0, 0, W, H);
   const rs = rideState();
+  // seen by looking down — see PITCH in the header. 0 at level, 1 at 0.7 rad
+  // down, and the slide below is a straight line between, so the deck tracks
+  // the glance itself rather than snapping at a threshold.
+  const seen = Math.min(1, Math.max(0, -rs.pitch / 0.7));
+  if (seen <= 0) return;                          // level or up: no board in frame
+  const slide = Math.round((1 - seen) * 46);
   const air = rs.airY > 0.12;
   const lift = Math.round(Math.min(rs.airY, 0.55) / 0.55 * 11);
   const rattle = !air && rs.speed > 1
     ? Math.round(Math.random() * Math.min(rs.speed / 5, 1.4)) : 0;
   const pump = rs.speed > 0.4 ? Math.round(Math.sin(t / 420)) : 0;
   const bx = W >> 1;
-  const base = H + 4 - lift + rattle + pump;      // the tail row, just under frame
+  const base = H + 4 + slide - lift + rattle + pump;   // the tail row, at/under frame
   const ROWS = 30, W0 = 66, W1 = 44;
 
   for (let r = 0; r < ROWS; r++) {

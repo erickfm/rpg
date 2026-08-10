@@ -1734,16 +1734,17 @@ export function register(ctx: CtxBuild): void {
       rollLoop = { g, s, cur: 0 };
     }
     if (rollLoop) {
-      // gain rides the speed; the 0.18 glide is quick enough that an ollie
-      // punches a hole in the roll and slow enough that a push is a swell.
+      // gain rides the speed — full voice at the 7.2 cruise; the 0.18 glide
+      // is quick enough that an ollie punches a hole in the roll and slow
+      // enough that a push is a swell.
       const wantR = onBoard && !boardAir && rs.speed > 0.3
-        ? LVL.skateRoll * Math.min(rs.speed / 6, 1) : 0;
+        ? LVL.skateRoll * Math.min(rs.speed / 7.2, 1) : 0;
       rollLoop.cur = glide(rollLoop.cur, wantR, f.dt, 0.18);
       rollLoop.g.gain.value = rollLoop.cur;
       // pitch climbs a little with speed — wheels, not an engine, so the ride
-      // of the rate is shallow: 0.9 at a push-off, ~1.35 flat out
+      // of the rate is shallow: 0.9 at a push-off, ~1.43 at a DEX-maxed push
       rollLoop.s.playbackRate.value = glide(rollLoop.s.playbackRate.value,
-        0.88 + 0.055 * Math.min(rs.speed, 8.6), f.dt, 0.30);
+        0.88 + 0.055 * Math.min(rs.speed, 10.2), f.dt, 0.30);
     }
     // the ollie POP — counted at fp.ts's own jump gate, so a kerb rolled off
     // can never fire it — and the wheels slapping back DOWN, on the height

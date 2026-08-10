@@ -276,17 +276,35 @@ const BHOP_DECAY = 2.5;
  * carving reads better than drifting, and a board that understeered into the
  * road would be a worse feel than one that turns on a texel.
  *
- * WHAT COMPOSES — deliberately all of it: DEX through the same `speedMul()`
- * every gait takes, the crouch cut (a tucked rider is doing a manual, slower),
- * and the bunny-hop stack, because a hop off a board is an ollie and chaining
- * them is the same hidden tech it is on foot. The worst legal step is
- * therefore 7.5 × 1.15 × 1.25 = 10.78 m/s × the 0.05 s dt clamp = 0.539 m —
- * still well inside the 0.691 m reject band the bhop block derives, so
- * nothing tunnels. The fall detector's walked-there bound takes
- * `max(run, RIDE_PUSH)` below for the same reason.
+ * FASTER THAN SPRINT, BY INSTRUCTION — *"make the skateboard faster than
+ * sprint"* (2026-08-10; it shipped an hour earlier at 6.0/7.5, where a flat
+ * 6.4 sprint beat casual riding and the reward undersold itself). Cruise 7.2
+ * beats the sprint with no effort at all; the push is 8.8. The podium, base
+ * speeds: push 8.8 > chained sprint 8.0 > cruise 7.2 > sprint 6.4 — chaining
+ * hops on foot can still edge a lazy cruise, and nothing on foot touches a
+ * push, which is the right order for a reward.
+ *
+ * WHAT COMPOSES: DEX through the same `speedMul()` every gait takes, and the
+ * crouch cut (a tucked rider is doing a manual, slower). **NOT the bunny-hop
+ * stack** — *"no bhop on skateboard btw"* (2026-08-10, reversing this
+ * block's own first call). An ollie neither builds nor spends hop speed, and
+ * a stack chained up on foot dies the frame you step on the deck — the ride
+ * branch zeroes it, so it cannot carry in, and whatever the jump gate books
+ * at an ollie's takeoff is dead one frame later without ever being read.
+ *
+ * THE COLLISION MATH, re-derived without the stack: the worst legal ridden
+ * step is 8.8 × 1.15 DEX × the 0.05 s dt clamp = 0.506 m, inside the 0.691 m
+ * reject band the bhop block derives — nothing tunnels, with more margin
+ * than the on-foot worst case (9.2 m/s → 0.46 m) had. THE CEILING: 0.691 /
+ * 0.05 / 1.15 = 12.0 m/s, so `RIDE_PUSH` may not pass 12.0 while DEX keeps
+ * its cap — re-derive before raising either, and re-derive again if the hop
+ * stack is ever let back onto the board. The fall detector's walked-there
+ * bound covers whichever gait is faster: chained sprint on foot
+ * (run × 1.25) or a flat push — see `max(run * (1 + BHOP_GAIN), RIDE_PUSH)`
+ * below.
  */
-const RIDE_SPEED = 6.0;
-const RIDE_PUSH = 7.5;
+const RIDE_SPEED = 7.2;
+const RIDE_PUSH = 8.8;
 /** how quickly a push takes hold, 1/s — ~95% of target inside a second */
 const RIDE_ACCEL = 3.0;
 /** how quickly a coast bleeds off, 1/s — let go at cruise and you roll on for
@@ -313,10 +331,15 @@ export function riding(): boolean { return ride; }
  *            a real hop clears 0.12 in its first frames) and stay honest on
  *            hills.
  *   `hops`   counts REAL jumps taken while riding — the ollies. An edge on
- *            this is how audio tells a pop from a kerb rolled off.
+ *            this is how audio tells a pop from a kerb rolled off. (They are
+ *            jumps only: *"no bhop on skateboard"* — the stack is zeroed
+ *            every ridden frame, so an ollie carries no earned speed.)
+ *   `pitch`  the camera's own pitch, radians, negative looking down — the
+ *            deck overlay slides into view with it, because a thing under
+ *            your feet is seen by looking at your feet.
  */
-const RIDE_VIEW = { speed: 0, lean: 0, airY: 0, hops: 0 };
-export function rideState(): { speed: number; lean: number; airY: number; hops: number } {
+const RIDE_VIEW = { speed: 0, lean: 0, airY: 0, hops: 0, pitch: 0 };
+export function rideState(): { speed: number; lean: number; airY: number; hops: number; pitch: number } {
   return RIDE_VIEW;
 }
 
@@ -898,18 +921,22 @@ export class FPRig {
       // off the board, the momentum is gone — and the published view runs
       // down with it, so a re-mount cannot open on a stale carve
       this.glide = 0;
-      RIDE_VIEW.speed = 0; RIDE_VIEW.lean = 0; RIDE_VIEW.airY = 0;
+      RIDE_VIEW.speed = 0; RIDE_VIEW.lean = 0; RIDE_VIEW.airY = 0; RIDE_VIEW.pitch = 0;
     }
     if (ride) {
       // ── ON THE BOARD (see the RIDE constants block) ──────────────────────
-      // The base is REPLACED — cruise or push, never walk/sprint — and every
-      // multiplier the feet take still composes: DEX, the crouch cut, the hop
-      // stack. Speed carries momentum through `glide`; direction stays on the
-      // keys, so a coast rolls straight on along the last thing asked for.
-      // The step below goes through the SAME clamp and the SAME two `blocked`
-      // tests as walking — nothing about collision knows about wheels.
+      // The base is REPLACED — cruise or push, never walk/sprint — and DEX
+      // and the crouch cut still compose. The hop stack does NOT: *"no bhop
+      // on skateboard btw"* — zeroed here every ridden frame, which is both
+      // the no-carry-in rule and the cleanup of whatever an ollie's takeoff
+      // just booked at the jump gate. Speed carries momentum through `glide`;
+      // direction stays on the keys, so a coast rolls straight on along the
+      // last thing asked for. The step below goes through the SAME clamp and
+      // the SAME two `blocked` tests as walking — nothing about collision
+      // knows about wheels.
+      this.bhop = 0;
       const sp = (input.keys.has('shift') ? RIDE_PUSH : RIDE_SPEED) * speedMul()
-        * (1 - 0.55 * this.stanceT) * (1 + BHOP_GAIN * this.bhop);
+        * (1 - 0.55 * this.stanceT);
       if (moving) this.rideDir.copy(mv).normalize();
       const target = moving ? sp : 0;
       this.glide += (target - this.glide)
@@ -927,6 +954,7 @@ export class FPRig {
       // is last frame's, settled, the same one every collision test above took.
       RIDE_VIEW.speed = this.glide;
       RIDE_VIEW.airY = this.airY;
+      RIDE_VIEW.pitch = this.pitch;
       const strafe = (input.keys.has('d') ? 1 : 0) - (input.keys.has('a') ? 1 : 0);
       RIDE_VIEW.lean += (strafe - RIDE_VIEW.lean) * Math.min(1, dt * 7);
     } else if (moving) {
@@ -1138,9 +1166,12 @@ export class FPRig {
     // picker answers for.
     const walked = Math.hypot(this.pos.x - this.lastX, this.pos.z - this.lastZ);
     const dropped = this.support - gy;
-    // `max(run, RIDE_PUSH)`: the board's push can outrun the shipping sprint,
-    // and a kerb rolled off at speed must still read as a fall, not a warp.
-    if (dropped > FALL_MIN_DROP && walked <= Math.max(this.run, RIDE_PUSH) * speedMul() * (1 + BHOP_GAIN) * dt + 1e-3) {
+    // The bound covers whichever gait is faster this side of a warp: the
+    // chained sprint on foot carries the hop stack (× 1.25), the board's push
+    // does not (*"no bhop on skateboard"*) but starts higher — so each takes
+    // exactly its own multiplier, and a kerb rolled off at full push still
+    // reads as a fall, not a warp.
+    if (dropped > FALL_MIN_DROP && walked <= Math.max(this.run * (1 + BHOP_GAIN), RIDE_PUSH) * speedMul() * dt + 1e-3) {
       this.airY += dropped;
     }
     this.support = gy;
