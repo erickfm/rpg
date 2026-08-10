@@ -6297,3 +6297,25 @@ audio.ts is untouched. The fall-vs-teleport bound in fp.ts was widened to
 include the DEX and bhop multipliers it had quietly outgrown.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"as the player gets more sleepy, dont make it that theres text on screen make it so theres a vignette on screen getting darker, closing in until you pass out. maybe lots of blinking before the true end"*
+
+Went to the fatigue builder (its system). The two HUD warning lines died
+("you can't stop yawning…" / "you can barely keep your eyes open…") — the
+body is the gauge now, all in `ct/fatigue.ts`. A VIGNETTE (a CSS
+radial-gradient DOM layer, z 7 with the night wash, under all HUD chrome —
+a stated choice: the no-gradients rule is world texture grammar, this is a
+screen effect like the fade) appears once two-thirds of the awake window is
+spent, eased quadratically from a soft rim to a tunnel; at the limit the
+clear centre is still 38% of the screen — closing in, never closed. In the
+LAST HOUR of margin, involuntary BLINKS: two black bands meet in the middle
+(z 17 — over prompt and note, eyes shut see no HUD; under the fade and the
+GAME OVER card), fast lid-down, slower lid-up, ~every 10 s and 330 ms at the
+hour mark to ~every 2.5 s and 730 ms at the end, ±30% jitter, so the
+pass-out arrives as the blink that doesn't open. Blinks never start while a
+panel, a fade or the GAME OVER card is up and abort instantly if one
+arrives. Both layers are pointer-events:none, swallow no input, and clear
+instantly on sleep, pass-out and wake. A stimulant dose pushes the rim out
+and stills the blinking the same frame — the dose reading as relief is the
+feedback loop. The pass-out event itself (fade, 1–10% cash roll, 10% health,
+wake where you slept) is untouched.

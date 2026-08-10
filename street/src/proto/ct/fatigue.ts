@@ -1,5 +1,6 @@
 import { BUILD, ORDER as FRAME, type CtxBuild } from './ctx';
 import { screenFade, screenFading, hudNote, panelUp } from './hud';
+import { gameOverUp } from './gameover';
 import { defineItem, mBox, mCyl, mOf } from './inventory';
 import { COFFEE } from './goods';
 import { registerSlice, flush } from './save';
@@ -86,10 +87,143 @@ let boostMin = 0;
 let slept: { x: number; z: number; yaw: number; gy: number } | null = null;
 
 let lastMin: number | null = null;
-let warn4 = false, warn1 = false;
 let passing = false;
 
 function limitMin(): number { return BASE_MIN + boostMin; }
+
+// ══ THE BODY AS THE GAUGE — vignette and blinks, no text ═══════════════════
+//
+// *"as the player gets more sleepy, dont make it that theres text on screen
+//  make it so theres a vignette on screen getting darker, closing in until
+//  you pass out. maybe lots of blinking before the true end"*   (2026-08-09)
+//
+// That KILLS the two HUD warning lines this module shipped with ("you can't
+// stop yawning…", "you can barely keep your eyes open…") — the body tells you
+// now. Two screen-space DOM layers, built the way `ct/hud.ts` builds the fade
+// and the night wash (getElementById-or-create, fixed, inset 0,
+// pointer-events none — they swallow NOTHING, so Escape owes them nothing):
+//
+//   the VIGNETTE, z 7 — a CSS radial-gradient, and that is a stated choice:
+//   the no-gradients rule is world texture grammar (`glowT`'s domain, paint on
+//   meshes); this is a screen-space effect like the fade div, which is exactly
+//   as smooth. It sits with the night wash (5), UNDER every piece of HUD
+//   chrome — the highlight (9), the watch (11), the stamp (12), the note
+//   (13), the panel backdrop (14) — because it is the state of his eyes, not
+//   a panel.
+//
+//   the LIDS, z 17 — two black bands closing from the top and bottom edges to
+//   meet at the middle, which is what a blink IS. Over the prompt (16) and the
+//   note (13) deliberately: eyes shut see no HUD. Under the fade (20) and far
+//   under the GAME OVER card (60), and a blink never STARTS while a panel, a
+//   fade or the card is up — `panelUp() || screenFading() || gameOverUp()` —
+//   and aborts instantly if one arrives mid-blink, so it can never read as
+//   the UI breaking.
+//
+// Driven per frame off the same margin the pass-out reads, so a stimulant
+// that buys hours back visibly pushes the rim out and stills the blinking —
+// the dose reading as relief is the whole feedback loop now.
+
+let vigDiv: HTMLDivElement | null = null;
+let lidDiv: HTMLDivElement | null = null;
+let vigLast = -1;
+/** the blink in progress, in wall-clock ms measured from `Frame.t` seconds */
+let blink: { t0: number; down: number; hold: number; up: number } | null = null;
+/** wall-clock second the next involuntary blink fires; 0 = re-seed the grace */
+let nextBlink = 0;
+
+function overlay(id: string, z: number): HTMLDivElement | null {
+  try {
+    let d = document.getElementById(id) as HTMLDivElement | null;
+    if (!d) {
+      d = document.createElement('div');
+      d.id = id;
+      d.style.cssText = `position:fixed;inset:0;opacity:0;pointer-events:none;z-index:${z};`;
+      document.body.appendChild(d);
+    }
+    return d;
+  } catch { return null; }        // no DOM, no gauge — the world still runs
+}
+
+/**
+ * The rim, from how far through the awake window he is (0…1).
+ *
+ * Nothing at all until TWO-THIRDS of the window is spent (hour 16 of a plain
+ * 24), then a soft dark ring that deepens and closes over the last third —
+ * eased quadratically, so it arrives as a suspicion and finishes as a tunnel.
+ * At t = 1 the clear centre is still 38% of the screen and the edge alpha
+ * 0.85: CLOSING IN, NEVER CLOSED — the last of the dark is the pass-out's
+ * own fade, not this.
+ */
+function drawVignette(frac: number): void {
+  const t = Math.min(1, Math.max(0, (frac - 2 / 3) * 3));
+  const e = t * t;
+  if (Math.abs(e - vigLast) < 0.004) return;     // only touch style on change
+  vigLast = e;
+  vigDiv ??= overlay('ct-vignette', 7);
+  if (!vigDiv) return;
+  if (e <= 0) { vigDiv.style.opacity = '0'; return; }
+  const hole = 95 - 57 * e;                      // 95% clear -> 38% clear
+  const alpha = 0.85 * e;
+  vigDiv.style.background =
+    `radial-gradient(ellipse at center, rgba(0,0,0,0) ${hole.toFixed(1)}%, rgba(0,0,0,${alpha.toFixed(3)}) 100%)`;
+  vigDiv.style.opacity = '1';
+}
+
+/** both lids, 0 open … 1 met in the middle. */
+function setLids(c: number): void {
+  lidDiv ??= overlay('ct-lids', 17);
+  if (!lidDiv) return;
+  if (c <= 0) { lidDiv.style.opacity = '0'; return; }
+  const h = Math.min(1, c) * 50;
+  const lo = h.toFixed(2), hi = (100 - h).toFixed(2);
+  lidDiv.style.background =
+    `linear-gradient(#000 ${lo}%, transparent ${lo}%, transparent ${hi}%, #000 ${hi}%)`;
+  lidDiv.style.opacity = '1';
+}
+
+/**
+ * ── BLINKING BEFORE THE TRUE END — the last hour of margin ────────────────
+ *
+ * Fast lid-down, slower lid-up, which is what an involuntary blink is. Rare
+ * and quick when the hour begins; longer and closer together as the collapse
+ * nears, so the pass-out arrives as the blink that doesn't open:
+ *
+ *   60 min left   ~every 10 s,  90 / 40 / 200 ms  (down / held shut / up)
+ *    0 min left   ~every 2.5 s, 90 / 180 / 460 ms
+ *
+ * with ±30% jitter on the gap, because a metronome is a mechanism and a body
+ * is not. Driven piecewise per frame off `Frame.t` — no setTimeout to leak,
+ * nothing to cancel except by writing the state null.
+ */
+function blinkStep(t: number, leftMin: number): void {
+  if (blink) {
+    const gated = screenFading() || panelUp() || gameOverUp();
+    const ms = (t - blink.t0) * 1000;
+    const { down, hold, up } = blink;
+    if (gated || ms >= down + hold + up) { blink = null; setLids(0); return; }
+    const c = ms < down ? ms / down
+      : ms < down + hold ? 1
+      : 1 - (ms - down - hold) / up;
+    setLids(c);
+    return;
+  }
+  if (leftMin > 60 || passing) { nextBlink = 0; return; }
+  if (screenFading() || panelUp() || gameOverUp()) { nextBlink = Math.max(nextBlink, t + 1.5); return; }
+  if (nextBlink === 0) { nextBlink = t + 4 + Math.random() * 4; return; }   // the grace
+  if (t < nextBlink) return;
+  const u = 1 - Math.max(0, leftMin) / 60;
+  blink = { t0: t, down: 90, hold: 40 + 140 * u, up: 200 + 260 * u };
+  nextBlink = t + (10 - 7.5 * u) * (0.7 + Math.random() * 0.6);
+}
+
+/** Sleep, pass-out and the wipe all owe an instantly clear screen. */
+function clearApproach(): void {
+  blink = null;
+  nextBlink = 0;
+  vigLast = -1;
+  setLids(0);
+  if (vigDiv) vigDiv.style.opacity = '0';
+}
 
 /** One dose. The item's `use.act` calls this; the bag consumes the item. */
 function dose(id: string, line: string): void {
@@ -203,8 +337,9 @@ function passOut(ctx: CtxBuild): void {
       setHealth(Math.max(1, health() - Math.ceil(maxHealth() * 0.10)));
       ctx.player.jumpTo(wake.x, wake.z, wake.yaw, wake.gy);
       ctx.clock.advance(mins, { overSeconds: 0 });
-      awakeMin = 0; boostMin = 0; warn4 = warn1 = false;
+      awakeMin = 0; boostMin = 0;
       slept = { ...wake };
+      clearApproach();      // he wakes with open eyes and a clear rim
     },
     outMs: 520, holdMs: 140, inMs: 620,
   }).then(() => {
@@ -258,7 +393,7 @@ export function register(ctx: CtxBuild): void {
     act: () => { dose('COFFEE', 'burnt or not, it works. six more hours in you.'); },
   };
 
-  ctx.onFrame(() => {
+  ctx.onFrame((f) => {
     const t = ctx.clock.now().totalMin;
     if (lastMin === null) { lastMin = t; return; }
     const d = t - lastMin;
@@ -270,7 +405,8 @@ export function register(ctx: CtxBuild): void {
         // A sleep cut — the bed, the hotel, or this module's own pass-out.
         // Reset the stretch and remember where he was standing when the
         // screen went black: that is where "wherever you slept" is.
-        awakeMin = 0; boostMin = 0; warn4 = warn1 = false;
+        awakeMin = 0; boostMin = 0;
+        clearApproach();
         slept = {
           x: ctx.player.x(), z: ctx.player.z(),
           yaw: ctx.player.yaw(), gy: ctx.player.gy(),
@@ -289,17 +425,11 @@ export function register(ctx: CtxBuild): void {
     awakeMin += d;
     const left = limitMin() - awakeMin;
 
-    // The warnings re-arm when a stimulant buys the margin back, so a coffee
-    // at hour 21 means the yawning starts again at hour 26, not never.
-    if (left > 240) warn4 = false;
-    if (left > 60) warn1 = false;
-    if (left <= 60 && !warn1) {
-      warn1 = warn4 = true;
-      hudNote('you can barely keep your eyes open. find a bed.', 4500);
-    } else if (left <= 240 && !warn4) {
-      warn4 = true;
-      hudNote("you can't stop yawning. you need sleep soon.", 4000);
-    }
+    // The body is the gauge — no text. A dose that buys hours back drops
+    // `awakeMin / limitMin()` in the same frame, so the rim visibly recedes
+    // and the blinking stills the moment the coffee lands.
+    drawVignette(awakeMin / limitMin());
+    blinkStep(f.t, left);
 
     if (left <= 0) passOut(ctx);
   }, FRAME.LATE);
