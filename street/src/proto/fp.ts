@@ -230,17 +230,26 @@ const AIR_CROUCH_DIP = 0.15;
  *     the hop's own ~0.57 s hang, and `jumpHeld` still demands a release, so
  *     holding space gets you nothing — the re-press has to LAND in the window,
  *     and that timing is the skill.
- *   · `BHOP_HOPS` 4 at `BHOP_GAIN` 0.25 — each clean hop is +6.25%, four in a
- *     row is the full +25%. Sprint at full stack is 6.8 × 1.25 = 8.5 m/s
- *     against the flat 6.8, and DEX stacks on top MULTIPLICATIVELY through the
+ *   · `BHOP_HOPS` 4 at `BHOP_GAIN` 0.45 — each clean hop is +11.25%, four in
+ *     a row is the full +45%. Sprint at full stack is 6.4 × 1.45 = 9.28 m/s
+ *     against the flat 6.4, and DEX stacks on top MULTIPLICATIVELY through the
  *     same `speedMul()` everything else takes — a DEX-maxed hopper peaks at
- *     6.8 × 1.15 × 1.25 = 9.78 m/s, the fastest thing in Crosstown, on purpose.
+ *     6.4 × 1.15 × 1.45 = 10.67 m/s, the fastest thing in Crosstown, on
+ *     purpose. (GAIN was 0.25 — +6.25% per hop, a +25% cap — until the
+ *     skateboard's 8.8 push outran the 8.0 chain and the user re-ruled the
+ *     podium: *"chained bhop should be fastest"*, 2026-08-10. The ceiling
+ *     went up rather than the push coming down, because trimming the push
+ *     under 8.0 would have cramped four gaits into 1.4 m/s — skill tech now
+ *     tops the board by half a metre a second instead of losing by 0.8.)
  *   · THE CAP CANNOT TUNNEL, derived rather than hoped: the worst legal
- *     per-axis step is that 9.78 m/s × the 0.05 s dt clamp = 0.489 m, and
+ *     per-axis step is that 10.67 m/s × the 0.05 s dt clamp = 0.534 m, and
  *     `blocked()` pads every box by RADIUS (0.3456) per side, so even a
- *     zero-thickness collider presents a 0.691 m reject band — 1.4× the worst
- *     step. Doorways, thresholds and the 2 m lane are the same point-in-box
- *     tests at any speed; nothing gets narrower or leakier.
+ *     zero-thickness collider presents a 0.691 m reject band — 1.29× the
+ *     worst step. Doorways, thresholds and the 2 m lane are the same
+ *     point-in-box tests at any speed; nothing gets narrower or leakier.
+ *     THE CEILING THIS IMPLIES: sprint × DEX × (1 + GAIN) may not pass
+ *     0.691 / 0.05 = 13.8 m/s — at today's 6.4 × 1.15 that caps GAIN at
+ *     0.87. Re-derive here before raising any of the three.
  *   · `BHOP_DECAY` 2.5/s — grounded past the window, or grounded with no
  *     movement keys, a full stack is gone in 0.4 s. `sit()` zeroes it outright:
  *     a chair is not a hop.
@@ -254,7 +263,7 @@ const AIR_CROUCH_DIP = 0.15;
  */
 const BHOP_WINDOW = 0.20;
 const BHOP_HOPS = 4;
-const BHOP_GAIN = 0.25;
+const BHOP_GAIN = 0.45;
 const BHOP_DECAY = 2.5;
 
 /**
@@ -279,10 +288,14 @@ const BHOP_DECAY = 2.5;
  * FASTER THAN SPRINT, BY INSTRUCTION — *"make the skateboard faster than
  * sprint"* (2026-08-10; it shipped an hour earlier at 6.0/7.5, where a flat
  * 6.4 sprint beat casual riding and the reward undersold itself). Cruise 7.2
- * beats the sprint with no effort at all; the push is 8.8. The podium, base
- * speeds: push 8.8 > chained sprint 8.0 > cruise 7.2 > sprint 6.4 — chaining
- * hops on foot can still edge a lazy cruise, and nothing on foot touches a
- * push, which is the right order for a reward.
+ * beats the sprint with no effort at all; the push is 8.8. And the TOP of
+ * the podium is not the board's: *"chained bhop should be fastest"*
+ * (2026-08-10, re-ruling the same day's first order). Base speeds:
+ *
+ *     chained bhop 9.28  >  push 8.8  >  cruise 7.2  >  sprint 6.4  >  walk
+ *
+ * — skill tech beats the reward, the reward beats everything you can do
+ * without it, and the gaps are real at every step.
  *
  * WHAT COMPOSES: DEX through the same `speedMul()` every gait takes, and the
  * crouch cut (a tucked rider is doing a manual, slower). **NOT the bunny-hop
@@ -294,14 +307,15 @@ const BHOP_DECAY = 2.5;
  *
  * THE COLLISION MATH, re-derived without the stack: the worst legal ridden
  * step is 8.8 × 1.15 DEX × the 0.05 s dt clamp = 0.506 m, inside the 0.691 m
- * reject band the bhop block derives — nothing tunnels, with more margin
- * than the on-foot worst case (9.2 m/s → 0.46 m) had. THE CEILING: 0.691 /
- * 0.05 / 1.15 = 12.0 m/s, so `RIDE_PUSH` may not pass 12.0 while DEX keeps
- * its cap — re-derive before raising either, and re-derive again if the hop
- * stack is ever let back onto the board. The fall detector's walked-there
- * bound covers whichever gait is faster: chained sprint on foot
- * (run × 1.25) or a flat push — see `max(run * (1 + BHOP_GAIN), RIDE_PUSH)`
- * below.
+ * reject band the bhop block derives — nothing tunnels, and the ridden case
+ * is no longer the worst in the file (the DEX-maxed chain's 0.534 m is; see
+ * the bhop block). THE CEILING: 0.691 / 0.05 / 1.15 = 12.0 m/s, so
+ * `RIDE_PUSH` may not pass 12.0 while DEX keeps its cap — re-derive before
+ * raising either, and re-derive again if the hop stack is ever let back onto
+ * the board. The fall detector's walked-there bound covers whichever gait is
+ * faster: the chained sprint on foot (run × (1 + BHOP_GAIN) = 9.28) now
+ * outruns the push again, and `max(run * (1 + BHOP_GAIN), RIDE_PUSH)` below
+ * takes whichever is ahead without being retyped.
  */
 const RIDE_SPEED = 7.2;
 const RIDE_PUSH = 8.8;
@@ -960,7 +974,7 @@ export class FPRig {
     } else if (moving) {
       // The bunny-hop stack multiplies LAST and applies in the air too — the
       // whole point of a hop is that the speed it earned carries through the
-      // flight. Walk × full stack is 4.1 m/s, still under the flat sprint, so
+      // flight. Walk × full stack is 4.6 m/s, still under the flat sprint, so
       // the ceiling belongs to sprint + chain and nothing else.
       const sp = (input.keys.has('shift') ? this.run : this.speed) * speedMul() * (1 - 0.55 * this.stanceT) * (1 + BHOP_GAIN * this.bhop);
       mv.normalize().multiplyScalar(sp * dt);
@@ -1167,10 +1181,10 @@ export class FPRig {
     const walked = Math.hypot(this.pos.x - this.lastX, this.pos.z - this.lastZ);
     const dropped = this.support - gy;
     // The bound covers whichever gait is faster this side of a warp: the
-    // chained sprint on foot carries the hop stack (× 1.25), the board's push
-    // does not (*"no bhop on skateboard"*) but starts higher — so each takes
-    // exactly its own multiplier, and a kerb rolled off at full push still
-    // reads as a fall, not a warp.
+    // chained sprint on foot carries the hop stack (× (1 + BHOP_GAIN)), the
+    // board's push does not (*"no bhop on skateboard"*) — so each takes
+    // exactly its own multiplier, and a kerb rolled off at full chain or
+    // full push still reads as a fall, not a warp.
     if (dropped > FALL_MIN_DROP && walked <= Math.max(this.run * (1 + BHOP_GAIN), RIDE_PUSH) * speedMul() * dt + 1e-3) {
       this.airY += dropped;
     }
