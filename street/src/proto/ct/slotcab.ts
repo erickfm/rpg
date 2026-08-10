@@ -29,22 +29,27 @@
 // and a spin or payout in flight keeps settling into the purse through the
 // world loop below, so leaving mid-payout can never strand a dollar owed.
 //
-// THE MATHS, enumerated (16^3 = 4,096 stop combinations, uniform draw):
+// THE MATHS, enumerated (16^3 = 4,096 stop combinations, uniform draw, and
+// FIVE PAYLINES — three rows and both diagonals — every one live on every
+// pull. 2026-08-10: "i want more combos and fun in the slots. like diag and
+// stuf like lets max it out and make it super fun!"). Pays are in multiples
+// of the WHOLE bet, best combo per line, lines stack:
 //
-//   RTP            94.97%     (3,890 credits back per 4,096 staked)
-//   hit rate       28.6%      (nearly one pull in three pays something)
-//   JACKPOT 777    150x       1 in 1,024
-//   3 BELLS         40x       1 in   512
-//   3 BARS          18x       1 in   152
-//   3 CHERRIES      10x       1 in   171
-//   ANY TWO 7s       5x       1 in    35
-//   CHERRY PAIR      5x       1 in    24
-//   ONE CHERRY       1x       1 in     5     (your money back — the tick-over)
-//   7-7-x tease                1 in    68
+//   RTP            100.95%    (4,135 credits back per 4,096 staked — the
+//                              house pays ~1% for the party; fun > realism
+//                              and a generous winrate are his rulings)
+//   hit rate       44.3%      (nearly every other pull pays something)
+//   multi-line     6.5%       (two or three lines light at once)
+//   JACKPOT 777 CENTER 150x   1 in 1,024   (the topper's printed number)
+//   777 on any other line 20x 1 in   256 each
+//   3 BELLS   10x  ·  3 BARS 5x  ·  3 CHERRIES 3x       per line
+//   ANY TWO 7s 1x  ·  CHERRY PAIR 1x    money back — the tick-over
+//   anticipation crawl        15.6% of pulls (7-7 or bell-bell live on a line)
+//   7-7-x tease               7.3%, and the missed line blinks SO CLOSE
 //
-// Against the old machine's 92.83% / 19% hit rate this is looser and livelier
-// on purpose — his words license it — and the house still keeps a nickel of
-// every dollar over time.
+// Against the old single-line 94.97% / 28.6% this is busier and friendlier
+// still: smaller multipliers per line, five chances a pull, and the jackpot
+// keeps its 150x where the toppers already promise it.
 //
 // THREE PERSONALITIES, one pay schedule, three stakes — so the printed cards
 // differ in dollars, not in odds, and one enumeration covers the floor:
@@ -99,26 +104,64 @@ const STOPS = STRIPS[0].length;
 const symAt = (reel: number, stop: number): Sym =>
   STRIPS[reel][((Math.round(stop) % STOPS) + STOPS) % STOPS];
 
-/** Pays are per STAKE — best line only, checked best-first. */
-function evaluate(a: Sym, b: Sym, c: Sym): { line: string; pays: number } | null {
-  if (a === 'S' && b === 'S' && c === 'S') return { line: 'JACKPOT 777', pays: 150 };
-  if (a === 'L' && b === 'L' && c === 'L') return { line: '3 BELLS', pays: 40 };
-  if (a === 'B' && b === 'B' && c === 'B') return { line: '3 BARS', pays: 18 };
-  if (a === 'C' && b === 'C' && c === 'C') return { line: '3 CHERRIES', pays: 10 };
-  if ([a, b, c].filter((s) => s === 'S').length === 2) return { line: 'TWO 7s', pays: 5 };
-  if (a === 'C' && b === 'C') return { line: 'CHERRY PAIR', pays: 5 };
-  if (a === 'C') return { line: 'CHERRY', pays: 1 };
+// ── the five paylines ────────────────────────────────────────────────────────
+// Three rows and both diagonals, ALL live on every pull. `off` is in STOP
+// space per reel: the glass shows stop+1 / stop / stop−1 top to bottom (the
+// strip canvas is reversed so the symbols scroll downward — see the reel
+// strip note), so +1 is the TOP row. `color` is the line's identity
+// everywhere it appears: the trace lit across the glass on a win, the side
+// nicks, and the pay card's footer map.
+interface LineDef { off: readonly [number, number, number]; color: number }
+const LINES: readonly LineDef[] = [
+  { off: [0, 0, 0], color: 0xe02818 },     // 1 CENTER — the jackpot line
+  { off: [1, 1, 1], color: 0xe8971c },     // 2 TOP
+  { off: [-1, -1, -1], color: 0x1e9e46 },  // 3 BOTTOM
+  { off: [1, 0, -1], color: 0x2f6fe0 },    // 4 DIAGONAL, top-left down
+  { off: [-1, 0, 1], color: 0xb23ae0 },    // 5 DIAGONAL, bottom-left up
+];
+
+interface LineWin { ix: number; name: string; pays: number; is7: boolean }
+
+/** One line, best combo first. Pays are per WHOLE BET — five lines always
+ *  play, so each is roughly a fifth of the old single-line schedule, and the
+ *  jackpot keeps its 150x on the CENTER line only: the toppers print
+ *  $300/$750/$1500, and a topper that lies is worse than no topper. */
+function evalLine(a: Sym, b: Sym, c: Sym, center: boolean): Omit<LineWin, 'ix'> | null {
+  if (a === 'S' && b === 'S' && c === 'S') {
+    return center ? { name: 'JACKPOT 777', pays: 150, is7: true }
+      : { name: '777 LINE', pays: 20, is7: true };
+  }
+  if (a === 'L' && b === 'L' && c === 'L') return { name: '3 BELLS', pays: 10, is7: false };
+  if (a === 'B' && b === 'B' && c === 'B') return { name: '3 BARS', pays: 5, is7: false };
+  if (a === 'C' && b === 'C' && c === 'C') return { name: '3 CHERRIES', pays: 3, is7: false };
+  if (Number(a === 'S') + Number(b === 'S') + Number(c === 'S') === 2) {
+    return { name: 'TWO 7s', pays: 1, is7: false };
+  }
+  if ((a === 'C' && b === 'C') || (b === 'C' && c === 'C')) {
+    return { name: 'CHERRY PAIR', pays: 1, is7: false };
+  }
   return null;
 }
 
-/** Do the first two reels leave the third one deciding something? The cue for
- *  the anticipation crawl. Reported, never caused: all three stops are drawn
- *  before anything moves, only the PACE of showing them changes. */
-const isLive = (s0: number, s1: number): boolean => {
-  const a = symAt(0, s0), b = symAt(1, s1);
-  if (a === 'C' && b === 'C') return true;
-  return a === b && a !== 'X';
-};
+/** Every line judged against the three landed stops. `total` is in multiples
+ *  of the whole bet; the header's RTP block is enumerated from exactly this. */
+function evaluateAll(s0: number, s1: number, s2: number): { total: number; wins: LineWin[] } {
+  const wins: LineWin[] = [];
+  let total = 0;
+  LINES.forEach((L, ix) => {
+    const w = evalLine(symAt(0, s0 + L.off[0]), symAt(1, s1 + L.off[1]),
+      symAt(2, s2 + L.off[2]), ix === 0);
+    if (w) { wins.push({ ix, ...w }); total += w.pays; }
+  });
+  return { total, wins };
+}
+
+/** The first line whose opening two cells both landed `sym` — the cue for the
+ *  anticipation crawl (7-7-? or bell-bell-?), and the trace the near-miss
+ *  tease blinks. Reported, never caused: all three stops are drawn before
+ *  anything moves, only the PACE of showing them changes. */
+const liveLine = (s0: number, s1: number, sym: Sym): number =>
+  LINES.findIndex((L) => symAt(0, s0 + L.off[0]) === sym && symAt(1, s1 + L.off[1]) === sym);
 
 // ── the feel ─────────────────────────────────────────────────────────────────
 // Seconds and stops-per-second, grouped so tuning means moving them together.
@@ -283,12 +326,19 @@ interface Machine {
    *  f.t the press began; the frame hook turns the latch into travel */
   caps: { mesh: THREE.Mesh; z: number; t: number }[];
   bulbs: THREE.MeshBasicMaterial[];      // three phase materials, chased
+  /** the five payline traces over the glass, one group per LINES entry, and
+   *  their materials — lit on a win, pulsed in attract, blinked on a tease */
+  traces: THREE.Group[]; traceMats: THREE.MeshBasicMaterial[];
   winCv: HTMLCanvasElement; winTex: THREE.CanvasTexture;
   coins: THREE.Group | null; coinSeed: { a: number; v: number; s: number }[];
   state: 'idle' | 'spinning' | 'paying';
   t: number;                              // seconds since the lever went
   win: number; paid: number; payRamp: number; flashT: number;
+  /** every line that hit this pull, cycled on the glass while it pays */
+  winList: LineWin[];
   attractT: number; attractIx: number; nearMiss: boolean;
+  /** the line a 7-7-x tease almost paid: blinked for a breath after the miss */
+  teaseLine: number; teaseT: number;
   msg: string;
 }
 
@@ -356,15 +406,26 @@ function payCard(ctx: CtxBuild, k: KindSpec): THREE.MeshBasicMaterial {
     // dollar rows were only true at 1x
     g.fillText(`BET $${k.stake}-$${k.stake * 3}`, 48, 8);
     const rows: [string, number][] = [
-      ['7 7 7', 150], ['BELL BELL BELL', 40], ['BAR BAR BAR', 18],
-      ['CHERRY x3', 10], ['ANY TWO 7s', 5], ['CHERRY PAIR', 5], ['ONE CHERRY', 1],
+      ['7-7-7 CENTER', 150], ['7-7-7 LINE', 20], ['3 BELLS', 10],
+      ['3 BARS', 5], ['3 CHERRY', 3], ['ANY TWO 7s', 1], ['CHERRY PAIR', 1],
     ];
     g.font = '6px monospace';
     rows.forEach(([line, pays], i) => {
-      const y = 20 + i * 9;
+      const y = 19 + i * 8;
       g.fillStyle = i === 0 ? '#8a2430' : '#3a2a1e';
       g.textAlign = 'left'; g.fillText(line, 4, y);
       g.textAlign = 'right'; g.fillText(pays + 'x', 92, y);
+    });
+    // the footer maps the five lines that play on every pull: a dark plate
+    // per line, its path dotted in the SAME colour its trace lights on the
+    // glass — the card and the win read as one system
+    LINES.forEach((L, li) => {
+      const x0 = 10 + li * 16;
+      g.fillStyle = '#14100e'; g.fillRect(x0, 69, 12, 9);
+      g.fillStyle = '#' + L.color.toString(16).padStart(6, '0');
+      for (let c = 0; c < 3; c++) {
+        g.fillRect(x0 + 1 + c * 4, 70 + (1 - L.off[c]) * 2, 2, 2);
+      }
     });
     g.fillStyle = '#8a6a2c'; g.fillRect(2, 13, 92, 1); g.fillRect(2, 80, 92, 1);
     dither(g, 96, 84, 18);
@@ -520,9 +581,41 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
     const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.02), trimM);
     m.position.set(bx, by, D / 2 + 0.008); g.add(m);
   }
+  // the side nicks index the three ROW lines in their trace colours (the
+  // diagonals read from their traces alone); a win's trace meets its nick
   for (const sx of [-1, 1]) {
-    const nick = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.014, 0.02), bm(0xe02818));
-    nick.position.set(sx * (span3 / 2 + 0.02), winY, D / 2 + 0.016); g.add(nick);
+    for (const [row, li] of [[1, 1], [0, 0], [-1, 2]] as const) {
+      const nick = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.014, 0.02),
+        bm(LINES[li].color));
+      nick.position.set(sx * (span3 / 2 + 0.02), winY + row * (reelH / 3), D / 2 + 0.016);
+      g.add(nick);
+    }
+  }
+  // ── the payline traces: thin lit bars across the glass, one per LINES
+  // entry, invisible until wanted — a win lights the lines that hit (cycled
+  // in tickPayout, so multiple wins take turns), the idle attract strokes
+  // them one at a time to teach the map, and a 7-7-x near miss blinks the
+  // line that almost paid. World geometry, so the whole floor reads a win,
+  // not just the locked eye.
+  const traces: THREE.Group[] = [];
+  const traceMats: THREE.MeshBasicMaterial[] = [];
+  const cellY = reelH / 3, cellX = reelW + gap, xe = span3 / 2 + 0.02;
+  for (const L of LINES) {
+    const mat = new THREE.MeshBasicMaterial({ color: L.color, transparent: true, opacity: 0.9 });
+    const tg = new THREE.Group();
+    const seg = (x0: number, y0: number, x1: number, y1: number): void => {
+      const s = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.hypot(x1 - x0, y1 - y0) + 0.014, 0.011, 0.004), mat);
+      s.position.set((x0 + x1) / 2, (y0 + y1) / 2, D / 2 + 0.013);
+      s.rotation.z = Math.atan2(y1 - y0, x1 - x0);
+      tg.add(s);
+    };
+    const y = (r: 0 | 1 | 2): number => winY + L.off[r] * cellY;
+    if (L.off[0] === L.off[2]) seg(-xe, y(0), xe, y(2));   // a row: edge to edge
+    else { seg(-cellX, y(0), 0, y(1)); seg(0, y(1), cellX, y(2)); }  // a diagonal
+    tg.visible = false;
+    g.add(tg);
+    traces.push(tg); traceMats.push(mat);
   }
   // the chrome hubs beside the glass — the reels' PHYSICALLY rotating part,
   // which is what an audio watcher (and the eye) gets instead of a flat plane
@@ -659,10 +752,12 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
     kind: k, i, group: g, reels, lever, hubs, pane,
     topper, topperM, topperLit: new THREE.Color(k.topper.lit),
     bet: 1, caps,
-    bulbs,
+    bulbs, traces, traceMats,
     winCv, winTex, coins: null, coinSeed: [],
     state: 'idle', t: 0, win: 0, paid: 0, payRamp: 0, flashT: 0,
-    attractT: 1.6 * ((i % 4) / 4), attractIx: i % 3, nearMiss: false, msg: '',
+    winList: [],
+    attractT: 1.6 * ((i % 4) / 4), attractIx: i % 3, nearMiss: false,
+    teaseLine: -1, teaseT: 0, msg: '',
   };
   say(m, `$${k.stake} A PULL`);
   return m;
@@ -1027,10 +1122,13 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
       id: 'ct-slotcab',
       w: SESSION_PX.w, h: SESSION_PX.h, scale: 2,
       chrome: 'none',
+      // no ellipsis while the reels run — 2026-08-10: "theres an ellipses in
+      // the e prompt? clean it up." A spinning machine needs no caption; the
+      // exit stamp stays, which is the one thing every panel owes.
       hint: () => {
         const m = active;
         if (!m) return '';
-        if (m.state !== 'idle') return '…';
+        if (m.state !== 'idle') return '';
         const bet = m.kind.stake * m.bet;
         return ctx.purse.cash >= bet
           ? `click the lever — $${bet} a pull · − + set the bet`
@@ -1096,7 +1194,9 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
       x: fx, z: fz, r: 1.25,
       aimX: room.wx(spec.lx), aimZ: room.wz(spec.lz),
       obj: m.group,
-      label: () => `play ${m.kind.name} — $${m.kind.stake} a pull`,
+      // house prompt style — short plain verbs, like 'play blackjack' and
+      // 'play roulette' next door; the stake is silkscreened on the cabinet
+      label: () => 'play the slots',
       ok: () => room.inside(),
       act: () => {
         if (panel) { active = m; mode = 'stand'; panel.open(); }
@@ -1153,6 +1253,22 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
         }
         const step = (Math.floor(f.t * 5) + m.i) % 3;
         m.bulbs.forEach((b, ix) => b.color.setHex(ix === step ? 0xffe89a : 0x7a6438));
+        if (m.teaseT > 0) {
+          // the near-miss tease: the line 7-7 almost paid blinks for a breath
+          m.teaseT -= dt;
+          const on = m.teaseT > 0 && Math.floor(f.t * 7) % 2 === 0;
+          m.traces.forEach((tr, ix) => { tr.visible = on && ix === m.teaseLine; });
+          if (m.teaseLine >= 0) m.traceMats[m.teaseLine].opacity = 0.8;
+        } else {
+          // attract strokes one payline dimly each cycle — the cabinet
+          // teaching its five lines to anyone on the floor, phased per
+          // machine so the bank shimmers instead of blinking in unison
+          const cyc = f.t / 2.4 + m.i * 0.37;
+          const lix = Math.floor(cyc) % LINES.length;
+          const on = cyc % 1 < 0.3;
+          m.traces.forEach((tr, ix) => { tr.visible = on && ix === lix; });
+          if (on) m.traceMats[lix].opacity = 0.32;
+        }
         continue;
       }
       m.t += dt;
@@ -1184,13 +1300,21 @@ function pull(m: Machine, ctx: CtxBuild): void {
   ctx.purse.cash -= stake;
   ctx.refreshWallet();
   m.state = 'spinning'; m.t = 0; m.win = 0; m.paid = 0; m.payRamp = 0;
+  m.teaseT = 0;
+  m.traces.forEach((tr) => { tr.visible = false; });
   say(m, 'GOOD LUCK');
 
   // ALL THREE STOPS DRAWN NOW, before anything moves — the anticipation crawl
   // below paces the reveal of a decision already made; it never makes one.
+  // The crawl arms when the FIRST TWO cells of any line land 7-7 or
+  // bell-bell; a 7 pair that then misses is the near-miss (harder bounce,
+  // and the line it teased blinks after the settle).
   const s = [0, 1, 2].map(() => Math.min(STOPS - 1, Math.floor(Math.random() * STOPS)));
-  const live = isLive(s[0], s[1]);
-  m.nearMiss = live && !evaluate(symAt(0, s[0]), symAt(1, s[1]), symAt(2, s[2]));
+  const sevenAt = liveLine(s[0], s[1], 'S');
+  const live = sevenAt >= 0 || liveLine(s[0], s[1], 'L') >= 0;
+  const drawn = evaluateAll(s[0], s[1], s[2]);
+  m.nearMiss = sevenAt >= 0 && !drawn.wins.some((w) => w.is7);
+  m.teaseLine = m.nearMiss && !drawn.wins.length ? sevenAt : -1;
   // reel time runs from the moment the lever hits the bottom of its throw
   // (posOf is asked with tt = m.t - leverDown), so the schedule is in reel time
   let prev = schedule(m.reels[0], s[0], FEEL.wantFirst, false, false);
@@ -1236,16 +1360,18 @@ function settleIfDone(m: Machine): void {
   const last = Math.max(...m.reels.map((r) => r.stopT)) + kick;
   if (m.t < last) return;
   for (const r of m.reels) { r.pos = posOf(r, m.t - kick); r.spinning = false; }
-  const w = evaluate(symAt(0, m.reels[0].stop), symAt(1, m.reels[1].stop), symAt(2, m.reels[2].stop));
-  if (!w) {
+  const w = evaluateAll(m.reels[0].stop, m.reels[1].stop, m.reels[2].stop);
+  if (!w.wins.length) {
     m.state = 'idle'; m.attractT = m.nearMiss ? -2.4 : 1.6;
+    if (m.teaseLine >= 0) m.teaseT = 1.7;
     say(m, m.nearMiss ? 'SO CLOSE' : `$${m.kind.stake * m.bet} A PULL`);
     return;
   }
-  m.win = w.pays * m.kind.stake * m.bet;
+  m.winList = w.wins;
+  m.win = w.total * m.kind.stake * m.bet;
   m.state = 'paying'; m.flashT = 0; m.payRamp = 0; m.paid = 0;
   m.topper.userData.flash = true;
-  say(m, w.line, true);
+  say(m, w.wins.length > 1 ? `${w.wins.length} LINES HIT` : w.wins[0].name, true);
   burstCoins(m);
 }
 
@@ -1259,6 +1385,17 @@ function tickPayout(m: Machine, ctx: CtxBuild, dt: number): void {
   else m.topperM.color.setHex(0x504438);
   const step = Math.floor(m.flashT * 12) % 3;
   m.bulbs.forEach((b, ix) => b.color.setHex(ix === step ? 0xfff4d0 : 0xa8862f));
+  // THE LINES THAT HIT, lit across the glass in their own colours. One line
+  // holds (with a heartbeat blink); several take turns, 0.8 s each — the
+  // classic multi-line roll call, so each win gets read, not summed away.
+  if (m.winList.length) {
+    const cur = m.winList[Math.floor(m.flashT / 0.8) % m.winList.length].ix;
+    const on = m.winList.length === 1
+      ? Math.floor(m.flashT * 5) % 4 !== 3
+      : m.flashT % 0.8 < 0.66;
+    m.traces.forEach((tr, ix) => { tr.visible = on && ix === cur; });
+    m.traceMats[cur].opacity = 0.92;
+  }
   tickCoins(m, m.flashT);
 
   // the dollars COUNT into the wallet — whole dollars only, float stays here
@@ -1278,6 +1415,8 @@ function tickPayout(m: Machine, ctx: CtxBuild, dt: number): void {
     m.topper.userData.flash = false;
     m.topperM.color.setHex(0xffffff);
     m.bulbs.forEach((b) => b.color.setHex(0x7a6438));
+    m.traces.forEach((tr) => { tr.visible = false; });
+    m.winList = [];
     if (m.coins) m.coins.visible = false;
     m.attractT = -2.0;
     say(m, `WON $${m.win}`, true);
