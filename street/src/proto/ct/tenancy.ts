@@ -1287,9 +1287,9 @@ const SHAPES: Record<string, { w: number; h: number }> = {
   'catalogue-302':       { w: 138, h: 178 },   // 1 : 1.29   a seed catalogue
   'notice-agent':        { w: 120, h: 162 },   // 1 : 1.35   the agent's letter sheet
   'letterhead-bank':     { w: 126, h: 178 },   // 1 : 1.41   proper letter stock
+  'typed':               { w: 119, h: 178 },   // 1 : 1.50   the landlord's pad
   'airmail-aunt':        { w: 108, h: 175 },   // 1 : 1.62   an airmail lettersheet
   'menu-diner':          { w: 104, h: 178 },   // 1 : 1.71   a takeaway menu
-  'typed':               { w:  99, h: 178 },   // 1 : 1.80   a leaf off a memo pad
   'notice-precinct':     { w:  94, h: 178 },   // 1 : 1.89   a legal-size notice
   'flyer-video':         { w:  84, h: 178 },   // 1 : 2.12   a long handbill
   'chain-letter':        { w:  68, h: 172 },   // 1 : 2.53   a copied ribbon
@@ -2274,17 +2274,29 @@ ART['docket-receipt'] = (g, l) => {
  * hall, and the slip pushed under 301's door), which is exactly the wrong pair
  * of things to be the largest broadsides in the box.
  *
- * 99 x 178, 1:1.80 — a narrow leaf off a memo pad, in the widest gap left in
- * `SHAPES` (5.3% off the diner menu's 1:1.71 and 4.8% off the precinct notice's
- * 1:1.89). And a MEMO PAD is what it is printed as: a red double rule at the
- * head and a red margin down the left, which is the one piece of red ruling in
- * the table, on plain white — so it does not read as the bank's letterhead or
- * as a city form despite sharing their stock.
+ * ── AND THEN THE NARROW CUT WAS REJECTED ──────────────────────────────────
+ *
+ * *"dimensions of this need to be wider"*   (2026-08-09), on the slip pushed
+ * under the door, open on his screen.
+ *
+ * HE IS RIGHT AND THE SHEET HAD ALREADY PROVED IT: at 99 units the body
+ * wrapped every three or four words ("were not in, or you / were in and did
+ * not / answer"), and the balance band's floor-size text — which shrinks to
+ * 6 px and then STOPS — was wider than the 75 units left inside the band, so
+ * "OUTSTANDING NOW: $500.00" ran off the right edge of the paper itself.
+ * A sheet too narrow for its own worst line is cut wrong, not printed wrong.
+ *
+ * 119 x 178, 1:1.50 — RE-CUT, NOT STRETCHED: the aspect moved into the empty
+ * band between the bank's 1:1.41 (6% off) and the airmail's 1:1.62 (8% off),
+ * and every mark on it is re-laid at the new measure. 103 units of text width
+ * holds the slip's sentences at two lines each and the band's floor text with
+ * 13 units to spare. Still printed as the landlord's pad: a red double rule at
+ * the head and a red margin down the left, the one piece of red ruling in the
+ * table — its narrowness was never what said "memo".
  *
  * ⚠ AND THE COPY IS FLOWED, NOT SLICED. `COLS` is 35, measured against the
- * 192-unit sheet; 83 units of text width holds 23 monospace characters at 6 px,
- * and `l.from` alone is 28. Slicing at `COLS` here would clip every line
- * silently — the exact defect `wrapTo` exists to make impossible.
+ * 192-unit sheet; slicing at it here would clip lines silently — the exact
+ * defect `wrapTo` exists to make impossible.
  */
 function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
   const l = letter;
@@ -2312,11 +2324,20 @@ function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
 
   // Anything from the landlord quotes the figure that is actually outstanding,
   // read off the clock at the moment you unfold it rather than baked in when it
-  // was written. Both the band and the stamp are the shared routines the other
-  // two landlord pieces use, so three papers cannot disagree about one balance.
+  // was written. The band is the shared routine the note of account also uses,
+  // so two papers cannot disagree about one balance — and at 103 units of
+  // measure its 6 px floor text fits with room, which is half of why the sheet
+  // is 119 wide (see the cut note above).
+  //
+  // ⚠ THE STAMP IS STRUCK ACROSS THE BODY, ON PURPOSE. It used to be dropped
+  // at the sheet's right edge at whatever height the text happened to end,
+  // which put it half on top of the sign-off line — a collision, not a strike.
+  // A rubber stamp lands where a hand banged it: square across the middle of
+  // the writing, at the angle `pastDue` already carries. Centred on the body
+  // block (head rule to last line), nudged off-centre the way a hand is.
   if (l.kind !== 'junk') {
     balanceBand(g, P.x + IN, Math.min(end + 6, P.y + P.h - 22), TW);
-    pastDue(g, P.x + P.w - 32, Math.min(end - 10, P.y + P.h - 42), 0.62);
+    pastDue(g, P.x + P.w * 0.55, (y + end) / 2, 0.8);
   }
 }
 

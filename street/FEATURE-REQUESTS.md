@@ -6059,3 +6059,37 @@ unreachable. One line: `minZ: -110.6` → `-114.6` (or derive from the yard's
 face plane). Everything yard-side is already correct — ground registered at
 kerb height, gate 2.0 m clear, no collider on the path, door spot derived at
 the recessed plane — a builder with the trunk needs only that line.
+
+---
+
+## 2026-08-09 — *"dimensions of this need to be wider"*
+
+On the landlord's under-the-door slip, open on his screen — the memo-pad sheet
+(`typed`) that both of the landlord's handed pieces print on.
+
+**The sheet had already proved him right.** At 99 units wide the body wrapped
+every three or four words ("were not in, or you / were in and did not /
+answer"), and the balance band's text — which shrinks to its 6 px floor and
+then STOPS — was wider than the 75 units left inside the band, so
+"OUTSTANDING NOW: $500.00" ran clean off the right edge of the paper. A sheet
+too narrow for its own worst line is cut wrong, not printed wrong.
+
+**Re-cut to 119 x 178, 1:1.50** — not stretched: the aspect moved into the
+empty band between the bank letterhead's 1:1.41 and the airmail's 1:1.62, and
+`SHAPES` still holds no two pieces at the same aspect. At the new 103-unit
+measure the slip's sentences sit two lines each and the band's floor text fits
+with 13 units to spare. The red double rule and red margin stay — the pad's
+narrowness was never what said "memo".
+
+**And the PAST DUE stamp is struck on purpose now.** It used to be dropped at
+the sheet's right edge at whatever height the text ended, which put it half on
+top of "— THE LANDLORD" — a collision, not a strike. It now lands square
+across the middle of the body block at its usual angle, nudged off-centre the
+way a hand is, which is where a rubber stamp goes when it is meant.
+
+The dropped/held 3-D sheet re-sizes itself automatically (it measures the
+painted paper), and the bag icon shrinks the same drawing. The tiny floor
+decal under the door is 0.11 x 0.16 m — 1:1.45 against the new 1:1.50, three
+percent at sixteen centimetres — left alone.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
