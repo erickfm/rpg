@@ -6563,3 +6563,24 @@ filled theirs. The band's world height now scales with the pane
 tuned at, so they are pixel-unchanged), which gives every kind the same
 ~25 px window, bar thickness 2, and a meter whose digits fill its glass —
 physically bigger hardware on the physically bigger machine.
+
+## 2026-08-10 — *"so the big non real collect button. thjats what im talking about as being bad and clunky and not looking like its part of the real world"*
+
+Went to the same builder that ran the slot QC sweep. The COLLECT button was
+a picture painted on the session glass, and however carefully it was shaded
+it could never read like the lever, which is geometry that moves. Of the two
+honest roads — make it real or kill it — it went REAL, because the fiction
+was right (a real cabinet has a collect button, and collecting your money IS
+leaving; it is also the one visible mouse exit) and only the flesh was wrong.
+Every cabinet now carries an actual button on its fascia: bezel well, chrome
+ring, and a proud cap in the cabinet's own trim colour with the printed
+COLLECT legend — ONE standard parts-bin button on the $2 and the $10 machine
+alike, centred in the bay between the credit meter and the reel frame's
+right rail (sized off cabinet width it straddled that rail on the KING and
+the rail's tip landed on the cap). It exists from the floor like any machine
+part, and it physically travels 8 mm down-and-back when clicked. The click
+region on the session canvas is derived from the mesh's own rect; the credit
+meter stays painted — a display is honestly a flat picture behind glass.
+All exits unchanged (COLLECT click, ESC, [E], standing), audio hook names
+and motions untouched; looked at on all three personalities, locked and
+from the floor, and the click-to-exit driven by mouse.
