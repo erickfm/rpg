@@ -290,7 +290,14 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
     cashOut: () => {
       // Whatever is ON THE RAIL always comes back, whenever you stand up. A
       // bet already spinning is gone — same contract as both other games.
-      const n = chips; chips = 0;
+      // A WIN ALREADY ANNOUNCED comes back too: `owed − paid` is the part of
+      // a settled payout the counting animation had not yet moved onto the
+      // rail (a 35:1 hit counts for seconds), and leaving mid-count used to
+      // swallow it. Same fix, same reasoning, as the blackjack table's.
+      const due = Math.max(0, owed - paid);
+      returned += due;
+      const n = chips + due;
+      chips = 0;
       if (phase !== 'betting') { wheelBase = wheelA(); t = 0; }
       phase = 'betting'; owed = 0; paid = 0; payRamp = 0; result = null;
       return n;
@@ -338,16 +345,26 @@ const T = {
  */
 export const LAY = {
   wheel: { x: 381, y: 146, r: 114 },
-  /** the 0 cell, then 12 rows × 3 columns, n = 3·row + col + 1 */
-  grid: { x: 14, y: 50, colW: 40, rowH: 19, zeroY: 30, zeroH: 16 },
-  /** RED / BLACK / ODD / EVEN, stacked */
-  outside: { x: 142, y: 30, w: 110, h: 58, gap: 4 },
   say: { x: 8, y: 6, w: 244, h: 18 },
+  /** the 0 cell, then 12 rows × 3 columns, n = 3·row + col + 1. Rows are 14 px
+   *  — walked down from 19 in the mouse-play rework so the whole left half
+   *  (layout, meters, buttons) clears the framework's caption band, which sits
+   *  over the bottom ~15 px of this canvas at the locked fov. Nothing printed
+   *  lives below y 266. */
+  grid: { x: 14, y: 46, colW: 40, rowH: 14, zeroY: 28, zeroH: 14 },
+  /** RED / BLACK / ODD / EVEN, stacked */
+  outside: { x: 142, y: 28, w: 110, h: 42, gap: 4 },
   hist: { x: 262, y: 6, w: 24, h: 16, step: 26 },
-  chips: { x: 262, y: 264, w: 104, h: 24 },
-  betDown: { x: 374, y: 264, w: 20, h: 24 },
-  bet: { x: 398, y: 264, w: 50, h: 24 },
-  betUp: { x: 452, y: 264, w: 20, h: 24 },
+  /** the money row, under the grid */
+  chips: { x: 8, y: 218, w: 100, h: 22 },
+  betDown: { x: 114, y: 218, w: 22, h: 22 },
+  bet: { x: 140, y: 218, w: 62, h: 22 },
+  betUp: { x: 206, y: 218, w: 22, h: 22 },
+  /** the verbs, printed in the same grammar as blackjack's regions —
+   *  *"lets make the games totally playable with just click"* */
+  buyin: { x: 8, y: 244, w: 76, h: 22 },
+  cashout: { x: 90, y: 244, w: 86, h: 22 },
+  leave: { x: 182, y: 244, w: 70, h: 22 },
 } as const;
 
 /** What a click at (x, y) on the baize means. One table of regions for the
@@ -357,7 +374,10 @@ export type FeltHit =
   | { kind: 'bet'; bet: BetKind }
   | { kind: 'pick'; n: number }
   | { kind: 'spin' }
-  | { kind: 'betBy'; d: 1 | -1 };
+  | { kind: 'betBy'; d: 1 | -1 }
+  | { kind: 'buyin' }
+  | { kind: 'cashout' }
+  | { kind: 'leave' };
 export function feltHit(x: number, y: number): FeltHit | null {
   // the wheel IS the spin button — the ray lands on the felt under it, so a
   // click "on the wheel" arrives here even though the head is its own mesh
@@ -384,6 +404,9 @@ export function feltHit(x: number, y: number): FeltHit | null {
     x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
   if (inBox(LAY.betDown)) return { kind: 'betBy', d: -1 };
   if (inBox(LAY.betUp)) return { kind: 'betBy', d: 1 };
+  if (inBox(LAY.buyin)) return { kind: 'buyin' };
+  if (inBox(LAY.cashout)) return { kind: 'cashout' };
+  if (inBox(LAY.leave)) return { kind: 'leave' };
   return null;
 }
 
@@ -414,17 +437,19 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null
   const cellW = gd.colW - 2, gridW = 3 * gd.colW - 2;
   g.fillStyle = T.green; g.fillRect(gd.x, gd.zeroY, gridW, gd.zeroH - 2);
   g.fillStyle = T.ivory; g.font = 'bold 10px monospace'; g.textAlign = 'center';
-  g.fillText('0', gd.x + gridW / 2, gd.zeroY + 11);
+  g.fillText('0', gd.x + gridW / 2, gd.zeroY + 10);
+  // the straight-up odds moved INTO the zero row — the note that used to sit
+  // under the grid stood where the money row now stands
+  g.fillStyle = 'rgba(236,230,212,0.75)'; g.font = '8px monospace'; g.textAlign = 'right';
+  g.fillText('35:1', gd.x + gridW - 5, gd.zeroY + 10);
   for (let n = 1; n <= 36; n++) {
     const r = Math.floor((n - 1) / 3), c = (n - 1) % 3;
     const cx = gd.x + c * gd.colW, cy = gd.y + r * gd.rowH;
     g.fillStyle = REDS.has(n) ? T.red : T.black;
     g.fillRect(cx, cy, cellW, gd.rowH - 2);
-    g.fillStyle = T.ivory; g.font = 'bold 10px monospace';
-    g.fillText(String(n), cx + cellW / 2, cy + 13);
+    g.fillStyle = T.ivory; g.font = 'bold 9px monospace'; g.textAlign = 'center';
+    g.fillText(String(n), cx + cellW / 2, cy + 10);
   }
-  g.fillStyle = T.dim; g.font = '8px monospace';
-  g.fillText('STRAIGHT UP PAYS 35:1', gd.x + gridW / 2, gd.y + 12 * gd.rowH + 9);
 
   // ── the even-money boxes ──
   const OUTS: { bet: BetKind; label: string }[] = [
@@ -442,18 +467,21 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null
       // the colour diamond a real layout prints, stacked from fillRects the
       // way the card pips are — Paint2D has no lineTo
       g.fillStyle = o.bet === 'red' ? T.red : T.black;
-      for (let i2 = 0; i2 < 8; i2++) {
-        const half = i2 < 4 ? i2 * 3 + 2 : (7 - i2) * 3 + 2;
-        g.fillRect(mx - half, oy + 8 + i2 * 3, half * 2, 3);
+      for (let i2 = 0; i2 < 6; i2++) {
+        const half = i2 < 3 ? i2 * 3 + 2 : (5 - i2) * 3 + 2;
+        g.fillRect(mx - half, oy + 5 + i2 * 3, half * 2, 3);
       }
       g.fillStyle = T.ivory; g.font = 'bold 11px monospace'; g.textAlign = 'center';
-      g.fillText(o.label, mx, oy + 44);
+      g.fillText(o.label, mx, oy + 35);
+      // odds beside the name, not under it — under collided with the label
+      g.fillStyle = T.dim; g.font = '7px monospace'; g.textAlign = 'right';
+      g.fillText('1 TO 1', LAY.outside.x + LAY.outside.w - 5, oy + 35);
     } else {
       g.fillStyle = T.ivory; g.font = 'bold 13px monospace'; g.textAlign = 'center';
-      g.fillText(o.label, mx, oy + 30);
+      g.fillText(o.label, mx, oy + 22);
+      g.fillStyle = T.dim; g.font = '7px monospace'; g.textAlign = 'center';
+      g.fillText('1 TO 1', mx, oy + 36);
     }
-    g.fillStyle = T.dim; g.font = '8px monospace';
-    g.fillText('PAYS 1 TO 1', mx, oy + LAY.outside.h - 6);
   });
 
   // ── the last eight, printed by the wheel, newest first ──
@@ -487,52 +515,65 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null
     g.fillText('EUROPEAN ROULETTE — SINGLE ZERO', LAY.say.x + LAY.say.w / 2, LAY.say.y + 13);
   }
 
-  // ── meters and the bet chips, let into the felt by the wheel ──
+  // ── the money row, under the grid — clear of the caption band ──
   const meter = (mx: number, mw: number, label: string, val: string, lit: boolean) => {
     g.fillStyle = '#12180f'; g.fillRect(mx, LAY.chips.y, mw, LAY.chips.h);
     g.strokeStyle = T.railHi; g.lineWidth = 1;
     g.strokeRect(mx + 0.5, LAY.chips.y + 0.5, mw - 1, LAY.chips.h - 1);
     g.fillStyle = '#2c4a24'; g.font = '7px monospace'; g.textAlign = 'left';
-    g.fillText(label, mx + 4, LAY.chips.y + 16);
+    g.fillText(label, mx + 4, LAY.chips.y + 15);
     g.fillStyle = lit ? T.win : '#7ae05a';
     g.font = 'bold 12px monospace'; g.textAlign = 'right';
-    g.fillText(val, mx + mw - 4, LAY.chips.y + 17);
+    g.fillText(val, mx + mw - 4, LAY.chips.y + 16);
   };
   meter(LAY.chips.x, LAY.chips.w, 'CHIPS', v ? String(v.chips) : '', v?.phase === 'paying');
   meter(LAY.bet.x, LAY.bet.w, 'BET', v ? String(v.bet) : '', false);
-  const pm = (b: { x: number; y: number; w: number; h: number }, label: string, live: boolean) => {
+
+  // ── the printed verbs — live only. The idle table in the world keeps its
+  //    baize plain; the regions appear with the game, same as blackjack's. ──
+  const region = (b: { x: number; y: number; w: number; h: number }, label: string,
+                  live: boolean, font = 'bold 10px monospace') => {
     g.fillStyle = live ? T.gold : '#3c443c'; g.fillRect(b.x, b.y, b.w, b.h);
+    g.fillStyle = live ? '#f8e6ac' : '#4c544c'; g.fillRect(b.x, b.y, b.w, 2);
     g.fillStyle = live ? T.black : '#6c746c';
-    g.font = 'bold 13px monospace'; g.textAlign = 'center';
-    g.fillText(label, b.x + b.w / 2, b.y + 17);
+    g.font = font; g.textAlign = 'center';
+    g.fillText(label, b.x + b.w / 2, b.y + 15);
   };
-  pm(LAY.betDown, '−', !!v && v.phase === 'betting');
-  pm(LAY.betUp, '+', !!v && v.phase === 'betting');
+  if (v) {
+    const betting = v.phase === 'betting';
+    region(LAY.betDown, '−', betting, 'bold 13px monospace');
+    region(LAY.betUp, '+', betting, 'bold 13px monospace');
+    region(LAY.buyin, 'BUY IN', betting && (cash === undefined || cash >= 1));
+    region(LAY.cashout, 'CASH OUT', betting && v.chips > 0);
+    region(LAY.leave, 'LEAVE', true);
+  }
 
   // ── THE WORLD COPY STOPS HERE ──
   if (!v) { g.restore(); return; }
 
   // the chip, sitting ON the bet it is riding — the layout is where chips go
-  const chip = (cx: number, cy: number) => {
+  const chip = (cx: number, cy: number, r2: number) => {
     g.fillStyle = 'rgba(0,0,0,0.30)';
-    g.beginPath(); g.arc(cx + 1, cy + 2, 9, 0, TAU); g.fill();
+    g.beginPath(); g.arc(cx + 1, cy + 2, r2, 0, TAU); g.fill();
     g.fillStyle = T.chip;
-    g.beginPath(); g.arc(cx, cy, 9, 0, TAU); g.fill();
+    g.beginPath(); g.arc(cx, cy, r2, 0, TAU); g.fill();
     g.fillStyle = T.goldLo;
-    g.beginPath(); g.arc(cx, cy, 9, 0, TAU); g.arc(cx, cy, 6, 0, TAU, true); g.fill();
-    g.fillStyle = T.black; g.font = 'bold 8px monospace'; g.textAlign = 'center';
+    g.beginPath(); g.arc(cx, cy, r2, 0, TAU); g.arc(cx, cy, r2 - 3, 0, TAU, true); g.fill();
+    g.fillStyle = T.black; g.font = 'bold 7px monospace'; g.textAlign = 'center';
     g.fillText(String(v.bet), cx, cy + 3);
   };
   if (v.kind === 'number') {
-    if (v.pick === 0) chip(gd.x + gridW / 2, gd.zeroY + gd.zeroH / 2 - 1);
+    // r 7 on a cell — a 14 px chip in a 14 px row covers its own number and
+    // stays off the neighbours' (the overlap audit's finding at r 9)
+    if (v.pick === 0) chip(gd.x + gridW / 2 - 24, gd.zeroY + gd.zeroH / 2 - 1, 7);
     else {
       const r = Math.floor((v.pick - 1) / 3), c = (v.pick - 1) % 3;
-      chip(gd.x + c * gd.colW + cellW / 2, gd.y + r * gd.rowH + gd.rowH / 2 - 1);
+      chip(gd.x + c * gd.colW + cellW / 2, gd.y + r * gd.rowH + gd.rowH / 2 - 1, 7);
     }
   } else {
     const i = OUTS.findIndex((o) => o.bet === v.kind);
-    chip(LAY.outside.x + LAY.outside.w - 18,
-      LAY.outside.y + i * (LAY.outside.h + LAY.outside.gap) + LAY.outside.h / 2);
+    chip(LAY.outside.x + LAY.outside.w - 16,
+      LAY.outside.y + i * (LAY.outside.h + LAY.outside.gap) + 14, 9);
   }
 
   g.restore();
@@ -623,14 +664,28 @@ export function register(ctx: CtxBuild): void {
         standoff: 0.92,
         fov: 70,
         faceYaw: -Math.PI / 2,
-        hot: (x, y) => table.view().phase === 'betting' && feltHit(x, y) !== null,
+        hot: (x, y) => {
+          const hit = feltHit(x, y);
+          if (!hit) return false;
+          // LEAVE is pressable from every state — the way out never greys.
+          // Everything else is a bet, and bets exist only between spins.
+          if (hit.kind === 'leave') return true;
+          const v = table.view();
+          if (v.phase !== 'betting') return false;
+          if (hit.kind === 'buyin') return ctx.purse.cash >= CHIP;
+          if (hit.kind === 'cashout') return v.chips > 0;
+          return true;
+        },
         click: (x, y) => {
-          if (table.view().phase !== 'betting') return;
           const hit = feltHit(x, y);
           if (!hit) return;
+          if (hit.kind === 'leave') { panel?.close(); return; }
+          if (table.view().phase !== 'betting') return;
           if (hit.kind === 'spin') table.spin();
           else if (hit.kind === 'bet') table.kindSet(hit.bet);
           else if (hit.kind === 'pick') table.pickSet(hit.n);
+          else if (hit.kind === 'buyin') buyIn();
+          else if (hit.kind === 'cashout') cashOut();
           else table.betBy(hit.d);
           panel?.repaint();
         },

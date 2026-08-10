@@ -6348,3 +6348,26 @@ front-on) found three BROKEN items; a builder fixed all three in mirror.ts:
 
 `npx tsc --noEmit` clean in mirror.ts (pre-existing reds in other builders'
 in-flight `fatigue.ts` / `roulette.ts`), `WORLD OK` on 5177.
+
+## 2026-08-09 — *"make sure the diagetic overlays in the blackjack and the roulette arent overlapping. also lets make the games totally playable with just click. keyboard is good too but just mouse should be ok"*
+
+To the same builder that moved the tables onto their felts.
+
+- **Overlaps found and fixed, by walking the painters through their states:**
+  blackjack's chip-and-badge row grazed the CHIPS meter (split hands) and the
+  betting spot grazed the printed dealer rule — the whole felt re-spaced
+  (dealer 42, player 152, legend lifted, spot ring 30); roulette's meter row
+  under the wheel sat beneath the framework's caption line — the entire
+  control strip moved to the left half of the baize (grid rows 14 px), the
+  35:1 note into the zero row, the straight-bet chip shrunk to its cell.
+- **Every verb is now a printed region:** blackjack's row divides by phase —
+  DEAL/BET−/BET+/BUY IN/CASH OUT/LEAVE betting, HIT/STAND/DOUBLE/SPLIT/LEAVE
+  in play; roulette adds BUY IN/CASH OUT/LEAVE under its money row. LEAVE is
+  Escape's own path and never greys. Keyboard unchanged throughout.
+- **And the leave-fast money bug both tables shared:** a win announced but
+  still counting onto the rail was swallowed by leaving mid-count. `cashOut`
+  now collects the outstanding `owed` (including a peek natural announced a
+  second before settlement), so Escape, LEAVE and standing up are all clean
+  from every state.
+
+Both games driven end to end by mouse alone and looked at.

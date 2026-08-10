@@ -619,13 +619,19 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
     ready = holeTurnT + PACE.holeTurn;
   };
 
+  /** what a hand whose outcome is ALREADY decided (the peek's naturals and
+   *  pushes) pays — one formula, read by `settle` and by `cashOut` for the
+   *  window where the outcome is announced but `settle` has not run yet */
+  const preOwed = (h: { bet: number; outcome: Outcome }): number =>
+    h.outcome === 'blackjack' ? h.bet * (1 + RULES.blackjackPays)
+      : h.outcome === 'push' ? h.bet : 0;
+
   const settle = () => {
     const dv = value(dealer.map((c) => c.card));
     owed = 0;
     for (const h of hands) {
       const pv = value(h.cards.map((c) => c.card));
-      if (h.outcome) { owed += h.outcome === 'blackjack' ? h.bet * (1 + RULES.blackjackPays)
-        : h.outcome === 'push' ? h.bet : 0; continue; }
+      if (h.outcome) { owed += preOwed(h); continue; }
       if (pv.bust) { h.outcome = 'bust'; continue; }
       if (dv.bust || pv.total > dv.total) { h.outcome = 'win'; owed += h.bet * 2; }
       else if (pv.total < dv.total) { h.outcome = 'lose'; }
@@ -816,7 +822,21 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
       // Same contract as the slot machine's: whatever is ON THE RAIL always
       // comes back, whenever you stand up. A bet already in the middle of a
       // hand is gone, exactly as it is at a real table.
-      const n = chips; chips = 0;
+      //
+      // …AND SO DOES WHATEVER THE HOUSE STILL OWES. `owed − paid` is a win
+      // that has been settled but not yet counted onto the rail — the pay
+      // animation runs at PACE.payRate and a big double can take seconds.
+      // Standing up (or Escape, or a printed LEAVE) mid-count used to zero it
+      // with the round: money the table had already announced, swallowed by
+      // leaving too fast. A dealer pushes your winnings after you stand up;
+      // so does this one. The `preOwed` term covers the one window where an
+      // outcome is decided but `settle` has not run — the peek's naturals,
+      // announced at the hole-card turn a second before settlement.
+      const due = Math.max(0, owed - paid)
+        + (owed === 0 && paid === 0 ? hands.reduce((s, h) => s + preOwed(h), 0) : 0);
+      returned += due;
+      const n = chips + due;
+      chips = 0;
       phase = 'betting'; hands = []; dealer = []; active = -1;
       owed = 0; paid = 0; payRamp = 0;
       return n;
@@ -879,8 +899,12 @@ const T = {
  *  table (the mesh's −z edge), which is where he stands in the room. */
 export const LAYOUT = {
   shoe: { x: 448, y: 46 },
-  dealer: { x: 256, y: 46 },
-  player: { x: 256, y: 158 },
+  // 42/152, walked down from 46/158 in the overlap audit: the player's chip
+  // row (badge line + 10 px of chip) now clears the meter row at 208 by 3 px,
+  // and the dealer's badge clears the PAYS legend — every band on the felt
+  // has its own air. *"make sure the diagetic overlays … arent overlapping."*
+  dealer: { x: 256, y: 42 },
+  player: { x: 256, y: 152 },
   // The overlap keeps each card's corner index readable — how a hand is
   // actually fanned. Cards grew from 26 × 38 with the move onto the tabletop:
   // *"cards … lie ON the felt, big and pixel-crisp."*
@@ -890,32 +914,49 @@ export const LAYOUT = {
   btnY: 234, btnH: 30,
 } as const;
 
-/** The four action regions printed along the player's edge of the felt —
+/** The action regions printed along the player's edge of the felt —
  *  *"bet/hit/stand/double live as printed regions of the felt"* — declared once
- *  and read by the painter AND the click handler (the loan form's BOX rule). */
-export const BTN = { x: 14, y: 234, w: 115, h: 30, gap: 8 } as const;
-export const buttonIx = (x: number, y: number): number | null => {
+ *  and read by the painter AND the click handler (the loan form's BOX rule).
+ *  The row divides its width by however many regions the phase offers, so the
+ *  rects come from `btnRect(i, n)` with `n = buttonsFor(...).length`. */
+export const BTN = { x: 14, y: 234, h: 30, gap: 8, right: 498 } as const;
+export const btnRect = (i: number, n: number): { x: number; y: number; w: number; h: number } => {
+  const w = (BTN.right - BTN.x - (n - 1) * BTN.gap) / n;
+  return { x: BTN.x + i * (w + BTN.gap), y: BTN.y, w, h: BTN.h };
+};
+export const buttonIx = (x: number, y: number, n: number): number | null => {
   if (y < BTN.y || y > BTN.y + BTN.h) return null;
-  for (let i = 0; i < 4; i++) {
-    const bx = BTN.x + i * (BTN.w + BTN.gap);
-    if (x >= bx && x <= bx + BTN.w) return i;
+  for (let i = 0; i < n; i++) {
+    const r = btnRect(i, n);
+    if (x >= r.x && x <= r.x + r.w) return i;
   }
   return null;
 };
 
-export type BtnAct = 'deal' | 'betdown' | 'betup' | 'buyin' | 'hit' | 'stand' | 'double' | 'split';
-/** What the four regions mean RIGHT NOW. The rules speaking, never a fixed row
- *  greyed out by the painter's own opinion — `moves` is the authority. */
-export const buttonsFor = (v: TableView): { label: string; act: BtnAct; live: boolean }[] =>
+export type BtnAct = 'deal' | 'betdown' | 'betup' | 'buyin' | 'cashout' | 'leave'
+  | 'hit' | 'stand' | 'double' | 'split';
+/**
+ * What the printed regions mean RIGHT NOW. The rules speaking, never a fixed
+ * row greyed out by the painter's own opinion — `moves` is the authority.
+ *
+ * EVERY VERB THE TABLE HAS IS A REGION — *"lets make the games totally
+ * playable with just click"* (2026-08-09). CASH OUT and LEAVE were keyboard
+ * only (C and Escape); both keys still work, but a mouse-only player now has
+ * the whole game printed in front of them, including the way out.
+ */
+export const buttonsFor = (v: TableView, cash?: number): { label: string; act: BtnAct; live: boolean }[] =>
   v.phase === 'betting'
     ? [{ label: 'DEAL', act: 'deal', live: v.chips >= v.bet },
        { label: 'BET −', act: 'betdown', live: true },
        { label: 'BET +', act: 'betup', live: true },
-       { label: 'BUY IN', act: 'buyin', live: true }]
+       { label: 'BUY IN', act: 'buyin', live: cash === undefined || cash >= CHIP_HINT },
+       { label: 'CASH OUT', act: 'cashout', live: v.chips > 0 },
+       { label: 'LEAVE', act: 'leave', live: true }]
     : [{ label: 'HIT', act: 'hit', live: v.moves.includes('hit') },
        { label: 'STAND', act: 'stand', live: v.moves.includes('stand') },
        { label: 'DOUBLE', act: 'double', live: v.moves.includes('double') },
-       { label: 'SPLIT', act: 'split', live: v.moves.includes('split') }];
+       { label: 'SPLIT', act: 'split', live: v.moves.includes('split') },
+       { label: 'LEAVE', act: 'leave', live: true }];
 
 const PIP: Record<number, (g: Paint2D, x: number, y: number, s: number) => void> = {
   // 0 spade, 1 heart, 2 diamond, 3 club — the order of `SUITS`.
@@ -1060,13 +1101,13 @@ export function paintTable(
   g.fillStyle = T.feltHi;
   for (let x = 28; x < FELT.w - 28; x += 1) {
     const k = (x - FELT.w / 2) / (FELT.w / 2 - 28);
-    g.fillRect(x, 98 + Math.round(k * k * 14), 1, 1);
+    g.fillRect(x, 90 + Math.round(k * k * 12), 1, 1);
   }
   g.textAlign = 'center'; g.font = 'bold 13px monospace';
   g.fillStyle = T.gold;
-  g.fillText('BLACKJACK PAYS 3 TO 2', FELT.w / 2, 118);
+  g.fillText('BLACKJACK PAYS 3 TO 2', FELT.w / 2, 106);
   g.font = '9px monospace'; g.fillStyle = T.dim;
-  g.fillText(dealerRule(), FELT.w / 2, 132);
+  g.fillText(dealerRule(), FELT.w / 2, 119);
 
   // the shoe, printed at the dealer's right hand, where every card comes from
   g.fillStyle = T.railHi; g.fillRect(LAYOUT.shoe.x - 17, LAYOUT.shoe.y - 22, 34, 42);
@@ -1083,8 +1124,8 @@ export function paintTable(
   if (!v || !v.hands.length) {
     g.fillStyle = T.feltHi;
     g.beginPath();
-    g.arc(LAYOUT.player.x, LAYOUT.player.y, 34, 0, Math.PI * 2);
-    g.arc(LAYOUT.player.x, LAYOUT.player.y, 32, 0, Math.PI * 2, true);
+    g.arc(LAYOUT.player.x, LAYOUT.player.y, 30, 0, Math.PI * 2);
+    g.arc(LAYOUT.player.x, LAYOUT.player.y, 28, 0, Math.PI * 2, true);
     g.fill();
   }
 
@@ -1127,7 +1168,7 @@ export function paintTable(
     }
     if (many && i === v.active) {
       g.strokeStyle = T.gold; g.lineWidth = 1;
-      g.strokeRect(hx - 64.5, LAYOUT.player.y - 33.5, 129, 76);
+      g.strokeRect(hx - 64.5, LAYOUT.player.y - 30.5, 129, 76);
     }
   });
 
@@ -1165,15 +1206,16 @@ export function paintTable(
   // painter's own opinion. `buttonsFor` reads `moves` — the rules speaking —
   // and the click handler reads the SAME table, so a region drawn live here
   // and refused by `act` cannot happen.
-  buttonsFor(v).forEach((b, i) => {
-    const bx = BTN.x + i * (BTN.w + BTN.gap);
+  const btns = buttonsFor(v, cash);
+  btns.forEach((b, i) => {
+    const r = btnRect(i, btns.length);
     g.fillStyle = b.live ? (i === hover ? '#f0d68a' : T.gold) : '#3c443c';
-    g.fillRect(bx, BTN.y, BTN.w, BTN.h);
+    g.fillRect(r.x, r.y, r.w, r.h);
     g.fillStyle = b.live ? '#f8e6ac' : '#4c544c';
-    g.fillRect(bx, BTN.y, BTN.w, 2);
+    g.fillRect(r.x, r.y, r.w, 2);
     g.fillStyle = b.live ? T.black : '#6c746c';
-    g.font = 'bold 12px monospace'; g.textAlign = 'center';
-    g.fillText(b.label, bx + BTN.w / 2, BTN.y + 20);
+    g.font = 'bold 10px monospace'; g.textAlign = 'center';
+    g.fillText(b.label, r.x + r.w / 2, r.y + 19);
   });
 
   g.restore();
@@ -1331,19 +1373,26 @@ export function register(ctx: CtxBuild): void {
         fov: 62,
         faceYaw: 0,
         hot: (x, y) => {
-          const i = buttonIx(x, y);
-          return i !== null && buttonsFor(table.view())[i].live;
+          const btns = buttonsFor(table.view(), ctx.purse.cash);
+          const i = buttonIx(x, y, btns.length);
+          return i !== null && btns[i].live;
         },
-        move: (x, y) => { hover = buttonIx(x, y); },
+        move: (x, y) => { hover = buttonIx(x, y, buttonsFor(table.view(), ctx.purse.cash).length); },
         click: (x, y) => {
-          const i = buttonIx(x, y);
+          const btns = buttonsFor(table.view(), ctx.purse.cash);
+          const i = buttonIx(x, y, btns.length);
           if (i === null) return;
-          const b = buttonsFor(table.view())[i];
+          const b = btns[i];
           if (!b.live) return;
           if (b.act === 'deal') table.deal();
           else if (b.act === 'betdown') table.betBy(-1);
           else if (b.act === 'betup') table.betBy(1);
           else if (b.act === 'buyin') buyIn();
+          else if (b.act === 'cashout') cashOut();
+          // LEAVE closes the panel — Escape's own path, so onClose cashes the
+          // rail out and the seat's dismissed latch is set, exactly as if the
+          // player had pressed the key. Standing up is still the world's [E].
+          else if (b.act === 'leave') { panel?.close(); return; }
           else table.act(b.act);
           panel?.repaint();
         },
