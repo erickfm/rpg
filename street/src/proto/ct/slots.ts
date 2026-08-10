@@ -2145,16 +2145,20 @@ export function register(ctx: CtxBuild): void {
   /**
    * THE ONE DISPATCH, and it is one on purpose.
    *
-   * `DECK[i].key` is a keystroke, and a click sends that keystroke through here
-   * exactly as the keyboard does. A click on SPIN and a press of SPACE are the
-   * same event as far as this machine is concerned, and the one thing worse than
-   * two input paths is two that disagree about what SPIN does. `ct/atm.ts` routes
-   * its soft keys and its PIN pad the same way for the same reason.
+   * `DECK[i].key` is a token, and a click sends that token through here. A
+   * click on SPIN and a press of SPACE are the same event as far as this
+   * machine is concerned. `ct/atm.ts` routes its soft keys and its PIN pad the
+   * same way for the same reason.
+   *
+   * CLICK-ONLY SINCE 2026-08-09 (*"make that click only. maybe the spin/pull
+   * lever is still space tho"*): the panel's `key` handler forwards SPACE
+   * alone — the pull — and everything else arrives from `clickAt`. B/V/M/I/C
+   * as keystrokes are dead; the tokens survive as what the deck buttons and
+   * the bill slot send.
    */
   const onKey = (k: string): void => {
-    if (k === ' ' || k === 'enter') machine.play();
+    if (k === ' ') machine.play();
     else if (k === 'b') machine.betUp();
-    else if (k === 'v') machine.betDown();
     else if (k === 'm') { for (let i = 0; i < 8; i++) machine.betUp(); }
     else if (k === 'i') insert();
     else if (k === 'c') cashOut();
@@ -2231,17 +2235,14 @@ export function register(ctx: CtxBuild): void {
       hot: hotAt,
       click: clickAt,
     },
-    // The mouse is a way in now, so the caption says so — but the keys are named
-    // and in full, because *"the current keyboard shortcuts should keep
-    // working"* and a player who learned this machine on the keyboard must not
-    // be told it stopped listening.
+    // The mouse is THE way in now (2026-08-09: *"make that click only"*). The
+    // one key named is the one that still works — SPACE pulls, because *"maybe
+    // the spin/pull lever is still space tho"*.
     hint: () => (machine.settled()
-      ? (ctx.purse.cash < CREDIT
-        ? 'click a button · SPACE spin · B/M bet · C cash out'
-        : 'click a button · SPACE spin · B/M bet · I insert · C cash out')
+      ? 'click a button · SPACE spins'
       : '…'),
     draw: (g, w, h) => paintMachine(g, w, h, machine.view(), clock, ctx.purse.cash),
-    key: (k) => onKey(k),
+    key: (k) => { if (k === ' ') onKey(' '); },
     // THE MONEY COMES BACK, ALWAYS. ESC closes every panel in this world without
     // the caller writing a line, which is right and is also the one way a player
     // could have walked away from a full meter. Cashing out on close makes

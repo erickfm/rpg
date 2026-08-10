@@ -6447,3 +6447,28 @@ slots now play in the tables' locked-perspective grammar:
   readout band + lever margin), standoff 0.72 (KING 1.05), fov 70 — reel
   glass dominant, pay card at the bottom edge of frame or just out, caption
   clear of the printed card. All three personalities looked at.
+
+## 2026-08-09 — *"delete feed birds. keep other e uses. delete i. for all the other atm and roulette and gambling specific stuff. make that click only. maybe the spin/pull lever is still space tho"*
+
+The ruling on the key-map audit (the sunset list from *"we have too many keys
+doing stuff"*). Executed by one builder:
+
+- **Feed birds deleted.** The world-E fallback in `crosstown.ts` (nothing
+  near = scatter cereal) is gone; every other E use survives untouched
+  (interact, close panel, bag toggle looking down). The pigeons keep their
+  ambient behaviour — only the verb died.
+- **I deleted, both lives.** World I no longer opens the pockets and in-panel
+  I no longer closes them (`ct/inventory.ts`); I = buy-in is gone from
+  blackjack, roulette and slots. What you carry is still on the bag's
+  E-looking-down route.
+- **ATM click-only** (`ct/atm.ts`): typed digits, Backspace and Enter are
+  dead — the fascia keypad and soft keys are clicked, through the same one
+  dispatch. Escape and [E] still close.
+- **Blackjack click-only** (`ct/blackjack.ts`): Space/Enter deal, bet keys,
+  I/C, H/S/D/P all dead — every verb is a printed region on the felt.
+- **Roulette click-only** (`ct/roulette.ts`): arrows, R/B/O/E, +/−, I/C dead.
+  **SPACE keeps exactly one meaning: SPIN.**
+- **Slots click-only** (`ct/slotcab.ts`, `ct/slots.ts`): B/V/M/I/C and Enter
+  dead. **SPACE keeps exactly one meaning: PULL.**
+- Every printed hint that named a dead key is rewritten; Escape and [E] as
+  panel exits are framework law and untouched everywhere.

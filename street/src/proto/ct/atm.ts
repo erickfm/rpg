@@ -658,11 +658,14 @@ function drawScreen(g: CanvasRenderingContext2D): void {
 
 // ── keys ──────────────────────────────────────────────────────────────────
 //
-// DIGITS WORK IN HERE because the panel gate swallows keydown before anything
-// else in the document sees it. (Historically `src/main.ts` spent every digit
-// switching prototypes; those bindings were unmapped 2026-08-09, but the gate
-// is still what a PIN pad stands on.) That is a property of the framework
-// rather than a trick — a panel genuinely owns the keyboard while it is up.
+// CLICK-ONLY SINCE 2026-08-09 — Erick's ruling: *"for all the other atm and
+// roulette and gambling specific stuff. make that click only."* The panel no
+// longer declares a `key` handler, so no keyboard press reaches this dispatch:
+// every token below arrives from `clickAt`, which translates a click on a
+// physical pad key or a fascia soft key into the same names the keyboard used
+// to send ('backspace' for CLR, 'enter' for ENT, digits for digits). Keeping
+// the old names keeps one dispatch. Escape and [E] still close the panel —
+// that is the framework's law, not this machine's.
 function onKey(k: string): void {
   const p = PURSE!;
   // SOFT KEYS FIRST, AND ON EVERY SCREEN. A fascia button is a fascia button
@@ -684,19 +687,15 @@ function onKey(k: string): void {
       return;
     }
     if (k === 'backspace') {
-      // CLR ON AN EMPTY PIN IS THE KEYBOARD'S CANCEL, and it is how this screen
-      // is escaped without a mouse.
+      // CLR ON AN EMPTY PIN IS THE PAD'S OWN CANCEL. ('backspace' is the token
+      // `clickAt` sends for a click on the CLR key — the keyboard no longer
+      // reaches here.)
       //
-      // The fascia CANCEL is reachable by CLICK again (see `softKey`), but it
-      // CANNOT be reached by its number here: its number is 5, and 5 is a digit
-      // the PIN screen is entitled to eat. That collision is real and no
-      // encoding fixes it — the user spotted it himself.
-      //
-      // So the escape hatch is the machine's OWN key rather than an invented
-      // one. CLR on an empty entry ending the session is what cash machines of
-      // this vintage do, it is a key the player can see on the pad, and it works
-      // by click and by keyboard through the same path everything else does.
-      // CLR on a part-typed PIN still deletes a digit, exactly as before.
+      // The fascia CANCEL is also reachable by CLICK (see `softKey`); this is
+      // the pad's route to the same exit. CLR on an empty entry ending the
+      // session is what cash machines of this vintage do, and it is a key the
+      // player can see on the pad. CLR on a part-typed PIN still deletes a
+      // digit, exactly as before.
       if (pin === '') { go('card'); return; }
       pin = pin.slice(0, -1); panel?.repaint(); return;
     }
@@ -940,12 +939,10 @@ export function register(ctx: CtxBuild): void {
     // 0.20 m puts the cabinet back in its wall and still leaves the tube at
     // roughly 44% of frame width, ~1.9 screen pixels per texel.
     surface: { mesh: screenMesh, standoff: 0.75, fov: 58, hot: hotAt, click: clickAt },
-    // The mouse is the way in now, so it is what the caption offers; the keys
-    // still work and still get a mention, because a player who learned this
-    // machine on the keyboard must not be told it stopped listening.
-    // The PIN screen's hint names CLR, because it is the one screen where
-    // "press its number" is NOT true of every fascia button — CANCEL's number
-    // is 5 and 5 is a digit this screen eats, so CLR is the keyboard's way out.
+    // The mouse is the ONLY way in now (2026-08-09, click-only ruling), so it
+    // is all the caption offers. The PIN screen's hint names CLR because it is
+    // the pad's own way back out of a part-typed PIN — by click, on the key
+    // the player can see.
     //
     // KEPT SHORT ON PURPOSE, and I have looked at it. This line is drawn across
     // the bottom of the viewport and it already overlaps the `[E] leave` label
@@ -954,10 +951,10 @@ export function register(ctx: CtxBuild): void {
     // version made it markedly worse. CANCEL does not need to be in here: it is
     // drawn on the tube, against its own lit button.
     hint: () => (screen === 'pin'
-      ? 'click the keys below, or type it — CLR backs out'
-      : 'click a button, or press its number'),
+      ? 'click the keys below — CLR backs out'
+      : 'click a button'),
     draw: (g) => drawScreen(g),
-    key: (k) => onKey(k),
+    // NO `key` HANDLER — click-only by ruling; see the ── keys ── note above.
     // THE PHYSICAL KEYS BECOME PICKABLE ONLY NOW, and pairing it with `onClose`
     // is the whole point. `openAtm` is the wrong place and I put it there first
     // and the walk caught it: `panel.open()` DECLINES in two documented cases —

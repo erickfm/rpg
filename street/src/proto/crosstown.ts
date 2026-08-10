@@ -106,7 +106,7 @@ export function makeCrosstown(): Proto {
    *  is stored — it is a per-session view state and lives only here, so a new
    *  session starts raised and nothing overwrites a choice he made earlier. */
   let bagUp = false, watchUp = true;
-  /** E's rising edge for the bag toggle, kept apart from `feedHeld` so the
+  /** E's rising edge for the bag toggle, kept apart from `interactHeld` so the
    *  world's own [E] edge detector is not disturbed by it */
   let eDownHeld = false;
   /** is he looking at the floor right now — read by the [E] dispatch and by
@@ -598,7 +598,7 @@ export function makeCrosstown(): Proto {
   let clockRamp = 0;          // game minutes still owed
   let clockRampRate = 0;      // game minutes per real second
   let rmbHeld = false;
-  let feedHeld = false;
+  let interactHeld = false;
 
 
   // ── the block's furniture, and the weather over it ─────────────────────
@@ -1492,7 +1492,7 @@ export function makeCrosstown(): Proto {
   }
 
   // debug/tour hook
-  // E is one key for the whole world: doors, buying, feeding the birds
+  // E is one key for the whole world: doors, buying, sitting down
   jumpToImpl = (x: number, z: number, yaw: number, gy: number) => {
     // Get up first. A door or a till within reach of a chair would otherwise
     // teleport you across the world still sitting on furniture you left
@@ -1863,9 +1863,9 @@ export function makeCrosstown(): Proto {
   // cannot see past at any angle, from anywhere in the room.
   //
   // THE RULE. x 100 is not a number invented here. `ct/interior.ts:40` states
-  // the world's address map — "x < 100 is the street" — and this file already
-  // uses `px < 100` as "am I outdoors" to decide whether feeding the birds
-  // works. A top-level scene child whose whole extent lies west of it is
+  // the world's address map — "x < 100 is the street" — and this file used
+  // `px < 100` as "am I outdoors" while E could still feed the birds (that
+  // verb died 2026-08-09). A top-level scene child whose whole extent lies west of it is
   // street geometry; while the player stands east of it, it is not drawn.
   //
   // WHAT IT DELIBERATELY REFUSES TO TOUCH, because a room whose window goes
@@ -2827,7 +2827,9 @@ export function makeCrosstown(): Proto {
           fpsCount = 0; fpsAccum = 0; fpsWorst = 0;
         }
       }
-      // E: nearest live spot wins; with nothing near, E feeds the birds
+      // E: nearest live spot wins; with nothing near, E does nothing. (It used
+      // to feed the birds — Erick killed that verb 2026-08-09: "delete feed
+      // birds. keep other e uses.")
       //
       // It said "nearest" and did FIRST-REGISTERED — the loop broke on the
       // first spot in range, so with two triggers overlapping you got whichever
@@ -2974,10 +2976,10 @@ export function makeCrosstown(): Proto {
       spotOutline.show(scene, debugSpots ? active : null);
       // E dispatch (edge-triggered)
       // ⚠ AND THE KEY ITSELF IS THE BAG'S DOWN THERE. Held back rather than
-      // consumed at the toggle, so `feedHeld` keeps tracking the real key state
-      // and lifting his head mid-press cannot fire a spot on the way up.
-      const feedDown = input.keys.has('e') && !lookDown;
-      if (feedDown && !feedHeld) {
+      // consumed at the toggle, so `interactHeld` keeps tracking the real key
+      // state and lifting his head mid-press cannot fire a spot on the way up.
+      const interactDown = input.keys.has('e') && !lookDown;
+      if (interactDown && !interactHeld) {
         if (rig.seated && !active) {
           // STANDING UP IS THE FALLBACK, AND THE FALLBACK IS THE DEFAULT.
           //
@@ -3050,13 +3052,9 @@ export function makeCrosstown(): Proto {
           if (!rig.seated && Math.hypot(rig.pos.x - wasX, rig.pos.z - wasZ) > LATCH_ARM) {
             landing = { x: rig.pos.x, z: rig.pos.z };
           }
-        } else if ((purse.inv.CEREAL ?? 0) > 0 && px < 100) {
-          purse.inv.CEREAL--;
-          props.scatter(px + Math.sin(rig.yaw) * 1.3, pz - Math.cos(rig.yaw) * 1.3, apt.gy());
-          hud.refreshWallet();
         }
       }
-      feedHeld = feedDown;
+      interactHeld = interactDown;
 
       // billboards face the player
       //

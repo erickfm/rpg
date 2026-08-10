@@ -5,7 +5,8 @@
 // trimmed and the show kept: FOUR SIMPLE BETS — red/black, odd/even, one
 // straight number — and a wheel you WATCH: the ball whips round the rim
 // against the spin, dies, drops, bounces twice and rides its pocket home.
-// The watching is the game; everything else is one keypress.
+// The watching is the game; everything else is one click on the felt
+// (click-only since 2026-08-09 — SPACE alone survives, as SPIN).
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // PART ONE: THE MATHS — which for roulette fits on a napkin, and that napkin
@@ -634,26 +635,15 @@ export function register(ctx: CtxBuild): void {
       w: FELT.w, h: FELT.h, scale: 2,
       chrome: 'none',
       hint: () => (table.view().phase === 'betting'
-        ? (ctx.purse.cash < CHIP
-          ? 'click a bet, then the wheel · arrows bet · C cash out'
-          : 'click a bet, then the wheel · arrows bet · I buy in $20 · C cash out')
+        ? 'click a bet, then the wheel · SPACE spins'
         : 'no more bets'),
       draw: (g, w, h) => paintTable(g, w, h, table.view(), ctx.purse.cash),
+      // CLICK-ONLY (2026-08-09): *"make that click only. maybe the spin/pull
+      // lever is still space tho"* — so SPACE keeps exactly one meaning, SPIN,
+      // and every other verb is a printed region on the felt. Escape and [E]
+      // still leave, through the framework.
       key: (k) => {
-        if (k === ' ' || k === 'enter') table.spin();
-        else if (k === 'arrowleft') table.kindBy(-1);
-        else if (k === 'arrowright') table.kindBy(1);
-        else if (k === 'arrowup') table.pickBy(1);
-        else if (k === 'arrowdown') table.pickBy(-1);
-        else if (k === '+' || k === '=') table.betBy(1);
-        else if (k === '-') table.betBy(-1);
-        else if (k === 'r') table.kindSet('red');
-        else if (k === 'b') table.kindSet('black');
-        else if (k === 'o') table.kindSet('odd');
-        else if (k === 'e') table.kindSet('even');
-        else if (k === 'i') buyIn();
-        else if (k === 'c') cashOut();
-        panel?.repaint();
+        if (k === ' ') { table.spin(); panel?.repaint(); }
       },
       surface: {
         mesh: () => ctx.scene.getObjectByName('roulette-felt') ?? null,

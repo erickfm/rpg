@@ -1313,7 +1313,6 @@ export function register(ctx: CtxBuild): void {
     hint: () => 'scroll  choose   ·   G  put it down',
     draw: (g) => paintPanel(g),
     key: (k) => {
-      if (k === 'i') { panel?.close(); return; }
       if (k !== 'g') return;
       const id = selected(ctx.purse);
       if (id) dropId(ctx, id);
@@ -1334,18 +1333,18 @@ export function register(ctx: CtxBuild): void {
   setPocketInfo(() => ({ used: slots(ctx.purse).length, max: POCKETS }));
   onPurseChange(() => panel?.repaint());
 
-  // `i` OPENS IT, and that binding lives out here because a panel that is shut
-  // hears nothing — the framework's gate only runs while something is up. G
-  // outside the panel drops the last thing you picked up; inside it drops what
-  // you chose, and the difference is on screen at the moment you press it,
-  // which is the only kind of modal key that is not a trap.
+  // `I` USED TO OPEN IT — deleted 2026-08-09 on Erick's ruling ("delete i.").
+  // The pockets ride along on the bag's E-looking-down route now; this
+  // listener keeps only G. G outside the panel drops the last thing you picked
+  // up; inside it drops what you chose, and the difference is on screen at the
+  // moment you press it, which is the only kind of modal key that is not a
+  // trap.
   if (!keysBound) {
     keysBound = true;
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (k === 'i') togglePockets();
-      else if (k === 'g') dropLast(ctx);
+      if (k === 'g') dropLast(ctx);
     });
   }
 

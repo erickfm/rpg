@@ -940,9 +940,10 @@ export type BtnAct = 'deal' | 'betdown' | 'betup' | 'buyin' | 'cashout' | 'leave
  * row greyed out by the painter's own opinion — `moves` is the authority.
  *
  * EVERY VERB THE TABLE HAS IS A REGION — *"lets make the games totally
- * playable with just click"* (2026-08-09). CASH OUT and LEAVE were keyboard
- * only (C and Escape); both keys still work, but a mouse-only player now has
- * the whole game printed in front of them, including the way out.
+ * playable with just click"* (2026-08-09), and later the same day the regions
+ * became the ONLY way: *"make that click only"*. The table binds no game keys
+ * at all now. Escape and [E] still leave — framework law — and LEAVE is
+ * printed on the felt with the rest.
  */
 export const buttonsFor = (v: TableView, cash?: number): { label: string; act: BtnAct; live: boolean }[] =>
   v.phase === 'betting'
@@ -1341,28 +1342,13 @@ export function register(ctx: CtxBuild): void {
       id: 'ct-blackjack',
       w: FELT.w, h: FELT.h, scale: 2,
       chrome: 'none',
+      // CLICK-ONLY (2026-08-09): *"make that click only"* — no `key` handler.
+      // Every verb is a printed region on the felt (`buttonsFor`); Escape and
+      // [E] still leave, through the framework.
       hint: () => (table.view().phase === 'betting'
-        ? (ctx.purse.cash < CHIP
-          ? 'click the felt · SPACE deal · +/− bet · C cash out'   // no I: nothing to buy in with
-          : 'click the felt · SPACE deal · +/− bet · I buy in $20 · C cash out')
-        : 'click the felt · H hit · S stand · D double · P split'),
+        ? 'click the felt — the buttons are printed on it'
+        : 'click the felt — HIT · STAND · DOUBLE · SPLIT'),
       draw: (g, w, h) => paintTable(g, w, h, table.view(), ctx.purse.cash, hover),
-      key: (k) => {
-        const v = table.view();
-        if (v.phase === 'betting') {
-          if (k === ' ' || k === 'enter') table.deal();
-          else if (k === '+' || k === '=' || k === 'arrowup') table.betBy(1);
-          else if (k === '-' || k === 'arrowdown') table.betBy(-1);
-          else if (k === 'i') buyIn();
-          else if (k === 'c') cashOut();
-        } else {
-          if (k === 'h') table.act('hit');
-          else if (k === 's') table.act('stand');
-          else if (k === 'd') table.act('double');
-          else if (k === 'p') table.act('split');
-        }
-        panel?.repaint();
-      },
       surface: {
         mesh: () => ctx.scene.getObjectByName('blackjack-felt') ?? null,
         // the eye clamps to 1.75 m over the floor (`poseFor`), so 0.92 above

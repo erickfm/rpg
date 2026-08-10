@@ -830,8 +830,11 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
           : `slot wants $${m.kind.stake}`;
       },
       draw: (g, w, h) => paintSession(g, w, h, active, ctx.purse.cash),
+      // CLICK-ONLY (2026-08-09) with one survivor: *"maybe the spin/pull lever
+      // is still space tho"* — SPACE pulls, nothing else. Escape and [E] still
+      // leave, through the framework.
       key: (k) => {
-        if ((k === ' ' || k === 'enter') && active) { pull(active, ctx); panel?.repaint(); }
+        if (k === ' ' && active) { pull(active, ctx); panel?.repaint(); }
       },
       surface: {
         mesh: () => active?.pane ?? null,
