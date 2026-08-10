@@ -499,10 +499,10 @@ export class FPRig {
     this.yaw = spawn.yaw;
     this.height = o.height ?? 1.62;
     this.speed = o.speed ?? 3.2;
-    // DEBUG: sprint cranked up for getting around the world fast while we
-    // build it. Shipping value was 6.4 (2x walk) -- restore that before this
-    // is treated as a real movement feel.
-    this.run = o.run ?? 42.0;   // was: o.run ?? 6.4
+    // 2x walk. (Spent a stretch of the build at a DEBUG 42.0 for getting
+    // around the world fast; restored 2026-08-10 when the skateboard shipped —
+    // its 6.0 cruise / 7.5 push were tuned against THIS sprint, not that one.)
+    this.run = o.run ?? 6.4;
     this.bob = o.bob ?? 0.035;
     this.bounds = o.bounds;
     this.colliders = o.colliders ?? [];
