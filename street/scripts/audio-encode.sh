@@ -415,3 +415,30 @@ sfx slot-stop     "slot click.wav"  0.51 0.16 44100
 # the onset and let the standard fade land inside its own decay. 22.05 kHz
 # (0.1% above 8 kHz).
 sfx burp          "burp.wav"        0.08 1.90 22050
+
+# ── and the three spin arps, one per cabinet personality ────────────────────
+#
+# *"i also added some scales like arp scales to play while slots spin. there
+# are 3 variations, use them so there's sounds unique to each type of
+# machine."* Three 12 s mp3s, each ~10.5 s of synth arpeggio at a dead-steady
+# level with silence after — LOOP material, not one-shots: a spin runs 2-4 s
+# and starts whenever the lever does, so ct/audio.ts loops these under the
+# reels and fades out when the last reel clicks home. The `bed` treatment,
+# LUFS-matched like the other textures (they arrive -21.0/-20.1/-17.4 LUFS
+# and must sit identically under the same clicks). 22.05 kHz mono: every one
+# is >98.5% 250 Hz-2 kHz.
+#
+# WHO GETS WHICH: scale 3 is the busy one (42 note onsets to the others' ~16,
+# 0.25 s apart) and the loudest — that is KING KACHING, the $10 flagship.
+# Scales 1 and 2 are the same lazier gait; the quieter, sparser 1 goes to
+# CHERRY BELLE, the $2 starter, and 2 to LUCKY 7 between them.
+echo "the slot spin arps:"
+for pair in "cherry:slot scale 1" "seven:slot scale 2" "king:slot scale 3"; do
+  kind="${pair%%:*}"; file="${pair#*:}"
+  ffmpeg -hide_banner -loglevel error -y -ss 0.05 -t 10.45 -i "$SRC/$file.mp3" \
+    -ac 1 -ar 44100 -c:a pcm_s16le "$OUT/.arp-cut.wav"
+  SRC_SAVE=$SRC; SRC=$OUT
+  bed "slot-arp-$kind" ".arp-cut.wav" 22050 1 1.0 -20
+  SRC=$SRC_SAVE
+  rm -f "$OUT/.arp-cut.wav"
+done

@@ -233,6 +233,13 @@ const EVENTS = [
   // whenever the slot stops."* — the wheel's 5.3 s ratchet, one card off the
   // shoe, one detent click per reel, and the man at 302.
   'roulette-spin', 'card-deal', 'slot-stop', 'burp',
+  // *"some scales like arp scales to play while slots spin … so there's
+  // sounds unique to each type of machine"* (2026-08-10). BYTES only, the
+  // skate-roll arrangement: each is a 9.4 s seamless LOOP the casino watcher
+  // runs under a spin and fades when the last reel clicks home — never fired
+  // as a one-shot. One per cabinet personality, keyed by the kind the lever
+  // publishes.
+  'slot-arp-cherry', 'slot-arp-seven', 'slot-arp-king',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -347,6 +354,10 @@ const LVL = {
   // one detent click per reel coming to rest — under the pull it follows,
   // because three of these land per spin and the pull lands once
   slotStop: 0.40,  // multiplied by distance
+  // the spin's own voice, looped for the 2-4 s the reels run: a TEXTURE, so
+  // it sits with the beds' end of the mix — over the casino floor (0.17),
+  // under every event it carries (the pull, the clicks, the wins)
+  slotArp: 0.24,   // multiplied by distance
   // ── the tables (2026-08-10) ──
   // the ratchet under the whole ball run: over the casino bed (0.17), under
   // the wins it sets up — a five-second sound has to sit lower than an event
@@ -1103,12 +1114,63 @@ export function register(ctx: CtxBuild): void {
     topper: THREE.Object3D; flash: boolean; x: number; z: number;
     /** the three reel planes, each waiting to land — see the click below */
     reels: { o: THREE.Object3D; armed: boolean }[];
+    /** the cabinet's personality, off the lever's own userData — which of
+     *  the three spin arps this machine speaks in */
+    kind: string;
+    /** the looping arp while this machine's reels run, and the edge that
+     *  starts and stops it */
+    arp: { g: GainNode; s: AudioBufferSourceNode } | null;
+    wasSpin: boolean;
   }
   let slots: Slot[] | null = null;
   let slotScanAt = -9;
   const casAt = { x: 0, z: 0 };
   let cas = 0;               // 0 anywhere else … 1 on the floor, glided
   let winT = -1, winCash = 0, winX = 0, winZ = 0;   // the payout being sized
+
+  // ── the spin arps (2026-08-10) ────────────────────────────────────────────
+  // *"i also added some scales like arp scales to play while slots spin.
+  // there are 3 variations, use them so there's sounds unique to each type
+  // of machine."* Each cabinet names its personality on the lever
+  // (`userData.kind`, published by slotcab.ts for exactly this), and each
+  // personality has its own 9.4 s seamless loop: CHERRY BELLE the sparse
+  // lazy one, LUCKY 7 the fuller one at the same gait, KING KACHING the
+  // frantic 0.25 s-a-note run. A spin builds a looping source — sources are
+  // single-use, so one per spin, the fire() economics — always from the
+  // loop's top, so every spin opens on the same rising figure the way a
+  // real cabinet's jingle does, and the fade-out lands as the last reel
+  // clicks home: the clicks punctuate OVER it, which is the mix's whole
+  // shape (arp 0.24 under click 0.40 under pull 0.45).
+  const startArp = (m: Slot) => {
+    if (!rig || muted || m.arp) return;
+    const buf = shots.get(`slot-arp-${m.kind}`);
+    if (!buf) return;
+    const d = Math.hypot(m.x - px, m.z - pz);
+    const near = Math.max(0, 1 - d / 12) ** 1.5;
+    if (near < 0.03) return;
+    const { ac } = rig;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const g = ac.createGain();
+    g.gain.value = LVL.slotArp * near;
+    const p = ac.createStereoPanner();
+    p.pan.value = bearing(m.x, m.z, px, pz) * 0.5;
+    src.connect(g).connect(p).connect(rig.master);
+    src.onended = () => { src.disconnect(); g.disconnect(); p.disconnect(); };
+    src.start();
+    m.arp = { g, s: src };
+  };
+  const stopArp = (m: Slot) => {
+    if (!m.arp) return;
+    if (rig) {
+      const t0 = rig.ac.currentTime;
+      m.arp.g.gain.setValueAtTime(m.arp.g.gain.value, t0);
+      m.arp.g.gain.linearRampToValueAtTime(0, t0 + 0.25);
+      m.arp.s.stop(t0 + 0.25);
+    }
+    m.arp = null;
+  };
 
   const watchCasino = (t: number) => {
     if (!slots) {
@@ -1130,6 +1192,8 @@ export function register(ctx: CtxBuild): void {
           lever: o, rest: o.rotation.x, armed: true,
           topper, flash: (topper.userData as { flash?: boolean }).flash === true,
           x: WP.x, z: WP.z, reels,
+          kind: (o.userData as { kind?: string }).kind ?? 'seven',
+          arp: null, wasSpin: false,
         });
       });
       if (!found.length) return;
@@ -1152,14 +1216,22 @@ export function register(ctx: CtxBuild): void {
       // cruise gets there, so the crawl cannot re-arm a reel already landed —
       // and CLICKS falling back under 0.6, which is the frame it visibly
       // stops. Three clicks a spin, staggered by the machine's own 0.48 s.
+      let live = false;
       for (const r of s.reels) {
         const sp = (r.o.userData as { speed?: number }).speed ?? 0;
+        if (Math.abs(sp) > 0.5) live = true;
         if (!r.armed && sp > 6) r.armed = true;
         else if (r.armed && sp < 0.6) {
           r.armed = false;
           atPoint('slot-stop', s.x, s.z, LVL.slotStop, 12, 0.95 + roll() * 0.1);
         }
       }
+      // the spin's own voice — see `startArp` above. `live` is any reel still
+      // moving, so the loop starts with the first kick and the fade begins
+      // the frame the LAST reel rests, right under its click.
+      if (live && !s.wasSpin) startArp(s);
+      else if (!live && s.wasSpin) stopArp(s);
+      s.wasSpin = live;
 
       const fl = (s.topper.userData as { flash?: boolean }).flash === true;
       if (fl && !s.flash && winT < 0) { winT = t; winCash = ctx.purse.cash; winX = s.x; winZ = s.z; }

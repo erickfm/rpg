@@ -58,7 +58,9 @@
 //
 // AUDIO HOOKS (Erick is sourcing sounds; audio wires by watching named
 // objects): every moving part is named and carries userData —
-//   `slot-lever-N`  the lever group; rotation.x swings on a pull
+//   `slot-lever-N`  the lever group; rotation.x swings on a pull, and
+//                    userData.kind names the personality ('cherry' / 'seven'
+//                    / 'king') so each machine can carry its own spin voice
 //   `slot-hub-N-L/R` chrome hubs beside the reel window; they spin with the
 //                    outer reels (the reel faces are scrolling textures, so
 //                    the hubs are the part that physically rotates)
@@ -622,6 +624,11 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
   // the silhouette. tickLever's `rest` is the same value.
   lever.rotation.x = -0.10;
   lever.name = `slot-lever-${i}`;
+  // which personality this cabinet is — ct/audio.ts keys the per-kind spin
+  // arp off this (2026-08-10, *"use them so there's sounds unique to each
+  // type of machine"*): the same watched-never-imported contract as `speed`
+  // and `flash` above, published where the watcher already looks.
+  lever.userData.kind = spec.kind;
   g.add(lever);
 
   // ── the session pane — see "the locked session" below. Invisible until the
