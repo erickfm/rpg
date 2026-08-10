@@ -207,26 +207,29 @@ const ROW_STAT0 = 2 + TRAITS.length;
 // surface in this project — but the field is a desk, not a signal.
 
 /** the paper sheet — US-letter proportions, and deliberately NOT square */
-const PAPER_X = 14, PAPER_Y = 8, PAPER_W = 172, PAPER_H = 224;
+const PAPER_X = 14, PAPER_Y = 8, PAPER_W = 172, PAPER_H = 226;
 /** rows: baselines down the form. Uniform, because the click map divides by
  *  it. 13 px and not the old 17: SECTION II added five rows and a chart to
  *  the same sheet, and a second page would cost more than tighter type —
- *  this is still a municipal form, and municipal forms are cramped. */
-const ROW_Y = 50, ROW_H = 13, ROW_X = 24;
+ *  this is still a municipal form, and municipal forms are cramped.
+ *  ⚠ THE SIGNATURE ROW IS OFF THIS GRID — see `SIGN_Y`. */
+const ROW_Y = 48, ROW_H = 13, ROW_X = 24;
 /** where typed values start, and where the ruled lines run to */
 const VAL_X = 70, LINE_R = PAPER_X + PAPER_W - 12;
-/** aptitude rows stop their rule and highlighter here — the chart owns the
- *  right half of the section */
-const STAT_R = 100;
+/** aptitude rows stop their rule and highlighter here. 88, NOT 100: at 100
+ *  the STR row's rule ran under the chart's CON label — *"need more space
+ *  down here too"* (2026-08-10) — and a digit needs no 32 px of line. */
+const STAT_R = 88;
 /** the pentagon: centre and outer radius (a value of 10), sharing the section
  *  with the five short rows. Every plotted point is `Math.round`ed — the
  *  blur lesson (`ct/body.ts`) applies to a chart as much as to a photo.
- *  ⚠ CH_CY 169, NOT 172, and the bottom labels hang 28 below, not 30 — at
- *  172/+30 the DEX and CHA labels reached y 202 and collided with the
- *  signature band and the clerk's red note: *"lets make sure the text isnt
- *  overlapping in places"* (2026-08-09). 169/+28 puts their glyphs at
- *  191…197, one texel clear of the note's 198 and of `SIG_Y0`. */
-const CH_CX = 138, CH_CY = 169, CH_R = 26;
+ *  ⚠ SIZED FOR AIR, TWICE AT HIS WORD. *"lets make sure the text isnt
+ *  overlapping in places"* (2026-08-09) parted the bottom labels from the
+ *  signature band by a texel; *"need more space down here too"* (2026-08-10)
+ *  said a texel is not a margin. R 22 and centre 163 put the bottom labels'
+ *  glyphs at 181…187 — five clear of the clerk's note, thirteen clear of the
+ *  ink box — and the whole foot breathes; see the ladder at `SIGN_Y`. */
+const CH_CX = 138, CH_CY = 163, CH_R = 22;
 /**
  * ── THE SIGNATURE IS DRAWN, NOT CLICKED ───────────────────────────────────
  *
@@ -244,16 +247,28 @@ const CH_CX = 138, CH_CY = 169, CH_R = 26;
  * similar to game start for job app. and for loan"* (2026-08-09) spread it
  * to two more papers, and one pen serves all three. This screen keeps only
  * its geometry and its voice (the VOID mark, the red FILE box).
+ *
+ * ── THE FOOT'S LADDER, WITH HONEST MARGINS — *"need more space down here
+ * too"* (2026-08-10). Off the row grid, each band clear of the next:
+ *
+ *   181…187   the chart's DEX / CHA labels
+ *   192…198   the clerk's red note, right-aligned          (4 clear above)
+ *   200…213   the ink box, the X, the line, and FILE beside them in the
+ *             office corner                                (2 clear above)
+ *   215…221   VOID and APPLICANT SIGNATURE                 (2 clear above)
+ *   224…230   the key legend                               (3 clear above)
+ *   233       the sheet's bottom edge                      (3 clear above)
  */
-const SIG_X0 = 38, SIG_X1 = 174, SIG_Y0 = 196, SIG_Y1 = 208;
+const SIGN_Y = 210;
+const SIG_X0 = 38, SIG_X1 = 136, SIG_Y0 = 200, SIG_Y1 = 212;
 const SIG_MIN = 50;
 const sigPad = makeSigPad({ x0: SIG_X0, y0: SIG_Y0, x1: SIG_X1, y1: SIG_Y1 }, SIG_MIN);
 /** the office-use FILE box, up only once there is a signature — clicking it
- *  is what BEGIN used to be. Bottom at 222: the small print's glyphs start
- *  at 224 and the two must not touch. */
-const FILE_X0 = 142, FILE_X1 = 174, FILE_Y0 = 210, FILE_Y1 = 222;
+ *  is what BEGIN used to be. BESIDE the line now, in the office's own corner,
+ *  so the band under the line belongs to the captions alone. */
+const FILE_X0 = 142, FILE_X1 = 174, FILE_Y0 = 200, FILE_Y1 = 212;
 /** the VOID mark under the X — click it (or the X) to clear and re-sign */
-const VOID_X0 = 18, VOID_X1 = 36, VOID_Y0 = 196, VOID_Y1 = 223;
+const VOID_X0 = 18, VOID_X1 = 36, VOID_Y0 = 200, VOID_Y1 = 226;
 /** the instant photo — frame, then the image inset with the fat film bottom */
 const PH_X = 196, PH_Y = 24, PH_W = 106, PH_H = 158;
 const IMG_X = PH_X + 8, IMG_Y = PH_Y + 8, IMG_W = 90, IMG_H = 116;
@@ -351,13 +366,18 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   g.fillRect(PAPER_X, PAPER_Y + PAPER_H - 1, PAPER_W, 1);
   g.fillRect(PAPER_X + PAPER_W - 1, PAPER_Y, 1, PAPER_H);
 
-  // letterhead — what the form is, said once, by the form
-  fitText(g, 'CITY OF CROSSTOWN', PAPER_X + PAPER_W / 2, 24, PAPER_W - 20, 10, PRINT_DK, true);
-  fitText(g, 'RESIDENT CARD APPLICATION', PAPER_X + PAPER_W / 2, 34, PAPER_W - 20, 8, PRINT, true);
-  g.fillStyle = PRINT_DK; g.fillRect(PAPER_X + 10, 38, PAPER_W - 20, 2);
-  g.fillStyle = RULE; g.fillRect(PAPER_X + 10, 41, PAPER_W - 20, 1);
+  // letterhead — what the form is, said once, by the form. LEFT-ALIGNED,
+  // with the form code alone on the right of the title line: centred, the
+  // title's tail ran into the code's corner — *"form r9 in corner could use
+  // a bit of space imo"* (2026-08-10) — and a municipal letterhead sits left
+  // with its code across from it anyway. The title ends near x 126, the code
+  // starts near 136: ten texels of air, guaranteed by alignment rather than
+  // by luck.
+  fitText(g, 'CITY OF CROSSTOWN', ROW_X, 22, 128, 10, PRINT_DK);
   g.font = font(8); g.fillStyle = STAMP_RED;
-  g.textAlign = 'right'; g.fillText('FORM R-9', LINE_R, 16); g.textAlign = 'left';
+  g.textAlign = 'right'; g.fillText('FORM R-9', LINE_R, 22); g.textAlign = 'left';
+  fitText(g, 'RESIDENT CARD APPLICATION', ROW_X, 33, PAPER_W - 20, 8, PRINT);
+  g.fillStyle = PRINT_DK; g.fillRect(PAPER_X + 10, 38, PAPER_W - 20, 2);
 
   // ── SECTION II's printed instrument: the pentagon, then the pen ──────
   //
@@ -386,8 +406,8 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   const CH_LAB: [number, number, CanvasTextAlign][] = [
     [CH_CX, CH_CY - CH_R - 4, 'center'],                 // INT, above the top
     [CH_CX + 28, CH_CY - 5, 'left'],                     // STR
-    [CH_CX + 18, CH_CY + 28, 'left'],                    // CHA
-    [CH_CX - 18, CH_CY + 28, 'right'],                   // DEX
+    [CH_CX + 18, CH_CY + 24, 'left'],                    // CHA
+    [CH_CX - 18, CH_CY + 24, 'right'],                   // DEX
     [CH_CX - 28, CH_CY - 5, 'right'],                    // CON
   ];
   STAT_NAMES.forEach((s, k) => {
@@ -412,24 +432,26 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   let y = ROW_Y;
   LINES.forEach((l, i) => {
     if (i === ROW_SIGN) {
-      // the signature line — SIGNED IN INK, see `SIG_X0`. The strokes, the
-      // VOID mark and the FILE box paint after this loop so the pen lies
-      // over the print and the highlighter, never under.
+      // the signature line — SIGNED IN INK, see `SIG_X0`, and OFF THE ROW
+      // GRID at `SIGN_Y`, which is where the foot's air comes from. The
+      // strokes, the VOID mark and the FILE box paint after this loop so
+      // the pen lies over the print and the highlighter, never under.
+      y = SIGN_Y;
       g.font = font(12); g.fillStyle = PEN;
       g.fillText('X', ROW_X, y + 1);
-      g.fillStyle = PRINT_DK; g.fillRect(ROW_X + 14, y + 3, LINE_R - ROW_X - 14, 1);
+      g.fillStyle = PRINT_DK; g.fillRect(SIG_X0, y + 3, SIG_X1 - SIG_X0, 1);
       g.font = font(8); g.fillStyle = RULE;
-      g.fillText('APPLICANT SIGNATURE', ROW_X + 24, y + 13);
+      g.fillText('APPLICANT SIGNATURE', ROW_X + 24, y + 11);
       // unspent aptitude points, flagged where a clerk would flag them — in
-      // the office's own red, right-aligned on the blank end of the line,
-      // one texel BELOW the chart's DEX/CHA labels and clear of them (the
-      // overlap ruling, see `CH_CY`). Signing anyway is allowed; an average
-      // man is 5s across the board.
+      // the office's own red, right-aligned in its own clear band of the
+      // ladder (see `SIGN_Y`), four texels under the chart's labels and two
+      // above the ink. Signing anyway is allowed; an average man is 5s
+      // across the board.
       const pts = pointsLeft();
       if (pts > 0) {
         g.fillStyle = STAMP_RED;
         g.textAlign = 'right';
-        g.fillText(`${pts} PTS TO PLACE`, LINE_R, y - 2);
+        g.fillText(`${pts} PTS TO PLACE`, LINE_R, SIGN_Y - 12);
         g.textAlign = 'left';
       }
     } else if (i >= ROW_STAT0) {
@@ -473,7 +495,7 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   // VOID, under the X, only once there is ink to void — click it to re-sign
   if (!sigPad.blank()) {
     g.font = font(8); g.fillStyle = STAMP_RED;
-    g.fillText('VOID', ROW_X, 219);
+    g.fillText('VOID', ROW_X, SIGN_Y + 11);
   }
   // the FILE box, office red, up only when the ink counts — see `SIG_MIN`
   if (sigPad.signed()) {
@@ -490,7 +512,8 @@ function paintCreate(g: CanvasRenderingContext2D): void {
     g.textAlign = 'left';
   }
 
-  // small print — the only instructions, and they are the form's own
+  // small print — the only instructions, and they are the form's own, in
+  // the ladder's own clear band (see `SIGN_Y`)
   fitText(g, '▲▼ FIELD  ◀▶ CHANGE  ENTER SIGN', ROW_X, 230, LINE_R - ROW_X, 8, FAINT);
 
   // ── the photo ────────────────────────────────────────────────────────

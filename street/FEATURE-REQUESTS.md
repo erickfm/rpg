@@ -6584,3 +6584,27 @@ meter stays painted — a display is honestly a flat picture behind glass.
 All exits unchanged (COLLECT click, ESC, [E], standing), audio hook names
 and motions untouched; looked at on all three personalities, locked and
 from the floor, and the click-to-exit driven by mouse.
+
+## 2026-08-10 — *"form r9 in corner could use a bit of space imo"* · *"need more space down here too"*
+
+Went to a builder, one pass, both on FORM R-9.
+
+**The corner:** the centred letterhead's tail ran into the red form code.
+The letterhead is LEFT-ALIGNED now, the way a municipal head sits, with
+FORM R-9 alone on the right of the title line — ten texels of air
+guaranteed by alignment rather than by luck, and the double rule became a
+single heavy one.
+
+**The foot:** a texel of separation was not a margin. Re-budgeted rather
+than nudged — the chart shrank (R 26 → 22, centre 163), the stat rules
+shortened (they ran under the chart's CON label at 100; 88 now), the
+signature row came OFF the 13 px row grid onto its own baseline, FILE
+moved beside the line into the office corner, and the sheet grew two
+texels. The foot is now a ladder with honest air at every rung: chart
+labels 181–187, red clerk's note 192–198, ink box/X/line/FILE 200–213,
+VOID + APPLICANT SIGNATURE 215–221, key legend 224–230, sheet edge 233.
+Checked by eye with points unspent, a long name, a drawn signature and
+the FILE box risen — nothing in the foot touches anything else in any
+state.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
