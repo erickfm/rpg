@@ -27,8 +27,11 @@ import { SEAT_LABEL as BLACKJACK_SEAT, FELT as BJ_FELT,
   paintTable as paintBlackjackFelt } from './blackjack';
 // Same bridge, other table: the four stools at the wheel carry roulette's own
 // label, imported for the same anti-drift reason. Same no-cycle shape too —
-// roulette.ts imports only ./ctx at runtime, never this file.
-import { SEAT_LABEL as ROULETTE_SEAT } from './roulette';
+// roulette.ts imports only ./ctx at runtime, never this file. WHEEL and REDS
+// come over for the head's own paint: the pockets on the 3D wheel are the
+// real European order, coloured by the same set the game pays on.
+import { SEAT_LABEL as ROULETTE_SEAT, FELT as RL_FELT,
+  paintTable as paintRouletteFelt, WHEEL as RL_WHEEL, REDS as RL_REDS } from './roulette';
 
 // SEVENS, inside.
 //
@@ -964,41 +967,73 @@ export function buildCasino(ctx: CtxBuild): void {
     {
       put(new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.72, 2.05), wood), RX, 0.36, RZ);
       put(new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.10, 2.2), rail), RX, 0.77, RZ);
-      // the printed layout: a numbers grid and the even-money boxes
-      const layT = declareSurface(pixTex(48, 72, (g) => {
-        g.fillStyle = '#1e5a3e'; g.fillRect(0, 0, 48, 72);
-        for (let r2 = 0; r2 < 6; r2++) for (let c2 = 0; c2 < 3; c2++) {
-          g.fillStyle = (r2 * 3 + c2) % 2 ? '#8a1c22' : '#16120e';
-          g.fillRect(6 + c2 * 12, 6 + r2 * 8, 10, 6);
-        }
-        g.strokeStyle = 'rgba(216,208,192,0.55)'; g.lineWidth = 1;
-        g.strokeRect(5.5, 5.5, 37, 48);
-        g.fillStyle = 'rgba(216,208,192,0.5)';
-        g.fillRect(6, 58, 17, 8); g.fillRect(25, 58, 17, 8);
-        dither(g, 48, 72, 30);
-      }), 'detail');
-      const lay = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.1), ctx.flat(layT));
-      lay.rotation.x = -Math.PI / 2;
-      put(lay, RX, 0.83, RZ + 0.35);
+      // THE WHOLE TABLETOP IS ONE MESH, NAMED — ct/roulette.ts hangs its live
+      // canvas on `roulette-felt` and locks the view down onto it (2026-08-09,
+      // "blackjack and roulettte need to be diagetic"). Painted by the game's
+      // own painter in the idle state, so the printed layout you see walking
+      // past IS the layout you bet on. The plane is oriented so canvas RIGHT
+      // runs toward −z (the wheel's end) and canvas TOP toward −x — the frame
+      // the locked pose (faceYaw −π/2) reads it in: with Euler XYZ, rotation
+      // (−π/2, 0, π/2) maps local +x → −z and local +y → −x.
+      const rfeltT = declareSurface(pixTex(RL_FELT.w, RL_FELT.h, (g) =>
+        paintRouletteFelt(g, RL_FELT.w, RL_FELT.h, null)), 'detail');
+      const rfelt = new THREE.Mesh(new THREE.PlaneGeometry(1.94, 1.18), ctx.flat(rfeltT));
+      rfelt.name = 'roulette-felt';
+      rfelt.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
+      put(rfelt, RX, 0.83, RZ - 0.05);
       // the wheel: wooden rim, chrome bowl, and the head that spins
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.10, 16), wood), RX, 0.86, RZ - 0.62);
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.40, 0.40, 0.05, 16), chrome), RX, 0.92, RZ - 0.62);
-      const headT = declareSurface(pixTex(64, 64, (g) => {
-        g.fillStyle = '#2a2018'; g.fillRect(0, 0, 64, 64);
-        for (let p = 0; p < 37; p++) {
-          const a0 = (p / 37) * Math.PI * 2, a1 = ((p + 1) / 37) * Math.PI * 2;
-          g.fillStyle = p === 0 ? '#1e7c3c' : p % 2 ? '#c8342c' : '#16120e';
-          g.beginPath(); g.moveTo(32, 32);
-          g.arc(32, 32, 30, a0, a1); g.closePath(); g.fill();
+      // THE HEAD IS THE SHOW NOW — the locked view watches this object, not a
+      // painted copy, so it carries the real thing: 37 pockets in EUROPEAN
+      // WHEEL ORDER (RL_WHEEL), coloured by the same REDS the game pays on,
+      // numbered on a ring. Pocket i is CENTRED at canvas angle i/37·TAU —
+      // ct/roulette.ts's hook rotates the head to π/2 − wheelA against
+      // exactly this convention so the ball lands in the number it announces.
+      const headT = declareSurface(pixTex(192, 192, (g) => {
+        const C = 96, TAU2 = Math.PI * 2;
+        g.fillStyle = '#2a2018'; g.fillRect(0, 0, 192, 192);
+        for (let p = 0; p < RL_WHEEL.length; p++) {
+          const n = RL_WHEEL[p];
+          const a0 = ((p - 0.5) / 37) * TAU2, a1 = ((p + 0.5) / 37) * TAU2;
+          g.fillStyle = n === 0 ? '#1e7c3c' : RL_REDS.has(n) ? '#c8342c' : '#26222c';
+          g.beginPath(); g.moveTo(C, C);
+          g.arc(C, C, 92, a0, a1); g.closePath(); g.fill();
         }
-        g.fillStyle = '#c9a45e'; g.beginPath(); g.arc(32, 32, 9, 0, Math.PI * 2); g.fill();
+        // the pocket wells, a darker band inside the number ring
+        g.fillStyle = 'rgba(0,0,0,0.32)';
+        g.beginPath(); g.arc(C, C, 64, 0, TAU2); g.fill();
+        // the numbers, radial like the real thing
+        g.fillStyle = '#ece6d4'; g.font = 'bold 11px monospace';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        for (let p = 0; p < RL_WHEEL.length; p++) {
+          const a = (p / 37) * TAU2;
+          g.save();
+          g.translate(C + Math.cos(a) * 77, C + Math.sin(a) * 77);
+          g.rotate(a + Math.PI / 2);
+          g.fillText(String(RL_WHEEL[p]), 0, 0);
+          g.restore();
+        }
+        // separator frets between pockets
+        g.strokeStyle = 'rgba(201,164,94,0.55)'; g.lineWidth = 1;
+        for (let p = 0; p < RL_WHEEL.length; p++) {
+          const a = ((p + 0.5) / 37) * TAU2;
+          g.save(); g.translate(C, C); g.rotate(a);
+          g.beginPath(); g.moveTo(24, 0); g.lineTo(92, 0); g.stroke();
+          g.restore();
+        }
+        // the hub
+        g.fillStyle = '#8a6a22'; g.beginPath(); g.arc(C, C, 22, 0, TAU2); g.fill();
+        g.fillStyle = '#c9a45e'; g.beginPath(); g.arc(C, C, 19, 0, TAU2); g.fill();
+        g.fillStyle = '#2a2018'; g.beginPath(); g.arc(C, C, 5, 0, TAU2); g.fill();
       }), 'detail');
       const head = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.05, 24),
         [chrome, ctx.flat(headT), chrome]);
       head.name = 'roulette-wheel-head';
       put(head, RX, 0.96, RZ - 0.62);
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.14, 8), chrome), RX, 1.04, RZ - 0.62);
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), ivory);
+      // 0.028, up from 0.022 — the ball is the thing the locked pose watches
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.028, 6, 5), ivory);
       ball.name = 'roulette-ball';
       put(ball, RX + 0.30, 1.00, RZ - 0.62);
       for (const lz of [-0.85, 0.85]) for (const lx of [-0.55, 0.55]) {

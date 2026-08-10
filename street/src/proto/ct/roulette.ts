@@ -152,6 +152,8 @@ export interface Table {
   kindSet(k: BetKind): void;
   /** change the straight number */
   pickBy(d: number): void;
+  /** put the chip ON a number — the layout's own verb, for a clicked cell */
+  pickSet(n: number): void;
   spin(): boolean;
   buyIn(chips: number): void;
   cashOut(): number;
@@ -212,7 +214,7 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
     if (phase === 'betting') {
       if (chips < BETS[betIx]) return 'BUY IN TO PLAY';
       const k = BET_KINDS[kindIx];
-      return `BET: ${k === 'number' ? `NUMBER ${pick}` : k.toUpperCase()} — SPACE SPINS`;
+      return `${BETS[betIx]} ON ${k === 'number' ? `NUMBER ${pick}` : k.toUpperCase()} — SPIN THE WHEEL`;
     }
     if (phase === 'spinning') return t < PACE.drop ? 'NO MORE BETS' : '…';
     if (result === null) return '';
@@ -283,6 +285,7 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
     kindBy: (d) => { if (phase === 'betting') kindIx = (kindIx + d + BET_KINDS.length) % BET_KINDS.length; },
     kindSet: (k) => { if (phase === 'betting') kindIx = Math.max(0, BET_KINDS.indexOf(k)); },
     pickBy: (d) => { if (phase === 'betting') { pick = (pick + d + POCKETS) % POCKETS; kindIx = BET_KINDS.indexOf('number'); } },
+    pickSet: (n) => { if (phase === 'betting' && n >= 0 && n < POCKETS) { pick = n; kindIx = BET_KINDS.indexOf('number'); } },
     buyIn: (n) => { if (n > 0 && phase === 'betting') chips += Math.floor(n); },
     cashOut: () => {
       // Whatever is ON THE RAIL always comes back, whenever you stand up. A
@@ -297,141 +300,240 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PART THREE: THE FELT — a pure function of (view, cash), painted small and
+// PART THREE: THE BAIZE — a pure function of (view, cash), painted small and
 // scaled up, no Math.random anywhere (GOTCHAS §1: the paint layer's dither is
 // why screenshots cannot be diffed; this panel CAN be).
+//
+// 2026-08-09: *"blackjack and roulettte need to be diagetic similar to all the
+// other locked perspective UIs."* So this canvas is no longer a picture of a
+// roulette table — it is the TABLETOP, hung on the `roulette-felt` mesh
+// ct/int-casino.ts names for it, viewed from a lock straight down. The table
+// is seen SIDE-ON: printed layout at the left (the foot, where you sit), the
+// REAL 3D wheel standing at the right — the painter draws only its apron ring
+// and leaves the show to the world's own wheel head, which PART FOUR turns.
+// The layout is where chips go, his exact bet set: click a number, RED/BLACK/
+// ODD/EVEN, then click the wheel itself to send the ball. `paintTable(g, w,
+// h, null)` is the same baize with nothing live on it — the world texture, so
+// printed and played are one painter.
 
-export const FELT = { w: 320, h: 256 } as const;
+/** The tabletop canvas: 480 × 292 over the 1.94 × 1.18 m felt is the same
+ *  aspect (1.644) at ~247 px/m — BUILDER-BRIEF §7b's same-both-ways rule. */
+export const FELT = { w: 480, h: 292 } as const;
 
 const T = {
   felt: '#1e5a3e', feltLo: '#17462f', feltHi: '#2a6d4c',
   rail: '#3a2226', railHi: '#54353a',
-  wood: '#2e1e20',
   red: '#c8342c', black: '#16120e', green: '#1e7c3c',
   gold: '#d8a83a', goldLo: '#8a6a22',
   ivory: '#ece6d4', ink: '#e8e2d0', dim: '#9ab0a0',
   chip: '#c9a45e', win: '#fff0bc',
 } as const;
 
-const CX = 92, CY = 104, RIM = 80, POCKET_R = 56, HUB_R = 26;
-const BALL_RIM = 72, BALL_POCKET = 46;
+/**
+ * Where everything sits on the baize, exported so a check can ask rather than
+ * hand-type pixels (GOTCHAS §20). `wheel` is the footprint of the REAL wheel's
+ * wooden rim (r 0.46 m at 0.57 m from the mesh centre, in canvas px) — the
+ * painter keeps clear of it and the click handler reads "on the wheel" from
+ * it. Declared once, read by the painter AND `feltHit` (the loan form's rule).
+ */
+export const LAY = {
+  wheel: { x: 381, y: 146, r: 114 },
+  /** the 0 cell, then 12 rows × 3 columns, n = 3·row + col + 1 */
+  grid: { x: 14, y: 50, colW: 40, rowH: 19, zeroY: 30, zeroH: 16 },
+  /** RED / BLACK / ODD / EVEN, stacked */
+  outside: { x: 142, y: 30, w: 110, h: 58, gap: 4 },
+  say: { x: 8, y: 6, w: 244, h: 18 },
+  hist: { x: 262, y: 6, w: 24, h: 16, step: 26 },
+  chips: { x: 262, y: 264, w: 104, h: 24 },
+  betDown: { x: 374, y: 264, w: 20, h: 24 },
+  bet: { x: 398, y: 264, w: 50, h: 24 },
+  betUp: { x: 452, y: 264, w: 20, h: 24 },
+} as const;
 
-/** The bet board's five rows, exported so the check (and a curious probe) can
- *  ask where a row is instead of hand-typing pixels (GOTCHAS §20). */
-export const BOARD = { x: 188, y: 26, w: 116, rowH: 22 } as const;
+/** What a click at (x, y) on the baize means. One table of regions for the
+ *  painter and the pointer both — a spot that looks pressable and does
+ *  nothing is the fault this shape exists to prevent. */
+export type FeltHit =
+  | { kind: 'bet'; bet: BetKind }
+  | { kind: 'pick'; n: number }
+  | { kind: 'spin' }
+  | { kind: 'betBy'; d: 1 | -1 };
+export function feltHit(x: number, y: number): FeltHit | null {
+  // the wheel IS the spin button — the ray lands on the felt under it, so a
+  // click "on the wheel" arrives here even though the head is its own mesh
+  if (Math.hypot(x - LAY.wheel.x, y - LAY.wheel.y) <= LAY.wheel.r) return { kind: 'spin' };
+  const gd = LAY.grid;
+  if (x >= gd.x && x < gd.x + 3 * gd.colW - 2) {
+    if (y >= gd.zeroY && y < gd.zeroY + gd.zeroH) return { kind: 'pick', n: 0 };
+    if (y >= gd.y && y < gd.y + 12 * gd.rowH) {
+      const r = Math.floor((y - gd.y) / gd.rowH);
+      const c = Math.min(2, Math.floor((x - gd.x) / gd.colW));
+      return { kind: 'pick', n: r * 3 + c + 1 };
+    }
+  }
+  const o = LAY.outside;
+  if (x >= o.x && x < o.x + o.w) {
+    for (let i = 0; i < 4; i++) {
+      const oy = o.y + i * (o.h + o.gap);
+      if (y >= oy && y < oy + o.h) {
+        return { kind: 'bet', bet: (['red', 'black', 'odd', 'even'] as const)[i] };
+      }
+    }
+  }
+  const inBox = (b: { x: number; y: number; w: number; h: number }) =>
+    x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
+  if (inBox(LAY.betDown)) return { kind: 'betBy', d: -1 };
+  if (inBox(LAY.betUp)) return { kind: 'betBy', d: 1 };
+  return null;
+}
 
-export function paintTable(g: Paint2D, w: number, h: number, v: TableView, cash?: number): void {
+export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null, cash?: number): void {
   const s = Math.max(0.1, Math.min(w / FELT.w, h / FELT.h));
   g.save();
-  g.fillStyle = T.rail; g.fillRect(0, 0, w, h);
+  g.fillStyle = T.felt; g.fillRect(0, 0, w, h);
   g.translate((w - FELT.w * s) / 2, (h - FELT.h * s) / 2);
   g.scale(s, s);
 
-  g.fillStyle = T.rail; g.fillRect(0, 0, FELT.w, FELT.h);
-  g.fillStyle = T.felt; g.fillRect(6, 6, FELT.w - 12, 196);
-  g.fillStyle = T.feltHi; g.fillRect(6, 6, FELT.w - 12, 1);
-  g.fillStyle = T.feltLo; g.fillRect(6, 201, FELT.w - 12, 1);
+  // the baize, with a printed border line where the wood begins
+  g.fillStyle = T.felt; g.fillRect(0, 0, FELT.w, FELT.h);
+  g.fillStyle = T.feltHi;
+  g.fillRect(4, 4, FELT.w - 8, 1); g.fillRect(4, 4, 1, FELT.h - 8);
+  g.fillRect(FELT.w - 5, 4, 1, FELT.h - 8);
+  g.fillStyle = T.feltLo; g.fillRect(4, FELT.h - 5, FELT.w - 8, 1);
 
-  // ── the wheel ──
-  g.fillStyle = T.wood;
-  g.beginPath(); g.arc(CX, CY, RIM + 8, 0, TAU); g.fill();
-  g.fillStyle = T.gold;
-  g.beginPath(); g.arc(CX, CY, RIM + 2, 0, TAU); g.fill();
-  g.fillStyle = T.black;
-  g.beginPath(); g.arc(CX, CY, RIM - 2, 0, TAU); g.fill();
-  // pockets, turning with the wheel
-  for (let i = 0; i < POCKETS; i++) {
-    const a0 = v.wheel.wheelA + (i / POCKETS) * TAU - Math.PI / POCKETS;
-    const n = WHEEL[i];
-    // '#26201c' first — which vanished into the disc behind it, and the look
-    // shot read as an all-red wheel. A black pocket has to be its own object.
-    g.fillStyle = n === 0 ? T.green : REDS.has(n) ? T.red : '#34303a';
-    g.beginPath(); g.moveTo(CX, CY);
-    g.arc(CX, CY, POCKET_R + 14, a0, a0 + TAU / POCKETS); g.closePath(); g.fill();
+  // ── the wheel's apron: a darker well and a gold ring where the real wheel
+  //    stands. The wheel itself is the world's, turned by PART FOUR. ──
+  g.fillStyle = T.feltLo;
+  g.beginPath(); g.arc(LAY.wheel.x, LAY.wheel.y, LAY.wheel.r + 3, 0, TAU); g.fill();
+  g.fillStyle = T.goldLo;
+  g.beginPath(); g.arc(LAY.wheel.x, LAY.wheel.y, LAY.wheel.r + 3, 0, TAU);
+  g.arc(LAY.wheel.x, LAY.wheel.y, LAY.wheel.r + 1, 0, TAU, true); g.fill();
+
+  // ── the printed layout: 0 over a 12 × 3 grid, big enough to click ──
+  const gd = LAY.grid;
+  const cellW = gd.colW - 2, gridW = 3 * gd.colW - 2;
+  g.fillStyle = T.green; g.fillRect(gd.x, gd.zeroY, gridW, gd.zeroH - 2);
+  g.fillStyle = T.ivory; g.font = 'bold 10px monospace'; g.textAlign = 'center';
+  g.fillText('0', gd.x + gridW / 2, gd.zeroY + 11);
+  for (let n = 1; n <= 36; n++) {
+    const r = Math.floor((n - 1) / 3), c = (n - 1) % 3;
+    const cx = gd.x + c * gd.colW, cy = gd.y + r * gd.rowH;
+    g.fillStyle = REDS.has(n) ? T.red : T.black;
+    g.fillRect(cx, cy, cellW, gd.rowH - 2);
+    g.fillStyle = T.ivory; g.font = 'bold 10px monospace';
+    g.fillText(String(n), cx + cellW / 2, cy + 13);
   }
-  // the track band the ball runs on
-  g.fillStyle = '#3a3230';
-  g.beginPath(); g.arc(CX, CY, POCKET_R + 15, 0, TAU);
-  g.arc(CX, CY, POCKET_R + 22, 0, TAU, true); g.fill();
-  // hub: gold, carrying the last result
-  g.fillStyle = T.goldLo; g.beginPath(); g.arc(CX, CY, HUB_R + 2, 0, TAU); g.fill();
-  g.fillStyle = T.gold; g.beginPath(); g.arc(CX, CY, HUB_R, 0, TAU); g.fill();
-  const shown = v.result ?? v.history[0];
-  if (shown !== undefined) {
-    g.fillStyle = shown === 0 ? T.green : REDS.has(shown) ? T.red : T.black;
-    g.beginPath(); g.arc(CX, CY, HUB_R - 6, 0, TAU); g.fill();
-    g.fillStyle = T.ivory; g.font = 'bold 14px monospace'; g.textAlign = 'center';
-    g.fillText(String(shown), CX, CY + 5);
-  }
-  // the ball
-  const br = BALL_POCKET + (BALL_RIM - BALL_POCKET) * Math.min(1, v.wheel.ballR);
-  const bx = CX + Math.cos(v.wheel.ballA) * br, by = CY + Math.sin(v.wheel.ballA) * br;
-  g.fillStyle = 'rgba(0,0,0,0.35)';
-  g.beginPath(); g.arc(bx + 1, by + 2, 4, 0, TAU); g.fill();
-  g.fillStyle = T.ivory;
-  g.beginPath(); g.arc(bx, by, 4, 0, TAU); g.fill();
+  g.fillStyle = T.dim; g.font = '8px monospace';
+  g.fillText('STRAIGHT UP PAYS 35:1', gd.x + gridW / 2, gd.y + 12 * gd.rowH + 9);
 
-  // ── the last eight, top left, newest first ──
-  v.history.forEach((n, i) => {
-    const hx = 14 + i * 16;
-    g.fillStyle = n === 0 ? T.green : REDS.has(n) ? T.red : T.black;
-    g.fillRect(hx, 12, 13, 11);
-    g.fillStyle = T.ivory; g.font = 'bold 6px monospace'; g.textAlign = 'center';
-    g.fillText(String(n), hx + 6.5, 20);
-  });
-
-  // ── the bet board ──
-  g.fillStyle = T.feltLo; g.fillRect(BOARD.x - 6, BOARD.y - 8, BOARD.w + 12, 5 * BOARD.rowH + 44);
-  g.fillStyle = T.gold; g.font = 'bold 8px monospace'; g.textAlign = 'center';
-  g.fillText('PAYS', BOARD.x + BOARD.w - 20, BOARD.y - 0.5);
-  BET_KINDS.forEach((k, i) => {
-    const ry = BOARD.y + 6 + i * BOARD.rowH;
-    const sel = k === v.kind;
-    g.fillStyle = sel ? T.gold : T.felt;
-    g.fillRect(BOARD.x, ry, BOARD.w, BOARD.rowH - 4);
-    if (sel) { g.fillStyle = T.win; g.fillRect(BOARD.x, ry, BOARD.w, 1); }
-    const label = k === 'number' ? `NUMBER ${v.pick}` : k.toUpperCase();
-    g.font = 'bold 8px monospace'; g.textAlign = 'left';
-    // a colour chip in front of RED and BLACK so the rows read at a glance
-    if (k === 'red' || k === 'black') {
-      g.fillStyle = k === 'red' ? T.red : T.black;
-      g.fillRect(BOARD.x + 5, ry + 5, 8, 8);
+  // ── the even-money boxes ──
+  const OUTS: { bet: BetKind; label: string }[] = [
+    { bet: 'red', label: 'RED' }, { bet: 'black', label: 'BLACK' },
+    { bet: 'odd', label: 'ODD' }, { bet: 'even', label: 'EVEN' },
+  ];
+  OUTS.forEach((o, i) => {
+    const oy = LAY.outside.y + i * (LAY.outside.h + LAY.outside.gap);
+    g.fillStyle = T.feltLo;
+    g.fillRect(LAY.outside.x, oy, LAY.outside.w, LAY.outside.h);
+    g.strokeStyle = 'rgba(216,208,192,0.55)'; g.lineWidth = 1;
+    g.strokeRect(LAY.outside.x + 0.5, oy + 0.5, LAY.outside.w - 1, LAY.outside.h - 1);
+    const mx = LAY.outside.x + LAY.outside.w / 2;
+    if (o.bet === 'red' || o.bet === 'black') {
+      // the colour diamond a real layout prints, stacked from fillRects the
+      // way the card pips are — Paint2D has no lineTo
+      g.fillStyle = o.bet === 'red' ? T.red : T.black;
+      for (let i2 = 0; i2 < 8; i2++) {
+        const half = i2 < 4 ? i2 * 3 + 2 : (7 - i2) * 3 + 2;
+        g.fillRect(mx - half, oy + 8 + i2 * 3, half * 2, 3);
+      }
+      g.fillStyle = T.ivory; g.font = 'bold 11px monospace'; g.textAlign = 'center';
+      g.fillText(o.label, mx, oy + 44);
+    } else {
+      g.fillStyle = T.ivory; g.font = 'bold 13px monospace'; g.textAlign = 'center';
+      g.fillText(o.label, mx, oy + 30);
     }
-    g.fillStyle = sel ? T.black : T.ink;
-    g.fillText(label, BOARD.x + (k === 'red' || k === 'black' ? 18 : 6), ry + 12);
-    g.textAlign = 'right';
-    g.fillStyle = sel ? '#5a3c08' : T.dim;
-    g.fillText(k === 'number' ? '35:1' : '1:1', BOARD.x + BOARD.w - 4, ry + 12);
+    g.fillStyle = T.dim; g.font = '8px monospace';
+    g.fillText('PAYS 1 TO 1', mx, oy + LAY.outside.h - 6);
   });
-  g.fillStyle = T.dim; g.font = '6px monospace'; g.textAlign = 'center';
-  g.fillText('←→ BET   ↑↓ NUMBER', BOARD.x + BOARD.w / 2, BOARD.y + 5 * BOARD.rowH + 16);
-  g.fillText('ZERO IS THE HOUSE’S', BOARD.x + BOARD.w / 2, BOARD.y + 5 * BOARD.rowH + 26);
+
+  // ── the last eight, printed by the wheel, newest first ──
+  for (let i = 0; i < 8; i++) {
+    const hx = LAY.hist.x + i * LAY.hist.step;
+    const n = v?.history[i];
+    if (n === undefined) {
+      g.strokeStyle = 'rgba(216,208,192,0.30)'; g.lineWidth = 1;
+      g.strokeRect(hx + 0.5, LAY.hist.y + 0.5, LAY.hist.w - 1, LAY.hist.h - 1);
+    } else {
+      g.fillStyle = n === 0 ? T.green : REDS.has(n) ? T.red : T.black;
+      g.fillRect(hx, LAY.hist.y, LAY.hist.w, LAY.hist.h);
+      g.fillStyle = T.ivory; g.font = 'bold 9px monospace'; g.textAlign = 'center';
+      g.fillText(String(n), hx + LAY.hist.w / 2, LAY.hist.y + 12);
+    }
+  }
 
   // ── what the table is saying ──
-  g.fillStyle = T.rail; g.fillRect(22, 206, FELT.w - 44, 14);
-  g.fillStyle = T.railHi; g.fillRect(22, 206, FELT.w - 44, 1);
-  g.textAlign = 'center'; g.font = '7px monospace';
-  g.fillStyle = v.phase === 'settle' || v.phase === 'paying'
-    ? (v.won ? T.win : T.dim) : T.dim;
-  const CHIP_HINT = 1;
-  const line = (v.phase === 'betting' && v.chips < v.bet
-    && cash !== undefined && cash < CHIP_HINT) ? 'NO CASH IN YOUR POCKETS' : v.says;
-  if (line) g.fillText(line, FELT.w / 2, 216);
+  g.fillStyle = T.feltLo; g.fillRect(LAY.say.x, LAY.say.y, LAY.say.w, LAY.say.h);
+  g.fillStyle = T.feltHi; g.fillRect(LAY.say.x, LAY.say.y, LAY.say.w, 1);
+  g.textAlign = 'center'; g.font = '9px monospace';
+  if (v) {
+    g.fillStyle = v.phase === 'settle' || v.phase === 'paying'
+      ? (v.won ? T.win : T.dim) : T.dim;
+    const CHIP_HINT = 1;
+    const line = (v.phase === 'betting' && v.chips < v.bet
+      && cash !== undefined && cash < CHIP_HINT) ? 'NO CASH IN YOUR POCKETS' : v.says;
+    if (line) g.fillText(line, LAY.say.x + LAY.say.w / 2, LAY.say.y + 13);
+  } else {
+    g.fillStyle = T.dim;
+    g.fillText('EUROPEAN ROULETTE — SINGLE ZERO', LAY.say.x + LAY.say.w / 2, LAY.say.y + 13);
+  }
 
-  // ── meters, same grammar as the blackjack felt ──
+  // ── meters and the bet chips, let into the felt by the wheel ──
   const meter = (mx: number, mw: number, label: string, val: string, lit: boolean) => {
-    g.fillStyle = '#12180f'; g.fillRect(mx, 224, mw, 20);
+    g.fillStyle = '#12180f'; g.fillRect(mx, LAY.chips.y, mw, LAY.chips.h);
     g.strokeStyle = T.railHi; g.lineWidth = 1;
-    g.strokeRect(mx + 0.5, 224.5, mw - 1, 19);
-    g.fillStyle = '#2c4a24'; g.font = '6px monospace'; g.textAlign = 'left';
-    g.fillText(label, mx + 4, 232);
+    g.strokeRect(mx + 0.5, LAY.chips.y + 0.5, mw - 1, LAY.chips.h - 1);
+    g.fillStyle = '#2c4a24'; g.font = '7px monospace'; g.textAlign = 'left';
+    g.fillText(label, mx + 4, LAY.chips.y + 16);
     g.fillStyle = lit ? T.win : '#7ae05a';
-    g.font = 'bold 10px monospace'; g.textAlign = 'right';
-    g.fillText(val, mx + mw - 4, 241);
+    g.font = 'bold 12px monospace'; g.textAlign = 'right';
+    g.fillText(val, mx + mw - 4, LAY.chips.y + 17);
   };
-  meter(22, 130, 'CHIPS', String(v.chips), v.phase === 'paying');
-  meter(160, 66, 'BET', String(v.bet), false);
-  meter(232, 66, 'PAID', String(v.paid), v.phase === 'paying');
+  meter(LAY.chips.x, LAY.chips.w, 'CHIPS', v ? String(v.chips) : '', v?.phase === 'paying');
+  meter(LAY.bet.x, LAY.bet.w, 'BET', v ? String(v.bet) : '', false);
+  const pm = (b: { x: number; y: number; w: number; h: number }, label: string, live: boolean) => {
+    g.fillStyle = live ? T.gold : '#3c443c'; g.fillRect(b.x, b.y, b.w, b.h);
+    g.fillStyle = live ? T.black : '#6c746c';
+    g.font = 'bold 13px monospace'; g.textAlign = 'center';
+    g.fillText(label, b.x + b.w / 2, b.y + 17);
+  };
+  pm(LAY.betDown, '−', !!v && v.phase === 'betting');
+  pm(LAY.betUp, '+', !!v && v.phase === 'betting');
+
+  // ── THE WORLD COPY STOPS HERE ──
+  if (!v) { g.restore(); return; }
+
+  // the chip, sitting ON the bet it is riding — the layout is where chips go
+  const chip = (cx: number, cy: number) => {
+    g.fillStyle = 'rgba(0,0,0,0.30)';
+    g.beginPath(); g.arc(cx + 1, cy + 2, 9, 0, TAU); g.fill();
+    g.fillStyle = T.chip;
+    g.beginPath(); g.arc(cx, cy, 9, 0, TAU); g.fill();
+    g.fillStyle = T.goldLo;
+    g.beginPath(); g.arc(cx, cy, 9, 0, TAU); g.arc(cx, cy, 6, 0, TAU, true); g.fill();
+    g.fillStyle = T.black; g.font = 'bold 8px monospace'; g.textAlign = 'center';
+    g.fillText(String(v.bet), cx, cy + 3);
+  };
+  if (v.kind === 'number') {
+    if (v.pick === 0) chip(gd.x + gridW / 2, gd.zeroY + gd.zeroH / 2 - 1);
+    else {
+      const r = Math.floor((v.pick - 1) / 3), c = (v.pick - 1) % 3;
+      chip(gd.x + c * gd.colW + cellW / 2, gd.y + r * gd.rowH + gd.rowH / 2 - 1);
+    }
+  } else {
+    const i = OUTS.findIndex((o) => o.bet === v.kind);
+    chip(LAY.outside.x + LAY.outside.w - 18,
+      LAY.outside.y + i * (LAY.outside.h + LAY.outside.gap) + LAY.outside.h / 2);
+  }
 
   g.restore();
 }
@@ -479,14 +581,21 @@ export function register(ctx: CtxBuild): void {
   void Promise.all([import('./hud'), import('./slots')]).then(([{ makePanel }, slots]) => {
     CHIP = slots.CREDIT;               // ONE exchange rate for the whole casino
     panel = makePanel({
-      // FRAMELESS, like the other two — paintTable draws the whole rail.
+      // ON THE BAIZE ITSELF. 2026-08-09: *"blackjack and roulettte need to be
+      // diagetic similar to all the other locked perspective UIs."* The canvas
+      // hangs on the `roulette-felt` mesh — the whole tabletop, seen side-on
+      // from the lock: layout left, the REAL wheel standing at the right,
+      // turned by the hook below. `faceYaw` is −π/2 because the felt is
+      // horizontal and says nothing about heading (the drawer's rule): −x is
+      // the avenue-side seats' own facing, and it puts the wheel at the
+      // screen's right hand, which is where a table crew stands it.
       id: 'ct-roulette',
       w: FELT.w, h: FELT.h, scale: 2,
       chrome: 'none',
       hint: () => (table.view().phase === 'betting'
         ? (ctx.purse.cash < CHIP
-          ? 'SPACE spin · arrows bet · C cash out'
-          : 'SPACE spin · arrows bet · I buy in $20 · C cash out')
+          ? 'click a bet, then the wheel · arrows bet · C cash out'
+          : 'click a bet, then the wheel · arrows bet · I buy in $20 · C cash out')
         : 'no more bets'),
       draw: (g, w, h) => paintTable(g, w, h, table.view(), ctx.purse.cash),
       key: (k) => {
@@ -504,6 +613,27 @@ export function register(ctx: CtxBuild): void {
         else if (k === 'i') buyIn();
         else if (k === 'c') cashOut();
         panel?.repaint();
+      },
+      surface: {
+        mesh: () => ctx.scene.getObjectByName('roulette-felt') ?? null,
+        // the eye clamps to 1.75 m over the floor (`poseFor`); 0.92 above the
+        // 0.83 m felt lands on the clamp, and fov 70 is what frames a 1.94 m
+        // table from there — a wide look, which is what standing over a
+        // roulette table is
+        standoff: 0.92,
+        fov: 70,
+        faceYaw: -Math.PI / 2,
+        hot: (x, y) => table.view().phase === 'betting' && feltHit(x, y) !== null,
+        click: (x, y) => {
+          if (table.view().phase !== 'betting') return;
+          const hit = feltHit(x, y);
+          if (!hit) return;
+          if (hit.kind === 'spin') table.spin();
+          else if (hit.kind === 'bet') table.kindSet(hit.bet);
+          else if (hit.kind === 'pick') table.pickSet(hit.n);
+          else table.betBy(hit.d);
+          panel?.repaint();
+        },
       },
       onClose: () => { dismissed = seatedAtWheel(); cashOut(); },
     });
@@ -535,14 +665,23 @@ export function register(ctx: CtxBuild): void {
       panel.repaint();
     }
 
-    // the world's wheel: idle drift always, the game's own angle while it runs
+    // the world's wheel: idle drift always, the game's own angle while it
+    // runs. The head's pockets are painted in WHEEL order with pocket i
+    // centred at canvas angle i/37·TAU, and a cylinder cap samples canvas
+    // angle φ at world bearing atan2(x, z) = −φ, so rotating the head to
+    // π/2 − wheelA puts the ball — placed at (cos a, sin a) below — exactly
+    // over the pocket the game drew. Derived, and then LOOKED at: the ball
+    // rides its number home, which since the diegetic move is the only wheel
+    // the player watches (the painted panel wheel is gone).
     if (head === undefined) head = (ctx.scene.getObjectByName('roulette-wheel-head') ?? null) as THREE.Object3D | null;
     if (ball === undefined) ball = (ctx.scene.getObjectByName('roulette-ball') ?? null) as THREE.Object3D | null;
     if (head) {
       const v = panel.isOpen() ? table.view() : null;
-      head.rotation.y = v ? -v.wheel.wheelA : f.t * 0.25;
+      head.rotation.y = v ? Math.PI / 2 - v.wheel.wheelA : f.t * 0.25;
       if (ball && v) {
-        const r = 0.13 + (0.30 - 0.13) * Math.min(1, v.wheel.ballR);
+        // 0.155 m is the middle of the painted pocket band; 0.37 is out on
+        // the chrome bowl, where a launched ball actually runs
+        const r = 0.155 + (0.37 - 0.155) * Math.min(1, v.wheel.ballR);
         ball.position.x = head.position.x + Math.cos(v.wheel.ballA) * r;
         ball.position.z = head.position.z + Math.sin(v.wheel.ballA) * r;
         ball.position.y = 1.00;
