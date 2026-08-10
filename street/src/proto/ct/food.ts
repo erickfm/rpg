@@ -2,6 +2,7 @@ import { BUILD } from './ctx';
 import { hudNote } from './hud';
 import { heal } from './health';
 import { itemOf } from './inventory';
+import { crumbsFor } from './crumbs';
 import {
   BURGER, CHICKEN, FRIES, PIE, SHAKE,
   EGGS, PLATTER, SANDWICH, CHIPS,
@@ -71,6 +72,10 @@ export const mealsEaten = (): number => meals;
 function eat(id: string, line: string): void {
   meals++;
   heal(FOOD_HEAL[id] ?? 0);
+  // *"make crumbs fly out of bottom of screen"* (2026-08-10) — the visual half
+  // of a meal. `ct/crumbs.ts` reads the item's own verb and does nothing for a
+  // drink, so this one line serves the whole table.
+  crumbsFor(id);
   // One short line, no panel — the HUD bar moving is most of the receipt; the
   // words are the flavour, in the world's grain, and they describe the eating
   // rather than promise a number (a man already at full still ate the pie).

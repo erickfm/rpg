@@ -272,11 +272,14 @@ export const SMOKES = defineItem({
   blurb: 'the cellophane comes off in one strip if you get the tab.',
   // The pack off the bodega's own rack: `backT` in ct/int-bodega.ts has drawn
   // its cigarettes in #d8d0c0 white and #b8342a red since the room was built,
-  // so the pack you buy is one of the ones you have been looking at. NO USE
-  // VERB — a pack is twenty, and a SMOKE verb that ate the whole pack in one
-  // puff would be the menu lying (the same honesty rule that keeps the socks
-  // verbless). If smoking ever gets a system, the verb declares here in one
-  // line, like PILLS' TAKE does in ct/fatigue.ts.
+  // so the pack you buy is one of the ones you have been looking at.
+  //
+  // SMOKING GOT ITS SYSTEM (2026-08-10) and the honesty rule survived it: a
+  // pack is twenty, so `ct/smoking.ts` attaches the SMOKE verb by mutation
+  // (the way ct/food.ts made the burger eatable) and each smoke steps the
+  // pack down through SMOKES_19 … SMOKES_1 — one cigarette per verb, and the
+  // pack dies only when it is empty. The count lives in the item's identity
+  // because `Purse.inv` is a plain count per id and carries no per-item state.
   icon: (g) => {
     box(g, '#d8d0c0', 6, 3, 12, 18);                   // the pack
     box(g, '#b8342a', 6, 3, 12, 7);                    // the red crown

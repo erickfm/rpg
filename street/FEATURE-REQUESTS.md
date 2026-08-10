@@ -6635,3 +6635,42 @@ the pad, its click region is asked before the pen's, so it cannot be
 inked over.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-10 — *"make it so cigarettes and food is consumable. make animations for smoking. for eating. smoking should be self explanatory but eating just use the sounds and make crumbs fly out of bottom of screen"*
+
+Went to a builder. Three pieces:
+
+**Cigarettes consume one at a time.** SMOKES kept its old honesty rule ("a
+pack is twenty; a SMOKE verb that ate the whole pack in one puff would be
+the menu lying") the right way round: the bag's SMOKE verb lights ONE
+cigarette and steps the pack down — sealed pack → `SMOKES_19` → … →
+`SMOKES_1`, which dies when smoked. The count rides in the item's identity
+(new leaf `ct/smoking.ts`, nineteen part-pack defs) because `Purse.inv` is
+a plain count per id; the parcel's own "using a thing may turn it into
+another thing" machinery in `ct/bag.ts` swaps the pack in place, the name
+says the exact number ("pack of smokes (13 left)"), and the open-pack icon
+thins its row of filter tips as it empties. No stat effect — flavour only,
+as briefed. A part-used pack survives saves and never smears into a second
+pack.
+
+**Smoking animation** — first person, pixel grammar, own z-8 canvas
+(fatigue-vignette discipline: getElementById-or-create, pointer-events
+none, under panels/notes/fades): the player's own hand — `ct/body.ts` skin
+tone, same read as the watch arm — rises from the bottom edge with a lit
+cigarette, holds a ~1.1 s drag while the ember flares and flickers and
+wisps rise off the tip, lowers away, and the exhale drifts up from the
+bottom edge as stepped grey puffs that sway and disperse. Blocks nothing,
+aborts instantly on fade/sleep/game over. SILENT: the sound library holds
+nothing smoking-adjacent (no lighter, no exhale — checked
+street/public/audio and ~/Documents/sound), and a wrong sound beats none.
+
+**Eating crumbs** — when an EAT lands, `ct/crumbs.ts` bursts ~25 small
+pixel crumbs up from the bottom edge, arcing under gravity and falling
+back out in under a second — food-coloured, point-sampled at play time
+from the item's own 24 x 24 icon (pie sheds pie, fries shed fries; no
+icon sheds crumb-brown). One line added inside `ct/food.ts`'s `eat()`;
+verbs, heal table and bite sounds untouched. DRINKS (shake, soda, coffee)
+get nothing, deliberately — a droplet burst at this texel size reads as
+crumbs, so drinks keep the bite sound and stay visual-less.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
