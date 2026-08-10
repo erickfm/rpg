@@ -18,6 +18,9 @@ import { health } from './health';
 // rather than watching health, because `heal` clamps at full — a pie eaten at
 // full health moves no number, and it was still eaten.
 import { mealsEaten } from './food';
+// Read-only and published for exactly this reader: the rig rides the board,
+// this runs the wheels. `fp.ts` imports only three and ct/stats — no cycle.
+import { riding, rideState } from '../fp';
 
 // ════════════════════════════════════════════════════════════════════════════
 // SOUND
@@ -219,6 +222,12 @@ const EVENTS = [
   // the fourth (2026-08-09): *"i added audio for casino slots and stuff"* —
   // the lever, and the two win sizes. The floor tone is the `casino` BED.
   'slot-pull', 'slot-win', 'slot-jackpot',
+  // the fifth (2026-08-10): *"also wire the sounjds through to the
+  // skateboard"* — the ollie pop and the wheels slapping back down.
+  // `skate-roll` rides along here for its BYTES only: it is a 7 s seamless
+  // LOOP, never fired as a one-shot — the frame hook builds it a looping
+  // source of its own, the car-engine treatment.
+  'skate-trick', 'skate-land', 'skate-roll',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -334,6 +343,13 @@ const LVL = {
   // machine shouting, and the machine is a metre from your face
   slotJackpot: 0.60,
   busIdle: 0.30,   // the looping bed while it stands at the flag
+  // ── the skateboard (2026-08-10) ──
+  // the roll sits UNDER the footsteps it replaces (0.55) and over the beds:
+  // it is a texture he is standing on, continuous, so a step-level gain would
+  // be a buzz. Scaled live by speed on top of this.
+  skateRoll: 0.34,
+  skateTrick: 0.50,  // the pop is his own board at his own feet: no falloff
+  skateLand: 0.55,   // wheels down — the same shelf as a footfall, it IS one
   // being HIT by one of them (2026-08-08). Hot on purpose: it is the loudest
   // thing that can happen to you and it is happening to your own body, so it
   // takes no distance falloff — the distance is zero by definition.
@@ -889,6 +905,20 @@ export function register(ctx: CtxBuild): void {
   const ENG_RANGE = 50;
   let engWant = 0, engPan = 0, engRate = 1.3;
   let engine: { g: GainNode; pan: StereoPannerNode; s: AudioBufferSourceNode; cur: number } | null = null;
+  // ── the skateboard (2026-08-10) ──────────────────────────────────────────
+  // *"also wire the sounjds through to the skateboard"* — and `fp.ts`
+  // publishes the frame for it (`rideState`): speed, height off the ground,
+  // and a count of real ollies. One looping wheel voice, the engine treatment:
+  // built once, runs for the session, gain rides the rolled speed and CUTS in
+  // the air — wheels off the ground are silent, which is most of what makes
+  // the ollie land. No pan and no wall: his own wheels, and riding is
+  // outdoor-only by rule. The HEIGHT is thresholded at 0.12 m rather than
+  // using `airborne()`, because walking-slope flicker keeps that boolean true
+  // down a whole hill (see FALL_MIN_DROP in fp.ts) and the wheels must not
+  // fall silent riding down the road's own crown.
+  let rollLoop: { g: GainNode; s: AudioBufferSourceNode; cur: number } | null = null;
+  let lastHops = rideState().hops;
+  let wasBoardAir = false;
   // ── being hit by one (2026-08-08) ────────────────────────────────────────
   // `ct/carhit.ts` deals a flat 70 through `ct/health.ts` and publishes no
   // event — none needed. A drop that size in ONE FRAME with a moving vehicle
@@ -1458,6 +1488,44 @@ export function register(ctx: CtxBuild): void {
       engine.s.playbackRate.value = glide(engine.s.playbackRate.value, engRate, f.dt, 0.30);
     }
 
+    // ── the skateboard's wheels — see `rollLoop` above ───────────────────────
+    const rs = rideState();
+    const onBoard = riding();
+    const boardAir = onBoard && rs.airY > 0.12;
+    if (!rollLoop && shots.has('skate-roll')) {
+      const g = ac.createGain();
+      g.gain.value = 0;
+      const s = ac.createBufferSource();
+      s.buffer = shots.get('skate-roll')!;
+      s.loop = true;
+      s.connect(g).connect(rig.master);
+      s.start();
+      rollLoop = { g, s, cur: 0 };
+    }
+    if (rollLoop) {
+      // gain rides the speed; the 0.18 glide is quick enough that an ollie
+      // punches a hole in the roll and slow enough that a push is a swell.
+      const wantR = onBoard && !boardAir && rs.speed > 0.3
+        ? LVL.skateRoll * Math.min(rs.speed / 6, 1) : 0;
+      rollLoop.cur = glide(rollLoop.cur, wantR, f.dt, 0.18);
+      rollLoop.g.gain.value = rollLoop.cur;
+      // pitch climbs a little with speed — wheels, not an engine, so the ride
+      // of the rate is shallow: 0.9 at a push-off, ~1.35 flat out
+      rollLoop.s.playbackRate.value = glide(rollLoop.s.playbackRate.value,
+        0.88 + 0.055 * Math.min(rs.speed, 8.6), f.dt, 0.30);
+    }
+    // the ollie POP — counted at fp.ts's own jump gate, so a kerb rolled off
+    // can never fire it — and the wheels slapping back DOWN, on the height
+    // falling back through the same 0.12 m the roll gate uses.
+    if (rs.hops !== lastHops) {
+      lastHops = rs.hops;
+      fire('skate-trick', LVL.skateTrick * (0.9 + roll() * 0.2), 0.96 + roll() * 0.08, 0);
+    }
+    if (wasBoardAir && !boardAir && onBoard) {
+      fire('skate-land', LVL.skateLand * (0.85 + roll() * 0.3), 0.95 + roll() * 0.1, 0);
+    }
+    wasBoardAir = boardAir;
+
     // ── things in the world that moved since last frame ─────────────────────
     px = f.px; pz = f.pz;
     watchScene(f.t);
@@ -1510,6 +1578,14 @@ export function register(ctx: CtxBuild): void {
         fire('shop-bell', LVL.shopBell * (0.92 + roll() * 0.16),
           0.97 + roll() * 0.06, (roll() - 0.5) * 0.2);
       }
+    } else if (onBoard) {
+      // WHEELS, NOT FEET. The roll loop above is the movement sound while he
+      // rides, and the touchdown is `skate-land` up there — a footstep on
+      // either would be a man jogging along his own deck. The bank stays
+      // empty and the clock current, so stepping off cannot pay out a stride
+      // the board covered.
+      acc = 0;
+      stepAt = f.t;
     } else if (air) {
       // AIRBORNE: bank NOTHING. Not merely "do not play" — a jump covers real
       // ground, and holding the metres would pay them all out the instant he

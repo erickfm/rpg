@@ -364,3 +364,30 @@ SRC_SAVE=$SRC; SRC=$OUT
 bed casino ".casino-cut.wav" 32000 2 1.5 -20
 SRC=$SRC_SAVE
 rm -f "$OUT/.casino-cut.wav"
+
+# ── the fifth delivery (2026-08-10): the skateboard ─────────────────────────
+#
+# *"also wire the sounjds through to the skateboard"* — three files, measured
+# like every delivery before a cut was chosen.
+#
+# `skate moving.wav` is 13 s of board rolling on asphalt that FADES IN over its
+# first ~3 s (0.5 s rms 0.005 -> 0.08) and only settles from 5 s on (0.06-0.09).
+# The loop window is that steady back half, 5.0-13.0 s. 98.3% of its energy is
+# 250 Hz-2 kHz, so 22.05 kHz keeps everything it has. Loudness-normalised, not
+# peak: a roll is a texture the player stands on, the same argument as the
+# beds, and it arrives at -23.7 LUFS with a -6.9 dBFS peak.
+echo "the skateboard:"
+ffmpeg -hide_banner -loglevel error -y -ss 5.0 -t 8.0 -i "$SRC/skate moving.wav" \
+  -ac 1 -ar 44100 -c:a pcm_s16le "$OUT/.skate-cut.wav"
+SRC_SAVE=$SRC; SRC=$OUT
+bed skate-roll ".skate-cut.wav" 22050 1 1.0 -20
+SRC=$SRC_SAVE
+rm -f "$OUT/.skate-cut.wav"
+# `skate land.wav` is the whole event in its first half second — wheels down
+# and the deck's double rattle (20 ms peaks at 0.06, 0.10 and 0.12 s) — then
+# room tone. `skate trick.wav` carries 0.2 s of run-up noise ahead of the pop
+# at 0.28 s; the cut starts just under the pop and keeps the catch at ~0.5 s.
+# Both are 250 Hz-2 kHz material with nothing measurable above 8 kHz: 22.05 kHz
+# (Nyquist 11 kHz) keeps all of it.
+sfx skate-land  "skate land.wav"  0.00 0.55 22050
+sfx skate-trick "skate trick.wav" 0.20 0.55 22050

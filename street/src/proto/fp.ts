@@ -300,6 +300,27 @@ export function setRiding(on: boolean): void { ride = on; }
 export function riding(): boolean { return ride; }
 
 /**
+ * WHAT THE BOARD IS DOING THIS FRAME, published for the two readers that
+ * cannot be allowed to invent their own copy of it: ct/skateboard.ts draws the
+ * deck under your feet from it, and ct/audio.ts runs the wheels off it.
+ *
+ *   `speed`  the rolled speed, m/s — `glide`, momentum included
+ *   `lean`   -1…1, eased strafe: which way he is carving
+ *   `airY`   height above the ground, metres. A BOOLEAN would lie here: walking
+ *            down any slope flickers `airY` positive every frame (see
+ *            FALL_MIN_DROP), so "airborne" is true for a whole descent — the
+ *            readers threshold the HEIGHT (slope flicker stays under ~0.04 m,
+ *            a real hop clears 0.12 in its first frames) and stay honest on
+ *            hills.
+ *   `hops`   counts REAL jumps taken while riding — the ollies. An edge on
+ *            this is how audio tells a pop from a kerb rolled off.
+ */
+const RIDE_VIEW = { speed: 0, lean: 0, airY: 0, hops: 0 };
+export function rideState(): { speed: number; lean: number; airY: number; hops: number } {
+  return RIDE_VIEW;
+}
+
+/**
  * HOW FAR THE FLOOR HAS TO DROP IN ONE FRAME BEFORE IT COUNTS AS A FALL, in
  * metres. **THIS IS THE ONE NUMBER TO TURN.**
  *
@@ -873,7 +894,12 @@ export class FPRig {
     // eased below against THIS frame's, after the integrator has run.
     this.stanceT += ((this.airY > 0 ? AIR_CROUCH_DIP : 1) * this.crouchT - this.stanceT) * Math.min(1, dt * 9);
     const moving = mv.lengthSq() > 0;
-    if (!ride) this.glide = 0;   // off the board, the momentum is gone
+    if (!ride) {
+      // off the board, the momentum is gone — and the published view runs
+      // down with it, so a re-mount cannot open on a stale carve
+      this.glide = 0;
+      RIDE_VIEW.speed = 0; RIDE_VIEW.lean = 0; RIDE_VIEW.airY = 0;
+    }
     if (ride) {
       // ── ON THE BOARD (see the RIDE constants block) ──────────────────────
       // The base is REPLACED — cruise or push, never walk/sprint — and every
@@ -897,6 +923,12 @@ export class FPRig {
         // wheels, not feet: a slow roll of the head, no footstep cadence
         this.bobT += dt * 3;
       }
+      // publish the frame for the deck and the wheels — see RIDE_VIEW. `airY`
+      // is last frame's, settled, the same one every collision test above took.
+      RIDE_VIEW.speed = this.glide;
+      RIDE_VIEW.airY = this.airY;
+      const strafe = (input.keys.has('d') ? 1 : 0) - (input.keys.has('a') ? 1 : 0);
+      RIDE_VIEW.lean += (strafe - RIDE_VIEW.lean) * Math.min(1, dt * 7);
     } else if (moving) {
       // The bunny-hop stack multiplies LAST and applies in the air too — the
       // whole point of a hop is that the speed it earned carries through the
@@ -965,6 +997,9 @@ export class FPRig {
     // below the clamped apex — and every spot lands back on the floor it left.
     if (jumpDown && !this.jumpHeld && this.airY === 0 && this.vy === 0) {
       this.vy = 4.0;
+      // an ollie is a JUMP taken on the board — counted here, at the one gate
+      // every real jump passes, so a kerb rolled off can never look like one
+      if (ride) RIDE_VIEW.hops++;
       // THE CHAIN IS JUDGED HERE, at takeoff: re-pressed inside the window,
       // moving — a clean hop, stack one step. Anything else (first jump of a
       // session, a jump from a stand, a jump after loitering past the window)
