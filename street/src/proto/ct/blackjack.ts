@@ -1176,14 +1176,16 @@ export const ORDER = BUILD.INTERIOR + 6;
  *
  * `ae4147cee` gave `gameStool()` an optional `label` (default unchanged, so
  * roulette, craps and poker still carry `'sit at the table'`) and put four
- * stools on the player side of the felt table at `TX = -2.6, TZ = -13.0` — the
- * only game on that floor with a dealer standing at it, and the only one shaped
- * dealer-versus-player. They import this constant rather than retyping it, so
- * the two sides of the bridge cannot drift apart.
+ * stools on the player side of the felt table — since the 2026-08-09 layout
+ * overhaul that table sits in the pit at `TX = 2.7, TZ = -5.0`, mirrored by
+ * the roulette wheel across the avenue — the only green felt on that floor
+ * with a standing dealer. They import this constant rather than retyping it,
+ * so the two sides of the bridge cannot drift apart.
  *
- * Measured in the world, not read back off that commit
- * (`scripts/probes/w19-blackjack-seats.mjs`): four seats carry this string, at
- * world z −12.15, each with its own stand point 0.80 m behind — which is the
+ * Measured in the world when first wired
+ * (`scripts/probes/w19-blackjack-seats.mjs`): four seats carry this string
+ * (world z −4.15 since the move), each with its own stand point 0.80 m behind
+ * — which is the
  * `approach` the ask insisted on, and 69 of this world's seats still lack.
  *
  * `__blackjack.open()` still works and is still the right way to drive the
