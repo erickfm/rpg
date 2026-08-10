@@ -304,6 +304,14 @@ const LVL = {
   page: 0.45,
   sleep: 0.50,
   pass: 0.50,      // multiplied by distance — the trucks AND the new car pass
+  // the approach layer under the pass — see `engWant` in the traffic watcher.
+  // *"i never hear the car coming. sound starts too late"* (2026-08-10): the
+  // pass fires AT closest approach because that is where the whoosh recording
+  // lives, which means it is a sound about a car that has already arrived.
+  // This is the sound of one still on its way — it sits over the street beds
+  // (0.17) and under the pass it hands over to, because a warning that
+  // outshouts the event it warns of is backwards.
+  engine: 0.40,    // multiplied by distance, speed and approach — see the watcher
   // a leaned-on horn is the loudest deliberate thing on the street — above the
   // passes it interrupts, under the car hit it exists to prevent
   bus: 0.55,       // multiplied by distance
@@ -494,6 +502,11 @@ export function register(ctx: CtxBuild): void {
   let live: AudioContext | null = null;
   let booted = false;
   const shots = new Map<string, AudioBuffer>();
+  /** the bus-idle recording, kept decoded for the car engine layer — see
+   *  `engWant`. The bed's own looping source plays it at 1x under the bus at
+   *  its flag; this second use loops the same buffer ~1.3–1.5x for the motor
+   *  of whichever car is bearing down on him. One asset, two engines. */
+  let engineBuf: AudioBuffer | null = null;
 
   /**
    * Fire a one-shot: a source, a gain and a pan, built for this sound and
@@ -606,6 +619,8 @@ export function register(ctx: CtxBuild): void {
       // decodeAudioData DETACHES the ArrayBuffer it is given, so a retry would
       // be handed an empty one. It is called exactly once per buffer.
       ac.decodeAudioData(raw.slice(0)).then((buf) => {
+        // stash the one recording the car engine layer re-loops — see `engineBuf`
+        if (n === 'bus-idle') engineBuf = buf;
         const s = ac.createBufferSource();
         s.buffer = buf;
         s.loop = true;
@@ -853,6 +868,27 @@ export function register(ctx: CtxBuild): void {
   // seconds of hard braking per vehicle and the horn fires when it fills.
   let hornAt = -99;
   let busIdleWant = 0, busIdlePan = 0;
+  // ── the engine you hear COMING (2026-08-10) ──────────────────────────────
+  // *"car sounds need to be tuned. i never hear the car coming. sound starts
+  // too late."* — and it did, structurally: the pass fires at CLOSEST APPROACH
+  // (below) because the recording is cut to the whoosh, so the first sound a
+  // car made was the sound of it already on top of him. On a street where two
+  // hits kill, the approach IS the warning, and a warning needs to be
+  // continuous — a one-shot fired early is a whoosh about nothing.
+  //
+  // So this is the bus-idle treatment given to the fleet: one looping motor
+  // voice that follows the LOUDEST car each frame — nearest wins perceptually,
+  // and the glides carry a handover between cars as a swing, not a snap. Gain
+  // swells with proximity over ENG_RANGE (50 m ≈ 5–6 s of warning at the 8.5
+  // m/s cruise), scales with speed so a car crawling behind the block does not
+  // roar, and a RECEDING car drops to half — the street stays a street, not a
+  // wall of engine noise, and the sound points at what is still coming. The
+  // rate rides speed plus the closing rate, a coarse doppler: pitched up on
+  // the way in, down on the way out, which is most of how an ear tells
+  // "coming" from "gone" before looking.
+  const ENG_RANGE = 50;
+  let engWant = 0, engPan = 0, engRate = 1.3;
+  let engine: { g: GainNode; pan: StereoPannerNode; s: AudioBufferSourceNode; cur: number } | null = null;
   // ── being hit by one (2026-08-08) ────────────────────────────────────────
   // `ct/carhit.ts` deals a flat 70 through `ct/health.ts` and publishes no
   // event — none needed. A drop that size in ONE FRAME with a moving vehicle
@@ -874,6 +910,7 @@ export function register(ctx: CtxBuild): void {
       if (f.length) fleet = f; else return;
     }
     busIdleWant = 0;
+    engWant = 0;
     for (const v of fleet) {
       const nx = v.o.position.x, nz = v.o.position.z;
       const moved = Math.hypot(nx - v.x, nz - v.z);
@@ -895,6 +932,22 @@ export function register(ctx: CtxBuild): void {
           if (near > busIdleWant) { busIdleWant = near; busIdlePan = bearing(nx, nz, px, pz) * 0.6; }
         }
         continue;
+      }
+
+      // the approach layer — see `engWant` above. `closing` is clamped because
+      // the first frame ever sees `wasD = 999` and reads as a car arriving at
+      // relativistic speed; one clamped frame through a 0.3 s glide is nothing.
+      const closing = Math.max(-20, Math.min(20, (wasD - d) / Math.max(dt, 1e-4)));
+      if (spd > 2.5 && d < ENG_RANGE) {
+        const nearE = (1 - d / ENG_RANGE) ** 1.4
+          * (0.5 + 0.5 * Math.min(spd / 10, 1))
+          * (closing > 0.5 ? 1 : 0.55);
+        if (nearE > engWant) {
+          engWant = nearE;
+          engPan = bearing(nx, nz, px, pz) * 0.7;
+          engRate = Math.max(1.05, Math.min(1.6,
+            1.18 + 0.016 * Math.min(spd, 15) + closing * 0.006));
+        }
       }
 
       // A PASS-BY FIRES AT CLOSEST APPROACH — the frame the distance stops
@@ -1375,6 +1428,34 @@ export function register(ctx: CtxBuild): void {
       // an automation curve running against the next frame's write.
       b.cur = glide(b.cur, want[n], f.dt, n === 'site' ? 1.2 : TAU);
       b.g.gain.value = b.cur;
+    }
+
+    // ── the car engine layer — see `engWant` in the traffic watcher ─────────
+    // Built lazily like the panners above, the frame the buffer has decoded.
+    // Runs for the whole session at whatever gain the watcher asks for, for
+    // the same reason the beds do: a source restarted per car would replay the
+    // same first second of motor forever. Through the wall, because a car is
+    // outdoors and a wall should do to it what it does to the rest of the
+    // street. Gain glides at 0.30 — quicker than the beds' TAU, because this
+    // has to SWELL with a car covering 8.5 m/s, but slow enough that the voice
+    // handing over between two cars is a swing and not a click.
+    if (!engine && engineBuf) {
+      const g = ac.createGain();
+      g.gain.value = 0;
+      const p = ac.createStereoPanner();
+      const s = ac.createBufferSource();
+      s.buffer = engineBuf;
+      s.loop = true;
+      s.playbackRate.value = engRate;
+      s.connect(g).connect(p).connect(rig.wall);
+      s.start();
+      engine = { g, pan: p, s, cur: 0 };
+    }
+    if (engine) {
+      engine.cur = glide(engine.cur, bleed * LVL.engine * engWant, f.dt, 0.30);
+      engine.g.gain.value = engine.cur;
+      engine.pan.pan.value = glide(engine.pan.pan.value, engPan, f.dt, 0.15);
+      engine.s.playbackRate.value = glide(engine.s.playbackRate.value, engRate, f.dt, 0.30);
     }
 
     // ── things in the world that moved since last frame ─────────────────────
