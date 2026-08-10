@@ -483,8 +483,13 @@ export function buildCollege(ctx: CtxBuild): void {
 
   // ══ AND THE COLLEGE HIRES — application and punch clock (ct/jobs.ts) ═══════
   //
-  // On the east wall of the LOBBY, between the corridor gap in the partition
-  // (x 1.9 … 4.9 at z 0.6) and the front wall: the section spans z 2.67 … 4.08,
-  // its stand points 0.79 m out on the open lobby floor.
-  jobStation(ctx, room, 'ct-shop-college', { x: hw - 0.04, z: 3.3, rotY: -Math.PI / 2 });
+  // On the east wall of the LOBBY, in the clear strip between the partition's
+  // corridor gap (south face z 0.675) and the corkboard (z 2.7 … 5.1 at
+  // x hw-0.06). The section spans z 0.92 … 2.33 around this centre, so it
+  // clears the corner by 0.24 m and the corkboard's frame by 0.37 m — it
+  // used to sit AT z 3.3, mounted straight over the corkboard, and the card
+  // rack (proud 0.02 off a hw-0.04 base) landed at exactly hw-0.06, coplanar
+  // with the corkboard's plane: the z-fighting fuzz Erick shot 2026-08-10.
+  // Its two stands point 0.79 m out on the open lobby floor.
+  jobStation(ctx, room, 'ct-shop-college', { x: hw - 0.04, z: 1.55, rotY: -Math.PI / 2 });
 }
