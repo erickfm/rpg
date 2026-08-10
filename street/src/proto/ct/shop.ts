@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { makePanel, hudNote, type Panel, type Purse } from './hud';
 import { pixTex, declareSurface, dither } from './paint';
 import { give, fullWhy, itemOf } from './inventory';
+import { openNow, opensLabel } from './hours';
 import type { CtxBuild, Spot } from './ctx';
 
 // ══ BUYING THINGS, OVER A COUNTER, OFF A SIGN ══════════════════════════════
@@ -513,14 +514,23 @@ export function shopCounter(ctx: CtxBuild, spec: ShopSpec): Shop {
   // NO `rank`. Furniture declares nothing — `WAY_OUT` is for the door, and a
   // counter that outranked the way out of the room would be the exact bug the
   // rank field was added to fix, upside down.
+  // AND THE COUNTER KEEPS THE SHOP'S HOURS — `ct/hours.ts`'s one table, keyed
+  // by the panel id this spec already coined, so every counter got its hours
+  // in one edit here and no room had to be told. *"lets give businesses
+  // reasonable hours"* (2026-08-10). Closed is the bank's loan-desk grammar:
+  // the prompt itself says so and says when to come back, the act goes quiet,
+  // and the door never locks — you can always walk in, and always back out.
+  // A shop with no row in the table is open whenever it was open before.
   const spot: Spot = {
     x: spec.stand.x, z: spec.stand.z,
     aimX: spec.keeper.x, aimZ: spec.keeper.z,
     r: spec.r ?? 1.0,
     obj: spec.keeper.obj,
     ok: spec.ok,
-    label: () => `talk to ${spec.who}`,
-    act: open,
+    label: () => (openNow(ctx, spec.id)
+      ? `talk to ${spec.who}`
+      : `closed — opens at ${opensLabel(spec.id)}`),
+    act: () => { if (openNow(ctx, spec.id)) open(); },
   };
   ctx.spot(spot);
 

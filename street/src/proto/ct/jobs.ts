@@ -5,6 +5,7 @@ import { jobChance, stat } from './stats';
 import { registerSlice } from './save';
 import { boardStandoff } from './shop';
 import { makeSigPad, paintBackspace, type SigPad } from './signature';
+import { openNow, minsUntilClose, opensLabel } from './hours';
 import type { CtxBuild } from './ctx';
 import type { Room } from './interior';
 
@@ -39,10 +40,23 @@ import type { Room } from './interior';
 //
 //   THE TIME CLOCK    a punch clock and its card rack. The prompt is one
 //                     word — `[E] work`, like `[E] sleep` — it answers only
-//                     where you are hired, and every shift is EIGHT HOURS:
+//                     where you are hired, and a shift is EIGHT HOURS:
 //                     the screen fades, the clock snaps forward the shift
-//                     (the college's fade + snap), and hourly × 8 lands in
-//                     cash at punch-out. One shift a day.
+//                     (the college's fade + snap), and hourly × hours lands
+//                     in cash at punch-out.
+//
+//                     …but no longer exactly eight — *"i want to be able to
+//                     work longer as long as the business is open"*
+//                     (2026-08-10). So the shift is bounded by the SHOP'S
+//                     HOURS (`ct/hours.ts`), both ways: it is cut short at
+//                     closing time, and punching the clock again straight
+//                     after a shift keeps you working — another stretch,
+//                     paid the same hourly, for as long as the place is
+//                     open. A 24-hour shop will let you work until the
+//                     fatigue system settles the argument. Still one working
+//                     day per calendar day: walk away for more than an hour
+//                     and the clock will not take your card again until
+//                     tomorrow.
 //
 // ONE TABLE, ONE BUILDER. `jobStation()` below builds the whole wall section
 // — card, clipboard, form, punch clock, rack, both [E] spots — so an interior
@@ -100,16 +114,19 @@ export const JOBS: Record<string, JobDef> = {
 
 // ── the employment record — module state, saved as a slice ─────────────────
 //
-// `hiredAt` is a JOBS key or null; `lastShiftDay` is the one-shift-a-day gate
-// (GLOBAL, one body); `noAskUntil[shop]` is the first day that shop's slip
-// comes off the form. NEW GAME needs no line anywhere: the state lives only
-// in the `ct-save` blob, which `ct/newgame.ts` wipes whole — stats.ts's rule.
+// `hiredAt` is a JOBS key or null; `lastShiftDay` is the one-working-day gate
+// (GLOBAL, one body); `lastOutMin` is when that day's last stretch ended, so
+// punching straight back in reads as STAYING ON rather than a second shift;
+// `noAskUntil[shop]` is the first day that shop's slip comes off the form.
+// NEW GAME needs no line anywhere: the state lives only in the `ct-save`
+// blob, which `ct/newgame.ts` wipes whole — stats.ts's rule.
 let hiredAt: string | null = null;
 let lastShiftDay = -1;
+let lastOutMin = -1;
 let noAskUntil: Record<string, number> = {};
 
 registerSlice('jobs', {
-  capture: () => ({ hiredAt, lastShiftDay, noAskUntil: { ...noAskUntil } }),
+  capture: () => ({ hiredAt, lastShiftDay, lastOutMin, noAskUntil: { ...noAskUntil } }),
   restore: (v: unknown) => {
     const o = v as Record<string, unknown>;
     if (!o || typeof o !== 'object') return;
@@ -119,6 +136,11 @@ registerSlice('jobs', {
     else if (o.hiredAt === null) hiredAt = null;
     if (typeof o.lastShiftDay === 'number' && Number.isFinite(o.lastShiftDay)) {
       lastShiftDay = o.lastShiftDay;
+    }
+    // absent in every save older than opening hours — -1 is "never", not 0,
+    // so an old save cannot read midnight of day zero as a punch-out
+    if (typeof o.lastOutMin === 'number' && Number.isFinite(o.lastOutMin)) {
+      lastOutMin = o.lastOutMin;
     }
     if (o.noAskUntil && typeof o.noAskUntil === 'object') {
       noAskUntil = {};
@@ -274,22 +296,56 @@ function submitApplication(ctx: CtxBuild, shopId: string): void {
 // The college's own arithmetic for time passing at a fixture: `screenFade`
 // with the clock SNAPPED in the dark middle (`overSeconds: 0`), 140/90/170,
 // because the world going by is the same event wherever it happens.
+//
+// LENGTH IS `min(8 hours, time until close)` — *"i want to be able to work
+// longer as long as the business is open"* — and "longer" is punching the
+// clock AGAIN when the stretch ends: within an hour of clocking out the card
+// goes straight back in the throat and you work on, so a 6 AM start at the
+// gym can run to the 10 PM shutters in two punches, and a 24-hour diner will
+// keep taking the card until the fatigue system objects. What it refuses is a
+// SECOND shift — walk away for more than the hour and it is tomorrow's clock.
+/** how long after clocking out the card still counts as staying on, minutes */
+const STAY_ON_MIN = 60;
+
+/** '8 hours', '4 hours 30 minutes' — the shift the way the note says it */
+function fmtShift(mins: number): string {
+  const h = Math.floor(mins / 60), m = mins % 60;
+  const hs = h === 0 ? '' : h === 1 ? '1 hour' : `${h} hours`;
+  const ms = m === 0 ? '' : `${m} minutes`;
+  return hs && ms ? `${hs} ${ms}` : hs || ms;
+}
+
 function workShift(ctx: CtxBuild, shopId: string): void {
   const job = JOBS[shopId];
+  const now = ctx.clock.now().totalMin;
   const d = dayNow(ctx);
-  if (lastShiftDay === d) {
+  // the punch clock keeps the shop's hours — `ct/hours.ts`'s one table
+  if (!openNow(ctx, shopId)) {
+    hudNote(`closed — ${job.at} opens at ${opensLabel(shopId)}`);
+    return;
+  }
+  const stayingOn = lastOutMin >= 0 && now - lastOutMin <= STAY_ON_MIN;
+  if (lastShiftDay === d && !stayingOn) {
     hudNote('you have already worked a shift today');
     return;
   }
+  const mins = Math.min(SHIFT_HOURS * 60, minsUntilClose(ctx, shopId));
+  if (mins < 15) {
+    // a shift shorter than the walk to the clock is nobody's payday
+    hudNote(`${job.at} is closing up — come back tomorrow`);
+    return;
+  }
   lastShiftDay = d;
+  lastOutMin = now + mins;
   void screenFade({
-    mid: () => ctx.clock.advance(SHIFT_HOURS * 60, { overSeconds: 0 }),
+    mid: () => ctx.clock.advance(mins, { overSeconds: 0 }),
     outMs: 140, holdMs: 90, inMs: 170,
   });
-  const pay = job.hourly * SHIFT_HOURS;
+  // to the cent: a 4½-hour stretch at $5.50 is $24.75, not $24.749999…
+  const pay = Math.round(job.hourly * mins * 100 / 60) / 100;
   ctx.purse.cash += pay;
   ctx.refreshWallet();
-  hudNote(`${SHIFT_HOURS} hours at ${job.at} — $${pay.toFixed(2)}, cash`);
+  hudNote(`${fmtShift(mins)} at ${job.at} — $${pay.toFixed(2)}, cash`);
 }
 
 // ══ THE FORM, PAINTED ════════════════════════════════════════════════════════
@@ -368,7 +424,9 @@ function paintForm(
   };
   row('POSITION', job.title, 70);
   row('WAGE', `$${job.hourly.toFixed(2)} / HR`, 89, true);
-  row('SHIFT', `${SHIFT_HOURS} HOURS`, 108);
+  // "OR LONGER" is the application stating the overtime rule: shifts run past
+  // eight hours now, for as long as the shop is open — see `workShift`
+  row('SHIFT', `${SHIFT_HOURS} HRS OR LONGER`, 108);
   g.fillStyle = 'rgba(70,62,50,0.35)'; g.fillRect(14, 121, W - 28, 1);
   // the fields a 1997 form asks for — printed furniture, ruled and labelled
   const field = (label: string, y: number): void => {
@@ -614,13 +672,17 @@ export function jobStation(ctx: CtxBuild, room: Room, shopId: string, at: Statio
   rack.rotation.y = rotY;
   room.put(rack, lx(RACK, 0.02), 1.50, lz(RACK, 0.02));
 
-  // [E] work — one word, like sleep, and only where you are on the payroll
+  // [E] work — one word, like sleep, and only where you are on the payroll.
+  // After hours the label speaks the closure itself (the bank's loan-desk
+  // grammar) and `workShift` refuses in the same words if pressed anyway.
   ctx.spot({
     x: room.wx(lx(CLK, 0.75)), z: room.wz(lz(CLK, 0.75)),
     aimX: room.wx(lx(CLK, 0)), aimZ: room.wz(lz(CLK, 0)),
     r: 0.9, obj: clockMesh,
     ok: () => room.inside() && hiredAt === shopId,
-    label: () => 'work',
+    label: () => (openNow(ctx, shopId)
+      ? 'work'
+      : `closed — opens at ${opensLabel(shopId)}`),
     act: () => workShift(ctx, shopId),
   });
 }
