@@ -309,7 +309,10 @@ export function createTable(opts: { rng?: Rng; bank?: Bank } = {}): Table {
 
   const endRound = (): void => {
     wheelBase = wheelA(); t = 0;
-    phase = 'betting'; phaseT = 0;
+    // bet = 0: every spin starts from an empty layout — *"the bet after each
+    // round … should reset to zero … same in roulette"* (2026-08-10). The
+    // KIND of bet (red, number 17…) keeps; only the stack clears.
+    phase = 'betting'; phaseT = 0; bet = 0;
   };
 
   return {
@@ -343,7 +346,7 @@ export function createTable(opts: { rng?: Rng; bank?: Bank } = {}): Table {
       const due = Math.max(0, owed - paid);
       if (due > 0) { bank.add(due); returned += due; }
       if (phase !== 'betting') { wheelBase = wheelA(); t = 0; }
-      phase = 'betting'; phaseT = 0; owed = 0; paid = 0; payRamp = 0;
+      phase = 'betting'; phaseT = 0; bet = 0; owed = 0; paid = 0; payRamp = 0;
     },
     settled: () => phase === 'betting',
   };

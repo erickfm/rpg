@@ -754,7 +754,10 @@ export function createTable(opts: { rng?: Rng; bank?: Bank } = {}): Table {
 
     if (phase === 'settle') {
       if (phaseT < PACE.settle) return;
-      if (owed <= 0) { phase = 'betting'; hands = []; dealer = []; return; }
+      // bet = 0: every round starts from an empty spot — *"the bet after
+      // each round of black jack should reset to zero to you click to add
+      // bet everytime"* (2026-08-10). No carried bet, no auto-rebet.
+      if (owed <= 0) { phase = 'betting'; bet = 0; hands = []; dealer = []; return; }
       phase = 'paying'; payRamp = 0; paid = 0;
       return;
     }
@@ -769,7 +772,7 @@ export function createTable(opts: { rng?: Rng; bank?: Bank } = {}): Table {
       if (payRamp >= owed) {
         if (owed > paid) bank.add(owed - paid);
         paid = owed; returned += owed;
-        phase = 'betting'; hands = []; dealer = [];
+        phase = 'betting'; bet = 0; hands = []; dealer = [];   // fresh spot, see above
       }
       return;
     }
@@ -877,7 +880,7 @@ export function createTable(opts: { rng?: Rng; bank?: Bank } = {}): Table {
       }
       const due = Math.max(0, owed - paid);
       if (due > 0) { bank.add(due); returned += due; }
-      phase = 'betting'; hands = []; dealer = []; active = -1; holeTurnT = -1;
+      phase = 'betting'; bet = 0; hands = []; dealer = []; active = -1; holeTurnT = -1;
       owed = 0; paid = 0; payRamp = 0; queue = []; pending.length = 0;
     },
     settled: () => phase === 'betting',
