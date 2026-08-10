@@ -300,15 +300,18 @@ export function buildSleep(ctx: CtxBuild): void {
     // *"a price card on a wire, because that is what is on every bed in one."*
     // It carries a REAL number, off the one `BEDS` table at the head of this
     // file, and it faces the aisle the bed is approached from.
-    const cardT = declareSurface(pixTex(64, 40, (g) => {
-      g.fillStyle = '#fdfaf0'; g.fillRect(0, 0, 64, 40);
-      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, 37, 64, 3);
-      g.fillStyle = BLUE; g.fillRect(0, 0, 64, 3);
+    // 128 x 80 on a 0.34 x 0.21 m card is ~376 px/m — double the sign standard,
+    // because the price is the smallest text in the room and small text needs
+    // more (GOTCHAS: texel starvation; the first cut at 64 x 40 read as red fuzz)
+    const cardT = declareSurface(pixTex(128, 80, (g) => {
+      g.fillStyle = '#fdfaf0'; g.fillRect(0, 0, 128, 80);
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, 74, 128, 6);
+      g.fillStyle = BLUE; g.fillRect(0, 0, 128, 6);
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.font = 'bold 8px monospace'; g.fillStyle = '#3a2c22';
-      g.fillText(o.spec.size, 32, 12);
-      g.font = 'bold 15px monospace'; g.fillStyle = SALE_INK;
-      g.fillText(`$${o.spec.price}`, 32, 27);
+      g.font = 'bold 16px monospace'; g.fillStyle = '#3a2c22';
+      g.fillText(o.spec.size, 64, 24);
+      g.font = 'bold 30px monospace'; g.fillStyle = SALE_INK;
+      g.fillText(`$${o.spec.price}`, 64, 54);
     }), 'sign');
     const [wx, wz] = at(-0.62, -1.02);
     put(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.36, 0.02), m(ALU)), wx, matY + 0.30, wz);
@@ -375,13 +378,16 @@ export function buildSleep(ctx: CtxBuild): void {
       g.fillStyle = ALU; g.fillRect(0, 0, px, py);                     // the tin frame
       g.fillStyle = CREAM; g.fillRect(6, 6, px - 12, py - 12);
       g.fillStyle = RUST; g.fillRect(6, 6, px - 12, Math.round(py * 0.24));
+      // grain goes on BEFORE the lettering — dithered over the finished card it
+      // lands ON the glyphs, and the small rows read soft-edged instead of inked
+      dither(g, px, py, Math.round((px * py) / 1200));
       g.textBaseline = 'middle';
       g.textAlign = 'center';
       g.font = `bold ${Math.round(py * 0.15)}px monospace`;
       g.fillStyle = CREAM; g.fillText('BEDS', px / 2, 6 + py * 0.12);
       const rows = BEDS.length;
       const top = 6 + py * 0.24, rowH = (py - 12 - py * 0.24) / (rows + 1);
-      g.font = `bold ${Math.round(rowH * 0.42)}px monospace`;
+      g.font = `bold ${Math.round(rowH * 0.5)}px monospace`;
       BEDS.forEach((b, i) => {
         const y = top + rowH * (i + 0.5);
         g.textAlign = 'left'; g.fillStyle = '#3a2c22';
@@ -397,7 +403,6 @@ export function buildSleep(ctx: CtxBuild): void {
       g.textAlign = 'center'; g.fillStyle = BLUE;
       g.font = `bold ${Math.round(rowH * 0.36)}px monospace`;
       g.fillText('FREE DELIVERY · NO PAYMENTS TIL 98', px / 2, top + rowH * (rows + 0.45));
-      dither(g, px, py, Math.round((px * py) / 1200));
     }), 'sign');
     // On the west wall over the pair, facing +x into the room. 2.10 m up, which
     // is clear of the taller divan's 1.29 m headboard by 0.28 m at its own top.
@@ -423,11 +428,12 @@ export function buildSleep(ctx: CtxBuild): void {
         put(new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.04, 0.43), m('#b3a68e')), LIN_X - 0.04, y + 0.04, z);
       }
     });
-    const linT = declareSurface(pixTex(96, 14, (g) => {
-      g.fillStyle = RUST; g.fillRect(0, 0, 96, 14);
-      g.fillStyle = 'rgba(239,230,210,0.30)'; g.fillRect(0, 1, 96, 1); g.fillRect(0, 12, 96, 1);
-      g.font = 'bold 8px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = CREAM; g.fillText('PILLOWS · LINEN', 48, 7);
+    // 360 x 45 on 2.4 x 0.30 m — 150 px/m, up from a starved 96 x 14
+    const linT = declareSurface(pixTex(360, 45, (g) => {
+      g.fillStyle = RUST; g.fillRect(0, 0, 360, 45);
+      g.fillStyle = 'rgba(239,230,210,0.30)'; g.fillRect(0, 3, 360, 3); g.fillRect(0, 39, 360, 3);
+      g.font = 'bold 24px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = CREAM; g.fillText('PILLOWS · LINEN', 180, 22);
     }), 'sign');
     room.sign(linT, 2.4, 0.30, hw - 0.06, 2.05, 0, -Math.PI / 2);
     solid(LIN_X, 0, LIN_D, LIN_L);
@@ -543,20 +549,26 @@ export function buildSleep(ctx: CtxBuild): void {
   // that is where they are: `room.sign` builds them back to back, so the sheet
   // reads from the pavement as well as from the shop (GOTCHAS §10 handled).
   const GLASS_Z = hd + 0.045;
-  const bannerT = declareSurface(pixTex(128, 20, (g) => {
-    g.fillStyle = '#f6efdb'; g.fillRect(0, 0, 128, 20);
-    g.font = 'bold 12px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = SALE_INK; g.fillText('MATTRESS SALE', 64, 9);
-    g.fillStyle = BLUE; g.fillRect(10, 16, 108, 2);
+  // 630 x 93 on 4.20 x 0.62 m is the sign standard's 150 px/m. The first cut
+  // was 128 x 20 — 30 px/m — and NearestFilter turned every antialiasing fringe
+  // of the 12px lettering into a full 3.3 cm stroke, so the banner read as
+  // garbled doubled letters from anywhere in the room (GOTCHAS: texel
+  // starvation). Same drawing, same proportions, enough texels to carry it.
+  const bannerT = declareSurface(pixTex(630, 93, (g) => {
+    g.fillStyle = '#f6efdb'; g.fillRect(0, 0, 630, 93);
+    g.font = 'bold 56px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = SALE_INK; g.fillText('MATTRESS SALE', 315, 42);
+    g.fillStyle = BLUE; g.fillRect(49, 74, 532, 9);
     g.fillStyle = 'rgba(0,0,0,0.16)';                                  // the tape at the corners
-    for (const tx of [2, 118]) for (const ty of [1, 15]) g.fillRect(tx, ty, 8, 4);
+    for (const tx of [10, 581]) for (const ty of [5, 70]) g.fillRect(tx, ty, 39, 18);
   }), 'sign');
   room.sign(bannerT, 4.20, 0.62, -2.27, 2.20, GLASS_Z, Math.PI);
-  const billT = (t: string) => declareSurface(pixTex(80, 16, (g) => {
-    g.fillStyle = '#fdf6e2'; g.fillRect(0, 0, 80, 16);
-    g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, 14, 80, 2);
-    g.font = 'bold 7px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = BLUE; g.fillText(t, 40, 7);
+  // 232 x 45 on 1.55 x 0.30 m — 150 px/m again, up from a starved 80 x 16
+  const billT = (t: string) => declareSurface(pixTex(232, 45, (g) => {
+    g.fillStyle = '#fdf6e2'; g.fillRect(0, 0, 232, 45);
+    g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, 40, 232, 5);
+    g.font = 'bold 18px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = BLUE; g.fillText(t, 116, 20);
   }), 'sign');
   room.sign(billT("NO PAYMENTS TIL '98"), 1.55, 0.30, -4.60, 2.72, GLASS_Z, Math.PI);
   room.sign(billT('FREE DELIVERY'), 1.55, 0.30, -0.30, 2.72, GLASS_Z, Math.PI);
