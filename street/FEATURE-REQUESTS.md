@@ -6608,3 +6608,14 @@ the FILE box risen — nothing in the foot touches anything else in any
 state.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-10 — *"put a number on the health bar pls"*
+
+Went to the same builder. The current health value now sits ON the bar —
+centred over the whole well, not the fill, so it cannot jitter as the fill
+moves — bold 10 px ui-monospace in the cash figure's own ink and hard shadow,
+which keeps it legible over both the brick fill and the dark well behind a
+low bar. The BARE current number (`84`), not `84/140`: he asked for "a
+number", the fill fraction already says how full you are, and the ceiling —
+derived from STR/CON in `ct/stats.ts` since training moved it — is a stat
+sheet's business, not a corner's. Repaints off the existing health signal.

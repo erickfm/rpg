@@ -3117,11 +3117,29 @@ export function makeHud(purse: Purse): Hud {
   const hpBox = document.createElement('div');
   // a dark hairline outside so it reads against the sky, a 1 px well inside so
   // a part-full bar shows how much is gone — the classic '97 health bar.
+  // `relative`, because the number below positions against it.
   hpBox.style.cssText = `width:${BAR_W}px;height:${BAR_H}px;padding:1px;`
-    + 'border:1px solid rgba(0,0,0,.55);background:rgba(10,14,12,.6);';
+    + 'border:1px solid rgba(0,0,0,.55);background:rgba(10,14,12,.6);position:relative;';
   const hpFill = document.createElement('div');
   hpFill.style.cssText = `height:${BAR_H}px;width:${BAR_W}px;background:#c2503e;`;
   hpBox.appendChild(hpFill);
+  // ── THE NUMBER ON THE BAR ─────────────────────────────────────────────────
+  //
+  // *"put a number on the health bar pls"*   (2026-08-10)
+  //
+  // ON the bar, centred over the whole well rather than the fill (a number
+  // that slid with the fill would jitter with every hit), in the same
+  // ui-monospace as the cash figure at the size the 12 px well affords. THE
+  // BARE CURRENT VALUE, not `84/140`: he asked for "a number", the fill
+  // fraction already says how full you are, and the ceiling — derived from
+  // STR/CON in `ct/stats.ts` now — is a stat sheet's business, not a corner's.
+  // The ink and shadow are the cash figure's own, which is what keeps it
+  // legible on both the brick fill and the dark well behind a low bar.
+  const hpNum = document.createElement('div');
+  hpNum.style.cssText = `position:absolute;left:0;top:1px;width:100%;height:${BAR_H}px;`
+    + `text-align:center;font:bold 10px/${BAR_H}px ui-monospace,Menlo,monospace;`
+    + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
+  hpBox.appendChild(hpNum);
   const cashDiv = document.createElement('div');
   cashDiv.style.cssText = 'font:bold 15px/1 ui-monospace,Menlo,monospace;'
     + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
@@ -3136,6 +3154,7 @@ export function makeHud(purse: Purse): Hud {
   cashWrap.appendChild(cashRow);
   const paintStats = (): void => {
     hpFill.style.width = `${Math.round((health() / maxHealth()) * BAR_W)}px`;
+    hpNum.textContent = String(health());
     const c = purse.cash;
     cashDiv.textContent = `${c < 0 ? '-' : ''}$${Math.abs(c).toFixed(2)}`;
   };
