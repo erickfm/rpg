@@ -6319,3 +6319,32 @@ instantly on sleep, pass-out and wake. A stimulant dose pushes the rim out
 and stills the blinking the same frame — the dose reading as relief is the
 feedback loop. The pass-out event itself (fade, 1–10% cash roll, 10% health,
 wake where you slept) is untouched.
+
+## 2026-08-09 — *"can you do a review of the cosmetics pls? for the playable character"*
+
+A read-only review of `paintFigure` in `ct/mirror.ts` (the one painter behind
+the 301 mirror, the thrift fitting glass and the creation photo — all pinned
+front-on) found three BROKEN items; a builder fixed all three in mirror.ts:
+
+1. **LONG hair read as a beard.** The below-jaw fall was one 16-unit block
+   centred on CX starting at the MOUTH row — it erased mouth and chin and
+   hung down the centre chest at every hair colour. It is now two side
+   masses outside the face, brow to just below the shoulder, face whole and
+   chest centre clear; from behind it stays one sheet down the back.
+2. **PONYTAIL was pixel-identical to SHORT front-on** (the tail drew only at
+   facing ≥ 1, and every player-visible surface pins facing 0). Front-on the
+   tail's silhouette now peeks past the +x side of the head down over the
+   collar, with a warm-brown tie at the skull and the cap sides pulled
+   tighter than SHORT (crop-length sideburns).
+3. **CROSSBODY on STOCKY / dark skins.** The 8 strap steps were fixed
+   literals sized for AVERAGE while the pouch tracks `TORSO_HW`, so on
+   STOCKY the strap stopped in mid-chest short of the pouch — both strap
+   ends now derive from `TORSO_HW` (shoulder by the neck down to the pouch's
+   top corner, every build) inside `bagRects`, so draw, click and highlight
+   moved together. And the pouch cloth (`#4a3626`) near-vanished against the
+   two darkest skins — it now carries a dark trim flap and a brass stitch
+   line (`#c9a45e`, the tote's own cloth), a two-tone object that reads on
+   any ground.
+
+`npx tsc --noEmit` clean in mirror.ts (pre-existing reds in other builders'
+in-flight `fatigue.ts` / `roulette.ts`), `WORLD OK` on 5177.

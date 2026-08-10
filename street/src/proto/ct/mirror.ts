@@ -411,7 +411,18 @@ function bagRects(kind: string, facing: number): BagRect[] {
   }
   if (kind === 'sling') {
     const out: BagRect[] = [];
-    for (let k = 0; k < 8; k++) out.push({ r: [CX - 9 + k * 2.2, SHOULDER + 1 + k * 3, 5, 4], f: 'span', c: 'trim' });
+    // ⚠ THE STRAP IS DERIVED FROM `TORSO_HW`, BECAUSE THE POUCH IS. The eight
+    // steps used to be fixed literals (`CX - 9 + k*2.2`) sized for the AVERAGE
+    // torso, so on STOCKY the pouch slid outward with the build and the strap
+    // stopped short of it in mid-chest. Both ends now come off the same
+    // half-width the pouch uses: shoulder by the neck down to the pouch's top
+    // corner, on every build.
+    const sx0 = CX - TORSO_HW + 3, sx1 = CX + TORSO_HW - 5;
+    const sy0 = SHOULDER + 1, sy1 = WAIST - 14;
+    for (let k = 0; k < 8; k++) {
+      out.push({ r: [Math.round(sx0 + (k * (sx1 - sx0)) / 7), Math.round(sy0 + (k * (sy1 - sy0)) / 7), 5, 4],
+                 f: 'span', c: 'trim' });
+    }
     if (facing < 3) out.push({ r: [CX + TORSO_HW - 3, WAIST - 12, ARM_W + 2, 12], f: 'limb', c: 'cloth' });
     return out;
   }
@@ -1007,8 +1018,9 @@ export function paintFigure(g: CanvasRenderingContext2D, ox0: number, oy0: numbe
      *  cut but a shave covers the whole head */
     const crown = cut === 'crop' ? 5 : cut === 'messy' ? 8 : cut === 'bowl' ? 10 : 7;
     head(CX - HEAD_HW, HEAD_T - 2, HEAD_HW * 2, facing >= 3 ? HEAD_B - HEAD_T + 2 : crown, HAIR);
-    // the sideburn strip either side, longer on the cuts that have sides
-    const side = cut === 'crop' ? 5 : cut === 'bowl' || cut === 'long' ? 14 : 8;
+    // the sideburn strip either side, longer on the cuts that have sides —
+    // and SHORTEST on the ponytail, whose whole idea is hair pulled back tight
+    const side = cut === 'crop' || cut === 'tail' ? 5 : cut === 'bowl' || cut === 'long' ? 14 : 8;
     head(CX - HEAD_HW - 1, HEAD_T + 1, 1, side, HAIR);
     head(CX + HEAD_HW, HEAD_T + 1, 1, side, HAIR);
     if (cut === 'messy') {                       // a tuft standing off the crown
@@ -1135,20 +1147,50 @@ export function paintFigure(g: CanvasRenderingContext2D, ox0: number, oy0: numbe
   {
     const cut2 = hair().kind;
     if (cut2 === 'long') {
-      // `box`, not `head` — a fall of hair sits on the shoulders and takes the
-      // TORSO's foreshortening, narrowing with him as he turns.
-      box(CX - HEAD_HW - 1, HEAD_B - 4, (HEAD_HW + 1) * 2, SHOULDER - HEAD_B + 20, HAIR);
-      box(CX - HEAD_HW - 1, SHOULDER + 14, (HEAD_HW + 1) * 2, 2, HAIR_LO);
+      // ⚠ LONG HAIR FALLS AT THE SIDES OF THE FACE, NOT DOWN THE MIDDLE OF IT.
+      // This used to be one 16-unit block centred on CX starting at y 26 — the
+      // MOUTH row — which erased mouth and chin and hung down the centre of the
+      // chest: a beard, at every hair colour. The fall is now two side masses
+      // OUTSIDE the face, brow to below the shoulder, so the face stays whole
+      // and the centre chest stays clear.
+      if (facing >= 3) {
+        // from behind the fall IS one sheet down the back — `box`, because it
+        // lies on the shoulders and narrows with the torso as he turns
+        box(CX - HEAD_HW - 1, HEAD_B - 4, (HEAD_HW + 1) * 2, SHOULDER - HEAD_B + 20, HAIR);
+        box(CX - HEAD_HW - 1, SHOULDER + 14, (HEAD_HW + 1) * 2, 2, HAIR_LO);
+      } else {
+        // `head`, not `box` — the masses frame the skull and keep its factor.
+        // At profile only the far-side mass survives, behind the head (+x is
+        // the back of the head on the unflipped grid): hair hanging in front
+        // of the nose would blind him.
+        for (const sgn of [-1, 1]) {
+          if (facing === 2 && sgn < 0) continue;
+          const hx = sgn < 0 ? CX - HEAD_HW - 4 : CX + HEAD_HW + 1;
+          head(hx, HEAD_T + 1, 3, SHOULDER - HEAD_T + 9, HAIR);
+          head(hx, SHOULDER + 8, 3, 2, HAIR_LO);
+        }
+      }
     } else if (cut2 === 'tail') {
-      // A PONYTAIL IS AN EDGE-ON THING. Face-on it is nothing; in profile and
-      // from behind it is the whole point of the cut, so it goes through `deep`,
-      // which GROWS as he turns. The BACK of the head is +x on the unflipped
-      // grid — the nose is drawn at −x — and `deep` mirrors it for the far four
-      // facings itself, so there is no `flip` to apply here.
+      // A PONYTAIL IS AN EDGE-ON THING — in profile and from behind it is the
+      // whole point of the cut, so it goes through `deep`, which GROWS as he
+      // turns. The BACK of the head is +x on the unflipped grid — the nose is
+      // drawn at −x — and `deep` mirrors it for the far four facings itself,
+      // so there is no `flip` to apply here.
       const t = facing === 0 ? 0 : facing === 1 ? 3 : 6;
       if (t) {
         deep(CX + HEAD_HW - 1, HEAD_T + 4, t, 18, HAIR);
         deep(CX + HEAD_HW - 1, HEAD_T + 20, t, 2, HAIR_LO);
+      } else {
+        // ⚠ BUT FACE-ON IT CANNOT BE NOTHING. Every surface that shows this
+        // figure pins facing 0, so a tail drawn only at facing >= 1 made the
+        // style pixel-identical to SHORT everywhere the player can see it.
+        // Front-on the tail's silhouette PEEKS past one side of the head — the
+        // +x side, the same side it swings to at three-quarter — with the tie
+        // that gathers it just below the skull. That, plus the sides pulled
+        // tighter than SHORT (see `side` above), is the front view's read.
+        head(CX + HEAD_HW, EYE_Y, 2, SHOULDER - EYE_Y + 4, HAIR);
+        head(CX + HEAD_HW, SHOULDER + 2, 2, 2, HAIR_LO);
+        head(CX + HEAD_HW, HEAD_B - 2, 2, 2, '#8a5c46');        // the tie
       }
     }
   }
@@ -1228,6 +1270,16 @@ export function paintFigure(g: CanvasRenderingContext2D, ox0: number, oy0: numbe
     // the eight stepped strap blocks and the front-hip pouch are both in the
     // table — the pouch is suppressed there at facing >= 3, where it is behind
     // him, so the click is suppressed with the drawing rather than separately.
+    //
+    // ⚠ THE POUCH GETS A FLAP AND A BRASS STITCH, because its cloth (`#4a3626`)
+    // near-vanishes against the two darkest skins — a dark slab on a dark hip.
+    // A two-tone object reads on ANY ground: the dark flap carries it on the
+    // pale skins, the light stitch line carries it on the deep ones. Details
+    // only — the pouch's one hittable rect stays in the table above.
+    if (facing < 3) {
+      limb(CX + TORSO_HW - 3, WAIST - 12, ARM_W + 2, 3, bag.trim);            // the flap
+      limb(CX + TORSO_HW - 3, WAIST - 9, ARM_W + 2, 1, '#c9a45e');            // its stitch line
+    }
   }
 
   // the watch, on the wrist the hud raises — and on the same wrist it raises,
