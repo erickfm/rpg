@@ -109,8 +109,9 @@ const symAt = (reel: number, stop: number): Sym =>
 // space per reel: the glass shows stop+1 / stop / stop−1 top to bottom (the
 // strip canvas is reversed so the symbols scroll downward — see the reel
 // strip note), so +1 is the TOP row. `color` is the line's identity
-// everywhere it appears: the trace lit across the glass on a win, the side
-// nicks, and the pay card's footer map.
+// everywhere it appears: the cell highlights lit on the glass when it wins
+// ("so instead of a line lets just highlight the specific squares"), the
+// side nicks, and the pay card's footer map.
 interface LineDef { off: readonly [number, number, number]; color: number }
 const LINES: readonly LineDef[] = [
   { off: [0, 0, 0], color: 0xe02818 },     // 1 CENTER — the jackpot line
@@ -299,6 +300,39 @@ function stripBlur(): THREE.Texture {
   return STRIP_BLUR;
 }
 
+// ── the cell highlight, one texture per line colour, shared by the floor ─────
+// A bold border and a light wash: the border names the cell, the wash tints
+// it, and the symbol underneath stays readable through both. Transparent
+// canvas — pixTex leaves what isn't drawn clear.
+const GLOW_TEX = new Map<number, THREE.Texture>();
+function cellGlow(color: number): THREE.Texture {
+  let t = GLOW_TEX.get(color);
+  if (!t) {
+    const hex = '#' + color.toString(16).padStart(6, '0');
+    t = declareSurface(pixTex(36, 24, (g) => {
+      g.fillStyle = hex;
+      g.globalAlpha = 0.22; g.fillRect(3, 3, 30, 18);
+      g.globalAlpha = 1;
+      g.fillRect(0, 0, 36, 3); g.fillRect(0, 21, 36, 3);
+      g.fillRect(0, 0, 4, 24); g.fillRect(32, 0, 4, 24);
+    }), 'detail');
+    GLOW_TEX.set(color, t);
+  }
+  return t;
+}
+
+/** Light the first `n` cells of line `ix` and nothing else; n = 3 is the
+ *  whole line, and (-1, 0) darkens the glass. ONE line at a time on purpose —
+ *  simultaneous winners take turns in tickPayout's roll call, which is how a
+ *  real cabinet reads its lines out, and how each stays legible. */
+function litCells(m: Machine, ix: number, n: number): void {
+  m.traces.forEach((tg, i) => {
+    const on = i === ix && n > 0;
+    tg.visible = on;
+    if (on) tg.children.forEach((c, ci) => { c.visible = ci < n; });
+  });
+}
+
 // ── one machine ──────────────────────────────────────────────────────────────
 
 interface Reel {
@@ -326,8 +360,9 @@ interface Machine {
    *  f.t the press began; the frame hook turns the latch into travel */
   caps: { mesh: THREE.Mesh; z: number; t: number }[];
   bulbs: THREE.MeshBasicMaterial[];      // three phase materials, chased
-  /** the five payline traces over the glass, one group per LINES entry, and
-   *  their materials — lit on a win, pulsed in attract, blinked on a tease */
+  /** the five paylines' cell highlights — one group per LINES entry, three
+   *  glowing cells each — and their materials: lit on a win, stroked in
+   *  attract, blinked on a tease. Driven through litCells only. */
   traces: THREE.Group[]; traceMats: THREE.MeshBasicMaterial[];
   winCv: HTMLCanvasElement; winTex: THREE.CanvasTexture;
   coins: THREE.Group | null; coinSeed: { a: number; v: number; s: number }[];
@@ -417,8 +452,8 @@ function payCard(ctx: CtxBuild, k: KindSpec): THREE.MeshBasicMaterial {
       g.textAlign = 'right'; g.fillText(pays + 'x', 92, y);
     });
     // the footer maps the five lines that play on every pull: a dark plate
-    // per line, its path dotted in the SAME colour its trace lights on the
-    // glass — the card and the win read as one system
+    // per line, its cells dotted in the SAME colour those cells glow on the
+    // glass when it hits — the card and the win read as one system
     LINES.forEach((L, li) => {
       const x0 = 10 + li * 16;
       g.fillStyle = '#14100e'; g.fillRect(x0, 69, 12, 9);
@@ -581,8 +616,8 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
     const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.02), trimM);
     m.position.set(bx, by, D / 2 + 0.008); g.add(m);
   }
-  // the side nicks index the three ROW lines in their trace colours (the
-  // diagonals read from their traces alone); a win's trace meets its nick
+  // the side nicks index the three ROW lines in their line colours (the
+  // diagonals read from their lit cells alone)
   for (const sx of [-1, 1]) {
     for (const [row, li] of [[1, 1], [0, 0], [-1, 2]] as const) {
       const nick = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.014, 0.02),
@@ -591,28 +626,26 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
       g.add(nick);
     }
   }
-  // ── the payline traces: thin lit bars across the glass, one per LINES
-  // entry, invisible until wanted — a win lights the lines that hit (cycled
-  // in tickPayout, so multiple wins take turns), the idle attract strokes
-  // them one at a time to teach the map, and a 7-7-x near miss blinks the
-  // line that almost paid. World geometry, so the whole floor reads a win,
-  // not just the locked eye.
+  // ── the payline highlights: the SQUARES themselves, not a bar — 2026-08-10:
+  // "so instead of a line lets just highlight the specific squares". One group
+  // per LINES entry, three glowing cell frames at the exact cells that line
+  // reads, invisible until wanted — a win lights the cells that paid (cycled
+  // in tickPayout, so multiple wins take turns), the idle attract strokes a
+  // line's three cells in sequence to teach the map, and a 7-7-x near miss
+  // blinks the two cells that almost paid against the dark third. World
+  // geometry, so the whole floor reads a win, not just the locked eye.
   const traces: THREE.Group[] = [];
   const traceMats: THREE.MeshBasicMaterial[] = [];
-  const cellY = reelH / 3, cellX = reelW + gap, xe = span3 / 2 + 0.02;
+  const cellY = reelH / 3;
   for (const L of LINES) {
-    const mat = new THREE.MeshBasicMaterial({ color: L.color, transparent: true, opacity: 0.9 });
+    const mat = new THREE.MeshBasicMaterial({
+      map: cellGlow(L.color), transparent: true, opacity: 0.9, depthWrite: false });
     const tg = new THREE.Group();
-    const seg = (x0: number, y0: number, x1: number, y1: number): void => {
-      const s = new THREE.Mesh(
-        new THREE.BoxGeometry(Math.hypot(x1 - x0, y1 - y0) + 0.014, 0.011, 0.004), mat);
-      s.position.set((x0 + x1) / 2, (y0 + y1) / 2, D / 2 + 0.013);
-      s.rotation.z = Math.atan2(y1 - y0, x1 - x0);
-      tg.add(s);
-    };
-    const y = (r: 0 | 1 | 2): number => winY + L.off[r] * cellY;
-    if (L.off[0] === L.off[2]) seg(-xe, y(0), xe, y(2));   // a row: edge to edge
-    else { seg(-cellX, y(0), 0, y(1)); seg(0, y(1), cellX, y(2)); }  // a diagonal
+    for (let r = 0; r < 3; r++) {
+      const c = new THREE.Mesh(new THREE.PlaneGeometry(reelW, cellY), mat);
+      c.position.set((r - 1) * (reelW + gap), winY + L.off[r] * cellY, D / 2 + 0.012);
+      tg.add(c);
+    }
     tg.visible = false;
     g.add(tg);
     traces.push(tg); traceMats.push(mat);
@@ -1254,20 +1287,22 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
         const step = (Math.floor(f.t * 5) + m.i) % 3;
         m.bulbs.forEach((b, ix) => b.color.setHex(ix === step ? 0xffe89a : 0x7a6438));
         if (m.teaseT > 0) {
-          // the near-miss tease: the line 7-7 almost paid blinks for a breath
+          // the near-miss tease: the TWO cells that landed 7-7 blink against
+          // the dark third — the miss reads itself
           m.teaseT -= dt;
           const on = m.teaseT > 0 && Math.floor(f.t * 7) % 2 === 0;
-          m.traces.forEach((tr, ix) => { tr.visible = on && ix === m.teaseLine; });
+          litCells(m, m.teaseLine, on ? 2 : 0);
           if (m.teaseLine >= 0) m.traceMats[m.teaseLine].opacity = 0.8;
         } else {
-          // attract strokes one payline dimly each cycle — the cabinet
-          // teaching its five lines to anyone on the floor, phased per
-          // machine so the bank shimmers instead of blinking in unison
+          // attract strokes one payline's three cells in sequence each cycle
+          // — the cabinet teaching its five lines to anyone on the floor,
+          // phased per machine so the bank shimmers instead of blinking in
+          // unison
           const cyc = f.t / 2.4 + m.i * 0.37;
           const lix = Math.floor(cyc) % LINES.length;
-          const on = cyc % 1 < 0.3;
-          m.traces.forEach((tr, ix) => { tr.visible = on && ix === lix; });
-          if (on) m.traceMats[lix].opacity = 0.32;
+          const ph = cyc % 1;
+          litCells(m, lix, ph < 0.36 ? Math.min(3, Math.floor(ph / 0.12) + 1) : 0);
+          m.traceMats[lix].opacity = 0.32;
         }
         continue;
       }
@@ -1301,7 +1336,7 @@ function pull(m: Machine, ctx: CtxBuild): void {
   ctx.refreshWallet();
   m.state = 'spinning'; m.t = 0; m.win = 0; m.paid = 0; m.payRamp = 0;
   m.teaseT = 0;
-  m.traces.forEach((tr) => { tr.visible = false; });
+  litCells(m, -1, 0);
   say(m, 'GOOD LUCK');
 
   // ALL THREE STOPS DRAWN NOW, before anything moves — the anticipation crawl
@@ -1385,7 +1420,7 @@ function tickPayout(m: Machine, ctx: CtxBuild, dt: number): void {
   else m.topperM.color.setHex(0x504438);
   const step = Math.floor(m.flashT * 12) % 3;
   m.bulbs.forEach((b, ix) => b.color.setHex(ix === step ? 0xfff4d0 : 0xa8862f));
-  // THE LINES THAT HIT, lit across the glass in their own colours. One line
+  // THE CELLS THAT HIT, glowing in their line's own colour. One winning line
   // holds (with a heartbeat blink); several take turns, 0.8 s each — the
   // classic multi-line roll call, so each win gets read, not summed away.
   if (m.winList.length) {
@@ -1393,7 +1428,7 @@ function tickPayout(m: Machine, ctx: CtxBuild, dt: number): void {
     const on = m.winList.length === 1
       ? Math.floor(m.flashT * 5) % 4 !== 3
       : m.flashT % 0.8 < 0.66;
-    m.traces.forEach((tr, ix) => { tr.visible = on && ix === cur; });
+    litCells(m, cur, on ? 3 : 0);
     m.traceMats[cur].opacity = 0.92;
   }
   tickCoins(m, m.flashT);
@@ -1415,7 +1450,7 @@ function tickPayout(m: Machine, ctx: CtxBuild, dt: number): void {
     m.topper.userData.flash = false;
     m.topperM.color.setHex(0xffffff);
     m.bulbs.forEach((b) => b.color.setHex(0x7a6438));
-    m.traces.forEach((tr) => { tr.visible = false; });
+    litCells(m, -1, 0);
     m.winList = [];
     if (m.coins) m.coins.visible = false;
     m.attractT = -2.0;
