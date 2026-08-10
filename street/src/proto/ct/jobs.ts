@@ -4,6 +4,7 @@ import { pixTex, declareSurface, dither } from './paint';
 import { jobChance, stat } from './stats';
 import { registerSlice } from './save';
 import { boardStandoff } from './shop';
+import { makeSigPad, type SigPad } from './signature';
 import type { CtxBuild } from './ctx';
 import type { Room } from './interior';
 
@@ -130,35 +131,141 @@ registerSlice('jobs', {
 
 const dayNow = (ctx: CtxBuild): number => Math.floor(ctx.clock.now().totalMin / 1440);
 
+// ══ THE ANSWER IS ON THE PAPER ═══════════════════════════════════════════════
+//
+// *"i dont like in general the little non diagetic tips here. just give the
+//  response in the view the player is already on. and be honest. \"we need
+//  someone sharper\" is funny and good. add more. you can be mean and direct
+//  lol. bonus if you make it different based on the location so like in the
+//  diner \"come back when you learn how to\" count/write/spell, etc"*
+//    (2026-08-09)
+//
+// SO NO `hudNote` LEAVES THIS APPLICATION. Hired is the HIRED stamp the sheet
+// already gets; rejected is the shop's own words written on the POSITION
+// FILLED slip, and the slip is the whole message. Two pools per shop, both in
+// blunt 1997 shopkeeper voice, mean about your COMPETENCE and never about the
+// person:
+//
+//   `sharp`   drawn when your INT is under the position's bar — the meaner
+//             ones, and how "varying degrees of int needed" is discovered
+//   `turned`  drawn when you qualified and the dice still said no — the
+//             position went to somebody, and the somebody is always a little
+//             bit of a racket
+//
+// The chosen line is SESSION state; over a reload the slip falls back to a
+// pick seeded off the cooldown day, so it never goes blank and the save
+// format does not change shape for a joke.
+interface RejectPool { sharp: string[]; turned: string[] }
+const FALLBACK: RejectPool = {
+  sharp: ['"WE NEED SOMEBODY SHARPER."'],
+  turned: ['"WE WENT WITH SOMEBODY ELSE."'],
+};
+const REJECT: Record<string, RejectPool> = {
+  'ct-shop-bodega': {
+    sharp: ['"COME BACK WHEN YOU CAN MAKE CHANGE FOR A TEN."',
+            '"WE NEED SOMEBODY WHO CAN COUNT NICKELS."',
+            '"WE NEED SOMEBODY SHARPER."'],
+    turned: ['"MY COUSIN WANTED THE SHIFTS."',
+             '"WE WENT WITH SOMEBODY ELSE."'],
+  },
+  'ct-shop-burger': {
+    sharp: ['"YOU\'D BURN WATER."',
+            '"THE FRYER OUTSMARTED THE LAST GUY LIKE YOU."'],
+    turned: ['"WE HIRED SOMEBODY WITH THEIR OWN HAIRNET."',
+             '"CORPORATE SENT A NEPHEW."'],
+  },
+  'ct-shop-video': {
+    sharp: ['"THE ALPHABET GOES A TO Z. STUDY UP."',
+            '"COME BACK WHEN YOU KNOW WHICH END REWINDS."'],
+    turned: ['"WE WENT WITH A MEMBER. GET A CARD."',
+             '"THE POSITION REWOUND ITSELF. TRY LATER."'],
+  },
+  'ct-shop-thrift': {
+    sharp: ['"YOU FOLDED THE TEST SHIRT INTO A BALL."',
+            '"WE NEED SOMEBODY WHO CAN READ A PRICE TAG."'],
+    turned: ['"THE CHURCH LADIES OUTVOTED ME."',
+             '"WE WENT WITH SOMEBODY ELSE."'],
+  },
+  'ct-shop-diner': {
+    // the flavour he named, verbatim shape: come back when you learn how to…
+    sharp: ['"COME BACK WHEN YOU CAN COUNT."',
+            '"YOU CAN\'T SPELL \'EGGS\'. IT\'S ON THE MENU."',
+            '"COME BACK WHEN YOU LEARN HOW TO WRITE A TICKET."'],
+    turned: ['"THE MORNING GIRL\'S BROTHER NEEDED WORK."'],
+  },
+  'ct-shop-gym': {
+    sharp: ['"YOU GOT WINDED FILLING OUT THE FORM."',
+            '"WE OPEN AT SIX. YOU DON\'T LOOK LIKE A SIX."'],
+    turned: ['"WE WENT WITH A GUY WHO CAN SPOT."'],
+  },
+  'ct-shop-pawn': {
+    sharp: ['"YOU PRICED THE FAKE ROLEX AT $400. IT\'S $12."',
+            '"COME BACK WHEN YOU KNOW GOLD FROM BRASS."'],
+    turned: ['"MY BROTHER-IN-LAW GOT IT. DON\'T ASK."'],
+  },
+  'ct-shop-sleep': {
+    sharp: ['"YOU CALLED A QUEEN A KING. TWICE."',
+            '"WE NEED A CLOSER. YOU\'RE A BROWSER."'],
+    turned: ['"WE PROMOTED FROM WITHIN. IT\'S A COT GUY."'],
+  },
+  'ct-shop-volt': {
+    sharp: ['"YOU POINTED AT THE MICROWAVE AND SAID \'COMPUTER\'."',
+            '"COME BACK WHEN YOU KNOW RAM FROM A ROM."'],
+    turned: ['"WE NEED SOMEBODY CERTIFIED. YOU\'RE NOT."'],
+  },
+  'ct-shop-hotel': {
+    // funny on purpose against the fatigue system — nights are the job
+    sharp: ['"YOU YAWNED IN THE INTERVIEW. IT\'S A NIGHT JOB."',
+            '"COME BACK WHEN YOU CAN STAY UP PAST TEN."'],
+    turned: ['"THE OWNER\'S SON TAKES NIGHTS NOW."'],
+  },
+  'ct-shop-college': {
+    sharp: ['"WE READ YOUR ESSAY. THE ENGLISH DEPT IS STILL LAUGHING."',
+            '"COME BACK WHEN \'A LOT\' IS TWO WORDS."'],
+    turned: ['"IT WENT TO A GRAD STUDENT WHO WORKS FOR CREDIT."'],
+  },
+};
+
+/** this session's slip lines, by shop — see the note above */
+const slipLine: Record<string, string> = {};
+/** the one line the HIRED sheet adds when you walked off another job for it */
+let quitNote: string | null = null;
+
+/** what the slip says at this shop right now — the session's pick, or a
+ *  stable seeded one after a reload (never blank, never random per frame) */
+function lineFor(shopId: string): string {
+  if (slipLine[shopId]) return slipLine[shopId];
+  const pool = (REJECT[shopId] ?? FALLBACK).turned;
+  return pool[(Math.abs(noAskUntil[shopId] ?? 0) + shopId.length) % pool.length];
+}
+
 /** what the form should look like right now, at one shop */
 type FormState =
   | { kind: 'open' }
-  | { kind: 'filled'; wait: number }     // the rejection slip, days left on it
-  | { kind: 'hired' };
+  | { kind: 'filled'; wait: number; line: string }   // the slip, its words, days left
+  | { kind: 'hired'; note: string | null };
 
 function formState(ctx: CtxBuild, shopId: string): FormState {
-  if (hiredAt === shopId) return { kind: 'hired' };
+  if (hiredAt === shopId) return { kind: 'hired', note: quitNote };
   const wait = (noAskUntil[shopId] ?? 0) - dayNow(ctx);
-  return wait > 0 ? { kind: 'filled', wait } : { kind: 'open' };
+  return wait > 0
+    ? { kind: 'filled', wait, line: lineFor(shopId) }
+    : { kind: 'open' };
 }
 
-// ── the application, decided ────────────────────────────────────────────────
+// ── the application, decided — ON THE PAPER, see the pools above ────────────
 function submitApplication(ctx: CtxBuild, shopId: string): void {
   const job = JOBS[shopId];
   if (Math.random() < jobChance(job.reqInt)) {
-    const old = hiredAt && hiredAt !== shopId ? JOBS[hiredAt] : null;
+    quitNote = hiredAt && hiredAt !== shopId
+      ? `${JOBS[hiredAt].at.toUpperCase()} CAN KEEP THE APRON`
+      : null;
     hiredAt = shopId;
-    hudNote(old
-      ? `you're hired — ${job.title.toLowerCase()}, $${job.hourly.toFixed(2)} an hour. ${old.at} can keep the apron`
-      : `you're hired — ${job.title.toLowerCase()}, $${job.hourly.toFixed(2)} an hour. clock in when you're ready`);
   } else {
     noAskUntil[shopId] = dayNow(ctx) + REAPPLY_DAYS;
-    // told plainly, in period voice — and the unqualified case says what was
-    // missing, because "varying degrees of int needed" is a thing the player
-    // has to be able to discover.
-    hudNote(stat('int') < job.reqInt
-      ? `"we need somebody sharper." they keep your name on file`
-      : `they went with somebody else — the position is filled for now`);
+    const p = REJECT[shopId] ?? FALLBACK;
+    const pool = stat('int') < job.reqInt ? p.sharp : p.turned;
+    slipLine[shopId] = pool[Math.floor(Math.random() * pool.length)];
   }
 }
 
@@ -197,17 +304,46 @@ function workShift(ctx: CtxBuild, shopId: string): void {
 const SHEET_W_M = 0.22, SHEET_H_M = 0.30;
 const PPM = 1000;
 const SHEET_W = Math.round(SHEET_W_M * PPM), SHEET_H = Math.round(SHEET_H_M * PPM);
-/** the one live band. DECLARED ONCE and read by the painter AND the hit test
- *  (the loan form's BOX rule), so it cannot look pressable and do nothing. */
-const SUBMIT = { x: 24, y: 238, w: SHEET_W - 48, h: 36 };
+/**
+ * THE FOOT OF THE SHEET SIGNS NOW — *"i want to sign similar to game start
+ * for job app."* (2026-08-09). The mechanic is `ct/signature.ts`'s, one copy
+ * for every paper; what is declared here is only this sheet's geometry, and
+ * it is DECLARED ONCE and read by the painter AND the hit test (the loan
+ * form's BOX rule), so nothing can look pressable and do nothing:
+ *
+ *   SIG      the blank you draw in, over the rule at its foot
+ *   VOID     red, under the rule's left end, up once there is ink — clears
+ *   SUBMIT   up once the ink counts (`SIG_MIN`) — rolls the application
+ *            exactly as SIGN AND SUBMIT's click used to
+ */
+const SIG = { x0: 24, y0: 210, x1: 196, y1: 246 };
+const SIG_MIN = 50;
+const SUBMIT = { x: 116, y: 256, w: 80, h: 32 };
+const VOID_R = { x: 20, y: 252, w: 44, h: 24 };
 const inRect = (r: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
   x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 const INK = '#2e2a24', DIM = '#6a6458', RED = '#8a2c22', PAPER = '#ece7d6';
+/** the applicant's ballpoint — the same blue every signing paper inks in */
+const BIRO = '#2b3f7e';
+
+/** greedy word wrap against the current font — the slip's lines are written
+ *  by eleven different shopkeepers and none of them measured first */
+function wrapText(g: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const out: string[] = [];
+  let cur = '';
+  for (const w of text.split(' ')) {
+    const t = cur ? `${cur} ${w}` : w;
+    if (!cur || g.measureText(t).width <= maxW) cur = t;
+    else { out.push(cur); cur = w; }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
 
 function paintForm(
   g: CanvasRenderingContext2D, W: number, H: number,
-  job: JobDef, state: FormState, hover: boolean,
+  job: JobDef, state: FormState, hover: boolean, pad?: SigPad,
 ): void {
   g.fillStyle = PAPER; g.fillRect(0, 0, W, H);
   g.fillStyle = 'rgba(0,0,0,0.08)'; g.fillRect(0, 0, W, 2); g.fillRect(0, H - 3, W, 3);
@@ -260,27 +396,50 @@ function paintForm(
     g.restore();
     g.fillStyle = DIM; g.font = 'bold 10px monospace'; g.textAlign = 'center';
     g.fillText('REPORT TO THE TIME CLOCK', W / 2, 256);
+    // …and if you walked off another payroll for this one, the sheet says so —
+    // the strip used to; the paper is the message now
+    if (state.note) {
+      g.font = 'bold 8px monospace';
+      g.fillText(state.note, W / 2, 272);
+    }
   } else if (state.kind === 'filled') {
-    // the slip, taped over the fields at a working angle
+    // ── THE SLIP IS THE WHOLE MESSAGE — see the pools above ────────────────
+    // The shop's own words, in the shop's own red, taped over the fields at a
+    // working angle. No strip line repeats it; there is nothing to repeat.
     g.save();
     g.translate(W / 2, 170); g.rotate(0.05);
-    g.fillStyle = '#f4efdc'; g.fillRect(-92, -30, 184, 60);
-    g.strokeStyle = 'rgba(70,62,50,0.45)'; g.lineWidth = 1; g.strokeRect(-92, -30, 184, 60);
-    g.fillStyle = RED; g.font = 'bold 16px monospace'; g.textAlign = 'center';
-    g.fillText('POSITION FILLED', 0, -7);
+    g.fillStyle = '#f4efdc'; g.fillRect(-92, -34, 184, 68);
+    g.strokeStyle = 'rgba(70,62,50,0.45)'; g.lineWidth = 1; g.strokeRect(-92, -34, 184, 68);
+    g.fillStyle = RED; g.font = 'bold 10px monospace'; g.textAlign = 'center';
+    const lines = wrapText(g, state.line, 168);
+    lines.forEach((ln, i) => g.fillText(ln, 0, -18 + i * 12));
     g.fillStyle = DIM; g.font = 'bold 9px monospace';
-    g.fillText(`ASK AGAIN IN ${state.wait} DAY${state.wait === 1 ? '' : 'S'}`, 0, 13);
+    g.fillText(`ASK AGAIN IN ${state.wait} DAY${state.wait === 1 ? '' : 'S'}`, 0, 24);
     // the tape
     g.fillStyle = 'rgba(220,214,190,0.8)';
-    g.fillRect(-100, -36, 30, 12); g.fillRect(70, 24, 30, 12);
+    g.fillRect(-100, -40, 30, 12); g.fillRect(70, 28, 30, 12);
     g.restore();
   } else {
-    // SIGN AND SUBMIT — the one live thing on the sheet
-    if (hover) { g.fillStyle = 'rgba(138,44,34,0.12)'; g.fillRect(SUBMIT.x, SUBMIT.y, SUBMIT.w, SUBMIT.h); }
-    g.strokeStyle = RED; g.lineWidth = 2;
-    g.strokeRect(SUBMIT.x, SUBMIT.y, SUBMIT.w, SUBMIT.h);
-    g.fillStyle = RED; g.font = 'bold 13px monospace'; g.textAlign = 'center';
-    g.fillText('SIGN AND SUBMIT', W / 2, SUBMIT.y + SUBMIT.h / 2 + 1);
+    // ── SIGN IT — the pen's blank, see `SIG` ───────────────────────────────
+    g.fillStyle = 'rgba(70,62,50,0.55)';
+    g.fillRect(SIG.x0, 244, SIG.x1 - SIG.x0, 1);
+    g.textAlign = 'left'; g.fillStyle = DIM; g.font = '8px monospace';
+    g.fillText('APPLICANT', 70, 264);
+    // VOID once there is ink to void; SUBMIT once the ink counts. Neither is
+    // drawn before it is live — the sheet's own no-dead-buttons rule.
+    if (pad && !pad.blank()) {
+      g.font = 'bold 9px monospace'; g.fillStyle = RED;
+      g.fillText('VOID', 24, 264);
+    }
+    if (pad?.signed()) {
+      if (hover) { g.fillStyle = 'rgba(138,44,34,0.12)'; g.fillRect(SUBMIT.x, SUBMIT.y, SUBMIT.w, SUBMIT.h); }
+      g.strokeStyle = RED; g.lineWidth = 2;
+      g.strokeRect(SUBMIT.x, SUBMIT.y, SUBMIT.w, SUBMIT.h);
+      g.fillStyle = RED; g.font = 'bold 13px monospace'; g.textAlign = 'center';
+      g.fillText('SUBMIT', SUBMIT.x + SUBMIT.w / 2, SUBMIT.y + SUBMIT.h / 2 + 1);
+    }
+    // the ink, last, so the pen lies over the print
+    pad?.paint(g, BIRO);
   }
   dither(g, W, H, Math.round((W * H) / 1400));
 }
@@ -349,8 +508,18 @@ export function jobStation(ctx: CtxBuild, room: Room, shopId: string, at: Statio
   const sheetMesh = room.put(sheet, lx(APP, 0.032), 1.42, lz(APP, 0.032));
 
   // ── the panel: you lean onto the paper, the loan form's grammar ───────────
+  //
+  // THE PEN IS `ct/signature.ts`'s — one pad per station, cleared on every
+  // open so each application is signed fresh. The panel's `click` is really
+  // mousedown (`ct/hud.ts`'s gate), which is exactly what a pen wants.
   let panel: Panel | null = null;
   let hover = false;
+  const pad = makeSigPad(SIG, SIG_MIN);
+  const roll = (): void => {
+    submitApplication(ctx, shopId);
+    pad.clear();               // the sheet under the stamp or slip is a fresh one
+    panel?.repaint();
+  };
   const open = (): void => {
     if (!panel) {
       panel = makePanel({
@@ -359,29 +528,48 @@ export function jobStation(ctx: CtxBuild, room: Room, shopId: string, at: Statio
         hint: () => {
           const s = formState(ctx, shopId);
           if (s.kind === 'hired') return 'yours already — ESC  step back';
-          if (s.kind === 'filled') return 'position filled — ESC  step back';
-          return 'click SIGN AND SUBMIT   ·   ESC  step back';
+          if (s.kind === 'filled') return 'ESC  step back';
+          return pad.signed()
+            ? 'SUBMIT it   ·   ENTER   ·   ESC  step back'
+            : 'sign on the line   ·   ENTER  signs for you   ·   ESC  step back';
         },
-        draw: (g, W, H) => paintForm(g, W, H, job, formState(ctx, shopId), hover),
+        draw: (g, W, H) => paintForm(g, W, H, job, formState(ctx, shopId), hover, pad),
+        // ENTER SIGNS AND SUBMITS — the keyboard's whole path, auto-scrawling
+        // first if the line is blank. The no-trap rule outranks the flourish.
+        key: (k) => {
+          if (k !== 'enter' || formState(ctx, shopId).kind !== 'open') return;
+          if (!pad.signed()) pad.autoScrawl();
+          roll();
+        },
         surface: {
           mesh: () => sheetMesh,
           // a reading distance off a vertical sheet at chest height — derived
           // from the sheet's own metres, not typed (shop.ts's boardStandoff)
           standoff: boardStandoff({ wM: SHEET_W_M, hM: SHEET_H_M, fov: 45, riseM: 0 }),
           fov: 45,
-          hot: (x, y) => formState(ctx, shopId).kind === 'open' && inRect(SUBMIT, x, y),
+          hot: (x, y) => {
+            if (formState(ctx, shopId).kind !== 'open') return false;
+            return (x >= SIG.x0 && x < SIG.x1 && y >= SIG.y0 && y <= SIG.y1)
+              || (pad.signed() && inRect(SUBMIT, x, y))
+              || (!pad.blank() && inRect(VOID_R, x, y));
+          },
           move: (x, y) => {
-            const h = formState(ctx, shopId).kind === 'open' && inRect(SUBMIT, x, y);
+            if (pad.move(x, y)) { panel?.repaint(); return; }
+            const h = formState(ctx, shopId).kind === 'open'
+              && pad.signed() && inRect(SUBMIT, x, y);
             if (h !== hover) { hover = h; panel?.repaint(); }
           },
+          // mousedown, by the gate's own dispatch: void, submit, or pen down
           click: (x, y) => {
-            if (formState(ctx, shopId).kind !== 'open' || !inRect(SUBMIT, x, y)) return;
-            submitApplication(ctx, shopId);
-            panel?.repaint();
+            if (formState(ctx, shopId).kind !== 'open') return;
+            if (!pad.blank() && inRect(VOID_R, x, y)) { pad.clear(); panel?.repaint(); return; }
+            if (pad.signed() && inRect(SUBMIT, x, y)) { roll(); return; }
+            if (pad.down(x, y)) panel?.repaint();
           },
+          up: () => { pad.up(); },
         },
-        onOpen: () => { hover = false; },
-        onClose: () => { hover = false; },
+        onOpen: () => { hover = false; pad.clear(); },
+        onClose: () => { hover = false; pad.up(); },
       });
     }
     panel.open();

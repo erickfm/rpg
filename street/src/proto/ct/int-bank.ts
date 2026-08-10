@@ -21,6 +21,9 @@ import { BANK_DOOR } from './bank';
 // A leaf module with no runtime imports, so it cannot be in a cycle with the
 // `./int-*.ts` glob above.
 import { LOAN_AMOUNTS, LOAN_RATE } from './menus';
+// The pen. A pure leaf by contract (its header says so and why), so it cannot
+// be in a cycle with the `./int-*.ts` glob either.
+import { makeSigPad } from './signature';
 import { leafPair } from './vice';
 
 // FIRST FEDERAL, inside.
@@ -1603,7 +1606,23 @@ export function buildBankInterior(ctx: CtxBuild): void {
     //
     // Which is, as it happens, correct: the part now behind your wrist is the
     // signature line, and your wrist is where a hand signing a form would be.
-    const SIGN = { x: 22, y: 262, w: SHEET_W - 44, h: 38 };
+    //
+    // ── AND THE BAND SIGNS IN INK NOW ───────────────────────────────────────
+    //
+    // *"i want to sign similar to game start for job app. and for loan"*
+    //   (2026-08-09)
+    //
+    // The mechanic is `ct/signature.ts`'s — one pen for every paper. The band
+    // splits: the PAD on the left is the blank you draw in, HAND OVER on the
+    // right rises once the ink counts and does what SIGN & HAND IT OVER's
+    // click used to, and a red VOID tag in the pad's top-left corner clears
+    // it. All of it stays above canvas y 300, for the wristwatch reason the
+    // note above measured — a submit button below 300 is a button behind
+    // your own arm.
+    const SIGN = { x0: 22, y0: 262, x1: 206, y1: 300 };
+    const HAND = { x: 212, y: 262, w: 66, h: 38 };
+    const LVOID = { x: 22, y: 262, w: 40, h: 14 };
+    const pad = makeSigPad(SIGN, 50);
     const inRect = (r: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
       x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
     /** which amount box a canvas point is in, or -1 */
@@ -1675,20 +1694,30 @@ export function buildBankInterior(ctx: CtxBuild): void {
         // distance: how far your eyes are from a form you are leaning over.
         standoff: LOAN_STANDOFF,
         fov: LOAN_FOV,
-        hot: (x, y) => boxHit(x, y) >= 0 || (signLive() && inRect(SIGN, x, y)),
-        // ONE DISPATCH. A click goes through the same two functions the keys
-        // do, so a pointer and a keyboard cannot drift apart — w41's rule, and
-        // the reason it is a rule is that the drift is invisible until someone
-        // uses the other input.
+        hot: (x, y) => boxHit(x, y) >= 0 || (signLive() && (
+          (x >= SIGN.x0 && x < SIGN.x1 && y >= SIGN.y0 && y <= SIGN.y1)
+          || (pad.signed() && inRect(HAND, x, y))
+          || (!pad.blank() && inRect(LVOID, x, y)))),
+        // ONE DISPATCH. A click (mousedown, by the gate's own plumbing) goes
+        // through the same functions the keys do, so a pointer and a keyboard
+        // cannot drift apart — w41's rule. Order matters: the VOID tag sits
+        // inside the pad's corner, so it is asked first.
         click: (x, y) => {
           const i = boxHit(x, y);
           if (i >= 0) { setAmount(i); return; }
-          if (signLive() && inRect(SIGN, x, y)) { submit(); panel.repaint(); }
+          if (!signLive()) return;
+          if (!pad.blank() && inRect(LVOID, x, y)) { pad.clear(); panel.repaint(); return; }
+          if (pad.signed() && inRect(HAND, x, y)) { submit(); panel.repaint(); return; }
+          if (pad.down(x, y)) panel.repaint();
         },
+        move: (x, y) => { if (pad.move(x, y)) panel.repaint(); },
+        up: () => { pad.up(); },
       },
       hint: () => (stamp === 'approved'
         ? 'ESC  step back'
-        : 'click an amount, then SIGN   ·   W / S · ENTER   ·   ESC  step back'),
+        : pad.signed()
+          ? 'HAND IT OVER   ·   ENTER   ·   ESC  step back'
+          : 'tick an amount, sign on the line   ·   ENTER  signs for you   ·   ESC  step back'),
       draw: (g, w, h) => {
         const a = AMOUNTS[amountIdx], rate = RATE[a];
         const owed = owedOn(a), need = cents(a * DOWN), have = ctx.purse.cash;
@@ -1759,30 +1788,42 @@ export function buildBankInterior(ctx: CtxBuild): void {
         g.fillText(money(have), w - 10, 254);
         g.textAlign = 'left';
 
-        // ── ACT TWO: SIGN IT, WHICH IS HANDING IT OVER ──────────────────────
+        // ── ACT TWO: SIGN IT, WHICH IS NOW ACTUALLY SIGNING ─────────────────
         //
-        // The block comment above calls the two-spot aim rule "a genuinely
-        // elegant piece of design" and asks that its SPIRIT survive the move
-        // onto one sheet: reading and handing over should still feel like two
-        // acts. They do — you tick, and then you sign — and the sign box is
-        // deliberately at the foot of the paper, where you have to travel to it.
+        // The block comment above asks that the two-spot aim rule's SPIRIT
+        // survive on one sheet: reading and handing over should still feel
+        // like two acts. They do, more than ever — you tick, you SIGN with
+        // the pen, and then you hand it over.
         if (signLive()) {
           g.fillStyle = 'rgba(31,58,90,0.08)';
-          g.fillRect(SIGN.x, SIGN.y, SIGN.w, SIGN.h);
+          g.fillRect(SIGN.x0, SIGN.y0, SIGN.x1 - SIGN.x0, SIGN.y1 - SIGN.y0);
           g.strokeStyle = '#1f3a5a'; g.lineWidth = 2;
-          g.strokeRect(SIGN.x + 1, SIGN.y + 1, SIGN.w - 2, SIGN.h - 2);
-          g.textAlign = 'center'; g.font = UI.font(13, true); g.fillStyle = '#1f3a5a';
-          g.fillText('SIGN & HAND IT OVER', SIGN.x + SIGN.w / 2, SIGN.y + SIGN.h / 2);
-          g.textAlign = 'left';
+          g.strokeRect(SIGN.x0 + 1, SIGN.y0 + 1, SIGN.x1 - SIGN.x0 - 2, SIGN.y1 - SIGN.y0 - 2);
+          if (pad.blank()) {
+            // the affordance, gone the moment ink replaces it
+            g.textAlign = 'center'; g.font = UI.font(9); g.fillStyle = 'rgba(31,58,90,0.45)';
+            g.fillText('SIGN HERE', (SIGN.x0 + SIGN.x1) / 2, (SIGN.y0 + SIGN.y1) / 2);
+            g.textAlign = 'left';
+          } else {
+            g.font = UI.font(8, true); g.fillStyle = RED;
+            g.fillText('VOID', LVOID.x + 4, LVOID.y + 8);
+          }
+          if (pad.signed()) {
+            g.fillStyle = 'rgba(31,58,90,0.10)';
+            g.fillRect(HAND.x, HAND.y, HAND.w, HAND.h);
+            g.strokeStyle = '#1f3a5a'; g.lineWidth = 2;
+            g.strokeRect(HAND.x + 1, HAND.y + 1, HAND.w - 2, HAND.h - 2);
+            g.textAlign = 'center'; g.font = UI.font(8, true); g.fillStyle = '#1f3a5a';
+            g.fillText('HAND OVER', HAND.x + HAND.w / 2, HAND.y + HAND.h / 2);
+            g.textAlign = 'left';
+          }
         }
+        // the applicant's own ink — kept through the stamp, because a signed
+        // sheet stays signed. (The fake pre-printed scrawl this file used to
+        // draw at the foot is DELETED: *"you actually have to sign"*.)
+        pad.paint(g, '#282c5c');
 
-        // the signature line with a scrawl on it: a form nobody has signed reads
-        // as a form nobody has filled in
         g.fillStyle = 'rgba(60,52,42,0.55)'; g.fillRect(10, 344, 108, 1);
-        g.fillStyle = 'rgba(40,36,30,0.75)';
-        for (let i = 0; i < 26; i++) {
-          g.fillRect(14 + i * 3.4, 338 + Math.round(Math.sin(i * 0.9) * 3), 3, 1);
-        }
         g.font = UI.font(7); g.fillStyle = DIM;
         g.fillText('APPLICANT', 10, 360);
         g.textAlign = 'right'; g.fillText('OFFICER USE ONLY', w - 10, 360);
@@ -1821,6 +1862,9 @@ export function buildBankInterior(ctx: CtxBuild): void {
         } else if (k === 's' || k === 'arrowdown' || k === 'a' || k === 'arrowleft') {
           setAmount(amountIdx - 1);
         } else if (k === 'enter' || k === ' ') {
+          // the keyboard signs for you — the no-trap rule outranks the
+          // flourish, on this paper as on every other
+          if (signLive() && !pad.signed()) pad.autoScrawl();
           submit(); panel.repaint();
         }
       },
@@ -1854,6 +1898,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
     const openApplication = () => {
       if (loan || shut()) return;
       stamp = 'none';
+      pad.clear();               // a fresh application is a fresh sheet
       panel.open();
       panel.repaint();
     };

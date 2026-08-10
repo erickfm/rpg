@@ -71,6 +71,7 @@ import { paintFigure } from './mirror';
 import { resetOutfit } from './wardrobe';
 import { TRAITS, TRAIT_NAME, traitName, cycleTrait } from './body';
 import { STAT_NAMES, STAT_LABEL, stat, specStep, pointsLeft } from './stats';
+import { makeSigPad, pixLine } from './signature';
 
 /**
  * ── WHEN THIS RUNS, AND WHEN IT MUST NOT ──────────────────────────────────
@@ -127,28 +128,6 @@ let active = false;
 const FACING = 0;
 let sel = 0;
 let name = '';
-/** the signature: strokes of canvas texels, and the ink laid down so far.
- *  Session-only — the scrawl is cosmetic identity, not a record. */
-let strokes: [number, number][][] = [];
-let inkLen = 0;
-let penDown = false;
-
-function signed(): boolean { return inkLen >= SIG_MIN; }
-function clearSig(): void { strokes = []; inkLen = 0; penDown = false; }
-/**
- * A keyboard player's signature — Enter on the line must still start the
- * game, so it signs FOR him: one seeded wavy scrawl across the box. The
- * no-trap rule outranks the flourish; nobody is ever stuck unable to begin
- * because they have no mouse.
- */
-function autoScrawl(): void {
-  const s: [number, number][] = [];
-  for (let x = SIG_X0 + 6; x <= SIG_X0 + 96; x += 3) {
-    s.push([x, 202 + Math.round(3 * Math.sin((x - SIG_X0) * 0.55))]);
-  }
-  strokes.push(s);
-  inkLen = SIG_MIN;
-}
 
 /** the OSD is not allowed to open on top of this. Asked as a predicate, never
  *  raced as a listener — `ct/osd.ts` argues this out at `registerOsdBusy`. */
@@ -260,9 +239,15 @@ const CH_CX = 138, CH_CY = 169, CH_R = 26;
  * other mark on this sheet. `SIG_MIN` is the ink that counts as a signature:
  * 50 texels of path, about two honest strokes — a single dot is not a
  * signature. Below it the FILE box does not appear and Enter auto-scrawls.
+ *
+ * THE MECHANIC ITSELF LIVES IN `ct/signature.ts` NOW — *"i want to sign
+ * similar to game start for job app. and for loan"* (2026-08-09) spread it
+ * to two more papers, and one pen serves all three. This screen keeps only
+ * its geometry and its voice (the VOID mark, the red FILE box).
  */
 const SIG_X0 = 38, SIG_X1 = 174, SIG_Y0 = 196, SIG_Y1 = 208;
 const SIG_MIN = 50;
+const sigPad = makeSigPad({ x0: SIG_X0, y0: SIG_Y0, x1: SIG_X1, y1: SIG_Y1 }, SIG_MIN);
 /** the office-use FILE box, up only once there is a signature — clicking it
  *  is what BEGIN used to be. Bottom at 222: the small print's glyphs start
  *  at 224 and the two must not touch. */
@@ -320,21 +305,9 @@ function fitText(g: CanvasRenderingContext2D, text: string, x: number, y: number
   }
 }
 
-/** a 1 px line plotted a texel at a time (Bresenham) — the chart's rings and
- *  pen strokes go through here so the one instrument on the sheet has the
- *  same hard pixels as the type around it. Caller sets `fillStyle`. */
-function pixLine(g: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): void {
-  const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-  const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-  let err = dx + dy;
-  for (;;) {
-    g.fillRect(x0, y0, 1, 1);
-    if (x0 === x1 && y0 === y1) return;
-    const e2 = 2 * err;
-    if (e2 >= dy) { err += dy; x0 += sx; }
-    if (e2 <= dx) { err += dx; y0 += sy; }
-  }
-}
+// `pixLine` — the chart's rings and every pen stroke — is imported from
+// `ct/signature.ts`, so the one instrument on the sheet has the same hard
+// pixels as the ink beside it.
 
 /** vertex k of a pentagon of radius r — k 0 at the top, then clockwise, the
  *  same order as the five rows: INT up, STR, CHA, DEX, CON. Rounded HERE so
@@ -496,20 +469,14 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   });
 
   // ── the signature's ink, over everything the pen would lie over ──────
-  g.fillStyle = PEN;
-  for (const s of strokes) {
-    if (s.length === 1) { g.fillRect(s[0][0], s[0][1], 1, 1); continue; }
-    for (let k = 1; k < s.length; k++) {
-      pixLine(g, s[k - 1][0], s[k - 1][1], s[k][0], s[k][1]);
-    }
-  }
+  sigPad.paint(g, PEN);
   // VOID, under the X, only once there is ink to void — click it to re-sign
-  if (strokes.length > 0) {
+  if (!sigPad.blank()) {
     g.font = font(8); g.fillStyle = STAMP_RED;
     g.fillText('VOID', ROW_X, 219);
   }
   // the FILE box, office red, up only when the ink counts — see `SIG_MIN`
-  if (signed()) {
+  if (sigPad.signed()) {
     g.fillStyle = STAMP_RED;
     for (let dx = FILE_X0; dx < FILE_X1; dx += 4) {       // dashed border
       g.fillRect(dx, FILE_Y0, 2, 1); g.fillRect(dx, FILE_Y1, 2, 1);
@@ -642,7 +609,7 @@ function onKey(e: KeyboardEvent): void {
     // auto-scrawling first if the line is blank, see `autoScrawl` — and
     // Escape from anywhere, leaves. See `finish`.
     if (k === 'escape') { finish(); }
-    else if (sel === ROW_SIGN) { if (!signed()) autoScrawl(); finish(); }
+    else if (sel === ROW_SIGN) { if (!sigPad.signed()) sigPad.autoScrawl(); finish(); }
     else if (sel !== 0) LINES[sel].step(1);
     else sel = Math.min(sel + 1, LINES.length - 1);
   } else if (k === 'arrowup') sel = (sel + LINES.length - 1) % LINES.length;
@@ -689,35 +656,26 @@ function onDown(e: MouseEvent): void {
   e.stopImmediatePropagation();
   e.preventDefault();
   if (x >= VOID_X0 && x < VOID_X1 && y >= VOID_Y0 && y < VOID_Y1) {
-    if (strokes.length) { clearSig(); paint(); }
+    if (!sigPad.blank()) { sigPad.clear(); paint(); }
     return;
   }
-  if (x >= SIG_X0 && x < SIG_X1 && y >= SIG_Y0 && y <= SIG_Y1) {
-    penDown = true;
+  if (sigPad.down(x, y)) {
     sel = ROW_SIGN;
-    strokes.push([[Math.round(x), Math.round(y)]]);
     paint();
   }
 }
 
 function onMove(e: MouseEvent): void {
-  if (!active || !penDown || !cv) return;
-  const { x, y } = at(e);
+  if (!active || !cv) return;
+  if (!sigPad.move(at(e).x, at(e).y)) return;
   e.stopImmediatePropagation();
   e.preventDefault();
-  const s = strokes[strokes.length - 1];
-  const px = Math.round(Math.max(SIG_X0, Math.min(SIG_X1 - 1, x)));
-  const py = Math.round(Math.max(SIG_Y0, Math.min(SIG_Y1, y)));
-  const [lx, ly] = s[s.length - 1];
-  if (px === lx && py === ly) return;
-  s.push([px, py]);
-  inkLen += Math.hypot(px - lx, py - ly);
   paint();
 }
 
 function onUp(e: MouseEvent): void {
   if (!active) return;
-  if (penDown) { penDown = false; e.stopImmediatePropagation(); e.preventDefault(); }
+  if (sigPad.up()) { e.stopImmediatePropagation(); e.preventDefault(); }
 }
 
 /** click a field to select it, click it again to step it. The photo is INERT
@@ -731,7 +689,7 @@ function onClick(e: MouseEvent): void {
   e.stopImmediatePropagation();
   e.preventDefault();
   if (x >= PH_X && x < PH_X + PH_W && y >= PH_Y && y < PH_Y + PH_H) return;
-  if (signed() && x >= FILE_X0 && x <= FILE_X1 && y >= FILE_Y0 && y <= FILE_Y1) {
+  if (sigPad.signed() && x >= FILE_X0 && x <= FILE_X1 && y >= FILE_Y0 && y <= FILE_Y1) {
     finish();
     return;
   }
@@ -750,7 +708,7 @@ function start(): void {
   build();
   active = true;
   sel = 0;
-  clearSig();
+  sigPad.clear();
   name = setting('name') || '';
   // *"start them in some unisex boring outfit."* — and it has to happen HERE
   // rather than at module load, because `ct-wardrobe` is its own storage key

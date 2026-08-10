@@ -6233,3 +6233,50 @@ blank wall would be the floating-prop fault this room was pulled up for
 twice); neither had a collider. The removal is recorded in the file in the
 NO LOITERING idiom, with a note that if the bell returns — it is on his
 decor list — it belongs over the cut doorway itself.
+
+## 2026-08-09 — *"i want to sign similar to game start for job app. and for loan"*
+
+Went to a builder. The pen is ONE mechanic now: `src/proto/ct/signature.ts`,
+a pure leaf (imports nothing, so it cannot close a cycle through the
+hud/mirror chain — GOTCHAS §28) exporting `makeSigPad` and `pixLine`. Pen
+down in the box, Bresenham biro ink after the cursor, 50 texels of path
+before it counts, void-and-re-sign, and `autoScrawl()` for the keyboard —
+the no-trap rule on every paper. FORM R-9 (`ct/create.ts`) was refactored
+onto it; two more papers sign now:
+
+- **The job application** (`ct/jobs.ts`, every hiring shop's clipboard):
+  SIGN AND SUBMIT's click is gone. You sign on the APPLICANT line; red VOID
+  clears; a red SUBMIT box rises once the ink is honest and rolls the
+  application exactly as before. ENTER signs for you and submits. The 3-day
+  POSITION FILLED cooldown is untouched.
+- **The loan sheet** (`ct/int-bank.ts`, FIRST FEDERAL): SIGN & HAND IT OVER
+  splits into the pad (SIGN HERE, gone the moment ink lands) and a HAND
+  OVER box that rises once signed; VOID tag in the pad's corner. All of it
+  stays above canvas y 300 — the wristwatch band. ENTER/space still submit,
+  auto-scrawling first. The fake pre-printed scrawl at the sheet's foot is
+  deleted: you actually have to sign. Your ink stays on the sheet through
+  the APPROVED stamp.
+
+## 2026-08-09 — *"i dont like in general the little non diagetic tips here. just give the response in the view the player is already on. and be honest. "we need someone sharper" is funny and good. add more. you can be mean and direct lol. bonus if you make it different based on the location so like in the diner "come back when you learn how to" count/write/spell, etc"*
+
+Same builder, same pass (it lands in the application flow being rebuilt).
+No `hudNote` leaves the job application any more: hired is the HIRED stamp
+the sheet already draws (plus "X CAN KEEP THE APRON" on the paper when you
+walked off another payroll), rejected is the shop's own words written in
+red on the POSITION FILLED slip, with ASK AGAIN IN N DAYS under it. The
+slip is the whole message. Two pools per shop — `sharp` when your INT is
+under the bar (the meaner ones), `turned` when you qualified and the dice
+said no. Blunt 1997 shopkeeper, mean about competence, never about the
+person. The line pool (abridged): bodega "COME BACK WHEN YOU CAN MAKE
+CHANGE FOR A TEN."; burger "YOU'D BURN WATER."; video "THE ALPHABET GOES A
+TO Z. STUDY UP."; thrift "YOU FOLDED THE TEST SHIRT INTO A BALL."; diner
+"COME BACK WHEN YOU CAN COUNT." (his own flavour); gym "YOU GOT WINDED
+FILLING OUT THE FORM."; pawn "YOU PRICED THE FAKE ROLEX AT $400. IT'S
+$12."; sleep "YOU CALLED A QUEEN A KING. TWICE."; volt "YOU POINTED AT THE
+MICROWAVE AND SAID 'COMPUTER'."; hotel "YOU YAWNED IN THE INTERVIEW. IT'S
+A NIGHT JOB."; college "WE READ YOUR ESSAY. THE ENGLISH DEPT IS STILL
+LAUGHING." The chosen line is session state with a seeded fallback after
+reload, so the save format is unchanged. The `[E] work` shift notes are a
+different flow and stay.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
