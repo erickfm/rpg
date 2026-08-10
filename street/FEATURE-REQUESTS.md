@@ -6388,3 +6388,24 @@ longer hold+in hands its 1.5 s sample ~800 ms of real room and it still ends
 with the black by construction; the fatigue sleep detector keys off the
 fade-covered clock jump and is length-agnostic — both verified wires, neither
 touched.
+
+## 2026-08-09 — *"also what are all the keys which restart the game, lets un map em. in general we have too many keys doing stuff. show me the full list we have to sunset stuff"*
+
+Went to one builder (this file's entry written by it). Two parts:
+
+**Restart keys unmapped — restarting is never a bare keypress.**
+- `ct/gameover.ts`: the GAME OVER card answered to ENTER / SPACE / E / → once
+  armed. Now **ENTER only** (the NEW GAME row is the card's one row, drawn
+  permanently selected, and the legend always said ENTER) plus the mouse click
+  on the row — two deliberate roads out, never zero.
+- `src/main.ts`: the proto-shell still bound `x`/`]` (next world), `z`/`[`
+  (previous) and **every digit** to `load()` — and with exactly one world left
+  in the REGISTRY each of those was a full mid-play world reboot. `[`/`]`
+  collided with the volume keys, so turning the sound down restarted the game.
+  All unmapped; instruments still switch via `__lab.setProto`.
+- `ct/osd.ts` NEW GAME stays as it was: Escape → arrow to the row → confirm
+  screen that defaults to NO → arrow → confirm. Already deliberate, untouched.
+
+**The full key audit** (every binding, grouped by context, with duplicate/
+collision/sunset flags) was delivered to Erick for ruling — no other bindings
+were changed.

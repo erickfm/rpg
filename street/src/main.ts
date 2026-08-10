@@ -16,12 +16,13 @@ window.addEventListener('keydown', (e) => {
   const k = e.key === ' ' ? ' ' : e.key.toLowerCase();
   input.keys.add(k === 'shift' ? 'shift' : k);
   if (e.key === ' ') e.preventDefault();
-  if (k === 'x' || k === ']') load(currentIndex + 1);
-  else if (k === 'z' || k === '[') load(currentIndex - 1);
-  else {
-    const n = parseInt(e.key, 10);
-    if (!isNaN(n)) load(n === 0 ? 9 : n - 1);
-  }
+  // ⚠ THE PROTO-SWITCH KEYS ARE GONE (2026-08-09) — *"what are all the keys
+  // which restart the game, lets un map em."* `x`/`z`/`[`/`]` and every digit
+  // used to call `load()`, and with exactly one world in the REGISTRY each of
+  // those was a bare keypress that tore the world down and rebooted it
+  // mid-play — `[`/`]` even collided with `ct/audio.ts`'s volume keys, so
+  // turning the sound down restarted the game. Restarting is never a bare
+  // keypress. Instruments still switch worlds through `__lab.setProto` below.
 });
 window.addEventListener('keyup', (e) => {
   const k = e.key === ' ' ? ' ' : e.key.toLowerCase();

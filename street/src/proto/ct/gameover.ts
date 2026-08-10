@@ -26,7 +26,8 @@
 // (`ct/hud.ts`'s gate swallows keydown at capture while one is up, and a held
 // [E] on the way down can still open one behind the card), the bag likewise,
 // the OSD menu is closed and handed a busy claim so Escape cannot raise it
-// over the card, and NEW GAME answers to four keys and the mouse.
+// over the card, and NEW GAME answers to ENTER and the mouse — two roads,
+// both deliberate, never zero (restarting is never a bare keypress).
 //
 // ⚠ THE SAVE DOES NOT RESURRECT. Dying is saved like any other change (hp 0
 // flushes through `ct/save.ts`'s health slice), and this module watches the
@@ -151,7 +152,14 @@ function onKey(e: KeyboardEvent): void {
   e.preventDefault();
   if (!armed()) return;
   const k = e.key.toLowerCase();
-  if (k === 'enter' || k === ' ' || k === 'arrowright' || k === 'e') wipe();
+  // ⚠ RESTARTING IS NEVER A BARE KEYPRESS (2026-08-09). ENTER alone wipes,
+  // and only because the NEW GAME row is the card's one row and is drawn
+  // permanently selected — confirming a selected menu row is a deliberate
+  // act. SPACE / E / → used to wipe too and were unmapped: E is the world's
+  // interact key and → is a look key, exactly the kind of stray press the
+  // arm delay exists to survive. The mouse click on the row (below) remains,
+  // so the no-trap rule keeps two working roads out.
+  if (k === 'enter') wipe();
 }
 
 function onClick(e: MouseEvent): void {

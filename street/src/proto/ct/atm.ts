@@ -658,11 +658,11 @@ function drawScreen(g: CanvasRenderingContext2D): void {
 
 // ── keys ──────────────────────────────────────────────────────────────────
 //
-// DIGITS WORK IN HERE, which they do nowhere else in this world: `src/main.ts`
-// spends every digit switching prototypes, and the panel gate swallows keydown
-// before main.ts's own listener ever sees it. That is a property of the
-// framework rather than a trick — a panel genuinely owns the keyboard while it
-// is up — and it is what makes a PIN pad possible at all.
+// DIGITS WORK IN HERE because the panel gate swallows keydown before anything
+// else in the document sees it. (Historically `src/main.ts` spent every digit
+// switching prototypes; those bindings were unmapped 2026-08-09, but the gate
+// is still what a PIN pad stands on.) That is a property of the framework
+// rather than a trick — a panel genuinely owns the keyboard while it is up.
 function onKey(k: string): void {
   const p = PURSE!;
   // SOFT KEYS FIRST, AND ON EVERY SCREEN. A fascia button is a fascia button
