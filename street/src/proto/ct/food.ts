@@ -58,10 +58,18 @@ export const FOOD_HEAL: Record<string, number> = {
   SODA: 3,         // $3.00 barn / $3.50 diner / $5.00 bodega
 };
 
+/** How many meals have been eaten this session — the one fact `ct/audio.ts`
+ *  watches for the bite sound, the same read-a-getter shape as `health()`.
+ *  Watching health alone could not see it: `heal` clamps at full, so a pie
+ *  eaten at full health moves nothing — and it was still eaten. */
+let meals = 0;
+export const mealsEaten = (): number => meals;
+
 /** One meal. The item's `use.act` calls this; the bag consumes the item
  *  (a void return is "eaten outright" — `ct/bag.ts`'s own rule). Healing past
  *  full just clamps: `heal` goes through `setHealth`, which cannot overfill. */
 function eat(id: string, line: string): void {
+  meals++;
   heal(FOOD_HEAL[id] ?? 0);
   // One short line, no panel — the HUD bar moving is most of the receipt; the
   // words are the flavour, in the world's grain, and they describe the eating

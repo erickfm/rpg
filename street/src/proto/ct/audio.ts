@@ -12,6 +12,12 @@ import { panelUp, screenFadeLeftMs } from './hud';
 // in `watchTraffic`, which is the same observation trick as everything else
 // there: a health DROP with a moving car beside him can only be a collision.
 import { health } from './health';
+// Read for the bite sound, and cycle-checked before importing: `ct/food.ts`
+// reaches ctx, hud, health, inventory, goods and save, and none of that chain
+// touches `ct/osd.ts` (the one module that imports THIS one back). A getter
+// rather than watching health, because `heal` clamps at full — a pie eaten at
+// full health moves no number, and it was still eaten.
+import { mealsEaten } from './food';
 
 // ════════════════════════════════════════════════════════════════════════════
 // SOUND
@@ -206,6 +212,10 @@ const EVENTS = [
   'light-on', 'light-off', 'drawer-open', 'door-open', 'door-close',
   'register-1', 'register-2', 'mail-open', 'mail-close', 'page-turn', 'sleep',
   'truck-pass-1', 'truck-pass-2', 'bus-arrive', 'bus-depart',
+  // the third delivery (2026-08-09): *"put some new audio there"* — a close
+  // car pass, the jelopy's double honk, two bites, the bodega's door bell,
+  // and a 13 s peal cut from 33 s of church bells.
+  'car-pass', 'jelopy-horn', 'bite-1', 'bite-2', 'shop-bell', 'church-bells',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -290,8 +300,18 @@ const LVL = {
   // quieter than the mailbox door: paper moving at arm's length, not a latch
   page: 0.45,
   sleep: 0.50,
-  pass: 0.50,      // multiplied by distance
+  pass: 0.50,      // multiplied by distance — the trucks AND the new car pass
+  // a leaned-on horn is the loudest deliberate thing on the street — above the
+  // passes it interrupts, under the car hit it exists to prevent
   bus: 0.55,       // multiplied by distance
+  horn: 0.62,      // multiplied by distance
+  bite: 0.50,      // his own mouth: no distance, no pan to speak of
+  // the bell is ON the door he is walking through, so like the bite it takes
+  // no falloff; a shade under the doors so it reads as brass, not alarm
+  shopBell: 0.50,
+  // the peal carries the whole street by RANGE (see the watcher), so the gain
+  // itself sits with the beds' end of the mix rather than the latches'
+  bell: 0.50,
   busIdle: 0.30,   // the looping bed while it stands at the flag
   // being HIT by one of them (2026-08-08). Hot on purpose: it is the loudest
   // thing that can happen to you and it is happening to your own body, so it
@@ -660,6 +680,18 @@ export function register(ctx: CtxBuild): void {
     : { x: 18, z: -62 };
   const SITE_RANGE = 38;
 
+  // ── two fixed places the third delivery hangs off (2026-08-09) ────────────
+  //
+  // RETYPED FACTS, owners named, because the owning modules cannot be imported
+  // from here: `ct/doors.ts` eagerly globs every `int-*.ts`, and int-thrift →
+  // mirror → osd → AUDIO closes that glob into a cycle with this module — the
+  // exact silent-undefined-namespace failure doors.ts's own header documents
+  // (a DOOR dropped without trace). `int-bodega.ts` and `int-church.ts` reach
+  // the same glob through `ct/interior.ts`, so their exports are just as
+  // unreachable. Two numbers each, checked against the declarations they copy.
+  const BODEGA_DOOR = { x: 8.0, z: -95.0 };   // int-bodega.ts `DOOR.face`
+  const CHURCH = { x: 9.6, z: -79.5 };        // int-church.ts `CHURCH_FACE`
+
   // The construction bed is a POINT in the world, so it gets a stereo image
   // that turns with him. This is the only thing in here that needs
   // `ctx.player.yaw()`, and it is the reason a bed can be a place rather than a
@@ -768,6 +800,14 @@ export function register(ctx: CtxBuild): void {
   // clock smoothly.
   let lastMin = ctx.clock.now().totalMin;
 
+  // ── eating ────────────────────────────────────────────────────────────────
+  // `ct/food.ts` counts meals — see `mealsEaten` there for why the count and
+  // not health (a pie at full health heals nothing and was still eaten). Two
+  // bite recordings, strictly alternated: with two samples, never-repeat IS
+  // alternation, and the ±5% detune keeps the seesaw from sounding like one.
+  let lastMeals = mealsEaten();
+  let bitePick = -1;
+
   // ── the traffic ───────────────────────────────────────────────────────────
   //
   // NOT ONE VEHICLE IS NAMED, but every one carries `userData.carKind`
@@ -779,9 +819,21 @@ export function register(ctx: CtxBuild): void {
   // closure this module cannot see — but it also writes each vehicle's position
   // from the path every frame, so |Δposition|/dt is the same number by a
   // different route. Nothing needs publishing.
-  interface Veh { o: THREE.Object3D; bus: boolean; x: number; z: number; spd: number; d: number }
+  interface Veh { o: THREE.Object3D; bus: boolean; x: number; z: number; spd: number; d: number; brk: number }
   let fleet: Veh[] | null = null;
   let passAt = -99;
+  // ── the jelopy horn (2026-08-09) ─────────────────────────────────────────
+  // `ct/traffic.ts` gives a driver the player stepped out in front of a
+  // startled human's response: nothing for REACT seconds, then full effort
+  // bounded by A_PANIC = 8 m/s². Ordinary driving never brakes that hard —
+  // corners and citizens both ride the A_BRAKE = 3.5 curve — so a SUSTAINED
+  // deceleration between the two is the panic stop's own signature, read off
+  // the same reconstructed speed as everything else here. Sustained, because
+  // a citizen stepping into the path at close range clamps the speed once and
+  // the eased follow-up spike decays inside a quarter second; the panic stop
+  // holds its 8 for as long as the player is still in the way. `brk` banks
+  // seconds of hard braking per vehicle and the horn fires when it fills.
+  let hornAt = -99;
   let busIdleWant = 0, busIdlePan = 0;
   // ── being hit by one (2026-08-08) ────────────────────────────────────────
   // `ct/carhit.ts` deals a flat 70 through `ct/health.ts` and publishes no
@@ -799,7 +851,7 @@ export function register(ctx: CtxBuild): void {
       for (const o of scene.children) {
         const u = o.userData as { carKind?: string; doorZ?: number };
         if (!u || !u.carKind) continue;
-        f.push({ o, bus: u.doorZ !== undefined, x: o.position.x, z: o.position.z, spd: 0, d: 999 });
+        f.push({ o, bus: u.doorZ !== undefined, x: o.position.x, z: o.position.z, spd: 0, d: 999, brk: 0 });
       }
       if (f.length) fleet = f; else return;
     }
@@ -831,10 +883,30 @@ export function register(ctx: CtxBuild): void {
       // shrinking and starts growing. The recording is cut to the whoosh
       // itself, so that instant is where it belongs; firing on proximity alone
       // would trigger it again every frame the car stayed near.
+      //
+      // The fleet is CARS (the bus bailed out above), so the new car pass
+      // carries most of the passes and the two trucks are the occasional
+      // heavier thing going by — the same mostly/sparingly shape as the
+      // street beds.
       if (spd > 5 && d < 15 && d > wasD && wasD < 900 && t - passAt > 2.4) {
         passAt = t;
-        atPoint(roll() < 0.5 ? 'truck-pass-1' : 'truck-pass-2',
+        const r = roll();
+        atPoint(r < 0.6 ? 'car-pass' : r < 0.8 ? 'truck-pass-1' : 'truck-pass-2',
           nx, nz, LVL.pass * (0.85 + roll() * 0.3), 26, 0.96 + roll() * 0.1);
+      }
+
+      // the horn — see `hornAt`. Decel window 5.5…10 m/s²: above every curve
+      // ordinary driving rides (3.5), spanning the panic bound (8), and shut
+      // against the one-frame clamp a citizen triggers (which lands far above
+      // 10 for a frame and then decays under 5.5 inside 0.2 s — too brief to
+      // fill the bank either way). 0.22 s of it, with the player within 20 m,
+      // is a driver standing on the brakes because of HIM, and THEN the horn.
+      const dec = (wasSpd - spd) / Math.max(dt, 1e-4);
+      if (spd > 0.5 && dec > 5.5 && dec < 10) v.brk += dt; else v.brk = 0;
+      if (v.brk > 0.22 && d < 20 && t - hornAt > 8) {
+        hornAt = t;
+        v.brk = 0;
+        atPoint('jelopy-horn', nx, nz, LVL.horn, 42, 0.97 + roll() * 0.06);
       }
     }
 
@@ -901,7 +973,34 @@ export function register(ctx: CtxBuild): void {
     // is for a jump with no fade over it, where a blip beats a 1.5 s tail.
     const now = ctx.clock.now().totalMin;
     if (now - lastMin > 5) fire('sleep', LVL.sleep, 1, 0, Math.max(0.25, screenFadeLeftMs() / 1000));
+
+    // ── the church bells (2026-08-09) ─────────────────────────────────────
+    // St Brigid rings a 13 s peal at NOON and at SIX — the Angelus hours, and
+    // at one real second a game minute that is one peal per twelve minutes of
+    // play on average: an event you look up for, not a clock you learn to
+    // ignore. Only when the hour arrives SMOOTHLY (< 2 min this frame): a
+    // slept-through noon, a wristwatch set past six — those hours never
+    // tolled, they were skipped. Fired at the church face with range enough
+    // to carry the whole street; interiors sit at |x| > 100, so indoors it
+    // falls silent by the same distance arithmetic as every other point
+    // source, which is what a wall should do to a bell two streets of world
+    // coordinates away. Rate exactly 1: a bell is PITCHED, and a detuned
+    // church is a broken church.
+    const hrNow = Math.floor(now / 60) % 24;
+    if (hrNow !== Math.floor(lastMin / 60) % 24 && now - lastMin < 2
+      && (hrNow === 12 || hrNow === 18)) {
+      atPoint('church-bells', CHURCH.x, CHURCH.z, LVL.bell, 110);
+    }
     lastMin = now;
+
+    // ── lunch — see `lastMeals` ───────────────────────────────────────────
+    const meals = mealsEaten();
+    if (meals > lastMeals) {
+      bitePick = bitePick < 0 ? (roll() < 0.5 ? 0 : 1) : 1 - bitePick;
+      fire(bitePick ? 'bite-2' : 'bite-1',
+        LVL.bite * (0.9 + roll() * 0.2), 0.95 + roll() * 0.1, (roll() - 0.5) * 0.1);
+    }
+    lastMeals = meals;
 
     if (!rocker) { rocker = scene.getObjectByName('switch-301-rocker') ?? null; if (rocker) rockY = rocker.position.y; }
     else {
@@ -1161,6 +1260,7 @@ export function register(ctx: CtxBuild): void {
     watchTraffic(f.t, f.dt);
 
     // ── footsteps ───────────────────────────────────────────────────────────
+    const prevX = lastX, prevZ = lastZ;   // kept for the doorway test below
     const moved = Number.isNaN(lastX) ? 0 : Math.hypot(f.px - lastX, f.pz - lastZ);
     lastX = f.px; lastZ = f.pz;
 
@@ -1189,6 +1289,22 @@ export function register(ctx: CtxBuild): void {
       // land a footstep — the transition already has a fade over it.
       acc = 0;
       stepAt = f.t;
+      // ── the bodega's door bell (2026-08-09) ─────────────────────────────
+      // Every shop entry in this world IS this teleport, so the doorway that
+      // rang is named by its two ends: a jump that LEFT from within 3 m of
+      // the bodega's cut-corner door and landed in interior land is the door
+      // opening under the bell; the reverse jump is the way out, same bell.
+      // 3 m because the way-out spot lands past the door's own 1.8 m trigger
+      // (interior.ts's outGap guard), and no OTHER teleport endpoint sits
+      // near that corner — the church, the nearest neighbour, is 15 m off.
+      // Fired dry like the bite: the bell is over his head both times, so
+      // there is no distance to fall off across.
+      const inWas = inside(prevX), inNow = inside(f.px);
+      if ((inNow && !inWas && Math.hypot(prevX - BODEGA_DOOR.x, prevZ - BODEGA_DOOR.z) < 3)
+        || (inWas && !inNow && Math.hypot(f.px - BODEGA_DOOR.x, f.pz - BODEGA_DOOR.z) < 3)) {
+        fire('shop-bell', LVL.shopBell * (0.92 + roll() * 0.16),
+          0.97 + roll() * 0.06, (roll() - 0.5) * 0.2);
+      }
     } else if (air) {
       // AIRBORNE: bank NOTHING. Not merely "do not play" — a jump covers real
       // ground, and holding the metres would pay them all out the instant he

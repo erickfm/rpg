@@ -6093,3 +6093,28 @@ decal under the door is 0.11 x 0.16 m — 1:1.45 against the new 1:1.50, three
 percent at sixteen centimetres — left alone.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"put some new audio there can you check"*
+
+Six new recordings in `~/Documents/sound` (18:17–18:19): `car pass best.wav`,
+`jelopy horn.wav`, `bite1.wav`/`bite2.wav`, `church bells.wav`,
+`bodega bell.wav`.
+
+To one builder (audio). All six shipped — encoded to
+`public/audio/` (six oggs, 131 KB total, third-delivery section added to
+`scripts/audio-encode.sh`) and wired in `ct/audio.ts` by watching, per that
+module's rule:
+
+- **car-pass** — carries 60% of the traffic pass-bys at closest approach; the
+  two truck passes become the occasional heavier vehicle.
+- **jelopy-horn** — fires when a driver panic-brakes for the player
+  (`ct/traffic.ts`'s A_PANIC stop, read off sustained deceleration between the
+  ordinary 3.5 m/s² curve and the panic 8), 8 s cooldown.
+- **bite-1/bite-2** — every EAT/DRINK from the bag, strictly alternated with
+  ±5% detune. `ct/food.ts` grew a two-line `mealsEaten()` counter because a
+  meal at full health moves no watchable number.
+- **church-bells** — a 13 s peal cut from the 33 s recording, rung by
+  St Brigid at noon and six (smooth clock only — a slept-through noon never
+  tolled), range enough to carry the whole street.
+- **shop-bell** — the bodega's over-door bell, both directions through the
+  cut-corner door, read off the entry/exit teleport's two ends.

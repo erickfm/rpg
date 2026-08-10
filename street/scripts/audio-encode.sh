@@ -295,3 +295,43 @@ bed car-idle "car idle.wav" 22050 1 0.4 -20
 # `car start + idle.wav` is deliberately NOT used: it is `car start` followed by
 # `car idle`, both of which are here separately and can be sequenced by the
 # engine at whatever gap the world needs. One file cannot be.
+
+# ── the third delivery (2026-08-09): the corner, the church, and lunch ──────
+#
+# Six more WAVs, measured like the rest before a single cut was chosen.
+#
+# `church bells.wav` is 33 s of full-circle ringing that swells and dies twice
+# over. The peal shipped is its strongest 13 s — the strike clusters at
+# 10.3/11.0/11.3, 14.0, 18.2 and 21.7 s — faded over the last 2.8 s so it ends
+# as a bell dying away rather than a tape stopping. The `sfx` helper's 55 ms
+# fade is for latches; a bell needs its decay, hence the bespoke lines.
+# 22.05 kHz because the recording is 92.6% in 250 Hz–2 kHz with nothing
+# measurable above 2 kHz: a church bell is LOW, whatever memory says.
+echo "the church:"
+g=$(peak_gain "$SRC/church bells.wav")
+ffmpeg -hide_banner -loglevel error -y -ss 10.15 -t 13.0 -i "$SRC/church bells.wav" \
+  -af "afade=t=in:st=0:d=0.03,afade=t=out:st=10.2:d=2.8,volume=${g}dB" \
+  -ac 1 -ar 22050 -c:a libvorbis -q:a 2 "$OUT/church-bells.ogg"
+echo "  church-bells.ogg  <- church bells.wav  22050Hz  ${g}dB  13.0s peal"
+
+echo "the corner, the jelopy, and lunch:"
+# `car pass best.wav` is 10.9 s of CLOSE pass — 92.5% below 250 Hz, and its
+# envelope is nearly flat (rms 0.043–0.062 throughout), so unlike the trucks
+# there is no single arc to centre on. The window is its loudest stretch, the
+# swell that peaks at 1.3 s, cut to the same 3.2-ish seconds the truck passes
+# proved out against a car that crosses the player in about two.
+sfx car-pass     "car pass best.wav"  0.10 3.30 22050
+# both honks — the short dab at 0.1 s and the leaned-on blare at 0.7–1.9 s.
+# One event: a driver who dabs and then LEANS is the whole performance, and
+# cutting them apart would lose the temper in the gap. 95.5% of its energy is
+# 250 Hz–2 kHz, so 22.05 kHz keeps everything it has.
+sfx jelopy-horn  "jelopy horn.wav"    0.02 2.06 22050
+# each bite file is one crunch (onsets 0.3 and 0.1) followed by a second-plus
+# of chewing tail; the crunch IS the event, the tail would smear over the HUD
+# line. 32 kHz: the crunch carries real energy at 8–16 kHz (9.1% / 6.7%).
+sfx bite-1       "bite1.wav"          0.26 0.80 32000
+sfx bite-2       "bite2.wav"          0.06 0.75 32000
+# the whole gesture: the strike at 0.2 s, the small second swing at ~1.4 s, and
+# the ring-out to 2.3. Centroid 5.9 kHz with 18% at 8–16 k — the brightest
+# source in the set, so 32 kHz, same reasoning as the registers.
+sfx shop-bell    "bodega bell.wav"    0.12 2.30 32000
