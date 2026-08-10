@@ -563,11 +563,12 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
   // just want to be able to set the bet and spin ez pz". COLLECT never had a
   // job — the machine pays the purse direct, the button was only a decorated
   // exit — and the cash meter duplicated the wallet HUD. Gone, both. What
-  // the fascia carries now is the ONE control the game actually has: a small
-  // recessed BET meter (real well, chrome ring, dark glass — the session
-  // canvas lights digits behind it) and a real − / + cap either side of the
-  // right bay, built exactly like the COLLECT cap was — bezel well, chrome
-  // ring, proud trim-colour cap that physically travels when clicked.
+  // the fascia carries now is the ONE control the game actually has, and it
+  // reads as one part: a stepper centred under the reel glass — real − cap,
+  // small recessed BET glass, real + cap. Same day, on the first (left-bay,
+  // band-height) meter: "bet window here is too big. pls make smaller" — so
+  // the glass is digit-sized now, and flanked by the caps it needs no BET
+  // silkscreen: − $N + explains itself.
   const bp = bandParts(k);
   const chrome = bm(0xb8b4a8);
   const wellOf = (r: { cx: number; cy: number; w: number; h: number }): void => {
@@ -578,8 +579,11 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
     g.add(well, ring);
   };
   wellOf(bp.meter);
-  const glass = new THREE.Mesh(new THREE.BoxGeometry(bp.meter.w, bp.meter.h, 0.014), bm(0x0c0805));
-  glass.position.set(bp.meter.cx, bp.meter.cy, D / 2 + 0.006);   // flush in its ring
+  // front face at +0.018, PROUD of the ring's +0.015 — the "ring" is a solid
+  // chrome plate, and at +0.013 it hid the glass completely: Erick's 15:07
+  // screenshot shows the meter as a bare grey slab, no glass, no dark window
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(bp.meter.w, bp.meter.h, 0.016), bm(0x0c0805));
+  glass.position.set(bp.meter.cx, bp.meter.cy, D / 2 + 0.010);
   g.add(glass);
   const capZ = D / 2 + 0.014;   // front face at +0.024: proud of the fascia,
                                 // a hair shy of the payline nicks' +0.026
@@ -806,37 +810,39 @@ interface SessionLay { bet: Rect; dn: Rect; up: Rect; lever: Rect; glass: Rect }
 const inR = (r: Rect, x: number, y: number): boolean =>
   x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 
-// ── the hardware band under the reel glass — BET meter at the left, − and +
-// at the right. ONE source for buildCabinet's geometry and layFor's click rects.
+// ── the hardware band under the reel glass — the − / BET / + stepper.
+// ONE source for buildCabinet's geometry and layFor's click rects.
 //
-// The band's world height scales with the pane (0.099 × paneW keeps the
-// narrow cabinets at exactly the 0.097 m they were tuned at), so every kind
-// lands the SAME canvas-pixel height — ~25 px, seg7 bar thickness 2. Fixed
-// at 0.097 m the KING's coarser face (fewest texels/metre) rounded to 18 px,
-// the thickness floor'd to 1, and the 2026-08-10 QC sweep showed half-height
-// digits swimming in a long dead glass while the cherry's filled its meter.
+// The band's world height scales with the pane, so every kind lands the
+// SAME canvas pixels; only its centreline places the stepper now (the parts
+// size themselves in bandParts, on the same scaling rule). The rule's
+// origin: fixed at 0.097 m the KING's coarser face (fewest texels/metre)
+// rounded to a shorter window, seg thickness floor'd to 1, and the
+// 2026-08-10 QC sweep showed half-height digits swimming in a long dead
+// glass while the cherry's filled its meter.
 function bandOf(k: KindSpec): { yHi: number; yLo: number } {
   const yHi = k.h * 0.78 - 0.178;
   return { yHi, yLo: yHi - 0.099 * paneW(k) };
 }
-/** The band's three parts, world rects on the fascia. The − / + caps are ONE
+/** The band's three parts, world rects on the fascia: one stepper, centred
+ *  on the cabinet's axis — − cap, BET glass, + cap. The caps are ONE
  *  standard part on every cabinet (the same parts-bin button on the $2 and
- *  the $10 machine, which is how 1997 cabinets were actually built), centred
- *  in the bay between the centreline and the reel frame's right rail — the
- *  bay COLLECT used to fill. The meter mirrors them in the left bay; its
- *  dims scale with the pane so every kind lands the same canvas pixels
- *  (~58×25 — see bandOf's note on the KING's coarse face). */
+ *  the $10 machine, which is how 1997 cabinets were actually built). The
+ *  glass is sized to its digits and nothing more — 2026-08-10, on the
+ *  band-height left-bay meter this replaces: "bet window here is too big.
+ *  pls make smaller". Its dims scale with the pane so every kind lands the
+ *  same canvas pixels (~26×17, seg thickness 1 — same guard as bandOf's
+ *  note on the KING's coarse face). */
 function bandParts(k: KindSpec): { meter: BRect; dn: BRect; up: BRect } {
   const { yHi, yLo } = bandOf(k);
   const cy = (yHi + yLo) / 2;
-  const span3 = 0.145 * 3 + 0.015 * 2;          // the reel window, as built
-  const railIn = span3 / 2 + 0.02;              // the right rail's inner face
-  const bx = (0.03 + railIn) / 2;               // right-bay centre
-  const bw = 0.066, bh = 0.06, gap = 0.020;
+  const bw = 0.066, bh = 0.06, gap = 0.014;
+  const mw = 0.105 * paneW(k), mh = 0.066 * paneW(k);
+  const off = mw / 2 + gap + bw / 2 + 0.009;    // past the caps' own rings
   return {
-    meter: { cx: -bx, cy, w: 0.23 * paneW(k), h: yHi - yLo },
-    dn: { cx: bx - (bw + gap) / 2, cy, w: bw, h: bh },
-    up: { cx: bx + (bw + gap) / 2, cy, w: bw, h: bh },
+    meter: { cx: 0, cy, w: mw, h: mh },
+    dn: { cx: -off, cy, w: bw, h: bh },
+    up: { cx: off, cy, w: bw, h: bh },
   };
 }
 interface BRect { cx: number; cy: number; w: number; h: number }
@@ -923,18 +929,19 @@ function paintSession(
   const k = m.kind;
   const b = layFor(k).bet;
 
-  // a breath of backlight on the glass, then the silkscreen and the digits.
-  // Bar thickness comes off the window's own height, and the window scales
-  // with the pane, so the KING's coarser face gets the same ~58×25 px meter
-  // as the cherry (see bandOf).
+  // a breath of backlight on the glass, the $ silkscreen, the digits — and
+  // nothing else: flanked by the real − / + caps the readout explains
+  // itself, and a BET legend only made the glass wider ("bet window here is
+  // too big. pls make smaller"). Bar thickness comes off the window's own
+  // height, and the window scales with the pane, so the KING's coarser face
+  // gets the same ~26×17 px meter as the cherry (see bandOf).
   g.fillStyle = 'rgba(255,182,56,0.05)'; g.fillRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
   const t = Math.max(1, Math.floor((b.h - 6) / 9));
   const dw = 5 * t + t, dh = 9 * t;
   const y0 = Math.round(b.y + (b.h - dh) / 2);
-  const xd = b.x + b.w - 5 - 2 * dw;             // two digit slots, right-aligned
+  const xd = b.x + b.w - 4 - 2 * dw;             // two digit slots, right-aligned
   g.fillStyle = '#8a8072'; g.textAlign = 'left';
-  g.font = 'bold 6px monospace'; g.fillText('BET', b.x + 4, b.y + b.h / 2 + 2);
-  g.font = 'bold 9px monospace'; g.fillText('$', xd - 8, y0 + dh - 1);
+  g.font = 'bold 8px monospace'; g.fillText('$', xd - 6, y0 + dh - 1);
   const val = String(Math.min(99, k.stake * m.bet));
   for (let i = 0; i < 2; i++) {
     const x0 = xd + i * dw;
