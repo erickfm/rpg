@@ -9,11 +9,25 @@
 //
 // So this file replaces the sit-down 2D panel machine (ct/slots.ts, which
 // stays as a library — blackjack still reads CREDIT off it) with machines that
-// are played IN THE WORLD: walk up (or sit on the stool), press E, and the
-// lever with the ball handle swings, the reels kick, stagger to a stop, and a
-// win strobes the topper and rains coins into the tray while the dollars tick
-// straight into your wallet. No panel, no credit meter, no second account —
-// cash out of the purse per pull, winnings back into the purse, HUD ticks.
+// are played IN THE WORLD: the lever with the ball handle swings, the reels
+// kick, stagger to a stop, and a win strobes the topper and rains coins into
+// the tray while the dollars tick straight into your wallet. No credit meter,
+// no second account — cash out of the purse per pull, winnings back in.
+//
+// 2026-08-09, Erick: "SLOTS ARE NOT DIAGETIC locked perspective". So the way
+// IN is now the same locked-perspective grammar as blackjack and roulette:
+// walk up and press E, or take the stool, and the view locks ONTO THE CABINET
+// — face-on with the reel glass, the pay card, the lever at the side. The
+// cabinet is the interface: click the lever (or the reel glass, or the printed
+// PULL region) to pull, and the session's numbers live on the machine's own
+// face — a printed strip under the glass carries CASH / PULL $N / LEAVE. The
+// mechanism is an invisible "session pane" over each cabinet front
+// (`slot-face-N`): the panel framework hangs its canvas on it (transparent
+// except the printed strip, so the 3D reels, lever, topper and coins stay the
+// show), locks the eye onto it, and maps clicks back into cabinet coordinates.
+// ESC, [E] and LEAVE all close from every state; standing up closes it too;
+// and a spin or payout in flight keeps settling into the purse through the
+// world loop below, so leaving mid-payout can never strand a dollar owed.
 //
 // THE MATHS, enumerated (16^3 = 4,096 stop combinations, uniform draw):
 //
@@ -61,6 +75,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { ORDER as HOOK } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
+import type { Panel } from './hud';
 
 // ── the tin ──────────────────────────────────────────────────────────────────
 
@@ -250,6 +265,8 @@ interface Machine {
   group: THREE.Group;
   reels: Reel[];
   lever: THREE.Group;
+  /** the invisible session pane the locked view hangs its canvas on */
+  pane: THREE.Mesh;
   hubs: [THREE.Mesh, THREE.Mesh];
   topper: THREE.Mesh; topperM: THREE.MeshBasicMaterial; topperLit: THREE.Color;
   bulbs: THREE.MeshBasicMaterial[];      // three phase materials, chased
@@ -508,27 +525,51 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
 
   // ── THE LEVER, with the ball handle. The play verb lives here. ──
   //
-  // On local −x, which is the PLAYER'S RIGHT when facing the machine — where
-  // a one-armed bandit's arm has always been. The first pass put it at +x and
-  // the look shot showed every arm on the wrong side of the room.
+  // On local +x, which IS the player's right when facing the machine — where a
+  // one-armed bandit's arm has always been. It sat at −x with a comment
+  // claiming that was the right hand; the locked-view calibration shot
+  // (2026-08-09) measured −x landing on the SCREEN LEFT, and Erick called it:
+  // "the lever is on the wrong side."
+  // …and at the FRONT corner of the side, not mid-depth: at z 0.04 the body's
+  // own side face hid the whole arm from the locked view's near-frontal eye
+  // (the sightline crossed the side plane before it reached the ball).
+  const leverZ = D / 2 - 0.075;
   const lever = new THREE.Group();
-  lever.position.set(-(W / 2 + 0.05), H * 0.74, 0.04);
+  lever.position.set(W / 2 + 0.05, H * 0.74, leverZ);
   const housing = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.16, 0.12), bm(0x8a8478));
-  housing.position.set(-(W / 2 + 0.035), H * 0.74, 0.04);   // half-buried in the side
+  housing.position.set(W / 2 + 0.035, H * 0.74, leverZ);   // half-buried in the side
   g.add(housing);
   const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.017, 0.34, 6), bm(0xc8c4b8));
   arm.position.y = 0.17;
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.048, 8, 6), bm(0xc81e28));
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.052, 8, 6), bm(0xc81e28));
   ball.position.y = 0.36;
   lever.add(arm, ball);
-  lever.rotation.x = -0.30;
+  // Rest NEAR-VERTICAL, not −0.30: leaned back that far, the arm sat edge-on
+  // behind the body from the locked view and the play verb was invisible.
+  // Upright, the ball rides clear of the cabinet's silhouette at the player's
+  // right — where a bandit's arm waits. tickLever's `rest` is the same value.
+  lever.rotation.x = -0.06;
   lever.name = `slot-lever-${i}`;
   g.add(lever);
+
+  // ── the session pane — see "the locked session" below. Invisible until the
+  // panel framework borrows its material; per-machine material on purpose (a
+  // shared one would paint one session onto fifteen faces), shared empty map.
+  const spw = paneW(k), sph = spw / PANE_RATIO;
+  const pane = new THREE.Mesh(
+    new THREE.PlaneGeometry(spw, sph),
+    new THREE.MeshBasicMaterial({ map: emptyPane(), transparent: true, depthWrite: false }));
+  // reaches 0.18 past the body on the lever's side (+x), in front of every
+  // face mesh (the payline nicks are the proudest at +0.016); the lever
+  // swings in y/z at fixed x, so it never crosses the pane
+  pane.position.set(0.07, paneYMin(k) + sph / 2, D / 2 + 0.022);
+  pane.name = `slot-face-${i}`;
+  g.add(pane);
 
   room.put(g, spec.lx, 0, spec.lz);
 
   const m: Machine = {
-    kind: k, i, group: g, reels, lever, hubs,
+    kind: k, i, group: g, reels, lever, hubs, pane,
     topper, topperM, topperLit: new THREE.Color(k.topper.lit),
     bulbs,
     winCv, winTex, coins: null, coinSeed: [],
@@ -594,6 +635,147 @@ function tickCoins(m: Machine, sincePay: number): void {
   if (!alive && sincePay > 2.4) m.coins.visible = false;
 }
 
+// ── the locked session ───────────────────────────────────────────────────────
+//
+// 2026-08-09: "SLOTS ARE NOT DIAGETIC locked perspective". The same grammar
+// blackjack and roulette moved to the same day: E (or the stool) locks the eye
+// onto the machine, the machine's own face is the interface, LEAVE/ESC/[E]
+// always leave, standing up leaves too.
+//
+// The surface is the SESSION PANE: one invisible plane per cabinet, covering
+// the PLAYING FACE — the reel glass, the win sign over it, the readout strip
+// under it — and reaching past the body on the lever's side (+x, the player's
+// right), so a click "on the lever" lands on it. Its material is transparent
+// with an empty map — nothing of it exists until the panel framework borrows
+// it, hangs the session canvas on it, and the canvas itself is transparent
+// everywhere except the printed strip, so the 3D reels, lever and coin burst
+// stay the show. ONE aspect for all three personalities (the pane grows with
+// the cabinet, the proportions do not), so one canvas serves the floor
+// without stretching. The lock frames the pane, which is why it covers the
+// playing face and NOT the whole cabinet: "then also closer disgetic
+// persprective on the slots" — face in the machine, reel glass dominant, the
+// pay card at the bottom edge of frame or just out of it.
+//
+// ⚠ The panel id is 'ct-slotcab', NOT 'ct-slots' — the retired ct/slots.ts
+// panel already owns the #ct-slots DOM node, and makePanel REUSES a wrap by
+// id: two specs sharing one canvas left this one painting a 168-wide layout
+// onto the old 320×483 face, which is exactly the quarter-scale strip
+// floating off the cabinet's edge in Erick's screenshot.
+
+/** pane width / height — the playing face is nearly square-ish on every kind */
+const PANE_RATIO = 0.94;
+/** the pane's lower edge sits this far under the reel-window centre */
+const PANE_DROP = 0.32;
+/** the one session canvas, square texels on every kind by the shared ratio */
+const SESSION_PX = { w: 220, h: 234 } as const;
+
+const paneW = (k: KindSpec): number => k.w + 0.22;
+const paneXMin = (k: KindSpec): number => -(k.w / 2 + 0.04);
+const paneYMin = (k: KindSpec): number => k.h * 0.78 - PANE_DROP;
+
+let PANE_TEX: THREE.Texture | null = null;
+/** a 1×1 fully-transparent map — the pane while nobody is locked onto it */
+function emptyPane(): THREE.Texture {
+  if (!PANE_TEX) {
+    const c = document.createElement('canvas');
+    c.width = 1; c.height = 1;
+    PANE_TEX = new THREE.CanvasTexture(c);
+  }
+  return PANE_TEX;
+}
+
+interface Rect { x: number; y: number; w: number; h: number }
+interface SessionLay { cash: Rect; pull: Rect; leave: Rect; lever: Rect; glass: Rect }
+const inR = (r: Rect, x: number, y: number): boolean =>
+  x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+
+/** Where everything sits on the session canvas, derived from the SAME numbers
+ *  buildCabinet places the geometry with — the lever region is where the lever
+ *  IS, per kind, not a hand-typed pixel box. Cached per personality. */
+const LAYS = new Map<KindSpec, SessionLay>();
+function layFor(k: KindSpec): SessionLay {
+  let L = LAYS.get(k);
+  if (L) return L;
+  const xMin = paneXMin(k), pw = paneW(k), ph = pw / PANE_RATIO;
+  const yMax = paneYMin(k) + ph;
+  const X = (lx: number) => ((lx - xMin) / pw) * SESSION_PX.w;
+  const Y = (ly: number) => ((yMax - ly) / ph) * SESSION_PX.h;
+  const box = (x0: number, x1: number, yLo: number, yHi: number): Rect =>
+    ({ x: X(x0), y: Y(yHi), w: X(x1) - X(x0), h: Y(yLo) - Y(yHi) });
+  const winY = k.h * 0.78;
+  const span3 = 0.145 * 3 + 0.015 * 2;
+  // the printed strip: a readout band on the body under the reel glass, above
+  // the deck. Three cells — CASH (the purse, read off the machine), PULL $N
+  // (the spin verb in print, beside the lever that is the same verb), LEAVE
+  // (the law).
+  const sx0 = -k.w / 2 + 0.03, sx1 = k.w / 2 - 0.03, all = sx1 - sx0, gap = 0.012;
+  const c1 = sx0 + all * 0.38, c2 = c1 + gap + all * 0.31;
+  L = {
+    cash: box(sx0, c1, winY - 0.262, winY - 0.183),
+    pull: box(c1 + gap, c2, winY - 0.262, winY - 0.183),
+    leave: box(c2 + gap, sx1, winY - 0.262, winY - 0.183),
+    lever: box(k.w / 2, xMin + pw - 0.005, k.h * 0.74 - 0.06, k.h * 0.74 + 0.44),
+    glass: box(-span3 / 2 - 0.05, span3 / 2 + 0.05, winY - 0.17, winY + 0.17),
+  };
+  LAYS.set(k, L);
+  return L;
+}
+
+/** The session canvas: TRANSPARENT except the printed strip — the machine is
+ *  the interface, this only adds the three cells the lock needs. */
+function paintSession(
+  g: CanvasRenderingContext2D, w: number, h: number, m: Machine | null, cash: number,
+): void {
+  g.clearRect(0, 0, w, h);
+  if (!m) return;
+  const L = layFor(m.kind);
+  // the recessed readout band the three cells sit in — cabinet furniture, not
+  // floating chips: dark well the full width of the body, gold rules top and
+  // bottom in the machine's own trim
+  const pad = 4;
+  const bx = L.cash.x - pad, bw = L.leave.x + L.leave.w + pad - bx;
+  const by = L.cash.y - pad, bh = L.cash.h + pad * 2;
+  g.fillStyle = '#100a0c'; g.fillRect(bx, by, bw, bh);
+  g.fillStyle = '#d8a83a'; g.fillRect(bx, by, bw, 1); g.fillRect(bx, by + bh - 1, bw, 1);
+  const cell = (r: Rect, bg: string, fg: string, text: string) => {
+    g.fillStyle = bg; g.fillRect(r.x, r.y, r.w, r.h);
+    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(r.x, r.y, r.w, 1);
+    g.fillStyle = fg; g.font = 'bold 10px monospace'; g.textAlign = 'center';
+    g.fillText(text, r.x + r.w / 2, r.y + r.h / 2 + 3.5);
+  };
+  cell(L.cash, '#1c1216', '#f2e6c8', `$${Math.floor(cash)}`);
+  if (m.state === 'idle') cell(L.pull, '#c81e28', '#f2e6c8', `PULL $${m.kind.stake}`);
+  else cell(L.pull, '#2a2024', '#6a6258', m.state === 'spinning' ? '· · ·' : 'PAYING');
+  cell(L.leave, '#d8a83a', '#14100e', 'LEAVE');
+}
+
+/**
+ * THE SEAT THIS ALSO OPENS AT. ct/int-casino.ts puts a stool at every machine
+ * and imports this constant for their label — the same one-authoring bridge as
+ * blackjack's and roulette's SEAT_LABEL. (The old ct/slots.ts panel listened
+ * for 'sit at the slot', singular, which nothing carries — that module stays
+ * retired as the library blackjack reads CREDIT from.)
+ */
+export const SEAT_LABEL = 'sit at the slots';
+
+interface SeatRow { pose: object; label: string }
+interface CtWindow {
+  __ct?: {
+    seated: () => { x: number; z: number } | null;
+    seats: () => SeatRow[];
+  };
+}
+
+/** the stool pose the player is on, if it is one of ours — identity, so the
+ *  dismissal latch works exactly as the tables' does */
+function seatedAtSlots(): { x: number; z: number } | null {
+  const ct = (globalThis as unknown as CtWindow).__ct;
+  if (!ct) return null;
+  const pose = ct.seated();
+  if (!pose) return null;
+  return ct.seats().find((s) => s.pose === pose)?.label === SEAT_LABEL ? pose : null;
+}
+
 // ── the floor ────────────────────────────────────────────────────────────────
 
 export interface SlotsHandle {
@@ -604,12 +786,90 @@ export interface SlotsHandle {
 const ATTRACT = ['PULL ME', 'WIN BIG', 'GET LUCKY'];
 
 /**
- * Build every machine on `specs`, wire an [E] "pull the lever" spot to each,
- * and drive the whole bank from ONE frame hook. int-casino owns the stools;
- * this owns everything that moves.
+ * Build every machine on `specs`, wire an [E] spot to each that locks the view
+ * onto the cabinet, and drive the whole bank from ONE frame hook. int-casino
+ * owns the stools (labelled with SEAT_LABEL above, so taking one locks onto
+ * that stool's machine); this owns everything that moves.
  */
 export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): SlotsHandle {
   const machines = specs.map((s, i) => buildCabinet(ctx, room, s, i));
+
+  // ── the session lock ──
+  let panel: Panel | null = null;
+  let active: Machine | null = null;
+  let mode: 'seat' | 'stand' | null = null;
+  let dismissed: object | null = null;
+
+  /** the machine a stool pose fronts — by distance, so it survives whatever
+   *  transform room.wx/wz carries. Stools sit 0.95 m off their machine; the
+   *  next machine over is 1.27 m, so nearest-wins is unambiguous. */
+  const machineNear = (p: { x: number; z: number }): Machine | null => {
+    let best: Machine | null = null, bd = 1.4;
+    machines.forEach((m, i) => {
+      const d = Math.hypot(room.wx(specs[i].lx) - p.x, room.wz(specs[i].lz) - p.z);
+      if (d < bd) { bd = d; best = m; }
+    });
+    return best;
+  };
+
+  // Dynamically, the way blackjack and roulette import it — ct/hud.ts at
+  // build depth would be a new edge into GOTCHAS §28's cycle territory.
+  void import('./hud').then(({ makePanel }) => {
+    panel = makePanel({
+      // NOT 'ct-slots' — that DOM id belongs to ct/slots.ts's retired panel,
+      // and makePanel reuses a wrap by id. See the ⚠ in "the locked session".
+      id: 'ct-slotcab',
+      w: SESSION_PX.w, h: SESSION_PX.h, scale: 2,
+      chrome: 'none',
+      hint: () => {
+        const m = active;
+        if (!m) return '';
+        if (m.state !== 'idle') return '…';
+        return ctx.purse.cash >= m.kind.stake
+          ? `click the lever — $${m.kind.stake} a pull`
+          : `slot wants $${m.kind.stake}`;
+      },
+      draw: (g, w, h) => paintSession(g, w, h, active, ctx.purse.cash),
+      key: (k) => {
+        if ((k === ' ' || k === 'enter') && active) { pull(active, ctx); panel?.repaint(); }
+      },
+      surface: {
+        mesh: () => active?.pane ?? null,
+        // CLOSE — "then also closer disgetic persprective on the slots". The
+        // lock frames the playing face: reel glass dominant, win sign above,
+        // lever at the right edge, the pay card at the bottom edge of frame
+        // or just out of it. The KING's face is half again as wide and his
+        // strip sits lower under the glass, so he gets a longer step back.
+        // A getter, because the framework reads this at open time and ONE
+        // panel serves the floor.
+        get standoff() { return active && active.kind.w > 0.8 ? 1.05 : 0.72; },
+        fov: 70,
+        hot: (x, y) => {
+          const m = active;
+          if (!m) return false;
+          const L = layFor(m.kind);
+          if (inR(L.leave, x, y)) return true;          // the way out never greys
+          if (m.state !== 'idle') return false;
+          return inR(L.pull, x, y) || inR(L.lever, x, y) || inR(L.glass, x, y);
+        },
+        click: (x, y) => {
+          const m = active;
+          if (!m) return;
+          const L = layFor(m.kind);
+          if (inR(L.leave, x, y)) { panel?.close(); return; }
+          if (m.state !== 'idle') return;
+          if (inR(L.pull, x, y) || inR(L.lever, x, y) || inR(L.glass, x, y)) {
+            pull(m, ctx);
+            panel?.repaint();
+          }
+        },
+      },
+      // Nothing to cash out: the machine plays straight against the purse, and
+      // a spin or payout in flight keeps settling through the world loop below
+      // whether anyone is watching or not — leaving mid-payout strands nothing.
+      onClose: () => { dismissed = seatedAtSlots(); mode = null; },
+    });
+  });
 
   machines.forEach((m, i) => {
     const spec = specs[i];
@@ -618,16 +878,34 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
       x: fx, z: fz, r: 1.25,
       aimX: room.wx(spec.lx), aimZ: room.wz(spec.lz),
       obj: m.group,
-      label: () => (ctx.purse.cash >= m.kind.stake
-        ? `pull the lever — $${m.kind.stake}`
-        : `slot wants $${m.kind.stake}`),
-      ok: () => room.inside() && m.state === 'idle',
-      act: () => pull(m, ctx),
+      label: () => `play ${m.kind.name} — $${m.kind.stake} a pull`,
+      ok: () => room.inside(),
+      act: () => {
+        if (panel) { active = m; mode = 'stand'; panel.open(); }
+        else pull(m, ctx);   // hud not landed yet: the lever still answers
+      },
     });
   });
 
   let lastT = -1;
   ctx.onFrame((f) => {
+    // ── the seat grammar: a slot stool opens its machine, exactly as the pit
+    // tables' stools do. NOT SEATED MEANS NOT OPEN holds for seat-mode only —
+    // a standing session has no stool to lose, and the focus controller
+    // already escapes the panel if the rig loses the lock any other way.
+    if (panel) {
+      const pose = seatedAtSlots();
+      if (panel.isOpen()) {
+        if (mode === 'seat' && pose === null) panel.close();
+        else panel.repaint();
+      } else {
+        if (pose === null) dismissed = null;
+        else if (pose !== dismissed) {
+          const m = machineNear(pose);
+          if (m) { active = m; mode = 'seat'; panel.open(); }
+        }
+      }
+    }
     // `f.t` is wall time; `f.dt` is clamped for physics and a reel is not
     // physics — same note as ct/slots.ts, same clock.
     const dt = lastT < 0 ? 0 : Math.max(0, f.t - lastT);
@@ -682,7 +960,7 @@ function pull(m: Machine, ctx: CtxBuild): void {
 }
 
 function tickLever(m: Machine): void {
-  const t = m.t, rest = -0.30, down = 1.35;
+  const t = m.t, rest = -0.06, down = 1.35;   // rest matches the built pose
   let a = rest;
   if (t < FEEL.leverDown) {
     const k = t / FEEL.leverDown;

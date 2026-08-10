@@ -792,7 +792,9 @@ export function register(ctx: CtxBuild): void {
   // blackjack hand, and a ka-ching per spin is the difference between charming
   // and unbearable. `hud.ts` names the live panel, so the machines can be named
   // and excluded rather than guessed at by amount.
-  const MACHINES = new Set(['ct-slots', 'ct-blackjack', 'ct-atm']);
+  // 'ct-slotcab' is the locked slot session (2026-08-09, "SLOTS ARE NOT
+  // DIAGETIC"); 'ct-slots' stays named for the retired panel module's id.
+  const MACHINES = new Set(['ct-slots', 'ct-slotcab', 'ct-blackjack', 'ct-atm']);
   let lastCash = ctx.purse.cash;
   let tillAt = -99;
 

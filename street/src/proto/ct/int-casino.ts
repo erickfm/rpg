@@ -7,9 +7,13 @@ import { citizenSprite } from './citizens';
 import { ORDER as HOOK } from './ctx';
 import { tube, VICE_DOOR_X, leafPair } from './vice';
 // The playable slot machines — cabinets, lever, reels, coins and their maths
-// all live there; this file only says where they stand. No cycle: slotcab
-// imports ctx types and ./paint, never this file or ./interior.
-import { buildSlots } from './slotcab';
+// all live there; this file only says where they stand. SEAT_LABEL is the
+// stools' label bridge: since 2026-08-09's "SLOTS ARE NOT DIAGETIC locked
+// perspective", taking a slot stool locks the view onto that machine, the
+// same seat-opens-the-game grammar as the two pit tables. No cycle: slotcab
+// imports ctx types, ./paint and (dynamically) ./hud, never this file or
+// ./interior.
+import { buildSlots, SEAT_LABEL as SLOT_SEAT } from './slotcab';
 // SEAT_LABEL, not a hand-typed copy of its string. blackjack.ts bridges on
 // this exact string; the felt now sits in the pit at TX = 2.7, TZ = -5.0
 // (moved 2026-08-09 with the layout overhaul), the only green felt on this
@@ -613,11 +617,11 @@ export function buildCasino(ctx: CtxBuild): void {
   solid(-2.35, 6.6, 1.1, 0.9);
   solid(-3.975, 6.6, 1.6, 0.85);
 
-  // A STOOL AT EVERY MACHINE, all sittable. The label is 'sit at the slots' —
-  // NOT the old 'sit at the slot', which is the bridge ct/slots.ts's panel
-  // game listens for. The lever in the world is the play verb now; the panel
-  // module stays as the library blackjack reads CREDIT from, and a label it
-  // never matches keeps its auto-open quietly retired without editing it.
+  // A STOOL AT EVERY MACHINE, all sittable, carrying slotcab's own SEAT_LABEL
+  // — sitting down locks the view onto that stool's machine, the tables'
+  // grammar. (Still not the old 'sit at the slot', the label ct/slots.ts's
+  // retired panel listens for; that module stays as the library blackjack
+  // reads CREDIT from, and a label it never matches keeps it quiet.)
   for (const row of SLOT_ROWS) for (const c of row.cabs) {
     const sx2 = c.x, sz2 = row.z + 0.95;
     put(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, STOOL_T, 10), stoolTopM),
@@ -631,7 +635,7 @@ export function buildCasino(ctx: CtxBuild): void {
       // carried (scripts/seat-facing.mjs, rule B).
       x: room.wx(sx2), z: room.wz(sz2), yaw: 0, h: STOOL_TOP,
       approach: { x: room.wx(sx2), z: room.wz(sz2 + 0.75) },
-      label: 'sit at the slots',
+      label: SLOT_SEAT,
       ok: () => room.inside() && !seatTaken(room.wx(sx2), room.wz(sz2)),
     });
   }

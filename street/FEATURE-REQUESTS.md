@@ -6409,3 +6409,41 @@ Went to one builder (this file's entry written by it). Two parts:
 **The full key audit** (every binding, grouped by context, with duplicate/
 collision/sunset flags) was delivered to Erick for ruling — no other bindings
 were changed.
+
+## 2026-08-09 — *"SLOTS ARE NOT DIAGETIC locked perspective"*
+
+With, mid-build, on the first look: *"please fix this, looks like the slots ui
+is busted and also the lever is on the wrong side."* and *"then also closer
+disgetic persprective on the slots"*.
+
+Went to one builder (slotcab + int-casino stool label + audio panel set). The
+slots now play in the tables' locked-perspective grammar:
+
+- **The lock:** E at a machine, or taking its stool, locks the view onto the
+  cabinet's playing face — an invisible "session pane" per cabinet
+  (`slot-face-N`) that the panel framework hangs its canvas on. The canvas is
+  transparent except a printed readout band, so the 3D reels, lever, topper
+  strobe and coin burst stay the show. Seat entry is the same
+  seat-opens-the-game bridge as blackjack/roulette (SEAT_LABEL lives in
+  slotcab, imported by int-casino).
+- **The cabinet is the interface:** click the lever, the reel glass, or the
+  printed PULL $N cell to pull; CASH (the purse) and LEAVE are printed in a
+  recessed band on the body under the glass. LEAVE never greys; ESC/[E] close
+  from every state; standing up closes too. Mouse-only playable; SPACE/Enter
+  also pull. No credit meter — money settles straight into the purse through
+  the world loop, so leaving mid-payout strands nothing by construction.
+- **The busted first look, diagnosed:** the panel id was 'ct-slots', which the
+  retired ct/slots.ts panel already owns — makePanel reuses a wrap by DOM id,
+  so the session painted a 168-px layout onto the old 320×483 canvas: the
+  quarter-scale strip floating off the cabinet's edge. Renamed 'ct-slotcab'
+  (audio's machine-panel set updated to match).
+- **The lever:** moved to the cabinet's +x — the PLAYER'S RIGHT, measured off
+  a calibration shot, against the old comment that claimed −x was right — and
+  to the front corner of the side (mid-depth, the body occluded the whole arm
+  from the locked eye), resting near-vertical so the ball rides clear of the
+  silhouette. Names and motions unchanged: `slot-lever-N` swings the same
+  rotation, hubs/reels/topper/coins keep their hooks.
+- **Closer:** the pane covers the playing face only (glass + win sign +
+  readout band + lever margin), standoff 0.72 (KING 1.05), fov 70 — reel
+  glass dominant, pay card at the bottom edge of frame or just out, caption
+  clear of the printed card. All three personalities looked at.
