@@ -1005,7 +1005,7 @@ export function paintFigure(g: CanvasRenderingContext2D, ox0: number, oy0: numbe
   if (cut !== 'shaved') {
     /** how deep the cap sits over the skull from the front; from behind every
      *  cut but a shave covers the whole head */
-    const crown = cut === 'crop' ? 5 : cut === 'messy' ? 8 : cut === 'bowl' ? 9 : 7;
+    const crown = cut === 'crop' ? 5 : cut === 'messy' ? 8 : cut === 'bowl' ? 10 : 7;
     head(CX - HEAD_HW, HEAD_T - 2, HEAD_HW * 2, facing >= 3 ? HEAD_B - HEAD_T + 2 : crown, HAIR);
     // the sideburn strip either side, longer on the cuts that have sides
     const side = cut === 'crop' ? 5 : cut === 'bowl' || cut === 'long' ? 14 : 8;
@@ -1015,7 +1015,12 @@ export function paintFigure(g: CanvasRenderingContext2D, ox0: number, oy0: numbe
       head(CX - 3, HEAD_T - 4, 3, 3, HAIR);
       head(CX + 2, HEAD_T - 3, 2, 2, HAIR);
     }
-    if (cut === 'bowl') head(CX - HEAD_HW, HEAD_T + 8, HEAD_HW * 2, 2, HAIR_LO);
+    // the fringe's under-edge, in the dark shade — the bottom two rows OF the
+    // cap, not a band below it. At +8 it sat at EYE_Y with a row of skin (19)
+    // showing between cap and band: *"bowl haircut doesnt look quite right?
+    // theres a gap?"* The cap now reaches 19 and this shades 18–19, so the
+    // fringe meets the brow with the eyes directly beneath it.
+    if (cut === 'bowl') head(CX - HEAD_HW, HEAD_T + 6, HEAD_HW * 2, 2, HAIR_LO);
   }
   // ⚠ WHAT HANGS BELOW THE JAW IS DRAWN LATER, over the shirt — see
   // `hairOverCloth` at the end of the top half. Hair that falls past the

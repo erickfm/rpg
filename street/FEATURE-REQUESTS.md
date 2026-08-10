@@ -6203,3 +6203,19 @@ flourish. Escape unchanged, new-game and day-start unchanged. The scrawl is
 session-only cosmetic identity.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"bowl haircut doesnt look quite right? theres a gap?"*
+
+Built by a builder, same day. In `paintFigure` (`ct/mirror.ts`) the bowl's
+cap ended at row 18 but its dark under-edge band was drawn at rows 20–21 —
+which is `EYE_Y` — leaving a bare skin row (19) between them: the cap
+floated and the detached band sat across the eyes like a visor. The crown
+deepened 9 → 10 so the fringe reaches row 19, meeting the brow directly
+above the eyes, and the shade band moved to rows 18–19 as the bottom OF
+the fringe rather than a strip below it. The other six cuts each draw one
+continuous shape — only the bowl had a second detached piece, so only the
+bowl was touched. Back facings, heights and colour combos traced through
+the painter's arithmetic: the gap was geometric (row 19), and that row no
+longer exists between hair and eyes at any of them.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
