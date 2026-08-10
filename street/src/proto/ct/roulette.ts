@@ -84,9 +84,11 @@ export type Rng = () => number;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PART TWO: THE TABLE — a state machine advanced by dt, same contract as the
-// slot machine and the blackjack table: chips exist between sitting down and
-// standing up, cashOut always empties the rail, a bet already spinning is
-// gone. Everything the wheel does is a CLOSED FORM of the time since SPIN —
+// slot machine and the blackjack table: the table holds no money, every stake
+// and payout moves straight through the injected Bank (the wallet, in the
+// world), and flush() on leaving settles anything still owed — a spin in
+// flight resolves rather than forfeits, because the draw already happened.
+// Everything the wheel does is a CLOSED FORM of the time since SPIN —
 // no integration, so any dt lands the ball in the same place (GOTCHAS §30/§43).
 
 export const PACE = {
@@ -147,7 +149,9 @@ export interface TableView {
 export interface Table {
   view(): TableView;
   tick(dt: number): void;
-  betBy(d: number): void;
+  /** stack another chip on the stake, between spins. Clamped to the bank. */
+  betAdd(n: number): void;
+  betClear(): void;
   /** move the bet-kind selector */
   kindBy(d: number): void;
   kindSet(k: BetKind): void;
@@ -156,17 +160,37 @@ export interface Table {
   /** put the chip ON a number — the layout's own verb, for a clicked cell */
   pickSet(n: number): void;
   spin(): boolean;
+  /** fund the DEFAULT bank — the headless checks' way in. The world injects
+   *  the wallet as `opts.bank` and never calls this. */
   buyIn(chips: number): void;
-  cashOut(): number;
+  /** leave: pay anything the house still owes straight to the bank and clear
+   *  the baize. The wiring calls this whenever the panel closes. */
+  flush(): void;
   settled(): boolean;
 }
 
-const BETS = [1, 2, 5, 10, 25];
+/** WHERE THE MONEY LIVES: nowhere on the table. Same contract, same day, same
+ *  quote as ct/blackjack.ts's `Bank` — *"i dont like this cash out buy in
+ *  thing. i just want it simple"* (2026-08-10). SPIN takes the bet straight
+ *  from the bank (the world passes the wallet), a win counts straight back
+ *  in, and nothing pools at the felt for a walk-away to lose. */
+export interface Bank {
+  get(): number;
+  add(d: number): void;
+}
 
-export function createTable(opts: { rng?: Rng } = {}): Table {
+/** The chip rack — *"i want to be able to bet whatever amount"* (2026-08-10).
+ *  The fixed ladder is gone; stack any bet a chip at a time, up to the
+ *  wallet. Every roulette payout is integer chips, so free bets cost nothing
+ *  in float (blackjack's 3:2 half-chip note does not even apply here). */
+export const CHIPS = [1, 5, 25, 100] as const;
+
+export function createTable(opts: { rng?: Rng; bank?: Bank } = {}): Table {
   const rng = opts.rng ?? Math.random;
+  const bank: Bank = opts.bank
+    ?? (() => { let n = 0; return { get: () => n, add: (d: number) => { n += d; } }; })();
   let phase: Phase = 'betting';
-  let chips = 0, betIx = 1, kindIx = 0, pick = 17;
+  let bet = 0, kindIx = 0, pick = 17;
   let t = 0, wheelBase = 0;           // wheel angle carries over between rounds
   let result: number | null = null, won = false;
   let ballCorrection = 0, pocketIx = 0;
@@ -205,7 +229,7 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
       ballR = 0;
     }
     return {
-      phase, chips, bet: BETS[betIx], kind: BET_KINDS[kindIx], pick,
+      phase, chips: bank.get(), bet, kind: BET_KINDS[kindIx], pick,
       t, result, won, history, paid, staked, returned, says: says(),
       wheel: { wheelA: wA, ballA, ballR },
     };
@@ -213,9 +237,14 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
 
   const says = (): string => {
     if (phase === 'betting') {
-      if (chips < BETS[betIx]) return 'BUY IN TO PLAY';
+      // the bank IS the wallet — one balance, one message (see blackjack's
+      // same note)
+      const b = bank.get();
+      if (b < 1) return 'NO CASH IN YOUR POCKETS';
+      if (bet < 1) return 'STACK CHIPS TO BET';
+      if (b < bet) return 'NOT ENOUGH FOR THAT BET';
       const k = BET_KINDS[kindIx];
-      return `${BETS[betIx]} ON ${k === 'number' ? `NUMBER ${pick}` : k.toUpperCase()} — SPIN THE WHEEL`;
+      return `${bet} ON ${k === 'number' ? `NUMBER ${pick}` : k.toUpperCase()} — SPIN THE WHEEL`;
     }
     if (phase === 'spinning') return t < PACE.drop ? 'NO MORE BETS' : '…';
     if (result === null) return '';
@@ -225,9 +254,9 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
 
   const spin = (): boolean => {
     if (phase !== 'betting') return false;
-    const bet = BETS[betIx];
-    if (chips < bet) return false;
-    chips -= bet; staked += bet;
+    if (bet < 1 || bank.get() < bet) return false;
+    // straight out of the wallet — no rail between the purse and the felt
+    bank.add(-bet); staked += bet;
     // THE DRAW, now, before anything moves.
     pocketIx = Math.min(POCKETS - 1, Math.floor(rng() * POCKETS));
     result = null; won = false; paid = 0; payRamp = 0; owed = 0;
@@ -251,7 +280,7 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
       const n = WHEEL[pocketIx];
       result = n;
       won = wins(BET_KINDS[kindIx], pick, n);
-      owed = won ? payout(BET_KINDS[kindIx], BETS[betIx]) : 0;
+      owed = won ? payout(BET_KINDS[kindIx], bet) : 0;
       history.unshift(n);
       if (history.length > 8) history.pop();
       phase = 'settle'; phaseT = 0;
@@ -266,9 +295,12 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
     if (phase === 'paying') {
       payRamp = Math.min(owed, payRamp + PACE.payRate(owed) * dt);
       const whole = Math.min(owed, Math.floor(payRamp));
-      chips += whole - paid; paid = whole;
+      // straight into the bank — the wallet — as it counts, so the HUD's
+      // green tick rides the count on every win
+      if (whole > paid) { bank.add(whole - paid); paid = whole; }
       if (payRamp >= owed) {
-        chips += owed - paid; paid = owed; returned += owed;
+        if (owed > paid) bank.add(owed - paid);
+        paid = owed; returned += owed;
         endRound();
       }
       return;
@@ -282,26 +314,36 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
 
   return {
     view, tick, spin,
-    betBy: (d) => { if (phase === 'betting') betIx = Math.max(0, Math.min(BETS.length - 1, betIx + d)); },
+    betAdd: (n) => {
+      if (phase !== 'betting' || !(n > 0)) return;
+      // clamped to the bank: you cannot stack a bet the wallet cannot cover
+      bet = Math.min(bet + Math.floor(n), Math.max(0, bank.get()));
+    },
+    betClear: () => { if (phase === 'betting') bet = 0; },
     kindBy: (d) => { if (phase === 'betting') kindIx = (kindIx + d + BET_KINDS.length) % BET_KINDS.length; },
     kindSet: (k) => { if (phase === 'betting') kindIx = Math.max(0, BET_KINDS.indexOf(k)); },
     pickBy: (d) => { if (phase === 'betting') { pick = (pick + d + POCKETS) % POCKETS; kindIx = BET_KINDS.indexOf('number'); } },
     pickSet: (n) => { if (phase === 'betting' && n >= 0 && n < POCKETS) { pick = n; kindIx = BET_KINDS.indexOf('number'); } },
-    buyIn: (n) => { if (n > 0 && phase === 'betting') chips += Math.floor(n); },
-    cashOut: () => {
-      // Whatever is ON THE RAIL always comes back, whenever you stand up. A
-      // bet already spinning is gone — same contract as both other games.
-      // A WIN ALREADY ANNOUNCED comes back too: `owed − paid` is the part of
-      // a settled payout the counting animation had not yet moved onto the
-      // rail (a 35:1 hit counts for seconds), and leaving mid-count used to
-      // swallow it. Same fix, same reasoning, as the blackjack table's.
+    buyIn: (n) => { if (n > 0 && phase === 'betting') bank.add(Math.floor(n)); },
+    flush: () => {
+      // Standing up settles HONESTLY, and instantly. A win already announced
+      // is paid in full (`owed − paid`, the part a 35:1 count had not yet
+      // moved). And a LEAVE pressed MID-SPIN settles too: the pocket was
+      // drawn the moment SPIN was pressed, so the round resolves now rather
+      // than eating a bet whose result already existed — the ball show is
+      // presentation, never the decision.
+      if (phase === 'spinning') {
+        const n = WHEEL[pocketIx];
+        result = n;
+        won = wins(BET_KINDS[kindIx], pick, n);
+        owed = won ? payout(BET_KINDS[kindIx], bet) : 0;
+        history.unshift(n);
+        if (history.length > 8) history.pop();
+      }
       const due = Math.max(0, owed - paid);
-      returned += due;
-      const n = chips + due;
-      chips = 0;
+      if (due > 0) { bank.add(due); returned += due; }
       if (phase !== 'betting') { wheelBase = wheelA(); t = 0; }
-      phase = 'betting'; owed = 0; paid = 0; payRamp = 0; result = null;
-      return n;
+      phase = 'betting'; phaseT = 0; owed = 0; paid = 0; payRamp = 0;
     },
     settled: () => phase === 'betting',
   };
@@ -356,15 +398,15 @@ export const LAY = {
   /** RED / BLACK / ODD / EVEN, stacked */
   outside: { x: 142, y: 28, w: 110, h: 42, gap: 4 },
   hist: { x: 262, y: 6, w: 24, h: 16, step: 26 },
-  /** the money row, under the grid */
-  chips: { x: 8, y: 218, w: 100, h: 22 },
-  betDown: { x: 114, y: 218, w: 22, h: 22 },
-  bet: { x: 140, y: 218, w: 62, h: 22 },
-  betUp: { x: 206, y: 218, w: 22, h: 22 },
+  /** the money row, under the grid: the BET meter, then the CHIP RACK —
+   *  stack any bet a chip at a time (*"bet whatever amount"*, 2026-08-10);
+   *  each rack cell i sits at `chips.x + i·(chips.w + chips.gap)` */
+  bet: { x: 8, y: 218, w: 74, h: 22 },
+  chips: { x: 86, y: 218, w: 38, h: 22, gap: 4 },
   /** the verbs, printed in the same grammar as blackjack's regions —
-   *  *"lets make the games totally playable with just click"* */
-  buyin: { x: 8, y: 244, w: 76, h: 22 },
-  cashout: { x: 90, y: 244, w: 86, h: 22 },
+   *  *"lets make the games totally playable with just click"*. BUY IN and
+   *  CASH OUT are gone (2026-08-10): the bank is the wallet itself. */
+  clear: { x: 8, y: 244, w: 76, h: 22 },
   leave: { x: 182, y: 244, w: 70, h: 22 },
 } as const;
 
@@ -375,9 +417,8 @@ export type FeltHit =
   | { kind: 'bet'; bet: BetKind }
   | { kind: 'pick'; n: number }
   | { kind: 'spin' }
-  | { kind: 'betBy'; d: 1 | -1 }
-  | { kind: 'buyin' }
-  | { kind: 'cashout' }
+  | { kind: 'chip'; n: number }
+  | { kind: 'clear' }
   | { kind: 'leave' };
 export function feltHit(x: number, y: number): FeltHit | null {
   // the wheel IS the spin button — the ray lands on the felt under it, so a
@@ -403,15 +444,20 @@ export function feltHit(x: number, y: number): FeltHit | null {
   }
   const inBox = (b: { x: number; y: number; w: number; h: number }) =>
     x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h;
-  if (inBox(LAY.betDown)) return { kind: 'betBy', d: -1 };
-  if (inBox(LAY.betUp)) return { kind: 'betBy', d: 1 };
-  if (inBox(LAY.buyin)) return { kind: 'buyin' };
-  if (inBox(LAY.cashout)) return { kind: 'cashout' };
+  for (let i = 0; i < CHIPS.length; i++) {
+    const bx = LAY.chips.x + i * (LAY.chips.w + LAY.chips.gap);
+    if (inBox({ x: bx, y: LAY.chips.y, w: LAY.chips.w, h: LAY.chips.h })) {
+      return { kind: 'chip', n: CHIPS[i] };
+    }
+  }
+  if (inBox(LAY.clear)) return { kind: 'clear' };
   if (inBox(LAY.leave)) return { kind: 'leave' };
   return null;
 }
 
-export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null, cash?: number): void {
+// No `cash` parameter: since the buy-in layer went (2026-08-10) the table's
+// bank IS the wallet, so `v.chips` already answers the money question.
+export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null): void {
   const s = Math.max(0.1, Math.min(w / FELT.w, h / FELT.h));
   g.save();
   g.fillStyle = T.felt; g.fillRect(0, 0, w, h);
@@ -507,27 +553,27 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null
   if (v) {
     g.fillStyle = v.phase === 'settle' || v.phase === 'paying'
       ? (v.won ? T.win : T.dim) : T.dim;
-    const CHIP_HINT = 1;
-    const line = (v.phase === 'betting' && v.chips < v.bet
-      && cash !== undefined && cash < CHIP_HINT) ? 'NO CASH IN YOUR POCKETS' : v.says;
-    if (line) g.fillText(line, LAY.say.x + LAY.say.w / 2, LAY.say.y + 13);
+    // "NO CASH IN YOUR POCKETS" is the table's own line now — its bank is
+    // the wallet, so the painter no longer needs the fact handed in
+    if (v.says) g.fillText(v.says, LAY.say.x + LAY.say.w / 2, LAY.say.y + 13);
   } else {
     g.fillStyle = T.dim;
     g.fillText('EUROPEAN ROULETTE — SINGLE ZERO', LAY.say.x + LAY.say.w / 2, LAY.say.y + 13);
   }
 
-  // ── the money row, under the grid — clear of the caption band ──
+  // ── the money row, under the grid — clear of the caption band. No CHIPS
+  //    meter: the bank is the wallet and the wallet lives on the HUD, so the
+  //    felt shows only the table's own number, the bet being stacked. ──
   const meter = (mx: number, mw: number, label: string, val: string, lit: boolean) => {
-    g.fillStyle = '#12180f'; g.fillRect(mx, LAY.chips.y, mw, LAY.chips.h);
+    g.fillStyle = '#12180f'; g.fillRect(mx, LAY.bet.y, mw, LAY.bet.h);
     g.strokeStyle = T.railHi; g.lineWidth = 1;
-    g.strokeRect(mx + 0.5, LAY.chips.y + 0.5, mw - 1, LAY.chips.h - 1);
+    g.strokeRect(mx + 0.5, LAY.bet.y + 0.5, mw - 1, LAY.bet.h - 1);
     g.fillStyle = '#2c4a24'; g.font = '7px monospace'; g.textAlign = 'left';
-    g.fillText(label, mx + 4, LAY.chips.y + 15);
+    g.fillText(label, mx + 4, LAY.bet.y + 15);
     g.fillStyle = lit ? T.win : '#7ae05a';
     g.font = 'bold 12px monospace'; g.textAlign = 'right';
-    g.fillText(val, mx + mw - 4, LAY.chips.y + 16);
+    g.fillText(val, mx + mw - 4, LAY.bet.y + 16);
   };
-  meter(LAY.chips.x, LAY.chips.w, 'CHIPS', v ? String(v.chips) : '', v?.phase === 'paying');
   meter(LAY.bet.x, LAY.bet.w, 'BET', v ? String(v.bet) : '', false);
 
   // ── the printed verbs — live only. The idle table in the world keeps its
@@ -542,10 +588,14 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null
   };
   if (v) {
     const betting = v.phase === 'betting';
-    region(LAY.betDown, '−', betting, 'bold 13px monospace');
-    region(LAY.betUp, '+', betting, 'bold 13px monospace');
-    region(LAY.buyin, 'BUY IN', betting && (cash === undefined || cash >= 1));
-    region(LAY.cashout, 'CASH OUT', betting && v.chips > 0);
+    // the chip rack: a denomination stays live only while the wallet covers
+    // the stack plus it — `betAdd` clamps the same way
+    CHIPS.forEach((n, i) => {
+      const bx = LAY.chips.x + i * (LAY.chips.w + LAY.chips.gap);
+      region({ x: bx, y: LAY.chips.y, w: LAY.chips.w, h: LAY.chips.h },
+        String(n), betting && v.chips >= v.bet + n);
+    });
+    region(LAY.clear, 'CLEAR', betting && v.bet > 0);
     region(LAY.leave, 'LEAVE', true);
   }
 
@@ -560,9 +610,13 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null
     g.beginPath(); g.arc(cx, cy, r2, 0, TAU); g.fill();
     g.fillStyle = T.goldLo;
     g.beginPath(); g.arc(cx, cy, r2, 0, TAU); g.arc(cx, cy, r2 - 3, 0, TAU, true); g.fill();
-    g.fillStyle = T.black; g.font = 'bold 7px monospace'; g.textAlign = 'center';
+    // free bets run to three or four digits — shrink to fit; the BET meter
+    // is the authoritative readout, the chip label is the glance
+    g.fillStyle = T.black; g.textAlign = 'center';
+    g.font = `bold ${v.bet >= 100 ? 5 : 7}px monospace`;
     g.fillText(String(v.bet), cx, cy + 3);
   };
+  if (v.bet < 1) { g.restore(); return; }   // nothing staked, nothing riding
   if (v.kind === 'number') {
     // r 7 on a cell — a 14 px chip in a 14 px row covers its own number and
     // stays off the neighbours' (the overlap audit's finding at r 9)
@@ -598,27 +652,21 @@ let openStanding: (() => void) | null = null;
 export function openTable(): void { openStanding?.(); }
 
 export function register(ctx: CtxBuild): void {
-  const table = createTable();
+  let CHIP = 1;
+  // THE BANK IS THE WALLET — same wiring, same day, same quote as
+  // ct/blackjack.ts's: *"i dont like this cash out buy in thing. i just want
+  // it simple."* SPIN takes the bet straight from the purse, wins count
+  // straight back in (the HUD's green tick fires per win), and flush() on
+  // close settles anything still owed — including a spin left mid-flight.
+  const table = createTable({
+    bank: {
+      get: () => Math.floor(ctx.purse.cash / CHIP + 1e-9),
+      add: (d) => { ctx.purse.cash += d * CHIP; ctx.refreshWallet(); },
+    },
+  });
   let panel: Panel | null = null;
   let lastT = -1;
   openStanding = () => panel?.open();
-  let CHIP = 1;
-
-  const cashOut = () => {
-    const n = table.cashOut();
-    if (n <= 0) return;
-    ctx.purse.cash += n * CHIP;
-    ctx.refreshWallet();
-  };
-  const buyIn = () => {
-    if (!table.settled()) return;
-    const spend = Math.min(20, ctx.purse.cash);          // a twenty, at a table
-    const chips = Math.floor(spend / CHIP);
-    if (chips <= 0) return;
-    ctx.purse.cash -= chips * CHIP;
-    ctx.refreshWallet();
-    table.buyIn(chips);
-  };
 
   void Promise.all([import('./hud'), import('./slots')]).then(([{ makePanel }, slots]) => {
     CHIP = slots.CREDIT;               // ONE exchange rate for the whole casino
@@ -635,9 +683,9 @@ export function register(ctx: CtxBuild): void {
       w: FELT.w, h: FELT.h, scale: 2,
       chrome: 'none',
       hint: () => (table.view().phase === 'betting'
-        ? 'click a bet, then the wheel · SPACE spins'
+        ? 'stack chips on a bet, then click the wheel · SPACE spins'
         : 'no more bets'),
-      draw: (g, w, h) => paintTable(g, w, h, table.view(), ctx.purse.cash),
+      draw: (g, w, h) => paintTable(g, w, h, table.view()),
       // CLICK-ONLY (2026-08-09): *"make that click only. maybe the spin/pull
       // lever is still space tho"* — so SPACE keeps exactly one meaning, SPIN,
       // and every other verb is a printed region on the felt. Escape and [E]
@@ -662,8 +710,9 @@ export function register(ctx: CtxBuild): void {
           if (hit.kind === 'leave') return true;
           const v = table.view();
           if (v.phase !== 'betting') return false;
-          if (hit.kind === 'buyin') return ctx.purse.cash >= CHIP;
-          if (hit.kind === 'cashout') return v.chips > 0;
+          if (hit.kind === 'spin') return v.bet >= 1 && v.chips >= v.bet;
+          if (hit.kind === 'chip') return v.chips >= v.bet + hit.n;
+          if (hit.kind === 'clear') return v.bet > 0;
           return true;
         },
         click: (x, y) => {
@@ -674,13 +723,14 @@ export function register(ctx: CtxBuild): void {
           if (hit.kind === 'spin') table.spin();
           else if (hit.kind === 'bet') table.kindSet(hit.bet);
           else if (hit.kind === 'pick') table.pickSet(hit.n);
-          else if (hit.kind === 'buyin') buyIn();
-          else if (hit.kind === 'cashout') cashOut();
-          else table.betBy(hit.d);
+          else if (hit.kind === 'chip') table.betAdd(hit.n);
+          else if (hit.kind === 'clear') table.betClear();
           panel?.repaint();
         },
       },
-      onClose: () => { cashOut(); },
+      // money never pools at the felt, so closing is honest by construction;
+      // flush() pays any win still counting and resolves a spin in flight
+      onClose: () => { table.flush(); },
     });
   });
 

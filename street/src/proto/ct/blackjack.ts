@@ -474,7 +474,8 @@ export interface HandView {
 
 export interface TableView {
   readonly phase: Phase;
-  /** chips in front of the player. Not money — see `cashOut`. */
+  /** what the wallet can stake right now, in chips — the bank's balance.
+   *  There is no rail: chips never pool at the table (2026-08-10). */
   readonly chips: number;
   readonly bet: number;
   readonly hands: readonly HandView[];
@@ -499,49 +500,66 @@ export interface TableView {
 export interface Table {
   view(): TableView;
   tick(dt: number): void;
-  /** raise or lower the stake between hands */
-  betBy(d: number): void;
-  /** deal a round. False if it cannot — no chips, or a hand in progress. */
+  /** stack another chip on the stake, between hands. Clamped to the bank. */
+  betAdd(n: number): void;
+  betClear(): void;
+  /** deal a round. False if it cannot — no bet, no cash, or a hand going. */
   deal(): boolean;
   act(m: Move): boolean;
+  /** fund the DEFAULT bank — the headless checks' way in. The world injects
+   *  the wallet as `opts.bank` and never calls this. */
   buyIn(chips: number): void;
-  cashOut(): number;
+  /** leave: pay anything the house still owes straight to the bank and clear
+   *  the felt. The wiring calls this whenever the panel closes. */
+  flush(): void;
   settled(): boolean;
 }
 
 /**
- * THE STAKES, AND WHY THEY ARE ALL EVEN.
- *
- * A blackjack pays 3:2, so an ODD bet pays a half chip — and it did: twenty
- * hands of playtesting left the rail reading `101.5`, and `cashOut` handed that
- * to `ctx.purse.cash` as `25.375`, a third of a cent the wallet paints as
- * $25.38 while holding something else. That is float money in the one account,
- * which is precisely the fault `ct/slots.ts` fixed by paying in whole credits.
- *
- * A real table solves it with a MINIMUM, which is what a minimum is partly for:
- * every stake here is even, so 3:2 is always a whole number of chips, and so is
- * a double (2x) and a split (two equal bets). At 25c a chip this is a 50c
- * table, which is what a 1997 neighbourhood floor would have had.
- *
- * The alternative — rounding the payout down — would have quietly shortchanged
- * the player on every natural, which is the same swindle as 6:5 wearing a
- * different hat.
+ * WHERE THE MONEY LIVES: nowhere on the table. 2026-08-10, Erick: *"i dont
+ * like this cash out buy in thing. i just want it simple."* So the buy-in /
+ * cash-out layer is gone — the table plays straight against a BANK, and the
+ * world hands it the wallet: a bet leaves the purse the moment you DEAL, a
+ * win counts straight back in (which is what makes the HUD's green tick fire
+ * on every win, the thing he loves watching). Nothing ever pools at the
+ * table, so there is nothing a walk-away can lose — the contract the slot
+ * cabinets moved to the same day (see ct/slotcab.ts).
  */
-const BETS = [2, 4, 10, 20, 50];
+export interface Bank {
+  /** whole chips the player can stake right now */
+  get(): number;
+  /** move chips: negative stakes a bet, positive pays a win */
+  add(d: number): void;
+}
 
 /**
- * A table. Holds a shoe, the chips in front of you and a hand in progress;
- * knows nothing about money, panels, seats or the world.
+ * THE CHIP RACK — the denominations printed on the felt. *"i want to be able
+ * to bet whatever amount"* (2026-08-10), so the fixed even-bet ladder is
+ * gone: you stack any bet a chip at a time, up to the wallet, CLEAR to start
+ * over.
  *
- * Same shape as `createMachine` in `ct/slots.ts` on purpose — chips exist only
- * between sitting down and standing up, `cashOut` empties the rail, and
- * whatever wires it up is required to call that when the player leaves. It is
- * what makes "two games, one wallet" true rather than hoped for.
+ * ODD BETS ARE LEGAL NOW. The ladder was all-even so 3:2 never paid a half
+ * chip; at the casino's $1 chip (`CREDIT` in ct/slots.ts) a half chip is
+ * 50¢ — exact in cents and exact in binary floating point, so the float-money
+ * fault that forced the even ladder (a third of a cent, at the old 25¢ chip)
+ * cannot happen. If CREDIT ever becomes an odd number of cents, this is the
+ * comment to reread.
  */
-export function createTable(opts: { rng?: Rng } = {}): Table {
+export const CHIPS = [1, 5, 25, 100] as const;
+
+/**
+ * A table. Holds a shoe and a hand in progress; knows nothing about panels,
+ * seats or the world, and holds NO money of its own — every chip staked or
+ * paid moves through the `Bank` the caller injects, which in the world is
+ * K's wallet itself. The default bank is a plain pocket so the headless
+ * checks can fund a table with `buyIn()` and play a million hands.
+ */
+export function createTable(opts: { rng?: Rng; bank?: Bank } = {}): Table {
   const shoe = makeShoe(opts.rng ?? Math.random);
+  const bank: Bank = opts.bank
+    ?? (() => { let n = 0; return { get: () => n, add: (d: number) => { n += d; } }; })();
   let phase: Phase = 'betting';
-  let chips = 0, betIx = 0, t = 0;
+  let bet = 0, t = 0;
   let staked = 0, returned = 0;
   let hands: { cards: Placed[]; bet: number; done: boolean; outcome: Outcome; bj: boolean }[] = [];
   let dealer: Placed[] = [];
@@ -570,9 +588,9 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
   };
 
   const canDouble = (h: typeof hands[0]) =>
-    h.cards.length === 2 && chips >= h.bet && (hands.length === 1 || RULES.doubleAfterSplit);
+    h.cards.length === 2 && bank.get() >= h.bet && (hands.length === 1 || RULES.doubleAfterSplit);
   const canSplit = (h: typeof hands[0]) =>
-    h.cards.length === 2 && hands.length < RULES.maxHands && chips >= h.bet
+    h.cards.length === 2 && hands.length < RULES.maxHands && bank.get() >= h.bet
     && cardValue(h.cards[0].card.r) === cardValue(h.cards[1].card.r);
 
   const movesFor = (): Move[] => {
@@ -620,8 +638,8 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
   };
 
   /** what a hand whose outcome is ALREADY decided (the peek's naturals and
-   *  pushes) pays — one formula, read by `settle` and by `cashOut` for the
-   *  window where the outcome is announced but `settle` has not run yet */
+   *  pushes) pays — one formula, read by `settle`, which `flush` runs too,
+   *  covering the window where an outcome is announced but not yet settled */
   const preOwed = (h: { bet: number; outcome: Outcome }): number =>
     h.outcome === 'blackjack' ? h.bet * (1 + RULES.blackjackPays)
       : h.outcome === 'push' ? h.bet : 0;
@@ -641,7 +659,16 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
   };
 
   const says = (): string => {
-    if (phase === 'betting') return chips < BETS[betIx] ? 'BUY IN TO PLAY' : 'PLACE YOUR BET';
+    if (phase === 'betting') {
+      // The bank IS the wallet, so the one fact the painter used to be handed
+      // — is "no money" true of the pockets or just the rail — no longer
+      // splits in two. One balance, one message.
+      const b = bank.get();
+      if (b < 1) return 'NO CASH IN YOUR POCKETS';
+      if (bet < 1) return 'PLACE YOUR BET';
+      if (b < bet) return 'NOT ENOUGH FOR THAT BET';
+      return `${bet} ON THE SPOT — DEAL WHEN READY`;
+    }
     if (phase === 'dealing') return 'DEALING';
     if (phase === 'player') {
       const h = hands[active];
@@ -668,7 +695,7 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
   };
 
   const view = (): TableView => ({
-    phase, chips, bet: BETS[betIx], active, t, holeTurnT,
+    phase, chips: bank.get(), bet, active, t, holeTurnT,
     hands: hands.map((h) => hv(h.cards, h.bet, h.done, h.outcome, h.bj)),
     dealer: hv(dealer, 0, phase !== 'player' && phase !== 'dealing', null, isBlackjack(dealer.map((c) => c.card))),
     moves: movesFor(), says: says(), paid, staked, returned,
@@ -735,9 +762,13 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
     if (phase === 'paying') {
       payRamp = Math.min(owed, payRamp + PACE.payRate * dt);
       const whole = Math.min(owed, Math.floor(payRamp));
-      chips += whole - paid; paid = whole;
+      // Straight into the bank — the wallet — as it counts, whole chips at a
+      // time so the HUD's tick rides the count; the 3:2 half-chip (50¢, exact
+      // — see CHIPS) lands with the final remainder.
+      if (whole > paid) { bank.add(whole - paid); paid = whole; }
       if (payRamp >= owed) {
-        chips += owed - paid; paid = owed; returned += owed;
+        if (owed > paid) bank.add(owed - paid);
+        paid = owed; returned += owed;
         phase = 'betting'; hands = []; dealer = [];
       }
       return;
@@ -756,7 +787,7 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
       return true;
     }
     if (m === 'double') {
-      chips -= h.bet; staked += h.bet; h.bet *= 2;
+      bank.add(-h.bet); staked += h.bet; h.bet *= 2;
       place(h.cards);
       h.done = true; queueAdvance();
       return true;
@@ -764,7 +795,7 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
     if (m === 'split') {
       splitAces = h.cards[0].card.r === 1;
       const moved = h.cards.pop()!;
-      chips -= h.bet; staked += h.bet;
+      bank.add(-h.bet); staked += h.bet;
       const second = { cards: [moved], bet: h.bet, done: false, outcome: null as Outcome, bj: false };
       hands.splice(active + 1, 0, second);
       // One card to each of the two hands, in order, so the felt shows the
@@ -793,16 +824,17 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
   return {
     view,
     tick: (dt) => { tick(dt); tickPending(); },
-    betBy: (d) => {
-      if (phase !== 'betting') return;
-      betIx = Math.max(0, Math.min(BETS.length - 1, betIx + d));
+    betAdd: (n) => {
+      if (phase !== 'betting' || !(n > 0)) return;
+      // clamped to the bank: you cannot stack a bet the wallet cannot cover
+      bet = Math.min(bet + Math.floor(n), Math.max(0, bank.get()));
     },
+    betClear: () => { if (phase === 'betting') bet = 0; },
     deal: () => {
       if (phase !== 'betting') return false;
-      const bet = BETS[betIx];
-      if (chips < bet) return false;
+      if (bet < 1 || bank.get() < bet) return false;
       if (shoe.remaining() <= 12) shoe.shuffle();     // the cut card, between rounds only
-      chips -= bet; staked += bet;
+      bank.add(-bet); staked += bet;
       hands = [{ cards: [], bet, done: false, outcome: null, bj: false }];
       dealer = []; active = -1; holeTurnT = -1; splitAces = false;
       ready = t; phase = 'dealing'; phaseT = 0;
@@ -817,29 +849,36 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
       return true;
     },
     act,
-    buyIn: (n) => { if (n > 0 && phase === 'betting') chips += Math.floor(n); },
-    cashOut: () => {
-      // Same contract as the slot machine's: whatever is ON THE RAIL always
-      // comes back, whenever you stand up. A bet already in the middle of a
-      // hand is gone, exactly as it is at a real table.
+    buyIn: (n) => { if (n > 0 && phase === 'betting') bank.add(Math.floor(n)); },
+    flush: () => {
+      // Standing up (Escape, [E], the printed LEAVE) settles the table
+      // HONESTLY and instantly. Money never pools here, so most of the time
+      // there is nothing to do — but anything the house still owes (`owed −
+      // paid`, a win the counting animation had not finished moving) goes
+      // straight to the bank before the felt clears.
       //
-      // …AND SO DOES WHATEVER THE HOUSE STILL OWES. `owed − paid` is a win
-      // that has been settled but not yet counted onto the rail — the pay
-      // animation runs at PACE.payRate and a big double can take seconds.
-      // Standing up (or Escape, or a printed LEAVE) mid-count used to zero it
-      // with the round: money the table had already announced, swallowed by
-      // leaving too fast. A dealer pushes your winnings after you stand up;
-      // so does this one. The `preOwed` term covers the one window where an
-      // outcome is decided but `settle` has not run — the peek's naturals,
-      // announced at the hole-card turn a second before settlement.
-      const due = Math.max(0, owed - paid)
-        + (owed === 0 && paid === 0 ? hands.reduce((s, h) => s + preOwed(h), 0) : 0);
-      returned += due;
-      const n = chips + due;
-      chips = 0;
-      phase = 'betting'; hands = []; dealer = []; active = -1;
-      owed = 0; paid = 0; payRamp = 0;
-      return n;
+      // MID-DEALER, THE ROUND PLAYS OUT FIRST. Once your decisions are made
+      // the bet is beyond your hands — a real dealer finishes the draw and
+      // pays whether you stand at the rail or not, and an Escape pressed in
+      // the 600 ms between dealer cards must never eat a hand you had
+      // already won. (This also covers the peek's naturals: their outcome is
+      // set, so the dealer draws nothing and `settle` pays them — the window
+      // `preOwed` was written for.) Mid-DEAL or mid-DECISION there is
+      // nothing to settle: the bet in the middle is forfeit, exactly as at a
+      // real table.
+      if (phase === 'dealer') {
+        const alive = hands.some((h) => !h.outcome && !value(h.cards.map((c) => c.card)).bust);
+        if (alive) {
+          while (dealerDraws(value(dealer.map((c) => c.card)))) {
+            dealer.push({ card: shoe.draw(), t0: t, faceDown: false });
+          }
+        }
+        settle();
+      }
+      const due = Math.max(0, owed - paid);
+      if (due > 0) { bank.add(due); returned += due; }
+      phase = 'betting'; hands = []; dealer = []; active = -1; holeTurnT = -1;
+      owed = 0; paid = 0; payRamp = 0; queue = []; pending.length = 0;
     },
     settled: () => phase === 'betting',
   };
@@ -873,14 +912,6 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
  *  aspect exactly (1.882) and an even 320 px/m — BUILDER-BRIEF §7b's
  *  same-both-ways rule, so nothing stretches between build and play. */
 export const FELT = { w: 512, h: 272 } as const;
-
-/** What one chip costs, for the ONE question the felt has to answer about money:
- *  can this player buy in at all. The authority is `CREDIT` in `ct/slots.ts` and
- *  `register()` below reads it from there — this is the painter's fallback for
- *  when it is drawn outside the world, and the in-world check asserts the two
- *  agree so the fallback cannot quietly become a second rate. */
-let CHIP_HINT = 0.25;
-export const setChipValue = (v: number): void => { CHIP_HINT = v; };
 
 const T = {
   felt: '#1e5a3e', feltLo: '#17462f', feltHi: '#2a6d4c',
@@ -933,7 +964,7 @@ export const buttonIx = (x: number, y: number, n: number): number | null => {
   return null;
 };
 
-export type BtnAct = 'deal' | 'betdown' | 'betup' | 'buyin' | 'cashout' | 'leave'
+export type BtnAct = 'deal' | 'chip' | 'clear' | 'leave'
   | 'hit' | 'stand' | 'double' | 'split';
 /**
  * What the printed regions mean RIGHT NOW. The rules speaking, never a fixed
@@ -944,14 +975,19 @@ export type BtnAct = 'deal' | 'betdown' | 'betup' | 'buyin' | 'cashout' | 'leave
  * became the ONLY way: *"make that click only"*. The table binds no game keys
  * at all now. Escape and [E] still leave — framework law — and LEAVE is
  * printed on the felt with the rest.
+ *
+ * BUY IN and CASH OUT are GONE (2026-08-10, *"i dont like this cash out buy
+ * in thing"*): the betting row is the chip rack — stack any bet a chip at a
+ * time, CLEAR, DEAL. A `chip` region carries its denomination in `n`.
  */
-export const buttonsFor = (v: TableView, cash?: number): { label: string; act: BtnAct; live: boolean }[] =>
+export const buttonsFor = (v: TableView): { label: string; act: BtnAct; n?: number; live: boolean }[] =>
   v.phase === 'betting'
-    ? [{ label: 'DEAL', act: 'deal', live: v.chips >= v.bet },
-       { label: 'BET −', act: 'betdown', live: true },
-       { label: 'BET +', act: 'betup', live: true },
-       { label: 'BUY IN', act: 'buyin', live: cash === undefined || cash >= CHIP_HINT },
-       { label: 'CASH OUT', act: 'cashout', live: v.chips > 0 },
+    ? [...CHIPS.map((n): { label: string; act: BtnAct; n?: number; live: boolean } => ({
+         // a chip stays live only while the wallet covers the stack PLUS it
+         label: String(n), act: 'chip', n, live: v.chips >= v.bet + n,
+       })),
+       { label: 'CLEAR', act: 'clear', live: v.bet > 0 },
+       { label: 'DEAL', act: 'deal', live: v.bet >= 1 && v.chips >= v.bet },
        { label: 'LEAVE', act: 'leave', live: true }]
     : [{ label: 'HIT', act: 'hit', live: v.moves.includes('hit') },
        { label: 'STAND', act: 'stand', live: v.moves.includes('stand') },
@@ -1076,10 +1112,9 @@ const paintHand = (
  */
 export function paintTable(
   g: Paint2D, w: number, h: number, v: TableView | null,
-  /** the player's POCKETS, in the wallet's units. Same contract as the slot
-   *  machine's: the table knows nothing about dollars and is handed the one
-   *  fact it cannot derive — whether "BUY IN TO PLAY" is advice or a taunt. */
-  cash?: number,
+  // No `cash` parameter any more: since the buy-in layer went (2026-08-10)
+  // the table's bank IS the wallet, so `v.chips` already answers the one
+  // money question the painter used to be handed separately.
   /** which printed region the pointer is over, from `buttonIx`, or null */
   hover: number | null = null,
 ): void {
@@ -1155,7 +1190,9 @@ export function paintTable(
     g.beginPath(); g.arc(hx - 58, LAYOUT.player.y + 43, 10, 0, Math.PI * 2); g.fill();
     g.fillStyle = T.goldLo;
     g.beginPath(); g.arc(hx - 58, LAYOUT.player.y + 43, 6, 0, Math.PI * 2); g.fill();
-    g.fillStyle = T.black; g.font = 'bold 9px monospace'; g.textAlign = 'center';
+    // free bets can run to three or four digits now — shrink to fit the chip
+    g.fillStyle = T.black; g.textAlign = 'center';
+    g.font = `bold ${hand.bet >= 100 ? 7 : 9}px monospace`;
     g.fillText(String(hand.bet), hx - 58, LAYOUT.player.y + 46);
     if (hand.outcome) {
       // OPPOSITE THE CHIP, on the badge's line. Kept per-hand even though the
@@ -1179,12 +1216,10 @@ export function paintTable(
   g.fillStyle = T.feltHi; g.fillRect(sx, sy, sw, 1);
   g.textAlign = 'center'; g.font = '9px monospace';
   g.fillStyle = v.phase === 'settle' || v.phase === 'paying' ? T.win : T.dim;
-  // Telling a player with nothing in their pockets to BUY IN is the same taunt
-  // the slot machine used to give — see the note beside `NO CASH IN YOUR
-  // POCKETS` in ct/slots.ts. One fact, two games, said the same way.
-  const says = (v.phase === 'betting' && v.chips < v.bet
-    && cash !== undefined && cash < CHIP_HINT) ? 'NO CASH IN YOUR POCKETS' : v.says;
-  if (says) g.fillText(says, sx + sw / 2, sy + 13);
+  // "NO CASH IN YOUR POCKETS" is the table's own line now — its bank is the
+  // wallet, so the taunt-vs-advice distinction ct/slots.ts taught no longer
+  // needs a second fact handed in.
+  if (v.says) g.fillText(v.says, sx + sw / 2, sy + 13);
 
   // ── the meters, printed like a scoreboard let into the felt ──
   const meter = (mx: number, mw: number, label: string, val: string, lit: boolean) => {
@@ -1197,7 +1232,9 @@ export function paintTable(
     g.font = 'bold 12px monospace'; g.textAlign = 'right';
     g.fillText(val, mx + mw - 4, LAYOUT.meterY + 14);
   };
-  meter(14, 104, 'CHIPS', String(v.chips), v.phase === 'paying');
+  // No CHIPS meter: the bank is the wallet and the wallet lives on the HUD —
+  // a second cash readout on the felt would be slotcab.ts's "janky ass money
+  // screen" wearing green baize. BET and PAID are the table's own numbers.
   meter(374, 56, 'BET', String(v.bet), false);
   meter(436, 62, 'PAID', String(v.paid), v.phase === 'paying');
 
@@ -1207,7 +1244,7 @@ export function paintTable(
   // painter's own opinion. `buttonsFor` reads `moves` — the rules speaking —
   // and the click handler reads the SAME table, so a region drawn live here
   // and refused by `act` cannot happen.
-  const btns = buttonsFor(v, cash);
+  const btns = buttonsFor(v);
   btns.forEach((b, i) => {
     const r = btnRect(i, btns.length);
     g.fillStyle = b.live ? (i === hover ? '#f0d68a' : T.gold) : '#3c443c';
@@ -1293,36 +1330,30 @@ let openStanding: (() => void) | null = null;
 export function openTable(): void { openStanding?.(); }
 
 export function register(ctx: CtxBuild): void {
-  const table = createTable();
-  let panel: Panel | null = null;
-  let lastT = -1;
-  openStanding = () => panel?.open();
   /** What a chip is worth. NOT a second number — read from `ct/slots.ts`, which
    *  is where the one rate lives, so the casino cannot quietly have two
    *  exchange rates in two rooms of the same building. */
-  let CHIP = 0.25;
-
-  const cashOut = () => {
-    const n = table.cashOut();
-    if (n <= 0) return;
-    ctx.purse.cash += n * CHIP;
-    ctx.refreshWallet();
-  };
-  const buyIn = () => {
-    if (!table.settled()) return;
-    const spend = Math.min(20, ctx.purse.cash);          // a twenty, at a table
-    const chips = Math.floor(spend / CHIP);
-    if (chips <= 0) return;
-    ctx.purse.cash -= chips * CHIP;
-    ctx.refreshWallet();
-    table.buyIn(chips);
-  };
+  let CHIP = 1;
+  // THE BANK IS THE WALLET. 2026-08-10, Erick: *"i dont like this cash out
+  // buy in thing. i just want it simple."* No buy-in, no rail, no cash-out:
+  // DEAL takes the bet straight out of the purse, and every win counts
+  // straight back in — which is exactly what makes the HUD's green tick fire
+  // per win, the thing he loves watching in this room. `flush()` on close
+  // pays anything the count had not finished; money never pools at the felt.
+  const table = createTable({
+    bank: {
+      get: () => Math.floor(ctx.purse.cash / CHIP + 1e-9),
+      add: (d) => { ctx.purse.cash += d * CHIP; ctx.refreshWallet(); },
+    },
+  });
+  let panel: Panel | null = null;
+  let lastT = -1;
+  openStanding = () => panel?.open();
 
   /** which printed region the pointer is over, for the painter's wash */
   let hover: number | null = null;
   void Promise.all([import('./hud'), import('./slots')]).then(([{ makePanel }, slots]) => {
     CHIP = slots.CREDIT;
-    setChipValue(CHIP);          // one rate, and the felt reads the same one
     panel = makePanel({
       // ON THE FELT ITSELF. 2026-08-09: *"blackjack and roulettte need to be
       // diagetic similar to all the other locked perspective UIs."* The canvas
@@ -1341,9 +1372,9 @@ export function register(ctx: CtxBuild): void {
       // Every verb is a printed region on the felt (`buttonsFor`); Escape and
       // [E] still leave, through the framework.
       hint: () => (table.view().phase === 'betting'
-        ? 'click the felt — the buttons are printed on it'
+        ? 'stack chips on the felt, then DEAL'
         : 'click the felt — HIT · STAND · DOUBLE · SPLIT'),
-      draw: (g, w, h) => paintTable(g, w, h, table.view(), ctx.purse.cash, hover),
+      draw: (g, w, h) => paintTable(g, w, h, table.view(), hover),
       surface: {
         mesh: () => ctx.scene.getObjectByName('blackjack-felt') ?? null,
         // the eye clamps to 1.75 m over the floor (`poseFor`), so 0.92 above
@@ -1354,35 +1385,34 @@ export function register(ctx: CtxBuild): void {
         fov: 62,
         faceYaw: 0,
         hot: (x, y) => {
-          const btns = buttonsFor(table.view(), ctx.purse.cash);
+          const btns = buttonsFor(table.view());
           const i = buttonIx(x, y, btns.length);
           return i !== null && btns[i].live;
         },
-        move: (x, y) => { hover = buttonIx(x, y, buttonsFor(table.view(), ctx.purse.cash).length); },
+        move: (x, y) => { hover = buttonIx(x, y, buttonsFor(table.view()).length); },
         click: (x, y) => {
-          const btns = buttonsFor(table.view(), ctx.purse.cash);
+          const btns = buttonsFor(table.view());
           const i = buttonIx(x, y, btns.length);
           if (i === null) return;
           const b = btns[i];
           if (!b.live) return;
           if (b.act === 'deal') table.deal();
-          else if (b.act === 'betdown') table.betBy(-1);
-          else if (b.act === 'betup') table.betBy(1);
-          else if (b.act === 'buyin') buyIn();
-          else if (b.act === 'cashout') cashOut();
-          // LEAVE closes the panel — Escape's own path, so onClose cashes the
-          // rail out exactly as if the player had pressed the key. [E] still
-          // leaves too, through the framework.
+          else if (b.act === 'chip') table.betAdd(b.n ?? 0);
+          else if (b.act === 'clear') table.betClear();
+          // LEAVE closes the panel — Escape's own path, so onClose flushes
+          // the table exactly as if the player had pressed the key. [E]
+          // still leaves too, through the framework.
           else if (b.act === 'leave') { panel?.close(); return; }
           else table.act(b.act);
           panel?.repaint();
         },
       },
-      // Same contract as the slot machine's: the chips always come back, so
-      // "what you win is in your wallet when you walk away" is true by
-      // construction rather than by remembering to press a button — a mid-hand
-      // exit forfeits only the bet already in the middle, as at a real table.
-      onClose: () => { hover = null; cashOut(); },
+      // The wallet already holds everything but the bet in play, so leaving
+      // is honest by construction; flush() pays any win the count had not
+      // finished moving (and plays out a mid-dealer round) before the felt
+      // clears — a mid-decision exit forfeits only the bet in the middle,
+      // as at a real table.
+      onClose: () => { hover = null; table.flush(); },
     });
   });
 
