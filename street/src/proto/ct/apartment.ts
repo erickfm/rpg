@@ -41,6 +41,8 @@ import { drawerPanel, liningCanvas, paintLiningOnly, DRAWER_W, DRAWER_D } from '
  *  months. See the note where `CAL_WEEK` is declared. */
 import { RENT, seasonPage, isRentDay, nextDueDay, noticeDay, DAYS_PER_SEASON,
   SEASON_INK } from './calendar';
+/** the view is world state a returning player must keep — see 'apt-view' */
+import { registerSlice } from './save';
 
 // ── No. 227 — the player's walk-up ────────────────────────────────────────
 // Four stories, a switchback stair, your place (301) on the third floor,
@@ -116,6 +118,11 @@ function stampNum(g: CanvasRenderingContext2D, num: string, x0: number, y0: numb
  * and the buildings across the street through the glass. Confirmed by warping
  * there and looking at it, not by reasoning about it.
  *
+ * ⚠ SINCE 2026-08-10 THE WINDOW IS AN UPGRADE (see `VIEW_RENT`): a fresh
+ * world wakes facing the blank west wall, and the view above is what the
+ * landlord sells back. The spawn does not move for that — the wall the ask
+ * traded the view for is the honest first frame of the default room.
+ *
  * ── the two things that had to be checked ──
  *
  * GOTCHAS 7, the stacked-storey floor picker: `groundAt` reads 5.4 here and
@@ -147,6 +154,49 @@ export const SPAWN = {
   yaw: -Math.PI / 2,
   gy: 2 * ST0,
 };
+
+// ══ A ROOM WITH A VIEW ══════════════════════════════════════════════════════
+//
+// *"remove the window and windowsill from the apt. instead, you can ask the
+//  landlord once you pay your rent for 'a room with a view' it costs 1k a
+//  month and its the current room."*   (2026-08-10)
+//
+// So the room everybody had — window, sill, plant, mug, the light well — is
+// the PREMIUM room now. What you get by default is that room with a solid
+// west wall. Once your rent is paid up, the landlord (ct/tenancy.ts) offers
+// "a room with a view": take it and the window comes back exactly as it was,
+// and the rent is $1,000 a season from then on — that IS the price, not a
+// surcharge on top of the $500; the upgraded room simply rents at $1,000.
+//
+// The whole window package lives in one group and the hole in the wall gets a
+// fifth `wallMesh` piece that exactly fills it, so the toggle is two
+// `visible` flags — the upgrade restores today's look to the pixel, and the
+// default wall is real wallpaper on real wall, not a patch.
+//
+// DEFAULT IS WINDOWLESS, for new worlds AND for existing saves: the slice
+// ('apt-view', registered at build) only ever turns the view ON, so a save
+// that has never bought it — including every save from before this change —
+// wakes up to the blank wall. That is the ask.
+/** what the room with a view rents at, $/season — ct/tenancy.ts charges this
+ *  through `rentNow()` the moment the view is granted */
+export const VIEW_RENT = 1000;
+let viewOn = false;
+/** set at build by `buildApartment`; flips the meshes and re-grades the light */
+let viewApply: ((on: boolean) => void) | null = null;
+/** does 301 have its window? */
+export function hasView(): boolean { return viewOn; }
+/** the rent as it stands: `RENT.amount` for the blank-wall room, `VIEW_RENT`
+ *  once the view is bought. EVERY place that charges or quotes rent reads this
+ *  (ct/tenancy.ts, the wall calendar's event line), so the bill, the notice,
+ *  the arrears and the landlord can never disagree about the figure. */
+export function rentNow(): number { return viewOn ? VIEW_RENT : RENT.amount; }
+/** the landlord's verb: put the window back, for good. One-way on purpose —
+ *  nothing in the ask sells the view back, so there is no revoke. */
+export function grantView(): void {
+  if (viewOn) return;
+  viewOn = true;
+  viewApply?.(true);
+}
 
 export interface Apartment {
   /**
@@ -2714,6 +2764,23 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     // The collider is untouched and still spans the whole wall, so the hole is
     // in the geometry only and you cannot walk through the window.
+    //
+    // ── A ROOM WITH A VIEW (see the module-level note by `VIEW_RENT`) ─────
+    // The window is an UPGRADE now. Everything that only exists because the
+    // window does — glass, bars, the light well, reveals, sill, plant, mug,
+    // architrave — goes into `viewGrp`; a FIFTH wallMesh piece (`winFill`)
+    // exactly fills the hole for the default, windowless room. The two are
+    // never visible together: `applyView` at the foot of the light-switch
+    // section flips them and re-grades the room's light.
+    //
+    // `winFill` shares the four pieces' texture convention (u from z0, v from
+    // y0), so the paper runs unbroken across all five and the filled wall
+    // reads as one wall. Its jamb-painted side faces sit back-to-back against
+    // the cut faces of the pieces around it — coplanar with OPPOSITE normals,
+    // so one of each pair is always backfacing and nothing z-fights.
+    const viewGrp = new THREE.Group();
+    scene.add(viewGrp);
+    let winFill: THREE.Mesh;
     {
       const WY = 2 * ST + 1.5, WH = 1.3, WZ = R301_CZ, WW = 1.3;
       const y0 = 2 * ST, y1 = 2 * ST + R301_H;
@@ -2724,6 +2791,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       wallMesh(R301_D, y1 - oy1, AX(R301_X0), (oy1 + y1) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, oy1 - y0);
       wallMesh(oz0 - z0, WH, AX(R301_X0), WY, AZI((z0 + oz0) / 2), Math.PI / 2, roomWallT, 0, oy0 - y0);
       wallMesh(z1 - oz1, WH, AX(R301_X0), WY, AZI((oz1 + z1) / 2), Math.PI / 2, roomWallT, oz1 - z0, oy0 - y0);
+      winFill = wallMesh(WW, WH, AX(R301_X0), WY, AZI(WZ), Math.PI / 2, roomWallT, oz0 - z0, oy0 - y0);
     }
     wallMesh(R301_W, R301_H, AX(R301_CX), 2 * ST + R301_H / 2, AZI(R301_Z0), 0, roomWallT);
     wallMesh(R301_W, R301_H, AX(R301_CX), 2 * ST + R301_H / 2, AZI(R301_Z1), Math.PI, roomWallT);
@@ -2899,12 +2967,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         depthWrite: false, side: THREE.DoubleSide }));
     glass.position.set(AX(GLASS_X), WIN_Y, AZI(WIN_LZ));
     glass.rotation.y = Math.PI / 2;
-    scene.add(glass);
+    viewGrp.add(glass);
     // and the glazing bars, which were painted into that same texture and had
     // to become real when it went — a window with no bars reads as a hole
     const barM = new THREE.MeshBasicMaterial({ color: 0x3a2c22 });
-    box(0.035, WIN_H, 0.05, GLASS_X + 0.02, WIN_Y, WIN_LZ, barM);
-    box(0.035, 0.05, WIN_W, GLASS_X + 0.02, WIN_Y, WIN_LZ, barM);
+    viewGrp.add(box(0.035, WIN_H, 0.05, GLASS_X + 0.02, WIN_Y, WIN_LZ, barM));
+    viewGrp.add(box(0.035, 0.05, WIN_W, GLASS_X + 0.02, WIN_Y, WIN_LZ, barM));
     // ── THE LIGHT WELL, as a real space ──────────────────────────────────
     // The user, in their own words: *"a bit of a gap out of the window and
     // then just a brick wall, almost like a little room outside the window
@@ -2986,19 +3054,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const farWall = new THREE.Mesh(new THREE.PlaneGeometry(WELL_HW * 2, WELL_H), wellM(WELL_HW * 2, WELL_H));
     farWall.position.set(AX(FAR_LX), WELL_FLOOR + WELL_H / 2, AZI(WIN_LZ));
     farWall.rotation.y = Math.PI / 2;
-    scene.add(farWall);
+    viewGrp.add(farWall);
     for (const sgn of [1, -1]) {
       const side = new THREE.Mesh(new THREE.PlaneGeometry(WELL_D, WELL_H), wellM(WELL_D, WELL_H));
       side.position.set(AX(FAR_LX + WELL_D / 2), WELL_FLOOR + WELL_H / 2, AZI(WIN_LZ + sgn * WELL_HW));
       side.rotation.y = sgn > 0 ? Math.PI : 0;         // both faces turned INWARD
-      scene.add(side);
+      viewGrp.add(side);
     }
     // the floor of it, which you only half see — that is the point
     const wellFloor = new THREE.Mesh(new THREE.PlaneGeometry(WELL_D, WELL_HW * 2),
       new THREE.MeshBasicMaterial({ color: 0x1b1614 }));
     wellFloor.position.set(AX(FAR_LX + WELL_D / 2), WELL_FLOOR, AZI(WIN_LZ));
     wellFloor.rotation.x = -Math.PI / 2;
-    scene.add(wellFloor);
+    viewGrp.add(wellFloor);
     // ── the drainpipe ────────────────────────────────────────────────────
     // There was a dark window on the far wall here. It came out: it was the
     // desk's suggestion rather than the user's ask, and the far wall is meant
@@ -3010,17 +3078,17 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const pipe = new THREE.Mesh(
       new THREE.CylinderGeometry(0.075, 0.075, WELL_H - 0.4, 6), pipeM);
     pipe.position.set(AX(FAR_LX + 0.14), WELL_FLOOR + (WELL_H - 0.4) / 2, AZI(WIN_LZ - WELL_HW + 0.16));
-    scene.add(pipe);
+    viewGrp.add(pipe);
     for (const by of [3.1, 5.9, 8.7]) {                 // its fixing bands
-      box(0.20, 0.05, 0.20, FAR_LX + 0.14, by, WIN_LZ - WELL_HW + 0.16, pipeM);
+      viewGrp.add(box(0.20, 0.05, 0.20, FAR_LX + 0.14, by, WIN_LZ - WELL_HW + 0.16, pipeM));
     }
     // a fire escape landing one storey down, so the eye has somewhere to fall
     const escM = new THREE.MeshBasicMaterial({ color: 0x2b2a2c });
-    box(0.62, 0.04, 1.25, FAR_LX + 0.34, WIN_Y - 2.55, WIN_LZ + 0.10, escM);
+    viewGrp.add(box(0.62, 0.04, 1.25, FAR_LX + 0.34, WIN_Y - 2.55, WIN_LZ + 0.10, escM));
     for (let i = 0; i < 6; i++) {                        // its railing
-      box(0.03, 0.42, 0.03, FAR_LX + 0.62, WIN_Y - 2.55 + 0.23, WIN_LZ - 0.48 + i * 0.22, escM);
+      viewGrp.add(box(0.03, 0.42, 0.03, FAR_LX + 0.62, WIN_Y - 2.55 + 0.23, WIN_LZ - 0.48 + i * 0.22, escM));
     }
-    box(0.05, 0.04, 1.25, FAR_LX + 0.62, WIN_Y - 2.55 + 0.44, WIN_LZ + 0.10, escM);
+    viewGrp.add(box(0.05, 0.04, 1.25, FAR_LX + 0.62, WIN_Y - 2.55 + 0.44, WIN_LZ + 0.10, escM));
 
     // the four returns, in the wall's own paint but shaded: a reveal in the
     // same flat colour as the wall face reads as a hole cut in card
@@ -3077,17 +3145,17 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // All four returns had it, not just the two he could see from where he
     // stood; the opening reads 4 cm narrower and the lining now covers the
     // glass edge, which is what a real reveal does anyway.
-    box(REV_D, 0.02, WIN_W - 0.04, RX, WIN_Y + WIN_H / 2 - 0.01, WIN_LZ, revDark); // head, in shadow
-    box(REV_D, 0.02, WIN_W - 0.04, RX, WIN_Y - WIN_H / 2 + 0.01, WIN_LZ, revM);    // the reveal's own sill
+    viewGrp.add(box(REV_D, 0.02, WIN_W - 0.04, RX, WIN_Y + WIN_H / 2 - 0.01, WIN_LZ, revDark)); // head, in shadow
+    viewGrp.add(box(REV_D, 0.02, WIN_W - 0.04, RX, WIN_Y - WIN_H / 2 + 0.01, WIN_LZ, revM));    // the reveal's own sill
     for (const sgn of [1, -1]) {
-      box(REV_D, WIN_H - 0.04, 0.02, RX, WIN_Y, WIN_LZ + sgn * (WIN_W / 2 - 0.01),
-        sgn > 0 ? revM : revDark);                // one jamb catches the light
+      viewGrp.add(box(REV_D, WIN_H - 0.04, 0.02, RX, WIN_Y, WIN_LZ + sgn * (WIN_W / 2 - 0.01),
+        sgn > 0 ? revM : revDark));               // one jamb catches the light
     }
     // the sill you can put things on, projecting past the architrave
     const sillM = new THREE.MeshBasicMaterial({ color: 0xa8a091 });
-    box(0.22, 0.045, WIN_W + 0.22, WIN_LX + 0.09, WIN_Y - WIN_H / 2 - 0.035, WIN_LZ, sillM);
-    box(0.20, 0.03, WIN_W + 0.18, WIN_LX + 0.085, WIN_Y - WIN_H / 2 - 0.07, WIN_LZ,
-      new THREE.MeshBasicMaterial({ color: 0x8f887a }));                              // its apron
+    viewGrp.add(box(0.22, 0.045, WIN_W + 0.22, WIN_LX + 0.09, WIN_Y - WIN_H / 2 - 0.035, WIN_LZ, sillM));
+    viewGrp.add(box(0.20, 0.03, WIN_W + 0.18, WIN_LX + 0.085, WIN_Y - WIN_H / 2 - 0.07, WIN_LZ,
+      new THREE.MeshBasicMaterial({ color: 0x8f887a })));                              // its apron
     // ── and something ON it ──────────────────────────────────────────────
     // The user's third condition: *"a sill, and something on it — that is what
     // makes a window read as somewhere you stand rather than a hole."* The
@@ -3108,8 +3176,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const SILL_TOP = WIN_Y - WIN_H / 2 - 0.035 + 0.0225;
     const SILL_X = WIN_LX + 0.09;
     const potM = new THREE.MeshBasicMaterial({ color: 0x9c5b3c });
-    box(0.11, 0.10, 0.11, SILL_X, SILL_TOP + 0.05, WIN_LZ + 0.52, potM);
-    box(0.125, 0.018, 0.125, SILL_X, SILL_TOP + 0.101, WIN_LZ + 0.52, potM);   // its rim
+    viewGrp.add(box(0.11, 0.10, 0.11, SILL_X, SILL_TOP + 0.05, WIN_LZ + 0.52, potM));
+    viewGrp.add(box(0.125, 0.018, 0.125, SILL_X, SILL_TOP + 0.101, WIN_LZ + 0.52, potM));   // its rim
     const leafT = surfTex('detail', 12, 14, (g) => {
       g.clearRect(0, 0, 12, 14);
       const greens = ['#4e6b34', '#5f7d3f', '#6d8a49'];
@@ -3136,7 +3204,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const q = new THREE.Mesh(new THREE.PlaneGeometry(0.20, 0.24), leafM);
       q.position.set(AX(SILL_X), SILL_TOP + 0.10 + 0.12, AZI(WIN_LZ + 0.52));
       q.rotation.y = ry + 0.4;
-      scene.add(q);
+      viewGrp.add(q);
     }
     // ── the mug, at the other end ────────────────────────────────────────
     // The user, twice: *"mug looks messed up"*, then a close-up and *"the mug
@@ -3257,12 +3325,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const mug = new THREE.Mesh(
       new THREE.CylinderGeometry(MUG_R, MUG_RB, MUG_H, 12, 1, true), mugM);
     mug.position.set(AX(MUG_X), SILL_TOP + MUG_H / 2, AZI(MUG_Z));
-    scene.add(mug);
+    viewGrp.add(mug);
     const rim = new THREE.Mesh(new THREE.RingGeometry(MUG_IR, MUG_R, 12),
       new THREE.MeshBasicMaterial({ color: 0xd8d2c4, side: THREE.DoubleSide }));
     rim.position.set(AX(MUG_X), SILL_TOP + MUG_H, AZI(MUG_Z));
     rim.rotation.x = -Math.PI / 2;
-    scene.add(rim);
+    viewGrp.add(rim);
     // DoubleSide, not BackSide. BackSide draws the far half of the tube, which
     // is the crescent and all you can ever LOOK at through the mouth — but it
     // leaves the near half undrawn, and an undrawn wall cannot hide what is
@@ -3274,12 +3342,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       new THREE.CylinderGeometry(MUG_IR, mugBoreR(MUG_BASE), MUG_H - MUG_BASE, 12, 1, true),
       new THREE.MeshBasicMaterial({ color: 0xb1aca1, side: THREE.DoubleSide }));
     bore.position.set(AX(MUG_X), SILL_TOP + MUG_BASE + (MUG_H - MUG_BASE) / 2, AZI(MUG_Z));
-    scene.add(bore);
+    viewGrp.add(bore);
     const mugFloor = new THREE.Mesh(new THREE.CircleGeometry(mugBoreR(MUG_BASE), 12),
       new THREE.MeshBasicMaterial({ color: 0x6b5138 }));
     mugFloor.position.set(AX(MUG_X), SILL_TOP + MUG_BASE, AZI(MUG_Z));
     mugFloor.rotation.x = -Math.PI / 2;
-    scene.add(mugFloor);
+    viewGrp.add(mugFloor);
     // ── THE HANDLE, THIRD REPORT: IT WAS PAINTED IN ITS OWN BACKGROUND ───────
     //
     // The user, three times: *"mug looks messed up"*, *"the mug is messed up"*,
@@ -3405,7 +3473,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const handle = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0xd0c9ba }));
     handle.position.set(AX(MUG_X), SILL_TOP + H_LY, AZI(MUG_Z + HANDLE_OFF));
     handle.rotation.y = Math.PI / 2;                    // hole axis along x, facing the room
-    scene.add(handle);
+    viewGrp.add(handle);
     // architrave, room side only. `casing` puts trim on BOTH faces, which is
     // right for a doorway you pass through and wrong for a window — the far
     // face of this wall is the FACADE, and the street does not want a lobby
@@ -3413,9 +3481,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const trimW = new THREE.MeshBasicMaterial({ color: 0x6f5a44 });
     const AT = WIN_LX + 0.085;
     for (const sgn of [1, -1]) {
-      box(0.03, WIN_H + 0.14, 0.075, AT, WIN_Y + 0.02, WIN_LZ + sgn * (WIN_W / 2 + 0.055), trimW);
+      viewGrp.add(box(0.03, WIN_H + 0.14, 0.075, AT, WIN_Y + 0.02, WIN_LZ + sgn * (WIN_W / 2 + 0.055), trimW));
     }
-    box(0.03, 0.075, WIN_W + 0.19, AT, WIN_Y + WIN_H / 2 + 0.075, WIN_LZ, trimW);
+    viewGrp.add(box(0.03, 0.075, WIN_W + 0.19, AT, WIN_Y + WIN_H / 2 + 0.075, WIN_LZ, trimW));
     // the radiator under it — cast-iron columns, painted over so many times
     // the fins have gone soft
     const radT = surfTex('detail', 24, 16, (g) => {
@@ -5806,7 +5874,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * square has something written on it is a calendar with nothing on it.
      */
     const calEventOn = (gd: number): string | null => {
-      if (isRentDay(gd)) return `RENT DUE  $${RENT.amount}`;
+      // `rentNow()`, not `RENT.amount` — the room with a view rents at $1,000
+      // and the wall calendar must say what the landlord will actually charge
+      if (isRentDay(gd)) return `RENT DUE  $${rentNow()}`;
       const n = nextDueDay(gd) / DAYS_PER_SEASON;
       if (noticeDay(n) === gd) return 'RENT NOTICE';
       return null;
@@ -6642,6 +6712,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * word from him.
      */
     const ROOM_DARK = 0.34;
+    /** ── AND THE ROOM WITH NO WINDOW IS DIMMER STILL ─────────────────────
+     *  `ROOM_DARK` is "the light is off in a room WITH a window". The default
+     *  room has no window any more (see `VIEW_RENT`), so with the bulb off it
+     *  sits here instead — under-door spill and nothing else, day or night,
+     *  because a sealed room has no sun to follow. Deliberately above
+     *  `ROOM_NIGHT`: dim on purpose, never unreadable. */
+    const NOVIEW_DARK = 0.20;
     const LIT_BY_ITSELF = /screen|lining|halo|spill|glass|city/i;
     const dimmable: { m: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
     {
@@ -6735,7 +6812,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // So the switch grades on ITS OWN, at full daylight, and the first frame
       // refines it with the hour. `lastK` is invalidated so that frame is not
       // skipped by the 1% guard.
-      const k0 = on ? 1 : ROOM_DARK;
+      //
+      // WINDOWLESS, the constants change meaning: the bulb is the only light,
+      // so on is `LIT_NIGHT` (a bulb is not a sun) and off is `NOVIEW_DARK`.
+      const k0 = on ? (viewOn ? 1 : LIT_NIGHT) : (viewOn ? ROOM_DARK : NOVIEW_DARK);
       for (const d of dimmable) d.m.color.setRGB(d.base.r * k0, d.base.g * k0, d.base.b * k0);
       setRoomLightLevel(k0);
       lastK = -1;
@@ -6747,6 +6827,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     };
     /** the room's light right now: the switch, then the hour. See `ROOM_NIGHT`. */
     const roomK = (): number => {
+      // NO WINDOW, NO SUN: the sealed room does not follow the clock at all.
+      // The bulb gives what a bulb gives (`LIT_NIGHT` — the with-window model's
+      // own figure for "the bulb alone"), and off is `NOVIEW_DARK` flat.
+      if (!viewOn) return lightOn ? LIT_NIGHT : NOVIEW_DARK;
       const hourF = (ctx.clock.now().totalMin % 1440) / 60;
       const day = 1 - hudNightAt(hourF);            // 1 at noon, 0 at midnight
       return lightOn
@@ -6761,12 +6845,36 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       setRoomLightLevel(k);
       // ⚠ AND THE TELEVISION'S SPILL RIDES THE SAME GRADE. Normalised against
       // the state each constant was authored for — bulb off in daylight is
-      // `ROOM_DARK`, bulb on in daylight is 1 — so today's look is unchanged
-      // and only the small hours move. See `tvSetRoomDim`.
-      tvSetRoomDim(lightOn ? k : k / ROOM_DARK);
+      // `ROOM_DARK` (or `NOVIEW_DARK` in the windowless room), bulb on in
+      // daylight is 1 — so today's look is unchanged and only the small hours
+      // move. See `tvSetRoomDim`.
+      tvSetRoomDim(lightOn ? k : k / (viewOn ? ROOM_DARK : NOVIEW_DARK));
     };
     ctx.onFrame(() => { if (Math.abs(lastGy - 2 * ST) < 0.6) applyRoomLight(); });
     setLight(true);
+
+    // ── A ROOM WITH A VIEW: the toggle, and its slice ─────────────────────
+    // Two visibility flags and a re-grade — see the note by `VIEW_RENT` and
+    // the fifth wall piece at the west wall. `setLight(lightOn)` re-runs the
+    // build-time grade with the new `viewOn` (its `k0` reads it) and
+    // invalidates `lastK`, so the next frame in the flat refines by the hour.
+    // Runs live: buy the view in the lobby and the window is there when you
+    // come up the stairs.
+    viewApply = (on: boolean) => {
+      viewGrp.visible = on;
+      winFill.visible = !on;
+      setLight(lightOn);
+    };
+    viewApply(viewOn);          // build default: the blank wall
+    // The slice only ever turns the view ON. Absent (every save from before
+    // this change, and every fresh world) means windowless — that is the ask:
+    // *"remove the window ... you can ask the landlord once you pay your
+    // rent"*. `grantView` routes through `viewApply` above, so a restore
+    // flips the meshes the same way a purchase does.
+    registerSlice<{ view: boolean }>('apt-view', {
+      capture: () => ({ view: viewOn }),
+      restore: (v) => { if (v && v.view === true) grantView(); },
+    });
     ctx.spot({
       x: AX(-0.62), z: SW_Z, r: 0.72,
       obj: swPlate,

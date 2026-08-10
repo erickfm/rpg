@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 import { BUILD, type CtxBuild, type Spot } from './ctx';
 import { declareSurface, pixTex } from './paint';
-import { APT_X0, APT_Z0, ST0 } from './apartment';
+// `hasView`/`grantView`/`rentNow`/`VIEW_RENT` are the room-with-a-view
+// upgrade — the room owns its window and its price, this file only sells it
+// and charges it. `rentNow()` replaces every money-read of `RENT.amount`
+// below, so the bill, the notice, the arrears and the label all move to
+// $1,000 together the moment the view is bought.
+import { APT_X0, APT_Z0, ST0, hasView, grantView, rentNow, VIEW_RENT } from './apartment';
 import { citizenSprite } from './citizens';
 import { loiter, type LoiterPost } from './loiter';
 import { UI, makePanel, screenFocusReady, hudNote, type Panel } from './hud';
 import { defineItem, bagPut, pocketsFull, fullWhy } from './inventory';
+import { talker } from './dialog';
 import { registerSlice } from './save';
 // WHAT THE STREET'S SHOPS ACTUALLY SELL. An advertisement is a second reader of
 // a shop's prices, so the mail reads the same table the counter is built from —
@@ -245,9 +251,12 @@ registerSlice<{ paid: number; collected: number; pocketed: string[]; held: Lette
   },
 });
 
-/** What you owe right now, in dollars. */
+/** What you owe right now, in dollars. `rentNow()`, not `RENT.amount`: the
+ *  room with a view rents at $1,000 (see ct/apartment.ts `VIEW_RENT`), and a
+ *  player can only buy it while paid up, so no arrears ever straddle the two
+ *  figures — unpaid periods are always priced at the rent as it stands. */
 export function owed(day: number): number {
-  return Math.max(0, duePeriodsBy(day) - paidPeriods) * RENT.amount;
+  return Math.max(0, duePeriodsBy(day) - paidPeriods) * rentNow();
 }
 
 /**
@@ -264,10 +273,10 @@ export function owed(day: number): number {
  */
 export function payRent(ctx: CtxBuild, day: number): number {
   let paid = 0;
-  while (owed(day) > 0 && ctx.purse.cash >= RENT.amount) {
-    ctx.purse.cash = Math.round((ctx.purse.cash - RENT.amount) * 100) / 100;
+  while (owed(day) > 0 && ctx.purse.cash >= rentNow()) {
+    ctx.purse.cash = Math.round((ctx.purse.cash - rentNow()) * 100) / 100;
     paidPeriods++;
-    paid += RENT.amount;
+    paid += rentNow();
   }
   if (paid > 0) ctx.refreshWallet();
   return paid;
@@ -577,7 +586,7 @@ function mailFor(day: number): Letter[] {
       lines: [
         `APT ${RENT.flat}, ${RENT.building}`,
         '',
-        `Rent of $${RENT.amount.toFixed(2)} for ${dateOf(due).season} is due on the ${ordinal(RENT.dueDayOfSeason).toLowerCase()} — ${when}.`,
+        `Rent of $${rentNow().toFixed(2)} for ${dateOf(due).season} is due on the ${ordinal(RENT.dueDayOfSeason).toLowerCase()} — ${when}.`,
         '',
         'I collect in person. I am in the hall or on the stairs. Cash only.',
         '',
@@ -599,7 +608,7 @@ function mailFor(day: number): Letter[] {
         lines: [
           `APT ${RENT.flat}, ${RENT.building}`,
           '',
-          `Your rent is ${since} day${since === 1 ? '' : 's'} late. Arrears stand at $${(late * RENT.amount).toFixed(2)}.`,
+          `Your rent is ${since} day${since === 1 ? '' : 's'} late. Arrears stand at $${(late * rentNow()).toFixed(2)}.`,
           '',
           'I have knocked. I know you are in there — the light is on and the television is on.',
           '',
@@ -3157,6 +3166,13 @@ export function register(ctx: CtxBuild): void {
     posts: LL_POSTS, facing: LL_FACING, speed: 0.42, notice: 2.6,
     bounds: { minX: LL_MIN_X, maxX: LL_MAX_X, minZ: LL_MIN_Z, maxZ: LL_MAX_Z },
   });
+  // His mouth, for the room-with-a-view pitch. Paper stays paper — the
+  // receipt and the note of account are documents and keep the sheet — but an
+  // offer is SPEECH, and the dialog bubble is the system built for that
+  // (*"lets create a dialog system so we dont have to manage it in the e
+  // prompt style"*). He turns to face you inside 2.6 m already, so the card
+  // faces you the moment you are close enough to talk.
+  const llTalk = talker(ctx, { obj: landlord.mesh, name: 'landlord' });
 
   // He is SOLID while he is standing there, the same way C's hermit is —
   // otherwise the man you owe money to is a hologram you walk through. The AABB
@@ -3176,10 +3192,38 @@ export function register(ctx: CtxBuild): void {
    * Derived from the clock like everything else here, so sleeping past him is
    * the same code path as walking past him.
    */
+  /**
+   * ── A ROOM WITH A VIEW: when he can be ASKED ─────────────────────────────
+   *
+   * *"you can ask the landlord once you pay your rent for 'a room with a
+   * view' it costs 1k a month and its the current room."*   (2026-08-10)
+   *
+   * "Once you pay your rent" is exactly: at least one period paid and nothing
+   * outstanding. A tenant in good standing who has not bought the view yet
+   * can find him in the hall and ask; the moment the view is his there is
+   * nothing left to sell and the old rule takes over. Asking is two presses
+   * of the same [E] that pays him — the first gets his terms in a bubble, the
+   * second takes the room. No money moves at the handshake: the price IS the
+   * new rent, `VIEW_RENT` a season from the next due day, charged by the same
+   * `payRent` cycle that has always charged it (`rentNow()` above).
+   */
+  function viewAskable(day: number): boolean {
+    return !hasView() && paidPeriods > 0 && owed(day) === 0;
+  }
+  /** has he made the pitch this session? The label flips from asking to
+   *  taking once he has; a reload just means asking again, which is free. */
+  let viewPitched = false;
+
   function landlordIn(totalMin: number): boolean {
     const day = Math.floor(totalMin / 1440);
     const hour = (totalMin % 1440) / 60;
-    return owed(day) > 0 && hour >= 7 && hour < 22;
+    // In the hall when he is owed money — or when a paid-up tenant could ask
+    // him for the room with a view. Same hours either way: nobody sells
+    // windows at four in the morning. `speaking()` holds him through his own
+    // last sentence: the sale ends `viewAskable` on the spot, and without it
+    // the man would vanish mid-"Done." in front of you — a pop the buyer is
+    // guaranteed to be looking at.
+    return (owed(day) > 0 || viewAskable(day) || llTalk.speaking()) && hour >= 7 && hour < 22;
   }
 
   /** the lane past him. Wide enough that he is pressure and not a wall — the
@@ -3229,7 +3273,7 @@ export function register(ctx: CtxBuild): void {
     // now a season, so the carbon book has to say so — a receipt that says
     // "one week's rent" against a monthly lease is the feature contradicting its
     // own paperwork, which is what this file's own notice comment warns about.
-    const months = Math.round(amount / RENT.amount);
+    const months = Math.round(amount / rentNow());
     return {
       day, kind: 'receipt', art: 'docket-receipt', from: `${RENT.landlord} — RECEIVED`,
       lines: [
@@ -3295,22 +3339,57 @@ export function register(ctx: CtxBuild): void {
       const bal = owed(day);
       const cash = ctx.purse.cash;
       // A LABEL MUST BE TRUE EVEN WHEN NOBODY CAN READ IT. `ok()` is false
-      // whenever nothing is owed, so this branch is unreachable in play — and
+      // whenever nothing is owed, so this branch WAS unreachable in play — and
       // it read `rent is $0.00 — you are $30.50 short`, which is two false
       // statements in one line. It cost nothing to leave and it is not
       // harmless: labels are the world's public description of itself, and C's
       // packages check already took a false red off one of my prompts once
       // (notes/C-package-vs-rent-for-N.md). An instrument reading spots gets
       // this text; the gate is not visible from there.
-      if (bal <= 0) return 'nothing is owed';
-      if (cash >= RENT.amount) {
-        const months = Math.min(Math.floor(cash / RENT.amount), bal / RENT.amount);
-        return `pay the rent — $${(months * RENT.amount).toFixed(2)}`;
+      //
+      // REACHABLE NOW, when a paid-up tenant can ask for the room with a view
+      // — that is the whole reason he is still in the hall (`viewAskable` in
+      // `landlordIn`). Asking is free, so the first label carries no figure;
+      // the figure is in his pitch and in the label that commits.
+      if (bal <= 0) {
+        if (viewAskable(day)) {
+          return viewPitched
+            ? `take the room with a view — $${VIEW_RENT.toFixed(2)} a month`
+            : 'ask about a room with a view';
+        }
+        return 'nothing is owed';
       }
-      return `rent is $${bal.toFixed(2)} — you are $${(RENT.amount - cash).toFixed(2)} short`;
+      if (cash >= rentNow()) {
+        const months = Math.min(Math.floor(cash / rentNow()), bal / rentNow());
+        return `pay the rent — $${(months * rentNow()).toFixed(2)}`;
+      }
+      return `rent is $${bal.toFixed(2)} — you are $${(rentNow() - cash).toFixed(2)} short`;
     },
     act: () => {
       const day = Math.floor(ctx.clock.now().totalMin / 1440);
+      // ── THE ROOM WITH A VIEW, sold across two presses of the same key ──
+      // First [E]: the pitch, in his own bubble — [E] pages it, walking away
+      // closes it, nothing is committed. Next [E] with the bubble down: the
+      // room is yours. `grantView()` puts the window back on the spot
+      // (ct/apartment.ts flips the meshes live) and moves the rent to
+      // `VIEW_RENT` through `rentNow()`, so the next due day simply bills
+      // $1,000 — no money moves at the handshake, and non-payment stays
+      // exactly what it always was: arrears, notices, the man in the hall.
+      // (`say()` while he is mid-pitch only turns the page — the talker's own
+      // contract — so a fast [E] cannot buy the room before the terms close.)
+      if (owed(day) <= 0 && viewAskable(day)) {
+        if (!viewPitched || llTalk.speaking()) {
+          viewPitched = true;
+          llTalk.say([
+            'A room with a view. Your flat, with the window put back — glass, sill, the light coming in.',
+            `A thousand a month, from the next due day. That is the rent then, all of it. Ask again and it is done.`,
+          ]);
+        } else {
+          grantView();
+          llTalk.say([`Done. Go up and look. Rent is $${VIEW_RENT.toFixed(2)} a month from the next due day.`]);
+        }
+        return;
+      }
       const paid = payRent(ctx, day);
       // PRESSING IT ALWAYS ANSWERS. A key that does nothing and explains
       // nothing is how a player concludes the whole feature is broken
@@ -3500,7 +3579,7 @@ export function register(ctx: CtxBuild): void {
     envelopes: () => envs.filter((e) => e.visible).length,
     /** the two slips he hands over, so the overrun check can measure them too:
      *  they never go through mailFor() and were invisible to it. */
-    slips: () => [receipt(0, RENT.amount), shortSlip(0)].map((l) => ({ from: l.from, lines: l.lines })),
+    slips: () => [receipt(0, rentNow()), shortSlip(0)].map((l) => ({ from: l.from, lines: l.lines })),
     /** the slip under 301's door: where it is and whether it is on the floor */
     slip: () => ({ x: SLIP.x, z: SLIP.z, y: SLIP.y,
       /** stand HERE to be offered it — floor 3, and the storey is the point */
@@ -3529,6 +3608,12 @@ export function register(ctx: CtxBuild): void {
     }),
     reading: () => (PANEL?.isOpen() ? { page, of: reading.length } : null),
     pay: () => payRent(ctx, Math.floor(ctx.clock.now().totalMin / 1440)),
+    /** the room with a view: owned, askable right now, and the two figures */
+    view: () => ({
+      has: hasView(), pitched: viewPitched,
+      askable: viewAskable(Math.floor(ctx.clock.now().totalMin / 1440)),
+      rent: rentNow(), viewRent: VIEW_RENT,
+    }),
     /**
      * A FIXTURE, not a fake: put `n` dollars in the purse so the paying path
      * can be measured at all.
