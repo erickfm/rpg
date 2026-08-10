@@ -40,6 +40,11 @@ const X0 = 46, X1 = 57;
 const CX = (X0 + X1) / 2;                    // 51.5 — the axis
 const WALK_Z = -110;                         // the street's building line
 const FACE_Z = WALK_Z - COLLEGE_YARD_D;      // the recessed facade plane
+/** The recessed facade plane, exported for ONE consumer: `crosstown.ts`
+ *  derives the world's south walk bound from it (`WORLD_BOUNDS.minZ`), so a
+ *  future deeper recess moves the clamp with it instead of re-shipping
+ *  *"i cant walk into the community college"* (2026-08-09). */
+export const COLLEGE_FACE_Z = FACE_Z;
 
 export const ORDER = BUILD.PROPS;
 

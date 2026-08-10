@@ -37,6 +37,7 @@ import { makeHud, setScreenFocus, panelUp, registerHeldView, type Purse } from '
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms, PARTY } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
+import { COLLEGE_FACE_Z } from './ct/college-yard';
 
 /**
  * FLOOR TO CEILING IN THE WALK-UP, in metres — read by `ceilPick` below.
@@ -1238,8 +1239,22 @@ export function makeCrosstown(): Proto {
   // — which reports a COLLIDER wherever one stands in front of the clamp.
   // Published below as `__ct.bounds()`. The literal lives here rather than at
   // the call site so that the two readings can never disagree.
+  // minZ was the literal -110.6 — the south building line at z -110 plus the
+  // clamp's half-metre of slack — until the college courtyard recessed its
+  // facade 4.5 m behind that line and *"i cant walk into the community
+  // college"* (2026-08-09): the player stopped 0.4 m past the gate with the
+  // door spot unreachable. DERIVED from the yard's own face plane, same
+  // pattern as maxZ off interiorMaxZ(), so a future deeper recess moves the
+  // clamp instead of re-shipping the bug. Audited before moving (the jail
+  // escapes ended AT this clamp, so it IS a fence): the only reachable ground
+  // in the -110.6…-114.6 band is the yard itself, and it is collider-bounded
+  // on all four sides — SMOKES' box west, the yard's party wall and the
+  // jail's Z_S walls east, the college shell's own collider south (which
+  // reaches z -114.38, so this clamp keeps the same half-metre-of-slack
+  // semantics it always had). VOLT VILLAGE's and VIDEO HUT's boxes meet at
+  // (-7, -110), closing the south-west corner.
   const WORLD_BOUNDS = { minX: westBound(), maxX: interiorMaxX(),
-    minZ: -110.6, maxZ: Math.max(13, interiorMaxZ()) };
+    minZ: COLLEGE_FACE_Z - 0.1, maxZ: Math.max(13, interiorMaxZ()) };
   rig = new FPRig(cam, { x: SPAWN.x, z: SPAWN.z, yaw: SPAWN.yaw }, {
     // maxX reaches only as far as the interiors actually built — every room
     // is constructed by now, so this is the real east edge, not a reservation
