@@ -950,6 +950,21 @@ export function givePointerBack(): void {
 
 let gateOn = false;
 let backdrop: HTMLDivElement | null = null;
+/**
+ * IS THE VIGNETTE (or the blackout) OVER THE SCREEN RIGHT NOW — i.e. are the
+ * HUD corners actually obscured? Tracked here because `backdropUp` is the one
+ * gate every raise and drop goes through, including the mid-open degrade path.
+ *
+ * This is deliberately NOT `livePanel !== null`. Since the casino went
+ * diegetic, a panel being OPEN no longer means the corners are covered: a
+ * locked view painted onto a slots pane or the blackjack felt raises no
+ * backdrop at all (`backdropUp(!onMesh, …)`), the world stays on screen, and
+ * the stats corners with it. The loss/gain ticks key off THIS — hold under a
+ * cabinet whose vignette covers them, flow live at a table where the player
+ * can see them land. Keying off the panel id would have re-buried every
+ * casino win the moment the next diegetic surface shipped.
+ */
+let backdropOn = false;
 
 // One capture-phase gate for every panel. It HANDLES first and swallows after,
 // so a panel's own keys work while the world behind it hears nothing. Keyup and
@@ -1211,6 +1226,7 @@ function gateUp(on: boolean): void {
 }
 
 function backdropUp(on: boolean, black = false): void {
+  backdropOn = on;                    // the corners' one truth — see its note
   if (!backdrop) {
     backdrop = document.getElementById('ct-panelback') as HTMLDivElement | null;
     if (!backdrop) {
@@ -2993,16 +3009,20 @@ export function makeHud(purse: Purse): Hud {
   // the fade sweeps survivors so nothing floats over the black or the GAME
   // OVER card.
   //
-  // ⚠ WHY HE NEVER SAW A RED ONE. Nearly every loss in this world happens
-  // INSIDE A PANEL — the bodega counter, the diner, the ATM, slots, the
-  // blackjack felt are all `makePanel` cabinets — and a tick at z 12 spawned
-  // there lived and died (~1 s) behind the z 14 backdrop before the cabinet
-  // ever closed. The z-order is correct and stays: nothing may draw over a
-  // machine screen. So the fix is TIME, not z — a tick born while a panel or
-  // a fade is up is HELD, netted with anything else that lands while the
-  // glass is up (three slots spins are one figure, a deposit and its fee are
-  // one figure), and released the moment the world is back. Walk out of the
-  // bodega and what you just spent floats off the corner.
+  // ⚠ WHY HE ONCE NEVER SAW A RED ONE — AND THEN LOST THE GREEN. A tick at
+  // z 12 spawned under an opaque cabinet's z 14 vignette lives and dies
+  // invisible (*"i never saw that change"*), so ticks born under a lid are
+  // HELD and netted until it lifts. But "a panel is open" stopped meaning "a
+  // lid is on" the day the casino went diegetic — locked views painted on
+  // world surfaces raise NO backdrop, the corner stays in sight, and the
+  // first hold implementation (keyed on `panelUp()`) netted a whole casino
+  // session into one figure at the door, which erased exactly what he liked:
+  // *"i liked seeing numbers for green and red for all the wins in the
+  // casino."* So the hold keys on `backdropOn` — whether the corners are
+  // actually covered — and the drip flows live at every diegetic table,
+  // opaque cabinets keep the hold, and the next diegetic surface inherits
+  // the right behaviour with no list to maintain. Grain and machinery at the
+  // pool below.
   //
   // The icons are tiny canvases blown up 2x with `image-rendering:pixelated` —
   // the watch's own trick, so their texels stay hard — under a 1 px hard
@@ -3180,20 +3200,33 @@ export function makeHud(purse: Purse): Hud {
   // handshake because `ct/save.ts` deliberately promises no ready signal.
   const ticksArmedAt = performance.now() + 5000;
   const armed = (): boolean => performance.now() >= ticksArmedAt;
-  // ── HELD TICKS — the "why he never saw one" fix from the header ─────────
+  // ── WHEN A TICK APPEARS: pool, settle, show — held only under a real lid ──
   //
-  // A tick born while the world is hidden (a panel's backdrop is over the
-  // corners, or a fade is running) goes into `pend` instead of the DOM, and
-  // everything that lands while the glass is up NETS into one figure — three
-  // slots spins are one number, a withdrawal minus its fee is one number,
-  // which is also what *"flash on that corner updating the total"* asks for.
-  // A 250 ms poll then releases it the moment the world is visible again.
-  // Polled rather than hooked into `close()` because a hook covers panels
-  // only — the poll covers the fade with the same four lines, and its cost
-  // exists only while something is actually pending.
+  // Two forces shaped this and the second overruled half of the first:
+  //
+  //  · THE LID. A tick under an opaque cabinet's vignette dies unseen, so
+  //    while `backdropOn` (or a fade) covers the corners, the pool is HELD —
+  //    a shop visit or an ATM session still resolves to one figure at the
+  //    door, *"updating the total"*.
+  //  · THE DIEGETIC CASINO. No vignette, corner in sight, and he wants every
+  //    win and stake as it lands — *"i liked seeing numbers for green and
+  //    red for all the wins in the casino"*. So visibility is asked of the
+  //    BACKDROP, never of `panelUp()`: at a diegetic table the pool releases
+  //    continuously, per event.
+  //
+  // THE GRAIN: one tick per RESOLUTION, not per purse write. A slots payout
+  // pays the purse over seconds on a big win — one change signal per
+  // count-frame, and a tick per frame would be a smear of `+$0.25`s. So
+  // deltas POOL per side and the pool is shown once it has been quiet for
+  // TICK_SETTLE ms: the stake ticks red at the spin, the payout ticks green
+  // once the counter stops, and a stake with its instant result nets into
+  // the hand's one honest number when they land inside one settle window.
+  // The beat of delay also reads as the machine paying out — the *"animated
+  // kinda"* he asked for — and the poll only runs while something is pending.
+  const TICK_SETTLE = 400, TICK_POLL = 120;
   const pend = { left: 0, right: 0 };
+  const quietAt = { left: 0, right: 0 };
   let pendPoll = 0;
-  const worldHidden = (): boolean => panelUp() !== null || fading !== null;
   const emitTick = (side: 'left' | 'right', v: number): void => {
     const text = side === 'right'
       ? `${v < 0 ? '-' : '+'}$${Math.abs(v).toFixed(2)}`
@@ -3201,19 +3234,23 @@ export function makeHud(purse: Purse): Hud {
     spawnTick(side, text, v < 0 ? TICK_RED : TICK_GREEN);
   };
   const queueTick = (side: 'left' | 'right', v: number): void => {
-    if (!worldHidden()) { emitTick(side, v); return; }
     pend[side] += v;
+    quietAt[side] = performance.now() + TICK_SETTLE;
     if (pendPoll) return;
     pendPoll = window.setInterval(() => {
-      if (worldHidden()) return;
-      window.clearInterval(pendPoll); pendPoll = 0;
+      // the lid: an opaque cabinet's vignette or a running fade
+      if (backdropOn || fading) return;
       for (const s of ['left', 'right'] as const) {
+        if (pend[s] === 0 || performance.now() < quietAt[s]) continue;
         const v2 = pend[s]; pend[s] = 0;
-        // a held column that netted to nothing (won it back, healed it back)
-        // shows nothing — and health still only ever ticks a net LOSS.
+        // a pool that netted to nothing (won the stake straight back, healed
+        // what was lost) shows nothing — and health still only ticks a net LOSS.
         if (s === 'right' ? Math.abs(v2) > 0.004 : v2 <= -0.5) emitTick(s, v2);
       }
-    }, 250);
+      if (pend.left === 0 && pend.right === 0) {
+        window.clearInterval(pendPoll); pendPoll = 0;
+      }
+    }, TICK_POLL);
   };
   let lastHp = health(), lastCash = purse.cash;
   onHealthChange(() => {

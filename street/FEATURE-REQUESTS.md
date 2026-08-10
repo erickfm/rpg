@@ -6526,3 +6526,22 @@ sizes rather than three equal cells:
 All three personalities looked at; COLLECT driven by mouse to prove the
 exit; rects snapped to whole canvas pixels (fractional rects were fuzzing
 every edge on the KING).
+
+## 2026-08-10 — *"oh also i liked the numbers on the right side from when you get money but now its gone. please fix this. i liked seeing numbers for green and red for all the wins in the casino."*
+
+Went to the same builder. The hold-and-net fix was built when every loss
+happened under an opaque cabinet's vignette; the casino has since gone
+diegetic — locked views on world surfaces, no vignette, corner in sight —
+and holding a whole session to one figure at the door erased exactly the
+drip he liked. The hold now keys on the BACKDROP, not on "a panel is open":
+`backdropUp` (the one gate every vignette raise and drop passes through,
+including the mid-open degrade) records whether the corners are actually
+covered, and ticks are held only under that real lid (opaque ATM/shop
+cabinets, fades) while flowing live at every diegetic table. No game list to
+maintain — the next diegetic surface inherits the right behaviour because it
+raises no backdrop. Grain: one tick per resolution, not per purse write —
+deltas pool per side and show after 400 ms of quiet, so a slots payout that
+pays the purse over seconds is one green `+$32.00` when the counter stops
+(not a smear of `+$0.25`s), the stake is its own red at the spin, and an
+instant result nets with its stake into the hand's one number. Health
+unchanged: losses only.
