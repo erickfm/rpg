@@ -586,22 +586,22 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView | null
 // Third game, same ninety lines: K's panel, K's pockets, the seat opens it,
 // ESC and standing up always leave cleanly with the rail cashed out.
 
-interface SeatRow { pose: object; label: string }
-interface CtWindow { __ct?: { seated: () => object | null; seats: () => SeatRow[] } }
-
-function seatedAtWheel(): object | null {
-  const ct = (globalThis as unknown as CtWindow).__ct;
-  if (!ct) return null;
-  const pose = ct.seated();
-  if (!pose) return null;
-  return ct.seats().find((s) => s.pose === pose)?.label === SEAT_LABEL ? pose : null;
-}
+/**
+ * THE STANDING WAY IN. 2026-08-10: "remove chairs for all games and tables in
+ * casino. it actually is just annoying." No seat carries SEAT_LABEL any more —
+ * ct/int-casino.ts places an [E] spot on the avenue side of the wheel and
+ * calls this instead. The locked diegetic view is unchanged; only the sitting
+ * is gone, and the seat watcher went with the stools (see the same note in
+ * ct/blackjack.ts). No-op until register() has run.
+ */
+let openStanding: (() => void) | null = null;
+export function openTable(): void { openStanding?.(); }
 
 export function register(ctx: CtxBuild): void {
   const table = createTable();
   let panel: Panel | null = null;
   let lastT = -1;
-  let dismissed: object | null = null;
+  openStanding = () => panel?.open();
   let CHIP = 1;
 
   const cashOut = () => {
@@ -680,7 +680,7 @@ export function register(ctx: CtxBuild): void {
           panel?.repaint();
         },
       },
-      onClose: () => { dismissed = seatedAtWheel(); cashOut(); },
+      onClose: () => { cashOut(); },
     });
   });
 
@@ -692,17 +692,13 @@ export function register(ctx: CtxBuild): void {
 
   ctx.onFrame((f) => {
     if (!panel) return;
-    const seat = seatedAtWheel();
-    // NOT SEATED MEANS NOT OPEN, unconditionally — the blackjack table's
-    // hard-won rule (its register has the two-line trap this avoids, written
-    // out in full). An open panel eats keydown for the whole world.
-    if (seat === null) {
-      dismissed = null;
-      if (panel.isOpen()) panel.close();
+    // Opened by openTable() — the standing [E] spot — since the chairs went
+    // (2026-08-10). Closed only by its own ways out: Escape, [E] and the
+    // printed LEAVE, all through the framework, so nothing modal can strand;
+    // the seat watcher (blackjack's hard-won "NOT SEATED MEANS NOT OPEN"
+    // rule) went with the stools it guarded.
+    if (!panel.isOpen()) {
       lastT = -1;
-    } else if (!panel.isOpen()) {
-      lastT = -1;
-      if (seat !== dismissed) { lastT = f.t; panel.open(); }
     } else {
       const dt = lastT < 0 ? 0 : Math.max(0, f.t - lastT);
       lastT = f.t;

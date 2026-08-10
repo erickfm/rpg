@@ -1281,27 +1281,22 @@ export const ORDER = BUILD.INTERIOR + 6;
  */
 export const SEAT_LABEL = 'sit at the blackjack table';
 
-interface SeatRow { pose: object; label: string }
-interface CtWindow { __ct?: { seated: () => object | null; seats: () => SeatRow[] } }
-
-function seatedAtTable(): object | null {
-  const ct = (globalThis as unknown as CtWindow).__ct;
-  if (!ct) return null;
-  const pose = ct.seated();
-  if (!pose) return null;
-  return ct.seats().find((s) => s.pose === pose)?.label === SEAT_LABEL ? pose : null;
-}
+/**
+ * THE STANDING WAY IN. 2026-08-10: "remove chairs for all games and tables in
+ * casino. it actually is just annoying." No seat carries SEAT_LABEL any more —
+ * ct/int-casino.ts places an [E] spot at the rail and calls this instead. The
+ * locked diegetic view is unchanged; only the sitting is gone, so the seat
+ * watcher this file used to run went with the stools. No-op until register()
+ * has run; the panel opens once ./hud lands, the same promise the seat had.
+ */
+let openStanding: (() => void) | null = null;
+export function openTable(): void { openStanding?.(); }
 
 export function register(ctx: CtxBuild): void {
   const table = createTable();
   let panel: Panel | null = null;
   let lastT = -1;
-  // The same dismissal guard `ct/slots.ts` carries, and the same note applies:
-  // since C's seat-exit fix (`e090a74fa`, `f110b7f5a`) leaving the panel leaves
-  // the seat as well, so this is currently unreachable. Kept for the reason
-  // given there — its unreachability is a fact about K's and C's files, not
-  // about this one.
-  let dismissed: object | null = null;
+  openStanding = () => panel?.open();
   /** What a chip is worth. NOT a second number — read from `ct/slots.ts`, which
    *  is where the one rate lives, so the casino cannot quietly have two
    *  exchange rates in two rooms of the same building. */
@@ -1376,18 +1371,18 @@ export function register(ctx: CtxBuild): void {
           else if (b.act === 'buyin') buyIn();
           else if (b.act === 'cashout') cashOut();
           // LEAVE closes the panel — Escape's own path, so onClose cashes the
-          // rail out and the seat's dismissed latch is set, exactly as if the
-          // player had pressed the key. Standing up is still the world's [E].
+          // rail out exactly as if the player had pressed the key. [E] still
+          // leaves too, through the framework.
           else if (b.act === 'leave') { panel?.close(); return; }
           else table.act(b.act);
           panel?.repaint();
         },
       },
       // Same contract as the slot machine's: the chips always come back, so
-      // "what you win is in your wallet when you stand up" is true by
+      // "what you win is in your wallet when you walk away" is true by
       // construction rather than by remembering to press a button — a mid-hand
       // exit forfeits only the bet already in the middle, as at a real table.
-      onClose: () => { hover = null; dismissed = seatedAtTable(); cashOut(); },
+      onClose: () => { hover = null; cashOut(); },
     });
   });
 
@@ -1396,38 +1391,16 @@ export function register(ctx: CtxBuild): void {
   // whatever it asked for. It no-ops until the panel arrives.
   ctx.onFrame((f) => {
     if (!panel) return;
-    const seat = seatedAtTable();
-    // ── NOT SEATED MEANS NOT OPEN. NO CONDITION ON IT. ────────────────────
-    //
-    // This block used to read:
-    //
-    //     if (seat === null) dismissed = null;        // clears it …
-    //     …
-    //     if (seat === null && dismissed !== null)    // … then requires it
-    //       { panel.close(); return; }
-    //
-    // The guard cleared `dismissed` and the close then demanded it be
-    // non-null, so **the close could never fire.** Any force-stand that was not
-    // the panel's own Escape handler — `__ct.stand()` from `ct/hud.ts`, a warp,
-    // a floor change — left the table open with nobody sitting at it.
-    //
-    // And an open panel is not a local problem: `hud.ts` swallows keydown while
-    // one is up, so `[E]` was dead EVERYWHERE IN THE WORLD until the page was
-    // reloaded. That is the trap the user has already been bitten by twice
-    // (the TV seat, his own front door), in its worst form yet — global, and
-    // reachable by standing up from a table.
-    //
-    // Found by w11 while fixing a different seat bug, reported rather than
-    // reached for, and confirmed here from the two lines alone.
-    if (seat === null) {
-      dismissed = null;
-      if (panel.isOpen()) { panel.close(); }
-      lastT = -1;
-      return;
-    }
+    // Since the chairs went (2026-08-10) the panel is opened by openTable()
+    // — the [E] spot at the rail — and closed only by its own ways out:
+    // Escape, [E], and the printed LEAVE all close through the framework
+    // (hud.ts), which is what keeps "a panel you cannot close" impossible
+    // here. The seat watcher that used to open and force-close this panel
+    // (the hard-won "NOT SEATED MEANS NOT OPEN" block — see git history)
+    // went with the stools: with no seat to lose, there is nothing for a
+    // force-stand to strand.
     if (!panel.isOpen()) {
       lastT = -1;
-      if (seat !== dismissed) { lastT = f.t; panel.open(); }
       return;
     }
     // `Frame.t` is wall time; `Frame.dt` is clamped to 0.05 by src/main.ts so a

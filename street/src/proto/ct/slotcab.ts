@@ -163,7 +163,11 @@ const KINDS: Record<SlotKind, KindSpec> = {
   },
 };
 
-export interface SlotSpec { kind: SlotKind; lx: number; lz: number }
+/** `face` is which way the glass looks: +1 (default) is local +z, −1 is local
+ *  −z — the back row of a back-to-back bank. The whole cabinet is one group
+ *  rotated about its own base, so lever, tray, coins and pane all turn with
+ *  it and the locked view frames the rotated face for free. */
+export interface SlotSpec { kind: SlotKind; lx: number; lz: number; face?: 1 | -1 }
 
 /** The minimum this module needs from a room. Structural on purpose: importing
  *  ct/interior.ts here would close interior → int-casino → slotcab → interior,
@@ -636,6 +640,9 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
   g.add(pane);
 
   room.put(g, spec.lx, 0, spec.lz);
+  // a back-row machine faces −z: one turn of the group about its own base and
+  // every child — reels, lever (still the machine's own right), pane — follows
+  if (spec.face === -1) g.rotation.y = Math.PI;
 
   const m: Machine = {
     kind: k, i, group: g, reels, lever, hubs, pane,
@@ -931,11 +938,15 @@ function paintSession(
 }
 
 /**
- * THE SEAT THIS ALSO OPENS AT. ct/int-casino.ts puts a stool at every machine
- * and imports this constant for their label — the same one-authoring bridge as
- * blackjack's and roulette's SEAT_LABEL. (The old ct/slots.ts panel listened
- * for 'sit at the slot', singular, which nothing carries — that module stays
- * retired as the library blackjack reads CREDIT from.)
+ * THE SEAT THIS USED TO OPEN AT. 2026-08-10: "remove chairs for all games and
+ * tables in casino. it actually is just annoying." — the stools are gone from
+ * ct/int-casino.ts, so NO seat carries this label any more and the seat-mode
+ * grammar below is dormant: every machine is played standing, from its own
+ * [E] spot. The watcher is kept, not deleted — it costs one identity check a
+ * frame and means a stool that ever comes back opens its machine again with
+ * zero rewiring. (The old ct/slots.ts panel listened for 'sit at the slot',
+ * singular, which nothing carries either; that module stays retired as the
+ * library blackjack reads CREDIT from.)
  */
 export const SEAT_LABEL = 'sit at the slots';
 
@@ -1064,7 +1075,9 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
 
   machines.forEach((m, i) => {
     const spec = specs[i];
-    const fx = room.wx(spec.lx), fz = room.wz(spec.lz + m.kind.d / 2 + 0.55);
+    // the [E] spot stands on whichever side the glass looks
+    const fw = spec.face ?? 1;
+    const fx = room.wx(spec.lx), fz = room.wz(spec.lz + fw * (m.kind.d / 2 + 0.55));
     ctx.spot({
       x: fx, z: fz, r: 1.25,
       aimX: room.wx(spec.lx), aimZ: room.wz(spec.lz),
