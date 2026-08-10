@@ -20,7 +20,7 @@
 // — face-on with the reel glass, the pay card, the lever at the side. The
 // cabinet is the interface: click the lever (or the reel glass, or the printed
 // PULL region) to pull, and the session's numbers live on the machine's own
-// face — a printed strip under the glass carries CASH / PULL $N / LEAVE. The
+// face — the bet meter and its − / + buttons sit under the reel glass. The
 // mechanism is an invisible "session pane" over each cabinet front
 // (`slot-face-N`): the panel framework hangs its canvas on it (transparent
 // except the printed strip, so the 3D reels, lever, topper and coins stay the
@@ -269,10 +269,13 @@ interface Machine {
   pane: THREE.Mesh;
   hubs: [THREE.Mesh, THREE.Mesh];
   topper: THREE.Mesh; topperM: THREE.MeshBasicMaterial; topperLit: THREE.Color;
-  /** the real COLLECT cap, its rest z, and its press clock: -1 idle, -2
-   *  latched by a click (the handler has no frame time), else the f.t the
-   *  press began — tickCollect turns the latch into travel */
-  collectCap: THREE.Mesh; collectZ: number; collectT: number;
+  /** bet multiplier, 1–3 × the cabinet's base stake — 2026-08-10: "i just
+   *  want to be able to set the bet and spin ez pz" */
+  bet: number;
+  /** the real − and + bet caps [dn, up]: mesh, rest z, and press clock — -1
+   *  idle, -2 latched by a click (the handler has no frame time), else the
+   *  f.t the press began; the frame hook turns the latch into travel */
+  caps: { mesh: THREE.Mesh; z: number; t: number }[];
   bulbs: THREE.MeshBasicMaterial[];      // three phase materials, chased
   winCv: HTMLCanvasElement; winTex: THREE.CanvasTexture;
   coins: THREE.Group | null; coinSeed: { a: number; v: number; s: number }[];
@@ -342,7 +345,10 @@ function payCard(ctx: CtxBuild, k: KindSpec): THREE.MeshBasicMaterial {
     g.fillStyle = '#f2e6c8'; g.fillRect(0, 0, 96, 84);
     g.fillStyle = '#8a2430'; g.fillRect(0, 0, 96, 11);
     g.fillStyle = '#f2e6c8'; g.font = 'bold 7px monospace'; g.textAlign = 'center';
-    g.fillText(`$${k.stake} A PULL`, 48, 8);
+    // the bet is settable now (1–3 × the stake), so the card prints the
+    // range and pays in MULTIPLES OF YOUR BET — honest at every bet, where
+    // dollar rows were only true at 1x
+    g.fillText(`BET $${k.stake}-$${k.stake * 3}`, 48, 8);
     const rows: [string, number][] = [
       ['7 7 7', 150], ['BELL BELL BELL', 40], ['BAR BAR BAR', 18],
       ['CHERRY x3', 10], ['ANY TWO 7s', 5], ['CHERRY PAIR', 5], ['ONE CHERRY', 1],
@@ -352,7 +358,7 @@ function payCard(ctx: CtxBuild, k: KindSpec): THREE.MeshBasicMaterial {
       const y = 20 + i * 9;
       g.fillStyle = i === 0 ? '#8a2430' : '#3a2a1e';
       g.textAlign = 'left'; g.fillText(line, 4, y);
-      g.textAlign = 'right'; g.fillText('$' + pays * k.stake, 92, y);
+      g.textAlign = 'right'; g.fillText(pays + 'x', 92, y);
     });
     g.fillStyle = '#8a6a2c'; g.fillRect(2, 13, 92, 1); g.fillRect(2, 80, 92, 1);
     dither(g, 96, 84, 18);
@@ -386,20 +392,22 @@ function topperTex(k: KindSpec, kind: SlotKind): THREE.Texture {
   }), 'sign');
 }
 
-/** the COLLECT cap's printed legend — trim-colour plastic, convex shading,
+/** a bet cap's printed glyph (− or +) — trim-colour plastic, convex shading,
  *  ink picked off the trim's own green channel (gold caps read best under
- *  ink, dark red ones under cream), same rule the painted button used */
-function collectCapTex(k: KindSpec): THREE.Texture {
+ *  ink, dark red ones under cream), same rule the COLLECT cap this replaces
+ *  used. fillRect bars, not font glyphs, so the mark stays pixel-crisp. */
+function betCapTex(k: KindSpec, up: boolean): THREE.Texture {
   const hex = '#' + k.trim.toString(16).padStart(6, '0');
   const ink = ((k.trim >> 8) & 0xff) > 0x80 ? '#14100e' : '#f2e6c8';
-  return declareSurface(pixTex(64, 24, (g) => {
-    g.fillStyle = hex; g.fillRect(0, 0, 64, 24);
-    g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(0, 0, 64, 3);   // convex: lit crown
-    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 3, 64, 8);
-    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, 21, 64, 3);        // and shade
-    g.fillStyle = ink; g.font = 'bold 9px monospace'; g.textAlign = 'center';
-    g.fillText('COLLECT', 32, 16);
-    dither(g, 64, 24, 16);
+  return declareSurface(pixTex(24, 24, (g) => {
+    g.fillStyle = hex; g.fillRect(0, 0, 24, 24);
+    g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(0, 0, 24, 3);   // convex: lit crown
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 3, 24, 8);
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, 21, 24, 3);        // and shade
+    g.fillStyle = ink;
+    g.fillRect(6, 10, 12, 4);                                          // −
+    if (up) g.fillRect(10, 6, 4, 12);                                  // +
+    dither(g, 24, 24, 16);
   }), 'detail');
 }
 
@@ -544,26 +552,40 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
   const lip = new THREE.Mesh(new THREE.BoxGeometry(W * 0.7, 0.05, 0.02), trimM);
   lip.position.set(0, 0.32, D / 2 + 0.10); g.add(lip);
 
-  // ── COLLECT: a REAL button on the fascia. 2026-08-10, on the painted one:
-  // "so the big non real collect button. thjats what im talking about as
-  // being bad and clunky and not looking like its part of the real world".
-  // The lever never drew that complaint because it is geometry that moves —
-  // so this is too: bezel well, chrome ring, and a proud trim-colour cap
-  // that physically travels when clicked (the frame hook animates it). It
-  // exists from the floor like any machine part; the session canvas keeps
-  // only the credit METER, which is honestly a flat picture behind glass.
-  const cr = collectRect(k);
-  const well = new THREE.Mesh(new THREE.BoxGeometry(cr.w + 0.018, cr.h + 0.018, 0.012), dark);
-  well.position.set(cr.cx, cr.cy, D / 2 + 0.004);
-  const ring = new THREE.Mesh(new THREE.BoxGeometry(cr.w + 0.008, cr.h + 0.008, 0.018), bm(0xb8b4a8));
-  ring.position.set(cr.cx, cr.cy, D / 2 + 0.006);
+  // ── THE BET HARDWARE. 2026-08-10, on the credit meter + COLLECT this
+  // replaces: "janky ass money screen and whats the collect button? like i
+  // just want to be able to set the bet and spin ez pz". COLLECT never had a
+  // job — the machine pays the purse direct, the button was only a decorated
+  // exit — and the cash meter duplicated the wallet HUD. Gone, both. What
+  // the fascia carries now is the ONE control the game actually has: a small
+  // recessed BET meter (real well, chrome ring, dark glass — the session
+  // canvas lights digits behind it) and a real − / + cap either side of the
+  // right bay, built exactly like the COLLECT cap was — bezel well, chrome
+  // ring, proud trim-colour cap that physically travels when clicked.
+  const bp = bandParts(k);
+  const chrome = bm(0xb8b4a8);
+  const wellOf = (r: { cx: number; cy: number; w: number; h: number }): void => {
+    const well = new THREE.Mesh(new THREE.BoxGeometry(r.w + 0.018, r.h + 0.018, 0.012), dark);
+    well.position.set(r.cx, r.cy, D / 2 + 0.004);
+    const ring = new THREE.Mesh(new THREE.BoxGeometry(r.w + 0.008, r.h + 0.008, 0.018), chrome);
+    ring.position.set(r.cx, r.cy, D / 2 + 0.006);
+    g.add(well, ring);
+  };
+  wellOf(bp.meter);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(bp.meter.w, bp.meter.h, 0.014), bm(0x0c0805));
+  glass.position.set(bp.meter.cx, bp.meter.cy, D / 2 + 0.006);   // flush in its ring
+  g.add(glass);
   const capZ = D / 2 + 0.014;   // front face at +0.024: proud of the fascia,
                                 // a hair shy of the payline nicks' +0.026
-  const collectCap = new THREE.Mesh(new THREE.BoxGeometry(cr.w, cr.h, 0.020),
-    [trimM, trimM, trimM, trimM, new THREE.MeshBasicMaterial({ map: collectCapTex(k) }), trimM]);
-  collectCap.position.set(cr.cx, cr.cy, capZ);
-  collectCap.name = `slot-collect-${i}`;
-  g.add(well, ring, collectCap);
+  const caps = [bp.dn, bp.up].map((r, ci) => {
+    wellOf(r);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(r.w, r.h, 0.020),
+      [trimM, trimM, trimM, trimM, new THREE.MeshBasicMaterial({ map: betCapTex(k, ci === 1) }), trimM]);
+    cap.position.set(r.cx, r.cy, capZ);
+    cap.name = ci === 1 ? `slot-bet-up-${i}` : `slot-bet-dn-${i}`;
+    g.add(cap);
+    return { mesh: cap, z: capZ, t: -1 };
+  });
 
   // ── THE LEVER, with the ball handle. The play verb lives here. ──
   //
@@ -618,7 +640,7 @@ function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number):
   const m: Machine = {
     kind: k, i, group: g, reels, lever, hubs, pane,
     topper, topperM, topperLit: new THREE.Color(k.topper.lit),
-    collectCap, collectZ: capZ, collectT: -1,
+    bet: 1, caps,
     bulbs,
     winCv, winTex, coins: null, coinSeed: [],
     state: 'idle', t: 0, win: 0, paid: 0, payRamp: 0, flashT: 0,
@@ -766,12 +788,12 @@ function emptyPane(): THREE.Texture {
 }
 
 interface Rect { x: number; y: number; w: number; h: number }
-interface SessionLay { led: Rect; collect: Rect; lever: Rect; glass: Rect }
+interface SessionLay { bet: Rect; dn: Rect; up: Rect; lever: Rect; glass: Rect }
 const inR = (r: Rect, x: number, y: number): boolean =>
   x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 
-// ── the hardware band under the reel glass — meter at the left, COLLECT at
-// the right. ONE source for buildCabinet's geometry and layFor's click rects.
+// ── the hardware band under the reel glass — BET meter at the left, − and +
+// at the right. ONE source for buildCabinet's geometry and layFor's click rects.
 //
 // The band's world height scales with the pane (0.099 × paneW keeps the
 // narrow cabinets at exactly the 0.097 m they were tuned at), so every kind
@@ -783,18 +805,27 @@ function bandOf(k: KindSpec): { yHi: number; yLo: number } {
   const yHi = k.h * 0.78 - 0.178;
   return { yHi, yLo: yHi - 0.099 * paneW(k) };
 }
-/** the COLLECT button's world rect on the fascia — ONE standard part on
- *  every cabinet (the same parts-bin button on the $2 and the $10 machine,
- *  which is how 1997 cabinets were actually built), centred in the bay
- *  between the meter and the reel frame's right rail. Sized off the
- *  cabinet's width it straddled that rail on the KING's wide face and the
- *  rail's bottom tip landed on the cap. */
-function collectRect(k: KindSpec): { cx: number; cy: number; w: number; h: number } {
+/** The band's three parts, world rects on the fascia. The − / + caps are ONE
+ *  standard part on every cabinet (the same parts-bin button on the $2 and
+ *  the $10 machine, which is how 1997 cabinets were actually built), centred
+ *  in the bay between the centreline and the reel frame's right rail — the
+ *  bay COLLECT used to fill. The meter mirrors them in the left bay; its
+ *  dims scale with the pane so every kind lands the same canvas pixels
+ *  (~58×25 — see bandOf's note on the KING's coarse face). */
+function bandParts(k: KindSpec): { meter: BRect; dn: BRect; up: BRect } {
   const { yHi, yLo } = bandOf(k);
+  const cy = (yHi + yLo) / 2;
   const span3 = 0.145 * 3 + 0.015 * 2;          // the reel window, as built
   const railIn = span3 / 2 + 0.02;              // the right rail's inner face
-  return { cx: (0.03 + railIn) / 2, cy: (yHi + yLo) / 2, w: 0.15, h: 0.06 };
+  const bx = (0.03 + railIn) / 2;               // right-bay centre
+  const bw = 0.066, bh = 0.06, gap = 0.020;
+  return {
+    meter: { cx: -bx, cy, w: 0.23 * paneW(k), h: yHi - yLo },
+    dn: { cx: bx - (bw + gap) / 2, cy, w: bw, h: bh },
+    up: { cx: bx + (bw + gap) / 2, cy, w: bw, h: bh },
+  };
 }
+interface BRect { cx: number; cy: number; w: number; h: number }
 
 /** Where everything sits on the session canvas, derived from the SAME numbers
  *  buildCabinet places the geometry with — the lever region is where the lever
@@ -815,22 +846,20 @@ function layFor(k: KindSpec): SessionLay {
   };
   const winY = k.h * 0.78;
   const span3 = 0.145 * 3 + 0.015 * 2;
-  // the machine parts on the body under the reel glass — 2026-08-10, on the
-  // three-cell strip this replaced: "not a fan of this bottom bit here it
-  // looks bad and clunky. make it more diagetic". A CREDIT WINDOW (backlit
-  // seven-segment glass, the watch face and ATM tube's own amber) at the
-  // left — still painted, because a display IS honestly a flat picture
-  // behind glass — and the COLLECT button at the right, which is REAL
-  // GEOMETRY now (see buildCabinet): its click rect here is derived from
-  // the same collectRect the mesh is built with, padded a centimetre so the
-  // chrome ring presses too. The stake is already silkscreened on the belly
-  // card and the attract sign, so no printed PULL: the lever is the pull.
-  const { yHi, yLo } = bandOf(k);
-  const cr = collectRect(k);
+  // the machine parts on the body under the reel glass — all REAL GEOMETRY
+  // now (see THE BET HARDWARE in buildCabinet): the bet meter's rect is
+  // where paintSession lights the digits behind the built glass, and the
+  // − / + click rects are derived from the same bandParts the caps are
+  // built with, padded a centimetre so the chrome ring presses too. The
+  // stake is already silkscreened on the belly card and the attract sign,
+  // so no printed PULL: the lever is the pull.
+  const bp = bandParts(k);
+  const pad = (r: BRect): Rect => box(r.cx - r.w / 2 - 0.012, r.cx + r.w / 2 + 0.012,
+    r.cy - r.h / 2 - 0.012, r.cy + r.h / 2 + 0.012);
   L = {
-    led: box(-k.w / 2 + 0.03, 0.02, yLo, yHi),
-    collect: box(cr.cx - cr.w / 2 - 0.012, cr.cx + cr.w / 2 + 0.012,
-      cr.cy - cr.h / 2 - 0.012, cr.cy + cr.h / 2 + 0.012),
+    bet: box(bp.meter.cx - bp.meter.w / 2, bp.meter.cx + bp.meter.w / 2,
+      bp.meter.cy - bp.meter.h / 2, bp.meter.cy + bp.meter.h / 2),
+    dn: pad(bp.dn), up: pad(bp.up),
     lever: box(k.w / 2, xMin + pw - 0.005, k.h * 0.74 - 0.06, k.h * 0.74 + 0.44),
     glass: box(-span3 / 2 - 0.05, span3 / 2 + 0.05, winY - 0.17, winY + 0.17),
   };
@@ -865,48 +894,38 @@ function seg7(g: CanvasRenderingContext2D, x: number, y: number, t: number,
   if (on[6]) g.fillRect(x + t, mid, w - 2 * t, t);
 }
 
-/** The session canvas: TRANSPARENT except the credit window — the ONE part
- *  that stays painted, because a display is honestly a flat picture behind
- *  glass. COLLECT was painted here too, and 2026-08-10 Erick called it: "so
- *  the big non real collect button. thjats what im talking about as being
- *  bad and clunky and not looking like its part of the real world" — a
- *  picture of a button never reads like the lever, which is geometry. The
- *  button is built in buildCabinet now; only its CLICK REGION lives on this
- *  canvas (L.collect, derived from the mesh's own rect). */
+/** The session canvas: TRANSPARENT except what glows behind the bet meter's
+ *  REAL glass (built in buildCabinet) — the world's amber seven-segment
+ *  digits, the same phosphor the watch and the ATM speak. 2026-08-10, on the
+ *  full-width cash meter this replaces: "janky ass money screen" — the purse
+ *  already lives on the wallet HUD, so the machine's own glass shows the ONE
+ *  number that is the machine's: the bet. Everything else on the fascia is
+ *  geometry; nothing opaque is painted here any more. */
 function paintSession(
-  g: CanvasRenderingContext2D, w: number, h: number, m: Machine | null, cash: number,
+  g: CanvasRenderingContext2D, w: number, h: number, m: Machine | null,
 ): void {
   g.clearRect(0, 0, w, h);
   if (!m) return;
   const k = m.kind;
-  const L = layFor(k);
+  const b = layFor(k).bet;
 
-  // ── THE CREDIT WINDOW: a backlit seven-segment meter behind dark glass,
-  //    in the amber every lit readout in this world speaks (watch, ATM) ──
-  const led = L.led;
-  g.fillStyle = '#2a2420'; g.fillRect(led.x - 2, led.y - 2, led.w + 4, led.h + 4);
-  g.fillStyle = '#0e0805'; g.fillRect(led.x, led.y, led.w, led.h);
-  g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(led.x, led.y, led.w, 2);
-  g.fillStyle = 'rgba(255,182,56,0.10)'; g.fillRect(led.x, led.y + led.h - 3, led.w, 3);
-  // the silkscreen, printed on the glass edge — just the $, so the window's
-  // width goes to digits ('CASH $' left the narrow cabinets a 3-digit meter,
-  // under their own $750 jackpot)
-  g.fillStyle = '#8a8072'; g.font = 'bold 9px monospace'; g.textAlign = 'left';
-  g.fillText('$', led.x + 5, led.y + led.h / 2 + 3.5);
-  // digits: ghost 8s in the unlit phosphor, the value burning over them. The
-  // bar thickness comes off the window's own height so the KING's coarser
-  // face (fewest canvas texels per metre) gets digits that still FIT its
-  // glass rather than spilling under it. Five digits at most — a meter, not
-  // an odometer.
-  const t = Math.max(1, Math.floor((led.h - 4) / 9));
+  // a breath of backlight on the glass, then the silkscreen and the digits.
+  // Bar thickness comes off the window's own height, and the window scales
+  // with the pane, so the KING's coarser face gets the same ~58×25 px meter
+  // as the cherry (see bandOf).
+  g.fillStyle = 'rgba(255,182,56,0.05)'; g.fillRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
+  const t = Math.max(1, Math.floor((b.h - 6) / 9));
   const dw = 5 * t + t, dh = 9 * t;
-  const nFit = Math.min(5, Math.max(3, Math.floor((led.w - 20) / dw)));
-  const val = String(Math.min(Math.floor(cash), 10 ** nFit - 1));
-  const y0 = Math.round(led.y + (led.h - dh) / 2);
-  for (let i = 0; i < nFit; i++) {
-    const x0 = led.x + led.w - 5 - (nFit - i) * dw;
+  const y0 = Math.round(b.y + (b.h - dh) / 2);
+  const xd = b.x + b.w - 5 - 2 * dw;             // two digit slots, right-aligned
+  g.fillStyle = '#8a8072'; g.textAlign = 'left';
+  g.font = 'bold 6px monospace'; g.fillText('BET', b.x + 4, b.y + b.h / 2 + 2);
+  g.font = 'bold 9px monospace'; g.fillText('$', xd - 8, y0 + dh - 1);
+  const val = String(Math.min(99, k.stake * m.bet));
+  for (let i = 0; i < 2; i++) {
+    const x0 = xd + i * dw;
     seg7(g, x0, y0, t, '8', 'rgba(255,182,56,0.09)');
-    const ch = val[val.length - nFit + i];
+    const ch = val[val.length - 2 + i];
     if (ch !== undefined) seg7(g, x0, y0, t, ch, '#ffb638');
   }
 }
@@ -987,11 +1006,12 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
         const m = active;
         if (!m) return '';
         if (m.state !== 'idle') return '…';
-        return ctx.purse.cash >= m.kind.stake
-          ? `click the lever — $${m.kind.stake} a pull`
-          : `slot wants $${m.kind.stake}`;
+        const bet = m.kind.stake * m.bet;
+        return ctx.purse.cash >= bet
+          ? `click the lever — $${bet} a pull · − + set the bet`
+          : `slot wants $${bet}`;
       },
-      draw: (g, w, h) => paintSession(g, w, h, active, ctx.purse.cash),
+      draw: (g, w, h) => paintSession(g, w, h, active),
       // CLICK-ONLY (2026-08-09) with one survivor: *"maybe the spin/pull lever
       // is still space tho"* — SPACE pulls, nothing else. Escape and [E] still
       // leave, through the framework.
@@ -1013,21 +1033,22 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
         hot: (x, y) => {
           const m = active;
           if (!m) return false;
+          if (m.state !== 'idle') return false;         // the bet locks while it spins
           const L = layFor(m.kind);
-          if (inR(L.collect, x, y)) return true;        // the way out never greys
-          if (m.state !== 'idle') return false;
-          return inR(L.lever, x, y) || inR(L.glass, x, y);
+          return inR(L.dn, x, y) || inR(L.up, x, y) ||
+            inR(L.lever, x, y) || inR(L.glass, x, y);
         },
         click: (x, y) => {
           const m = active;
-          if (!m) return;
+          if (!m || m.state !== 'idle') return;
           const L = layFor(m.kind);
-          // COLLECT is the exit: the money is already in the purse (the
-          // machine pays it direct), so collecting is standing up. The cap
-          // gets its press travel first — a button that does not move when
-          // clicked is the painted button all over again.
-          if (inR(L.collect, x, y)) { m.collectT = -2; panel?.close(); return; }
-          if (m.state !== 'idle') return;
+          // − / + walk the bet 1x–3x of the stake. The cap gets its press
+          // travel even when clamped at the end of the range — a button
+          // that does not move when clicked is the painted button all over
+          // again. (No COLLECT: wins pay the purse direct, and 2026-08-10
+          // Erick asked the obvious — "whats the collect button?")
+          if (inR(L.dn, x, y)) { nudgeBet(m, -1); panel?.repaint(); return; }
+          if (inR(L.up, x, y)) { nudgeBet(m, +1); panel?.repaint(); return; }
           if (inR(L.lever, x, y) || inR(L.glass, x, y)) {
             pull(m, ctx);
             panel?.repaint();
@@ -1082,15 +1103,15 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
     lastT = f.t;
     const inside = room.inside();
     for (const m of machines) {
-      // the COLLECT cap's press travel — 0.16 s down-and-back, run in any
-      // state: the click that presses it usually also closes the session,
-      // and the travel plays out as the eye pulls back
-      if (m.collectT === -2) m.collectT = f.t;
-      if (m.collectT >= 0) {
-        const q = f.t - m.collectT;
-        m.collectCap.position.z = m.collectZ -
-          (q < 0.16 ? 0.008 * Math.sin(Math.PI * q / 0.16) : 0);
-        if (q >= 0.16) m.collectT = -1;
+      // the bet caps' press travel — 0.16 s down-and-back per cap
+      for (const c of m.caps) {
+        if (c.t === -2) c.t = f.t;
+        if (c.t >= 0) {
+          const q = f.t - c.t;
+          c.mesh.position.z = c.z -
+            (q < 0.16 ? 0.008 * Math.sin(Math.PI * q / 0.16) : 0);
+          if (q >= 0.16) c.t = -1;
+        }
       }
       if (m.state === 'idle') {
         if (!inside) continue;
@@ -1100,7 +1121,7 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
         m.attractT += dt;
         if (m.attractT > 2.4) {
           m.attractT = 0; m.attractIx = (m.attractIx + 1) % (ATTRACT.length + 1);
-          say(m, m.attractIx === ATTRACT.length ? `$${m.kind.stake} A PULL`
+          say(m, m.attractIx === ATTRACT.length ? `$${m.kind.stake * m.bet} A PULL`
             : ATTRACT[m.attractIx]);
         }
         const step = (Math.floor(f.t * 5) + m.i) % 3;
@@ -1118,9 +1139,20 @@ export function buildSlots(ctx: CtxBuild, room: SlotRoom, specs: SlotSpec[]): Sl
   return { stake: (i) => machines[i].kind.stake };
 }
 
+/** − / + on the fascia: walk the bet across 1x–3x of the cabinet's stake.
+ *  Latches the cap's press travel either way; only a real change speaks. */
+function nudgeBet(m: Machine, d: number): void {
+  m.caps[d < 0 ? 0 : 1].t = -2;
+  const b = Math.min(3, Math.max(1, m.bet + d));
+  if (b === m.bet) return;
+  m.bet = b;
+  say(m, `BET $${m.kind.stake * b}`, true);
+  m.attractT = -1.5;
+}
+
 function pull(m: Machine, ctx: CtxBuild): void {
   if (m.state !== 'idle') return;
-  const stake = m.kind.stake;
+  const stake = m.kind.stake * m.bet;
   if (ctx.purse.cash < stake) { say(m, `NEED $${stake}`); m.attractT = -1.5; return; }
   ctx.purse.cash -= stake;
   ctx.refreshWallet();
@@ -1180,10 +1212,10 @@ function settleIfDone(m: Machine): void {
   const w = evaluate(symAt(0, m.reels[0].stop), symAt(1, m.reels[1].stop), symAt(2, m.reels[2].stop));
   if (!w) {
     m.state = 'idle'; m.attractT = m.nearMiss ? -2.4 : 1.6;
-    say(m, m.nearMiss ? 'SO CLOSE' : `$${m.kind.stake} A PULL`);
+    say(m, m.nearMiss ? 'SO CLOSE' : `$${m.kind.stake * m.bet} A PULL`);
     return;
   }
-  m.win = w.pays * m.kind.stake;
+  m.win = w.pays * m.kind.stake * m.bet;
   m.state = 'paying'; m.flashT = 0; m.payRamp = 0; m.paid = 0;
   m.topper.userData.flash = true;
   say(m, w.line, true);
