@@ -35,20 +35,23 @@
 // stuf like lets max it out and make it super fun!"). Pays are in multiples
 // of the WHOLE bet, best combo per line, lines stack:
 //
-//   RTP            100.95%    (4,135 credits back per 4,096 staked — the
-//                              house pays ~1% for the party; fun > realism
+//   RTP            101.44%    (4,155 credits back per 4,096 staked — the
+//                              house pays ~1.4% for the party; fun > realism
 //                              and a generous winrate are his rulings)
-//   hit rate       44.3%      (nearly every other pull pays something)
-//   multi-line     6.5%       (two or three lines light at once)
+//   hit rate       27.4%      and EVERY hit nets the player ahead — the
+//                              smallest pay is 2x the bet. The first cut
+//                              paid 1x tick-overs on a third of pulls and
+//                              he called it: "winning at slots just wins
+//                              you back the money you spent? makes no sense"
+//   multi-line     0.8%       (two lines light at once)
 //   JACKPOT 777 CENTER 150x   1 in 1,024   (the topper's printed number)
 //   777 on any other line 20x 1 in   256 each
-//   3 BELLS   10x  ·  3 BARS 5x  ·  3 CHERRIES 3x       per line
-//   ANY TWO 7s 1x  ·  CHERRY PAIR 1x    money back — the tick-over
+//   3 BELLS 10x · 3 BARS 5x · 3 CHERRIES 4x · CHERRY PAIR 2x   per line
 //   anticipation crawl        15.6% of pulls (7-7 or bell-bell live on a line)
-//   7-7-x tease               7.3%, and the missed line blinks SO CLOSE
+//   7-7-x tease               7.3% — pays nothing, blinks SO CLOSE
 //
-// Against the old single-line 94.97% / 28.6% this is busier and friendlier
-// still: smaller multipliers per line, five chances a pull, and the jackpot
+// Against the old single-line 94.97% / 28.6% this pays the same rhythm of
+// hits, but in five ways, never a refund dressed as a win, and the jackpot
 // keeps its 150x where the toppers already promise it.
 //
 // THREE PERSONALITIES, one pay schedule, three stakes — so the printed cards
@@ -124,9 +127,17 @@ const LINES: readonly LineDef[] = [
 interface LineWin { ix: number; name: string; pays: number; is7: boolean }
 
 /** One line, best combo first. Pays are per WHOLE BET — five lines always
- *  play, so each is roughly a fifth of the old single-line schedule, and the
+ *  play, so each is a fraction of the old single-line schedule, and the
  *  jackpot keeps its 150x on the CENTER line only: the toppers print
- *  $300/$750/$1500, and a topper that lies is worse than no topper. */
+ *  $300/$750/$1500, and a topper that lies is worse than no topper.
+ *
+ *  THE SMALLEST PAY IS 2x, BY RULING — 2026-08-10: "i dont understand
+ *  winning at slots just wins you back the money you spent? makes no sense".
+ *  The first cut of this table paid 1x on two-7s and cherry pairs: a third
+ *  of all pulls threw the strobe and the coins over a net of zero dollars.
+ *  So two 7s pay nothing now (7-7-x stays what it always really was — the
+ *  tease), the cherry pair pays double, and every celebration leaves the
+ *  player visibly ahead. */
 function evalLine(a: Sym, b: Sym, c: Sym, center: boolean): Omit<LineWin, 'ix'> | null {
   if (a === 'S' && b === 'S' && c === 'S') {
     return center ? { name: 'JACKPOT 777', pays: 150, is7: true }
@@ -134,13 +145,8 @@ function evalLine(a: Sym, b: Sym, c: Sym, center: boolean): Omit<LineWin, 'ix'> 
   }
   if (a === 'L' && b === 'L' && c === 'L') return { name: '3 BELLS', pays: 10, is7: false };
   if (a === 'B' && b === 'B' && c === 'B') return { name: '3 BARS', pays: 5, is7: false };
-  if (a === 'C' && b === 'C' && c === 'C') return { name: '3 CHERRIES', pays: 3, is7: false };
-  if (Number(a === 'S') + Number(b === 'S') + Number(c === 'S') === 2) {
-    return { name: 'TWO 7s', pays: 1, is7: false };
-  }
-  if ((a === 'C' && b === 'C') || (b === 'C' && c === 'C')) {
-    return { name: 'CHERRY PAIR', pays: 1, is7: false };
-  }
+  if (a === 'C' && b === 'C' && c === 'C') return { name: '3 CHERRIES', pays: 4, is7: false };
+  if (a === 'C' && b === 'C') return { name: 'CHERRY PAIR', pays: 2, is7: false };
   return null;
 }
 
@@ -442,11 +448,11 @@ function payCard(ctx: CtxBuild, k: KindSpec): THREE.MeshBasicMaterial {
     g.fillText(`BET $${k.stake}-$${k.stake * 3}`, 48, 8);
     const rows: [string, number][] = [
       ['7-7-7 CENTER', 150], ['7-7-7 LINE', 20], ['3 BELLS', 10],
-      ['3 BARS', 5], ['3 CHERRY', 3], ['ANY TWO 7s', 1], ['CHERRY PAIR', 1],
+      ['3 BARS', 5], ['3 CHERRY', 4], ['CHERRY PAIR', 2],
     ];
     g.font = '6px monospace';
     rows.forEach(([line, pays], i) => {
-      const y = 19 + i * 8;
+      const y = 19 + i * 9;
       g.fillStyle = i === 0 ? '#8a2430' : '#3a2a1e';
       g.textAlign = 'left'; g.fillText(line, 4, y);
       g.textAlign = 'right'; g.fillText(pays + 'x', 92, y);
