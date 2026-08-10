@@ -240,6 +240,13 @@ const EVENTS = [
   // as a one-shot. One per cabinet personality, keyed by the kind the lever
   // publishes.
   'slot-arp-cherry', 'slot-arp-seven', 'slot-arp-king',
+  // *"i added slot coin win, just add thhat to the slots when you win.
+  // create a short version thats not the bigger teir of wins and a full
+  // version thats the bigger tier of wins"* (2026-08-10) — one recording,
+  // two pours: a second of coins for the ordinary tier, the whole 3.6 s
+  // for the jackpot. LAYERED under the win cues, never replacing them —
+  // the ding is the machine announcing, the coins are the tray paying.
+  'slot-coin-short', 'slot-coin-full',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -368,6 +375,9 @@ const LVL = {
   // the jackpot fanfare sits over the win ding but under the horn — it is the
   // machine shouting, and the machine is a metre from your face
   slotJackpot: 0.60,
+  // the coins into the tray, layered UNDER whichever announcement they ride
+  // (0.50 / 0.60): the payout is the texture, the ding is the event
+  slotCoins: 0.40,  // multiplied by distance
   busIdle: 0.30,   // the looping bed while it stands at the flag
   // ── the skateboard (2026-08-10) ──
   // the roll sits UNDER the footsteps it replaces (0.55) and over the beds:
@@ -1241,6 +1251,12 @@ export function register(ctx: CtxBuild): void {
       const big = (ctx.purse.cash - winCash) / (t - winT) > 62.5;
       atPoint(big ? 'slot-jackpot' : 'slot-win', winX, winZ,
         big ? LVL.slotJackpot : LVL.slotWin, 18, big ? 1 : 0.98 + roll() * 0.05);
+      // and the tray pays — see the coin note on the roster. The same tier
+      // split off the same payout rate: the short pour under the ding, the
+      // full 3.6 s under the fanfare, both from the one recording so a big
+      // win is unmistakably MORE of the same money.
+      atPoint(big ? 'slot-coin-full' : 'slot-coin-short', winX, winZ,
+        LVL.slotCoins, 18, 0.97 + roll() * 0.06);
       winT = -1;
     }
   };

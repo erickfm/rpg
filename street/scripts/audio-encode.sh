@@ -442,3 +442,30 @@ for pair in "cherry:slot scale 1" "seven:slot scale 2" "king:slot scale 3"; do
   SRC=$SRC_SAVE
   rm -f "$OUT/.arp-cut.wav"
 done
+
+# ── and the coin tray (2026-08-10, later) ───────────────────────────────────
+#
+# *"i added slot coin win, just add thhat to the slots when you win. create a
+# short version thats not the bigger teir of wins and a full version thats
+# the bigger tier of wins"* — one 4.0 s recording of coins clattering into a
+# tray, mono and ALREADY 22.05 kHz at source (its 8-11 kHz shimmer is 17% of
+# the energy and is kept whole; there is nothing above Nyquist to lose).
+# Coins start at 0.38 s and run at a steady clatter to a HARD cut at 4.0 —
+# the take stops, the coins don't — so both cuts get bespoke fades long
+# enough to read as the tray running dry rather than the tape running out
+# (the church peal's argument; the sfx helper's 55 ms is for latches).
+# Peak-normalised: a clatter is its transients, the registers' argument.
+echo "the coin tray:"
+g=$(peak_gain "$SRC/slot coin win.wav")
+# the short pour, for the ordinary tier — a second of coins under the 0.8 s
+# win ding it layers with
+ffmpeg -hide_banner -loglevel error -y -ss 0.36 -t 1.20 -i "$SRC/slot coin win.wav" \
+  -af "afade=t=in:st=0:d=0.006,afade=t=out:st=0.90:d=0.30,volume=${g}dB" \
+  -ac 1 -ar 22050 -c:a libvorbis -q:a 2 "$OUT/slot-coin-short.ogg"
+echo "  slot-coin-short.ogg  <- slot coin win.wav  22050Hz  ${g}dB  1.20s"
+# the full pour, for the big tier — everything the take has, dying away
+# inside the 3.1 s jackpot fanfare's own tail
+ffmpeg -hide_banner -loglevel error -y -ss 0.36 -t 3.64 -i "$SRC/slot coin win.wav" \
+  -af "afade=t=in:st=0:d=0.006,afade=t=out:st=3.14:d=0.50,volume=${g}dB" \
+  -ac 1 -ar 22050 -c:a libvorbis -q:a 2 "$OUT/slot-coin-full.ogg"
+echo "  slot-coin-full.ogg  <- slot coin win.wav  22050Hz  ${g}dB  3.64s"
