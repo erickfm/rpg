@@ -6280,3 +6280,20 @@ reload, so the save format is unchanged. The `[E] work` shift notes are a
 different flow and stay.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"also make bunny hop somehow optimal movement tech"*
+
+To a builder, in the trunk (`fp.ts`) alone. Classic bhop, hidden — no HUD,
+no tutorial, discovered by doing. Land and re-press jump inside a 0.20 s
+window while moving and each clean hop stacks +6.25% speed, four hops to
+the full +25%; sprint + full chain is 8.5 m/s against the flat 6.8, and
+DEX stacks on top (a DEX-maxed hopper peaks at 9.78 m/s — the fastest
+thing in Crosstown). Miss the window or stop and the stack drains in
+0.4 s on the ground; sitting zeroes it. Works indoors — the cap is
+derived against collision (worst legal step 0.489 m vs a 0.691 m minimum
+reject band, no tunnel possible). One plain footstep per landing was
+already the audio rule and a chain lands slower than walk cadence, so
+audio.ts is untouched. The fall-vs-teleport bound in fp.ts was widened to
+include the DEX and bhop multipliers it had quietly outgrown.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

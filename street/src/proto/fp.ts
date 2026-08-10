@@ -214,6 +214,50 @@ const TUCK_EASE = 16;
 const AIR_CROUCH_DIP = 0.15;
 
 /**
+ * ── THE BUNNY HOP ────────────────────────────────────────────────────────────
+ *
+ * The user, 2026-08-09: *"also make bunny hop somehow optimal movement tech"*.
+ * Land and re-jump inside `BHOP_WINDOW` while moving and each clean hop stacks
+ * speed toward a cap — a well-chained hopper outruns a flat sprint, which is
+ * what "optimal" means. Hidden on purpose: no HUD, no prompt, discovered by
+ * doing, like the era's games. Miss the window, stop, or sit and it runs back
+ * down to nothing.
+ *
+ * THE NUMBERS, and why the cap is safe against collision:
+ *
+ *   · `BHOP_WINDOW` 0.20 s — four whole frames at the 20 fps dt clamp
+ *     (main.ts:107), so the tech survives a busy machine; but only a third of
+ *     the hop's own ~0.57 s hang, and `jumpHeld` still demands a release, so
+ *     holding space gets you nothing — the re-press has to LAND in the window,
+ *     and that timing is the skill.
+ *   · `BHOP_HOPS` 4 at `BHOP_GAIN` 0.25 — each clean hop is +6.25%, four in a
+ *     row is the full +25%. Sprint at full stack is 6.8 × 1.25 = 8.5 m/s
+ *     against the flat 6.8, and DEX stacks on top MULTIPLICATIVELY through the
+ *     same `speedMul()` everything else takes — a DEX-maxed hopper peaks at
+ *     6.8 × 1.15 × 1.25 = 9.78 m/s, the fastest thing in Crosstown, on purpose.
+ *   · THE CAP CANNOT TUNNEL, derived rather than hoped: the worst legal
+ *     per-axis step is that 9.78 m/s × the 0.05 s dt clamp = 0.489 m, and
+ *     `blocked()` pads every box by RADIUS (0.3456) per side, so even a
+ *     zero-thickness collider presents a 0.691 m reject band — 1.4× the worst
+ *     step. Doorways, thresholds and the 2 m lane are the same point-in-box
+ *     tests at any speed; nothing gets narrower or leakier.
+ *   · `BHOP_DECAY` 2.5/s — grounded past the window, or grounded with no
+ *     movement keys, a full stack is gone in 0.4 s. `sit()` zeroes it outright:
+ *     a chair is not a hop.
+ *
+ * It works indoors — the head clamp already owns the rise and the cap keeps
+ * the speed inside what every doorway was tuned against. It does NOT dodge the
+ * pass-out: `ct/fatigue.ts` defers the collapse only while `airborne`, retries
+ * for ever, and a chain is grounded between every pair of hops — the collapse
+ * fires on the first landing frame it sees, so hopping buys a fraction of a
+ * second at most. Left as-is; that is a doomed last sprint, not an exploit.
+ */
+const BHOP_WINDOW = 0.20;
+const BHOP_HOPS = 4;
+const BHOP_GAIN = 0.25;
+const BHOP_DECAY = 2.5;
+
+/**
  * HOW FAR THE FLOOR HAS TO DROP IN ONE FRAME BEFORE IT COUNTS AS A FALL, in
  * metres. **THIS IS THE ONE NUMBER TO TURN.**
  *
@@ -358,6 +402,14 @@ export class FPRig {
   // the top you are standing on evaporates mid-stand-up, dropping you through
   // it. One number, settled once, read by every collision test in the frame.
   private footY = 0;
+  // ── the bunny hop (see the constants block) ──
+  //
+  // `bhop` is the stack, 0…1 — the fraction of `BHOP_GAIN` currently earned.
+  // `groundT` is seconds spent grounded since the last touchdown, the number
+  // the re-jump window is judged against. Seeded huge so the first jump after
+  // spawn cannot read as a chained one.
+  private bhop = 0;
+  private groundT = 999;
   private bobT = 0;
   // ── sitting ──
   //
@@ -454,6 +506,9 @@ export class FPRig {
     this.yaw = pose.yaw;
     // cancel anything mid-flight, or you land after standing up
     this.airY = 0; this.vy = 0; this.jumpHeld = false; this.air = false;
+    // ...and any hop chain with it — a chair is not a hop, and a stale
+    // `groundT` of 0 here would let standing up re-chain off the seat.
+    this.bhop = 0; this.groundT = 999;
     // A chair is not a surface you stepped off — RE-BASE whatever was holding
     // you up onto where you now are, so standing back up cannot read it as a
     // floor that dropped away.
@@ -770,7 +825,11 @@ export class FPRig {
     this.stanceT += ((this.airY > 0 ? AIR_CROUCH_DIP : 1) * this.crouchT - this.stanceT) * Math.min(1, dt * 9);
     const moving = mv.lengthSq() > 0;
     if (moving) {
-      const sp = (input.keys.has('shift') ? this.run : this.speed) * speedMul() * (1 - 0.55 * this.stanceT);
+      // The bunny-hop stack multiplies LAST and applies in the air too — the
+      // whole point of a hop is that the speed it earned carries through the
+      // flight. Walk × full stack is 4.1 m/s, still under the flat sprint, so
+      // the ceiling belongs to sprint + chain and nothing else.
+      const sp = (input.keys.has('shift') ? this.run : this.speed) * speedMul() * (1 - 0.55 * this.stanceT) * (1 + BHOP_GAIN * this.bhop);
       mv.normalize().multiplyScalar(sp * dt);
       const nx = THREE.MathUtils.clamp(this.pos.x + mv.x, this.bounds.minX, this.bounds.maxX);
       if (!this.blocked(nx, this.pos.z, atY)) this.pos.x = nx;
@@ -831,7 +890,19 @@ export class FPRig {
     // kerb edge, road, stoop, ground floor, stairs, upstairs): every apex lands
     // in its required 0.45-0.8 m band — note the band's floor is only 0.025 m
     // below the clamped apex — and every spot lands back on the floor it left.
-    if (jumpDown && !this.jumpHeld && this.airY === 0 && this.vy === 0) this.vy = 4.0;
+    if (jumpDown && !this.jumpHeld && this.airY === 0 && this.vy === 0) {
+      this.vy = 4.0;
+      // THE CHAIN IS JUDGED HERE, at takeoff: re-pressed inside the window,
+      // moving — a clean hop, stack one step. Anything else (first jump of a
+      // session, a jump from a stand, a jump after loitering past the window)
+      // starts the chain over at zero rather than keeping a stale stack.
+      // `groundT` at this line is the sum of fully-grounded frames since the
+      // last touchdown — it was reset on the landing frame below and has been
+      // accumulating in the same block since.
+      this.bhop = (this.groundT <= BHOP_WINDOW && moving)
+        ? Math.min(1, this.bhop + 1 / BHOP_HOPS)
+        : 0;
+    }
     this.jumpHeld = jumpDown;
     if (this.vy !== 0 || this.airY > 0) {
       this.vy -= 14 * dt;
@@ -850,6 +921,20 @@ export class FPRig {
     // the bed at ankle height. Landing eases it out instead of dropping it, so
     // the floor pick below rises under you over ~0.15 s rather than in a frame.
     const airborne = this.airY > 0 || this.vy !== 0;
+    // ── bunny-hop bookkeeping, against LAST frame's `this.air` before it is
+    // republished below. A touchdown restarts the window clock; every further
+    // grounded frame runs it. The stack decays only ON THE GROUND — past the
+    // window, or with no movement keys held — never in flight, because the
+    // flight is where the earned speed is spent. Walking down a slope, where
+    // the step-off block flickers `airY` positive every frame (see
+    // FALL_MIN_DROP), reads as constant touchdowns: the clock keeps resetting,
+    // the stack survives the descent, and the jump gate is closed there anyway
+    // (`airY === 0` fails), so nothing can be chained off a mere hill.
+    if (this.air && !airborne) this.groundT = 0;
+    else if (!airborne) this.groundT += dt;
+    if (!airborne && (this.groundT > BHOP_WINDOW || !moving)) {
+      this.bhop = Math.max(0, this.bhop - BHOP_DECAY * dt);
+    }
     this.air = airborne;   // published by the `airborne` getter — one source
     this.tuck +=((airborne && input.keys.has('c') ? TUCK_LIFT : 0) - this.tuck) * Math.min(1, dt * TUCK_EASE);
     let gy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
@@ -930,16 +1015,22 @@ export class FPRig {
     // numbers that bound the next value.
     //
     // AND ONLY IF YOU WALKED THERE — unchanged, and now carrying much more
-    // weight than it used to. `this.run` is 42 m/s, so the most any legal frame
-    // can carry you is `run * dt`, derived here rather than typed so it still
-    // holds if the speed is retuned. Anything further is a teleport
-    // (`__ct.warp`, a door, a seat exit), where the floor changing is the point
-    // and a fall would be a phantom. **With the collider-top gate gone this is
-    // the ONLY thing standing between a warp and a fabricated fall**, and every
-    // warp in the world now passes through terrain the picker answers for.
+    // weight than it used to. The most any legal frame can carry you is the
+    // sprint times every multiplier a legal player can hold — `speedMul()`'s
+    // DEX ceiling and the full bunny-hop stack — derived here rather than
+    // typed so it still holds if any of them is retuned. (It was a bare
+    // `run * dt`, which the DEX multiplier had already quietly outgrown: a
+    // DEX-specced sprinter's real frame exceeded the bound, so his kerb drops
+    // read as teleports and never became falls. The hop stack would have
+    // widened that hole; both are inside the bound now.) Anything further is
+    // a teleport (`__ct.warp`, a door, a seat exit), where the floor changing
+    // is the point and a fall would be a phantom. **With the collider-top gate
+    // gone this is the ONLY thing standing between a warp and a fabricated
+    // fall**, and every warp in the world now passes through terrain the
+    // picker answers for.
     const walked = Math.hypot(this.pos.x - this.lastX, this.pos.z - this.lastZ);
     const dropped = this.support - gy;
-    if (dropped > FALL_MIN_DROP && walked <= this.run * dt + 1e-3) {
+    if (dropped > FALL_MIN_DROP && walked <= this.run * speedMul() * (1 + BHOP_GAIN) * dt + 1e-3) {
       this.airY += dropped;
     }
     this.support = gy;
