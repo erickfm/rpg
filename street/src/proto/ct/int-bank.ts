@@ -23,7 +23,7 @@ import { BANK_DOOR } from './bank';
 import { LOAN_AMOUNTS, LOAN_RATE } from './menus';
 // The pen. A pure leaf by contract (its header says so and why), so it cannot
 // be in a cycle with the `./int-*.ts` glob either.
-import { makeSigPad } from './signature';
+import { makeSigPad, paintBackspace } from './signature';
 import { leafPair } from './vice';
 
 // FIRST FEDERAL, inside.
@@ -1615,13 +1615,14 @@ export function buildBankInterior(ctx: CtxBuild): void {
     // The mechanic is `ct/signature.ts`'s — one pen for every paper. The band
     // splits: the PAD on the left is the blank you draw in, HAND OVER on the
     // right rises once the ink counts and does what SIGN & HAND IT OVER's
-    // click used to, and a red VOID tag in the pad's top-left corner clears
-    // it. All of it stays above canvas y 300, for the wristwatch reason the
-    // note above measured — a submit button below 300 is a button behind
-    // your own arm.
+    // click used to, and the red ⌫ in the pad's top-RIGHT corner clears it
+    // (`paintBackspace` — it replaced a VOID tag at his word, 2026-08-10;
+    // six texels of air from the HAND OVER box beside it). All of it stays
+    // above canvas y 300, for the wristwatch reason the note above measured
+    // — a submit button below 300 is a button behind your own arm.
     const SIGN = { x0: 22, y0: 262, x1: 206, y1: 300 };
     const HAND = { x: 212, y: 262, w: 66, h: 38 };
-    const LVOID = { x: 22, y: 262, w: 40, h: 14 };
+    const CLR = { x: 185, y: 262, w: 21, h: 16 };
     const pad = makeSigPad(SIGN, 50);
     const inRect = (r: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
       x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -1697,16 +1698,16 @@ export function buildBankInterior(ctx: CtxBuild): void {
         hot: (x, y) => boxHit(x, y) >= 0 || (signLive() && (
           (x >= SIGN.x0 && x < SIGN.x1 && y >= SIGN.y0 && y <= SIGN.y1)
           || (pad.signed() && inRect(HAND, x, y))
-          || (!pad.blank() && inRect(LVOID, x, y)))),
+          || (!pad.blank() && inRect(CLR, x, y)))),
         // ONE DISPATCH. A click (mousedown, by the gate's own plumbing) goes
         // through the same functions the keys do, so a pointer and a keyboard
-        // cannot drift apart — w41's rule. Order matters: the VOID tag sits
-        // inside the pad's corner, so it is asked first.
+        // cannot drift apart — w41's rule. Order matters: the ⌫ sits inside
+        // the pad's corner, so it is asked first.
         click: (x, y) => {
           const i = boxHit(x, y);
           if (i >= 0) { setAmount(i); return; }
           if (!signLive()) return;
-          if (!pad.blank() && inRect(LVOID, x, y)) { pad.clear(); panel.repaint(); return; }
+          if (!pad.blank() && inRect(CLR, x, y)) { pad.clear(); panel.repaint(); return; }
           if (pad.signed() && inRect(HAND, x, y)) { submit(); panel.repaint(); return; }
           if (pad.down(x, y)) panel.repaint();
         },
@@ -1805,8 +1806,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
             g.fillText('SIGN HERE', (SIGN.x0 + SIGN.x1) / 2, (SIGN.y0 + SIGN.y1) / 2);
             g.textAlign = 'left';
           } else {
-            g.font = UI.font(8, true); g.fillStyle = RED;
-            g.fillText('VOID', LVOID.x + 4, LVOID.y + 8);
+            paintBackspace(g, CLR.x + 4, CLR.y + 3, RED);
           }
           if (pad.signed()) {
             g.fillStyle = 'rgba(31,58,90,0.10)';

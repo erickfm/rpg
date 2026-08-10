@@ -46,6 +46,38 @@ export function pixLine(g: CanvasRenderingContext2D,
   }
 }
 
+/**
+ * THE ⌫ — the clear affordance every signing paper shows once there is ink.
+ *
+ * *"you know when it says void on signiture just put the back space symbol at
+ *  the right side when you start writing stuff instead of void. or say clear.
+ *  but i prefer the symbol to clear"*   (2026-08-10)
+ *
+ * A left-pointing backspace key with its ×, drawn a texel at a time — 14 x 10,
+ * top-left origin — because a font's ⌫ arrives antialiased and this world's
+ * marks are hard pixels. The caller places it at the RIGHT side of its own
+ * line, paints it only when the pad is not blank, and wires its click region
+ * to `clear()` AHEAD of `down()` where the two overlap.
+ */
+export function paintBackspace(g: CanvasRenderingContext2D,
+                               x: number, y: number, color: string): void {
+  g.fillStyle = color;
+  g.fillRect(x + 4, y, 10, 1);                 // top edge
+  g.fillRect(x + 4, y + 9, 10, 1);             // bottom edge
+  g.fillRect(x + 13, y, 1, 10);                // right edge
+  g.fillRect(x + 3, y + 1, 1, 1);              // the wedge, stepping to the tip
+  g.fillRect(x + 2, y + 2, 1, 1);
+  g.fillRect(x + 1, y + 3, 1, 1);
+  g.fillRect(x, y + 4, 1, 2);
+  g.fillRect(x + 1, y + 6, 1, 1);
+  g.fillRect(x + 2, y + 7, 1, 1);
+  g.fillRect(x + 3, y + 8, 1, 1);
+  for (let i = 0; i < 4; i++) {                // the ×
+    g.fillRect(x + 7 + i, y + 3 + i, 1, 1);
+    g.fillRect(x + 10 - i, y + 3 + i, 1, 1);
+  }
+}
+
 export interface SigPad {
   /** pen down at a canvas point. True if it landed in the box and a stroke
    *  began — the caller repaints and swallows; false means "not mine". */

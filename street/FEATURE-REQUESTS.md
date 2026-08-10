@@ -6619,3 +6619,19 @@ low bar. The BARE current number (`84`), not `84/140`: he asked for "a
 number", the fill fraction already says how full you are, and the ceiling —
 derived from STR/CON in `ct/stats.ts` since training moved it — is a stat
 sheet's business, not a corner's. Repaints off the existing health signal.
+
+## 2026-08-10 — *"you know when it says void on signiture just put the back space symbol at the right side when you start writing stuff instead of void. or say clear. but i prefer the symbol to clear"*
+
+Went to a builder. The red VOID word is gone from every signing paper. In
+its place: a ⌫ — a left-pointing backspace key with its ×, drawn a texel
+at a time (`paintBackspace` in `ct/signature.ts`, one glyph for all three
+papers; a font's ⌫ arrives antialiased) — at the RIGHT side of the
+signature line, appearing only once there is ink, clicking it clears to
+re-sign. Placements checked per paper: FORM R-9 puts it at the ink box's
+right end beside the FILE box; the job application in the blank's
+top-right corner above SUBMIT; the loan sheet in the pad's top-right
+corner with six texels of air from HAND OVER. Where the symbol sits inside
+the pad, its click region is asked before the pen's, so it cannot be
+inked over.
+
+`npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.

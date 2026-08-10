@@ -36,7 +36,8 @@
 //   · and the signature is SIGNED — *"lets make it so you actually have to
 //     sign for signature like you have to draw"* (2026-08-09). You put the
 //     pen down on the line and draw; the ink is the world's blue biro, a
-//     texel at a time. VOID under the X clears it to re-sign; enough ink
+//     texel at a time. The ⌫ at the line's right end clears it to re-sign
+//     (it replaced a red VOID at his word, 2026-08-10); enough ink
 //     raises the red FILE box, which submits. Enter still auto-scrawls and
 //     signs for keyboard players — the no-trap rule outranks the flourish.
 //   · nothing is labelled that shows itself; the only instructions are the
@@ -71,7 +72,7 @@ import { paintFigure } from './mirror';
 import { resetOutfit } from './wardrobe';
 import { TRAITS, TRAIT_NAME, traitName, cycleTrait } from './body';
 import { STAT_NAMES, STAT_LABEL, stat, specStep, pointsLeft } from './stats';
-import { makeSigPad, pixLine } from './signature';
+import { makeSigPad, paintBackspace, pixLine } from './signature';
 
 /**
  * ── WHEN THIS RUNS, AND WHEN IT MUST NOT ──────────────────────────────────
@@ -246,7 +247,7 @@ const CH_CX = 138, CH_CY = 163, CH_R = 22;
  * THE MECHANIC ITSELF LIVES IN `ct/signature.ts` NOW — *"i want to sign
  * similar to game start for job app. and for loan"* (2026-08-09) spread it
  * to two more papers, and one pen serves all three. This screen keeps only
- * its geometry and its voice (the VOID mark, the red FILE box).
+ * its geometry and its voice (the ⌫ at the line's end, the red FILE box).
  *
  * ── THE FOOT'S LADDER, WITH HONEST MARGINS — *"need more space down here
  * too"* (2026-08-10). Off the row grid, each band clear of the next:
@@ -255,7 +256,7 @@ const CH_CX = 138, CH_CY = 163, CH_R = 22;
  *   192…198   the clerk's red note, right-aligned          (4 clear above)
  *   200…213   the ink box, the X, the line, and FILE beside them in the
  *             office corner                                (2 clear above)
- *   215…221   VOID and APPLICANT SIGNATURE                 (2 clear above)
+ *   215…221   APPLICANT SIGNATURE                          (2 clear above)
  *   224…230   the key legend                               (3 clear above)
  *   233       the sheet's bottom edge                      (3 clear above)
  */
@@ -267,8 +268,11 @@ const sigPad = makeSigPad({ x0: SIG_X0, y0: SIG_Y0, x1: SIG_X1, y1: SIG_Y1 }, SI
  *  is what BEGIN used to be. BESIDE the line now, in the office's own corner,
  *  so the band under the line belongs to the captions alone. */
 const FILE_X0 = 142, FILE_X1 = 174, FILE_Y0 = 200, FILE_Y1 = 212;
-/** the VOID mark under the X — click it (or the X) to clear and re-sign */
-const VOID_X0 = 18, VOID_X1 = 36, VOID_Y0 = 200, VOID_Y1 = 226;
+/** the ⌫, at the right end of the ink box, up once there is ink — clicking
+ *  it clears to re-sign. It replaced a red VOID under the X at his word
+ *  (see `paintBackspace`), and it lives INSIDE the pad's corner, so its
+ *  region is asked before the pen's. */
+const CLR_X0 = 118, CLR_X1 = 136, CLR_Y0 = 200, CLR_Y1 = 212;
 /** the instant photo — frame, then the image inset with the fat film bottom */
 const PH_X = 196, PH_Y = 24, PH_W = 106, PH_H = 158;
 const IMG_X = PH_X + 8, IMG_Y = PH_Y + 8, IMG_W = 90, IMG_H = 116;
@@ -434,7 +438,7 @@ function paintCreate(g: CanvasRenderingContext2D): void {
     if (i === ROW_SIGN) {
       // the signature line — SIGNED IN INK, see `SIG_X0`, and OFF THE ROW
       // GRID at `SIGN_Y`, which is where the foot's air comes from. The
-      // strokes, the VOID mark and the FILE box paint after this loop so
+      // strokes, the ⌫ and the FILE box paint after this loop so
       // the pen lies over the print and the highlighter, never under.
       y = SIGN_Y;
       g.font = font(12); g.fillStyle = PEN;
@@ -492,11 +496,8 @@ function paintCreate(g: CanvasRenderingContext2D): void {
 
   // ── the signature's ink, over everything the pen would lie over ──────
   sigPad.paint(g, PEN);
-  // VOID, under the X, only once there is ink to void — click it to re-sign
-  if (!sigPad.blank()) {
-    g.font = font(8); g.fillStyle = STAMP_RED;
-    g.fillText('VOID', ROW_X, SIGN_Y + 11);
-  }
+  // the ⌫ at the line's right end, only once there is ink — click to re-sign
+  if (!sigPad.blank()) paintBackspace(g, CLR_X0 + 2, CLR_Y0 + 1, STAMP_RED);
   // the FILE box, office red, up only when the ink counts — see `SIG_MIN`
   if (sigPad.signed()) {
     g.fillStyle = STAMP_RED;
@@ -670,7 +671,7 @@ function at(e: MouseEvent): { x: number; y: number } {
 /**
  * ── THE PEN ───────────────────────────────────────────────────────────────
  * Down inside the box starts a stroke; moving drags ink after the cursor,
- * clamped to the box; up lifts the pen. Down on the X/VOID column voids the
+ * clamped to the box; up lifts the pen. Down on the ⌫ clears the
  * signature instead. Everything is swallowed — this screen is modal.
  */
 function onDown(e: MouseEvent): void {
@@ -678,8 +679,9 @@ function onDown(e: MouseEvent): void {
   const { x, y } = at(e);
   e.stopImmediatePropagation();
   e.preventDefault();
-  if (x >= VOID_X0 && x < VOID_X1 && y >= VOID_Y0 && y < VOID_Y1) {
-    if (!sigPad.blank()) { sigPad.clear(); paint(); }
+  if (!sigPad.blank() && x >= CLR_X0 && x < CLR_X1 && y >= CLR_Y0 && y <= CLR_Y1) {
+    sigPad.clear();
+    paint();
     return;
   }
   if (sigPad.down(x, y)) {

@@ -4,7 +4,7 @@ import { pixTex, declareSurface, dither } from './paint';
 import { jobChance, stat } from './stats';
 import { registerSlice } from './save';
 import { boardStandoff } from './shop';
-import { makeSigPad, type SigPad } from './signature';
+import { makeSigPad, paintBackspace, type SigPad } from './signature';
 import type { CtxBuild } from './ctx';
 import type { Room } from './interior';
 
@@ -312,14 +312,16 @@ const SHEET_W = Math.round(SHEET_W_M * PPM), SHEET_H = Math.round(SHEET_H_M * PP
  * form's BOX rule), so nothing can look pressable and do nothing:
  *
  *   SIG      the blank you draw in, over the rule at its foot
- *   VOID     red, under the rule's left end, up once there is ink — clears
+ *   CLR      the ⌫ in the blank's top-right corner, up once there is ink —
+ *            clears to re-sign (`paintBackspace`; it replaced a red VOID at
+ *            his word, 2026-08-10). Inside the pad, so it is asked FIRST.
  *   SUBMIT   up once the ink counts (`SIG_MIN`) — rolls the application
  *            exactly as SIGN AND SUBMIT's click used to
  */
 const SIG = { x0: 24, y0: 210, x1: 196, y1: 246 };
 const SIG_MIN = 50;
 const SUBMIT = { x: 116, y: 256, w: 80, h: 32 };
-const VOID_R = { x: 20, y: 252, w: 44, h: 24 };
+const CLR = { x: 176, y: 210, w: 20, h: 16 };
 const inRect = (r: { x: number; y: number; w: number; h: number }, x: number, y: number) =>
   x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -425,12 +427,9 @@ function paintForm(
     g.fillRect(SIG.x0, 244, SIG.x1 - SIG.x0, 1);
     g.textAlign = 'left'; g.fillStyle = DIM; g.font = '8px monospace';
     g.fillText('APPLICANT', 70, 264);
-    // VOID once there is ink to void; SUBMIT once the ink counts. Neither is
-    // drawn before it is live — the sheet's own no-dead-buttons rule.
-    if (pad && !pad.blank()) {
-      g.font = 'bold 9px monospace'; g.fillStyle = RED;
-      g.fillText('VOID', 24, 264);
-    }
+    // the ⌫ once there is ink to clear; SUBMIT once the ink counts. Neither
+    // is drawn before it is live — the sheet's own no-dead-buttons rule.
+    if (pad && !pad.blank()) paintBackspace(g, CLR.x + 4, CLR.y + 3, RED);
     if (pad?.signed()) {
       if (hover) { g.fillStyle = 'rgba(138,44,34,0.12)'; g.fillRect(SUBMIT.x, SUBMIT.y, SUBMIT.w, SUBMIT.h); }
       g.strokeStyle = RED; g.lineWidth = 2;
@@ -551,7 +550,7 @@ export function jobStation(ctx: CtxBuild, room: Room, shopId: string, at: Statio
             if (formState(ctx, shopId).kind !== 'open') return false;
             return (x >= SIG.x0 && x < SIG.x1 && y >= SIG.y0 && y <= SIG.y1)
               || (pad.signed() && inRect(SUBMIT, x, y))
-              || (!pad.blank() && inRect(VOID_R, x, y));
+              || (!pad.blank() && inRect(CLR, x, y));
           },
           move: (x, y) => {
             if (pad.move(x, y)) { panel?.repaint(); return; }
@@ -562,7 +561,7 @@ export function jobStation(ctx: CtxBuild, room: Room, shopId: string, at: Statio
           // mousedown, by the gate's own dispatch: void, submit, or pen down
           click: (x, y) => {
             if (formState(ctx, shopId).kind !== 'open') return;
-            if (!pad.blank() && inRect(VOID_R, x, y)) { pad.clear(); panel?.repaint(); return; }
+            if (!pad.blank() && inRect(CLR, x, y)) { pad.clear(); panel?.repaint(); return; }
             if (pad.signed() && inRect(SUBMIT, x, y)) { roll(); return; }
             if (pad.down(x, y)) panel?.repaint();
           },
