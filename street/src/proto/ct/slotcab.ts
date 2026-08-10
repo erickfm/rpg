@@ -755,7 +755,13 @@ function layFor(k: KindSpec): SessionLay {
   // collecting your money IS leaving. The stake is already silkscreened on
   // the belly card and the attract sign, so no printed PULL: the lever is
   // the pull.
-  const yLo = winY - 0.275, yHi = winY - 0.178;
+  // The band's world height scales with the pane (0.099 × paneW keeps the
+  // narrow cabinets at exactly the 0.097 m they were tuned at), so every kind
+  // lands the SAME canvas-pixel height — ~25 px, seg7 bar thickness 2. Fixed
+  // at 0.097 m the KING's coarser face (fewest texels/metre) rounded to 18 px,
+  // the thickness floor'd to 1, and the 2026-08-10 QC sweep showed half-height
+  // digits swimming in a long dead glass while the cherry's filled its meter.
+  const yHi = winY - 0.178, yLo = yHi - 0.099 * paneW(k);
   L = {
     led: box(-k.w / 2 + 0.03, 0.02, yLo, yHi),
     collect: box(0.06, k.w / 2 - 0.03, yLo, yHi),

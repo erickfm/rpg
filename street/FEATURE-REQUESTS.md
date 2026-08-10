@@ -6545,3 +6545,21 @@ pays the purse over seconds is one green `+$32.00` when the counter stops
 (not a smear of `+$0.25`s), the stake is its own red at the spin, and an
 instant result nets with its stake into the hand's one number. Health
 unchanged: losses only.
+
+## 2026-08-10 — *"make sure it looks good for all slot machines"*
+
+Went to a builder as the sanctioned mass-QC sweep across every cabinet
+personality. All three looked at — locked view and from the floor at player
+height, in idle/attract, mid-spin, and win with the payout counting on the
+credit meter (CHERRY BELLE $2, LUCKY 7 $5, KING KACHING $10; shots in the
+session scratchpad). CHERRY BELLE and LUCKY 7 needed nothing: meter seated,
+digits filling the glass, COLLECT reading in each trim colour, face composed,
+lever in frame. The KING had the hunted texel-density bug in its credit
+window: the readout band's fixed 0.097 m world height rounded to 18 canvas
+px on its coarser face, the seven-segment bar thickness floor'd to 1, and
+the digits sat half-height in a long dead glass while the narrow cabinets'
+filled theirs. The band's world height now scales with the pane
+(0.099 × paneW — the narrow cabinets land on exactly the 0.097 m they were
+tuned at, so they are pixel-unchanged), which gives every kind the same
+~25 px window, bar thickness 2, and a meter whose digits fill its glass —
+physically bigger hardware on the physically bigger machine.
