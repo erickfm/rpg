@@ -6219,3 +6219,17 @@ the painter's arithmetic: the gap was geometric (row 19), and that row no
 longer exists between hair and eyes at any of them.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-09 — *"get rid of this sign"*
+
+Same builder, the bodega's hanging `ATM INSIDE / CASH ONLY` card. It was
+always only a painted card — the real ATMs are the pair on the bank facade
+and no machine lives in the room — so nothing depended on it. The gold pin
+it appeared to hang from turned out to be the DOOR BELL, drawn at the
+flat-front-wall door coordinate of a door that moved into the cut long ago;
+2.4 m from the real doorway it read as the sign's hanger, which is how the
+user framed the pair. Card and bell both removed (a lone gold ball over
+blank wall would be the floating-prop fault this room was pulled up for
+twice); neither had a collider. The removal is recorded in the file in the
+NO LOITERING idiom, with a note that if the bell returns — it is on his
+decor list — it belongs over the cut doorway itself.

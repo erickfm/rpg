@@ -621,9 +621,10 @@ export function buildBodega(ctx: CtxBuild): void {
   //    behind the case (z 5.16…hd) is entered past the diagonal between the
   //    case's back corner and this bench's near corner — hypot(0.7, 0.56) =
   //    0.90 m against the 0.72 m capsule, so that floor stays reachable. And
-  //    0.7 lands the bench under the window with its far end short of the ATM
-  //    card's centreline; the card hangs at 1.77 m, the urn lids top out at
-  //    1.50, so the two never meet on the wall.
+  //    0.7 lands the bench under the window. (Its far end also cleared the
+  //    `ATM INSIDE` card that hung at 1.77 m here until 2026-08-09 — the
+  //    card is gone, "get rid of this sign", but the position never keyed
+  //    on it, so nothing moves.)
   const CF_W = 1.4, CF_D = 0.55, CF_H = 0.92;
   const CF_Z = hd - 0.03 - CF_D / 2;
   const CF_X = DELI_X + DELI_W / 2 + 0.7 + CF_W / 2;
@@ -875,14 +876,20 @@ export function buildBodega(ctx: CtxBuild): void {
   //   one could not be paired with anything, which was the finding, not an
   //   exemption. Removed rather than re-hung; if the room wants the notice
   //   back it belongs taped to the door glass or the till's back wall.
-  room.sign(cardT('ATM INSIDE', 'CASH ONLY'), 0.52, 0.26, 0, 1.9, hd - 0.08);
-
-  // ── the bell on the door ──
-  const bell = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 5),
-    new THREE.MeshBasicMaterial({ color: 0xc9a83a }));
-  put(bell, room.doorAt, 2.06, hd - 0.12);
-  const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.03), steelM);
-  put(bracket, room.doorAt, 2.15, hd - 0.12);
+  // ✗ `ATM INSIDE / CASH ONLY` USED TO BE HERE, AND SO DID THE DOOR BELL.
+  //   (2026-08-09) *"get rid of this sign"* — the card hung at (0, 1.9) on
+  //   the front wall. It was always only a painted card: the real ATMs are
+  //   the pair on the bank facade, and no machine lives in this room, so
+  //   nothing depended on it. The GOLD PIN it appeared to hang from was in
+  //   fact the door BELL, drawn at `room.doorAt` — which is 0 for this room,
+  //   the flat-wall coordinate of a door that moved into the CUT long ago.
+  //   2.4 m from the actual doorway, the bell had been reading as this
+  //   sign's hanger, which is exactly how the user framed the pair. Sign
+  //   removed; the bell went with it rather than being left as a gold ball
+  //   over blank wall — the floating-prop fault this file records twice
+  //   already. If the bell comes back (it is on the user's decor list), it
+  //   belongs over the cut doorway itself, hung at 45° with the door.
+  //   Neither had a collider; nothing else to unpick.
 
   // ── the last four off the user's decor list ──
   //
@@ -1038,8 +1045,9 @@ export function buildBodega(ctx: CtxBuild): void {
   //
   // A bodega does not have a menu board; it has HANDWRITTEN CARDS, and this room
   // has been making them since it was built — `cardT` above paints `COFFEE .65`
-  // on the coffee bench, `ICE COLD` taped to the cooler, `ATM INSIDE CASH ONLY`
-  // by the door: cream card stock, blue marker, a shadow along the bottom edge.
+  // on the coffee bench and `ICE COLD` taped to the cooler (and painted `ATM
+  // INSIDE CASH ONLY` until 2026-08-09, when he had it taken down): cream card
+  // stock, blue marker, a shadow along the bottom edge.
   // The price list is the same card, bigger, standing on the counter where the
   // customer reads it. Same stock, same marker, prices in red because that is
   // the second pen every corner shop owns.
