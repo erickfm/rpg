@@ -193,7 +193,7 @@ export function setMuted(b: boolean): void { muted = !!b; commit(); }
 export function toggleMute(): void { setMuted(!muted); }
 
 // ── the asset roster ────────────────────────────────────────────────────────
-const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain', 'bus-idle'] as const;
+const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain', 'bus-idle', 'casino'] as const;
 type BedName = (typeof BEDS)[number];
 
 /** The one-shots, cut from the three short sources. Eight outdoor footfalls and
@@ -216,6 +216,9 @@ const EVENTS = [
   // car pass, the jelopy's double honk, two bites, the bodega's door bell,
   // and a 13 s peal cut from 33 s of church bells.
   'car-pass', 'jelopy-horn', 'bite-1', 'bite-2', 'shop-bell', 'church-bells',
+  // the fourth (2026-08-09): *"i added audio for casino slots and stuff"* —
+  // the lever, and the two win sizes. The floor tone is the `casino` BED.
+  'slot-pull', 'slot-win', 'slot-jackpot',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -312,6 +315,16 @@ const LVL = {
   // the peal carries the whole street by RANGE (see the watcher), so the gain
   // itself sits with the beds' end of the mix rather than the latches'
   bell: 0.50,
+  // ── the casino (2026-08-09) ──
+  // the floor tone sits with the other beds, a step over `room` (0.13): a
+  // casino is a room that WANTS to be heard, and it replaces the flat hum
+  // rather than stacking on it — see the `cas` crossfade in the frame hook
+  casino: 0.17,
+  slotPull: 0.45,  // multiplied by distance: a mechanical clack at arm's length
+  slotWin: 0.50,   // multiplied by distance
+  // the jackpot fanfare sits over the win ding but under the horn — it is the
+  // machine shouting, and the machine is a metre from your face
+  slotJackpot: 0.60,
   busIdle: 0.30,   // the looping bed while it stands at the flag
   // being HIT by one of them (2026-08-08). Hot on purpose: it is the loudest
   // thing that can happen to you and it is happening to your own body, so it
@@ -584,7 +597,10 @@ export function register(ctx: CtxBuild): void {
       const raw = bytes.get(n);
       const g = ac.createGain();
       g.gain.value = 0;
-      g.connect(n === 'room' ? master : wall);
+      // `room` and `casino` are beds he STANDS IN, so neither passes through
+      // the outdoor wall filter — the wall is between him and the street, not
+      // between him and the room he is standing in.
+      g.connect(n === 'room' || n === 'casino' ? master : wall);
       beds[n] = { g, cur: 0 };
       if (!raw) continue;
       // decodeAudioData DETACHES the ArrayBuffer it is given, so a retry would
@@ -895,15 +911,21 @@ export function register(ctx: CtxBuild): void {
           nx, nz, LVL.pass * (0.85 + roll() * 0.3), 26, 0.96 + roll() * 0.1);
       }
 
-      // the horn — see `hornAt`. Decel window 5.5…10 m/s²: above every curve
-      // ordinary driving rides (3.5), spanning the panic bound (8), and shut
-      // against the one-frame clamp a citizen triggers (which lands far above
-      // 10 for a frame and then decays under 5.5 inside 0.2 s — too brief to
-      // fill the bank either way). 0.22 s of it, with the player within 20 m,
-      // is a driver standing on the brakes because of HIM, and THEN the horn.
+      // the horn — see `hornAt`. Decel above 5.5 m/s² is past every curve
+      // ordinary driving rides (corners and citizens both hold A_BRAKE = 3.5)
+      // and only the panic stop for the PLAYER sustains it — a citizen's
+      // one-frame speed clamp spikes far past 10 and decays under 5.5 inside
+      // 0.2 s. So frames above 10 HOLD the bank rather than reset it (they
+      // are spikes, not evidence either way — resetting on them was the
+      // first cut, and it let jitter inside a real panic stop zero the count),
+      // and only a frame back UNDER 5.5 clears it. 0.18 s of hard braking
+      // with the player within 20 m is a driver standing on the brakes
+      // because of HIM, and THEN the horn. This is the MAY-honk half; the
+      // must-honk half is in the hit branch below.
       const dec = (wasSpd - spd) / Math.max(dt, 1e-4);
-      if (spd > 0.5 && dec > 5.5 && dec < 10) v.brk += dt; else v.brk = 0;
-      if (v.brk > 0.22 && d < 20 && t - hornAt > 8) {
+      if (spd > 0.5 && dec > 5.5 && dec < 10) v.brk += dt;
+      else if (dec <= 5.5) v.brk = 0;
+      if (v.brk > 0.18 && d < 20 && t - hornAt > 8) {
         hornAt = t;
         v.brk = 0;
         atPoint('jelopy-horn', nx, nz, LVL.horn, 42, 0.97 + roll() * 0.06);
@@ -918,10 +940,100 @@ export function register(ctx: CtxBuild): void {
         // 0.8, under carhit's own 1.0 floor: a hit that counted must thump
         if (!v.o.visible || v.spd < 0.8 || v.d > 4.5) continue;
         fire('wall-hit', LVL.carHit, 0.55, bearing(v.x, v.z, px, pz) * 0.6);
+        // *"i just got ran over and no jelopy horn"* (2026-08-09). Of course
+        // not: the braking read above needs 0.18 s of sustained panic stop,
+        // and the run-over is precisely the case where the driver reacted too
+        // late to brake that long — REACT plus a close step-out means impact
+        // arrives before the bank fills. Being HIT is the loudest-horn moment
+        // there is, so the hit fires it DIRECTLY: no bank, no cooldown test —
+        // reliable where the braking horn is only "may". Full level and no
+        // distance falloff, same argument as the thump: the range to a car
+        // touching your ribs is zero. `hornAt` is SET so the braking rule
+        // cannot stack a second honk onto this one as the car pulls up.
+        hornAt = t;
+        fire('jelopy-horn', LVL.horn, 0.94 + roll() * 0.05, bearing(v.x, v.z, px, pz) * 0.5);
         break;
       }
     }
     lastHp = hp;
+  };
+
+  // ── the casino floor (2026-08-09) ─────────────────────────────────────────
+  //
+  // *"i added audio for casino slots and stuff"* — and `ct/slotcab.ts` built
+  // the cabinets as audio hooks ON PURPOSE; its header says so. So this
+  // watches exactly what it published, discovered by one scene traverse
+  // (retried once a second until the interiors exist, then never again):
+  //
+  //   slot-lever-N    rotation.x swings on a pull and springs home. The leaf
+  //                   pattern again: fire as it LEAVES rest, re-arm when it
+  //                   settles back. The sprung return overshoots rest by at
+  //                   most ~12% of the throw (exp(-5.5q)·cos(8q)), well under
+  //                   the 0.22 rad trigger, so the wobble cannot double-fire.
+  //   slot-topper-N   userData.flash flips true the frame a win starts paying
+  //
+  // WHICH WIN IT WAS is deliberately not published, and does not need to be.
+  // `tickPayout` counts the dollars into the purse at FEEL.payPerSec(win) =
+  // clamp(win/1.6, 8, 300) $/s — a RATE SET BY THE WIN — and the machine's
+  // own big-win line (`m.win > 100`, the 4.5 s frantic hold against 2.6) maps
+  // through that clamp to exactly "faster than $62.5/s". So the first 0.18 s
+  // of the count IS the win size: the cue lands a fifth of a second into the
+  // strobe, inside the coin burst, and splits regular from jackpot by the
+  // machine's own rule without a single number published for it.
+  //
+  // The cabinets also answer WHERE THE CASINO IS: interiors sit on 80 m slabs
+  // (interior.ts SLAB_W), so "indoors, within 24 m of the cabinets' midpoint"
+  // is unambiguously this one room — that gates the `casino` bed with no room
+  // bounds imported and nothing asked of the casino's own builders.
+  interface Slot {
+    lever: THREE.Object3D; rest: number; armed: boolean;
+    topper: THREE.Object3D; flash: boolean; x: number; z: number;
+  }
+  let slots: Slot[] | null = null;
+  let slotScanAt = -9;
+  const casAt = { x: 0, z: 0 };
+  let cas = 0;               // 0 anywhere else … 1 on the floor, glided
+  let winT = -1, winCash = 0, winX = 0, winZ = 0;   // the payout being sized
+
+  const watchCasino = (t: number) => {
+    if (!slots) {
+      if (t - slotScanAt < 1) return;
+      slotScanAt = t;
+      const found: Slot[] = [];
+      scene.traverse((o) => {
+        const m = /^slot-lever-(\d+)$/.exec(o.name);
+        if (!m) return;
+        const topper = scene.getObjectByName(`slot-topper-${m[1]}`);
+        if (!topper) return;
+        worldOf(o);
+        found.push({
+          lever: o, rest: o.rotation.x, armed: true,
+          topper, flash: (topper.userData as { flash?: boolean }).flash === true,
+          x: WP.x, z: WP.z,
+        });
+      });
+      if (!found.length) return;
+      slots = found;
+      casAt.x = found.reduce((s, v) => s + v.x, 0) / found.length;
+      casAt.z = found.reduce((s, v) => s + v.z, 0) / found.length;
+    }
+    for (const s of slots) {
+      const off = Math.abs(s.lever.rotation.x - s.rest);
+      if (s.armed && off > 0.22) {
+        s.armed = false;
+        atPoint('slot-pull', s.x, s.z, LVL.slotPull, 12, 0.97 + roll() * 0.06);
+      } else if (!s.armed && off < 0.08) s.armed = true;
+
+      const fl = (s.topper.userData as { flash?: boolean }).flash === true;
+      if (fl && !s.flash && winT < 0) { winT = t; winCash = ctx.purse.cash; winX = s.x; winZ = s.z; }
+      s.flash = fl;
+    }
+    if (winT >= 0 && t - winT >= 0.18) {
+      const big = (ctx.purse.cash - winCash) / (t - winT) > 62.5;
+      atPoint(big ? 'slot-jackpot' : 'slot-win', winX, winZ,
+        big ? LVL.slotJackpot : LVL.slotWin, 18, big ? 1 : 0.98 + roll() * 0.05);
+      winT = -1;
+    }
   };
 
   const watchScene = (t: number) => {
@@ -1168,6 +1280,12 @@ export function register(ctx: CtxBuild): void {
     ins = glide(ins, inside(f.px) ? 1 : 0, f.dt);
     const [out, inn] = power(ins);
 
+    // the casino floor — indoors AND near the cabinets, see `watchCasino`.
+    // Glided at the same TAU as `ins`, so walking through the casino door is
+    // one crossfade, not two arguing.
+    cas = glide(cas,
+      slots && inside(f.px) && Math.hypot(casAt.x - f.px, casAt.z - f.pz) < 24 ? 1 : 0, f.dt);
+
     // THE WALL'S CORNER, GLIDED IN LOG FREQUENCY and not in hertz. A linear
     // sweep from 20 kHz to 520 spends nine tenths of its half-second above
     // 2 kHz, where none of these beds has anything to lose, and then falls off a
@@ -1237,12 +1355,15 @@ export function register(ctx: CtxBuild): void {
     const want: Record<BedName, number> = {
       'street-a': bleed * LVL.streetA,
       'street-b': bleed * LVL.streetB * (0.06 + 0.94 * sway * sway * sway * sway),
-      room: inn * LVL.room,
+      // the casino REPLACES the flat's hum rather than stacking on it — a
+      // casino floor has its own room tone, and it is in the recording
+      room: inn * LVL.room * (1 - cas),
       rain: rain * LVL.rain,
       // the working day is glided like everything else, so six o'clock is a
       // shift ending rather than a switch being thrown
       site: bleed * LVL.site * near * shift,
       'bus-idle': bleed * LVL.busIdle * busIdleWant,
+      casino: inn * LVL.casino * cas,
     };
     for (const n of BEDS) {
       const b = beds[n];
@@ -1258,6 +1379,7 @@ export function register(ctx: CtxBuild): void {
     px = f.px; pz = f.pz;
     watchScene(f.t);
     watchTraffic(f.t, f.dt);
+    watchCasino(f.t);
 
     // ── footsteps ───────────────────────────────────────────────────────────
     const prevX = lastX, prevZ = lastZ;   // kept for the doorway test below

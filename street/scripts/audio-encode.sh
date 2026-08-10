@@ -335,3 +335,32 @@ sfx bite-2       "bite2.wav"          0.06 0.75 32000
 # the ring-out to 2.3. Centroid 5.9 kHz with 18% at 8–16 k — the brightest
 # source in the set, so 32 kHz, same reasoning as the registers.
 sfx shop-bell    "bodega bell.wav"    0.12 2.30 32000
+
+# ── the fourth delivery (2026-08-09): the casino ────────────────────────────
+#
+# *"i added audio for casino slots and stuff"* — four more.
+echo "the casino:"
+# the whole gesture the lever animation performs: the yank (onset 0.1 s) and
+# the sprung return (0.7 s), one recording, kept together the way the cabinet
+# plays them. 32 kHz: 41% of its energy is 2–8 kHz with 7.7% above.
+sfx slot-pull    "slot pull.wav"          0.02 1.28 32000
+# the two win recordings split at the machine's own line (ct/slotcab.ts holds
+# the frantic strobe 4.5 s for wins over $100, 2.6 s otherwise) — see the
+# watcher in ct/audio.ts for how that line is read without being told.
+# Both are 250 Hz–2 kHz material (93.6% / 82.2%): 22.05 kHz.
+sfx slot-win     "slots regular win.wav"  0.00 0.80 22050
+sfx slot-jackpot "slots big win.wav"      0.00 3.12 22050
+
+# `casino bg.wav` is 36 s of floor tone — chatter, chimes, machines. The loop
+# window is its steadiest 14 s (22.3–36.3 s; the stretch at 15–19.5 s carries
+# one big table moment that a loop would teach the ear inside two passes).
+# LOUDNESS-normalised, not peak: the chimes are sparse outliers 17 dB over the
+# body, the exact shape that sank the rain bed at peak norm. 32 kHz stereo —
+# it keeps the chime shimmer at 8–16 kHz (2.3%) that IS the casino, the same
+# call as rain, the only other bed with top end.
+ffmpeg -hide_banner -loglevel error -y -ss 22.30 -t 14.0 -i "$SRC/casino bg.wav" \
+  -ac 2 -ar 44100 -c:a pcm_s16le "$OUT/.casino-cut.wav"
+SRC_SAVE=$SRC; SRC=$OUT
+bed casino ".casino-cut.wav" 32000 2 1.5 -20
+SRC=$SRC_SAVE
+rm -f "$OUT/.casino-cut.wav"

@@ -6145,3 +6145,33 @@ games — same ask, same files).
 Escape and standing both close either table from any state; a mid-hand exit
 cashes the rail out and forfeits only the bet already in the middle —
 blackjack's "not seated means not open" stays law, and roulette follows it.
+
+## 2026-08-09 — *"i added audio for casino slots and stuff"*
+
+Four more in `~/Documents/sound` (18:34–18:38): `slot pull.wav`, `slots
+regular win.wav`, `slots big win.wav`, `casino bg.wav`.
+
+To the same audio builder. All four shipped (146 KB), wired by watching the
+hooks `ct/slotcab.ts` published for exactly this:
+
+- **slot-pull** — the lever leaving its rest angle (re-armed when it springs
+  home; the sprung wobble cannot double-fire).
+- **slot-win / slot-jackpot** — the topper's `flash` opens a payout; the
+  purse's fill rate over the first 0.18 s sizes it. The split sits at the
+  machine's own big-win line (`win > $100`, the 4.5 s frantic hold), which
+  maps through `payPerSec = clamp(win/1.6, 8, 300)` to exactly ">$62.5/s".
+- **casino** bed — the steadiest 14 s of the recording, seamless-looped,
+  loudness-normalised (sparse chimes, same shape that sank rain at peak
+  norm). Gated to "indoors within 24 m of the cabinets' midpoint" and
+  crossfaded against the flat's `room` hum.
+
+## 2026-08-09 — *"i just got ran over and no jelopy horn"*
+
+Rejected pass on the horn wire, same builder. The miss: the horn needed
+0.22 s of sustained panic braking, and the run-over is precisely the case
+where the driver reacts too late to brake that long — impact arrived before
+the window filled. Fixed two ways: the hit now fires the horn DIRECTLY in
+the same branch as the thump (no bank, no cooldown — a car that hits you
+honks, reliably), and the braking horn's bank no longer resets on >10 m/s²
+spike frames (holds instead) and fills at 0.18 s — a car that panic-brakes
+for you MAY honk.
