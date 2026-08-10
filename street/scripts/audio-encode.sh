@@ -391,3 +391,27 @@ rm -f "$OUT/.skate-cut.wav"
 # (Nyquist 11 kHz) keeps all of it.
 sfx skate-land  "skate land.wav"  0.00 0.55 22050
 sfx skate-trick "skate trick.wav" 0.20 0.55 22050
+
+# ── the sixth delivery (2026-08-10): the tables, the reels, the neighbour ───
+#
+# *"add roulette wheel sounds pls, also add burp audio when neighbor appears.
+# also add card sounds. i want a slot click whenever the slot stops."*
+# (`loss.flac` arrived in the same drop and is deliberately NOT encoded —
+# nothing has asked for it yet.)
+echo "the tables, the reels, and the neighbour:"
+# `prize wheel.wav` is 5.8 s of ratchet ticking at a near-flat level (0.25 s
+# rms 0.09-0.15 from 0.26 s on) that dies on its own by 5.4 s — the wheel
+# slowing IS the recording, so it ships nearly whole and is fired once per
+# SPIN; ct/audio.ts fades it out early only if the table is left mid-spin.
+# 22.05 kHz: 98.5% of its energy sits below 8 kHz.
+sfx roulette-spin "prize wheel.wav" 0.24 5.30 22050
+# one swish-and-snap at 0.34-0.50 s in 0.68 s of file; 32 kHz for the snap
+# (48% of its energy is 2-8 kHz, 4.4% above)
+sfx card-deal     "deal card.wav"   0.31 0.26 32000
+# one click at 0.53-0.60 s in 1.23 s of near-silence — the brightest source
+# since `click.wav` (centroid 6.4 kHz, 31% at 8-16 kHz), so 44.1 kHz like it
+sfx slot-stop     "slot click.wav"  0.51 0.16 44100
+# the belch runs 0.15-2.05 s and is already dying from 1.6; cut just under
+# the onset and let the standard fade land inside its own decay. 22.05 kHz
+# (0.1% above 8 kHz).
+sfx burp          "burp.wav"        0.08 1.90 22050

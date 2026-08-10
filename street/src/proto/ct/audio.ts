@@ -228,6 +228,11 @@ const EVENTS = [
   // LOOP, never fired as a one-shot — the frame hook builds it a looping
   // source of its own, the car-engine treatment.
   'skate-trick', 'skate-land', 'skate-roll',
+  // the sixth (2026-08-10): *"add roulette wheel sounds pls, also add burp
+  // audio when neighbor appears. also add card sounds. i want a slot click
+  // whenever the slot stops."* — the wheel's 5.3 s ratchet, one card off the
+  // shoe, one detent click per reel, and the man at 302.
+  'roulette-spin', 'card-deal', 'slot-stop', 'burp',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -339,6 +344,16 @@ const LVL = {
   casino: 0.17,
   slotPull: 0.45,  // multiplied by distance: a mechanical clack at arm's length
   slotWin: 0.50,   // multiplied by distance
+  // one detent click per reel coming to rest — under the pull it follows,
+  // because three of these land per spin and the pull lands once
+  slotStop: 0.40,  // multiplied by distance
+  // ── the tables (2026-08-10) ──
+  // the ratchet under the whole ball run: over the casino bed (0.17), under
+  // the wins it sets up — a five-second sound has to sit lower than an event
+  rouletteSpin: 0.42,
+  card: 0.50,      // a card off the shoe at arm's length: dry, like the bite
+  // ── the neighbour at 302 (2026-08-10) ──
+  burp: 0.60,      // multiplied by distance: a big man announcing himself
   // the jackpot fanfare sits over the win ding but under the horn — it is the
   // machine shouting, and the machine is a metre from your face
   slotJackpot: 0.60,
@@ -825,7 +840,10 @@ export function register(ctx: CtxBuild): void {
   // and excluded rather than guessed at by amount.
   // 'ct-slotcab' is the locked slot session (2026-08-09, "SLOTS ARE NOT
   // DIAGETIC"); 'ct-slots' stays named for the retired panel module's id.
-  const MACHINES = new Set(['ct-slots', 'ct-slotcab', 'ct-blackjack', 'ct-atm']);
+  // 'ct-roulette' joined 2026-08-10 with the wheel's own sound: it was never
+  // listed, so every SPIN's stake had been ringing the register — the exact
+  // per-spin ka-ching this set exists to prevent.
+  const MACHINES = new Set(['ct-slots', 'ct-slotcab', 'ct-blackjack', 'ct-atm', 'ct-roulette']);
   let lastCash = ctx.purse.cash;
   let tillAt = -99;
 
@@ -842,6 +860,16 @@ export function register(ctx: CtxBuild): void {
   let sheet: THREE.Object3D | null = null, sheetUp = false;
   let sheetBox = false;   // which cue OPENED the view, so the close matches it
   let sheetTurns = 0;     // last seen pageTurns, so a turn is an edge
+
+  // ── the neighbour at 302 (2026-08-10) ─────────────────────────────────────
+  // *"add burp audio when neighbor appears"*. `apartment.ts` publishes his
+  // whole sequence on `scene.userData.hermit` (put there so a harness could
+  // watch the schedule) — `phase` leaves 'in' the frame his door starts to
+  // swing, which is the frame he APPEARS behind it. Fired at his own leaf
+  // (`leaf302`, named and already in `doorTravel`), with falloff: heard on
+  // his landing, gone from the street. Null until the first reading so a
+  // world loaded mid-sequence adopts him silently.
+  let hermitWas: string | null = null;
 
   // ── sleeping ──────────────────────────────────────────────────────────────
   // `ctx.clock` is on the context and the bed advances it with `overSeconds: 0`,
@@ -1073,6 +1101,8 @@ export function register(ctx: CtxBuild): void {
   interface Slot {
     lever: THREE.Object3D; rest: number; armed: boolean;
     topper: THREE.Object3D; flash: boolean; x: number; z: number;
+    /** the three reel planes, each waiting to land — see the click below */
+    reels: { o: THREE.Object3D; armed: boolean }[];
   }
   let slots: Slot[] | null = null;
   let slotScanAt = -9;
@@ -1090,11 +1120,16 @@ export function register(ctx: CtxBuild): void {
         if (!m) return;
         const topper = scene.getObjectByName(`slot-topper-${m[1]}`);
         if (!topper) return;
+        const reels: { o: THREE.Object3D; armed: boolean }[] = [];
+        for (let r = 0; r < 3; r++) {
+          const ro = scene.getObjectByName(`slot-reel-${m[1]}-${r}`);
+          if (ro) reels.push({ o: ro, armed: false });
+        }
         worldOf(o);
         found.push({
           lever: o, rest: o.rotation.x, armed: true,
           topper, flash: (topper.userData as { flash?: boolean }).flash === true,
-          x: WP.x, z: WP.z,
+          x: WP.x, z: WP.z, reels,
         });
       });
       if (!found.length) return;
@@ -1109,6 +1144,23 @@ export function register(ctx: CtxBuild): void {
         atPoint('slot-pull', s.x, s.z, LVL.slotPull, 12, 0.97 + roll() * 0.06);
       } else if (!s.armed && off < 0.08) s.armed = true;
 
+      // *"i want a slot click whenever the slot stops"* — one click per REEL,
+      // at its detent. `slotcab.ts` writes each reel's live speed (stops/sec,
+      // a central difference over its own schedule) onto the plane it spins:
+      // the cruise runs at 15, the anticipation crawl at 3.2, and the brake
+      // ends at 0 before the sprung bounce. So a reel ARMS above 6 — only the
+      // cruise gets there, so the crawl cannot re-arm a reel already landed —
+      // and CLICKS falling back under 0.6, which is the frame it visibly
+      // stops. Three clicks a spin, staggered by the machine's own 0.48 s.
+      for (const r of s.reels) {
+        const sp = (r.o.userData as { speed?: number }).speed ?? 0;
+        if (!r.armed && sp > 6) r.armed = true;
+        else if (r.armed && sp < 0.6) {
+          r.armed = false;
+          atPoint('slot-stop', s.x, s.z, LVL.slotStop, 12, 0.95 + roll() * 0.1);
+        }
+      }
+
       const fl = (s.topper.userData as { flash?: boolean }).flash === true;
       if (fl && !s.flash && winT < 0) { winT = t; winCash = ctx.purse.cash; winX = s.x; winZ = s.z; }
       s.flash = fl;
@@ -1119,6 +1171,98 @@ export function register(ctx: CtxBuild): void {
         big ? LVL.slotJackpot : LVL.slotWin, 18, big ? 1 : 0.98 + roll() * 0.05);
       winT = -1;
     }
+  };
+
+  // ── the tables (2026-08-10) ───────────────────────────────────────────────
+  //
+  // *"add roulette wheel sounds pls … also add card sounds."* Neither table
+  // moves a scene object per event — the felts are canvases — but both games
+  // PUBLISH their whole view on globalThis (`__roulette` / `__blackjack`,
+  // placed there by their own registers for exactly this kind of outside
+  // reader). Read-only, one call a frame, and only while that table's panel
+  // is the live one — `panelUp()` names it, the same gate the till uses. No
+  // import, so the no-cycle property of this leaf survives.
+  //
+  // THE SPIN IS THE ONE SOUND HERE THAT CAN OUTLIVE ITS EVENT: 5.3 s of
+  // ratchet against a show that a mid-spin LEAVE resolves instantly
+  // (`flush()` — the draw already happened). So unlike every other one-shot
+  // it keeps a HANDLE, and the phase falling out of 'spinning' by any road —
+  // the natural settle at 6.0 s (a no-op, the recording died at 5.3) or the
+  // panel closing — fades what remains in 0.12 s. A wheel you walked away
+  // from must not keep ticking behind you.
+  interface RouV { phase: string }
+  interface BjV {
+    hands: readonly { cards: readonly unknown[] }[];
+    dealer: { cards: readonly unknown[] };
+    holeTurnT: number;
+  }
+  const TABLES = globalThis as unknown as {
+    __roulette?: { view(): RouV };
+    __blackjack?: { view(): BjV };
+  };
+  let rouPhase = '';
+  let spinShot: { g: GainNode; s: AudioBufferSourceNode } | null = null;
+  let bjCards = -1, bjHole = -1;
+
+  const stopSpin = () => {
+    if (!spinShot || !rig) { spinShot = null; return; }
+    const t0 = rig.ac.currentTime;
+    spinShot.g.gain.setValueAtTime(spinShot.g.gain.value, t0);
+    spinShot.g.gain.linearRampToValueAtTime(0, t0 + 0.12);
+    spinShot.s.stop(t0 + 0.12);
+    spinShot = null;
+  };
+  const startSpin = () => {
+    stopSpin();
+    if (!rig || muted) return;
+    const buf = shots.get('roulette-spin');
+    if (!buf) return;
+    const { ac } = rig;
+    const s = ac.createBufferSource();
+    s.buffer = buf;
+    // near-flat detune: the ratchet's tick RATE is its identity, and the ball
+    // show it runs under is the same 4.9 s every spin
+    s.playbackRate.value = 0.98 + roll() * 0.05;
+    const g = ac.createGain();
+    g.gain.value = LVL.rouletteSpin;
+    const p = ac.createStereoPanner();
+    p.pan.value = 0.2;   // the wheel head stands at the locked view's right hand
+    s.connect(g).connect(p).connect(rig.master);
+    s.onended = () => { s.disconnect(); g.disconnect(); p.disconnect(); };
+    s.start();
+    spinShot = { g, s };
+  };
+
+  const watchTables = () => {
+    const up = panelUp();
+
+    if (up === 'ct-roulette' && TABLES.__roulette) {
+      const ph = TABLES.__roulette.view().phase;
+      if (ph === 'spinning' && rouPhase !== 'spinning') startSpin();
+      else if (ph !== 'spinning' && rouPhase === 'spinning') stopSpin();
+      rouPhase = ph;
+    } else if (rouPhase) { stopSpin(); rouPhase = ''; }
+
+    if (up === 'ct-blackjack' && TABLES.__blackjack) {
+      const v = TABLES.__blackjack.view();
+      let n = v.dealer.cards.length;
+      for (const h of v.hands) n += h.cards.length;
+      // one swish per card off the shoe. The table deals them strictly one at
+      // a time (PACE.gap holds 0.20 s between flights), so an edge of one is
+      // the general case; a new round resets the count DOWN, which the `>`
+      // ignores. `bjCards < 0` is the first frame after the panel opened —
+      // adopt whatever is already on the felt without narrating it.
+      if (bjCards >= 0 && n > bjCards) {
+        fire('card-deal', LVL.card * (0.9 + roll() * 0.2),
+          0.94 + roll() * 0.12, (roll() - 0.5) * 0.2);
+      }
+      // the hole card turning over is a card sound too — the same file a
+      // shade slower, the drawer's one-recording-both-gestures trick
+      if (bjCards >= 0 && bjHole < 0 && v.holeTurnT >= 0) {
+        fire('card-deal', LVL.card * (0.85 + roll() * 0.15), 0.86, 0.1);
+      }
+      bjCards = n; bjHole = v.holeTurnT;
+    } else { bjCards = -1; bjHole = -1; }
   };
 
   const watchScene = (t: number) => {
@@ -1223,6 +1367,21 @@ export function register(ctx: CtxBuild): void {
         atPoint('drawer-open', WP.x, z, LVL.drawer, 12, z > linZ ? 1.0 : 0.92);
       }
       linZ = z;
+    }
+
+    // the neighbour — see `hermitWas` above. The burp rides the same edge
+    // that swings his door, so it lands under the door-open the leaf watcher
+    // below fires a moment later: a belch, then the latch.
+    const hu = (scene.userData as { hermit?: { phase?: string } }).hermit;
+    if (hu?.phase) {
+      if (hermitWas === 'in' && hu.phase !== 'in') {
+        const o = scene.getObjectByName('leaf302');
+        if (o) {
+          worldOf(o);
+          atPoint('burp', WP.x, WP.z, LVL.burp, 16, 0.95 + roll() * 0.1);
+        }
+      }
+      hermitWas = hu.phase;
     }
 
     if (!leavesFound) {
@@ -1531,6 +1690,7 @@ export function register(ctx: CtxBuild): void {
     watchScene(f.t);
     watchTraffic(f.t, f.dt);
     watchCasino(f.t);
+    watchTables();
 
     // ── footsteps ───────────────────────────────────────────────────────────
     const prevX = lastX, prevZ = lastZ;   // kept for the doorway test below
