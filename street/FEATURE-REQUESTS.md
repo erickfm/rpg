@@ -6015,3 +6015,14 @@ east destination with its dealer and four stools.
 ROULETTE: new game, ct/roulette.ts — sit at the wheel, red/black/odd/even and
 single number only, European single-zero (RTP 97.3%), the wheel and ball spin
 on the panel and the ROOM'S wheel head turns with it.
+
+## 2026-08-09 — *"make int required much more for all jobs. lowest int to get a job is 5"*
+
+To the same builder, third pass on jobs. The whole INT column moved up, not
+just the floor: bodega/barn 5, hut/thrift 6, diner/gym 7, pawn/SLEEP 8,
+VOLT/hotel 9, college 10 (bank slots in at 10 when its teller hires).
+Wages unchanged. The consequence is the point: a fresh average character
+(INT 5) now qualifies only for the bottom rung — everything above runs on
+the never-zero small chance or through the community college, which is now
+the ladder between every rung. No paper prints a number, so only the table
+moved.

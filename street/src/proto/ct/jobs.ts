@@ -54,9 +54,9 @@ import type { Room } from './interior';
 // ~$14 (shop.ts's own table). Eight hours at the bottom rung ($3.75–4.25/hr,
 // which is also honestly 1997 minimum-wage money) covers a day's rent and
 // food with a few dollars left; the college's $10.00/hr pays ~4.5× the
-// bodega. The BANK — his "highest" tier, INT 8+ — has no row in this table
-// yet because its teller window is bespoke; when it hires it slots in at
-// ~$12/hr and nothing else changes.
+// bodega. The BANK — his "highest" tier — has no row in this table yet
+// because its teller window is bespoke; when it hires it slots in at
+// ~$12/hr and req INT 10, and nothing else changes.
 export const REAPPLY_DAYS = 3;
 export const SHIFT_HOURS = 8;
 
@@ -71,19 +71,30 @@ export interface JobDef {
   at: string;
 }
 
-/** THE ONE TABLE, keyed by the shop ids `shopCounter` already coined. */
+/**
+ * THE ONE TABLE, keyed by the shop ids `shopCounter` already coined.
+ *
+ * ⚠ THE INT COLUMN WAS RAISED WHOLESALE — *"make int required much more for
+ * all jobs. lowest int to get a job is 5"* (2026-08-09). The floor is 5 and
+ * the whole ladder moved up with it, ending at 10, so the spread still means
+ * something. The consequence is deliberate: a fresh average character (INT 5)
+ * qualifies for the bottom rung ONLY, and everything above runs through the
+ * never-zero small chance — or through the community college, which is now
+ * the ladder between the rungs. Wages did not move; the same money just
+ * wants a sharper head.
+ */
 export const JOBS: Record<string, JobDef> = {
-  'ct-shop-bodega':  { title: 'COUNTER CLERK',     reqInt: 2, hourly: 3.75,  at: 'the bodega' },
-  'ct-shop-burger':  { title: 'GRILL CREW',        reqInt: 2, hourly: 4.00,  at: 'the barn' },
-  'ct-shop-video':   { title: 'REWIND CLERK',      reqInt: 3, hourly: 4.25,  at: 'the hut' },
-  'ct-shop-thrift':  { title: 'FLOOR CLERK',       reqInt: 4, hourly: 5.00,  at: 'the thrift store' },
-  'ct-shop-diner':   { title: 'LINE COOK',         reqInt: 4, hourly: 5.50,  at: 'the diner' },
-  'ct-shop-gym':     { title: 'DESK TRAINER',      reqInt: 5, hourly: 6.00,  at: 'the gym' },
-  'ct-shop-pawn':    { title: 'COUNTER MAN',       reqInt: 5, hourly: 6.50,  at: 'the pawn shop' },
-  'ct-shop-sleep':   { title: 'MATTRESS SALESMAN', reqInt: 6, hourly: 7.25,  at: 'the showroom' },
-  'ct-shop-volt':    { title: 'FLOOR SALESMAN',    reqInt: 6, hourly: 7.75,  at: 'VOLT VILLAGE' },
-  'ct-shop-hotel':   { title: 'NIGHT CLERK',       reqInt: 7, hourly: 8.50,  at: 'the hotel' },
-  'ct-shop-college': { title: 'ADJUNCT TUTOR',     reqInt: 8, hourly: 10.00, at: 'the college' },
+  'ct-shop-bodega':  { title: 'COUNTER CLERK',     reqInt: 5,  hourly: 3.75,  at: 'the bodega' },
+  'ct-shop-burger':  { title: 'GRILL CREW',        reqInt: 5,  hourly: 4.00,  at: 'the barn' },
+  'ct-shop-video':   { title: 'REWIND CLERK',      reqInt: 6,  hourly: 4.25,  at: 'the hut' },
+  'ct-shop-thrift':  { title: 'FLOOR CLERK',       reqInt: 6,  hourly: 5.00,  at: 'the thrift store' },
+  'ct-shop-diner':   { title: 'LINE COOK',         reqInt: 7,  hourly: 5.50,  at: 'the diner' },
+  'ct-shop-gym':     { title: 'DESK TRAINER',      reqInt: 7,  hourly: 6.00,  at: 'the gym' },
+  'ct-shop-pawn':    { title: 'COUNTER MAN',       reqInt: 8,  hourly: 6.50,  at: 'the pawn shop' },
+  'ct-shop-sleep':   { title: 'MATTRESS SALESMAN', reqInt: 8,  hourly: 7.25,  at: 'the showroom' },
+  'ct-shop-volt':    { title: 'FLOOR SALESMAN',    reqInt: 9,  hourly: 7.75,  at: 'VOLT VILLAGE' },
+  'ct-shop-hotel':   { title: 'NIGHT CLERK',       reqInt: 9,  hourly: 8.50,  at: 'the hotel' },
+  'ct-shop-college': { title: 'ADJUNCT TUTOR',     reqInt: 10, hourly: 10.00, at: 'the college' },
 };
 
 // ── the employment record — module state, saved as a slice ─────────────────
