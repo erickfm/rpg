@@ -6,10 +6,14 @@ import { type DoorDecl } from './doors';
 import { citizenSprite } from './citizens';
 import { ORDER as HOOK } from './ctx';
 import { tube, VICE_DOOR_X, leafPair } from './vice';
-// SEAT_LABEL, not a hand-typed copy of its string. blackjack.ts's own docstring
-// on this constant names this exact table — TX = -2.6, TZ = -13.0, the only
-// felt on this floor with a dealer standing at it — as the seat it has been
-// waiting on. Importing the constant instead of retyping
+// The playable slot machines — cabinets, lever, reels, coins and their maths
+// all live there; this file only says where they stand. No cycle: slotcab
+// imports ctx types and ./paint, never this file or ./interior.
+import { buildSlots } from './slotcab';
+// SEAT_LABEL, not a hand-typed copy of its string. blackjack.ts bridges on
+// this exact string; the felt now sits in the pit at TX = 2.7, TZ = -5.0
+// (moved 2026-08-09 with the layout overhaul), the only green felt on this
+// floor with a standing dealer. Importing the constant instead of retyping
 // 'sit at the blackjack table' is what stops this from drifting the way
 // SEAT_LABEL and 'sit at the table' already had. No cycle: blackjack.ts
 // imports only ./ctx, ./hud (dynamically) and ./slots (dynamically), never
@@ -552,318 +556,72 @@ export function buildCasino(ctx: CtxBuild): void {
     }
   }
 
-  // ── the slot banks ──
+  // ── THE SLOT BANK — the glowing thing you see on entry ────────────────
   //
-  // Two islands, each two rows back to back facing outward, which is how a
-  // floor is actually laid out: you walk an aisle with machines on both sides
-  // and never see the room. 24 texels over a 0.6 m cabinet is ~40 px/m, in
-  // line with the diner's pie case and waitress — small objects in this world
-  // run denser than facades do.
+  // 2026-08-09: "fix the casino, the layout is ass … i want slot to be unique
+  // and interesting. all the machines are identical." The 96-cabinet warehouse
+  // is gone. FIFTEEN machines in four short rows, ALL FACING THE DOOR, so the
+  // first thing the room shows you is a bank of lit faces, three distinct
+  // silhouettes and marquee bulbs chasing — and every one of them is PLAYABLE:
+  // walk up or take the stool, pull the ball-handle lever, watch the reels
+  // stagger in. The machines themselves — shapes, reels, lever, coins, maths
+  // (RTP 94.97%, hit rate 28.6%, the card on every belly prints the dollars) —
+  // live in ct/slotcab.ts; this file owns the FLOOR: where they stand, their
+  // colliders, and the stools.
   //
-  // Three cabinet types, not one. A bank of 36 identical machines reads as a
-  // texture repeated rather than as a room somebody filled — and this world's
-  // whole claim is that it looks made. Real floors are bought in lots over
-  // years, so the variants differ the way that produces: a different topper
-  // colour, a different symbol on the reels, and one older cabinet with a
-  // cream body among the dark ones.
-  const slotSkin = (topper: string, sym: string, body: string, deck: string) =>
-    pixTex(24, 56, (g) => {
-      g.fillStyle = body; g.fillRect(0, 0, 24, 56);
-      g.fillStyle = topper; g.fillRect(1, 1, 22, 9);              // the topper
-      g.fillStyle = '#e8c25a'; g.fillRect(2, 2, 20, 2);
-      for (const px of [4, 10, 16]) g.fillRect(px, 5, 3, 3);
-      g.fillStyle = '#141014'; g.fillRect(2, 12, 20, 18);         // the glass
-      g.fillStyle = '#d8d0c0'; g.fillRect(3, 14, 18, 14);         // reels, lit from behind
-      g.fillStyle = '#b0a898';
-      for (const rx of [8, 14]) g.fillRect(rx, 14, 1, 14);        // reel dividers
-      g.fillStyle = sym; g.fillRect(4, 17, 4, 4); g.fillRect(16, 17, 4, 4);
-      g.fillStyle = '#2c6a4a'; g.fillRect(10, 17, 3, 4);
-      g.fillStyle = '#c9a45e'; g.fillRect(4, 23, 4, 3); g.fillRect(10, 23, 3, 3); g.fillRect(16, 23, 4, 3);
-      g.fillStyle = deck; g.fillRect(1, 30, 22, 6);               // the button deck
-      g.fillStyle = '#c85a2c'; g.fillRect(3, 32, 5, 3);
-      g.fillStyle = '#c9a45e'; g.fillRect(10, 32, 5, 3);
-      g.fillStyle = '#8a8a90'; g.fillRect(17, 32, 4, 3);
-      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(1, 36, 22, 19);// the body, in shadow
-      g.fillStyle = deck; g.fillRect(4, 40, 16, 5);               // the tray
-      g.fillStyle = '#c9a45e'; g.fillRect(5, 41, 14, 1);
-      dither(g, 24, 56, 44);
-    });
-  const SKINS: [string, number][] = [
-    ['#8a2c32', 0x241e22],   // red topper, dark cabinet — the house standard
-    ['#2c4a7a', 0x241e22],   // blue topper, same cabinet
-    ['#7a5a2c', 0x4a4038],   // an older cream-bodied machine, kept on
-  ];
-  // THE STOOL'S SEAT HEIGHT IS ITS TOP FACE, AND IT IS DECLARED ONCE.
-  //
-  // The user: the seated figure is intersecting the stool. It was, by 3.5 cm, and
-  // MEASURED the cause is neither H's atlas nor the placement rule — it is this
-  // file having authored one stool height twice. The cushion is a 0.07 m cylinder
-  // and it was placed at y 0.64, so it spans 0.605..0.675 and its TOP FACE is at
-  // 0.675 — while `ctx.seat({ h: 0.64 })` and the sitter both took 0.64, which is
-  // the cylinder's CENTRE. A sitter placed correctly on a seat that under-reports
-  // itself by half a cushion sinks by half a cushion.
-  //
-  // THE PROOF THAT THE POSE IS FINE, and it is why I have added no y fudge:
-  // the entry banquette in this same room registers SEAT_TOP as the true top of
-  // its cushion, a figure is placed there by the same one-line rule, and it
-  // measures ON the seat to within a millimetre. Same atlas, same helper, same
-  // room — the only difference is whether the seat told the truth about itself.
-  // So H's hip offset (0.445 m) is right and needs no change; nothing to report
-  // upstream, and no other room inherits a bad number from this.
-  //
-  // Declared as TOP and derived downward, so the cushion's thickness can change
-  // without the seat height silently moving.
+  // Three personalities: CHERRY BELLE ($2 a pull), LUCKY 7 ($5), and ONE
+  // KING KACHING ($10, $1,500 jackpot) anchoring the west block.
   const STOOL_T = 0.07, STOOL_TOP = 0.675;
   const GSTOOL_T = 0.08, GSTOOL_TOP = 0.76;          // the taller stool at the games
   const stoolTopM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });
   const stoolPoleM = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
-  const slotGeo = new THREE.BoxGeometry(0.6, 1.45, 0.6);
-  const slotMats = SKINS.map(([topper, side], i) => {
-    const front = ctx.flat(slotSkin(
-      topper,
-      ['#8a2c32', '#c9a45e', '#2c6a4a'][i],
-      '#' + side.toString(16).padStart(6, '0'),
-      i === 2 ? '#5a5048' : '#3a3038'));
-    // THE SIDES ARE NOT A FLAT COLOUR. The user, of the entry shot: "the black
-    // slot-bank sides are large untextured flat masses". They were exactly that —
-    // one MeshBasicMaterial of the body colour on five of six faces — and a bank
-    // is six cabinets long, so what you actually see walking the avenue is a
-    // 3.8 m x 1.45 m slab of unbroken dark.
-    //
-    // A cabinet side is not blank in life: it is a moulded panel with a reveal
-    // round it, a plinth it stands on, and a lit seam where the front glass wraps
-    // the corner. 24x56 on a 0.6 m x 1.45 m face is the same ~40 px/m as the
-    // front, so the two sit at one density (GOTCHAS 5).
-    const sideT = ctx.flat(pixTex(24, 56, (g) => {
-      const body = '#' + side.toString(16).padStart(6, '0');
-      g.fillStyle = body; g.fillRect(0, 0, 24, 56);
-      g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(0, 0, 24, 1);   // top edge catches the light
-      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(2, 6, 20, 34);        // the panel reveal
-      g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(3, 7, 18, 32);  // and the panel in it
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(3, 38, 18, 1);
-      g.fillStyle = '#c9a45e'; g.fillRect(0, 10, 1, 22);                 // the front glass wrapping
-      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(0, 44, 24, 12);       // the plinth, in shadow
-      g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(0, 44, 24, 1);
-      dither(g, 24, 56, 40);
-    }));
-    // THE TOPS ARE THE OTHER FLAT MASS, and the one you actually stand over: a
-    // 1.45 m cabinet against a 1.62 m eye means you look DOWN on six of them in a
-    // row, and six identical solid-colour tops butt into one 3.8 m slab with no
-    // seam anywhere in it. So the top is painted too — lifted off the body,
-    // brushed along its length, and with a dark seam down BOTH edges so each
-    // cabinet reads as its own object where it meets the next.
-    const topBase = new THREE.Color(side).lerp(new THREE.Color(0x8a8478), 0.22);
-    const topT = ctx.flat(pixTex(24, 24, (g) => {
-      g.fillStyle = '#' + topBase.getHexString(); g.fillRect(0, 0, 24, 24);
-      g.fillStyle = 'rgba(255,255,255,0.06)';
-      for (let y = 2; y < 24; y += 4) g.fillRect(1, y, 22, 1);      // brushed metal
-      g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(0, 0, 1, 24); g.fillRect(23, 0, 1, 24);
-      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(1, 0, 1, 24); g.fillRect(22, 0, 1, 24);
-      dither(g, 24, 24, 26);
-    }));
-    const sideM = new THREE.MeshBasicMaterial({ color: side });
-    return [sideT, sideT, topT, sideM, front, sideT];
-  });
 
-  // SLOT_N is 9 because ROWS below has NINE entries per row. I had this at 10
-  // for a while and it did not throw: row[9] is undefined, slotMats[undefined]
-  // is undefined, and three.js quietly draws the default white material — one
-  // wrong-looking cabinet at the end of every bank, in a room where the whole
-  // point is that the cabinets vary. A literal table and a loop bound are two
-  // authorings of one number; the loop reads the table's length now.
-  const SLOT_PITCH = 0.64;
-  // SIX to a row, not nine: at 11.0 m wide the bank has 3.7 m of frontage either
-  // side of the avenue, and 6 cabinets at 0.64 pitch is 3.20 of that. Nine would
-  // be 5.12 and would run through the wall. ROWS still has nine entries per row
-  // and the loop takes the first six, which is why the loop is bounded by SLOT_N
-  // and not by the table.
-  const SLOT_N = 6;
-  const bankW = (SLOT_N - 1) * SLOT_PITCH + 0.6;
-  // Which cabinet stands where, written out by hand rather than drawn from a
-  // random stream. GOTCHAS §2: there is ONE seeded rnd() and its ORDER is
-  // load-bearing — every tree height and pigeon in the world shifts if a new
-  // module draws from it. A literal sequence also lets the reds clump the way
-  // a floor bought in lots actually does, which no uniform shuffle would.
-  const ROWS = [
-    [0, 0, 1, 0, 0, 2, 0, 1, 0],
-    [1, 0, 0, 0, 2, 0, 0, 0, 1],
-    [0, 2, 0, 1, 0, 0, 1, 0, 0],
-    [0, 0, 1, 0, 0, 0, 2, 0, 1],
+  // Two rows a side at 4.2 m centres: the aisle between one row's stools and
+  // the next row's backs stays over 2 m, and the centre avenue (|x| < 1.6)
+  // runs clear from the door to the pit. Machines butt toward the walls — the
+  // approach is always from the face, which is the avenue side.
+  const SLOT_ROWS: { z: number; cabs: { kind: 'cherry' | 'seven' | 'king'; x: number }[] }[] = [
+    { z: 10.8, cabs: [
+      { kind: 'seven', x: 1.9 }, { kind: 'cherry', x: 2.75 }, { kind: 'seven', x: 3.6 }, { kind: 'cherry', x: 4.45 },
+      { kind: 'cherry', x: -1.9 }, { kind: 'seven', x: -2.75 }, { kind: 'cherry', x: -3.6 }, { kind: 'seven', x: -4.45 },
+    ] },
+    { z: 6.6, cabs: [
+      { kind: 'cherry', x: 1.9 }, { kind: 'seven', x: 2.75 }, { kind: 'cherry', x: 3.6 }, { kind: 'seven', x: 4.45 },
+      { kind: 'king', x: -2.35 }, { kind: 'seven', x: -3.55 }, { kind: 'cherry', x: -4.4 },
+    ] },
   ];
-  // TWO BLOCKS EITHER SIDE OF A CENTRAL AVENUE, five rows deep each.
-  //
-  // "Banks of slots receding into the distance rather than a couple of rows",
-  // and "sightlines that never quite show you a wall". Both come out of the same
-  // arrangement: rows run along x and stack down z, so from the door you look
-  // straight down an avenue with bank after bank going away from you on both
-  // sides and no wall at the end of it that you can actually see.
-  //
-  // The avenue is 2.6 m wide and runs the full depth. It is also what keeps the
-  // entry clear — the old layout put a bank 1.4 m inside the door, which is the
-  // pawn shop's "i immediately hit a counter" waiting to be reported again.
-  // 1.6, not 1.3. The walk found the reason: the bank colliders start exactly on
-  // the avenue edge, so at 1.3 a 0.36 m player had only |x| < 0.94 of real lane
-  // and clipped the corner of the last bank on the way past. 1.6 gives 1.24 m
-  // either side of the centreline and still leaves 1.18 m between the outer bank
-  // and the wall.
-  const AVENUE = 1.5;                                  // half-width of the centre lane
-  // FIVE rows at 3.2 m centres, down from seven at 2.4. "A casino floor is
-  // crowded with PEOPLE, not with furniture you cannot walk between" — the gap
-  // between bank colliders goes from 1.10 m to 1.90 m, which is the difference
-  // between edging past a machine and walking between two of them.
-  // THREE rows of reels, not five. "Too many slots, not enough diversity" — a
-  // real floor is not a slot warehouse, so two rows' worth of space goes to
-  // games instead. The reels keep the front of the house, where you meet them
-  // walking in; everything else is beyond them.
-  // Five rows of reels now rather than three, spread over the front half of a
-  // 36 m floor at the same 3.2 m centres — the aisle width the user asked for is
-  // unchanged, there is simply more room to put banks in before you reach the
-  // games.
-  // FOUR rows, not five. The user, from the entry: "need a bit of space on entry
-  // area. maybe instead of slot we kill a row and add seat of some sort." The row
-  // at 15.6 was 2.4 m inside a door you walk through at 18, so the first thing
-  // the room did was put a machine in your face — and 2.4 m is not an entrance,
-  // it is a gap. Killing it opens the front of the house to 4.95 m clear of the
-  // next bank's face, across the full 11 m width, and the seats he asked for go
-  // in it (see THE ENTRY LOUNGE below).
-  //
-  // The row is DELETED, not moved back: shifting all four would have closed up
-  // the games beyond them, and he has already sent this room back once for being
-  // cramped. The floor keeps its 3.2 m centres and its depth.
-  const BANK_Z = [12.4, 9.2, 6.0, 2.8];
-  /**
-   * THE PIT TABLES' FOOTPRINTS, declared once and read by both the tables
-   * themselves (their `solid()` calls, far below) and the slot banks.
-   *
-   * The banks need them because the last row, at BANK_Z 2.8, hangs over the
-   * pit: its −z stools were placed at z 1.78 with their [E] approach points at
-   * z 1.03, which is INSIDE the craps and roulette tables. Two of them had
-   * nowhere legal to stand at all — a seat that registers fine and can never be
-   * used, which is the failure `ctx.ts` warns about in `Seat`'s own doc and the
-   * one that made the bodega un-enterable (GOTCHAS §8).
-   *
-   * Written here rather than as three skipped indices so that a fourth table,
-   * or a moved one, takes its stools with it.
-   */
-  const PIT = [
-    { x: -3.1, z: 0.2, w: 2.3, d: 2.3 },      // roulette
-    { x: 3.0, z: 0.2, w: 1.8, d: 3.0 },       // craps
-    { x: -3.0, z: -3.6, w: 2.5, d: 2.5 },     // poker
-  ];
-  /**
-   * WHICH WAY THE ROULETTE'S PLAYERS STAND — read by the stool ring AND by the
-   * wheel head, so the head is always opposite the players rather than the two
-   * being typed independently and drifting apart.
-   *
-   * It used to be +z, and three of the five places were unreachable. The lane
-   * between the table's own collider (z ≤ 1.35) and the last slot bank's
-   * (z ≥ 2.15) is **0.80 m** — measured live, `scripts/w15-roulette-gap.mjs`;
-   * the queue said 0.08 m, which is out by a factor of ten and made this look
-   * like a rounding problem rather than a layout one. A stool sits 1.55 m out
-   * and its [E] approach a further 0.80 m behind, so a place facing +z needs
-   * 2.35 m of clear radius on that side and has 1.95 m. **No stool radius and
-   * no approach distance can fix that** — the arithmetic runs out before the
-   * stool reaches the felt — which is why this is a layout call, as w17 said.
-   *
-   * +x is the side that is actually open: 4.05 m of avenue between this table
-   * and the craps table, against 0.80 m to the bank, 1.25 m to the west wall
-   * and 1.40 m to the poker table. It is also the better room: the players now
-   * ring the wheel from the avenue you walk down, and the croupier stands with
-   * their back to the wall, which is where a croupier stands.
-   *
-   * THE ARC IS NOT CENTRED ON +x, and that is the whole reason five places
-   * still fit. Solving `0.2 + 2.35·cos a` against the bank at z 2.15 and the
-   * poker table at z −2.35 (both less the 0.36 m capsule's half-width, and
-   * 0.15 m of margin on top) gives a legal arc of **0.810 … 2.807 rad** — 1.997
-   * rad wide, but centred on **1.81**, leaning off +x toward the poker side
-   * because the bank is the nearer of the two. Centring on π/2 instead wastes
-   * the slack at the far end and forces the stools to 0.58 m apart, which is
-   * what a first pass here did.
-   *
-   * Using the arc properly gives ±0.95 and **0.74 m between stool centres**,
-   * against the 0.89 m this ring had before it moved — snug, and a roulette
-   * table is snug. `scripts/w15-roulette-gap.mjs` fails if any of the five
-   * approaches is blocked; `scripts/w15-roulette-walk.mjs` sits in all five.
-   */
-  const ROU_OPEN = 1.81;
-  const ROU_SPAN = 0.95;
-  const PLAYER_R = 0.36;
-  /** is this point inside a game table, as far as a player's body is concerned? */
-  const inPit = (x: number, z: number) => PIT.some((t) =>
-    Math.abs(x - t.x) < t.w / 2 + PLAYER_R && Math.abs(z - t.z) < t.d / 2 + PLAYER_R);
-  let rowN = 0;
-  for (const bz of BANK_Z) {
-    for (const sx of [-1, 1]) {
-      const x0 = sx < 0 ? -AVENUE - 0.3 - (SLOT_N - 1) * SLOT_PITCH : AVENUE + 0.3;
-      for (const face of [1, -1]) {
-        const row = ROWS[rowN++ % ROWS.length];
-        for (let i = 0; i < SLOT_N; i++) {
-          const m = new THREE.Mesh(slotGeo, slotMats[row[i]]);
-          if (face < 0) m.rotation.y = Math.PI;
-          put(m, x0 + i * SLOT_PITCH, 0.725, bz + face * 0.35);
-          // CABINETS THAT ARE NOT ALL THE SAME. "A hundred identical machines is
-          // what makes it read as wallpaper" — so every third one carries a
-          // raised topper and every fourth a taller crown, off the machine's
-          // INDEX rather than a random stream (GOTCHAS §2: there is one seeded
-          // rnd() and its order is load-bearing). Three silhouettes down a bank
-          // instead of one, from two boxes.
-          const k = (i + rowN) % 4;
-          if (k === 1 || k === 3) {
-            put(new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.30, 0.30), slotMats[row[i]][4]),
-              x0 + i * SLOT_PITCH, 1.60, bz + face * 0.35);
-          }
-          if (k === 3) {
-            put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.22),
-              new THREE.MeshBasicMaterial({ color: 0xd8a83a })),
-              x0 + i * SLOT_PITCH, 1.86, bz + face * 0.35);
-          }
-        }
-      }
-      // ONE collider per bank, not one per machine. The cabinets are 0.04 m
-      // apart and the player is 0.72 m across, so per-machine boxes would only
-      // carve slots you wedge into — the same lesson the diner's booths taught.
-      solid(x0 + ((SLOT_N - 1) * SLOT_PITCH) / 2, bz, bankW, 1.3);
+  buildSlots(ctx, room, SLOT_ROWS.flatMap((r) => r.cabs.map((c) => ({ kind: c.kind, lx: c.x, lz: r.z }))));
 
-      // A STOOL AT EVERY MACHINE, and every one of them sittable. The user:
-      // "casino slots have stools" and, standing since the seat kit landed,
-      // "for every seat in the game i want to be able to sit down". Low, round
-      // and fixed, on a single column with a foot ring — which is what a slot
-      // stool is, and why it does not look like a chair.
-      for (const face of [1, -1]) for (let i = 0; i < SLOT_N; i++) {
-        const sx2 = x0 + i * SLOT_PITCH, sz2 = bz + face * 1.02;
-        // NO STOOL WHERE THE PIT IS. The last bank's −z face overhangs the
-        // roulette and craps tables: these stools stood 0.08 m off the felt and
-        // you reached them by standing INSIDE the table. See `PIT`. The machines
-        // stay — the bank is one mesh run and one collider — but a stool nobody
-        // can walk up to is worse than no stool, because it offers a prompt it
-        // cannot honour.
-        if (inPit(sx2, sz2) || inPit(sx2, sz2 + face * 0.75)) continue;
-        // THE SEAT IS THE TOP FACE, NOT THE CENTRE OF THE CUSHION. See STOOL_TOP.
-        put(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, STOOL_T, 10), stoolTopM),
-          sx2, STOOL_TOP - STOOL_T / 2, sz2);
-        put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.60, 8), stoolPoleM), sx2, 0.30, sz2);
-        put(new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.03, 10), stoolPoleM), sx2, 0.03, sz2);
-        put(new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.017, 4, 10), stoolPoleM), sx2, 0.22, sz2)
-          .rotation.x = Math.PI / 2;
-        ctx.seat({
-          // FACE THE MACHINE, which is the whole point of the stool. The bank
-          // is at `bz` and this stool at `bz + face * 1.02`, so the cabinets are
-          // always in the −face direction. Facing is (sin yaw, −cos yaw), so
-          // looking along −z is yaw 0 and along +z is PI: a stool on the +z side
-          // (face > 0) wants 0, one on the −z side wants PI. This was written
-          // the other way round and every one of the 96 stools sat you with
-          // your back 0.37 m from the machines, looking at the far wall.
-          // (scripts/seat-facing.mjs, rule B.)
-          x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? 0 : Math.PI, h: STOOL_TOP,
-          approach: { x: room.wx(sx2), z: room.wz(sz2 + face * 0.75) },
-          label: 'sit at the slot',
-          // one of the four slot players may already be on this stool
-          ok: () => room.inside() && !seatTaken(room.wx(sx2), room.wz(sz2)),
-        });
-      }
-    }
+  // ONE collider per row segment, not per machine — 0.23 m gaps are slots you
+  // wedge into, the diner's lesson. Depth 0.85 covers the tray lip and the
+  // lever's ball; the KING gets his own, wider and prouder.
+  solid(3.175, 10.8, 3.45, 0.85); solid(-3.175, 10.8, 3.45, 0.85);
+  solid(3.175, 6.6, 3.45, 0.85);
+  solid(-2.35, 6.6, 1.1, 0.9);
+  solid(-3.975, 6.6, 1.6, 0.85);
+
+  // A STOOL AT EVERY MACHINE, all sittable. The label is 'sit at the slots' —
+  // NOT the old 'sit at the slot', which is the bridge ct/slots.ts's panel
+  // game listens for. The lever in the world is the play verb now; the panel
+  // module stays as the library blackjack reads CREDIT from, and a label it
+  // never matches keeps its auto-open quietly retired without editing it.
+  for (const row of SLOT_ROWS) for (const c of row.cabs) {
+    const sx2 = c.x, sz2 = row.z + 0.95;
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, STOOL_T, 10), stoolTopM),
+      sx2, STOOL_TOP - STOOL_T / 2, sz2);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.60, 8), stoolPoleM), sx2, 0.30, sz2);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.03, 10), stoolPoleM), sx2, 0.03, sz2);
+    put(new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.017, 4, 10), stoolPoleM), sx2, 0.22, sz2)
+      .rotation.x = Math.PI / 2;
+    ctx.seat({
+      // yaw 0 faces −z — the machine. Same derivation the old bank stools
+      // carried (scripts/seat-facing.mjs, rule B).
+      x: room.wx(sx2), z: room.wz(sz2), yaw: 0, h: STOOL_TOP,
+      approach: { x: room.wx(sx2), z: room.wz(sz2 + 0.75) },
+      label: 'sit at the slots',
+      ok: () => room.inside() && !seatTaken(room.wx(sx2), room.wz(sz2)),
+    });
   }
-
   // ── THE ENTRY LOUNGE ──────────────────────────────────────────────────
   //
   // The second half of "kill a row and add seat of some sort". A slot stool is
@@ -958,33 +716,20 @@ export function buildCasino(ctx: CtxBuild): void {
     }
   }
 
-  // FOUR PLAYERS, NOT A HUNDRED AND TWENTY. A machine at every stool would read
-  // as a crowd, and this floor's whole effect is that it is too big for the
-  // people in it — the same reason the hotel lobby is left empty in the middle.
-  // Four is enough that the seats are visibly FOR sitting on, which is the ask.
-  //
-  // Placed on STOOL_TOP — the stool's real top face, the same number ctx.seat()
-  // now registers — off the same BANK_Z and SLOT_PITCH the stools use, so a
-  // player sits on a stool rather than near one, and at the height the stool
-  // actually is rather than the height it used to claim.
+  // THREE PLAYERS, NOT A HUNDRED. Enough that the stools read as FOR sitting
+  // on; the floor's effect is still a room too big for the people in it.
+  // Placed at stools this file just registered, on STOOL_TOP, no y fudge —
+  // the seat declares its own top face and the sitter takes it (item 280's
+  // rule). Sprite facing π is toward −z, the seat-yaw convention's mirror.
   {
-    const seatY = STOOL_TOP, x0e = AVENUE + 0.3, x0w = -AVENUE - 0.3 - (SLOT_N - 1) * SLOT_PITCH;
-    const PLAYERS: [number, number, number, Parameters<typeof citizenSprite>[0]][] = [
-      [x0e + 1 * SLOT_PITCH, BANK_Z[1], 1,
-        { jacket: '#5a4a3a', pants: '#3a3630', skin: '#c9a184', hair: '#6b5236', fit: 'plain', cut: 'short', build: 0 }],
-      [x0e + 4 * SLOT_PITCH, BANK_Z[3], -1,
-        { jacket: '#7a3a34', pants: '#3f4650', skin: '#e6bb92', hair: '#8c5a2e', fit: 'coat', cut: 'short', build: 1 }],
-      [x0w + 2 * SLOT_PITCH, BANK_Z[0], -1,
-        { jacket: '#3a4a5a', pants: '#2e2b33', skin: '#8a6a52', hair: '#2a2018', fit: 'plain', cut: 'short', build: 0 }],
-      [x0w + 5 * SLOT_PITCH, BANK_Z[2], 1,
-        { jacket: '#6a5a2a', pants: '#3a3630', skin: '#d8b48a', hair: '#9a8a6a', fit: 'coat', cut: 'short', build: 2 }],
-    ];
-    for (const [px, bz, face, look] of PLAYERS) {
-      // the stool sits at bz + face * 1.02 and the player faces the machine
-      sitter(look, px, bz + face * 1.02, seatY, face > 0 ? Math.PI : 0);
-    }
+    const seatY = STOOL_TOP;
+    sitter({ jacket: '#5a4a3a', pants: '#3a3630', skin: '#c9a184', hair: '#6b5236', fit: 'plain', cut: 'short', build: 0 },
+      -2.75, 11.75, seatY, Math.PI);
+    sitter({ jacket: '#7a3a34', pants: '#3f4650', skin: '#e6bb92', hair: '#8c5a2e', fit: 'coat', cut: 'short', build: 1 },
+      3.6, 7.55, seatY, Math.PI);
+    sitter({ jacket: '#3a4a5a', pants: '#2e2b33', skin: '#8a6a52', hair: '#2a2018', fit: 'plain', cut: 'short', build: 0 },
+      4.45, 11.75, seatY, Math.PI);
   }
-
   // ── the felt table ──
   //
   // One, because the brief says one, and because a floor of machines with a
@@ -1000,20 +745,13 @@ export function buildCasino(ctx: CtxBuild): void {
     g.fillStyle = '#c9a45e'; g.fillRect(29, 3, 6, 2);            // the house's own mark
     dither(g, 64, 34, 40);
   }), 'detail');
-  // Sized off the lanes it has to leave, not off what looks right in plan. It
-  // sits between the east end of the slot banks and the east wall, so its
-  // collider decides both of those gaps: 1.9 × 1.2 leaves 0.56 m of clear band
-  // for the player's centre on the bank side and 0.48 m on the wall side. A
-  // 2.2 m table — the first size I drew — closed the wall side to 0.28 m and
-  // turned the corner of the room into a wedge (GOTCHAS §9).
-  // Was 3.1, 0.4, sized off the gap between the old bank and the old east wall.
-  // Both of those are gone: the floor is 17 x 19 now and the tables sit in the
-  // open ground BEYOND the banks, where a pit belongs — you walk the avenue
-  // past the machines and come out at the tables.
-  // TZ is -7.0, not -7.6, and the walk found the reason: at -7.6 the tables'
-  // colliders ended on z -8.2 and the cage's front face is at -8.9, leaving a
-  // 0.70 m gap for a 0.72 m player. Nobody would have got through it. 1.30 m now.
-  const TX = -2.6, TZ = -13.0;
+  // In the PIT, east side, mirrored by the roulette table across the avenue.
+  // The pit sits past the slot bank at mid-floor — you walk the avenue through
+  // the machines and come out at the tables, with the cage still the furthest
+  // thing from the door. The stools and the dealers hang off these four
+  // numbers and nothing else re-types them.
+  const TX = 2.7, TZ = -5.0;                    // blackjack, east of the avenue
+  const RX = -2.7, RZ = -5.2;                   // roulette, west, wheel at its far end
   const woodM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
   const railM = new THREE.MeshBasicMaterial({ color: 0x3a2226 });
   put(new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.72, 1.0), woodM), TX, 0.36, TZ);
@@ -1158,27 +896,24 @@ export function buildCasino(ctx: CtxBuild): void {
   valT.wrapS = THREE.RepeatWrapping;
   const valFaceM = ctx.flat(valT);
   const valTopM = new THREE.MeshBasicMaterial({ color: 0x6a5220 });
-  // one valance per BANK, so the gold-and-bulbs run carries away down both
-  // blocks — it is the thing that makes the depth read as depth rather than as
-  // an empty floor with machines at the near end
-  for (const bz of BANK_Z) {
-    for (const sx of [-1, 1]) {
-      const cx2 = sx < 0
-        ? -AVENUE - 0.3 - ((SLOT_N - 1) * SLOT_PITCH) / 2
-        : AVENUE + 0.3 + ((SLOT_N - 1) * SLOT_PITCH) / 2;
-      const t = valT.clone(); t.wrapS = THREE.RepeatWrapping;
-      t.repeat.set(Math.round(bankW / 1.1), 1); t.needsUpdate = true;
-      const faceM = ctx.flat(t);
-      put(new THREE.Mesh(new THREE.BoxGeometry(bankW, 0.3, 1.0),
-        [valTopM, valTopM, valTopM, valTopM, faceM, faceM]), cx2, room.H - 0.64, bz);
-      for (const s2 of [-1, 1]) {
-        bulbLine(cx2 - bankW / 2 + 0.15, 2.08, bz + s2 * 0.5,
-                 cx2 + bankW / 2 - 0.15, 2.08, bz + s2 * 0.5, 0.34);
-      }
+  // one valance per slot ROW, so the gold-and-bulbs run reads down both
+  // blocks from the door — the lit soffit is what says "the machines are
+  // HERE" across a dim floor
+  for (const seg of [
+    { cx: 3.175, z: 10.8, w: 3.45 }, { cx: -3.175, z: 10.8, w: 3.45 },
+    { cx: 3.175, z: 6.6, w: 3.45 }, { cx: -3.27, z: 6.6, w: 2.9 },
+  ]) {
+    const t = valT.clone(); t.wrapS = THREE.RepeatWrapping;
+    t.repeat.set(Math.round(seg.w / 1.1), 1); t.needsUpdate = true;
+    const faceM = ctx.flat(t);
+    put(new THREE.Mesh(new THREE.BoxGeometry(seg.w, 0.3, 1.0),
+      [valTopM, valTopM, valTopM, valTopM, faceM, faceM]), seg.cx, room.H - 0.64, seg.z);
+    for (const s2 of [-1, 1]) {
+      bulbLine(seg.cx - seg.w / 2 + 0.15, 2.08, seg.z + s2 * 0.5,
+               seg.cx + seg.w / 2 - 0.15, 2.08, seg.z + s2 * 0.5, 0.34);
     }
   }
   void valFaceM;
-
   // ── 777 on the back wall, in the facade's own red tube ──
   const sevensT = declareSurface(pixTex(72, 26, (g) => {
     g.fillStyle = '#2a1418'; g.fillRect(0, 0, 72, 26);
@@ -1188,104 +923,82 @@ export function buildCasino(ctx: CtxBuild): void {
   put(new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.83), ctx.flat(sevensT)), -2.0, 1.86, -hd + 0.07);
   bulbLine(-3.25, 1.30, -hd + 0.10, -0.75, 1.30, -hd + 0.10, 0.3);
 
-  // ── THE GAMES, which is what stops this being a slot warehouse ────────
+  // ── THE PIT: TWO TABLE GAMES, EACH A REAL DESTINATION ─────────────────
   //
-  // "A real floor has zones: a blackjack pit, a roulette wheel, a craps table
-  // with its high sides, a poker corner, a keno board, a wall of video poker
-  // distinct from the reel slots." Each of these is a different SHAPE, which is
-  // the point — a floor reads as varied because you can tell the games apart
-  // across the room, not because the cabinets have different stickers.
+  // 2026-08-09: "there should be black jack and roulette as table games."
+  // Exactly two — the craps table, poker oval and video-poker run that used to
+  // crowd this pit are GONE: furniture offering a game it cannot honour is the
+  // same lie as a stool nobody can reach, and the old pit had three of them
+  // jammed against a slot bank. Blackjack (east) has been playable since
+  // ae4147cee — sit at the felt and ct/blackjack.ts opens. Roulette (west) is
+  // its mirror: sit at the wheel and ct/roulette.ts opens, over the same
+  // seat-label bridge.
   {
-    const feltG = new THREE.MeshBasicMaterial({ color: 0x1e5a3e });
-    const feltR = new THREE.MeshBasicMaterial({ color: 0x5a1f24 });
     const rail = new THREE.MeshBasicMaterial({ color: 0x3a2226 });
     const wood = new THREE.MeshBasicMaterial({ color: DARKWOOD });
     const chrome = new THREE.MeshBasicMaterial({ color: 0x9a9488 });
     const ivory = new THREE.MeshBasicMaterial({ color: 0xd8d0bc });
 
-    // ROULETTE — round, and the only round thing on the floor
+    // ROULETTE — the long green table with the wheel at its far end, the only
+    // round thing on the floor. The wheel head and ball are NAMED
+    // ('roulette-wheel-head', 'roulette-ball'): ct/roulette.ts finds them by
+    // name and turns them while a spin runs, so the room's wheel moves when
+    // the game's does — and audio can watch the same meshes.
     {
-      const [ROU] = PIT;                      // one declaration, see `PIT`
-      const RX = ROU.x, RZ = ROU.z;
-      put(new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.12, 16), feltG), RX, 0.86, RZ);
-      put(new THREE.Mesh(new THREE.CylinderGeometry(1.10, 1.10, 0.10, 16), rail), RX, 0.78, RZ);
-      // THE WHEEL HEAD SITS OPPOSITE THE PLAYERS, derived from `ROU_OPEN`
-      // rather than typed as `RZ - 0.42`. That literal was the other half of
-      // the same assumption the stool ring made — players on +z, head on −z —
-      // and moving the players without moving the head would have left the
-      // wheel behind the seated row instead of in front of it.
-      const hx = RX - Math.sin(ROU_OPEN) * 0.42, hz = RZ - Math.cos(ROU_OPEN) * 0.42;
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.10, 12), wood), hx, 0.97, hz);
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.04, 12), chrome), hx, 1.03, hz);
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8), chrome), hx, 1.10, hz);
-      for (const lz of [-0.7, 0.7]) for (const lx of [-0.7, 0.7]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.72, 2.05), wood), RX, 0.36, RZ);
+      put(new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.10, 2.2), rail), RX, 0.77, RZ);
+      // the printed layout: a numbers grid and the even-money boxes
+      const layT = declareSurface(pixTex(48, 72, (g) => {
+        g.fillStyle = '#1e5a3e'; g.fillRect(0, 0, 48, 72);
+        for (let r2 = 0; r2 < 6; r2++) for (let c2 = 0; c2 < 3; c2++) {
+          g.fillStyle = (r2 * 3 + c2) % 2 ? '#8a1c22' : '#16120e';
+          g.fillRect(6 + c2 * 12, 6 + r2 * 8, 10, 6);
+        }
+        g.strokeStyle = 'rgba(216,208,192,0.55)'; g.lineWidth = 1;
+        g.strokeRect(5.5, 5.5, 37, 48);
+        g.fillStyle = 'rgba(216,208,192,0.5)';
+        g.fillRect(6, 58, 17, 8); g.fillRect(25, 58, 17, 8);
+        dither(g, 48, 72, 30);
+      }), 'detail');
+      const lay = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.1), ctx.flat(layT));
+      lay.rotation.x = -Math.PI / 2;
+      put(lay, RX, 0.83, RZ + 0.35);
+      // the wheel: wooden rim, chrome bowl, and the head that spins
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.10, 16), wood), RX, 0.86, RZ - 0.62);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.40, 0.40, 0.05, 16), chrome), RX, 0.92, RZ - 0.62);
+      const headT = declareSurface(pixTex(64, 64, (g) => {
+        g.fillStyle = '#2a2018'; g.fillRect(0, 0, 64, 64);
+        for (let p = 0; p < 37; p++) {
+          const a0 = (p / 37) * Math.PI * 2, a1 = ((p + 1) / 37) * Math.PI * 2;
+          g.fillStyle = p === 0 ? '#1e7c3c' : p % 2 ? '#c8342c' : '#16120e';
+          g.beginPath(); g.moveTo(32, 32);
+          g.arc(32, 32, 30, a0, a1); g.closePath(); g.fill();
+        }
+        g.fillStyle = '#c9a45e'; g.beginPath(); g.arc(32, 32, 9, 0, Math.PI * 2); g.fill();
+      }), 'detail');
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.05, 24),
+        [chrome, ctx.flat(headT), chrome]);
+      head.name = 'roulette-wheel-head';
+      put(head, RX, 0.96, RZ - 0.62);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.14, 8), chrome), RX, 1.04, RZ - 0.62);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), ivory);
+      ball.name = 'roulette-ball';
+      put(ball, RX + 0.30, 1.00, RZ - 0.62);
+      for (const lz of [-0.85, 0.85]) for (const lx of [-0.55, 0.55]) {
         put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.78, 0.10), wood), RX + lx, 0.39, RZ + lz);
       }
-      solid(RX, RZ, ROU.w, ROU.d);
+      solid(RX, RZ, 1.75, 2.35);
+      // the croupier, wheel side, back to the west wall — where one stands
+      room.person({
+        jacket: '#3a2226', pants: '#241e22', skin: '#d8b48a', hair: '#3a2a1e',
+        fit: 'plain', accent: '#d8d0c0', cut: 'short', build: 1,
+      }, RX - 1.15, RZ - 0.45, { facing: Math.PI / 2, h: 0.98, w: 0.95 });
     }
 
-    // CRAPS — long, and high-sided, which is its whole silhouette
-    {
-      const CRP = PIT[1];
-      const CX2 = CRP.x, CZ2 = CRP.z;
-      put(new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 2.8), feltG), CX2, 0.88, CZ2);
-      for (const sx of [-1, 1]) {
-        put(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.46, 2.8), rail), CX2 + sx * 0.75, 1.12, CZ2);
-      }
-      for (const sz of [-1, 1]) {
-        put(new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.46, 0.12), rail), CX2, 1.12, CZ2 + sz * 1.4);
-      }
-      for (const lz of [-1.2, 1.2]) for (const lx of [-0.6, 0.6]) {
-        put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.82, 0.10), wood), CX2 + lx, 0.41, CZ2 + lz);
-      }
-      solid(CX2, CZ2, CRP.w, CRP.d);
-    }
-
-    // POKER — oval-ish, red felt, and lower than the rest
-    {
-      const POK = PIT[2];
-      const PX2 = POK.x, PZ2 = POK.z;
-      put(new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.11, 12), feltR), PX2, 0.80, PZ2);
-      put(new THREE.Mesh(new THREE.TorusGeometry(1.16, 0.06, 4, 14), rail), PX2, 0.86, PZ2)
-        .rotation.x = Math.PI / 2;
-      for (const a of [0, 1.6, 3.1, 4.7]) {
-        put(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.72, 0.09), wood),
-          PX2 + Math.cos(a) * 0.7, 0.36, PZ2 + Math.sin(a) * 0.7);
-      }
-      solid(PX2, PZ2, POK.w, POK.d);
-    }
-
-    // VIDEO POKER — a low run against the east wall, deliberately NOT a reel
-    // cabinet: half the height, a counter rather than a box, screens not reels
-    {
-      const VX = hw - 0.55;
-      put(new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.92, 4.2), wood), VX, 0.46, -3.4);
-      put(new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.06, 4.3), rail), VX, 0.95, -3.4);
-      for (let i = 0; i < 6; i++) {
-        const vz = -5.2 + i * 0.72;
-        put(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.34, 0.44),
-          new THREE.MeshBasicMaterial({ color: i % 2 ? 0x2a4a6a : 0x1e3a52 })), VX - 0.36, 1.18, vz);
-        put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.05, 0.30), chrome), VX - 0.30, 0.99, vz);
-      }
-      solid(VX, -3.4, 0.9, 4.4);
-    }
-
-    // STOOLS AT THE GAMES, and every one of them sittable. My own grading last
-    // commit: "a blackjack pit nobody can sit at is the same omission the user
-    // just caught on the slots", and all 120 reel machines had one while the
-    // tables had none. Taller than a slot stool because a gaming table is
-    // higher, and placed round each table's own centre so they follow it.
-    //
-    // LABEL IS A PARAMETER, not a constant baked into the helper. It was
-    // 'sit at the table' unconditionally, which is what silently made every
-    // stool on this floor — roulette's, craps's, poker's AND blackjack's —
-    // carry the identical string. blackjack.ts bridges on its own
-    // `SEAT_LABEL` and nothing else, so before this it had no seat anywhere
-    // to open from: sitting at the felt table did nothing, and relabelling
-    // every stool here would have opened blackjack at the roulette wheel
-    // instead. Only the felt table below (TX = -2.6, TZ = -13.0, the one
-    // with a dealer standing at it) passes the blackjack label; roulette,
-    // craps and poker keep the shared 'sit at the table' they always had.
+    // STOOLS AT THE GAMES, every one sittable, each labelled for the game it
+    // opens. LABEL IS A PARAMETER: blackjack's four carry BLACKJACK_SEAT
+    // (imported from ct/blackjack.ts) and roulette's four carry the string
+    // ct/roulette.ts bridges on — two games, two labels, no drift.
     const gameStool = (gx: number, gz: number, yaw: number, label = 'sit at the table') => {
       // A stride BEHIND the seat, which is the opposite of facing: facing is
       // (sin yaw, -cos yaw), so back is (-sin, +cos).
@@ -1298,69 +1011,40 @@ export function buildCasino(ctx: CtxBuild): void {
         .rotation.x = Math.PI / 2;
       ctx.seat({
         x: room.wx(gx), z: room.wz(gz), yaw, h: GSTOOL_TOP,   // the TOP face, not the centre
-        // THE APPROACH IS BEHIND YOU, which is the opposite of facing:
-        // facing is (sin yaw, −cos yaw), so a stride back is (−sin, +cos).
-        // The x term read `+Math.sin`, the same mirror as the yaws below, and
-        // it put the craps approach points inside the craps table.
         approach: { x: room.wx(back.x), z: room.wz(back.z) },
         label, ok: () => room.inside(),
       });
     };
     /**
      * THE YAW A STOOL NEEDS TO LOOK AT ITS OWN TABLE — derived from the two
-     * positions, never typed.
-     *
-     * Facing is (sin yaw, −cos yaw) (`ctx.ts`, `Seat`), so looking from
-     * (gx, gz) toward (tx, tz) is `atan2(dx, −dz)`.
-     *
-     * The call sites below used to type `a + PI` for a stool placed at
-     * `C + R * (sin a, cos a)`. That is a MIRROR of the right answer: correct
-     * in x, inverted in z. It happens to be right for the four stools where
-     * cos a = 0 and wrong for the other seven, which is why it survived — the
-     * craps stools looked fine and nobody sat at roulette. Derived like this a
-     * fourth table cannot be added facing the wrong way.
+     * positions, never typed. Facing is (sin yaw, −cos yaw) (`ctx.ts`, `Seat`),
+     * so looking from (gx, gz) toward (tx, tz) is `atan2(dx, −dz)`. The typed
+     * version of this was a mirror that survived only where cos a = 0 — see
+     * git history for the derivation.
      */
     const faceAt = (gx: number, gz: number, tx: number, tz: number) =>
       Math.atan2(tx - gx, -(tz - gz));
-    // roulette: five round its open side — which is +x, the avenue, not +z.
-    // See ROU_OPEN's own comment for the 0.80 m that made the old side
-    // impossible rather than merely tight.
-    const ROU_X = PIT[0].x, ROU_Z = PIT[0].z;
-    for (let i = 0; i < 5; i++) {
-      const a = ROU_OPEN - ROU_SPAN + (i * 2 * ROU_SPAN) / 4;
-      const gx = ROU_X + Math.sin(a) * 1.55, gz = ROU_Z + Math.cos(a) * 1.55;
-      gameStool(gx, gz, faceAt(gx, gz, ROU_X, ROU_Z));
+    // roulette: two at the layout's foot, two along its open east side — the
+    // avenue side, so the players ring the wheel from the floor you walk down
+    const ROULETTE_SEAT = 'sit at the roulette wheel';   // ct/roulette.ts bridges on this exact string
+    for (const [gx, gz, tx, tz] of [
+      [RX - 0.5, RZ + 1.65, RX - 0.5, RZ + 0.5],
+      [RX + 0.5, RZ + 1.65, RX + 0.5, RZ + 0.5],
+      [RX + 1.35, RZ + 0.45, RX, RZ + 0.45],
+      [RX + 1.35, RZ - 0.45, RX, RZ - 0.45],
+    ] as const) {
+      gameStool(gx, gz, faceAt(gx, gz, tx, tz), ROULETTE_SEAT);
     }
-    // craps: three a side down the long table. Square ACROSS it, not at its
-    // centre — the far end of a craps table is not what you look at — so the
-    // aim point shares the stool's own z.
-    const CRP_X = PIT[1].x;
-    for (const sx of [-1, 1]) for (const dz of [-0.85, 0, 0.85]) {
-      const gx = CRP_X + sx * 1.35, gz = 0.2 + dz;
-      gameStool(gx, gz, faceAt(gx, gz, CRP_X, gz));
-    }
-    // poker: six round it, which is what a poker table seats
-    const POK_X = PIT[2].x, POK_Z = PIT[2].z;
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      const gx = POK_X + Math.sin(a) * 1.65, gz = POK_Z + Math.cos(a) * 1.65;
-      gameStool(gx, gz, faceAt(gx, gz, POK_X, POK_Z));
-    }
-    // BLACKJACK: four seats on the player side of the felt table at
-    // (TX, TZ) = (-2.6, -13.0), facing the dealer who already stands at
-    // TZ - 0.95, i.e. at LOWER z than the seats. A blackjack table seats
-    // players in a row on ONE side only — the dealer's side is the house's,
-    // not the player's — so these sit on the +z side of the felt (away from
-    // the dealer, clear of the table's own 1.9 x 1.2 collider, which ends at
-    // TZ + 0.6) and face yaw 0 (-z, toward lower z), which is toward both the
-    // table and the dealer beyond it. The default approach point this yaw
-    // produces is a further 0.8 m out along +z — open floor between the pit
-    // rope and the felt, not inside the table.
+    // BLACKJACK: four seats on the player side of the felt at (TX, TZ),
+    // facing the dealer who stands at TZ - 0.95 — LOWER z than the seats, so
+    // yaw 0 (−z) looks at both the felt and the man behind it. The approach
+    // the default yaw produces is 0.8 m out along +z: open pit floor.
     for (const dx of [-0.55, -0.18, 0.18, 0.55]) {
       gameStool(TX + dx, TZ + 0.85, 0, BLACKJACK_SEAT);
     }
 
-    // KENO — a lit board on the west wall, the only thing up there with numbers
+    // KENO — the lit board, moved to the deep west wall where the floor runs
+    // dark toward the cage: numbers glowing at the far end of the room
     {
       const kenoT = declareSurface(pixTex(64, 26, (g) => {
         g.fillStyle = '#14161c'; g.fillRect(0, 0, 64, 26);
@@ -1374,34 +1058,19 @@ export function buildCasino(ctx: CtxBuild): void {
       }), 'sign');
       const kb = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.05), ctx.flat(kenoT));
       kb.rotation.y = Math.PI / 2;
-      put(kb, -hw + 0.06, 2.05, -3.0);
+      put(kb, -hw + 0.06, 2.05, -11.5);
     }
   }
 
-  // ── the second table, and the pit rail around both ────────────────────
+  // ── the pit rope ───────────────────────────────────────────────────────
   //
-  // "More than one table, a raised or roped-off area." Both come out of the
-  // same move: two tables sitting inside a roped pit, which is what a real floor
-  // does — it separates the people playing tables from the people walking past
-  // the machines without putting a wall anywhere.
-  const T2X = 2.6, T2Z = -13.0;
-  {
-    const legM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
-    const felt2 = feltT.clone(); felt2.needsUpdate = true;
-    put(new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 1.2),
-      [railM, railM, ctx.flat(felt2), railM, railM, railM]), T2X, 0.86, T2Z);
-    for (const lx of [-0.7, 0.7]) for (const lz of [-0.4, 0.4]) {
-      put(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.80, 0.12), legM), T2X + lx, 0.40, T2Z + lz);
-    }
-    solid(T2X, T2Z, 1.9, 1.2);
-  }
-
-  // the rope: brass posts with a slack line between them, three sides open to
-  // the avenue so you can walk in — a rope you cannot cross is a wall
+  // Brass posts and a slack line across the front of the pit, the middle span
+  // open on the avenue's centreline — a rope you cannot cross is a wall, and
+  // this one has no collider at all; it is a threshold, not a fence.
   {
     const postM = new THREE.MeshBasicMaterial({ color: 0xb98f30 });
     const ropeM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });
-    const PX0 = -4.2, PX1 = 4.2, PZ = -10.4;
+    const PX0 = -4.2, PX1 = 4.2, PZ = -2.6;
     const posts: number[] = [];
     for (let x = PX0; x <= PX1 + 0.01; x += 2.8) posts.push(+x.toFixed(2));
     for (const px of posts) {
@@ -1416,7 +1085,6 @@ export function buildCasino(ctx: CtxBuild): void {
         (posts[i] + posts[i + 1]) / 2, 0.80, PZ);
     }
   }
-
   // ── the cage, given the same treatment as the front of the house ──
   bulbLine(CAGE_X - CAGE_W / 2, BULB_Y, -hd + 0.10, CAGE_X + CAGE_W / 2, BULB_Y, -hd + 0.10, 0.3);
   for (const s2 of [-1, 1]) {
@@ -1428,15 +1096,14 @@ export function buildCasino(ctx: CtxBuild): void {
   bulbLine(hw - 0.12, BULB_Y, -hd + 0.12, hw - 0.12, BULB_Y, hd - 0.12, 0.42);
 
   // one bank of sockets is dead — the same joke as the marquee's dead bulb,
-  // and the reason this room is losing money in the same building that is
+  // and the reason this room is losing money in the same building that is.
+  // On the KING's own valance, naturally.
   const deadM = new THREE.MeshBasicMaterial({ color: 0x4a4238 });
   {
-    const cx2 = -AVENUE - 0.3 - ((SLOT_N - 1) * SLOT_PITCH) / 2;   // the west block, second row in
     for (let i = 0; i < 5; i++) {
-      put(new THREE.Mesh(bulbGeo, deadM), cx2 - bankW / 2 + 0.15 + i * 0.34, 2.08, BANK_Z[1] + 0.5);
+      put(new THREE.Mesh(bulbGeo, deadM), -4.6 + i * 0.34, 2.08, 6.6 + 0.5);
     }
   }
-
   // ── the light ──
   //
   // The kit hangs its own warm bulbs down the centreline and they stay. These
@@ -1462,19 +1129,13 @@ export function buildCasino(ctx: CtxBuild): void {
     m.rotation.x = Math.PI / 2;
     put(m, lx, room.H - 0.35, lz);
   };
-  pool(2.8, 2.0, TX, TZ);                       // over the table
-  // …and one down the avenue for every gap between banks, so the floor is lit
-  // in bands all the way back rather than only where the old two rows were
-  for (let i = 0; i < BANK_Z.length - 1; i++) {
-    const mid = (BANK_Z[i] + BANK_Z[i + 1]) / 2;
-    for (const sx of [-1, 1]) {
-      const cx2 = sx < 0
-        ? -AVENUE - 0.3 - ((SLOT_N - 1) * SLOT_PITCH) / 2
-        : AVENUE + 0.3 + ((SLOT_N - 1) * SLOT_PITCH) / 2;
-      pool(6.4, 1.6, cx2, mid);
-    }
-  }
-
+  pool(2.8, 2.0, TX, TZ);                       // over the blackjack felt
+  pool(2.8, 2.6, RX, RZ);                       // over the roulette wheel
+  pool(3.2, 2.2, 0, 12.6);                      // the entry, first pool you cross
+  // the slot aisle between the two rows, lit in a band each side
+  pool(6.4, 1.6, 3.175, 8.7); pool(6.4, 1.6, -3.175, 8.7);
+  pool(3.0, 2.2, 0, 2.0);                       // mid-avenue, walking to the pit
+  pool(3.0, 2.2, 0, -12.0);                     // the long dark walk to the cage
   // The chase. `mesh.onBeforeRender` is a per-frame callback three.js already
   // gives every mesh, so a room can animate without the kit growing a hook —
   // and guarding on the renderer's frame counter keeps it to one pass however

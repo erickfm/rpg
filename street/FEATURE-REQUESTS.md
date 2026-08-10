@@ -5981,3 +5981,37 @@ The screenshot's "sticking out" boxes measured as the churchyard set drawn at
 the overlay's 2.4 m default height — capped now, the overlay draws them at
 their true tops. Skipped by instruction: int-casino (being rebuilt height-
 honest from scratch by its own builder).
+
+## 2026-08-09 — *"fix the casino, the layout is ass. i want the casino to be very fun. there should be black jack and roulette as table games. i want slot to be unique and interesting. all the machines are identical. the slots need better shapes and a better more fun visual/animation for spins. i think having one of those classic levers with a ball handle would be good. ill source sounds but in general make the slot machines more fun. you can make them simpler too. less realistic, maybe higher winrate but fun should be optimized in the casino"*
+
+Went to the casino builder (the collision-height builder was told to skip this
+room; it owns its own colliders now). Fun is the optimization target, his words
+licensing simpler mechanics and a higher winrate.
+
+LAYOUT: the 96-identical-machine warehouse and the prop-only craps/poker/video
+poker furniture are gone. Fifteen playable machines in four short rows all
+FACING THE DOOR (a glowing bank on entry), a clear 3 m avenue running door →
+pit → cage, the pit holding exactly the two games he named — blackjack east,
+roulette west, a dealer each — behind the brass rope with its open centre span.
+Lounge, cage, mirrored ceiling, carpet and 777 stay.
+
+SLOTS (new ct/slotcab.ts, fully in-world — no panel): three cabinet
+personalities (CHERRY BELLE $2 cream/rose round-crown, LUCKY 7 $5 oxblood/gold
+upright with lit 777 topper, one wide black-and-gold KING KACHING $10 with a
+$1,500-jackpot arch). THE CLASSIC LEVER WITH THE BALL HANDLE is the play verb:
+[E] pulls it, the arm swings and springs back, reels kick, blur, stagger to a
+stop left-to-right with a clunk, near-misses crawl and land hard. Wins strobe
+the topper, chase the bulbs, burst coins into the tray and COUNT the dollars
+straight into the wallet. Pay card printed on every belly. Maths enumerated:
+RTP 94.97%, hit rate 28.6% (old machine: 92.8% / 19%), jackpot 150x at
+1-in-1,024. Lever/reels/topper/coins are all named meshes for the sounds he is
+sourcing. The old sit-down panel slots (ct/slots.ts) is retired from the floor
+but stays as the maths library blackjack reads CREDIT from.
+
+BLACKJACK: already fully playable (sit at the felt, dealer stands on all 17,
+3:2, double/split; 99.55% RTP vs basic strategy) — moved into the pit as the
+east destination with its dealer and four stools.
+
+ROULETTE: new game, ct/roulette.ts — sit at the wheel, red/black/odd/even and
+single number only, European single-zero (RTP 97.3%), the wheel and ball spin
+on the panel and the ROOM'S wheel head turns with it.
