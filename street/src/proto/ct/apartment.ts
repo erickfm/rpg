@@ -1006,10 +1006,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     };
     // hall + stairwell shell. Both walls run full height either side of the
     // door column; the column itself is cut floor by floor, just below.
-    wallMesh(3.025, H, AX(0), H / 2, AZI(1.5125), Math.PI / 2);
-    wallMesh(9.225, H, AX(0), H / 2, AZI(8.5875), Math.PI / 2);
-    wallMesh(3.025, H, AX(2.4), H / 2, AZI(1.5125), -Math.PI / 2);
-    wallMesh(9.225, H, AX(2.4), H / 2, AZI(8.5875), -Math.PI / 2);
+    //
+    // ⚠ THE uOffs BELOW ARE THE ONLY THING HOLDING THE PAPER TOGETHER ACROSS
+    // THE COLUMN, and they are the 301 rear-wall bug (c0ef4d5d) one storey out
+    // in the hall. Each wall line is THREE pieces — the short run, the stack of
+    // spandrels in the column, the long run — and all three used to pass
+    // uOff = 0 despite starting at different ends, so each restarted the tile
+    // at its own corner and the paper stepped at both edges of every doorway,
+    // on all four floors, on both sides of the hall.
+    //
+    // Per the ⚠ on `wallMesh`, the two walls need OPPOSITE bookkeeping:
+    //   west, ry = +π/2 → u runs toward −z, the paper starts at HALL_Z1 and
+    //                     uOff is metres BACK from it: HALL_Z1 − pieceHighZ
+    //   east, ry = −π/2 → u runs toward +z, the paper starts at local z 0 and
+    //                     uOff is metres FORWARD to it: pieceLowZ
+    // Done this way both walls evaluate to a single u(z) end to end — west
+    // (HALL_Z1 − z)/2.7, east z/2.7 — so there is no seam left to line up.
+    //
+    // The stripes are 8 texels of a 64-texel 2.7 m tile, so the period is
+    // 0.3375 m and the old errors reduced to 0.0625 m and 0.1125 m (west) and
+    // 0.0125 m and 0.0625 m (east) — small, but `wallpaperT` is DITHERED, and
+    // the speckle only repeats on the full 2.7 m tile. Any phase error that is
+    // not a whole tile jumps the noise field at the seam whatever the stripes
+    // do, which is why even the 0.0125 one reads as a join.
+    const HALL_Z1 = 13.2;                    // far (high-z) end of the shaft
+    const COL_Z0 = 3.025, COL_Z1 = 3.975;    // the door column's two edges
+    wallMesh(3.025, H, AX(0), H / 2, AZI(1.5125), Math.PI / 2, wallpaperT, HALL_Z1 - COL_Z0);
+    wallMesh(9.225, H, AX(0), H / 2, AZI(8.5875), Math.PI / 2, wallpaperT, 0);
+    wallMesh(3.025, H, AX(2.4), H / 2, AZI(1.5125), -Math.PI / 2, wallpaperT, 0);
+    wallMesh(9.225, H, AX(2.4), H / 2, AZI(8.5875), -Math.PI / 2, wallpaperT, COL_Z1);
     // ── THE DOOR COLUMN, PIERCED ONCE PER FLOOR ──────────────────────────
     // This used to be two pieces per wall — one solid slab from the ground to
     // 2*ST and one from 2*ST+2.1 to the roof — which cut a hole on floor 3
@@ -1027,12 +1052,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // tile at its own bottom edge and the pattern jumps at every lintel. The
     // old top piece passed 0 from a base of 7.5 and was misaligned by 0.78 of
     // a tile — nobody had looked, because there was only ever one of them.
+    //
+    // uOff is the SAME argument turned sideways, and it was left at 0 here for
+    // a year longer than vOff was: a spandrel is DOOR_GAP wide and sits between
+    // the two runs, so it needs telling where along the wall it is exactly as
+    // much as it needs telling how far up. Its far end is COL_Z1 on the west
+    // wall and its near end COL_Z0 on the east — the mirror-image bookkeeping
+    // written out above the shell.
     const WALLS: [number, number][] = [[AX(0), Math.PI / 2], [AX(2.4), -Math.PI / 2]];
     for (let f = 0; f < 4; f++) {
       const yb = f * ST + DOOR_HEAD;               // underside of this floor's lintel
       const yt = f < 3 ? (f + 1) * ST : H;         // the slab above, or the roof
       for (const [wx, ry] of WALLS) {
-        wallMesh(DOOR_GAP, yt - yb, wx, (yb + yt) / 2, AZI(3.5), ry, wallpaperT, 0, yb);
+        const uOff = ry > 0 ? HALL_Z1 - COL_Z1 : COL_Z0;
+        wallMesh(DOOR_GAP, yt - yb, wx, (yb + yt) / 2, AZI(3.5), ry, wallpaperT, uOff, yb);
       }
     }
     wallMesh(2.4, H, AX(1.2), H / 2, AZI(0), 0);
