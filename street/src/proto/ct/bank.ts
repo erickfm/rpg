@@ -331,11 +331,10 @@ export function buildBank(k: {
       };
       win(Math.round(W * 0.18), 2.2);
       win(Math.round(W * 0.82), 2.2);
-      // applied metal letters — a shadow under each, no painted band
-      g.font = `bold ${m(0.5)}px monospace`;
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillText('FIRST FEDERAL', W / 2 + m(0.06), m(0.78) + m(0.06));
-      g.fillStyle = '#c9ccd0'; g.fillText('FIRST FEDERAL', W / 2, m(0.78));
+      // THE LETTERS ARE NOT PAINTED HERE ANY MORE. Applied metal letters are
+      // applied geometry now — `bankName` below this function, and the note
+      // there has the numbers. This canvas is 16 px/m masonry and a 0.5 m
+      // letter on it was 4.8 texels wide.
       // THE ATM IS NOT PAINTED HERE ANY MORE — it is real geometry, recessed.
       //
       // It used to be a flat rectangle on this canvas, and the user named the
@@ -767,6 +766,48 @@ export function buildBank(k: {
         flat(bankReturn(dep, SHOP_BAND_H, 'right')), flat(bankReturn(dep, SHOP_BAND_H, 'left'))]);
     band.position.set(cx, SHOP_BAND_H / 2, cz);
     scene.add(band);
+    // ══ FIRST FEDERAL, IN LETTERS YOU CAN READ ═══════════════════════════════
+    //
+    // The band this name sat on is masonry at 16 px/m (WALL_PPM 8 x SHOP_MULT
+    // 2) — the block's own density, and the right one for precast joints and
+    // window reveals. It is the wrong one for a 0.5 m letter: `m(0.5)` is an
+    // 8 px font, so a glyph was 4.8 texels across and its drop shadow was a
+    // single texel. `pixTex` magnifies with NearestFilter, so what reached the
+    // street was one 6 cm block of half-tone per letter stroke.
+    //
+    // Applied metal letters are now APPLIED — their own plane, 30 mm proud of
+    // the precast, at 200 px/m: the density every sign in this world that can
+    // be read is set at (`ct/hours-cards.ts`, and the shop boards' floor is
+    // 150). 60 texels a glyph, twelve and a half times what it had.
+    //
+    // TRANSPARENT, NOT A PANEL. The comment this replaces says it exactly —
+    // *"applied metal letters — a shadow under each, no painted band"* — and an
+    // opaque plate would invent a signboard the bank never had. Only the metal
+    // and its shadow are drawn; the precast behind shows through everywhere
+    // else, so the wall is unchanged and only the ink got sharper.
+    //
+    // EVERY DISTANCE IS THE ONE IT ALREADY WAS, converted once: 0.5 m letters,
+    // centred 0.78 m below the band's top, on a 0.06 m drop shadow. Same sign.
+    {
+      const PPM = 200, NW = 6.4, NH = 0.9;              // the plate's own extent
+      const px = (v: number) => Math.round(v * PPM);
+      const nameT = declareSurface(pixTex(px(NW), px(NH), (g) => {
+        const W2 = px(NW), H2 = px(NH);
+        g.font = `bold ${px(0.5)}px monospace`;
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillText('FIRST FEDERAL', W2 / 2 + px(0.06), H2 / 2 + px(0.06));
+        g.fillStyle = '#c9ccd0'; g.fillText('FIRST FEDERAL', W2 / 2, H2 / 2);
+      }), 'sign', PPM);
+      const nameM = flat(nameT);
+      // transparent so the 0.4 shadow lands on the precast the way it did on the
+      // canvas; alphaTest above zero so the empty texels are discarded instead
+      // of writing depth 30 mm in front of the wall.
+      nameM.transparent = true; nameM.alphaTest = 0.02;
+      const name = new THREE.Mesh(new THREE.PlaneGeometry(NW, NH), nameM);
+      name.rotation.y = Math.PI / 2;                    // the front faces +x
+      name.position.set(-FACE + 0.03, SHOP_BAND_H - 0.78, cz);
+      scene.add(name);
+    }
     // the outline draws the MACHINE now, not a generic box at the spot
     atmSpot.obj = atmNiche(atmZ, 0);
     atmNiche(atmZ2, 1);          // the pair — same cabinet, its own screen and wear

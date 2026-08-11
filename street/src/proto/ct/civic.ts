@@ -293,10 +293,16 @@ export function buildCivic(o: {
     return pointed ? Math.round(rr * (1 - Math.pow(t, 1.8)))
       : Math.round(Math.sqrt(Math.max(0, rr * rr - (rise - dy) * (rise - dy))));
   };
-  // lettering CUT into the stone: shadow first, then a lit lower lip
-  const engrave = (g: CanvasRenderingContext2D, text: string, cx: number, cy: number, px: number) => {
+  // lettering CUT into the stone: shadow first, then a lit lower lip.
+  //
+  // `off` is the lip, IN TEXELS, and it defaults to the 1 that every masonry
+  // canvas here can afford. A caller drawing at a higher density passes the
+  // same distance in ITS texels — the depth of a cut is a fact about the stone,
+  // not about the resolution the stone happens to be painted at.
+  const engrave = (g: CanvasRenderingContext2D, text: string, cx: number, cy: number,
+                   px: number, off = 1) => {
     g.font = `bold ${px}px monospace`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(255,255,255,0.34)'; g.fillText(text, cx, cy + 1);
+    g.fillStyle = 'rgba(255,255,255,0.34)'; g.fillText(text, cx, cy + off);
     g.fillStyle = 'rgba(38,30,22,0.62)'; g.fillText(text, cx, cy);
   };
   // Rose window: stone surround, eight lights of coloured glass, stone boss.
@@ -732,6 +738,11 @@ export function buildCivic(o: {
     const bayPx = surf.m(BAY_W);
     const bx0 = Math.round((LW - bayPx) / 2), bx1 = bx0 + bayPx;   // the bay in texels
     const wSide = (bx0 / LW) * b.w;                                 // …and in metres
+    // The frieze band, hoisted out of `paint` because TWO things need it now:
+    // the stone band painted on the elevation, and the applied lettering plane
+    // that stands over it (see THE NAME, READABLE, below the mass). One pair of
+    // numbers, so the band and the letters on it cannot drift apart.
+    const FR = yOf(10.6), FRH = Math.round(1.7 * pm);
     // ONE drawing of the whole elevation, sampled three times. Slicing the
     // same painting keeps the coursing, the quoins and the frieze running
     // dead straight across the entrance bay, which they would not if each
@@ -806,7 +817,6 @@ export function buildCivic(o: {
       // builds its cut out of a 1 px shadow and a 1 px lit lip, and those are
       // fixed offsets, so a bigger letter is a shallower-looking cut.
       const CO = yOf(12.35);
-      const FR = yOf(10.6), FRH = Math.round(1.7 * pm);
       g.fillStyle = STONE_L; g.fillRect(0, FR, LW, FRH);
       g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, FR, LW, 1); g.fillRect(0, FR + FRH - 1, LW, 1);
       // PUBLIC, not PVBLIC. The V was deliberate and defensible — Roman
@@ -820,7 +830,10 @@ export function buildCivic(o: {
       // advance width and the string re-centres itself about `LW / 2`. That
       // would NOT hold in a proportional face, which is what the desk was
       // right to flag.
-      engrave(g, 'PUBLIC LIBRARY', Math.round(LW / 2), FR + Math.round(FRH / 2), 9);
+      //
+      // THE LETTERS ARE NO LONGER PAINTED HERE. They are cut on their own plane
+      // over this band — see THE NAME, READABLE below the mass. The band itself
+      // stays exactly as it was, soot and all; only the ink left this canvas.
       g.fillStyle = STONE_D; g.fillRect(0, CO, LW, 3);
       g.fillStyle = STONE_L;
       for (let x = 2; x < LW; x += 6) g.fillRect(x, CO + 3, 3, 5);
@@ -888,6 +901,49 @@ export function buildCivic(o: {
     box(wSide, LIB_H, 0, LIB_H / 2, cz + (b.w - wSide) / 2, flat(slice(0, bx0, 0, LH)));
     box(wSide, LIB_H, 0, LIB_H / 2, cz - (b.w - wSide) / 2, flat(slice(bx1, LW, 0, LH)));
     box(BAY_W, LIB_H - BAY_H, 0, (BAY_H + LIB_H) / 2, cz, flat(slice(bx0, bx1, 0, yOf(BAY_H))));
+    // ══ THE NAME, READABLE — the letters leave the masonry canvas ═══════════
+    //
+    // The elevation is painted at 8 px/m (WALL_PPM at mult 1, HALF a shopfront),
+    // and the name was set on it at a 9 px font: 1.13 m letters — the largest
+    // lettering anywhere in this world — carried by five and a half texels a
+    // glyph. At that size a glyph is nothing but antialiasing fringe, and
+    // `pixTex` magnifies with NearestFilter, so every fringe pixel arrives on
+    // the frieze as a 12 cm block of half-tone. That is the blur.
+    //
+    // Same answer the college frieze got (`ct/college-yard.ts`, THE NAME): an
+    // applied plane standing 35 mm proud of the painted band at its own
+    // density. 64 px/m here — 43 texels a glyph, eight times what it had, and
+    // the density an architectural frieze wants; 200 is for small print.
+    //
+    // IT CARRIES ONLY THE INK, where the college's plane is opaque. The college
+    // band is clean stone; this one is not. Forty years of soot streaks run
+    // down the elevation from the cornice and straight ACROSS this frieze, and
+    // an opaque patch would leave the one freshly-washed band on a building
+    // whose whole point is that nobody has washed it. So the stone, the rails,
+    // the soot and the dither all stay on the wall and only the letters move.
+    //
+    // THE CUT IS UNCHANGED IN WORLD TERMS. `engrave` builds an incision out of
+    // a lit lip one texel below the dark fill, and one texel at 8 px/m is
+    // 0.125 m — so the lip is 8 texels at 64 px/m. Same letter, same depth of
+    // cut, eight times the ink.
+    {
+      const PPM = 64;
+      const FY0 = (LH - FR) / pm, FY1 = (LH - (FR + FRH)) / pm;   // the band, in metres
+      const W = Math.round(b.w * PPM), H = Math.round((FY0 - FY1) * PPM);
+      const nameT = declareSurface(pixTex(W, H, (g) => {
+        engrave(g, 'PUBLIC LIBRARY', Math.round(W / 2), Math.round(H / 2),
+          Math.round(9 * PPM / pm), Math.round(PPM / pm));
+      }), 'sign', PPM);
+      const nameM = flat(nameT);
+      // transparent so the 0.34 lip and the 0.62 fill composite over the stone
+      // exactly as they did on the canvas; alphaTest so the empty texels are
+      // discarded outright rather than writing depth in front of the wall.
+      nameM.transparent = true; nameM.alphaTest = 0.02;
+      const name = new THREE.Mesh(new THREE.PlaneGeometry(b.w, FY0 - FY1), nameM);
+      name.rotation.y = Math.PI / 2;                  // the elevation faces +x
+      name.position.set(XF + 0.035, (FY0 + FY1) / 2, cz);
+      scene.add(name);
+    }
     // …and the back of the recess, 1.8 m in, carrying the doors
     const doorT = pixTex(40, 48, (g) => {
       g.fillStyle = STONE; g.fillRect(0, 0, 40, 48);
