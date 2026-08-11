@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, declareSurface, dither } from './paint';
 import { doorPointFor, doorLeafFor } from './doors';
-import { HOURS, fmtHour, type BizHours } from './hours';
+import { frontageWorld } from './tex-world';
+import { HOURS, fmtHour, neverCloses, type BizHours } from './hours';
 
 // ══ THE HOURS SIGN BY EVERY DOOR ═════════════════════════════════════════════
 //
@@ -28,7 +29,9 @@ import { HOURS, fmtHour, type BizHours } from './hours';
 // and every int-*.ts reaches `hours.ts` through shop.ts/jobs.ts — so hours.ts
 // importing doors.ts would close the GOTCHAS §28 cycle and drop rooms from
 // the built bundle only. Nothing imports THIS file; it is a leaf on the safe
-// side of the glob, registered by `ct/world.ts`'s own sweep.
+// side of the glob, registered by `ct/world.ts`'s own sweep. (`ct/tex-world.ts`
+// is imported here too, for `frontageWorld` — no new edge: `ct/doors.ts`
+// already imports it, and this file already imports doors.)
 export const ORDER = BUILD.PROPS + 7;
 
 // 200 px/m — above the 150 floor because these are small planes carrying
@@ -182,24 +185,178 @@ const STYLE: Record<string, (h: BizHours) => Card> = {
 };
 
 function cardFor(h: BizHours): Card {
-  if (h.close - h.open >= 24) return open24Card();
+  if (neverCloses(h)) return open24Card();
   return (STYLE[h.building] ?? plasticCard)(h);
 }
 
+// ══ WHERE A CARD CAN ACTUALLY HANG ═══════════════════════════════════════════
+//
+// *"make sure all open signs arent blocked by building geometry"* (2026-08-11),
+// with a screenshot of the OPEN 24 HOURS card edge-on inside a door jamb: the
+// letters O and P clear the stone and the rest of the sign is inside it.
+//
+// The old rule was one hand-tuned number — `clearW / 2 + 0.28` along the wall,
+// 25 mm proud — and it could not have been right. A shopfront is not a flat
+// plane at this height. `shopfrontRelief` stands a 0.12 m JAMB either side of
+// the glazing, `ct/bank.ts` stands a 0.30 m GRANITE JAMB either side of its
+// entrance, and both of those live at exactly the height a card is read at.
+// A card 25 mm proud of the wall behind a 300 mm jamb is not a sign, it is a
+// fossil. Measured off the constants: FIRST FEDERAL's gilt card sat dead
+// centre in its own granite reveal.
+//
+// Nudging the number moves the fault to a different shop, which is how it got
+// here. So the placement is DERIVED, and from the only authority that knows
+// about jambs, mullions, pillars, portals and the bodega's canted bay all at
+// once: THE GEOMETRY ITSELF. This module builds at `BUILD.PROPS + 7`, by which
+// point every facade, every relief moulding and every prop on the block is
+// standing (the interiors, at `BUILD.INTERIOR`, are 30 m away up the belt), so
+// a sight-line from the street to a candidate spot answers the question
+// exactly rather than by proxy.
+//
+// This is the sweep CLAUDE.md sanctions — *"mass quality control, where the
+// question is about EVERY instance"*. It is not a probe proving one change: it
+// is the placement rule, and it re-derives itself if a facade moves.
+//
+// The frontage descriptor still gets the last word on ONE thing the sight-line
+// cannot see: a neighbour's wall is a wall, so a card walked far enough along
+// finds clear brick on the shop next door. `frontageWorld()` fences it in.
+
+/** how far out from the facade the sight-line test starts */
+const PROBE = 0.9;
+/** the card's own standoff from the facade plane — enough to beat z-fighting,
+ *  small enough that a card reads as stuck ON the wall and not floating */
+const PROUD = 0.03;
+/** eye line of somebody reading it off the walk, above the pavement */
+const CARD_Y = 0.14 + 1.48;
+
+const UP = new THREE.Vector3(0, 1, 0);
+
+interface Occluder { m: THREE.Mesh; x: number; z: number; r: number }
+
+/** every opaque mesh standing on the block, with a world bounding sphere, so
+ *  the per-card test can be aimed at the handful near one door rather than at
+ *  the whole scene. Glows and billboards are skipped: a halo is not something
+ *  you can be behind, and a citizen who happens to be walking past at build
+ *  time is not a reason to move a sign for the rest of the game. */
+function occludersNear(ctx: CtxBuild): Occluder[] {
+  const boards = new Set<THREE.Object3D>(ctx.boards.map((b) => b.m));
+  const out: Occluder[] = [];
+  ctx.scene.updateMatrixWorld(true);
+  ctx.scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || !m.geometry || boards.has(m)) return;
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    const solid = mats.some((x) => {
+      const mm = x as THREE.Material & { opacity?: number };
+      return mm && mm.depthWrite !== false && !(mm.transparent && (mm.opacity ?? 1) < 0.6);
+    });
+    if (!solid) return;
+    if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+    const bs = m.geometry.boundingSphere;
+    if (!bs) return;
+    const c = bs.center.clone().applyMatrix4(m.matrixWorld);
+    out.push({ m, x: c.x, z: c.z, r: bs.radius * m.matrixWorld.getMaxScaleOnAxis() });
+  });
+  return out;
+}
+
+const ray = new THREE.Raycaster();
+
+/**
+ * Can a card of this size, hung on the facade plane at `p`, be READ from the
+ * street? Seven sight-lines — the centre, the four corners and the two side
+ * midpoints — cast inward from `PROBE` metres out.
+ *
+ * Three ways to fail, and the second two matter as much as the first:
+ *   · something in front of the card plane  → the sign is buried (the ask)
+ *   · nothing hit at all                    → there is no wall there; the card
+ *                                             would float past the building's
+ *                                             own corner
+ *   · the first thing hit is far back       → same, through a doorway or a gap
+ */
+function readable(p: THREE.Vector3, n: THREE.Vector3, t: THREE.Vector3,
+  wM: number, hM: number, targets: THREE.Object3D[]): boolean {
+  const dir = n.clone().negate();
+  const hw = wM / 2 - 0.02, hh = hM / 2 - 0.02;
+  const S: [number, number][] = [[0, 0], [-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh], [-hw, 0], [hw, 0]];
+  const o = new THREE.Vector3();
+  for (const [su, sv] of S) {
+    o.copy(p).addScaledVector(t, su).addScaledVector(UP, sv).addScaledVector(n, PROBE);
+    ray.set(o, dir);
+    const hit = ray.intersectObjects(targets, false)[0];
+    if (!hit) return false;
+    if (hit.distance < PROBE - PROUD - 0.01) return false;
+    if (hit.distance > PROBE + 0.55) return false;
+  }
+  return true;
+}
+
+/** the span on the frontage axis the card centre must stay inside, so a card
+ *  never walks off its own building onto the neighbour's brick. Null when this
+ *  door is not on a registered flat frontage — the bodega's door is on a 45°
+ *  bay and `__frontages['BODEGA']` describes its side-street WING, a different
+ *  wall 5 m away (see the note in ct/street.ts), so it must not be trusted. */
+function frontageSpan(name: string, d: { x: number; z: number }): { lo: number; hi: number; axis: 'x' | 'z' } | null {
+  const f = frontageWorld(name);
+  if (!f) return null;
+  const on = f.axis === 'z' ? d.x : d.z;      // the coordinate off the frontage
+  const along = f.axis === 'z' ? d.z : d.x;   // …and the one along it
+  if (Math.abs(on - f.facePos) > 0.06) return null;
+  if (along < f.loWorld - 0.01 || along > f.hiWorld + 0.01) return null;
+  return { lo: f.loWorld, hi: f.hiWorld, axis: f.axis };
+}
+
 export function register(ctx: CtxBuild): void {
+  const all = occludersNear(ctx);
   for (const h of HOURS) {
     const d = doorPointFor(h.building);
     // a business whose room has not declared a door gets no card rather than
     // a card floating at a guess — the same fallback shape doors.ts itself uses
     if (!d) continue;
     const leaf = doorLeafFor(h.building);
-    // beside the jamb, not on the leaf: half the clear opening plus a hand's
-    // width along the wall, 25 mm proud of the facade plane so it cannot
-    // z-fight the painted shopfront. Tangent is the normal turned a quarter —
-    // works the same on the bodega's cut corner as on a flat frontage.
-    const off = leaf.clearW / 2 + 0.28;
-    const tx = d.nz, tz = -d.nx;
     const card = cardFor(h);
+    // Tangent is the normal turned a quarter — works the same on the bodega's
+    // cut corner as on a flat frontage.
+    const n = new THREE.Vector3(d.nx, 0, d.nz);
+    const t = new THREE.Vector3(d.nz, 0, -d.nx);
+    // only what is standing within reach of this door, so the sweep is seven
+    // rays against a dozen meshes and not against the whole city
+    const targets = all.filter((o) => Math.hypot(o.x - d.x, o.z - d.z) < 5.5 + o.r).map((o) => o.m);
+    const span = frontageSpan(h.building, d);
+
+    // WALK OUT FROM THE DOOR UNTIL THE WALL IS CLEAR. Nearest wins, and each
+    // step tries the near side first so a card stays where it has always been
+    // whenever that spot was already fine.
+    const minOff = leaf.clearW / 2 + card.wM / 2 + 0.10;   // clear of the opening
+    const p = new THREE.Vector3();
+    let placed: THREE.Vector3 | null = null;
+    for (let step = 0; step <= 24 && !placed; step++) {
+      const off = minOff + step * 0.06;
+      for (const sgn of [1, -1]) {
+        p.set(d.x + t.x * sgn * off, CARD_Y, d.z + t.z * sgn * off);
+        if (span) {
+          const a = span.axis === 'z' ? p.z : p.x;
+          if (a < span.lo + card.wM / 2 + 0.05 || a > span.hi - card.wM / 2 - 0.05) continue;
+        }
+        if (readable(p, n, t, card.wM, card.hM, targets)) { placed = p.clone(); break; }
+      }
+    }
+    // NOTHING CLEAR EITHER SIDE. Do not bury it anyway: stand the card off far
+    // enough to clear whatever is in the way, which is what a shop does with a
+    // sign it needs read — bracket it out past the stonework. Announced,
+    // because a frontage with no clear metre of wall beside its door is worth
+    // a builder's eye.
+    let proud = PROUD;
+    if (!placed) {
+      placed = new THREE.Vector3(d.x + t.x * minOff, CARD_Y, d.z + t.z * minOff);
+      const o = placed.clone().addScaledVector(n, PROBE);
+      ray.set(o, n.clone().negate());
+      const hit = ray.intersectObjects(targets, false)[0];
+      if (hit) proud = Math.min(0.35, Math.max(PROUD, PROBE - hit.distance + 0.03));
+      console.warn(`[hours-cards] no clear wall beside ${h.building}'s door — `
+        + `standing its card ${proud.toFixed(2)} m proud to keep it readable`);
+    }
+
     const tex = declareSurface(card.tex, 'sign', PPM);
     const mat = card.diecut
       ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 })
@@ -210,9 +367,7 @@ export function register(ctx: CtxBuild): void {
     m.rotation.order = 'YXZ';
     m.rotation.y = Math.atan2(d.nx, d.nz);
     m.rotation.z = card.tilt;
-    // sidewalk sits at KERB_H = 0.14 (crosstown.ts); centre the card at the
-    // eye line of somebody reading it off the walk
-    m.position.set(d.x + tx * off + d.nx * 0.025, 0.14 + 1.48, d.z + tz * off + d.nz * 0.025);
+    m.position.copy(placed).addScaledVector(n, proud);
     ctx.scene.add(m);
   }
 }
