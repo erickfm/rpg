@@ -403,29 +403,74 @@ export function buildPawn(ctx: CtxBuild): void {
   // is 3 cm above the 1.26 top — so it costs the floor nothing and adds no
   // collider: the counter's own wall-to-wall `solid()` is what stops you, and it
   // is untouched.
-  // ⚠ `Math.round` on BOTH axes and not `2.6 * 40` bare: that product is
-  // 104.00000000000001 in this language, and a canvas sized to a fraction is a
-  // texture whose texels do not land on the metre grid the rest of the room's
+  //
+  // ── AND IT RUNS. IT DOES NOT FLOAT ────────────────────────────────────────
+  //
+  // *"this looks bad because the fencing doesnt extend on the sides"*
+  //  (2026-08-11)
+  //
+  // It was a 2.6 m panel centred on the window and nothing else: a rectangle of
+  // bars standing in the middle of a 13.8 m counter with bare air off both ends,
+  // which reads as a sheet hung over the glass rather than as screening. A
+  // screen that stops mid-run is not a screen — you would step two paces sideways
+  // and reach over the end of it, and the eye knows that before the player does.
+  //
+  // So it RUNS now: hard into the west wall at one end, and east as far as the
+  // guitars at the other, where it ends against a heavier post. That east line
+  // is not a free number — it is where this counter changes character. West of
+  // it is the LOAN end: the bench, the scale, the safe, the tool board, the
+  // knife case, all of it now genuinely behind bars. East of it is what the shop
+  // is SELLING — the guitars, the brass, the rate card, and the man you buy from
+  // with nothing between you and him, which is the whole distinction the two
+  // stations above are built on and which barring the full run would erase.
+  // (It would also lay a 12 cm bar every 12 cm across the guitar wall, and the
+  // guitars are the thing the room is composed around.)
+  //
+  // Three bays, because a 5 m screen is not one sheet: a filler panel where it
+  // meets the wall, the loan bay with the slot in it — the old panel's own
+  // extents, so the window itself is unchanged — and the long run east.
+  //
+  // ⚠ STILL NOT ONE COLLIDER, and still nothing on the customer floor. It is the
+  // same single plane, wider, standing on the counter top; the counter's
+  // wall-to-wall `solid()` is what stops you and it is untouched. The first
+  // thing ever reported about this room was *"i immediately hit a counter"*.
+  // ⚠ `Math.round` on BOTH axes and not `5.1 * 40` bare: those products come out
+  // as 204.00000000000003 in this language, and a canvas sized to a fraction is
+  // a texture whose texels do not land on the metre grid the rest of the room's
   // art is drawn to.
-  const CAGE_W = 2.6, CAGE_H = 1.30, CAGE_PPM = 40;
+  /**
+   * THE GUITAR WALL, hoisted — the screen stops where the display starts, so
+   * the two are one number and a resized guitar rack takes the cage's end post
+   * with it rather than stranding it. Used again by the back-wall block below.
+   */
+  const GUITAR_X = 0.4, GUITAR_W = 4.4;
+  const CAGE_X0 = -hw, CAGE_X1 = GUITAR_X - GUITAR_W / 2;
+  const CAGE_W = CAGE_X1 - CAGE_X0, CAGE_H = 1.30, CAGE_PPM = 40;
+  const CAGE_XC = (CAGE_X0 + CAGE_X1) / 2;
   const CAGE_PX = Math.round(CAGE_W * CAGE_PPM), CAGE_PY = Math.round(CAGE_H * CAGE_PPM);
+  /** the serving slot's place ACROSS the run: off SELL_X, no longer the middle */
+  const SLOT_PX = Math.round((SELL_X - CAGE_X0) * CAGE_PPM);
+  /** the two mullions — the old panel's edges, i.e. the loan bay */
+  const MULL_PX = [SELL_X - 1.3, SELL_X + 1.3].map((x) => Math.round((x - CAGE_X0) * CAGE_PPM));
   const cageT = declareSurface(pixTex(CAGE_PX, CAGE_PY, (g) => {
     const W = CAGE_PX, H = CAGE_PY;
     g.clearRect(0, 0, W, H);
-    const GX0 = Math.round(W / 2) - 10, GX1 = Math.round(W / 2) + 10, GY = 30;
-    // the frame — sides and head all the way across, and the bottom rail
-    // EVERYWHERE EXCEPT the slot, which is the one gap the goods go through
+    const GX0 = SLOT_PX - 10, GX1 = SLOT_PX + 10, GY = 30;
+    // the frame — head all the way across, a stile at each end (the east one
+    // heavier: that end is where the screen FINISHES, not where it was cut off),
+    // and the bottom rail EVERYWHERE EXCEPT the slot, the one gap goods go through
     g.fillStyle = '#5a5348';
-    g.fillRect(0, 0, W, 3); g.fillRect(0, 0, 3, H); g.fillRect(W - 3, 0, 3, H);
+    g.fillRect(0, 0, W, 3); g.fillRect(0, 0, 3, H); g.fillRect(W - 5, 0, 5, H);
     g.fillRect(0, H - 3, GX0 - 3, 3); g.fillRect(GX1 + 3, H - 3, W - GX1 - 3, 3);
     // the bars, stopping short of the slot
-    for (let x = 6; x < W - 5; x += 5) {
+    for (let x = 6; x < W - 7; x += 5) {
       const inSlot = x >= GX0 - 3 && x < GX1 + 3;
       const len = inSlot ? GY - 3 : H - 6;
       g.fillStyle = '#7a736a'; g.fillRect(x, 3, 2, len);
       g.fillStyle = '#9a938a'; g.fillRect(x, 3, 1, len);        // one texel of edge light
     }
-    g.fillStyle = '#5a5348'; g.fillRect(3, 15, W - 6, 2);        // a mid rail
+    g.fillStyle = '#5a5348'; g.fillRect(3, 15, W - 8, 2);        // a mid rail
+    for (const mx of MULL_PX) g.fillRect(mx - 1, 0, 3, H);       // the bay mullions
     g.fillRect(GX0 - 3, GY, GX1 - GX0 + 6, 2);                   // the slot's head
     g.fillStyle = '#6a6258';                                     // and its jambs
     g.fillRect(GX0 - 3, GY, 3, H - GY); g.fillRect(GX1, GY, 3, H - GY);
@@ -433,7 +478,7 @@ export function buildPawn(ctx: CtxBuild): void {
   }), 'detail', CAGE_PPM);
   put(new THREE.Mesh(new THREE.PlaneGeometry(CAGE_W, CAGE_H),
     new THREE.MeshBasicMaterial({ map: cageT, alphaTest: 0.5, side: THREE.DoubleSide })),
-    SELL_X, 1.29 + CAGE_H / 2, CTR_ZC - 0.05);
+    CAGE_XC, 1.29 + CAGE_H / 2, CTR_ZC - 0.05);
 
   // HIS SIDE OF THE BARS: the scale he weighs it on and the loupe he reads the
   // hallmark with. Behind the grille on purpose — you hand it through and
@@ -755,8 +800,10 @@ export function buildPawn(ctx: CtxBuild): void {
   // Sized and hung to clear the counter top at 1.25 m. Hung centred on the wall
   // instead, the counter ate the bottom half of every instrument — which is the
   // half with the body on it, so a wall of guitars read as a row of necks.
-  put(new THREE.Mesh(new THREE.PlaneGeometry(4.4, 1.45),
-    new THREE.MeshBasicMaterial({ map: guitarT, alphaTest: 0.5 })), 0.4, 2.05, -hd + 0.08);
+  // extents from `GUITAR_X/GUITAR_W` up at the grille, which stops at this
+  // rack's west edge — one number, so the two cannot drift apart.
+  put(new THREE.Mesh(new THREE.PlaneGeometry(GUITAR_W, 1.45),
+    new THREE.MeshBasicMaterial({ map: guitarT, alphaTest: 0.5 })), GUITAR_X, 2.05, -hd + 0.08);
 
   const brassT = declareSurface(pixTex(40, 72, (g) => {
     g.clearRect(0, 0, 40, 72);
