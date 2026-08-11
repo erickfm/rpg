@@ -6880,3 +6880,74 @@ stripe — and equal-and-opposite, so they read as two mismatched patches with a
 "wide middle" between them. `winFill` was the only cut piece that was right,
 by the accident of a centred hole. Fixed in place; routed to the builder
 holding the trunk grant for src/proto/ct/apartment.ts.
+
+## 2026-08-11 — *"rear wall in room is not continuous"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 15-49-48.png`.
+Flat 301's rear wall reads as two mismatched patches framing a good middle.
+Fixed in `c0ef4d5d` — not the window fill: the west wall's paper runs toward
+−z, so the flanking pieces passed their offset from the wrong end and each
+landed half a stripe out. All five pieces share one `u(z)` now.
+
+## 2026-08-11 — *"issue with the purchase option being on the mirror here. just move it off, keep things clean. thanks."*
+
+Screenshot: `~/Desktop/Screenshot from 2026-08-11 15-52-18.png`. The thrift shop
+price tag was drawn into the mirror's own canvas across the reflection's head,
+and doubled as the till. Fixed in `272a2200` — glass shows only the reflection;
+prices moved to a biro ticket taped beside the frame; `[B]` buys.
+
+## 2026-08-11 — *"tote bag looks messed up"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 15-53-35.png`.
+Fixed in `9449ab72` — strap pinned to a literal x while the bag hung off torso
+width, so they parted on a stocky build; strap never crossed a shoulder; body
+overran the panel and sliced the forearm. One anchor now feeds all of it.
+
+## 2026-08-11 — *"front door of pawn shop interior is backwards"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 15-54-41.png`.
+Fixed in `bd1f5724` — one sign: the leaf was hung mirrored on its own hinge, so
+the handle came out on the hinge stile against the jamb. Surfaced two others:
+the HELP WANTED sign is not mirrored (it is too small to read), and the blue
+slab in the doorway is the sky — flat-fronted interiors never got the daylight
+panel that cut-face rooms have. Kit fix routed separately.
+
+## 2026-08-11 — *"this looks bad because the fencing doesnt extend on the sides"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 15-55-06.png`.
+Fixed in `335c022c` — the pawn cage was a 2.6 m panel on a 13.8 m counter. Now
+5.1 m, wall to the guitar rack, deliberately stopping where the loan end ends.
+No colliders changed.
+
+## 2026-08-11 — *"pawn shop sell station needs a diagetic sell interface"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 15-55-45.png`.
+The whole sell station was one line of HUD text. Routed to a builder for the
+house locked-view grammar — hand it through the window, he names a price — with
+the sign's starved second line folded in.
+
+## 2026-08-11 — *"mattress storefront looks like shit"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 15-56-31.png`.
+Fixed in `d2ae9e85` — the front's lettering was painted on the 16 px/m brick
+canvas (four texels a glyph), and the door was drawn over the banner so it read
+"MATTRESS SA". Type moved onto taped sheets at 200 px/m. Every shopfront on the
+block uses that same painter — block-wide survey commissioned.
+
+## 2026-08-11 — *"citizen seating is still broken"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 15-57-55.png`.
+Fixed in `9c3515d0` — the seated lean was applied under one condition and undone
+under a narrower one, with no save/restore, so the offset accumulated across the
+atlas: a seated citizen sits centred head-on, 0.17 m out in profile, 0.34 m out
+from behind. World-wide, not the library. The 2026-08-05 leg fix rekeyed one
+half of the pair and left the other — hence "still".
+
+## 2026-08-11 — *"make this an e prompt for read and have it direct to a diegetic view of the books. i want it to contain info on the stats like int str, etc. explain how the game works and everything in various different books that ill allow you creative liberties to design and title. the information can be quite specific and should serve as a guide. like hours on all the shops, what int you need how to get more int how to get more str and dex what dex affects how to run, etc etc. basically anything you can think of thats useful info. the rest of the game will not hand hold or provide guidance. this is the one spot players can turn to as a repository of information."*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 15-59-12.png`.
+The library's low bookcase becomes the game's only guide: [E] to read, a
+diegetic reading view, several titled books covering stats and how to raise
+them, movement, fatigue, rent and work, shop hours, the casino, the PCs and the
+market. Creative liberties on titles and design; every number read out of the
+source, nothing invented. Routed to its own builder.
