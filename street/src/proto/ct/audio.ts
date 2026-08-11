@@ -300,6 +300,27 @@ const EVENTS = [
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
 
 /**
+ * ── THE MENU'S TWO, WHICH ARE NOT IN `SHOTS` AND NOT IN `BEDS` ─────────────
+ *
+ * *"you can use these sounds in the esc menu actually. esc pause is the sound
+ *  when they hit pause and then theres pasue loop for after when theyre just
+ *  paused"*   (2026-08-11)
+ *
+ * A LIST OF THEIR OWN BECAUSE THEY LIVE ON A DIFFERENT MACHINE. Every name in
+ * `BEDS` and `SHOTS` is decoded into the world's `AudioContext` — the one the
+ * pause SUSPENDS — so a cue that has to be heard while the world is stopped
+ * cannot be in either roster. They are fetched in the same prefetch pass as
+ * everything else (bytes need no permission) and decoded into the menu's own
+ * context; see the pause-cue block in `register`.
+ *
+ * `pause-hit` is the stinger, `pause-loop` the pad it decays into, and they
+ * START TOGETHER rather than in sequence — the encoder's note explains why:
+ * they are two cuts of one recording, in which the pad was already running
+ * underneath the hit.
+ */
+const PAUSE_CUES = ['pause-hit', 'pause-loop'] as const;
+
+/**
  * WHERE THE FILES ARE, resolved against the DOCUMENT rather than hardcoded.
  *
  * `/audio/x.ogg` would be correct on :5177 and wrong on Pages, which is served
@@ -460,6 +481,26 @@ const LVL = {
   // thing that can happen to you and it is happening to your own body, so it
   // takes no distance falloff — the distance is zero by definition.
   carHit: 0.95,
+  // ── the pause (2026-08-11) ──
+  //
+  // ⚠ THE ONLY TWO LEVELS IN THIS TABLE THAT ARE NOT HEARD AGAINST ANYTHING.
+  // Every other number here was argued against a street bed or a casino floor;
+  // these two play into a world that has been stopped dead, on a context of
+  // their own, with nothing else sounding anywhere. So they are set by what a
+  // menu should feel like rather than by what they have to cut through — and
+  // that is why they are lower than the arithmetic would suggest, not higher.
+  //
+  // The stinger sits with the doors and the latches (0.55): it is a hard
+  // mechanical clunk and it wants to land, but the world just went silent
+  // underneath it and a UI cue that makes him flinch is a UI cue he turns off.
+  pauseHit: 0.55,
+  // The pad is a BED — -20 LUFS out of the encoder like every other loop — and
+  // it takes the loudest bed's level (rain, 0.30) rather than the quietest,
+  // because for once there is no traffic for it to sit under. It also wraps
+  // every 2.5 s, twenty-four times a minute against a street bed's twice, so
+  // it has far more chances to wear on the ear: this is the number to pull
+  // down first if the menu starts to feel loud.
+  pauseLoop: 0.30,
 };
 
 /** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
@@ -614,7 +655,7 @@ export function register(ctx: CtxBuild): void {
   // time and are already warm by the time he clicks, and `boot()` only has to
   // decode. `null` for anything that failed — the artifact case, below.
   const bytes = new Map<string, ArrayBuffer | null>();
-  const fetching = [...BEDS, ...SHOTS].map((n) =>
+  const fetching = [...BEDS, ...SHOTS, ...PAUSE_CUES].map((n) =>
     fetch(url(n))
       .then((r) => (r.ok ? r.arrayBuffer() : null))
       .catch(() => null)
@@ -629,6 +670,16 @@ export function register(ctx: CtxBuild): void {
    *  its flag; this second use loops the same buffer ~1.3–1.5x for the motor
    *  of whichever car is bearing down on him. One asset, two engines. */
   let engineBuf: AudioBuffer | null = null;
+
+  // ── the menu's machine — see the pause-cue block below ────────────────────
+  /** the second context, the one the pause does NOT suspend */
+  let menuAc: AudioContext | null = null;
+  /** its master, fed the same `vol`/`muted` as the world's by `applyMaster` */
+  let menuMaster: GainNode | null = null;
+  /** the two cues, decoded into `menuAc` rather than into the world's context */
+  const menuBufs = new Map<string, AudioBuffer>();
+  /** the nodes currently sounding, so any resume can end all of them at once */
+  let cueNodes: { s: AudioBufferSourceNode; g: GainNode }[] = [];
 
   /**
    * Fire a one-shot: a source, a gain and a pan, built for this sound and
@@ -675,7 +726,17 @@ export function register(ctx: CtxBuild): void {
   // do it once so a world that boots after a keypress catches up rather than
   // starting at a default nobody chose. Reassigned on every `register()`, so an
   // HMR rebuild points at the live graph and never at a dead page's closure.
-  const applyMaster = () => { if (rig) rig.master.gain.value = muted ? 0 : vol * vol; };
+  const applyMaster = () => {
+    const g = muted ? 0 : vol * vol;
+    if (rig) rig.master.gain.value = g;
+    // THE MENU'S MACHINE TAKES THE SAME NUMBER, and that is the whole of "mute
+    // and volume still govern the pause cue". `M`, `[`, `]`, the VOLUME row and
+    // the MUTE row all land in `commit()`, `commit()` calls this, and this
+    // pushes one gain at both contexts — so muting from inside the menu
+    // silences the thing he is listening to, live, and there is no second
+    // notion of loudness for a future edit to let drift.
+    if (menuMaster) menuMaster.gain.value = g;
+  };
   //                                                             ^^^^^^^ perceptual:
   // a linear slider on a linear gain spends its top half doing almost nothing.
   // With the corner widget gone this is the WHOLE of the apply step: push the
@@ -685,14 +746,114 @@ export function register(ctx: CtxBuild): void {
   // `volume()` / `isMuted()` on every paint rather than being pushed at.
   apply = applyMaster;
 
-  // …and the same shape for the pause. UNCONDITIONAL CALLS, DELIBERATELY: both
-  // verbs return promises and both are queued on the context's control thread,
-  // so a fast open-and-close settles on whichever was asked for LAST. Gating
-  // them on `ac.state` instead would drop the `resume()` of a pair whose
-  // `suspend()` had not landed yet, and the world would come back silent —
-  // exactly the "stops and stays dead" failure `setAudioSuspended` exists to
+  // ══ THE PAUSE CUE, AND WHY IT NEEDS A MACHINE OF ITS OWN ══════════════════
+  //
+  // *"you can use these sounds in the esc menu actually. esc pause is the sound
+  //  when they hit pause and then theres pasue loop for after when theyre just
+  //  paused"*   (2026-08-11)
+  //
+  // ⚠ NOTHING CAN PLAY THROUGH A SUSPENDED CONTEXT — and suspending is exactly
+  // what the pause does to the world, deliberately, and must keep doing. A
+  // suspended context does not advance `currentTime`, which is precisely why
+  // the beds hold their playhead instead of restarting from the top; it is also
+  // why a source started on it would not be quiet but FROZEN, silent until the
+  // world came back and then playing at the wrong moment.
+  //
+  // The alternatives were all worse. Letting the world context stay running and
+  // pulling `master.gain` to 0 is the thing `setAudioSuspended`'s note already
+  // rejects: seven beds keep turning behind the menu. Suspending late, after
+  // scheduling the cue, buys one hit and no loop. So: TWO MACHINES, ONE JOB
+  // EACH — the world's, stopped dead while the menu is up, and this one, which
+  // holds two buffers and is silent every other moment of the game.
+  //
+  // THEY SHARE THE VOLUME AND THE MUTE AND NOTHING ELSE, which is the point.
+  // `applyMaster` above pushes one number at both, so a pause still writes no
+  // preference of its own and still cannot move the MUTE row he is looking at.
+  const CUE_OUT = 0.07;     // the ramp a stop gets, so leaving is not a click
+
+  function startPauseCue(): void {
+    const ac = menuAc;
+    if (!ac || !menuMaster) return;
+    // ⚠ NEVER ADDITIVE. Clearing first is what makes a fast open/close/open
+    // safe: the second open cannot stack a second pad on the first, because
+    // there is never more than one generation of nodes in `cueNodes`. The old
+    // ones are already ramping to zero and are no longer in the list, so they
+    // cannot be stopped twice either.
+    stopPauseCue();
+    void ac.resume().catch(() => { /* nothing to resume yet */ });
+    // ONE START TIME FOR BOTH. `ac.currentTime` is read once and both sources
+    // are scheduled against it, so the stinger and the pad are sample-locked
+    // however long `resume()` takes to land — they are two cuts of one
+    // recording and a few milliseconds of skew between them is audible as a
+    // flam. If the resume takes longer than the lead-in, both simply start at
+    // the first frame the context runs, still together.
+    const t0 = ac.currentTime + 0.01;
+    for (const [name, gain, loop] of [
+      ['pause-hit', LVL.pauseHit, false],
+      ['pause-loop', LVL.pauseLoop, true],
+    ] as [string, number, boolean][]) {
+      const buf = menuBufs.get(name);
+      if (!buf) continue;                    // not decoded yet, or not shipped
+      const s = ac.createBufferSource();
+      s.buffer = buf;
+      s.loop = loop;
+      const g = ac.createGain();
+      g.gain.value = gain;
+      // NO PANNER, unlike every other sound in this file. The pause is not in
+      // the world — it has no position, and both cuts ship in stereo for it.
+      s.connect(g).connect(menuMaster);
+      s.start(t0);
+      cueNodes.push({ s, g });
+      if (!loop) s.onended = () => { s.disconnect(); g.disconnect(); };
+    }
+  }
+
+  /**
+   * END THE CUE. Called on every resume, and the resume is DERIVED from
+   * `menuOpen()` in `crosstown.ts` rather than fired by a key handler — so the
+   * loop cannot outlive the menu no matter which path closed it, including
+   * `ct/gameover.ts` forcing it shut and `dispose()` tearing the world down.
+   */
+  function stopPauseCue(): void {
+    const ac = menuAc;
+    const nodes = cueNodes;
+    cueNodes = [];
+    if (!ac) return;
+    const running = ac.state === 'running';
+    const t0 = ac.currentTime;
+    for (const { s, g } of nodes) {
+      try {
+        s.onended = () => { s.disconnect(); g.disconnect(); };
+        if (!running) { s.stop(); continue; }   // a ramp on a stopped clock
+        //                                        never runs — cut it dead
+        g.gain.cancelScheduledValues(t0);
+        g.gain.setValueAtTime(g.gain.value, t0);
+        g.gain.linearRampToValueAtTime(0, t0 + CUE_OUT);
+        s.stop(t0 + CUE_OUT + 0.01);
+      } catch { /* already stopped, or a context that has gone away */ }
+    }
+    // …and put the machine back to sleep once the ramp has run, so the extra
+    // output stream costs nothing for the 99% of the session that is not
+    // paused. Guarded on `wantSuspended` rather than on a token: if he has
+    // paused again inside those 120 ms, the wish is already back to true and
+    // this does nothing. Safe to miss entirely — an idle context makes no
+    // sound, it only holds a stream open.
+    window.setTimeout(() => {
+      if (!wantSuspended && menuAc?.state === 'running') {
+        void menuAc.suspend().catch(() => { /* already gone */ });
+      }
+    }, (CUE_OUT + 0.05) * 1000);
+  }
+
+  // …and the pause itself. UNCONDITIONAL CALLS ON THE WORLD CONTEXT,
+  // DELIBERATELY: both verbs return promises and both are queued on the
+  // context's control thread, so a fast open-and-close settles on whichever was
+  // asked for LAST. Gating them on `ac.state` instead would drop the `resume()`
+  // of a pair whose `suspend()` had not landed yet, and the world would come
+  // back silent — exactly the "stops and stays dead" failure this exists to
   // avoid. A context torn down by HMR throws here and that is not an error.
   applySuspend = () => {
+    if (wantSuspended) startPauseCue(); else stopPauseCue();
     const ac = live;
     if (!ac) return;
     try {
@@ -783,6 +944,43 @@ export function register(ctx: CtxBuild): void {
 
     rig = { ac, master, wall, beds };
     live = ac;
+
+    // ── AND THE MENU'S OWN CONTEXT, BUILT HERE AND NOT AT THE FIRST PAUSE ───
+    //
+    // `boot()` runs inside a real keydown or pointerdown. A context constructed
+    // there is allowed to run; one constructed later, from the frame callback
+    // that notices the menu opened, is at the mercy of the autoplay policy and
+    // would be the kind of failure that only shows up on somebody else's
+    // browser. So it is made in the gesture and suspended immediately — see
+    // `startPauseCue`, which resumes it for exactly as long as the menu is up.
+    //
+    // A BROWSER THAT REFUSES A SECOND CONTEXT LOSES THE CUE AND NOTHING ELSE.
+    // The catch leaves `menuAc` null, `startPauseCue` returns at its first
+    // line, and the pause is silent the way it was before this shipped.
+    try {
+      const mac = new AC();
+      const mg = mac.createGain();
+      mg.connect(mac.destination);
+      menuAc = mac;
+      menuMaster = mg;
+      void mac.suspend().catch(() => { /* it may not have started */ });
+      // DECODED INTO THIS CONTEXT, not the world's — the roster is separate for
+      // exactly this reason. `Promise.all` so the cue is only kicked off once
+      // both are ready: starting on the first decode would play the stinger
+      // with no pad under it and then have no way to add one.
+      void Promise.all(PAUSE_CUES.map((n) => {
+        const raw = bytes.get(n);
+        if (!raw) return Promise.resolve();
+        return mac.decodeAudioData(raw.slice(0))
+          .then((b) => { menuBufs.set(n, b); })
+          .catch((e) => console.warn(`[audio] ${n} would not decode:`, e));
+      })).then(() => {
+        // he may have opened the menu with the very keypress that booted all
+        // this, in which case the cue has a pause to catch up with
+        if (wantSuspended) startPauseCue();
+      });
+    } catch { /* one context is all this browser will give: no pause cue */ }
+
     apply?.();   // the graph exists now: push the saved volume and mute at it
     // …and the pause, which may already be on: Escape is a keydown, keydown is
     // the gesture that boots this, so the FIRST thing this context ever hears
@@ -825,7 +1023,17 @@ export function register(ctx: CtxBuild): void {
   // which for a volume control is most of the answer, but a tap at the bottom
   // of the range is silent in both senses. Not replacing it with a flash
   // unasked — flagged rather than invented.
-  W.__ctAudio = { close: () => { rig = null; void live?.close(); } };
+  // BOTH machines go down together. An HMR rebuild that left the menu's
+  // context open would leave a pause pad looping over a world that no longer
+  // exists — the one thing this cue must never do.
+  W.__ctAudio = {
+    close: () => {
+      rig = null; void live?.close();
+      cueNodes = []; menuMaster = null;
+      const m = menuAc; menuAc = null; menuBufs.clear();
+      void m?.close();
+    },
+  };
 
   window.addEventListener('keydown', (e) => {
     if (!e.isTrusted || e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;

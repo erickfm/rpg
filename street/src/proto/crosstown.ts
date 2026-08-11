@@ -3199,6 +3199,12 @@ export function makeCrosstown(): Proto {
       // one left behind would double up the zoom on the next load instead of
       // just leaking — remove it, not just the objects it closed over.
       window.removeEventListener('wheel', onWheel);
+      // AND THE PAUSE IS RELEASED, whatever state this world went down in.
+      // `update` is what notices the menu closing, and a disposed world stops
+      // being updated — so a world torn down with the menu up would leave the
+      // sound suspended and the pause pad looping over nothing at all. This is
+      // the one close path `menuOpen()` cannot be derived from.
+      setAudioSuspended(false);
     },
   };
 }

@@ -506,3 +506,55 @@ sfx loss "loss.flac" 0.00 0.22 22050
 # loudest frame to misrepresent, which is the test the rain bed failed.
 echo "the money:"
 sfx cash-gain "cash increase.mp3" 0.015 0.480 32000
+
+# ── and the pause (2026-08-11) ──────────────────────────────────────────────
+#
+# *"'pause loop.wav' you can use these sounds in the esc menu actually. esc
+# pause is the sound when they hit pause and then theres pasue loop for after
+# when theyre just paused"*
+#
+# TWO FILES THAT ARE ONE RECORDING, and measuring them said so before the code
+# was written. Their spectra are the same instrument to within a rounding error
+# — centroid 2908 Hz against 2887, 66.9%/68.0% in 250 Hz-2 kHz, 12.5%/12.6% in
+# 8-16 kHz, 0.1% above 16 kHz in both. `esc pause.wav` is a stinger (four
+# articulations at 0.14, 0.32, 0.45 and 0.66 s, peak -6.9 dBFS) sitting ON TOP
+# OF a pad, and `pause loop.wav` is that same pad continuing: the stinger's tail
+# from 0.68 s on measures -52 dB rms, and the loop measures -55. So they are
+# LAYERED, not sequenced — ct/audio.ts starts both at the same instant and the
+# stinger decays into a pad that was already running, which is exactly the file
+# he recorded and is why the handover has no seam to hear.
+#
+# ⚠ AND THAT IS WHY THEY ARE NORMALISED APART RATHER THAN TOGETHER. The pair
+# arrives 21 LU from each other (-28.5 LUFS gated against -49.8), which is a
+# relationship no single gain can keep AND make both audible: take the stinger
+# to -3 dBFS and the pad lands at -46 LUFS, under the noise floor of most
+# speakers; take the pad to -20 LUFS and the stinger clips 23 dB into the rail.
+# Each gets the treatment its own material asks for — the stinger peak-
+# normalised (it IS its transients: the registers' argument, the one the rain
+# bed failed), the pad loudness-normalised to -20 LUFS like every other loop in
+# this file — and ct/audio.ts holds the one mix constant between them.
+#
+# 32 kHz for both, measured: 12.6% of the energy is 8-16 kHz, so 22.05 would
+# throw away an eighth of a bright metallic cue, and 0.1% above 16 kHz means
+# Nyquist there loses nothing.
+#
+# STEREO, WHICH NO OTHER ONE-SHOT IN THIS FILE IS. Every other shot is a thing
+# in the world and gets panned to where it is, so it ships mono. This one is not
+# in the world — it is the television's own sound, played dead centre with the
+# world stopped — and it arrives genuinely wide (L/R correlation 0.30 on the
+# stinger, 0.71 on the pad; summing to mono costs the stinger 2.7 dB of peak to
+# phase cancellation). So both keep their two channels and neither passes
+# through a panner.
+echo "the pause:"
+# the stinger: the whole event is 0.05-0.70 s, then it is pad. Cut at 0.90 with
+# the fade starting at 0.74, past the last articulation and inside the decay.
+g=$(peak_gain "$SRC/esc pause.wav")
+ffmpeg -hide_banner -loglevel error -y -ss 0 -t 0.90 -i "$SRC/esc pause.wav" \
+  -af "afade=t=in:st=0:d=0.004,afade=t=out:st=0.74:d=0.16,volume=${g}dB" \
+  -ac 2 -ar 32000 -c:a libvorbis -q:a 2 "$OUT/pause-hit.ogg"
+echo "  pause-hit.ogg  <- esc pause.wav  32000Hz 2ch  ${g}dB  0.90s"
+# the pad: 3.68 s at LRA 0.2 LU — the steadiest source in this whole script, so
+# the standard seamless-loop construction has almost nothing to hide and a 0.6 s
+# crossfade is generous. +29.8 dB to -20 LUFS puts its peak at -10.7 dBFS, well
+# under the limiter's 0.7 ceiling, so nothing is limited.
+bed pause-loop "pause loop.wav" 32000 2 0.6 -20
