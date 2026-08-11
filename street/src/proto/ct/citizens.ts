@@ -388,7 +388,34 @@ export function citizenAtlas(o: Look): THREE.Texture {
         // 4 still get none — there the horizontal axis is not the direction he
         // faces, so a shift would just move him sideways.
         const SEAT_BACK = 3;
-        if (seated) g.translate(reach ? SEAT_BACK : 0, SEAT_DROP);
+        // ── ONE VALUE, APPLIED ONCE AND UNDONE ONCE ──────────────────────────
+        //
+        // *"citizen seating is still broken"* (2026-08-11), on the library's two
+        // readers: a sitter beside her chair rather than on it, and the one
+        // behind her sawn in half by his own backrest.
+        //
+        // It was this line and its partner at the bottom of the loop. The lean
+        // was applied on `view === 2` and undone on `view === 2` — balanced —
+        // until the *"legs for seated citizens only work from some angles"* fix
+        // rekeyed THIS one to `reach` (views 1, 2 and 3) and left the undo on
+        // `view === 2`. There is no save()/restore() in this loop, so views 1
+        // and 3 each leaked +3 texels into the next frame drawn, and the leak
+        // COMPOUNDS across the ten (view, frame) passes:
+        //
+        //   view 0  0        view 2  +6   ← the profile, off by 0.17 m
+        //   view 1  0/+3     view 3  +6/+9
+        //                    view 4  +12  ← the back view, off by 0.34 m and
+        //                                   spilling past the atlas's own edge
+        //
+        // Idle figures hold frame 0, so a seated citizen is centred on their
+        // seat from the front, stands 0.17 m to one side of it in profile, and
+        // 0.34 m clear of it from behind — which is a person drifting out of
+        // their chair as you walk round them, in every room that seats anybody.
+        //
+        // Hoisted into one binding so the pair can no longer disagree. The
+        // condition now lives in exactly one place and both translates read it.
+        const leanBack = reach ? SEAT_BACK : 0;
+        if (seated) g.translate(leanBack, SEAT_DROP);
         // ── torso ─────────────────────────────────────────────────────
         //
         // A SEATED HEM STOPS AT THE HIP. Standing, a long coat falls to row 45;
@@ -722,8 +749,10 @@ export function citizenAtlas(o: Look): THREE.Texture {
         // above exactly. There is no save()/restore() in this loop; the next
         // view would inherit whatever is left here, and 10 frames of creeping
         // offset is a defect that looks like a paint bug rather than a
-        // bookkeeping one.
-        if (seated) g.translate(view === 2 ? -SEAT_BACK : 0, -SEAT_DROP);
+        // bookkeeping one. It shipped exactly that way for six days: see the
+        // note on `leanBack` above, which is now the ONE binding both ends read
+        // so that rekeying the lean cannot desynchronise them again.
+        if (seated) g.translate(-leanBack, -SEAT_DROP);
       }
     }
   });
