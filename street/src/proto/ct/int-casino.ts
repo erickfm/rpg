@@ -32,6 +32,18 @@ import { FELT as BJ_FELT,
 import { FELT as RL_FELT,
   paintTable as paintRouletteFelt, WHEEL as RL_WHEEL, REDS as RL_REDS,
   openTable as openRoulette } from './roulette';
+// Same bridge, third game — the BIG SIX money wheel (2026-08-10: "yea add
+// wheel of fortune"). The head's face and the idle betting counter are both
+// painted by bigsix's own exported painters, so the wheel you watch from the
+// door IS the wheel the game lands. Same no-cycle shape: bigsix.ts imports
+// only ./ctx at runtime, never this file.
+import { BOARD as BS_BOARD, PANE as BS_PANE,
+  paintBoard as paintBigSixBoard, paintWheelFace as paintBigSixFace,
+  openWheel as openBigSix } from './bigsix';
+// The doorman speaks — the backroom's $1,000 rule is a LINE, not a tooltip.
+// Same import edge as the dealer's pitch and the park; dialog.ts never
+// imports an interior.
+import { talker } from './dialog';
 
 // SEVENS, inside.
 //
@@ -615,8 +627,23 @@ export function buildCasino(ctx: CtxBuild): void {
       { kind: 'cherry', x: -1.9 }, { kind: 'seven', x: -2.75 }, { kind: 'cherry', x: -3.6 }, { kind: 'seven', x: -4.45 },
     ] },
   ];
-  buildSlots(ctx, room, SLOT_ROWS.flatMap((r) =>
-    r.cabs.map((c) => ({ kind: c.kind, lx: c.x, lz: r.z, face: r.face }))));
+  // …PLUS THE HIGH-ROLLER BANK, in the backroom built further down: the same
+  // three personalities at 10x — $20, $50 and $100 a pull, the KING's topper
+  // printing its honest $15,000 — against the backroom's own back wall,
+  // facing the door you had to show a grand to walk through. ONE buildSlots
+  // call for the whole floor, deliberately: the `slot-lever-N` / `slot-*-N`
+  // naming contract ct/audio.ts watches indexes per call, and a second call
+  // would mint duplicate names (and a second 'ct-slotcab' panel — the makePanel
+  // reuse-by-id trap the ⚠ in slotcab documents).
+  buildSlots(ctx, room, [
+    ...SLOT_ROWS.flatMap((r) =>
+      r.cabs.map((c) => ({ kind: c.kind, lx: c.x, lz: r.z, face: r.face as 1 | -1 }))),
+    { kind: 'cherry' as const, lx: -4.65, lz: -17.25, face: 1 as const, stakeMul: 10 },
+    { kind: 'king' as const, lx: -3.5, lz: -17.25, face: 1 as const, stakeMul: 10 },
+    { kind: 'seven' as const, lx: -2.35, lz: -17.25, face: 1 as const, stakeMul: 10 },
+  ]);
+  // one collider for the high-roller row, same rule as the banks below
+  solid(-3.5, -17.35, 3.3, 0.9);
 
   // ONE collider per bank side, spanning both rows and the spine — 0.23 m
   // gaps are slots you wedge into, the diner's lesson, and the 15 cm spine
@@ -930,13 +957,18 @@ export function buildCasino(ctx: CtxBuild): void {
   }
   void valFaceM;
   // ── 777 on the back wall, in the facade's own red tube ──
+  //
+  // At x −2.0 until the backroom landed (2026-08-10): the high-roller wall
+  // now claims the west end of this elevation, so the sign moves to the slot
+  // BETWEEN the backroom's partition (x −1.5) and the cage's bulbs (x 1.4) —
+  // still the glitter at the end of the avenue's long dark walk.
   const sevensT = declareSurface(pixTex(72, 26, (g) => {
     g.fillStyle = '#2a1418'; g.fillRect(0, 0, 72, 26);
     g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 72, 2); g.fillRect(0, 24, 72, 2);
     tube(g, '777', 36, 13, 20, '#ff4a3a', '#ffd8c0', '#3a1016');
   }), 'sign');
-  put(new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.83), ctx.flat(sevensT)), -2.0, 1.86, -hd + 0.07);
-  bulbLine(-3.25, 1.30, -hd + 0.10, -0.75, 1.30, -hd + 0.10, 0.3);
+  put(new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.83), ctx.flat(sevensT)), -0.05, 1.86, -hd + 0.07);
+  bulbLine(-1.15, 1.30, -hd + 0.10, 1.05, 1.30, -hd + 0.10, 0.3);
 
   // ── THE PIT: TWO TABLE GAMES, EACH A REAL DESTINATION ─────────────────
   //
@@ -1174,4 +1206,286 @@ export function buildCasino(ctx: CtxBuild): void {
     for (let i = 0; i < PHASES; i++) phaseM[i].color.copy(i === step ? onCol : offCol);
   };
 
+  // ── THE BIG SIX WHEEL — the big vertical money wheel (2026-08-10: "yea add
+  // wheel of fortune") ──────────────────────────────────────────────────────
+  //
+  // East wall, mid-deep — you see it turning from the door, down the east
+  // aisle past the banks, which is the whole reason a house stands one: a
+  // roulette wheel hides in its table, a Big Six IS its own sign. The game
+  // lives in ct/bigsix.ts; this file owns the STAND: podium, posts, the head
+  // (painted by the game's own paintWheelFace, so the wheel you watch is the
+  // wheel that pays), the flapper, and the tall invisible pane the locked
+  // view hangs on — slotcab's session-pane trick, because the show here is
+  // vertical. NAMES ARE THE CONTRACT: 'bigsix-wheel-head' (userData.speed),
+  // 'bigsix-flapper' (userData.flap) and 'bigsix-pane' are what ct/bigsix.ts
+  // turns and what audio will watch.
+  {
+    const BS_X = 4.92, BS_Z = -11.2;
+    const chrome = new THREE.MeshBasicMaterial({ color: 0x9a9488 });
+    // the podium, with the betting counter printed on its face — the game's
+    // own painter in the idle state, one painter both moments (the felt rule)
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.80, 1.05, 1.80), woodM), BS_X, 0.525, BS_Z);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.08, 1.86), railM), BS_X, 1.06, BS_Z);
+    const bsBoardT = declareSurface(pixTex(BS_BOARD.w, BS_BOARD.h, (g) =>
+      paintBigSixBoard(g, BS_BOARD.w, BS_BOARD.h, null)), 'detail');
+    const bsBoard = new THREE.Mesh(new THREE.PlaneGeometry(1.55, 0.66), ctx.flat(bsBoardT));
+    bsBoard.rotation.y = -Math.PI / 2;            // facing the avenue, −x
+    put(bsBoard, BS_X - 0.41, 0.66, BS_Z);
+    // the A-posts and crossbar that carry the wheel
+    for (const sz of [-1, 1]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.87, 0.12), woodM),
+        BS_X, 1.05 + 0.935, BS_Z + sz * 0.95);
+    }
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.10, 2.02), woodM), BS_X, 2.92, BS_Z);
+    // THE WHEEL. The stand group's Rz(π/2) turns the cylinder's +y cap to
+    // face −x (the avenue), so the head's own rotation.y — the axis the game
+    // drives — spins it in the vertical plane. Pocket i is centred at canvas
+    // angle i/54·TAU (paintWheelFace's convention); the flapper hangs at
+    // world UP = local +x = bearing π/2, and ct/bigsix.ts rotates the head
+    // to π/2 + wheelA against exactly that.
+    const stand = new THREE.Group();
+    put(stand, BS_X - 0.15, 1.95, BS_Z);
+    stand.rotation.z = Math.PI / 2;
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.86, 0.06, 36), woodM);
+    stand.add(rim);
+    const bsFaceT = declareSurface(pixTex(224, 224, (g) => paintBigSixFace(g, 224)), 'detail');
+    const bsHead = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.05, 36),
+      [chrome, ctx.flat(bsFaceT), chrome]);
+    bsHead.name = 'bigsix-wheel-head';
+    bsHead.userData.speed = 0;
+    bsHead.position.y = 0.035;
+    stand.add(bsHead);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.10, 10), brassM);
+    hub.position.y = 0.09;
+    stand.add(hub);
+    // the flapper: bracket off the crossbar, blade hanging over the pegs.
+    // Its own group in world space — rotation.x flaps the blade in z, the
+    // wheel's plane, which is the clack audio will hang here.
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.04, 0.04), brassM), 4.81, 2.89, BS_Z);
+    const flapper = new THREE.Group();
+    put(flapper, 4.68, 2.88, BS_Z);
+    flapper.name = 'bigsix-flapper';
+    flapper.userData.flap = 0;
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.24, 0.07),
+      new THREE.MeshBasicMaterial({ color: 0xc81e28 }));
+    blade.position.y = -0.11;
+    flapper.add(blade);
+    // the session pane — invisible until the panel framework borrows it;
+    // covers the wheel (upper frame, kept transparent so the 3D head stays
+    // the show) and the counter (painted live into its bottom region)
+    const paneCv = document.createElement('canvas');
+    paneCv.width = 1; paneCv.height = 1;
+    // height DERIVED from the game's canvas aspect — the pane and the pixels
+    // it will carry are one authoring, so nothing can stretch
+    const bsPane = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.9, 1.9 * BS_PANE.h / BS_PANE.w),
+      new THREE.MeshBasicMaterial({
+        map: new THREE.CanvasTexture(paneCv), transparent: true, depthWrite: false }));
+    bsPane.name = 'bigsix-pane';
+    bsPane.rotation.y = -Math.PI / 2;
+    put(bsPane, 4.49, 1.55, BS_Z);
+    // BIG SIX in the facade's own tube hand, riding the crossbar
+    const bsSignT = declareSurface(pixTex(80, 22, (g) => {
+      g.fillStyle = '#2a1418'; g.fillRect(0, 0, 80, 22);
+      g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 80, 2); g.fillRect(0, 20, 80, 2);
+      tube(g, 'BIG SIX', 40, 11, 13, '#e8c25a', '#fff4d0', '#2a2018');
+    }), 'sign');
+    const bsSign = new THREE.Mesh(new THREE.PlaneGeometry(1.45, 0.40), ctx.flat(bsSignT));
+    bsSign.rotation.y = -Math.PI / 2;
+    put(bsSign, 4.86, 3.18, BS_Z);
+    solid(5.0, BS_Z, 1.15, 2.2);
+    pool(2.4, 2.4, 4.3, BS_Z);
+    ctx.spot({
+      x: room.wx(3.55), z: room.wz(BS_Z), r: 1.25,
+      aimX: room.wx(4.77), aimZ: room.wz(BS_Z), obj: stand,
+      label: () => 'play the big six',
+      ok: () => room.inside(),
+      act: () => openBigSix(),
+    });
+  }
+
+  // ── THE HIGH-ROLLER BACKROOM ──────────────────────────────────────────────
+  //
+  // 2026-08-10: "add a high-roller backroom with a 1k cash entrance crit. you
+  // dont need to spend it to get in but you have to have 1k on hand to get
+  // in." So: the deep west corner walled off in its own palette — baize green
+  // and brass against the floor's oxblood — behind a doorway with a doorman,
+  // a printed $1,000 rule, and a rope that is DOWN when your wallet clears it.
+  //
+  // THE CHECK IS A CHECK, NEVER A CHARGE, AND IT LIVES AT THE DOOR ONLY. The
+  // doorway's collider is the mechanism: parked out of the world while the
+  // wallet holds $1,000 (you just walk in — nothing is taken), live across
+  // the opening while it doesn't. Three zones, latched, so the door can never
+  // close ON you: standing anywhere INSIDE parks the collider outright —
+  // going broke at the $100 slots ejects nobody, and leaving is a plain walk
+  // out — the doorway VESTIBULE holds whatever state you crossed it with (a
+  // wall must not materialise around a body mid-threshold), and everywhere
+  // else the wallet is re-read. A poor player pushing at the door rests
+  // against the box well outside the vestibule's far edge, so the gate they
+  // feel is the gate that stays.
+  {
+    const BR_X = -1.5, BR_Z = -10.6;              // partition and front planes
+    const DOOR_BX = -2.6, DOOR_BW = 1.3, DOOR_BH = 2.2;
+    const brWallM = new THREE.MeshBasicMaterial({ color: 0x1c3226 });
+    const brDadoM = new THREE.MeshBasicMaterial({ color: 0x122419 });
+    const brassM3 = new THREE.MeshBasicMaterial({ color: 0xc9a45e });
+
+    // the partition (full depth of the corner) and the front wall, split
+    // round the doorway. Wainscot and a brass rail proud of BOTH faces, so
+    // the palette change reads from the avenue too.
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.16, room.H, 7.4), brWallM), BR_X, room.H / 2, -14.3);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.0, 7.4), brDadoM), BR_X, 0.5, -14.3);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.05, 7.4), brassM3), BR_X, 1.02, -14.3);
+    solid(BR_X, -14.3, 0.16, 7.4);
+    for (const seg of [{ cx: -4.375, w: 2.25 }, { cx: -1.725, w: 0.45 }]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(seg.w, room.H, 0.16), brWallM), seg.cx, room.H / 2, BR_Z);
+      put(new THREE.Mesh(new THREE.BoxGeometry(seg.w, 1.0, 0.18), brDadoM), seg.cx, 0.5, BR_Z);
+      put(new THREE.Mesh(new THREE.BoxGeometry(seg.w, 0.05, 0.19), brassM3), seg.cx, 1.02, BR_Z);
+      solid(seg.cx, BR_Z, seg.w, 0.16);
+    }
+    // the lintel over the opening — VISUAL ONLY, never a collider: colliders
+    // here are infinite-height columns (fp.ts), and a solid lintel would be
+    // a wall across its own doorway
+    put(new THREE.Mesh(new THREE.BoxGeometry(DOOR_BW + 0.3, room.H - DOOR_BH, 0.16), brWallM),
+      DOOR_BX, DOOR_BH + (room.H - DOOR_BH) / 2, BR_Z);
+    // gold architrave, both faces — the same portal grammar as the way in
+    put(new THREE.Mesh(new THREE.BoxGeometry(DOOR_BW + 0.44, 0.16, 0.22), goldM),
+      DOOR_BX, DOOR_BH + 0.06, BR_Z);
+    for (const sx of [-1, 1]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.15, DOOR_BH + 0.16, 0.22), goldM),
+        DOOR_BX + sx * (DOOR_BW / 2 + 0.10), (DOOR_BH + 0.16) / 2, BR_Z);
+    }
+    // the rule, printed over the door where you read it before you try it
+    const hlT = declareSurface(pixTex(96, 36, (g) => {
+      g.fillStyle = '#101c15'; g.fillRect(0, 0, 96, 36);
+      g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 96, 2); g.fillRect(0, 34, 96, 2);
+      tube(g, 'HIGH LIMIT', 48, 12, 12, '#e8c25a', '#fff4d0', '#2a2018');
+      g.fillStyle = '#9ab0a0'; g.font = '6px monospace'; g.textAlign = 'center';
+      g.fillText('$1,000 ON HAND TO ENTER', 48, 30);
+    }), 'sign');
+    put(new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.64), ctx.flat(hlT)),
+      DOOR_BX, 2.86, BR_Z + 0.10);
+
+    // ── the gate itself ──
+    const gate = solid(DOOR_BX, BR_Z, DOOR_BW + 0.24, 0.5);
+    const gateHome = { minX: gate.minX, maxX: gate.maxX, minZ: gate.minZ, maxZ: gate.maxZ };
+    // the rope: down across the doorway while the gate is live — the collider
+    // made visible, so nobody shoulders an invisible wall (posts stay put)
+    // IN the opening, not in front of it: a blocked player rests 0.46 m shy
+    // of this line, so the rope is a thing seen, never a thing clipped through
+    for (const sx of [-1, 1]) {
+      const px = DOOR_BX + sx * (DOOR_BW / 2 + 0.18);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.92, 8), brassM3), px, 0.46, -10.45);
+      put(new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), brassM3), px, 0.95, -10.45);
+    }
+    const rope = new THREE.Mesh(new THREE.BoxGeometry(DOOR_BW + 0.36, 0.05, 0.05),
+      new THREE.MeshBasicMaterial({ color: 0x6a1f28 }));
+    put(rope, DOOR_BX, 0.80, -10.45);
+    let gateOpen = false;
+    ctx.onFrame((f) => {
+      const lx = f.px - room.wx(0), lz = f.pz - room.wz(0);
+      const inBack = room.inside() && lx < BR_X && lz < BR_Z;
+      const inVest = room.inside() && Math.abs(lx - DOOR_BX) < 1.35
+        && lz >= BR_Z - 0.35 && lz < -9.4;
+      if (inBack) gateOpen = true;                // the door never holds you IN
+      else if (!inVest) gateOpen = ctx.purse.cash >= 1000;   // THE CHECK
+      // else: mid-threshold — hold the state you crossed with
+      if (gateOpen) {
+        gate.minX = 9999; gate.maxX = 9999.1; gate.minZ = 9999; gate.maxZ = 9999.1;
+      } else {
+        gate.minX = gateHome.minX; gate.maxX = gateHome.maxX;
+        gate.minZ = gateHome.minZ; gate.maxZ = gateHome.maxZ;
+      }
+      rope.visible = !gateOpen;
+    }, HOOK.WORLD);
+
+    // ── the doorman — the rule with a face on it ──
+    const dm = room.person({
+      jacket: '#1a1a20', pants: '#14141a', skin: '#8a6a52', hair: '#1a1410',
+      fit: 'coat', accent: '#d8d0c0', cut: 'short', build: 1,
+    }, -3.78, -9.95, { facing: 0.55, h: 1.0, w: 1.0 });
+    const dmTalk = talker(ctx, {
+      obj: dm.mesh, name: 'doorman',
+      lines: () => (ctx.purse.cash >= 1000
+        ? ['evening. the room\'s open to you — mind the rope on the way out.']
+        : [`the room behind me is for players holding a grand. you\'re $${
+          Math.max(0, 1000 - Math.floor(ctx.purse.cash))} short.`,
+        'the nickel slots are lovely this time of year. that way.']),
+    });
+    ctx.spot({
+      x: room.wx(-3.35), z: room.wz(-9.35), r: 1.25,
+      aimX: room.wx(-3.78), aimZ: room.wz(-9.95), obj: dm.mesh,
+      label: dmTalk.label,
+      ok: () => room.inside(),
+      act: () => dmTalk.say(),
+    });
+
+    // ── inside: the corner re-skinned in its own palette ──
+    //
+    // Liner planes over the room's oxblood on the two outer walls, a darker
+    // busier carpet, its own pools and bulb run — tighter, greener, brassier.
+    const linerM = new THREE.MeshBasicMaterial({ color: 0x1c3226 });
+    const wLiner = new THREE.Mesh(new THREE.PlaneGeometry(7.3, room.H - 0.1), linerM);
+    wLiner.rotation.y = Math.PI / 2;
+    put(wLiner, -hw + 0.045, (room.H - 0.1) / 2, -14.3);
+    const bLiner = new THREE.Mesh(new THREE.PlaneGeometry(3.95, room.H - 0.1), linerM);
+    put(bLiner, -3.52, (room.H - 0.1) / 2, -hd + 0.045);
+    const brCarpT = declareSurface(pixTex(48, 48, (g) => {
+      g.fillStyle = '#12241b'; g.fillRect(0, 0, 48, 48);
+      g.fillStyle = '#1c3a2a';
+      for (const [cx, cy] of [[12, 12], [36, 12], [12, 36], [36, 36]] as const) {
+        for (let t = 0; t <= 7; t++) {
+          const r = 7 - t;
+          g.fillRect(cx + t, cy - r, 1, 1); g.fillRect(cx - t, cy - r, 1, 1);
+          g.fillRect(cx + t, cy + r, 1, 1); g.fillRect(cx - t, cy + r, 1, 1);
+        }
+      }
+      g.fillStyle = '#8a6a2c';
+      for (const [cx, cy] of [[12, 12], [36, 12], [12, 36], [36, 36]] as const) {
+        g.fillRect(cx - 1, cy - 1, 2, 2);
+      }
+      dither(g, 48, 48, 120);
+    }), 'ground');
+    brCarpT.wrapS = brCarpT.wrapT = THREE.RepeatWrapping;
+    brCarpT.repeat.set(2, 4);
+    const brCarp = new THREE.Mesh(new THREE.PlaneGeometry(3.9, 7.3), ctx.flat(brCarpT));
+    brCarp.rotation.x = -Math.PI / 2;
+    put(brCarp, -3.52, 0.016, -14.3);
+    pool(2.6, 1.8, -3.5, -16.8);                  // over the $100 machines
+    pool(2.4, 2.0, -3.5, -13.2);                  // the middle of the room
+    bulbLine(-4.85, 2.5, -16.55, -2.15, 2.5, -16.55, 0.34);
+
+    // a short buttoned banquette on the west wall — somewhere to sit and
+    // watch your money go; both places registered, the standing rule
+    {
+      const SEAT_TOP = 0.44, BL = 2.0, BX2 = -hw + 0.42, BZ2 = -13.2, SIT_OFF = 0.16;
+      const plushM2 = new THREE.MeshBasicMaterial({ color: 0x1e4432 });
+      const btnM2 = new THREE.MeshBasicMaterial({ color: 0x163227 });
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, BL), btnM2), BX2, 0.06, BZ2);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, BL), plushM2), BX2, SEAT_TOP - 0.07, BZ2);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, BL), plushM2),
+        -hw + 0.16, SEAT_TOP + 0.31, BZ2);
+      for (const bz of [-0.6, 0, 0.6]) for (const by of [0.20, 0.46]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.06), btnM2),
+          -hw + 0.24, SEAT_TOP + by, BZ2 + bz);
+      }
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, BL), brassM3),
+        -hw + 0.16, SEAT_TOP + 0.64, BZ2);
+      solid(BX2, BZ2, 0.83, BL);
+      for (const dz of [-0.5, 0.5]) {
+        ctx.seat({
+          x: room.wx(BX2 + SIT_OFF), z: room.wz(BZ2 + dz),
+          yaw: Math.PI / 2, h: SEAT_TOP,
+          approach: { x: room.wx(BX2 + 0.9), z: room.wz(BZ2 + dz) },
+          label: 'sit down',
+          ok: () => room.inside() && !seatTaken(room.wx(BX2 + SIT_OFF), room.wz(BZ2 + dz)),
+        });
+      }
+      // a brass ashtray at the bench's elbow, same part as the lounge's
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.62, 8),
+        new THREE.MeshBasicMaterial({ color: 0x6a6258 })), -hw + 0.45, 0.31, BZ2 + 1.35);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.09, 8), brassM3),
+        -hw + 0.45, 0.66, BZ2 + 1.35);
+    }
+  }
 }

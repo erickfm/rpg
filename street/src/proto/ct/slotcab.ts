@@ -218,8 +218,16 @@ const KINDS: Record<SlotKind, KindSpec> = {
 /** `face` is which way the glass looks: +1 (default) is local +z, −1 is local
  *  −z — the back row of a back-to-back bank. The whole cabinet is one group
  *  rotated about its own base, so lever, tray, coins and pane all turn with
- *  it and the locked view frames the rotated face for free. */
-export interface SlotSpec { kind: SlotKind; lx: number; lz: number; face?: 1 | -1 }
+ *  it and the locked view frames the rotated face for free.
+ *
+ *  `stakeMul` scales the cabinet's STAKE and nothing else — the high-roller
+ *  backroom's machines (2026-08-10: "add a high-roller backroom") are the
+ *  same three personalities at 10x. The odds are identical (one enumeration
+ *  still covers the floor); the pay card, the topper's jackpot, the bet
+ *  meter and every prompt print dollars derived from the scaled stake, so
+ *  nothing silkscreened can lie. Omitted means 1: every existing cabinet is
+ *  bit-for-bit unchanged. */
+export interface SlotSpec { kind: SlotKind; lx: number; lz: number; face?: 1 | -1; stakeMul?: number }
 
 /** The minimum this module needs from a room. Structural on purpose: importing
  *  ct/interior.ts here would close interior → int-casino → slotcab → interior,
@@ -493,8 +501,12 @@ function topperTex(k: KindSpec, kind: SlotKind): THREE.Texture {
       // canvas and the first look shot read '.500 JACKPO'
       g.fillStyle = '#ffe89a'; g.font = 'bold 8px monospace';
       g.fillText('KING KACHING', 32, 10);
-      g.fillStyle = '#fff0b0'; g.font = 'bold 8px monospace';
-      g.fillText('$1500 JACKPOT', 32, 22);
+      // DERIVED from the stake, not typed: the jackpot is 150x the CENTER
+      // line at 1x bet, so the base KING still prints $1500 and the
+      // backroom's 10x KING prints $15000 — a topper that lies is worse
+      // than no topper, at any stake. 7 px: '$15000 JACKPOT' is 14 chars.
+      g.fillStyle = '#fff0b0'; g.font = `bold ${k.stake * 150 >= 10000 ? 7 : 8}px monospace`;
+      g.fillText(`$${k.stake * 150} JACKPOT`, 32, 22);
     }
     dither(g, 64, 28, 20);
   }), 'sign');
@@ -520,7 +532,14 @@ function betCapTex(k: KindSpec, up: boolean): THREE.Texture {
 }
 
 function buildCabinet(ctx: CtxBuild, room: SlotRoom, spec: SlotSpec, i: number): Machine {
-  const k = KINDS[spec.kind];
+  // A 10x cabinet is its own KindSpec object with only the stake scaled —
+  // every silkscreen, meter and prompt below reads `k.stake`, so the whole
+  // fascia follows for free. Per-object on purpose: layFor and bandParts key
+  // their caches on the KindSpec identity, so the high-stakes face gets its
+  // own (wider-metered) layout without touching the base three.
+  const base = KINDS[spec.kind];
+  const mul = spec.stakeMul ?? 1;
+  const k = mul === 1 ? base : { ...base, stake: base.stake * mul };
   const g = new THREE.Group();
   const W = k.w, H = k.h, D = k.d;
   const trimM = bm(k.trim), bodyM = bm(k.body), deckM = bm(k.deck);
@@ -971,7 +990,9 @@ function bandParts(k: KindSpec): { meter: BRect; dn: BRect; up: BRect } {
   const { yHi, yLo } = bandOf(k);
   const cy = (yHi + yLo) / 2;
   const bw = 0.066, bh = 0.06, gap = 0.014;
-  const mw = 0.105 * paneW(k), mh = 0.066 * paneW(k);
+  // a high-roller face bets three digits ($100–$300), so its glass grows a
+  // digit's width — sized to its digits and nothing more, same rule as ever
+  const mw = (k.stake * 3 >= 100 ? 0.148 : 0.105) * paneW(k), mh = 0.066 * paneW(k);
   const off = mw / 2 + gap + bw / 2 + 0.009;    // past the caps' own rings
   return {
     meter: { cx: 0, cy, w: mw, h: mh },
@@ -1073,14 +1094,18 @@ function paintSession(
   const t = Math.max(1, Math.floor((b.h - 6) / 9));
   const dw = 5 * t + t, dh = 9 * t;
   const y0 = Math.round(b.y + (b.h - dh) / 2);
-  const xd = b.x + b.w - 4 - 2 * dw;             // two digit slots, right-aligned
+  // digit slots to fit the biggest bet this cabinet takes: two on the floor,
+  // three on the backroom's 10x faces ($300) — the glass grew with them in
+  // bandParts, so the digits still fill their window instead of swimming
+  const slots = k.stake * 3 >= 100 ? 3 : 2;
+  const xd = b.x + b.w - 4 - slots * dw;         // right-aligned
   g.fillStyle = '#8a8072'; g.textAlign = 'left';
   g.font = 'bold 8px monospace'; g.fillText('$', xd - 6, y0 + dh - 1);
-  const val = String(Math.min(99, k.stake * m.bet));
-  for (let i = 0; i < 2; i++) {
+  const val = String(Math.min(999, k.stake * m.bet));
+  for (let i = 0; i < slots; i++) {
     const x0 = xd + i * dw;
     seg7(g, x0, y0, t, '8', 'rgba(255,182,56,0.09)');
-    const ch = val[val.length - 2 + i];
+    const ch = val[val.length - slots + i];
     if (ch !== undefined) seg7(g, x0, y0, t, ch, '#ffb638');
   }
 }
