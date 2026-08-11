@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
 import { hudNote } from './hud';
@@ -193,7 +194,8 @@ export function buildVolt(ctx: CtxBuild): void {
     // The door, its width, the [E] spot on the pavement and the way back out
     // all derive from DOOR above — one authoring, not two. No `width`: the
     // LEAF is the authority, so the room's opening is the facade's 1.05 m.
-    door: { r: 1.05, at: DOOR.at },
+    // the door keeps the shop's hours — see int-burger.ts's note, and ct/hours.ts
+    door: { r: 1.05, at: DOOR.at, ok: () => doorOpen(ctx, DOOR.building) },
     // ── PLATE GLASS, TO THE FLOOR, BECAUSE THAT IS WHAT IS PAINTED ─────────
     //
     // The kit's derived default is a 1.5 m window on a 0.95 m sill, which is a

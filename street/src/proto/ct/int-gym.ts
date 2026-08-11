@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { frontageWorld, alongU } from './tex-world';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
@@ -126,6 +127,9 @@ export function buildGym(ctx: CtxBuild): void {
     door: {
       at: AT, r: 1.05,
       x: FW.doorWorld, z: standZ,
+      // "WE OPEN AT SIX. YOU DON'T LOOK LIKE A SIX." — and now the door means
+      // it. See int-burger.ts's note, and ct/hours.ts.
+      ok: () => doorOpen(ctx, DOOR.building),
       // The landing goes ALONG the walk, not out the normal — the video hut's
       // note: the side road's carriageway starts 2 m off this pavement.
       outX: FW.doorWorld + 1.5, outZ: standZ,

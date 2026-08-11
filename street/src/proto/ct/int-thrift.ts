@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
 import { hudNote } from './hud';
@@ -95,7 +96,8 @@ export function buildThrift(ctx: CtxBuild): void {
       kind: 'strip', tint: 0xe4e8dc, count: 3, dead: [1],
     },
     frontage: { name: 'THRIFT', w: 12.5, cz: -61.75, side: -1 },
-    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
+    // the door keeps the shop's hours — see int-burger.ts's note, and ct/hours.ts
+    door: { r: 1.05, at: DOOR.at, width: DOOR.width, ok: () => doorOpen(ctx, DOOR.building) },
   });
 
   const { put, solid } = room;

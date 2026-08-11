@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
 // FOR THE SIDE EFFECT, and it is the whole point of the import: `ct/goods.ts`
@@ -72,7 +73,15 @@ export function buildBurger(ctx: CtxBuild): void {
     // is not an accident in these places.
     light: { kind: 'troffer', tint: 0xeaf2f6, count: 4 },
     frontage: { name: 'BURGER BARN', w: 16, cz: -29, side: -1 },
-    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
+    door: {
+      r: 1.05, at: DOOR.at, width: DOOR.width,
+      // THE DOOR KEEPS THIS SHOP'S HOURS — `ct/hours.ts`'s one table, and the
+      // user's *"at 9am you cant enter"*. A room's own `ok` REPLACES the kit's
+      // default rather than adding to it, which is why `doorOpen` restates it.
+      // This line only makes the way in go quiet; the refusal that tells you
+      // when to come back is `ct/hours-doors.ts`.
+      ok: () => doorOpen(ctx, DOOR.building),
+    },
   });
 
   const { put, solid } = room;

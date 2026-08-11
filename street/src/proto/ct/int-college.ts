@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { frontageWorld, alongU } from './tex-world';
 import { screenFade, hudNote } from './hud';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
@@ -110,6 +111,9 @@ export function buildCollege(ctx: CtxBuild): void {
     door: {
       at: AT, r: 1.2,
       x: FW.doorWorld, z: standZ,
+      // the doorcase keeps the college's hours — night classes until nine.
+      // See int-burger.ts's note, and ct/hours.ts.
+      ok: () => doorOpen(ctx, DOOR.building),
       // You come out ON the courtyard path (ct/college-yard.ts's axis), a
       // step down it toward the gate — not out along the walk, because the
       // walk is 4.5 m away across the yard now.

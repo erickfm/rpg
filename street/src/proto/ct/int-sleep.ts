@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
 import './goods';   // for the side effect: it is what declares the stock
@@ -138,7 +139,8 @@ export function buildSleep(ctx: CtxBuild): void {
     frontage: { name: 'SLEEP CENTER', w: 13, cz: -28.5, side: 1 },
     // The door, its width, the [E] spot on the pavement and the way back out all
     // derive from DOOR above. No `width`: the LEAF is the authority.
-    door: { r: 1.05, at: DOOR.at },
+    // the door keeps the showroom's hours — see int-burger.ts's note, and ct/hours.ts
+    door: { r: 1.05, at: DOOR.at, ok: () => doorOpen(ctx, DOOR.building) },
     // ── PLATE GLASS ALMOST TO THE FLOOR ───────────────────────────────────
     //
     // `BANDS.mattress` is the shallowest sill gap on the block (0.44 against the

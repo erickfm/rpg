@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { frontageWorld, alongU } from './tex-world';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
@@ -118,6 +119,8 @@ export function buildVideo(ctx: CtxBuild): void {
     door: {
       at: AT, r: 1.05,
       x: FW.doorWorld, z: standZ,
+      // the door keeps the shop's hours — see int-burger.ts's note, and ct/hours.ts
+      ok: () => doorOpen(ctx, DOOR.building),
       // ALONG THE WALK, not out along the normal. The kit's cut-face landing
       // steps 3 m down the door's own normal, which here is straight into the
       // side road — the carriageway starts 2 m off this pavement. So the

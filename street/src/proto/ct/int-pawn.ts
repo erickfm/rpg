@@ -4,6 +4,7 @@ import type { CitizenSprite } from './citizens';
 import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { FACE } from './rng';
 // The fence's prices live beside the loot table they price, not here — a second
 // hand-typed copy of a number is this codebase's most expensive habit
@@ -117,7 +118,9 @@ export function buildPawn(ctx: CtxBuild): void {
     // it does not fix anything, it just stops the room being smaller than the
     // shopfront it sits behind.
     frontage: { name: 'PAWN', w: 15, cz: -60.5, side: 1 },
-    door: { r: 1.05, at: DOOR.at },   // width comes from the declared leaf
+    // width comes from the declared leaf; the door keeps the shop's hours —
+    // see int-burger.ts's note, and ct/hours.ts
+    door: { r: 1.05, at: DOOR.at, ok: () => doorOpen(ctx, DOOR.building) },
     // The glazing sits east of the door. One window rather than a pair either
     // side, because the kit opens one — and a pawn shop with a single barred
     // window and a solid pier beside it is right anyway.

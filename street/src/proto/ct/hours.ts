@@ -7,22 +7,46 @@ import type { CtxBuild } from './ctx';
 //  or even 24 hours but it just has to kinda make sense"*   (2026-08-10)
 //
 // So hours are a FACT ABOUT A BUSINESS, stated once, and everything reads it:
-// the shop counter stops serving after close (`ct/shop.ts`), the punch clock
-// takes no card while the shop is dark and cuts a shift at closing time
-// (`ct/jobs.ts`), and a card by every door posts the hours
-// (`ct/hours-cards.ts`) — which is where a 1997 customer would look.
+// a card by every door posts the hours (`ct/hours-cards.ts`) — which is where
+// a 1997 customer would look — and THE DOOR ITSELF keeps them (`doorOpen`
+// below, `ct/hours-doors.ts`).
 //
-// ⚠ THIS MODULE IMPORTS NOTHING AT RUNTIME, deliberately. shop.ts and jobs.ts
-// read it, every `int-*.ts` imports those, and `ct/doors.ts` eagerly globs
-// `int-*.ts` — so a runtime edge from here toward doors.ts would close the
-// cycle GOTCHAS §28 warns about and drop rooms from the BUILT BUNDLE ONLY.
-// The card hanger, which genuinely needs doors.ts, lives in its own module
-// (`ct/hours-cards.ts`, which nothing imports) for exactly this reason.
+// ⚠ THIS MODULE IMPORTS NOTHING AT RUNTIME, deliberately. Every `int-*.ts`
+// reads it for its own door, and `ct/doors.ts` eagerly globs `int-*.ts` — so a
+// runtime edge from here toward doors.ts would close the cycle GOTCHAS §28
+// warns about and drop rooms from the BUILT BUNDLE ONLY. The two modules that
+// genuinely need doors.ts live on their own (`ct/hours-cards.ts` and
+// `ct/hours-doors.ts`, which nothing imports) for exactly this reason.
 //
-// DOORS DO NOT LOCK. A locked door is a wall with a handle, and a door that
-// shuts behind you is a cousin of the panel you cannot close — the worst bug
-// this project ships. Closed means the SERVICES refuse, in their own words,
-// and the prompt says when to come back.
+// ══ THE DOOR IS THE GATE, AND IT IS THE ONLY GATE ══════════════════════════
+//
+// *"make sure the signs also limit whether the person can enter. so if a place
+//  is only open 10am to midnight then at 9am you cant enter. then if were in we
+//  can always work."*   (2026-08-11)
+//
+// THIS OVERRULES WHAT THIS FILE USED TO SAY. It said "DOORS DO NOT LOCK — a
+// locked door is a wall with a handle", and every service behind the door
+// checked the clock for itself instead: the counter refused after close, the
+// punch clock refused after close AND cut your shift short at closing time. It
+// was mine to argue and the user has now decided the other way, so the whole
+// arrangement inverts:
+//
+//   OUTSIDE   the door refuses, says why, and says when it opens. You cannot
+//             walk into a shut shop.
+//   INSIDE    everything serves. The counter sells, the clock takes your card,
+//             and a shift is a full shift — *"if were in we can always work"*.
+//
+// That is also the simpler world: ONE gate on one fact, at the place a
+// customer meets it, instead of a gate on every service that had to be
+// remembered separately (and was not — the pawn shop's sales counter refused
+// after hours while its loan window served all night).
+//
+// TWO THINGS THAT DID NOT CHANGE, and must not:
+//   · A CLOSED DOOR NEVER SHUTS BEHIND YOU. Nobody is ever ejected at closing
+//     time and nobody is ever locked in — a door that traps you is a cousin of
+//     the panel you cannot close, the worst bug this project ships. The gate is
+//     on the way IN and nowhere else.
+//   · The way OUT is never gated, from either side.
 
 export interface BizHours {
   /** roster name — the key `ct/doors.ts` already answers for, so the door
@@ -88,7 +112,11 @@ for (const h of HOURS) {
  *  UNGATED: a business with no row keeps the door it always had */
 export const hoursFor = (key: string): BizHours | undefined => BY_KEY.get(key);
 
-const allDay = (h: BizHours): boolean => h.close - h.open >= 24;
+/** a row that never closes — the bodega, the diner, the hotel desk, the
+ *  casino. Nothing gates on one of these: no shut door, no refusal, no card
+ *  that says anything but OPEN 24 HOURS. */
+export const neverCloses = (h: BizHours): boolean => h.close - h.open >= 24;
+const allDay = neverCloses;
 
 function openAt(h: BizHours, totalMin: number): boolean {
   if (allDay(h)) return true;
@@ -123,6 +151,36 @@ export function fmtHour(hr: number): string {
   if (h === 12) return 'NOON';
   return h < 12 ? `${h} AM` : `${h - 12} PM`;
 }
+
+/**
+ * THE `ok` A ROOM HANDS THE INTERIOR KIT FOR ITS WAY-IN SPOT.
+ *
+ *     import { doorOpen } from './hours';
+ *     door: { …, ok: () => doorOpen(ctx, 'THRIFT') }
+ *
+ * `ct/interior.ts` registers the street `[E]` with
+ * `ok: () => (spec.door.ok ? spec.door.ok() : player.x() < 100)` — a room's own
+ * `ok` REPLACES the default rather than adding to it, so that default is
+ * restated here rather than in ten rooms. The 100 is the kit's: interiors are
+ * parked in a belt far out along +x, so "x < 100" means "still on the street",
+ * and a way-in spot must never fire from inside the belt.
+ *
+ * When this goes false the prompt does not merely die: `ct/hours-doors.ts`
+ * offers the shut door in its place, which is the half that tells you why and
+ * when to come back. Take one without the other and a closed shop becomes a
+ * doorway with nothing to say.
+ *
+ * A building with no row in the table is ungated, exactly as before.
+ */
+export function doorOpen(ctx: Pick<CtxBuild, 'clock' | 'player'>, key: string): boolean {
+  return ctx.player.x() < 100 && openNow(ctx, key);
+}
+
+/** the hours the way the card by the door writes them: '9 AM – 6 PM' */
+export const hoursSpan = (key: string): string => {
+  const h = BY_KEY.get(key);
+  return h ? `${fmtHour(h.open)} – ${fmtHour(h.close)}` : '';
+};
 
 /** when this business opens next, lowercase, for a prompt line —
  *  `closed — opens at 9 am`. Meaningless for a 24-hour row, which is fine:

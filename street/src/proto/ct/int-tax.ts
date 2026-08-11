@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom, seatTaken } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 import { FACE } from './rng';
 
 // A-1 TAX SERVICE, inside.
@@ -54,7 +55,8 @@ export function buildTax(ctx: CtxBuild): void {
     // all derive from DOOR above — one authoring, not two. The [E] spot used
     // to be hand-typed at z = -15.25 while the room was laid out around a door
     // 4.9 m away from it, which is the misalignment the user reported.
-    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
+    // the door keeps the office's hours — see int-burger.ts's note, and ct/hours.ts
+    door: { r: 1.05, at: DOOR.at, width: DOOR.width, ok: () => doorOpen(ctx, DOOR.building) },
   });
 
   const { put, solid } = room;

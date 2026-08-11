@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { doorOpen } from './hours';
 // K's shared panel cabinet. SAFE TO IMPORT FROM A ROOM, and worth saying why
 // rather than hoping: `ct/doors.ts` globs `./int-*.ts` EAGERLY, and any room in
 // an import cycle with it resolves to an undefined namespace and has its DOOR
@@ -192,7 +193,11 @@ export function buildBankInterior(ctx: CtxBuild): void {
     frontage: { name: FR_NAME, w: FR_W, cz: FR_CZ, side: FR_SIDE },
     // No `width` here on purpose: the LEAF above is the authority, so the room's
     // opening is the facade's 1.9 m bronze double and cannot be anything else.
-    door: { r: 1.05, at: DOOR.at },
+    // BANKER'S HOURS ARE NOW ON THE DOOR, not just on the loan desk — see
+    // int-burger.ts's note and ct/hours.ts. The desk's own `shut()` further
+    // down predates the table and stays its own (hours.ts says so); it is
+    // 9–16 and so is the row, so the two cannot be seen to disagree.
+    door: { r: 1.05, at: DOOR.at, ok: () => doorOpen(ctx, DOOR.building) },
     window: { at: WIN_X, w: 2.2, h: 2.1, sill: 0.60 },
   });
 

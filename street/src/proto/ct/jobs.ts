@@ -5,7 +5,6 @@ import { jobChance, stat } from './stats';
 import { registerSlice } from './save';
 import { boardStandoff } from './shop';
 import { makeSigPad, paintBackspace, type SigPad } from './signature';
-import { openNow, minsUntilClose, opensLabel } from './hours';
 import { workMinutesLeft, workStretch } from './fatigue';
 import type { CtxBuild } from './ctx';
 import type { Room } from './interior';
@@ -46,18 +45,21 @@ import type { Room } from './interior';
 //                     (the college's fade + snap), and hourly × hours lands
 //                     in cash at punch-out.
 //
-//                     …but no longer exactly eight — *"i want to be able to
-//                     work longer as long as the business is open"*
-//                     (2026-08-10). So the shift is bounded by the SHOP'S
-//                     HOURS (`ct/hours.ts`), both ways: it is cut short at
-//                     closing time, and punching the clock again straight
-//                     after a shift keeps you working — another stretch,
-//                     paid the same hourly, for as long as the place is
-//                     open. A 24-hour shop will let you work until the
-//                     fatigue system settles the argument. Still one working
-//                     day per calendar day: walk away for more than an hour
-//                     and the clock will not take your card again until
-//                     tomorrow.
+//                     …and punching the clock again straight after a shift
+//                     keeps you working — another stretch, paid the same
+//                     hourly — until the fatigue system settles the argument.
+//                     Still one working day per calendar day: walk away for
+//                     more than an hour and the clock will not take your card
+//                     again until tomorrow.
+//
+//                     THE SHOP'S HOURS ARE NOT THIS FILE'S BUSINESS ANY MORE.
+//                     They were, for a day: *"i want to be able to work longer
+//                     as long as the business is open"* (2026-08-10) put a gate
+//                     here that cut a shift short at closing time and refused
+//                     the card while the shop was dark. The gate moved to the
+//                     DOOR on 2026-08-11 — *"if were in we can always work"* —
+//                     so being at this clock already means the shop let you in,
+//                     and a shift is a full shift. See `ct/hours.ts`.
 //
 // ONE TABLE, ONE BUILDER. `jobStation()` below builds the whole wall section
 // — card, clipboard, form, punch clock, rack, both [E] spots — so an interior
@@ -360,25 +362,32 @@ function workShift(ctx: CtxBuild, shopId: string): void {
   const job = JOBS[shopId];
   const now = ctx.clock.now().totalMin;
   const d = dayNow(ctx);
-  // the punch clock keeps the shop's hours — `ct/hours.ts`'s one table
-  if (!openNow(ctx, shopId)) {
-    hudNote(`closed — ${job.at} opens at ${opensLabel(shopId)}`);
-    return;
-  }
+  // ── THE CLOCK NO LONGER KEEPS THE SHOP'S HOURS ───────────────────────────
+  //
+  // *"then if were in we can always work."*   (2026-08-11)
+  //
+  // Two refusals stood here and both are gone. This used to turn you away when
+  // the shop was shut, and then cut the shift down to `minsUntilClose` and
+  // refuse outright with "closing up — come back tomorrow" if that left under
+  // a quarter of an hour. All of it was written when the DOOR did not lock and
+  // the services had to hold the line instead.
+  //
+  // The door holds it now (`ct/hours.ts`, `ct/hours-doors.ts`), so you cannot
+  // be standing at this clock unless the shop let you in — and the user's rule
+  // for once you are in is the sentence above. A shift is a full shift. Nobody
+  // is ejected at closing time and nobody is short-changed for punching in at
+  // ten to six.
+  //
+  // WHAT IS LEFT IS THE SHOP'S OTHER RULE, which has nothing to do with hours:
+  // one shift a day, unless you are staying on straight off the last one.
   const stayingOn = lastOutMin >= 0 && now - lastOutMin <= STAY_ON_MIN;
   if (lastShiftDay === d && !stayingOn) {
     hudNote('you have already worked a shift today');
     return;
   }
-  // THE SHOP'S HALF — eight hours, or the shutters, whichever comes first. A
-  // stretch shorter than the walk to the clock is nobody's payday, and that
-  // refusal is asked FIRST because it is the shop's: being spent is never a
-  // reason the clock turns you away.
-  const shopMins = Math.min(SHIFT_HOURS * 60, minsUntilClose(ctx, shopId));
-  if (shopMins < 15) {
-    hudNote(`${job.at} is closing up — come back tomorrow`);
-    return;
-  }
+  // THE SHOP'S HALF is now one number: the shift it advertises on its own
+  // application form. Nothing about the clock on the wall shortens it.
+  const shopMins = SHIFT_HOURS * 60;
   // THE BODY'S HALF — see the block above. Floored at one minute so that
   // "you can always work" stays literally true right up to the collapse.
   const mins = Math.max(1, Math.min(shopMins, Math.floor(workMinutesLeft())));
@@ -723,8 +732,8 @@ export function jobStation(ctx: CtxBuild, room: Room, shopId: string, at: Statio
   room.put(rack, lx(RACK, 0.02), 1.50, lz(RACK, 0.02));
 
   // [E] work — one word, like sleep, and only where you are on the payroll.
-  // After hours the label speaks the closure itself (the bank's loan-desk
-  // grammar) and `workShift` refuses in the same words if pressed anyway.
+  // It says nothing about opening hours any more: the door you came through
+  // already settled that, and *"if were in we can always work"* (ct/hours.ts).
   ctx.spot({
     x: room.wx(lx(CLK, 0.75)), z: room.wz(lz(CLK, 0.75)),
     aimX: room.wx(lx(CLK, 0)), aimZ: room.wz(lz(CLK, 0)),
@@ -733,9 +742,7 @@ export function jobStation(ctx: CtxBuild, room: Room, shopId: string, at: Statio
     // …and when there is under an hour of work left in you the prompt says so
     // BEFORE you press it — the one warning you get while you can still act on
     // it. It never refuses; it only tells you what the stretch will be.
-    label: () => (openNow(ctx, shopId)
-      ? (workMinutesLeft() <= SPENT_MIN ? 'work — you can barely stand' : 'work')
-      : `closed — opens at ${opensLabel(shopId)}`),
+    label: () => (workMinutesLeft() <= SPENT_MIN ? 'work — you can barely stand' : 'work'),
     act: () => workShift(ctx, shopId),
   });
 }
