@@ -195,7 +195,26 @@ export function buildPawn(ctx: CtxBuild): void {
     const hx = dAt - DW / 2;
     const leaf = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH - 0.06),
       new THREE.MeshBasicMaterial({ map: pLeafT, side: THREE.DoubleSide }));
-    leaf.rotation.y = -OPEN;
+    // ⚠ `+OPEN`, NOT `-OPEN` — THE LEAF WAS HUNG MIRRORED. *"front door of pawn
+    // shop interior is backwards"*, and this sign is the whole of it.
+    //
+    // The centre below is offset from the hinge by `(cos OPEN, −sin OPEN)`, which
+    // is the leaf's OWN +x axis only when `rotation.y = +OPEN`. At `−OPEN` the
+    // plane's +x axis is `(cos, +sin)` instead, so that same offset walked
+    // BACKWARDS along the leaf: the wall end landed on the plane's +x edge (u=1)
+    // and the free end on u=0. The texture's handle is painted at u≈0.79, so it
+    // came out on the HINGE stile, against the jamb, which is exactly what the
+    // screenshot shows — and the hinge edge itself sat 0.24 m inboard of the
+    // jamb instead of on it.
+    //
+    // Flipping the sign makes placement and rotation agree: the hinge edge is
+    // now u=0 at x = hx (the jamb, exactly), the free edge is u=1 swung into the
+    // room, and the handle lands on the free stile where a hand reaches it.
+    // The leaf's x extent is unchanged (−0.64…−0.40) — the two ends swap, they
+    // do not move — so the sight line to the way-out spot that the note above
+    // was written to protect is untouched. Everything else on this 24x56 canvas
+    // is left/right symmetric, so the handle is the only thing that moves.
+    leaf.rotation.y = OPEN;
     put(leaf, hx + Math.cos(OPEN) * LW / 2, (DH - 0.06) / 2, hd - 0.10 - Math.sin(OPEN) * LW / 2);
   }
   const DARKWOOD = 0x3a2c22, STEEL = 0x8a8880;
