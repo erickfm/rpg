@@ -37,7 +37,7 @@ import { FELT as RL_FELT,
 // painted by bigsix's own exported painters, so the wheel you watch from the
 // door IS the wheel the game lands. Same no-cycle shape: bigsix.ts imports
 // only ./ctx at runtime, never this file.
-import { BOARD as BS_BOARD, PANE as BS_PANE,
+import { BOARD as BS_BOARD, PANE as BS_PANE, FACE as BS_FACE,
   paintBoard as paintBigSixBoard, paintWheelFace as paintBigSixFace,
   openWheel as openBigSix } from './bigsix';
 // The doorman speaks — the backroom's $1,000 rule is a LINE, not a tooltip.
@@ -1240,7 +1240,7 @@ export function buildCasino(ctx: CtxBuild): void {
     // THE WHEEL. The stand group's Rz(π/2) turns the cylinder's +y cap to
     // face −x (the avenue), so the head's own rotation.y — the axis the game
     // drives — spins it in the vertical plane. Pocket i is centred at canvas
-    // angle i/54·TAU (paintWheelFace's convention); the flapper hangs at
+    // angle i/N·TAU (paintWheelFace's convention); the flapper hangs at
     // world UP = local +x = bearing π/2, and ct/bigsix.ts rotates the head
     // to π/2 + wheelA against exactly that.
     const stand = new THREE.Group();
@@ -1248,7 +1248,11 @@ export function buildCasino(ctx: CtxBuild): void {
     stand.rotation.z = Math.PI / 2;
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.86, 0.06, 36), woodM);
     stand.add(rim);
-    const bsFaceT = declareSurface(pixTex(224, 224, (g) => paintBigSixFace(g, 224)), 'detail');
+    // the head's texel size is the GAME's call — it owns the lettering that
+    // has to survive it (2026-08-11: "big six wheel is illegible"). 512 over
+    // the 1.64 m head is ~312 px/m, up from 224's starved 136.
+    const bsFaceT = declareSurface(
+      pixTex(BS_FACE, BS_FACE, (g) => paintBigSixFace(g, BS_FACE)), 'detail', BS_FACE / 1.64);
     const bsHead = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.05, 36),
       [chrome, ctx.flat(bsFaceT), chrome]);
     bsHead.name = 'bigsix-wheel-head';

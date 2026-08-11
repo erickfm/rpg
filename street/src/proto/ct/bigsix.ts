@@ -8,21 +8,40 @@
 // ball next door.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// PART ONE: THE MATHS — one wheel of 54 pegged segments, six bets, and pays
-// tuned GENEROUS on his standing ruling ("fun should be optimized in the
-// casino"). A real Big Six keeps 15–24% of every bet, the worst hold in any
-// real house; this one prints boosted odds on the board and keeps 0–15%:
+// PART ONE: THE MATHS — 24 pegs, six bets, TRUE ODDS ON EVERY NUMBER.
 //
-//   segment   count   pays    RTP
-//   $1        27      1:1     100.0%   (even money at zero edge — the party)
-//   $2        13      3:1      96.3%
-//   $5         7      6:1      90.7%
-//   $10        4     12:1      96.3%
-//   $20        2     25:1      96.3%
-//   JOKER      1     45:1      85.2%   (the flashiest bet keeps the most,
-//                                       the floor's own ladder rule)
+// 2026-08-11, Erick, on the first face: *"big six wheel is illegible. fix
+// this, make it simpler maybe."* He was right — 54 segments across a 1.7 m
+// wheel is 6.7° of arc each, and a denomination drawn in 6.7° is a scratch.
+// So the wheel was REBUILT AT 24 PEGS: 15° a segment, more than double the
+// width, and the numbers read from the door. Legibility beats the reference —
+// a real Big Six has 54 pegs, but a real Big Six is three metres of painted
+// canvas and this one is a texture.
 //
-// THE DRAW IS ONE UNIFORM INTEGER IN [0, 54), taken the moment you press
+// SEGMENT COUNTS *ARE* THE PROBABILITIES, so the pays were re-derived from
+// scratch against the new face rather than carried over. The counts were
+// chosen so that every one of them divides 24 into an exact whole-number
+// price, which lets the board print TRUE ODDS on five of the six bets — the
+// simplest honest thing a wheel can say, and squarely on his standing ruling
+// that fun beats hold in this casino ("fun should be optimized"):
+//
+//   segment   count    p      pays     RTP
+//   $1          8    1/3       2:1    100.0%   ┐
+//   $2          6    1/4       3:1    100.0%   │ true odds, exactly — the
+//   $5          4    1/6       5:1    100.0%   │ house takes nothing on any
+//   $10         3    1/8       7:1    100.0%   │ number on the board
+//   $20         2   1/12      11:1    100.0%   ┘
+//   JOKER       1   1/24      20:1     87.5%   (true price is 23:1; the
+//                                               flashiest bet keeps the most,
+//                                               the floor's own ladder rule)
+//
+// Flat-betting every plate equally: 97.9% (was 94.1% at 54 pegs). Note $1
+// pays 2:1 now, NOT the old 1:1 — at 8 of 24 that is the same zero-edge party
+// bet the old 27-of-54 was, priced for the face it actually sits on. Every
+// number the plates print is computed from WHEEL below, so the board cannot
+// promise a price the wheel does not pay.
+//
+// THE DRAW IS ONE UNIFORM INTEGER IN [0, N), taken the moment you press
 // SPIN, before anything moves — the five seconds of wheel are presentation of
 // a decision already made, the slots' anticipation contract. Math.random,
 // never ct/rng.ts (GOTCHAS §2: the seeded stream plants every tree).
@@ -39,20 +58,28 @@ export const ORDER = BUILD.INTERIOR + 8;
 export type Seg = '1' | '2' | '5' | '10' | '20' | 'J';
 export const SEG_KINDS: readonly Seg[] = ['1', '2', '5', '10', '20', 'J'];
 
-/** Total returned on a win INCLUDING the stake — pays is N:1. */
+/** The price of each bet, N to 1 — a win returns bet × (PAYS + 1). Derived
+ *  from the counts in WHEEL: see the table in PART ONE. */
 export const PAYS: Record<Seg, number> = {
-  '1': 1, '2': 3, '5': 6, '10': 12, '20': 25, J: 45,
+  '1': 2, '2': 3, '5': 5, '10': 7, '20': 11, J: 20,
 };
 
-/** The physical wheel, in peg order: $1 on every even peg (27 of them), the
- *  rest interleaved so no two big segments ever touch. The painted head, the
- *  flapper and the payout all read from THIS array and nothing else. */
-const ODD: readonly Seg[] = [
-  '2', '5', '2', '10', '2', '5', '2', '20', '2', '5', '2', '10', '2', '5',
-  '2', 'J', '2', '5', '2', '10', '2', '5', '2', '20', '2', '10', '5',
+/** The physical wheel, in peg order — eight triples, each opening on an ivory
+ *  $1, so the face reads as eight bright spokes with the money between them
+ *  and no two like segments ever touching. The painted head, the flapper and
+ *  the payout all read from THIS array and nothing else, so editing it moves
+ *  the odds, the board's printed prices and the wheel you watch together. */
+export const WHEEL: readonly Seg[] = [
+  '1', '2', '5',
+  '1', '2', '10',
+  '1', '2', '20',
+  '1', '2', '5',
+  '1', '2', '10',
+  '1', '2', 'J',
+  '1', '5', '20',
+  '1', '5', '10',
 ];
-export const WHEEL: readonly Seg[] = ODD.flatMap((s) => ['1' as Seg, s]);
-export const N = WHEEL.length;                     // 54
+export const N = WHEEL.length;                     // 24
 
 /** The paint of each segment — read by this module's board AND by
  *  ct/int-casino.ts's wheel-head texture, so the board's plates and the wheel
@@ -292,7 +319,7 @@ export function createWheel(opts: { rng?: Rng; bank?: Bank } = {}): Wheel {
 // idle world texture (`paintBoard(g, w, h, null)`) and LIVE into the bottom of
 // the session pane while you play — one painter, two moments, cannot drift.
 //
-// `paintWheelFace` is the head itself: 54 wedges in peg order, called by
+// `paintWheelFace` is the head itself: N wedges in peg order, called by
 // ct/int-casino.ts under pixTex (a real 2D context) to paint the cylinder cap
 // the world spins. Segment i is CENTRED at canvas angle i/N·TAU — the same
 // convention as roulette's head, and the hook below rotates against it.
@@ -368,7 +395,7 @@ export function paintBoard(g: Paint2D, w: number, h: number, v: BigSixView | nul
   // ── what the counter is saying ──
   g.fillStyle = T.feltLo; g.fillRect(LAY.say.x, LAY.say.y, LAY.say.w, LAY.say.h);
   g.fillStyle = T.feltHi; g.fillRect(LAY.say.x, LAY.say.y, LAY.say.w, 1);
-  g.textAlign = 'center'; g.font = '9px monospace';
+  g.textAlign = 'center'; g.font = '10px monospace';
   if (v) {
     g.fillStyle = v.phase === 'settle' || v.phase === 'paying'
       ? (v.won ? T.win : T.dim) : T.dim;
@@ -388,7 +415,7 @@ export function paintBoard(g: Paint2D, w: number, h: number, v: BigSixView | nul
     } else {
       const lk = SEG_LOOK[seg];
       g.fillStyle = lk.fill; g.fillRect(hx, LAY.hist.y, LAY.hist.w, LAY.hist.h);
-      g.fillStyle = lk.ink; g.font = 'bold 8px monospace'; g.textAlign = 'center';
+      g.fillStyle = lk.ink; g.font = 'bold 9px monospace'; g.textAlign = 'center';
       g.fillText(seg === 'J' ? '★' : seg, hx + LAY.hist.w / 2, LAY.hist.y + 12);
     }
   }
@@ -408,12 +435,15 @@ export function paintBoard(g: Paint2D, w: number, h: number, v: BigSixView | nul
       g.fillText('★', px + p.w / 2, p.y + 15);
     }
     // the printed odds, on a dark footer plate — a wheel that hides its odds
-    // is a wheel you don't put $100 on
-    g.fillStyle = '#12180f'; g.fillRect(px, p.y + p.h - 22, p.w, 22);
-    g.fillStyle = T.ivory; g.font = 'bold 9px monospace';
-    g.fillText(`PAYS ${PAYS[seg]} TO 1`, px + p.w / 2, p.y + p.h - 12);
-    g.fillStyle = T.dim; g.font = '7px monospace';
-    g.fillText(`${WHEEL.filter((x) => x === seg).length} OF ${N} PEGS`,
+    // is a wheel you don't put $100 on. 2026-08-11: these two lines were set
+    // at 9 and 7 px and were as unreadable as the wheel face; the footer grew
+    // to 26 px and the type to 10 and 9, which is the widest "PAYS 20 TO 1"
+    // that still fits a 74 px plate in monospace (12 chars × 0.6 em = 72).
+    g.fillStyle = '#12180f'; g.fillRect(px, p.y + p.h - 26, p.w, 26);
+    g.fillStyle = T.ivory; g.font = 'bold 10px monospace';
+    g.fillText(`PAYS ${PAYS[seg]} TO 1`, px + p.w / 2, p.y + p.h - 15);
+    g.fillStyle = T.dim; g.font = '9px monospace';
+    g.fillText(`${WHEEL.filter((x) => x === seg).length} OF ${N}`,
       px + p.w / 2, p.y + p.h - 4);
   });
 
@@ -447,8 +477,8 @@ export function paintBoard(g: Paint2D, w: number, h: number, v: BigSixView | nul
     region(LAY.leave, 'LEAVE', true);
   }
 
-  g.fillStyle = 'rgba(154,176,160,0.55)'; g.font = '8px monospace'; g.textAlign = 'left';
-  g.fillText('54 PEGS · ONE FLAPPER · CLICK THE WHEEL OR SPIN', LAY.note.x, LAY.note.y);
+  g.fillStyle = 'rgba(154,176,160,0.72)'; g.font = '9px monospace'; g.textAlign = 'left';
+  g.fillText(`${N} PEGS · TRUE ODDS · CLICK THE WHEEL OR SPIN`, LAY.note.x, LAY.note.y);
 
   // the chip, riding the plate it is on
   if (v && v.bet >= 1) {
@@ -468,8 +498,15 @@ export function paintBoard(g: Paint2D, w: number, h: number, v: BigSixView | nul
   g.restore();
 }
 
+/** The face texture's edge, px — ct/int-casino.ts paints the head at this
+ *  size, so the density of the lettering is decided HERE, next to the drawing
+ *  that has to be legible. 512 over a 1.64 m head is ~312 px/m, comfortably
+ *  over the block's 150–200 px/m signage standard; the old 224 was 136 px/m
+ *  and starved every numeral it carried. */
+export const FACE = 512;
+
 /**
- * THE HEAD ITSELF — 54 wedges in peg order, gold pegs on every boundary,
+ * THE HEAD ITSELF — N wedges in peg order, gold pegs on every boundary,
  * called by ct/int-casino.ts under pixTex (a REAL 2D context; wedges need
  * moveTo, which Paint2D does not carry). Segment i is CENTRED at canvas angle
  * i/N·TAU. A cylinder cap at head rotation.y = θ shows canvas angle φ at
@@ -477,6 +514,17 @@ export function paintBoard(g: Paint2D, w: number, h: number, v: BigSixView | nul
  * stand turns local +x to world UP, and the flapper hangs at world up — local
  * bearing π/2 — so the hook sets θ = π/2 + wheelA and the flapper reads
  * exactly the segment the game announces.
+ *
+ * WHY THE DENOMINATION LIES ALONG THE RADIUS (2026-08-11, the illegibility
+ * fix). The first face set each label TANGENTIALLY — rotate(a + π/2), so the
+ * string ran AROUND the ring and its width had to fit inside the wedge. A
+ * wedge is 2·r·sin(π/N) wide: at 54 pegs that was ten texels at the label
+ * ring for a string needing eighteen, so every label overran its neighbours
+ * and the ring turned to scratches. Radial — rotate(a) — spends the string on
+ * the RADIUS, which is 200 texels long, and asks the wedge only for the
+ * glyph HEIGHT. At 24 pegs the narrow (inner) end of a "$10" has 35 texels of
+ * room for 27 texels of ink. Labels read outward all round, so the lower half
+ * hangs upside down exactly as it does on a real money wheel.
  */
 export function paintWheelFace(g: CanvasRenderingContext2D, S: number): void {
   const C = S / 2;
@@ -488,35 +536,39 @@ export function paintWheelFace(g: CanvasRenderingContext2D, S: number): void {
     g.beginPath(); g.moveTo(C, C);
     g.arc(C, C, C * 0.96, a0, a1); g.closePath(); g.fill();
   }
-  // the label ring, radial like the real thing
-  g.font = `bold ${Math.max(7, Math.round(S * 0.045))}px monospace`;
+  // separator lines under the lettering, so a numeral never sits on a seam
+  g.strokeStyle = 'rgba(30,22,16,0.8)'; g.lineWidth = Math.max(1, S * 0.005);
+  for (let i = 0; i < N; i++) {
+    const a = ((i + 0.5) / N) * TAU;
+    g.save(); g.translate(C, C); g.rotate(a);
+    g.beginPath(); g.moveTo(C * 0.22, 0); g.lineTo(C * 0.96, 0); g.stroke();
+    g.restore();
+  }
+  // THE MONEY, big and radial — the whole point of the rebuild
+  g.font = `bold ${Math.round(S * 0.075)}px monospace`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
   for (let i = 0; i < N; i++) {
     const seg = WHEEL[i];
     const a = (i / N) * TAU;
     g.fillStyle = SEG_LOOK[seg].ink;
     g.save();
-    g.translate(C + Math.cos(a) * C * 0.80, C + Math.sin(a) * C * 0.80);
-    g.rotate(a + Math.PI / 2);
-    g.fillText(seg === 'J' ? '★' : '$' + seg, 0, 0);
+    g.translate(C, C); g.rotate(a);
+    g.fillText(seg === 'J' ? '★' : SEG_LOOK[seg].label, C * 0.66, 0);
     g.restore();
   }
-  // separator lines and the pegs the flapper rides
-  g.strokeStyle = 'rgba(42,32,24,0.85)'; g.lineWidth = 1;
+  // the pegs the flapper rides — one per boundary, so the clack and the
+  // maths are the same N
   for (let i = 0; i < N; i++) {
     const a = ((i + 0.5) / N) * TAU;
-    g.save(); g.translate(C, C); g.rotate(a);
-    g.beginPath(); g.moveTo(C * 0.30, 0); g.lineTo(C * 0.96, 0); g.stroke();
-    g.restore();
     g.fillStyle = '#e8c25a';
     g.beginPath();
-    g.arc(C + Math.cos(a) * C * 0.93, C + Math.sin(a) * C * 0.93, S * 0.012, 0, TAU);
+    g.arc(C + Math.cos(a) * C * 0.93, C + Math.sin(a) * C * 0.93, S * 0.016, 0, TAU);
     g.fill();
   }
   // the hub
-  g.fillStyle = '#8a6a22'; g.beginPath(); g.arc(C, C, C * 0.24, 0, TAU); g.fill();
-  g.fillStyle = '#c9a45e'; g.beginPath(); g.arc(C, C, C * 0.20, 0, TAU); g.fill();
-  g.fillStyle = '#2a2018'; g.font = `bold ${Math.round(S * 0.07)}px monospace`;
+  g.fillStyle = '#8a6a22'; g.beginPath(); g.arc(C, C, C * 0.22, 0, TAU); g.fill();
+  g.fillStyle = '#c9a45e'; g.beginPath(); g.arc(C, C, C * 0.18, 0, TAU); g.fill();
+  g.fillStyle = '#2a2018'; g.font = `bold ${Math.round(S * 0.06)}px monospace`;
   g.fillText('777', C, C);
 }
 
