@@ -9,7 +9,7 @@ import { RADIUS, TOUCH_MARGIN } from '../fp';
 import { BUILD, type CtxBuild, type Site, type Spot } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { weedTuft } from './weeds';
-import { citizenSprite } from './citizens';
+import { citizenSprite, FH } from './citizens';
 import { loiter } from './loiter';
 import { talker } from './dialog';
 import { give, slots, takeOne } from './inventory';
@@ -3091,6 +3091,77 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     },
   };
   ctx.spot(kidSpot);
+  // ── AND ONCE HE HAS THEM, HE IS SMOKING THEM ─────────────────────────────
+  //
+  // *"once you give the kid smokes, he should always be in the park smoking.
+  //  thanks"*   (2026-08-11)
+  //
+  // WHAT HE DID BEFORE: took the pack, said his line, and went straight back to
+  // loitering empty-handed — the one trade in this park left no mark on the
+  // world. He never wandered off and never despawned: his spot is `ok: () =>
+  // true`, his mesh is added once and never hidden, and `loiter`'s `bounds`
+  // clamp holds him inside a 1.3 x 1.6 m patch of grass by the gate. So
+  // "always be in the park" was already true, and nothing else in the world
+  // moves him — `ct/crowd.ts` spawns its own walkers on the street and knows
+  // nothing about him. What was missing is the SMOKING.
+  //
+  // ⚠ `ct/smoking.ts` CANNOT BE REUSED FOR HIM, and it is the first thing to
+  // try. That animation is a full-viewport canvas at 3 CSS px per texel with
+  // YOUR hand rising into frame: first person, screen space, one smoker. A kid
+  // six metres away needs the cigarette IN THE WORLD. What IS reused is its
+  // palette, colour for colour — the paper `#e8e4d8`, the dull `#8a3a20` and
+  // flaring `#ff9a46` ember, the puffs' `#c4c0b6` — so his cigarette and yours
+  // are the same cigarette.
+  //
+  // IT HANGS ON HIS OWN BILLBOARD. The group copies `kid.mesh.rotation.y`,
+  // which `citizenSprite.update` has already aimed at the camera this frame, so
+  // local +x is screen-right and the cigarette sits at the corner of his mouth
+  // from all eight views without this file knowing that the atlas mirrors its
+  // far half. Everything is sized in ATLAS TEXELS MEASURED OFF HIS COMPOSED
+  // SPRITE rather than typed (BUILDER-BRIEF §8) — his 0.88 scale is applied
+  // once, in one place, so re-scaling him re-scales his smoke with him.
+  //
+  // HE NEVER PUTS IT OUT AND NEVER LIGHTS A NEW ONE: one cigarette, burning for
+  // good. A kid who has just come into twenty of them is not rationing, and a
+  // pack that ran out would be a clock nobody asked for.
+  //
+  // NO `Math.random`, ANYWHERE. Every wobble here is a sine of the frame clock
+  // and the puff's own index — GOTCHAS §2 is about the seeded stream and this
+  // runs on a frame, long after the last texture is baked, but a deterministic
+  // plume also cannot ever flicker differently in two runs of the same code.
+  kid.mesh.updateMatrixWorld(true);
+  const kidFrame = new THREE.Box3().setFromObject(kid.mesh);
+  const TEXEL = (kidFrame.max.y - kidFrame.min.y) / FH;    // one atlas row, at his size
+  const FRAME_TOP = kidFrame.max.y - kid.mesh.position.y;  // frame's top edge above his shoes
+  // The atlas paints the head's skin at frame rows 8-19, so row 16 is the
+  // mouth — 1.15 m up on a kid whose crown is at 1.46 m.
+  const MOUTH_Y = FRAME_TOP - 16 * TEXEL;
+  const CIG_X = 4 * TEXEL;                 // out past the cheek: the head is 10 texels wide
+  const TIP_X = CIG_X + 2.5 * TEXEL;       // the lit end, and where the smoke comes off
+  const smokeFx = new THREE.Group();
+  smokeFx.visible = false;
+  scene.add(smokeFx);
+  const cig = new THREE.Mesh(
+    new THREE.PlaneGeometry(5 * TEXEL, TEXEL),
+    new THREE.MeshBasicMaterial({ color: 0xe8e4d8, transparent: true, depthWrite: false }),
+  );
+  cig.position.set(CIG_X, MOUTH_Y, 0.02);  // 2 cm proud of the sprite plane, never in it
+  smokeFx.add(cig);
+  const emberMat = new THREE.MeshBasicMaterial({ color: 0x8a3a20, transparent: true, depthWrite: false });
+  const ember = new THREE.Mesh(new THREE.PlaneGeometry(1.6 * TEXEL, 1.6 * TEXEL), emberMat);
+  ember.position.set(TIP_X, MOUTH_Y, 0.022);
+  smokeFx.add(ember);
+  const EMBER_DULL = new THREE.Color(0x8a3a20), EMBER_HOT = new THREE.Color(0xff9a46);
+  // one geometry, six quads, six materials — only the opacity differs per puff
+  const puffGeo = new THREE.PlaneGeometry(1, 1);
+  const PUFFS = 6, PUFF_LIFE = 2.8;
+  const puff: THREE.Mesh[] = [], puffMat: THREE.MeshBasicMaterial[] = [];
+  for (let i = 0; i < PUFFS; i++) {
+    const m = new THREE.MeshBasicMaterial({ color: 0xc4c0b6, transparent: true, opacity: 0, depthWrite: false });
+    const q = new THREE.Mesh(puffGeo, m);
+    smokeFx.add(q); puff.push(q); puffMat.push(m);
+  }
+  let smokeT = 0;
   ctx.onFrame(({ px, pz, dt, gy }) => {
     // `gy < 0.5` — he does not turn to follow somebody up on a floor of the
     // walk-up next door. Park ground is the low one.
@@ -3106,6 +3177,30 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     kidBox.maxX = inIt ? 999 : kidWalk.x + KID_HALF;
     kidBox.minZ = inIt ? 999 : kidWalk.z - KID_HALF;
     kidBox.maxZ = inIt ? 999 : kidWalk.z + KID_HALF;
+    // ── THE CIGARETTE ────────────────────────────────────────────────────────
+    // Off past the far side of the block there is nothing to see, so there is
+    // nothing to animate; `kidTraded` is restored from the save slice, so a
+    // reload finds him already smoking rather than lighting up again.
+    smokeFx.visible = kidTraded && Math.hypot(px - kidWalk.x, pz - kidWalk.z) < 34;
+    if (!smokeFx.visible) return;
+    smokeT += dt;
+    smokeFx.position.set(kidWalk.x, parkY(kidWalk.x, kidWalk.z), kidWalk.z);
+    smokeFx.rotation.y = kid.mesh.rotation.y;   // the billboard he is painted on
+    // A DRAG EVERY FEW SECONDS, dull in between — the ember is the whole tell at
+    // distance, and one that burns evenly reads as a pilot light. Cubed, so the
+    // flare is short and the dull is long, which is what a cigarette does.
+    const drag = Math.max(0, Math.sin(smokeT * 0.9));
+    emberMat.color.copy(EMBER_DULL).lerp(EMBER_HOT, drag * drag * drag);
+    // the plume: six puffs on one rolling clock, each rising off the tip,
+    // swaying, growing and thinning out — `ct/smoking.ts`'s exhale, in metres
+    for (let i = 0; i < PUFFS; i++) {
+      const u = ((smokeT / PUFF_LIFE) + i / PUFFS) % 1;
+      const s = 0.03 + u * 0.20;
+      puff[i].position.set(TIP_X + Math.sin(u * 4.2 + i * 1.7) * 0.07,
+        MOUTH_Y + 0.05 + u * 0.85, 0.021);
+      puff[i].scale.set(s, s, 1);
+      puffMat[i].opacity = 0.34 * (1 - u) * Math.min(1, u * 10);
+    }
   });
   // (The note that stood here — *"THERE ARE NO CIGARETTES IN THIS WORLD"* —
   // came true in reverse on 2026-08-10: packs exist, and the label-and-branch
