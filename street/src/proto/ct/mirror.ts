@@ -1562,11 +1562,26 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
 // shop's garments for that slot on, free and temporary, with your own garment
 // as the first stop so a click always has somewhere honest to come back to.
 //
-// A TRIED-ON GARMENT GETS A PAPER TAG on the glass — the shop's biro card
-// palette, name and price — and clicking the tag is buying it. Bought clothes
-// `unlock` straight into the wardrobe (persisted with the outfit under
-// `ct-wardrobe`) and stay on your back; there is no parcel and nothing enters
-// the bag, which is the whole point of the rework this arrived in.
+// A TRIED-ON GARMENT IS PRICED OFF THE GLASS, NEVER ON IT.
+//
+// *"issue with the purchase option being on the mirror here. just move it off,
+//  keep things clean."*   (2026-08-11, on a screenshot of the price card laid
+//  across the reflection's head and shoulders)
+//
+// It used to be a paper tag drawn INTO this canvas, pinned top-left — and the
+// canvas IS the mirror, so the shop's till was printed over the one thing the
+// player came here to look at. That is the same complaint 301's glass already
+// carries (*"in the mirror make sure the overlay ... are gone"*, 2026-08-04):
+// a mirror shows you, and nothing else.
+//
+// So the panel now HANDS the priced lines out through `onTry` and draws none
+// of them. The room hangs them on a real ticket beside the glass
+// (`int-thrift.ts`), and `[B]`/Enter takes the money for everything you have
+// on that is not yours, in slot order, stopping at the first refusal —
+// `pay`'s own note says which one you are short of. Bought clothes `unlock`
+// straight into the wardrobe (persisted with the outfit under `ct-wardrobe`)
+// and stay on your back; there is no parcel and nothing enters the bag, which
+// is the whole point of the rework this arrived in.
 //
 // WALKING AWAY REVERTS. `onClose` puts every slot still wearing an unowned
 // garment back to what you walked up in — Escape, `[E]`, standing off: every
@@ -1577,10 +1592,8 @@ export function mirrorPanel(mesh: () => THREE.Object3D | null, o: {
 /** One thing the shop will let you try: which slot, which garment, what it costs. */
 export interface FitLine { slot: Slot; id: string; price: number }
 
-interface FitTag {
-  slot: Slot; name: string; price: number;
-  x: number; y: number; w: number; h: number;
-}
+/** One thing you have ON that is not yours yet — the ticket beside the glass. */
+export interface FitTry { slot: Slot; name: string; price: number }
 
 export function fittingPanel(mesh: () => THREE.Object3D | null, o: {
   standoff: number; fov: number;
@@ -1593,6 +1606,18 @@ export function fittingPanel(mesh: () => THREE.Object3D | null, o: {
   pay: (price: number, name: string) => boolean;
   /** what is in the purse, for the caption's `$x in hand` */
   cash: () => number;
+  /**
+   * WHAT YOU HAVE ON THAT IS NOT YOURS, whenever it changes — in slot order,
+   * empty when you are standing in your own clothes.
+   *
+   * The panel prices nothing on the glass any more (see the note above this
+   * function), so this is the whole of the shop's till: the room hangs these
+   * lines on a ticket in the world and the player presses `[B]`. Called on
+   * open, on every wardrobe change while this mirror lives, and on close —
+   * where it always ends up empty, because walking away puts it back on the
+   * rail.
+   */
+  onTry?: (lines: readonly FitTry[]) => void;
 }): () => void {
   const PW = Math.round(o.glassW * PANEL_PPM), PH = Math.round(o.glassH * PANEL_PPM);
   let panel: Panel | null = null;
@@ -1618,60 +1643,43 @@ export function fittingPanel(mesh: () => THREE.Object3D | null, o: {
     wearId(slot, ids[(at + dir + ids.length) % ids.length]);
   };
 
-  // ── the paper tags ───────────────────────────────────────────────────────
-  // One per slot currently wearing something unowned, pinned down the left
-  // edge of the glass in the shop's own card colours. Derived from the worn
-  // state at draw time and again at click time, so the drawing and the hit
-  // test cannot disagree.
-  const TAG_W = Math.min(PW - 8, 96), TAG_H = 26;
-  const tags = (): FitTag[] => {
-    const out: FitTag[] = [];
-    let y = 6;
+  // ── what is on the ticket ────────────────────────────────────────────────
+  // Every slot wearing something unowned, in slot order, derived from the worn
+  // state each time it is asked for — the ticket beside the glass and the till
+  // below read the SAME list, so what you are charged is what you were shown.
+  const pending = (): FitTry[] => {
+    const out: FitTry[] = [];
     for (const s of SLOTS) {
       const g = worn(s);
       if (owns(g.id)) continue;
       const l = lineFor(g.id);
       if (!l) continue;
-      out.push({ slot: s, name: g.name, price: l.price, x: 4, y, w: TAG_W, h: TAG_H });
-      y += TAG_H + 4;
+      out.push({ slot: s, name: g.name, price: l.price });
     }
     return out;
   };
-  const tagAt = (x: number, y: number): FitTag | null =>
-    tags().find((t) => x >= t.x && x < t.x + t.w && y >= t.y && y < t.y + t.h) ?? null;
+  /** hand the room the current ticket. Cheap, and safe to call on any change. */
+  const sync = () => o.onTry?.(pending());
 
-  const drawTags = (g: CanvasRenderingContext2D): void => {
-    for (const t of tags()) {
-      g.fillStyle = '#e2dcc6'; g.fillRect(t.x, t.y, t.w, t.h);
-      g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(t.x, t.y + t.h - 2, t.w, 2);
-      if (hover === t.slot) {
-        g.fillStyle = 'rgba(42,58,106,0.13)'; g.fillRect(t.x, t.y, t.w, t.h);
-      }
-      g.textBaseline = 'middle';
-      g.font = 'bold 9px monospace';
-      g.textAlign = 'left';
-      g.fillStyle = '#2a3a6a';
-      g.fillText(t.name, t.x + 4, t.y + 8);
-      g.fillStyle = '#8a2a22';
-      g.fillText(`$${t.price.toFixed(2)}`, t.x + 4, t.y + 19);
-      g.font = '9px monospace';
-      g.textAlign = 'right';
-      g.fillStyle = '#2a3a6a';
-      g.fillText('BUY', t.x + t.w - 4, t.y + 19);
-    }
-  };
-
-  const buy = (slot: Slot): void => {
+  const buyOne = (slot: Slot): boolean => {
     const g = worn(slot);
-    if (owns(g.id)) return;
+    if (owns(g.id)) return true;
     const l = lineFor(g.id);
-    if (!l) return;
-    if (!o.pay(l.price, g.name)) return;
+    if (!l) return true;
+    if (!o.pay(l.price, g.name)) return false;
     // PAY FIRST, THEN UNLOCK — `pay` is the only refusal, and once the money
     // moved the garment is in the 301 wardrobe for good. It stays on your
     // back: the snapshot is updated so the walk-away revert keeps it.
     unlock(g.id);
     snap[slot] = g.id;
+    return true;
+  };
+
+  /** `[B]`: buy what you have on, in slot order, stopping at the first refusal
+   *  — `pay` has already said which one you are short of. */
+  const buy = (): void => {
+    for (const t of pending()) if (!buyOne(t.slot)) break;
+    sync();
     repaint();
   };
 
@@ -1699,15 +1707,19 @@ export function fittingPanel(mesh: () => THREE.Object3D | null, o: {
         // NOT silent — a shop serves you, and the one framework line carries
         // the money, exactly as `shopCounter` argues it.
         hint: () => `$${o.cash().toFixed(2)} in hand`,
-        // the shop is LIT: `roomLight` is 301's switch and has no say here
-        draw: (g, w, h) => { paint(g, w, h, hover, FACING, lit, 1); drawTags(g); },
+        // the shop is LIT: `roomLight` is 301's switch and has no say here.
+        // NOTHING BUT THE REFLECTION GOES ON THIS CANVAS — see the note above
+        // this function; the prices hang on the room's ticket.
+        draw: (g, w, h) => { paint(g, w, h, hover, FACING, lit, 1); },
         key: (k) => {
           const i = hover ? SLOTS.indexOf(hover) : -1;
           if (k === 'arrowdown') hover = SLOTS[(i + 1 + SLOTS.length) % SLOTS.length];
           else if (k === 'arrowup') hover = SLOTS[(i - 1 + SLOTS.length) % SLOTS.length];
           else if (k === 'arrowright') { if (hover) tryCycle(hover, 1); }
           else if (k === 'arrowleft') { if (hover) tryCycle(hover, -1); }
-          else if (k === 'b' || k === 'enter') { if (hover) buy(hover); }
+          // THE TILL IS A KEY NOW, NOT A PATCH OF GLASS, and it does not need a
+          // hover: it buys the whole ticket the player is already reading.
+          else if (k === 'b' || k === 'enter') { buy(); return; }
           else return;
           repaint();
         },
@@ -1715,19 +1727,17 @@ export function fittingPanel(mesh: () => THREE.Object3D | null, o: {
           mesh,
           standoff: o.standoff,
           fov: o.fov,
-          hot: (x, y) => tagAt(x, y) !== null || slotAtCanvas(x, y, PW, PH, FACING) !== null,
+          hot: (x, y) => slotAtCanvas(x, y, PW, PH, FACING) !== null,
           move: (x, y) => {
-            const t = tagAt(x, y);
-            const z = t ? t.slot : slotAtCanvas(x, y, PW, PH, FACING);
+            const z = slotAtCanvas(x, y, PW, PH, FACING);
             if (z === hover) return;
             if (!hover || !z) relight();
             hover = z;
             repaint();
           },
           click: (x, y) => {
-            // THE TAG IS THE TILL. The body is the rail.
-            const t = tagAt(x, y);
-            if (t) { hover = t.slot; buy(t.slot); return; }
+            // THE WHOLE GLASS IS THE RAIL: a click is a change of clothes and
+            // never a purchase.
             const z = slotAtCanvas(x, y, PW, PH, FACING);
             if (!z) return;
             hover = z;
@@ -1739,6 +1749,7 @@ export function fittingPanel(mesh: () => THREE.Object3D | null, o: {
           hover = null; lit = 0;
           snap = {};
           for (const s of SLOTS) snap[s] = worn(s).id;
+          sync();
         },
         onClose: () => {
           if (litTimer) { clearInterval(litTimer); litTimer = 0; }
@@ -1746,9 +1757,15 @@ export function fittingPanel(mesh: () => THREE.Object3D | null, o: {
           const back: Partial<Record<Slot, string>> = {};
           for (const s of SLOTS) if (!owns(worn(s).id)) back[s] = snap[s];
           if (Object.keys(back).length) setOutfit(back);
+          // …AND TAKES THE TICKET DOWN WITH IT. `setOutfit` notifies below,
+          // but only if there was anything to put back — an empty revert must
+          // still clear a ticket left over from a garment you bought.
+          sync();
         },
       });
-      onWardrobeChange(() => { if (panel?.isOpen()) panel.repaint(); });
+      // The ticket follows the CLOTHES, not the panel: every route that
+      // changes what you have on lands here, including the revert on close.
+      onWardrobeChange(() => { sync(); if (panel?.isOpen()) panel.repaint(); });
       onSettingChange(() => { if (panel?.isOpen()) panel.repaint(); });
     }
     panel.open();

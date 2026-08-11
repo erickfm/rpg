@@ -6,7 +6,7 @@ import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
 import { hudNote } from './hud';
-import { glassCanvas, paintGlass, fittingPanel, type FitLine } from './mirror';
+import { glassCanvas, paintGlass, fittingPanel, type FitLine, type FitTry } from './mirror';
 import { wireRead } from './goods';   // and the side effect: it declares the stock
 
 // THE THRIFT STORE, inside.
@@ -641,9 +641,10 @@ export function buildThrift(ctx: CtxBuild): void {
   //
   // The glass is `ct/mirror.ts`'s — same painted cold plate, same canvas
   // derived from its metres — and the panel is `fittingPanel`: click a part
-  // of yourself to try the shop's garments on, a paper tag prices whatever
-  // you have on that is not yours, clicking the tag buys it (straight into
-  // the 301 wardrobe), and walking away hangs it all back on the rail.
+  // of yourself to try the shop's garments on, the TICKET ON THE WALL beside
+  // the glass prices whatever you have on that is not yours, `[B]` buys the
+  // ticket (straight into the 301 wardrobe), and walking away hangs it all
+  // back on the rail.
   const FIT_Z = 2.4;
   const FIT_GW = 0.48, FIT_GH = 1.50;
   const fitFrame = new THREE.Mesh(new THREE.BoxGeometry(0.06, FIT_GH + 0.12, FIT_GW + 0.12),
@@ -658,6 +659,74 @@ export function buildThrift(ctx: CtxBuild): void {
   solid(-hw + 0.05, FIT_Z, 0.12, FIT_GW + 0.16);
   // and the shop says what the mirror is for, in its own biro
   room.sign(cardT('TRY ON', 'B4 U BUY'), 0.44, 0.22, -hw + 0.1, 1.95, FIT_Z, Math.PI / 2);
+
+  // ── THE PRICE TICKET, ON THE WALL, NEXT TO THE GLASS ──────────────────────
+  //
+  // *"issue with the purchase option being on the mirror here. just move it
+  //  off, keep things clean."*   (2026-08-11)
+  //
+  // The prices used to be drawn INTO the mirror's own canvas, so a $10 sweater
+  // card sat across the reflection's head and shoulders — the shop's till
+  // printed over the one thing you came to this corner to look at. `mirror.ts`
+  // now hands the lines out through `onTry` and draws none of them; this is
+  // where they land: a real card taped to the wall, in the same biro the rest
+  // of the shop is written in, hung clear of the frame so the glass is nothing
+  // but glass.
+  //
+  // IT IS INSIDE THE FITTING VIEW BY CONSTRUCTION, not by luck. That camera
+  // sits `FIT_STANDOFF` off the glass at `FIT_FOV`, so it sees ±`tan(fov/2) ×
+  // standoff` in height (≈ ±0.89 m about the glass's middle) and wider than
+  // that in z on any landscape window — a card 0.62 m along the wall and 1.30 m
+  // up is comfortably inside it, and clear of the frame, which ends 0.30 m
+  // either side of `FIT_Z`.
+  //
+  // Density is the panel's own 200 px/m (`mirror.ts` `PANEL_PPM`, the density
+  // the tag it replaces was drawn at), and the canvas is DERIVED from the
+  // card's metres — BUILDER-BRIEF §7b.
+  const TICKET_W = 0.50, TICKET_H = 0.36, TICKET_PPM = 200;
+  const TKW = Math.round(TICKET_W * TICKET_PPM), TKH = Math.round(TICKET_H * TICKET_PPM);
+  /** at most four priced rows fit above the total; a fifth becomes `+N MORE` */
+  const TK_ROWS = 4;
+  let ticketLines: readonly FitTry[] = [];
+  const paintTicket = (g: CanvasRenderingContext2D): void => {
+    g.clearRect(0, 0, TKW, TKH);
+    g.fillStyle = '#e2dcc6'; g.fillRect(0, 0, TKW, TKH);
+    g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(0, TKH - 3, TKW, 3);
+    g.textBaseline = 'middle';
+    g.fillStyle = '#2a3a6a'; g.font = 'bold 7px monospace'; g.textAlign = 'left';
+    g.fillText('TRYING ON', 4, 8);
+    g.fillStyle = 'rgba(42,58,106,0.35)'; g.fillRect(4, 13, TKW - 8, 1);
+    const over = ticketLines.length > TK_ROWS;
+    const shown = over ? ticketLines.slice(0, TK_ROWS - 1) : ticketLines;
+    let y = 21;
+    for (const t of shown) {
+      g.font = '7px monospace'; g.textAlign = 'left'; g.fillStyle = '#2a3a6a';
+      g.fillText(t.name, 4, y);
+      g.textAlign = 'right'; g.fillStyle = '#8a2a22';
+      g.fillText(`$${t.price.toFixed(2)}`, TKW - 4, y);
+      y += 9;
+    }
+    if (over) {
+      g.font = '7px monospace'; g.textAlign = 'left'; g.fillStyle = '#2a3a6a';
+      g.fillText(`+${ticketLines.length - shown.length} MORE`, 4, y);
+    }
+    // the total, under a rule, the way a till slip adds up — and the key that
+    // takes it, because the glass no longer carries a thing you can press
+    const total = ticketLines.reduce((a, t) => a + t.price, 0);
+    g.fillStyle = 'rgba(42,58,106,0.35)'; g.fillRect(4, TKH - 16, TKW - 8, 1);
+    g.font = 'bold 7px monospace'; g.textAlign = 'left'; g.fillStyle = '#2a3a6a';
+    g.fillText(ticketLines.length > 1 ? '[B] BUY ALL' : '[B] BUY', 4, TKH - 9);
+    g.textAlign = 'right'; g.fillStyle = '#8a2a22';
+    g.fillText(`$${total.toFixed(2)}`, TKW - 4, TKH - 9);
+  };
+  const ticketT = declareSurface(pixTex(TKW, TKH, paintTicket), 'sign');
+  const ticketCv = ticketT.image as HTMLCanvasElement;
+  const ticket = new THREE.Mesh(new THREE.PlaneGeometry(TICKET_W, TICKET_H), ctx.flat(ticketT));
+  ticket.rotation.y = Math.PI / 2;                 // faces into the room (+x)
+  put(ticket, -hw + 0.06, 1.30, FIT_Z - 0.62);
+  // NOTHING ON, NOTHING TO PAY FOR, NO CARD. The keeper only clips a ticket up
+  // while you are standing in something that is still hers.
+  ticket.visible = false;
 
   // ── the rail, priced ──────────────────────────────────────────────────────
   //
@@ -704,6 +773,11 @@ export function buildThrift(ctx: CtxBuild): void {
   const openFitting = fittingPanel(() => fitGlass, {
     standoff: FIT_STANDOFF, fov: FIT_FOV, glassW: FIT_GW, glassH: FIT_GH,
     stock: TRY, pay: payFit, cash: () => ctx.purse.cash,
+    onTry: (lines) => {
+      ticketLines = lines;
+      ticket.visible = lines.length > 0;
+      if (lines.length) { paintTicket(ticketCv.getContext('2d')!); ticketT.needsUpdate = true; }
+    },
   });
   ctx.spot({
     x: room.wx(-hw + 1.15), z: room.wz(FIT_Z), r: 0.8,
