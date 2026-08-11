@@ -42,9 +42,49 @@ import { APT_X0, APT_Z0, ST0 } from './apartment';
 // ⚠ IF A THIRD KIND OF SNAP-BEHIND-A-FADE IS EVER BUILT (a bus ride, a jail
 // stint), it will read as sleep here. That may even be right — you doze on a
 // bus — but whoever builds it should know this module is watching.
+//
+// ── AND THE THIRD KIND ARRIVED: THE SHIFT ──────────────────────────────────
+//
+// *"then if were in we can always work. but you also can work yourself to
+//  death/passing out."*   (2026-08-11)
+//
+// It was already built and this module was already misreading it. A shift in
+// `ct/jobs.ts` is a `screenFade` with the clock snapped in the middle — the
+// same gesture as the bed, to the millisecond — so EIGHT HOURS BEHIND THE
+// GRILL RESET THE AWAKE WINDOW TO ZERO AND HEALED YOU TO FULL. Work was the
+// best sleep in town, and "work yourself to passing out" was unreachable by
+// construction: the punch clock cured the very thing it was supposed to cause.
+//
+// The observer cannot tell the two apart by watching — both are a big jump
+// behind a fade — so the shift DECLARES ITSELF: `ct/jobs.ts` calls
+// `workStretch()` before it starts its fade, and the jump that follows is
+// charged as time on your feet instead of credited as a night. That is the
+// one exception to "observed rather than reported" in this module, and it
+// earns it: the two events are indistinguishable from outside, and guessing
+// wrong is the difference between a job and a bed.
 
 /** The hard limit, before stimulants: 24 game-hours awake. */
 const BASE_MIN = 24 * 60;
+
+/**
+ * ── WHAT AN HOUR OF WORK COSTS THE BODY ────────────────────────────────────
+ *
+ * More than an hour of standing about, which is the whole of *"you can work
+ * yourself to death/passing out"*: if a shift only cost what loitering cost,
+ * the job would be a slow way to reach a limit you would hit anyway. At 1.5
+ * the arithmetic lands where the sentence points —
+ *
+ *   a plain 24 h window  = 16 hours of work, if you spend it ALL working
+ *   one 8 h shift        = 12 h of the window, so the FIRST one is free
+ *   the second shift     = capped by what is left, and the floor arrives
+ *                          somewhere inside it — you go down ON SHIFT
+ *   a coffee (+6 h)      = 4 more hours of work, half a shift, $1-ish
+ *
+ * FIRST-PASS NUMBER, and the one most worth arguing about: 1.5 makes a double
+ * shift the thing that breaks you, which is the shape of the ask. Raise it to
+ * punish work harder, drop it toward 1.0 to make the job merely tiring.
+ */
+const WORK_RATE = 1.5;
 /** A one-frame clock delta above this is a jump, not passage — 10× the
  *  biggest honest frame (0.05 game-min) and far below the smallest night. */
 const JUMP_MIN = 0.5;
@@ -70,11 +110,25 @@ export const STIMULANT_HOURS: Record<string, number> = {
  * the module's exported origin so they cannot drift from the building:
  * `AX(lx) = APT_X0 + lx`, and the spot's `ok()` gates on `2 * ST`. Yaw π/2
  * faces +x, into the room, the way you'd stand up off that side of the bed.
+ *
+ * ⚠ A FUNCTION, NOT A CONST, AND THAT IS LOAD-ORDER LOAD-BEARING. As a
+ * top-level const this read `APT_X0` the instant this module's body ran, which
+ * was fine only while nothing imported this module before `ct/apartment.ts`
+ * had finished initialising. `ct/jobs.ts` now imports this module (the punch
+ * clock asks the body how much it has left), eleven interiors import
+ * `ct/jobs.ts`, and that new edge was enough to run this body inside the
+ * trunk's — `Cannot access 'APT_X0' before initialization`, world dead at
+ * boot. Read at CALL time and the coupling to the trunk cannot exist at load
+ * time at all; the numbers are still the apartment's own, never copied.
  */
-const FLAT_BED = { x: APT_X0 - 2.6, z: APT_Z0 + 4.2, yaw: Math.PI / 2, gy: 2 * ST0 };
+const flatBed = () =>
+  ({ x: APT_X0 - 2.6, z: APT_Z0 + 4.2, yaw: Math.PI / 2, gy: 2 * ST0 });
 
 // ── state ──────────────────────────────────────────────────────────────────
-/** continuous game-minutes awake — the thing sleeping resets */
+/** WEAR on the body since the last sleep, in game-minutes — the thing sleeping
+ *  resets. An idle minute costs one; a minute on shift costs `WORK_RATE`, so
+ *  this is no longer literally "minutes awake" and the gauges read it as a
+ *  fraction of `limitMin()` rather than as a clock. */
 let awakeMin = 0;
 /** stimulant extension, in game-minutes. ADDITIVE — two coffees are twelve
  *  hours, because "keep you going for 6 extra hours" reads as fuel, and each
@@ -89,7 +143,44 @@ let slept: { x: number; z: number; yaw: number; gy: number } | null = null;
 let lastMin: number | null = null;
 let passing = false;
 
+/** game-minutes of the NEXT clock jump that are a shift and not a night —
+ *  armed by `workStretch` an instant before `ct/jobs.ts` starts its fade, and
+ *  spent by the observer when the jump lands. Deliberately NOT saved: it is
+ *  alive only for the ~400 ms of one fade, and a save cannot land inside one. */
+let workPending = 0;
+/** how the notes name the employer you are currently on the clock for —
+ *  'the barn', 'the diner'. Set with the stretch, read once by the collapse so
+ *  it can say where you fell, cleared by the collapse and by any real sleep. */
+let workAt: string | null = null;
+
 function limitMin(): number { return BASE_MIN + boostMin; }
+
+/**
+ * ── WHAT `ct/jobs.ts` ASKS, AND WHAT IT IS TOLD ────────────────────────────
+ *
+ * `workMinutesLeft()` is the punch clock's half of the deal: how many minutes
+ * of WORK the body has left in it, which is the wear margin divided by what
+ * work costs. The clock caps the stretch it hands out with this, so a shift
+ * ends the moment the body does rather than paying you for eight hours you
+ * could not have stood through — and the collapse then fires on the very next
+ * frame, out of the observer's ordinary `left <= 0`, with the player standing
+ * at the clock, no fade of its own left running and no panel up.
+ *
+ * NEVER NEGATIVE, and never a reason for the clock to REFUSE — *"if were in
+ * we can always work"*. Two minutes left means a two-minute stretch and then
+ * the floor, which is the joke working exactly as written.
+ */
+export function workMinutesLeft(): number {
+  return Math.max(0, (limitMin() - awakeMin) / WORK_RATE);
+}
+
+/** Declare a stretch about to be snapped through behind a fade. Call it BEFORE
+ *  starting that fade; the observer charges the jump as time on your feet. */
+export function workStretch(mins: number, at: string): void {
+  if (!(mins > 0)) return;
+  workPending += mins;
+  workAt = at;
+}
 
 // ══ THE BODY AS THE GAUGE — vignette and blinks, no text ═══════════════════
 //
@@ -301,7 +392,11 @@ function passOut(ctx: CtxBuild): void {
   if (ctx.player.seated() || ctx.player.airborne() || panelUp()) return;
   passing = true;
 
-  const wake = slept ?? FLAT_BED;
+  // WHERE YOU FELL, read before the fade clears it. Non-null only when the
+  // stretch that finished you was a shift, which is the whole difference
+  // between "you stayed up too long" and "you worked yourself into the floor".
+  const fell = workAt;
+  const wake = slept ?? flatBed();
   // *"its a percentage between 1-10%"* — a whole percent, 1…10, rolled at the
   // moment you go down. Runtime `Math.random`, never `ct/rng.ts`'s seeded
   // stream: that one is the world's build grain (GOTCHAS §2) and this is dice.
@@ -343,6 +438,7 @@ function passOut(ctx: CtxBuild): void {
       ctx.player.jumpTo(wake.x, wake.z, wake.yaw, wake.gy);
       ctx.clock.advance(mins, { overSeconds: 0 });
       awakeMin = 0; boostMin = 0;
+      workPending = 0; workAt = null;   // the shift ended the hard way
       slept = { ...wake };
       clearApproach();      // he wakes with open eyes and a clear rim
     },
@@ -350,10 +446,13 @@ function passOut(ctx: CtxBuild): void {
   }).then(() => {
     passing = false;
     // One HUD line, no panel — waking must never trap input. The note fades
-    // on its own and Escape owes nothing.
+    // on its own and Escape owes nothing. The work wording is the same
+    // sentence with the cause named: you did not drift off, you dropped, and
+    // the pockets they went through had a shift's wages in them an hour ago.
+    const how = fell ? `you went down on the floor of ${fell}.` : 'you blacked out.';
     hudNote(lost > 0
-      ? `you blacked out. somebody went through your pockets — $${lost.toFixed(2)} gone.`
-      : 'you blacked out. at least your pockets were already empty.', 6500);
+      ? `${how} somebody went through your pockets — $${lost.toFixed(2)} gone.`
+      : `${how} at least your pockets were already empty.`, 6500);
     flush();
   });
 }
@@ -407,10 +506,26 @@ export function register(ctx: CtxBuild): void {
 
     if (d > JUMP_MIN) {
       if (screenFading()) {
+        // ── A SHIFT, DECLARED — see the header. Charged, not credited ──────
+        // You lived every minute of it, on your feet, and it cost you MORE
+        // than the minutes: no reset, no heal, no new sleep spot, and the rim
+        // is redrawn here so it has already closed in by the time the screen
+        // comes back up. `left <= 0` is left to the next ordinary frame —
+        // `passOut` would refuse anyway while this fade is still running.
+        if (workPending > 0) {
+          const worked = Math.min(d, workPending);
+          workPending -= worked;
+          awakeMin += worked * WORK_RATE;
+          drawVignette(awakeMin / limitMin());
+          flush();
+          return;
+        }
         // A sleep cut — the bed, the hotel, or this module's own pass-out.
         // Reset the stretch and remember where he was standing when the
         // screen went black: that is where "wherever you slept" is.
         awakeMin = 0; boostMin = 0;
+        // whatever was on the clock is over — you are not on shift in your bed
+        workPending = 0; workAt = null;
         clearApproach();
         slept = {
           x: ctx.player.x(), z: ctx.player.z(),

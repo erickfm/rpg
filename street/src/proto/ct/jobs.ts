@@ -6,6 +6,7 @@ import { registerSlice } from './save';
 import { boardStandoff } from './shop';
 import { makeSigPad, paintBackspace, type SigPad } from './signature';
 import { openNow, minsUntilClose, opensLabel } from './hours';
+import { workMinutesLeft, workStretch } from './fatigue';
 import type { CtxBuild } from './ctx';
 import type { Room } from './interior';
 
@@ -307,6 +308,46 @@ function submitApplication(ctx: CtxBuild, shopId: string): void {
 /** how long after clocking out the card still counts as staying on, minutes */
 const STAY_ON_MIN = 60;
 
+// ══ AND THE BODY GETS A VOTE ═════════════════════════════════════════════════
+//
+// *"then if were in we can always work. but you also can work yourself to
+//  death/passing out."*   (2026-08-11)
+//
+// Both halves of that sentence live in `workShift` below. The clock NEVER
+// refuses you for being tired — the only refusals left in it are the shop's
+// (closed, closing up) and the calendar's (a shift already worked today). What
+// the body does instead is CAP THE STRETCH: `ct/fatigue.ts`'s
+// `workMinutesLeft()` is how many minutes of work is left in you, and the card
+// comes back out of the throat the moment that runs out. Punch in with two
+// hours in you and you get a two-hour stretch, two hours' pay, and the floor.
+//
+// The collapse itself is not built here and must not be: it is the pass-out
+// `ct/fatigue.ts` has owned since 2026-08-08 — eight hours gone, 1–10% of the
+// cash off you while you are out, a tenth of max health, and you wake wherever
+// you last slept. It fires by itself on the frame after this stretch ends,
+// because the stretch ended exactly where the margin did. Nothing modal is
+// involved anywhere in it, at either end.
+//
+// The one thing this file owes is that you can FEEL it coming. Two places, and
+// both are things you were already reading: the `[E]` prompt on the clock says
+// so before you commit, and the punch-out receipt says so after. Everything
+// else is the vignette closing in, which is the body's own gauge and not this
+// module's business.
+
+/** minutes of work left below which the clock's own prompt warns you */
+const SPENT_MIN = 60;
+
+/** what the receipt adds about the state you clocked out in — nothing at all
+ *  until the margin is short, and nothing when the floor is about to answer
+ *  for itself. `left` is projected: the shift's wear lands during the fade. */
+function bodyTail(mins: number): string {
+  const left = workMinutesLeft() - mins;
+  if (left <= 0) return '';                    // the collapse says it better
+  if (left <= SPENT_MIN) return '. you are asleep on your feet.';
+  if (left <= 4 * 60) return ". your hands won't hold still.";
+  return '';
+}
+
 /** '8 hours', '4 hours 30 minutes' — the shift the way the note says it */
 function fmtShift(mins: number): string {
   const h = Math.floor(mins / 60), m = mins % 60;
@@ -329,14 +370,23 @@ function workShift(ctx: CtxBuild, shopId: string): void {
     hudNote('you have already worked a shift today');
     return;
   }
-  const mins = Math.min(SHIFT_HOURS * 60, minsUntilClose(ctx, shopId));
-  if (mins < 15) {
-    // a shift shorter than the walk to the clock is nobody's payday
+  // THE SHOP'S HALF — eight hours, or the shutters, whichever comes first. A
+  // stretch shorter than the walk to the clock is nobody's payday, and that
+  // refusal is asked FIRST because it is the shop's: being spent is never a
+  // reason the clock turns you away.
+  const shopMins = Math.min(SHIFT_HOURS * 60, minsUntilClose(ctx, shopId));
+  if (shopMins < 15) {
     hudNote(`${job.at} is closing up — come back tomorrow`);
     return;
   }
+  // THE BODY'S HALF — see the block above. Floored at one minute so that
+  // "you can always work" stays literally true right up to the collapse.
+  const mins = Math.max(1, Math.min(shopMins, Math.floor(workMinutesLeft())));
   lastShiftDay = d;
   lastOutMin = now + mins;
+  // Declared BEFORE the fade starts, so the jump it snaps through is charged
+  // as time on your feet instead of being credited as a night's sleep.
+  workStretch(mins, job.at);
   void screenFade({
     mid: () => ctx.clock.advance(mins, { overSeconds: 0 }),
     outMs: 140, holdMs: 90, inMs: 170,
@@ -345,7 +395,7 @@ function workShift(ctx: CtxBuild, shopId: string): void {
   const pay = Math.round(job.hourly * mins * 100 / 60) / 100;
   ctx.purse.cash += pay;
   ctx.refreshWallet();
-  hudNote(`${fmtShift(mins)} at ${job.at} — $${pay.toFixed(2)}, cash`);
+  hudNote(`${fmtShift(mins)} at ${job.at} — $${pay.toFixed(2)}, cash${bodyTail(mins)}`);
 }
 
 // ══ THE FORM, PAINTED ════════════════════════════════════════════════════════
@@ -680,8 +730,11 @@ export function jobStation(ctx: CtxBuild, room: Room, shopId: string, at: Statio
     aimX: room.wx(lx(CLK, 0)), aimZ: room.wz(lz(CLK, 0)),
     r: 0.9, obj: clockMesh,
     ok: () => room.inside() && hiredAt === shopId,
+    // …and when there is under an hour of work left in you the prompt says so
+    // BEFORE you press it — the one warning you get while you can still act on
+    // it. It never refuses; it only tells you what the stretch will be.
     label: () => (openNow(ctx, shopId)
-      ? 'work'
+      ? (workMinutesLeft() <= SPENT_MIN ? 'work — you can barely stand' : 'work')
       : `closed — opens at ${opensLabel(shopId)}`),
     act: () => workShift(ctx, shopId),
   });
