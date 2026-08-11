@@ -482,3 +482,27 @@ echo "  slot-coin-full.ogg  <- slot coin win.wav  22050Hz  ${g}dB  3.64s"
 # other pull now that five paylines put the hit rate at 44%.
 echo "the loss:"
 sfx loss "loss.flac" 0.00 0.22 22050
+
+# ── and the money (2026-08-11) ──────────────────────────────────────────────
+#
+# *"whenever you gain money play the money sound whenever yuou lose money play
+# the loss sound."* — `cash increase.mp3`, dropped the same hour. The loss half
+# of that ask was already encoded above; this is the gain.
+#
+# 0.65 s of file whose EVENT is the first 0.42: a bright coin-and-chime
+# flourish that opens at 0.021 s, sits at its body from 0.10-0.25 s (10 ms rms
+# 0.15-0.17) and decays smoothly to nothing by 0.42. Cut just under the onset,
+# and the sfx helper's own fade lands at 0.42 s inside that decay — so unlike
+# the coin tray and the church peal this one needs no bespoke tail, because the
+# recording ENDS rather than being cut off.
+#
+# 32 kHz, measured and not assumed: 58.5% of its energy is 250 Hz-2 kHz, 36.5%
+# is 2-8 kHz and 4.9% is 8-16 kHz, with NOTHING above 16 kHz. Nyquist at 16 kHz
+# keeps all of it — the registers' and the bites' call, and the opposite of the
+# womp it answers (86% below 2 kHz, encoded at 22.05).
+#
+# Peak-normalised like every other one-shot: it arrives at -9.0 dBFS, and a
+# chime flourish IS its transients — there is no sparse body here for the
+# loudest frame to misrepresent, which is the test the rain bed failed.
+echo "the money:"
+sfx cash-gain "cash increase.mp3" 0.015 0.480 32000

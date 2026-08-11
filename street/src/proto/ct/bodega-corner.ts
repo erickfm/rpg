@@ -4,6 +4,7 @@ import { WALK, FACE } from './rng';
 import {
   facadeTex, shopfrontTex, shopInteriorTex, masonry,
   SHOP_BAND_H, SHOP_MULT, HI, reveal, proud, glazed, mullions,
+  sheet, fitInk, FASCIA_PPM,
 } from './tex-world';
 import { walkTex } from './tex-ground';
 import { type BldSpec } from './civic';
@@ -265,6 +266,28 @@ export function buildBodegaCorner(c: {
     // 2 m face, three times the density of the elevation it abuts.
     const bayS = masonry(CFW, SHOP, 0, SHOP_MULT);
     const bm = bayS.m, bw = bayS.W, bh = bayS.H;
+    // ── THE SIGNBOARD, drawn at whatever density the surface offers ─────────
+    //
+    // Nothing about the bay's look changes here. What changes is that the SAME
+    // call paints it twice: once on the 16 px/m band below, where `BODEGA` was
+    // six texels of ink a glyph like every other board on this block, and once
+    // on a 64 px/m plane hung 3 cm in front of it, which is the one you read.
+    // A pixel is not a distance, so the letters' drop shadow is a metre value
+    // now — `+1` would have been 6 cm on the band and 1.6 cm on the board.
+    const bayBoard = (g: CanvasRenderingContext2D, S: { m: (v: number) => number; W: number; H: number },
+                      x: number, y: number, w: number, h: number) => {
+      proud(g, S, x, y, w, h, bod.col);
+      const sh = Math.max(1, S.m(0.05));
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      fitInk(g, bod.nm, 'monospace', w * 0.9, S.m(0.6));
+      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillText(bod.nm, x + w / 2 + sh, y + h / 2 + sh);
+      g.fillStyle = '#f2ead0'; g.fillText(bod.nm, x + w / 2, y + h / 2);
+    };
+    // its box on the painted band, and the same box back in metres for the
+    // plane — measured off that canvas's own texel grid so the applied board's
+    // edges land on the boundaries the painter drew to
+    const bdY = bm(0.16), bdH = bm(0.9), bdX = bm(0.12), bdW = bw - bm(0.24);
+    const PX = bayS.ppm;
     const bayFrontT = bayS.paint((g) => {
       // ONE RHYTHM across the whole bay, drawn with A's shopfront vocabulary
       // (proud / reveal / glazed / mullions from ct/tex-world.ts) rather than
@@ -278,12 +301,8 @@ export function buildBodegaCorner(c: {
       g.fillStyle = bod.brick; g.fillRect(0, 0, bw, bh);
       bayS.courses(g);
       // fascia: a signboard fixed to the brick, so it throws a shadow
-      const fy = bm(0.16), fh = bm(0.9);
-      proud(g, S, bm(0.12), fy, bw - bm(0.24), fh, bod.col);
-      g.font = `bold ${bm(0.6)}px monospace`;
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillText(bod.nm, bw / 2 + 1, fy + fh / 2 + 1);
-      g.fillStyle = '#f2ead0'; g.fillText(bod.nm, bw / 2, fy + fh / 2);
+      const fy = bdY, fh = bdH;
+      bayBoard(g, S, bdX, fy, bdW, fh);
       // ONE opening, set back from the brick, with ONE reveal round it
       const ox = bm(0.4), oy = fy + fh + bm(0.26);
       const ow = bw - bm(0.8), oh = bh - oy - bm(0.05);
@@ -318,6 +337,19 @@ export function buildBodegaCorner(c: {
       new THREE.MeshBasicMaterial({ map: bayFrontT, alphaTest: 0.5 }));
     bayFront.position.set(0, SHOP / 2, 0);
     bay.add(bayFront);
+    // the same board again at four times the density, 3 cm off the face. It
+    // is 3.1 m up and 3 cm deep, so nothing can walk into it, and the awning
+    // below tucks under the fascia's foot with the clearance the note further
+    // down measures — this sits entirely above that.
+    {
+      const bwM = bdW / PX, bxM = bdX / PX, bhM = bdH / PX;
+      const board = sheet(bwM, bhM, (g, W, H) => {
+        bayBoard(g, { m: (v) => Math.max(v > 0 ? 1 : 0, Math.round(v * FASCIA_PPM)), W, H },
+          0, 0, W, H);
+      }, { taped: false, ppm: FASCIA_PPM });
+      board.position.set(bxM + bwM / 2 - CFW / 2, SHOP - bdY / PX - bhM / 2, 0.03);
+      bay.add(board);
+    }
     // The bay front is the one shopfront face that is a REAL hole — 861 of its
     // 3015 texels are discarded by that alphaTest, which is what makes the
     // doorway read as a way in. It had nothing behind it, and the sidewalk is

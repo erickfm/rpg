@@ -1186,6 +1186,46 @@ export function shopfrontRelief(o: {
   put(o.wMeters, CORNICE_H, CORNICE, 0, corniceTop - CORNICE_H / 2, mat(tint.clone().multiplyScalar(0.72)));
   put(o.wMeters, 0.07, BED, 0, F.fasciaBottomM - 0.035, mat(tint.clone().multiplyScalar(0.55)));
 
+  // ── THE BOARD ITSELF, at four times the band's density ────────────────────
+  //
+  // A shop's name is the one thing on this street that has to be READ from the
+  // far pavement, and all fifteen of them were being painted onto the 16 px/m
+  // brick canvas: a 0.6 m letter is six texels of ink, which is the blur the
+  // mattress store got called out for. So the board leaves the wall the same
+  // way the Sleep Center's paper did — `fasciaArt` draws it here at 64 px/m,
+  // and the painted one underneath, drawn by the same function from the same
+  // numbers, is what shows if this plane ever fails to build.
+  //
+  // 0.03 m PROUD IS IN THE CLEAR, and the geometry above says why: the cornice
+  // is 0.20 deep but sits entirely ABOVE `fTop`, the bed mould is 0.13 deep but
+  // sits entirely BELOW `F.fasciaBottomM`, and the plane spans exactly between
+  // them. It is 3.2 m up, so nothing can walk into it either.
+  //
+  // NOT the college — `ct/college-yard.ts` already hangs its own frieze plane
+  // at this density over that band, and two planes in one place is a z-fight.
+  fascia: {
+    if (o.name === 'COMMUNITY COLLEGE') break fascia;
+    const PX = WALL_PPM * SHOP_MULT;                   // the painted band's density
+    const mm = (v: number) => Math.max(v > 0 ? 1 : 0, Math.round(v * PX));
+    const bd = fasciaBoardPx(o.name, Math.round(o.wMeters * PX), mm);
+    // measured back off the PAINTED canvas's texel grid, so the plane's edges
+    // land on the boundaries the painter drew to rather than a fraction beside
+    // them and leave a blurred sliver showing round the crisp board
+    const bwM = bd.w / PX, bx0M = bd.x / PX;
+    const fyM = SHOP_BAND_H - F.fasciaBottomM - F.fasciaH;
+    const topM = SHOP_BAND_H - mm(fyM) / PX, fhM = mm(F.fasciaH) / PX;
+    // a shell too narrow to carry a board gets none, rather than a one-texel
+    // canvas stretched over a negative-width plane
+    if (bwM < 0.6 || fhM <= 0) break fascia;
+    const doorM = doorAlongU(o.name, o.wMeters, F.doorCentreM) - bx0M;
+    const board = sheet(bwM, fhM, (gg, WW, HH) => {
+      const s2: Band = { W: WW, H: HH, m: (v) => Math.max(v > 0 ? 1 : 0, Math.round(v * FASCIA_PPM)) };
+      fasciaArt(gg, s2, { x: 0, y: 0, w: WW, h: HH, name: o.name, trim: o.trim, doorX: doorM * FASCIA_PPM });
+    }, { taped: false, ppm: FASCIA_PPM });
+    board.position.set(bx0M + bwM / 2 - half, topM - fhM / 2, 0.03);
+    g.add(board);
+  }
+
   // ── the glass reveal: jambs each side and a head over, so the glazing
   //    reads as set back behind a frame rather than flush with the brick ─────
   const dark = 0x332e28;
@@ -1196,11 +1236,17 @@ export function shopfrontRelief(o: {
   put(0.14, gH + 0.12, JAMB, gR + 0.07, gMid, mat(dark));
   put(gR - gL + 0.28, 0.13, JAMB, (gL + gR) / 2, F.glazingTopM + 0.06, mat(dark));
 
-  // ── the paper taped inside the Sleep Center's glass ───────────────────────
+  // ── the paper taped inside the glass ──────────────────────────────────────
   // Selected by name, the same dispatch the blade below uses. It is here rather
-  // than in `mattressFront` because a sign that has to be READ cannot live on a
+  // than in the painters because a sign that has to be READ cannot live on a
   // 16 px/m masonry canvas — the note above `sleepWindowSigns` has the numbers.
+  // The Sleep Center was first; the other four had the same disease and the
+  // same overpainting faults on top of it.
   if (o.name === 'SLEEP CENTER') sleepWindowSigns(g, F, half);
+  else if (o.name === 'A-1 TAX') taxWindowSigns(g, F, half);
+  else if (o.name === 'VOLT VILLAGE') voltWindowSigns(g, F, half, o.wMeters);
+  else if (o.name === 'VIDEO HUT') videoWindowSigns(g, F, half);
+  else if (o.name === 'THRIFT') thriftWindowSigns(g, F, half);
 
   // ── the stallriser: a cill where it meets the glass, a plinth at the
   //    pavement. The step you catch with your shin. ──────────────────────────
@@ -1395,22 +1441,21 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
   let sd = 0x811c9dc5;
   for (let i = 0; i < name.length; i++) sd = Math.imul(sd ^ name.charCodeAt(i), 0x01000193) >>> 0;
   const vary = (n: number) => { sd = Math.imul(sd ^ 0x9e3779b1, 0x01000193) >>> 0; return (sd >>> 8) % n; };
-  const BAND_MAX = 12, BAND_INSET = 0.5;
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     // the band's foot IS world y = 0, so its courses are the datum the wall
     // above continues from — same 0.5 m spacing, same lines
     surf.courses(g);
-    // fascia: a signboard fixed to the brick, so it throws a shadow
+    // fascia: a signboard fixed to the brick, so it throws a shadow.
+    // `fasciaArt` draws it, and the same call at 64 px/m in `shopfrontRelief`
+    // hangs the board you actually read — one authoring, two densities.
     const B = BANDS.default;
     const fy = m(B.fy), fh = m(B.fh);
-    const bandW = Math.min(W - m(2 * BAND_INSET), m(BAND_MAX)), bandX = Math.round((W - bandW) / 2);
-    proud(g, surf, bandX, fy, bandW, fh, awning);
-    g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(bandX, fy + fh - m(0.16), bandW, m(0.16));
-    g.font = `bold ${m(0.6)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillText(name, W / 2 + 1, fy + fh / 2 + 1);
-    g.fillStyle = '#f2ead0'; g.fillText(name, W / 2, fy + fh / 2);
+    const bd = fasciaBoardPx(name, W, m);
+    fasciaArt(g, surf, {
+      x: bd.x, y: fy, w: bd.w, h: fh, name, trim: awning,
+      doorX: m(doorAlongU(name, wMeters, F.doorCentreM)),
+    });
     // the opening, set back from the brick face
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#211d18'; g.fillRect(ox, oy, ow, oh);
@@ -1536,6 +1581,319 @@ export function mullions(g: CanvasRenderingContext2D, s: Band, x: number, y: num
   }
 }
 
+// ══════════════════ APPLIED SIGNAGE: A SIGN GETS ITS OWN TEXELS ═════════════
+//
+// THE HOUSE FLOOR FOR ANYTHING THAT HAS TO BE READ IS 150 px/m, and it is
+// stated twice in this tree already — `ct/college-yard.ts` ("the shop boards
+// are 150 px/m") and `ct/hours-cards.ts` ("200 px/m — above the 150 floor …
+// texel starvation is the blur disease signs die of here"). Every painted
+// letter on this block was 9-19x under it, because it was being drawn on the
+// 16 px/m brick canvas: a 0.6 m fascia letter is six texels of ink and a 0.2 m
+// price card letter is under two. *"mattress storefront looks like shit"* was
+// one shop's symptom of a block-wide disease.
+//
+// The cure is the one the Sleep Center's paper and the college's frieze both
+// already use, promoted here so every front can have it: the artwork LEAVES
+// THE WALL onto its own plane at its own density, standing a couple of
+// centimetres proud of the painted band. Two things fall out of that for free:
+//
+//   · the density (4x for a fascia, 12x for paper), and
+//   · THE DOOR CANNOT CHOP IT. The door is painted on the canvas underneath;
+//     a plane in front of that canvas is drawn after it by construction, so
+//     the overpainting faults — VIDEO HUT's `NEW RELEASES` erased by a
+//     centre door, `VHS · 2 FOR $20` cut mid-word, the tax office's `E-FILE`
+//     under a door frame, `LOANS GOLD TOOLS` under the pawnbroker's balls —
+//     cannot come back by anyone moving a door.
+//
+// `SIGN_PPM` is paper and cards; `FASCIA_PPM` is architecture. A fascia is
+// 18 m wide and does not need paper's density — 64 px/m matches the college's
+// applied frieze, which is the neighbour it has to sit beside.
+//
+// `sheet`, `fitInk` and `FASCIA_PPM` are EXPORTED for the same reason
+// proud/reveal/glazed/mullions are: `ct/bodega-corner.ts` paints the canted
+// bay that turns the corner between two of these shopfronts, and its fascia
+// had the identical six-texel letters. Module-private helpers would have left
+// that builder a choice between copying them and leaving the bay blurry.
+const SIGN_PPM = 200;
+export const FASCIA_PPM = 64;
+
+/** largest whole font that fits `maxW` — a long line shrinks, it never clips.
+ *  It only ever shrinks: a fitter that GROWS is the casino marquee's trap,
+ *  where short text swells until it hits the rule above it. */
+export function fitInk(g: CanvasRenderingContext2D, text: string, family: string, maxW: number, cap: number): void {
+  for (let s = cap; s > 5; s--) {
+    g.font = `bold ${s}px ${family}`;
+    if (g.measureText(text).width <= maxW) return;
+  }
+}
+
+/** one applied sheet, sized in METRES and drawn in its own texels.
+ *
+ *  `cutout` is for lettering with no paper behind it — the video shop's
+ *  `NEW RELEASES` is yellow type on the lit ceiling of the room, and giving it
+ *  a paper ground would invent a sign nobody asked for. alphaTest rather than
+ *  plain blending so it needs no sort against the glass behind it; `dither`'s
+ *  heaviest grain is alpha 0.16, well under the 0.5 cut, so the weathering
+ *  lands on the ink and vanishes off it. */
+export function sheet(wM: number, hM: number,
+                      draw: (g: CanvasRenderingContext2D, W: number, H: number) => void,
+                      o: { taped?: boolean; ppm?: number; cutout?: boolean } = {}): THREE.Mesh {
+  const ppm = o.ppm ?? SIGN_PPM, taped = o.taped ?? true;
+  const W = Math.max(1, Math.round(wM * ppm)), H = Math.max(1, Math.round(hM * ppm));
+  const tex = declareSurface(pixTex(W, H, (g) => {
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    draw(g, W, H);
+    // the tape, last, so it lies OVER the ink the way real tape does
+    if (taped) {
+      g.fillStyle = 'rgba(214,204,176,0.55)';
+      const t = Math.max(3, Math.round(H * 0.16)), l = Math.max(8, Math.round(H * 0.34));
+      for (const x of [0, W - l]) for (const y of [0, H - t]) g.fillRect(x, y, l, t);
+    }
+    dither(g, W, H, Math.round(W * H / 900));
+  }), 'sign', ppm);
+  return new THREE.Mesh(new THREE.PlaneGeometry(wM, hM),
+    new THREE.MeshBasicMaterial(o.cutout
+      ? { map: tex, transparent: true, alphaTest: 0.5 }
+      : { map: tex }));
+}
+
+/** the two panes a door leaves in the glazing, WIDEST FIRST, in frontage
+ *  metres. Every window on this block puts its shout on one and its small
+ *  print on the other, and none of them may straddle the door. */
+function panesOf(F: Layout, clear = 0.10): [number, number][] {
+  const dL = F.doorCentreM - F.doorWidthM / 2 - clear;
+  const dR = F.doorCentreM + F.doorWidthM / 2 + clear;
+  const p: [number, number][] = [
+    [F.glazingStartM, Math.min(dL, F.glazingEndM)],
+    [Math.max(dR, F.glazingStartM), F.glazingEndM],
+  ];
+  return p.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));
+}
+
+/** the OPEN card on the door leaf. Four shops have one and all four were
+ *  painted at m(0.16) — a three-texel font, 1.8 texels of ink per glyph. */
+function openCard(ink: string, paper = '#f2ead0'): THREE.Mesh {
+  return sheet(0.5, 0.26, (g, W, H) => {
+    g.fillStyle = paper; g.fillRect(0, 0, W, H);
+    const lw = Math.max(2, Math.round(H * 0.06));
+    g.lineWidth = lw; g.strokeStyle = ink;
+    g.strokeRect(lw, lw, W - lw * 2, H - lw * 2);
+    fitInk(g, 'OPEN', 'monospace', W * 0.62, Math.round(H * 0.48));
+    g.fillStyle = ink; g.fillText('OPEN', W / 2, H * 0.5);
+  }, { taped: false });
+}
+
+// ══ THE FASCIAS ═════════════════════════════════════════════════════════════
+//
+// The liveries live at module scope because TWO surfaces wear them now — the
+// painted band and the applied plane over it — and a colour authored twice is
+// how the burger barn's mustard survived three "fixes" (see burgerFront).
+const SHOP_LETTER = '#f2ead0';
+const BURGER_RED = '#c8302a', BURGER_BEIGE = '#e6dcc6';
+const PAWN_BOARD = '#6a5a3a', PAWN_GOLD = '#c9a45e', PAWN_INK = '#e8dcc0', PAWN_SUB = '#c9bfa0';
+const TAX_BANNER = '#d8d2c4', TAX_NAVY = '#2c4a7a';
+const SLEEP_RUST = '#b8642c', SLEEP_CREAM = '#efe6d2';
+const VOLT_GRAPHITE = '#2a2d33', VOLT_RED = '#c8322a';
+const VIDEO_BLUE = '#1e5aa8', VIDEO_YELLOW = '#f2c22a';
+const DINER_STEEL_D = '#6e747a', DINER_VINYL = '#8a2f34';
+const THRIFT_BOARD = '#7a5a2c', THRIFT_CARD = '#e4dcc4';
+const COLLEGE_STONE = '#d3c9ae', COLLEGE_STONE_D = '#b0a68b';
+
+/** Where a shop's fascia BOARD sits inside its band, in the surface's texels.
+ *  Most run the full frontage; the pawnbroker's, the thrift store's and the
+ *  college's are boards screwed to the brick, the tax office's is a banner
+ *  cable-tied over it, and the block default's is a centred signboard capped
+ *  at 12 m so a wide shell does not get a 20 m plank. */
+function fasciaBoardPx(name: string, W: number, mm: (v: number) => number): { x: number; w: number } {
+  const k = characterOf(name);
+  if (k === 'default') {
+    const w = Math.min(W - mm(1.0), mm(12));
+    return { x: Math.round((W - w) / 2), w };
+  }
+  const ins = k === 'pawn' || k === 'thrift' || k === 'college' ? mm(0.25)
+    : k === 'tax' ? mm(0.45) : 0;
+  return { x: ins, w: W - 2 * ins };
+}
+
+interface FasciaArt {
+  /** the board's box in THIS surface's texels */
+  x: number; y: number; w: number; h: number;
+  name: string;
+  /** the roster colour ct/street.ts hands the painter and the relief alike */
+  trim: string;
+  /** the door's centre, in the same texel space as `x` — the pawnbroker's
+   *  three balls hang over it and its lettering has to keep out of their way */
+  doorX: number;
+}
+
+/**
+ * ONE FASCIA, DRAWN AT WHATEVER DENSITY THE SURFACE OFFERS.
+ *
+ * Every measurement is `s.m(metres)`, so this same code paints the 16 px/m
+ * band and the 64 px/m plane that covers it and the two cannot drift. That is
+ * the point: an applied sign that restates its own board is two authorings of
+ * one fact, which is the fault this file spends most of its comments on.
+ *
+ * The one thing that is NOT a straight transcription of what was here before
+ * is the pawnbroker's lettering — see below.
+ */
+function fasciaArt(g: CanvasRenderingContext2D, s: Band, o: FasciaArt): void {
+  const m = s.m, { x, y, w, h } = o;
+  const cx = x + w / 2, cy = y + h / 2;
+  // the drop under applied letters, in METRES not pixels. It was `+1` on six
+  // of these fronts, which is 6 cm of shadow at 16 px/m and 1.6 cm at 64 —
+  // a pixel is not a distance, and at four times the density it would have
+  // quietly become no shadow at all.
+  const sh = Math.max(1, m(0.05));
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  /** applied letters with a shadow under them, fitted so they never overrun */
+  const letter = (t: string, px: number, py: number, cap: number,
+                  ink: string, shadow: string, maxW: number) => {
+    fitInk(g, t, 'monospace', maxW, m(cap));
+    g.fillStyle = shadow; g.fillText(t, px + sh, py + sh);
+    g.fillStyle = ink; g.fillText(t, px, py);
+  };
+
+  switch (characterOf(o.name)) {
+    // a signboard fixed to the brick, so it throws a shadow. Quiet on purpose:
+    // a barber, a deli and a laundry are supposed to be quiet next to the six
+    // that have a character.
+    case 'default':
+      proud(g, s, x, y, w, h, o.trim);
+      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x, y + h - m(0.16), w, m(0.16));
+      letter(o.name, cx, cy, 0.6, SHOP_LETTER, 'rgba(0,0,0,0.34)', w * 0.92);
+      break;
+    // a light box, not a painted board: the face is FLAT and even and its
+    // edges are hard, because it is lit from inside
+    case 'burger':
+      proud(g, s, x, y, w, h, BURGER_RED);
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x, y + m(0.1), w, m(0.5));
+      g.fillStyle = BURGER_BEIGE; g.fillRect(x, y + h - m(0.14), w, m(0.14));
+      letter('BURGER BARN', cx, cy, 0.62, BURGER_BEIGE, 'rgba(0,0,0,0.30)', w * 0.9);
+      break;
+    // hand-painted and brush-streaked; nobody has spent money on this frontage
+    // since the balls went up
+    case 'pawn': {
+      proud(g, s, x, y, w, h, PAWN_BOARD);
+      g.fillStyle = 'rgba(0,0,0,0.10)';
+      const step = Math.max(2, m(0.28));
+      for (let bx = x; bx < x + w; bx += step) {
+        if (Math.round((bx - x) / step) % 3 === 0) g.fillRect(bx, y, Math.max(1, m(0.14)), h);
+      }
+      // THE BALLS HANG OVER THE DOOR AND THE WORDS GO WHERE THEY ARE NOT.
+      //
+      // The balls are drawn after the lettering and are 0.4 m across, so
+      // whatever they landed on was erased: with the room declaring this door
+      // dead centre of the front, the cluster sat on `LOANS GOLD TOOLS` and
+      // ate `LOA`. Moving the balls is not the answer — they belong over the
+      // door, a user called that out by name, and they are derived from it so
+      // they follow if the room ever moves it. So the LETTERING is what gets
+      // laid out around them: measure the run of board the cluster leaves,
+      // take the longer end, and set both lines inside it.
+      const br = Math.max(1, m(0.19)), spread = m(0.42);
+      const c = Math.min(Math.max(o.doorX, x + m(0.7)), x + w - m(0.7));
+      const b0 = c - spread / 2 - br, b1 = c + spread / 2 + br;
+      const clear = m(0.18);
+      const runs: [number, number][] = [[x + m(0.15), b0 - clear], [b1 + clear, x + w - m(0.15)]];
+      const run = runs[0][1] - runs[0][0] >= runs[1][1] - runs[1][0] ? runs[0] : runs[1];
+      const rw = Math.max(m(1.2), run[1] - run[0]);
+      letter('PAWN', run[0] + rw * 0.19, cy, 0.5, PAWN_INK, 'rgba(0,0,0,0.34)', rw * 0.34);
+      fitInk(g, 'LOANS  GOLD  TOOLS', 'monospace', rw * 0.58, m(0.3));
+      g.fillStyle = PAWN_SUB;
+      g.fillText('LOANS  GOLD  TOOLS', run[0] + rw * 0.68, cy + m(0.06));
+      for (const [ox2, oy2] of [[-0.21, -0.28], [0.21, -0.28], [0, 0.14]] as [number, number][]) {
+        g.fillStyle = 'rgba(0,0,0,0.35)';
+        g.beginPath(); g.ellipse(c + m(ox2) + sh, cy + m(oy2) + sh, br, br, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = PAWN_GOLD;
+        g.beginPath(); g.ellipse(c + m(ox2), cy + m(oy2), br, br, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.35)';
+        g.beginPath(); g.ellipse(c + m(ox2) - br * 0.3, cy + m(oy2) - br * 0.3, br * 0.35, br * 0.35, 0, 0, Math.PI * 2); g.fill();
+      }
+      break;
+    }
+    // CLOTH, so it sags and its edges are soft. Screen-printed letters sit ON
+    // the banner rather than in it: a light bleed above and the ink below.
+    case 'tax':
+      g.fillStyle = TAX_BANNER; g.fillRect(x, y, w, h);
+      g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(x, y + h - m(0.14), w, m(0.14));
+      g.fillStyle = 'rgba(0,0,0,0.35)';
+      for (const gx2 of [x + m(0.12), x + w - m(0.27)]) {
+        g.fillRect(gx2, y + m(0.1), m(0.09), m(0.09));
+        g.fillRect(gx2, y + h - m(0.2), m(0.09), m(0.09));
+      }
+      fitInk(g, 'A-1 TAX SERVICE', 'monospace', w * 0.8, m(0.5));
+      g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillText('A-1 TAX SERVICE', cx, cy - sh);
+      g.fillStyle = 'rgba(20,26,44,0.35)'; g.fillText('A-1 TAX SERVICE', cx, cy + sh);
+      g.fillStyle = TAX_NAVY; g.fillText('A-1 TAX SERVICE', cx, cy);
+      break;
+    // a painted board with a signwriter's cream keyline inset from its edge,
+    // which stops 13 m of one colour reading as a bar
+    case 'mattress':
+      proud(g, s, x, y, w, h, SLEEP_RUST);
+      g.fillStyle = 'rgba(239,230,210,0.30)';
+      g.fillRect(x + m(0.25), y + m(0.12), w - m(0.5), Math.max(1, m(0.05)));
+      g.fillRect(x + m(0.25), y + h - m(0.17), w - m(0.5), Math.max(1, m(0.05)));
+      letter('SLEEP CENTER', cx, cy, 0.54, SLEEP_CREAM, 'rgba(40,20,10,0.45)', w * 0.88);
+      break;
+    // a backlit box with the tube showing through the plexi top and bottom
+    case 'electro':
+      proud(g, s, x, y, w, h, VOLT_GRAPHITE);
+      g.fillStyle = 'rgba(90,190,220,0.28)';
+      g.fillRect(x + m(0.2), y + m(0.1), w - m(0.4), Math.max(1, m(0.06)));
+      g.fillRect(x + m(0.2), y + h - m(0.16), w - m(0.4), Math.max(1, m(0.06)));
+      letter(o.name, cx, cy, 0.5, VOLT_RED, 'rgba(0,0,0,0.5)', w * 0.88);
+      break;
+    // the deepest fascia on the block, because on a rental shop the sign IS
+    // the shop
+    case 'video':
+      proud(g, s, x, y, w, h, VIDEO_BLUE);
+      g.fillStyle = 'rgba(242,194,42,0.85)';
+      g.fillRect(x + m(0.3), y + m(0.13), w - m(0.6), Math.max(1, m(0.06)));
+      g.fillRect(x + m(0.3), y + h - m(0.19), w - m(0.6), Math.max(1, m(0.06)));
+      letter('VIDEO HUT', cx, cy, 0.62, VIDEO_YELLOW, 'rgba(0,20,50,0.5)', w * 0.88);
+      break;
+    // stainless, fluted — horizontal lines are what read as pressed metal
+    // rather than painted board
+    case 'diner': {
+      proud(g, s, x, y, w, h, DINER_STEEL);
+      const t = Math.max(1, m(0.03)), pitch = Math.max(3, m(0.16));
+      for (let yy = y + m(0.12); yy < y + h - m(0.1); yy += pitch) {
+        g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x, yy, w, t);
+        g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x, yy + t, w, t);
+      }
+      g.fillStyle = DINER_STEEL_D; g.fillRect(x, y + h - m(0.16), w, m(0.16));
+      letter(o.name, cx, cy, 0.58, DINER_VINYL, 'rgba(0,0,0,0.38)', w * 0.88);
+      break;
+    }
+    // a painted board, sun-bleached unevenly across its own length
+    case 'thrift': {
+      proud(g, s, x, y, w, h, o.trim || THRIFT_BOARD);
+      const bleach = Math.max(4, Math.round(w / Math.max(1, m(0.5))));
+      for (let i = 0; i < bleach; i++) {
+        const x0 = x + Math.round((w * i) / bleach), x1 = x + Math.round((w * (i + 1)) / bleach);
+        g.fillStyle = `rgba(228,220,196,${0.05 + 0.09 * Math.abs(Math.sin((x0 - x) / Math.max(1, m(0.5)) * 0.34))})`;
+        g.fillRect(x0, y, x1 - x0, h);
+      }
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, y + h - m(0.1), w, m(0.1));
+      letter(o.name, cx, cy, 0.55, THRIFT_CARD, 'rgba(0,0,0,0.32)', w * 0.88);
+      break;
+    }
+    // cast stone with the name incised: the dark cut, and the lit lower edge
+    // of it. Civic, not retail — no drop shadow, because nothing is applied.
+    case 'college':
+      proud(g, s, x, y, w, h, COLLEGE_STONE);
+      g.fillStyle = COLLEGE_STONE_D;
+      g.fillRect(x, y + m(0.10), w, Math.max(1, m(0.045)));
+      g.fillRect(x, y + h - m(0.14), w, Math.max(1, m(0.045)));
+      fitInk(g, 'CROSSTOWN COMMUNITY COLLEGE', 'monospace', w * 0.9, m(0.40));
+      g.fillStyle = 'rgba(250,244,225,0.35)';
+      g.fillText('CROSSTOWN COMMUNITY COLLEGE', cx, y + h * 0.52 + Math.max(1, m(0.045)));
+      g.fillStyle = '#5a4f3c';
+      g.fillText('CROSSTOWN COMMUNITY COLLEGE', cx, y + h * 0.52);
+      break;
+  }
+}
+
 // ── three shopfronts that are NOT the block default ─────────────────────
 //
 // Everything else on the street wears shopfrontTex, which is the right
@@ -1565,7 +1923,7 @@ export const burgerFront = (brick: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf('BURGER BARN', wM);
-  const RED = '#c8302a', BEIGE = '#e6dcc6', PLASTIC = '#b8ada0';
+  const RED = BURGER_RED, PLASTIC = '#b8ada0';
   // The room behind is DIM. A shopfront lit as bright as the sky reads as a
   // cream slab — which is what the first pass did. Glass is dark, and the
   // lit things inside it (the ceiling, the menu box) are what you see.
@@ -1578,13 +1936,10 @@ export const burgerFront = (brick: string, wM: number) => {
     // the painted board on the thrift shop
     const B = BANDS.burger;
     const fy = m(B.fy), fh = m(B.fh);
-    proud(g, surf, 0, fy, W, fh, RED);
-    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, fy + m(0.1), W, m(0.5));  // even internal glow
-    g.fillStyle = BEIGE; g.fillRect(0, fy + fh - m(0.14), W, m(0.14));              // trim rail
-    g.fillStyle = BEIGE; g.font = `bold ${m(0.62)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillText('BURGER BARN', W / 2 + 1, fy + fh / 2 + 1);
-    g.fillStyle = BEIGE; g.fillText('BURGER BARN', W / 2, fy + fh / 2);
+    fasciaArt(g, surf, {
+      x: 0, y: fy, w: W, h: fh, name: 'BURGER BARN', trim: RED,
+      doorX: m(doorAlongU('BURGER BARN', wM, F.doorCentreM)),
+    });
     // the opening, set back from the brick
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#2a2622'; g.fillRect(ox, oy, ow, oh);
@@ -1686,42 +2041,23 @@ export const pawnFront = (brick: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf('PAWN', wM);
-  const BOARD = '#6a5a3a', GOLD = '#c9a45e', STEEL = '#40453f';
+  const BOARD = PAWN_BOARD, GOLD = PAWN_GOLD, STEEL = '#40453f';
   const GOODS = ['#8a3a2e', '#c9a45e', '#3a5a8a', '#8a8378', '#4a7a3a', '#7a3a6a', '#a8a29a'];
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
-    // hand-painted board, brush-streaked along its length
+    // hand-painted board, brush-streaked along its length. THE THREE BALLS
+    // BELONG OVER THE DOOR — a user named that, and `fasciaArt` still derives
+    // them from `doorAlongU` so they follow if the room ever moves it. What
+    // changed is that the LETTERING now measures the run of board they leave
+    // and sets itself inside it, instead of being painted first and eaten.
     const B = BANDS.pawn;
     const fy = m(B.fy), fh = m(B.fh);
-    proud(g, surf, m(0.25), fy, W - m(0.5), fh, BOARD);
-    g.fillStyle = 'rgba(0,0,0,0.10)';
-    for (let x = m(0.25); x < W - m(0.25); x += m(0.28)) if ((x / m(0.28)) % 3 < 1) g.fillRect(x, fy, m(0.14), fh);
-    g.font = `bold ${m(0.5)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillText('PAWN', W * 0.42 + 1, fy + fh / 2 + 1);
-    g.fillStyle = '#e8dcc0'; g.fillText('PAWN', W * 0.42, fy + fh / 2);
-    g.font = `bold ${m(0.3)}px monospace`;
-    g.fillStyle = '#c9bfa0'; g.fillText('LOANS  GOLD  TOOLS', W * 0.72, fy + fh / 2 + m(0.06));
-    // THE THREE BALLS BELONG OVER THE DOOR, and they were 1 m from the left
-    // end of the board — a constant from before this frontage had a declared
-    // door, sitting wherever the board happened to start. The user named it.
-    //
-    // Derived from `doorAlongU`, not fixed, so they follow the door if the room
-    // ever moves it — the same repair the diner's glass block needed, and the
-    // reason that one is worth copying rather than re-deriving. Clamped so the
-    // cluster cannot hang off the end of the board on a narrow frontage.
-    const ballsC = m(doorAlongU('PAWN', wM, F.doorCentreM));
-    const bx0 = Math.min(Math.max(ballsC - m(0.21), m(0.5)), W - m(1.0));
-    const by0 = fy + fh * 0.5, br = m(0.19);
-    for (const [ox2, oy2] of [[0, -0.28], [0.42, -0.28], [0.21, 0.14]] as [number, number][]) {
-      g.fillStyle = 'rgba(0,0,0,0.35)';
-      g.beginPath(); g.ellipse(bx0 + m(ox2) + 1, by0 + m(oy2) + 1, br, br, 0, 0, Math.PI * 2); g.fill();
-      g.fillStyle = GOLD;
-      g.beginPath(); g.ellipse(bx0 + m(ox2), by0 + m(oy2), br, br, 0, 0, Math.PI * 2); g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.35)';
-      g.beginPath(); g.ellipse(bx0 + m(ox2) - br * 0.3, by0 + m(oy2) - br * 0.3, br * 0.35, br * 0.35, 0, 0, Math.PI * 2); g.fill();
-    }
+    const bd = fasciaBoardPx('PAWN', W, m);
+    fasciaArt(g, surf, {
+      x: bd.x, y: fy, w: bd.w, h: fh, name: 'PAWN', trim: BOARD,
+      doorX: m(doorAlongU('PAWN', wM, F.doorCentreM)),
+    });
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#1d1a16'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
@@ -1945,37 +2281,29 @@ export const taxFront = (brick: string, wM: number) => {
   // BLIND was #cfd2c8 — luma 209 against a 149 sky, the brightest large
   // surface on the block after the burger barn's menu. Set by measurement now,
   // not by eye: see the comment on the blind run below.
-  const NAVY = '#2c4a7a', GOLD = '#b89a4e', BLIND = '#7d8178', ALU = '#8f938f';
+  const GOLD = '#b89a4e', BLIND = '#7d8178', ALU = '#8f938f';
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
-    // the banner: cloth, so it sags and its edges are soft — no light box
-    const by0 = m(0.2), bh = m(0.78), bx0 = m(0.45), bw = W - m(0.9);
-    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(bx0, by0 + bh - m(0.06), bw, m(0.2));  // shadow on brick
-    g.fillStyle = '#d8d2c4'; g.fillRect(bx0, by0, bw, bh);
-    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(bx0, by0 + bh - m(0.14), bw, m(0.14)); // the sag
-    g.fillStyle = 'rgba(0,0,0,0.35)';
-    for (const gx of [bx0 + m(0.12), bx0 + bw - m(0.18)]) {                             // grommets
-      g.fillRect(gx, by0 + m(0.1), m(0.09), m(0.09));
-      g.fillRect(gx, by0 + bh - m(0.2), m(0.09), m(0.09));
-    }
-    // Screen-printed on cloth, so the letters sit ON the banner rather than IN
-    // it: a soft light bleed above and the ink below. The brief's words were
-    // "applied letters with a shadow — not text stamped on a band", and this
-    // was the one sign of the four that was flat text with nothing under it.
-    // Bleed rather than a hard drop shadow, because this is a cloth banner and
-    // not the diner's steel or the burger barn's plexi — the same reason its
-    // stallriser gets grooves and the diner's gets flutes.
-    g.font = `bold ${m(0.5)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(255,255,255,0.45)';
-    g.fillText('A-1 TAX SERVICE', W / 2, by0 + bh / 2 - 1);
-    g.fillStyle = 'rgba(20,26,44,0.35)';
-    g.fillText('A-1 TAX SERVICE', W / 2, by0 + bh / 2 + 1);
-    g.fillStyle = NAVY;
-    g.fillText('A-1 TAX SERVICE', W / 2, by0 + bh / 2);
-    // the opening
+    // the banner: cloth, so it sags and its edges are soft — no light box.
+    // Screen-printed letters sit ON it rather than in it: `fasciaArt` draws
+    // both, here on the brick and again at 64 px/m on the plane in front.
+    //
+    // ITS TOP WAS HAND-TYPED AT 0.20 m AND `BANDS.tax.fy` SAYS 0.12. Nothing
+    // read the descriptor, so the whole front — banner, opening, glazing —
+    // hung 8 cm below where `frontageOf` publishes it, and the projecting bed
+    // mould and jambs `shopfrontRelief` frames it with were all computed off
+    // the descriptor. That is the two-places-decide-one-fact fault this file's
+    // whole frontage system exists to end, still live on one front. It reads
+    // the descriptor now.
     const B = BANDS.tax;
+    const by0 = m(B.fy), bh = m(B.fh), bx0 = m(0.45), bw = W - m(0.9);
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(bx0, by0 + bh - m(0.06), bw, m(0.2));  // shadow on brick
+    fasciaArt(g, surf, {
+      x: bx0, y: by0, w: bw, h: bh, name: 'A-1 TAX', trim: TAX_NAVY,
+      doorX: m(doorAlongU('A-1 TAX', wM, F.doorCentreM)),
+    });
+    // the opening
     const ox = m(B.ox), oy = by0 + bh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#232019'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
@@ -2035,18 +2363,10 @@ export const taxFront = (brick: string, wM: number) => {
     g.fillText('REFUNDS', gx + gw * 0.5 + 1, gy + m(1.5) + 1);
     g.fillStyle = GOLD; g.fillText('REFUNDS', gx + gw * 0.5, gy + m(1.5));
     g.fillStyle = 'rgba(184,154,78,0.5)'; g.fillRect(gx + gw * 0.5 - m(0.9), gy + m(1.75), m(1.8), m(0.06));
-    // paper taped inside the glass, off square
-    const notes = ['E-FILE', 'FAST', 'WALK-IN'];
-    g.font = `bold ${m(0.26)}px monospace`;
-    notes.forEach((n, i) => {
-      const nx = gx + m(0.5) + i * Math.round((gw - m(1.4)) / 3), ny = gy + m(2.0) + (i % 2) * m(0.4);
-      g.fillStyle = '#f2ead0'; g.fillRect(nx, ny, m(1.1), m(0.5));
-      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(nx, ny + m(0.5), m(1.1), m(0.06));
-      g.fillStyle = 'rgba(255,255,255,0.35)';                                          // tape at the corners
-      g.fillRect(nx - m(0.05), ny - m(0.05), m(0.2), m(0.12));
-      g.fillRect(nx + m(0.95), ny - m(0.05), m(0.2), m(0.12));
-      g.fillStyle = '#8a2c22'; g.fillText(n, nx + m(0.55), ny + m(0.28));
-    });
+    // The three notes taped inside the glass are `taxWindowSigns` now. Painted
+    // here they were 2.4 texels of ink a glyph, `E-FILE` sat half under the
+    // door frame, and the staggered one hung 0.4 m past the bottom of 2.48 m of
+    // glazing and was cut off by the stallriser painted over it.
     // aluminium door, its own reveal, kick plate scuffed
     // where the ROOM says its door is — resolved ONCE, up at the blind run,
     // because the drawn-back panel is placed relative to it and two calls
@@ -2110,38 +2430,14 @@ export const taxFront = (brick: string, wM: number) => {
 // reads as taped to the INSIDE of the window — which is the same construction
 // (and the same density) as the BUSINESS HOURS placard by the door, the one
 // thing in his screenshot that holds up.
-const SIGN_PPM = 200;
+// `SIGN_PPM`, `fitInk()` and `sheet()` were declared HERE, private to this
+// block, and the whole rest of the street was still painting its signs on
+// brick. They are up in the depth vocabulary now, beside proud/reveal/glazed —
+// this shop was never the only one with the disease, it was just the one that
+// got named.
 /** the Sleep Center's paper palette. Shared with `mattressFront` so the ink on
  *  the sheets and the paint on the front cannot drift apart. */
 const SLEEP_PAPER = '#f6efdb', SLEEP_INK = '#a02818', SLEEP_BLUE = '#2f5c86';
-
-/** largest whole font that fits `maxW` — a long line shrinks, it never clips */
-function fitInk(g: CanvasRenderingContext2D, text: string, family: string, maxW: number, cap: number): void {
-  for (let s = cap; s > 5; s--) {
-    g.font = `bold ${s}px ${family}`;
-    if (g.measureText(text).width <= maxW) return;
-  }
-}
-
-/** one taped-up sheet, sized in METRES and drawn in its own texels. */
-function sheet(wM: number, hM: number,
-               draw: (g: CanvasRenderingContext2D, W: number, H: number) => void,
-               taped = true): THREE.Mesh {
-  const W = Math.max(1, Math.round(wM * SIGN_PPM)), H = Math.max(1, Math.round(hM * SIGN_PPM));
-  const tex = declareSurface(pixTex(W, H, (g) => {
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    draw(g, W, H);
-    // the tape, last, so it lies OVER the ink the way real tape does
-    if (taped) {
-      g.fillStyle = 'rgba(214,204,176,0.55)';
-      const t = Math.max(3, Math.round(H * 0.16)), l = Math.max(8, Math.round(H * 0.34));
-      for (const x of [0, W - l]) for (const y of [0, H - t]) g.fillRect(x, y, l, t);
-    }
-    dither(g, W, H, Math.round(W * H / 900));
-  }), 'sign', SIGN_PPM);
-  return new THREE.Mesh(new THREE.PlaneGeometry(wM, hM),
-    new THREE.MeshBasicMaterial({ map: tex }));
-}
 
 /**
  * Hang the Sleep Center's window paper. Called by `shopfrontRelief` with the
@@ -2167,10 +2463,7 @@ function sleepWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
     mesh.position.set(uM - half, y, PROUD);
     grp.add(mesh);
   };
-  const dL = F.doorCentreM - F.doorWidthM / 2, dR = F.doorCentreM + F.doorWidthM / 2;
-  const panes: [number, number][] = [[F.glazingStartM, dL], [dR, F.glazingEndM]];
-  panes.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));
-  const [wide, narrow] = panes;
+  const [wide, narrow] = panesOf(F, 0);
   const top = F.glazingTopM;
 
   // ── the banner: hand-lettered, the loudest thing on the front ───────────
@@ -2200,13 +2493,134 @@ function sleepWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
   });
 
   // ── the OPEN card on the leaf, where every shop door has one ───────────
-  at(F.doorCentreM - F.doorWidthM / 2 + 0.39, F.glazingTopM - 0.95 - 0.13, sheet(0.5, 0.26, (g, W, H) => {
-    g.fillStyle = '#f2ead0'; g.fillRect(0, 0, W, H);
-    g.fillStyle = SLEEP_INK; g.lineWidth = 2;
-    g.strokeStyle = SLEEP_INK; g.strokeRect(3, 3, W - 6, H - 6);
-    fitInk(g, 'OPEN', 'monospace', W * 0.66, Math.round(H * 0.48));
-    g.fillText('OPEN', W / 2, H * 0.5);
-  }, false));
+  at(F.doorCentreM - F.doorWidthM / 2 + 0.39, F.glazingTopM - 0.95 - 0.13, openCard(SLEEP_INK));
+}
+
+/**
+ * WHERE A SHEET OF PAPER GOES, for the shops that have any.
+ *
+ * `sleepWindowSigns` above is the model and these four follow it exactly: the
+ * paper is placed in FRONTAGE METRES off `F`, so it moves with the door and
+ * the glazing, and it goes on a PANE rather than across the whole window, so
+ * nothing can be chopped mid-word by a door leaf again.
+ */
+function taxWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
+  const at = (uM: number, y: number, mesh: THREE.Mesh) => {
+    mesh.position.set(uM - half, y, 0.02); grp.add(mesh);
+  };
+  // THREE NOTES TAPED UP OFF SQUARE, and every one of them was in trouble:
+  // 2.4 texels of ink per glyph, `E-FILE` half under the door frame, and the
+  // staggered one hanging past the bottom of the glass onto the stallriser
+  // (painted at gy + 2.0 m with a 0.5 m card, in 2.48 m of glazing).
+  const [wide] = panesOf(F, 0.14);
+  const cw = Math.min(1.15, (wide[1] - wide[0]) / 3.4), ch = 0.42, stag = 0.16;
+  const run = Math.max(0, (wide[1] - wide[0]) - cw - 0.5);
+  // DERIVED FROM THE SILL UP, not from the glazing top down. There is 0.73 m
+  // of glass between the gold `REFUNDS` underline and the bottom of the
+  // window, and the painted version wanted 0.9 m for a 0.5 m card and a 0.4 m
+  // stagger — which is how the second note came to hang past the glass onto
+  // the stallriser and be cut off by it.
+  const yTop = Math.min(F.glazingTopM - 1.72, F.glazingBottomM + 0.12 + ch + stag);
+  ['E-FILE', 'FAST', 'WALK-IN'].forEach((t, i) => {
+    at(wide[0] + 0.25 + cw / 2 + run * (i / 2), yTop - ch / 2 - (i % 2) * stag,
+      sheet(cw, ch, (g, W, H) => {
+        g.fillStyle = '#f2ead0'; g.fillRect(0, 0, W, H);
+        g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(0, H - 3, W, 3);
+        fitInk(g, t, 'monospace', W * 0.84, Math.round(H * 0.46));
+        g.fillStyle = '#8a2c22'; g.fillText(t, W / 2, H * 0.5);
+      }));
+  });
+}
+
+function voltWindowSigns(grp: THREE.Group, F: Layout, half: number, wM: number): void {
+  const at = (uM: number, y: number, mesh: THREE.Mesh) => {
+    mesh.position.set(uM - half, y, 0.02); grp.add(mesh);
+  };
+  // THE PRICE CARD, and it was the worst sign on the block: `TV · VCR ·
+  // CAMCORDER` at m(0.2) is a three-texel font, 1.8 texels of ink a glyph.
+  // It also started ONE TEXEL from the door frame — the near miss the survey
+  // flagged — which a pane keeps it out of for good.
+  //
+  // Which end it goes on is unchanged: `electroFront` stands its hi-fi tower
+  // at the end nearest the door and the card goes to the other one, so stock
+  // and paper can never collide whatever width or door side this front gets.
+  const towerLeft = F.doorCentreM > wM / 2;
+  const dL = F.doorCentreM - F.doorWidthM / 2 - 0.14;
+  const dR = F.doorCentreM + F.doorWidthM / 2 + 0.14;
+  let pane: [number, number] = towerLeft
+    ? [Math.max(dR, F.glazingStartM), F.glazingEndM]
+    : [F.glazingStartM, Math.min(dL, F.glazingEndM)];
+  if (pane[1] - pane[0] < 1.4) pane = panesOf(F, 0.14)[0];
+  const cw = Math.min(3.0, (pane[1] - pane[0]) - 0.5), ch = 0.5;
+  const u = towerLeft ? pane[1] - 0.25 - cw / 2 : pane[0] + 0.25 + cw / 2;
+  at(u, F.glazingBottomM + 0.16 + ch / 2, sheet(cw, ch, (g, W, H) => {
+    g.fillStyle = '#f4edd8'; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, H - 3, W, 3);
+    fitInk(g, 'TV · VCR · CAMCORDER', 'monospace', W * 0.88, Math.round(H * 0.42));
+    g.fillStyle = VOLT_RED; g.fillText('TV · VCR · CAMCORDER', W / 2, H * 0.5);
+  }));
+  at(F.doorCentreM - F.doorWidthM / 2 + 0.39, F.glazingTopM - 0.95 - 0.13, openCard(VOLT_RED));
+}
+
+function videoWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
+  const at = (uM: number, y: number, mesh: THREE.Mesh) => {
+    mesh.position.set(uM - half, y, 0.02); grp.add(mesh);
+  };
+  // THE ROOM PUT THIS DOOR DEAD CENTRE OF AN 18 m FRONT (ct/int-video.ts,
+  // `at: 0`), and both of this window's signs were centred on the whole
+  // glazed run — so the door was painted straight through the middle of each
+  // of them and five texels survived either end of `NEW RELEASES`. On a pane
+  // they cannot be reached by it.
+  const [wide] = panesOf(F, 0.14);
+  const paneW = wide[1] - wide[0], mid = (wide[0] + wide[1]) / 2;
+  // the header is TYPE ON THE ROOM, not a sheet of paper — yellow letters over
+  // the shop's own lit ceiling, which is what it has always been
+  const hw = Math.min(4.6, paneW - 0.5), hh = 0.42;
+  at(mid, F.glazingTopM - 0.36, sheet(hw, hh, (g, W, H) => {
+    fitInk(g, 'NEW RELEASES', 'monospace', W * 0.9, Math.round(H * 0.66));
+    g.fillStyle = 'rgba(0,20,50,0.55)'; g.fillText('NEW RELEASES', W / 2 + 3, H * 0.5 + 3);
+    g.fillStyle = VIDEO_YELLOW; g.fillText('NEW RELEASES', W / 2, H * 0.5);
+  }, { taped: false, cutout: true }));
+  // the hand-lettered rental card, low in the glass
+  const cw = Math.min(4.4, paneW - 0.5), ch = 0.54;
+  at(mid, F.glazingBottomM + 0.14 + ch / 2, sheet(cw, ch, (g, W, H) => {
+    g.fillStyle = '#f6efdb'; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(0, H - 3, W, 3);
+    fitInk(g, 'VHS · 2 FOR $20', 'monospace', W * 0.86, Math.round(H * 0.52));
+    g.fillStyle = VIDEO_BLUE; g.fillText('VHS · 2 FOR $20', W / 2, H * 0.5);
+  }));
+  at(F.doorCentreM - F.doorWidthM / 2 + 0.39, F.glazingTopM - 0.95 - 0.13, openCard('#a02818'));
+}
+
+/** the thrift store's three price cards, in frontage metres. Shared, because
+ *  `thriftFront` stands its mannequin in the gap BETWEEN them — a card taped
+ *  over its head would hide the only silhouette in the window, and two places
+ *  deciding where a card is would put it there. */
+const THRIFT_CARD_W = 1.3, THRIFT_CARD_H = 0.6;
+function thriftCardLayout(F: Layout): { u: number; yTop: number; text: string }[] {
+  const [wide] = panesOf(F, 0.07);
+  const gh = F.glazingTopM - F.glazingBottomM;
+  const span = Math.max(0, (wide[1] - wide[0]) - THRIFT_CARD_W - 0.3);
+  return ([[0.06, 0.26, '50c'], [0.44, 0.10, 'ALL 1$'], [0.86, 0.34, 'SALE']] as [number, number, string][])
+    .map(([fx, fy, text]) => ({
+      u: wide[0] + 0.15 + span * fx,
+      yTop: F.glazingTopM - (gh - THRIFT_CARD_H - 0.4) * fy,
+      text,
+    }));
+}
+
+function thriftWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
+  for (const c of thriftCardLayout(F)) {
+    const mesh = sheet(THRIFT_CARD_W, THRIFT_CARD_H, (g, W, H) => {
+      g.fillStyle = THRIFT_CARD; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(0, H - 4, W, 4);
+      fitInk(g, c.text, 'monospace', W * 0.8, Math.round(H * 0.5));
+      g.fillStyle = '#3a3026'; g.fillText(c.text, W / 2, H * 0.5);
+    }, { taped: false });
+    // tape at ONE corner only, the way a shop with no window dresser does it
+    mesh.position.set(c.u + THRIFT_CARD_W / 2 - half, c.yTop - THRIFT_CARD_H / 2, 0.02);
+    grp.add(mesh);
+  }
 }
 
 /**
@@ -2242,26 +2656,20 @@ export const mattressFront = (brick: string, wM: number) => {
   const F = frontageOf('SLEEP CENTER', wM);
   // RUST is the roster colour; keep the two in step or the mouldings that
   // `shopfrontRelief` stands off the wall will frame a fascia of another shade.
-  const RUST = '#b8642c', CREAM = '#efe6d2';
+  const RUST = SLEEP_RUST;
   const ALU = '#8f938f', ROOM = '#43413c';
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
     // ── the fascia: a painted board, not cloth and not a light box ────────
+    // …with a cream keyline inset from its edge — signwriter's habit, and it
+    // stops a flat 13 m rectangle of one colour reading as a bar
     const B = BANDS.mattress;
     const fy = m(B.fy), fh = m(B.fh);
-    proud(g, surf, 0, fy, W, fh, RUST);
-    // a cream keyline inset from the board's edge — signwriter's habit, and it
-    // stops a flat 13 m rectangle of one colour reading as a bar
-    g.fillStyle = 'rgba(239,230,210,0.30)';
-    g.fillRect(m(0.25), fy + m(0.12), W - m(0.5), Math.max(1, m(0.05)));
-    g.fillRect(m(0.25), fy + fh - m(0.17), W - m(0.5), Math.max(1, m(0.05)));
-    g.font = `bold ${m(0.54)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(40,20,10,0.45)';
-    g.fillText('SLEEP CENTER', W / 2 + 1, fy + fh / 2 + 1);
-    g.fillStyle = CREAM;
-    g.fillText('SLEEP CENTER', W / 2, fy + fh / 2);
+    fasciaArt(g, surf, {
+      x: 0, y: fy, w: W, h: fh, name: 'SLEEP CENTER', trim: RUST,
+      doorX: m(doorAlongU('SLEEP CENTER', wM, F.doorCentreM)),
+    });
     // ── the opening: as much glass as the band will give ─────────────────
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#241f1a'; g.fillRect(ox, oy, ow, oh);
@@ -2405,28 +2813,23 @@ const electroFront = (brick: string, nm: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf(nm, wM);
-  const GRAPHITE = '#2a2d33', RED = '#c8322a', SILVER = '#9aa0a6';
+  const GRAPHITE = VOLT_GRAPHITE, RED = VOLT_RED, SILVER = '#9aa0a6';
   const ROOM = '#1a1c20', SCREEN = '#5f8fa8';
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
     // ── the fascia: a backlit box, not a painted board ────────────────────
+    // CAPPED AT 0.5 m, NEVER GROWN TO THE WIDTH — so the casino marquee's trap
+    // (short text auto-grows until it hits the rule above it) cannot happen
+    // here. `fitInk` only ever shrinks, and the budget runs the other way and
+    // is enormous: 12 monospace characters at a 0.6 em advance is ~3.6 m of
+    // lettering on a 12 m fascia, 30% of it.
     const B = BANDS.electro;
     const fy = m(B.fy), fh = m(B.fh);
-    proud(g, surf, 0, fy, W, fh, GRAPHITE);
-    g.fillStyle = 'rgba(90,190,220,0.28)';                       // the tube behind the plexi
-    g.fillRect(m(0.2), fy + m(0.1), W - m(0.4), Math.max(1, m(0.06)));
-    g.fillRect(m(0.2), fy + fh - m(0.16), W - m(0.4), Math.max(1, m(0.06)));
-    g.font = `bold ${m(0.5)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    // FIXED AT 0.5 m, NOT FITTED TO THE WIDTH — so the casino marquee's trap
-    // (short text auto-grows until it hits the rule above it) cannot happen
-    // here. The budget runs the other way and is enormous: 12 monospace
-    // characters at a 0.6 em advance is ~3.6 m of lettering on a 12 m fascia,
-    // 30% of it, and both the old name and the new are exactly 12 characters,
-    // so the rendered width is identical to the pixel.
-    g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillText(nm, W / 2 + 1, fy + fh / 2 + 1);
-    g.fillStyle = RED; g.fillText(nm, W / 2, fy + fh / 2);
+    fasciaArt(g, surf, {
+      x: 0, y: fy, w: W, h: fh, name: nm, trim: GRAPHITE,
+      doorX: m(doorAlongU(nm, wM, F.doorCentreM)),
+    });
     // ── the opening ───────────────────────────────────────────────────────
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#17191d'; g.fillRect(ox, oy, ow, oh);
@@ -2471,14 +2874,9 @@ const electroFront = (brick: string, nm: string, wM: number) => {
       ty += m(0.24);
     }
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.4)), SILVER);
-    // ── the price card taped in the glass. One, and small. ────────────────
-    const cwd = Math.min(m(3.0), gw * 0.36), chd = m(0.5);
-    const cxp = towerLeft ? gx + gw - cwd - m(0.3) : gx + m(0.3);
-    const cyp = gy + gh - chd - m(0.16);
-    g.fillStyle = '#f4edd8'; g.fillRect(cxp, cyp, cwd, chd);
-    g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(cxp, cyp + chd, cwd, m(0.05));
-    g.font = `bold ${m(0.2)}px monospace`; g.fillStyle = RED;
-    g.fillText('TV · VCR · CAMCORDER', cxp + cwd / 2, cyp + chd / 2);
+    // The price card is `voltWindowSigns` now. Painted here it was the worst
+    // sign on the block — m(0.2) is a three-texel font, 1.8 texels of ink a
+    // glyph — and it started one texel off the door frame with no clearance.
     // ── the door ──────────────────────────────────────────────────────────
     const dcM = doorAlongU(nm, wM, F.doorCentreM);
     const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
@@ -2489,9 +2887,8 @@ const electroFront = (brick: string, nm: string, wM: number) => {
     g.fillStyle = '#6e726e'; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.55));    // kick plate
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.06));
     g.fillStyle = SILVER; g.fillRect(dx + dw - m(0.2), gy + m(1.45), m(0.07), m(0.4));
-    g.fillStyle = '#f2ead0'; g.fillRect(dx + m(0.14), gy + m(0.95), m(0.5), m(0.26));
-    g.fillStyle = RED; g.font = `bold ${m(0.16)}px monospace`;
-    g.fillText('OPEN', dx + m(0.39), gy + m(1.08));
+    // the OPEN card on the leaf is `voltWindowSigns` — m(0.16) was 1.8 texels
+    // of ink a glyph, which is not a word, it is four smudges
     // ── stallriser: a dark painted board, panelled like the block default ─
     const ry = gy + gh, rh = H - ry - m(0.05);
     proud(g, surf, ox, ry, ow, rh, '#3a3d42');
@@ -2529,7 +2926,7 @@ const videoFront = (brick: string, nm: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf(nm, wM);
-  const BLUE = '#1e5aa8', YELLOW = '#f2c22a', ALU = '#8f938f', ROOM = '#3a3630';
+  const BLUE = VIDEO_BLUE, ALU = '#8f938f', ROOM = '#3a3630';
   // the spines: five stock colours, cycled. Not random — a rack reads as a rack
   // because the same few boxes repeat, and rnd() here would re-grain every
   // texture created after it (GOTCHAS §31).
@@ -2540,14 +2937,10 @@ const videoFront = (brick: string, nm: string, wM: number) => {
     // ── the fascia ────────────────────────────────────────────────────────
     const B = BANDS.video;
     const fy = m(B.fy), fh = m(B.fh);
-    proud(g, surf, 0, fy, W, fh, BLUE);
-    g.fillStyle = 'rgba(242,194,42,0.85)';                        // yellow keylines
-    g.fillRect(m(0.3), fy + m(0.13), W - m(0.6), Math.max(1, m(0.06)));
-    g.fillRect(m(0.3), fy + fh - m(0.19), W - m(0.6), Math.max(1, m(0.06)));
-    g.font = `bold ${m(0.62)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(0,20,50,0.5)'; g.fillText('VIDEO HUT', W / 2 + 1, fy + fh / 2 + 1);
-    g.fillStyle = YELLOW; g.fillText('VIDEO HUT', W / 2, fy + fh / 2);
+    fasciaArt(g, surf, {
+      x: 0, y: fy, w: W, h: fh, name: 'VIDEO HUT', trim: BLUE,
+      doorX: m(doorAlongU(nm, wM, F.doorCentreM)),
+    });
     // ── the opening ───────────────────────────────────────────────────────
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#241f1a'; g.fillRect(ox, oy, ow, oh);
@@ -2573,9 +2966,10 @@ const videoFront = (brick: string, nm: string, wM: number) => {
       g.fillStyle = '#4a4038'; g.fillRect(gx + m(0.2), sy + boxH, gw - m(0.4), m(0.1));
       g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(gx + m(0.2), sy + boxH + m(0.1), gw - m(0.4), m(0.05));
     }
-    // ── the NEW RELEASES header, above the top rack ───────────────────────
-    g.font = `bold ${m(0.26)}px monospace`;
-    g.fillStyle = YELLOW; g.fillText('NEW RELEASES', gx + gw / 2, gy + m(0.36));
+    // The NEW RELEASES header is `videoWindowSigns` now. Centred on the whole
+    // glazed run and painted before the door, it was ERASED by it: the room
+    // declares this door dead centre of an 18 m front, so five texels of the
+    // header survived at each end of a 1.5 m word.
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.4)), ALU);
     // ── two posters taped inside the glass, at the ENDS, clear of the racks
     const pw = m(1.15), ph = m(1.7);
@@ -2591,13 +2985,8 @@ const videoFront = (brick: string, nm: string, wM: number) => {
       for (const tx of [px - m(0.04), px + pw - m(0.12)])
         for (const ty of [py - m(0.04), py + ph - m(0.1)]) g.fillRect(tx, ty, m(0.18), m(0.12));
     }
-    // ── the hand-lettered rental card ─────────────────────────────────────
-    const nbW = Math.min(m(4.4), gw * 0.34), nbH = m(0.54);
-    const nbX = gx + Math.round((gw - nbW) / 2), nbY = gy + gh - nbH - m(0.14);
-    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(nbX + m(0.06), nbY + m(0.07), nbW, nbH);
-    g.fillStyle = '#f6efdb'; g.fillRect(nbX, nbY, nbW, nbH);
-    g.font = `bold ${m(0.3)}px monospace`;
-    g.fillStyle = '#1e5aa8'; g.fillText('VHS · 2 FOR $20', nbX + nbW / 2, nbY + nbH / 2);
+    // The rental card is `videoWindowSigns` too — centred on the same glazed
+    // run, cut mid-word by the same door.
     // ── the door ──────────────────────────────────────────────────────────
     const dcM = doorAlongU(nm, wM, F.doorCentreM);
     const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
@@ -2612,9 +3001,7 @@ const videoFront = (brick: string, nm: string, wM: number) => {
     // the return slot every rental shop has beside its door
     g.fillStyle = '#2a2d33'; g.fillRect(dx + dw + m(0.24), gy + m(1.3), m(0.46), m(0.5));
     g.fillStyle = '#111316'; g.fillRect(dx + dw + m(0.3), gy + m(1.4), m(0.34), m(0.09));
-    g.fillStyle = '#f2ead0'; g.fillRect(dx + m(0.14), gy + m(0.95), m(0.5), m(0.26));
-    g.fillStyle = '#a02818'; g.font = `bold ${m(0.16)}px monospace`;
-    g.fillText('OPEN', dx + m(0.39), gy + m(1.08));
+    // the OPEN card on the leaf is `videoWindowSigns`
     // ── stallriser ────────────────────────────────────────────────────────
     const ry = gy + gh, rh = H - ry - m(0.05);
     proud(g, surf, ox, ry, ow, rh, '#17427a');
@@ -2642,25 +3029,20 @@ const dinerFront = (brick: string, nm: string, wM: number) => {
   const F = frontageOf(nm, wM);
   // STEEL is DINER_STEEL, hoisted to module scope so shopfrontRelief's
   // mouldings and this fascia cannot drift to different greys.
-  const STEEL = DINER_STEEL, STEEL_D = '#6e747a', CREAM = '#e8e2d2', VINYL = '#8a2f34';
+  const STEEL = DINER_STEEL, STEEL_D = DINER_STEEL_D, CREAM = '#e8e2d2', VINYL = DINER_VINYL;
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
     // stainless fascia, fluted — horizontal lines are what read as pressed
     // metal rather than painted board, and they cost two texels each
+    // …and applied letters over it: a shadow under them is what makes them sit
+    // ON the metal rather than in it
     const B = BANDS.diner;
     const fy = m(B.fy), fh = m(B.fh);
-    proud(g, surf, 0, fy, W, fh, STEEL);
-    for (let y = fy + m(0.12); y < fy + fh - m(0.1); y += m(0.16)) {
-      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, y, W, 1);
-      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, y + 1, W, 1);
-    }
-    g.fillStyle = STEEL_D; g.fillRect(0, fy + fh - m(0.16), W, m(0.16));
-    // applied letters: a shadow under them is what makes them sit ON the metal
-    g.font = `bold ${m(0.58)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(0,0,0,0.38)'; g.fillText(nm, W / 2 + m(0.06), fy + fh / 2 + m(0.08));
-    g.fillStyle = VINYL; g.fillText(nm, W / 2, fy + fh / 2);
+    fasciaArt(g, surf, {
+      x: 0, y: fy, w: W, h: fh, name: nm, trim: STEEL,
+      doorX: m(doorAlongU(nm, wM, F.doorCentreM)),
+    });
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#26221c'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
@@ -2830,31 +3212,22 @@ const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf(nm, wM);
-  const BOARD = awning || '#7a5a2c', CARD = '#e4dcc4', INK = '#3a3026';
+  const BOARD = awning || THRIFT_BOARD, CARD = THRIFT_CARD, INK = '#3a3026';
   const STOCK = ['#7a6a52', '#5a6a72', '#8a5a4a', '#6a7a5a', '#7a5a6a', '#8a7a52'];
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
-    // a painted board, sun-bleached unevenly across its length
+    // a painted board, sun-bleached unevenly across its OWN width — stepping
+    // across the canvas at a fixed pitch overruns onto the brick whenever the
+    // board is not a whole number of steps, which is the same
+    // fragment-at-the-end fault as the window run below.
     const B = BANDS.thrift;
     const fy = m(B.fy), fh = m(B.fh);
-    const bx0 = m(0.25), bw = W - m(0.5);
-    proud(g, surf, bx0, fy, bw, fh, BOARD);
-    // the bleaching is stepped across the board's OWN width — stepping across
-    // the canvas at a fixed pitch overruns onto the brick whenever the board
-    // is not a whole number of steps, which is the same fragment-at-the-end
-    // fault as the window run above.
-    const bleach = Math.max(4, Math.round(bw / m(0.5)));
-    for (let i = 0; i < bleach; i++) {
-      const x0 = bx0 + Math.round((bw * i) / bleach), x1 = bx0 + Math.round((bw * (i + 1)) / bleach);
-      g.fillStyle = `rgba(228,220,196,${0.05 + 0.09 * Math.abs(Math.sin(x0 * 0.021))})`;
-      g.fillRect(x0, fy, x1 - x0, fh);
-    }
-    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(m(0.25), fy + fh - m(0.1), W - m(0.5), m(0.1));
-    g.font = `bold ${m(0.55)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillText(nm, W / 2 + 1, fy + fh / 2 + 1);
-    g.fillStyle = CARD; g.fillText(nm, W / 2, fy + fh / 2);
+    const bd = fasciaBoardPx(nm, W, m);
+    fasciaArt(g, surf, {
+      x: bd.x, y: fy, w: bd.w, h: fh, name: nm, trim: BOARD,
+      doorX: m(doorAlongU(nm, wM, F.doorCentreM)),
+    });
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#221e18'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
@@ -2911,10 +3284,13 @@ const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
     // mannequin can be stood in the gap between two of them. A card taped over
     // its head would hide the only silhouette in the window — which is the
     // same fault as the door chopping the "50c", one layer up.
-    const cards: [number, number, string][] = [[0.06, 0.26, '50c'], [0.44, 0.10, 'ALL 1$'], [0.86, 0.34, 'SALE']];
-    const cdw = m(1.3), cdh = m(0.6);
-    const span = (wide[1] - wide[0]) - cdw - m(0.3);
-    const cardX = cards.map(([fx]) => Math.round(wide[0] + m(0.15) + span * fx));
+    // The cards themselves are `thriftWindowSigns`, hung as paper at 200 px/m
+    // — `50c` and `ALL 1$` were 3 texels of ink a glyph on this canvas. Where
+    // they hang is `thriftCardLayout`, read by both, because the mannequin
+    // below stands in the gap between them and two places deciding that would
+    // put a card over its head.
+    const cardX = thriftCardLayout(F).map((c) => m(c.u));
+    const cdw = m(THRIFT_CARD_W);
     // A MANNEQUIN, turned away from the glass. The one thing in this window
     // that is a figure and not a rectangle, and the brief asked for it by name.
     // Built as stacked slabs that step sideways going up, which is how you
@@ -2947,21 +3323,6 @@ const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
       slab(t(1.66), m(0.22), m(0.22), 3, skin);                 // head
       g.fillStyle = 'rgba(0,0,0,0.30)';                          // the stand it is bolted to
       g.fillRect(mx - 1, t(0.80) + m(0.80), Math.max(1, m(0.07)), m(0.26));
-    }
-    // hand-lettered price cards taped INSIDE the glass, none of them straight.
-    // Laid out above; drawn here, along the DISPLAY RUN and clamped to it, so
-    // no card can slide under the doorcase and be read as half a word.
-    g.font = `bold ${m(0.3)}px monospace`;
-    for (let i = 0; i < cards.length; i++) {
-      const [, fy2, txt] = cards[i];
-      if (span < 0) break;
-      const cx = cardX[i];
-      const cy = gy + Math.round((gh - cdh - m(0.4)) * fy2);
-      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(cx + m(0.06), cy + m(0.08), cdw, cdh);
-      g.fillStyle = CARD; g.fillRect(cx, cy, cdw, cdh);
-      g.fillStyle = 'rgba(255,255,255,0.30)';                                        // tape, one corner only
-      g.fillRect(cx - m(0.06), cy - m(0.06), m(0.28), m(0.14));
-      g.fillStyle = INK; g.fillText(txt, cx + cdw / 2, cy + cdh / 2);
     }
     // price stickers stuck straight on the glass, the way a shop with no
     // window dresser does it
@@ -3041,25 +3402,21 @@ export const collegeFront = (brick: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf('COMMUNITY COLLEGE', wM);
-  const STONE = '#d3c9ae', STONE_D = '#b0a68b', MAROON = '#6a2430';
+  const STONE = COLLEGE_STONE, STONE_D = COLLEGE_STONE_D, MAROON = '#6a2430';
   const GLOW = '#7a6238';                       // a lit classroom behind glass
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
     const B = BANDS.college;
     const fy = m(B.fy), fh = m(B.fh);
-    // ── the frieze: cast stone, name incised ────────────────────────────────
-    proud(g, surf, m(0.25), fy, W - m(0.5), fh, STONE);
-    g.fillStyle = STONE_D;
-    g.fillRect(m(0.25), fy + m(0.10), W - m(0.5), Math.max(1, m(0.045)));
-    g.fillRect(m(0.25), fy + fh - m(0.14), W - m(0.5), Math.max(1, m(0.045)));
-    g.font = `bold ${m(0.40)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    // incised: the dark cut first, the lit lower edge under it
-    g.fillStyle = 'rgba(250,244,225,0.35)';
-    g.fillText('CROSSTOWN COMMUNITY COLLEGE', W / 2, fy + fh * 0.52 + m(0.045));
-    g.fillStyle = '#5a4f3c';
-    g.fillText('CROSSTOWN COMMUNITY COLLEGE', W / 2, fy + fh * 0.52);
+    // ── the frieze: cast stone, name incised. The READABLE one is the applied
+    // plane ct/college-yard.ts hangs over this at 64 px/m; this is what it
+    // covers, and `fasciaArt` draws both so they cannot drift.
+    const bd = fasciaBoardPx('COMMUNITY COLLEGE', W, m);
+    fasciaArt(g, surf, {
+      x: bd.x, y: fy, w: bd.w, h: fh, name: 'COMMUNITY COLLEGE', trim: STONE,
+      doorX: m(F.doorCentreM),
+    });
     // ── the doorcase, dead centre ───────────────────────────────────────────
     const dcM = F.doorCentreM, dwM = F.doorWidthM;
     const dL = m(dcM - dwM / 2), dR = m(dcM + dwM / 2), dw = dR - dL;

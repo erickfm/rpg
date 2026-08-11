@@ -252,6 +252,12 @@ const EVENTS = [
   // when a slot spin settles empty, a blackjack hand loses or busts, and
   // the roulette ball lands against him.
   'loss',
+  // *"whenever you gain money play the money sound whenever yuou lose money
+  // play the loss sound."* (2026-08-11) — `cash increase.mp3`, dropped the
+  // same hour. The GAIN half of that ask; the loss half is the womp above,
+  // which was already here and is now spoken by the wallet as well as by the
+  // games. See `the wallet's own voice` in `watchScene`.
+  'cash-gain',
 ] as const;
 
 const SHOTS = [...OUT_STEPS, ...IN_STEPS, ...BIRDS, ...EVENTS] as const;
@@ -389,6 +395,22 @@ const LVL = {
   // verdict, still smaller than the win it is the absence of. 0.15 s of
   // low-mid blip has nothing in it to wear on the ear at that length.
   loss: 0.45,
+  // ── the wallet's own voice (2026-08-11) ──
+  // *"whenever you gain money play the money sound whenever yuou lose money
+  // play the loss sound."* These two are the WALLET speaking, not a shop and
+  // not a machine, so both sit UNDER the cues they can layer with.
+  //
+  // The gain is a bright flourish (centroid 3.1 kHz) against the womp's low
+  // blip (718 Hz), so it needs a shade more gain to read as the same size —
+  // the two must feel like a matched pair, because they are the same
+  // sentence with the sign flipped.
+  cashGain: 0.50,
+  // UNDER the slot womp's 0.45, and deliberately. That one was pulled up on
+  // *"make losses more apparent in slots"* — a verdict you went to the casino
+  // to hear. This one lands on every sandwich and every bus fare, under a
+  // register (0.45) that is already ringing, and a wallet that shouts about a
+  // $1.25 coffee is the thing that would make him ask for it back.
+  cashLoss: 0.38,
   busIdle: 0.30,   // the looping bed while it stands at the flag
   // ── the skateboard (2026-08-10) ──
   // the roll sits UNDER the footsteps it replaces (0.55) and over the beds:
@@ -875,9 +897,95 @@ export function register(ctx: CtxBuild): void {
   // 'ct-roulette' joined 2026-08-10 with the wheel's own sound: it was never
   // listed, so every SPIN's stake had been ringing the register — the exact
   // per-spin ka-ching this set exists to prevent.
-  const MACHINES = new Set(['ct-slots', 'ct-slotcab', 'ct-blackjack', 'ct-atm', 'ct-roulette']);
+  // 'ct-bigsix' joined 2026-08-11, for exactly the reason 'ct-roulette' did a
+  // day earlier: the money wheel shipped that morning and was never listed, so
+  // every SPIN's stake had been ringing a shop register on the casino floor.
+  const MACHINES = new Set(['ct-slots', 'ct-slotcab', 'ct-blackjack', 'ct-atm', 'ct-roulette', 'ct-bigsix']);
   let lastCash = ctx.purse.cash;
   let tillAt = -99;
+
+  // ══ THE WALLET'S OWN VOICE (2026-08-11) ═══════════════════════════════════
+  //
+  // *"whenever you gain money play the money sound whenever yuou lose money
+  // play the loss sound."*
+  //
+  // ONE WATCHER, NOT ELEVEN SHOPS. `ctx.purse.cash` is the only number any of
+  // this world's money paths writes — the shops, the pawnbroker, the fence,
+  // the sell window, the dealer, rent, the mugging, the bank's loans, the
+  // library terminal's stock trades and a day's wages all end at it — so the
+  // wallet is watched exactly the way the till above already watches it, and
+  // a twelfth shop opening tomorrow gets both cues with no code at all.
+  //
+  // THIS IS THE AUDIBLE HALF OF THE HUD'S GREEN/RED TICK. `hud.ts` diffs the
+  // same `purse.cash` per frame and floats a green number up for a rise and a
+  // red one for a fall; these are those two numbers with a sound on them. Same
+  // signal, same direction, same epsilon — so what he SEES and what he HEARS
+  // can never disagree, which is the two-numbers-that-must-agree bug this file
+  // has argued about twice already.
+  //
+  // ── WHAT IS SUPPRESSED, AND WHY ───────────────────────────────────────────
+  //
+  // A naive hook on this number double-sounds the entire casino: a slot pull
+  // already plays the lever, three detent clicks, an arp, and then EITHER the
+  // win ding layered with a coin tray OR the womp at LVL.loss after its 0.35 s
+  // grace. Adding a wallet verdict on top of a machine that just delivered one
+  // is not more feedback, it is a rattle. So a game that ALREADY SPEAKS keeps
+  // its own voice and this one stays quiet:
+  //
+  //   ct-slots, ct-slotcab   the lever, the clicks, the arp, the ding, the
+  //                          coins, the womp — the most-spoken object here
+  //   ct-blackjack           a card per flight, a womp per losing hand
+  //   ct-roulette            the 5.3 s ratchet, a womp when the ball lands
+  //                          against him
+  //   ct-atm                 NOT a game and not a gain or a loss: a deposit
+  //                          and a withdrawal move cash between his pocket and
+  //                          his account and leave him exactly as rich. The
+  //                          machine's own note at `takeIn` already reasoned
+  //                          this out for the till; it holds identically here.
+  //
+  // ct-bigsix IS DELIBERATELY NOT IN THIS SET, and it is the one member of the
+  // casino floor that isn't. The wheel shipped this morning with no audio of
+  // its own — no ratchet, no cards, no womp — so it is the one game where the
+  // generic cue is not a second voice but the ONLY voice, and "stake down,
+  // wheel turns, money or womp" is precisely what he asked for. If the wheel
+  // grows a ratchet of its own it belongs in this set the same day.
+  const CUE_MUTE = new Set(['ct-slots', 'ct-slotcab', 'ct-blackjack', 'ct-roulette', 'ct-atm']);
+
+  /** A slot payout OUTLIVES ITS PANEL and is the one leak a panel gate cannot
+   *  plug. `slotcab.ts` counts whole dollars into the purse from its own frame
+   *  hook at FEEL.payPerSec = up to $300/s, for as long as the machine is in
+   *  its paying state — and that hook runs whether or not the panel is up, so
+   *  standing off a stool mid-payout would machine-gun this cue at three
+   *  hundred hertz. The casino watcher below already reads every topper's
+   *  `flash`, which is true for exactly the span `tickPayout` is crediting, so
+   *  this is stamped there and read here. The 1.2 s tail covers both ends: the
+   *  frame-order race at the start (the two frame hooks are both HOOK.LATE and
+   *  neither is promised first) and the last dollars landing as the strobe
+   *  clears at the end. */
+  let payingAt = -99;
+
+  /** Net dollars banked since the burst began, and when it began. NOT one cue
+   *  per write: rent settles in a `while` loop, a shop can debit and hand back
+   *  change, and a bank repayment moves twice — so the moves are netted over a
+   *  short window and spoken ONCE, with the sign of the net. A pool that came
+   *  out even says nothing at all, which is the same rule the HUD's tick uses
+   *  for a stake won straight back. */
+  let cuePend = 0, cuePendAt = -1, cueAt = -99;
+  /** Long enough to net a burst that straddles a frame or two, short enough
+   *  that the cue still belongs to the button he pressed. The slot womp's own
+   *  grace is 0.35 s and reads as deliberate; this is under it because a
+   *  purchase has no strobe to wait out. */
+  const CUE_WINDOW = 0.25;
+  /** No two verdicts closer than this, whatever the wallet does. */
+  const CUE_GAP = 0.55;
+  /** Float dust is not a transaction — the same epsilon the HUD's tick uses so
+   *  the two cannot disagree about whether anything happened. */
+  const CUE_EPS = 0.005;
+  /** Is some other thing already speaking for this money right now? Asked both
+   *  when a move is banked and again when the cue would fire, because the two
+   *  are a quarter second apart and either end can be the suppressed one. */
+  const cueMuted = (t: number) =>
+    CUE_MUTE.has(panelUp() ?? '') || t - payingAt < 1.2;
 
   // ── the mailbox, and the letter in his hands ──────────────────────────────
   // `tenancy.ts` raises and lowers ONE named sheet (`tenancy-letter-sheet`)
@@ -1262,6 +1370,12 @@ export function register(ctx: CtxBuild): void {
       s.wasSpin = live;
 
       const fl = (s.topper.userData as { flash?: boolean }).flash === true;
+      // STAMPED FOR THE WALLET CUE — see `payingAt` above. `flash` is true for
+      // exactly the span `tickPayout` is counting dollars into the purse, and
+      // that runs off slotcab's own frame hook whether or not the panel is up.
+      // One assignment here is the whole guard against a payout he walked away
+      // from firing the money cue three hundred times a second.
+      if (fl) payingAt = t;
       if (fl && !s.flash && winT < 0) { winT = t; winCash = ctx.purse.cash; winX = s.x; winZ = s.z; }
       // *"make losses more apparent in slots"* — the womp is the verdict the
       // machine never speaks. `settleIfDone` rests the reels and starts the
@@ -1407,6 +1521,30 @@ export function register(ctx: CtxBuild): void {
     if (cash < lastCash - 0.001 && t - tillAt > 0.9 && !MACHINES.has(panelUp() ?? '')) {
       tillAt = t;
       fire(roll() < 0.5 ? 'register-1' : 'register-2', LVL.register * (0.9 + roll() * 0.2), 1, (roll() - 0.5) * 0.2);
+    }
+    // ── and the wallet's own verdict — see `cuePend` above ──────────────────
+    // The register is the SHOP's sound: a drawer opening on the far side of a
+    // counter. This is his POCKET's, and the two are different objects, which
+    // is why a purchase can carry both — the ka-ching leads and the womp lands
+    // under it a quarter second later, the same beat the slot's loss uses.
+    const dCash = cash - lastCash;
+    if (Math.abs(dCash) > CUE_EPS && !cueMuted(t)) {
+      if (cuePendAt < 0) cuePendAt = t;
+      cuePend += dCash;
+    }
+    if (cuePendAt >= 0 && t - cuePendAt >= CUE_WINDOW) {
+      const net = cuePend;
+      cuePend = 0; cuePendAt = -1;
+      if (Math.abs(net) > CUE_EPS && t - cueAt >= CUE_GAP && !cueMuted(t)) {
+        cueAt = t;
+        // Dry, and centred. Money is not a place in the world — it is in his
+        // hand — so this takes the bite's treatment and not the register's:
+        // no distance falloff, no bearing, nothing to walk away from. The
+        // detune is the usual ±3% so a run of purchases is not one sample
+        // stamped repeatedly.
+        if (net > 0) fire('cash-gain', LVL.cashGain, 0.97 + roll() * 0.06, 0);
+        else fire('loss', LVL.cashLoss, 0.97 + roll() * 0.06, 0);
+      }
     }
     lastCash = cash;
 
