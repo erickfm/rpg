@@ -6674,3 +6674,197 @@ get nothing, deliberately — a droplet burst at this texel size reads as
 crumbs, so drinks keep the bite sound and stay visual-less.
 
 `npx tsc --noEmit` clean, `WORLD OK`. Live on 5177.
+
+## 2026-08-10 — *"looks so ugly please fix this. janky ass money screen and whats the collect button? like i just want to be able to set the bet and spin ez pz"*
+
+Screenshot: the slot locked-perspective view — reels, the big seven-segment
+money readout box bottom-left, the COLLECT button beside it. Routed to a fresh
+builder: kill the collect step, simplify to set-bet-and-spin, redo the money
+readout so it isn't a janky box.
+
+## 2026-08-10 — *"make slots aisles double sided. slot machines also on backs of all slot machines. we have more space so make sure they're not too close"*
+
+Casino slot layout: aisles become double-sided — machines on the backs of all
+slot machines, back-to-back rows, spaced out since there's room. Routed to a
+fresh builder (told to wait on the money-screen builder's commit before touching
+slotcab.ts, since that builder is live in it).
+
+## 2026-08-10 — *"i want to be able to work longer as long as the business is open. also lets give businesses reasonable hours. some businesses can have late hours or even 24 hours but it just has to kinda make sense"*
+
+Two parts: shifts no longer fixed at 8 hours — you can keep working as long as
+the business is open; and every business gets sensible opening hours (some late,
+some 24h where it fits the kind of place). Routed to a fresh builder (told the
+casino-aisles builder is live in int-casino.ts/slotcab.ts — casino hours must
+not collide with it).
+
+## 2026-08-10 — *"remove chairs for all games and tables in casino. it actually is just annoying."*
+
+No chairs at any casino game or table — slots, blackjack, roulette. You play
+standing. Sent to the builder already live in int-casino.ts/slotcab.ts (the
+double-sided-aisles task) — same files, same work, and no one else may enter
+while it holds them.
+
+## 2026-08-10 — *"car sounds need to be tuned. i never hear the car coming. sound starts too late."*
+
+Car approach audio: you should hear a car before it's on you — the sound
+currently starts too late. Routed to a fresh builder.
+
+## 2026-08-10 — *"make it so i can give the guy smokes in the park and he gives me a skateboard i can use finally"*
+
+The park guy takes smokes and hands over a skateboard — and the skateboard is
+actually rideable. Routed to a fresh builder with a TRUNK GRANT for
+src/proto/fp.ts (movement); crosstown.ts stays stop-and-report.
+
+## 2026-08-10 — *"hours signs are kinda ugly, make them less ugly pls. also wire the sounjds through to the skateboard and make a skateboard under our feet like animate and what not."*
+
+Two asks. (1) The new posted-hours cards look ugly — redesign. Fresh builder.
+(2) Skateboard: wire sounds through, and show an animated board under your feet
+while riding. Sent back to the skateboard builder — same work it just shipped.
+
+## 2026-08-10 — *"no skating indoors btw"*
+
+Skateboard is outdoor-only — riding stops/refuses inside. Sent to the
+skateboard builder with the sounds/board-under-feet follow-up.
+
+## 2026-08-10 — *"i dont like this cash out buy in thing. i just want it simple. this is for black jack and roulette ty"*
+
+Kill the buy-in/cash-out layer on blackjack and roulette — bets come straight
+from the wallet, wins pay straight back, like the slots now do. Routed to a
+fresh builder.
+
+## 2026-08-10 — *"fix graphic bug and also move the job app and clock in somewhere else"*
+
+Screenshot: the community college EVENING DIVISION bulletin board — the punch
+clock and job application sit on the board itself, overlapping the pinned
+flyers, and something on the board has a visible graphic bug (dithered/fuzzy
+edges around the card rack). Move the job station off the board; fix the bug.
+Routed to a fresh builder.
+
+## 2026-08-10 — *"also i want to be able to bet whatever amount on black jack and roulette pls ty"*
+
+Free bet sizing on both table games — any amount, not fixed steps. Sent to the
+builder already live in blackjack.ts/roulette.ts (the buy-in removal), same
+work.
+
+## 2026-08-10 — *"add roulette wheel sounds pls, also add burp audio when neighbor appears. also add card sounds. i want a slot click whenever the slot stops. check /documents/sounds/ i added new stuff"*
+
+Four wirings from the new drops in ~/Documents/sound/ (slot click.wav,
+prize wheel.wav, deal card.wav, burp.wav — plus an unrequested loss.flac to
+flag): roulette wheel, neighbor burp, blackjack cards, per-reel slot stop
+click. Routed to a fresh builder.
+
+## 2026-08-10 — *"i also added some scales like arp scales to play while slots spin. there are 3 variations, use them so there's sounds unique to each type of machine. thanks."*
+
+Three arp-scale recordings in the sound drop — one per slot cabinet
+personality, played during the spin. Sent to the audio builder already wiring
+the casino sounds — same work.
+
+## 2026-08-10 — *"make the skateboard faster than sprint, make it more diagetic, so looking up you shouldnt see a skateboard, looking down you should, etc."*
+
+Board speed above sprint, and the deck overlay tied to view pitch — visible
+looking down, gone looking up. Sent back to the skateboard builder — its own
+work revisited.
+
+## 2026-08-10 — *"no bhop on skateboard btw"*
+
+Bunny-hop stacking must not apply while riding. Sent to the skateboard builder
+with the speed/pitch follow-up.
+
+## 2026-08-10 — *"chained bhop should be fastest"*
+
+Movement podium re-ruled: a chained bunny-hop tops everything, including the
+skateboard push. Sent to the skateboard builder — same speed table it just
+tuned.
+
+## 2026-08-10 — *"bet window here is too big. pls make smaller"*
+
+Screenshot: the slot cabinet's BET meter — the grey box with the amber digits
+reads far too large next to the reels. Sent back to the builder that built the
+meter.
+
+## 2026-08-10 — *"i added slot coin win, just add thhat to the slots when you win. create a short version thats not the bigger teir of wins and a full version thats the bigger tier of wins"*
+
+New "slot coin win" recording in the drop: a short cut of it for the lower win
+tier, the full length for the big tier. Sent to the audio builder that wired
+the casino batch — same work.
+
+## 2026-08-10 — *"i want more combos and fun in the slots. like diag and stuf like lets max it out and make it super fun!"*
+
+Slots gameplay maxed out: more winning combos — diagonals and more — fun
+optimized. Routed to a fresh builder (told to let the audio builder's coin-win
+commit land before editing slotcab.ts).
+
+## 2026-08-10 — *"please fix the e prompt though? theres an ellipses in the e prompt? clean it up. this is for slots btw"*
+
+The slots [E] prompt shows an ellipsis — clean it up. Folded into the
+slots-combos builder's task, same machine.
+
+## 2026-08-10 — *"can you make losses more apparent in slots? use '/home/erick/Documents/sound/loss.flac' also use it in other games"*
+
+The loss womp gets wired: slot losses made apparent, and the same cue on
+losses in blackjack and roulette. Sent to the audio builder — same casino
+wiring it built.
+
+## 2026-08-10 — *"so instead of a line lets just highlight the specific squares"*
+
+Slot win read: drop the lit line bars — highlight the three winning symbol
+cells themselves. Sent back to the combos builder — its own visual revisited.
+
+## 2026-08-10 — *"make regular sprint slower and make walk a little tiny bit slower. also the bet after each round of black jack should reset to zero to you click to add bet everytime. same in roulette"*
+
+Two asks: (1) sprint down, walk a touch down — to the movement builder that
+owns the speed table; (2) table bets reset to zero after every round, restacked
+by click each time — to the table-games builder.
+
+## 2026-08-10 — *"i dont understand winning at slots just wins you back the money you spent? makes no sense"*
+
+Slot wins feel like refunds — winning appears to pay back only the stake. Sent
+to the combos builder that owns the pay table.
+
+## 2026-08-10 — *"yea add wheel of fortune. and add a high-roller backroom with a 1k cash entrance crit. you dont need to spend it to get in but you have to have 1k on hand to get in."*
+
+Approving two of the desk's casino pitches: a Big Six money wheel, and a
+high-roller backroom (the pitch was the same games at 10x stakes) gated on
+having $1,000 on hand — checked, not charged. Routed to one fresh builder as a
+single casino-expansion task.
+
+## 2026-08-10 — *"graphics inside the matress store look funky"*
+
+Screenshot: Sleep Center interior — the MATTRESS SALE wall banner reads
+garbled/blurry behind the orange posts, the little price signs are fuzzy, and
+the room reads speckled. Routed to a fresh builder with the screenshot.
+
+## 2026-08-10 — *"add stock trading to the pcs in the library as well as some other classic/dorky computer games pls"*
+
+The library PCs become usable: a stock-trading terminal (real money, wallet in
+and out) plus a couple of classic dorky computer games. Routed to a fresh
+builder.
+
+## 2026-08-10 — *"get rid of this table on top of the balcony"*
+
+Screenshot: library mezzanine — a table stands on the balcony in front of the
+shelves; delete it. Sent to the builder currently holding the library module
+(the PCs task) — same file.
+
+## 2026-08-10 — *"remove the window and windowsill from the apt. instead, you can ask the landlord once you pay your rent for 'a room with a view' it costs 1k a month and its the current room."*
+
+The default apartment loses its window and sill. After paying rent you can ask
+the landlord for "a room with a view" — $1k a month — which is today's room,
+window and all. Routed to a fresh builder with a TRUNK GRANT for
+src/proto/ct/apartment.ts.
+
+## 2026-08-10 — *"make the bhop timing a bit tighter"*
+
+The re-jump window narrows — sent to the movement builder that owns the bhop
+system.
+
+## 2026-08-10 — *"yea add wheel of fortune. and add a high-roller backroom with a 1k cash entrance crit. you dont need to spend it to get in but you have to have 1k on hand to get in."*
+
+Approving the desk's casino pitch: (1) a Big Six money wheel on the floor —
+built as ct/bigsix.ts + the stand in int-casino, 54 pegs, boosted odds, the
+locked-view/wallet grammar of the other games; (2) the HIGH LIMIT backroom in
+the deep west corner — the $1,000 rule is a CHECK at the door, never a charge:
+the doorway's collider parks while the wallet clears a grand, a doorman and a
+printed sign say the rule, and leaving is always a plain walk out. Inside: the
+three slot personalities at 10x ($20/$50/$100 a pull, the KING's topper
+printing its honest $15,000). Routed to a fresh builder.
