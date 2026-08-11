@@ -195,6 +195,43 @@ export function setMuted(b: boolean): void { muted = !!b; commit(); }
 /** what `M` does */
 export function toggleMute(): void { setMuted(!muted); }
 
+/**
+ * ── THE MENU PAUSES THE SOUND, AND IT DOES NOT RESTART IT ──────────────────
+ *
+ * *"esc menu should pause the game. so time doesnt pass and you dont get
+ *  sleepy etc. no sound, etc."*   (2026-08-11)
+ *
+ * `AudioContext.suspend()`, and nothing else. THE OBVIOUS ALTERNATIVE IS WRONG:
+ * pushing `master.gain` to 0 silences the output while leaving every looping
+ * bed RUNNING behind the menu — so a minute spent in the options costs a minute
+ * of street ambience, and you come back sixty seconds into a loop you were four
+ * seconds into. Suspending stops the clock the whole graph is scheduled
+ * against. The beds hold their playhead, the one-shots hold theirs, and
+ * `resume()` continues from the sample it stopped on: no fade, no restart from
+ * the top, and no chorus of seven beds all re-entering at their first frame.
+ *
+ * ⚠ NOT `close()`. A closed context cannot be reopened and the gesture that
+ * bought it is spent — that is "stops and stays dead", the one failure this
+ * must not have.
+ *
+ * MUTE IS UNTOUCHED AND STAYS UNTOUCHED. A pause is not a preference: it must
+ * not write `ct.audio`, must not move the MUTE row in the menu he is looking
+ * at, and must not leave the world silent if it is somehow left set.
+ *
+ * THE WISH IS REMEMBERED HERE, not only acted on, because the very keypress
+ * that opens the menu is also a GESTURE — it may be the one that boots this
+ * context for the first time. `boot()` asks this before it lets anything play.
+ */
+let wantSuspended = false;
+let applySuspend: (() => void) | null = null;
+export function setAudioSuspended(b: boolean): void {
+  if (wantSuspended === b) return;
+  wantSuspended = b;
+  applySuspend?.();
+}
+/** is the world holding the sound still right now */
+export const audioSuspended = (): boolean => wantSuspended;
+
 // ── the asset roster ────────────────────────────────────────────────────────
 const BEDS = ['street-a', 'street-b', 'room', 'site', 'rain', 'bus-idle', 'casino'] as const;
 type BedName = (typeof BEDS)[number];
@@ -648,6 +685,22 @@ export function register(ctx: CtxBuild): void {
   // `volume()` / `isMuted()` on every paint rather than being pushed at.
   apply = applyMaster;
 
+  // …and the same shape for the pause. UNCONDITIONAL CALLS, DELIBERATELY: both
+  // verbs return promises and both are queued on the context's control thread,
+  // so a fast open-and-close settles on whichever was asked for LAST. Gating
+  // them on `ac.state` instead would drop the `resume()` of a pair whose
+  // `suspend()` had not landed yet, and the world would come back silent —
+  // exactly the "stops and stays dead" failure `setAudioSuspended` exists to
+  // avoid. A context torn down by HMR throws here and that is not an error.
+  applySuspend = () => {
+    const ac = live;
+    if (!ac) return;
+    try {
+      if (wantSuspended) void ac.suspend().catch(() => { /* already gone */ });
+      else void ac.resume().catch(() => { /* already gone */ });
+    } catch { /* a closed context — the next world builds its own */ }
+  };
+
   // ══ THE GESTURE ═══════════════════════════════════════════════════════════
   const AC: typeof AudioContext | undefined =
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -731,6 +784,12 @@ export function register(ctx: CtxBuild): void {
     rig = { ac, master, wall, beds };
     live = ac;
     apply?.();   // the graph exists now: push the saved volume and mute at it
+    // …and the pause, which may already be on: Escape is a keydown, keydown is
+    // the gesture that boots this, so the FIRST thing this context ever hears
+    // can be "the world is paused". Suspending here rather than letting the
+    // beds start and be stopped a frame later is the difference between silence
+    // and a 16 ms blip of street.
+    if (wantSuspended) void ac.suspend().catch(() => { /* nothing started yet */ });
   }
 
   // Capture phase, so a gate that swallows the event for its own reasons cannot

@@ -33,11 +33,15 @@ import { buildCrowd, type Crowd } from './ct/crowd';
 import { pickSpot, SpotOutline, REACH_MARGIN, TOUCH_MARGIN, REACH_TRIM, ON_IT, lookTolerance } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN, ST0 } from './ct/apartment';
-import { makeHud, setScreenFocus, panelUp, registerHeldView, type Purse } from './ct/hud';
+import { makeHud, setScreenFocus, panelUp, registerHeldView, screenFading, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms, PARTY } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
 import { COLLEGE_FACE_Z } from './ct/college-yard';
+// the one seam the pause needs outside this file — see `paused` in `update`.
+// No new load-order edge: `ct/world.ts` (imported above) eager-globs every
+// `ct/*.ts` already, so this module was evaluated long before this line.
+import { setAudioSuspended } from './ct/audio';
 
 /**
  * FLOOR TO CEILING IN THE WALK-UP, in metres — read by `ceilPick` below.
@@ -569,7 +573,17 @@ export function makeCrosstown(): Proto {
   // in `ct/osd.ts`. A panel closes itself (`ct/hud.ts`), the bag closes itself,
   // and a seat stands you up (`fp.ts`); all three must win, or he gets a menu
   // over a view he can no longer reach, which is this project's worst bug.
-  registerOsdBusy(() => !!panelUp() || bagOpen() || rig.seated);
+  //
+  // ⚠ AND A FADE CLAIMS IT TOO, WHICH IS NEW AND IS ABOUT THE PAUSE. A
+  // `screenFade` is how every sleep, every shift and every teleport in this
+  // world snaps the clock, and `ct/fatigue.ts` identifies a sleep by seeing
+  // that jump ARRIVE while `screenFading()` is true. Let the menu open in the
+  // middle of one and the world freezes with the jump already banked but not
+  // yet observed — it would surface on the resume frame, possibly after the
+  // fade had ended, and be filed as "time he never lived" instead of as the
+  // night he just spent. You cannot pause a cut. It costs him nothing: a fade
+  // is under two seconds and Escape works the instant it lands.
+  registerOsdBusy(() => !!panelUp() || bagOpen() || rig.seated || screenFading());
   // ⚠ LOOK SPEED AND INVERT ARE INSTALLED WHERE THE RIG EXISTS, not here. See
   // the note at the assignment itself, beside `new FPRig`.
   installOsd();
@@ -597,6 +611,38 @@ export function makeCrosstown(): Proto {
   // would fight them.
   let clockRamp = 0;          // game minutes still owed
   let clockRampRate = 0;      // game minutes per real second
+  /**
+   * ── THE WORLD'S OWN SECONDS, WHICH ARE NOT THE WALL'S ────────────────────
+   *
+   * `main.ts` hands `update` a `t` off a `THREE.Clock` — real elapsed seconds,
+   * which keep counting through a paused menu, through a stalled tab and
+   * through every frame the 0.05 s `dt` clamp shortened. This is the sum of the
+   * `dt`s the world was actually given, and it is what goes out on `Frame.t`.
+   *
+   * WHY IT MATTERS HERE: three dozen modules take `f.t` as the phase of
+   * something that moves, and a few take it as a deadline. Handed the wall's
+   * clock, a two-minute stop in the options menu would come back as a
+   * two-minute leap in every one of them at once — a flock teleporting, a sign
+   * flickering through 120 seconds of its cycle, a timer that has already
+   * expired. Handed this, none of them can tell the pause happened, and none of
+   * them had to be told about it.
+   */
+  let simT = 0;
+  /**
+   * ── AND WHETHER THE WORLD IS RUNNING AT ALL ──────────────────────────────
+   *
+   * *"esc menu should pause the game. so time doesnt pass and you dont get
+   *  sleepy etc. no sound, etc."*   (2026-08-11)
+   *
+   * Only a latch for the EDGE — the pause itself is derived from `menuOpen()`
+   * every frame, never set by a key handler. That is the whole safety argument:
+   * whatever closes the menu resumes the world, including paths that have never
+   * heard of the pause (`ct/gameover.ts` forces the menu shut and hands the OSD
+   * a busy claim; an HMR reload starts with it closed). A world stuck paused
+   * because a close path forgot to unset a flag is the same family of bug as a
+   * panel you cannot close, and this shape cannot produce it.
+   */
+  let paused = false;
   let rmbHeld = false;
   let interactHeld = false;
 
@@ -2618,7 +2664,52 @@ export function makeCrosstown(): Proto {
       // the canvas's own rect is the only honest source for that mapping
       renderer = r;
     },
-    update(dt, t, input) {
+    update(dt, _wallT, input) {
+      // ══ THE MENU PAUSES THE WORLD ═══════════════════════════════════════
+      //
+      // *"esc menu should pause the game. so time doesnt pass and you dont get
+      //  sleepy etc. no sound, etc."*   (2026-08-11)
+      //
+      // ONE RETURN, AND IT IS THE WHOLE FEATURE. Everything in this world that
+      // moves on its own moves because this function moved it: the clock is
+      // `totalMin += dt` twelve lines down, the body is `rig.update`, and every
+      // other advancing thing — fatigue and the awake window, wages on shift,
+      // citizens, traffic, the pigeons, the rain, the stock ticks, the shop
+      // hours, a landlord's floor trigger — is a hook in `HOOKS`, run from this
+      // function and nowhere else. Skip the body and all of it stands still.
+      // Nothing had to be told it was paused, and nothing new can be built that
+      // forgets to ask: a module that wants a per-frame hook gets one from
+      // `ctx.onFrame`, and `ctx.onFrame` is this loop.
+      //
+      // ── WHY THE RESUME CANNOT SNAP ────────────────────────────────────────
+      // Because the pause skips rather than accumulates. `main.ts` clamps `dt`
+      // to 0.05 s, so the first frame back is an ordinary frame however long he
+      // sat in the menu, and `totalMin` continues from the minute it was on.
+      // `ct/fatigue.ts` reads the clock DELTA and calls anything over 0.5
+      // game-minutes a sleep cut; the delta across a pause is one frame's
+      // worth, so a five-minute stop in the options is not a night's sleep and
+      // does not fire a collapse. Same for `Frame.t` — see `simT`, which is the
+      // reason this does not hand the wall's clock to thirty-six modules.
+      //
+      // ⚠ ONLY THE MENU. The slot cabinets, blackjack, roulette, the Big Six,
+      // the library PCs and its books, the fitting mirror and the pawn sell
+      // window are locked perspective views, not menus — they are GAMEPLAY, the
+      // clock runs in all of them exactly as it did, and they are what the
+      // `panelUp()` claim on the OSD keeps the menu from opening on top of in
+      // the first place.
+      if (menuOpen()) {
+        if (!paused) { paused = true; setAudioSuspended(true); }
+        // The mouse is the menu's while it is up. `main.ts` clears these after
+        // every update, but this return skips the rig, so drop them here too
+        // rather than let a delta sit in the input for the resume frame to
+        // apply as one flick of the head.
+        input.mouseDX = 0; input.mouseDY = 0;
+        return;
+      }
+      if (paused) { paused = false; setAudioSuspended(false); }
+      // the world's own seconds, advanced only on frames the world ran
+      simT += dt;
+      const t = simT;
       // LOOK IS LOCKED WHILE A SCREEN IS UP, and it is locked HERE rather than
       // in fp.ts: the rig applies mouse deltas before its own seated branch, so
       // a seated player can still turn their head — right for a bench, wrong
