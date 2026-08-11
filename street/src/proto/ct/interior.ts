@@ -4,6 +4,7 @@ import { WAY_OUT } from '../fp';
 import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf, frontageWorld, alongU } from './tex-world';
+import { walkTex, plazaTex } from './tex-ground';   // the sheets the ground outside a door is really made of
 import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor, doorLeafFor, type DoorLeaf } from './doors';
 import { LEAF_AJAR } from './vice';   // item 193: the one door angle
 import { citizenSprite, type Look, type CitizenSprite } from './citizens';
@@ -51,6 +52,56 @@ const SLAB_X0 = 400, SLAB_W = 80;
  *  addressing below has to know it before a room is built: two rooms meet by
  *  each leaving exactly one wall's worth of slab on the shared side. */
 const WALL_T = 0.18;
+
+/**
+ * ROOMS THAT HANG THEIR OWN STREET BEHIND THEIR OWN FRONT DOOR.
+ *
+ * `streetBeyond` below builds the outside of every front opening in the kit.
+ * A room that has already built its own must not get a second one: two
+ * backdrops within a few centimetres of each other z-fight, and moving the
+ * kit's further out is worse — it is wider than the room's own, so it shows
+ * past its edges at an angle and you get a seam between two different
+ * pictures of the same street.
+ *
+ * The list lives HERE and not as a flag in the room's own spec for the reason
+ * the party-wall table above lives here: it is a fact about how the kit and
+ * one room divide a job between them, and a fact split across two files is
+ * the two-authorings defect (BUILDER-BRIEF §8). It is also the only place a
+ * reader can see the whole set at once.
+ *
+ *   library   `int-library.ts` paints the FORECOURT — pale paving under a pale
+ *             sky, no road and no frontage opposite, because a library set
+ *             back behind a flight of steps genuinely has no street at its
+ *             threshold. It is night-graded off `scene.userData.nightFactor`
+ *             the same way this kit's is, and it is the panel this one was
+ *             written from.
+ */
+const OWN_STREET: ReadonlySet<string> = new Set(['library']);
+
+/**
+ * ROOMS WHOSE DOOR DOES NOT OPEN ONTO A ROAD.
+ *
+ * The default backdrop is a shopfront street — walk, kerb, roadway, the
+ * frontage opposite — because thirteen of the fifteen rooms that use it stand
+ * on the shopfront line and that is what is genuinely outside them. These
+ * three do not, and painting a kerb two metres from their threshold would be a
+ * worse lie than the void it replaces, because it contradicts something the
+ * player has just walked across:
+ *
+ *   church   `int-church.ts` says it in its own words — *"the church stands
+ *            behind its own forecourt, not on the shopfront line"* — which is
+ *            also why it publishes no frontage.
+ *   jail     `ct/jail.ts` lays a granite plaza from the site's front edge to
+ *            the building face, `plazaTex`, the civic sheet.
+ *   library  handled by `OWN_STREET` above; it paints its own forecourt and
+ *            is the room both of these are copied from.
+ *
+ * The college is deliberately NOT here. It is set back 4.5 m behind a paved
+ * yard (`ct/college-yard.ts`), so its road is further off than the card draws
+ * it — but there IS a road, and a kerb slightly too near is a much smaller
+ * error than no street at all.
+ */
+const FORECOURT: ReadonlySet<string> = new Set(['church', 'jail']);
 
 // ── party walls: the ONE case where two rooms are not alone in the world ──
 //
@@ -1568,6 +1619,164 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   const wSill = win?.sill ?? 0.95;
   const wH = win?.h ?? 1.5;
 
+  // ── WHAT IS ON THE OTHER SIDE OF A HOLE IN THE FRONT WALL ────────────────
+  //
+  // The user, of the pawn shop: *"front door of pawn shop interior is
+  // backwards"* — and the leaf really was hung mirrored, which is fixed. But
+  // the screenshot that came with it shows the other half of the fault, and it
+  // is the bigger one: behind the open leaf the doorway is A FLAT BLUE SLAB,
+  // one uniform tone with no dither and no horizon. That is the SKY. Rooms are
+  // parked at x >= 400 where there is no ground, no street and no world, so a
+  // cut opening shows `scene.background` — the time-of-day clear colour — and
+  // nothing else. A doorway onto a flat card of nothing reads as a wall, which
+  // is exactly the complaint the cut-face rooms already made four times over.
+  //
+  // THIS IS THAT SAME FIX, MADE ONCE FOR BOTH PATHS. The chamfered path grew a
+  // daylight panel of its own (see the cut corner below); the FLAT FRONT WALL —
+  // which is every other room in the world — never got one. Rather than write a
+  // second one, the panel moved up here and both paths call it.
+  //
+  // It is three things, and the first is the one the earlier fix did not have:
+  //
+  //   1. A PIECE OF REAL SIDEWALK. `walkTex`, the same sheet the street outside
+  //      wears, on a quad running from under the wall out past the backdrop.
+  //      Without it, looking down through the doorway — which is what you do
+  //      when you are stood in it — puts your eye under the backdrop's bottom
+  //      edge and back into the void. A card alone cannot cover downward; only
+  //      ground can. The overlap is deliberate: the card starts 0.30 m BELOW
+  //      floor level and the walk runs 0.30 m PAST the card, so there is no
+  //      angle that finds a seam between them.
+  //   2. THE STREET, painted. Sidewalk, kerb, roadway, the frontage opposite,
+  //      sky — as bands at their real heights, so the horizon lands at eye
+  //      level (1.6 m) where a horizon belongs. Deliberately anonymous: it is
+  //      a card 0.7 m behind a doorway, and a recognisable building would
+  //      fight the one you are standing inside.
+  //   3. NIGHT. `dimWorld` skips |x| > 100, so nothing in an interior is
+  //      graded — right for the room (a shop lit at 2am is what a lit window
+  //      promises from the street) and wrong for this, because this is a
+  //      picture of OUTSIDE and outside is dark. GOTCHAS §22 names the case:
+  //      a surface the grader will not touch, depicting one it does, dims
+  //      itself from its own onFrame. The factor and the 0x3c3c3c endpoint are
+  //      `int-library.ts`'s, measured on the world's own paving rather than
+  //      picked — see the long note there, and argue with 0.235 if this ever
+  //      reads wrong.
+  //
+  // Sized by the CALLER, because the two faces it serves are not alike: a flat
+  // front wall gets the full width of the wall it is behind (which is also the
+  // widest it can safely be — half of a party wall must not throw a backdrop
+  // across its neighbour's frontage), a 45° cut face gets something closer to
+  // the cut.
+  const dimOutside: THREE.MeshBasicMaterial[] = [];
+  const streetBeyond = (o: {
+    fx: number; fz: number;      // centre of the opening, ON THE OUTER FACE
+    ox: number; oz: number;      // unit normal, pointing OUT of the room
+    rotY: number;                // the face's rotation, the same one its walls use
+    width: number;               // how wide the backdrop stands across the face
+    out: number;                 // how far off the face it stands
+    y1: number;                  // its top, in room-local y (the bottom is fixed)
+  }) => {
+    const court = FORECOURT.has(spec.id);   // paving and sky, not kerb and road
+    const Y0 = -0.30, Y1 = o.y1, Hc = Y1 - Y0;
+    if (Hc <= 0.2 || o.width <= 0.2) return;
+    // ── 3. night, registered on the first face this room builds ──
+    //
+    // ONE handler for both faces of a room, and none at all for a room that
+    // has no front opening. `nightFactor`, NOT the frame's `night`: they are
+    // two quantities with almost the same name, and `int-library.ts` shipped
+    // the wrong one for a build — see GOTCHAS §25 and the long note there.
+    if (!dimOutside.length) {
+      const DARK = new THREE.Color(0x3c3c3c);
+      ctx.onFrame(() => {
+        const n = (ctx.scene.userData.nightFactor as number) ?? 0;
+        for (const m of dimOutside) m.color.setRGB(1, 1, 1).lerp(DARK, n);
+      }, HOOK.LATE);
+    }
+    // ── 1. the walk ──
+    const deep = T + o.out + 0.30;                       // from under the wall to past the card
+    const mid = (o.out + 0.30 - T) / 2;                  // its centre, measured off the face
+    const walk = new THREE.Mesh(new THREE.PlaneGeometry(o.width, deep),
+      new THREE.MeshBasicMaterial({
+        map: (court ? plazaTex : walkTex)(0, o.width, 0, deep),
+      }));
+    // A horizontal plane that also has to face the way the wall does. Euler
+    // 'XYZ' applies Z first and X last, so `z = rotY` spins the sheet in its
+    // own plane and `x = -90°` then lays it down — which puts its local +x on
+    // the face's +x, the same axis the wall meshes use. Setting `y` instead
+    // would spin it about the world axis AFTER it is flat, which is a
+    // different rotation and lands the sidewalk's joints across the doorway.
+    walk.rotation.set(-Math.PI / 2, 0, o.rotY);
+    // 4 mm proud of the floor. A CUT FACE is set across the corner of a square
+    // room whose floor plane is still drawn full width behind it, so the piece
+    // of walk in front of that face is coplanar with a floor that is still
+    // there — and two coplanar planes z-fight. Off the flat front wall there is
+    // nothing to fight and 4 mm at the threshold is not a step you can see.
+    place(walk, o.fx + o.ox * mid, 0.004, o.fz + o.oz * mid);
+    dimOutside.push(walk.material as THREE.MeshBasicMaterial);
+    // ── 2. the street ──
+    const PXM = 8;                                       // a backdrop, not a facade
+    const wPx = Math.max(16, Math.round(o.width * PXM));
+    const hPx = Math.max(16, Math.round(Hc * PXM));
+    // world height -> texel row, so every band sits at the height it means
+    // whatever the caller sized this card to
+    const yIn = (v: number) => (Y1 - v) / Hc * hPx;
+    const cardT = declareSurface(pixTex(wPx, hPx, (g) => {
+      const band = (v0: number, v1: number, col: string) => {
+        const a = Math.max(0, Math.round(yIn(v1))), b = Math.min(hPx, Math.round(yIn(v0)));
+        if (b > a) { g.fillStyle = col; g.fillRect(0, a, wPx, b - a); }
+      };
+      band(-99, 99, court ? '#cfdae4' : '#b9c6d2');      // sky
+      if (court) {
+        // A FORECOURT, and nothing else. `int-library.ts`'s three bands and its
+        // three tones, because they are the ones already standing in this
+        // world's only other civic doorway: paving that runs out to a haze
+        // band, and sky over it. No kerb and no frontage opposite — see
+        // `FORECOURT` at the top of this file for why these rooms get it.
+        band(1.10, 1.50, '#b8b0a0');
+        band(-99, 1.10, '#a89e88');
+        g.fillStyle = 'rgba(0,0,0,0.10)';                // the paving's joints
+        for (let y = Math.round(yIn(0.95)); y < hPx; y += 3) g.fillRect(0, y, wPx, 1);
+        dither(g, wPx, hPx, Math.round(wPx * hPx * 0.05));
+        return;
+      }
+      // the frontage opposite: bays of three tones and two rows of windows.
+      // Stepped by index rather than by Math.random so a room looks the same
+      // on every load — GOTCHAS' rule about screenshots is that two runs of
+      // identical code should differ because of the WORLD, not the art.
+      const roof = Math.round(yIn(3.30)), horiz = Math.round(yIn(1.52));
+      const bayPx = Math.max(4, Math.round(2.1 * PXM));
+      const TONE = ['#6e6961', '#78716a', '#655f59'];
+      for (let bx = 0, i = 0; bx < wPx; bx += bayPx, i++) {
+        const top = roof + ((i * 7) % 3) * Math.max(1, Math.round(0.22 * PXM));
+        g.fillStyle = TONE[i % 3];
+        g.fillRect(bx, Math.max(0, top), Math.min(bayPx - 1, wPx - bx), horiz - Math.max(0, top));
+        g.fillStyle = '#3f464d';                         // its windows, two rows
+        for (const wy of [yIn(2.85), yIn(2.35)]) {
+          if (wy < top) continue;
+          for (let k = 0; k < 2; k++) {
+            g.fillRect(bx + Math.round(bayPx * (0.18 + k * 0.42)), Math.round(wy),
+                       Math.max(1, Math.round(bayPx * 0.26)), Math.max(1, Math.round(0.30 * PXM)));
+          }
+        }
+      }
+      band(1.44, 1.52, '#6b665e');                       // the walk on the far side
+      band(1.40, 1.44, '#57534c');                       // its kerb
+      band(0.92, 1.40, '#3d3d3f');                       // the roadway
+      // the centre line, broken, foreshortened into the distance
+      g.fillStyle = '#a49a68';
+      for (let x = 0; x < wPx; x += Math.max(3, Math.round(1.9 * PXM))) {
+        g.fillRect(x, Math.round(yIn(1.13)), Math.max(1, Math.round(0.9 * PXM)), 1);
+      }
+      band(0.86, 0.92, '#6f6a61');                       // the near kerb, seen end-on
+      band(-99, 0.86, '#84817a');                        // and the walk you would step onto
+      dither(g, wPx, hPx, Math.round(wPx * hPx * 0.05));
+    }), 'sign', PXM);
+    const card = new THREE.Mesh(new THREE.PlaneGeometry(o.width, Hc),
+      new THREE.MeshBasicMaterial({ map: cardT, side: THREE.DoubleSide }));
+    card.rotation.y = o.rotY;
+    place(card, o.fx + o.ox * o.out, (Y0 + Y1) / 2, o.fz + o.oz * o.out);
+    dimOutside.push(card.material as THREE.MeshBasicMaterial);
+  };
+
   // Openings along the front wall, left to right, as [from, to, y0, y1].
   //
   // The wall is then built as the runs BETWEEN them, which only produces a
@@ -1639,6 +1848,34 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     }
     const transom = new THREE.Mesh(new THREE.BoxGeometry(wW, 0.07, T + 0.04), trimM);
     place(transom, wAt, wSill + wH * 0.72, hd + T / 2);
+  }
+
+  // …AND THE STREET BEHIND EVERY ONE OF THOSE OPENINGS.
+  //
+  // The door AND the window, from one card, because they are holes in the same
+  // wall and a shopfront window looking onto the void is the same defect as a
+  // doorway looking onto it — the kit's glass is 55% transparent, so what has
+  // been showing through it is the clear colour at a slight tint.
+  //
+  // Built whenever the front wall is holed at all, which includes a chamfered
+  // room whose DOOR is in the cut but whose WINDOW is still here.
+  //
+  // FULL WIDTH OF THE WALL, and that is the widest it may be: half of a party
+  // wall sits hard against the slab boundary, so a backdrop any wider would
+  // hang across its neighbour's frontage — and the pair are not the same depth,
+  // so it could hang INSIDE the neighbour's room. The wall's own width can
+  // never do that and is far more generous than the view cone through a
+  // doorway needs.
+  if ((!doorInCut || (win && wW > 0)) && !OWN_STREET.has(spec.id)) {
+    streetBeyond({
+      fx: 0, fz: hd + T, ox: 0, oz: 1, rotY: 0,
+      width: W + 2 * T, out: 0.70,
+      // clear of the tallest opening in the wall by enough that its top edge
+      // cannot come into shot when you look up through the glass from close to
+      // it — the eye is 1.6 m and the card is 0.7 m out, so a head-back look
+      // through a 2.45 m transom from half a metre away lands around 4.1 m.
+      y1: Math.max(DOOR_H, win && wW > 0 ? wSill + wH : 0) + 2.4,
+    });
   }
 
   // wall colliders — the openings are NOT gaps you can walk out of, except
@@ -1717,12 +1954,24 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       // DAYLIGHT beyond, a FRAME around, and a THRESHOLD underfoot.
       const ox = sx / Math.SQRT2, oz = sz / Math.SQRT2;    // outward, off the cut
       const dcx = ax + (bx - ax) * 0.5, dcz = az + (bz - az) * 0.5;
-      // daylight: a bright panel a little way outside, so the opening reads as
-      // an opening from anywhere in the room rather than only head-on.
-      const sky = new THREE.Mesh(new THREE.PlaneGeometry(dW * 1.9, DOOR_H * 1.25),
-        new THREE.MeshBasicMaterial({ color: 0xd8e2ea, side: THREE.DoubleSide }));
-      sky.rotation.y = rotY;
-      place(sky, dcx + ox * 0.5, DOOR_H * 0.6, dcz + oz * 0.5);
+      // ── THE DAYLIGHT IS `streetBeyond` NOW, THE SAME ONE THE FLAT WALL USES ─
+      //
+      // This was a flat panel of #d8e2ea and it was the right shape of answer:
+      // put something bright outside the hole and the hole reads as a hole. It
+      // was not a STREET, though — no ground under it, no horizon in it, and it
+      // stayed at full noon while the world went dark around it, which is the
+      // lightbox `int-library.ts` caught in its own copy of this panel.
+      //
+      // When the flat front wall needed the same fix — every other room in the
+      // world, and the pawn shop's blue slab is what finally forced it — the
+      // choice was a second panel or one shared one. It is one, hoisted to the
+      // top of this function, and this call is the older of its two users.
+      // Sized off the CUT rather than off the door, because the face is what
+      // you see it against.
+      streetBeyond({
+        fx: dcx + ox * (T / 2), fz: dcz + oz * (T / 2), ox, oz, rotY,
+        width: Math.max(len, dW * 2.2), out: 0.45, y1: DOOR_H + 2.0,
+      });
       // the frame: two jambs and a head, proud of the face on the inside
       const frameM = new THREE.MeshBasicMaterial({ color: LEAF?.frame.colour ?? 0x5a4a34 });
       for (const t of [g0, g1]) {
