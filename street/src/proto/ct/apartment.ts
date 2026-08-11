@@ -826,6 +826,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // which puts the tile's baseboard band across the middle of the room. The
     // tile is one 2.7 m storey; a piece has to be told where in that storey it
     // sits or the paper does not line up across the hole.
+    //
+    // ⚠ WHICH WAY "THE START" POINTS IS NOT THE WAY YOU LAID THE WALL OUT.
+    // v is easy — it runs along local +y, which `ry` never turns, so vOff is
+    // always metres up from the floor. u is NOT: it runs along the box's local
+    // +x, and `ry` carries that round with the wall. At ry = +π/2 local +x is
+    // world **−z**, so on such a wall the paper starts at its HIGH-z end and
+    // runs back, and uOff has to be measured from z1 — `z1 - pieceHighZ`, not
+    // `pieceLowZ - z0`. At ry = −π/2 local +x is world +z and the intuitive
+    // reading is the right one; at ry = 0 / π the same flip applies about x.
+    // Passing the distance from the wrong end does not just shift the paper by
+    // that distance, it shifts it by the distance to BOTH ends added together,
+    // which is how 301's window-flank pieces ended up 0.89 of a tile — half a
+    // stripe — out of phase with the strips above and below them (2026-08-11).
     const wallMesh = (w: number, h: number, cx: number, cy: number, cz: number, ry: number,
                       tex = wallpaperT, uOff = 0, vOff = 0) => {
       const t = tex.clone();
@@ -2773,9 +2786,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // never visible together: `applyView` at the foot of the light-switch
     // section flips them and re-grades the room's light.
     //
-    // `winFill` shares the four pieces' texture convention (u from z0, v from
-    // y0), so the paper runs unbroken across all five and the filled wall
-    // reads as one wall. Its jamb-painted side faces sit back-to-back against
+    // `winFill` shares the four pieces' texture convention (u from z1 back,
+    // v from y0 up), so the paper runs unbroken across all five and the filled
+    // wall reads as one wall. Its jamb-painted side faces sit back-to-back against
     // the cut faces of the pieces around it — coplanar with OPPOSITE normals,
     // so one of each pair is always backfacing and nothing z-fights.
     const viewGrp = new THREE.Group();
@@ -2789,9 +2802,29 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const oz0 = WZ - WW / 2, oz1 = WZ + WW / 2;
       wallMesh(R301_D, oy0 - y0, AX(R301_X0), (y0 + oy0) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, 0);
       wallMesh(R301_D, y1 - oy1, AX(R301_X0), (oy1 + y1) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, oy1 - y0);
-      wallMesh(oz0 - z0, WH, AX(R301_X0), WY, AZI((z0 + oz0) / 2), Math.PI / 2, roomWallT, 0, oy0 - y0);
-      wallMesh(z1 - oz1, WH, AX(R301_X0), WY, AZI((oz1 + z1) / 2), Math.PI / 2, roomWallT, oz1 - z0, oy0 - y0);
-      winFill = wallMesh(WW, WH, AX(R301_X0), WY, AZI(WZ), Math.PI / 2, roomWallT, oz0 - z0, oy0 - y0);
+      // ── uOff IS MEASURED BACK FROM z1, and this is where that was learned ──
+      // *"rear wall in room is not continuous"* (2026-08-11). With the window
+      // sold off as an upgrade this is a blank wall you stare straight at, and
+      // it had two panels in it — exactly the flanks of the old opening —
+      // whose stripes sat half a stripe off the wall either side of them.
+      //
+      // The two strips above and below run the full 3.5 m with uOff 0, so they
+      // sample the tile from z1 (see the ⚠ on `wallMesh`: at ry = +π/2, u runs
+      // −z). The flanks passed `pieceLowZ - z0`, the distance from the OTHER
+      // end, so each landed off by (its own length + the far offset): the south
+      // flank by −2.4 m and the north flank by +2.4 m. 2.4 m is 0.89 of the
+      // 2.7 m tile and 3.56 of the 0.675 m stripe — a half-stripe shift, which
+      // is the worst phase error the paper has, and equal-and-opposite on the
+      // two flanks, so they read as two mismatched patches framing a "wide
+      // middle". The middle — `winFill` — was the one piece that was right,
+      // because the window is centred and `oz0 - z0` happens to equal
+      // `z1 - oz1` for a centred hole.
+      //
+      // Measured from z1 all five now evaluate to the same u(z) = (z1 − z)/2.7
+      // and the paper is one sheet across the wall, window or no window.
+      wallMesh(oz0 - z0, WH, AX(R301_X0), WY, AZI((z0 + oz0) / 2), Math.PI / 2, roomWallT, z1 - oz0, oy0 - y0);
+      wallMesh(z1 - oz1, WH, AX(R301_X0), WY, AZI((oz1 + z1) / 2), Math.PI / 2, roomWallT, 0, oy0 - y0);
+      winFill = wallMesh(WW, WH, AX(R301_X0), WY, AZI(WZ), Math.PI / 2, roomWallT, z1 - oz1, oy0 - y0);
     }
     wallMesh(R301_W, R301_H, AX(R301_CX), 2 * ST + R301_H / 2, AZI(R301_Z0), 0, roomWallT);
     wallMesh(R301_W, R301_H, AX(R301_CX), 2 * ST + R301_H / 2, AZI(R301_Z1), Math.PI, roomWallT);

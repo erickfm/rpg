@@ -6868,3 +6868,15 @@ the doorway's collider parks while the wallet clears a grand, a doorman and a
 printed sign say the rule, and leaving is always a plain walk out. Inside: the
 three slot personalities at 10x ($20/$50/$100 a pull, the KING's topper
 printing its honest $15,000). Routed to a fresh builder.
+
+## 2026-08-11 — *"'/home/erick/Pictures/Screenshots/Screenshot from 2026-08-11 15-49-48.png' rear wall in room is not continuous"*
+
+301's west wall — the blank wall left where the window used to be. The two
+panels flanking the old opening had their wallpaper uOff measured from the
+wrong end of the wall: `wallMesh`'s u runs along the box's local +x, which at
+ry = +π/2 is world −z, so uOff has to be metres back from z1 and they passed
+metres forward from z0. Each landed 2.4 m out — 0.89 of the 2.7 m tile, half a
+stripe — and equal-and-opposite, so they read as two mismatched patches with a
+"wide middle" between them. `winFill` was the only cut piece that was right,
+by the accident of a centred hole. Fixed in place; routed to the builder
+holding the trunk grant for src/proto/ct/apartment.ts.
