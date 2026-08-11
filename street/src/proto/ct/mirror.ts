@@ -401,8 +401,45 @@ function bagRects(kind: string, facing: number): BagRect[] {
       .map((sgn) => ({ r: [sgn < 0 ? CX - 8 : CX + 4, SHOULDER, 4, 22], f: 'span', c: 'trim' } as BagRect));
   }
   if (kind === 'tote') {
-    const out: BagRect[] = [{ r: [CX + 6, SHOULDER - 1, 4, WAIST - SHOULDER - 12], f: 'span', c: 'trim' }];
-    if (facing !== 2) out.push({ r: [CX + TORSO_HW - 2, WAIST - 16, ARM_W + 5, 20], f: 'span', c: 'cloth' });
+    // ⚠ EVERY NUMBER COMES OFF `TORSO_HW` NOW, AND THAT IS THE FIX.
+    //
+    // *"tote bag looks messed up"*   (2026-08-11)
+    //
+    // THE STRAP WAS A LITERAL AND THE BAG WAS NOT. Strap at `CX + 6`, body at
+    // `CX + TORSO_HW - 2` — so the two only met on an AVERAGE torso, and on
+    // STOCKY (`TORSO_HW` 14) the body slid two units outboard and left a strip
+    // of bare shirt between them: a strap dead-ending in mid-chest and a slab
+    // hanging off nothing, which is the picture he sent. **This is the identical
+    // fault the sling's strap was fixed for** — see its note below, which says
+    // in as many words that fixed literals sized for the average torso come
+    // apart on the other two builds. The tote never got that pass.
+    //
+    //   sx   where the strap lies on the shoulder — eight units in from the
+    //        POINT of the shoulder, so it stays between neck and shoulder on all
+    //        three builds instead of a fixed distance from the centre line
+    //   bx   the bag's near edge, and it IS the strap's far edge. One anchor, so
+    //        there is no arithmetic left that can put a gap between them.
+    const sx = CX + TORSO_HW - 8, bx = sx + 4;
+    const by = WAIST - 10;
+    const out: BagRect[] = [
+      // ── AND IT NOW GOES OVER THE SHOULDER, WHICH WAS THE OTHER HALF ───────
+      // *"the strap … runs straight down the front of the chest from the neck
+      //  without ever crossing a shoulder"*. A vertical band that simply begins
+      // at the collar line reads as a stripe PAINTED on the chest, because
+      // nothing in the drawing says it passed over anything. This stub — from
+      // the strap out to the point of the shoulder, lying across the collar the
+      // top has just drawn — is the whole of what makes a strap read as WORN.
+      { r: [sx, SHOULDER - 1, 8, 3], f: 'span', c: 'trim' },
+      // then straight down into the bag, ending three units INSIDE its mouth so
+      // the join is a tuck and not a butt seam that rounding can open again
+      { r: [sx, SHOULDER - 1, 4, by + 3 - (SHOULDER - 1)], f: 'span', c: 'trim' },
+    ];
+    // THE BODY HANGS AT THE HIP RATHER THAN ACROSS THE FOREARM. Its outer edge
+    // is the ARM's outer edge (`CX + TORSO_HW + ARM_W - 1`), so it can no longer
+    // run off the 40-unit panel the way `ARM_W + 5` did on a stocky build, and
+    // its bottom is `HAND_B` — the arm ends where the bag ends, so there is no
+    // orphaned stub of hand left hanging underneath it.
+    if (facing !== 2) out.push({ r: [bx, by, ARM_W + 3, HAND_B - by], f: 'span', c: 'cloth' });
     return out;
   }
   if (kind === 'clutch') {
@@ -1198,8 +1235,8 @@ export function paintFigure(g: CanvasRenderingContext2D, ox0: number, oy0: numbe
   // ── AND THE BAG THAT IS IN FRONT OF YOU ────────────────────────────────
   //
   //   PACK      only the straps, over whatever top is on
-  //   TOTE      hangs off the hand at his left side, the same from every angle
-  //             — a bag in your hand does not hide behind you
+  //   TOTE      over the near shoulder and down onto the hip, the strap visible
+  //             from every angle — it is what says the thing is worn at all
   //   SLING     the strap crosses the chest at the front and the BACK at the
   //             back (the diagonal flips), with the pouch on the hip, which is
   //             hidden when he turns away
@@ -1236,18 +1273,29 @@ export function paintFigure(g: CanvasRenderingContext2D, ox0: number, oy0: numbe
     // ONE STRAP, STRAIGHT DOWN, which is the whole difference from the sling
     // beside it: same idea of a bag worn rather than held, but the strap drops
     // over the near shoulder instead of crossing the chest, and the bag sits
-    // UNDER THE ARM at the waist rather than on the far hip. Two carries that
+    // UNDER THE ARM at the hip rather than on the far hip. Two carries that
     // read apart at a glance, which is the only reason to have both.
+    //
+    // ⚠ "STRAIGHT DOWN" IS NOT "STARTS AT THE COLLAR". That is what the first
+    // pass drew and *"tote bag looks messed up"* is what it earned — see
+    // `bagRects`. It goes over the shoulder first, and only then straight down.
     //
     // THE STRAP IS ALWAYS DRAWN. It lies on the shoulder, so it is visible
     // front, side and back — it is what says the thing is worn at all, and
-    // from behind it is most of what you can see of a shoulder bag.
+    // from behind it is most of what you can see of a shoulder bag. It is three
+    // pieces in `bagRects` now — a stub OVER the shoulder, the drop, and the
+    // body it tucks into — and all three are anchored to one `sx`.
     //
     // THE BAG IS A FLAT SLAB, so `span` (1 / .82 / .55): broad from the front,
     // an edge from the side. And it is NOT DRAWN AT PROFILE, where the body it
     // hangs behind hides it — the same rule the sling's pouch follows.
-    // strap and body are both in the table; only the mouth is a detail
-    if (facing !== 2) box(CX + TORSO_HW - 2, WAIST - 16, ARM_W + 5, 3, bag.trim);
+    // strap and body are both in the table; only the mouth is a detail, and it
+    // ⚠ MUST BE THE BODY'S OWN TOP THREE ROWS — this line was a second copy of
+    // the body's geometry and went stale the moment the body moved, which is
+    // the darker slab sitting off the bag's top edge in his shot.
+    if (facing !== 2) {
+      box(CX + TORSO_HW - 4, WAIST - 10, ARM_W + 3, 3, bag.trim);
+    }
   } else if (bag.kind === 'clutch') {
     // ══ AND THE CLUTCH IS THE DRAWING THE TOTE USED TO HAVE ═════════════
     //
