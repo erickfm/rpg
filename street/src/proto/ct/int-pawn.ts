@@ -8,9 +8,14 @@ import { FACE } from './rng';
 // The fence's prices live beside the loot table they price, not here — a second
 // hand-typed copy of a number is this codebase's most expensive habit
 // (BUILDER-BRIEF §8), and these two tables have to stay keyed on the same ids.
-import { bestFence, fencePrice, itemOf, takeOne } from './inventory';
-import { hudNote } from './hud';
+import { fencePrice } from './inventory';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
+// The loan window's own interface — the pad, the offer and the ticket. A leaf
+// module beside ct/shop.ts and for the same reason: this room supplies the pad
+// it already stood on the counter and the man already behind the bars, and
+// nothing else. It imports nothing from here, so there is no cycle to drop this
+// building's DOOR out of the built bundle (GOTCHAS §28).
+import { sellWindow, padTexture, PAD_PX, PAD_PY, PAD_PPM } from './sell-window';
 import { jobStation } from './jobs';
 import './goods';   // for the side effect: it is what declares the stock
 
@@ -495,12 +500,43 @@ export function buildPawn(ctx: CtxBuild): void {
   put(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.05, 8), brassM),
     SELL_X - 0.30, 1.285, CTR_ZC - 0.22);                        // the loupe, set down
 
-  // YOUR SIDE OF THEM: the pad the ticket is written on, and the pen tethered to
-  // it. This is the mesh that used to sit at x −1.2 for no reason.
-  put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24),
-    new THREE.MeshBasicMaterial({ color: 0xded4b8 })), SELL_X + 0.60, 1.27, CTR_ZC + 0.22);
-  put(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.014),
-    new THREE.MeshBasicMaterial({ color: 0x2e2a26 })), SELL_X + 0.66, 1.288, CTR_ZC + 0.17);
+  // ── YOUR SIDE OF THEM: THE BUYING PAD ────────────────────────────────────
+  //
+  // *"pawn shop sell station needs a diagetic sell interface"*   (2026-08-11)
+  //
+  // It was a blank slab of card standing in for a pad of tickets, because the
+  // whole sell station was a line of HUD text and there was nothing for a pad to
+  // BE. It is the interface now: `ct/sell-window.ts` paints a real buying ticket
+  // on it and hangs the panel on this mesh's own face, so leaning over the pad
+  // and reading the pad are the same act. Everything about the transaction —
+  // what he will look at, what he says, what he pays — is written here, on the
+  // counter, in the shop's own two inks.
+  //
+  // MOVED IN FROM x +0.60 TO +0.36. It sat at the player's right elbow when it
+  // was scenery; now the eye flies to it, and the flight should be a lean over
+  // the counter rather than a slide down it. +0.36 clears the serving slot's
+  // east jamb (the slot runs SELL_X ± 0.25) by a hand's width, which is exactly
+  // where a man signs a ticket that has just come back through it.
+  //
+  // ⚠ THE PAD IS 5 cm CLEAR OF THE COUNTER'S CUSTOMER EDGE and 1 cm above its
+  // top. No collider, nothing on the customer floor, nothing moved: the same
+  // guarantee the rest of this block carries, and the first thing ever reported
+  // about this room was *"i immediately hit a counter"*.
+  const PAD_W = PAD_PX / PAD_PPM, PAD_D = PAD_PY / PAD_PPM;   // 0.26 x 0.36 m
+  const PAD_X = SELL_X + 0.36, PAD_Z = CTR_ZC + 0.15, PAD_Y = 1.27;
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(PAD_W, PAD_D), ctx.flat(padTexture()));
+  // Face up. A plane rotated −π/2 about x sends its own +y (the canvas's TOP)
+  // to −z, i.e. AWAY from the customer — so the ticket's masthead is at the far
+  // edge under the bars and its tear-off is nearest your hands, which is the way
+  // round a form on a counter is written.
+  pad.rotation.x = -Math.PI / 2;
+  put(pad, PAD_X, PAD_Y, PAD_Z);
+  // the pad's own thickness — the sheets under the top one — and the pen
+  // tethered beside it.
+  put(new THREE.Mesh(new THREE.BoxGeometry(PAD_W, 0.014, PAD_D),
+    new THREE.MeshBasicMaterial({ color: 0xc4b894 })), PAD_X, PAD_Y - 0.008, PAD_Z);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.11),
+    new THREE.MeshBasicMaterial({ color: 0x2e2a26 })), PAD_X + PAD_W / 2 + 0.03, 1.272, PAD_Z);
 
   // THE SAFE, at his back — the one fitting in the room that answers "and then
   // where does it go". In the staff strip, clear of the back wall art above it
@@ -544,7 +580,32 @@ export function buildPawn(ctx: CtxBuild): void {
   // rods OVER the counter rather than being fixed to the wall, for the reason
   // the rate card is on the glass and not on the plaster — the back wall is
   // full, and nothing already on it is moved for a sign.
-  const SIGN_Y = 2.44, SIGN_Z = CTR_ZC + 0.30, SIGN_PY = 20;
+  // ══ AND THE SMALL LINE COMES OFF THE CARD ══════════════════════════════════
+  //
+  // *"HAND IT THROUGH THE WINDOW … reads mushy next to the headline above it"*
+  //  (2026-08-11)
+  //
+  // ONE FAULT, AND IT IS THE MATTRESS STOREFRONT'S EXACTLY (`d2ae9e85`): small
+  // lettering painted onto a low-density card. This board is 112 texels across
+  // 1.80 m — **62 px/m** — and the subline is set at 5 px, so twenty-six
+  // characters get 78 texels between them: **three texels a glyph**, all of it
+  // antialiasing fringe, and `NearestFilter` blows each fringe pixel up into a
+  // 1.6 cm block of half-tone. The headline survives the same canvas for the
+  // same reason SLEEP CENTER did — LOANS & BUYING is set at 8 px and is eight
+  // texels tall.
+  //
+  // Raising the whole board's density would make this the odd sign in a room
+  // whose look IS coarse card, so the LETTERING MOVES OFF THE CARD instead: the
+  // subline is its own plane at 200 px/m, 1 cm proud of the board's face, at the
+  // same place on it and at the same PHYSICAL size it was — `5 * wM / wPx` is
+  // the height those five texels actually stood at in metres, and 200 px/m is
+  // what it is redrawn at. Sixteen texels a line instead of five, and nothing
+  // about the sign's composition moves.
+  //
+  // ⚠ THE FIGURE IS DERIVED FROM THE CARD, NOT RETYPED. Both boards go through
+  // this, both keep their own widths, and a resized board takes its own small
+  // line with it rather than stranding a plane at a remembered position.
+  const SIGN_Y = 2.44, SIGN_Z = CTR_ZC + 0.30, SIGN_PY = 20, SUB_PPM = 200;
   const stationSign = (wPx: number, head: string, sub: string, lx: number, wM: number) => {
     const t = declareSurface(pixTex(wPx, SIGN_PY, (g) => {
       g.fillStyle = '#ded4b8'; g.fillRect(0, 0, wPx, SIGN_PY);
@@ -552,11 +613,37 @@ export function buildPawn(ctx: CtxBuild): void {
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillStyle = '#8a2c22'; g.font = 'bold 8px monospace';
       g.fillText(head, wPx / 2, 7);
-      g.fillStyle = '#3a2c22'; g.font = '5px monospace';
-      g.fillText(sub, wPx / 2, 15);
-    }), 'sign');
+      // THE SUBLINE IS NOT PAINTED HERE ANY MORE — see the note above. It hangs
+      // on its own plane below, and painting it twice would leave the mush
+      // showing through round the crisp letters.
+    }), 'sign', wPx / wM);
     const hM = (wM * SIGN_PY) / wPx;
     put(new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), ctx.flat(t)), lx, SIGN_Y, SIGN_Z);
+
+    // the small line, on its own sheet. Transparent but for the letters, so the
+    // card behind it is still the card.
+    const subM = (5 * wM) / wPx;                       // what 5 texels was, in metres
+    const subW = wM - 0.05, subH = subM * 1.6;         // inside the board's dark edge
+    const sPx = Math.round(subW * SUB_PPM), sPy = Math.round(subH * SUB_PPM);
+    const subT = declareSurface(pixTex(sPx, sPy, (g) => {
+      g.clearRect(0, 0, sPx, sPy);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#3a2c22';
+      // MEASURED DOWN UNTIL IT FITS, the same guard `ct/shop.ts`'s board layout
+      // uses: canvas `fillText` does not wrap and does not clip, it draws the
+      // line straight out over the edge of the sheet, and the failure is silent.
+      let px = Math.max(6, Math.round(subM * SUB_PPM));
+      g.font = `bold ${px}px monospace`;
+      while (px > 6 && g.measureText(sub).width > sPx - 6) {
+        px--; g.font = `bold ${px}px monospace`;
+      }
+      g.fillText(sub, sPx / 2, sPy / 2);
+    }), 'sign', SUB_PPM);
+    // where the 5 px line sat on the 20 px card: baseline centre at v = 15/20.
+    put(new THREE.Mesh(new THREE.PlaneGeometry(subW, subH),
+      new THREE.MeshBasicMaterial({ map: subT, alphaTest: 0.5 })),
+      lx, SIGN_Y + hM * (0.5 - 15 / SIGN_PY), SIGN_Z + 0.010);
+
     // the two rods it hangs on, DERIVED from the board so a resized sign cannot
     // leave its own hangers floating
     const rod = room.H - (SIGN_Y + hM / 2);
@@ -568,21 +655,29 @@ export function buildPawn(ctx: CtxBuild): void {
   stationSign(112, 'LOANS & BUYING', 'HAND IT THROUGH THE WINDOW', SELL_X, 1.80);
   stationSign(64, 'SALES', 'ASK TO SEE ANYTHING', BUY_X, 1.05);
 
-  // ── …and the loan window FENCES ───────────────────────────────────────
+  // ── …and the loan window BUYS, ON A TICKET ───────────────────────────────
   //
   // *"it should also serve as a fence for the stuff you steal from neighbors."*
+  // *"pawn shop sell station needs a diagetic sell interface"*   (2026-08-11)
   //
-  // The design choice and the prices are stated where they belong, beside the
-  // loot table they have to stay honest against — `ct/inventory.ts`, under
-  // "what the pawn shop pays for it". Short version: he takes stolen goods and
-  // only stolen goods, asks nothing, and pays badly.
+  // The second instruction is what this block is now. The prices and the design
+  // behind them are still stated where they belong, beside the loot table they
+  // have to stay honest against — `ct/inventory.ts`, under "what the pawn shop
+  // pays for it": he takes stolen goods and only stolen goods, asks nothing, and
+  // pays badly. **Not one figure moved.** What changed is where you MEET them.
   //
-  // ⚠ NOTHING IS BUILT HERE. A spot is a trigger, not a mesh — no geometry is
-  // added, no collider, and the counter's `solid()` above is untouched. That
-  // matters twice over: the room's clearances are exactly what they were, and
-  // the user's original complaint about this room was *"i immediately hit a
-  // counter"*, so a fence that put anything else on the customer floor would be
-  // reopening the bug it is built next to.
+  // Before, the entire station was the prompt line: it named the best thing in
+  // your pockets, named its price, and paid you for it on the same keypress —
+  // a whole transaction conducted in a caption under a sign that says HAND IT
+  // THROUGH THE WINDOW. There was no window in it. Now the pad on the counter is
+  // the interface: you lean over it, the articles you are carrying are written
+  // down its left column, you push one through the slot, he looks at it and
+  // writes a figure, and you take it or you do not.
+  //
+  // ⚠ STILL NOTHING BUILT HERE, and that is unchanged: the pad above is the only
+  // new mesh in this block, it stands ON the counter, and no collider is added.
+  // The user's original complaint about this room was *"i immediately hit a
+  // counter"*.
   //
   // DERIVED FROM THE COUNTER, so it cannot strand itself if the counter moves:
   // the collider spans `CTR_ZC ± CTR_D / 2`, and the player stands 0.55 m clear
@@ -590,62 +685,49 @@ export function buildPawn(ctx: CtxBuild): void {
   // middle of an empty run — and the same `FENCE_Z` serves the sales counter
   // 8.4 m east, so the two customer stations are one line off one number.
   const FENCE_Z = CTR_ZC + CTR_D / 2 + 0.55;
-  ctx.spot({
-    x: room.wx(SELL_X), z: room.wz(FENCE_Z), r: 1.0,
-    // ⚠ IT AIMS AT THE MAN NOW, which it could not do while he also carried the
-    // buy prompt. `x/z` stays the stand-point on the customer floor and the aim
-    // goes to him behind the grille (`Spot.aimX`, and the calendar item that
-    // paid for it); `obj` is his sprite, so the selection outline draws the
-    // person the prompt is talking about instead of a box at your own feet.
-    aimX: room.wx(SELL_X), aimZ: room.wz(KEEP_Z), obj: broker.mesh,
-    ok: room.inside,
-    // THE PROMPT NAMES THE THING AND THE PRICE BEFORE YOU PRESS, which is this
-    // project's rule for a refusal being honest (`give()`'s own note): you are
-    // never told "no" by nothing happening. With nothing he wants, the line
-    // says so and says why in his voice rather than going blank — a blank spot
-    // and a broken spot look identical.
-    // BOTH WORDINGS NAME THE COUNTER, and that is not decoration — it is what
-    // makes this room PUBLISH A CUSTOMER STATION.
+  sellWindow(ctx, {
+    id: 'ct-pawn-sell',
+    mesh: () => pad,
+    // HOW FAR ABOVE THE PAD THE EYE SETTLES, derived from the pad rather than
+    // typed: enough lens to cover the sheet's long axis at this field. It comes
+    // out near 0.49 m, which puts the eye at 1.76 — `poseFor` clamps it to 1.75,
+    // so what the player actually does is stand where he is and look down at the
+    // counter. That is the whole gesture the station wanted.
+    standoff: Math.max(0.30, (PAD_D / 0.88) / (2 * Math.tan((45 * Math.PI) / 180 / 2))),
+    fov: 45,
+    // A PAD LYING ON A COUNTER HAS NO HEADING — its normal points at the ceiling,
+    // and asking it for one is the signed zero that spun the dresser 180°
+    // (`crosstown.ts:poseFor`). So it is stated off the COUNTER: this one runs
+    // along the back wall with its customer face toward +z, and the rig's
+    // fwd = (sin y, 0, −cos y) is (0, 0, −1) at yaw 0 — square into the room, at
+    // the counter. Rooms are placed by translation only (`interior.ts` wx/wz),
+    // so local and world headings are the same number.
+    faceYaw: 0,
+    stand: { x: room.wx(SELL_X), z: room.wz(FENCE_Z) },
+    // ⚠ IT AIMS AT THE MAN, which it could not do while he also carried the buy
+    // prompt. `stand` is the stand-point on the customer floor and the aim goes
+    // to him behind the grille (`Spot.aimX`, and the calendar item that paid for
+    // it); `obj` is his sprite, so the selection outline draws the person the
+    // prompt is talking about instead of a box at your own feet.
+    keeper: { x: room.wx(SELL_X), z: room.wz(KEEP_Z), obj: broker.mesh },
+    // ── ONE WORDING, AND IT CARRIES THE WORD "COUNTER" ───────────────────────
     //
     // `interiors-walk.mjs:1431` looks for a spot near the room whose label
-    // matches `/buy|order|serve|till|counter/i` and, finding none, falls back
-    // to the keeper pair authored in this same file — which it then refuses to
+    // matches `/buy|order|serve|till|counter/i` and, finding none, falls back to
+    // the keeper pair authored in this same file — which it then refuses to
     // trust, correctly: *"a station I authored, checked against a keeper I
     // authored, in a room I authored, agrees with itself whatever the player
-    // sees. That is not a test, it is a mirror."* pawn is one of the four rooms
+    // sees. That is not a test, it is a mirror."* pawn was one of four rooms
     // item 251 recorded as failing that way.
     //
-    // ⚠ THE REFUSAL LINE HAS TO CARRY THE WORD TOO, and measuring is how I
-    // learned it. `scripts/probes/w103-pawn-served-spot.mjs` read the room's
-    // published spots with an empty-of-loot purse and found the label was
-    // "the broker doesn’t want anything you’re carrying" — so a station that
-    // only names itself while you happen to be holding stolen goods is a
-    // station the harness sees only sometimes. A prompt's PLACE should not
-    // depend on your pockets.
-    //
-    // This is the world publishing what the check hunts for, NOT the check
-    // being loosened to accept what the world had (BUILDER-BRIEF §7). Nothing
-    // in `interiors-walk.mjs` is touched, and naming the counter is better
-    // player-facing text anyway — it is the house habit ("out to the street").
-    label: () => {
-      const id = bestFence(ctx.purse);
-      // BOTH WORDINGS STILL CARRY THE WORD "COUNTER" — see the note above; the
-      // station now has a name of its own but the harness's `/buy|order|serve|
-      // till|counter/i` is not what decides player-facing text, so it keeps it.
-      if (!id) return 'the loan counter — he doesn’t want anything you’re carrying';
-      return `sell the ${itemOf(id).name} at the loan counter — $${fencePrice(id).toFixed(2)}, no questions`;
-    },
-    act: () => {
-      const id = bestFence(ctx.purse);
-      if (!id) return;
-      const paid = fencePrice(id);
-      // Take it out FIRST, and only pay if it actually left the pockets. The
-      // opposite order pays for an item a concurrent change could have removed.
-      if (!takeOne(ctx.purse, id)) return;
-      ctx.purse.cash += paid;
-      ctx.refreshWallet();
-      hudNote(`He doesn’t ask. $${paid.toFixed(2)} for the ${itemOf(id).name}.`);
-    },
+    // `scripts/probes/w103-pawn-served-spot.mjs` then found the harder half: with
+    // an empty-of-loot purse the label was *"the broker doesn't want anything
+    // you're carrying"*, so the station only named itself while you happened to
+    // be holding stolen goods. A prompt's PLACE should not depend on your
+    // pockets — and now it cannot, because there is only one line and the pad
+    // does the naming and the pricing.
+    label: 'the loan counter — hand something through the window',
+    ok: room.inside,
   });
 
   // ══ …AND HE SELLS, WHICH IS THE OTHER HALF OF A PAWN SHOP ═════════════════
