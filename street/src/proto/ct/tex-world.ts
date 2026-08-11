@@ -1196,6 +1196,12 @@ export function shopfrontRelief(o: {
   put(0.14, gH + 0.12, JAMB, gR + 0.07, gMid, mat(dark));
   put(gR - gL + 0.28, 0.13, JAMB, (gL + gR) / 2, F.glazingTopM + 0.06, mat(dark));
 
+  // ── the paper taped inside the Sleep Center's glass ───────────────────────
+  // Selected by name, the same dispatch the blade below uses. It is here rather
+  // than in `mattressFront` because a sign that has to be READ cannot live on a
+  // 16 px/m masonry canvas — the note above `sleepWindowSigns` has the numbers.
+  if (o.name === 'SLEEP CENTER') sleepWindowSigns(g, F, half);
+
   // ── the stallriser: a cill where it meets the glass, a plinth at the
   //    pavement. The step you catch with your shin. ──────────────────────────
   put(o.wMeters, 0.09, CILL, 0, F.stallriserH + 0.02, mat(tint.clone().multiplyScalar(0.45)));
@@ -2078,6 +2084,131 @@ export const taxFront = (brick: string, wM: number) => {
   });
 };
 
+// ══ THE SLEEP CENTER'S PAPER ═════════════════════════════════════════════════
+//
+// *"mattress storefront looks like shit"* (2026-08-11). Everything he named —
+// the smeared red banner, the bills that are coloured blobs, the pink smudge on
+// the door — was one fault: PAPER WAS BEING PAINTED ONTO BRICK'S CANVAS.
+//
+//     shopfront canvas          16 px/m (WALL_PPM 8 x SHOP_MULT 2)
+//     'MATTRESS SALE' at m(0.42)   52 texels for 13 characters
+//     the two bills at m(0.20)      3-texel font
+//     the door's OPEN at m(0.16)    3-texel font
+//
+// A 4-texel glyph is all antialiasing fringe, and `pixTex` magnifies with
+// NearestFilter, so every fringe pixel arrives on the glass as a 6 cm block of
+// half-tone. The fascia survives on the same canvas only because `SLEEP CENTER`
+// is set at m(0.54) across 13 m — that is why the sign he can read and the signs
+// he cannot are side by side in the same shot.
+//
+// Raising the whole shopfront's density is the wrong lever: it is 13 x 4.2 m of
+// brick, and this block's look IS 16 px/m: finer courses on one shop would make
+// the Sleep Center the odd front on the street instead of the good one.
+//
+// So the paper leaves the wall. Each sheet is its own small plane at 200 px/m,
+// standing 2 cm proud of the painted glass — inside the 0.12 m jamb, so it still
+// reads as taped to the INSIDE of the window — which is the same construction
+// (and the same density) as the BUSINESS HOURS placard by the door, the one
+// thing in his screenshot that holds up.
+const SIGN_PPM = 200;
+/** the Sleep Center's paper palette. Shared with `mattressFront` so the ink on
+ *  the sheets and the paint on the front cannot drift apart. */
+const SLEEP_PAPER = '#f6efdb', SLEEP_INK = '#a02818', SLEEP_BLUE = '#2f5c86';
+
+/** largest whole font that fits `maxW` — a long line shrinks, it never clips */
+function fitInk(g: CanvasRenderingContext2D, text: string, family: string, maxW: number, cap: number): void {
+  for (let s = cap; s > 5; s--) {
+    g.font = `bold ${s}px ${family}`;
+    if (g.measureText(text).width <= maxW) return;
+  }
+}
+
+/** one taped-up sheet, sized in METRES and drawn in its own texels. */
+function sheet(wM: number, hM: number,
+               draw: (g: CanvasRenderingContext2D, W: number, H: number) => void,
+               taped = true): THREE.Mesh {
+  const W = Math.max(1, Math.round(wM * SIGN_PPM)), H = Math.max(1, Math.round(hM * SIGN_PPM));
+  const tex = declareSurface(pixTex(W, H, (g) => {
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    draw(g, W, H);
+    // the tape, last, so it lies OVER the ink the way real tape does
+    if (taped) {
+      g.fillStyle = 'rgba(214,204,176,0.55)';
+      const t = Math.max(3, Math.round(H * 0.16)), l = Math.max(8, Math.round(H * 0.34));
+      for (const x of [0, W - l]) for (const y of [0, H - t]) g.fillRect(x, y, l, t);
+    }
+    dither(g, W, H, Math.round(W * H / 900));
+  }), 'sign', SIGN_PPM);
+  return new THREE.Mesh(new THREE.PlaneGeometry(wM, hM),
+    new THREE.MeshBasicMaterial({ map: tex }));
+}
+
+/**
+ * Hang the Sleep Center's window paper. Called by `shopfrontRelief` with the
+ * frontage group, so everything is placed in frontage metres off `F` and moves
+ * if the door or the glazing ever moves.
+ *
+ * THE BANNER NO LONGER RUNS THROUGH THE DOOR, and that was the second half of
+ * the complaint: the painted one was centred on the whole glazed run, and the
+ * door — drawn after it — chopped it, so from the pavement it read `MATTRESS
+ * SA`. A sheet of paper is taped to ONE pane. It goes on the wider of the two
+ * panes the door leaves (7.19 m against 3.71 m here) and the two bills go on the
+ * narrow one, which also gives the front a composition instead of a smear:
+ * the shout beside the door, the small print on the other side of it.
+ *
+ * SIGNAGE STAYS IN THE TOP THIRD. `mattressFront` gives the stock the lower two
+ * and is emphatic about why — three pale slabs behind a sign is a sign, not a
+ * bed shop. The lowest sheet here stops at 1.74 m and the tallest bed's mattress
+ * tops out at 1.63 m, so nothing is hung across a mattress.
+ */
+function sleepWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
+  const PROUD = 0.02;                       // inside the 0.12 m jamb, on the glass
+  const at = (uM: number, y: number, mesh: THREE.Mesh) => {
+    mesh.position.set(uM - half, y, PROUD);
+    grp.add(mesh);
+  };
+  const dL = F.doorCentreM - F.doorWidthM / 2, dR = F.doorCentreM + F.doorWidthM / 2;
+  const panes: [number, number][] = [[F.glazingStartM, dL], [dR, F.glazingEndM]];
+  panes.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]));
+  const [wide, narrow] = panes;
+  const top = F.glazingTopM;
+
+  // ── the banner: hand-lettered, the loudest thing on the front ───────────
+  const bw = Math.min(6.6, (wide[1] - wide[0]) - 0.7), bh = 0.62;
+  at((wide[0] + wide[1]) / 2, top - 0.28 - bh / 2, sheet(bw, bh, (g, W, H) => {
+    g.fillStyle = SLEEP_PAPER; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(0,0,0,0.10)';                       // the curl along two edges
+    g.fillRect(0, H - 3, W, 3); g.fillRect(W - 3, 0, 3, H);
+    fitInk(g, 'MATTRESS SALE', 'monospace', W * 0.84, Math.round(H * 0.5));
+    g.fillStyle = SLEEP_INK; g.fillText('MATTRESS SALE', W / 2, H * 0.4);
+    g.fillStyle = SLEEP_BLUE;
+    g.fillRect(Math.round(W * 0.08), Math.round(H * 0.66), Math.round(W * 0.84), Math.max(2, Math.round(H * 0.05)));
+    fitInk(g, '50% OFF EVERY SET', 'monospace', W * 0.7, Math.round(H * 0.2));
+    g.fillText('50% OFF EVERY SET', W / 2, H * 0.83);
+  }));
+
+  // ── the small print, on the pane the other side of the door ────────────
+  const lw = Math.min(1.9, (narrow[1] - narrow[0]) - 0.5), lh = 0.4;
+  const bills = ["NO PAYMENTS TIL '98", 'FREE DELIVERY'];
+  bills.forEach((t, i) => {
+    at((narrow[0] + narrow[1]) / 2, top - 0.30 - lh / 2 - i * (lh + 0.04), sheet(lw, lh, (g, W, H) => {
+      g.fillStyle = '#fdf6e2'; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(0, H - 2, W, 2);
+      fitInk(g, t, 'monospace', W * 0.88, Math.round(H * 0.42));
+      g.fillStyle = SLEEP_BLUE; g.fillText(t, W / 2, H * 0.5);
+    }));
+  });
+
+  // ── the OPEN card on the leaf, where every shop door has one ───────────
+  at(F.doorCentreM - F.doorWidthM / 2 + 0.39, F.glazingTopM - 0.95 - 0.13, sheet(0.5, 0.26, (g, W, H) => {
+    g.fillStyle = '#f2ead0'; g.fillRect(0, 0, W, H);
+    g.fillStyle = SLEEP_INK; g.lineWidth = 2;
+    g.strokeStyle = SLEEP_INK; g.strokeRect(3, 3, W - 6, H - 6);
+    fitInk(g, 'OPEN', 'monospace', W * 0.66, Math.round(H * 0.48));
+    g.fillText('OPEN', W / 2, H * 0.5);
+  }, false));
+}
+
 /**
  * THE MATTRESS SHOWROOM — *"make the liquor store a mattress store."*
  *
@@ -2111,7 +2242,7 @@ export const mattressFront = (brick: string, wM: number) => {
   const F = frontageOf('SLEEP CENTER', wM);
   // RUST is the roster colour; keep the two in step or the mouldings that
   // `shopfrontRelief` stands off the wall will frame a fascia of another shade.
-  const RUST = '#b8642c', CREAM = '#efe6d2', BLUE = '#2f5c86';
+  const RUST = '#b8642c', CREAM = '#efe6d2';
   const ALU = '#8f938f', ROOM = '#43413c';
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
@@ -2201,30 +2332,22 @@ export const mattressFront = (brick: string, wM: number) => {
       g.fillText('$', bx + bedW / 2, by - m(0.46));
     }
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.4)), ALU);
-    // ── the hand-lettered sale banner, taped INSIDE the glass ────────────
-    // Off square, because it was put up by hand on a roll of paper. This is
-    // where the literal word goes.
-    const nbW = Math.min(m(6.6), gw * 0.62), nbH = m(0.66);
-    const nbX = gx + Math.round((gw - nbW) / 2), nbY = gy + m(0.30);
-    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(nbX + m(0.06), nbY + m(0.08), nbW, nbH);
-    g.fillStyle = '#f6efdb'; g.fillRect(nbX, nbY, nbW, nbH);
-    g.fillStyle = 'rgba(0,0,0,0.16)';                                     // tape at the corners
-    for (const tx of [nbX - m(0.06), nbX + nbW - m(0.16)])
-      for (const ty of [nbY - m(0.05), nbY + nbH - m(0.1)]) g.fillRect(tx, ty, m(0.22), m(0.15));
-    g.font = `bold ${m(0.42)}px monospace`;
-    g.fillStyle = '#a02818';
-    g.fillText('MATTRESS SALE', nbX + nbW / 2, nbY + nbH / 2);
-    g.fillStyle = BLUE; g.fillRect(nbX + m(0.3), nbY + nbH - m(0.16), nbW - m(0.6), Math.max(1, m(0.05)));
-    // smaller bills either side of it, the way a window fills up over a year
-    g.font = `bold ${m(0.2)}px monospace`;
-    // …up in the signage third with the banner, NOT down across the stock
-    const bills: [string, number][] = [["NO PAYMENTS TIL '98", 0.04], ['FREE DELIVERY', 0.80]];
-    for (const [t, at] of bills) {
-      const bx2 = gx + Math.round(gw * at), by2 = gy + m(0.42);
-      g.fillStyle = '#fdf6e2'; g.fillRect(bx2, by2, m(1.9), m(0.42));
-      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(bx2, by2 + m(0.42), m(1.9), m(0.05));
-      g.fillStyle = BLUE; g.fillText(t, bx2 + m(0.95), by2 + m(0.23));
-    }
+    // ── NO SIGNAGE IS PAINTED INTO THIS CANVAS ANY MORE ───────────────────
+    // The sale banner, the two window bills and the door's OPEN card used to
+    // be drawn here, and this canvas is 16 px/m. `MATTRESS SALE` came out
+    // 52 texels wide — FOUR texels a character — so canvas antialiasing had
+    // nothing but fringe to work with and NearestFilter blew each fringe up
+    // into a 6 cm grey stroke: *"mattress storefront looks like shit"*
+    // (2026-08-11), the banner soft and smeared, the bills unreadable blobs
+    // and the door card a pink smudge. That is exactly the disease commit
+    // 98fa9f77 cured INSIDE this shop, and no font size fixes it — the texels
+    // are not there to fix it with.
+    //
+    // Paper is not brick and does not have to live on brick's canvas. The
+    // signage is now real taped-up sheets standing 2 cm proud of the glass at
+    // 200 px/m — `sleepWindowSigns()` below, hung by `shopfrontRelief` — which
+    // is the density the BUSINESS HOURS placard beside the door already reads
+    // at, and that card is the one crisp thing in the user's screenshot.
     // ── the door, where the frontage says it is ──────────────────────────
     const dcM = doorAlongU('SLEEP CENTER', wM, F.doorCentreM);
     const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
@@ -2236,10 +2359,7 @@ export const mattressFront = (brick: string, wM: number) => {
     g.fillStyle = '#6e726e'; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.55));    // kick plate
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.55), dw, m(0.06));
     g.fillStyle = ALU; g.fillRect(dx + dw - m(0.2), gy + m(1.45), m(0.07), m(0.4));  // push bar
-    // OPEN sign, the small hard-edged thing every shop door has
-    g.fillStyle = '#f2ead0'; g.fillRect(dx + m(0.14), gy + m(0.95), m(0.5), m(0.26));
-    g.fillStyle = '#a02818'; g.font = `bold ${m(0.16)}px monospace`;
-    g.fillText('OPEN', dx + m(0.39), gy + m(1.08));
+    // (the OPEN card on the leaf is a proud plane now — see the note above)
     // ── stallriser: a low painted board, panelled like the block default ──
     const ry = gy + gh, rh = H - ry - m(0.05);
     proud(g, surf, ox, ry, ow, rh, '#7a5340');
