@@ -57,8 +57,10 @@ console.log(`lot frontage z ${span[0].toFixed(1)} … ${span[1].toFixed(1)}, fro
 
 // Sample across the frontage and a little past each end, so "the fence stops
 // you" is tested outside the lot as well as along it.
-// HOW LONG TO HOLD W. The rig covers about 3.3 m/s, and the test is "did it
-// get more than 3 m past the building line" — so 1.2 s is 4 m of travel,
+// HOW LONG TO HOLD W. The rig covers 3.0 m/s — `speed` in the FPRig options
+// at `crosstown.ts` ~1315, which is the number that governs; the `?? 3.0` in
+// `fp.ts` is never reached from this world. The test was "did it get more than
+// 3 m past the building line" — so 1.2 s is 3.6 m of travel,
 // comfortably over the line and comfortably short of the 8 m the aisle allows.
 // It was 2.6 s, which walked to the back fence and then stood there: 28 samples
 // of dead time made this the slowest check in `npm run checks` at 98 s, and a

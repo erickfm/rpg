@@ -239,12 +239,18 @@ console.log(`the steps are ${CLIMBABLE ? 'WIRED — climb tests run' : 'NOT wire
 // E-yard-walk draws on the walk past the church. A collider IS a red; a
 // pedestrian is a note that says the pavement was busy.
 await walk('lane south, the whole library frontage', {
-  at: [-6.25, -4.4], yaw: 0.0, ms: 6200,   // 17 m of frontage at 3.3 m/s
+  // 17 m of frontage at 3.0 m/s — `speed` in the FPRig options at
+  // `crosstown.ts` ~1315, the number that governs (the `?? 3.0` default in
+  // `fp.ts` is never reached from this world). 6.9 s covers 20.7 m, keeping
+  // the ~3.5 m margin over the 17.1 m the `ok` line asks for. Was 6200 ms
+  // against an assumed 3.3 m/s; at the true walk that left only 1.5 m of
+  // slack, close enough to a stumble to go red on a world that is fine.
+  at: [-6.25, -4.4], yaw: 0.0, ms: 6900,
   ok: (p) => (SELFTEST ? false : p[2] < -21.5), crowded: true,
   say: (p) => `z -4.40 -> ${f(p[2])}, x ${f(p[0])} (clear past the mouth)`,
 });
 await walk('lane north, the whole library frontage', {
-  at: [-6.25, -22.0], yaw: Math.PI, ms: 6200,
+  at: [-6.25, -22.0], yaw: Math.PI, ms: 6900,   // same 17.1 m back, same budget as above
   ok: (p) => p[2] > -4.9, crowded: true,
   say: (p) => `z -22.00 -> ${f(p[2])}, x ${f(p[0])}`,
 });

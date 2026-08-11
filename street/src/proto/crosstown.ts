@@ -1312,7 +1312,20 @@ export function makeCrosstown(): Proto {
     // standing check is `scripts/world-contained.mjs`: if it ever reports a
     // reachable cell north of z 13, this reasoning has expired.
     bounds: WORLD_BOUNDS,
-    colliders, speed: 3.3, run: 6.8, bob: 0.045,
+    // ⚠ THESE THREE GOVERN. THE DEFAULTS IN `fp.ts` ARE UNREACHABLE FROM THE
+    // SHIPPING WORLD. `FPRig` reads them as `o.speed ?? 3.0` / `o.run ?? 5.6`
+    // (fp.ts 573-574), and because this options object always supplies all
+    // three, the `??` branch never runs here. This line sat at 3.3 / 6.8 —
+    // unchanged since the initial commit — while a retune of the fp.ts
+    // defaults for *"make regular sprint slower and make walk a little tiny
+    // bit slower"* (2026-08-10) landed somewhere the player never went. Cost a
+    // whole day's tuning. TO CHANGE WALK OR SPRINT, CHANGE THEM HERE; the
+    // fp.ts numbers only serve the other protos, which pass `speed` and no
+    // `run`. Everything fp.ts asserts around those defaults — the ~1.9x sprint
+    // ratio, the bhop ceiling at 9.24, the skateboard podium (cruise 7.2, push
+    // 8.8), the collision ceilings — is written against 3.0 / 5.6 and is true
+    // only while this line agrees with it.
+    colliders, speed: 3.0, run: 5.6, bob: 0.045,
     // THE ONE COMMITTING CALL. FPRig asks this only at `this.pos.x/z` (fp.ts
     // 146, 390, 495) — it is the player's own position, every frame — so this
     // is the single call entitled to move the storey the player is recorded
