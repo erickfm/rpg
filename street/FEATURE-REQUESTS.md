@@ -7129,3 +7129,10 @@ per frame. Seventeen readouts routed through one formatter. Found eleven hard-co
 headings in the guidebooks and, worse, two paragraphs stating the OPPOSITE of the
 code — the books still said the doors do not lock and that shifts are cut at
 closing, both deleted by today's own asks.
+
+## 2026-08-12 — *"i dont like that i spin around to look at this. make it so i dont spin around 180 deg. also lmk why this happens ty"*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-12 13-53-20.png` — the
+library reading table. Entering the books view swings the camera through 180°.
+Sent to a builder with the landlord scene (`5874a5a3`) named as prior art, and with
+the cause to be reported back in his words, not guessed here.
