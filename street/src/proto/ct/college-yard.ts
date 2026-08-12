@@ -19,9 +19,13 @@ import {
 // The college's shell is recessed 4.5 m behind the street's building line
 // (`ct/street.ts` passes `placeBldZ` a zc shifted by `COLLEGE_YARD_D`, and
 // shells are 14–23.5 m deep, so the depth is the building's own). That leaves
-// an 11 x 4.5 m notch between the party walls of SMOKES and the corner block
-// — two real brick flanks the street already painted, which is exactly what a
-// small campus court sits between. This module builds everything IN the notch:
+// a frontage-wide x 4.5 m notch between the party walls of whatever the college
+// stands between — two real brick flanks the street already painted, which is
+// exactly what a small campus court sits between. (It was 11 m wide between
+// SMOKES and the corner block when it was written; the college has 23.2 m of the
+// main street now and SMOKES has been deleted, but the shape of the argument is
+// the same and the module derives its own extents.) This module builds
+// everything IN the notch:
 // paving, the low wall and gate, the path, the planting, the lamps, the sign.
 //
 // Everything solid stands at z ≤ -110.05 — behind the building line — so the
@@ -210,7 +214,10 @@ export function register(ctx: CtxBuild): void {
   // at 56.50, so its last 0.45 m stood inside the wall with both boxes ending
   // on z −110.05: half a metre of brick and granite fighting for the same
   // pixels, which is what the user photographed. The west run is unchanged —
-  // SMOKES' own 14 m flank is the wall on that side and it stands at `X0`.
+  // the neighbouring shell's own flank is the wall on that side and it stands
+  // at `X0`. (That neighbour was SMOKES when this was written, on the side
+  // street; SMOKES is deleted and the college is on the main street, and the
+  // run is derived, so it followed.)
   for (const [a, b] of [[X0 + 0.05, CX - 1.50], [CX + 1.50, PW_X0]] as const) {
     const w = b - a, c = (a + b) / 2;
     put(new THREE.Mesh(new THREE.BoxGeometry(w, WALL_H, WALL_T), brickFor(w, WALL_H)),
@@ -372,8 +379,10 @@ export function register(ctx: CtxBuild): void {
   // its own forecourt (`ct/jail.ts`, `FX = site.minX + FORE`), so there has
   // never been a wall at x = 57 below the street line — LOANS's own east
   // party wall was what filled it, and recessing the shell removed exactly
-  // that stretch. The west side really is sealed (SMOKES' box runs 14 m deep
-  // past the yard); this wall is the east side's missing four metres, built
+  // that stretch. The west side really is sealed (the neighbouring shell's box
+  // runs deep past the yard — it was SMOKES' 14 m when this was written, on the
+  // side street, and SMOKES is deleted now); this wall is the missing four
+  // metres on the other side, built
   // in the corner block's own family — granite ashlar base, sooted brick
   // above — to the college shell's full 17.2 m, so the yard reads as a notch
   // carved between solid buildings.

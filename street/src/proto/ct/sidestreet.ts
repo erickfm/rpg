@@ -5,6 +5,7 @@ import { treeSprite, TREE_W, treePitTex } from './tex-world';
 import { type CarKind, makeCar, CAR_HALF_W, carHalfLen, carColliderBoxes } from './cars';
 import type { CtxBuild } from './ctx';
 import { nudgeClear } from './gap';
+import { SIDE_LOT_MOUTH } from './sites';
 
 // ── THE SIDE STREET'S FURNITURE ────────────────────────────────────────────
 //
@@ -87,9 +88,30 @@ export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
   // 0.50 m — i.e. it closes the walk, and the bodega's [E] spot is 2 m west of
   // it (GOTCHAS §8, §9). East of the crates the lane is the standard 0.50 m.
   const TREES: [number, 1 | -1][] = [[13, 1], [21, -1], [31, 1], [43, -1]];
+  // ── AND A TREE MAY NOT STAND IN THE CAR LOT'S DRIVE ─────────────────────
+  //
+  // The last south tree was authored at 43 when the shell at x 35…46 was
+  // SMOKES and the used car lot's mouth was at the far corner, 50.2…56.08.
+  // *"you can keep the same dim of the old auto spot. just get rid of the
+  // smokes place"* (2026-08-11) deleted that shell, gave the lot 22 m, and put
+  // the drive back on the site's own centreline — 41.45…50.05 — which is
+  // straight through this pit. A street tree with a solid trunk in the middle
+  // of a lot's gateway, over a kerb the ground module has cut for cars to
+  // cross, is the fault this file would have shipped silently.
+  //
+  // NOT RETYPED TO A NEW LITERAL. `ct/sites.ts` derives the mouth and
+  // `ct/tex-ground.ts` already cuts the kerb from that same derivation, so this
+  // reads it too and steps the pit WEST until it is clear. Move the lot again
+  // and the tree moves with it; there is no third copy of the number to drift.
+  const clearOfDrive = (px: number, side: 1 | -1) => {
+    if (side > 0) return px;                       // north walk: not the lot's
+    const HALF = 0.5;                              // the pit is 1.0 m along the street
+    if (px + HALF <= SIDE_LOT_MOUTH.x0 || px - HALF >= SIDE_LOT_MOUTH.x1) return px;
+    return Math.floor(SIDE_LOT_MOUTH.x0 - HALF - 0.5) + 0.5;   // back onto the slab grid
+  };
   for (const [x0, side] of TREES) {
     // the pit sits on the 1 m slab grid, same phase the walk sheet uses
-    const px = Math.round(x0 - 0.5) + 0.5;
+    const px = clearOfDrive(Math.round(x0 - 0.5) + 0.5, side);
     const tz = side > 0 ? o.SIDE_Z0 + 0.4 : o.SIDE_Z1 - 0.4;   // kerb-side
     // rnd() drawn per tree, exactly as ct/props.ts does it, and appended at
     // the END of the world's build so no existing tree height moves

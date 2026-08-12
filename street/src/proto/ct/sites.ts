@@ -122,39 +122,56 @@ export function frameYaw(f: SiteFrame, yaw: number): number {
 //     *"i cant walk into …"* for the third time.
 //   · `ct/lot.ts` fills it.
 //
-// x 46 … 57 is the 11 m the COMMUNITY COLLEGE stood on, and 57 is the plane
-// both side-street rosters end on — the jail's site begins there. z -110 is the
-// side street's south building line (`placeBldZ(xs, -111.7, b, 1)` puts the
-// facade 1.7 out from -111.7).
+// x 35 … 57 is the 11 m the COMMUNITY COLLEGE stood on PLUS the 11 m SMOKES
+// stood on, and 57 is the plane both side-street rosters end on — the jail's
+// site begins there. z -110 is the side street's south building line
+// (`placeBldZ(xs, -111.7, b, 1)` puts the facade 1.7 out from -111.7).
 //
-// TWENTY METRES DEEP, against 23.2 on the main street. The depth is free here
-// in a way the frontage is not: the roster's 11 m is fixed by two run totals,
-// but nothing stands behind the side street's south row, so the lot takes the
-// depth it needs to still be a lot. `ct/lot.ts` sizes its bays off it —
-// `BAYS = floor((BAY_X1 - BAY_X0) / 2.7)` gives four at this depth.
-// ── AND THE MOUTH IS OFF-CENTRE, BECAUSE ELEVEN METRES SAYS SO ───────────────
+// ── TWENTY-TWO METRES, BECAUSE THE SMOKES PLACE WENT ─────────────────────────
+//
+// *"you can keep the same dim of the old auto spot. just get rid of the smokes
+// place"* (2026-08-11), answering the one thing the swap could not do: the
+// lot's plan needs 15.4 m across the frontage and 11 m does not hold it.
+// SMOKES was the shell immediately at the lot's low end, so deleting its roster
+// entry hands the lot 11 m without moving a single neighbour and without
+// disturbing SOUTH2's run total of 64. `ct/street.ts` has the arithmetic.
+//
+// The old main-street spot was 23.2 x 23.2. This is 22 x 23.2: the last 1.2 m
+// of frontage could only have come out of BILLIARDS, and *"just get rid of the
+// smokes place"* is one deletion, not one deletion and a shaved neighbour. The
+// DEPTH is a different matter — nothing stands behind the side street's south
+// row, so it costs nobody anything and goes back to the old spot's 23.2, which
+// is what restores the bay count: `ct/lot.ts` sizes its bays off it,
+// `BAYS = floor((BAY_X1 - BAY_X0) / 2.7)`, five at this depth against four at
+// twenty.
+//
+// ── AND THE MOUTH IS BACK ON THE CENTRELINE ──────────────────────────────────
 //
 // The lot's plan is a drive aisle straight in from the street with stock
 // flanking it — the user described it, so it is theirs — and it needs
-// 6.8 + 2 x 4.3 = 15.4 m across the frontage to hold two rows. It has 11.
-// So the narrow lot runs ONE row, the aisle hugs the high end of the frontage,
-// and the mouth has to be where the aisle is or you drive into the fence.
+// 6.8 + 2 x 4.3 = 15.4 m across the frontage to hold two rows. It has 21.5 of
+// buildable frontage now, so `ct/lot.ts` takes its TWO_ROWS branch: the aisle
+// sits on the site's own centreline at its full 3.4 m half-width, a row of
+// stock each side of it, and the gate is a plain centred opening again.
 //
-// `openSite` takes the fractions off each end independently for exactly this.
-// The low end keeps 4.1 m of boundary wall with chain-link on it; the high end
-// keeps a gate post and nothing else, because there is no frontage left to
-// spend there. That is what a lot squeezed against a corner looks like.
+// So both fractions are 0.3, which is `ct/lot.ts`'s own `SITE_GATE` — the value
+// its wide-site branch uses for the chain-link. THEY MUST AGREE OR THE FENCE
+// CROSSES THE GATE, which is why they were split into a third file in the first
+// place; the 0.40/0.04 pair below them was the squeezed eleven-metre case and
+// is what went when the frontage arrived.
 export const SIDE_LOT = {
-  X0: 46, X1: 57,
+  X0: 35, X1: 57,
   /** the side street's south building line */
   WALK_Z: -110,
-  DEPTH: 20,
+  DEPTH: 23.2,
   /** fraction of the frontage the boundary wall keeps at each end. Read by
    *  `openSite` (the wall) and by `ct/lot.ts` (the chain-link that rides on it
    *  and the aisle that has to fit between them) — one pair of numbers, or the
-   *  fence crosses the gate. */
-  GATE_LO: 0.40,
-  GATE_HI: 0.04,
+   *  fence crosses the gate. Equal now, and equal to `ct/lot.ts`'s `SITE_GATE`,
+   *  because a 22 m site centres its mouth; they are kept as a PAIR so a future
+   *  narrow site can split them again without touching either consumer. */
+  GATE_LO: 0.3,
+  GATE_HI: 0.3,
   /** How far the site is held back from its own east property line at x 57.
    *
    *  THE JAIL IS ON THE OTHER SIDE OF THAT LINE, and this is the join

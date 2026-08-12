@@ -104,7 +104,8 @@ export interface LotSite {
 
 /** `openSite` leaves the middle of the street edge open as the gate, as a
  *  fraction of the frontage taken off each end. Must match the `gate` it is
- *  called with, or the chain-link crosses the mouth. */
+ *  called with, or the chain-link crosses the mouth — and on the side street
+ *  that is `SIDE_LOT.GATE_LO`/`GATE_HI`, both 0.3 since the lot went wide. */
 const SITE_GATE = 0.3;
 
 // SITE + 1: the park is built before the lot, and that is not cosmetic. One
@@ -592,25 +593,35 @@ function buildLot(o: {
     // walked past. At the far end facing back down the aisle it is what you
     // drive TOWARD, it watches the whole lot, and the depth has a reason.
     //
-    // ── AND ON ELEVEN METRES OF FRONTAGE IT RUNS ONE ROW, NOT TWO ────────
+    // ── ONE ROW OR TWO IS READ OFF THE SITE, NOT TYPED ───────────────────
     //
     // *"swap the used car lot and the college pls"* (2026-08-11) put this lot
     // on the side street, on the 11 m the college stood on, against 23.2 on the
     // main street. The plan above needs 6.8 m of aisle and 4.3 m of herringboned
-    // car EACH SIDE of it — 15.4 m — so on 11 it does not fit, and the honest
-    // answer is not to shrink the aisle until two cars can no longer pass. It is
-    // the layout every narrow city lot actually has: **one row of stock, the
+    // car EACH SIDE of it — 15.4 m — so on 11 it did not fit, and the honest
+    // answer was not to shrink the aisle until two cars can no longer pass. It
+    // is the layout every narrow city lot actually has: **one row of stock, the
     // aisle hard against the other side of the yard, and the gate where the
-    // aisle is.** The depth carries the lot instead of the width, which is what
-    // the aisle plan was for in the first place.
+    // aisle is.**
     //
-    // The mouth has to follow. `ct/sites.ts` holds `GATE_LO`/`GATE_HI` and both
-    // `openSite`'s boundary wall and the chain-link below read the same pair,
-    // so the fence can never end up across the gate.
+    // THE LOT IS BACK ON A WIDE SITE — *"you can keep the same dim of the old
+    // auto spot. just get rid of the smokes place"* (2026-08-11). The shell at
+    // x 35…46 is deleted and the site is 22 m across (21.5 buildable), so `span`
+    // clears 16.4 and everything below takes the two-row branch on its own: the
+    // aisle back on the site's centreline at its full 3.4 m half-width, a row
+    // each side at ±6.0, and the gate a plain centred opening. NOT ONE NUMBER IN
+    // THE WIDE CASE WAS RE-TUNED FOR THIS — the frontage changed in
+    // `ct/sites.ts` and this file re-derived, which is the whole point of
+    // reading `span`.
     //
-    // A WIDE SITE IS UNCHANGED TO THE CENTIMETRE — `AISLE_HW` is still 3.4, the
-    // aisle is still on the site's own centreline and the rows are still ±6.0
-    // off it. This is a second case, not a re-tuning of the first.
+    // The narrow branch stays. It is not dead code kept for sentiment: it is the
+    // only thing that stops a future 11 m site shipping an aisle two cars cannot
+    // pass in, and it costs three ternaries.
+    //
+    // The mouth follows either way. `ct/sites.ts` holds `GATE_LO`/`GATE_HI` and
+    // both `openSite`'s boundary wall and the chain-link below read the same
+    // pair, so the fence can never end up across the gate. On a wide site both
+    // are `SITE_GATE`, which `ct/sites.ts` now carries as its own pair too.
     const zMid = (zS + zN) / 2;
     /** half the z-extent of one herringboned car — a 5.0 m bay line turned by
      *  `HERR` presents cos(0.55) x 5.0 across the aisle */

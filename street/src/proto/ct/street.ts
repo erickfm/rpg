@@ -438,13 +438,40 @@ export function buildStreet(o: {
     // and the room re-derives its door off the registry, so nothing else knows.
     { nm: 'CROSSTOWN FITNESS', col: '#17766b', w: 12, brick: '#5c4436', floors: 3 },
     { nm: 'BILLIARDS', col: '#2c5a3a', w: 12, brick: '#835444', floors: 4 },
-    { nm: 'SMOKES', col: '#8a6a22', w: 11, brick: '#6b4034', floors: 3 },
     // LOANS became the community college, and the college has now gone to the
     // main street — *"swap the used car lot and the college pls"* (2026-08-11).
-    // The USED CAR LOT has this 11 m, as an open site rather than a shell, and
-    // the run still ends dead on x = 57 where the jail's site begins. A used
-    // car lot at the dead end of a side street, up against the county jail, is
-    // exactly the 1997 of it.
+    // The USED CAR LOT took the 11 m the college stood on, and 11 m could not
+    // hold the plan: *"The lot runs one row of stock, not two. Its plan needs
+    // 15.4 m across the frontage and has 11."*
+    //
+    // SMOKES IS GONE AND THE LOT HAS ITS FRONTAGE — *"you can keep the same dim
+    // of the old auto spot. just get rid of the smokes place"* (2026-08-11).
+    // SMOKES stood on the 11 m at x 35…46, directly against the lot's low end,
+    // so its removal is paid straight into the lot and nowhere else:
+    //
+    //   before   VIDEO HUT 18 | FITNESS 12 | BILLIARDS 12 | SMOKES 11 | lot 11
+    //   after    VIDEO HUT 18 | FITNESS 12 | BILLIARDS 12 |          lot 22
+    //
+    // THE RUN STILL TOTALS 64 and still ends dead on x = 57, which is the jail's
+    // whole siting argument — and not one neighbour moves a centimetre. The lot
+    // is x 35…57 now; `ct/sites.ts` holds that, because three files build from
+    // it and none of them can see this loop.
+    //
+    // 22, NOT THE OLD SPOT'S 23.2. The main-street site the lot came off was
+    // 23.2 x 23.2, and the last 1.2 m of frontage does not exist on this row:
+    // the run is pinned at 64, so it could only come out of BILLIARDS, and he
+    // asked for the smokes place to go and for nothing else to. The DEPTH is
+    // free — nothing stands behind the side street's south row — so it goes
+    // back to the old spot's 23.2 (see `SIDE_LOT.DEPTH`), which is what puts
+    // the bay count back where it was. 22 x 23.2 against 23.2 x 23.2, and the
+    // plan's 15.4 m fits with 6 m to spare, so the lot runs two rows again with
+    // the aisle at its full 6.8 m.
+    //
+    // SMOKES OWNED NOTHING ELSE. It was a block-default shell and this line was
+    // all of it: no interior, no entry in `ct/hours.ts` (so no hours card), no
+    // shopfront variant in `ct/tex-world.ts`, not in `LIT_FASCIAS`, no job, no
+    // tenancy and no crowd node. Its fascia, depth, roof kit and character were
+    // all hashed off the name at build time and are gone with it.
     //
     // `'lot'` is a token rather than a BldSpec, like `'park'` and the two
     // alleys: the roster walks past it and leaves the frontage open.
@@ -1033,10 +1060,16 @@ export function buildStreet(o: {
   };
   // THE USED CAR LOT IS ON THE SIDE STREET NOW — *"swap the used car lot and
   // the college pls"* (2026-08-11). It stood in 23.2 m of the east side, where
-  // CAFE and HARDWARE stood; it now stands on the 11 m the COMMUNITY COLLEGE
-  // stood on, at the far east end of the side street's south row, and the
-  // college has the east side. Contents — the surfacing, the fence, the office,
-  // the signage and the stock — are still C's, in ct/lot.ts.
+  // CAFE and HARDWARE stood; it now stands at the far east end of the side
+  // street's south row, and the college has the east side. Contents — the
+  // surfacing, the fence, the office, the signage and the stock — are still
+  // C's, in ct/lot.ts.
+  //
+  // …AND IT IS 22 x 23.2 THERE, NOT 11 x 20 — *"you can keep the same dim of
+  // the old auto spot. just get rid of the smokes place"* (2026-08-11). SMOKES'
+  // 11 m went to the lot whole; see the SOUTH2 roster above for the arithmetic
+  // and for why the last 1.2 m of the old spot's frontage is not payable on
+  // this row. The run still totals 64.
   //
   // WHY IT IS A SLOT SWAP AND NOT A FOOTPRINT SWAP. Three run totals in this
   // file are load-bearing and two of them are on these buildings' runs: the
@@ -1049,10 +1082,11 @@ export function buildStreet(o: {
   // totals are untouched and not one neighbour moves. That is the same trade
   // this roster has made every time (SLEEP CENTER, VOLT VILLAGE, VIDEO HUT).
   //
-  // So the college grows from 11 m to 23.2 and the lot narrows from 23.2 to 11,
-  // and the lot buys its depth back: 20 m, because nothing stands behind the
-  // side street's south row and a lot has to hold cars. `ct/sites.ts` holds
-  // those numbers — three files need them.
+  // So the college grows from 11 m to 23.2 and the lot took the 11 — and then
+  // SMOKES went and the lot took its 11 too, so it stands on 22 m and keeps the
+  // old spot's 23.2 m of depth, because nothing stands behind the side street's
+  // south row and a lot has to hold cars. `ct/sites.ts` holds those numbers —
+  // three files need them.
   //
   // The frame is a quarter turn. `openSite` cuts a hole in the main street's
   // wall and only ever could; `rotY = +π/2` sends its -x mouth to +z, which is
@@ -1231,7 +1265,7 @@ export function buildStreet(o: {
   { const m = scene.children.length; vice.placeSigns(sideSpans); stampFrom(m, 'vice'); }
   let xs = -7;
   for (const b of SOUTH2) {
-    // THE LOT'S SLOT. It is the last 11 m of the run, so the cursor arriving
+    // THE LOT'S SLOT. It is the last 22 m of the run, so the cursor arriving
     // here IS `SIDE_LOT.X0` — asserted rather than assumed, because the whole
     // reason `ct/sites.ts` holds those numbers is that two other files build
     // from them and neither can see this loop.
