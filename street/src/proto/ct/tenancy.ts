@@ -3293,8 +3293,14 @@ export function register(ctx: CtxBuild): void {
   /** and this is what actually walks him. `ct/loiter.ts` owns the stroll, the
    *  pauses, the look-targets and the head turn; the lobby floor is flat, so
    *  it needs no `y`. */
+  /** how near you have to be for him to stop and turn to you in the ordinary
+   *  run of things — and what the interrogation puts back when it closes. */
+  const LL_NOTICE = 2.6;
+  /** …and what it widens him to while it is up. The hall is 13.2 m end to end,
+   *  so this is "wherever in it you were caught". See `openInterrogation`. */
+  const LL_NOTICE_SCENE = 20;
   const ll = loiter(landlord, {
-    posts: LL_POSTS, facing: LL_FACING, speed: 0.42, notice: 2.6,
+    posts: LL_POSTS, facing: LL_FACING, speed: 0.42, notice: LL_NOTICE,
     bounds: { minX: LL_MIN_X, maxX: LL_MAX_X, minZ: LL_MIN_Z, maxZ: LL_MAX_Z },
   });
   // His mouth, for the room-with-a-view pitch. Paper stays paper — the
@@ -3590,108 +3596,168 @@ export function register(ctx: CtxBuild): void {
   //                         door and the stairs, with both still walkable. Being
   //                         unable to pay has never once stopped you moving.
   //
-  // ══ WHAT YOU ARE LOOKING AT IS THE MAN ═════════════════════════════════════
+  // ══ WHAT YOU ARE LOOKING AT IS THE MAN, FROM WHERE YOU WERE STANDING ═══════
   //
   // *"i dont want a page im seeing when im talking to the landlord i want to
   //  see the landlord"*   (2026-08-11)
+  // *"also the view for the landlord, dont make me rotate. just let him rotate
+  //  to face me"*   (2026-08-11)
   //
-  // The first cut of this scene eased the eye onto a DEMAND FOR RENT pad at
-  // 0.62 m under a 52° fov, so what filled the screen was a document with his
-  // name at the bottom of it and the man reduced to background behind his own
-  // paperwork. His ruling is one sentence and it is the whole constraint: the
-  // confrontation is a MAN, standing in his own hall, asking you for money.
+  // The first cut of this scene eased the eye onto a DEMAND FOR RENT pad, so
+  // what filled the screen was a document with his name at the bottom of it.
+  // The second cut fixed the picture and kept the framework's grip: it walked
+  // your feet to a mark 1.40 m from him and turned your head onto him. THIS one
+  // gives that grip up.
   //
-  // ⚠ THE FRAMEWORK CAN ONLY LOOK AT A MESH. `poseFor` takes the eye down the
-  // NORMAL of whatever the panel is painted on, so a scene that frames a person
-  // still has to hand it a surface. This one is a FRAMING PANE: a plane hung
-  // 0.45 m in front of him and painted almost entirely NOTHING. `paint()`
-  // clears the canvas and `drawDemand` touches only the little pad in the
-  // corner of it, and `alphaTest: 0.5` on the material discards every texel the
-  // canvas never wrote — so the pane is a hole in the air, and what you see
-  // through it is the man standing behind it. It has exactly two jobs: it is
-  // what the camera is aimed down, and it is what his paper is drawn on.
+  // ⚠ THIS IS THE ONLY DIEGETIC VIEW IN THE WORLD THAT DOES NOT POSE THE
+  // PLAYER, and the departure is deliberate and his. Every other one moves you
+  // because you ASKED — you pressed [E] on a machine you were already standing
+  // at, and being squared up to it is the reward. This one opens because you
+  // walked through a door, and the same move is then the world taking your head
+  // off you. So: you keep your feet, your heading and your ground, and HE
+  // turns.
   //
-  // ── THE FRAMING, AND EVERY NUMBER IN IT COMES OFF THE FIGURE ──────────────
+  // ── HOW A FRAMEWORK THAT ALWAYS MOVES YOU IS MADE TO MOVE YOU NOWHERE ─────
   //
-  // He is an 8-angle atlas sprite, so this cannot be a face crop: the citizen
-  // plane is `SPRITE_H_M` 1.9 m at `h: 1.06` with the painted crown four rows
-  // down, which makes THE MAN 1.76 m TALL off the boards and about 0.5 m of
-  // painted body across. Tighter than a couple of metres and you are looking at
-  // texels; further and he is a figure down the hall rather than a man in your
-  // way. So: the eye stands at 1.62 m (`eyeY` — a person's height, not the
-  // middle of a prop), 2.05 m from him, under 46° of vertical fov, which covers
-  // 1.74 m at that range. Aimed at 1.18 m on the pane the look ray lands at
-  // 1.05 m on HIM, so the frame runs 0.18 m to 1.92 m — shoes just cut off at
-  // the bottom, a hand of air over his head, and a man filling the picture top
-  // to bottom. That is the closest this art can be read as a person, and it is
-  // stated here rather than tuned so the next change to it starts from the
-  // arithmetic.
+  // `crosstown.ts:poseFor` derives the whole pose from the panel's SURFACE: the
+  // eye goes `standoff` back along that face's own normal, the feet land
+  // `FOCUS_FEET` (0.95 m) back along the flat part of it, and the yaw is the
+  // direction from that eye to the face. There is no "leave him where he is"
+  // flag, and adding one is trunk work in a file this ask does not own.
   //
-  // ⚠ AND HE HOLDS STILL FOR IT WITHOUT BEING TOLD TO. `ct/loiter.ts` stops him
-  // where he stands and turns him to face you inside `notice` (2.6 m), and the
-  // feet this pose lands are 1.40 m from him — so he squares up to the camera
-  // for the whole scene and cannot stroll out of his own frame. Nothing here
-  // freezes him; the behaviour that was already there does it, which is why
-  // there is no second copy of it to disagree with him.
+  // So the surface is placed to make its answer come out as WHERE HE ALREADY
+  // IS. Hang the plane 0.95 m in front of the player's eye, square to his own
+  // heading, and set `standoff` = `FOCUS_FEET` = 0.95, and every term cancels:
   //
-  // ── WHERE IT PUTS YOU ─────────────────────────────────────────────────────
+  //     eye  = c + n·0.95        →  his eye      (n is −his look; c is +0.95 along it)
+  //     feet = c + flat(n)·0.95  →  his feet
+  //     yaw  = atan2(c − eye)    →  his own yaw
   //
-  // The framework moves the feet: `poseFor` stands the player `FOCUS_FEET`
-  // (0.95 m) off the face of whatever the panel is painted on. The pane hangs
-  // 0.45 m out in front of him, so you finish 1.40 m away — and the EYE a
-  // further 0.65 m back from your own feet, which is what makes this a shot of
-  // a man rather than a nose against his coat.
+  // The fly-in therefore moves the camera zero metres and turns it zero
+  // degrees. The plane is 6 cm of NOTHING — the panel's `draw` paints not one
+  // pixel and `alphaTest: 0.5` discards every texel the canvas never wrote —
+  // because it is not a picture any more, it is the aim the framework insists
+  // on being handed. The paperwork moved off it and into his hand (below).
   //
-  // ⚠ ALWAYS THE −Z SIDE, whichever way you came from, and that is a floor
-  // decision rather than a framing one. His own loiter box runs to `APT_Z0 +
-  // 7.55` and the stair core wall starts at `AZI(STAIR_Z0)` = 8.4; a pane that
-  // turned to face a player coming DOWN the stairs would put the eye — and
-  // therefore the feet — inside the flight. Pinning the normal at π lands the
-  // feet in `AZI 4.90…6.15` and the eye in `AZI 4.25…5.50` for every one of his
-  // posts, which is open lobby floor all the way. 101's landing parcel (200.25,
-  // AZI 4.31) is 0.59 m clear of the nearest foot position; where the EYE
-  // passes over that z the box is 0.35 m off axis at ankle height, below the
-  // bottom edge of a frame that is looking 15° down at a man two metres away.
-  // The x is clamped to his west-half band for the same reason: it is his
-  // wander that moves, and the player should not inherit the far end of it.
-  const FR = { w: 390, h: 284 };           // the pane, in composition units
-  // 2, not the 3 the letters use, and it is measured rather than copied: the
-  // pad below is 0.24 m wide inside a pane that fills about half the frame, so
-  // at any ordinary window size one canvas pixel is about one screen pixel.
-  // 850 px/m on the paper, well over the 150-200 px/m floor
-  // `college-yard.ts:328` states, and a third of a million more texels would
-  // buy nothing anybody could see.
-  const FR_SS = 2;
-  const FR_W = 1.10;                       // metres across the pane
-  const U = FR_W / FR.w;                   // 2.82 mm per composition unit
-  const FR_Y = 1.18;                       // centre height — this is the AIM POINT
-  const FR_OUT = 0.45;                     // how far in front of him it hangs
-  const FR_STANDOFF = 1.60;                // eye to pane; eye to man is 2.05
-  const FR_FOV = 46;
-  const FR_EYE = 1.62;                     // a standing person's eye, not a prop's middle
+  // ⚠ THE ONE THING IT CANNOT KEEP IS YOUR PITCH. `ctx.player` publishes a yaw
+  // and no pitch (`PlayerRef`), and reading one means editing the entry point,
+  // which is trunk. The look therefore settles LEVEL over the 0.4 s ease —
+  // which is where a standing man's face is anyway: a 1.62 m eye against 1.76 m
+  // of him. If he ever asks for the pitch too, it is one accessor in `ctx.ts`
+  // and one term here, and nothing else in this file changes.
+  //
+  // ── THE FRAMING IS NOW THE FOV, BECAUSE THE DISTANCE IS YOURS ─────────────
+  //
+  // The old shot picked its distance (2.05 m) and its fov (46°) together off
+  // the figure: 1.76 m of painted man on the `SPRITE_H_M` 1.9 m citizen plane
+  // at `h: 1.06`, about 0.5 m of him across. The distance is the PLAYER'S now
+  // and can be anything from arm's length to the length of the hall, so the
+  // only compositional control left is the zoom, and `framingFov` derives it
+  // from where he actually is:
+  //
+  //   VERTICAL    a level eye at 1.62 m sees him from −1.40 m (shins; the shoes
+  //               were already cut in the second cut) to +0.14 m over the eye,
+  //               so half the fov is `atan(1.40 / d)`.
+  //   HORIZONTAL  and this is the safety, not the polish: A ZOOM CANNOT PAN.
+  //               Tightening onto a man who is 30° off your crosshair would
+  //               zoom him straight OUT of the picture. So the half-angle is
+  //               never smaller than his own bearing off your line of sight
+  //               plus half his width — measured against the VERTICAL half-fov,
+  //               which is the smaller of the two on any landscape window.
+  //   CLAMPED     30…88°. `FOV_REST` is 88, so this can only ever narrow his
+  //               view, never widen it; 30 stops it becoming a rifle scope.
+  //
+  // WHAT THAT MEANS WHERE HE ACTUALLY CATCHES YOU. Off the bottom of the stairs
+  // he is 1…2 m away and the fov barely moves — he is already in your face. In
+  // at the front door he is 6…7 m up the hall (his box is `APT_Z0 + 6.30…7.55`,
+  // the door end of the lobby is `+0.20`) and it closes to the 30° floor, which
+  // is a man about three quarters of the frame high. Under a metre — standing
+  // on top of him — he is cropped at the chest and no fov can fix that; you are
+  // too close to look at a person. And caught looking AWAY from him you get his
+  // voice in the caption and the back of your own head in the picture, because
+  // nothing is allowed to turn you. That last one takes doing — the catch fires
+  // as you walk INTO the hall he is standing in — and it is the cost of his
+  // ruling, which is the right cost.
+  //
+  // ⚠ YOU CANNOT END UP INSIDE GEOMETRY, and that hazard is simply gone rather
+  // than handled: the pose is the floor you were already legally standing on.
+  // The old one had to be pinned to his −z side to keep the feet out of the
+  // stair flight; there is nothing left to pin.
+  /** the aim plane, in metres. Never seen — the panel paints nothing on it. */
+  const AIM = 0.06;
+  /** ⚠ THIS IS `FOCUS_FEET` IN `crosstown.ts`. The two being equal is the whole
+   *  no-op; they are not independently tunable numbers. */
+  const AIM_STANDOFF = 0.95;
+  /** `fp.ts`'s standing eye (`Rig.height`), so `poseFor`'s eye lands on the one
+   *  the player already has and the camera neither rises nor drops. */
+  const AIM_EYE = 1.62;
+  /** `FOV_REST` and the floor of the zoom — see the framing note above. */
+  const FOV_REST = 88, FOV_TIGHT = 30;
   const pane = add(new THREE.Mesh(
-    new THREE.PlaneGeometry(FR_W, FR.h * U),
+    new THREE.PlaneGeometry(AIM, AIM),
     // ONE MeshBasicMaterial, never an array — `ct/hud.ts` hangs the panel canvas
     // on `mesh.material` and an array throws there (queue item 150).
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, alphaTest: 0.5 })));
-  pane.name = 'tenancy-demand-sheet';
+  pane.name = 'tenancy-demand-aim';
   pane.visible = false;
+  /** the zoom THIS catch is framed at. Written by `openInterrogation` before
+   *  the panel opens and read off the surface by `ct/hud.ts` at that moment,
+   *  which is why the surface below states it as a getter and not a value. */
+  let shotFov = FOV_REST;
+
+  /**
+   * THE ZOOM, DERIVED FROM WHERE HE IS STANDING — see the framing note above.
+   * Vertical fov, in degrees, and it can only ever be tighter than his own.
+   */
+  function framingFov(px: number, pz: number, yaw: number): number {
+    const dx = ll.x - px, dz = ll.z - pz;
+    const d = Math.max(0.4, Math.hypot(dx, dz));
+    // HIS BEARING OFF YOUR CROSSHAIR. `(sin yaw, −cos yaw)` is the way you are
+    // looking (`PlayerRef.yaw`), so his own bearing is the same atan2 and the
+    // difference is the angle a zoom would have to pan through — and cannot.
+    let off = Math.atan2(dx, -dz) - yaw;
+    while (off > Math.PI) off -= Math.PI * 2;
+    while (off < -Math.PI) off += Math.PI * 2;
+    const half = Math.max(
+      Math.atan(1.40 / d),                       // him, shoes cut, on a level eye
+      Math.abs(off) + Math.atan(0.30 / d),       // …and never zoomed out of frame
+    );
+    return THREE.MathUtils.clamp(half * 2 * 180 / Math.PI, FOV_TIGHT, FOV_REST);
+  }
 
   // ── AND THE PAPERWORK IS SOMETHING HE IS HOLDING ──────────────────────────
   //
-  // It WAS the interface. It is a prop now. 85 x 120 units is 0.24 x 0.34 m of
-  // the blue-grey stock his notices are printed on, hung at 1.10 m — hand
-  // height — and 0.36 m to the side of him, which clears the painted body so it
-  // never crosses his chest or his face. It still carries the head, the flat,
-  // the date, what is owing, what is on you and the two pressable rows; what it
-  // no longer carries is the BURDEN of being read, because the caption under
-  // the frame says all of it in type that cannot be small (see `caption`). A
-  // player who never once looks at the paper loses nothing.
+  // It WAS the interface, then it was a corner of the framing pane. It is a
+  // PROP WITH ITS OWN CANVAS now, and it had to become one: the pane is hung in
+  // front of YOU (above), and a demand for rent floating 0.95 m off your own
+  // face is a page you are reading, which is the thing he rejected. So the pad
+  // came off the panel entirely. Same stock, same 85 x 120 units of it —
+  // 0.24 x 0.34 m — hung at hand height beside him and turned to the camera, on
+  // whichever side of him you happen to have been caught.
+  //
+  // It still carries the head, the flat, the date, what is owing and what is on
+  // you. What it does NOT carry any more is the click: it is no longer the
+  // panel's surface, so the two rows are printed rather than pressable and the
+  // KEYS are the whole interface, named in the caption where they already were.
+  //
+  // ⚠ BUILT ON THE FIRST CATCH, NEVER AT BUILD TIME. GOTCHAS §2: three spends
+  // four `Math.random()` draws per object on `generateUUID`, and this world's
+  // seeded stream is ORDER-load-bearing — a mesh, a material and a texture
+  // created during the build would re-grain every texture baked after this
+  // file. Made on a frame, long after the last bake, they cannot reach it.
+  // Same argument `ct/loiter.ts` makes for its own draws.
   const PAD = { w: 85, h: 120 };
-  /** the pad's top-left corner, in pane units. Canvas u runs toward world −x
-   *  here — the pane's yaw is π and the camera looks up +z — so a pad drawn to
-   *  the RIGHT of the canvas hangs to the right of him on screen. */
-  const PAD_X = 280, PAD_Y = 110;
+  /** 3, the supersample the letters use. 0.24 m of paper at 255 px is 1,060
+   *  px/m, well over the 150-200 px/m floor `college-yard.ts:328` states —
+   *  and this one is read from wherever you were standing, not from 0.62 m. */
+  const PAD_SS = 3;
+  /** metres per composition unit, the scale his notices are drawn at */
+  const PAD_U = 0.00282;
+  /** hand height */
+  const PAD_Y_M = 1.10;
+  let padMesh: THREE.Mesh | null = null;
+  let padCv: HTMLCanvasElement | null = null;
+  let padTex: THREE.CanvasTexture | null = null;
 
   /** the two pressable rows, in PAD units. Everything about the page is written
    *  in these units and converted at the pointer, so the drawing and the hit
@@ -3701,13 +3767,6 @@ export function register(ctx: CtxBuild): void {
   // `stock` shades the bottom three units, so the second row stops 4 clear of
   // it rather than printing over the paper's own edge.
   const ROW_Y = [84, 101];
-  const rowAt = (x: number, y: number): 0 | 1 | null => {
-    const u = x / FR_SS - PAD_X, v = y / FR_SS - PAD_Y;
-    if (u < ROW.x || u > ROW.x + ROW.w) return null;
-    if (v >= ROW_Y[0] && v <= ROW_Y[0] + ROW.h) return 0;
-    if (v >= ROW_Y[1] && v <= ROW_Y[1] + ROW.h) return 1;
-    return null;
-  };
 
   /** what he will actually take off you right now — whole periods only, the
    *  same arithmetic `payRent` does, quoted before it happens so the row can
@@ -3805,14 +3864,9 @@ export function register(ctx: CtxBuild): void {
 
   function drawDemand(g: CanvasRenderingContext2D): void {
     const day = Math.floor(ctx.clock.now().totalMin / 1440);
-    // ⚠ THE REST OF THE PANE IS NEVER TOUCHED, and that is the whole trick: what
-    // this function does NOT paint is what you see the man through. The
-    // supersample AND the pad's corner are applied once, here — exactly as
-    // `drawLetter` does the supersample for the mail — so everything below is
-    // written in PAD units with (0, 0) at the top-left of the paper.
-    g.save();
-    g.scale(FR_SS, FR_SS);
-    g.translate(PAD_X, PAD_Y);
+    // EVERYTHING BELOW IS IN PAD UNITS with (0, 0) at the top-left of the
+    // paper. The supersample is `paintPad`'s, applied once around this call
+    // exactly as `drawLetter` applies it for the mail.
     const IN = 6, TW = PAD.w - IN * 2, RED = '#b03a30';
     // HIS PAPER, the blue-grey the notices are printed on. The colour is this
     // man's identity across four documents now and it is not re-picked here.
@@ -3867,12 +3921,13 @@ export function register(ctx: CtxBuild): void {
     // QUIT, and what is owing is printed under it.
 
     // ── THE TWO THINGS YOU MAY DO, PRINTED ON HIS OWN PAD ───────────────────
-    // The mouse still works — this world's grammar is clickable printed
-    // surfaces — but the KEYS are the interface now and they are named in the
-    // caption, because a row 0.24 m wide two metres away is a thing you may
-    // click, not a thing you should have to. The pay row is DEAD and says why
-    // when you are short, which is K's rule: the refusal is in the caption you
-    // are already reading, not in a key that silently does nothing.
+    // PRINTED, not pressable: the pad is a prop in his hand now and not the
+    // panel's own surface, so there is nothing to raycast. The keys are the
+    // whole interface and they are named in the caption. What the rows are
+    // for is that a demand handed across a hall has its terms ON it, and the
+    // pay row is DEAD and says why when you are short — K's rule: the refusal
+    // is in the caption you are already reading, not in a key that silently
+    // does nothing.
     const short = rentNow() - ctx.purse.cash;
     const take = payable(day);
     const canPay = mode !== 'paid' && per > 0 && take > 0;
@@ -3885,7 +3940,67 @@ export function register(ctx: CtxBuild): void {
       : mode === 'paid' ? `RECEIVED $${took.toFixed(2)}`
         : `SHORT BY $${short.toFixed(2)}`, canPay);
     padRow(g, 1, '2', mode === 'paid' ? 'GO UP' : 'NOT TODAY', true);
+  }
+
+  /** the pad's own canvas, mesh and texture — made on the first catch, for the
+   *  seeded-stream reason on `PAD` above. */
+  function buildPad(): void {
+    if (padMesh) return;
+    padCv = document.createElement('canvas');
+    padCv.width = PAD.w * PAD_SS;
+    padCv.height = PAD.h * PAD_SS;
+    padTex = new THREE.CanvasTexture(padCv);
+    padTex.magFilter = THREE.NearestFilter;
+    padTex.minFilter = THREE.NearestFilter;
+    padTex.generateMipmaps = false;
+    padTex.colorSpace = THREE.SRGBColorSpace;
+    padMesh = add(new THREE.Mesh(
+      new THREE.PlaneGeometry(PAD.w * PAD_U, PAD.h * PAD_U),
+      new THREE.MeshBasicMaterial({ map: padTex, transparent: true, alphaTest: 0.5 })));
+    padMesh.name = 'tenancy-demand-pad';
+    padMesh.visible = false;
+  }
+
+  /** re-print it. Called at open and on every state change the page shows —
+   *  the ledger is read live off the clock and the purse, so paying repaints
+   *  it into the truth rather than into a congratulation. */
+  function paintPad(): void {
+    if (!padCv || !padTex) return;
+    const g = padCv.getContext('2d')!;
+    g.clearRect(0, 0, padCv.width, padCv.height);
+    g.save();
+    g.scale(PAD_SS, PAD_SS);
+    drawDemand(g);
     g.restore();
+    padTex.needsUpdate = true;
+  }
+
+  /**
+   * PUT IT IN HIS HAND, on the side of him you are standing on.
+   *
+   * Placed once, at open, and then left alone: he turns during the scene but
+   * does not walk (`notice`, below), and you do not move at all. The offset is
+   * measured off the LINE BETWEEN YOU rather than off his facing, because the
+   * one thing it must never do is cross his chest in the picture — and which
+   * way that is depends on where you were caught, not on where he is looking.
+   */
+  function placePad(px: number, pz: number, gy: number): void {
+    if (!padMesh) return;
+    const dx = ll.x - px, dz = ll.z - pz;
+    const d = Math.max(0.001, Math.hypot(dx, dz));
+    // camera-right at his feet. 0.38 m clears his ~0.5 m of painted body, and
+    // 0.06 m toward you keeps the paper off the plane his sprite is drawn on.
+    let sx = -dz / d, sz = dx / d;
+    // ⚠ AND ON THE SIDE THAT IS STILL IN THE ROOM. The hall is 2.4 m wide and
+    // he stands within 0.55 m of its west wall, so "camera-right" is sometimes
+    // through the plaster. Flip when it is; the other side is open floor by
+    // construction, because his own box is 0.55…1.70 across a 2.4 m hall.
+    if (ll.x + sx * 0.38 < APT_X0 + 0.20 || ll.x + sx * 0.38 > APT_X0 + 2.20) { sx = -sx; sz = -sz; }
+    padMesh.position.set(
+      ll.x + sx * 0.38 - (dx / d) * 0.06,
+      PAD_Y_M,
+      ll.z + sz * 0.38 - (dz / d) * 0.06);
+    padMesh.lookAt(px, gy + AIM_EYE, pz);
   }
 
   let dPanel: Panel | null = null;
@@ -3910,6 +4025,9 @@ export function register(ctx: CtxBuild): void {
     HELD.push(receipt(day, paid));
     while (HELD.length > KEEP) HELD.shift();
     mode = 'paid';
+    // BOTH SURFACES. The panel's repaint is what re-reads the caption (his line
+    // and the keys); the pad is its own canvas now and does not come with it.
+    paintPad();
     dPanel?.repaint();
   }
 
@@ -3917,13 +4035,20 @@ export function register(ctx: CtxBuild): void {
     if (dPanel) return;
     dPanel = makePanel({
       id: 'ct-landlord-demand',
-      w: FR.w * FR_SS, h: FR.h * FR_SS,
+      // 4 x 4 PIXELS OF NOTHING. This canvas is the aim plane's face and the
+      // aim plane is a hole in the air; the document is `padMesh`, which is a
+      // prop in his hand and not this panel's picture. See the note over `AIM`.
+      w: 4, h: 4,
       // FRAMELESS, and now for a second reason on top of the letters': a beige
       // cabinet drawn round this canvas would be a cabinet drawn round a hole in
       // the air with a man standing in it.
       chrome: 'none',
       hint: caption,
-      draw: drawDemand,
+      // ⚠ IT PAINTS NOTHING AT ALL, deliberately. `paint()` clears the canvas
+      // before this runs and `alphaTest: 0.5` discards every texel it never
+      // wrote, so the plane cannot be seen from any angle. THE CAPTION IS THE
+      // INTERFACE (see `caption`), and the picture is the man.
+      draw: () => { /* nothing: the aim plane is a hole in the air */ },
       // ⚠ NOTHING ELSE. ESC and `[E]` are the framework's and must stay the
       // framework's on a view the player did not ask to enter.
       key: (k) => {
@@ -3932,28 +4057,30 @@ export function register(ctx: CtxBuild): void {
       },
       surface: {
         mesh: () => pane,
-        // THE SHOT. 1.60 m off the pane puts the eye 2.05 m off the man, `eyeY`
-        // stands it at a person's height instead of level with the middle of a
-        // prop, and 46° covers him head to shin from there. See the framing note
-        // above — none of these three is free to move without the other two.
-        standoff: FR_STANDOFF,
-        fov: FR_FOV,
-        eyeY: FR_EYE,
-        hot: (x, y) => rowAt(x, y) !== null,
-        click: (x, y) => {
-          const r = rowAt(x, y);
-          if (r === 0) handOver();
-          else if (r === 1) dPanel?.close();
-        },
+        // ⚠ THE POSE IS A NO-OP AND THESE THREE ARE WHAT MAKE IT ONE. See the
+        // note over `AIM`: `standoff` is `FOCUS_FEET` so the feet cancel,
+        // `eyeY` is the standing eye so the camera does not rise or drop, and
+        // the plane's own placement in `openInterrogation` does the rest.
+        standoff: AIM_STANDOFF,
+        // READ AT OPEN, so it must be read THEN and not captured here — this
+        // scene picks its zoom off where he is standing (`framingFov`).
+        get fov() { return shotFov; },
+        eyeY: AIM_EYE,
       },
       // The pane exists only while he is holding you there. Guarded on
       // `screenFocusReady()` for the same reason the letter sheet is: in a world
       // with no focus controller the panel falls back to the screen-space
       // cabinet and this must not leave anything hanging in the lobby.
       onOpen: () => { demandOpen = true; if (screenFocusReady()) pane.visible = true; },
-      // ON EVERY CLOSE — Escape, `[E]`, the row, and the automatic close when
-      // another panel opens. There is no path that leaves it up.
-      onClose: () => { demandOpen = false; pane.visible = false; },
+      // ON EVERY CLOSE — Escape, `[E]`, the refuse row, and the automatic close
+      // when another panel opens. There is no path that leaves it up, and every
+      // one of them puts his paper away and gives him his own 2.6 m back.
+      onClose: () => {
+        demandOpen = false;
+        pane.visible = false;
+        if (padMesh) padMesh.visible = false;
+        ll.notice = LL_NOTICE;
+      },
     });
   }
 
@@ -3961,15 +4088,40 @@ export function register(ctx: CtxBuild): void {
     const day = Math.floor(ctx.clock.now().totalMin / 1440);
     mode = evicted(day) ? 'evicted' : 'demand';
     took = 0;
-    // See the note above: the −z side of him, always, and his x clamped to the
-    // west half of his own wander so the feet land on known floor.
-    const hx = Math.min(APT_X0 + 1.50, Math.max(APT_X0 + 0.60, ll.x));
-    pane.position.set(hx, FR_Y, ll.z - FR_OUT);
-    // SQUARE, and no roll on it. A sheet gets `SHEET_ROLL` because a piece of
-    // paper in a hand is never quite straight; this is not a piece of paper, it
-    // is the frame the shot is composed in, and tipping it would tip the man.
-    pane.rotation.set(0, Math.PI, 0);
+    const px = ctx.player.x(), pz = ctx.player.z(), gy = ctx.player.gy();
+    const yaw = ctx.player.yaw();
+    // ── THE AIM PLANE, PLACED SO THE POSE COMES OUT AS WHERE YOU ARE ────────
+    // 0.95 m along his own line of sight, at his own eye height, square to it.
+    // `(sin yaw, −cos yaw)` is the way he is looking (`PlayerRef.yaw`).
+    pane.position.set(px + Math.sin(yaw) * AIM_STANDOFF,
+                      gy + AIM_EYE,
+                      pz - Math.cos(yaw) * AIM_STANDOFF);
+    // ⚠ `-yaw`, NOT `yaw + PI`, AND THAT ONE SIGN IS A BUG THIS FILE HAS
+    // ALREADY PAID FOR — *"reading letters from my bag turns me around?"* A
+    // plane's default normal is +z, so `rotation.y = t` points it at
+    // `(sin t, cos t)`; for it to face the player its normal must point back
+    // along his line of sight, `(−sin yaw, cos yaw)`, and that is `t = −yaw`.
+    // `yaw + PI` flips the z term and stands the eye on the far side. The whole
+    // derivation is on `holdInFront` above.
+    pane.rotation.set(0, -yaw, 0);
+    shotFov = framingFov(px, pz, yaw);
     buildDemandPanel();
+    buildPad();
+    paintPad();
+    placePad(px, pz, gy);
+    if (padMesh) padMesh.visible = true;
+    // ── AND HE TURNS, FROM WHEREVER YOU CAUGHT HIS EYE ─────────────────────
+    //
+    // *"just let him rotate to face me"*
+    //
+    // `ct/loiter.ts` has stopped him and turned him to the player inside
+    // `notice` since the day he learned to meander, and 2.6 m was a promise the
+    // OLD pose could keep because it walked you to 1.40 m. Nothing walks you
+    // anywhere now, so the scene widens his notice to the length of the hall
+    // for exactly as long as it is up, and hands it straight back on close. It
+    // is still HIS turn at HIS rate — no second copy of that behaviour here to
+    // disagree with him, which is the rule that put it in a file of its own.
+    ll.notice = LL_NOTICE_SCENE;
     dPanel?.open();
   }
 

@@ -64,6 +64,25 @@ export interface LoiterOpts {
 }
 
 export interface Loiter {
+  /**
+   * HOW NEAR YOU HAVE TO BE BEFORE HE STOPS AND TURNS TO YOU, in metres — and
+   * it is SETTABLE, which the constructor option alone is not.
+   *
+   * *"also the view for the landlord, dont make me rotate. just let him rotate
+   *  to face me"*   (2026-08-11)
+   *
+   * A scene that takes hold of the player wants the person facing them from
+   * WHEREVER they were caught, and 2.6 m was only ever the right answer because
+   * the pose used to walk the player to 1.40 m. The landlord's rent
+   * interrogation moves nobody now, so it widens this to the length of the hall
+   * while it is up and hands it straight back on close (`ct/tenancy.ts`).
+   *
+   * ⚠ IT IS STILL HIS OWN TURN. The alternative was a second copy of the head
+   * turn written in the scene, at its own rate, disagreeing with this one the
+   * moment either was touched — which is the exact thing this file exists to
+   * prevent (see the note at the top).
+   */
+  notice: number;
   /** where he is THIS frame — drag your `[E]` spot and your collider here */
   readonly x: number;
   readonly z: number;
@@ -87,7 +106,7 @@ export interface Loiter {
 export function loiter(spr: CitizenSprite, o: LoiterOpts): Loiter {
   const posts = o.posts;
   const speed = o.speed ?? 0.42;
-  const notice = o.notice ?? 2.6;
+  let notice = o.notice ?? 2.6;
   const face0 = o.facing ?? 0;
   const [pMin, pMax] = o.pause ?? [2.5, 7.5];
   const groundY = o.y ?? (() => 0);
@@ -108,6 +127,8 @@ export function loiter(spr: CitizenSprite, o: LoiterOpts): Loiter {
   };
 
   return {
+    get notice() { return notice; },
+    set notice(v: number) { notice = v; },
     get x() { return x; },
     get z() { return z; },
     get facing() { return head; },
