@@ -21,6 +21,12 @@ import { mealsEaten } from './food';
 // Read-only and published for exactly this reader: the rig rides the board,
 // this runs the wheels. `fp.ts` imports only three and ct/stats — no cycle.
 import { riding, rideState } from '../fp';
+// The construction bed stands BEHIND the used car lot, and since 2026-08-11 the
+// lot is on the side street — so "behind" has to be turned onto its axis. Cycle
+// -checked: `ct/sites.ts` reaches only three, ct/paint.ts, ct/tex-world.ts and
+// ../fp, none of which touch `ct/osd.ts` (the one module that imports this one
+// back), and `ct/ctx.ts` takes `SiteFrame` from it as a TYPE, which is erased.
+import { SIDE_LOT, frameToWorld } from './sites';
 
 // ════════════════════════════════════════════════════════════════════════════
 // SOUND
@@ -1057,10 +1063,37 @@ export function register(ctx: CtxBuild): void {
   // gives you: works you can hear and cannot see, anchored BEHIND the car lot
   // and audible as you walk that end of the street. It knocks off at six,
   // because a jackhammer at three in the morning is a bug report.
+  //
+  // ── "BEHIND" IS THE SITE'S OWN AXIS, NOT THE WORLD'S X ────────────────────
+  //
+  // This read `centre.x + (lot.minX > 0 ? 16 : -16)`, which is "16 m further
+  // from the road" ONLY while the lot fronts the main street. It moved to the
+  // side street on 2026-08-11 (*"swap the used car lot and the college pls"*),
+  // where the road is to the NORTH and behind is -z — and the expression put
+  // the works at (67.3, -120): 10 m east of the lot's own flank, past x 57,
+  // which is the jail's land. Derived from the site and still wrong, because
+  // what was derived was the extent and what was typed was the axis.
+  //
+  // A framed site carries `frame.local` — itself as the module that fills it
+  // reads it, which is always MAIN-STREET terms: street edge at ±FACE, depth
+  // running out from there. So the offset is taken in THAT frame, where it has
+  // always been correct, and `frameToWorld` turns the answer onto whichever
+  // street the site is actually on. An unframed site is its own local frame and
+  // collapses to the line this replaces, unchanged.
   const lot = ctx.site('lot');
-  const siteAt = lot
-    ? { x: (lot.minX + lot.maxX) / 2 + (lot.minX > 0 ? 16 : -16), z: (lot.minZ + lot.maxZ) / 2 }
-    : { x: 18, z: -62 };
+  const siteAt = (() => {
+    // no lot on the roster at all: the side street's south row is where one
+    // goes (ct/sites.ts), so the works stay behind that rather than behind the
+    // main-street plot the lot has not occupied since the swap.
+    if (!lot) return { x: (SIDE_LOT.X0 + SIDE_LOT.X1) / 2,
+                       z: SIDE_LOT.WALK_Z - SIDE_LOT.DEPTH - 6 };
+    const b = lot.frame?.local ?? lot;
+    const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+    const out = cx + Math.sign(cx) * 16;         // away from the road it fronts
+    if (!lot.frame) return { x: out, z: cz };
+    const [x, z] = frameToWorld(lot.frame, out, cz);
+    return { x, z };
+  })();
   const SITE_RANGE = 38;
 
   // ── two fixed places the third delivery hangs off (2026-08-09) ────────────
