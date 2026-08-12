@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { pixTex, dither, declareSurface, declareAnisotropic } from './paint';
 import { ROAD_HALF, WALK, FACE } from './rng';
+import { SIDE_LOT, SIDE_LOT_MOUTH } from './sites';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // THE GROUND — the sidewalk, the kerb, the gutter, and the corner.
@@ -69,16 +70,33 @@ const RAMP_F = 0.9;    // flared side either side of the run
 // past the drive instead of running into it; and the flared wings are the same
 // 1:10-ish detail as the pedestrian ramp already here.
 //
-// THE NUMBERS ARE NOT MINE AND ARE NOT GUESSED. ct/street.ts puts the lot on
-// 23.2 m of the east kerb centred on z = 2.6, and ct/lot.ts runs its drive
-// aisle down that same centre at 6.8 m wide. So the opening IS the aisle:
-// same centre, same width, and a car that can use the aisle can use the cut.
-// If C moves the aisle, this is the one line to follow it.
+// THE NUMBERS ARE NOT MINE AND ARE NOT GUESSED, and the comment that said so
+// named itself the one line to follow if the aisle moved. **It moved.**
+// *"swap the used car lot and the college pls"* (2026-08-11) took the lot off
+// the main street's east kerb entirely and put it on the side street, and this
+// list is why that is not a one-file change: four things hang off it — the
+// depressed kerb, the red no-parking zone, an 8.6 m BREAK IN THE EAST WALK, and
+// the ramped apron that fills the break. Left alone they would have carved a
+// hole in the pavement directly in front of the college's new gate, which is
+// the 2 m lane and is sacred.
+//
+// So the main street's kerb is whole again and the cut is on the side street's
+// south kerb, at the lot's own mouth — see `driveCut` where the crossings are
+// laid. `DRIVES` is the MAIN-STREET list specifically: it is what `apronY` and
+// the walk break below are written against, both of them in `Math.abs(x)` and
+// `ROAD_HALF`/`FACE`, and neither has an x-axis form. An empty list is
+// therefore the honest state, not a stub — every consumer already loops it.
+//
+// WHAT THE SIDE-STREET CUT DOES NOT GET, and it is the one rough edge in this
+// swap: no APRON. The walk behind a dropped kerb should ramp down to it, and on
+// the side street it stays level, so the lot's mouth has a kerb that drops and
+// a pavement edge that does not follow it down. The pedestrian ramps at both
+// junction crossings have always been in exactly that state, so this is the
+// world's existing standard rather than a new defect — but an x-axis apron is
+// the next piece of work here.
 const DRIVE_H = 0.035;   // reveal left at the gutter across the opening
 const DRIVE_F = 0.9;     // flared wing either side, as the pedestrian ramp
-const DRIVES: { x: number; z: number; hw: number }[] = [
-  { x: ROAD_HALF, z: 2.6, hw: 3.4 },     // the car lot, east kerb
-];
+const DRIVES: { x: number; z: number; hw: number }[] = [];
 
 // ── PEDESTRIAN RAMPS ON A STRAIGHT RUN ────────────────────────────────────
 //
@@ -109,6 +127,12 @@ const CUTS: KerbCut[] = [
  *  laid, so the paint and the dropped kerb cannot drift apart */
 function pedCut(x: number, z: number, hw: number, axis: 'x' | 'z'): void {
   CUTS.push({ x, z, hw, axis, lip: PED_H, flare: PED_F });
+}
+/** …and a DRIVEWAY cut on either axis. Same list, the deeper profile a wheel
+ *  needs. This is what `DRIVES` used to get for free on the main street and
+ *  what the used car lot needs now it is on the side street's south kerb. */
+function driveCut(x: number, z: number, hw: number, axis: 'x' | 'z'): void {
+  CUTS.push({ x, z, hw, axis, lip: DRIVE_H, flare: DRIVE_F });
 }
 /** kerb reveal at a point on a STRAIGHT run — full height everywhere except
  *  across a cut, where it drops to a lip and flares back up */
@@ -1394,6 +1418,14 @@ export function buildGround(o: GroundOpts): Ground {
   pedCut(ROAD_HALF, XA_Z, XA_HW, 'z');     // east kerb
   pedCut(XB_X, o.SIDE_Z0, XB_HW, 'x');     // north kerb of the side street
   pedCut(XB_X, o.SIDE_Z1, XB_HW, 'x');     // south kerb
+  // THE USED CAR LOT'S DRIVE, on the side street's south kerb. The opening IS
+  // the mouth: `ct/sites.ts` holds the lot's frontage and the share of it the
+  // boundary wall keeps at each end, and the gap between those two walls is
+  // where a car can actually get in. Derived from the same pair `openSite` and
+  // `ct/lot.ts` build the wall and the chain-link from, so the cut cannot end
+  // up beside the gate the way this list's old literal ended up beside nothing.
+  driveCut((SIDE_LOT_MOUTH.x0 + SIDE_LOT_MOUTH.x1) / 2, o.SIDE_Z1,
+    (SIDE_LOT_MOUTH.x1 - SIDE_LOT_MOUTH.x0) / 2, 'x');
 
   const { pts, fillets } = buildPath(KERB_H);
 
@@ -1450,11 +1482,17 @@ export function buildGround(o: GroundOpts): Ground {
     scene.add(m);
   };
   slab(-7, -ROAD_HALF - CH, o.SIDE_Z1 - 2, 16.5);              // west walk, whole length
-  // The east walk is BROKEN at the car lot's driveway, and the apron below
-  // fills the gap. It cannot simply be laid over the slab: the apron descends
-  // below KERB_H toward the kerb, so a flat slab at KERB_H would stand proud
-  // of it and you would see pavement floating over the ramp.
-  {
+  // The east walk USED TO BE BROKEN at the car lot's driveway, with the apron
+  // below filling the gap — it cannot simply be laid over the slab, because the
+  // apron descends below KERB_H toward the kerb and a flat slab at KERB_H would
+  // stand proud of it and you would see pavement floating over the ramp.
+  //
+  // THE LOT IS ON THE SIDE STREET NOW and there is no main-street drive, so the
+  // east walk is laid whole — which is the only thing that could be done here:
+  // the college's gate is at z 2.6, exactly where the old opening was, and a
+  // 8.6 m hole in the pavement across a doorway is the sacred 2 m lane gone.
+  if (!DRIVES.length) slab(ROAD_HALF + CH, 7, -94.5, 16.5);     // east walk, whole length
+  else {
     const d = DRIVES[0], g0 = d.z - d.hw - DRIVE_F, g1 = d.z + d.hw + DRIVE_F;
     slab(ROAD_HALF + CH, 7, -94.5, g0);
     slab(ROAD_HALF + CH, 7, g1, 16.5);
@@ -1830,11 +1868,16 @@ export function buildGround(o: GroundOpts): Ground {
   crossingStripes(scene, XA_Z, -ROAD_HALF, ROAD_HALF, XA_HW, 0, (t) => wet(flat(t)), 'x');
   crossingStripes(scene, XB_X, o.SIDE_Z1, o.SIDE_Z0, XB_HW, 0, (t) => wet(flat(t)), 'z');
 
-  // The lot mouth: the kerb cut at z 2.6 (DRIVES above). Wide enough to cover
-  // the carriageway the player looks down when driving out, long enough along
-  // the street that the feather has room to dissolve. Laid 3 mm over the road,
-  // under nothing.
-  mouthGrain(scene, 0, 2.6, 11.0, 14.0, 0.003, (t) => wet(flat(t)));
+  // The lot mouth's worn tarmac. It was a SECOND copy of the drive's z, three
+  // lines under a comment naming the list it should have come from — so when
+  // the lot left the main street it would have stayed, a patch of tyre-worn
+  // asphalt in the middle of the carriageway outside the college. It follows
+  // the mouth now, off the same `ct/sites.ts` pair as the kerb cut. Wide enough
+  // to cover the carriageway the player looks down when driving out, long
+  // enough along the street that the feather has room to dissolve. Laid 3 mm
+  // over the road, under nothing.
+  mouthGrain(scene, (SIDE_LOT.X0 + SIDE_LOT.X1) / 2, (o.SIDE_Z0 + o.SIDE_Z1) / 2,
+    14.0, 11.0, 0.003, (t) => wet(flat(t)));
 
   // The pawn alley's ground is laid from ct/props.ts, NOT here. This module
   // builds at crosstown.ts:66, before any building exists; the alley is cut by

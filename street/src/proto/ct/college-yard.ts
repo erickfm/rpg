@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { frontageWorld } from './tex-world';
+import type { AABB } from '../fp';
+import {
+  SOUTH_WALK_BOUND_Z, frameBox, frameFromWorld, frameGroup, type SiteFrame,
+} from './sites';
 
 // THE COLLEGE COURTYARD — the outside of CROSSTOWN COMMUNITY COLLEGE.
 //
@@ -33,18 +37,45 @@ import { frontageWorld } from './tex-world';
 // notice board) balanced one each side.
 export const COLLEGE_YARD_D = 4.5;
 
-// The frontage: SOUTH2 runs -7 +18 +12 +12 +11 = 46, and the college is the
-// 11 m to the run's end at 57 (`ct/street.ts`, the roster the widths of which
-// are load-bearing). Typed here, checked against the registry at build time.
-const X0 = 46, X1 = 57;
-const CX = (X0 + X1) / 2;                    // 51.5 — the axis
-const WALK_Z = -110;                         // the street's building line
-const FACE_Z = WALK_Z - COLLEGE_YARD_D;      // the recessed facade plane
-/** The recessed facade plane, exported for ONE consumer: `crosstown.ts`
- *  derives the world's south walk bound from it (`WORLD_BOUNDS.minZ`), so a
- *  future deeper recess moves the clamp with it instead of re-shipping
- *  *"i cant walk into the community college"* (2026-08-09). */
-export const COLLEGE_FACE_Z = FACE_Z;
+// ── THE COLLEGE IS ON THE MAIN STREET NOW ────────────────────────────────────
+//
+// *"swap the used car lot and the college pls"* (2026-08-11). It stood on the
+// last 11 m of the side street's south row, at x 46…57; it now has the 23.2 m
+// of the main street's east side that the used car lot occupied, and the lot
+// has the 11 m. `ct/street.ts` has the arithmetic and why it is a swap of slots
+// and not of footprints.
+//
+// THIS FILE USED TO TYPE ITS OWN POSITION — `X0 = 46, X1 = 57, WALK_Z = -110`,
+// under a comment claiming they were "checked against the registry at build
+// time". **They were not.** `frontageWorld()` was fetched and used only for a
+// null test; every other field was ignored. So a college that moved would have
+// had a complete courtyard — paving, path, wall, gate, sign, notice board,
+// trees, benches, lamps, a 17 m party wall and every collider for it — built at
+// x 46…57 on top of whatever now stands there, silently. That is the class of
+// bug this swap was sent to find, and it was armed in the file the swap starts
+// in.
+//
+// IT IS DERIVED NOW, and the axis with it. The module still builds in the frame
+// it was authored for — x along the frontage from 0, z running back from the
+// building line at 0 into the yard — and `ct/sites.ts` turns that frame onto
+// whichever street the registry says the college is on. Same move as the car
+// lot's, in the opposite direction, and the same reason: an axis is not
+// something 400 lines of hand-placed masonry should have to carry.
+const CX_OF = (w: number) => w / 2;          // the axis, in local terms
+const WALK_Z = 0;                            // the building line, local
+const FACE_Z = WALK_Z - COLLEGE_YARD_D;      // the recessed facade plane, local
+
+/** THE WORLD'S SOUTH WALK BOUND. `crosstown.ts:1303` derives
+ *  `WORLD_BOUNDS.minZ` from this import and `crosstown.ts` is the trunk, so the
+ *  NAME cannot be fixed from here — but the number must be right or the player
+ *  is fenced out of half the world, which is *"i cant walk into the community
+ *  college"* (2026-08-09) a third time.
+ *
+ *  It no longer has anything to do with the college. The southernmost ground a
+ *  player can stand on is the used car lot's, on the side street, and
+ *  `ct/sites.ts` owns that geometry. **RENAME THIS TO `SOUTH_WALK_BOUND_Z` THE
+ *  NEXT TIME THE TRUNK IS OPEN** — one import in one file. */
+export const COLLEGE_FACE_Z = SOUTH_WALK_BOUND_Z;
 
 /** THE EAST PARTY WALL'S OWN FOOTPRINT, and the one place it is written.
  *
@@ -57,28 +88,62 @@ export const COLLEGE_FACE_Z = FACE_Z;
  *  wall's north face on exactly the same plane as the party wall's:
  *  *"graphics overlap between jail and college"* (2026-08-11). */
 const PW_T = 0.50;
-const PW_X0 = X1 - PW_T;
 
 export const ORDER = BUILD.PROPS;
 
 export function register(ctx: CtxBuild): void {
   // The registry is the check that street.ts actually recessed the shell —
-  // if the roster loses the college, build no courtyard to nowhere.
+  // if the roster loses the college, build no courtyard to nowhere. AND IT IS
+  // THE POSITION, now, not just a null test.
   const FW = frontageWorld('COMMUNITY COLLEGE');
   if (!FW) {
     console.warn('[college-yard] no COMMUNITY COLLEGE frontage registered — building nothing.');
     return;
   }
-  const { scene, flat, obstacle, KERB_H } = ctx;
+  const X0 = 0, X1 = FW.frontageM;
+  const CX = CX_OF(X1);                        // the axis, in local terms
+  const PW_X0 = X1 - PW_T;                     // the party wall's inner face
+  // The building line: one recess OUT from the recessed facade, on the facade's
+  // own axis. `outward` is which way the front looks, so this is arithmetic and
+  // not a case analysis.
+  const lineOn = FW.facePos + FW.outward * COLLEGE_YARD_D;
+  const local = { minX: X0, maxX: X1, minZ: FACE_Z, maxZ: WALK_Z };
+  // ── WHICH STREET, AND THEREFORE WHICH WAY THE FRAME TURNS ────────────────
+  //
+  // Authored on a cross street's south row: frontage along +x, front looking
+  // +z, yard running back into -z. That is the identity frame. On the main
+  // street's east side the frontage runs along z and the front looks -x, which
+  // is that frame turned a quarter turn: local +x → world +z, local -z →
+  // world +x. Both are right angles, so `frameBox` is exact (ct/sites.ts).
+  let fr: SiteFrame | null = null;
+  if (FW.axis === 'x' && FW.outward === 1) fr = { rotY: 0, ox: FW.loWorld, oz: lineOn, local };
+  else if (FW.axis === 'z' && FW.outward === -1) fr = { rotY: -Math.PI / 2, ox: lineOn, oz: FW.loWorld, local };
+  if (!fr) {
+    console.warn(`[college-yard] the college's frontage runs along ${FW.axis} looking `
+      + `${FW.outward > 0 ? '+' : '-'}${FW.axis === 'x' ? 'z' : 'x'}, which this module has no `
+      + 'frame for — building nothing rather than a courtyard laid sideways.');
+    return;
+  }
+  const { flat, KERB_H } = ctx;
+  const grp = frameGroup(fr);
+  ctx.scene.add(grp);
+  // Geometry rides the group; a collider does not — `ctx.obstacle` takes a
+  // WORLD box and a group transform never reaches it. Turn it here or the yard
+  // looks right and collides at ninety degrees to itself.
+  const obstacle = (b: AABB) => ctx.obstacle(frameBox(fr!, b));
   const put = (m: THREE.Object3D, x: number, y: number, z: number) => {
-    m.position.set(x, y, z); scene.add(m); return m;
+    m.position.set(x, y, z); grp.add(m); return m;
   };
 
   // ── the ground: the yard is pavement-height, and the world must know ──────
   // The base walk stops at the building line; without this the notch answers
   // road height and the player steps 12 cm DOWN through the paving.
-  ctx.ground((x, z) =>
-    x >= X0 && x <= X1 && z <= WALK_Z && z >= FACE_Z ? KERB_H : null);
+  // …asked in WORLD coordinates, answered in the yard's own — the ground stack
+  // has no idea this module is framed and must not have to.
+  ctx.ground((wx, wz) => {
+    const [x, z] = frameFromWorld(fr!, wx, wz);
+    return x >= X0 && x <= X1 && z <= WALK_Z && z >= FACE_Z ? KERB_H : null;
+  });
 
   // ── the paving: clay paviours, laid coursed, dark red-brown ───────────────
   // Brick underfoot is what separates a yard from a continuation of the
@@ -341,10 +406,19 @@ export function register(ctx: CtxBuild): void {
     // The jail is the other half of this join. It is not this module's to
     // place, so disagreement is a loud line rather than a silent slot — the
     // same shape `ct/jail.ts` uses when its own published site moves.
-    const jailSite = ctx.site('jail');
-    if (jailSite && Math.abs(jailSite.minX - PW_X1) > 0.01)
-      console.warn(`[college-yard] the jail's site edge is x ${jailSite.minX}, not ${PW_X1} — `
-        + 'the east party wall and the jail\'s forecourt screen no longer meet at the corner.');
+    // THE JAIL IS NOT THE OTHER HALF OF THIS JOIN ANY MORE. This wall used to
+    // abut the jail's forecourt screen at (57, -110) and warned if the jail's
+    // published site moved off x 57. The college is on the main street now: the
+    // wall stands at the yard's high-frontage end, which is the block's north
+    // end at z 14.2, and what it meets there is the cap building — `CAP_W =
+    // 2 * FACE`, *"exactly the street, no more"*, sealing x -7…7 and nothing
+    // beyond. So this wall is not a nicety, it is the ONLY thing closing the
+    // yard on that side, and it is the same escape class (item 221) the lot's
+    // north flank was: a site closed on one axis-half with nothing closing the
+    // other. Abut-never-overlap still holds — the wall owns up to the property
+    // line and no further — but there is no second module to disagree with, so
+    // there is nothing left to warn about and a warning that cannot fire is
+    // worse than none.
     const PW_D = PW_Z1 - PW_Z0;           // 4.5 m of run
     const TW = Math.round(PW_D * 8);      // 8 px/m — masonry wants courses, not letters
     const partyT = declareSurface(pixTex(TW, 138, (g) => {
@@ -382,7 +456,12 @@ export function register(ctx: CtxBuild): void {
   // over the painted frieze, 64 px/m, and keeps the incised-stone look —
   // carved is fine, mushy isn't.
   {
-    const FR_W = 8.9, FR_H = 0.86;
+    // …and it is 81% of the frontage, not 8.9 m. It was written against an 11 m
+    // front; the college has 23.2 now, and a plate sized for the old building
+    // would sit as a stripe in the middle of the new one while the PAINTED
+    // frieze underneath it — which `ct/tex-world.ts` lays out off `wMeters` —
+    // ran the full width behind it.
+    const FR_W = X1 * 0.809, FR_H = 0.86;
     const frT = declareSurface(pixTex(Math.round(FR_W * 64), Math.round(FR_H * 64), (g) => {
       const W = Math.round(FR_W * 64), H = Math.round(FR_H * 64);
       g.fillStyle = '#d3c9ae'; g.fillRect(0, 0, W, H);

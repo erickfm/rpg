@@ -17,6 +17,7 @@ import { buildPawnAlley } from './pawn-alley';
 import { buildBodegaCorner } from './bodega-corner';
 import { buildBank } from './bank';
 import { COLLEGE_YARD_D } from './college-yard';
+import { SIDE_LOT, frameBox, frameGroup, type SiteFrame } from './sites';
 
 // The alley's floor height lives in `ct/alley-floor.ts`, a LEAF module with no
 // imports, and is re-exported here so nothing that already asked this file has
@@ -331,12 +332,25 @@ export function buildStreet(o: {
   const ALLEY2 = 'alley2' as const;
   const ALLEY2_W = 2.5;                 // "very narrow" — turn sideways, not a road
   let alley2Z0 = 0;                     // published by the roster walk below
-  const EAST: (BldSpec | 'lot' | typeof ALLEY2)[] = [
-    // CAFE 11.2 + HARDWARE 12 given over to a used car lot. Already adjacent,
-    // so no swap — and the run before No. 227 still totals 49.2, which is
+  const EAST: (BldSpec | typeof ALLEY2)[] = [
+    // CAFE 11.2 + HARDWARE 12 were given over to a used car lot, and the lot
+    // has now given the whole 23.2 m to the COMMUNITY COLLEGE — *"swap the used
+    // car lot and the college pls"* (2026-08-11). The lot is on the side
+    // street, on the 11 m the college stood on; see `placeLotSide` below for
+    // why the two swap SLOTS and not footprints.
+    //
+    // The run before No. 227 still totals 49.2 — 23.2 + 13 + 13 — which is
     // load-bearing: the walk-up's door and interior sit at a fixed z in
-    // ct/apartment.ts.
-    'lot',
+    // ct/apartment.ts, and No. 227 still spans -35…-53.
+    //
+    // A COLLEGE IS THE RIGHT THING FOR AN OPEN SITE. The 23.2 m the lot vacated
+    // was a hole in the street wall, and the college was already the one
+    // building on the block that stands BEHIND its own frontage — a recessed
+    // facade with a paved court in front of it. On 11 m that court was a notch;
+    // on 23.2 it is a campus. `COLLEGE_YARD_D` is unchanged and `placeBld`'s
+    // new `recess` puts the shell back off the building line exactly as
+    // `placeBldZ`'s shifted `zc` used to on the side street.
+    { nm: 'COMMUNITY COLLEGE', col: '#6a2430', w: 23.2, brick: '#7a4a3a', floors: 4 },
     { nm: 'A-1 TAX', col: '#2c4a7a', w: 13, brick: '#7a4a3a', floors: 5, front: 'tax' },
     // LIQUOR became a mattress showroom — *"make the liquor store a mattress
     // store."* An IDENTITY change only: `w` stays 13 because the run before
@@ -391,7 +405,10 @@ export function buildStreet(o: {
     { nm: 'HOTEL ORPHEUS', col: '#6a4a2c', w: 12, brick: '#7a4a3a', floors: 5 },
     { nm: 'SEVENS', col: '#8a2c42', w: 11.55, brick: '#5c4436', floors: 4 },
   ];
-  const SOUTH2: BldSpec[] = [
+  /** The used car lot's slot in the side street's south row — a token, not a
+   *  building, exactly as `'park'` and `'lot'` were on the main street. */
+  const LOT_SLOT = 'lot' as const;
+  const SOUTH2: (BldSpec | typeof LOT_SLOT)[] = [
     // the church has moved to the main block; the two shops it displaced took
     // its old slot. 9.5 + 8.5 = the 18 m the church vacated, so this run still
     // totals 64 and still ends dead on x = 57.
@@ -422,14 +439,16 @@ export function buildStreet(o: {
     { nm: 'CROSSTOWN FITNESS', col: '#17766b', w: 12, brick: '#5c4436', floors: 3 },
     { nm: 'BILLIARDS', col: '#2c5a3a', w: 12, brick: '#835444', floors: 4 },
     { nm: 'SMOKES', col: '#8a6a22', w: 11, brick: '#6b4034', floors: 3 },
-    // LOANS became the community college — *"that means we need a gym and a
-    // crosstown community college"* (2026-08-08). An IDENTITY change only,
-    // the SLEEP CENTER precedent: `w` stays 11 so the run still ends dead on
-    // x = 57 where the cross building begins. A storefront evening division
-    // moving into a dead loan office is exactly the 1997 of it; the maroon is
-    // collegiate and is spent again on the dado and the course board inside
-    // (ct/int-college.ts, which declares the door).
-    { nm: 'COMMUNITY COLLEGE', col: '#6a2430', w: 11, brick: '#7a4a3a', floors: 4 },
+    // LOANS became the community college, and the college has now gone to the
+    // main street — *"swap the used car lot and the college pls"* (2026-08-11).
+    // The USED CAR LOT has this 11 m, as an open site rather than a shell, and
+    // the run still ends dead on x = 57 where the jail's site begins. A used
+    // car lot at the dead end of a side street, up against the county jail, is
+    // exactly the 1997 of it.
+    //
+    // `'lot'` is a token rather than a BldSpec, like `'park'` and the two
+    // alleys: the roster walks past it and leaves the frontage open.
+    LOT_SLOT,
   ];
   // Buildings ABUT — a shell is exactly b.w deep, never b.w + slop. Two
   // neighbours share the boundary plane; their facade quads meet edge to
@@ -546,10 +565,23 @@ export function buildStreet(o: {
     for (const m of lateMats) m.opacity = l;
   };
 
-  const placeBld = (side: number, z: number, b: BldSpec) => {
+  /** `recess` sets the shell back from the building line, leaving a court
+   *  between the pavement and its own facade. `placeBldZ` has had this since
+   *  the college's courtyard was cut on the side street (*"feel free to make a
+   *  little courtyard"*), where it was a shifted `zc`; the college stands on
+   *  the MAIN street now, so the main-street placer needs it too.
+   *
+   *  Everything the facade owns moves with it — the lit-window sheets, the
+   *  registered frontage (and therefore the painted door, the [E] spot and the
+   *  room behind it), and the collider — because all four are written off one
+   *  `fx` instead of off `FACE`. THE PAVEMENT IS NOT TOUCHED: the shell gives
+   *  up its own depth, it does not borrow the walk. */
+  const placeBld = (side: number, z: number, b: BldSpec, recess = 0) => {
     const cz = z - b.w / 2;
     const gh = bandOf(b);
-    const dep = depthOf(b.nm || 'res'), cx = side * (FACE + dep / 2);
+    const dep = depthOf(b.nm || 'res');
+    const fx = side * (FACE + recess);            // this shell's facade plane
+    const cx = fx + side * dep / 2;
     const h = 3.4 + b.floors * 2.4;
     const facade = flat(facadeTex(b.brick, b.floors, b.w));
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
@@ -569,7 +601,7 @@ export function buildStreet(o: {
     wall.userData.facing = 'x';
     wall.position.set(cx, h / 2 + gh, cz);
     scene.add(wall);
-    litSheets(b, b.w, h, side * FACE, h / 2 + gh, cz,
+    litSheets(b, b.w, h, fx, h / 2 + gh, cz,
       side < 0 ? Math.PI / 2 : -Math.PI / 2, -side, 0);
     // MOVED ABOVE THE PAINTER, and it has to stay there. shopfrontRelief
     // registers where this frontage is in the world, and the painter needs
@@ -580,7 +612,7 @@ export function buildStreet(o: {
     // adds no collision. The walk-up (b.res) has a doorcase, not a shopfront.
     if (!b.res) shopfrontRelief({
       scene, name: b.nm, wMeters: b.w, trim: b.col,
-      x: side * FACE, z: cz, rotY: side < 0 ? Math.PI / 2 : -Math.PI / 2,
+      x: fx, z: cz, rotY: side < 0 ? Math.PI / 2 : -Math.PI / 2,
     });
     const shopM = flat(
       b.res ? resGroundTex(b.brick, b.w)
@@ -596,8 +628,8 @@ export function buildStreet(o: {
     roofKit(cx, cz, dep, b.w, gh + h, b.nm || 'res');
     // collision follows the real footprint, not a fixed 8 m guess
     solid(side < 0
-      ? { minX: -FACE - dep, maxX: -FACE + CUSH, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 }
-      : { minX: FACE - CUSH, maxX: FACE + dep, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 });
+      ? { minX: fx - dep, maxX: fx + CUSH, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 }
+      : { minX: fx - CUSH, maxX: fx + dep, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 });
   };
   // ── civic stone ─────────────────────────────────────────────────────────
   //
@@ -739,12 +771,43 @@ export function buildStreet(o: {
   // written through it so neither case is a special case.
   interface Site {
     minX: number; maxX: number; minZ: number; maxZ: number; y: number;
+    frame?: SiteFrame;
     displace?: (fill: (x: number, z: number) => number) => void;
   }
+  // The un-framed scene and collider registry. `openSite` shadows both names
+  // below so a FRAMED site's sixty lines need no edit at all — see ct/sites.ts
+  // for why turning the frame beats teaching the builder an axis.
+  const rootScene = scene, rootSolid = solid;
   const openSite = (
     side: -1 | 1, z: number, w: number,
-    o: { depth: number; ground: string; grain: string; back: string; flank: string; gate: number },
+    o: {
+      depth: number; ground: string; grain: string; back: string; flank: string; gate: number;
+      /** the boundary wall's share of the frontage at each end, when they
+       *  differ. Default: `gate` at both, which is every site but the narrow
+       *  one. See the rail below. */
+      gateLo?: number; gateHi?: number;
+      /** stand this site on a street that is not the main one. Everything
+       *  below is written in MAIN-STREET terms and the frame turns it; the
+       *  published `Site` carries world bounds and the frame both. */
+      frame?: Omit<SiteFrame, 'local'>;
+    },
   ): Site => {
+    // ── THE FRAME, AND THE TWO THINGS A GROUP CANNOT REACH ──────────────────
+    //
+    // Geometry rides the Group and needs nothing. Colliders do not: `obstacle`
+    // takes a world AABB and a Group's transform never touches it, so a framed
+    // site built naively would LOOK turned and COLLIDE the way it was authored
+    // — the exact "the mesh was smaller than the collision the world asserted"
+    // fault of cd7655e5, at ninety degrees. `frameBox` is the missing half.
+    // `local` is filled in at the return, once the site's own extents are
+    // known; nothing reads it before then, and the frame object is the one the
+    // published Site carries so the two can never describe different sites.
+    const fr: SiteFrame | null = o.frame
+      ? { ...o.frame, local: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } } : null;
+    const grp = fr ? frameGroup(fr) : null;
+    if (grp) rootScene.add(grp);
+    const scene = (grp ?? rootScene) as THREE.Scene;
+    const solid = fr ? (b: AABB) => rootSolid(frameBox(fr, b)) : rootSolid;
     const XB = side * FACE, XF = XB + side * o.depth;       // street edge, back
     const z0 = z - w, z1 = z;
     const lo = Math.min(XF, XB), hi = Math.max(XF, XB);
@@ -913,8 +976,16 @@ export function buildStreet(o: {
     // flush with the street line and the body behind it, which is also what
     // C's own module already does — "everything this module builds is at
     // x >= 7.18".
+    // THE TWO ENDS ARE TAKEN INDEPENDENTLY. Both sites this helper has ever
+    // served wanted a mouth in the middle, so one fraction did for both — but
+    // an 11 m site cannot centre a drive aisle AND fit a row of stock beside
+    // it, so the side-street lot's mouth sits at the high end and its wall is
+    // nearly all at the low one. `gate` still sets both when only it is given.
+    // A run shorter than a wall panel is dropped rather than built as a sliver.
     const railM = new THREE.MeshBasicMaterial({ color: 0x6d6455 });
-    for (const [rz0, rz1] of [[z0 + 0.3, z0 + w * o.gate], [z1 - w * o.gate, z1 - 0.3]] as [number, number][]) {
+    const gLo = o.gateLo ?? o.gate, gHi = o.gateHi ?? o.gate;
+    for (const [rz0, rz1] of [[z0 + 0.3, z0 + w * gLo], [z1 - w * gHi, z1 - 0.3]] as [number, number][]) {
+      if (rz1 - rz0 < 0.25) continue;
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, rz1 - rz0), railM);
       wall.position.set(XB + side * 0.18, KERB_H + 0.31, (rz0 + rz1) / 2);
       scene.add(wall);
@@ -927,7 +998,19 @@ export function buildStreet(o: {
         minZ: rz0, maxZ: rz1, maxY: KERB_H + 0.62,
       });
     }
-    return { minX: lo, maxX: hi, minZ: z0, maxZ: z1, y: KERB_H, displace };
+    // THE BOUNDS GO OUT IN WORLD, THE FRAME CARRIES THE LOCAL ONES. The ground
+    // query in crosstown.ts tests a published site's bounds straight against
+    // the player's x/z, so they must be world; the module that FILLS the site
+    // wants its own frame, so it reads `frame.local`. One object, both answers,
+    // and neither is retyped anywhere.
+    const local = { minX: lo, maxX: hi, minZ: z0, maxZ: z1 };
+    if (!fr) return { ...local, y: KERB_H, displace };
+    fr.local = local;
+    const wb = frameBox(fr, local as AABB);
+    return {
+      minX: wb.minX, maxX: wb.maxX, minZ: wb.minZ, maxZ: wb.maxZ,
+      y: KERB_H, frame: fr, displace,
+    };
   };
   // 30 m of the west side, where BARBER and GROCERY stood. Contents: E, in
   // ct/park.ts.
@@ -948,14 +1031,47 @@ export function buildStreet(o: {
     // back for the entry point to relay. See `publishSite` in the params above.
     o.publishSite?.('park', PARK);
   };
-  // 23.2 m of the east side, where CAFE and HARDWARE stood. Contents — the
-  // surfacing, the fence, the office, the signage and the stock — are C's, in
-  // ct/lot.ts. A car lot is deeper than a park because it has to hold cars,
-  // and its ground is broken asphalt rather than grass.
+  // THE USED CAR LOT IS ON THE SIDE STREET NOW — *"swap the used car lot and
+  // the college pls"* (2026-08-11). It stood in 23.2 m of the east side, where
+  // CAFE and HARDWARE stood; it now stands on the 11 m the COMMUNITY COLLEGE
+  // stood on, at the far east end of the side street's south row, and the
+  // college has the east side. Contents — the surfacing, the fence, the office,
+  // the signage and the stock — are still C's, in ct/lot.ts.
+  //
+  // WHY IT IS A SLOT SWAP AND NOT A FOOTPRINT SWAP. Three run totals in this
+  // file are load-bearing and two of them are on these buildings' runs: the
+  // east run before No. 227 must total 49.2 (ct/apartment.ts pins the walk-up's
+  // door to a fixed z off it) and SOUTH2 must total 64 so both side-street
+  // rosters end dead on x 57, which is the jail's whole siting argument. Carry
+  // the FOOTPRINTS across and the east run loses 12.2 m and the side street
+  // gains it, which moves No. 227, the bodega's corner and the jail. Carry the
+  // SLOTS across — each building taking the frontage it lands on — and both
+  // totals are untouched and not one neighbour moves. That is the same trade
+  // this roster has made every time (SLEEP CENTER, VOLT VILLAGE, VIDEO HUT).
+  //
+  // So the college grows from 11 m to 23.2 and the lot narrows from 23.2 to 11,
+  // and the lot buys its depth back: 20 m, because nothing stands behind the
+  // side street's south row and a lot has to hold cars. `ct/sites.ts` holds
+  // those numbers — three files need them.
+  //
+  // The frame is a quarter turn. `openSite` cuts a hole in the main street's
+  // wall and only ever could; `rotY = +π/2` sends its -x mouth to +z, which is
+  // the way the side street's south row faces, and the origin puts the site's
+  // street edge on the building line at z -110 and its high-z end on x 57.
   let LOT: Site = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, y: KERB_H };
-  const placeLot = (z: number, w: number) => {
-    LOT = openSite(1, z, w, {
-      depth: w, ground: '#4a4c50', grain: '#3e4044', back: '#5c4436', flank: '#6b4034', gate: 0.3,
+  const placeLotSide = () => {
+    // Held back from the east property line by the flank's own thickness, so
+    // the wall stands on the lot's land and not in the jail's forecourt — see
+    // `SIDE_LOT.FLANK_T`.
+    const W = SIDE_LOT.X1 - SIDE_LOT.X0 - SIDE_LOT.FLANK_T;
+    LOT = openSite(1, -SIDE_LOT.FLANK_T, W, {
+      depth: SIDE_LOT.DEPTH,
+      ground: '#4a4c50', grain: '#3e4044', back: '#5c4436', flank: '#6b4034', gate: 0.3,
+      gateLo: SIDE_LOT.GATE_LO, gateHi: SIDE_LOT.GATE_HI,
+      // local z runs -W…0 and local x runs FACE…FACE+DEPTH, so:
+      //   world x = local z + X1        →  X0 … X1
+      //   world z = -local x + oz       →  WALK_Z … WALK_Z - DEPTH
+      frame: { rotY: Math.PI / 2, ox: SIDE_LOT.X1, oz: SIDE_LOT.WALK_Z + FACE },
     });
     o.publishSite?.('lot', LOT);
   };
@@ -1022,10 +1138,17 @@ export function buildStreet(o: {
   let ze = 14.2;
   let bodegaZ0 = 0; // the bodega turns the corner — hand-built below, not by placeBld
   for (const b of EAST) {
-    if (b === 'lot') { placeLot(ze, 23.2); ze -= 23.2; continue; }
     if (b === ALLEY2) { alley2Z0 = ze; ze -= ALLEY2_W; continue; }
     if (b.nm === 'BODEGA') { bodegaZ0 = ze; ze -= b.w; continue; }
-    if (b.kind === 'church') placeChurchEast(ze, b); else placeBld(1, ze, b);
+    if (b.kind === 'church') placeChurchEast(ze, b);
+    // THE COLLEGE IS RECESSED, and it is the only shell on this street that is.
+    // Its facade stands COLLEGE_YARD_D behind the building line, carving a
+    // 23.2 x 4.5 m court out of the shell's own depth between its neighbours.
+    // The pavement is untouched; the notch is dressed (paving, low wall, gate,
+    // planting, sign) by ct/college-yard.ts, which owns the one number both
+    // files build from and re-derives its own position from the registry.
+    else if (b.nm === 'COMMUNITY COLLEGE') placeBld(1, ze, b, COLLEGE_YARD_D);
+    else placeBld(1, ze, b);
     ze -= b.w;
   }
   // side-street rosters run along x; facade on the street-facing z side
@@ -1108,14 +1231,20 @@ export function buildStreet(o: {
   { const m = scene.children.length; vice.placeSigns(sideSpans); stampFrom(m, 'vice'); }
   let xs = -7;
   for (const b of SOUTH2) {
+    // THE LOT'S SLOT. It is the last 11 m of the run, so the cursor arriving
+    // here IS `SIDE_LOT.X0` — asserted rather than assumed, because the whole
+    // reason `ct/sites.ts` holds those numbers is that two other files build
+    // from them and neither can see this loop.
+    if (b === LOT_SLOT) {
+      if (Math.abs(xs - SIDE_LOT.X0) > 0.01)
+        console.warn(`[street] the side street's south row reaches the car lot at x ${xs}, `
+          + `not ${SIDE_LOT.X0} — ct/sites.ts, ct/lot.ts and the world's south walk bound `
+          + 'all build from that number and are now describing a different site.');
+      placeLotSide();
+      xs += SIDE_LOT.X1 - SIDE_LOT.X0;
+      continue;
+    }
     if (b.kind === 'church') { const m = scene.children.length; placeChurch(xs, -111.7, b); stampFrom(m, 'civic'); }
-    // THE COLLEGE IS RECESSED — *"feel free to make a little courtyard"*
-    // (2026-08-09). Its shell sits COLLEGE_YARD_D behind the building line,
-    // carving an 11 x 4.5 m court out of the shell's own 14+ m depth between
-    // its neighbours' party walls. The pavement is untouched; the notch is
-    // dressed (paving, low wall, gate, planting, sign) by ct/college-yard.ts,
-    // which owns the one number both files build from.
-    else if (b.nm === 'COMMUNITY COLLEGE') placeBldZ(xs, -111.7 - COLLEGE_YARD_D, b, 1);
     else placeBldZ(xs, -111.7, b, 1);
     xs += b.w;
   }

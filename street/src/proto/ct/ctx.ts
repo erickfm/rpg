@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
 import type { Purse } from './hud';
+import type { SiteFrame } from './sites';
 
 // The construction-time context the world modules are handed.
 //
@@ -127,6 +128,19 @@ export interface Seat {
  */
 export interface Site {
   minX: number; maxX: number; minZ: number; maxZ: number; y: number;
+  /**
+   * WHICH WAY THIS SITE'S STREET RUNS — present only when it is not the main
+   * street's, i.e. only when the module filling it was authored for a different
+   * axis and is being stood on this one. See `ct/sites.ts` for the whole
+   * argument; the short version is that the bounds above are WORLD (the ground
+   * query in `crosstown.ts` tests them straight against the player's x/z) while
+   * `frame.local` is the site as the filling module wants to read it.
+   *
+   * A module that ignores this field builds the site it has always built, in
+   * the main street's terms, and lands sideways. `ct/lot.ts` is the one
+   * consumer today.
+   */
+  frame?: SiteFrame;
   /**
    * TAKE OWNERSHIP OF THIS SITE'S GROUND.
    *

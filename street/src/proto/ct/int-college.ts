@@ -34,11 +34,17 @@ import { stat, raiseStat } from './stats';
 //
 // ── THE FRONTAGE IS THE OLD LOANS OFFICE ────────────────────────────────────
 //
-// The south row of the side street, x 46…57, facing north — the last shopfront
-// before the block's east wall. It was `LOANS`, unbuilt, and a storefront
-// college moving into a dead loan office is precisely the 1997 of it. The
-// roster entry in `ct/street.ts` now reads `COMMUNITY COLLEGE` in collegiate
-// maroon; this file and that line are the entire change of identity.
+// It was the south row of the side street, x 46…57 facing north — the old
+// `LOANS` slot, and a storefront college moving into a dead loan office is
+// precisely the 1997 of it. It is the MAIN street's east side now, z -9…14.2
+// facing west, on the 23.2 m the used car lot gave up (*"swap the used car lot
+// and the college pls"*, 2026-08-11) — twice the frontage, a real campus court
+// in front of it, and the lot has the 11 m down the side street.
+//
+// NOTHING IN THE ROOM MOVED. Every position below is local to the room and the
+// room asks `frontageWorld` where it is, so a building that doubles its
+// frontage widens its own registrar's office and nothing else. The two facts
+// that had to be chased by hand are both on `DOOR` below.
 // (The GYM from the same ask is with another builder, told to prefer the park
 // end — this is the opposite corner of the world from the park, on purpose.)
 //
@@ -54,19 +60,30 @@ const OAK_D = '#7a5936';
 
 // ══ THE DOOR ═══════════════════════════════════════════════════════════════
 //
-// A SIDE-STREET frontage, so this is the `face` form — `ct/int-video.ts` is
-// the precedent and its note is the argument: a position along the roster's z
-// axis means nothing on a face that runs along x.
+// STILL THE `face` FORM, AND NOW FOR THE OPPOSITE REASON. It was the face form
+// because a side-street frontage runs along x and a `cz` on the roster's z axis
+// means nothing there. The college is on the MAIN street's east side now —
+// *"swap the used car lot and the college pls"* (2026-08-11) — where z IS the
+// roster axis, so `cz` is meaningful again; but the facade is RECESSED
+// `COLLEGE_YARD_D` behind the building line, and the derived form in
+// `ct/doors.ts` puts the stand point at `side * FACE`, i.e. out on the pavement
+// 4.5 m short of the door with the courtyard in between. `face` is what carries
+// a facade that is not on the building line.
 //
-// CENTRED, AND RECESSED, since the courtyard (2026-08-09, *"feel free to make
-// a little courtyard"*): `BANDS.college` in ct/tex-world.ts centres the door
-// on the 11 m front (world x 51.5), and the whole facade stands
-// `COLLEGE_YARD_D` behind the building line (plane z = -114.5) with the
-// gate–path–doorcase axis of ct/college-yard.ts running straight to it. The
-// room is built FROM the registry at build time, so these typed values are
-// the fallbacks the type requires, not a second authority.
+// AND THE TYPED VALUES ARE NOT ALL FALLBACKS, whatever the note here used to
+// say. `doorPointFor` short-circuits on `face` and returns it BEFORE it looks at
+// anything derived, so `face` is the first authority and two live consumers read
+// it: the opening-hours card (ct/hours-cards.ts) and the "closed, opens at 8"
+// [E] spot (ct/hours-doors.ts). The room itself is derived — it asks
+// `frontageWorld` — which is exactly why a stale `face` is silent: the way in
+// works and the card hangs in mid-air over the neighbour's brick.
+//
+//   frontage   z -9 … 14.2 on the east side, 23.2 m (it took the car lot's slot)
+//   facade     x 11.5 — the building line at 7, plus the 4.5 m recess
+//   door       centred, so z 2.6; `BANDS.college` centres it and
+//              ct/college-yard.ts runs its gate, path and axis to the same line
 export const DOOR: DoorDecl = {
-  building: 'COMMUNITY COLLEGE', w: 11, cz: -114.5, side: 1, at: 0,
+  building: 'COMMUNITY COLLEGE', w: 23.2, cz: 2.6, side: 1, at: 0,
   // What collegeFront paints in that opening: a maroon timber DOUBLE leaf,
   // glazed above the lock rail, under a fanlight. 1.2 is BANDS.college's own
   // `dw`, so the opening you walk through and the painted one are one number.
@@ -74,7 +91,7 @@ export const DOOR: DoorDecl = {
     clearW: 1.2, h: 2.4, leaves: 2,
     frame: { colour: 0x6a2430, material: 'timber' }, glazing: 'half',
   },
-  face: { x: 51.5, z: -114.5, nx: 0, nz: 1 },
+  face: { x: 11.5, z: 2.6, nx: -1, nz: 0 },
 };
 
 export function buildCollege(ctx: CtxBuild): void {

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Seat } from './ctx';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
+import { SIDE_LOT, frameBox, frameFromWorld, frameGroup, frameToWorld, frameYaw } from './sites';
 import { pixTex, dither, declareSurface, slabTex, type SurfaceKind } from './paint';
 
 /** `pixTex` + `declareSurface` in one call.
@@ -125,12 +126,57 @@ export const ORDER = BUILD.SITE + 1;
 export function register(ctx: CtxBuild) {
   const site = ctx.site('lot');
   if (!site) { console.warn('[lot] the block has no site named "lot" — nothing built'); return; }
+  // ── THE LOT IS ON THE SIDE STREET NOW, AND THIS FILE DOES NOT KNOW IT ──────
+  //
+  // *"swap the used car lot and the college pls"* (2026-08-11). Everything
+  // below `placeLot` is written in one frame and says so at :528 — "street
+  // edge, back" for minX/maxX — which was true of an east main-street site and
+  // is false of the side street's south row. 2790 lines hang off it: the aisle
+  // runs along x, the fence is `X0 + 0.18`, the back wall is `X1 - 0.08`, the
+  // office is across `X1`. Teaching all of that an axis is a rewrite of the
+  // module and a rewrite of every number the user has already signed off.
+  //
+  // So the module keeps its frame and the WORLD turns it — `ct/sites.ts`, and
+  // the precedent is `placeChurchEast`. A Group carries the geometry for free.
+  // It carries NOTHING ELSE, and the three things it misses are exactly the
+  // three this module registers:
+  //
+  //   · `obstacle` takes a WORLD box. Unturned, the lot would look right and
+  //     collide sideways — cd7655e5's "the mesh was smaller than the collision
+  //     the world asserted for it" at ninety degrees, and much worse.
+  //   · `seat` takes a world point AND A YAW, and the yaw turns too, or you sit
+  //     on the tyre stack facing the fence.
+  //   · `onFrame` is handed the PLAYER's world x/z and this module compares it
+  //     against its own coordinates (the floodlight's proximity). That one goes
+  //     the other way: world → local.
+  //
+  // No frame published means the main street, and every line below runs exactly
+  // as it did — this is dead weight on the park's path, not a second mode.
+  const fr = site.frame;
+  const grp = fr ? frameGroup(fr) : null;
+  if (grp) ctx.scene.add(grp);
   const lot = buildLot({
-    scene: ctx.scene, flat: ctx.flat, wet: ctx.wet, KERB_H: ctx.KERB_H, obstacle: ctx.obstacle,
-    onFrame: (fn, order) => ctx.onFrame((f) => fn({ night: f.night, px: f.px, pz: f.pz, dt: f.dt }), order),
-    seat: ctx.seat,
+    scene: (grp ?? ctx.scene) as THREE.Scene,
+    flat: ctx.flat, wet: ctx.wet, KERB_H: ctx.KERB_H,
+    obstacle: fr ? (b) => ctx.obstacle(frameBox(fr, b)) : ctx.obstacle,
+    onFrame: (fn, order) => ctx.onFrame((f) => {
+      const [px, pz] = fr ? frameFromWorld(fr, f.px, f.pz) : [f.px, f.pz];
+      fn({ night: f.night, px, pz, dt: f.dt });
+    }, order),
+    seat: fr
+      ? (s) => {
+        const [x, z] = frameToWorld(fr, s.x, s.z);
+        const ap = s.approach ? frameToWorld(fr, s.approach.x, s.approach.z) : null;
+        ctx.seat({
+          ...s, x, z, yaw: frameYaw(fr, s.yaw),
+          ...(ap ? { approach: { x: ap[0], z: ap[1] } } : {}),
+        });
+      }
+      : ctx.seat,
   });
-  lot.placeLot(site);
+  // The site handed over is the module's OWN: `frame.local` when there is a
+  // frame, the published world bounds when there is not.
+  lot.placeLot(fr ? { ...fr.local, y: site.y } : site);
 }
 
 /** Not exported: `register` above is the only entry point, which is the
@@ -545,8 +591,41 @@ function buildLot(o: {
     // And it gives the office a job. At the front corner it was a hut you
     // walked past. At the far end facing back down the aisle it is what you
     // drive TOWARD, it watches the whole lot, and the depth has a reason.
+    //
+    // ── AND ON ELEVEN METRES OF FRONTAGE IT RUNS ONE ROW, NOT TWO ────────
+    //
+    // *"swap the used car lot and the college pls"* (2026-08-11) put this lot
+    // on the side street, on the 11 m the college stood on, against 23.2 on the
+    // main street. The plan above needs 6.8 m of aisle and 4.3 m of herringboned
+    // car EACH SIDE of it — 15.4 m — so on 11 it does not fit, and the honest
+    // answer is not to shrink the aisle until two cars can no longer pass. It is
+    // the layout every narrow city lot actually has: **one row of stock, the
+    // aisle hard against the other side of the yard, and the gate where the
+    // aisle is.** The depth carries the lot instead of the width, which is what
+    // the aisle plan was for in the first place.
+    //
+    // The mouth has to follow. `ct/sites.ts` holds `GATE_LO`/`GATE_HI` and both
+    // `openSite`'s boundary wall and the chain-link below read the same pair,
+    // so the fence can never end up across the gate.
+    //
+    // A WIDE SITE IS UNCHANGED TO THE CENTIMETRE — `AISLE_HW` is still 3.4, the
+    // aisle is still on the site's own centreline and the rows are still ±6.0
+    // off it. This is a second case, not a re-tuning of the first.
     const zMid = (zS + zN) / 2;
-    const AISLE_HW = 3.4;                 // 6.8 m: two cars can pass
+    /** half the z-extent of one herringboned car — a 5.0 m bay line turned by
+     *  `HERR` presents cos(0.55) x 5.0 across the aisle */
+    const BAY_HALF = 2.15;
+    const TWO_ROWS = span >= 6.8 + 4 * BAY_HALF + 1.0;         // 16.4 m
+    const AISLE_HW = TWO_ROWS ? 3.4 : Math.max(2.2, (span - 2 * BAY_HALF - 0.9) / 2);
+    /** the aisle's centreline: the site's for a wide lot, hard against the high
+     *  end of the frontage for a narrow one, with the gate on top of it */
+    const AISLE_Z = TWO_ROWS ? zMid : zN - 0.45 - AISLE_HW;
+    // The boundary wall's share of the frontage at each end. `openSite` builds
+    // the wall from the SAME pair (`ct/sites.ts`), and the chain-link below
+    // rides on that wall, so a disagreement here is a fence across the gate —
+    // which is why the two numbers live in a third file neither of us owns.
+    const G_LO = TWO_ROWS ? SITE_GATE : SIDE_LOT.GATE_LO;
+    const G_HI = TWO_ROWS ? SITE_GATE : SIDE_LOT.GATE_HI;
     const BAY_PITCH = 2.7;                // along the aisle, per bay
     const OFF_D = 3.0, OFF_W = 4.6, OFF_H = 2.7;
     const OFF_X = X1 - OFF_D / 2 - 1.1;   // across the back, off the rear fence
@@ -563,7 +642,11 @@ function buildLot(o: {
     // lot with an aisle parks like this. Nose-out toward the aisle, so the
     // windshield — and the price written on it — faces whoever walks down it.
     const HERR = 0.55;
-    const NORTH_Z = zMid + AISLE_HW + 2.6, SOUTH_Z = zMid - AISLE_HW - 2.6;
+    const ROW_OFF = TWO_ROWS ? AISLE_HW + 2.6 : AISLE_HW + BAY_HALF + 0.25;
+    /** the rows of stock, low z first. One on a narrow site — see the plan. */
+    const ROWS: [number, number][] = TWO_ROWS
+      ? [[1, AISLE_Z + ROW_OFF], [-1, AISLE_Z - ROW_OFF]]
+      : [[-1, AISLE_Z - ROW_OFF]];
 
     // ── the two things the site does not have ────────────────────────────
     // Oil, and faded bays. The site's ground is a clean surface because it
@@ -585,7 +668,7 @@ function buildLot(o: {
     // the aisle. Drawn from the SAME plan the stock is placed from, so a bay
     // can never end up somewhere no car ever parks — which is what happened
     // when the two were written out separately.
-    for (const [side, bz] of [[1, NORTH_Z], [-1, SOUTH_Z]] as [number, number][]) {
+    for (const [side, bz] of ROWS) {
       for (let i = 0; i <= BAYS; i++) {
         const bx = bayX(i) - BAY_PITCH / 2 + (side < 0 ? BAY_PITCH / 2 : 0);
         const bay = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 5.0), bayM);
@@ -619,8 +702,8 @@ function buildLot(o: {
     const wallTop = Y + 0.62;
     const POST_PITCH = 2.4;
     const runs: [number, number][] = [
-      [zS + 0.3, zS + span * SITE_GATE],
-      [zN - span * SITE_GATE, zN - 0.3],
+      [zS + 0.3, zS + span * G_LO],
+      [zN - span * G_HI, zN - 0.3],
     ];
     const FENCE_X = X0 + 0.18;
     for (const [rz0, rz1] of runs) {
@@ -671,7 +754,7 @@ function buildLot(o: {
     // catch, which is the detail that says it gets shut every night. The
     // frame is the giveaway: a top and bottom rail with a diagonal brace and
     // a counterweight tail sticking out past the last upright.
-    const gz0 = zN - span * SITE_GATE, gz1 = zS + span * SITE_GATE;   // the mouth
+    const gz0 = zN - span * G_HI, gz1 = zS + span * G_LO;   // the mouth
     {
       const GH = 1.9, GL = 5.6;                       // leaf height and length
       const gx = X0 + 0.44;                           // inboard of the fence line
@@ -739,7 +822,7 @@ function buildLot(o: {
     // itself because the bunting ties to the mast, and a second copy of these
     // two numbers is how the string and the sign would drift apart the next
     // time one of them moves.
-    const px = X0 + 0.90, pz = zN - span * SITE_GATE + 0.95;
+    const px = X0 + 0.90, pz = zN - span * G_HI + 0.95;
 
     // ── bunting ──────────────────────────────────────────────────────────
     // The flags hang from their OWN poles, clear above everything else, which
@@ -789,7 +872,7 @@ function buildLot(o: {
     // crossing the deepest thing there, which is what a real one does. Capped
     // so the lowest point stays above head height over the drive.
     const SAG_PER_M = 0.085, SAG_MAX = 0.95;
-    const gzN = zN - span * SITE_GATE, gzS = zS + span * SITE_GATE;   // the mouth
+    const gzN = zN - span * G_HI, gzS = zS + span * G_LO;   // the mouth
     const TIES = [
       { x: FENCE_X, y: Y + POLE_H,        z: zN - 0.3, post: true },
       { x: px,      y: Y + POLE_H + 0.35, z: pz,       post: false },  // the mast
@@ -845,7 +928,7 @@ function buildLot(o: {
     // and whoever is inside watches the entire lot through one window. At the
     // front corner it was a hut you walked past on your way to the cars.
     const CW = OFF_W, CD = OFF_D, CH = OFF_H;
-    const cx = OFF_X, cz = zMid;
+    const cx = OFF_X, cz = AISLE_Z;
     const cabM = flat(cabinT), cabWinM = flat(cabinWinT);
     const roofM = new THREE.MeshBasicMaterial({ color: 0x5a5f66 });
     // Face 0 is +x and face 1 is -x. The window used to be on 0, which put it
@@ -1216,7 +1299,7 @@ function buildLot(o: {
     // nowhere, drop that too."* So this had to be established rather than
     // assumed, and one of the two faces was lying.
     //
-    // The mouth is `zN - span * SITE_GATE` and the mast stands 0.95 m NORTH of
+    // The mouth is `zN - span * G_HI` and the mast stands 0.95 m NORTH of
     // it, so the entrance is in world -z from the sign. A plane at
     // rotation.y = -pi/2 sends its texture +x to world +z, so an apex drawn at
     // texture-left points -z — at the mouth. Correct, and that is the street
@@ -1490,7 +1573,7 @@ function buildLot(o: {
     });
     const ghost = new THREE.Mesh(new THREE.PlaneGeometry(14.0, 5.5),
       decal(new THREE.MeshBasicMaterial({ map: ghostT, transparent: true, depthWrite: false })));
-    ghost.position.set(BW_X, Y + 9.2, zMid);
+    ghost.position.set(BW_X, Y + 9.2, AISLE_Z);
     ghost.rotation.y = -Math.PI / 2;
     scene.add(ghost);
 
@@ -1514,7 +1597,7 @@ function buildLot(o: {
         const bt2 = bannerT2(words, bg, ink2, gh);
         const b2 = new THREE.Mesh(new THREE.PlaneGeometry(words.length * 0.32 + 0.6, hgt),
           printed(new THREE.MeshBasicMaterial({ map: bt2, alphaTest: 0.35 })));
-        b2.position.set(BW_X + dx, Y + hy, zMid);
+        b2.position.set(BW_X + dx, Y + hy, AISLE_Z);
         b2.rotation.y = ry;
         scene.add(b2);
       }
@@ -1815,7 +1898,7 @@ function buildLot(o: {
      * A lot displays stock nose-out: it is how a customer reads the cars
      * walking in and how the car drives out.
      *
-     * Reflecting a heading in the plane z = zMid maps a direction (dx, dz) to
+     * Reflecting a heading in the plane z = AISLE_Z maps a direction (dx, dz) to
      * (dx, -dz). With yaw 0 facing -z, a heading θ has direction
      * (sin θ, -cos θ), and its reflection is (sin θ, cos θ) — which is the
      * direction of **π - θ**. So the mirror of a yaw is `π - yaw`, and
@@ -1855,12 +1938,19 @@ function buildLot(o: {
      */
     const mirrorYaw = (yaw: number) => Math.PI - yaw;
     /** the heading for a bay, from which side of the aisle it stands on */
-    const bayYaw = (z: number, nearYaw: number) => (z > zMid ? nearYaw : mirrorYaw(nearYaw));
+    const bayYaw = (z: number, nearYaw: number) => (z > AISLE_Z ? nearYaw : mirrorYaw(nearYaw));
 
     const BAY: { x: number; z: number; yaw: number }[] = [];
+    // ONE ENTRY PER ROW PER BAY, off the same `ROWS` the bay lines and the oil
+    // were drawn from — so a narrow lot's single row cannot end up with stock
+    // standing where no bay was painted, which is the fault the bay lines and
+    // the stock were merged into one plan to prevent.
     for (let i = 0; i < BAYS; i++) {
-      BAY.push({ x: bayX(i), z: NORTH_Z, yaw: bayYaw(NORTH_Z, HERR) });
-      BAY.push({ x: bayX(i) + BAY_PITCH / 2, z: SOUTH_Z, yaw: bayYaw(SOUTH_Z, HERR) });
+      for (const [side, bz] of ROWS) {
+        BAY.push({
+          x: bayX(i) + (side > 0 ? 0 : BAY_PITCH / 2), z: bz, yaw: bayYaw(bz, HERR),
+        });
+      }
     }
     // and the two back corners, either side of the office, turned to face
     // down the aisle — the cars you only see once you are all the way in.
@@ -1872,8 +1962,10 @@ function buildLot(o: {
     // main rows instead (measured too: four fresh overlaps). At this rake the
     // honest answer is one car, and the corner still does its job — it is the
     // car you only see once you are all the way in.
-    for (const sgn of [1, -1]) for (let k = 0; k < 1; k++) {
-      const bz = zMid + sgn * (OFF_W / 2 + 2.4);
+    // …and only the one on a NARROW site: the other corner would stand at
+    // AISLE_Z + 4.7, which on 11 m of frontage is outside the fence.
+    for (const sgn of TWO_ROWS ? [1, -1] : [-1]) for (let k = 0; k < 1; k++) {
+      const bz = AISLE_Z + sgn * (OFF_W / 2 + 2.4);
       // 4.3 m apart, not 2.8. These two are raked hard — 1.15 rad off the
       // aisle — so a 4.52 m body throws about 4.1 m of itself along x, and a
       // 2.8 m pitch had them 0.7 m INSIDE each other. Measured, not guessed:
@@ -2187,7 +2279,7 @@ function buildLot(o: {
       else if (edge === 1) { wx = X0 + 1.0 + ((h >>> 5) % 2100) / 100; wz = zN - 0.5 - ((h >>> 11) % 60) / 100; }
       else if (edge === 2) { wx = X0 + 1.0 + ((h >>> 7) % 2100) / 100; wz = zS + 0.5 + ((h >>> 13) % 60) / 100; }
       else { wx = X1 - 0.5 - ((h >>> 15) % 60) / 100; wz = zS + 0.8 + ((h >>> 17) % 2100) / 100; }
-      if (edge === 0 && wz > zMid - AISLE_HW - 0.4 && wz < zMid + AISLE_HW + 0.4) continue;  // not in the gateway
+      if (edge === 0 && wz > AISLE_Z - AISLE_HW - 0.4 && wz < AISLE_Z + AISLE_HW + 0.4) continue;  // not in the gateway
       scene.add(notSignage(weedTuft({ x: wx, z: wz, y: Y, scale: 0.7 + ((h >>> 19) % 60) / 100, seed: i })));
     }
 
@@ -2205,13 +2297,13 @@ function buildLot(o: {
     // the office: along its two long sides and its back, a hand's width out
     for (let k = 0; k < 7; k++) {
       const t = k / 6;
-      seam.push([OFF_X - OFF_D / 2 - 0.22, zMid - OFF_W / 2 + t * OFF_W]);
-      seam.push([OFF_X + OFF_D / 2 + 0.22, zMid - OFF_W / 2 + t * OFF_W]);
+      seam.push([OFF_X - OFF_D / 2 - 0.22, AISLE_Z - OFF_W / 2 + t * OFF_W]);
+      seam.push([OFF_X + OFF_D / 2 + 0.22, AISLE_Z - OFF_W / 2 + t * OFF_W]);
     }
     // the rear wall seam, skipping the office's own footprint
     for (let k = 0; k < 9; k++) {
       const wz2 = zS + 0.9 + (k / 8) * (zN - zS - 1.8);
-      if (wz2 > zMid - OFF_W / 2 - 0.6 && wz2 < zMid + OFF_W / 2 + 0.6) continue;
+      if (wz2 > AISLE_Z - OFF_W / 2 - 0.6 && wz2 < AISLE_Z + OFF_W / 2 + 0.6) continue;
       seam.push([X1 - 0.45, wz2]);
     }
     for (let k = 0; k < seam.length; k++) {
@@ -2220,7 +2312,7 @@ function buildLot(o: {
       // jitter along the seam so the line is not a dotted rule
       const jx = sx + (((h2 >>> 3) % 24) - 12) / 100;
       const jz = sz + (((h2 >>> 9) % 40) - 20) / 100;
-      if (jz > zMid - AISLE_HW - 0.3 && jz < zMid + AISLE_HW + 0.3 && jx < OFF_X - OFF_D / 2 - 0.4) continue;
+      if (jz > AISLE_Z - AISLE_HW - 0.3 && jz < AISLE_Z + AISLE_HW + 0.3 && jx < OFF_X - OFF_D / 2 - 0.4) continue;
       scene.add(notSignage(weedTuft({ x: jx, z: jz, y: Y, scale: 0.6 + ((h2 >>> 15) % 70) / 100, seed: 100 + k })));
     }
 
@@ -2230,7 +2322,7 @@ function buildLot(o: {
     // and the flyer, because a lot buys one set of colours and uses it on
     // everything.
     {
-      const fpx = X0 + 1.2, fpz = zS + span * SITE_GATE - 2.2, FPH = 7.0;
+      const fpx = X0 + 1.2, fpz = zS + span * G_LO - 2.2, FPH = 7.0;
       const poleWhite = new THREE.MeshBasicMaterial({ color: 0xd6d2c6 });
       const fp = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, FPH, 8), poleWhite);
       fp.position.set(fpx, Y + FPH / 2, fpz);
@@ -2293,9 +2385,9 @@ function buildLot(o: {
       else g0.position.set(kx, Y, kz);
       scene.add(g0);
     };
-    cone(FENCE_X + 1.15, zMid - AISLE_HW - 0.35);
-    cone(FENCE_X + 1.15, zMid + AISLE_HW + 0.35);
-    cone(X0 + 4.2, zMid + AISLE_HW + 0.55, true);
+    cone(FENCE_X + 1.15, AISLE_Z - AISLE_HW - 0.35);
+    cone(FENCE_X + 1.15, AISLE_Z + AISLE_HW + 0.35);
+    cone(X0 + 4.2, AISLE_Z + AISLE_HW + 0.55, true);
 
     // ── the things that make it look TRIED ───────────────────────────────
     // A tidy lot reads as a car park. What says business is the clutter round
@@ -2443,7 +2535,7 @@ function buildLot(o: {
     // more oil, in the places cars stand rather than on a grid — by the gate
     // where they idle, and at the back where the ones that do not run sit
     for (const [ox, oz, sc] of [
-      [X0 + 1.9, zN - span * SITE_GATE + 1.4, 1.5],
+      [X0 + 1.9, zN - span * G_HI + 1.4, 1.5],
       [X0 + 5.2, zS + 3.0, 1.9],
       [X1 - 2.6, zN - 4.4, 1.2],
     ] as [number, number, number][]) {
@@ -2472,7 +2564,7 @@ function buildLot(o: {
     // so the head SWINGS instead, and the head, lens, halo and pool all take
     // their bearing from the same two points rather than each being nudged
     // until it looked right.
-    const AIM_X = X0 + 15.0, AIM_Z = zMid + 0.6;             // where it points
+    const AIM_X = X0 + 15.0, AIM_Z = AISLE_Z + 0.6;             // where it points
     const aim = Math.atan2(AIM_Z - fz, -(AIM_X - fx));       // 0 = pointing -x
     const off = (d: number): [number, number] => [fx + d * -Math.cos(aim), fz + d * Math.sin(aim)];
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.7), new THREE.MeshBasicMaterial({ color: 0x4a4f56 }));
@@ -2642,7 +2734,7 @@ function buildLot(o: {
      * because I had only ever asked it about collisions, and standing in
      * somebody's view is not a collision.
      *
-     * The aisle is `zMid ± AISLE_HW`, so anything inside that band across the
+     * The aisle is `AISLE_Z ± AISLE_HW`, so anything inside that band across the
      * lot's depth is in the walking route AND in the sight line from the gate.
      * The masts move outboard of the stock entirely, to 1.3 m off each side
      * wall: past the rows, out of the aisle, out of the view down it. The runs
@@ -2739,7 +2831,7 @@ function buildLot(o: {
         // centre, which puts it across the row the run hangs over.
         const pl = new THREE.Mesh(poolGeo, washM);
         pl.rotation.x = -Math.PI / 2;
-        pl.position.set(bx, Y + 0.010, fz2 + (zMid - fz2) * 0.42);
+        pl.position.set(bx, Y + 0.010, fz2 + (AISLE_Z - fz2) * 0.42);
         scene.add(pl);
       }
 
