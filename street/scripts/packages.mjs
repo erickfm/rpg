@@ -38,11 +38,24 @@ const prompt = () => p.evaluate(() => {
 });
 
 // ── 1. the building knows its own doors ────────────────────────────────────
+// SEVEN, not eight. The user: *"make it so packages i want to steal dont show
+// up at my own door."* (2026-08-11), so 301 is filtered out of the parcel roll
+// at build in ct/apartment.ts (`HOME_FLAT`) and never appears in this list at
+// all — no mesh, no collider, no [E]. The building still has eight doors; it
+// delivers to seven of them.
+const HOME_FLAT = '301';
 await force(true);
 await p.waitForTimeout(400);
 const all = await list();
-rep('every door in the building is declared', all.length === 8,
+rep('every door that takes deliveries is declared', all.length === 7,
   `${all.length} doors across ${new Set(all.map((q) => q.floor)).size} landings`);
+// The one that fails silently: a parcel outside your OWN front door, which you
+// would be offered the chance to steal from yourself. Forced ON above, so if
+// 301 were still in the roll it would be here and present.
+rep('and your own door never gets one', !all.some((q) => q.num === HOME_FLAT),
+  all.some((q) => q.num === HOME_FLAT)
+    ? `${HOME_FLAT} is taking deliveries — you can steal from yourself`
+    : `${HOME_FLAT} is excluded even with every parcel forced on`);
 
 // ── 2. NEVER IN FRONT OF A DOOR, on every floor ────────────────────────────
 // The near edge of the parcel against the near jamb. Centre-to-centre would
@@ -83,7 +96,7 @@ await force(null);
 await p.evaluate(() => window.__ct.advanceClock(24 * 60, 0));
 await p.waitForTimeout(300);
 const after = (await list()).filter((q) => q.present).length;
-rep('a night wipes the landings', before === 8 && after < 8,
+rep('a night wipes the landings', before === 7 && after < 7,
   `${before} parcels before midnight, ${after} after — the roll is a hash of the day, so a new day IS a new set`);
 
 // ── 5. STEALING ────────────────────────────────────────────────────────────

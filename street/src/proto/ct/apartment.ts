@@ -155,6 +155,24 @@ export const SPAWN = {
   gy: 2 * ST0,
 };
 
+/**
+ * YOUR OWN DOOR. `SPAWN` above puts you at gy = 2 * ST0 on the west side, which
+ * is the flat the door loop names `301` — the two have to agree, so this is
+ * declared beside SPAWN rather than typed a fourth time further down.
+ *
+ * ⚠ ANYTHING THAT MUST NOT APPLY TO YOUR OWN HOME READS THIS. The user:
+ * *"make it so packages i want to steal dont show up at my own door."*
+ * (2026-08-11) — you cannot steal from yourself, so the parcel roll skips this
+ * number entirely and the building delivers to the other seven doors. 302, the
+ * hermit across the hall, still gets his; he is the neighbour the whole feature
+ * was written about.
+ *
+ * STABLE ACROSS THE VIEW UPGRADE. "a room with a view" is *"the current room"* —
+ * it swaps a wall for a window, it does not move you to another flat — so there
+ * is no state in which your door number changes.
+ */
+export const HOME_FLAT = '301';
+
 // ══ A ROOM WITH A VIEW ══════════════════════════════════════════════════════
 //
 // *"remove the window and windowsill from the apt. instead, you can ask the
@@ -289,7 +307,9 @@ export interface Apartment {
   forceHermit: (v: boolean | null) => void;
   /** debug hook: every door gets a package (true) / none (false) / roll (null) */
   forcePackages: (v: boolean | null) => void;
-  /** every door and whether it is holding a package right now — for checks */
+  /** every door EXCEPT your own, and whether it is holding a package right now
+   *  — for checks. Your own door (`HOME_FLAT`) never gets one and is not in
+   *  this list at all, so it is seven rows, not eight. */
   packages: () => { num: string; floor: number; present: boolean;
                     x: number; z: number; side: number; doorZ: number; doorW: number }[];
 }
@@ -1827,7 +1847,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // face the hall.
       hallM.userData.plate = true; roomM.userData.plate = false;
       leaf301 = new THREE.Group();
-      const d301 = DOORS.find((d) => d.num === '301')!;
+      const d301 = DOORS.find((d) => d.num === HOME_FLAT)!;
       const [f301a, f301b] = leafFaces(DOOR_A_SHUT, d301.face, hallM, roomM);
       leaf301.add(new THREE.Mesh(g301, [edgeM, edgeM, edgeM, edgeM, f301a, f301b]));
       // was a plain 0.055 box at -0.02; now the building's own knob, at the
@@ -3807,6 +3827,17 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // move it again. It is one constant either way; nothing accumulates,
     // because `present` below is recomputed every frame from (door, day) and
     // `pkgTaken` is keyed by day, so an unstolen parcel clears at the rollover.
+    //
+    // 2026-08-11, AND THE DENOMINATOR IS SEVEN NOW. *"make it so packages i
+    // want to steal dont show up at my own door."* — 301 is out of the roll
+    // (see `HOME_FLAT` and the filter below), so the rate the player actually
+    // experiences moves without this constant moving:
+    //
+    //     0.10   0.7 of 7 doors per day · something in the building 52% of days
+    //            his own landing is 302 alone now, carrying one 10% of days
+    //
+    // Left at 0.10 rather than nudged up to hold 57%: the parcel he lost was
+    // the one he could never steal anyway, so the STEALABLE rate is unchanged.
     const PKG_CHANCE = 0.10;                 // per door per day — see scripts/packages.mjs
     /** THE MEDIAN PARCEL. Every box is this one scaled — see `pkgSize`. */
     const PKG_W = 0.28, PKG_H = 0.26, PKG_D = 0.34;
@@ -4002,7 +4033,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
        d.z + side * (DOOR_W / 2 + s.d / 2 + 0.09)];
     const pkgTaken = new Set<string>();      // `${day}:${num}`, so it clears itself
     let pkgForce = -1;                       // test hook: 1 all, 0 none, -1 the roll
-    const packages = DOORS.map((d) => {
+    // ── NOT AT YOUR OWN DOOR ─────────────────────────────────────────────
+    // *"make it so packages i want to steal dont show up at my own door."*
+    // (2026-08-11). Filtered HERE, at build, and deliberately not as another
+    // clause on `present` in the frame loop below: a parcel excluded by
+    // `present` would still own a mesh, a collider in `sevColliders`/
+    // `sevActors` and its two [E] spots, and a box you can walk into and be
+    // offered to steal is exactly the thing he is describing. Seven doors
+    // deliver now; `pkgReport` therefore reports seven, which
+    // `scripts/packages.mjs` was updated for in the same commit.
+    const packages = DOORS.filter((d) => d.num !== HOME_FLAT).map((d) => {
       const mesh = new THREE.Mesh(pkgG, pkgM);
       mesh.visible = false;
       /**
