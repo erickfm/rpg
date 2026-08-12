@@ -1223,6 +1223,9 @@ export function shopfrontRelief(o: {
       fasciaArt(gg, s2, { x: 0, y: 0, w: WW, h: HH, name: o.name, trim: o.trim, doorX: doorM * FASCIA_PPM });
     }, { taped: false, ppm: FASCIA_PPM });
     board.position.set(bx0M + bwM / 2 - half, topM - fhM / 2, 0.03);
+    // …and say whether it is a LIGHT or a PAINTED BOARD, rather than leaving
+    // props.ts's texture heuristic to decide it from the livery. See LIT_FASCIAS.
+    signNight(board, LIT_FASCIAS.has(o.name), o.name);
     g.add(board);
   }
 
@@ -1315,6 +1318,12 @@ export function shopfrontRelief(o: {
       new THREE.BoxGeometry(0.08, TALL, PROJ),
       new THREE.MeshBasicMaterial({ map: bladeTex(PROJ, TALL) }));
     blade.position.set(bx, FOOT + TALL / 2, PROJ / 2);
+    // THE ONE THING ON THIS FRONTAGE THAT IS LIT. The steel fascia below it
+    // stays dark metal (`signNight(board, false)` above, since DINER is not in
+    // LIT_FASCIAS) and the blade burns all night, because the diner never
+    // closes. That split is the whole shop: a dark band with a neon blade
+    // hanging off the brick over it.
+    signNight(blade, true, 'DINER');
     g.add(blade);
   }
 }
@@ -1698,6 +1707,64 @@ const VIDEO_BLUE = '#1e5aa8', VIDEO_YELLOW = '#f2c22a';
 const DINER_STEEL_D = '#6e747a', DINER_VINYL = '#8a2f34';
 const THRIFT_BOARD = '#7a5a2c', THRIFT_CARD = '#e4dcc4';
 const COLLEGE_STONE = '#d3c9ae', COLLEGE_STONE_D = '#b0a68b';
+
+// ══ WHICH SIGNS BURN AFTER DARK ═════════════════════════════════════════════
+//
+// *"why is only the burger barn business illuminated? or at least it looks
+//  illuminated while the other businesses look dark"*   (2026-08-11)
+//
+// It was, and by ACCIDENT. `ct/props.ts`'s isSelfLit looks at the sheet — over
+// 20% of texels bright AND chromatic — and BURGER BARN's board is 85% #c8302a
+// (max 200, chroma 158). It cleared the bar and every other fascia on the block
+// missed it, because no other roster colour reaches 200 in any channel. So one
+// shop held full daylight at four in the morning and fourteen went dark, and
+// which one was decided by a palette rather than by anybody.
+//
+// A commercial street in 1997 does not go uniformly black and it does not glow
+// all over either. The contrast is the whole point, so this is a SHORT list and
+// it is argued per shop:
+//
+//   BURGER BARN  a moulded plastic light box, lit from inside — the painter
+//                already says exactly that, and it is what the user saw.
+//   VIDEO HUT    "the deepest fascia on the block, because on a rental shop the
+//                sign IS the shop" — blue plexi with the tube showing top and
+//                bottom. The business model is a tape and a walk home in the
+//                dark; an unlit one would be absurd.
+//   VOLT VILLAGE the painter calls it "a backlit box with the tube showing
+//                through the plexi" in as many words. It is also the one that
+//                goes out EARLIEST, which is what makes the block have an
+//                evening rather than a switch.
+//   BODEGA       open round the clock. The corner store is the thing you can
+//                still see from down the block at four in the morning, and it
+//                is the only sign on the main street that is never off.
+//
+// And ONE that is lit without its fascia being: the DINER's projecting blade,
+// below. Stainless is not a light — a builder already found that out and
+// cooled its enamel by three points of chroma to stop it glowing — but a
+// projecting neon blade over a dark steel band IS the 1997 diner, and the
+// diner never closes.
+//
+// EVERYTHING ELSE IS `printed`: a painted board, a cloth banner, cast stone.
+// Stamping it says so out loud and means no future repaint can light a shop by
+// drifting a colour over 200.
+//
+// Nothing is lit that is not also OPEN. `ct/props.ts` reads `litKey` against
+// `ct/hours.ts` every frame, so BURGER BARN and VIDEO HUT go dark at midnight
+// with their doors, VOLT VILLAGE at nine, and only the bodega and the diner's
+// blade are still burning at three. Signs hold their own brightness and throw
+// nothing on the pavement — the one exception is the diner's blade, which is
+// small enough that props.ts's fitting rule gives it a doorway pool, and a
+// puddle of light under a diner sign is not an accident worth removing.
+const LIT_FASCIAS = new Set(['BURGER BARN', 'VIDEO HUT', 'VOLT VILLAGE', 'BODEGA']);
+
+/** Declare a sign's night behaviour on its material, for `ct/props.ts`.
+ *  `key` is the hours-table / roster name; omit it for a sign with no hours of
+ *  its own and it simply stays lit whenever it is dark. */
+export function signNight(mesh: THREE.Mesh, lit: boolean, key?: string): void {
+  const m = mesh.material as THREE.MeshBasicMaterial;
+  if (lit) { m.userData.lightSource = true; if (key) m.userData.litKey = key; }
+  else m.userData.printed = true;
+}
 
 /** Where a shop's fascia BOARD sits inside its band, in the surface's texels.
  *  Most run the full frontage; the pawnbroker's, the thrift store's and the

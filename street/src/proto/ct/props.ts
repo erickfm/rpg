@@ -6,6 +6,10 @@ import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite,
 import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER, soldierCourse,
          alley2Ground } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
+// A sign keeps its business's hours. ct/hours.ts imports nothing at runtime by
+// design, so this edge is a leaf and cannot close the cycle its header warns
+// about.
+import { openNow } from './hours';
 import { ALLEY2_SLAB_Y } from './alley-floor';
 import { weedTuft } from './weeds';
 import { BAY } from './bodega-corner';
@@ -415,7 +419,39 @@ export function buildProps(ctx: CtxBuild): Props {
                   // elevation — a shopfront and the road under it are on
                   // different floors and must stay that way. Present only on
                   // entries whose material was handed to attachPool.
-                  ambU?: { value: number } }
+                  ambU?: { value: number };
+                  // ── A SIGN THAT KEEPS ITS BUSINESS'S HOURS ──────────────
+                  //
+                  // *"why is only the burger barn business illuminated?"* —
+                  // and it was, by accident: its fascia plane is 85% #c8302a,
+                  // which trips isSelfLit's hot bar, so the one shop with a
+                  // saturated light box held full daylight at four in the
+                  // morning while every painted board beside it went dark.
+                  //
+                  // `selfLit` is a BUILD-TIME fact and it has to stay one —
+                  // it decides poolability, the wet weight and whether a
+                  // fitting becomes a lamp head. But "is this sign switched
+                  // on" is a fact about the CLOCK, and a shop that shut at
+                  // nine should not still be blazing. So the floor gets a
+                  // second value and a predicate that picks between them,
+                  // rather than a second lighting system beside this one:
+                  //
+                  //   litWhen()  true  -> `floor` (FLOOR_SIGN, holds bright)
+                  //              false -> `offFloor` (the masonry floor for
+                  //                       this elevation — the sign grades
+                  //                       away into the brick it is bolted to)
+                  //
+                  // Set from `m.userData.litKey`, which ct/tex-world.ts stamps
+                  // on the fascias it declares illuminated. Absent on
+                  // everything else, so nothing that exists changes.
+                  //
+                  // ⚠ IT DOES NOT SWITCH A LAMP HEAD OFF. A self-lit mesh
+                  // under FITTING_MAX also registers as a doorway fitting
+                  // below, and that registration is permanent. Only the
+                  // diner's blade is small enough today and the diner never
+                  // closes, so the two agree; give a CLOSING shop a small lit
+                  // fitting and its pool would outlive its sign.
+                  litWhen?: () => boolean; offFloor?: number }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
   // WHAT COUNTS AS GLASS. The night grading skips translucent materials on
@@ -1121,6 +1157,10 @@ uniform float uPoolAmb;`)
         if (selfLit) m.userData.selfLit = true;
         m.userData.graded = true;
         const dimTakesPool = poolable && !selfLit && !noLamp;
+        // WHOSE SIGN THIS IS, if it is one. See `litWhen` on Lit above.
+        // Unknown keys are always open (ct/hours.ts), so a lit sign on a
+        // business with no row in the table simply stays lit.
+        const litKey = selfLit ? (m.userData?.litKey as string | undefined) : undefined;
         // noLamp still means exactly what ct/cars.ts set it for — "a lit engine
         // bay reads as a brown tray" — and it still means it the same way:
         // registered, dimmed by nightfall, never handed the warm term. It just
@@ -1135,6 +1175,8 @@ uniform float uPoolAmb;`)
                        bx0: bx.min.x, bx1: bx.max.x, bz0: bx.min.z, bz1: bx.max.z, sizeW,
                        pool: dimTakesPool,
                        floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
+                       litWhen: litKey ? () => openNow(ctx, litKey) : undefined,
+                       offFloor: floorFor(wy.y),
                        // SELF-LIT MEANS "DO NOT DIM ME", NOT "DO NOT WET ME".
                        // This zeroed wetK for anything isSelfLit() matched, and
                        // isSelfLit matches a facade sheet with lit windows drawn
@@ -1444,7 +1486,9 @@ uniform float uPoolAmb;`)
     scene.userData.lampHeadCount = lampHeads.length;
     scene.userData.lampHeadsUploaded = nLamps;
     for (const e of litList) {
-      const amb = ambient(e.floor);
+      // A shut shop's sign is off. `litWhen` is absent on all but the handful
+      // of fascias ct/tex-world.ts declares illuminated — see Lit above.
+      const amb = ambient(e.litWhen && !e.litWhen() ? (e.offFloor ?? e.floor) : e.floor);
       if (!e.pool) {
         // world geometry: ambient by height, and rain by height too. The top
         // of a building dries first because it was never as wet — the same

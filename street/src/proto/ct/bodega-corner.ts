@@ -4,7 +4,7 @@ import { WALK, FACE } from './rng';
 import {
   facadeTex, shopfrontTex, shopInteriorTex, masonry,
   SHOP_BAND_H, SHOP_MULT, HI, reveal, proud, glazed, mullions,
-  sheet, fitInk, FASCIA_PPM,
+  sheet, fitInk, FASCIA_PPM, signNight,
 } from './tex-world';
 import { walkTex } from './tex-ground';
 import { type BldSpec } from './civic';
@@ -348,6 +348,12 @@ export function buildBodegaCorner(c: {
           0, 0, W, H);
       }, { taped: false, ppm: FASCIA_PPM });
       board.position.set(bxM + bwM / 2 - CFW / 2, SHOP - bdY / PX - bhM / 2, 0.03);
+      // THE BODEGA NEVER CLOSES, SO ITS SIGN NEVER GOES OFF. `shopfrontRelief`
+      // makes the same declaration on the side-street wing's fascia — the two
+      // boards meet at this corner and would read as a fault if one held its
+      // brightness after dark and the other graded away. See LIT_FASCIAS in
+      // ct/tex-world.ts for why this shop and not its neighbours.
+      signNight(board, true, 'BODEGA');
       bay.add(board);
     }
     // The bay front is the one shopfront face that is a REAL hole — 861 of its
