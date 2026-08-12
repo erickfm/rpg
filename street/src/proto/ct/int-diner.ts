@@ -45,7 +45,12 @@ import './goods';   // for the side effect: it is what declares the stock
  * painted shopfront door to match, not the other way round.
  */
 export const DOOR: DoorDecl = {
-  building: 'DINER', w: 12, cz: -49.5, side: -1, at: -2.6, width: 1.15,
+  // cz MOVED WITH THE BUILDING — *"swap the location of the thrift store and
+  // the diner"* (2026-08-11). The diner is now the SECOND slot after the alley
+  // instead of the first: z -68 … -56, centre -62. `ct/street.ts`'s WEST roster
+  // is where that comes from, and this is one of only two numbers in the world
+  // that had to be chased by hand, the other being the twin below.
+  building: 'DINER', w: 12, cz: -62, side: -1, at: -2.6, width: 1.15,
 };
 
 export function buildDiner(ctx: CtxBuild): void {
@@ -56,7 +61,7 @@ export function buildDiner(ctx: CtxBuild): void {
     // better diner, and an 8.6 m room behind a 12 m front is a false front
     d: 7.0, h: 3.0,
     palette: { floor: 0xb0a996, wall: 0xc4bca8, ceil: 0xbdb6a4, trim: 0x4a3a2a },
-    frontage: { name: 'DINER', w: 12, cz: -49.5, side: -1 },
+    frontage: { name: 'DINER', w: 12, cz: -62, side: -1 },
     // door, width, the [E] spot on the street and the way back out are all
     // derived from that — see RoomSpec.frontage. Nothing here is typed twice.
     door: { r: 1.05, at: DOOR.at, width: DOOR.width },

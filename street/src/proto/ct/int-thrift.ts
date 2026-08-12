@@ -59,7 +59,13 @@ import { wireRead } from './goods';   // and the side effect: it declares the st
  * painted shopfront door to match, not the other way round.
  */
 export const DOOR: DoorDecl = {
-  building: 'THRIFT', w: 12.5, cz: -61.75, side: -1, at: -2.2, width: 1.1,
+  // cz MOVED WITH THE BUILDING — *"swap the location of the thrift store and
+  // the diner"* (2026-08-11). The thrift shop is now the FIRST slot after the
+  // alley instead of the second: z -56 … -43.5, centre -49.75. `ct/street.ts`'s
+  // WEST roster is where that comes from, and `doorStandFor` builds the [E]
+  // spot on the pavement straight off this number, so it is the one fact in the
+  // room that a bodily move can leave behind.
+  building: 'THRIFT', w: 12.5, cz: -49.75, side: -1, at: -2.2, width: 1.1,
 };
 
 export function buildThrift(ctx: CtxBuild): void {
@@ -95,7 +101,7 @@ export function buildThrift(ctx: CtxBuild): void {
       // more for "this place is barely holding on" than any amount of clutter.
       kind: 'strip', tint: 0xe4e8dc, count: 3, dead: [1],
     },
-    frontage: { name: 'THRIFT', w: 12.5, cz: -61.75, side: -1 },
+    frontage: { name: 'THRIFT', w: 12.5, cz: -49.75, side: -1 },
     // the door keeps the shop's hours — see int-burger.ts's note, and ct/hours.ts
     door: { r: 1.05, at: DOOR.at, width: DOOR.width, ok: () => doorOpen(ctx, DOOR.building) },
   });

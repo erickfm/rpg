@@ -295,14 +295,34 @@ export function buildStreet(o: {
     // up against the quietest — that contrast is doing a lot of work here
     { nm: 'BURGER BARN', col: '#c8302a', w: 16, brick: '#7a4a3a', floors: 4, front: 'burger' },
     'alley',
-    // z -55.5 … -43.5, centre -49.5 — ct/int-diner.ts anchors its door here
-    { nm: 'DINER', col: '#8a5a22', w: 12, brick: '#6b4034', floors: 4 },
-    // BARBER and THRIFT swapped identities — widths stay, so the run still
-    // totals 54.5. The swap is what MAKES the park: it puts BARBER beside
-    // GROCERY, and those two together are the 30 m running down to z = -98
-    // where the corner building takes over. With THRIFT between them there
-    // was no 30 m to give away without breaking the run.
+    // DINER AND THRIFT HAVE SWAPPED PLACES — *"swap the location of the thrift
+    // store and the diner"* (2026-08-11). A REAL swap this time, not the
+    // identity swap DINER/LAUNDRY and BARBER/THRIFT were: the two entries move
+    // bodily, each carrying its OWN width, so the boundary between them slides
+    // 0.5 m and nothing else in the run does.
+    //
+    //   before   alley | DINER 12 | THRIFT 12.5 | park 30   = 54.5
+    //   after    alley | THRIFT 12.5 | DINER 12 | park 30   = 54.5
+    //
+    // The run after the alley still totals 54.5, so the park still starts at
+    // z -68 and the last shell still ends on -98 where the corner building
+    // takes over. Nothing either side of the pair moves.
+    //
+    // Depth, roof kit and shopfront character are all hashed off the NAME
+    // (`depthOf`, `roofKit`, `characterOf`), so each building carries its own
+    // mass, its own roofline and its own front to the new slot — the diner
+    // keeps its chrome and its projecting blade, the thrift shop keeps its
+    // board and its window cards.
+    //
+    // THE TWO NUMBERS THAT ARE NOT DERIVED: each room declares its frontage
+    // centre as a literal `cz`, in `ct/int-diner.ts` and `ct/int-thrift.ts`,
+    // and `doorStandFor` builds the [E] spot on the pavement straight off it.
+    // Both were moved with the buildings.
+    //
+    // z -56 … -43.5, centre -49.75 — ct/int-thrift.ts anchors its door here
     { nm: 'THRIFT', col: '#7a5a2c', w: 12.5, brick: '#5c4436', floors: 4 },
+    // z -68 … -56, centre -62 — ct/int-diner.ts anchors its door here
+    { nm: 'DINER', col: '#8a5a22', w: 12, brick: '#6b4034', floors: 4 },
     'park',   // the old BARBER 14 + GROCERY 16, given over — see placePark
   ];
   /** The slot between No. 227 and PAWN. A token in the roster rather than a
