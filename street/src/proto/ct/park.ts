@@ -3133,10 +3133,39 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   const kidFrame = new THREE.Box3().setFromObject(kid.mesh);
   const TEXEL = (kidFrame.max.y - kidFrame.min.y) / FH;    // one atlas row, at his size
   const FRAME_TOP = kidFrame.max.y - kid.mesh.position.y;  // frame's top edge above his shoes
-  // The atlas paints the head's skin at frame rows 8-19, so row 16 is the
-  // mouth — 1.15 m up on a kid whose crown is at 1.46 m.
-  const MOUTH_Y = FRAME_TOP - 16 * TEXEL;
-  const CIG_X = 4 * TEXEL;                 // out past the cheek: the head is 10 texels wide
+  // ── WHERE HIS MOUTH IS, MEASURED AND NOT GUESSED ─────────────────────────
+  //
+  // *"this guy looks like he's smoking out of his nose"*   (2026-08-11)
+  //
+  // He was right, by exactly the margin the guess was worth. The first pass put
+  // the cigarette on frame row 16 — an art number I picked from "the head's
+  // skin runs rows 8-19, so two thirds down is about a mouth" — and a plane
+  // CENTRED on that row's top edge straddles rows 15 and 16. The atlas paints
+  // the eyes on row 13 and NOTHING on 15 or 16, which is precisely the width of
+  // a nose.
+  //
+  // THE MOUTH IS PAINTED, so there was never anything to guess at:
+  //
+  //     if (view <= 1) { g.fillStyle = 'rgba(0,0,0,0.35)';
+  //                      g.fillRect(cx - 2, oy + 17, 5, 1); }     ct/citizens.ts
+  //
+  // Row 17, one texel tall, five wide, centred — the same one-texel bar this
+  // cigarette is, which is why it can sit ON it rather than near it. The `+ 0.5`
+  // is the row's own CENTRE: a quad centred on `FRAME_TOP - r * TEXEL` sits on
+  // the boundary ABOVE row r, and that half-texel is half of what went wrong.
+  //
+  // ⚠ IT IS A FRONT-VIEW FEATURE — `view <= 1`, so the far profile has a mouth
+  // by symmetry and the dead-side profile (view 2) shows only a sliver of face.
+  // The cigarette is at one fixed height for all eight views, which is right for
+  // seven of them and approximate for the profile; a lip line that only exists
+  // on some columns is not something to chase per-view.
+  const MOUTH_ROW = 17;
+  const MOUTH_Y = FRAME_TOP - (MOUTH_ROW + 0.5) * TEXEL;
+  // ITS INNER END IS IN THE CORNER OF THAT BAR. The painted mouth runs cx-2 to
+  // cx+3 and the head's skin ends at cx+4, so a 5-texel cigarette centred 4
+  // texels out spans 1.5 to 6.5: it starts between the lips and finishes clear
+  // of the cheek, which is what a cigarette held in the corner of a mouth does.
+  const CIG_X = 4 * TEXEL;
   const TIP_X = CIG_X + 2.5 * TEXEL;       // the lit end, and where the smoke comes off
   const smokeFx = new THREE.Group();
   smokeFx.visible = false;
@@ -3192,7 +3221,15 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     const drag = Math.max(0, Math.sin(smokeT * 0.9));
     emberMat.color.copy(EMBER_DULL).lerp(EMBER_HOT, drag * drag * drag);
     // the plume: six puffs on one rolling clock, each rising off the tip,
-    // swaying, growing and thinning out — `ct/smoking.ts`'s exhale, in metres
+    // swaying, growing and thinning out — `ct/smoking.ts`'s exhale, in metres.
+    //
+    // ⚠ THE PALE MARKS ON THE GRASS BESIDE HIM ARE NOT THIS. They were read off
+    // the review frame as "the plume, detached, two metres to his left", and
+    // they are the park's own paper litter — `drop(...'paper'...)` in the signs-
+    // of-use block above, flat decals at `rotation.x = -PI/2` that have lain
+    // there since the park was built. The plume is a CHILD of `smokeFx`, which
+    // takes his position and his billboard yaw every frame, so it cannot come
+    // off him; at night, over grass, it is faint by design.
     for (let i = 0; i < PUFFS; i++) {
       const u = ((smokeT / PUFF_LIFE) + i / PUFFS) % 1;
       const s = 0.03 + u * 0.20;
