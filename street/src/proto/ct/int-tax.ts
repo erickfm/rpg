@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, glyphRow } from './paint';
 import { buildRoom, seatTaken } from './interior';
 import { type DoorDecl } from './doors';
 import { doorOpen } from './hours';
@@ -580,7 +580,16 @@ export function buildTax(ctx: CtxBuild): void {
       '1': ['010', '110', '010', '010', '111'], '5': ['111', '100', '111', '001', '111'],
       ' ': ['000', '000', '000', '000', '000'],
     };
+    /** the width `word` will draw `s` at, before drawing it */
+    const wordW = (s: string, px: number) => s.length * 4 * px - px;
+    // AND IT SAYS SO WHEN THE TEXT WILL NOT FIT. This table had no guard at all —
+    // `int-bank.ts` had a horizontal one and this room, three files away, did not
+    // — and the notice below was drawing "APR 15" to x 50 on a 48-texel canvas
+    // with the final 5 sheared down the middle. `glyphRow` is the shared version
+    // of the bank's `fits()`: it checks both axes and it measures the gap between
+    // rows, which is the fault this room actually had.
     const word = (g: CanvasRenderingContext2D, s: string, x: number, y: number, px: number, col: string) => {
+      glyphRow(g, 'interior:tax', s, x, y, wordW(s, px), 5 * px);
       g.fillStyle = col;
       let cx2 = x;
       for (const ch of s) {
@@ -592,14 +601,36 @@ export function buildTax(ctx: CtxBuild): void {
       }
       return cx2 - x - px;                       // the drawn width, so it can be centred
     };
+    /** the same, centred on the canvas — the notice is a centred piece of paper */
+    const wordC = (g: CanvasRenderingContext2D, s: string, y: number, px: number, col: string) =>
+      word(g, s, Math.round((g.canvas.width - wordW(s, px)) / 2), y, px, col);
 
-    // the deadline notice: the one piece of paper in the room a client reads
-    const dueT = declareSurface(pixTex(48, 34, (g) => {
-      g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, 48, 34);
-      g.fillStyle = '#8a2c22'; g.fillRect(0, 0, 48, 3); g.fillRect(0, 31, 48, 3);
-      word(g, 'APR 15', 5, 8, 2, '#2e2a24');
-      word(g, 'DUE', 17, 21, 2, '#8a2c22');
-      dither(g, 48, 34, 12);
+    // the deadline notice: the one piece of paper in the room a client reads.
+    //
+    // 57 x 40, NOT 48 x 34, and both lines moved. Three separate faults on one
+    // 0.74 x 0.52 m sheet:
+    //
+    //  1. "APR 15" WAS CLIPPED. Six characters at px 2 is 46 texels drawn from
+    //     x 5, so it painted to x 50 on a 48-texel canvas and the final 5 lost
+    //     its right-hand columns. Nothing said so, because this table had no
+    //     width guard; it has one now, and both lines are centred off the string
+    //     rather than nudged to a number that happened to look right.
+    //  2. "DUE" SAT ON THE RED BAR. Rows 21…30 against a bottom bar starting at
+    //     31 — zero clearance, so the word had a red rule fused to its baseline.
+    //  3. THE LEADING WAS 0.30 OF A CAP. 3 texels between two 10-texel lines,
+    //     while the margin above the first was 5. The gap that separates the two
+    //     words was the smallest measurement on the sheet.
+    //
+    // 77 px/m over the same sheet is 57 x 40 with 4-texel bars: 3 clear, 10 of
+    // APR 15, SIX between (0.60 of a cap), 10 of DUE, 3 clear. The capitals go
+    // 0.153 -> 0.130 m, which is what buys the gap, and 0.130 m of letter on a
+    // notice read at 1.7 m is still twice what it needs.
+    const dueT = declareSurface(pixTex(57, 40, (g) => {
+      g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, 57, 40);
+      g.fillStyle = '#8a2c22'; g.fillRect(0, 0, 57, 4); g.fillRect(0, 36, 57, 4);
+      wordC(g, 'APR 15', 7, 2, '#2e2a24');       // rows 7…16
+      wordC(g, 'DUE', 23, 2, '#8a2c22');         // rows 23…32, bar starts at 36
+      dither(g, 57, 40, 17);
     }), 'sign');
     const due = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 0.52), ctx.flat(dueT));
     due.rotation.y = -Math.PI / 2;                                     // faces -x, into the room

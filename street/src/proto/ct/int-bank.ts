@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, glyphRow } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { doorOpen } from './hours';
@@ -346,20 +346,19 @@ export function buildBankInterior(ctx: CtxBuild): void {
    * and it is invisible in code and obvious in a screenshot only if you happen
    * to be able to read it at that distance.
    *
-   * `g.canvas.width` is right there, so the guard costs nothing and it covers
-   * every sign in the file rather than the one I caught.
+   * IT NOW ALSO COMPLAINS WHEN TWO ROWS ARE TOO CLOSE TOGETHER, which is the
+   * other half of the same defect and the one that had five of this room's signs:
+   * `paint.ts`'s `glyphRow` remembers what has been stamped on this canvas and
+   * measures the gap. The width check moved there with it, so every block-font
+   * table in the project gets both instead of this room getting one.
+   *
+   * `shadow` marks the offset copy under a drop-shadowed line — checked for
+   * clipping, never recorded, because it overlaps its own letters on purpose.
    */
-  const fits = (g: CanvasRenderingContext2D, s: string, px: number, x0: number) => {
-    const w = wordW(s, px);
-    if (x0 >= 0 && x0 + w <= g.canvas.width) return true;
-    console.warn(`[interior:bank] "${s}" needs ${w} texels at x ${x0} on a `
-      + `${g.canvas.width}-texel canvas — it will be CLIPPED`);
-    return false;
-  };
   /** draw `s` at (x, y) with `px`-sized texels; returns the width it drew */
   const word = (g: CanvasRenderingContext2D, s: string, x: number, y: number,
-                px: number, col: string) => {
-    fits(g, s, px, x);
+                px: number, col: string, shadow = false) => {
+    glyphRow(g, 'interior:bank', s, x, y, wordW(s, px), 5 * px, shadow);
     g.fillStyle = col;
     let cx = x;
     for (const ch of s.toUpperCase()) {
@@ -373,8 +372,8 @@ export function buildBankInterior(ctx: CtxBuild): void {
   };
   /** the same, centred on `cx` */
   const wordC = (g: CanvasRenderingContext2D, s: string, cx: number, y: number,
-                 px: number, col: string) =>
-    word(g, s, Math.round(cx - wordW(s, px) / 2), y, px, col);
+                 px: number, col: string, shadow = false) =>
+    word(g, s, Math.round(cx - wordW(s, px) / 2), y, px, col, shadow);
 
   // ── the floor: TERRAZZO, with brass divider strips ─────────────────────────
   //
@@ -919,11 +918,18 @@ export function buildBankInterior(ctx: CtxBuild): void {
   // VAULT over the throat, on the lobby side, so you know what it is before you
   // are close enough to read the boxes
   {
-    const plateT = declareSurface(pixTex(56, 14, (g) => {
-      g.fillStyle = '#3a3e42'; g.fillRect(0, 0, 56, 14);
-      g.fillStyle = '#6a5c38'; g.fillRect(1, 1, 54, 12);
-      g.fillStyle = 'rgba(255,255,255,0.26)'; g.fillRect(1, 1, 54, 1);
-      wordC(g, 'VAULT', 28, 4, 2, '#efe4bc');
+    // 88 x 22 ON A 0.90 x 0.225 PLATE — 4 texels per glyph unit either way, so
+    // the canvas is square-texelled and the word is not stretched. It was 56 x 14
+    // at px 2, which put VAULT's five rows at y 4…13 on a brass field that stops
+    // at row 12: the baseline of every letter was ON the dark frame edge, and a
+    // letter whose bottom row is the same colour as the border has no bottom row.
+    // At 98 px/m the capitals are 15 / 98 = 0.153 m against 0.161 before — 5%
+    // smaller for two clear texels above and two below.
+    const plateT = declareSurface(pixTex(88, 22, (g) => {
+      g.fillStyle = '#3a3e42'; g.fillRect(0, 0, 88, 22);
+      g.fillStyle = '#6a5c38'; g.fillRect(1, 1, 86, 20);
+      g.fillStyle = 'rgba(255,255,255,0.26)'; g.fillRect(1, 1, 86, 1);
+      wordC(g, 'VAULT', 44, 4, 3, '#efe4bc');           // rows 4…18, field is 2…20
     }), 'sign');
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.90, 0.225), ctx.flat(plateT));
     put(plate, THROAT_CX, THROAT_H + 0.34, V_Z1 + 0.02);
@@ -1098,7 +1104,12 @@ export function buildBankInterior(ctx: CtxBuild): void {
       const closedT = declareSurface(pixTex(48, 18, (g) => {
         g.fillStyle = '#e4dfcc'; g.fillRect(0, 0, 48, 18);
         g.fillStyle = '#8a2c22'; g.fillRect(0, 0, 48, 2); g.fillRect(0, 16, 48, 2);
-        wordC(g, 'CLOSED', 24, 6, 2, '#2e2a24');
+        // y 4, NOT 6. The card's two red bars are rows 0…1 and 16…17, so the
+        // clear stock is rows 2…15 — fourteen texels for a ten-texel word, which
+        // centres at 4 with two above and two below. At 6 the word ran 6…15 and
+        // its baseline ABUTTED the bottom bar, so the card read as five rows of
+        // letter with a red underline welded to it.
+        wordC(g, 'CLOSED', 24, 4, 2, '#2e2a24');
         dither(g, 48, 18, 8);
       }), 'sign');
       // The two faces are placed so their TOP edges coincide and their bottoms
@@ -1171,13 +1182,28 @@ export function buildBankInterior(ctx: CtxBuild): void {
   // panel, drawn from the block font rather than with fillText, so at 3 m across
   // the room they are texels and not a grey smear.
   {
-    const nameT = declareSurface(pixTex(160, 34, (g) => {
-      g.fillStyle = '#2e3236'; g.fillRect(0, 0, 160, 34);
-      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, 160, 1);
-      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(0, 33, 160, 1);
-      wordC(g, 'FIRST FEDERAL', 80, 5, 3, 'rgba(0,0,0,0.45)');       // the drop shadow
-      wordC(g, 'FIRST FEDERAL', 79, 4, 3, '#c9ccd0');
-      wordC(g, 'SAVINGS & LOAN', 80, 24, 1, '#8a8f93');
+    // 281 x 45 ON A 3.90 x 0.62 PANEL, and BOTH of those numbers changed for the
+    // same reason. It was 160 x 34, which is 41.0 px/m across and 54.8 px/m down:
+    // every texel was a third wider than it was tall, so FIRST FEDERAL was
+    // STRETCHED 34% HORIZONTALLY. That is why it filled the panel kerb to kerb —
+    // not because the type was set that wide, but because it was pulled. At 72
+    // px/m both ways the texels are square and the name is 204 texels, 2.83 m of
+    // the 3.90 m panel, with the capitals at 20 / 72 = 0.278 m — the same height
+    // they have always been, unstretched.
+    //
+    // The rows had 4 texels between them against a 15-texel cap (0.27 of it), and
+    // the budget was backwards: the gap that has to SEPARATE two lines was no
+    // bigger than the margin to the bevel, so the block read as one mass with a
+    // fuzzy bottom. 45 rows now go 1 highlight, 3 clear, 20 of name, 1 of its
+    // shadow, ELEVEN clear (0.55 of a cap), 5 of strapline, 3 clear, 1 bevel.
+    // There is no slack in that: change one and redo the sum.
+    const nameT = declareSurface(pixTex(281, 45, (g) => {
+      g.fillStyle = '#2e3236'; g.fillRect(0, 0, 281, 45);
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, 281, 1);
+      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(0, 44, 281, 1);
+      wordC(g, 'FIRST FEDERAL', 141, 5, 4, 'rgba(0,0,0,0.45)', true);  // the drop shadow
+      wordC(g, 'FIRST FEDERAL', 140, 4, 4, '#c9ccd0');                 // rows 4…23
+      wordC(g, 'SAVINGS & LOAN', 140, 36, 1, '#8a8f93');               // rows 36…40
     }), 'sign');
     // 3.05, NOT 2.20, and the reason is a collision that only shows up in a
     // photograph: the window number plates stand 1.5 m in front of this wall with
@@ -1366,13 +1392,26 @@ export function buildBankInterior(ctx: CtxBuild): void {
 
     // the nameplate, facing the client — a service sign, which is what a bank
     // desk actually carries
-    const plateT = declareSurface(pixTex(64, 20, (g) => {
-      g.fillStyle = '#3a3026'; g.fillRect(0, 0, 64, 20);
-      g.fillStyle = '#7a6a44'; g.fillRect(1, 1, 62, 18);
-      g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(1, 1, 62, 1);
-      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(1, 18, 62, 1);
-      wordC(g, 'LOANS', 32, 4, 2, '#efe4bc');
-      wordC(g, 'NEW ACCOUNTS', 32, 14, 1, '#d8cba0');
+    // THE WORST LEADING IN THE BUILDING, AND IT WAS ZERO. 64 x 20 for a
+    // 0.42 x 0.13 m plate: LOANS at px 2 ran rows 4…13 and NEW ACCOUNTS at px 1
+    // started on row 14, so there was not ONE blank texel between them — and NEW
+    // ACCOUNTS' fifth row landed on row 18, which is the plate's own bottom shadow
+    // bevel. Two lines welded together with the lower one's baseline painted onto
+    // the frame. Worse than the jail inscription that started this sweep.
+    //
+    // The plate is not moving and neither are the words, so the type gives way:
+    // 210 px/m puts 88 x 27 on the same 0.42 x 0.13 m, which is 23 clear texels
+    // inside a one-texel cast frame. 1 above, 10 of LOANS, SIX between (0.60 of a
+    // cap — what the MERCER BROS ghost sign uses), 5 of NEW ACCOUNTS, 1 below.
+    // The capitals go 0.065 -> 0.048 m, and at 0.9 m across a desk that is still
+    // three times the size this has to be to read.
+    const plateT = declareSurface(pixTex(88, 27, (g) => {
+      g.fillStyle = '#3a3026'; g.fillRect(0, 0, 88, 27);
+      g.fillStyle = '#7a6a44'; g.fillRect(1, 1, 86, 25);
+      g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(1, 1, 86, 1);
+      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(1, 25, 86, 1);
+      wordC(g, 'LOANS', 44, 3, 2, '#efe4bc');             // rows 3…12
+      wordC(g, 'NEW ACCOUNTS', 44, 19, 1, '#d8cba0');     // rows 19…23
     }), 'sign');
     room.sign(plateT, 0.42, 0.13,
       DESK_X - 0.62, DESK_H + 0.08, DESK_Z + DESK_D / 2 + 0.02);
@@ -2072,15 +2111,22 @@ export function buildBankInterior(ctx: CtxBuild): void {
       }
       // ONE collider along the run, not three posts with walkable rope between
       solid((Q_X[0] + Q_X[Q_X.length - 1]) / 2, Q_Z, Q_X[Q_X.length - 1] - Q_X[0] + 0.4, 0.20);
-      // 96 x 28, sized off the LONGEST LINE rather than picked: "PLEASE WAIT" at
+      // 104 x 30, sized off the LONGEST LINE rather than picked: "PLEASE WAIT" at
       // 2 px is 86 texels and "FOR THE NEXT TELLER" at 1 px is 75, so 72 clipped
       // both and drew "LEASE WAI / OR THE NEXT TELLE".
-      const waitT = declareSurface(pixTex(96, 28, (g) => {
-        g.fillStyle = '#2a2e32'; g.fillRect(0, 0, 96, 28);
-        g.fillStyle = '#d8d4c4'; g.fillRect(1, 1, 94, 26);
-        g.fillStyle = '#8a2c22'; g.fillRect(1, 1, 94, 2);
-        wordC(g, 'PLEASE WAIT', 48, 6, 2, '#2e2a24');
-        wordC(g, 'FOR THE NEXT TELLER', 48, 18, 1, '#5a564e');
+      //
+      // AND THEN 96 x 28 GAVE THE ROWS 2 TEXELS BETWEEN THEM — the SMALLEST gap
+      // on the card, against 3 above and 4 below, so the one measurement that had
+      // to be the largest was the one that was least. 143 px/m over the same
+      // 0.72 x 0.21 m sign buys 26 texels of cream for 15 of ink: 2 clear, 10 of
+      // PLEASE WAIT, SEVEN between (0.70 of a cap), 5 of the line beneath, 2
+      // clear. The capitals lose 5 mm and the card starts reading as two lines.
+      const waitT = declareSurface(pixTex(104, 30, (g) => {
+        g.fillStyle = '#2a2e32'; g.fillRect(0, 0, 104, 30);
+        g.fillStyle = '#d8d4c4'; g.fillRect(1, 1, 102, 28);
+        g.fillStyle = '#8a2c22'; g.fillRect(1, 1, 102, 2);
+        wordC(g, 'PLEASE WAIT', 52, 5, 2, '#2e2a24');            // rows 5…14
+        wordC(g, 'FOR THE NEXT TELLER', 52, 22, 1, '#5a564e');   // rows 22…26
       }), 'sign');
       room.sign(waitT, 0.72, 0.21, Q_X[1], 1.12, Q_Z);
     }
@@ -2137,18 +2183,29 @@ export function buildBankInterior(ctx: CtxBuild): void {
         g.fillStyle = '#1e2226'; g.fillRect(0, 0, 120, 74);
         g.fillStyle = '#2a3036'; g.fillRect(2, 2, 116, 70);
         g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(2, 2, 116, 1);
-        wordC(g, 'TODAYS RATES', 60, 5, 2, '#e8c25a');
-        g.fillStyle = '#e8c25a'; g.fillRect(8, 15, 104, 1);
+        // THE BOARD'S ROWS WERE FINE AND ITS TWO ENDS WERE NOT. The heading ran
+        // to row 14 and its gold rule was drawn ON row 15 — no gap at all, a
+        // heading with a line welded to its feet — and APR sat at rows 66…70 while
+        // the last card slot's rule was drawn across row 66, so the three letters
+        // had a hairline THROUGH them. The five rate rows in between were the only
+        // healthy lettering on the canvas and they are what paid for the fix:
+        // 8-texel pitch instead of 10 still leaves 3 clear between rows (0.60 of a
+        // cap) and hands 10 texels back to the two ends.
+        wordC(g, 'TODAYS RATES', 60, 5, 2, '#e8c25a');      // rows 5…14
+        g.fillStyle = '#e8c25a'; g.fillRect(8, 20, 104, 1); // 5 clear under it
         rows.forEach(([what, num], i) => {
-          const y = 20 + i * 10;
+          const y = 24 + i * 8;                             // rows 24, 32, 40, 48, 56
           word(g, what, 8, y, 1, '#cfd3d6');
           const w = num.length * 4 - 1;
           word(g, num, 112 - w, y, 1, '#8fe0a0');           // the figures, in green
           g.fillStyle = 'rgba(255,255,255,0.06)';           // the slot each card sits in
-          g.fillRect(8, y + 6, 104, 1);
+          g.fillRect(8, y + 6, 104, 1);                     // one clear texel either side
         });
-        g.fillStyle = '#8a8f93'; g.fillRect(8, 68, 40, 1);
-        word(g, 'APR', 52, 66, 1, '#8a8f93');
+        // clear of the last slot rule (62) by three, and of the last figures by
+        // five; the grey rule runs to x 47 and APR starts at 52, so they share a
+        // baseline without touching
+        g.fillStyle = '#8a8f93'; g.fillRect(8, 67, 40, 1);
+        word(g, 'APR', 52, 65, 1, '#8a8f93');               // rows 65…69, face ends 71
         dither(g, 120, 74, 30);
       }), 'sign');
       const board = new THREE.Mesh(new THREE.PlaneGeometry(2.10, 1.30), ctx.flat(boardT));
@@ -2259,16 +2316,32 @@ export function buildBankInterior(ctx: CtxBuild): void {
       // 72-texel canvas". That is the SECOND sign in this room the guard caught
       // clipping in the twenty minutes after it was written, and neither was
       // visible in the code. It paid for itself twice before it was committed.
-      const noticeT = declareSurface(pixTex(96, 52, (g) => {
-        g.fillStyle = '#dfdccc'; g.fillRect(0, 0, 96, 52);
-        g.fillStyle = '#1f3a5a'; g.fillRect(0, 0, 96, 12);
-        wordC(g, 'MEMBER FDIC', 48, 4, 2, '#e8ecf0');
-        wordC(g, 'DEPOSITS INSURED', 48, 16, 1, '#4a4640');
-        wordC(g, 'TO 100000', 48, 23, 1, '#4a4640');
-        g.fillStyle = '#8a2c22'; g.fillRect(20, 31, 56, 1);
-        wordC(g, 'LOBBY 9 TO 4', 48, 35, 1, '#2e2a24');
-        wordC(g, 'SAT 9 TO 12', 48, 43, 1, '#2e2a24');
-        dither(g, 96, 52, 18);
+      // 96 x 70, WHICH IS 52 PLUS EIGHTEEN ROWS THIS NOTICE NEVER HAD. Two faults
+      // on one small canvas, and the first is the reason four rooms have been
+      // shipped with letters that "look terrible":
+      //
+      //  1. THE PLANE WAS ANISOTROPIC. 96 x 52 on 0.62 x 0.45 m is 154.8 px/m
+      //     across and 115.6 down, so every texel was 34% TALLER than it was wide
+      //     and every capital was stretched by that much. A block font has no
+      //     hinting to hide behind: a 3x5 glyph pulled to 3x6.7 is just a smeared
+      //     one. 70 rows makes the texels square (155.6 down against 154.8), which
+      //     costs the capitals 26% of their height — that 26% was the stretch.
+      //  2. MEMBER FDIC HUNG OUT OF ITS OWN HEADER. The blue band was 12 rows and
+      //     the word ran 4…13, so its bottom two rows — the baseline of every
+      //     letter — were near-white ink (#e8ecf0) on the cream ground below the
+      //     band. The band is 16 now and the word sits 3…12 inside it. The two
+      //     rows under it were 2 texels apart against a 10-texel cap (0.20); they
+      //     are 9 apart now.
+      const noticeT = declareSurface(pixTex(96, 70, (g) => {
+        g.fillStyle = '#dfdccc'; g.fillRect(0, 0, 96, 70);
+        g.fillStyle = '#1f3a5a'; g.fillRect(0, 0, 96, 16);
+        wordC(g, 'MEMBER FDIC', 48, 3, 2, '#e8ecf0');       // rows 3…12, band is 0…15
+        wordC(g, 'DEPOSITS INSURED', 48, 22, 1, '#4a4640');
+        wordC(g, 'TO 100000', 48, 31, 1, '#4a4640');
+        g.fillStyle = '#8a2c22'; g.fillRect(20, 42, 56, 1);
+        wordC(g, 'LOBBY 9 TO 4', 48, 49, 1, '#2e2a24');
+        wordC(g, 'SAT 9 TO 12', 48, 59, 1, '#2e2a24');      // rows 59…63, 6 clear below
+        dither(g, 96, 70, 24);
       }), 'sign');
       const notice = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.45), ctx.flat(noticeT));
       notice.rotation.y = Math.PI;                    // faces -z, into the room

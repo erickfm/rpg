@@ -447,3 +447,86 @@ export function dither(g: CanvasRenderingContext2D, w: number, h: number, n: num
     g.fillRect(Math.floor(Math.random() * w), Math.floor(Math.random() * h), 1, 1);
   }
 }
+
+// ── THE LEADING GUARD ────────────────────────────────────────────────────────
+//
+// Erick, four times in one day: *"mattress storefront looks like shit"*,
+// *"letters still look terrible please fix this"*, *"graphics on sign here are
+// overlapping with something. pls fix"*, *"casino sign still overlapping"*. Each
+// was fixed one sign at a time. Then the jail's inscription was measured
+// (`8c7355ab`) and swept against every other multi-row stamped-glyph canvas in
+// `src/`, and the jail was not an outlier: EIGHT more signs had rows running
+// into each other or into their own frames.
+//
+// The single fault behind all of them is that a stamped row's position is
+// written as a bare `y` and its height lives in the `px` argument, so the gap
+// between two rows is a subtraction NOBODY EVER DOES. `int-bank.ts` already had
+// half the answer — a horizontal `fits()` that caught two clipped signs in the
+// twenty minutes after it was written — and this is the other half, hoisted out
+// of that one room so every block-font table in the project can share it.
+//
+// A canvas remembers the rows stamped on it (keyed on the canvas itself, weakly,
+// so a texture that goes out of scope takes its bookkeeping with it), and each
+// new row is checked against the ones already there.
+//
+// THE THRESHOLD IS HALF THE SMALLER OF THE TWO CAP HEIGHTS, and the choice of
+// `min` over `max` is the whole difference between a guard and a nuisance. The
+// lot's pole sign stacks CROSSTOWN (15 texels) over AUTO (35) with 10 between
+// them — approved artwork, reads correctly from the far kerb, and any threshold
+// keyed to the LARGER cap condemns it. Half the smaller line is the weakest
+// claim that still catches every one of the eight: a gap has to be at least half
+// the height of the shorter of the two lines it separates. It is a floor, not a
+// target — 0.60 of a cap is what the MERCER BROS ghost sign uses and what these
+// fixes aim for.
+//
+// WHAT IT CANNOT SEE: rules, bevels and coloured bands, because those are bare
+// `fillRect` calls with no glyph in them. "The baseline sits on the bottom
+// bevel" and "APR overprints a slot rule" are still faults you have to find by
+// reading the arithmetic. This catches row-against-row and row-against-edge.
+type StampedRow = { s: string; x0: number; x1: number; y0: number; y1: number; cap: number };
+const stampedRows = new WeakMap<HTMLCanvasElement, StampedRow[]>();
+
+/**
+ * Declare a row of stamped block glyphs as it is drawn, and complain if it will
+ * not read: `x`/`y` are the row's top-left texel, `w` the ink width it actually
+ * covers (last column inclusive, i.e. the width the caller's own `wordW` returns)
+ * and `cap` the cap height in texels (`5 * px` for every 5-row table in here).
+ *
+ * `shadow` is for the deliberate offset copy under a drop-shadowed line — it is
+ * checked for clipping like any other row but never recorded, because a shadow
+ * overlaps the letters it sits under BY DESIGN and a guard that flags that is a
+ * guard people switch off.
+ */
+export function glyphRow(g: CanvasRenderingContext2D, tag: string, s: string,
+                         x: number, y: number, w: number, cap: number,
+                         shadow = false): void {
+  const cv = g.canvas, x1 = x + w, y1 = y + cap;
+  if (x < 0 || x1 > cv.width) {
+    console.warn(`[${tag}] "${s}" spans x ${x}…${x1} on a ${cv.width}-texel canvas`
+      + ` — it will be CLIPPED`);
+  }
+  if (y < 0 || y1 > cv.height) {
+    console.warn(`[${tag}] "${s}" spans y ${y}…${y1} on a ${cv.height}-texel canvas`
+      + ` — it will be CLIPPED`);
+  }
+  if (shadow) return;
+  let rows = stampedRows.get(cv);
+  if (!rows) stampedRows.set(cv, rows = []);
+  for (const r of rows) {
+    // side by side on one line — a rate and its figure — is not a leading
+    // question at all, and treating it as one is how a guard cries wolf
+    if (r.x1 <= x || x1 <= r.x0) continue;
+    const gap = y >= r.y1 ? y - r.y1 : (y1 <= r.y0 ? r.y0 - y1 : -1);
+    if (gap < 0) {
+      console.warn(`[${tag}] "${s}" (y ${y}…${y1}) OVERPRINTS "${r.s}" (y ${r.y0}…${r.y1})`);
+      continue;
+    }
+    const need = Math.ceil(0.5 * Math.min(cap, r.cap));
+    if (gap < need) {
+      console.warn(`[${tag}] "${s}" and "${r.s}" have ${gap} texels between them`
+        + ` — half the smaller cap (${Math.min(cap, r.cap)}) is ${need}. Two lines`
+        + ` that close read as one mass`);
+    }
+  }
+  rows.push({ s, x0: x, x1, y0: y, y1, cap });
+}

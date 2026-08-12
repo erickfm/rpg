@@ -3,7 +3,7 @@ import type { Seat } from './ctx';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
 import { SIDE_LOT, frameBox, frameFromWorld, frameGroup, frameToWorld, frameYaw } from './sites';
-import { pixTex, dither, declareSurface, slabTex, type SurfaceKind } from './paint';
+import { pixTex, dither, declareSurface, slabTex, glyphRow, type SurfaceKind } from './paint';
 
 /** `pixTex` + `declareSurface` in one call.
  *
@@ -536,7 +536,17 @@ function buildLot(o: {
     $: [0b01111, 0b10100, 0b01110, 0b00101, 0b11110],
     ' ': [0, 0, 0, 0, 0], "'": [0b00100, 0b00100, 0, 0, 0],
   };
+  /** the ink width `stamp` covers — 6 texels of advance, 5 of glyph on the last */
+  const stampW = (s: string, px: number) => (s.length - 1) * 6 * px + 5 * px;
   const stamp = (g: CanvasRenderingContext2D, s: string, x0: number, y0: number, px: number, ink: string) => {
+    // AND IT MEASURES THE GAP TO WHATEVER IS ALREADY ON THIS CANVAS. The office
+    // board below stacked CROSSTOWN over AUTO SALES with two blank texels between
+    // them against a ten-texel cap — 0.20, the tightest measurement on a board
+    // that had five texels of nothing under it. `glyphRow` compares each row
+    // against the rows already stamped and complains at anything under half the
+    // smaller cap, which is loose enough to leave the pole sign's approved
+    // CROSSTOWN-over-AUTO stack alone and tight enough to have caught this.
+    glyphRow(g, 'lot', s, x0, y0, stampW(s, px), 5 * px);
     g.fillStyle = ink;
     for (let i = 0; i < s.length; i++) {
       // A glyph this table does not have used to draw as a SPACE, which is
@@ -979,13 +989,29 @@ function buildLot(o: {
     // 9 characters at 6 texels each and 2 px per texel is 108 px — the board
     // was 80 and clipped the name to "CROSSTO". Size the canvas from the
     // string rather than guessing at it.
-    const BOARD_W = 'CROSSTOWN'.length * 6 * 2 + 8;
-    const boardT = surfTex('sign', BOARD_W, 26, (g) => {
-      g.fillStyle = '#25406b'; g.fillRect(0, 0, BOARD_W, 26);
+    // …AND THEN SIZING IT FROM THE STRING WAS THE NEXT FAULT. 116 x 26 on a
+    // 2.60 x 0.46 m board is 44.6 px/m across against 56.5 down, so the letters
+    // were STRETCHED 27% HORIZONTALLY — they filled the board because they were
+    // pulled to fill it, not because they were set that wide. And a canvas sized
+    // to the longest line has no spare width, so AUTO SALES was left-flushed at
+    // x 4 under a CROSSTOWN that ran the full board: line two hung ragged off one
+    // end. Two blank texels between the rows against a ten-texel cap (0.20) while
+    // five texels of board sat empty underneath them.
+    //
+    // THE CANVAS COMES OFF THE BOARD NOW, NOT OFF THE WORD. 56.5 px/m both ways
+    // is 147 x 26 — square texels, the capitals at exactly the height they had
+    // (0.177 m), CROSSTOWN 1.88 m of the 2.60 m board with both lines centred in
+    // it, 2 clear above, FIVE between the rows, 2 clear below. The string is
+    // checked against the canvas by `stamp`'s guard rather than setting it.
+    const BOARD_PPM = 56.5;                        // 2.60 x 0.46 m, isotropically
+    const BOARD_W = Math.round(2.6 * BOARD_PPM), BOARD_H = Math.round(0.46 * BOARD_PPM);
+    const mid = (s: string, px: number) => Math.round((BOARD_W - stampW(s, px)) / 2);
+    const boardT = surfTex('sign', BOARD_W, BOARD_H, (g) => {
+      g.fillStyle = '#25406b'; g.fillRect(0, 0, BOARD_W, BOARD_H);
       g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, 0, BOARD_W, 2);
-      stamp(g, 'CROSSTOWN', 4, 4, 2, '#e8dcb8');
-      stamp(g, 'AUTO SALES', 4, 16, 1, '#d8a72e');
-      dither(g, BOARD_W, 26, 30);
+      stamp(g, 'CROSSTOWN', mid('CROSSTOWN', 2), 4, 2, '#e8dcb8');   // rows 4…13
+      stamp(g, 'AUTO SALES', mid('AUTO SALES', 1), 19, 1, '#d8a72e');// rows 19…23
+      dither(g, BOARD_W, BOARD_H, 38);
     });
     // ABOVE the glass, not across it. The window's top texel row puts it at
     // 2.16 m and the board was centred at 2.05 with 0.85 of height, so it lay
