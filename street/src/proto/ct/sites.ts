@@ -112,14 +112,14 @@ export function frameYaw(f: SiteFrame, yaw: number): number {
 // import each other:
 //
 //   · `ct/street.ts` cuts the hole and publishes the site.
-//   · `ct/college-yard.ts` re-exports `COLLEGE_FACE_Z` off the back of it —
-//     `crosstown.ts:1303` derives `WORLD_BOUNDS.minZ` from that import, and
-//     `crosstown.ts` is the trunk and not a builder's to edit. The name is now
-//     a lie (the college is on the main street and this is the lot's back
-//     fence) and it should be renamed when the trunk is next open. It is
-//     load-bearing: the walk clamp is the only thing that stops the player
-//     leaving the world at the south, and if it does not follow the lot's back
-//     wall you get *"i cant walk into …"* for the third time.
+//   · `crosstown.ts` derives `WORLD_BOUNDS.minZ` from `SOUTH_WALK_BOUND_Z`
+//     below. It used to reach it through `ct/college-yard.ts`, which
+//     re-exported it as `COLLEGE_FACE_Z` — a name that went false the moment
+//     the college left the side street, since this is the LOT'S back fence.
+//     The hop is gone and the trunk imports it from here. It is load-bearing:
+//     the walk clamp is the only thing that stops the player leaving the world
+//     at the south, and if it does not follow the lot's back wall you get
+//     *"i cant walk into …"* for the third time.
 //   · `ct/lot.ts` fills it.
 //
 // x 46 … 57 is the 11 m the COMMUNITY COLLEGE stood on, and 57 is the plane

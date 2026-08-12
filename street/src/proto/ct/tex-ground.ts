@@ -119,20 +119,52 @@ const DRIVES: { x: number; z: number; hw: number }[] = [];
 const PED_H = 0.022;     // a 1 in lip at the gutter — period-correct, and it
                          // keeps the gutter carrying water past the crossing
 const PED_F = 0.75;      // flared wing either side
-interface KerbCut { x: number; z: number; hw: number; axis: 'x' | 'z'; lip: number; flare: number }
+interface KerbCut { x: number; z: number; hw: number; axis: 'x' | 'z'; lip: number; flare: number;
+                    /** a wheel crosses this, not just a foot — see `onDriveway` */
+                    drive: boolean }
 const CUTS: KerbCut[] = [
-  ...DRIVES.map((d) => ({ ...d, axis: 'z' as const, lip: DRIVE_H, flare: DRIVE_F })),
+  ...DRIVES.map((d) => ({ ...d, axis: 'z' as const, lip: DRIVE_H, flare: DRIVE_F, drive: true })),
 ];
 /** register a pedestrian ramp; called from buildGround where the crossings are
  *  laid, so the paint and the dropped kerb cannot drift apart */
 function pedCut(x: number, z: number, hw: number, axis: 'x' | 'z'): void {
-  CUTS.push({ x, z, hw, axis, lip: PED_H, flare: PED_F });
+  CUTS.push({ x, z, hw, axis, lip: PED_H, flare: PED_F, drive: false });
 }
 /** …and a DRIVEWAY cut on either axis. Same list, the deeper profile a wheel
  *  needs. This is what `DRIVES` used to get for free on the main street and
  *  what the used car lot needs now it is on the side street's south kerb. */
 function driveCut(x: number, z: number, hw: number, axis: 'x' | 'z'): void {
-  CUTS.push({ x, z, hw, axis, lip: DRIVE_H, flare: DRIVE_F });
+  CUTS.push({ x, z, hw, axis, lip: DRIVE_H, flare: DRIVE_F, drive: true });
+}
+/** IS A CAR DRIVEN OVER THIS BIT OF GUTTER — the opening plus its flares, on
+ *  whichever kerb line the cut is on?
+ *
+ *  Exported for the WEEDS in ct/props.ts, and it exists because that guard was
+ *  a typed `Math.abs(sp.z - 2.6) < 5.0 && sp.side > 0`, written when the used
+ *  car lot's drive crossed the main street's east kerb. The lot went to the
+ *  side street on 2026-08-11 and the guard stayed, so it kept a five-metre
+ *  strip of gutter weed-free in front of the COLLEGE'S GATE, protecting a
+ *  driveway that is a hundred metres away on the other axis.
+ *
+ *  A weed does not care which shop is behind it; it cares whether a tyre goes
+ *  over it. So the question is asked of the kerb cuts themselves, and it moves
+ *  when they move. Pedestrian ramps are excluded on purpose — a foot does not
+ *  scour a joint, and the weeds' whole placement rule is that they grow where
+ *  nothing disturbs them.
+ *
+ *  Read AFTER buildGround (props builds at crosstown.ts:225, ground at :66), so
+ *  the side-street cut is registered by the time anything asks. */
+export function onDriveway(x: number, z: number): boolean {
+  for (const d of CUTS) {
+    if (!d.drive) continue;
+    // the run this cut is ON, then how far along it we are — same pair of
+    // expressions as driveReveal below, and they must stay the same pair
+    const off = d.axis === 'z' ? Math.abs(x - d.x) : Math.abs(z - d.z);
+    if (off > 1) continue;                          // this kerb line only
+    const e = d.axis === 'z' ? Math.abs(z - d.z) : Math.abs(x - d.x);
+    if (e <= d.hw + d.flare) return true;
+  }
+  return false;
 }
 /** kerb reveal at a point on a STRAIGHT run — full height everywhere except
  *  across a cut, where it drops to a lip and flares back up */

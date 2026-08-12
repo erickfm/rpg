@@ -4,7 +4,7 @@ import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite,
          paperTex, scrapTex } from './tex-world';
 import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER, soldierCourse,
-         alley2Ground } from './tex-ground';
+         alley2Ground, onDriveway } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
 // A sign keeps its business's hours. ct/hours.ts imports nothing at runtime by
 // design, so this edge is a leaf and cannot close the cycle its header warns
@@ -4002,8 +4002,19 @@ uniform float uPoolAmb;`)
     let wi = 0;
     for (const sp of spots) {
       wi++;
-      if (Math.abs(sp.z - 2.6) < 5.0 && sp.side > 0) continue;   // the lot's drive
       const x = sp.side * (ROAD_HALF - 0.035 - weedRnd(wi, 13) * 0.05);
+      // NOT WHERE A CAR CROSSES THE GUTTER. This was
+      // `Math.abs(sp.z - 2.6) < 5.0 && sp.side > 0` — a typed z, from when the
+      // used car lot's drive cut the main street's east kerb at 2.6. The lot
+      // moved to the side street on 2026-08-11 and the number did not, so it
+      // went on holding a five-metre strip of gutter clean in front of the
+      // COLLEGE'S GATE for a driveway that is not there. `onDriveway` asks the
+      // kerb cuts, which is where the answer actually lives, so the bare strip
+      // goes wherever the drive goes and there is nothing left here to restate.
+      //
+      // `weedRnd` is a pure hash of (index, salt) and not a stream, so drawing
+      // x before the test costs nothing and moves no other tuft.
+      if (onDriveway(x, sp.z)) continue;
       scene.add(weedTuft({
         // gutterSurfaceY takes the distance OUT FROM THE KERB LINE, not a
         // coordinate — the pan is cross-sloped, so a tuft 35 mm out sits higher

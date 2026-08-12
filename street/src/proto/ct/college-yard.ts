@@ -4,7 +4,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { frontageWorld } from './tex-world';
 import type { AABB } from '../fp';
 import {
-  SOUTH_WALK_BOUND_Z, frameBox, frameFromWorld, frameGroup, type SiteFrame,
+  frameBox, frameFromWorld, frameGroup, type SiteFrame,
 } from './sites';
 
 // THE COLLEGE COURTYARD — the outside of CROSSTOWN COMMUNITY COLLEGE.
@@ -65,17 +65,18 @@ const CX_OF = (w: number) => w / 2;          // the axis, in local terms
 const WALK_Z = 0;                            // the building line, local
 const FACE_Z = WALK_Z - COLLEGE_YARD_D;      // the recessed facade plane, local
 
-/** THE WORLD'S SOUTH WALK BOUND. `crosstown.ts:1303` derives
- *  `WORLD_BOUNDS.minZ` from this import and `crosstown.ts` is the trunk, so the
- *  NAME cannot be fixed from here — but the number must be right or the player
- *  is fenced out of half the world, which is *"i cant walk into the community
- *  college"* (2026-08-09) a third time.
- *
- *  It no longer has anything to do with the college. The southernmost ground a
- *  player can stand on is the used car lot's, on the side street, and
- *  `ct/sites.ts` owns that geometry. **RENAME THIS TO `SOUTH_WALK_BOUND_Z` THE
- *  NEXT TIME THE TRUNK IS OPEN** — one import in one file. */
-export const COLLEGE_FACE_Z = SOUTH_WALK_BOUND_Z;
+// `COLLEGE_FACE_Z` WAS RE-EXPORTED FROM HERE AND IS GONE. It was
+// `= SOUTH_WALK_BOUND_Z`, and `crosstown.ts` imported it to derive
+// `WORLD_BOUNDS.minZ` — a name that stopped being true the moment the college
+// left the side street, because the southernmost ground a player can stand on
+// is the USED CAR LOT'S back fence and `ct/sites.ts` owns that geometry. The
+// trunk now imports `SOUTH_WALK_BOUND_Z` from `ct/sites.ts` directly, which is
+// where it has always been declared; this module was only ever a hop, and a hop
+// through the college is exactly what made the name lie. THE NUMBER IS
+// UNCHANGED — it is the same constant, reached without the detour. It is
+// load-bearing: that clamp is the only thing stopping the player leaving the
+// world at the south, and it must follow the lot's back wall or you get
+// *"i cant walk into …"* a third time.
 
 /** THE EAST PARTY WALL'S OWN FOOTPRINT, and the one place it is written.
  *
