@@ -197,9 +197,10 @@ const PAGE_W = 0.32, PAGE_H = PAGE_W * CH / CW;
  * `TR_X + 0.02 … +0.21` — clear of the fore-edges by 5 cm and inside the
  * board's own 0.26 m half-width.
  *
- * The ORIENTATION did not have to move with it: the reader still stands in the
- * −x aisle, so the top of the page still points +x and `PAGE_YAW` is unchanged.
- * `y` is the board's top face (0.83, int-library.ts:2338) plus 2 mm.
+ * THE ORIENTATION IS NO LONGER A CONSTANT AT ALL — see `PAGE_YAW_W` below. It
+ * was written as one on the assumption that the reader is always in the −x
+ * aisle, and he is not. `y` is the board's top face (0.83, int-library.ts:2338)
+ * plus 2 mm.
  */
 const PAGE_DX = 0.115, PAGE_DY = 0.832;
 /**
@@ -215,18 +216,47 @@ const PAGE_DX = 0.115, PAGE_DY = 0.832;
  * so nothing here is silently trimmed.
  */
 const PAGE_STANDOFF = 0.39, PAGE_FOV = 34;
+// ══ WHICH WAY TO TURN HIM, AND THE 180° THAT CAME OF ANSWERING IT ONCE ══════
+//
+// *"hey so i dont like that i spin around to look at this. make it so i dont
+//  spin around 180 deg."*   (2026-08-12, a screenshot of this trolley taken
+//  from the OPEN FLOOR EAST OF IT — the open page nearest the camera, and three
+//  dozen plain dimmed covers behind it rather than the spine art, which is only
+//  on the −x faces.)
+//
+// A horizontal face's normal points at the ceiling and carries no heading at
+// all, so `crosstown.ts:poseFor` (1722) takes `faceYaw` from the caller —
+// deriving one gives `atan2(+0, −0)` = exactly π, the spin `ScreenSurface.
+// faceYaw` was written to stop. THE EYE ITSELF NEVER MOVES ROUND THE BOOK: it
+// goes `standoff` STRAIGHT UP the normal and the feet stay where they are
+// (poseFor:1729), so `faceYaw` is the whole of what a reader feels here, and a
+// `faceYaw` that names the wrong side of the object is a 180° pirouette and
+// nothing else.
+//
+// AND ONE SIDE WAS NAMED, FOREVER, IN A CONSTANT. This trolley has TWO reading
+// sides — the 1.05 m aisle at −x that `int-library.ts:2274` leaves between it
+// and the issue desk, and the open floor east of it that everybody actually
+// crosses to reach the desk — and the spot's own 1.35 m radius offers the books
+// from both. A constant π/2 was right for a reader in the aisle and turned his
+// back on the book for the reader on the floor.
+//
+// SO THE SIDE IS READ OFF HIS FEET at the moment he presses [E], and the page is
+// rolled to match so its top always points AWAY from him: the picture is upright
+// either way, and squaring up costs him nothing when he is facing the thing he
+// just pressed [E] on. `fwd = (sin yaw, −cos yaw)`, so east (+x) is yaw π/2 and
+// west is −π/2. Only these two: the book lies lengthwise along the board's z, so
+// a third angle would slide its corner under the standing books and over the
+// board's own edge (0.32 m across a 0.52 m board, laid 0.115 m off centre).
+/** read from the WEST aisle, looking east; the page's top points +x */
+const PAGE_YAW_W = Math.PI / 2;
+/** read from the OPEN FLOOR east of it, looking west; the page's top points −x */
+const PAGE_YAW_E = -Math.PI / 2;
 /**
- * WHICH WAY TO TURN HIM. A horizontal face's normal points at the ceiling and
- * carries no heading at all, so the caller states it — the same argument, and
- * the same trap (`atan2(+0, −0)` = π, a 180° spin), that `ScreenSurface.faceYaw`
- * was written for.
- *
- * The reader stands on the WEST side of the trolley, which is the 1.05 m aisle
- * `int-library.ts:2274` leaves between it and the issue desk, and looks east.
- * `fwd = (sin yaw, −cos yaw)`, so east (+x) is yaw π/2. The plane is rolled to
- * match: its local +y — the top of the page — points +x, away from him.
+ * The plane's roll for each of those. Default XYZ order, so the roll is applied
+ * first and the −π/2 tip second: local +y ends up on world ∓x and the normal on
+ * world +y either way (`page.rotation.set` below).
  */
-const PAGE_YAW = Math.PI / 2;
+const PAGE_ROLL_W = -Math.PI / 2, PAGE_ROLL_E = Math.PI / 2;
 
 function findTrolley(scene: THREE.Scene): THREE.Object3D | null {
   let best: THREE.Object3D | null = null;
@@ -1757,6 +1787,26 @@ export function register(ctx: CtxBuild): void {
   /** the open book on the board — the surface the panel is painted onto */
   let page: THREE.Mesh | null = null;
   void import('three').then((m) => { T = m; });
+  /** the world x of the trolley's centreline, once the search below has found
+   *  it. The line that says which side of the cart the reader is standing on —
+   *  he can never be ON it, the cart's own 0.62 m collider sees to that. */
+  let trolleyX = 0;
+  /** which way the pose turns him. Re-read off his feet on every press rather
+   *  than fixed at build time — see `PAGE_YAW_W`. */
+  let readYaw = PAGE_YAW_W;
+  /**
+   * SQUARE THE BOOK TO THE SIDE HE IS ACTUALLY ON, and tell the pose the same
+   * thing, so that opening it turns him no further than facing it already did.
+   *
+   * Called on the press, BEFORE the panel opens: `ct/hud.ts:1716` reads
+   * `faceYaw` off the surface at that moment and `crosstown.ts:poseFor` eases
+   * the yaw from wherever he is standing to whatever it finds there.
+   */
+  const aimAtReader = (): void => {
+    const east = ctx.player.x() > trolleyX;
+    readYaw = east ? PAGE_YAW_E : PAGE_YAW_W;
+    if (page) page.rotation.z = east ? PAGE_ROLL_E : PAGE_ROLL_W;
+  };
   /** null on the shelf, an index once a book is off it */
   let open: number | null = null;
   let sel = 0;
@@ -1856,7 +1906,11 @@ export function register(ctx: CtxBuild): void {
         mesh: () => page,
         standoff: PAGE_STANDOFF,
         fov: PAGE_FOV,
-        faceYaw: PAGE_YAW,
+        // A GETTER, NOT A VALUE. `ct/hud.ts:1716` reads this off the surface at
+        // the instant the view opens, so it can follow the reader round the
+        // cart; a plain property would have frozen whatever `aimAtReader` had
+        // written when this object literal was built, which is nothing at all.
+        get faceYaw() { return readYaw; },
         hot: hotAt,
         click: clickAt,
         move: moveAt,
@@ -1927,12 +1981,14 @@ export function register(ctx: CtxBuild): void {
       new T.MeshBasicMaterial({ map: tex }),
     );
     page.name = 'ct-library-books-page';
-    // face up, with the top of the page toward +x — see PAGE_YAW. Default XYZ
-    // order, so the roll is applied first and the tip second: local +y ends up
-    // on world +x and the normal on world +y.
-    page.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
+    // Face up, top of the page toward +x, which is how it lies for a reader in
+    // the west aisle — `aimAtReader` turns it end for end on the press if he is
+    // on the other side. The 24 x 16 texture on it is symmetric about both
+    // axes, so the resting orientation is a choice with no picture in it.
+    page.rotation.set(-Math.PI / 2, 0, PAGE_ROLL_W);
     page.position.set(tx + PAGE_DX, floor + PAGE_DY, tz);
     ctx.scene.add(page);
+    trolleyX = tx;
 
     spot = {
       x: tx, z: tz,
@@ -1946,7 +2002,10 @@ export function register(ctx: CtxBuild): void {
       // standing at this trolley however square he is with it in plan.
       ok: () => Math.abs(ctx.player.gy() - floor) < 0.5 && !ctx.player.seated(),
       label: () => 'read the books',
-      act: () => panel?.open(),
+      // AIM FIRST, THEN OPEN. Both halves of the turn — the page's own roll and
+      // the yaw the pose settles on — are decided from where he is standing at
+      // this instant, and the panel reads the second of them as it opens.
+      act: () => { aimAtReader(); panel?.open(); },
     };
     ctx.spot(spot);
   }, HOOK.LATE);
