@@ -27,6 +27,10 @@ import { riding, rideState } from '../fp';
 // ../fp, none of which touch `ct/osd.ts` (the one module that imports this one
 // back), and `ct/ctx.ts` takes `SiteFrame` from it as a TYPE, which is erased.
 import { SIDE_LOT, frameToWorld } from './sites';
+// The save landing under a watcher — see `onRestored` at the wallet's baseline.
+// No cycle: `ct/save.ts` reaches inventory, wardrobe, body, health, stats, ctx
+// and newgame, and not one of them imports this module.
+import { onRestored } from './save';
 
 // ════════════════════════════════════════════════════════════════════════════
 // SOUND
@@ -500,13 +504,25 @@ const LVL = {
   // mechanical clunk and it wants to land, but the world just went silent
   // underneath it and a UI cue that makes him flinch is a UI cue he turns off.
   pauseHit: 0.55,
-  // The pad is a BED — -20 LUFS out of the encoder like every other loop — and
-  // it takes the loudest bed's level (rain, 0.30) rather than the quietest,
-  // because for once there is no traffic for it to sit under. It also wraps
-  // every 2.5 s, twenty-four times a minute against a street bed's twice, so
-  // it has far more chances to wear on the ear: this is the number to pull
-  // down first if the menu starts to feel loud.
-  pauseLoop: 0.30,
+  // The pad is a BED — -20 LUFS out of the encoder like every other loop.
+  //
+  // *"the sound of the noise for the esc menu is too loud. like the bg noise"*
+  // (2026-08-11). 0.30 -> 0.13, about -7.3 dB, and it is the ARGUMENT above it
+  // that was wrong rather than the number: it shipped at rain's 0.30 on the
+  // reasoning that with no traffic under it a bed can afford the loudest bed's
+  // level. Backwards. Nothing to sit under means nothing MASKING it either, so
+  // a level that is merely present against traffic is bare and forward in a
+  // dead-silent mix — and every bed's number here is pre-attenuation besides
+  // (`street-a` is scaled by `bleed`, `room` and `casino` by `inn`, `rain` by
+  // `rainLevel`), where the pad reaches `menuMaster` at exactly its number,
+  // through no panner, no distance and no wall filter.
+  //
+  // So it takes the QUIETEST held bed's shelf instead — `room` (0.13), the
+  // indoor hum, which is the one other loop in this table whose job is to be
+  // the only thing sounding in a quiet space. The 2.5 s wrap argues the same
+  // way: twenty-four times a minute against a street bed's twice is far more
+  // chances to wear on the ear, so at or under room tone, never over it.
+  pauseLoop: 0.13,
 };
 
 /** METRES PER FOOTFALL, and the cadence is derived from it rather than timed.
@@ -1396,6 +1412,46 @@ export function register(ctx: CtxBuild): void {
   // the 70 so a rebalance cannot silently mute the thump, and well over the
   // pass-out so a mugging cannot borrow it.
   let lastHp = health();
+
+  // ══ THE SAVE LANDING IS NOT AN EVENT ══════════════════════════════════════
+  //
+  // *"also i get the money ping anytime i restart the game and spawn in"*
+  // (2026-08-11).
+  //
+  // Every baseline above was primed while the world was being BUILT. The save
+  // arrives later — `ct/save.ts`'s `boot()` is async and nothing waits on it, so
+  // a network probe and a fetch happen between this module's `register` and the
+  // blob going in. Then the purse slice writes the saved cash over the fresh
+  // world's $14.50 and the next frame reads a difference no one earned. So does
+  // the clock (a restored day jumps `totalMin` by hours, which is precisely the
+  // shape the SLEEP cue watches for) and so does health (a returning player at
+  // 60 hp reads as a 40-point drop in one frame — the CAR-HIT thump's shape).
+  // He reported the wallet because the wallet is the loudest of the three; all
+  // three are the same fault and all three are re-primed here.
+  //
+  // PRIMED, NOT SUPPRESSED — and this is the whole of the fix. A "stay quiet for
+  // the first N seconds" gate would eat a real sale made the moment he spawns.
+  // `onRestored` fires INSIDE `restore`'s own call stack, so no frame separates
+  // the slices going in from these lines; the watchers are armed the entire
+  // time and simply never see the jump. Money that moves a frame later is money
+  // that moved during play, and it speaks.
+  //
+  // The pending net is dropped too: nothing half-banked can survive a world
+  // being replaced under it, and a burst that straddles the restore would
+  // otherwise be spoken with the save's arithmetic mixed into it.
+  //
+  // MEALS AND HOPS ARE RE-PRIMED THOUGH NOTHING SAVES THEM TODAY. The rule is
+  // about the mechanism, not today's slice list: the day `ct/food.ts` gets the
+  // two-line slice its neighbours already have, a restore would otherwise chew
+  // a mouthful of sandwich on the loading screen, and this is already correct.
+  onRestored(() => {
+    lastCash = ctx.purse.cash;
+    cuePend = 0; cuePendAt = -1;
+    lastMin = ctx.clock.now().totalMin;
+    lastMeals = mealsEaten();
+    lastHops = rideState().hops;
+    lastHp = health();
+  });
 
   const watchTraffic = (t: number, dt: number) => {
     if (!fleet) {

@@ -124,6 +124,30 @@ export function capture(): SaveBlob {
   return { v: SAVE_VERSION, at: Date.now(), slices };
 }
 
+/**
+ * ── A RESTORE IS NOT SOMETHING THE PLAYER DID ─────────────────────────────
+ *
+ * Run something the instant a blob has finished going in. This exists for the
+ * watchers: several modules read a number every frame and speak when it MOVES
+ * — `ct/audio.ts` alone diffs the purse (the register, the wallet's ping), the
+ * clock (the sleep cue) and health (the car-hit thump) — and every one of them
+ * primed its baseline while the world was being built, which is a second or
+ * more before this lands.
+ *
+ * *"i get the money ping anytime i restart the game and spawn in"* (2026-08-11)
+ * is exactly that: nothing was earned, the wallet was simply put back, and a
+ * watcher holding the fresh world's $14.50 read the difference as income.
+ *
+ * SYNCHRONOUS, AND INSIDE `restore`'s OWN CALL STACK ON PURPOSE. No frame can
+ * run between the slices going in and these firing, so a listener that re-primes
+ * its baseline here never sees the jump at all — and never has to go deaf for a
+ * window to avoid it, which would eat a real gain earned in the first seconds.
+ * A listener that throws is logged and the rest still run, the same contract
+ * `capture` and `restore` already keep for a bad slice.
+ */
+const RESTORED: (() => void)[] = [];
+export function onRestored(fn: () => void): void { RESTORED.push(fn); }
+
 /** Put a blob back. Returns the names that were applied. */
 export function restore(blob: unknown): string[] {
   const b = blob as SaveBlob | null;
@@ -140,6 +164,15 @@ export function restore(blob: unknown): string[] {
     if (!(name in b.slices)) continue;          // never saved, or added since
     try { s.restore(b.slices[name]); done.push(name); }
     catch (e) { console.error(`[save] slice '${name}' failed to restore:`, e); }
+  }
+  // …and tell the watchers the world just changed underneath them — see
+  // `onRestored`. Unconditional, not gated on `done.length`: a blob that
+  // restored nothing leaves every baseline already correct, so re-priming to
+  // the value it already holds is a no-op, and the gate would be one more way
+  // to be wrong.
+  for (const fn of RESTORED) {
+    try { fn(); }
+    catch (e) { console.error('[save] a restore listener threw:', e); }
   }
   return done;
 }
