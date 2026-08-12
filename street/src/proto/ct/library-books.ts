@@ -5,7 +5,11 @@ import type { Panel } from './hud';
 // that book is GENERATED from this import rather than retyped. Safe as a
 // runtime edge for the reason `hours.ts`'s own header states: it imports
 // nothing at runtime and so cannot close the glob cycle GOTCHAS §28 warns of.
-import { HOURS, fmtHour } from './hours';
+import { HOURS, fmtHour, hoursFor, neverCloses } from './hours';
+// The 12/24-hour option, for the two GENERATED books. `ct/timefmt.ts` imports
+// nothing at all — see its header — so this edge is as safe as the one above,
+// and `ct/hud.ts` and `ct/osd.ts` both reach it the same way.
+import { onClockModeChange } from './timefmt';
 // TYPE-ONLY, for the reason `ct/library-pc.ts` gives in its own header: this
 // module builds NO geometry and constructs no three object — it reads a mesh
 // `ct/int-library.ts` already put in the room — so it needs the TYPES and
@@ -272,7 +276,21 @@ interface Book {
   cloth: string; gilt: string;
   /** the label a branch library sticks on the tail of a spine */
   dewey: string;
-  body: Block[];
+  /**
+   * ⚠ AN ARRAY FOR A BOOK THAT IS WRITTEN, A FUNCTION FOR ONE THAT IS BUILT.
+   *
+   * Two of the ten are GENERATED out of `ct/hours.ts` through `fmtHour` — the
+   * hours directory and the price list — and `fmtHour` answers differently
+   * depending on the Escape menu's 12/24-hour option. An array is evaluated at
+   * module load, which is BEFORE any menu exists, so those two would have been
+   * lettered once in whatever the save happened to hold and then stayed that
+   * way until a reload however often the option was flipped. A function is
+   * evaluated when the page is laid out, and `onClockModeChange` throws the
+   * layout cache away, so they re-read the table instead.
+   *
+   * The other eight are prose and have nothing live in them; they stay arrays.
+   */
+  body: Block[] | (() => Block[]);
 }
 
 const h = (t: string): Block => ({ k: 'h', t });
@@ -297,10 +315,14 @@ function hoursBlocks(): Block[] {
     p('Every business on this street keeps hours, and every one of them has a '
       + 'card by the door saying so. This is all of those cards on one page, '
       + 'copied off the same list the shopkeepers work to.'),
-    p('THE DOORS DO NOT LOCK. You can walk into any of these places at three in '
-      + 'the morning. There will simply be nobody at the counter to serve you '
-      + 'and the punch clock will not take your card. Closed means the SERVICE '
-      + 'refuses, never that the way in is barred.'),
+    p('THE DOOR IS THE GATE, AND IT IS THE ONLY GATE. A shut shop will not let '
+      + 'you in: the prompt on the door tells you it is closed and what time it '
+      + 'opens, and that is the end of it. Nothing else in the building checks '
+      + 'the clock.'),
+    p('A CLOSED DOOR NEVER SHUTS BEHIND YOU. Nobody is ever put out at closing '
+      + 'time and nobody is ever locked in. Get in before the hour and the '
+      + 'counter still sells to you, the punch clock still takes your card, and '
+      + 'the way out is never barred from either side.'),
     GAP,
     h('NEVER CLOSED'),
   ];
@@ -320,17 +342,43 @@ function hoursBlocks(): Block[] {
       + 'bank, which is what a cash machine is for, nor the man under the lamp '
       + 'in the alley behind the pawn shop, who would not post them.'),
     h('WHAT THE HOURS ACTUALLY BIND'),
-    p('Two things, and only these two. A counter will not sell to you while the '
-      + 'shop is dark. And the punch clock will not start a shift while it is, '
-      + 'and cuts short the shift you are already on at closing time — so a job '
-      + 'at a business that shuts early is worth less of an evening than its '
-      + 'hourly rate suggests.'),
+    p('One thing, and only this one: whether the door opens. Everything behind '
+      + 'it serves whenever you are standing at it. So a job at a business that '
+      + 'shuts early is not worth less an hour — it is simply harder to get to '
+      + 'after dark, and a shift you start at ten to closing runs its full '
+      + 'length anyway.'),
+    p('The signs on the shop fronts follow the same list. A fascia that is lit '
+      + 'is a shop you can walk into; the ones that go dark at midnight have '
+      + 'shut their doors with their lights.'),
     p('FIRST FEDERAL is the one to watch. Nine to four is the shortest working '
       + 'day on the street, and the loan desk inside keeps the building’s '
       + 'hours exactly. The machines out on the pavement do not care what time '
       + 'it is.'),
   );
   return out;
+}
+
+/**
+ * ── A SHOP'S HEADING IN THE PRICE LIST, WITH ITS HOURS READ RATHER THAN TYPED
+ *
+ * `WHAT THINGS COST` heads each shop's block with when it is open, and every
+ * one of those eleven headings used to be hand-typed prose — `BURGER BARN —
+ * 10 AM to midnight`, `THE THRIFT STORE — 9 to 6`. Two authorings of the same
+ * fact, in a book whose entire promise is that every number on the page was
+ * read out of the source, and they ignored the 12/24-hour option besides: the
+ * card hanging by the thrift store's own door would say `09:00 – 18:00` while
+ * this page four feet away said `9 to 6`.
+ *
+ * So the heading is BUILT, off the same row and the same `fmtHour` the door
+ * card is lettered from. `key` is the roster name in `ct/hours.ts`; a shop with
+ * no row there gets its bare label, which is the honest answer rather than an
+ * invented time.
+ */
+function shopHead(label: string, key: string): Block {
+  const b = hoursFor(key);
+  if (!b) return h(label);
+  return h(`${label} — ${neverCloses(b) ? 'never closes'
+    : `${fmtHour(b.open)} to ${fmtHour(b.close)}`}`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -586,7 +634,11 @@ const BOOKS: Book[] = [
     title: 'HOURS OF BUSINESS',
     sub: 'a citizen’s directory of the block',
     cloth: '#6a6234', gilt: '#efe6cc', dewey: '381.1',
-    body: hoursBlocks(),
+    // THE FUNCTION, NOT ITS RESULT. `hoursBlocks()` here would letter this page
+    // once at module load and leave it saying `9 AM – 6 PM` for the rest of the
+    // session however often the Escape menu's clock option was flipped. See the
+    // note on `Book.body`.
+    body: hoursBlocks,
   },
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -737,9 +789,14 @@ const BOOKS: Book[] = [
 
       h('THE SHIFT'),
       p('At the place that hired you the prompt reads WORK. A shift is EIGHT '
-        + 'HOURS, or whatever is left until the shop closes, whichever is the '
-        + 'shorter. Under fifteen minutes to closing and they will not start '
-        + 'you at all.'),
+        + 'HOURS, or however much work is left in you, whichever is the '
+        + 'shorter. THE SHOP\'S HOURS DO NOT SHORTEN IT: the door is the only '
+        + 'thing that keeps them, so if you are inside you get the full stretch '
+        + 'and nobody puts you out at closing time.'),
+      p('That means the limit is your own body, not the shutters. Punch in with '
+        + 'two hours left in you and you get two hours, two hours\' pay, and '
+        + 'then the floor — see the book on the clock for what it costs to go '
+        + 'down.'),
       p('You are paid IN CASH the moment you punch out, at the rate times the '
         + 'minutes actually worked. Four and a half hours at $5.50 is $24.75. '
         + 'Wages are not taxed; there is no income tax in this city.'),
@@ -747,15 +804,16 @@ const BOOKS: Book[] = [
       h('THE DOUBLE SHIFT'),
       p('This is the one thing worth knowing about work here. Punch back in '
         + 'WITHIN AN HOUR of punching out and it counts as staying on rather '
-        + 'than as a second day. So you can work straight through until the '
-        + 'shutters come down — and at the BODEGA, the DINER and the HOTEL, '
-        + 'which never close, you can work for as long as you can stay awake.'),
+        + 'than as a second day. So you can work straight through for as long '
+        + 'as you can stay awake, and once you are inside the building the '
+        + 'hours on the door have nothing more to say about it.'),
       p('Wander off for more than an hour and the next shift belongs to '
-        + 'tomorrow.'),
+        + 'tomorrow — and if you wandered out of a shop that has since shut, '
+        + 'you will not get back in until it opens.'),
       p('Which makes NIGHT CLERK at the ORPHEUS — INT 9, $8.50, a desk that '
-        + 'never shuts — the best paid work in the city by a distance, and '
-        + 'ADJUNCT TUTOR at the college the best rate on a clock that stops '
-        + 'at nine in the evening.'),
+        + 'never shuts — the best paid work in the city by a distance. It is '
+        + 'the only one you can walk up to at any hour; ADJUNCT TUTOR pays the '
+        + 'best rate behind a door that stops letting you in at nine.'),
     ],
   },
 
@@ -928,8 +986,10 @@ const BOOKS: Book[] = [
     title: 'WHAT THINGS COST',
     sub: 'a price list for the whole street',
     cloth: '#5c3a52', gilt: '#efe6cc', dewey: '338.5',
-    body: [
-      h('THE BODEGA — never closes'),
+    // A FUNCTION, for `shopHead` below — the eleven shop headings are read out
+    // of `ct/hours.ts` and follow the clock option. See the note on `Book.body`.
+    body: () => [
+      shopHead('THE BODEGA', 'BODEGA'),
       GAP,
       r('SANDWICH', '$9.00'),
       r('CEREAL', '$10.00'),
@@ -940,7 +1000,7 @@ const BOOKS: Book[] = [
       r('SMOKES', '$8.00'),
       r('NEWSPAPER', '$2.00'),
       GAP,
-      h('BURGER BARN — 10 AM to midnight'),
+      shopHead('BURGER BARN', 'BURGER BARN'),
       GAP,
       r('CHICKEN', '$9.00'),
       r('BARN BURGER', '$7.50'),
@@ -950,7 +1010,7 @@ const BOOKS: Book[] = [
       r('APPLE PIE', '$2.75'),
       r('COFFEE', '$2.50'),
       GAP,
-      h('THE DINER — never closes'),
+      shopHead('THE DINER', 'DINER'),
       GAP,
       r('PLATTER', '$15.00'),
       r('EGGS', '$9.00'),
@@ -959,7 +1019,7 @@ const BOOKS: Book[] = [
       r('SODA', '$3.50'),
       r('COFFEE', '$2.50'),
       BREAK,
-      h('VIDEO HUT — 10 AM to midnight'),
+      shopHead('VIDEO HUT', 'VIDEO HUT'),
       GAP,
       r('EX-RENTAL TAPE', '$10.00'),
       r('BLANKS, THREE PACK', '$9.00'),
@@ -968,7 +1028,7 @@ const BOOKS: Book[] = [
       GAP,
       p('None of the four can be used for anything. There is no television you '
         + 'own that plays a tape.'),
-      h('THE THRIFT STORE — 9 to 6'),
+      shopHead('THE THRIFT STORE', 'THRIFT'),
       p('Clothes are bought AT THE FITTING MIRROR, not at the till, and they go '
         + 'into your wardrobe in 301 rather than into your bag.'),
       GAP,
@@ -993,7 +1053,7 @@ const BOOKS: Book[] = [
       p('The paperback is worth a dollar and an hour: reading it passes sixty '
         + 'minutes and does not use it up.'),
       BREAK,
-      h('THE PAWN SHOP — 9 to 7'),
+      shopHead('THE PAWN SHOP', 'PAWN'),
       GAP,
       r('WATCH', '$60.00'),
       r('SHOES', '$48.00'),
@@ -1001,7 +1061,7 @@ const BOOKS: Book[] = [
       r('TAPE', '$16.00'),
       r('SOCKS', '$6.00'),
       GAP,
-      h('THE SLEEP CENTER — 10 to 7'),
+      shopHead('THE SLEEP CENTER', 'SLEEP CENTER'),
       GAP,
       r('BED FRAME', '$160.00'),
       r('SHEET SET', '$100.00'),
@@ -1011,7 +1071,7 @@ const BOOKS: Book[] = [
       p('THE MATTRESSES ON THE FLOOR ARE NOT FOR SALE. The TWIN, FULL and QUEEN '
         + 'sets on the cards at $800, $1,200 and $1,600 are signage. And you '
         + 'cannot sleep in the showroom.'),
-      h('VOLT VILLAGE — 10 to 9'),
+      shopHead('VOLT VILLAGE', 'VOLT VILLAGE'),
       GAP,
       r('CAMCORDER', '$1,920.00'),
       r('4-HEAD VCR', '$600.00'),
@@ -1021,7 +1081,7 @@ const BOOKS: Book[] = [
       p('The massage chair by the wall is free and heals you. The karaoke '
         + 'microphone does nothing at all.'),
       BREAK,
-      h('HOTEL ORPHEUS — never closes'),
+      shopHead('HOTEL ORPHEUS', 'HOTEL ORPHEUS'),
       GAP,
       r('ONE NIGHT', '$29.00'),
       r('A WEEK, single', '$145.00'),
@@ -1032,14 +1092,14 @@ const BOOKS: Book[] = [
         + 'week, so the week is worth taking if you mean to use it.'),
       p('Four weeks at the ORPHEUS is $580 against $500 of rent on the flat. '
         + 'The hotel is deliberately the dearer way to live.'),
-      h('CROSSTOWN FITNESS — 6 AM to 10 PM'),
+      shopHead('CROSSTOWN FITNESS', 'CROSSTOWN FITNESS'),
       GAP,
       r('DAY PASS', '$15.00'),
       r('FULL SEASON, 28 days', '$120.00'),
       GAP,
       p('Eight day passes buy a season. If you mean to train more than eight '
         + 'days, buy the season.'),
-      h('THE COMMUNITY COLLEGE — 8 to 9'),
+      shopHead('THE COMMUNITY COLLEGE', 'COMMUNITY COLLEGE'),
       GAP,
       r('NIGHT CLASS', '$150.00'),
       r('CERTIFICATE', '$400.00'),
@@ -1351,10 +1411,15 @@ function rowLines(a: string, b: string, cpl: number): string[] {
   return [a, ' '.repeat(Math.max(0, cpl - b.length)) + b];
 }
 
+/** a book's blocks — the two GENERATED books hand a function rather than an
+ *  array, and this is the one place either shape is read. See `Book.body`. */
+const blocksOf = (book: Book): Block[] =>
+  typeof book.body === 'function' ? book.body() : book.body;
+
 function layout(book: Book, cpl: number): Line[][] {
   const lines: Line[] = [];
   const flushTo = (n: number) => { while (lines.length % n !== 0) lines.push({ s: 'gap' }); };
-  for (const b of book.body) {
+  for (const b of blocksOf(book)) {
     if (b.k === 'break') { flushTo(PER_PAGE); continue; }
     if (b.k === 'gap') { if (lines.length % PER_PAGE !== 0) lines.push({ s: 'gap' }); continue; }
     if (b.k === 'rule') { lines.push({ s: 'rule' }); continue; }
@@ -1393,6 +1458,26 @@ function pagesOf(book: Book): Line[][] {
 function spreadsOf(book: Book): number {
   return Math.ceil((pagesOf(book).length + 1) / 2);
 }
+
+/**
+ * ── AND THE SHELF FOLLOWS THE CLOCK OPTION, WITHOUT A RELOAD ────────────────
+ *
+ * A lazy `body` is only half of it: `paged` memoises the LAID-OUT LINES for
+ * ever, so the hours directory would have re-read the table exactly once and
+ * then served the same cached page for the rest of the session. Both halves
+ * are needed, and both are cheap — clearing the cache costs ten relayouts of a
+ * few hundred lines, once, on a keypress in a menu.
+ *
+ * The whole map goes rather than the two generated books, because a stale
+ * layout is a bug and a redundant relayout is nothing.
+ *
+ * `repaintOpenBook` is set by `register` below. It exists so THIS subscription
+ * owns the order — the cache must be empty before the page is re-drawn, and
+ * two independent subscribers relying on registration order to get that right
+ * is the sort of thing that survives until somebody moves an import.
+ */
+let repaintOpenBook: (() => void) | null = null;
+onClockModeChange(() => { paged.clear(); repaintOpenBook?.(); });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // THE PAGE — DRAWING
@@ -1777,6 +1862,10 @@ export function register(ctx: CtxBuild): void {
         move: moveAt,
       },
     });
+    // the clock option, flipped with this book open in front of you. `repaint`
+    // is a no-op on a closed panel (`ct/hud.ts:1526`), so this costs nothing
+    // the rest of the time.
+    repaintOpenBook = () => panel?.repaint();
   });
 
   // ── the prompt on the trolley ────────────────────────────────────────────

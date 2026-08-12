@@ -24,6 +24,13 @@ import { registerSlice } from './save';
 // a shop's prices, so the mail reads the same table the counter is built from —
 // see `ct/menus.ts`, which is a leaf and must stay one.
 import { DINER_MENU, adLines, LOAN_BEST_RATE, LOAN_MAX, LOAN_MIN } from './menus';
+// AND WHEN THEY ARE OPEN, for the same reason. The diner's takeaway slip used
+// to print its own hours by hand and got them wrong — `ct/hours.ts` is the one
+// table the door card, the counter and the punch clock all work to, and it is a
+// near-leaf (its only runtime import is `ct/timefmt.ts`, which imports
+// nothing), so reading it here adds no edge worth worrying about.
+import { hoursFor, hoursSpan, neverCloses } from './hours';
+import { onClockModeChange } from './timefmt';
 import {
   RENT, dateOf, dueDay, duePeriodsBy, isRentDay,
   nextDueDay, noDelivery, noticeDay,
@@ -1173,6 +1180,11 @@ let readingLive = false;
 /** set by `register`, so the notice can print a live figure */
 let CTX: CtxBuild | null = null;
 let PANEL: Panel | null = null;
+// The 12/24-hour option, flipped with a piece of mail open in your hands. The
+// diner's menu is the only piece that prints an hour and it now reads that hour
+// live (`dinerHours`), so all this owes is the repaint — which `ct/hud.ts`
+// makes a no-op unless the panel is actually up.
+onClockModeChange(() => PANEL?.repaint());
 /**
  * THE PAPER ITSELF, as an object in the lobby — see the block above
  * `buildPanel`. Built by `register` (it needs the bank's measured face) and
@@ -1508,6 +1520,16 @@ ART['flyer-video'] = (g, l) => {
   g.textAlign = 'left';
 };
 
+/** what the diner's menu prints under its name — the same row `ct/hours.ts`
+ *  letters the card by its door from, so the slip in your hand and the sign on
+ *  the street can never disagree. `OPEN 24 HOURS` is the die-cut card's own
+ *  wording for a round-the-clock row (`ct/hours-cards.ts`). */
+function dinerHours(): string {
+  const b = hoursFor('DINER');
+  if (!b) return 'OPEN 24 HOURS';
+  return neverCloses(b) ? 'OPEN 24 HOURS' : `OPEN ${hoursSpan('DINER')}`;
+}
+
 /**
  * ── THE DINER'S TAKEAWAY MENU ──────────────────────────────────────────────
  * 104 x 178, 1:1.71 — a long slip, folded three times to get into a pocket,
@@ -1527,7 +1549,13 @@ ART['menu-diner'] = (g, l) => {
   g.fillStyle = '#f4efdc'; g.font = UI.font(11, true);
   g.fillText('THE DINER', cx, P.y + 24);
   g.fillStyle = '#1d5c33'; g.font = UI.font(6);
-  g.fillText('OPEN 6 AM — 11 PM', cx, P.y + 41);
+  // ⚠ THE HOURS ARE READ, NOT PRINTED. This line said `OPEN 6 AM — 11 PM` and
+  // `ct/hours.ts` says the diner is one of the four that NEVER CLOSES — so the
+  // slip contradicted the world it was handed out in, and you could walk in at
+  // three in the morning past a menu claiming it shut at eleven. It now says
+  // what the card by the door says, in whatever the Escape menu's clock option
+  // is set to, and it cannot drift again.
+  g.fillText(dinerHours(), cx, P.y + 41);
   fill(g, '#c23a24', P.x + IN, P.y + 45, TW, 2);
   let y = P.y + 60;
   for (const line of l.lines) {
