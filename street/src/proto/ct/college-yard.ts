@@ -46,6 +46,19 @@ const FACE_Z = WALK_Z - COLLEGE_YARD_D;      // the recessed facade plane
  *  *"i cant walk into the community college"* (2026-08-09). */
 export const COLLEGE_FACE_Z = FACE_Z;
 
+/** THE EAST PARTY WALL'S OWN FOOTPRINT, and the one place it is written.
+ *
+ *  The wall (built far below) stands INSIDE the college's lot, against its
+ *  east property line — so its outer face is `X1` and its inner face is
+ *  `PW_X0`. Everything in the yard that runs east — the low wall, the coping,
+ *  the planting bed — stops at `PW_X0`, because that is where the yard
+ *  actually ends. They used to stop at `X1 - small`, i.e. 0.45 m PAST the
+ *  wall's inner face, which buried their ends inside it and put the low
+ *  wall's north face on exactly the same plane as the party wall's:
+ *  *"graphics overlap between jail and college"* (2026-08-11). */
+const PW_T = 0.50;
+const PW_X0 = X1 - PW_T;
+
 export const ORDER = BUILD.PROPS;
 
 export function register(ctx: CtxBuild): void {
@@ -125,7 +138,14 @@ export function register(ctx: CtxBuild): void {
   };
   const stoneM = new THREE.MeshBasicMaterial({ color: 0xc9bfa4 });
   const WALL_H = 0.82, WALL_T = 0.30, WALL_Z = WALK_Z - 0.20;      // -110.05…-110.35
-  for (const [a, b] of [[X0 + 0.05, CX - 1.50], [CX + 1.50, X1 - 0.05]] as const) {
+  // The east run DIES INTO THE PARTY WALL at `PW_X0` — abut, never overlap,
+  // which is `ct/street.ts`'s own rule for two neighbours sharing a boundary
+  // plane. It ran to `X1 - 0.05` (56.95) while the party wall's inner face is
+  // at 56.50, so its last 0.45 m stood inside the wall with both boxes ending
+  // on z −110.05: half a metre of brick and granite fighting for the same
+  // pixels, which is what the user photographed. The west run is unchanged —
+  // SMOKES' own 14 m flank is the wall on that side and it stands at `X0`.
+  for (const [a, b] of [[X0 + 0.05, CX - 1.50], [CX + 1.50, PW_X0]] as const) {
     const w = b - a, c = (a + b) / 2;
     put(new THREE.Mesh(new THREE.BoxGeometry(w, WALL_H, WALL_T), brickFor(w, WALL_H)),
       c, KERB_H + WALL_H / 2, WALL_Z);
@@ -232,7 +252,9 @@ export function register(ctx: CtxBuild): void {
     }
     dither(g, 32, 8, 18);
   }), 'detail');
-  for (const [a, b] of [[X0 + 0.3, CX - 1.3], [CX + 1.3, X1 - 0.3]] as const) {
+  // …and the east bed keeps its 0.3 m margin off the wall it runs to, which is
+  // the party wall's inner face, not the property line 0.5 m inside it.
+  for (const [a, b] of [[X0 + 0.3, CX - 1.3], [CX + 1.3, PW_X0 - 0.3]] as const) {
     const w = b - a, c = (a + b) / 2, BZ = FACE_Z + 0.35, BD = 0.5;
     put(new THREE.Mesh(new THREE.BoxGeometry(w, 0.32, BD), brickFor(w, 0.32)),
       c, KERB_H + 0.16, BZ);
@@ -290,33 +312,64 @@ export function register(ctx: CtxBuild): void {
   // above — to the college shell's full 17.2 m, so the yard reads as a notch
   // carved between solid buildings.
   //
-  // Its east face stops at x 56.98, 0.02 shy of the x = 57 plane the jail
-  // publishes its frontage on — the exact coplanar z-fight that got the old
-  // cross building demolished (GOTCHAS §6).
+  // ── AND IT HAS TO REACH THE CORNER, which for one pass it did not ─────────
+  //
+  // *"gap here and graphics overlap between jail and college"* (2026-08-11,
+  // photographed from the pavement at the corner). The wall was drawn 0.02 m
+  // short in x and 0.05 m short in z — east face at 56.98, north face at
+  // −110.05 — while its COLLIDER already ran the full x 56.50…57.00,
+  // z −114.50…−110.00. The jail's forecourt flank screen starts at exactly
+  // (x 57, z −110) and runs east (`ct/jail.ts`, `site.minX`…`FX` on `Z_S`).
+  // So the two buildings' solids missed each other diagonally and left a
+  // 2 cm x 13.6 m chimney open at the corner: the yard's east side is capped
+  // by the college shell only from z −114.5 back, so a sightline into that
+  // notch went straight past the block into the void south-east of it. The
+  // mesh was smaller than the collision the world already asserted for it.
+  //
+  // BOTH FACES ARE NOW THE FOOTPRINT, NOT AN OFFSET. East face = `X1`, the
+  // college's own property line and the plane both side-street rosters end on;
+  // north face = `WALK_Z`, the building line. The jail's screen owns x ≥ 57
+  // and z ≥ −110; this wall owns x ≤ 57 and z ≤ −110; they share the corner
+  // EDGE and no face area, which is `ct/street.ts`'s abut-never-overlap rule
+  // and therefore not the coplanar z-fight that got the old cross building
+  // demolished (GOTCHAS §6). Move either building and the join follows,
+  // instead of a nudged number relocating the fault.
   {
-    const PW_X0 = 56.50, PW_X1 = 56.98;
-    const PW_Z0 = -114.5, PW_Z1 = WALK_Z - 0.05;
+    const PW_X1 = X1;                     // the east property line
+    const PW_Z0 = FACE_Z, PW_Z1 = WALK_Z; // shell face to building line
     const PW_H = 17.2;                    // gh 4.2 + 3.4 + 4 floors x 2.4
-    const partyT = declareSurface(pixTex(34, 138, (g) => {
-      // 4.15 x 17.2 m at 8 px/m — masonry wants courses, not letters
-      g.fillStyle = '#6b4034'; g.fillRect(0, 0, 34, 138);            // the brick field
+    // The jail is the other half of this join. It is not this module's to
+    // place, so disagreement is a loud line rather than a silent slot — the
+    // same shape `ct/jail.ts` uses when its own published site moves.
+    const jailSite = ctx.site('jail');
+    if (jailSite && Math.abs(jailSite.minX - PW_X1) > 0.01)
+      console.warn(`[college-yard] the jail's site edge is x ${jailSite.minX}, not ${PW_X1} — `
+        + 'the east party wall and the jail\'s forecourt screen no longer meet at the corner.');
+    const PW_D = PW_Z1 - PW_Z0;           // 4.5 m of run
+    const TW = Math.round(PW_D * 8);      // 8 px/m — masonry wants courses, not letters
+    const partyT = declareSurface(pixTex(TW, 138, (g) => {
+      g.fillStyle = '#6b4034'; g.fillRect(0, 0, TW, 138);            // the brick field
       g.fillStyle = 'rgba(30,22,16,0.35)';
-      for (let y = 0; y < 138; y += 4) g.fillRect(0, y, 34, 1);      // the courses
+      for (let y = 0; y < 138; y += 4) g.fillRect(0, y, TW, 1);      // the courses
       g.fillStyle = 'rgba(0,0,0,0.22)';                              // the soot, heavier up top
-      for (let i = 0; i < 30; i++) g.fillRect((i * 11) % 34, (i * 17) % 90, 3, 2);
+      for (let i = 0; i < 30; i++) g.fillRect((i * 11) % TW, (i * 17) % 90, 3, 2);
       // the granite ashlar base, 3.0 m of it — the corner block's own move
-      g.fillStyle = '#8a8d88'; g.fillRect(0, 114, 34, 24);
+      g.fillStyle = '#8a8d88'; g.fillRect(0, 114, TW, 24);
       g.fillStyle = 'rgba(40,42,40,0.45)';
-      for (let y = 114; y < 138; y += 6) g.fillRect(0, y, 34, 1);
+      for (let y = 114; y < 138; y += 6) g.fillRect(0, y, TW, 1);
       for (let r = 0; r < 4; r++)
-        for (let c = 0; c < 3; c++) g.fillRect((c * 12 + (r % 2) * 6) % 34, 114 + r * 6, 1, 6);
-      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 114, 34, 1);  // the string course
-      dither(g, 34, 138, 40);
+        for (let c = 0; c < 3; c++) g.fillRect((c * 12 + (r % 2) * 6) % TW, 114 + r * 6, 1, 6);
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 114, TW, 1);  // the string course
+      dither(g, TW, 138, 40);
     }), 'detail');
     put(new THREE.Mesh(
-      new THREE.BoxGeometry(PW_X1 - PW_X0, PW_H, PW_Z1 - PW_Z0), flat(partyT)),
+      new THREE.BoxGeometry(PW_X1 - PW_X0, PW_H, PW_D), flat(partyT)),
       (PW_X0 + PW_X1) / 2, PW_H / 2, (PW_Z0 + PW_Z1) / 2);
-    obstacle({ minX: PW_X0, maxX: 57.0, minZ: PW_Z0, maxZ: PW_Z1 + 0.05 });
+    // UNCHANGED, to the centimetre: this was already x 56.50…57.00,
+    // z −114.50…−110.00 (it was written as `PW_Z1 + 0.05` off the short mesh).
+    // The 2 m lane is untouched — nothing here has ever crossed the building
+    // line, and the wall now simply fills the box it always collided as.
+    obstacle({ minX: PW_X0, maxX: PW_X1, minZ: PW_Z0, maxZ: PW_Z1 });
   }
 
   // ══ THE NAME, READABLE — a high-density applied frieze ═════════════════════
