@@ -2296,11 +2296,28 @@ export function buildLibrary(ctx: CtxBuild): void {
     // that angle a zero-thickness rectangle is a rectangle.
     //
     // So the cart — and only the cart — gets real books. Not modelled books:
-    // upright slabs, which is all the idiom wants. Spine art on the +x face,
+    // upright slabs, which is all the idiom wants. Spine art on the −x face,
     // page-cream on the top because a standing eye looks DOWN at a 0.83 m
     // shelf, plain cover colour on the other four faces. That last part is the
     // rule two items today were fixed for breaking: one texture on six faces
     // gives you a label on the back of the object.
+    //
+    // ⚠ THE WHOLE CART WAS TURNED 180° ON 2026-08-11. *"rotate this so the
+    // readable side is facing me so 180 deg"* — a screenshot of this trolley
+    // with the `[E] read the books` prompt up, taken from the WEST aisle, and
+    // he was looking at three dozen fore-edges. The spines faced +x and the
+    // only floor you can stand on to read them is the 1.05 m aisle at −x that
+    // `TR_X` is derived from, so the one side of this cart anybody ever meets
+    // was its back.
+    //
+    // TWO LINES, and they are a mirror about `TR_X` rather than two independent
+    // edits: the face order below moves the spine art from +x to −x, and the
+    // placement below that reflects the books' x so their spines are FACED at
+    // the −x edge rather than left ragged in the middle of the board. Doing
+    // only the first would have turned each book on the spot and left its spine
+    // 5 cm back from the edge, with the fore-edges standing proudest. Nothing
+    // is constructed differently and no count changes, so the seeded stream and
+    // every prop built after this block stand still (GOTCHAS §2).
     //
     // Nine materials total, shared by every book here. Variation comes from the
     // book's INDEX through `bhash`, deliberately NOT from `rnd` above — that
@@ -2333,7 +2350,10 @@ export function buildLibrary(ctx: CtxBuild): void {
         }), 'detail'),
       });
       const cover = new THREE.MeshBasicMaterial({ color: dim(c, 0.7) });
-      return [face, cover, pages, cover, cover, cover] as THREE.Material[];
+      // [+x, −x, +y, −y, +z, −z] — the SECOND slot is the spine now. See the
+      // 180° note above: the readable side has to meet the only aisle you can
+      // stand in.
+      return [cover, face, pages, cover, cover, cover] as THREE.Material[];
     });
     // The board TOPS, derived: the two 0.06 m shelves are centred at 0.80 and
     // 0.42, so their surfaces are 0.83 and 0.45 and the books stand ON them
@@ -2347,16 +2367,21 @@ export function buildLibrary(ctx: CtxBuild): void {
         if (z + w > zEnd) break;
         const h = 0.20 + bhash(i, salt + 31) * 0.10;     // 20–30 cm tall
         const d = 0.13 + bhash(i, salt + 61) * 0.04;     // 13–17 cm deep
-        // the front edge varies by up to 3 cm, because a cart of returns is not
-        // a faced shelf — and because it means no two neighbours are coplanar.
-        const fx = TR_X + 0.20 - bhash(i, salt + 89) * 0.03;
+        // THE SPINE EDGE, at −x, and it varies by up to 3 cm because a cart of
+        // returns is not a faced shelf — and because it means no two
+        // neighbours are coplanar. Mirrored about TR_X from the +0.20 it was
+        // before the cart was turned round; the body runs BACK from here, so
+        // `sx + d/2` is the centre where it used to be `fx − d/2`.
+        const sx = TR_X - 0.20 + bhash(i, salt + 89) * 0.03;
         box(d, h, w, bookMats[Math.floor(bhash(i, salt + 97) * SPINE.length)],
-          fx - d / 2, top + h / 2, z + w / 2);
+          sx + d / 2, top + h / 2, z + w / 2);
         z += w + (bhash(i, salt + 127) < 0.14 ? 0.024 : 0.004);   // the odd gap
       }
     }
-    // unchanged: the books' front faces reach TR_X + 0.20, inside this
-    // collider's own +0.31 half-width, so nothing new stands in the lane.
+    // the books' spine faces reach TR_X − 0.20 and their fore-edges TR_X − 0.03,
+    // both inside this collider's own 0.31 half-width, so nothing new stands in
+    // the lane. The clear strip on the boards is now the +x half, which is where
+    // `ct/library-books.ts` lays its open page.
     solid(TR_X, TR_Z, 0.62, 0.96);
 
     // THE GLOBE, AND IT MOVED WITH THE ROOM. It stood at (-7.0, -0.9), which

@@ -72,10 +72,71 @@ import type * as THREE from 'three';
 
 export const ORDER = BUILD.INTERIOR + 11;   // after the interiors are standing
 
+// ══ HOW BIG THE TYPE IS ON THE SCREEN, WHICH IS THE ONLY QUESTION ══════════
+//
+// *"make the diagetic book overlay bigger and make all the text on the books
+//  and in the books much more readable. its v blurry"*   (2026-08-11)
+//
+// MEASURED BEFORE ANYTHING MOVED, because two different faults look identical
+// and have opposite fixes. THIS WAS NEITHER OF THE KNOWN TWO:
+//
+//   NOT texel starvation. The page carried 440 px across 0.30 m = **1,467 px/m**,
+//   nine times the 150 px/m the street's signs are lettered at and comfortably
+//   past the landlord's note. There was never a shortage of ink.
+//
+//   NOT the roll-through-the-lattice fault that made that note look bad at
+//   2,057 px/m. `poseFor` (crosstown.ts:1638) takes the eye along the face's
+//   own normal, and this face is horizontal: the eye lands DEAD OVER the page
+//   at pitch −90°, perpendicular, and the rig's yaw/pitch camera carries no
+//   roll term at all. There is no angle here to drift a baseline.
+//
+// THE FAULT WAS ARITHMETIC I NEVER DID. Vertical fov 34… it was 40, at a 0.52 m
+// stand-off, so the frame was 2 · 0.52 · tan20° = 0.379 m tall and the page was
+// 0.207 m of it — **55% of the screen height, 57% of its width**. 304 texels
+// spread over 450 screen pixels on his 1141 x 822 window is 1.48 screen px per
+// texel, and the body type was SEVEN canvas px. A glyph therefore landed
+// **10.4 px tall and 6.2 px wide**, at a fractional magnification that put
+// stems alternately on one pixel and across two. Small type, made ragged.
+//
+// AND THE CEILING IS SET BY ONE NUMBER — the characters across the spread.
+// Substituting coverage = ar · CH / CW into glyph = coverage · viewport · f / CH
+// cancels the canvas height entirely:
+//
+//     glyph_px  ≤  ar · viewport_h · f / CW,   and CW ≈ 2 · CPL · 0.6f + chrome
+//
+// so it depends on CPL and NOT on the font size, the canvas size, the physical
+// page or the number of lines. Doubling the font and the canvas together buys
+// exactly nothing. 42 characters a column is the narrowest that keeps this
+// book's widest table row on one line (`prices step every … 15 minutes of city
+// time`, 42), so 19–20 px is the honest ceiling for a two-page SPREAD, and a
+// single page would have doubled it. The spread stays: it is the object.
+//
+// WHAT CHANGED, AND THE NUMBERS EITHER SIDE, at his 1141 x 822:
+//
+//                       before        after
+//     canvas            440 x 304     520 x 308
+//     physical page     0.30 m        0.32 m
+//     stand-off / fov   0.52 / 40     0.39 / 34
+//     page fills        55% h, 57% w  80% h, 95% w
+//     screen px/texel   1.48          2.13
+//     body type         7 px          9 px
+//     GLYPH ON SCREEN   10.4 x 6.2    19.2 x 11.5
+//     spine type        6 px          10 px  ->  21 px on screen
+//
+// The magnification is still fractional and always will be — the viewport is
+// not ours to choose — but at 19 px a half-pixel of stem is 2.6% of a letter
+// instead of 15%, which is the whole difference between ragged and crisp.
+//
+// ⚠ WIDTH IS THE BINDING CONSTRAINT, NOT HEIGHT. `fov` is vertical, so the
+// page's width on screen is `visible_h · viewport aspect` — the wider the
+// canvas relative to the window, the sooner it runs off the sides. 80% of the
+// height is chosen so the TEXT BAND still fits the frame at 4:3; anything that
+// does spill at a narrower aspect is outer cloth, never a column.
+
 /** THE CANVAS, the shape of an open book. Declared up here because the PHYSICAL
  *  book below is cut to the same ratio — one pair of numbers, so the picture
  *  can never be stretched across the object it is painted on. */
-const CW = 440, CH = 304;
+const CW = 520, CH = 308;
 
 // ── finding the trolley ────────────────────────────────────────────────────
 
@@ -120,14 +181,36 @@ const EPS = 1e-3;
 /** the open book's size in metres. The 1.447 ratio is `CW / CH`, so the canvas
  *  lands on it un-stretched — the failure `ct/library-pc.ts` had to warn about
  *  is impossible here because both halves are derived from one pair. */
-const PAGE_W = 0.30, PAGE_H = PAGE_W * CH / CW;
-/** where on the board it lies: back from the standing spines, on the board's
- *  own top face (0.83, int-library.ts:2338) plus two millimetres of clearance. */
-const PAGE_DX = -0.115, PAGE_DY = 0.832;
-/** the eye leans this far over it, at this field. The drawer's lining — the
- *  world's other horizontal screen — uses 0.68 / 34 (drawer.ts:56); a book is
- *  held closer and read wider than a drawer is rummaged in. */
-const PAGE_STANDOFF = 0.52, PAGE_FOV = 40;
+const PAGE_W = 0.32, PAGE_H = PAGE_W * CH / CW;
+/**
+ * Where on the board it lies, and IT CAME ROUND WITH THE CART.
+ *
+ * The trolley was turned 180° on 2026-08-11 so its spines meet the aisle, so
+ * the standing books now occupy the −x half of the boards (their spines faced
+ * at `TR_X − 0.20`, their fore-edges at `TR_X − 0.03`, int-library.ts:2352) and
+ * the clear strip is the +x half. This was at −0.115 and would have been buried
+ * under three dozen books had it stayed. +0.115 puts the page's 0.19 m span at
+ * `TR_X + 0.02 … +0.21` — clear of the fore-edges by 5 cm and inside the
+ * board's own 0.26 m half-width.
+ *
+ * The ORIENTATION did not have to move with it: the reader still stands in the
+ * −x aisle, so the top of the page still points +x and `PAGE_YAW` is unchanged.
+ * `y` is the board's top face (0.83, int-library.ts:2338) plus 2 mm.
+ */
+const PAGE_DX = 0.115, PAGE_DY = 0.832;
+/**
+ * HOW CLOSE THE EYE LEANS, AND HOW WIDE IT SEES — the two numbers that decide
+ * how big the page is on the screen. See the measurement block above `CW`:
+ * 2 · 0.39 · tan 17° = 0.2373 m of frame against a 0.1896 m page, so it fills
+ * 80% of the height and about 95% of the width on his window.
+ *
+ * The drawer's lining — the world's other horizontal screen — sits at 0.68 / 34
+ * (drawer.ts:56). This is the same field at a little over half the distance,
+ * which is the difference between rummaging in a drawer and reading a book.
+ * The eye ends up 1.22 m over the floor, inside `poseFor`'s 1.05–1.75 clamp,
+ * so nothing here is silently trimmed.
+ */
+const PAGE_STANDOFF = 0.39, PAGE_FOV = 34;
 /**
  * WHICH WAY TO TURN HIM. A horizontal face's normal points at the ceiling and
  * carries no heading at all, so the caller states it — the same argument, and
@@ -1188,34 +1271,46 @@ const BOOKS: Book[] = [
 // picture of a book. Item 0c, *"i never want there to be menus popping up
 // unless they are embedded to look as if they are in the actual game."*
 //
-// The bottom strip is left plain and dark BECAUSE THE FRAMEWORK PRINTS THERE:
-// `chrome: 'none'` still writes `hint()` and the exit stamp over the bottom
-// edge of the caller's own screen, and that promise — a way out, always visible
-// — is the one thing no panel in this world may take away.
+// The bottom strip is left plain and dark BECAUSE THE WAY OUT IS PRINTED THERE.
+// On a DIEGETIC panel `ct/hud.ts` moves `hint()` and the exit stamp off the
+// canvas and down to the bottom of the frame, beside `ct-prompt` — but the page
+// now fills 80% of that frame, so the two are close neighbours and the tail of
+// the book must not compete with them. That promise, a way out always visible,
+// is the one thing no panel in this world may take away.
+
+// ⚠ EVERY MARGIN HERE IS TIGHT ON PURPOSE. Chrome comes out of `CW`, and `CW`
+// in units of the body size is the ONE thing that sets how big a letter lands
+// on the screen (see the measurement block above `CW`). A generous 14 px page
+// margin costs 56 px of canvas width, which is 2 px off every glyph.
 
 /** the boards */
-const COV_X0 = 6, COV_Y0 = 4, COV_X1 = 434, COV_Y1 = 284;
+const COV_X0 = 4, COV_Y0 = 3, COV_X1 = 516, COV_Y1 = 305;
 /** the head band across the top of the boards: the tab and the running title */
-const BAND_Y0 = 7, BAND_Y1 = 20;
+const BAND_Y0 = 6, BAND_Y1 = 24;
 /** the paper */
-const PG_Y0 = 23, PG_Y1 = 281;
-const PG_LX0 = 12, PG_LX1 = 214;
-const PG_RX0 = 226, PG_RX1 = 428;
-const TXT_PAD = 10;
-const COL_W = (PG_LX1 - PG_LX0) - 2 * TXT_PAD;      // 182
-const COL_LX = PG_LX0 + TXT_PAD;                     // 22
-const COL_RX = PG_RX0 + TXT_PAD;                     // 236
-const HEAD_Y = 34, HRULE_Y = 38;
-const BODY_Y0 = 48, LH = 9;
-const PER_PAGE = 24;
-const FOLIO_Y = 275;
+const PG_Y0 = 27, PG_Y1 = 302;
+const PG_LX0 = 11, PG_LX1 = 253;
+const PG_RX0 = 267, PG_RX1 = 509;
+const TXT_PAD = 7;
+const COL_W = (PG_LX1 - PG_LX0) - 2 * TXT_PAD;      // 228
+const COL_LX = PG_LX0 + TXT_PAD;                     // 18
+const COL_RX = PG_RX0 + TXT_PAD;                     // 274
+const HEAD_Y = 41, HRULE_Y = 45;
+const BODY_Y0 = 60, LH = 12;
+const PER_PAGE = 20;
+const FOLIO_Y = 298;
 
 const PAPER = '#e9e2ce', PAPER_LO = '#d8d0b8';
 const INK = '#2a2318', INK_DIM = '#6f6552', INK_HEAD = '#5a3a2a';
 const SURROUND = '#191309';
 
 const font = (px: number, bold = false) => `${bold ? 'bold ' : ''}${px}px monospace`;
-const BODY_PX = 7, HEAD_PX = 7;
+/** 9, up from 7 — and NOT because 9 is bigger on the screen than 7 was. It is
+ *  not, on its own: `CW` grew with it and the two cancel. It is 9 so that a
+ *  42-character column and 20 lines of leading fit a canvas whose WIDTH is as
+ *  small as the content allows, which is the thing that does buy screen pixels.
+ *  `SMALL_PX` is the running head, the folio and the spine labels. */
+const BODY_PX = 9, HEAD_PX = 9, SMALL_PX = 7;
 
 /** one laid-out line of a page */
 type Line =
@@ -1327,7 +1422,7 @@ function drawColumn(
   running: string, folio: number | null,
 ): void {
   if (!page) return;
-  g.font = font(6);
+  g.font = font(SMALL_PX);
   g.fillStyle = INK_DIM;
   g.fillText(running, x0, HEAD_Y);
   g.fillRect(x0, HRULE_Y, COL_W, 1);
@@ -1353,7 +1448,7 @@ function drawColumn(
     y += LH;
   }
   if (folio !== null) {
-    g.font = font(6);
+    g.font = font(SMALL_PX);
     g.fillStyle = INK_DIM;
     g.textAlign = 'center';
     g.fillText(String(folio), x0 + COL_W / 2, FOLIO_Y);
@@ -1364,25 +1459,25 @@ function drawColumn(
 function drawHalfTitle(g: CanvasRenderingContext2D, book: Book): void {
   const cx = COL_LX + COL_W / 2;
   g.textAlign = 'center';
-  g.font = font(6);
+  g.font = font(SMALL_PX);
   g.fillStyle = INK_DIM;
-  g.fillText('CROSSTOWN BRANCH', cx, 76);
-  g.fillText('PUBLIC LIBRARY', cx, 85);
-  g.fillStyle = INK_DIM;
-  g.fillRect(COL_LX + 40, 96, COL_W - 80, 1);
-  g.font = font(9, true);
+  g.fillText('CROSSTOWN BRANCH', cx, 78);
+  g.fillText('PUBLIC LIBRARY', cx, 90);
+  g.fillRect(COL_LX + 46, 104, COL_W - 92, 1);
+  g.font = font(13, true);
   g.fillStyle = INK;
-  for (const [i, t] of wrap(book.title, 22).entries()) g.fillText(t, cx, 126 + i * 13);
-  g.font = font(6);
+  for (const [i, t] of wrap(book.title, 24).entries()) g.fillText(t, cx, 142 + i * 17);
+  g.font = font(8);
   g.fillStyle = INK_DIM;
-  for (const [i, t] of wrap(book.sub, 34).entries()) g.fillText(t, cx, 160 + i * 9);
-  g.fillRect(COL_LX + 40, 196, COL_W - 80, 1);
-  g.font = font(6);
+  for (const [i, t] of wrap(book.sub, 44).entries()) g.fillText(t, cx, 190 + i * 11);
+  g.fillRect(COL_LX + 46, 228, COL_W - 92, 1);
+  g.font = font(BODY_PX);
   g.fillStyle = INK;
-  g.fillText(book.dewey, cx, 214);
+  g.fillText(book.dewey, cx, 248);
+  g.font = font(SMALL_PX);
   g.fillStyle = INK_DIM;
-  g.fillText('REFERENCE', cx, 228);
-  g.fillText('NOT FOR LOAN', cx, 237);
+  g.fillText('REFERENCE', cx, 266);
+  g.fillText('NOT FOR LOAN', cx, 278);
   g.textAlign = 'left';
 }
 
@@ -1399,11 +1494,11 @@ function drawBook(g: CanvasRenderingContext2D, book: Book, spread: number): void
   drawPaper(g);
 
   // the head band: the way back to the shelf, and the running title in gilt
-  g.font = font(6, true);
+  g.font = font(BODY_PX, true);
   g.fillStyle = book.gilt;
-  g.fillText('◀ THE SHELF', TAB.x + 4, BAND_Y1 - 4);
+  g.fillText('◀ THE SHELF', TAB.x + 5, BAND_Y1 - 5);
   g.textAlign = 'right';
-  g.fillText(book.title, COV_X1 - 10, BAND_Y1 - 4);
+  g.fillText(book.title, COV_X1 - 10, BAND_Y1 - 5);
   g.textAlign = 'left';
 
   const pages = pagesOf(book);
@@ -1414,7 +1509,7 @@ function drawBook(g: CanvasRenderingContext2D, book: Book, spread: number): void
   drawColumn(g, COL_RX, right, right ? book.sub.toUpperCase() : '', right ? spread * 2 + 1 : null);
 
   // the fore-edge cue that there is more to turn to
-  g.font = font(6);
+  g.font = font(BODY_PX);
   g.fillStyle = INK_DIM;
   if (spread > 0) { g.fillText('◀', PG_LX0 + 3, PG_Y1 - 8); }
   if (spread < spreadsOf(book) - 1) {
@@ -1428,26 +1523,40 @@ function drawBook(g: CanvasRenderingContext2D, book: Book, spread: number): void
 // THE SHELF — DRAWING
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Two boards of five, which is the trolley you are standing at. Every spine is
-// its own rectangle and `hot`, `click` and the painter all read THE SAME rects,
-// so a book cannot be drawn where a click does not land.
+// ONE BOARD OF TEN, WHERE IT USED TO BE TWO OF FIVE — and that is the whole of
+// the spine fix. A spine's title is set on its side, so what it needs is
+// HEIGHT, and two rows of five split the canvas in half and left every spine
+// 104 px tall carrying 6 px type: 23 characters into 78 usable pixels, drawn at
+// 1.48 screen px per texel, which is 9 px of letter. Unreadable, and no font
+// size could have fixed it inside a 104 px box.
+//
+// One row gives every spine 208 px, which takes the same 23 characters at 10 px
+// with room to spare — 21 screen px a letter, the same size as the body type on
+// the pages. The cost is fidelity to the object: the trolley you are standing
+// at has two boards and this now shows one. Readability wins; the shelf is a
+// depiction, and the ten titles ARE the navigation.
+//
+// Every spine is its own rectangle and `hot`, `click` and the painter all read
+// THE SAME rects, so a book cannot be drawn where a click does not land.
 
 interface Rect { x: number; y: number; w: number; h: number }
 const inRect = (q: Rect, x: number, y: number): boolean =>
   x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h;
 
 /** back to the shelf, on the head band of the boards */
-const TAB: Rect = { x: 10, y: BAND_Y0, w: 78, h: BAND_Y1 - BAND_Y0 };
+const TAB: Rect = { x: 9, y: BAND_Y0, w: 84, h: BAND_Y1 - BAND_Y0 };
 /** the two page halves: turn back, turn on */
 const PREV: Rect = { x: PG_LX0, y: PG_Y0, w: PG_LX1 - PG_LX0, h: PG_Y1 - PG_Y0 };
 const NEXT: Rect = { x: PG_RX0, y: PG_Y0, w: PG_RX1 - PG_RX0, h: PG_Y1 - PG_Y0 };
 
-const SH_X0 = 26, SH_SLOT = (CW - 2 * SH_X0) / 5;
-/** the two board tops. The lower one stops at 272 and not at the cover's own
- *  282, because the framework prints the way OUT across the bottom of this
- *  canvas and a spine standing in that strip would be read through the type. */
-const SH_BOARD = [148, 272];
-const SH_TALL = 104;                   // a nominal spine height
+const SH_X0 = 14, SH_SLOT = (CW - 2 * SH_X0) / BOOKS.length;
+/** the board top. It stops short of the cover's own 305 because the framework
+ *  prints the way OUT across the bottom of the frame, and a spine standing in
+ *  that strip would be read through the type. */
+const SH_BOARD = 284;
+const SH_TALL = 206;                   // a nominal spine height
+/** the type on a spine, and the label at its tail */
+const SPINE_PX = 10;
 
 /** deterministic per-book jitter — never `Math.random`, which at build time
  *  rides the seeded world stream (GOTCHAS §2) and would move every dither
@@ -1459,17 +1568,21 @@ const jit = (i: number, salt: number) => {
 };
 
 function spineRect(i: number): Rect {
-  const row = i < 5 ? 0 : 1, col = i % 5;
-  const w = 46 + jit(i, 11) * 12;
-  const x = SH_X0 + col * SH_SLOT + (SH_SLOT - w) / 2;
-  const hgt = SH_TALL - jit(i, 29) * 16;
-  return { x, y: SH_BOARD[row] - hgt, w, h: hgt };
+  const w = 40 + jit(i, 11) * 7;
+  const x = SH_X0 + i * SH_SLOT + (SH_SLOT - w) / 2;
+  // ⚠ 12 px OF VARIATION, NOT 20. The title is set along the spine, so the
+  // shortest book on the shelf is what has to hold the longest title — and
+  // `THE CLOCK & THE SEASONS` is 23 characters, 138 px at 10 px. `drawSpine`
+  // shrinks to fit as a backstop, but a shelf where one book's type is a size
+  // down reads as a mistake, so the jitter is kept inside what all ten fit at.
+  const hgt = SH_TALL - jit(i, 29) * 12;
+  return { x, y: SH_BOARD - hgt, w, h: hgt };
 }
 
 function drawSpine(g: CanvasRenderingContext2D, i: number, sel: boolean): void {
   const q = spineRect(i);
   const b = BOOKS[i];
-  const lift = sel ? 5 : 0;
+  const lift = sel ? 8 : 0;
   const y = q.y - lift, hgt = q.h + lift;
   g.fillStyle = b.cloth;
   g.fillRect(q.x, y, q.w, hgt);
@@ -1481,24 +1594,39 @@ function drawSpine(g: CanvasRenderingContext2D, i: number, sel: boolean): void {
   g.fillRect(q.x + 2, y, q.w - 4, 1);
   // gilt bands
   g.fillStyle = b.gilt;
-  g.fillRect(q.x + 4, y + 9, q.w - 8, 1);
-  g.fillRect(q.x + 4, y + 13, q.w - 8, 1);
+  g.fillRect(q.x + 5, y + 13, q.w - 10, 1);
+  g.fillRect(q.x + 5, y + 18, q.w - 10, 1);
   // the branch's own label on the tail
   g.fillStyle = '#e4e0d0';
-  g.fillRect(q.x + 5, y + hgt - 20, q.w - 10, 13);
+  g.fillRect(q.x + 5, y + hgt - 26, q.w - 10, 17);
   g.fillStyle = '#3a3428';
-  g.font = font(5);
+  g.font = font(SMALL_PX);
   g.textAlign = 'center';
-  g.fillText(b.dewey, q.x + q.w / 2, y + hgt - 10);
+  g.fillText(b.dewey, q.x + q.w / 2, y + hgt - 14);
   g.textAlign = 'left';
-  // the title, read bottom-to-top the way a spine is
+  // the title, read bottom-to-top the way a spine is. Centred over the run of
+  // cloth BETWEEN the bands and the label rather than over the whole spine, so
+  // a long title cannot climb into either.
+  const runTop = y + 22, runBot = y + hgt - 28;
+  // SHRINK TO FIT, MEASURED. The advance of whatever `monospace` the browser
+  // resolved is not ours to know — the same reason the page measures `CPL`
+  // rather than assuming 0.6 em — so a title that would run off the tail steps
+  // down a size rather than printing over the label.
+  let px = SPINE_PX;
+  g.font = font(px, true);
+  while (px > 6 && g.measureText(b.spine).width > runBot - runTop) {
+    px -= 1;
+    g.font = font(px, true);
+  }
   g.save();
-  g.translate(q.x + q.w / 2, y + hgt - 26);
+  g.translate(q.x + q.w / 2 + 1, (runTop + runBot) / 2);
   g.rotate(-Math.PI / 2);
   g.fillStyle = b.gilt;
-  g.font = font(6, true);
+  g.font = font(px, true);
+  g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.fillText(b.spine, 0, 0);
+  g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
   g.restore();
   if (sel) {
@@ -1513,25 +1641,23 @@ function drawShelf(g: CanvasRenderingContext2D, sel: number): void {
   g.fillRect(0, 0, CW, CH);
   // the card taped to the end panel
   g.fillStyle = '#e4dcc4';
-  g.fillRect(CW / 2 - 96, 10, 192, 26);
+  g.fillRect(CW / 2 - 140, 12, 280, 38);
   g.fillStyle = '#3a2f20';
-  g.font = font(7, true);
+  g.font = font(12, true);
   g.textAlign = 'center';
-  g.fillText('REFERENCE — NOT FOR LOAN', CW / 2, 23);
-  g.font = font(6);
+  g.fillText('REFERENCE — NOT FOR LOAN', CW / 2, 30);
+  g.font = font(SMALL_PX + 1);
   g.fillStyle = '#6a5c44';
-  g.fillText('PLEASE DO NOT RE-SHELVE', CW / 2, 32);
+  g.fillText('PLEASE DO NOT RE-SHELVE', CW / 2, 44);
   g.textAlign = 'left';
   for (let i = 0; i < BOOKS.length; i++) drawSpine(g, i, i === sel);
-  // the two boards the books stand on, over their feet
-  for (const top of SH_BOARD) {
-    g.fillStyle = '#6a4a2c';
-    g.fillRect(16, top, CW - 32, 7);
-    g.fillStyle = '#4a3018';
-    g.fillRect(16, top + 7, CW - 32, 3);
-    g.fillStyle = 'rgba(255,255,255,0.10)';
-    g.fillRect(16, top, CW - 32, 1);
-  }
+  // the board the books stand on, drawn over their feet
+  g.fillStyle = '#6a4a2c';
+  g.fillRect(10, SH_BOARD, CW - 20, 9);
+  g.fillStyle = '#4a3018';
+  g.fillRect(10, SH_BOARD + 9, CW - 20, 4);
+  g.fillStyle = 'rgba(255,255,255,0.10)';
+  g.fillRect(10, SH_BOARD, CW - 20, 1);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
