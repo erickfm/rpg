@@ -1,4 +1,8 @@
 import type { CtxBuild } from './ctx';
+// ⚠ THE ONE RUNTIME IMPORT, AND IT IS A DEAD END. See the note below: it is
+// `ct/timefmt.ts`, which imports nothing at all, so it cannot be half of a
+// cycle and the rule this file is built on survives intact.
+import { fmtHour } from './timefmt';
 
 // ══ OPENING HOURS — ONE TABLE FOR THE WHOLE STREET ═══════════════════════════
 //
@@ -11,10 +15,15 @@ import type { CtxBuild } from './ctx';
 // a 1997 customer would look — and THE DOOR ITSELF keeps them (`doorOpen`
 // below, `ct/hours-doors.ts`).
 //
-// ⚠ THIS MODULE IMPORTS NOTHING AT RUNTIME, deliberately. Every `int-*.ts`
-// reads it for its own door, and `ct/doors.ts` eagerly globs `int-*.ts` — so a
-// runtime edge from here toward doors.ts would close the cycle GOTCHAS §28
-// warns about and drop rooms from the BUILT BUNDLE ONLY. The two modules that
+// ⚠ THIS MODULE IMPORTS NOTHING THAT IMPORTS ANYTHING, deliberately. Every
+// `int-*.ts` reads it for its own door, and `ct/doors.ts` eagerly globs
+// `int-*.ts` — so a runtime edge from here toward doors.ts would close the
+// cycle GOTCHAS §28 warns about and drop rooms from the BUILT BUNDLE ONLY. It
+// carried NO runtime import at all until the 12/24-hour option (2026-08-11);
+// the one it has now is `ct/timefmt.ts`, a leaf with no imports of its own, so
+// the reachable set from here is still exactly {this file, that file} and the
+// glob is still unreachable. Do not relax this to "one import is fine". The two
+// modules that
 // genuinely need doors.ts live on their own (`ct/hours-cards.ts` and
 // `ct/hours-doors.ts`, which nothing imports) for exactly this reason.
 //
@@ -143,14 +152,19 @@ export function minsUntilClose(ctx: Pick<CtxBuild, 'clock'>, key: string): numbe
   return Math.floor(b > m ? b - m : 1440 - m + b);
 }
 
-/** an hour the way a hand-lettered card writes it: '9 AM', '10 PM', 'NOON',
- *  'MIDNIGHT' — nobody paints '12 AM' on a door and means it */
-export function fmtHour(hr: number): string {
-  const h = ((hr % 24) + 24) % 24;
-  if (h === 0) return 'MIDNIGHT';
-  if (h === 12) return 'NOON';
-  return h < 12 ? `${h} AM` : `${h - 12} PM`;
-}
+/**
+ * an hour the way a hand-lettered card writes it: '9 AM', '10 PM', 'NOON',
+ * 'MIDNIGHT' — nobody paints '12 AM' on a door and means it — or '09:00' and
+ * '22:00' when the player has asked for 24-hour clocks in the Escape menu.
+ *
+ * ⚠ THE BODY MOVED TO `ct/timefmt.ts` AND THE NAME STAYED HERE ON PURPOSE.
+ * Three files import `fmtHour` from this module (`ct/hours-cards.ts`,
+ * `ct/library-books.ts`, and this one's own two helpers below), and the whole
+ * point of the option is that it reaches every one of them — so the cheapest
+ * correct change was to move the decision, not the callers. Re-exported rather
+ * than wrapped so the identity is the same function everywhere.
+ */
+export { fmtHour };
 
 /**
  * THE `ok` A ROOM HANDS THE INTERIOR KIT FOR ITS WAY-IN SPOT.
@@ -176,7 +190,10 @@ export function doorOpen(ctx: Pick<CtxBuild, 'clock' | 'player'>, key: string): 
   return ctx.player.x() < 100 && openNow(ctx, key);
 }
 
-/** the hours the way the card by the door writes them: '9 AM – 6 PM' */
+/** the hours the way the card by the door writes them: '9 AM – 6 PM', or
+ *  '09:00 – 18:00' on 24-hour clocks. Read LIVE, so `ct/hours-doors.ts` quotes
+ *  whatever the repainted card beside the player is currently lettered with —
+ *  the door and the sign can never disagree about the format either. */
 export const hoursSpan = (key: string): string => {
   const h = BY_KEY.get(key);
   return h ? `${fmtHour(h.open)} – ${fmtHour(h.close)}` : '';

@@ -1,6 +1,10 @@
 import { BUILD, ORDER as HOOK } from './ctx';
 import type { CtxBuild, Spot } from './ctx';
 import type { Panel } from './hud';
+// the 12/24-hour option — a leaf that imports nothing, so it is safe from
+// anywhere. Both screens below print a clock and both now ask the same voice
+// the wristwatch and the door cards do.
+import { fmtClock } from './timefmt';
 // TYPE-ONLY, and that is the whole reason this file can stay honest with `fp`.
 // `ct/slots.ts` had to take a RUNTIME edge on three to build its own screen
 // plane, and measured the cost: 1018 of 1458 textures re-hashed, because
@@ -773,10 +777,11 @@ export function register(ctx: CtxBuild): void {
     g.fillStyle = '#e8e2d0'; g.font = font(6, true); g.textAlign = 'left';
     g.fillText('START', 8, H - TASKBAR_H + 10);
     const t = clockNow();
-    const hh = String(((t.hour + 11) % 12) + 1).padStart(2, '0');
-    const mm = String(t.minute).padStart(2, '0');
+    // `pad12` keeps this reading `01:22 PM` exactly as it always has — a
+    // taskbar clock is the one 12-hour string in the world that pads its hour,
+    // and the option is not licence to restyle it.
     g.fillStyle = '#2a2820'; g.textAlign = 'right';
-    g.fillText(`${hh}:${mm} ${t.hour < 12 ? 'AM' : 'PM'}`, W - 6, H - TASKBAR_H + 10);
+    g.fillText(fmtClock(t.hour, t.minute, true), W - 6, H - TASKBAR_H + 10);
   };
 
   // ── DRAW: the catalog ──
@@ -952,7 +957,7 @@ export function register(ctx: CtxBuild): void {
     g.fillStyle = AMB; g.font = font(7, true); g.textAlign = 'left';
     g.fillText('TRADE-NET ONLINE BROKERAGE v2.1', 6, 26);
     g.textAlign = 'right';
-    g.fillText(`DAY ${Math.floor(t.totalMin / 1440)}  ${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`, W - 6, 26);
+    g.fillText(`DAY ${Math.floor(t.totalMin / 1440)}  ${fmtClock(t.hour, t.minute)}`, W - 6, 26);
     // column heads aligned exactly as the values under them
     g.fillStyle = DIM; g.font = font(6);
     g.textAlign = 'left'; g.fillText('SYM', 8, 37);

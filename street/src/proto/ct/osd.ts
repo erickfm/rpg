@@ -25,6 +25,12 @@ import { volume, setVolume, toggleMute, isMuted, VOLUME_STEP } from './audio';
 // A LEAF — it imports nothing at all, so the near-leaf property above holds.
 // It owns the whole answer to "what does NEW GAME clear?"; see `newGame` below.
 import { wipe } from './newgame';
+// …and `ct/timefmt.ts`, which imports NOTHING at all, so the near-leaf property
+// above still holds. The menu is a face on that preference, not its home — the
+// same arrangement VOLUME and MUTE already have with `ct/audio.ts`, and for a
+// sharper reason: the thirteen shop cards are lettered at build time, long
+// before this file has drawn a pixel.
+import { clockMode, toggleClockMode, onClockModeChange } from './timefmt';
 
 /** the reference's own palette, sampled from his screenshot, not invented */
 // EXPORTED because `ct/create.ts` is the same television and must not invent a
@@ -90,6 +96,19 @@ export function setHand(v: Settings['hand']): void { put('hand', v); }
 // is what makes the type chunky rather than merely small. 320 x 240 is a VCR's
 // own display resolution and the reference is that shape.
 export const OW = 320, OH = 240;
+
+/**
+ * THE ROW BLOCK'S OWN METRICS, named because two functions have to agree about
+ * them — `paintMenu` draws at this pitch and `onClick` divides by it, and they
+ * were two loose 22s and an 80 that happened to match.
+ *
+ * ⚠ THE PITCH CAME DOWN FROM 22 WHEN THE CLOCK ROW MADE SIX. `legend()` starts
+ * its three lines at `OH - 8 - 2*14` = 204, and a sixth row at the old pitch
+ * put its inverse-video block at 189–207 — through the legend. 20 px and a
+ * start twelve higher clears it with a 10 px gutter. A SEVENTH ROW WILL NOT
+ * FIT: shrink the type or drop a row, do not nudge these again.
+ */
+const ROW_Y0 = 80, ROW_H = 20;
 let wrap: HTMLDivElement | null = null;
 let cv: HTMLCanvasElement | null = null;
 
@@ -250,6 +269,27 @@ const ITEMS: Item[] = [
   },
   {
     /**
+     * ── 12-HOUR OR 24-HOUR ───────────────────────────────────────────────
+     *
+     * *"also the esc menu needs an option for 24 hour clocks vs 12 hour"*
+     *   (2026-08-11)
+     *
+     * A DISPLAY PREFERENCE, so it sits with the other two rather than beside
+     * the sound. It is the widest-reaching row on this screen: the wristwatch,
+     * the library PC's taskbar and brokerage terminal, the thirteen posted
+     * hours cards, the shut-door refusal and the library's HOURS OF BUSINESS
+     * page all answer to it, through the one formatter in `ct/timefmt.ts`.
+     *
+     * ⚠ READ EVERY PAINT, exactly as VOLUME is, and for the same reason: the
+     * option is reachable from nowhere else today, but a value cached here
+     * would be the row that lies the first time it is.
+     */
+    label: 'CLOCK',
+    value: () => (clockMode() === '24h' ? '24 HOUR' : '12 HOUR'),
+    step: () => toggleClockMode(),
+  },
+  {
+    /**
      * ── SOUND, LIVE ──────────────────────────────────────────────────────
      *
      * *"i would like sound settings to be part of this"*
@@ -344,11 +384,11 @@ function paint(): void {
 function paintMenu(g: CanvasRenderingContext2D): void {
   osdFrame(g);
   heading(g, 'MENU', 46);
-  let y = 92;
+  let y = ROW_Y0;
   ITEMS.forEach((it, i) => {
     const v = it.value();
     row(g, v === null ? it.label : `${it.label}:${v}`, 44, y, 14, i === sel);
-    y += 22;
+    y += ROW_H;
   });
   // his own name, when he has one — the only row that is not a setting
   if (S.name) {
@@ -478,7 +518,9 @@ function onClick(e: MouseEvent): void {
   if (!open || !cv || confirming) return;      // the confirm is keyboard-only
   const r = cv.getBoundingClientRect();
   const y = (e.clientY - r.top) * (OH / r.height);
-  const i = Math.floor((y - 80) / 22);
+  // the band for row i, from the top of its inverse-video block — the block is
+  // drawn at `baseline - 13`, so the hit test starts a shade above the type
+  const i = Math.floor((y - (ROW_Y0 - 12)) / ROW_H);
   if (i < 0 || i >= ITEMS.length) return;
   if (i === sel) ITEMS[sel].step(1); else sel = i;
   paint();
@@ -490,4 +532,7 @@ export function installOsd(): void {
   window.addEventListener('keydown', onKey, true);
   window.addEventListener('click', onClick, true);
   onSettingChange(() => { if (open) paint(); });
+  // …and the clock format, which lives in its own module rather than in `S` —
+  // so a flip repaints the row that shows it, whoever made the flip
+  onClockModeChange(() => { if (open) paint(); });
 }

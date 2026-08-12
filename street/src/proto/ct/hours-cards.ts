@@ -5,6 +5,7 @@ import { doorPointFor, doorLeafFor } from './doors';
 import { frontageWorld, signNight } from './tex-world';
 import { tube, VICE_PORTAL_W } from './vice';
 import { HOURS, fmtHour, neverCloses, type BizHours } from './hours';
+import { onClockModeChange } from './timefmt';
 
 // ══ THE HOURS SIGN BY EVERY DOOR ═════════════════════════════════════════════
 //
@@ -72,10 +73,39 @@ function rr(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: num
 
 const hoursLine = (h: BizHours) => `${fmtHour(h.open)} – ${fmtHour(h.close)}`;
 
+// ══ A CARD IS A RECIPE, NOT A PICTURE ════════════════════════════════════════
+//
+// *"also the esc menu needs an option for 24 hour clocks vs 12 hour"*
+//   (2026-08-11)
+//
+// These thirteen cards are the one place in the world where a time is BAKED
+// rather than printed: every other clock in the game is text drawn on the frame
+// it is read on, and these are canvases uploaded once at build. So the option
+// could not simply be read by `fmtHour` and left there — the cards would keep
+// the lettering they were born with and contradict the HUD, the shut-door line
+// and the library's hours book, all three of which follow live.
+//
+// WHAT CHANGED, AND IT IS SMALL: a `Card` used to be a finished `THREE.Texture`
+// and is now the SIZE plus the BRUSH STROKE that fills it. `register` runs the
+// brush once through `pixTex` as before; a flip of the option runs the same
+// brush again over the same canvas and flags the texture. Nothing is rebuilt:
+// not the material, not the mesh, not the placement.
+//
+// AND THE PLACEMENT NEVER NEEDS RE-DERIVING, which is the whole reason this is
+// cheap. The sight-line sweep below depends on `card.wM`/`hM`, and those are
+// per-style constants: the STYLE is chosen by the facade material and by
+// `neverCloses`, neither of which knows what a clock looks like. A 24-hour
+// string is also SHORTER than the longest 12-hour one this already fits
+// (`09:00 – 18:00` against `10 AM – MIDNIGHT`), so `fitFont` has strictly more
+// room than it was written for and no card can start clipping.
+//
+// COST OF A FLIP: thirteen canvas redraws and thirteen texture uploads, none
+// larger than 88 x 64 texels — about 40 kB of pixels, once, when he presses the
+// key. Nothing per frame, and nothing at all if he never touches the option.
 interface Card {
-  tex: THREE.Texture;
-  wM: number;      // plane size, metres
-  hM: number;
+  /** texel size of the canvas; the plane is this over `PPM` */
+  W: number;
+  H: number;
   tilt: number;    // z-roll, radians — only the taped card hangs crooked
   diecut: boolean; // transparent corners → needs its own alpha-tested material
   /** IS THIS SIGN A LIGHT. Only the neon one is. Declared rather than left to
@@ -83,12 +113,17 @@ interface Card {
    *  fascia on the block: a card of ink is stamped `printed` and grades away
    *  after dark with the wall it is stuck to, and a tube holds its own. */
   lit?: boolean;
+  /** ⚠ CALLED MORE THAN ONCE. Every time string must be built INSIDE this
+   *  closure — a line computed beside it, in the factory body, is frozen at the
+   *  format the page loaded with (the neon card's `OPEN ALL NIGHT` rider was
+   *  exactly that, and moved in). */
+  paint: (g: CanvasRenderingContext2D) => void;
 }
 
 // ── the die-cut plastic OPEN 24 HOURS sign ───────────────────────────────────
 function open24Card(): Card {
   const W = 80, H = 60; // 0.40 × 0.30 m
-  const tex = pixTex(W, H, (g) => {
+  return { W, H, tilt: 0, diecut: true, paint: (g) => {
     // corners stay transparent — the sign is cut to its shape
     rr(g, 1, 1, W - 2, H - 2, 10);
     g.fillStyle = '#c22a1a'; g.fill();
@@ -104,14 +139,13 @@ function open24Card(): Card {
     g.fillStyle = '#c22a1a';
     fitFont(g, '24 HOURS', 'sans-serif', 48, 9);
     g.fillText('24 HOURS', W / 2, 46);
-  });
-  return { tex, wM: W / PPM, hM: H / PPM, tilt: 0, diecut: true };
+  } };
 }
 
 // ── the gilt-lettered painted card ───────────────────────────────────────────
 function giltCard(h: BizHours): Card {
   const W = 64, H = 52; // 0.32 × 0.26 m
-  const tex = pixTex(W, H, (g) => {
+  return { W, H, tilt: 0, diecut: false, paint: (g) => {
     g.fillStyle = '#152b20'; g.fillRect(0, 0, W, H);
     g.strokeStyle = '#c9a648'; g.lineWidth = 1;
     g.strokeRect(2.5, 2.5, W - 5, H - 5);
@@ -127,15 +161,14 @@ function giltCard(h: BizHours): Card {
     fitFont(g, hoursLine(h), 'serif', 50, 10);
     g.fillText(hoursLine(h), W / 2, 36);
     dither(g, W, H, 20);
-  });
-  return { tex, wM: W / PPM, hM: H / PPM, tilt: 0, diecut: false };
+  } };
 }
 
 // ── the hand-lettered card, taped up crooked ─────────────────────────────────
 function tapedCard(h: BizHours): Card {
   const W = 60, H = 52; // 0.30 × 0.26 m
   const lean = (hash(h.building) & 1 ? 1 : -1) * 0.045; // ~2.5°, name-fixed
-  const tex = pixTex(W, H, (g) => {
+  return { W, H, tilt: lean, diecut: false, paint: (g) => {
     g.fillStyle = '#f3ecd8'; g.fillRect(0, 0, W, H);
     // curled-edge shade along bottom and right
     g.fillStyle = 'rgba(0,0,0,0.12)';
@@ -155,15 +188,14 @@ function tapedCard(h: BizHours): Card {
     };
     strip(5, 5, -Math.PI / 4); strip(W - 5, 5, Math.PI / 4);
     strip(5, H - 5, Math.PI / 4); strip(W - 5, H - 5, -Math.PI / 4);
-  });
-  return { tex, wM: W / PPM, hM: H / PPM, tilt: lean, diecut: false };
+  } };
 }
 
 // ── the mall-bought BUSINESS HOURS placard ───────────────────────────────────
 function plasticCard(h: BizHours): Card {
   const W = 80, H = 64; // 0.40 × 0.32 m
   const band = hash(h.building) & 1 ? '#b3271e' : '#1f3f7a'; // the two colourways
-  const tex = pixTex(W, H, (g) => {
+  return { W, H, tilt: 0, diecut: false, paint: (g) => {
     g.fillStyle = '#26262b'; g.fillRect(0, 0, W, H);      // the plastic frame
     g.fillStyle = '#f2f1ec'; g.fillRect(2, 2, W - 4, H - 4);
     g.fillStyle = band; g.fillRect(2, 2, W - 4, 15);       // the header band
@@ -179,8 +211,7 @@ function plasticCard(h: BizHours): Card {
     // a lick of bevel so the plastic reads moulded, not printed
     g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(2, 2, W - 4, 1);
     g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(2, H - 3, W - 4, 1);
-  });
-  return { tex, wM: W / PPM, hM: H / PPM, tilt: 0, diecut: false };
+  } };
 }
 
 // ── a neon tube in a black casing, over a painted rider ──────────────────────
@@ -198,8 +229,11 @@ function plasticCard(h: BizHours): Card {
 // would be mush (`fitTube` would rightly throw).
 function neonCard(h: BizHours): Card {
   const W = 88, H = 52; // 0.44 × 0.26 m
-  const line = neverCloses(h) ? 'OPEN ALL NIGHT' : hoursLine(h);
-  const tex = pixTex(W, H, (g) => {
+  return { W, H, tilt: 0, diecut: true, lit: true, paint: (g) => {
+    // ⚠ INSIDE the closure, not beside it — the rider is the only text on this
+    // card that changes with the 12/24-hour option, and a `const` in the
+    // factory body would freeze it at the format the page loaded with.
+    const line = neverCloses(h) ? 'OPEN ALL NIGHT' : hoursLine(h);
     // the casing — corners cut away, so the sign is a shape and not a sticker
     rr(g, 1, 1, W - 2, H - 2, 6);
     g.fillStyle = '#14111a'; g.fill();
@@ -213,8 +247,7 @@ function neonCard(h: BizHours): Card {
     g.fillStyle = '#7ad8ea';
     fitFont(g, line, 'sans-serif', W - 18, 10);
     g.fillText(line, W / 2, 41);
-  });
-  return { tex, wM: W / PPM, hM: H / PPM, tilt: 0, diecut: true, lit: true };
+  } };
 }
 
 // ══ WHICH CARD, DECIDED BY WHAT THE BUILDING IS MADE OF ══════════════════════
@@ -408,6 +441,29 @@ function frontageSpan(name: string, d: { x: number; z: number }): { lo: number; 
   return { lo: f.loWorld, hi: f.hiWorld, axis: f.axis };
 }
 
+// ══ THE REPAINT HOOK ═════════════════════════════════════════════════════════
+//
+// Every card this module hangs, kept with the brush that drew it, so a flip of
+// the 12/24-hour option can re-letter all thirteen in place. Registered at
+// module scope and harmless before `register` runs — the list is simply empty.
+const HUNG: { tex: THREE.Texture; card: Card }[] = [];
+
+/** re-run one card's brush over the canvas it already owns. `clearRect` first
+ *  is NOT optional: the die-cut cards (OPEN 24 HOURS, the neon casing) have
+ *  transparent corners and both paint their new lettering OVER whatever is
+ *  already there, so a card that is not wiped keeps a ghost of the old time
+ *  under the new one. */
+function reletter(tex: THREE.Texture, card: Card): void {
+  const cv = tex.image as HTMLCanvasElement | undefined;
+  const g = cv?.getContext?.('2d');
+  if (!g) return;
+  g.clearRect(0, 0, card.W, card.H);
+  card.paint(g);
+  tex.needsUpdate = true;      // the only upload; the material and mesh stand
+}
+
+onClockModeChange(() => { for (const c of HUNG) reletter(c.tex, c.card); });
+
 export function register(ctx: CtxBuild): void {
   const all = occludersNear(ctx);
   for (const h of HOURS) {
@@ -417,6 +473,9 @@ export function register(ctx: CtxBuild): void {
     if (!d) continue;
     const leaf = doorLeafFor(h.building);
     const card = cardFor(h);
+    // metres, from the card's own texel size — the plane, the sight-line sweep
+    // and the frontage fence all measure off these two and nothing else
+    const wM = card.W / PPM, hM = card.H / PPM;
     // Tangent is the normal turned a quarter — works the same on the bodega's
     // cut corner as on a flat frontage.
     const n = new THREE.Vector3(d.nx, 0, d.nz);
@@ -439,7 +498,7 @@ export function register(ctx: CtxBuild): void {
     // that paints it; every other shopfront on the block stands its jambs off
     // the brick, where the sight-line finds them on its own.
     const opening = Math.max(leaf.clearW, VICE_PORTAL_W[h.building] ?? 0);
-    const minOff = opening / 2 + card.wM / 2 + 0.10;
+    const minOff = opening / 2 + wM / 2 + 0.10;
     const p = new THREE.Vector3();
     let placed: THREE.Vector3 | null = null;
     for (let step = 0; step <= 24 && !placed; step++) {
@@ -448,9 +507,9 @@ export function register(ctx: CtxBuild): void {
         p.set(d.x + t.x * sgn * off, CARD_Y, d.z + t.z * sgn * off);
         if (span) {
           const a = span.axis === 'z' ? p.z : p.x;
-          if (a < span.lo + card.wM / 2 + 0.05 || a > span.hi - card.wM / 2 - 0.05) continue;
+          if (a < span.lo + wM / 2 + 0.05 || a > span.hi - wM / 2 - 0.05) continue;
         }
-        if (readable(p, n, t, card.wM, card.hM, targets)) { placed = p.clone(); break; }
+        if (readable(p, n, t, wM, hM, targets)) { placed = p.clone(); break; }
       }
     }
     // NOTHING CLEAR EITHER SIDE. Do not bury it anyway: stand the card off far
@@ -469,11 +528,12 @@ export function register(ctx: CtxBuild): void {
         + `standing its card ${proud.toFixed(2)} m proud to keep it readable`);
     }
 
-    const tex = declareSurface(card.tex, 'sign', PPM);
+    const tex = declareSurface(pixTex(card.W, card.H, card.paint), 'sign', PPM);
+    HUNG.push({ tex, card });               // …so the option can re-letter it
     const mat = card.diecut
       ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5 })
       : ctx.flat(tex);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(card.wM, card.hM), mat);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), mat);
     // YXZ so the roll is IN the sign's own plane after it faces the street —
     // default XYZ would roll it about the world axis and skew it off the wall
     m.rotation.order = 'YXZ';

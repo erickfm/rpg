@@ -11,6 +11,9 @@ import { worn, onWardrobeChange } from './wardrobe';
 import { skin as bodySkin, onBodyChange } from './body';
 // a third leaf, same rule, same reason — the stats strip below reads it.
 import { health, maxHealth, onHealthChange } from './health';
+// the 12/24-hour option, from the leaf that owns it — the same formatter the
+// door cards and the library PC read, so the watch cannot disagree with a sign
+import { clockParts, onClockModeChange } from './timefmt';
 
 // ── the sky the clock drags around, the watch, and the wallet ─────────────
 //
@@ -1985,6 +1988,11 @@ export function makeHud(purse: Purse): Hud {
   // …and so does changing your SKIN, for the identical reason: the arm is a
   // cached canvas and a tone is not a minute.
   onBodyChange(() => { watchShown = -1; });
+  // …and so does flipping the clock between 12- and 24-hour. Without this the
+  // LCD keeps the format it was cached with until the game minute turns — and
+  // he sets it in a full-screen menu, so the world he comes back to would be
+  // showing the old face for up to a minute and read as a dead option.
+  onClockModeChange(() => { watchShown = -1; });
   // ── THE ARM, AND THE FOUR NUMBERS THAT HOLD IT IN PLACE ──────────────────
   //
   // *"for the watch i would like the rest of the arm (to the left) rendered as
@@ -2800,10 +2808,27 @@ export function makeHud(purse: Purse): Hud {
     } else {
       g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
       g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);        // LCD
-      const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
-      const m2 = String(mins % 60).padStart(2, '0');
+      // ── 12 OR 24, OFF THE ESCAPE MENU ────────────────────────────────────
+      //
+      // *"also the esc menu needs an option for 24 hour clocks vs 12 hour"*
+      //   (2026-08-11)
+      //
+      // 24-HOUR IS TEXEL-FOR-TEXEL WHAT THIS ALWAYS DREW — `13:22`, padded,
+      // centred on 60, which is the number the whole assembly aligns to.
+      //
+      // 12-hour puts the AM/PM IN THE CORNER OF THE GLASS rather than after the
+      // digits, because that is where a 1997 LCD watch puts it and because the
+      // alternative does not fit: `12:22 PM` at this size runs off both ends of
+      // a 44-texel display. The digits keep their size, their centre and their
+      // baseline, so the face reads the same from across the street either way.
+      const lcd = clockParts(Math.floor(mins / 60) % 24, mins % 60);
       g.fillStyle = '#1c2a1c'; g.font = 'bold 14px monospace'; g.textAlign = 'center';
-      g.fillText(`${hh}:${m2}`, 60, 38);
+      g.fillText(lcd.time, 60, 38);
+      if (lcd.suffix) {
+        g.font = 'bold 5px monospace'; g.textAlign = 'left';
+        g.fillText(lcd.suffix, 40, 27);
+        g.textAlign = 'center';
+      }
       g.fillStyle = '#8a8d95'; g.font = '5px monospace';
       g.fillText('CROSSTOWN QUARTZ', 60, 50);
     }
