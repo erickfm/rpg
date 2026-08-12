@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
-import { frontageWorld } from './tex-world';
+import { frontageWorld, frontageOf, SHOP_BAND_H } from './tex-world';
 import type { AABB } from '../fp';
 import {
   frameBox, frameFromWorld, frameGroup, type SiteFrame,
@@ -239,8 +239,18 @@ export function register(ctx: CtxBuild): void {
       px, KERB_H + 1.59, WALL_Z);
     put(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.22),
       new THREE.MeshBasicMaterial({ color: 0x2e2a24 })), px, KERB_H + 1.76, WALL_Z);
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.17, 0.15),
-      new THREE.MeshBasicMaterial({ color: 0xf2c86a })), px, KERB_H + 1.755, WALL_Z);
+    // …and the lamps are LIT now, which they never were. The comment above has
+    // always called them "the two lamps that make it an evening school from the
+    // street", but a flat-coloured box has no texture for `props.ts`'s
+    // `isSelfLit` to read, so both graded down into the night with the brick
+    // and the pier went dark at the top. `userData.lightSource` is the hand
+    // declaration for that exact case; a fresh instance per pier because the
+    // lamp census is keyed by material. See THE LANTERNS, below, which is the
+    // same decision at the door and the place it is argued.
+    const pierGlass = new THREE.MeshBasicMaterial({ color: 0xf2c86a });
+    pierGlass.userData.lightSource = true;
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.17, 0.15), pierGlass),
+      px, KERB_H + 1.755, WALL_Z);
     // the lamp's top face: pier cap 1.59 + lantern body + finial band
     obstacle({
       minX: px - 0.31, maxX: px + 0.31, minZ: WALL_Z - 0.31, maxZ: WALL_Z + 0.31,
@@ -488,22 +498,294 @@ export function register(ctx: CtxBuild): void {
       CX, 3.64, FACE_Z + 0.035);          // over the painted frieze, proud of the band
   }
 
+  // ══ THE FRONT ITSELF — the civic order, BUILT rather than painted ══════════
+  //
+  // *"make the cc facade a bit nicer"* (2026-08-11, straight on from the path,
+  // at night). What that shot shows is a flat brick wall with two holes and a
+  // door in it, and nothing about it says civic building.
+  //
+  // THE PAINTING IS NOT WHAT IS MISSING. `collegeFront` (ct/tex-world.ts)
+  // already draws a stone frieze, a pilastered doorcase, four sash windows, a
+  // fanlight and a plinth, and `shopfrontRelief` already stands FIVE real
+  // mouldings off this wall — cornice, bed mould, opening head, cill, plinth.
+  // Two things flatten all of it:
+  //
+  //   · every one of those mouldings is tinted from the ROSTER COLOUR
+  //     (`joineryOf`, × 0.72 / × 0.55 / × 0.45), and this building's roster
+  //     colour is maroon. Dark trim on dark brick is invisible; a civic
+  //     building's mouldings are the one thing on it that are PALE.
+  //   · a painted `proud()` is a lit arris and a cast shadow — texels, drawn
+  //     as if lit from the front. After dark the whole band grades to one
+  //     tone and every moulding in it goes with it. That is the "very dark
+  //     facade" in the photograph, and no repaint fixes it, because the
+  //     brightness is exactly what nightfall takes away.
+  //
+  // So the order is BUILT. Stone standing off the wall keeps its silhouette at
+  // any hour, because an edge you can see round is not a texel — the same
+  // argument that took the NAME off the 16 px/m canvas and onto a plane above.
+  // Everything below hangs on the facade plane inside this module's own frame
+  // and is sized off `frontageOf`, so it follows the college if it moves again.
+  //
+  // AND IT IS LAID OVER THE EXISTING RELIEF, never through it. Measured off
+  // `shopfrontRelief`: cornice y 4.10…4.20 (0.20 proud), bed mould 3.11…3.18
+  // (0.13), opening head 2.775…2.905 (0.12), cill 0.325…0.415 (0.11), plinth
+  // 0…0.12 (0.09). Every piece here either sits in the clear between two of
+  // those or lands squarely ON one and turns it into the dark member of a
+  // proper moulding — a pale corona over a dark bed is a cornice, which is
+  // what that pairing has always been.
+  {
+    // The band's own datum: `collegeFront` paints in metres DOWN from
+    // SHOP_BAND_H, and the band's foot is world y 0 (the road), so a height in
+    // the painter's terms is `SHOP_BAND_H - thatDepth` here. The three numbers
+    // below are `BANDS.college`'s and are TYPED, because BANDS is private to
+    // ct/tex-world.ts and this module may not edit that file to export it.
+    // They move together with the painter or the stone lands off the paint.
+    const BT = SHOP_BAND_H;                    // 4.2 — the top of the band
+    const OG = 0.18;                           // BANDS.college's opening gap
+    const SILL_M = 0.65;                       // collegeFront's `winB = H - m(0.65)`
+    const RUN_A = 0.62, WIN_W = 1.40, CASE_M = 0.10;   // its window run
+    const PIL = 0.34;                          // its painted pilaster width
+
+    const F = frontageOf('COMMUNITY COLLEGE', X1);
+    const DW = F.doorWidthM;                   // 1.2 — one number, painted and walked
+    const dL = CX - DW / 2, dR = CX + DW / 2;
+    const CASE_L = dL - PIL, CASE_R = dR + PIL;
+    const HEAD_Y = F.fasciaBottomM - OG;       // 3.00 — the head of every opening
+    const GLZ_TOP = F.glazingTopM;             // 2.78 — the window heads
+    // The blank field between the doorcase and the nearest window is exactly
+    // one `gap` of collegeFront's own window run, and it is the dead middle of
+    // the photograph: 2.4 m of brick, floor to frieze, either side of the door.
+    const BAY = ((CASE_L - CASE_M) - RUN_A - 2 * WIN_W) / 3;
+    const BAY_CX = (CASE_L - CASE_M) - BAY / 2;          // west; east mirrors it
+    // The run the stone may occupy. It stops at the party wall's INNER face for
+    // the same reason the low wall and the beds do — that is where this college
+    // actually ends; the last 0.5 m of frontage is behind its own masonry.
+    const RUN_LO = X0, RUN_HI = PW_X0;
+
+    const CAST = new THREE.MeshBasicMaterial({ color: 0xd3c9ae });   // COLLEGE_STONE
+    const CAST_D = new THREE.MeshBasicMaterial({ color: 0xb0a68b });
+    const CAST_L = new THREE.MeshBasicMaterial({ color: 0xe8dfc6 });
+    const GRANITE = new THREE.MeshBasicMaterial({ color: 0x8a8d88 });
+    const IRON = new THREE.MeshBasicMaterial({ color: 0x2e2a24 });
+    // Flat materials mean a box is a SILHOUETTE — six faces, one colour, no
+    // shading to say which of them is on top. So the relief is carried the way
+    // `proud()` carries it in paint: a pale arris along the top face and a dark
+    // line tucked under the projection. Three boxes, and it reads as stone.
+    const course = (x0: number, x1: number, y0: number, y1: number, d: number,
+                    face: THREE.Material = CAST) => {
+      const w = x1 - x0, cx = (x0 + x1) / 2;
+      if (w <= 0.02) return;
+      put(new THREE.Mesh(new THREE.BoxGeometry(w, y1 - y0, d), face),
+        cx, (y0 + y1) / 2, FACE_Z + 0.01 + d / 2);
+      put(new THREE.Mesh(new THREE.BoxGeometry(w, 0.035, d + 0.012), CAST_L),
+        cx, y1 - 0.017, FACE_Z + 0.01 + (d + 0.012) / 2);            // the arris
+      put(new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, d * 0.6),
+        new THREE.MeshBasicMaterial({ color: 0x2a1e18 })),
+        cx, y0 - 0.025, FACE_Z + 0.01 + d * 0.3);                    // its shadow
+    };
+
+    // ── 1. THE CORONA, over the frieze ──────────────────────────────────────
+    // The wall had no TOP: above the frieze the brick simply carries on into
+    // shadow, which is what makes it read as a slab rather than a building.
+    // `shopfrontRelief`'s cornice is already there at 4.10…4.20 in dark maroon;
+    // this is the pale member that turns it into a cornice instead of a stripe,
+    // and being the deepest thing on the wall it is also what finally throws
+    // the frieze into relief. 4.2 m up — nothing can reach it.
+    course(RUN_LO, RUN_HI, BT, BT + 0.24, 0.32);
+
+    // ── 2. THE SILL COURSE, run right across the front ──────────────────────
+    // The wall had no BOTTOM and no horizontal: four windows floating in brick
+    // with 2.4 m of nothing between them and the door. A continuous stone band
+    // at the sill line is the cheapest thing in architecture that fixes both —
+    // it ties the openings into one storey and gives the eye a base line.
+    //
+    // AT THE SILLS, and not lower, because lower is not seen: the planting beds
+    // stand 0.60 m off this wall and 0.45 m tall along everything but the
+    // centre bay, so a plinth course would be built entirely behind them. This
+    // lands at 0.53…0.69, clear above the soil, and it swallows collegeFront's
+    // PAINTED sills at exactly the same height rather than fighting them.
+    // It BREAKS at the doorcase, which stands on its own.
+    for (const [a, b] of [[RUN_LO, CASE_L - 0.13], [CASE_R + 0.13, RUN_HI]] as const) {
+      course(a, b, SILL_M - 0.12, SILL_M + 0.04, 0.16);
+      // Capped at the course's top face, the way the low wall and the beds are
+      // — a 0.69 m ledge is something you step onto, not a wall to the sky. It
+      // is 0.17 m of projection off masonry that is ALREADY solid, so it takes
+      // nothing off the yard: the door's own stand point is 0.75 m out
+      // (ct/int-college.ts) and stays 0.58 m clear of it.
+      obstacle({ minX: a, maxX: b, minZ: FACE_Z, maxZ: FACE_Z + 0.18, maxY: SILL_M + 0.04 });
+    }
+
+    // ── 3. THE DOORCASE, in stone ───────────────────────────────────────────
+    // The entrance was a hole with a thin painted surround, and an entrance is
+    // the whole argument of a civic front: it is the one place a college spends
+    // money. Two pilasters on granite bases, carrying a projecting hood.
+    //
+    // NO COLLIDER ON ANY OF IT, deliberately. Each piece stands at most 0.30 m
+    // proud of a wall that is already solid, so the only thing a box here could
+    // do is stand two solids either side of a 1.2 m opening — which is the
+    // exact shape that produced *"i cant walk into the community college"*
+    // (2026-08-09). Clipping 0.16 m into a pilaster is a cheap fault; a door
+    // you cannot thread is not.
+    for (const s of [-1, 1] as const) {
+      const px = CX + s * (DW / 2 + PIL / 2);
+      course(px - PIL / 2, px + PIL / 2, KERB_H, HEAD_Y, 0.16);
+      // the granite base each stands on — a plinth for the one part of this
+      // wall that the beds do not hide
+      course(px - PIL / 2 - 0.05, px + PIL / 2 + 0.05, KERB_H, KERB_H + 0.44, 0.21, GRANITE);
+    }
+    // the hood: clear above `shopfrontRelief`'s opening head (2.905) and clear
+    // below the frieze plane's own bottom edge (3.21), which is the 0.30 m of
+    // wall this is allowed to occupy
+    course(CASE_L - 0.15, CASE_R + 0.15, HEAD_Y - 0.06, HEAD_Y + 0.14, 0.30);
+
+    // ── 4. THE LANTERNS — AND THIS ONE IS A LOOK DECISION ───────────────────
+    //
+    // *A CIVIC BUILDING'S ENTRANCE BEING LIT IS A DIFFERENT QUESTION FROM ITS
+    // SIGN BEING LIT.* `380a05fc` made every fascia declare `lit` or `printed`
+    // and left the college PRINTED on purpose, and that stays true — the name
+    // over this door does not burn, and a community college does not floodlight
+    // its own signboard. What this adds is two bulkhead lanterns beside the
+    // door, which is not signage: it is the light you leave on because there is
+    // a class in the building until nine.
+    //
+    // The file already SAID it wanted this — the gate piers carry lamps under a
+    // comment calling them "the two lamps that make it an evening school from
+    // the street" — and they have never lit. `props.ts` grades a plain
+    // MeshBasicMaterial by its elevation like any other masonry unless it can
+    // read a hot TEXTURE off it, and a 0.15 m box of flat colour has no map at
+    // all, so `isSelfLit` returns false and the lamp goes out with the wall
+    // behind it. `userData.lightSource` is the hand declaration for exactly
+    // that case ("this really is lit, hold me"), and props.ts then treats a
+    // small self-lit mesh as a FITTING: held at FLOOR_SIGN, and casting a 2.6 m
+    // doorway pool rather than a 7 m street lamp's. Four warm pools inside the
+    // court, none of them on the pavement, which is the lighting the block has
+    // asked four times to keep dark.
+    //
+    // ERICK MAY WANT TO RULE ON IT. It is two lines (`lightSource` here and on
+    // the pier lamp below) and reverting them puts the yard back in the dark
+    // with the geometry unchanged.
+    for (const s of [-1, 1] as const) {
+      const px = CX + s * (DW / 2 + PIL / 2);
+      const LY = 2.28;
+      // ONE MATERIAL PER LANTERN, and props.ts's own reason: its lamp census
+      // is `LAMP_SEEN`, keyed by MATERIAL, so two lanterns sharing one instance
+      // are one light and the second door is dark. (`shopfrontRelief` keeps
+      // separate instances for the same class of reason, one line up from the
+      // grader that reads them.)
+      const LAMP_GLASS = new THREE.MeshBasicMaterial({ color: 0xf2c86a });
+      LAMP_GLASS.userData.lightSource = true;
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.20), IRON),
+        px, LY + 0.30, FACE_Z + 0.22);                               // the bracket arm
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.24), IRON),
+        px, LY + 0.27, FACE_Z + 0.32);                               // the lantern's cap
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.26, 0.20), IRON),
+        px, LY + 0.11, FACE_Z + 0.32);                               // its frame
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.21, 0.15), LAMP_GLASS),
+        px, LY + 0.11, FACE_Z + 0.32);                               // the glass
+    }
+
+    // ── 5. THE DEDICATION TABLET, and two banners on the dead bays ──────────
+    //
+    // 2.4 m of blank brick either side of the doorcase, floor to frieze, is the
+    // middle third of the photograph and the reason the front reads as a wall
+    // with holes in it. Better-rhythmed fenestration is the textbook answer and
+    // it is a `collegeFront` change, which this module may not make today; what
+    // a real 1971 municipal college puts on that brick is a cornerstone and a
+    // banner, and both are cheap and both are in-frame.
+    //
+    // Everything here is above the sill course and below the opening heads, and
+    // nothing is more than 0.16 m proud, so no collider: the tablet's bottom
+    // edge is 0.80 m up with a planting bed standing 0.60 m in front of it, and
+    // the banners' are 1.45 m up on the wall.
+    const tabT = declareSurface(pixTex(176, 74, (g) => {
+      g.fillStyle = '#d3c9ae'; g.fillRect(0, 0, 176, 74);
+      g.fillStyle = '#b0a68b'; g.fillRect(0, 0, 176, 3); g.fillRect(0, 71, 176, 3);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      for (const [t, y, f] of [['ERECTED A.D. 1971', 27, 'bold 15px monospace'],
+                               ['CITY OF CROSSTOWN', 51, '12px monospace']] as const) {
+        g.font = f;
+        g.fillStyle = 'rgba(252,246,228,0.60)'; g.fillText(t, 88, y + 1);   // the cut edge
+        g.fillStyle = '#5a4f3c'; g.fillText(t, 88, y);                      // the incision
+      }
+      dither(g, 176, 74, 20);
+    }), 'sign');
+    {
+      // one tablet, not two — a cornerstone is asymmetric everywhere it exists,
+      // and the west bay is the one the path arrives past
+      const tab = new THREE.Mesh(new THREE.PlaneGeometry(1.10, 0.46), flat(tabT));
+      put(new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.54, 0.07), CAST_D),
+        BAY_CX, 1.03, FACE_Z + 0.045);                               // its surround
+      put(tab, BAY_CX, 1.03, FACE_Z + 0.09);
+    }
+    const banT = declareSurface(pixTex(128, 272, (g) => {
+      g.fillStyle = '#6a2430'; g.fillRect(0, 0, 128, 272);
+      g.strokeStyle = '#d3c9ae'; g.lineWidth = 3; g.strokeRect(7, 7, 114, 258);
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#efe8d4';
+      g.font = 'bold 15px monospace'; g.fillText('CROSSTOWN', 64, 32);
+      g.fillRect(22, 45, 84, 2);
+      g.font = 'bold 17px monospace';
+      g.fillText('COMMUNITY', 64, 66); g.fillText('COLLEGE', 64, 88);
+      // the seal: a ring with the college's initials, the way a pennant carries
+      // a crest — legible as a MARK at 1.7 m of banner, which is all it has to be
+      g.strokeStyle = '#d8b86a'; g.lineWidth = 4;
+      g.beginPath(); g.arc(64, 160, 38, 0, Math.PI * 2); g.stroke();
+      g.lineWidth = 2;
+      g.beginPath(); g.arc(64, 160, 30, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#d8b86a'; g.font = 'bold 24px monospace'; g.fillText('CCC', 64, 161);
+      g.fillStyle = '#efe8d4'; g.fillRect(22, 218, 84, 2);
+      g.font = '13px monospace'; g.fillStyle = '#d8b86a';
+      g.fillText('EST. 1971', 64, 238);
+      dither(g, 128, 272, 34);
+    }), 'sign');
+    for (const s of [-1, 1] as const) {
+      const bx = CX + s * (CX - BAY_CX);        // the west bay's centre, mirrored
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.05, 0.05), IRON),
+        bx, GLZ_TOP - 0.08, FACE_Z + 0.13);                          // the hanging rod
+      put(new THREE.Mesh(new THREE.PlaneGeometry(0.80, 1.70), flat(banT)),
+        bx, GLZ_TOP - 0.95, FACE_Z + 0.14);
+    }
+  }
+
   // ── two benches facing each other across the path ─────────────────────────
   // Timber slats on dark cast ends, the park's bench idiom at yard scale.
   // Their backs are to the trees; you sit under a canopy and face the axis.
+  //
+  // ── AND THEY READ AS TWO DARK WEDGES, which is how they got looked at ─────
+  //
+  // Not reported — spotted in the facade shot of 2026-08-11, where the pair in
+  // the foreground are unidentifiable slabs flanking the path. Two faults, and
+  // the file's own comment above is the witness for the second:
+  //
+  //   · THE SLATS WERE ALL IN ONE PLACE. Three boards were laid at `dy` 0,
+  //     0.07, 0.14, which resolve to x offsets of ∓0.035, 0, ±0.035 and y
+  //     offsets of ∓0.007, 0, ±0.007 — a 7 mm spread on a 0.40 m board, so the
+  //     three overlapped into one solid 0.47 m slab with no gap between them
+  //     anywhere. A bench is READ by its slats; without them it is a plank.
+  //     They are laid across the seat now, three 0.115 m boards at 0.15 pitch,
+  //     which leaves 0.035 m of daylight between each.
+  //   · THE BACK WAS ON THE WRONG SIDE. "Their backs are to the trees; you sit
+  //     under a canopy and face the axis" — the trees are OUTBOARD (x0+1.9 and
+  //     x1-1.9) and the path is inboard, so the back belongs on the outer face.
+  //     It was at `BX - s * 0.26`, i.e. between the seat and the path, tilting
+  //     `s * 0.22` further over the path: you sat facing the party wall with a
+  //     backrest leaning across the gate line. Both signs flip.
+  //
+  // Geometry only — the collider is unchanged and still capped at the seat
+  // boards, and neither bench moves by a millimetre.
   const slatM = new THREE.MeshBasicMaterial({ color: 0x8a6a42 });
   const endM = new THREE.MeshBasicMaterial({ color: 0x2e2a26 });
   for (const s of [-1, 1]) {
     const BX = CX + s * 1.95, BZ = WALK_Z - 3.3;
     for (const dz of [-0.7, 0.7])
       put(new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.42, 0.10), endM), BX, KERB_H + 0.21, BZ + dz);
-    for (const dy of [0, 0.07, 0.14])
-      put(new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.045, 1.62), slatM),
-        BX + (dy - 0.07) * -s * 0.5, KERB_H + 0.44 + (dy - 0.07) * 0.1, BZ);
-    // the back, tilted away from the path
+    for (const dx of [-0.15, 0, 0.15])
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.05, 1.62), slatM),
+        BX + dx, KERB_H + 0.44, BZ);
+    // the back, on the outer face, tilted away from the path
     const back = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.44, 1.62), slatM);
-    back.rotation.z = s * 0.22;
-    put(back, BX - s * 0.26, KERB_H + 0.70, BZ);
+    back.rotation.z = -s * 0.22;
+    put(back, BX + s * 0.26, KERB_H + 0.70, BZ);
     // capped at the seat boards' top face — a bench is a jump-on, and standing
     // on it puts the tilted back beside your shins, not a wall over your head
     obstacle({ minX: BX - 0.36, maxX: BX + 0.36, minZ: BZ - 0.85, maxZ: BZ + 0.85, maxY: KERB_H + 0.47 });
