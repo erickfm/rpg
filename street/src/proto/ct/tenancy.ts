@@ -3590,54 +3590,119 @@ export function register(ctx: CtxBuild): void {
   //                         door and the stairs, with both still walkable. Being
   //                         unable to pay has never once stopped you moving.
   //
+  // ══ WHAT YOU ARE LOOKING AT IS THE MAN ═════════════════════════════════════
+  //
+  // *"i dont want a page im seeing when im talking to the landlord i want to
+  //  see the landlord"*   (2026-08-11)
+  //
+  // The first cut of this scene eased the eye onto a DEMAND FOR RENT pad at
+  // 0.62 m under a 52° fov, so what filled the screen was a document with his
+  // name at the bottom of it and the man reduced to background behind his own
+  // paperwork. His ruling is one sentence and it is the whole constraint: the
+  // confrontation is a MAN, standing in his own hall, asking you for money.
+  //
+  // ⚠ THE FRAMEWORK CAN ONLY LOOK AT A MESH. `poseFor` takes the eye down the
+  // NORMAL of whatever the panel is painted on, so a scene that frames a person
+  // still has to hand it a surface. This one is a FRAMING PANE: a plane hung
+  // 0.45 m in front of him and painted almost entirely NOTHING. `paint()`
+  // clears the canvas and `drawDemand` touches only the little pad in the
+  // corner of it, and `alphaTest: 0.5` on the material discards every texel the
+  // canvas never wrote — so the pane is a hole in the air, and what you see
+  // through it is the man standing behind it. It has exactly two jobs: it is
+  // what the camera is aimed down, and it is what his paper is drawn on.
+  //
+  // ── THE FRAMING, AND EVERY NUMBER IN IT COMES OFF THE FIGURE ──────────────
+  //
+  // He is an 8-angle atlas sprite, so this cannot be a face crop: the citizen
+  // plane is `SPRITE_H_M` 1.9 m at `h: 1.06` with the painted crown four rows
+  // down, which makes THE MAN 1.76 m TALL off the boards and about 0.5 m of
+  // painted body across. Tighter than a couple of metres and you are looking at
+  // texels; further and he is a figure down the hall rather than a man in your
+  // way. So: the eye stands at 1.62 m (`eyeY` — a person's height, not the
+  // middle of a prop), 2.05 m from him, under 46° of vertical fov, which covers
+  // 1.74 m at that range. Aimed at 1.18 m on the pane the look ray lands at
+  // 1.05 m on HIM, so the frame runs 0.18 m to 1.92 m — shoes just cut off at
+  // the bottom, a hand of air over his head, and a man filling the picture top
+  // to bottom. That is the closest this art can be read as a person, and it is
+  // stated here rather than tuned so the next change to it starts from the
+  // arithmetic.
+  //
+  // ⚠ AND HE HOLDS STILL FOR IT WITHOUT BEING TOLD TO. `ct/loiter.ts` stops him
+  // where he stands and turns him to face you inside `notice` (2.6 m), and the
+  // feet this pose lands are 1.40 m from him — so he squares up to the camera
+  // for the whole scene and cannot stroll out of his own frame. Nothing here
+  // freezes him; the behaviour that was already there does it, which is why
+  // there is no second copy of it to disagree with him.
+  //
   // ── WHERE IT PUTS YOU ─────────────────────────────────────────────────────
   //
   // The framework moves the feet: `poseFor` stands the player `FOCUS_FEET`
-  // (0.95 m) off the face of whatever the panel is painted on. So the paper is
-  // what decides where you end up, and it hangs on the FRONT-DOOR side of him,
-  // 0.55 m out — you finish 1.50 m from the man, looking up at him, with the
-  // hall behind you.
+  // (0.95 m) off the face of whatever the panel is painted on. The pane hangs
+  // 0.45 m out in front of him, so you finish 1.40 m away — and the EYE a
+  // further 0.65 m back from your own feet, which is what makes this a shot of
+  // a man rather than a nose against his coat.
   //
   // ⚠ ALWAYS THE −Z SIDE, whichever way you came from, and that is a floor
   // decision rather than a framing one. His own loiter box runs to `APT_Z0 +
-  // 7.55` and the stair core wall starts at `AZI(STAIR_Z0)` = 8.4; a paper that
+  // 7.55` and the stair core wall starts at `AZI(STAIR_Z0)` = 8.4; a pane that
   // turned to face a player coming DOWN the stairs would put the eye — and
-  // therefore the feet — at `ll.z + 1.5`, which is inside the flight. Pinning
-  // the normal at π lands the feet in `AZI 4.80…6.05` for every one of his
-  // posts, which is open lobby floor with 101's landing parcel (200.25,
-  // AZI 4.31) more than half a metre clear of the nearest corner of it.
+  // therefore the feet — inside the flight. Pinning the normal at π lands the
+  // feet in `AZI 4.90…6.15` and the eye in `AZI 4.25…5.50` for every one of his
+  // posts, which is open lobby floor all the way. 101's landing parcel (200.25,
+  // AZI 4.31) is 0.59 m clear of the nearest foot position; where the EYE
+  // passes over that z the box is 0.35 m off axis at ankle height, below the
+  // bottom edge of a frame that is looking 15° down at a man two metres away.
   // The x is clamped to his west-half band for the same reason: it is his
   // wander that moves, and the player should not inherit the far end of it.
-  // 1 : 1.72 — a long demand pad, and the measure is set by the COPY rather
-  // than picked: head, three account rows and five flowed lines of his terms,
-  // then the two pressable rows, all at the 6-7 px faces this file sets small
-  // print at. A shorter page would either clip his terms or shrink the type
-  // under the legibility floor, and the sheet's own note is explicit that
-  // legibility is the constraint the shape fits inside, not the other way on.
-  const DEM = { w: 122, h: 210 };
-  const DEM_SS = 3;                        // same legibility multiple the letters use
-  // 0.27 m across, which at the 0.62 m stand-off below puts the pad at about a
-  // quarter of the frame's width and three quarters of its height — a page held
-  // up in front of you, with the man it belongs to still in the shot around it.
-  // 122 units on 0.27 m at `DEM_SS` 3 is 1,356 px/m, well over the 150-200 px/m
-  // floor `college-yard.ts:328` states — see `SHEET_ROLL` for why density was
-  // never what was wrong with the paper in this file.
-  const DEM_W = 0.27;
-  const demand = add(new THREE.Mesh(
-    new THREE.PlaneGeometry(DEM_W, DEM_W * DEM.h / DEM.w),
+  const FR = { w: 390, h: 284 };           // the pane, in composition units
+  // 2, not the 3 the letters use, and it is measured rather than copied: the
+  // pad below is 0.24 m wide inside a pane that fills about half the frame, so
+  // at any ordinary window size one canvas pixel is about one screen pixel.
+  // 850 px/m on the paper, well over the 150-200 px/m floor
+  // `college-yard.ts:328` states, and a third of a million more texels would
+  // buy nothing anybody could see.
+  const FR_SS = 2;
+  const FR_W = 1.10;                       // metres across the pane
+  const U = FR_W / FR.w;                   // 2.82 mm per composition unit
+  const FR_Y = 1.18;                       // centre height — this is the AIM POINT
+  const FR_OUT = 0.45;                     // how far in front of him it hangs
+  const FR_STANDOFF = 1.60;                // eye to pane; eye to man is 2.05
+  const FR_FOV = 46;
+  const FR_EYE = 1.62;                     // a standing person's eye, not a prop's middle
+  const pane = add(new THREE.Mesh(
+    new THREE.PlaneGeometry(FR_W, FR.h * U),
     // ONE MeshBasicMaterial, never an array — `ct/hud.ts` hangs the panel canvas
     // on `mesh.material` and an array throws there (queue item 150).
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, alphaTest: 0.5 })));
-  demand.name = 'tenancy-demand-sheet';
-  demand.visible = false;
+  pane.name = 'tenancy-demand-sheet';
+  pane.visible = false;
 
-  /** the two pressable rows, in composition units. Everything about the page is
-   *  written in these units and divided by `DEM_SS` at the pointer, so the
-   *  drawing and the hit test cannot drift apart. */
-  const ROW = { x: 9, w: DEM.w - 18, h: 18 };
-  const ROW_Y = [DEM.h - 52, DEM.h - 28];
+  // ── AND THE PAPERWORK IS SOMETHING HE IS HOLDING ──────────────────────────
+  //
+  // It WAS the interface. It is a prop now. 85 x 120 units is 0.24 x 0.34 m of
+  // the blue-grey stock his notices are printed on, hung at 1.10 m — hand
+  // height — and 0.36 m to the side of him, which clears the painted body so it
+  // never crosses his chest or his face. It still carries the head, the flat,
+  // the date, what is owing, what is on you and the two pressable rows; what it
+  // no longer carries is the BURDEN of being read, because the caption under
+  // the frame says all of it in type that cannot be small (see `caption`). A
+  // player who never once looks at the paper loses nothing.
+  const PAD = { w: 85, h: 120 };
+  /** the pad's top-left corner, in pane units. Canvas u runs toward world −x
+   *  here — the pane's yaw is π and the camera looks up +z — so a pad drawn to
+   *  the RIGHT of the canvas hangs to the right of him on screen. */
+  const PAD_X = 280, PAD_Y = 110;
+
+  /** the two pressable rows, in PAD units. Everything about the page is written
+   *  in these units and converted at the pointer, so the drawing and the hit
+   *  test cannot drift apart. */
+  const ROW = { x: 6, w: PAD.w - 12, h: 15 };
+  // 84 and 101 against a 120-unit page: the ledger above ends at 76 and
+  // `stock` shades the bottom three units, so the second row stops 4 clear of
+  // it rather than printing over the paper's own edge.
+  const ROW_Y = [84, 101];
   const rowAt = (x: number, y: number): 0 | 1 | null => {
-    const u = x / DEM_SS, v = y / DEM_SS;
+    const u = x / FR_SS - PAD_X, v = y / FR_SS - PAD_Y;
     if (u < ROW.x || u > ROW.x + ROW.w) return null;
     if (v >= ROW_Y[0] && v <= ROW_Y[0] + ROW.h) return 0;
     if (v >= ROW_Y[1] && v <= ROW_Y[1] + ROW.h) return 1;
@@ -3663,16 +3728,12 @@ export function register(ctx: CtxBuild): void {
    *
    * Not on the paper — a landlord's pad carries what he WROTE, and a man does
    * not hand you a page of his own dialogue. Not in `ct/dialog.ts`'s bubble
-   * either, which floats above his head and is out of frame at this stand-off.
-   * The framework's caption band is unboxed plain text along the bottom of the
-   * view (`chrome: 'none'`), which `ct/hud.ts` put there precisely so it *"reads
-   * as the world's own prompt line rather than as chrome"* — so it is the one
+   * either: that floats above the head of a sprite who now fills the frame, so
+   * it would be sitting on his hat or off the top of the picture. The
+   * framework's caption band is unboxed plain text along the bottom of the view
+   * (`chrome: 'none'`), which `ct/hud.ts` put there precisely so it *"reads as
+   * the world's own prompt line rather than as chrome"* — so it is the one
    * place a spoken line can go and still be part of the picture.
-   *
-   * ⚠ IT ALSO CARRIES THE WAY OUT, and that is not decoration. The caption
-   * de-dupes on the bare key, so writing `[E]` here replaces the framework's own
-   * `[E] leave` rather than doubling it — and a scene you did not ask to enter
-   * has to say how to get out of it in the same breath as the threat.
    *
    * He is the same man as the notices and the pitch: clipped, second person,
    * cash only, no cruelty and no melodrama.
@@ -3689,6 +3750,42 @@ export function register(ctx: CtxBuild): void {
       : 'Three-oh-one. Do not say tomorrow. Tomorrow is what you said.';
   }
 
+  /**
+   * WHAT THE CAPTION SAYS, AND WHY IT IS NOW THE INTERFACE.
+   *
+   * The pad used to be both the picture and the controls. The picture is the
+   * man now, so the pad shrank to a prop in his hand — and the controls had to
+   * go somewhere that is legible at 2 m and at any window size. The caption band
+   * is that place: it is screen-space plain text, it is where every `[E]` in
+   * this world is already read, and it is the one line the player is guaranteed
+   * to be looking at.
+   *
+   * ⚠ IT ALSO CARRIES THE WAY OUT, and that is not decoration. The caption
+   * de-dupes on the bare key, so writing `[E]` here replaces the framework's own
+   * `[E] leave` rather than doubling it — and a scene you did not ask to enter
+   * has to say how to get out of it in the same breath as the threat.
+   *
+   * THE FIGURE IS IN THE LINE, both ways round — K's rule, the same one the
+   * `[E]` label on him follows: *"the refusal is in the caption you are already
+   * reading."* Short of a season and the row says by how much, in the same place
+   * the offer would have been.
+   */
+  function caption(): string {
+    const day = Math.floor(ctx.clock.now().totalMin / 1440);
+    const bits = [`"${voice()}"`];
+    if (mode === 'paid') {
+      bits.push('[2] go up');
+    } else {
+      const take = payable(day);
+      bits.push(take > 0
+        ? `[1] pay $${take.toFixed(2)}`
+        : `[1] you are $${(rentNow() - ctx.purse.cash).toFixed(2)} short`);
+      bits.push('[2] not today');
+    }
+    bits.push('[E] push past him');
+    return bits.join('   ·   ');
+  }
+
   /** one pressable row, printed on the pad rather than floating over it */
   function padRow(g: CanvasRenderingContext2D, i: 0 | 1, key: string,
                   text: string, live: boolean): void {
@@ -3696,11 +3793,11 @@ export function register(ctx: CtxBuild): void {
     fill(g, live ? '#eef4f6' : '#bcc7cd', ROW.x, y0, ROW.w, ROW.h);
     fill(g, live ? '#7d8b93' : '#a8b3b9', ROW.x, y0 + ROW.h - 2, ROW.w, 2);
     g.fillStyle = live ? '#6a747a' : '#8d979c';
-    g.font = UI.font(6, true);
+    g.font = UI.font(5, true);
     g.textAlign = 'left'; g.textBaseline = 'middle';
-    g.fillText(key, ROW.x + 5, y0 + ROW.h / 2 + 1);
+    g.fillText(key, ROW.x + 4, y0 + ROW.h / 2 + 1);
     g.fillStyle = live ? '#2b2a30' : '#727d83';
-    g.font = UI.font(8, true);
+    g.font = UI.font(7, true);
     g.textAlign = 'center';
     g.fillText(text, ROW.x + ROW.w / 2, y0 + ROW.h / 2 + 1);
     g.textBaseline = 'alphabetic';
@@ -3708,88 +3805,72 @@ export function register(ctx: CtxBuild): void {
 
   function drawDemand(g: CanvasRenderingContext2D): void {
     const day = Math.floor(ctx.clock.now().totalMin / 1440);
-    // The supersample is applied once, here, exactly as `drawLetter` does it for
-    // the mail — everything below is written in DEM units.
+    // ⚠ THE REST OF THE PANE IS NEVER TOUCHED, and that is the whole trick: what
+    // this function does NOT paint is what you see the man through. The
+    // supersample AND the pad's corner are applied once, here — exactly as
+    // `drawLetter` does the supersample for the mail — so everything below is
+    // written in PAD units with (0, 0) at the top-left of the paper.
     g.save();
-    g.scale(DEM_SS, DEM_SS);
-    const IN = 9, TW = DEM.w - IN * 2, RED = '#b03a30';
+    g.scale(FR_SS, FR_SS);
+    g.translate(PAD_X, PAD_Y);
+    const IN = 6, TW = PAD.w - IN * 2, RED = '#b03a30';
     // HIS PAPER, the blue-grey the notices are printed on. The colour is this
     // man's identity across four documents now and it is not re-picked here.
-    stock(g, 0, 0, DEM.w, DEM.h, '#c9d6dd', '#dde7ec', '#9cadb6');
-    creases(g, 0, 0, DEM.w, DEM.h, 1);
-    fill(g, RED, 5, 6, DEM.w - 10, 2);
-    fill(g, RED, 5, 10, DEM.w - 10, 1);
-    fill(g, 'rgba(176,58,48,0.45)', IN - 3, 6, 1, DEM.h - 12);
-
-    const d = dateOf(day);
-    g.textAlign = 'right'; g.textBaseline = 'alphabetic';
-    g.fillStyle = '#4a4e56'; g.font = UI.font(6);
-    g.fillText(`${d.season} ${d.dayOfSeason}`, DEM.w - IN, 23);
+    stock(g, 0, 0, PAD.w, PAD.h, '#c9d6dd', '#dde7ec', '#9cadb6');
+    creases(g, 0, 0, PAD.w, PAD.h, 1);
+    fill(g, RED, 4, 5, PAD.w - 8, 2);
+    fill(g, RED, 4, 9, PAD.w - 8, 1);
 
     g.textAlign = 'left';
     const head = mode === 'paid' ? 'RECEIVED'
       : mode === 'evicted' ? 'NOTICE TO QUIT' : 'DEMAND FOR RENT';
-    // 7 px, NOT 8, and the measure is what decides it: the date sits on the
-    // same line, right-aligned, so the head has `TW - 36` = 68 units. "DEMAND
-    // FOR RENT" is 15 characters, which is 72 units at 8 px and would have
-    // wrapped its own title onto two lines, and 63 at 7 px, which fits. Same
-    // face `drawTyped` sets a sender in — this is the same man's pad.
-    let y = flow(g, IN, 23, TW - 36, [head], 7, '#22242a', true);
+    // 6 px on the pad's full 73-unit measure. The date used to share this line,
+    // right-aligned, which cost the head 36 units and forced it down to 7 px on
+    // a wider page; the pad is narrower now, so the date moved into the ledger
+    // and the title got the whole line back.
+    let y = flow(g, IN, 20, TW, [head], 6, '#22242a', true);
     fill(g, '#8d8672', IN, y - 4, TW, 1);
-    y = flow(g, IN, y + 10, TW, [`APT ${RENT.flat}, ${RENT.building}`], 6, '#3d434a');
+    y = flow(g, IN, y + 6, TW, [`APT ${RENT.flat}, ${RENT.building}`], 5, '#3d434a');
 
     // ── THE ACCOUNT, READ OFF THE CLOCK AND THE PURSE THIS INSTANT ──────────
     // Nothing here is stored. `arrears`, `owed`, `rentNow` and the purse are all
-    // live, so paying repaints the same four rows into the truth rather than
-    // into a congratulation — which is `balanceBand`'s own rule on his notices.
+    // live, so paying repaints these rows into the truth rather than into a
+    // congratulation — which is `balanceBand`'s own rule on his notices.
     //
-    // THREE ROWS, and the fourth was cut for room rather than for taste:
-    // seasons owing and total owing between them state the rate, and the page
-    // has to keep 56 units clear below the ledger for the longest of the three
-    // bodies (the notice to quit, five flowed lines) before the pressable rows
-    // start at `ROW_Y[0]`. A fourth row is 11 of those units and the eviction
-    // copy would have run under the PAY button.
+    // THREE SHORT ROWS AND NO PROSE. The pad lost two thirds of its area when
+    // the shot became the man, and what went was everything the caption already
+    // says out loud: his terms, the eviction sentence, the seasons count. What
+    // stayed is the DOCUMENT — a date, a figure owing, a figure on you — which
+    // is what a demand handed across a hall actually has printed on it.
+    const d = dateOf(day);
     const per = arrears(day);
     const led: [string, string][] = [
-      ['SEASONS OWING', `${per}`],
-      ['TOTAL OWING', `$${owed(day).toFixed(2)}`],
-      ['ON YOUR PERSON', `$${ctx.purse.cash.toFixed(2)}`],
+      ['DATE', `${d.season} ${d.dayOfSeason}`],
+      ['OWING', `$${owed(day).toFixed(2)}`],
+      ['ON YOU', `$${ctx.purse.cash.toFixed(2)}`],
     ];
-    y += 6;
+    y += 4;
     for (const [k, v] of led) {
-      g.font = UI.font(6); g.fillStyle = '#4a4e56';
-      g.textAlign = 'left'; g.fillText(k, IN, y);
-      g.font = UI.font(6, true); g.fillStyle = '#22242a';
-      g.textAlign = 'right'; g.fillText(v, DEM.w - IN, y);
+      g.font = UI.font(5); g.fillStyle = '#4a4e56';
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText(k, IN, y);
+      g.font = UI.font(5, true); g.fillStyle = '#22242a';
+      g.textAlign = 'right'; g.fillText(v, PAD.w - IN, y);
       fill(g, 'rgba(70,78,86,0.20)', IN, y + 2, TW, 1);
-      y += 12;
+      y += 9;
     }
     g.textAlign = 'left';
-
-    // WHOLE SENTENCES, NEVER HAND-BROKEN — the same rule the landlord's three
-    // posted pieces were just corrected to. `flow` wraps these against the real
-    // 104-unit measure; a line broken by hand here would be re-broken by it and
-    // orphan its own tail, which is precisely what *"letters still look
-    // terrible"* was pointing at on the slip from under the door.
-    const body = mode === 'paid'
-      ? [`Received of Apt ${RENT.flat} the sum of $${took.toFixed(2)}, being rent.`,
-        '', 'Signed in pencil and torn out of the carbon book in his coat.']
-      : mode === 'evicted'
-        ? ['A season has fallen due on top of the one you did not pay.',
-          '', 'Settle one season and the key is yours again.']
-        : ['Payable in cash, in the hall, on the day.',
-          '', 'I do not take cheques.'];
-    flow(g, IN, y + 6, TW, body, 6, '#332d25');
     // ⚠ NO `pastDue` STAMP ON THIS PAGE, deliberately. The first cut struck one
     // across the body the way `drawTyped` used to, and that is exactly the mark
-    // *"letters still look terrible"* was aimed at an hour ago — a stamp and a
-    // sentence stacked into one illegible thing. There is also nothing for it
-    // to say here that the page does not already shout: it is headed DEMAND FOR
-    // RENT or NOTICE TO QUIT, and the arrears are printed twice above.
+    // *"letters still look terrible"* was aimed at — a stamp and a sentence
+    // stacked into one illegible thing. There is nothing for it to say that the
+    // page does not already shout: it is headed DEMAND FOR RENT or NOTICE TO
+    // QUIT, and what is owing is printed under it.
 
     // ── THE TWO THINGS YOU MAY DO, PRINTED ON HIS OWN PAD ───────────────────
-    // Mouse first — this world's grammar is clickable printed surfaces — with
-    // the two digits as the keyboard's answer. The pay row is DEAD and says why
+    // The mouse still works — this world's grammar is clickable printed
+    // surfaces — but the KEYS are the interface now and they are named in the
+    // caption, because a row 0.24 m wide two metres away is a thing you may
+    // click, not a thing you should have to. The pay row is DEAD and says why
     // when you are short, which is K's rule: the refusal is in the caption you
     // are already reading, not in a key that silently does nothing.
     const short = rentNow() - ctx.purse.cash;
@@ -3836,12 +3917,12 @@ export function register(ctx: CtxBuild): void {
     if (dPanel) return;
     dPanel = makePanel({
       id: 'ct-landlord-demand',
-      w: DEM.w * DEM_SS, h: DEM.h * DEM_SS,
-      // FRAMELESS, for the reason the letters are: `drawDemand` paints a whole
-      // sheet of his paper edge to edge, and the framework's beige cabinet round
-      // it would be a second object drawn around a picture of a first one.
+      w: FR.w * FR_SS, h: FR.h * FR_SS,
+      // FRAMELESS, and now for a second reason on top of the letters': a beige
+      // cabinet drawn round this canvas would be a cabinet drawn round a hole in
+      // the air with a man standing in it.
       chrome: 'none',
-      hint: () => `"${voice()}"   ·   [E] push past him`,
+      hint: caption,
       draw: drawDemand,
       // ⚠ NOTHING ELSE. ESC and `[E]` are the framework's and must stay the
       // framework's on a view the player did not ask to enter.
@@ -3850,12 +3931,14 @@ export function register(ctx: CtxBuild): void {
         else if (k === '2') dPanel?.close();
       },
       surface: {
-        mesh: () => demand,
-        // Further back than a letter's 0.42: this is not a page you are reading,
-        // it is a page a man is holding in your face, and the point of the shot
-        // is that HE is in it behind it.
-        standoff: 0.62,
-        fov: 52,
+        mesh: () => pane,
+        // THE SHOT. 1.60 m off the pane puts the eye 2.05 m off the man, `eyeY`
+        // stands it at a person's height instead of level with the middle of a
+        // prop, and 46° covers him head to shin from there. See the framing note
+        // above — none of these three is free to move without the other two.
+        standoff: FR_STANDOFF,
+        fov: FR_FOV,
+        eyeY: FR_EYE,
         hot: (x, y) => rowAt(x, y) !== null,
         click: (x, y) => {
           const r = rowAt(x, y);
@@ -3863,14 +3946,14 @@ export function register(ctx: CtxBuild): void {
           else if (r === 1) dPanel?.close();
         },
       },
-      // The paper exists only while he is holding it out. Guarded on
+      // The pane exists only while he is holding you there. Guarded on
       // `screenFocusReady()` for the same reason the letter sheet is: in a world
       // with no focus controller the panel falls back to the screen-space
-      // cabinet and this must not leave a blank page hanging in the lobby.
-      onOpen: () => { demandOpen = true; if (screenFocusReady()) demand.visible = true; },
+      // cabinet and this must not leave anything hanging in the lobby.
+      onOpen: () => { demandOpen = true; if (screenFocusReady()) pane.visible = true; },
       // ON EVERY CLOSE — Escape, `[E]`, the row, and the automatic close when
       // another panel opens. There is no path that leaves it up.
-      onClose: () => { demandOpen = false; demand.visible = false; },
+      onClose: () => { demandOpen = false; pane.visible = false; },
     });
   }
 
@@ -3881,12 +3964,11 @@ export function register(ctx: CtxBuild): void {
     // See the note above: the −z side of him, always, and his x clamped to the
     // west half of his own wander so the feet land on known floor.
     const hx = Math.min(APT_X0 + 1.50, Math.max(APT_X0 + 0.60, ll.x));
-    demand.position.set(hx, 1.42, ll.z - 0.55);
-    // `rotation.set` first and THEN the roll, exactly as `showLetters` does it:
-    // after the yaw, local z IS the page's normal, so `rotateZ` turns the paper
-    // in its own plane and cannot move where `poseFor` puts the eye.
-    demand.rotation.set(0, Math.PI, 0);
-    demand.rotateZ(SHEET_ROLL);
+    pane.position.set(hx, FR_Y, ll.z - FR_OUT);
+    // SQUARE, and no roll on it. A sheet gets `SHEET_ROLL` because a piece of
+    // paper in a hand is never quite straight; this is not a piece of paper, it
+    // is the frame the shot is composed in, and tipping it would tip the man.
+    pane.rotation.set(0, Math.PI, 0);
     buildDemandPanel();
     dPanel?.open();
   }
