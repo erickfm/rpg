@@ -6951,3 +6951,85 @@ diegetic reading view, several titled books covering stats and how to raise
 them, movement, fatigue, rent and work, shop hours, the casino, the PCs and the
 market. Creative liberties on titles and design; every number read out of the
 source, nothing invented. Routed to its own builder.
+
+## 2026-08-11 — *"make sure the signs also limit whether the person can enter. so if a place is only open 10am to midnight then at 9am you cant enter. then if were in we can always work. but you also can work yourself to death/passing out."*
+
+Split in two. Entry gating + card placement in `2db3a548` / `bc292185`: ten shops
+refuse at the door quoting their own card, four never close, and the punch clock
+lost both its hours refusals — a shift is eight hours and only the body ends it.
+The pawn counter's hours check was deleted outright: you cannot stand at a
+counter unless the door let you in, which is what let its two ends disagree.
+Collapse in `0a3d039`: a work shift had been reading as a night's SLEEP (same
+clock-jump-behind-a-fade gesture), resetting the awake window and healing to
+full, so passing out from work was unreachable. A worked minute now costs 1.5 —
+two shifts from rested. Wakes at your bed, minus 1-10% of pocket cash.
+
+## 2026-08-11 — *"make sure all open signs arent blocked by building geometry"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 16-16-44.png`.
+`bc292185` — placement was one hand-tuned offset and a shopfront is not flat at
+reading height. Cards now walk out from their door 60 mm a step until seven
+sight-lines agree. FIRST FEDERAL's was buried worse than the photographed one.
+
+## 2026-08-11 — *"big six wheel is illegible. fix this, make it simpler maybe."*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 16-17-47.png`.
+`f6a61a09` — 54 pegs to 24, labels off the tangent onto the radius, face 136 ->
+312 px/m. Odds re-derived so five of six bets print TRUE odds; RTP 94.1 -> 97.9%.
+
+## 2026-08-11 — *"whenever you gain money play the money sound whenever yuou lose money play the loss sound."*
+
+Landed inside `432608de` (the index was swept mid-commit; content byte-identical).
+One watcher on the wallet beside the HUD's green/red tick, netted over 0.25 s.
+Silent where a game already speaks, and at the ATM. Caught Big Six ringing the
+shop cash register on every stake — the same miss roulette had a day earlier.
+
+## 2026-08-11 — *"once you give the kid smokes, he should always be in the park smoking. thanks"*
+
+`c981ef9a` — he was never leaving the park; the trade just left no mark on him.
+Now permanently lit: stub, ember flaring on the drag, plume. Palette lifted from
+`ct/smoking.ts` so his cigarette and yours are the same cigarette.
+
+## 2026-08-11 — *"if you owe the landlord money, whenever you step on the bottom floor like one step. you enter a perspective view where he interrogates you for the cash. he will only evict you if you don't pay rent by the next month's rent being due."*
+
+`8a9ea7a5` — fires on the first frame you are in the lobby owing money, one catch
+per entry, re-arming only out to the street or up the stairs, so the loop at the
+stair foot is unreachable. Demand pad reads the account live; pay whole seasons
+or NOT TODAY. Eviction did not exist before: now two seasons standing, exactly
+his sentence, and it changes the lock on 301 (never locks you in).
+
+## 2026-08-11 — *"esc menu should pause the game. so time doesnt pass and you dont get sleepy etc. no sound, etc."*
+
+`b161b52` — one gate in the world tick holds clock, body, fatigue, wages,
+citizens, traffic, weather, stock ticks; audio suspends the context so beds
+resume mid-sample. Pause SKIPS time rather than banking it, so fatigue cannot
+read the resume as a night's sleep. A running fade now claims Escape — you
+cannot pause a cut.
+
+## 2026-08-11 — *"you can use these sounds in the esc menu actually. esc pause is the sound when they hit pause and then theres pasue loop for after when theyre just paused"*
+
+`755aca9` — the two files are two cuts of ONE recording, so they layer rather
+than sequence. The menu got its own AudioContext, built at boot, so the world's
+can still suspend outright.
+
+## 2026-08-11 — *"gap here and graphics overlap between jail and college"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 16-53-21.png`.
+`cd7655e5` — the college party wall's MESH was 2 cm/5 cm short of its own
+collider, so the two buildings missed diagonally: a 2 cm x 13.6 m chimney into
+the void. Both faces are the property line now. Swept all 137 exterior walls —
+the only near-miss corner on the street.
+
+## 2026-08-11 — *"letters still look terrible please fix this"*
+
+Screenshot: `~/Pictures/Screenshots/Screenshot from 2026-08-11 16-54-59.png`.
+`8a9ea7a5` — NOT density: the landlord's note renders at 2,057 px/m, the highest
+in the world. It was 2 deg of roll point-sampled at 1:1, drifting the baseline
+ten pixels through the texel lattice across a line. Roll is zero now. Also moved
+the PAST DUE stamp off the words and un-orphaned a hand-broken line.
+
+## 2026-08-11 — *"make it so packages i want to steal dont show up at my own door."*
+
+`198780a0` — 301 excluded at BUILD, so it never gets a mesh, collider or spots;
+a parcel that exists and is merely never drawn is a box you can walk into.
+`HOME_FLAT` declared once so the exclusion follows you. 302 keeps its parcels.
