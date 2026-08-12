@@ -7033,3 +7033,99 @@ the PAST DUE stamp off the words and un-orphaned a hand-broken line.
 `198780a0` — 301 excluded at BUILD, so it never gets a mesh, collider or spots;
 a parcel that exists and is merely never drawn is a box you can walk into.
 `HOME_FLAT` declared once so the exclusion follows you. 302 keeps its parcels.
+
+## 2026-08-11 — *"swap the used car lot and the college pls"* / *"swap the location of the thrift store and the diner"*
+
+`4ee77b41` and `00ea5ec8`. The college takes the lot's main-street slot, recessed
+behind a campus court; the lot goes to the side street. Needed a new `ct/sites.ts`
+because NOTHING knew which way its street ran — `openSite` could only cut the main
+street's wall. Three hard-coded numbers lied in their own comments, including a
+kerb cut that would have left an 8.6 m hole in the pavement across the college's
+gate. Fallout in `88e13c5a` (weed guard, world bound) and `ea465d01` (the
+construction ambience was playing from inside the jail's land).
+
+## 2026-08-11 — *"you can keep the same dim of the old auto spot. just get rid of the smokes place"*
+
+`08019cdb` — SMOKES deleted (its roster line was the only live reference in `src/`),
+the lot restored to the frontage its plan wants. One tree was standing in the new
+drive.
+
+## 2026-08-11 — *"why is only the burger barn business illuminated?"*
+
+`380a05fc` — its new sign plane is 85% of a red whose channel hits 200, one over
+the self-lit bar; nothing else on the block reaches it. Every fascia now DECLARES
+`lit` or `printed` instead of being colour-sniffed, tied to `openNow`: five signs
+at 8pm, only the bodega and the diner's blade after midnight.
+
+## 2026-08-11 — *"make the cc facade a bit nicer"*
+
+`fa7d7989` — the college already had five mouldings that never showed: every one is
+tinted from the roster colour and the college's is maroon. Built rather than
+painted — corona, sill course, stone doorcase, tablet, banners. The two dark slabs
+were the BENCHES, slats 7 mm apart on a 40 cm board and backs on the path side.
+Lit four court lanterns, including two gate lamps that had never once lit.
+
+## 2026-08-11 — *"side of diner should have windows into park"*
+
+`3bd15cec` — two glazed bays with a pier between, and the interior kit learned to
+build a flank around openings the way it builds the front around a door; the
+street backdrop grew a park variant. Fixed the latent `hasWindow` bug: the bodega's
+door is in a chamfer so it never counted, and its front window had been cut with no
+glass in it.
+
+## 2026-08-11 — *"this guy looks like he's smoking out of his nose"*
+
+`eb76b751` — the mouth is painted at row 17; the cigarette was on 16, which
+straddled the blank span between eyes and lips. The "detached smoke" was the park's
+own paper litter on the grass.
+
+## 2026-08-11 — *"graphics on sign here are overlapping"* (jail) + the sweep behind it
+
+`8c7355ab` — the plate was taller than the band it hangs in and centred on the
+wrong ceiling, with leading at 0.40 of a cap. The sweep then found eight more,
+five in the bank; `31856554` fixed all of them and put an overflow guard in the
+shared painter so the next sign cannot repeat it silently.
+
+## 2026-08-11 — *"casino sign still overlapping"* / *"hotel sign is over the doors in a janky way. in general have signs match the facades"*
+
+`85686d34` — two blind spots: the vice frontages PAINT their entrances flat, so
+sight-lines reported clear through 3.4 m of painted stonework; and the neon risers
+are built at 0.4 opacity and driven to 1.0 at night, so the occlusion test called
+them see-through. Test now asks about depth, not alpha. Card style is driven by
+each facade's declared MATERIAL, not a name hash — one new style, neon.
+
+## 2026-08-11 — *"the sound of the noise for the esc menu is too loud"* / *"i get the money ping anytime i restart"*
+
+`5957938e` — `pauseLoop` 0.30 → 0.13 (−7.3 dB): it had copied the loudest bed's
+number, but every other bed is attenuated afterwards and the pause pad is not. The
+ping was the save loading ASYNC after the watcher armed; three other cues had the
+same fault, including the till. All re-primed synchronously inside the restore.
+
+## 2026-08-11 — *"rotate this so the readable side is facing me"* / *"make the diagetic book overlay bigger and make all the text ... much more readable"*
+
+`9d134ac9` — the spines faced the one side you cannot stand on. Blur was neither
+starvation nor roll: the page filled 55% of the screen, so glyphs landed 10x6 px at
+a fractional magnification. Now 80%/95% and 19x11.5. The ceiling depends only on
+CHARACTERS ACROSS THE SPREAD — font and canvas size cancel out.
+
+## 2026-08-11 — *"selling stuff at the pawn shop is too many clicks"*
+
+`af10ac5d` — the ticket arrives written up with his figures printed; you tick lines
+and sign once. Five items 10 → 6 clicks, or 2 for everything. Refusals cost 0 to
+discover. The signature box only exists while something is ticked.
+
+## 2026-08-11 — *"the view for the landlord, dont make me rotate. just let him rotate to face me"*
+
+`5874a5a3` — the panel plane is hung at exactly `FOCUS_FEET` in front of your own
+eye, square to your heading, so the framework's own pose arithmetic cancels to a
+zero-metre move. Zoom is derived from his bearing, never tighter than that, because
+a zoom cannot pan. He turns via his own loiter, widened for the scene.
+
+## 2026-08-11 — *"the esc menu needs an option for 24 hour clocks vs 12 hour"*
+
+`b68a76b3` + `ec29901d`. A card is now a size plus a BRUSH, so a flip re-runs the
+same stroke over the same canvas — no material, mesh or geometry rebuilt, nothing
+per frame. Seventeen readouts routed through one formatter. Found eleven hard-coded
+headings in the guidebooks and, worse, two paragraphs stating the OPPOSITE of the
+code — the books still said the doors do not lock and that shifts are cut at
+closing, both deleted by today's own asks.
