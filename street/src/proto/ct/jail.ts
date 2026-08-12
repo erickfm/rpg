@@ -750,27 +750,74 @@ export function register(ctx: CtxBuild): void {
   // taller than the LOANS fascia across the street, which reads from the far
   // kerb. The old numbers asked for 18 * 6 * 3 = 324 texels on a 187-texel
   // canvas: it was never going to fit and nothing said so.
-  const PLATE_W = 5.2, PLATE_H = 0.75, PLATE_PPM = 24;
+  // THE SECOND PASS COLLIDED. Erick, 2026-08-11, on a night shot of the port:
+  // *"graphics on sign here are overlapping with something"* — the two lines ran
+  // together and the block sat hard against the moulding. Two faults, both of
+  // them arithmetic, both worth writing down:
+  //
+  //  1. THE PLATE WAS TALLER THAN THE GAP IT HANGS IN, AND CENTRED ON THE WRONG
+  //     TOP. The clear band on this elevation runs from the top of the portal
+  //     head (LINT_Y + 0.55 = 3.75) to the BOTTOM of the string course built at
+  //     the foot of this function — that box is 0.26 tall centred on
+  //     BASE_H - 0.02, so it hangs down to 4.45, NOT to BASE_H. The plate was
+  //     centred on (LINT_Y + 0.55 + BASE_H) / 2 = 4.175 and 0.75 tall, i.e.
+  //     3.80…4.55, so its top 0.10 m was buried in the moulding — and exactly
+  //     COPLANAR with it, both faces at x = FX - 0.14. The frame's top bevel
+  //     was never on screen, and the first line's capitals came within 0.025 m
+  //     of the moulding's edge.
+  //  2. THE LEADING WAS 0.40 OF THE CAP HEIGHT. 0.75 m at 24 ppm is 18 texels of
+  //     canvas; two 5-texel lines at y = 3 and y = 11 leave 2 blank texels
+  //     between them — 0.083 m against 0.208 m capitals — and the first line's
+  //     cast shadow, stamped a whole texel down at that density (0.042 m, a
+  //     fifth of a cap), ate one of the two. Both lines also fell outside the
+  //     raised field the frame draws (rows 5…12): the second line's shadow
+  //     landed on the bottom bevel, so the plate's frame contained nothing.
+  //
+  // The band is 0.70 m and that is the entire budget — the words are not moving
+  // and neither is the string course, so the plate is cut to fit it. 0.66 leaves
+  // 0.02 of air top and bottom. At 52 ppm with px = 2 the capitals are
+  // 10 / 52 = 0.192 m, within 8% of what they were and still taller than the
+  // LOANS fascia across the street, the shadow is a 0.019 m hairline at the
+  // letter's edge instead of a second smeared row, and the blank between the
+  // rows is 7 texels — 0.135 m, 0.70 of a cap. The frame goes to a thin cast lip
+  // (one texel of highlight, one of inset) because a 5-texel bevel at 24 ppm was
+  // 0.208 m per side: a fifth of the plate spent on trim is what starved the
+  // text in the first place.
+  const PLATE_W = 5.2, PLATE_H = 0.66, PLATE_PPM = 52, PLATE_PX = 2;
+  /** the bottom of the string course, which is the real ceiling here — 0.15 m
+   *  below `BASE_H`, because that box is centred on `BASE_H - 0.02` and is
+   *  0.26 tall. Derived from the very numbers the moulding is built with at the
+   *  foot of this function rather than written as 4.45, so moving the moulding
+   *  moves the plate with it instead of silently burying it again. */
+  const COURSE_H = 0.26, COURSE_Y = JAIL.BASE_H - 0.02;
+  const COURSE_UNDER = COURSE_Y - COURSE_H / 2;
   const pw = Math.round(PLATE_W * PLATE_PPM), ph = Math.round(PLATE_H * PLATE_PPM);
   const plateT = declareSurface(pixTex(pw, ph, (g) => {
     g.fillStyle = '#5d5e57'; g.fillRect(0, 0, pw, ph);
     // a cast plate is a raised field inside a bevelled frame
-    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, pw, 2);
-    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, ph - 2, pw, 2);
-    g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(3, 3, pw - 6, ph - 6);
-    g.fillStyle = '#66675f'; g.fillRect(5, 5, pw - 10, ph - 10);
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, pw, 1);
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, ph - 1, pw, 1);
+    g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(1, 1, pw - 2, ph - 2);
+    g.fillStyle = '#66675f'; g.fillRect(2, 2, pw - 4, ph - 4);
     const line = (s: string, px: number, y: number) => {
       const wpx = s.length * 6 * px - px;
       // A line that does not fit is a line somebody will ship without noticing —
       // it clips at the canvas edge and the first and last words simply go.
       // Say so rather than draw it.
       if (wpx > pw - 4) console.warn(`[jail] plate line "${s}" needs ${wpx}px of ${pw}px — it will clip`);
+      // The same for the other axis, which is the one that just bit: a row whose
+      // ink (glyph + the shadow under it) runs past the canvas is a row drawn on
+      // the plate's own edge.
+      if (y + 5 * px + 1 > ph) console.warn(`[jail] plate line "${s}" ends at ${y + 5 * px + 1}px of ${ph}px — it will clip`);
       const x = Math.round((pw - wpx) / 2);
       stamp(g, s, x, y + 1, px, 'rgba(0,0,0,0.34)');    // the cast shadow first
       stamp(g, s, x, y, px, '#20221f');
     };
-    line('CITY OF CROSSTOWN', 1, 3);
-    line('HOUSE OF DETENTION', 1, 11);
+    // rows 3…12 and 21…30, each with its shadow one texel under: 7 blank texels
+    // between them, 2 of clear plate above and 2 below. Change one and redo the
+    // sum — there is no slack left in 34 texels.
+    line('CITY OF CROSSTOWN', PLATE_PX, 3);
+    line('HOUSE OF DETENTION', PLATE_PX, 21);
     dither(g, pw, ph, 220);
   }), 'sign');
   {
@@ -781,9 +828,10 @@ export function register(ctx: CtxBuild): void {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(PLATE_W, PLATE_H),
       new THREE.MeshBasicMaterial({ map: plateT, side: THREE.FrontSide }));
     p.rotation.y = -Math.PI / 2;
-    // centred in the frieze between the portal head and the top of the stone,
-    // so it sits ON something rather than floating on a field of ashlar
-    p.position.set(FX - PROUD - 0.02, (LINT_Y + 0.55 + JAIL.BASE_H) / 2, CZ);
+    // centred in the frieze between the portal head and the UNDERSIDE of the
+    // string course, so it sits ON something rather than floating on a field of
+    // ashlar — and, unlike the first pass, so that all of it is on screen.
+    p.position.set(FX - PROUD - 0.02, (LINT_Y + 0.55 + COURSE_UNDER) / 2, CZ);
     add(p);
   }
 
@@ -845,7 +893,10 @@ export function register(ctx: CtxBuild): void {
   // one building — `shots/O-jail-day-approach.png` before this. A civic base
   // always terminates in a band; it is one box and it does most of the work of
   // making the elevation look composed.
-  box(0.16, 0.26, W, flat(dressed(W, 0.26)), FX - 0.06, JAIL.BASE_H - 0.02, CZ);
+  // `COURSE_H`/`COURSE_Y` are shared with the municipal plate above, which is
+  // sized and centred to clear this box's UNDERSIDE — it used to run 0.10 m up
+  // behind it, coplanar on x = FX - 0.14. Move this and the plate follows.
+  box(0.16, COURSE_H, W, flat(dressed(W, COURSE_H)), FX - 0.06, COURSE_Y, CZ);
 
   // ── the lamps ──────────────────────────────────────────────────────────
   //
