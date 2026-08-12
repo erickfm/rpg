@@ -6,10 +6,17 @@ import { declareSurface, pixTex } from './paint';
 // and charges it. `rentNow()` replaces every money-read of `RENT.amount`
 // below, so the bill, the notice, the arrears and the label all move to
 // $1,000 together the moment the view is bought.
-import { APT_X0, APT_Z0, ST0, hasView, grantView, rentNow, VIEW_RENT } from './apartment';
+// `setLockedOut` is the eviction half: 301's door is C's, this file owns the
+// rule that changes its lock. See `evicted()` below.
+import {
+  APT_X0, APT_Z0, ST0, hasView, grantView, rentNow, VIEW_RENT, setLockedOut,
+} from './apartment';
 import { citizenSprite } from './citizens';
 import { loiter, type LoiterPost } from './loiter';
-import { UI, makePanel, screenFocusReady, hudNote, type Panel } from './hud';
+import {
+  UI, makePanel, screenFocusReady, screenFading, panelUp, heldViewUp, hudNote,
+  type Panel,
+} from './hud';
 import { defineItem, bagPut, pocketsFull, fullWhy } from './inventory';
 import { talker } from './dialog';
 import { registerSlice } from './save';
@@ -280,6 +287,54 @@ export function payRent(ctx: CtxBuild, day: number): number {
   }
   if (paid > 0) ctx.refreshWallet();
   return paid;
+}
+
+/**
+ * ══ HOW MANY SEASONS' RENT ARE STANDING ════════════════════════════════════
+ *
+ * The same arithmetic `owed()` does, WITHOUT the money. Eviction is a question
+ * about TIME — how many rent days have gone by unpaid — and pricing it first
+ * only to divide the price back out again is how the room-with-a-view upgrade
+ * would sneak into the answer: `owed()` is `periods x rentNow()`, and `rentNow()`
+ * moves. Periods do not.
+ */
+export function arrears(day: number): number {
+  return Math.max(0, duePeriodsBy(day) - paidPeriods);
+}
+
+/**
+ * ══ EVICTION, AND THE ONE THING IN THE WORLD THAT CAUSES IT ════════════════
+ *
+ * *"he will only evict you if you don't pay rent by the next month's rent
+ *  being due."*   (2026-08-11)
+ *
+ * **NOTHING EVICTED BEFORE TODAY.** This file said so twenty lines up — *"That
+ * is not a failure state and it is not a bug to fix here. Nothing evicts.
+ * Arrears simply accrue and the man waits in the lobby, which is pressure
+ * rather than a wall."* — and `ct/calendar.ts` and two of the library's books
+ * still say it. So there was no existing trigger to narrow: the ask BOTH
+ * creates eviction and, in the same sentence, dates it as late as it can
+ * possibly be dated.
+ *
+ * ⚠ THE RULE IS A DATE, NOT A DEBT AND NOT A DEADLINE IN DAYS. "By the next
+ * month's rent being due" means: a rent day came round, and the one before it
+ * was still outstanding. Two periods standing IS that sentence and nothing
+ * else — one period standing is a tenant who is late, however late, right up
+ * until the next due day passes over his head. In this world's calendar a
+ * period is a SEASON (28 days), so you have the whole of the season after the
+ * one you missed to find the money.
+ *
+ * ⚠ AND IT IS DERIVED, LIKE EVERYTHING ELSE HERE — no `evictedOn` day written
+ * down anywhere, nothing in the save slice, nothing to fall out of step with a
+ * clock that can be snapped or slept through. Which also means it is not a
+ * one-way door: pay ONE period and this is false again on the same frame, the
+ * lock comes off 301 and you are a late tenant instead of an ex-tenant. That
+ * is deliberate. A consequence you cannot climb back out of is a game-over,
+ * and the desk's steer on being late — *"a consequence rather than a
+ * game-over"* — still holds on the far side of the wall.
+ */
+export function evicted(day: number): boolean {
+  return arrears(day) >= 2;
 }
 
 // ── what comes through the door ───────────────────────────────────────────
@@ -987,8 +1042,49 @@ const PANEL_H = SHEET.h * LETTER_SS;
  * because the sheet is now re-aimed on every open and the roll has to be
  * re-applied each time; a literal typed in two places is the same defect as a
  * coordinate typed in two places (GOTCHAS §20).
+ *
+ * ══ AND IT IS ZERO NOW, WHICH IS THE WHOLE OF *"letters still look
+ *    terrible"* ═══════════════════════════════════════════════════════════
+ *
+ * *"letters still look terrible please fix this"*   (2026-08-11, on a
+ * screenshot of the slip from under 301's door)
+ *
+ * ⚠ IT IS NOT A DENSITY PROBLEM, and the whole afternoon's other fixes do not
+ * apply here. Measured the way `college-yard.ts:328` and `hours-cards.ts:34`
+ * ask for it: the page is composed at 192 x 178 units, `LETTER_SS` 3 puts
+ * 576 canvas px on a 0.28 m plane, and that is **2,057 px/m** — ten times the
+ * 150-200 px/m floor, and the highest density of any surface in this world.
+ * Nothing here is starved and lifting the lettering onto its own plane would
+ * buy exactly nothing.
+ *
+ * ⚠ WHAT IT IS: 2° OF ROLL POINT-SAMPLED AT 1:1. The stand-off (0.42 m) and
+ * the fov (55°) put this page on screen at very nearly one screen pixel per
+ * canvas texel — and `ct/hud.ts` hangs the canvas with `NearestFilter` and no
+ * mipmaps, correctly, because this is a hand-painted world. A page that is
+ * SQUARE to the eye then lands texel-on-pixel and the type is as crisp as it
+ * was drawn. Roll it two degrees and the sampling grid drifts across the page:
+ * over a 300-px line of type the baseline slides ten pixels through the texel
+ * lattice, so glyph by glyph the stems land alternately on a texel and between
+ * two of them. THAT is *"the glyph edges are soft and unevenly weighted"* —
+ * not blur, DRIFT, and it is why the letters look worse than the wall signage
+ * at a fraction of the signage's density.
+ *
+ * Only the ROLL costs this. Yaw is absorbed by `poseFor`, which derives the
+ * camera's heading from the page's own normal, and the pitch comes out at zero
+ * because the eye lands level with the page's centre — so the page is square
+ * to the screen in both other axes already, and this was the one number
+ * throwing it away.
+ *
+ * ⚠ SO THE NOTE THIS REPLACES IS OVERRULED, KNOWINGLY. It read: *"A HAND DOES
+ * NOT HOLD PAPER SQUARE TO THE WALL. Two degrees of roll is the difference
+ * between a sheet somebody is holding and a poster somebody hung."* That was a
+ * good instinct and it was bought with the legibility of every letter in the
+ * game. His words outrank it. If the held-in-a-hand feel is wanted back it has
+ * to be paid for somewhere that does not resample the type — a tilt drawn INTO
+ * the canvas, at composition time, where the browser anti-aliases it properly
+ * — and not by rotating the plane the type is point-sampled off.
  */
-const SHEET_ROLL = 0.035;
+const SHEET_ROLL = 0;
 
 /**
  * WHERE THE PAPER HANGS WHILE YOU READ IT — and why it is per-interaction.
@@ -1207,9 +1303,27 @@ const ART: Record<string, (g: CanvasRenderingContext2D, l: Letter) => void> = {}
 // a smudged second plate — never an excuse for type you cannot read.
 
 /** the fold every piece that came through a letterbox carries */
+/**
+ * ⚠ A FOLD IS A RIDGE, NOT A RULED LINE — and the flat version was the *"faint
+ * horizontal seams banding across the paper"* in his screenshot of the slip.
+ *
+ * It used to be one 1-unit band of translucent grey per crease. One unit is
+ * THREE TEXELS at `LETTER_SS`, and this page is displayed at about one screen
+ * pixel per texel (see `SHEET_ROLL`), so each crease landed as a hard 3-px
+ * grey rule straight across the sheet — which at that scale does not read as
+ * paper, it reads as a rendering artefact, the same family of thing as a
+ * scanline or a seam.
+ *
+ * A real fold catches the light on one side of the ridge and shades on the
+ * other. So it is a PAIR now, a texel of highlight over a texel of shadow, at
+ * half the old weight each: the eye resolves it as a crease rather than as a
+ * line, and there is no single band wide enough to read as a seam.
+ */
 function creases(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, n = 2): void {
   for (let i = 1; i <= n; i++) {
-    fill(g, 'rgba(120,112,90,0.11)', x, Math.round(y + (h * i) / (n + 1)), w, 1);
+    const cy = Math.round(y + (h * i) / (n + 1));
+    fill(g, 'rgba(255,252,244,0.30)', x, cy - 1, w, 1);      // the lit side of the ridge
+    fill(g, 'rgba(120,112,90,0.07)', x, cy, w, 1);           // and the shade under it
   }
 }
 /** a sheet of stock: the paper, its lit top edge and its shaded bottom */
@@ -2338,15 +2452,32 @@ function drawTyped(g: CanvasRenderingContext2D, letter: Letter): void {
   // measure its 6 px floor text fits with room, which is half of why the sheet
   // is 119 wide (see the cut note above).
   //
-  // ⚠ THE STAMP IS STRUCK ACROSS THE BODY, ON PURPOSE. It used to be dropped
-  // at the sheet's right edge at whatever height the text happened to end,
-  // which put it half on top of the sign-off line — a collision, not a strike.
-  // A rubber stamp lands where a hand banged it: square across the middle of
-  // the writing, at the angle `pastDue` already carries. Centred on the body
-  // block (head rule to last line), nudged off-centre the way a hand is.
+  // ══ AND THE STAMP COMES OFF THE WRITING ═════════════════════════════════
+  //
+  // *"letters still look terrible"* (2026-08-11) — in the screenshot the PAST
+  // DUE stamp lands square across "did not answer", and the stamp and the
+  // sentence under it are both unreadable. Two legible marks stacked into one
+  // illegible one.
+  //
+  // ⚠ THE NOTE THIS REPLACES ARGUED FOR EXACTLY THAT: *"A rubber stamp lands
+  // where a hand banged it: square across the middle of the writing."* True of
+  // a real desk and wrong on a 119-unit page, and `ART['notice-agent']` — the
+  // other piece that carries this stamp — had already worked it out and struck
+  // it BELOW the body (`Math.min(end + 26, foot - 24)`). Two painters, one
+  // stamp, two rules was the real defect; there is one rule now and it is the
+  // one that was already right.
+  //
+  // The landlord's slips are short and this page is tall, so the clear paper
+  // under the balance band is where a stamp actually has room to land. Struck
+  // low, still at `pastDue`'s own off-square angle, still on the paper — and
+  // it no longer eats a line of his own writing.
   if (l.kind !== 'junk') {
-    balanceBand(g, P.x + IN, Math.min(end + 6, P.y + P.h - 22), TW);
-    pastDue(g, P.x + P.w * 0.55, (y + end) / 2, 0.8);
+    const bandY = Math.min(end + 6, P.y + P.h - 22);
+    balanceBand(g, P.x + IN, bandY, TW);
+    // BELOW THE BAND WHERE THERE IS ROOM, and clamped so a long letter that
+    // has pushed the band to the foot of the sheet still gets its stamp on the
+    // paper rather than off the bottom edge of it.
+    pastDue(g, P.x + P.w * 0.52, Math.min(bandY + 40, P.y + P.h - 22), 0.8);
   }
 }
 
@@ -3214,9 +3345,21 @@ export function register(ctx: CtxBuild): void {
    *  taking once he has; a reload just means asking again, which is free. */
   let viewPitched = false;
 
+  /** is the interrogation on screen right now? Declared up here, above every
+   *  reader, because `landlordIn` has to hold him in the hall for the whole of
+   *  it — see the note in there. Written only by the panel's own open/close. */
+  let demandOpen = false;
+
   function landlordIn(totalMin: number): boolean {
     const day = Math.floor(totalMin / 1440);
     const hour = (totalMin % 1440) / 60;
+    // ⚠ HE MAY NOT VANISH OUT OF HIS OWN SCENE. Paying him in the interrogation
+    // takes `owed()` to zero, which is this predicate's main clause — so
+    // without this the man you just handed $500 to would pop out of existence
+    // while you were looking straight at him, mid-receipt, from a metre away.
+    // Same defect and same fix as `llTalk.speaking()` below, which the room-
+    // with-a-view sale needed for the same reason.
+    if (demandOpen) return true;
     // In the hall when he is owed money — or when a paid-up tenant could ask
     // him for the room with a view. Same hours either way: nobody sells
     // windows at four in the morning. `speaking()` holds him through his own
@@ -3282,8 +3425,9 @@ export function register(ctx: CtxBuild): void {
         `THE SUM OF $${amount.toFixed(2)},`,
         `being ${months === 1 ? "one month's" : `${months} months'`} rent.`,
         '',
-        'Signed in pencil, on the back of an',
-        'envelope from his coat pocket.',
+        // WHOLE SENTENCES — see the note on the under-door slip. Hand-broken at
+        // 35 columns, re-broken by `flow` at the paper's real measure, orphan.
+        'Signed in pencil, on the back of an envelope from his coat pocket.',
       ],
     };
   }
@@ -3308,8 +3452,8 @@ export function register(ctx: CtxBuild): void {
         '',
         'RECEIVED TODAY ............ $0.00',
         '',
-        'Torn out of a carbon book he keeps',
-        'in his coat, and handed to you.',
+        // WHOLE SENTENCES — see the note on the under-door slip.
+        'Torn out of a carbon book he keeps in his coat, and handed to you.',
         '',
         '"Come back when you have it."',
       ],
@@ -3404,6 +3548,405 @@ export function register(ctx: CtxBuild): void {
   };
   ctx.spot(llSpot);
 
+  // ══ HE CATCHES YOU IN THE DOORWAY ══════════════════════════════════════════
+  //
+  // *"if you owe the landlord money, whenever you step on the bottom floor like
+  //  one step. you enter a perspective view where he interrogates you for the
+  //  cash. he will only evict you if you don't pay rent by the next month's
+  //  rent being due."*   (2026-08-11)
+  //
+  // The man was optional. He stood at the foot of the stairs with an `[E]` on
+  // him and you could walk past him up to your own flat for a whole season
+  // without once being asked. THIS IS THE ASK MADE LITERAL: set foot on the
+  // ground floor owing money and you are IN it — no prompt, no key, no choice
+  // about whether to look at him.
+  //
+  // ⚠ WHICH MAKES IT THE MOST DANGEROUS THING IN THIS FILE. A view that opens
+  // because you WALKED is one bad predicate away from a player pinned at the
+  // bottom of his own stairs, and *"a panel you cannot close is the worst bug
+  // this project ships"*. Every guard below is load-bearing:
+  //
+  //   ESCAPE AND `[E]`      the framework's, on every panel, from every state.
+  //                         Not re-implemented here, not intercepted here — the
+  //                         `key` hook below deliberately handles nothing but
+  //                         the two digits.
+  //   STANDING UP           `crosstown.ts`'s `stepFocus` watches `rig.seated`
+  //                         and calls `escape()` the instant the rig loses the
+  //                         seat for any reason it did not initiate.
+  //   ONE CATCH PER ENTRY   `armed` is cleared by the catch and set again only
+  //                         by LEAVING — out to the street or up the stairs.
+  //                         Closing the view leaves you standing in the lobby,
+  //                         which is not a re-entry, so it cannot re-fire under
+  //                         your feet. That is the pin-at-the-foot-of-the-stairs
+  //                         trap, and it is structurally unreachable rather
+  //                         than merely unlikely.
+  //   AND A COOLDOWN        30 game minutes on top of it, so bouncing in and
+  //                         out of the front door to look at something is not
+  //                         punished with the same scene four times.
+  //   NOTHING ELSE OWNS     no panel, no held view, no fade, not seated, and a
+  //   THE SCREEN            focus controller actually registered.
+  //   YOU CAN ALWAYS GO     he is pressure, never a wall: the view ends where
+  //                         you started, on the lobby floor, between the front
+  //                         door and the stairs, with both still walkable. Being
+  //                         unable to pay has never once stopped you moving.
+  //
+  // ── WHERE IT PUTS YOU ─────────────────────────────────────────────────────
+  //
+  // The framework moves the feet: `poseFor` stands the player `FOCUS_FEET`
+  // (0.95 m) off the face of whatever the panel is painted on. So the paper is
+  // what decides where you end up, and it hangs on the FRONT-DOOR side of him,
+  // 0.55 m out — you finish 1.50 m from the man, looking up at him, with the
+  // hall behind you.
+  //
+  // ⚠ ALWAYS THE −Z SIDE, whichever way you came from, and that is a floor
+  // decision rather than a framing one. His own loiter box runs to `APT_Z0 +
+  // 7.55` and the stair core wall starts at `AZI(STAIR_Z0)` = 8.4; a paper that
+  // turned to face a player coming DOWN the stairs would put the eye — and
+  // therefore the feet — at `ll.z + 1.5`, which is inside the flight. Pinning
+  // the normal at π lands the feet in `AZI 4.80…6.05` for every one of his
+  // posts, which is open lobby floor with 101's landing parcel (200.25,
+  // AZI 4.31) more than half a metre clear of the nearest corner of it.
+  // The x is clamped to his west-half band for the same reason: it is his
+  // wander that moves, and the player should not inherit the far end of it.
+  // 1 : 1.72 — a long demand pad, and the measure is set by the COPY rather
+  // than picked: head, three account rows and five flowed lines of his terms,
+  // then the two pressable rows, all at the 6-7 px faces this file sets small
+  // print at. A shorter page would either clip his terms or shrink the type
+  // under the legibility floor, and the sheet's own note is explicit that
+  // legibility is the constraint the shape fits inside, not the other way on.
+  const DEM = { w: 122, h: 210 };
+  const DEM_SS = 3;                        // same legibility multiple the letters use
+  // 0.27 m across, which at the 0.62 m stand-off below puts the pad at about a
+  // quarter of the frame's width and three quarters of its height — a page held
+  // up in front of you, with the man it belongs to still in the shot around it.
+  // 122 units on 0.27 m at `DEM_SS` 3 is 1,356 px/m, well over the 150-200 px/m
+  // floor `college-yard.ts:328` states — see `SHEET_ROLL` for why density was
+  // never what was wrong with the paper in this file.
+  const DEM_W = 0.27;
+  const demand = add(new THREE.Mesh(
+    new THREE.PlaneGeometry(DEM_W, DEM_W * DEM.h / DEM.w),
+    // ONE MeshBasicMaterial, never an array — `ct/hud.ts` hangs the panel canvas
+    // on `mesh.material` and an array throws there (queue item 150).
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, alphaTest: 0.5 })));
+  demand.name = 'tenancy-demand-sheet';
+  demand.visible = false;
+
+  /** the two pressable rows, in composition units. Everything about the page is
+   *  written in these units and divided by `DEM_SS` at the pointer, so the
+   *  drawing and the hit test cannot drift apart. */
+  const ROW = { x: 9, w: DEM.w - 18, h: 18 };
+  const ROW_Y = [DEM.h - 52, DEM.h - 28];
+  const rowAt = (x: number, y: number): 0 | 1 | null => {
+    const u = x / DEM_SS, v = y / DEM_SS;
+    if (u < ROW.x || u > ROW.x + ROW.w) return null;
+    if (v >= ROW_Y[0] && v <= ROW_Y[0] + ROW.h) return 0;
+    if (v >= ROW_Y[1] && v <= ROW_Y[1] + ROW.h) return 1;
+    return null;
+  };
+
+  /** what he will actually take off you right now — whole periods only, the
+   *  same arithmetic `payRent` does, quoted before it happens so the row can
+   *  print the true figure rather than a hope. */
+  function payable(day: number): number {
+    const rent = rentNow();
+    return Math.min(Math.floor(ctx.purse.cash / rent), arrears(day)) * rent;
+  }
+
+  /** which page of the pad is on the clip: the demand, the notice to quit, or
+   *  the carbon he has just signed. Set at open and by the one verb below. */
+  let mode: 'demand' | 'evicted' | 'paid' = 'demand';
+  /** what changed hands in THIS scene, for the receipt copy */
+  let took = 0;
+
+  /**
+   * HIS VOICE, IN THE CAPTION.
+   *
+   * Not on the paper — a landlord's pad carries what he WROTE, and a man does
+   * not hand you a page of his own dialogue. Not in `ct/dialog.ts`'s bubble
+   * either, which floats above his head and is out of frame at this stand-off.
+   * The framework's caption band is unboxed plain text along the bottom of the
+   * view (`chrome: 'none'`), which `ct/hud.ts` put there precisely so it *"reads
+   * as the world's own prompt line rather than as chrome"* — so it is the one
+   * place a spoken line can go and still be part of the picture.
+   *
+   * ⚠ IT ALSO CARRIES THE WAY OUT, and that is not decoration. The caption
+   * de-dupes on the bare key, so writing `[E]` here replaces the framework's own
+   * `[E] leave` rather than doubling it — and a scene you did not ask to enter
+   * has to say how to get out of it in the same breath as the threat.
+   *
+   * He is the same man as the notices and the pitch: clipped, second person,
+   * cash only, no cruelty and no melodrama.
+   */
+  function voice(): string {
+    if (mode === 'paid') {
+      return took > 0 ? 'Right. Signed for. Go on up.' : 'Go on, then.';
+    }
+    if (mode === 'evicted') {
+      return 'You are out. I changed that lock myself this morning.';
+    }
+    return ctx.purse.cash >= rentNow()
+      ? 'Three-oh-one. You have it on you. Count it out.'
+      : 'Three-oh-one. Do not say tomorrow. Tomorrow is what you said.';
+  }
+
+  /** one pressable row, printed on the pad rather than floating over it */
+  function padRow(g: CanvasRenderingContext2D, i: 0 | 1, key: string,
+                  text: string, live: boolean): void {
+    const y0 = ROW_Y[i];
+    fill(g, live ? '#eef4f6' : '#bcc7cd', ROW.x, y0, ROW.w, ROW.h);
+    fill(g, live ? '#7d8b93' : '#a8b3b9', ROW.x, y0 + ROW.h - 2, ROW.w, 2);
+    g.fillStyle = live ? '#6a747a' : '#8d979c';
+    g.font = UI.font(6, true);
+    g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.fillText(key, ROW.x + 5, y0 + ROW.h / 2 + 1);
+    g.fillStyle = live ? '#2b2a30' : '#727d83';
+    g.font = UI.font(8, true);
+    g.textAlign = 'center';
+    g.fillText(text, ROW.x + ROW.w / 2, y0 + ROW.h / 2 + 1);
+    g.textBaseline = 'alphabetic';
+  }
+
+  function drawDemand(g: CanvasRenderingContext2D): void {
+    const day = Math.floor(ctx.clock.now().totalMin / 1440);
+    // The supersample is applied once, here, exactly as `drawLetter` does it for
+    // the mail — everything below is written in DEM units.
+    g.save();
+    g.scale(DEM_SS, DEM_SS);
+    const IN = 9, TW = DEM.w - IN * 2, RED = '#b03a30';
+    // HIS PAPER, the blue-grey the notices are printed on. The colour is this
+    // man's identity across four documents now and it is not re-picked here.
+    stock(g, 0, 0, DEM.w, DEM.h, '#c9d6dd', '#dde7ec', '#9cadb6');
+    creases(g, 0, 0, DEM.w, DEM.h, 1);
+    fill(g, RED, 5, 6, DEM.w - 10, 2);
+    fill(g, RED, 5, 10, DEM.w - 10, 1);
+    fill(g, 'rgba(176,58,48,0.45)', IN - 3, 6, 1, DEM.h - 12);
+
+    const d = dateOf(day);
+    g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+    g.fillStyle = '#4a4e56'; g.font = UI.font(6);
+    g.fillText(`${d.season} ${d.dayOfSeason}`, DEM.w - IN, 23);
+
+    g.textAlign = 'left';
+    const head = mode === 'paid' ? 'RECEIVED'
+      : mode === 'evicted' ? 'NOTICE TO QUIT' : 'DEMAND FOR RENT';
+    // 7 px, NOT 8, and the measure is what decides it: the date sits on the
+    // same line, right-aligned, so the head has `TW - 36` = 68 units. "DEMAND
+    // FOR RENT" is 15 characters, which is 72 units at 8 px and would have
+    // wrapped its own title onto two lines, and 63 at 7 px, which fits. Same
+    // face `drawTyped` sets a sender in — this is the same man's pad.
+    let y = flow(g, IN, 23, TW - 36, [head], 7, '#22242a', true);
+    fill(g, '#8d8672', IN, y - 4, TW, 1);
+    y = flow(g, IN, y + 10, TW, [`APT ${RENT.flat}, ${RENT.building}`], 6, '#3d434a');
+
+    // ── THE ACCOUNT, READ OFF THE CLOCK AND THE PURSE THIS INSTANT ──────────
+    // Nothing here is stored. `arrears`, `owed`, `rentNow` and the purse are all
+    // live, so paying repaints the same four rows into the truth rather than
+    // into a congratulation — which is `balanceBand`'s own rule on his notices.
+    //
+    // THREE ROWS, and the fourth was cut for room rather than for taste:
+    // seasons owing and total owing between them state the rate, and the page
+    // has to keep 56 units clear below the ledger for the longest of the three
+    // bodies (the notice to quit, five flowed lines) before the pressable rows
+    // start at `ROW_Y[0]`. A fourth row is 11 of those units and the eviction
+    // copy would have run under the PAY button.
+    const per = arrears(day);
+    const led: [string, string][] = [
+      ['SEASONS OWING', `${per}`],
+      ['TOTAL OWING', `$${owed(day).toFixed(2)}`],
+      ['ON YOUR PERSON', `$${ctx.purse.cash.toFixed(2)}`],
+    ];
+    y += 6;
+    for (const [k, v] of led) {
+      g.font = UI.font(6); g.fillStyle = '#4a4e56';
+      g.textAlign = 'left'; g.fillText(k, IN, y);
+      g.font = UI.font(6, true); g.fillStyle = '#22242a';
+      g.textAlign = 'right'; g.fillText(v, DEM.w - IN, y);
+      fill(g, 'rgba(70,78,86,0.20)', IN, y + 2, TW, 1);
+      y += 12;
+    }
+    g.textAlign = 'left';
+
+    // WHOLE SENTENCES, NEVER HAND-BROKEN — the same rule the landlord's three
+    // posted pieces were just corrected to. `flow` wraps these against the real
+    // 104-unit measure; a line broken by hand here would be re-broken by it and
+    // orphan its own tail, which is precisely what *"letters still look
+    // terrible"* was pointing at on the slip from under the door.
+    const body = mode === 'paid'
+      ? [`Received of Apt ${RENT.flat} the sum of $${took.toFixed(2)}, being rent.`,
+        '', 'Signed in pencil and torn out of the carbon book in his coat.']
+      : mode === 'evicted'
+        ? ['A season has fallen due on top of the one you did not pay.',
+          '', 'Settle one season and the key is yours again.']
+        : ['Payable in cash, in the hall, on the day.',
+          '', 'I do not take cheques.'];
+    flow(g, IN, y + 6, TW, body, 6, '#332d25');
+    // ⚠ NO `pastDue` STAMP ON THIS PAGE, deliberately. The first cut struck one
+    // across the body the way `drawTyped` used to, and that is exactly the mark
+    // *"letters still look terrible"* was aimed at an hour ago — a stamp and a
+    // sentence stacked into one illegible thing. There is also nothing for it
+    // to say here that the page does not already shout: it is headed DEMAND FOR
+    // RENT or NOTICE TO QUIT, and the arrears are printed twice above.
+
+    // ── THE TWO THINGS YOU MAY DO, PRINTED ON HIS OWN PAD ───────────────────
+    // Mouse first — this world's grammar is clickable printed surfaces — with
+    // the two digits as the keyboard's answer. The pay row is DEAD and says why
+    // when you are short, which is K's rule: the refusal is in the caption you
+    // are already reading, not in a key that silently does nothing.
+    const short = rentNow() - ctx.purse.cash;
+    const take = payable(day);
+    const canPay = mode !== 'paid' && per > 0 && take > 0;
+    // ⚠ THE DEAD ROW STILL TELLS THE TRUTH. It said "SETTLED" after a payment,
+    // which is a lie whenever the purse only covered one of two seasons — the
+    // ledger three lines above would be printing an outstanding balance under
+    // the word. It quotes what actually changed hands instead, and the ledger
+    // says what is left.
+    padRow(g, 0, '1', canPay ? `PAY $${take.toFixed(2)}`
+      : mode === 'paid' ? `RECEIVED $${took.toFixed(2)}`
+        : `SHORT BY $${short.toFixed(2)}`, canPay);
+    padRow(g, 1, '2', mode === 'paid' ? 'GO UP' : 'NOT TODAY', true);
+    g.restore();
+  }
+
+  let dPanel: Panel | null = null;
+
+  /** Hand over what you can. Whole periods only — `payRent` owns that and this
+   *  does not repeat it — and the page becomes the carbon he signs for it. */
+  function handOver(): void {
+    const day = Math.floor(ctx.clock.now().totalMin / 1440);
+    if (mode === 'paid' || arrears(day) <= 0) return;
+    const paid = payRent(ctx, day);
+    if (paid <= 0) {
+      // Unreachable from the row, which is drawn dead — but a key is not a row,
+      // and a refusal that says nothing is how a player concludes the whole
+      // feature is broken.
+      hudNote(`you are $${(rentNow() - ctx.purse.cash).toFixed(2)} short of a season's rent`);
+      return;
+    }
+    took = paid;
+    // HIS PAPERWORK IS THE SAME PAPERWORK. The receipt that goes in the archive
+    // is the one `[E]` on him has always minted, so two ways of paying one man
+    // cannot produce two different records.
+    HELD.push(receipt(day, paid));
+    while (HELD.length > KEEP) HELD.shift();
+    mode = 'paid';
+    dPanel?.repaint();
+  }
+
+  function buildDemandPanel(): void {
+    if (dPanel) return;
+    dPanel = makePanel({
+      id: 'ct-landlord-demand',
+      w: DEM.w * DEM_SS, h: DEM.h * DEM_SS,
+      // FRAMELESS, for the reason the letters are: `drawDemand` paints a whole
+      // sheet of his paper edge to edge, and the framework's beige cabinet round
+      // it would be a second object drawn around a picture of a first one.
+      chrome: 'none',
+      hint: () => `"${voice()}"   ·   [E] push past him`,
+      draw: drawDemand,
+      // ⚠ NOTHING ELSE. ESC and `[E]` are the framework's and must stay the
+      // framework's on a view the player did not ask to enter.
+      key: (k) => {
+        if (k === '1') handOver();
+        else if (k === '2') dPanel?.close();
+      },
+      surface: {
+        mesh: () => demand,
+        // Further back than a letter's 0.42: this is not a page you are reading,
+        // it is a page a man is holding in your face, and the point of the shot
+        // is that HE is in it behind it.
+        standoff: 0.62,
+        fov: 52,
+        hot: (x, y) => rowAt(x, y) !== null,
+        click: (x, y) => {
+          const r = rowAt(x, y);
+          if (r === 0) handOver();
+          else if (r === 1) dPanel?.close();
+        },
+      },
+      // The paper exists only while he is holding it out. Guarded on
+      // `screenFocusReady()` for the same reason the letter sheet is: in a world
+      // with no focus controller the panel falls back to the screen-space
+      // cabinet and this must not leave a blank page hanging in the lobby.
+      onOpen: () => { demandOpen = true; if (screenFocusReady()) demand.visible = true; },
+      // ON EVERY CLOSE — Escape, `[E]`, the row, and the automatic close when
+      // another panel opens. There is no path that leaves it up.
+      onClose: () => { demandOpen = false; demand.visible = false; },
+    });
+  }
+
+  function openInterrogation(): void {
+    const day = Math.floor(ctx.clock.now().totalMin / 1440);
+    mode = evicted(day) ? 'evicted' : 'demand';
+    took = 0;
+    // See the note above: the −z side of him, always, and his x clamped to the
+    // west half of his own wander so the feet land on known floor.
+    const hx = Math.min(APT_X0 + 1.50, Math.max(APT_X0 + 0.60, ll.x));
+    demand.position.set(hx, 1.42, ll.z - 0.55);
+    // `rotation.set` first and THEN the roll, exactly as `showLetters` does it:
+    // after the yaw, local z IS the page's normal, so `rotateZ` turns the paper
+    // in its own plane and cannot move where `poseFor` puts the eye.
+    demand.rotation.set(0, Math.PI, 0);
+    demand.rotateZ(SHEET_ROLL);
+    buildDemandPanel();
+    dPanel?.open();
+  }
+
+  /** THE GROUND FLOOR OF No. 227, wall to wall. The hall runs `AZI(0)` to
+   *  `AZI(13.2)` between walls at `AX(0)` and `AX(2.4)` — C's own collider
+   *  spans, not a second guess at them — so "the bottom floor" is the whole of
+   *  it, front door to stair foot, and there is nowhere down here he does not
+   *  catch you. */
+  const LOBBY = {
+    x0: APT_X0 + 0.10, x1: APT_X0 + 2.40,
+    z0: APT_Z0 + 0.20, z1: APT_Z0 + 13.2,
+  };
+  /** game minutes between two catches, on top of having to leave and come back */
+  const CATCH_GAP = 30;
+  let armed = true;
+  let lastCatch = -1e9;
+
+  ctx.onFrame(({ px, pz, gy }) => {
+    const { totalMin } = ctx.clock.now();
+    const day = Math.floor(totalMin / 1440);
+
+    // ── THE LOCK ON 301, DRIVEN FROM THE DERIVED RULE ─────────────────────
+    // Every frame rather than on an edge, because `evicted()` is a pure
+    // function of a clock that can be slept through or snapped: there is no
+    // moment to hang an edge on, and a flag that agrees with the calendar on
+    // every frame cannot drift from it on any.
+    setLockedOut(evicted(day));
+
+    // ── RE-ARMING ─────────────────────────────────────────────────────────
+    // He gets one catch per ENTRY to the ground floor. The two ways off it are
+    // the only two ways this comes back: out to the street (which is x < 100 —
+    // the walk-up stands at x 200 and the street is across the map) or up the
+    // stairs. Closing the view leaves you standing where he stopped you, which
+    // is neither, so the scene cannot re-open under your feet — that is the
+    // pinned-at-the-stairs trap, and it is unreachable rather than unlikely.
+    if (px < 100 || gy >= 0.5) armed = true;
+
+    if (!armed || demandOpen) return;
+    if (gy >= 0.5) return;                                     // not down here
+    if (px < LOBBY.x0 || px > LOBBY.x1) return;
+    if (pz < LOBBY.z0 || pz > LOBBY.z1) return;
+    // HE HAS TO BE THERE. `landlordIn` is the man's whole schedule — owed money,
+    // between seven and ten — so a paid-up tenant is never stopped, and coming
+    // home at two in the morning is never stopped either. Reading his own
+    // predicate rather than re-deriving it means the figure in the hall and the
+    // scene that opens can never disagree about whether he is standing there.
+    if (owed(day) <= 0 || !landlordIn(totalMin)) return;
+    if (totalMin - lastCatch < CATCH_GAP) return;
+    // NOTHING ELSE MAY OWN THE SCREEN: no panel, no held view, no fade in
+    // progress, not seated, and a focus controller actually registered — a
+    // walk-triggered view that fires into a fade or over another panel is the
+    // trap wearing a different hat.
+    if (!screenFocusReady() || panelUp() || screenFading() || heldViewUp()) return;
+    if (ctx.player.seated()) return;
+    armed = false;
+    lastCatch = totalMin;
+    openInterrogation();
+  });
+
   // ── THE SECOND NOTICE, UNDER YOUR DOOR ──────────────────────────────────
   //
   // The desk's steer on what being late should feel like, and it is the right
@@ -3496,11 +4039,29 @@ export function register(ctx: CtxBuild): void {
       slipTakenDay = day;
       const l: Letter = {
         day, kind: 'hand', from: 'PUSHED UNDER YOUR DOOR',
+        // ══ WHOLE SENTENCES, NEVER HAND-BROKEN LINES ═══════════════════════
+        //
+        // *"letters still look terrible"* (2026-08-11) — and the thing his
+        // screenshot showed most plainly was the word "or you" sitting alone on
+        // a line in the middle of a sentence.
+        //
+        // ⚠ IT WAS THIS ARRAY, NOT THE TYPESETTER. These lines were written to
+        // fit 35 columns on the old 192-unit sheet; the paper was re-cut to 119
+        // units on 2026-08-09 and `drawTyped` FLOWS what it is given
+        // (`flow`/`wrapTo`) against the real measure. So a line hand-broken at
+        // 35 gets broken AGAIN at 28, and the remainder of it — one or two
+        // words — is orphaned onto a line of its own. Every hand-broken line in
+        // this file is one orphan waiting for the next re-cut.
+        //
+        // `mailFor` was converted to whole sentences when the shapes landed —
+        // *"An entry here is now a whole sentence or a whole paragraph; where
+        // it breaks on the paper is the paper's business"* — and the landlord's
+        // three HANDED-OVER pieces were missed, because they are minted down
+        // here rather than in that table. They are sentences now, like the rest.
         lines: [
           `APT ${RENT.flat}.`,
           '',
-          'I came up. You were not in, or you',
-          'were in and did not answer.',
+          'I came up. You were not in, or you were in and did not answer.',
           '',
           'I will come again tomorrow.',
           `— ${RENT.landlord}`,
@@ -3606,6 +4167,29 @@ export function register(ctx: CtxBuild): void {
       /** the clear lane past him RIGHT NOW — worst case is his east bound */
       lane: (APT_X0 + 2.395) - (LL_MAX_X + LL_HALF_X),
     }),
+    /**
+     * THE EVICTION RULE AND THE THING THAT ENFORCES IT, in one read.
+     *
+     * `arrears`/`evicted` are the rule itself — seasons standing, and whether
+     * a rent day has passed over an unpaid one. The rest is the interrogation:
+     * `armed` is whether he is waiting to catch you (cleared by a catch, set
+     * again only by leaving the ground floor), `since` is game minutes since
+     * the last one against the 30-minute cooldown, and `scene` is which page of
+     * his pad is on screen or `null` for nothing.
+     *
+     * Published because none of it is reachable from outside — the whole of it
+     * is closure state in `register` — and because a walk-triggered locked view
+     * is the one thing in this file whose arming state somebody will want to
+     * ask about without having to walk in the front door to find out.
+     */
+    tenancy: () => {
+      const d = Math.floor(ctx.clock.now().totalMin / 1440);
+      return {
+        arrears: arrears(d), evicted: evicted(d),
+        armed, since: ctx.clock.now().totalMin - lastCatch, gap: CATCH_GAP,
+        scene: demandOpen ? mode : null,
+      };
+    },
     reading: () => (PANEL?.isOpen() ? { page, of: reading.length } : null),
     pay: () => payRent(ctx, Math.floor(ctx.clock.now().totalMin / 1440)),
     /** the room with a view: owned, askable right now, and the two figures */

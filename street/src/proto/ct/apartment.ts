@@ -198,6 +198,41 @@ export function grantView(): void {
   viewApply?.(true);
 }
 
+// ══ EVICTION: THE LOCK ON 301 ══════════════════════════════════════════════
+//
+// *"he will only evict you if you don't pay rent by the next month's rent
+//  being due."*   (2026-08-11)
+//
+// Nothing evicted before this — `ct/tenancy.ts` said so in its own words
+// (*"Nothing evicts. Arrears simply accrue"*) and `ct/calendar.ts` still does.
+// The ask makes eviction real and, in the same sentence, makes it LATE: it is
+// the only consequence in this world that can take your own front door off
+// you, and it may not happen until a whole season's rent has gone unpaid past
+// the next due day. `ct/tenancy.ts` owns that test (`evicted()`); this file
+// owns the door, and the two meet at this one flag.
+//
+// ⚠ IT IS ONE-WAY ONLY: LOCKED **OUT**, NEVER LOCKED **IN**.
+//
+// The hall side of 301's door refuses; the ROOM side is untouched and always
+// opens. A tenant asleep in his own bed when the season turns wakes up evicted
+// and can still walk out. There is no state of this world in which the leaf
+// will not open from inside, and there must never be — a door that traps you
+// is the same bug as a panel you cannot close, wearing timber.
+//
+// ⚠ AND IT CONTRADICTS A STANDING INSTRUCTION, KNOWINGLY. The door block below
+// carries *"IT NEVER REFUSES. The user: 'it should always be able to
+// open/close.'"* That was said about a door that refused when you stood in its
+// own swing — a refusal with no fiction behind it, which reads as breakage.
+// This one is the fiction: the lock has been changed, the prompt says so, and
+// paying the man clears it on the spot.
+let lockedOut = false;
+/** Has the landlord changed the lock? `ct/tenancy.ts` drives this every frame
+ *  off its own `evicted(day)` — derived from the calendar, never accumulated,
+ *  so it clears the instant a period is paid. */
+export function setLockedOut(on: boolean): void { lockedOut = on; }
+/** for the report surfaces and for anything that wants to know */
+export function isLockedOut(): boolean { return lockedOut; }
+
 export interface Apartment {
   /**
    * THE LOWEST TIMBER OVER YOUR HEAD IN THE STAIRWELL, or null when there is
@@ -1855,8 +1890,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // Both stand-points share the same ok/label/act — a door is one piece
       // of state with two thresholds, not two doors that happen to agree.
       const doorOk = () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5;
-      const doorLabel = () => (doorShut ? 'open the door' : 'close the door');
-      const doorAct = () => { doorShut = !doorShut; };
+      /** ARE YOU STANDING IN THE HALL? The two stand-points are mirrored about
+       *  the wall's own centreline `AX(0)`, so which side you are on is the one
+       *  question this pair of spots can answer from the player's x alone —
+       *  which is what makes a lock that only works one way expressible at all.
+       *  See `setLockedOut`: evicted means shut out, never shut in. */
+      const inTheHall = () => ctx.player.x() > AX(0);
+      const barred = () => lockedOut && doorShut && inTheHall();
+      const doorLabel = () => (barred()
+        // THE REFUSAL IS IN THE CAPTION YOU ARE ALREADY READING — K's rule. A
+        // key that does nothing and says nothing is how a player concludes the
+        // door is broken rather than locked.
+        ? 'the lock has been changed — 301 is not yours'
+        : (doorShut ? 'open the door' : 'close the door'));
+      const doorAct = () => { if (!barred()) doorShut = !doorShut; };
       // IT NEVER REFUSES. The user: *"it should always be able to
       // open/close."* This used to read 'step clear of the door' and do
       // nothing when you stood in the swing, which is safe and makes the
@@ -7463,6 +7510,21 @@ export function buildApartment(ctx: CtxBuild): Apartment {
    *  raising the cap early is how you get sealed in behind a moving door. */
   const updateDoor = (dt: number) => {
     if (!leaf301) return;
+    // ── THE LOCK PULLS THE DOOR TO, BUT ONLY WHILE YOU ARE OFF THE FLOOR ────
+    //
+    // An eviction that left a door standing open would be no eviction at all —
+    // walk out on the last day of the season, leave the leaf swung back, and
+    // the lock never gets a chance to be a lock. So the landlord pulls it shut
+    // behind you.
+    //
+    // ⚠ ONLY WHEN THE PLAYER IS NOT ON FLOOR 3, and that is the whole safety
+    // argument. `doorShutCap` is a real collider; raising it around somebody
+    // standing in the swing means shoving them (fp.ts's `unstick` would ease
+    // them out, but being shoved by a door closing itself reads as the world
+    // breaking). Off the storey there is nobody in the opening to shove, and
+    // the one moment this can fire — you are downstairs being told you are out
+    // — is exactly the moment the fiction wants it.
+    if (lockedOut && Math.abs(lastGy - 2 * ST) >= 0.5) doorShut = true;
     const target = doorShut ? DOOR_A_SHUT : DOOR_A_OPEN;
     if (doorA !== target) {
       const step = 4.2 * Math.min(dt, 0.05);           // ~0.7 s end to end
