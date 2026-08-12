@@ -192,7 +192,18 @@ export function buildNet(d: NetDims): Net {
     N('w-diner', WEST_X, -14, 'door'),
     N('w-win1', WEST_X, -26, 'window'),
     N('w-alley', WEST_X, -40),                    // the alley mouth (AZ0…AZ1)
-    N('w-thrift', WEST_X, -56, 'door'),
+    // MOVED WITH THE SHOP — *"swap the location of the thrift store and the
+    // diner"* (2026-08-11). This said -56, which WAS the thrift's frontage and
+    // is now the SEAM PLANE between the two buildings: the mark stood 8.7 m
+    // from the door it is named for and 2.9 m from the diner's. -47.3 is where
+    // `doorPointFor('THRIFT')` resolves today (cz -49.75 + side x at/k).
+    //
+    // NOTE FOR THE NEXT READER: two marks in this list were already stale
+    // before that swap and are NOT mine — `w-diner` at -14 stands on the
+    // LIBRARY (z -5…-21) and `w-burger` at -84 stands in the park, both left
+    // behind by earlier re-casts of the roster. Every position in this file is
+    // typed rather than read from `doorPointFor`, which is why they drift.
+    N('w-thrift', WEST_X, -47.3, 'door'),
     N('w-win2', WEST_X, -70, 'window'),
     N('w-burger', WEST_X, -84, 'door'),
     // ON THE PAINT — the west foot of the main-street crossing (item 201).
