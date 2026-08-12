@@ -898,6 +898,32 @@ export interface RoomSpec {
   /** shopfront glazing on the front wall, so the room is not a sealed box */
   window?: { at?: number; w: number; h?: number; sill?: number };
   /**
+   * WINDOWS IN A FLANK — for a building whose SIDE elevation is exposed.
+   *
+   * *"side of diner should have windows into park"* (2026-08-11). Nearly every
+   * room on this block is mid-terrace: its flanks are party walls, and a party
+   * wall has no windows because there was a building against it. The diner is
+   * not — since the thrift swap it stands on the park corner, and its park
+   * flank is a real elevation with a view worth having.
+   *
+   * The flank is built in pieces around these openings exactly the way the
+   * front wall is built around its door, and for the same reason: a hole in a
+   * box is a box with the hole's runs left out. **The COLLIDER does not change**
+   * — `flankWall` still seals the whole flank, because a window is not a way
+   * out.
+   *
+   * `bays` are centres and widths in the room's LOCAL z, the axis the flank
+   * runs along. `beyond` picks what stands outside it; see `streetBeyond`.
+   */
+  sideWindow?: {
+    /** which flank, in local x: +1 or -1 */
+    side: 1 | -1;
+    bays: { at: number; w: number }[];
+    h: number; sill: number;
+    /** default 'street' — the same painted road every front opening gets */
+    beyond?: 'street' | 'park';
+  };
+  /**
    * Tiled dado up the bottom of every wall, painted into the plaster rather
    * than modelled — a commercial room that is plaster to the floor reads as a
    * bedroom. Fast food and the tax office tile to the waist; a diner does not.
@@ -1449,8 +1475,69 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const PW_OPEN = PW
     ? { z0: PW.at - PW.w / 2, z1: PW.at + PW.w / 2, h: Math.min(PW.h, H - 0.2) }
     : null;
+
+  // ── WINDOWS IN A FLANK, validated once for everyone ──────────────────────
+  //
+  // Same contract the front wall's `addHole` enforces and for the same reason:
+  // the wall is built as the runs BETWEEN the openings, which only produces a
+  // wall at all if they are inside it, in order and disjoint. The failure is
+  // silent — a negative-length run is dropped and you get a room with a slot
+  // of daylight in it and no clue why. `bad()` is not declared yet at this
+  // point in the function (it lives with the front wall's holes), so this
+  // warns with the same `[interior:<id>]` prefix the party-wall branch below
+  // uses; two registered checks match on the prefix either way.
+  const SW = spec.sideWindow ?? null;
+  const swSide = SW?.side ?? 0;
+  const swBays: [number, number][] = [];
+  if (SW) {
+    const e0 = -hd - T, e1 = hd + T;
+    const warn = (why: string) => console.warn(`[interior:${spec.id}] side window ${why}`);
+    for (const b of [...SW.bays].sort((p, q) => p.at - q.at)) {
+      const z0 = b.at - b.w / 2, z1 = b.at + b.w / 2;
+      if (b.w <= 0.001) { warn(`at ${b.at.toFixed(2)} has no width — dropped`); continue; }
+      if (z0 < e0 || z1 > e1) {
+        warn(`spans ${z0.toFixed(2)}…${z1.toFixed(2)} but the flank only runs `
+          + `${e0.toFixed(2)}…${e1.toFixed(2)} — dropped`);
+        continue;
+      }
+      if (SW.sill + SW.h > H) {
+        warn(`reaches ${(SW.sill + SW.h).toFixed(2)} m in a ${H.toFixed(2)} m room — dropped`);
+        continue;
+      }
+      const clash = swBays.find((o) => z0 < o[1] && z1 > o[0]);
+      if (clash) {
+        warn(`overlaps the one at ${clash[0].toFixed(2)}…${clash[1].toFixed(2)} — dropped`);
+        continue;
+      }
+      swBays.push([z0, z1]);
+    }
+    // A PARTY WALL AND A WINDOW ARE THE SAME WALL'S TWO ANSWERS. One of them
+    // is wrong, and it is not this kit's job to guess which — so say so and
+    // let the party wall win, because a doorway you cannot walk through is a
+    // worse bug than a flank without glass.
+    if (PW_OPEN && swSide === partySide && swBays.length) {
+      console.warn(`[interior:${spec.id}] the ${swSide > 0 ? 'east' : 'west'} flank carries `
+        + `BOTH a party-wall opening and ${swBays.length} side window(s) — the party wall wins `
+        + `and the windows are dropped. A flank with a building against it has no view.`);
+      swBays.length = 0;
+    }
+  }
   const flank = (sx: 1 | -1) => {
     const lx = sx * (hw + T / 2);
+    if (SW && sx === swSide && swBays.length) {
+      // built in runs around the openings, cursor-style, exactly as the front
+      // wall is below: solid pier, then the run under the sill and the header
+      // over the glass, then on to the next
+      let cur = -hd - T;
+      for (const [z0, z1] of swBays) {
+        wallRun(lx, (cur + z0) / 2, z0 - cur, 'z', 0, H);
+        wallRun(lx, (z0 + z1) / 2, z1 - z0, 'z', 0, SW.sill);              // under
+        wallRun(lx, (z0 + z1) / 2, z1 - z0, 'z', SW.sill + SW.h, H);       // header
+        cur = z1;
+      }
+      wallRun(lx, (cur + hd + T) / 2, hd + T - cur, 'z', 0, H);
+      return;
+    }
     if (!PW_OPEN || sx !== partySide) { wallRun(lx, 0, D + T * 2, 'z', 0, H); return; }
     const { z0, z1, h } = PW_OPEN;
     const e0 = -hd - T, e1 = hd + T;                     // the flank's own extent
@@ -1674,8 +1761,15 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     width: number;               // how wide the backdrop stands across the face
     out: number;                 // how far off the face it stands
     y1: number;                  // its top, in room-local y (the bottom is fixed)
+    /** WHAT IS OUT THERE. Omitted keeps the room's own answer, which is the
+     *  street unless the room is on `FORECOURT`. A flank window says so
+     *  explicitly, because a side elevation does not face what the front does
+     *  — a park window that painted a roadway would be worse than no card at
+     *  all: it would state, at eye height, that the park is not there. */
+    look?: 'street' | 'court' | 'park';
   }) => {
-    const court = FORECOURT.has(spec.id);   // paving and sky, not kerb and road
+    const court = o.look ? o.look === 'court' : FORECOURT.has(spec.id);
+    const park = o.look === 'park';         // grass, hedge and trees, no road
     const Y0 = -0.30, Y1 = o.y1, Hc = Y1 - Y0;
     if (Hc <= 0.2 || o.width <= 0.2) return;
     // ── 3. night, registered on the first face this room builds ──
@@ -1694,9 +1788,28 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     // ── 1. the walk ──
     const deep = T + o.out + 0.30;                       // from under the wall to past the card
     const mid = (o.out + 0.30 - T) / 2;                  // its centre, measured off the face
+    // …and where the view is a PARK, the ground under it is grass. `tex-ground`
+    // publishes paving and plaza and no turf, so this is painted here: a mown
+    // green on the same texel grid everything else in this kit uses, its
+    // density set from the strip's own metres (GOTCHAS §5) rather than left to
+    // stretch one tile across it.
+    const turfTex = (wM: number, dM: number) => {
+      const t = declareSurface(pixTex(32, 32, (g) => {
+        g.fillStyle = '#5d6b3e'; g.fillRect(0, 0, 32, 32);
+        g.fillStyle = '#68763f';
+        for (let i = 0; i < 120; i++) g.fillRect((i * 13) % 32, (i * 29) % 32, 2, 1);
+        g.fillStyle = '#4e5c36';
+        for (let i = 0; i < 90; i++) g.fillRect((i * 23) % 32, (i * 17) % 32, 1, 2);
+        dither(g, 32, 32, 60);
+      }), 'ground');
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(Math.max(1, wM / 1.4), Math.max(1, dM / 1.4));
+      t.needsUpdate = true;
+      return t;
+    };
     const walk = new THREE.Mesh(new THREE.PlaneGeometry(o.width, deep),
       new THREE.MeshBasicMaterial({
-        map: (court ? plazaTex : walkTex)(0, o.width, 0, deep),
+        map: park ? turfTex(o.width, deep) : (court ? plazaTex : walkTex)(0, o.width, 0, deep),
       }));
     // A horizontal plane that also has to face the way the wall does. Euler
     // 'XYZ' applies Z first and X last, so `z = rotY` spins the sheet in its
@@ -1724,7 +1837,60 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
         const a = Math.max(0, Math.round(yIn(v1))), b = Math.min(hPx, Math.round(yIn(v0)));
         if (b > a) { g.fillStyle = col; g.fillRect(0, a, wPx, b - a); }
       };
-      band(-99, 99, court ? '#cfdae4' : '#b9c6d2');      // sky
+      band(-99, 99, park ? '#c2cfdc' : court ? '#cfdae4' : '#b9c6d2');      // sky
+      // ── A PARK, AT ITS REAL HEIGHTS ──────────────────────────────────────
+      //
+      // Same discipline as the street below it: every band sits at the metre
+      // it means, so the HORIZON — where the mown field meets the hedge line —
+      // lands at 1.60 m, which is eye height. A backdrop whose horizon is
+      // anywhere else reads as a photograph of a park rather than a park.
+      //
+      // What is in it is what is in `ct/park.ts` seen from the diner's corner:
+      // mown grass with its mower bands, a clipped hedge along the near walk,
+      // the tree canopy over it, a lamp standard, and the pale monument. Not
+      // recognisable — a card 0.7 m behind a window should not compete with
+      // the room you are standing in — but the same four things, so stepping
+      // outside does not contradict it.
+      if (park) {
+        band(-99, 1.60, '#5d6b3e');                      // the field, up to the eye
+        // Mower bands, foreshortened: wide near, tight away. The step is
+        // CLAMPED, and that clamp is not cosmetic — `0.34 - i * 0.055` goes
+        // negative at i = 7, and a loop whose cursor starts walking backwards
+        // never reaches its bound. It hung the world on the first run;
+        // `health.mjs` measured nothing and that is what nothing looks like.
+        for (let i = 0, v = 0.10; v < 1.55; i++, v += Math.max(0.06, 0.34 - i * 0.055)) {
+          g.fillStyle = i % 2 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+          const a = Math.max(0, Math.round(yIn(v + 0.26))), b = Math.min(hPx, Math.round(yIn(v)));
+          if (b > a) g.fillRect(0, a, wPx, b - a);
+        }
+        // The tree line, STANDING ON THE HORIZON — its base is 1.60 m, so the
+        // grass runs out to it and stops there. Stepped by index rather than
+        // by Math.random, like the frontage opposite below, so a room looks
+        // the same on every load.
+        const cTop = Math.round(yIn(4.30)), cBot = Math.round(yIn(1.60));
+        for (let bx = 0, i = 0; bx < wPx; bx += Math.max(5, Math.round(2.6 * PXM)), i++) {
+          const w2 = Math.max(4, Math.round(2.9 * PXM));
+          const top = cTop + ((i * 5) % 4) * Math.max(1, Math.round(0.30 * PXM));
+          g.fillStyle = ['#3c4c2c', '#455632', '#354427'][i % 3];
+          g.fillRect(bx, Math.max(0, top), Math.min(w2, wPx - bx), cBot - Math.max(0, top));
+        }
+        // the monument, pale stone, off to one side and standing clear
+        const mW = Math.max(3, Math.round(1.1 * PXM)), mX = Math.round(wPx * 0.72);
+        g.fillStyle = '#a9a496'; g.fillRect(mX, Math.round(yIn(3.40)), mW, Math.round(yIn(1.58)) - Math.round(yIn(3.40)));
+        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(mX + mW - 1, Math.round(yIn(3.40)), 1, Math.round(yIn(1.58)) - Math.round(yIn(3.40)));
+        // a lamp standard
+        const lX = Math.round(wPx * 0.26);
+        g.fillStyle = '#33383a'; g.fillRect(lX, Math.round(yIn(3.10)), Math.max(1, Math.round(0.14 * PXM)), Math.round(yIn(1.60)) - Math.round(yIn(3.10)));
+        g.fillStyle = '#d8cfa8'; g.fillRect(lX - 1, Math.round(yIn(3.30)), Math.max(2, Math.round(0.34 * PXM)), Math.max(1, Math.round(0.24 * PXM)));
+        // the clipped hedge along the near edge, and the shadow it throws
+        band(0.95, 1.66, '#4a5c33');
+        g.fillStyle = 'rgba(255,255,255,0.07)';
+        for (let x = 0; x < wPx; x += 3) g.fillRect(x, Math.round(yIn(1.66)), 2, Math.max(1, Math.round(0.10 * PXM)));
+        band(0.86, 0.95, '#3a4728');
+        band(-99, 0.86, '#6d7748');                       // the verge under the window
+        dither(g, wPx, hPx, Math.round(wPx * hPx * 0.05));
+        return;
+      }
       if (court) {
         // A FORECOURT, and nothing else. `int-library.ts`'s three bands and its
         // three tones, because they are the ones already standing in this
@@ -1807,8 +1973,18 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   // door is a bug, so the door is the one that wins a clash
   const doorInCut = !!spec.chamfer?.door;
   if (!doorInCut) addHole('the door', dAt - dW / 2, dAt + dW / 2, 0, DOOR_H);
+  // DID THE WINDOW ACTUALLY GET CUT — asked of the window, not counted.
+  //
+  // This read `holes.length > 1`, i.e. "more than the door", and it is wrong in
+  // both directions. A room whose DOOR is in a chamfer adds no door hole at
+  // all, so its front-wall window comes back with `length === 1` and gets its
+  // opening cut and then NO glass, NO sill, NO mullions — a hole in the wall.
+  // And a room that declares a second front opening for any other reason would
+  // flip it on with no window to hang. `addHole` already refuses everything it
+  // cannot build, so the honest test is whether THIS call pushed one.
+  const holesBeforeWindow = holes.length;
   if (win && wW > 0) addHole('the window', wAt - wW / 2, wAt + wW / 2, wSill, wSill + wH);
-  const hasWindow = holes.length > 1;
+  const hasWindow = holes.length > holesBeforeWindow;
   holes.sort((a, b) => a[0] - b[0]);
 
   let cursor = -hw - T;
@@ -1875,6 +2051,51 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       // it — the eye is 1.6 m and the card is 0.7 m out, so a head-back look
       // through a 2.45 m transom from half a metre away lands around 4.1 m.
       y1: Math.max(DOOR_H, win && wW > 0 ? wSill + wH : 0) + 2.4,
+    });
+  }
+
+  // ══ AND THE SAME TWO THINGS FOR A FLANK WINDOW ═══════════════════════════
+  //
+  // Glass, cill, mullions and a transom, transposed onto the flank — a box's
+  // ±x pair is `depth` across where the ±z pair is `width`, which is the one
+  // mistake `boxMats` exists to stop anybody making, so every extent below is
+  // written the other way round from its front-wall twin on purpose.
+  //
+  // Then ONE card behind the whole run: the openings are holes in the same
+  // wall looking at the same thing, exactly as the door and the shopfront
+  // window are, so a card each would only give the room two horizons.
+  if (SW && swBays.length) {
+    const flx = swSide * (hw + T / 2);
+    for (const [z0, z1] of swBays) {
+      const bw = z1 - z0, bc = (z0 + z1) / 2;
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(bw, SW.h),
+        new THREE.MeshBasicMaterial({ color: 0x7d8b93, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+      glass.rotation.y = Math.PI / 2;
+      place(glass, flx, SW.sill + SW.h / 2, bc);
+      const cill = new THREE.Mesh(new THREE.BoxGeometry(T + 0.12, 0.08, bw + 0.2), trimM);
+      place(cill, flx, SW.sill - 0.04, bc);
+      // the reveal, so the opening reads as a hole in something thick
+      for (const jz of [z0, z1]) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(T + 0.02, SW.h, 0.06), trimM);
+        place(m, flx, SW.sill + SW.h / 2, jz);
+      }
+      // one bar every ~2 m, the front wall's own rule for the same reason:
+      // nobody in 1997 hangs an unsupported pane wider than that
+      const bays = Math.max(1, Math.round(bw / 2.0));
+      for (let i = 1; i < bays; i++) {
+        const mz = z0 + (bw * i) / bays;
+        const mull = new THREE.Mesh(new THREE.BoxGeometry(T + 0.04, SW.h, 0.07), trimM);
+        place(mull, flx, SW.sill + SW.h / 2, mz);
+      }
+      const tr = new THREE.Mesh(new THREE.BoxGeometry(T + 0.04, 0.07, bw), trimM);
+      place(tr, flx, SW.sill + SW.h * 0.72, bc);
+    }
+    streetBeyond({
+      fx: swSide * (hw + T), fz: 0, ox: swSide, oz: 0,
+      rotY: swSide > 0 ? Math.PI / 2 : -Math.PI / 2,
+      width: D + 2 * T, out: 0.70,
+      y1: SW.sill + SW.h + 2.4,
+      look: SW.beyond ?? 'street',
     });
   }
 

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom, seatTaken } from './interior';
+import { FACE } from './rng';
 import { type DoorDecl } from './doors';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
@@ -53,19 +54,72 @@ export const DOOR: DoorDecl = {
   building: 'DINER', w: 12, cz: -62, side: -1, at: -2.6, width: 1.15,
 };
 
+// ══ THE PARK FLANK ═══════════════════════════════════════════════════════════
+//
+// *"side of diner should have windows into park"*   (2026-08-11)
+//
+// The swap an hour earlier (00ea5ec8) put the diner on the park corner, and a
+// corner building has TWO elevations. Its park side was the block default for a
+// flank — `partyWallTex`, the blind wall of a building that used to have another
+// one against it — from the pavement to the roof. That is right for a party wall
+// and wrong for this one: there is no building there, there is a park.
+//
+// THE FIVE NUMBERS BELOW ARE THE ONLY ONES, and the room and the elevation both
+// read them, because this is the one thing about this ask that can silently go
+// wrong: windows outside that are not windows inside is the interior/exterior
+// mismatch the user has raised five separate times.
+const ROOM_D = 7.0;                        // clear room depth, wall face to face
+const PARK_BAYS = [{ at: -2.15, w: 1.70 }, { at: 2.15, w: 1.70 }];
+const PARK_SILL = 0.95, PARK_H = 1.55;     // head at 2.50 in a 3.00 m room
+/**
+ * WHICH FLANK FACES THE PARK — derived, not typed.
+ *
+ * The park is SOUTH of the diner: the roster runs `… THRIFT | DINER | park`
+ * down the west side, so the diner spans z -68 … -56 and the park -98 … -68,
+ * and the shared plane is the diner's LOW-z face.
+ *
+ * Which local x that is, is pure handedness and `ct/interior.ts` owns it:
+ * `localOf` runs the painter's u from the HIGH-z edge of a west facade (`side`
+ * -1) and mirrors it into the room, so the building's low-z end comes out at
+ * local +x. On the east side both flips land the other way. One expression, so
+ * a building that ever changes sides takes its windows with it.
+ */
+const PARK_SIDE: 1 | -1 = DOOR.side < 0 ? 1 : -1;
+
 export function buildDiner(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'diner',
     label: 'into the DINER',
     // width comes from the frontage — a diner with a longer counter is a
     // better diner, and an 8.6 m room behind a 12 m front is a false front
-    d: 7.0, h: 3.0,
+    d: ROOM_D, h: 3.0,
     palette: { floor: 0xb0a996, wall: 0xc4bca8, ceil: 0xbdb6a4, trim: 0x4a3a2a },
     frontage: { name: 'DINER', w: 12, cz: -62, side: -1 },
     // door, width, the [E] spot on the street and the way back out are all
     // derived from that — see RoomSpec.frontage. Nothing here is typed twice.
     door: { r: 1.05, at: DOOR.at, width: DOOR.width },
+    // ── AND THE PARK FLANK IS GLAZED ────────────────────────────────────────
+    //
+    // Two bays either side of a 2.6 m pier, 0.5 m in from each corner. That
+    // rhythm is not a preference, it is what the room already contains: the
+    // HELP WANTED station stands on this wall at local z 0.20 and spans about
+    // -0.43 … 1.10 (`jobStation`'s three columns), and it is pinned there —
+    // the aisle band between the counter front at z -1.69 and the booth bank's
+    // collider at z 1.74 is the only stretch of this wall a customer can stand
+    // in front of. So the pier is where the paperwork is, and the glass is
+    // where the room is empty: one bay looking out past the end of the counter,
+    // one beside the last booth, which is the one you actually sit in.
+    //
+    // NOTHING ELSE ON THIS WALL MOVES. The jukebox and the cigarette machine
+    // are on the OTHER flank (`wallSide = -away`), the counter is 7.8 m centred
+    // in a 12 m room so it stops 2.1 m short of this wall, and the booth bank's
+    // last divider lands at local x 4.82 against a wall face at 6.00.
+    sideWindow: {
+      side: PARK_SIDE, bays: PARK_BAYS,
+      sill: PARK_SILL, h: PARK_H, beyond: 'park',
+    },
   });
+  parkElevation(ctx);
 
   const { put, solid } = room;
   const hw = room.W / 2, hd = room.D / 2;
@@ -558,4 +612,100 @@ export function buildDiner(ctx: CtxBuild): void {
     x: away * (hw - 0.04), z: 0.2,
     rotY: away > 0 ? -Math.PI / 2 : Math.PI / 2,
   });
+}
+
+/**
+ * THE SAME TWO WINDOWS, ON THE OUTSIDE — the park elevation of the DINER.
+ *
+ * ── WHY THIS IS IN AN `int-*.ts` FILE, WHICH IS NOT WHERE IT BELONGS ────────
+ *
+ * The wall you see from the park at z -68 is **not the diner's own shell face**.
+ * `ct/street.ts`'s `openSite` stands a party-wall plane 1 cm in front of it
+ * (`z1 - 0.01`, facing back down the site) as the park's north boundary, and it
+ * runs the park's full 30 m of depth. That plane, its texture (`partyWallTex`)
+ * and the shell behind it are all authored in `ct/street.ts`, which is held by
+ * another builder today, so cutting the openings at source was not available.
+ *
+ * So the windows are APPLIED, standing 0.06 m proud of that plane — which is
+ * the technique `ct/alley.ts` already uses for the two flanks of the alley
+ * ("each flank is as tall as its building and stands 1 cm proud of the shell").
+ * It is not the right long-term home: when `ct/street.ts` is free, this wants to
+ * become an opening the site's own painter cuts, and the note stays here until
+ * it does.
+ *
+ * ── NO COLLIDER CHANGES, AND NO FOOTPRINT CHANGE ───────────────────────────
+ *
+ * Nothing here is registered solid and nothing moves. The deepest thing it adds
+ * is a 0.11 m stone cill at 0.90 m, projecting into the PARK — not into the
+ * 2 m walking lane, which is on the far side of the building — and 0.11 is
+ * inside the 0.12 m (`WALK_PROJECTION`) the block already reserves in front of
+ * every shopfront on the street.
+ *
+ * ── NIGHT ───────────────────────────────────────────────────────────────────
+ *
+ * Graded like the wall around it: `props.dimWorld` sweeps the whole scene after
+ * the interiors are built and skips only |x| > 100, so these sit on the block's
+ * own night curve exactly as the shopfront's glazing does. They are NOT lit
+ * sheets — the diner's blade is the one lit thing on this building (380a05fc)
+ * and whether a run of park windows should glow after dark is a look call, not
+ * mine to make.
+ */
+function parkElevation(ctx: CtxBuild): void {
+  // The face, from the SAME declaration the room is built against. `DOOR.cz`
+  // and `DOOR.w` are the roster's, and the park is on the low-z side of the
+  // building — see PARK_SIDE above.
+  const WALL_Z = DOOR.cz - DOOR.w / 2;         // -68, the plane the park meets
+  const PROUD = 0.06;
+  // WHERE A ROOM-LOCAL z LANDS ON THE OUTSIDE. The room's front wall IS the
+  // shopfront, so local z = +ROOM_D/2 is the facade plane and the room runs
+  // back into the building's depth from there. That is the whole mapping, and
+  // it is what makes the two runs of windows the same two windows.
+  const facadeX = DOOR.side * FACE;
+  const wxOf = (lz: number) => facadeX + DOOR.side * (ROOM_D / 2 - lz);
+
+  // ── the pane, and the diner behind it ─────────────────────────────────────
+  const PXM = 40;
+  const PW = Math.round(PARK_BAYS[0].w * PXM), PH = Math.round(PARK_H * PXM);
+  const paneT = declareSurface(pixTex(PW, PH, (g) => {
+    g.fillStyle = '#2e2a26'; g.fillRect(0, 0, PW, PH);                 // the reveal
+    g.fillStyle = '#4f5f63'; g.fillRect(3, 3, PW - 6, PH - 6);         // glass
+    // what you can make out through it, in the room's own colours: the lit
+    // ceiling, the red vinyl of the booth backs and the formica between them
+    g.fillStyle = '#6a5a3e'; g.fillRect(3, PH - 26, PW - 6, 23);
+    g.fillStyle = '#7a2a28'; g.fillRect(6, PH - 20, 22, 17);
+    g.fillStyle = '#7a2a28'; g.fillRect(PW - 28, PH - 20, 22, 17);
+    g.fillStyle = '#c8bfa4'; g.fillRect(30, PH - 15, PW - 60, 5);
+    g.fillStyle = '#d8c8a0'; g.fillRect(3, 5, PW - 6, 5);
+    // the sky, reflected in the top light above the transom
+    g.fillStyle = 'rgba(196,212,224,0.34)'; g.fillRect(3, 3, PW - 6, 14);
+    g.fillStyle = 'rgba(255,255,255,0.10)';
+    for (let i = 0; i < 3; i++) g.fillRect(9 + i * 20, 20, 3, PH - 26);
+    // the transom bar, at the SAME 0.72 of the opening the kit's front window
+    // and the room's own flank window put it — so the two runs line up.
+    g.fillStyle = '#8f8a7c';
+    g.fillRect(3, Math.round(PH * (1 - 0.72)) - 1, PW - 6, 3);
+    dither(g, PW, PH, Math.round(PW * PH * 0.04));
+  }), 'detail');
+
+  const stoneM = new THREE.MeshBasicMaterial({ color: 0x8a7a62 });
+  const headM = new THREE.MeshBasicMaterial({ color: 0x7a6a54 });
+  const group = new THREE.Group();
+  group.userData.mod = 'int-diner';
+  ctx.scene.add(group);
+
+  for (const b of PARK_BAYS) {
+    const x = wxOf(b.at);
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(b.w, PARK_H), ctx.flat(paneT));
+    pane.rotation.y = Math.PI;                 // faces -z, out into the park
+    pane.position.set(x, PARK_SILL + PARK_H / 2, WALL_Z - PROUD);
+    group.add(pane);
+    // the cill it sits on and the lintel over it, which is what makes a hole in
+    // brick read as a window rather than as a poster of one
+    const cill = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.26, 0.10, 0.11), stoneM);
+    cill.position.set(x, PARK_SILL - 0.05, WALL_Z - 0.055);
+    group.add(cill);
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.26, 0.17, 0.09), headM);
+    lintel.position.set(x, PARK_SILL + PARK_H + 0.085, WALL_Z - 0.045);
+    group.add(lintel);
+  }
 }
