@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, declareSurface, dither } from './paint';
 import { doorPointFor, doorLeafFor } from './doors';
-import { frontageWorld } from './tex-world';
+import { frontageWorld, signNight } from './tex-world';
+import { tube, VICE_PORTAL_W } from './vice';
 import { HOURS, fmtHour, neverCloses, type BizHours } from './hours';
 
 // ══ THE HOURS SIGN BY EVERY DOOR ═════════════════════════════════════════════
@@ -15,14 +16,16 @@ import { HOURS, fmtHour, neverCloses, type BizHours } from './hours';
 // *"hours signs are kinda ugly, make them less ugly pls"* (2026-08-10) — so
 // the one cream card became the four things that actually hang in shop doors:
 //
-//   open24   the die-cut red plastic OPEN 24 HOURS sign — bodega, diner,
-//            hotel desk, casino. Rounded, white-rimmed, corners cut away.
+//   open24   the die-cut red plastic OPEN 24 HOURS sign. Rounded,
+//            white-rimmed, corners cut away.
 //   gilt     a painted card, gold serif on deep green behind bank glass —
 //            First Federal and the tax office, who would not use plastic.
 //   taped    a hand-lettered card stuck up with tape, hung slightly crooked —
 //            the pawn shop and the thrift, who would not buy a sign.
-//   plastic  everyone else: the mall-bought BUSINESS HOURS placard, colour
-//            band on white, in the two colourways the sign shop stocked.
+//   plastic  the mall-bought BUSINESS HOURS placard, colour band on white, in
+//            the two colourways the sign shop stocked.
+//   neon     a small tube in a black casing over a painted rider — added
+//            2026-08-11, see `FACADE` below.
 //
 // ⚠ A SEPARATE MODULE FROM `hours.ts`, NOT TIDINESS. This file needs
 // `ct/doors.ts` for where the doors are, doors.ts eagerly globs `int-*.ts`,
@@ -75,6 +78,11 @@ interface Card {
   hM: number;
   tilt: number;    // z-roll, radians — only the taped card hangs crooked
   diecut: boolean; // transparent corners → needs its own alpha-tested material
+  /** IS THIS SIGN A LIGHT. Only the neon one is. Declared rather than left to
+   *  `ct/props.ts`'s texel heuristic, which is the rule 380a05fc set for every
+   *  fascia on the block: a card of ink is stamped `printed` and grades away
+   *  after dark with the wall it is stuck to, and a tube holds its own. */
+  lit?: boolean;
 }
 
 // ── the die-cut plastic OPEN 24 HOURS sign ───────────────────────────────────
@@ -175,18 +183,99 @@ function plasticCard(h: BizHours): Card {
   return { tex, wM: W / PPM, hM: H / PPM, tilt: 0, diecut: false };
 }
 
-// who gets which sign — the 24-hour places are decided by their hours, the
-// rest by what kind of business would hang what
-const STYLE: Record<string, (h: BizHours) => Card> = {
-  'FIRST FEDERAL': giltCard,
-  'A-1 TAX': giltCard,
-  'PAWN': tapedCard,
-  'THRIFT': tapedCard,
+// ── a neon tube in a black casing, over a painted rider ──────────────────────
+//
+// The block's three LIT frontages hang a real sign, not a bought one: the two
+// vice buildings burn gold and neon at the end of the side street and the
+// diner's own projecting blade is a neon tube. A red plastic sticker on a
+// rusticated stone hotel front was the wrong object in all three doorways.
+//
+// The tube is `ct/vice.ts`'s own `tube()` — three passes over one letterform,
+// dark casing / phosphor / hot core — deliberately, so this card is drawn by
+// the same hand as the marquee it hangs under rather than by something that
+// resembles it. The rider under it is FLAT ink and not a second tube: nobody
+// bends "10 AM – MIDNIGHT" in glass, and a 16-character tube at this size
+// would be mush (`fitTube` would rightly throw).
+function neonCard(h: BizHours): Card {
+  const W = 88, H = 52; // 0.44 × 0.26 m
+  const line = neverCloses(h) ? 'OPEN ALL NIGHT' : hoursLine(h);
+  const tex = pixTex(W, H, (g) => {
+    // the casing — corners cut away, so the sign is a shape and not a sticker
+    rr(g, 1, 1, W - 2, H - 2, 6);
+    g.fillStyle = '#14111a'; g.fill();
+    g.strokeStyle = '#3a3540'; g.lineWidth = 2; g.stroke();
+    tube(g, 'OPEN', W / 2, 19, 22, '#ff3a4a', '#ffe2dc', '#3a1016');
+    // the rider: a painted strip screwed under the tube, the way a real one
+    // carries the changeable half
+    g.fillStyle = '#241f2a'; g.fillRect(6, 34, W - 12, 13);
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(6, 34, W - 12, 1);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#7ad8ea';
+    fitFont(g, line, 'sans-serif', W - 18, 10);
+    g.fillText(line, W / 2, 41);
+  });
+  return { tex, wM: W / PPM, hM: H / PPM, tilt: 0, diecut: true, lit: true };
+}
+
+// ══ WHICH CARD, DECIDED BY WHAT THE BUILDING IS MADE OF ══════════════════════
+//
+// *"in general have signs match the facades"* (2026-08-11).
+//
+// It used to be a short name→style map with everything else falling to the
+// mall placard, and the colourway inside a style is still a name hash — which
+// is fine for a colourway and was wrong for the style itself. A gilt card is
+// not a gilt card because the business is called FIRST FEDERAL; it is a gilt
+// card because the frontage is cut stone and a stone building does not hang
+// plastic. So the building declares its MATERIAL and the material picks the
+// sign, which means adding a shop means saying what its front is made of
+// rather than remembering which of five cards to point at.
+//
+// (`ct/tex-world.ts` has a private `characterOf()` doing the same job for the
+// FASCIA painter. These want to be one table and are not, because that file is
+// the painter's and this is a leaf on the safe side of the door glob. When it
+// is exported this map should read it instead of restating it.)
+type Facade =
+  /** cut stone, granite, civic masonry — the bank, the tax office, the college */
+  | 'stone'
+  /** the lit frontages: neon, chase bulbs, gold — the casino, the hotel */
+  | 'vice'
+  /** stainless and glass block, with its own neon blade over the door */
+  | 'steel'
+  /** a cheap painted board screwed to the brick — the junk shops */
+  | 'board'
+  /** moulded plastic, plexi and applied letters — a 1997 chain shopfront */
+  | 'chain';
+
+const FACADE: Record<string, Facade> = {
+  'FIRST FEDERAL': 'stone',       // granite pilasters and a 0.30 m stone jamb
+  'A-1 TAX': 'stone',             // an office floor over a masonry ground storey
+  'COMMUNITY COLLEGE': 'stone',   // civic: a board screwed to institutional brick
+  'SEVENS': 'vice',               // gold portal, 777 in tube, ninety chase bulbs
+  'HOTEL ORPHEUS': 'vice',        // rusticated stone under a lit porte-cochère
+  'DINER': 'steel',               // stainless fascia, glass block, a neon blade
+  'PAWN': 'board',                // painted board, three balls over the door
+  'THRIFT': 'board',              // painted board, and nobody has repainted it
+  'BURGER BARN': 'chain',         // a moulded plastic light box
+  'VIDEO HUT': 'chain',           // blue plexi with the tube showing through
+  'VOLT VILLAGE': 'chain',        // a backlit box on a discounter
+  'SLEEP CENTER': 'chain',        // applied plastic letters across the band
+  'CROSSTOWN FITNESS': 'chain',   // a painted signboard, bought not made
+  'BODEGA': 'chain',              // a corner store under a red plastic awning
 };
 
 function cardFor(h: BizHours): Card {
-  if (neverCloses(h)) return open24Card();
-  return (STYLE[h.building] ?? plasticCard)(h);
+  switch (FACADE[h.building] ?? 'chain') {
+    case 'stone': return giltCard(h);
+    // the diner belongs here with the casino and the hotel: steel and neon is
+    // one vocabulary, and all three of them burn all night
+    case 'vice': case 'steel': return neonCard(h);
+    case 'board': return tapedCard(h);
+    // The die-cut OPEN 24 HOURS sign and the BUSINESS HOURS placard come off
+    // the same rack in the same sign shop — which one you buy is decided by
+    // your hours, not by your taste. So the bodega gets the first and the
+    // other four get the second, from one rule.
+    default: return neverCloses(h) ? open24Card() : plasticCard(h);
+  }
 }
 
 // ══ WHERE A CARD CAN ACTUALLY HANG ═══════════════════════════════════════════
@@ -237,7 +326,20 @@ interface Occluder { m: THREE.Mesh; x: number; z: number; r: number }
  *  the per-card test can be aimed at the handful near one door rather than at
  *  the whole scene. Glows and billboards are skipped: a halo is not something
  *  you can be behind, and a citizen who happens to be walking past at build
- *  time is not a reason to move a sign for the rest of the game. */
+ *  time is not a reason to move a sign for the rest of the game.
+ *
+ *  ⚠ OPACITY AT BUILD TIME IS NOT WHAT YOU WILL SEE. This test used to read
+ *  `transparent && opacity < 0.6` as "you can see through it", and that is the
+ *  second half of *"casino sign STILL overlapping"*: `ct/vice.ts`'s neon
+ *  risers are 0.22 m tubes hung 0.07 m proud of the facade, constructed at
+ *  `opacity: 0.4` and driven to 1.0 by their own night tick. A sweep run at
+ *  build time therefore called them see-through, walked the casino's card in
+ *  behind one, and after dark the tube came up solid gold across it.
+ *
+ *  So the question is DEPTH, not alpha: anything that writes depth will hide
+ *  what is behind it whatever its opacity does later. `depthWrite: false` and
+ *  additive blending are the two honest declarations of "you can see through
+ *  me", and both are made once at construction and never animated. */
 function occludersNear(ctx: CtxBuild): Occluder[] {
   const boards = new Set<THREE.Object3D>(ctx.boards.map((b) => b.m));
   const out: Occluder[] = [];
@@ -247,8 +349,8 @@ function occludersNear(ctx: CtxBuild): Occluder[] {
     if (!m.isMesh || !m.geometry || boards.has(m)) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
     const solid = mats.some((x) => {
-      const mm = x as THREE.Material & { opacity?: number };
-      return mm && mm.depthWrite !== false && !(mm.transparent && (mm.opacity ?? 1) < 0.6);
+      const mm = x as THREE.Material & { blending?: THREE.Blending };
+      return !!mm && mm.depthWrite !== false && mm.blending !== THREE.AdditiveBlending;
     });
     if (!solid) return;
     if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
@@ -327,7 +429,17 @@ export function register(ctx: CtxBuild): void {
     // WALK OUT FROM THE DOOR UNTIL THE WALL IS CLEAR. Nearest wins, and each
     // step tries the near side first so a card stays where it has always been
     // whenever that spot was already fine.
-    const minOff = leaf.clearW / 2 + card.wM / 2 + 0.10;   // clear of the opening
+    // CLEAR OF THE OPENING AS DRAWN, not merely of the leaf. A sight-line
+    // cannot see paint, and on the two vice frontages the whole entrance —
+    // portal, reveal, revolving-door case — IS paint on a flat band, so every
+    // ray through it lands on wall at exactly the right distance and reports
+    // clear. That is *"hotel sign is over the doors in a janky way"*: the card
+    // came to rest 0.875 m from the door centre, which is inside a 3.4 m stone
+    // case. `ct/vice.ts` publishes the painted width because it is the file
+    // that paints it; every other shopfront on the block stands its jambs off
+    // the brick, where the sight-line finds them on its own.
+    const opening = Math.max(leaf.clearW, VICE_PORTAL_W[h.building] ?? 0);
+    const minOff = opening / 2 + card.wM / 2 + 0.10;
     const p = new THREE.Vector3();
     let placed: THREE.Vector3 | null = null;
     for (let step = 0; step <= 24 && !placed; step++) {
@@ -368,6 +480,10 @@ export function register(ctx: CtxBuild): void {
     m.rotation.y = Math.atan2(d.nx, d.nz);
     m.rotation.z = card.tilt;
     m.position.copy(placed).addScaledVector(n, proud);
+    // The neon one is a light and holds its own after dark; every other card
+    // is ink on a plane and grades away with the wall behind it. Declared, so
+    // no future repaint can light a card by drifting a colour (380a05fc).
+    signNight(m, !!card.lit);
     ctx.scene.add(m);
   }
 }

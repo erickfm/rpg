@@ -78,6 +78,35 @@ export const VICE_DOOR_X: Record<string, number> = {
 };
 
 /**
+ * HOW WIDE THE ENTRANCE IS AS PAINTED, which is not how wide the door is.
+ *
+ * These two frontages are the only ones on the block whose whole entrance —
+ * portal, reveal, jambs, revolving-door case — is INK ON A FLAT BAND rather
+ * than standing geometry. The casino's black portal is `dw = at(1.5)` either
+ * side of the door centre with a gold reveal outside that; the hotel's stone
+ * case is `at(1.35) + 5` texels either side. Both are drawn by the two
+ * painters below and both are perfectly flat.
+ *
+ * `ct/hours-cards.ts` walks each card out from the door until a sight-line
+ * says the wall is clear, and a sight-line cannot see paint: to a raycast the
+ * hotel's stone case IS the wall. So its card came to rest across the door
+ * leaf and its jamb — *"hotel sign is over the doors in a janky way"* — while
+ * every other shopfront in the world was fine, because every other shopfront
+ * stands its jambs off the brick where a ray can find them.
+ *
+ * Published here because this file is the one that paints them. It is the
+ * declared width of the PAINTED opening, so a card keeps out of the whole
+ * entrance instead of only out of the 1.15 m leaf the room declares.
+ */
+export const VICE_PORTAL_W: Record<string, number> = {
+  // 3.0 m of black portal + the gold reveal outside it, and the two standing
+  // gold jambs at ±1.52 fall inside the same figure
+  'SEVENS': 3.5,
+  // 2.7 m of case + 5 texels of margin either side at 16 px/m
+  'HOTEL ORPHEUS': 3.4,
+};
+
+/**
  * That world x as the band texture's u. Side-street buildings put the facade on
  * the box's -z face and that face's u runs from HIGH x to low x, so texel 0 is
  * the EAST end of the building — hence `x1 - doorX` and not `doorX - x0`.
