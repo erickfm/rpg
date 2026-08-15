@@ -5,6 +5,8 @@ import { defineItem, type ItemDef } from './inventory';
 import { SMOKES } from './goods';
 import { skin as bodySkin } from './body';
 import { flush } from './save';
+import { damage } from './health';
+import { mentalHeal } from './mental';
 
 // ══ SMOKING ═════════════════════════════════════════════════════════════════
 //
@@ -28,9 +30,11 @@ import { flush } from './save';
 // unit of one id, and only the pack you smoked steps down. A part-used pack
 // survives a save for the same reason — it is an ordinary declared id.
 //
-// NO STAT EFFECT, deliberately. Smoking is flavour, pure 1997 vice; nothing
-// here was asked to move a bar, so nothing does. If it ever earns a hook, the
-// act below is the one line to hang it on.
+// ⚠ THE "NO STAT EFFECT" RULE IS REPEALED, at his word (2026-08-15): *"smokes
+// hurt physical but help mental."* One cigarette is -2 physical, +4 mental —
+// the classic trade, half the size of a shift's mental wear per smoke, so a
+// pack is real medicine and a real habit. The hook this header once promised
+// is `light()` below, exactly where it said it would be.
 //
 // ── THE ANIMATION ──────────────────────────────────────────────────────────
 //
@@ -82,6 +86,11 @@ const openPackIcon = (n: number) => (g: CanvasRenderingContext2D): void => {
  */
 function light(left: number): string | void {
   startSmoke();
+  // *"smokes hurt physical but help mental"* — see the header. The order is
+  // deliberate: the damage lands first so a 1-hp chain smoker meets the
+  // consequence before the comfort.
+  damage(2);
+  mentalHeal(4);
   const rest = left - 1;
   hudNote(rest > 1 ? `you light one up. ${rest} left in the pack.`
     : rest === 1 ? 'you light one up. one left, and you both know it.'

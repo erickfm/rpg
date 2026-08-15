@@ -9,6 +9,7 @@ import { screenFade, hudNote } from './hud';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
 import { stat, raiseStat } from './stats';
+import { mentalFull } from './mental';
 
 // CROSSTOWN COMMUNITY COLLEGE, inside.
 //
@@ -480,7 +481,10 @@ export function buildCollege(ctx: CtxBuild): void {
       ? 180
       : ((8 * 60 - (hour * 60 + minute)) + 1440) % 1440 + (days - 1) * 1440;
     void screenFade({
-      mid: () => { ctx.clock.advance(mins, { overSeconds: 0 }); raiseStat('int', 1); },
+      // *"school fills mental to full always."* (2026-08-15) — a completed
+      // course, any length, restores the whole mental bar. Not the refusal
+      // above: a syllabus you were turned away from is not a class attended.
+      mid: () => { ctx.clock.advance(mins, { overSeconds: 0 }); raiseStat('int', 1); mentalFull(); },
       outMs: 140, holdMs: 90, inMs: 170,
     });
     hudNote(`${done} INT ${int + 1}.`);

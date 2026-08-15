@@ -11,6 +11,7 @@ import { worn, onWardrobeChange } from './wardrobe';
 import { skin as bodySkin, onBodyChange } from './body';
 // a third leaf, same rule, same reason — the stats strip below reads it.
 import { health, maxHealth, onHealthChange } from './health';
+import { mental, maxMental, onMentalChange } from './mental';
 // the 12/24-hour option, from the leaf that owns it — the same formatter the
 // door cards and the library PC read, so the watch cannot disagree with a sign
 import { clockParts, onClockModeChange } from './timefmt';
@@ -3099,6 +3100,20 @@ export function makeHud(purse: Purse): Hud {
     '..XXXX..',
     '...XX...',
   ], { X: '#c2503e', h: '#e0796a' });
+  // The head: 8x7 beside the heart, in profile facing the world — the second
+  // bar of *"lets get two health bars, one physical one mental"* (2026-08-15)
+  // needs an icon in the heart's own grammar: solid, hard-stepped, one
+  // two-texel shine. Cool slate blue against the heart's brick, because the
+  // pair has to read as body/mind at a glance with no captions.
+  const HEAD = pixIcon([
+    '..XXXX..',
+    '.XhXXXX.',
+    '.XhXXXX.',
+    '.XXXXXX.',
+    '..XXXXX.',
+    '...XXXX.',
+    '..XXXXX.',
+  ], { X: '#5b7fc4', h: '#8ea9dd' });
   // The coin: 8x8 in the machines' own gold (`UI.amber` and its dim rim), an
   // embossed slit down the middle and a top-left shine — money at a glance,
   // with the `$` itself left to the figure beside it. Removed and restored on
@@ -3138,7 +3153,7 @@ export function makeHud(purse: Purse): Hud {
     d.style.cssText = `display:flex;align-items:center;gap:${ICON_GAP}px;height:16px;`;
     return d;
   };
-  const hpRow = statsRow(), cashRow = statsRow();
+  const hpRow = statsRow(), mindRow = statsRow(), cashRow = statsRow();
   const hpBox = document.createElement('div');
   // a dark hairline outside so it reads against the sky, a 1 px well inside so
   // a part-full bar shows how much is gone — the classic '97 health bar.
@@ -3165,21 +3180,38 @@ export function makeHud(purse: Purse): Hud {
     + `text-align:center;font:bold 10px/${BAR_H}px ui-monospace,Menlo,monospace;`
     + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
   hpBox.appendChild(hpNum);
+  // ── THE MENTAL BAR — the physical bar's twin, one row under it ────────────
+  // Same well, same number treatment, the head's slate blue for the fill —
+  // built by cloning the hp nodes' styles rather than restating them, so the
+  // two bars cannot drift apart in size or dress.
+  const mindBox = document.createElement('div');
+  mindBox.style.cssText = hpBox.style.cssText;
+  const mindFill = document.createElement('div');
+  mindFill.style.cssText = `height:${BAR_H}px;width:${BAR_W}px;background:#5b7fc4;`;
+  mindBox.appendChild(mindFill);
+  const mindNum = document.createElement('div');
+  mindNum.style.cssText = hpNum.style.cssText;
+  mindBox.appendChild(mindNum);
   const cashDiv = document.createElement('div');
   cashDiv.style.cssText = 'font:bold 15px/1 ui-monospace,Menlo,monospace;'
     + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
   hpRow.appendChild(HEART);
   hpRow.appendChild(hpBox);
+  mindRow.appendChild(HEAD);
+  mindRow.appendChild(mindBox);
   // MIRRORED for the right edge: figure first, the coin riding the corner —
   // the icon sits nearest its own edge exactly as the heart does on the left,
   // and the figure grows leftward away from the pinned anchor.
   cashRow.appendChild(cashDiv);
   cashRow.appendChild(COIN);
   statsDiv.appendChild(hpRow);
+  statsDiv.appendChild(mindRow);
   cashWrap.appendChild(cashRow);
   const paintStats = (): void => {
     hpFill.style.width = `${Math.round((health() / maxHealth()) * BAR_W)}px`;
     hpNum.textContent = String(health());
+    mindFill.style.width = `${Math.round((mental() / maxMental()) * BAR_W)}px`;
+    mindNum.textContent = String(mental());
     const c = purse.cash;
     cashDiv.textContent = `${c < 0 ? '-' : ''}$${Math.abs(c).toFixed(2)}`;
   };
@@ -3190,7 +3222,9 @@ export function makeHud(purse: Purse): Hud {
   // mid-air until the world resumed. Slots stack new ticks a row lower while
   // earlier ones are still alive, so rent and a purchase landing in one frame
   // read as a little column instead of overprinting into mush.
-  const TICK_MS = 950, TICK_ROW = 14, TICK_TOP = 20, TICK_DROP = 10;
+  // TICK_TOP is PER SIDE now: the left corner grew a second row (the mental
+  // bar), so its ticks start below both bars; the money column is unchanged.
+  const TICK_MS = 950, TICK_ROW = 14, TICK_TOP = { left: 38, right: 20 }, TICK_DROP = 10;
   // TWO COUNTERS, NOT ONE: `liveTicks` says how many are still on screen and
   // `nextSlot` says where the NEXT one goes, and it only rewinds when the
   // column has emptied — freeing a slot while a later tick still holds a
@@ -3212,7 +3246,7 @@ export function makeHud(purse: Purse): Hud {
     const slot = nextSlot[side]++;
     // children of a fixed anchor, so `absolute` positions off the corner and
     // inherits its pointer-events:none and z.
-    el.style.cssText = `position:absolute;top:${TICK_TOP + slot * TICK_ROW}px;${side}:0;`
+    el.style.cssText = `position:absolute;top:${TICK_TOP[side] + slot * TICK_ROW}px;${side}:0;`
       + `font:bold 13px/1 ui-monospace,Menlo,monospace;color:${ink};`
       + 'text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;white-space:nowrap;'
       + `opacity:1;transition:transform ${TICK_MS}ms ease-out,opacity ${TICK_MS}ms ease-in;`;
@@ -3303,6 +3337,11 @@ export function makeHud(purse: Purse): Hud {
     if (d < 0 && armed()) queueTick('left', d);
     paintStats();
   });
+  // The mental bar repaints but does NOT tick: the left tick column is a bare
+  // number and two bars sharing it would make every `-6` ambiguous. The big
+  // mental events all narrate themselves through `hudNote` instead — the rent
+  // line at the day turn, the crash, the confessional, the set humming.
+  onMentalChange(() => { paintStats(); });
   // fired by `refreshWallet`, which everything that spends or earns already
   // calls — the whole reason PURSE_WATCH exists (see its note above). The
   // signal also fires for pocket changes that move no money, hence the delta

@@ -4,7 +4,8 @@ import { gameOverUp } from './gameover';
 import { defineItem, mBox, mCyl, mOf } from './inventory';
 import { COFFEE } from './goods';
 import { registerSlice, flush } from './save';
-import { health, maxHealth, setHealth } from './health';
+import { health, maxHealth, setHealth, damage, heal } from './health';
+import { mentalDamage, mentalHeal } from './mental';
 import { APT_X0, APT_Z0, ST0 } from './apartment';
 
 // ══ STAYING AWAKE, AND WHAT IT COSTS TO LOSE ════════════════════════════════
@@ -97,6 +98,19 @@ const BASE_MIN = 24 * 60;
  * partial shifts, and the third punch that puts you on the floor.
  */
 const WORK_RATE = 1.5;
+/**
+ * ── AND WHAT IT COSTS THE TWO BARS (2026-08-15) ────────────────────────────
+ *
+ * *"physical and mental both get worn down by working."* Priced per shift and
+ * charged per worked minute, so a stretch cut short costs its share: an
+ * 8-hour shift is -10 physical and -12 mental. Mental runs a shade harder
+ * than physical on purpose — the grill takes it out of your head faster than
+ * out of your back, and beside `ct/spirits.ts`'s numbers (-6 a late day, +6
+ * a night's television) a shift is a real dent that one evening in front of
+ * the set does not paper over.
+ */
+const WORK_HP_PER_MIN = 10 / (8 * 60);
+const WORK_MENT_PER_MIN = 12 / (8 * 60);
 /** the grace after the second shift, game-minutes — *"you have an ingame hour
  *  to get home to sleep or to buy caffeine"* (2026-08-15). One hour of margin
  *  is also exactly the band `blinkStep` blinks in, so the whole grace is
@@ -124,6 +138,28 @@ export const STIMULANT_HOURS: Record<string, number> = {
   COCAINE: 12,
 };
 
+// ── AND WHAT A DOSE DOES TO THE TWO BARS (2026-08-15) ──────────────────────
+//
+// *"coffee is a temp boost to mental and physical but when it wears off it
+//  hurts both more than the temp boost. pills is the same but 1.5x severe.
+//  cocaine is the same but twice as severe."*
+//
+// IN ADDITION to the waking hours above, never instead of them. The lift
+// lands the moment you dose — both bars — and the crash is scheduled for the
+// moment the dose's own hours run out, at 1.5× the lift, so every cycle nets
+// negative: coffee +8/+8 then -12/-12, pills +12/+12 then -18/-18, cocaine
+// +16/+16 then -24/-24. Severity scales exactly as he priced it: pills are
+// coffee × 1.5, cocaine coffee × 2, lift and crash alike.
+//
+// SLEEPING THROUGH A CRASH does not dodge it: the night's full heal absorbs
+// the physical half (sleep already restores the body whole, so charging it
+// after would be theatre), but you wake INTO the mental half — the morning
+// after is the morning after. See the sleep cut in the observer.
+const STIM_BOOST: Record<string, number> = { COFFEE: 8, PILLS: 12, COCAINE: 16 };
+const CRASH_RATIO = 1.5;
+/** crashes still owed, in clock order — `at` is the totalMin they land */
+let crashes: { at: number; phys: number; ment: number }[] = [];
+
 /**
  * ── WHERE YOU WAKE UP WHEN YOU HAVE NEVER SLEPT ───────────────────────────
  *
@@ -143,7 +179,7 @@ export const STIMULANT_HOURS: Record<string, number> = {
  * boot. Read at CALL time and the coupling to the trunk cannot exist at load
  * time at all; the numbers are still the apartment's own, never copied.
  */
-const flatBed = () =>
+export const flatBed = () =>
   ({ x: APT_X0 - 2.6, z: APT_Z0 + 4.2, yaw: Math.PI / 2, gy: 2 * ST0 });
 
 // ── state ──────────────────────────────────────────────────────────────────
@@ -215,6 +251,17 @@ export function workStretch(mins: number, at: string): void {
   if (!(mins > 0)) return;
   workPending += mins;
   workAt = at;
+}
+
+/** game-minutes of the NEXT clock jump that are ordinary WAKING time — a
+ *  movie on the flat's VCR, a quarter hour in the confessional. Same contract
+ *  as `workStretch` (call before the fade), charged at the idle rate of one
+ *  wear-minute per minute: neither a shift nor a night. Not saved, for
+ *  `workPending`'s reason — alive only for the ~400 ms of one fade. */
+let awakePending = 0;
+export function awakeStretch(mins: number): void {
+  if (!(mins > 0)) return;
+  awakePending += mins;
 }
 
 // ══ THE BODY AS THE GAUGE — vignette and blinks, no text ═══════════════════
@@ -351,13 +398,47 @@ function clearApproach(): void {
   if (vigDiv) vigDiv.style.opacity = '0';
 }
 
-/** One dose. The item's `use.act` calls this; the bag consumes the item. */
+/** One dose. The item's `use.act` calls this; the bag consumes the item.
+ *  Since 2026-08-15 a dose is also the LIFT — both bars, at once — and books
+ *  its own crash for the hour its waking extension runs out (see STIM_BOOST). */
 function dose(id: string, line: string): void {
   const h = STIMULANT_HOURS[id];
   if (!h) return;
   boostMin += h * 60;
+  const b = STIM_BOOST[id] ?? 0;
+  if (b > 0) {
+    heal(b);
+    mentalHeal(b);
+    crashes.push({ at: (lastMin ?? 0) + h * 60,
+      phys: Math.round(b * CRASH_RATIO), ment: Math.round(b * CRASH_RATIO) });
+    crashes.sort((a, c) => a.at - c.at);
+  }
   hudNote(line, 3500);
   flush();
+}
+
+/** Land every crash whose hour has come — the observer calls this on lived
+ *  time (ordinary frames, shifts, declared stretches), never on a sleep cut. */
+function crashStep(t: number): void {
+  let fell = false;
+  while (crashes.length && t >= crashes[0].at) {
+    const c = crashes.shift()!;
+    damage(c.phys);
+    mentalDamage(c.ment);
+    fell = true;
+  }
+  if (fell) {
+    hudNote('the lift gives out, and the crash is worse than the lift was.', 4500);
+    flush();
+  }
+}
+
+/** A night swallows the physical half of every owed crash (sleep heals the
+ *  body whole anyway) — but you wake INTO the mental half. See STIM_BOOST. */
+function sleepOffCrashes(): void {
+  if (!crashes.length) return;
+  for (const c of crashes) mentalDamage(c.ment);
+  crashes = [];
 }
 
 // ── the two carried stimulants that did not exist yet ──────────────────────
@@ -475,7 +556,7 @@ function passOut(ctx: CtxBuild): void {
       ctx.player.jumpTo(wake.x, wake.z, wake.yaw, wake.gy);
       ctx.clock.advance(mins, { overSeconds: 0 });
       awakeMin = 0; boostMin = 0; workedMin = 0;
-      workPending = 0; workAt = null;   // the shift ended the hard way
+      workPending = 0; workAt = null; awakePending = 0;   // the shift ended the hard way
       slept = { ...wake };
       clearApproach();      // he wakes with open eyes and a clear rim
     },
@@ -503,9 +584,14 @@ function passOut(ctx: CtxBuild): void {
 // a fresh start that has never slept and wakes, if it must, in 301.
 registerSlice<{
   awakeMin: number; boostMin: number; workedMin?: number;
+  crashes?: { at: number; phys: number; ment: number }[];
   slept: { x: number; z: number; yaw: number; gy: number } | null;
 }>('fatigue', {
-  capture: () => ({ awakeMin, boostMin, workedMin, slept: slept ? { ...slept } : null }),
+  capture: () => ({
+    awakeMin, boostMin, workedMin,
+    crashes: crashes.map((c) => ({ ...c })),
+    slept: slept ? { ...slept } : null,
+  }),
   restore: (v) => {
     if (!v || typeof v !== 'object') return;
     if (typeof v.awakeMin === 'number' && Number.isFinite(v.awakeMin) && v.awakeMin >= 0) awakeMin = v.awakeMin;
@@ -513,6 +599,16 @@ registerSlice<{
     // optional: saves from before the two-shift guarantee simply restart the
     // count, which errs toward letting him work — the forgiving direction
     if (typeof v.workedMin === 'number' && Number.isFinite(v.workedMin) && v.workedMin >= 0) workedMin = v.workedMin;
+    // optional: a save from before the crashes owes none. `at` is totalMin,
+    // consistent with the restored clock, so an owed crash lands on schedule.
+    if (Array.isArray(v.crashes)) {
+      crashes = v.crashes
+        .filter((c): c is { at: number; phys: number; ment: number } =>
+          !!c && typeof c === 'object'
+          && [c.at, c.phys, c.ment].every((n) => typeof n === 'number' && Number.isFinite(n)))
+        .map((c) => ({ at: c.at, phys: c.phys, ment: c.ment }))
+        .sort((a, c) => a.at - c.at);
+    }
     const s = v.slept;
     if (s && typeof s === 'object'
       && [s.x, s.z, s.yaw, s.gy].every((n) => typeof n === 'number' && Number.isFinite(n))) {
@@ -573,6 +669,24 @@ export function register(ctx: CtxBuild): void {
           if (before < TWO_SHIFTS_MIN && workedMin >= TWO_SHIFTS_MIN) {
             awakeMin = limitMin() - GRACE_MIN;
           }
+          // *"physical and mental both get worn down by working."* — charged
+          // per worked minute at the per-shift prices above, floored at 1 so
+          // even the two-minute stretch before the floor costs something.
+          damage(Math.max(1, Math.round(worked * WORK_HP_PER_MIN)));
+          mentalDamage(Math.max(1, Math.round(worked * WORK_MENT_PER_MIN)));
+          crashStep(t);                 // a crash mid-shift lands ON shift
+          drawVignette(awakeMin / limitMin());
+          flush();
+          return;
+        }
+        // ── A DECLARED WAKING STRETCH — a movie, a confession ──────────────
+        // `awakeStretch` armed it before the fade: lived time on the clock at
+        // the idle rate, no reset, no heal, no new sleep spot.
+        if (awakePending > 0) {
+          const lived = Math.min(d, awakePending);
+          awakePending -= lived;
+          awakeMin += lived;
+          crashStep(t);
           drawVignette(awakeMin / limitMin());
           flush();
           return;
@@ -582,7 +696,7 @@ export function register(ctx: CtxBuild): void {
         // screen went black: that is where "wherever you slept" is.
         awakeMin = 0; boostMin = 0; workedMin = 0;
         // whatever was on the clock is over — you are not on shift in your bed
-        workPending = 0; workAt = null;
+        workPending = 0; workAt = null; awakePending = 0;
         clearApproach();
         slept = {
           x: ctx.player.x(), z: ctx.player.z(),
@@ -594,12 +708,14 @@ export function register(ctx: CtxBuild): void {
         // after the fade-in), and collapsing in the street already costs a
         // tenth of max — it would be absurd for the mugging to also be a cure.
         if (!passing) setHealth(maxHealth());
+        sleepOffCrashes();   // wake into the comedown's mental half
         flush();
       }
       return;      // no fade: the save restore's snap — time he never lived
     }
 
     awakeMin += d;
+    crashStep(t);
     const left = limitMin() - awakeMin;
 
     // The body is the gauge — no text. A dose that buys hours back drops

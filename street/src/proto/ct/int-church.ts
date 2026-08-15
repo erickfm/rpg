@@ -4,6 +4,7 @@ import type { DoorDecl } from './doors';
 import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom, seatTaken } from './interior';
 import { leafPair } from './vice';
+import { confessNow } from './spirits';
 
 // ST BRIGID'S — the inside, because the user asked to go in and could not.
 //
@@ -1038,6 +1039,24 @@ export function buildChurch(ctx: CtxBuild) {
     put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.62, 0.11),
       new THREE.MeshBasicMaterial({ color: 0x5a3a6a })), FX - BOXW / 2 - 0.05, 1.42, FZ + 0.22);
     solid(FX, FZ, BOXW + 0.2, BOXD);
+
+    // ── CONFESSION ─────────────────────────────────────────────────────────
+    //
+    // *"add confession in church and it helps the mental a lot."* (2026-08-15)
+    //
+    // The [E] stands at the DOOR-SIDE kneeler bay, out in the aisle where the
+    // booth's own collider leaves you, aiming into the box; the verb and its
+    // once-a-day rule are `ct/spirits.ts`'s (`confessNow`), so what it does to
+    // the bar lives beside the bar's other causes and this file only places
+    // the kneeler. NOT A PANEL — a short fade, so there is nothing modal here
+    // for Escape to owe anything to.
+    ctx.spot({
+      x: wx(FX - BOXW / 2 - 0.55), z: wz(FZ + 0.92), r: 0.85,
+      aimX: wx(FX), aimZ: wz(FZ + 0.92),
+      label: () => 'confess',
+      ok: () => true,
+      act: () => { confessNow(ctx); },
+    });
   }
 
   // ── the east window, which is the light in the room ──

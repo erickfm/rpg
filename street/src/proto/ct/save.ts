@@ -3,6 +3,7 @@ import { drawerStock, drawerTake, drawerPut } from './inventory';
 import { SLOTS, options, wornIndex, wear, onWardrobeChange, type Slot } from './wardrobe';
 import { captureBody, restoreBody, onBodyChange } from './body';
 import { health, setHealth, onHealthChange } from './health';
+import { mental, setMental, onMentalChange } from './mental';
 import { captureStats, restoreStats, onStatsChange } from './stats';
 import { wiped, onWipe } from './newgame';
 
@@ -528,6 +529,17 @@ function builtins(ctx: CtxBuild): void {
     restore: (v) => { if (v && typeof v.hp === 'number') setHealth(v.hp); },
   });
 
+  // ── MENTAL ─────────────────────────────────────────────────────────────
+  //
+  // The second bar (2026-08-15), `ct/mental.ts` — a leaf like health, so the
+  // slice lives here for health's exact reason. A flat 0…100, so unlike
+  // health there is no stats-order dependency; restored exactly, `setMental`
+  // clamps and rounds. New game: the `ct-save` wipe puts it back at full.
+  registerSlice<{ mp: number }>('mental', {
+    capture: () => ({ mp: mental() }),
+    restore: (v) => { if (v && typeof v.mp === 'number') setMental(v.mp); },
+  });
+
   // Changing your clothes is the one thing a player can do that the ten-second
   // tick would otherwise be the only witness to, and the wardrobe already
   // publishes a change signal. Free, so take it. Your body changes far more
@@ -535,6 +547,7 @@ function builtins(ctx: CtxBuild): void {
   onWardrobeChange(() => { flush(); });
   onBodyChange(() => { flush(); });
   onHealthChange(() => { flush(); });
+  onMentalChange(() => { flush(); });
   onStatsChange(() => { flush(); });
 }
 
