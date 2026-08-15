@@ -7143,3 +7143,9 @@ An investigation, not a change: a builder is inventorying every outdoor sound �
 file, loop, emitter, trigger — and checking whether the code can play the same
 track twice within earshot (double-start on restore, zone-boundary overlap, one
 file on two emitters). Report first; nothing gets fixed until Erick has read it.
+
+## 2026-08-15 — *"i can't enter the community college. also the facade is quite crowded. with many overlapping textures"*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-15 12-01-09.png`. Two
+symptoms — a door that won't take him and a facade of overlapping textures — sent
+to one fresh builder with the trunk granted, no cause guessed here.
