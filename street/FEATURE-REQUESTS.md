@@ -7218,3 +7218,8 @@ implication, never the statement.
 The mental bar's pixel head icon doesn't read. Back to the health-bars builder
 (its own art) for a different symbol — something with the heart's unmistakable-
 silhouette property.
+
+## 2026-08-15 — *"change the facade for crosstown fitness so it is more interesting pls ty"*
+
+An art pass. Fresh builder, first pass for his eye: identity beyond a flat sign,
+night lighting, windows that say what happens inside. Footprint and door stay.
