@@ -7160,3 +7160,9 @@ be raised after creation named as context it may act on, proportionately.
 
 Movement — trunk work, so it waits its turn: the college builder holds the trunk
 grant. Dispatches to a fresh builder the moment the trunk frees.
+
+## 2026-08-15 — *"make passing out a little bit more punishing (higher percentage of funds lost) but also make it so working two shifts for sure has you blinking and sleepy but you have an ingame hour to get home to sleep or to buy caffeine"*
+
+Sent to a fresh builder: raise the pass-out fund loss, guarantee the drowsy state
+by the end of a second shift, and make the one-ingame-hour grace real in the
+drain arithmetic — home to bed or caffeine before the lights go out.
