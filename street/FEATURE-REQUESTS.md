@@ -7229,3 +7229,9 @@ night lighting, windows that say what happens inside. Footprint and door stay.
 Back to the fatigue builder (its own blink machinery): blink onset moves from
 60 min to 6 h of margin, ramping to unmistakable in the final hour, red tint in
 the last 30. The two-shift 60-min guarantee stays, now inside the longer ramp.
+
+## 2026-08-15 — *"this looks fucked up when the landlord wants rent. the text is busted"*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-15 14-19-37.png`. Fresh
+builder, screenshot in hand; today's letter rework named as history, not as the
+diagnosis. Fix the regression without undoing the bigger-letters ask.
