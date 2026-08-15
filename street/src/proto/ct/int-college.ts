@@ -106,7 +106,26 @@ export function buildCollege(ctx: CtxBuild): void {
   const W = 9.8;                        // roomWidthFor(11): the kit's own rule
   const K = W / FW.frontageM;
   const AT = alongU(FW, FW.doorWorld) * K - W / 2;      // 0.0 — the campus axis
-  const standZ = FW.facePos + FW.outward * 0.75;        // in the courtyard, on the path
+  // ── THE STAND POINT'S TWO NUMBERS SWAPPED AXES IN THE SWAP, AND THIS SPOT
+  // MISSED IT: *"i can't enter the community college"* (2026-08-15). On the
+  // side street the frontage ran along x, so `doorWorld` was an X and the
+  // off-the-face coordinate was a Z — and the door below was written
+  // `x: FW.doorWorld, z: standZ`. On the main street's east side the frontage
+  // runs along z: `doorWorld` is now a Z (2.6) and the face offset an X
+  // (10.75), so that line planted the way-in [E] spot at world (2.6, 10.75) —
+  // out in the roadway, eleven metres from the door — while the CLOSED-hours
+  // spot (ct/hours-doors.ts, off `face` above) stood correctly on the path.
+  // Open for business and unenterable. Derived per axis now, so a third move
+  // cannot repeat it.
+  const standOff = FW.facePos + FW.outward * 0.75;      // off the facade, on the path
+  const doorX = FW.axis === 'z' ? standOff : FW.doorWorld;
+  const doorZ = FW.axis === 'z' ? FW.doorWorld : standOff;
+  // Stepping out: 1.6 m further down the path toward the gate — 1.0 landed
+  // inside the way-in trigger (r 1.2 wants 1.55 m clear; the kit has warned
+  // about that gap since the room was built) and one more E sucked you back in.
+  const outOff = FW.facePos + FW.outward * 2.35;
+  const outNx = FW.axis === 'z' ? FW.outward : 0;       // the facade's outward normal
+  const outNz = FW.axis === 'x' ? FW.outward : 0;
 
   const room = buildRoom(ctx, {
     id: 'college',
@@ -127,16 +146,18 @@ export function buildCollege(ctx: CtxBuild): void {
     light: { kind: 'strip', tint: 0xf0f2e6, count: 6 },
     door: {
       at: AT, r: 1.2,
-      x: FW.doorWorld, z: standZ,
+      x: doorX, z: doorZ,
       // the doorcase keeps the college's hours — night classes until nine.
       // See int-burger.ts's note, and ct/hours.ts.
       ok: () => doorOpen(ctx, DOOR.building),
       // You come out ON the courtyard path (ct/college-yard.ts's axis), a
-      // step down it toward the gate — not out along the walk, because the
+      // stride down it toward the gate — not out along the walk, because the
       // walk is 4.5 m away across the yard now.
-      outX: FW.doorWorld, outZ: standZ + FW.outward * 1.0,
-      // fwd = (sin yaw, −cos yaw): facing the outward normal +z is yaw π.
-      outYaw: Math.PI, outGy: ctx.KERB_H,
+      outX: FW.axis === 'z' ? outOff : FW.doorWorld,
+      outZ: FW.axis === 'z' ? FW.doorWorld : outOff,
+      // fwd = (sin yaw, −cos yaw): facing the facade's outward normal — down
+      // the path to the gate, whichever way the building faces.
+      outYaw: Math.atan2(outNx, -outNz), outGy: ctx.KERB_H,
     },
     // One sash-run of glass west of the centred door — collegeFront paints
     // two tall windows in each flank; the room's opening is the west pair.

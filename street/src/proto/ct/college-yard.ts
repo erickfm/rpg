@@ -684,7 +684,7 @@ export function register(ctx: CtxBuild): void {
         px, LY + 0.11, FACE_Z + 0.32);                               // the glass
     }
 
-    // ── 5. THE DEDICATION TABLET, and two banners on the dead bays ──────────
+    // ── 5. THE DEDICATION TABLET, and a banner on the other dead bay ────────
     //
     // 2.4 m of blank brick either side of the doorcase, floor to frieze, is the
     // middle third of the photograph and the reason the front reads as a wall
@@ -696,7 +696,8 @@ export function register(ctx: CtxBuild): void {
     // Everything here is above the sill course and below the opening heads, and
     // nothing is more than 0.16 m proud, so no collider: the tablet's bottom
     // edge is 0.80 m up with a planting bed standing 0.60 m in front of it, and
-    // the banners' are 1.45 m up on the wall.
+    // the banner's is 0.98 m up on the wall (GLZ_TOP − 0.95 − 0.85; an earlier
+    // note here claimed 1.45, and that half-metre is what hid the tablet).
     const tabT = declareSurface(pixTex(176, 74, (g) => {
       g.fillStyle = '#d3c9ae'; g.fillRect(0, 0, 176, 74);
       g.fillStyle = '#b0a68b'; g.fillRect(0, 0, 176, 3); g.fillRect(0, 71, 176, 3);
@@ -738,8 +739,17 @@ export function register(ctx: CtxBuild): void {
       g.fillText('EST. 1971', 64, 238);
       dither(g, 128, 272, 34);
     }), 'sign');
-    for (const s of [-1, 1] as const) {
-      const bx = CX + s * (CX - BAY_CX);        // the west bay's centre, mirrored
+    // ONE BANNER, ON THE EAST BAY — there were two, and the west one hung at
+    // BAY_CX, the tablet's own centre: its lower half (bottom edge 0.98, see
+    // above) draped straight over the tablet's face (y 0.76…1.30, 5 cm behind
+    // it), which is the dead centre of *"the facade is quite crowded …
+    // many overlapping textures"* (2026-08-15). Two banners also put the
+    // college's name on this wall four times in one view, counting the frieze
+    // and the yard plate. So the bays get one thing each — tablet west, banner
+    // east — which is this module's own one-off rule from the top of the file:
+    // the name stub and the notice board, balanced one each side.
+    {
+      const bx = CX + (CX - BAY_CX);            // the west bay's centre, mirrored east
       put(new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.05, 0.05), IRON),
         bx, GLZ_TOP - 0.08, FACE_Z + 0.13);                          // the hanging rod
       put(new THREE.Mesh(new THREE.PlaneGeometry(0.80, 1.70), flat(banT)),
