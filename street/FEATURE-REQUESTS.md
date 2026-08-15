@@ -7201,3 +7201,8 @@ bounded by exhaustion alone; (2) inventory stacks same items with a count badge.
 `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-15 12-42-49.png` — the
 landlord letter on the mail screen. Held behind the health-bars build (same rent
 ground), then to a fresh builder: bigger, more like a real letter.
+
+## 2026-08-15 — *"also i dont liuke i have to click the letter to 'take' it. if i see the letter i should take it when i stop looking at it."*
+
+Folded into the queued mail-screen task: seeing a letter takes it on close, no
+click. Same builder as the bigger/realistic letters pass, behind health bars.
