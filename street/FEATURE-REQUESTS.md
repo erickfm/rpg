@@ -7178,3 +7178,9 @@ gameplay training stays uncapped, dependent numbers re-derived as needed.
 The dual-bar system. One fresh builder, trunk granted, whole spec verbatim; new
 world pieces where needed (confession, tape renting/playing). Numbers are the
 builder's to choose and report.
+
+## 2026-08-15 — *"collision box here in the library is sticking out."*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-15 12-35-41.png`. Sent
+to a fresh builder with the screenshot, no cause guessed; trunk withheld (the
+health-bars builder holds it), stop-and-report if the fix needs trunk lines.
