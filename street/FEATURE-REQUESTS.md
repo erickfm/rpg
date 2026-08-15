@@ -7189,3 +7189,9 @@ health-bars builder holds it), stop-and-report if the fix needs trunk lines.
 
 Sent to a fresh builder. If the prompt lives in the trunk (held by the health-bars
 builder) it stops and reports the exact lines instead of editing.
+
+## 2026-08-15 — *"you should always be able to work until you are exhaustred. none of this you already worked a shift today. also i should be able to hold stacks of the same item. and it should show a number on the stack of how many of that same item i have"*
+
+Two asks, both held until the health-bars builder lands — it is live in the same
+work/fatigue and HUD ground. Then: (1) remove the one-shift-a-day gate, work is
+bounded by exhaustion alone; (2) inventory stacks same items with a count badge.
