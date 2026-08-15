@@ -475,6 +475,11 @@ function hash01(day: number, salt: number): number {
  * repeats — against seventeen at the old rate, which repeated inside a
  * fortnight. The pool got smaller and the gap between repeats got LONGER. If it
  * ever wants filling, it wants a shop built first and a flyer for it second.
+ *
+ * AND 12 -> 13 IS EXACTLY THAT CLAUSE USED. The pawn shop's handbill
+ * (2026-08-15) advertises a counter that has stood on this street the whole
+ * time — the shop came first, the flyer second, which is the order the
+ * sentence above demands.
  */
 const JUNK: { from: string; lines: string[]; art?: string }[] = [
   // ── the three that are not letters, and do not look like one ────────────
@@ -527,6 +532,23 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     `loan of $${LOAN_MIN} to $${LOAN_MAX.toLocaleString('en-US')}, at rates`,
     `from ${LOAN_BEST_RATE.toFixed(2)}% APR.`,
     'Ask for the loan officer at the branch.',
+  ] },
+  // ⚠ THE IMPLICATION IS THE AD. Erick: *"put an ad in the mail rotation …
+  // for the pawn shop implying they are a 'fence' and buy stolen goods"*
+  // (2026-08-15) — IMPLYING. Nothing on this paper names a crime; every line
+  // is the no-questions-asked register a 1997 pawn shop genuinely printed,
+  // and the small print is the punchline. It passes both tests above: ink on
+  // paper (the shop shouting what it does), and a counter you can walk to
+  // (`ct/int-pawn.ts`, the PAWN frontage). The masthead and the CA$H headline
+  // are the painter's, the way VIDEO HUT's banner is; these lines are the
+  // copy under them. That it lands in the same box as the precinct's
+  // break-ins notice below is the hash's joke to make, not ours.
+  { from: 'THE PAWN SHOP', art: 'flyer-pawn', lines: [
+    'GOLD. WATCHES. TOOLS. VCRS. STEREOS. BIKES.',
+    'NO QUESTIONS ASKED.',
+    "WE DON'T ASK WHERE IT'S BEEN.",
+    'NO ID. NO RECEIPT. ALL SALES FINAL.',
+    'SERIAL NUMBERS NOT OUR DEPARTMENT.',
   ] },
   { from: 'CRIMEWATCH — 14TH PRECINCT', art: 'notice-precinct', lines: [
     'THERE HAVE BEEN BREAK-INS ON',
@@ -1475,9 +1497,10 @@ function stock(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
  * out with their paper (see the second test on `JUNK`), and their aspects went
  * with them — the pizza half-sheet at 1.38:1, the fanfold at 1.26:1, the tabloid
  * at 1:1.20, the utility statement at 1:1.53 and the dentist's card at 1.65:1.
- * ⚠ THE SPREAD SURVIVED THAT: no two of the fifteen share an aspect and the set
+ * ⚠ THE SPREAD SURVIVED THAT: no two pieces share an aspect and the set
  * still runs 2.26:1 to 1:2.53, so the widest gap between neighbours is where a
- * new shape goes if this world ever grows a shop to print one.
+ * new shape goes if this world ever grows a shop to print one. (It did:
+ * sixteen now — the pawn shop's 1.21:1 handbill took the landscape gap.)
  *
  * SO THIS TABLE IS THE DRAWING. No two pieces share an aspect; the set runs
  * from 2.26:1 landscape to 1:2.53 portrait; and every painter takes its
@@ -1509,6 +1532,9 @@ const SHAPES: Record<string, { w: number; h: number }> = {
   'docket-receipt':      { w: 124, h:  64 },   // 1.94 : 1   a stub off a duplicate book
   'postcard':            { w: 168, h: 108 },   // 1.56 : 1   a 6x4 postcard
   'slip-phone':          { w: 100, h:  68 },   // 1.47 : 1   a message pad slip
+  // 1.21:1 sits in the widest landscape gap this table had (1.47 -> 1.04),
+  // which is exactly where the note above said the next shape goes.
+  'flyer-pawn':          { w: 150, h: 124 },   // 1.21 : 1   a copier handbill, landscape
   // ── THE ONE SQUARE THING, AND IT IS A NOTE ───────────────────────────────
   'note-super':          { w: 104, h: 100 },   // 1.04 : 1   torn off a legal pad
   // ── PORTRAIT: everything that came off a ream ────────────────────────────
@@ -1612,6 +1638,48 @@ ART['flyer-video'] = (g, l) => {
   g.fillStyle = '#3a3126'; g.font = UI.font(6);
   g.fillText('BE KIND. REWIND.', cx, by + 36);
   g.textAlign = 'left';
+};
+
+/**
+ * ── THE PAWN SHOP'S HANDBILL: LOUD, LANDSCAPE, CAREFULLY WORDED ────────────
+ * 150 x 124, 1.21:1 — run landscape off the copier behind the counter, on a
+ * fluorescent green nothing else in the box is printed on: the stock that says
+ * this cost a cent a sheet and they ran five hundred. ONE BLACK PLATE, laid on
+ * heavy — a full-width masthead, a shouted CA$H with the copier's double-pass
+ * ghost under it, and the part they want read sitting inside a double rule the
+ * way the video shop boxes its price. The register is the whole ad: what it
+ * does not ask is the thing it is selling, and no line on it makes a claim the
+ * street could contradict.
+ */
+ART['flyer-pawn'] = (g, l) => {
+  const P = paper('flyer-pawn'), IN = 7, TW = P.w - IN * 2;
+  const cx = P.x + P.w / 2;
+  stock(g, P.x, P.y, P.w, P.h, '#b6e33c', '#d4f468', '#84ad1e');
+  creases(g, P.x, P.y, P.w, P.h, 1);
+  // the masthead: one heavy black band, the name knocked out of it in stock
+  fill(g, '#1c1a16', P.x + IN, P.y + 4, TW, 14);
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#b6e33c'; g.font = UI.font(8, true);
+  g.fillText('THE PAWN SHOP', cx, P.y + 14);
+  // CA$H — the plate run twice, a texel off, which is what a copier does when
+  // somebody wants black BLACKER
+  g.font = UI.font(12, true);
+  g.fillStyle = 'rgba(28,26,22,0.45)';
+  g.fillText('CA$H PAID TODAY', cx + 1, P.y + 33);
+  g.fillStyle = '#1c1a16';
+  g.fillText('CA$H PAID TODAY', cx, P.y + 32);
+  // what they take, which is everything
+  flowMid(g, cx, P.y + 43, TW, l.lines.slice(0, 1), 6, '#2b2a1c', true);
+  // the double-ruled box: the promise, boxed like it is a guarantee
+  fill(g, '#1c1a16', P.x + IN, P.y + 64, TW, 2);
+  fill(g, '#1c1a16', P.x + IN, P.y + 67, TW, 1);
+  flowMid(g, cx, P.y + 80, TW - 10, l.lines.slice(1, 2), 9, '#1c1a16', true);
+  flowMid(g, cx, P.y + 90, TW - 10, l.lines.slice(2, 3), 6, '#1c1a16', true);
+  fill(g, '#1c1a16', P.x + IN, P.y + 94, TW, 1);
+  fill(g, '#1c1a16', P.x + IN, P.y + 97, TW, 2);
+  // the terms, and under them the small print, which is the punchline
+  flowMid(g, cx, P.y + 107, TW, l.lines.slice(3, 4), 6, '#2b2a1c', true);
+  flowMid(g, cx, P.y + 117, TW, l.lines.slice(4), 6, '#4a4a30');
 };
 
 /** what the diner's menu prints under its name — the same row `ct/hours.ts`
