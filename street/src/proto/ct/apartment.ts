@@ -4808,6 +4808,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         price: 'CASH', head: 'WE BUY GOLD', by: 'THE PAWN SHOP' },
       { name: 'pawn quote', fmt: 'quote', secs: 4.2, bg: '#241b2e', ink: '#ffe08a', accent: '#e0b020',
         lines: ['THEY TOOK', 'MY WATCH'], who: 'MARGE', by: 'THE PAWN SHOP' },
+      // Erick: *"put an ad … in the ads on tv for the pawn shop implying they
+      // are a 'fence' and buy stolen goods"* (2026-08-15). IMPLYING — the spot
+      // never states it. The `legal` format is the vehicle: a bank uses the
+      // crawl to take back what the headline promised, and this shop uses it
+      // to promise more. Same palette as its two spots above; the mail half is
+      // the flyer-pawn handbill in ct/tenancy.ts.
+      { name: 'pawn legal', fmt: 'legal', secs: 5.0, bg: '#241b2e', ink: '#ffe08a', accent: '#e0b020',
+        head: 'NO QUESTIONS ASKED', by: 'THE PAWN SHOP',
+        tag: 'CASH FOR ANYTHING. NO ID. NO RECEIPT. NO PAPERWORK. ALL ITEMS PRESUMED YOURS. SERIAL NUMBERS NOT OUR DEPARTMENT.' },
       { name: 'bodega list', fmt: 'list', secs: 5.6, bg: '#3a2c1e', ink: '#ffeec8', accent: '#c04a2a',
         head: 'CORNER BODEGA', by: 'CORNER BODEGA', lines: ['OPEN LATE', 'MILK', 'BREAD', 'BEER', 'NO CHECKS'] },
       { name: 'burger split', fmt: 'split', secs: 3.6, bg: '#a8301c', ink: '#fff4d8', accent: '#f0c020',
