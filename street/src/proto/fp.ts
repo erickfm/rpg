@@ -225,15 +225,17 @@ const AIR_CROUCH_DIP = 0.15;
  *
  * THE NUMBERS, and why the cap is safe against collision:
  *
- *   · `BHOP_WINDOW` 0.15 s — three whole frames at the 20 fps dt clamp
+ *   · `BHOP_WINDOW` 0.10 s — two whole frames at the 20 fps dt clamp
  *     (main.ts:107), so the tech still survives a busy machine; but only about
- *     a quarter of the hop's own ~0.57 s hang, and `jumpHeld` still demands a
+ *     a sixth of the hop's own ~0.57 s hang, and `jumpHeld` still demands a
  *     release, so holding space gets you nothing — the re-press has to LAND in
  *     the window, and that timing is the skill. (*"make the bhop timing a bit
  *     tighter"*, 2026-08-10 — 0.20 → 0.15, the day the chain took the top of
- *     the speed podium: the fastest thing in Crosstown got a fifth harder to
- *     hold. Tighten past 0.10 and the clamp itself starts eating re-presses —
- *     two frames is where a slow machine, not the player, misses the window.)
+ *     the speed podium; then *"make the bunny hop threshold one tenth of a
+ *     second"*, 2026-08-15 — 0.15 → 0.10, right AT the two-frame floor.
+ *     Tighten past 0.10 and the clamp itself starts eating re-presses —
+ *     under two frames is where a slow machine, not the player, misses the
+ *     window.)
  *   · `BHOP_HOPS` 4 at `BHOP_GAIN` 0.65 — each clean hop is +16.25%, four in
  *     a row is the full +65%. Sprint at full stack is 5.6 × 1.65 = 9.24 m/s
  *     against the flat 5.6, and DEX stacks on top MULTIPLICATIVELY through the
@@ -266,7 +268,7 @@ const AIR_CROUCH_DIP = 0.15;
  * fires on the first landing frame it sees, so hopping buys a fraction of a
  * second at most. Left as-is; that is a doomed last sprint, not an exploit.
  */
-const BHOP_WINDOW = 0.15;
+const BHOP_WINDOW = 0.10;
 const BHOP_HOPS = 4;
 const BHOP_GAIN = 0.65;
 const BHOP_DECAY = 2.5;
