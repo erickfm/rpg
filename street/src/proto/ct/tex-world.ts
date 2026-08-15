@@ -1250,6 +1250,7 @@ export function shopfrontRelief(o: {
   else if (o.name === 'VOLT VILLAGE') voltWindowSigns(g, F, half, o.wMeters);
   else if (o.name === 'VIDEO HUT') videoWindowSigns(g, F, half);
   else if (o.name === 'THRIFT') thriftWindowSigns(g, F, half);
+  else if (o.name === 'CROSSTOWN FITNESS') gymWindowSigns(g, F, half);
 
   // ── the stallriser: a cill where it meets the glass, a plinth at the
   //    pavement. The step you catch with your shin. ──────────────────────────
@@ -1430,6 +1431,7 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
   if (name === 'THRIFT') return thriftFront(brick, name, awning, wMeters);
   if (name === 'VOLT VILLAGE') return electroFront(brick, name, wMeters);
   if (name === 'VIDEO HUT') return videoFront(brick, name, wMeters);
+  if (name === 'CROSSTOWN FITNESS') return gymFront(brick, name, wMeters);
   if (name === 'COMMUNITY COLLEGE') return collegeFront(brick, wMeters);
   const surf = masonry(wMeters, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
@@ -1707,6 +1709,10 @@ const VIDEO_BLUE = '#1e5aa8', VIDEO_YELLOW = '#f2c22a';
 const DINER_STEEL_D = '#6e747a', DINER_VINYL = '#8a2f34';
 const THRIFT_BOARD = '#7a5a2c', THRIFT_CARD = '#e4dcc4';
 const COLLEGE_STONE = '#d3c9ae', COLLEGE_STONE_D = '#b0a68b';
+// teal + magenta + cream, and the values are ct/int-gym.ts's TEAL / MAGENTA /
+// CREAM to the digit — the front and the room are the two faces of one wall,
+// and the roster `col` in ct/street.ts is this same teal for the same reason.
+const GYM_TEAL = '#17766b', GYM_MAGENTA = '#c02a6a', GYM_CREAM = '#f2ede0';
 
 // ══ WHICH SIGNS BURN AFTER DARK ═════════════════════════════════════════════
 //
@@ -1737,6 +1743,12 @@ const COLLEGE_STONE = '#d3c9ae', COLLEGE_STONE_D = '#b0a68b';
 //   BODEGA       open round the clock. The corner store is the thing you can
 //                still see from down the block at four in the morning, and it
 //                is the only sign on the main street that is never off.
+//   CROSSTOWN FITNESS  a franchise light box — teal plexi with the tube
+//                showing top and bottom, which is what a 1997 gym chain bolts
+//                over its door. It is also the one trade on the block whose
+//                rush hour is AFTER WORK IN THE DARK; a gym with an unlit sign
+//                at seven in the evening is a gym that has closed down. It
+//                goes out at ten with its door (ct/hours.ts, close: 22).
 //
 // And ONE that is lit without its fascia being: the DINER's projecting blade,
 // below. Stainless is not a light — a builder already found that out and
@@ -1755,7 +1767,7 @@ const COLLEGE_STONE = '#d3c9ae', COLLEGE_STONE_D = '#b0a68b';
 // nothing on the pavement — the one exception is the diner's blade, which is
 // small enough that props.ts's fitting rule gives it a doorway pool, and a
 // puddle of light under a diner sign is not an accident worth removing.
-const LIT_FASCIAS = new Set(['BURGER BARN', 'VIDEO HUT', 'VOLT VILLAGE', 'BODEGA']);
+const LIT_FASCIAS = new Set(['BURGER BARN', 'VIDEO HUT', 'VOLT VILLAGE', 'BODEGA', 'CROSSTOWN FITNESS']);
 
 /** Declare a sign's night behaviour on its material, for `ct/props.ts`.
  *  `key` is the hours-table / roster name; omit it for a sign with no hours of
@@ -1820,6 +1832,37 @@ function fasciaArt(g: CanvasRenderingContext2D, s: Band, o: FasciaArt): void {
     g.fillStyle = shadow; g.fillText(t, px + sh, py + sh);
     g.fillStyle = ink; g.fillText(t, px, py);
   };
+
+  // CROSSTOWN FITNESS is dispatched BY NAME, not by a character of its own,
+  // and that is deliberate: characterOf() must keep answering 'default' for it
+  // because the GEOMETRY is load-bearing — ct/int-gym.ts derived its whole
+  // room off doorFrac's default hash ("doorFrac('CROSSTOWN FITNESS') = 0.34…
+  // doorCentreM 4.446" in its own comments), and a new BANDS row would move
+  // the door out from under the room. So the default's bones, this shop's
+  // face: a franchise LIGHT BOX (it is in LIT_FASCIAS and burns until its
+  // 22:00 close), teal plexi with the tube showing top and bottom, the two
+  // italic magenta speed stripes every 1997 fitness brand swore by at each
+  // end, and the name in cream between them.
+  if (o.name === 'CROSSTOWN FITNESS') {
+    proud(g, s, x, y, w, h, GYM_TEAL);
+    g.fillStyle = 'rgba(242,237,224,0.30)';
+    g.fillRect(x + m(0.2), y + m(0.10), w - m(0.4), Math.max(1, m(0.06)));
+    g.fillRect(x + m(0.2), y + h - m(0.16), w - m(0.4), Math.max(1, m(0.06)));
+    // the stripes lean the way the letters read, and the lettering is fitted
+    // to w * 0.66 below so it can never run into them
+    g.fillStyle = GYM_MAGENTA;
+    const bw2 = m(0.22), lean = m(0.30), gap = m(0.16);
+    const y0 = y + m(0.22), y1 = y + h - m(0.22);
+    for (const x0 of [x + m(0.55), x + m(0.55) + bw2 + gap,
+                      x + w - m(0.55) - 2 * bw2 - gap - lean, x + w - m(0.55) - bw2 - lean]) {
+      g.beginPath();
+      g.moveTo(x0 + lean, y0); g.lineTo(x0 + lean + bw2, y0);
+      g.lineTo(x0 + bw2, y1); g.lineTo(x0, y1);
+      g.closePath(); g.fill();
+    }
+    letter(o.name, cx, cy, 0.55, GYM_CREAM, 'rgba(0,0,0,0.40)', w * 0.66);
+    return;
+  }
 
   switch (characterOf(o.name)) {
     // a signboard fixed to the brick, so it throws a shadow. Quiet on purpose:
@@ -2690,6 +2733,47 @@ function thriftWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
   }
 }
 
+/** CROSSTOWN FITNESS's window paper, on the sleep/volt model: the shout on the
+ *  wide pane, the small print on the narrow one, nothing straddling the door.
+ *  Franchise print, not hand-lettering — a chain sends its posters from head
+ *  office (ct/hours-cards.ts already files this shop's card as 'chain').
+ *  SIGNAGE STAYS IN THE TOP THIRD: the machines in the glass top out at
+ *  ~1.35 m over the floor line and both sheets here hang off the glazing top,
+ *  so nothing is taped across a treadmill. NO HOURS on any of it — the posted
+ *  hours are the hours card, read out of ct/hours.ts like everyone else's. */
+function gymWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
+  const at = (uM: number, y: number, mesh: THREE.Mesh) => {
+    mesh.position.set(uM - half, y, 0.02); grp.add(mesh);
+  };
+  const [wide, narrow] = panesOf(F, 0);
+  const top = F.glazingTopM;
+  // ── the shout: the pitch every 1997 gym ran ─────────────────────────────
+  const bw = Math.min(4.4, (wide[1] - wide[0]) - 0.6), bh = 0.58;
+  at((wide[0] + wide[1]) / 2, top - 0.26 - bh / 2, sheet(bw, bh, (g, W, H) => {
+    g.fillStyle = GYM_CREAM; g.fillRect(0, 0, W, H);
+    const bar = Math.max(2, Math.round(H * 0.09));
+    g.fillStyle = GYM_MAGENTA;
+    g.fillRect(0, 0, W, bar); g.fillRect(0, H - bar, W, bar);
+    fitInk(g, 'FIRST WEEK FREE', 'monospace', W * 0.84, Math.round(H * 0.42));
+    g.fillStyle = GYM_MAGENTA; g.fillText('FIRST WEEK FREE', W / 2, H * 0.40);
+    fitInk(g, 'NO SIGN-UP FEE', 'monospace', W * 0.62, Math.round(H * 0.2));
+    g.fillStyle = GYM_TEAL; g.fillText('NO SIGN-UP FEE', W / 2, H * 0.76);
+  }));
+  // ── the small print, the other side of the door ─────────────────────────
+  const lw = Math.min(2.2, (narrow[1] - narrow[0]) - 0.4), lh = 0.4;
+  const bills = ['DAY PASS $5', 'WEIGHTS · CARDIO · AEROBICS'];
+  bills.forEach((t, i) => {
+    at((narrow[0] + narrow[1]) / 2, top - 0.30 - lh / 2 - i * (lh + 0.04), sheet(lw, lh, (g, W, H) => {
+      g.fillStyle = GYM_CREAM; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(0, H - 2, W, 2);
+      fitInk(g, t, 'monospace', W * 0.88, Math.round(H * 0.42));
+      g.fillStyle = i ? GYM_TEAL : GYM_MAGENTA; g.fillText(t, W / 2, H * 0.5);
+    }));
+  });
+  // ── the OPEN card on the leaf, where every shop door has one ────────────
+  at(F.doorCentreM - F.doorWidthM / 2 + 0.39, F.glazingTopM - 0.95 - 0.13, openCard(GYM_MAGENTA));
+}
+
 /**
  * THE MATTRESS SHOWROOM — *"make the liquor store a mattress store."*
  *
@@ -3072,6 +3156,115 @@ const videoFront = (brick: string, nm: string, wM: number) => {
     // ── stallriser ────────────────────────────────────────────────────────
     const ry = gy + gh, rh = H - ry - m(0.05);
     proud(g, surf, ox, ry, ow, rh, '#17427a');
+    g.fillStyle = 'rgba(0,0,0,0.24)';
+    const panels = Math.max(2, Math.round(ow / surf.ppm / 1.6));
+    for (let i = 1; i < panels; i++)
+      g.fillRect(ox + Math.round((ow * i) / panels), ry + m(0.06), Math.max(1, m(0.07)), rh - m(0.12));
+    g.fillStyle = 'rgba(30,26,20,0.30)'; g.fillRect(ox, H - m(0.16), ow, m(0.16));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
+  });
+};
+
+/**
+ * CROSSTOWN FITNESS — teal and magenta, because 1997 fitness is teal and
+ * magenta and the roster already says so. `gym`/`gymFront` names the KIND of
+ * frontage, like `electro` — the trading name comes in through `nm`.
+ *
+ * THE MACHINES AT THE GLASS ARE THE WHOLE FRONT. A 1997 gym is recognised
+ * from the far pavement by one thing: a row of cardio machines lined up in
+ * the window facing the street, under cold strip light — the shop where the
+ * stock is people working. So the bikes and treadmills own the glass, dark
+ * silhouettes against the lit room, and the magenta stripe running across the
+ * back wall behind them is the aerobics-studio wall doing the shouting.
+ *
+ * GEOMETRY IS BANDS.default ON PURPOSE, not a band of its own: ct/int-gym.ts
+ * derived its room off the default character's door hash (its comments carry
+ * the numbers — doorFrac 0.34, doorCentreM 4.446), and `characterOf` keeps
+ * answering 'default' so `shopfrontRelief`'s mouldings, `layoutOf`'s door and
+ * the room all stay exactly where they were. Same contract as the fasciaArt
+ * branch above the switch, stated at both ends.
+ *
+ * COLD LIGHT, NOT WARM. Every quiet shop on the block glows tungsten-warm
+ * behind its glass; a gym is fluorescent, and the blue-white strip is half of
+ * what says "gym" before you can read a word.
+ */
+const gymFront = (brick: string, nm: string, wM: number) => {
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const F = frontageOf(nm, wM);
+  const ROOM = '#2c3032', DK = '#191d1f', STEEL = '#41464a';
+  return surf.paint((g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
+    surf.courses(g);
+    // ── the fascia: the teal light box, same art the applied board wears ──
+    const B = BANDS.default;
+    const fy = m(B.fy), fh = m(B.fh);
+    const bd = fasciaBoardPx(nm, W, m);
+    fasciaArt(g, surf, {
+      x: bd.x, y: fy, w: bd.w, h: fh, name: nm, trim: GYM_TEAL,
+      doorX: m(doorAlongU(nm, wM, F.doorCentreM)),
+    });
+    // ── the opening ───────────────────────────────────────────────────────
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
+    g.fillStyle = '#1d2124'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
+    glazed(g, surf, gx, gy, gw, gh, ROOM);
+    // the strip light: blue-white and even, falling off downward
+    g.fillStyle = 'rgba(225,240,248,0.30)'; g.fillRect(gx, gy, gw, m(0.24));
+    g.fillStyle = 'rgba(225,240,248,0.12)'; g.fillRect(gx, gy + m(0.24), gw, m(0.42));
+    // the back wall, full width — it is the room — with the aerobics stripe
+    g.fillStyle = '#3a3e3e'; g.fillRect(gx, gy + m(0.85), gw, m(1.2));
+    g.fillStyle = GYM_MAGENTA; g.fillRect(gx, gy + m(1.18), gw, m(0.12));
+    g.fillStyle = 'rgba(242,237,224,0.5)'; g.fillRect(gx, gy + m(1.30), gw, Math.max(1, m(0.03)));
+    // rubber floor, darkest, so the eye reads depth downward
+    g.fillStyle = '#1f2222'; g.fillRect(gx, gy + gh - m(0.4), gw, m(0.4));
+    // ── THE MACHINES, in the runs the door leaves. They are furniture and
+    //    stop at it — the block default's shelf learned that the hard way. ──
+    const dcM = doorAlongU(nm, wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    const dL = dx - m(0.07), dR = dx + dw + m(0.07);
+    const runs = ([[gx, Math.min(dL, gx + gw)], [Math.max(dR, gx), gx + gw]] as [number, number][])
+      .filter(([a, c]) => c - a >= m(1.6));
+    const by = gy + gh - m(0.16);                      // the floor line they stand on
+    const bike = (bx: number) => {
+      g.fillStyle = DK;
+      g.fillRect(bx, by - m(0.08), m(1.05), m(0.08));                       // base rail
+      g.fillRect(bx + m(0.14), by - m(1.10), Math.max(1, m(0.07)), m(1.02)); // console mast
+      g.fillRect(bx + m(0.72), by - m(0.92), Math.max(1, m(0.07)), m(0.84)); // seat post
+      g.fillRect(bx + m(0.02), by - m(1.18), m(0.34), m(0.10));             // handlebars
+      g.fillRect(bx + m(0.62), by - m(0.98), m(0.28), m(0.08));             // saddle
+      g.beginPath(); g.ellipse(bx + m(0.32), by - m(0.34), m(0.20), m(0.20), 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#2e3336';                                              // flywheel hub
+      g.beginPath(); g.ellipse(bx + m(0.32), by - m(0.34), m(0.09), m(0.09), 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(90,220,140,0.85)';                                // console LED
+      g.fillRect(bx + m(0.10), by - m(1.16), Math.max(1, m(0.06)), Math.max(1, m(0.05)));
+    };
+    const tread = (bx: number) => {
+      g.fillStyle = DK;
+      g.fillRect(bx, by - m(0.14), m(1.45), m(0.14));                       // the deck
+      g.fillRect(bx + m(0.10), by - m(1.25), Math.max(1, m(0.07)), m(1.11)); // mast
+      g.fillRect(bx + m(0.02), by - m(1.34), m(0.44), m(0.10));             // console bar
+      g.fillStyle = '#2e3336'; g.fillRect(bx + m(0.10), by - m(0.11), m(1.28), Math.max(1, m(0.04))); // belt
+      g.fillStyle = 'rgba(220,80,60,0.85)';                                 // readout
+      g.fillRect(bx + m(0.30), by - m(1.32), Math.max(1, m(0.08)), Math.max(1, m(0.05)));
+    };
+    let mi = 0;
+    for (const [a, c] of runs) {
+      for (let bx = a + m(0.25); bx + m(1.5) <= c - m(0.1); bx += m(1.8)) {
+        (mi++ % 2 ? tread : bike)(bx);
+      }
+    }
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.4)), STEEL);
+    // ── the door: the default's bones, refit in the livery ────────────────
+    g.fillStyle = STEEL; g.fillRect(dL, gy, dR - dL, gh);
+    glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), ROOM);
+    g.fillStyle = GYM_TEAL; g.fillRect(dx, gy + gh - m(0.83), dw, m(0.83));  // its panel
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.83), dw, m(0.06));
+    g.fillStyle = '#9aa0a6'; g.fillRect(dx + dw - m(0.2), gy + m(1.45), Math.max(1, m(0.08)), m(0.26));
+    // ── stallriser: the teal gone dark and scuffed at the pavement ────────
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#0f4a44');
     g.fillStyle = 'rgba(0,0,0,0.24)';
     const panels = Math.max(2, Math.round(ow / surf.ppm / 1.6));
     for (let i = 1; i < panels; i++)
