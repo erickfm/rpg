@@ -7184,3 +7184,8 @@ builder's to choose and report.
 `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-15 12-35-41.png`. Sent
 to a fresh builder with the screenshot, no cause guessed; trunk withheld (the
 health-bars builder holds it), stop-and-report if the fix needs trunk lines.
+
+## 2026-08-15 — *"instead of saying your mailbox - 301 - nothing in it just say [E] check mail"*
+
+Sent to a fresh builder. If the prompt lives in the trunk (held by the health-bars
+builder) it stops and reports the exact lines instead of editing.
