@@ -1371,7 +1371,21 @@ export function makePanel(spec: PanelSpec): Panel {
       //
       // Published on `dataset.budget` so a check reads the number the code uses
       // instead of a second copy of it.
-      const CAP_W = CW * scale;
+      //
+      // ⚠ UNLESS THE GLASS IS DELIBERATELY DEGENERATE. The landlord's demand
+      // (`ct-landlord-demand`, ct/tenancy.ts) is a 4×4 invisible aim plane —
+      // "a hole in the air with a man standing in it" — whose caption IS the
+      // scene's whole interface. Budgeted at its literal glass (8 CSS px) that
+      // caption wrapped ONE WORD PER LINE down the middle of the screen
+      // (2026-08-15: "the text is busted"). "Never wider than the thing it
+      // captions" presumes a visible thing; when the glass is narrower than
+      // any caption could be (every real frameless glass today is ≥ 260 CSS
+      // px, the aim plane is 8), the budget falls back to 480 px — the width
+      // item 216 measured a known-good 64-character caption at (487.6 px), so
+      // a line this font is proven legible on, and `max-width:92vw` below
+      // still keeps it on screen in a narrower window.
+      const glass = CW * scale;
+      const CAP_W = glass >= 160 ? glass : 480;
       cap.dataset.budget = String(CAP_W);
       cap.style.cssText = `text-align:center;margin-top:8px;width:${CAP_W}px;max-width:92vw;`
         + 'box-sizing:border-box;font:13px/1.4 ui-monospace,Menlo,monospace;'
