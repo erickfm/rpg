@@ -244,12 +244,20 @@ const liftRect = () => ({
 const inRect = (x: number, y: number, r: { x: number; y: number; w: number; h: number }) =>
   x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
 
-/** everything in the bag, one entry per thing, so a stack of two is two slots */
-function laid(): string[] {
-  const out: string[] = [];
-  if (!purse) return out;
-  for (const s of bagStock(purse)) for (let i = 0; i < s.n; i++) out.push(s.id);
-  return out;
+/**
+ * Everything in the bag, ONE ENTRY PER STACK — same ids merge into one cell
+ * and the cell wears the count.
+ *
+ * *"i should be able to hold stacks of the same item. and it should show a
+ *  number on the stack of how many of that same item i have"*   (2026-08-15)
+ *
+ * This used to expand a stack of two sodas into two squares, which is where
+ * "a slot is a thing" came from; the squares are stacks now and the slot rule
+ * moved with them — see `STACK_MAX` in ct/inventory.ts. `bagStock` is already
+ * counts per id, so the view stopped un-counting them.
+ */
+function laid(): { id: string; n: number }[] {
+  return purse ? bagStock(purse) : [];
 }
 
 /**
@@ -424,7 +432,7 @@ function onClick(e: MouseEvent): void {
       // an explicit toggle as well as the dismiss above, so the intent survives
       // whatever the branch order becomes later
       const open = menu as { id: string; i: number } | null;
-      menu = open && open.i === i ? null : { id: items[i], i };
+      menu = open && open.i === i ? null : { id: items[i].id, i };
       paint();
       return;
     }
@@ -475,7 +483,7 @@ function onDown(e: MouseEvent): void {
   const L = layout(items.length);
   // the visible band only — see the same guard in `onClick`
   for (let i = L.from; i < L.to; i++) {
-    if (inRect(p.x, p.y, L.at(i))) { pending = { id: items[i], i, x: p.x, y: p.y }; return; }
+    if (inRect(p.x, p.y, L.at(i))) { pending = { id: items[i].id, i, x: p.x, y: p.y }; return; }
   }
 }
 
@@ -912,7 +920,8 @@ type Lay = ReturnType<typeof layout>;
  * THE GRID, wherever it is drawn. Factored out because the no-bag view paints
  * it too and there must not be two copies of a hit-tested layout's painter.
  */
-function paintItems(g: CanvasRenderingContext2D, L: Lay, items: string[]): void {
+function paintItems(g: CanvasRenderingContext2D, L: Lay,
+                    items: { id: string; n: number }[]): void {
   // ── WHAT IS IN IT ──────────────────────────────────────────────────────
   //
   // ⚠ THE DARK BAR UNDER EACH ITEM IS GONE, and it was the one on his list
@@ -941,8 +950,12 @@ function paintItems(g: CanvasRenderingContext2D, L: Lay, items: string[]): void 
   g.rect(L.inner.x - 2, L.inner.y - 2, L.inner.w + 4, L.inner.h + 4);
   g.clip();
   for (let i = L.from; i < Math.min(items.length, L.to + L.cols); i++) {
-    const id = items[i];
-    if ((held === id || dragging === id) && items.indexOf(id) === i) continue;
+    const { id, n } = items[i];
+    // ONE OFF THE STACK IS IN HIS HAND — lifted to examine, or mid-drag — so
+    // the cell shows what is LEFT. A stack of one leaves nothing and the cell
+    // goes with it, which is what the old whole-cell skip did.
+    const show = n - (held === id ? 1 : 0) - (dragging === id ? 1 : 0);
+    if (show < 1) continue;
     const r = L.at(i);
     // the one the options are open on lifts clear of the others
     if (menu && menu.i === i) { r.y -= 4; }
@@ -955,6 +968,24 @@ function paintItems(g: CanvasRenderingContext2D, L: Lay, items: string[]): void 
       band(g, r.x + p, r.y + p, r.w - p * 2, r.h - p * 2, 6, 'rgba(242,234,208,0.18)');
     }
     item(g, r.x, r.y, r.w, id);
+    // ── THE NUMBER ON THE STACK ────────────────────────────────────────────
+    //
+    // *"it should show a number on the stack of how many of that same item i
+    //  have"* — a small plate in the cell's bottom-right corner, in the bag's
+    // own label language: the letters' paper and typewriter ink the hover name
+    // and the verb plates already use, so the count reads on any lining and on
+    // any bag. Only when there is genuinely a stack — a lone thing wearing a
+    // "1" would be the menu narrating.
+    if (show > 1) {
+      const t = `${show}`;
+      g.font = `bold ${PLATE_PX}px ui-monospace, Menlo, monospace`;
+      const bw2 = Math.ceil(g.measureText(t).width) + 8;
+      const bx2 = r.x + r.w - bw2 - 3, by2 = r.y + r.h - 17;
+      band(g, bx2, by2, bw2, 14, 4, PLATE);
+      g.fillStyle = PLATE_INK;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(t, bx2 + bw2 / 2, by2 + 8);
+    }
   }
   g.restore();
 }
@@ -962,7 +993,8 @@ function paintItems(g: CanvasRenderingContext2D, L: Lay, items: string[]): void 
 /** the cursor's load, the option plates and the close-up — everything that
  *  goes OVER the grid, in every presentation */
 function paintOver(g: CanvasRenderingContext2D, L: Lay,
-                   bag: { cloth: string; trim: string }, items: string[]): void {
+                   bag: { cloth: string; trim: string },
+                   items: { id: string; n: number }[]): void {
   // ── WHAT IS ON THE CURSOR, ON ITS WAY OUT ──────────────────────────────
   // No dimming behind it: he is moving a thing, not examining one, and the bag
   // has to stay legible so he can see whether he is still over its mouth.
@@ -1013,7 +1045,7 @@ function paintOver(g: CanvasRenderingContext2D, L: Lay,
   if (!menu && !held && ptr) {
     for (let i = L.from; i < L.to; i++) {
       if (!inRect(ptr.x, ptr.y, L.at(i))) continue;
-      const label = itemOf(items[i]).name.toUpperCase();
+      const label = itemOf(items[i].id).name.toUpperCase();
       g.font = `bold ${PLATE_PX}px ui-monospace, Menlo, monospace`;
       const w = Math.min(L.mouth.w - 12, Math.ceil(g.measureText(label).width) + 16);
       const r = plateRects(i, 1, w)[0];

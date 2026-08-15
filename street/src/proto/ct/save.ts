@@ -406,7 +406,7 @@ function builtins(ctx: CtxBuild): void {
   // Restored BY MUTATION, never by replacement. Nine modules captured this
   // exact object at build time; handing them a new one would leave every one of
   // them writing to a purse nothing else reads.
-  registerSlice<{ cash: number; inv: Record<string, number>; account?: number; card?: boolean; pin?: string }>('purse', {
+  registerSlice<{ cash: number; inv: Record<string, number> | string[]; account?: number; card?: boolean; pin?: string }>('purse', {
     capture: () => ({
       cash: ctx.purse.cash,
       inv: { ...ctx.purse.inv },
@@ -419,8 +419,18 @@ function builtins(ctx: CtxBuild): void {
       if (typeof v.cash === 'number' && Number.isFinite(v.cash)) ctx.purse.cash = v.cash;
       if (v.inv && typeof v.inv === 'object') {
         for (const k of Object.keys(ctx.purse.inv)) delete ctx.purse.inv[k];
-        for (const [id, n] of Object.entries(v.inv)) {
-          if (typeof n === 'number' && n > 0) ctx.purse.inv[id] = Math.floor(n);
+        if (Array.isArray(v.inv)) {
+          // A LOOSE LIST FROM AN OLDER SAVE — one entry per thing, duplicates
+          // and all. Merged into stacks on the way in (2026-08-15, *"i should
+          // be able to hold stacks of the same item"*): counting is the merge,
+          // and dropping the list instead would silently empty his pockets.
+          for (const id of v.inv) {
+            if (typeof id === 'string' && id) ctx.purse.inv[id] = (ctx.purse.inv[id] ?? 0) + 1;
+          }
+        } else {
+          for (const [id, n] of Object.entries(v.inv)) {
+            if (typeof n === 'number' && n > 0) ctx.purse.inv[id] = Math.floor(n);
+          }
         }
       }
       if (typeof v.account === 'number' && Number.isFinite(v.account)) ctx.purse.account = v.account;

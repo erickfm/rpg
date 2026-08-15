@@ -45,7 +45,14 @@ export interface ItemDef {
   id: string;
   /** how a prompt says it: "take the folded newspaper". Lower case, no article. */
   name: string;
-  /** how many fit in one pocket. Bulky things get 1–2, small things 4. */
+  /**
+   * DOES IT STACK. `1` means UNIQUE — a second one is refused, and that is
+   * load-bearing (the skateboard, the platter, the tenancy papers, everything
+   * bulky). `2+` means IT STACKS: same id merges into ONE slot with a count on
+   * it, up to `STACK_MAX` — *"i should be able to hold stacks of the same
+   * item"* (2026-08-15). The exact number above 1 was the six-pocket era's
+   * per-pocket cap; only "unique or stackable" is read now.
+   */
   stack: number;
   /** one line you get when you pocket it. The character lives here. */
   blurb: string;
@@ -730,6 +737,31 @@ export function bagPut(p: Purse, id: string): boolean { return give(p, id, 1) > 
  * twelve is what it means. `carried()` counts what he can count.
  */
 export const BAG_SLOTS = 12;
+/**
+ * ══ AND THEN: A SLOT IS A STACK ════════════════════════════════════════════
+ *
+ * *"i should be able to hold stacks of the same item. and it should show a
+ *  number on the stack of how many of that same item i have"*   (2026-08-15)
+ *
+ * So the thing-per-slot rule above lasted until the picture changed again: the
+ * bag now draws SAME IDS AS ONE CELL WITH A COUNT ON IT, and the limit follows
+ * the picture the same way it did last time. Twelve squares is twelve STACKS —
+ * `slots(p).length`, distinct kinds — and adding to a stack you already hold
+ * costs no room at all. "Same item" is the `ItemDef.id`: a rented tape
+ * (`RENTAL`), an owned home tape (`VHS`) and a shrink-wrapped three-pack
+ * (`BLANKS`) are already three ids, so things whose state differs never merge.
+ *
+ * A BARE HAND STILL HOLDS ONE THING, not one stack — *"if you have no bag you
+ * hold one thing in your right hand"* — and a bulky thing still takes the
+ * hands whatever is on your back. Only the worn-bag ceiling moved.
+ */
+/** how tall one slot's stack may grow. Effectively unbounded — the slot count
+ *  is the real limit now — but finite, so a save that lies cannot overflow. */
+export const STACK_MAX = 99;
+/** the stack ceiling for one item: `stack: 1` stays unique, the rest stack */
+export function stackMax(id: string): number {
+  return itemOf(id).stack <= 1 ? 1 : STACK_MAX;
+}
 /** *"if you have no bag you hold one thing in your right hand"* */
 export const HAND_SLOTS = 1;
 /**
@@ -747,8 +779,10 @@ export function carrySlots(): number {
 export function slots(p: Purse): string[] {
   return Object.keys(p.inv).filter((k) => (p.inv[k] ?? 0) > 0);
 }
-/** How many THINGS he is carrying, counting a stack of two as two — the same
- *  count the bag view draws squares for. */
+/** How many THINGS he is carrying, counting a stack of two as two. What a bare
+ *  hand and a bulky carry are measured against; a WORN bag now charges by the
+ *  stack instead (see `STACK_MAX`), and the bag view draws one square per
+ *  stack with the count on it. */
 export function carried(p: Purse): number {
   return Object.keys(p.inv).reduce((t, k) => t + (p.inv[k] ?? 0), 0);
 }
@@ -763,14 +797,20 @@ export function carried(p: Purse): number {
  * telling the truth again without being touched.
  */
 export function roomFor(p: Purse, id: string): number {
-  const byStack = Math.max(0, itemOf(id).stack - (p.inv[id] ?? 0));
+  const have = p.inv[id] ?? 0;
+  const byStack = Math.max(0, stackMax(id) - have);
   // ⚠ A BULKY THING IS IN YOUR HANDS, SO A BAG DOES NOT HELP — see
   // `ItemDef.bulky`. Its ceiling is HAND_SLOTS whatever is on your back, and it
   // counts everything you are already carrying, so you cannot hold a toaster
-  // and a full bag's worth of anything else.
-  const ceiling = itemOf(id).bulky ? HAND_SLOTS : carrySlots();
-  const bySpace = Math.max(0, ceiling - carried(p));
-  return Math.min(byStack, bySpace);
+  // and a full bag's worth of anything else. A BARE HAND is the same sum for
+  // the same reason: one THING, not one stack.
+  if (itemOf(id).bulky || bagWorn().kind === 'none') {
+    return Math.min(byStack, Math.max(0, HAND_SLOTS - carried(p)));
+  }
+  // A WORN BAG CHARGES BY THE STACK — see the note at `STACK_MAX`. Adding to a
+  // stack you already hold needs no room; a new kind needs a free slot.
+  if (have > 0) return byStack;
+  return slots(p).length < BAG_SLOTS ? byStack : 0;
 }
 
 /** is he carrying something too big to stow? Ask this to WORD A PROMPT. */
@@ -781,7 +821,11 @@ export function handsFull(p: Purse): boolean {
 /** Is there nowhere left to put anything at all? Ask this to WORD A PROMPT
  *  before offering, never to decide — `give` is what decides. */
 export function pocketsFull(p: Purse): boolean {
-  return carried(p) >= carrySlots();
+  // Bare-handed it is things; with a bag it is STACKS — the same two ceilings
+  // `roomFor` charges. Note a full bag may still take more of a stack it
+  // already holds; `give` is what decides, this only words the prompt.
+  if (bagWorn().kind === 'none') return carried(p) >= HAND_SLOTS;
+  return slots(p).length >= BAG_SLOTS;
 }
 /**
  * WHY he cannot take it, in his own vocabulary.
@@ -798,7 +842,7 @@ export function fullWhy(p: Purse): string {
   if (!pocketsFull(p)) return '';
   return bagWorn().kind === 'none'
     ? 'your hands are full'
-    : `your bag is full — ${carried(p)} of ${BAG_SLOTS}`;
+    : `your bag is full — ${slots(p).length} of ${BAG_SLOTS} stacks`;
 }
 
 /**
