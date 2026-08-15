@@ -4,21 +4,22 @@
 //  damage but on game start two cars hitting you should always kill you and
 //  end your game."*   (2026-08-08)
 //
-// ── THE NUMBER IS 85, AND IT IS THE SAME 85 EVERY TIME ──────────────────────
+// ── THE NUMBER IS 70, AND IT IS THE SAME 70 EVERY TIME ──────────────────────
 //
 // "Consistent" = one flat number, never scaled by speed or by what hit you.
 // The binding constraint is "ON GAME START two cars hitting you should ALWAYS
-// kill you" — his words scope it to creation, and creation is where the bound
-// lives now that the stat ceiling is gone (*"i dont want an upper ceiling on
-// the points"*, 2026-08-15). Max health is 60 + 4×(STR+CON) (`ct/stats.ts`);
-// the biggest CREATION body is the 30-point pool dumped into the pair, three
-// stats at the floor of 1, STR+CON = 27 → 168 health. Two hits must finish
-// that one too, so the hit is ≥ 84; 85 takes it with a dollar to spare
-// (168 − 85 − 85 < 0, and 0 is the end, `ct/gameover.ts`), while a STR 1
-// CON 1 build dies to a single bumper — fair, for jaywalking in a body built
-// entirely out of INT. It WAS 70, sized against the old capped maximum of
-// 140. A body TRAINED past creation can now out-health two bumpers — that is
-// the ceiling's removal being real, not this file forgetting its rule.
+// kill you" — his words scope it to creation, and creation caps every stat at
+// 10 (*"cap 10 for creation, un cap during gameplay"*, 2026-08-15, in
+// `specStep`). Max health is 60 + 4×(STR+CON) (`ct/stats.ts`), so the biggest
+// CREATION body is STR 10 CON 10 → 140 health. Two hits must finish that one
+// too, so the hit is ≥ 70; exactly 70 takes it (140 − 70 − 70 = 0, and 0 is
+// the end, `ct/gameover.ts`), while a STR 1 CON 1 build dies to a single
+// bumper — fair, for jaywalking in a body built entirely out of INT.
+//
+// (It was 85 for one commit, sized against a creation form that briefly had
+// no cap either. A body TRAINED past 10 — training is uncapped — can still
+// out-health two bumpers eventually, and will have earned it; the rule was
+// always scoped to game start.)
 //
 // ── ONE HIT, NOT SIXTY A SECOND ─────────────────────────────────────────────
 //
@@ -39,8 +40,8 @@ import type { PlayerRef } from './ctx';
 import { damage, health } from './health';
 import { setCauseOfDeath } from './gameover';
 
-/** the flat cost of being hit — see the header for why it is exactly 85 */
-export const HIT_DAMAGE = 85;
+/** the flat cost of being hit — see the header for why it is exactly 70 */
+export const HIT_DAMAGE = 70;
 /** no second hit inside this window — "two hits" must mean two events */
 const INVULN_MS = 2000;
 /** below this the car is creeping to a stop against you and `fp.ts`'s box

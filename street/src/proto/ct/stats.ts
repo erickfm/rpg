@@ -40,19 +40,23 @@ export const STAT_LABEL: Record<StatName, string> = {
 
 // ── THE POINT-BUY ──────────────────────────────────────────────────────────
 //
-// Each stat runs from a floor of 1 WITH NO CEILING — *"i dont want an upper
-// ceiling on the points in the 5 numbers"* (2026-08-15) removed the old cap
-// of 10, at creation and forever. A fresh character holds 5 in everything —
-// dead average, which is what the derivations below are tuned around (average
+// Each stat runs from a floor of 1. THE DESK CAPS AT 10; THE WORLD DOES NOT:
+// *"i was thinking cap 10 for creation, un cap during gameplay"* (2026-08-15,
+// refining *"i dont want an upper ceiling on the points"* from the same day).
+// So the CREATION form cannot place a stat past 10 — that cap lives in
+// `specStep`, the form's only writer — while `setStat` and training have no
+// ceiling at all, for ever. A fresh character holds 5 in everything — dead
+// average, which is what the derivations below are tuned around (average
 // health lands at exactly 100, average speed at exactly 1.0). The creation
 // pool is 30 points against the 25 a flat spec costs, so there are FIVE free
 // points to place, and dumping a stat to 1 buys four more elsewhere. Classic
 // point-buy, no cost curve: point in, point out, because a curve is a rulebook
-// and this is a one-screen form. (10 is still where the printed chart's outer
-// ring sits and where training odds start their long tail — a landmark, not
-// a wall.)
+// and this is a one-screen form.
 export const STAT_MIN = 1;
 export const SPEC_POOL = 30;
+/** the CREATION ceiling — `specStep`'s alone. Nothing after the first
+ *  morning reads it; training past 10 is the whole point of the un-cap. */
+const SPEC_MAX = 10;
 
 const DEFAULT = 5;
 
@@ -118,9 +122,11 @@ export function pointsLeft(): number {
 }
 
 /** Step a stat on the creation form: up only while the pool has a point in
- *  it, down only to 1 (a person has SOME of everything). Lowering refunds. */
+ *  it AND the stat is under the desk's cap of 10 (`SPEC_MAX` — training may
+ *  pass it later, the form may not), down only to 1 (a person has SOME of
+ *  everything). Lowering refunds. */
 export function specStep(s: StatName, d: number): void {
-  if (d > 0 && pointsLeft() <= 0) return;
+  if (d > 0 && (pointsLeft() <= 0 || stats[s] >= SPEC_MAX)) return;
   setStat(s, stats[s] + (d > 0 ? 1 : -1));
 }
 
@@ -137,10 +143,11 @@ export function specStep(s: StatName, d: number): void {
  *
  * Tuned so the average body (5/5) is exactly the 100 the HUD bar was born
  * reading — the bar does not lie about a character made before stats existed.
- * The floor (1/1) is 68, still most of a bar; there is no ceiling any more —
+ * The floor (1/1) is 68, still most of a bar; the biggest CREATION body
+ * (10/10, the desk's cap) is 140, and past creation there is no ceiling —
  * every trained point of STR or CON is four more health, for ever.
- * (`ct/carhit.ts` sized its flat hit against the biggest CREATION body,
- * STR+CON 27 → 168 — see its header before touching either number.)
+ * (`ct/carhit.ts` sized its flat 70 against that 140 — see its header
+ * before touching either number.)
  */
 export function maxHealthFor(str: number, con: number): number {
   return 60 + 4 * (clampStat(str) + clampStat(con));

@@ -428,11 +428,12 @@ const BOOKS: Book[] = [
     cloth: '#7a3b30', gilt: '#e0c882', dewey: '155.2',
     body: [
       h('WHAT YOU ARE MADE OF'),
-      p('Five numbers, each with a floor of 1 and NO CEILING AT ALL. An '
-        + 'ordinary person holds 5 in all of them; 10 is where an exceptional '
-        + 'one stands, and past it the numbers simply keep going. Nothing in '
-        + 'this city will ever show them to you again after the morning you '
-        + 'set them, so it is worth knowing what they do.'),
+      p('Five numbers, each with a floor of 1. The morning you set them, 10 '
+        + 'is as high as the form will let you reach; after that morning '
+        + 'there is NO CEILING AT ALL — training simply keeps counting. An '
+        + 'ordinary person holds 5 in everything. Nothing in this city will '
+        + 'ever show the numbers to you again after you set them, so it is '
+        + 'worth knowing what they do.'),
       GAP,
       r('INT', 'which jobs will have you'),
       r('STR', 'health, with CON'),
@@ -448,11 +449,11 @@ const BOOKS: Book[] = [
         + 'costs 25 of them. So there are FIVE FREE POINTS to place. Dumping a '
         + 'stat to the floor of 1 frees four more. There is no cost curve: a '
         + 'point costs a point wherever you put it.'),
-      p('The pool is a rule about CREATION only. Training later ignores it — a '
-        + 'year of bench presses is not spending points. The floor of 1 holds '
-        + 'for ever; there is no ceiling, at the desk or after it. The chart '
-        + 'on the form only prints to 10, so a number past it sits pinned on '
-        + 'the outer ring — the gauge pegs, the digit beside it stays exact.'),
+      p('The pool is a rule about CREATION only, and so is the top: the form '
+        + 'will not place a stat past 10, however many points you free up. '
+        + 'Training later ignores both — a year of bench presses is not '
+        + 'spending points, and it does not stop at 10 either. The floor of 1 '
+        + 'holds for ever.'),
 
       h('HEALTH, FROM STR AND CON'),
       p('Your maximum health is sixty, plus four for every point of STR and '
@@ -968,16 +969,17 @@ const BOOKS: Book[] = [
         + 'is no combat, no fistfight, no weapon, no attacker, no fall damage '
         + 'and no illness. Nobody will ever lay a hand on you.'),
       GAP,
-      r('a car hits you for', '85'),
+      r('a car hits you for', '70'),
       r('you are safe for', '2 seconds after'),
       r('under 1 m/s it is', 'a nudge, not a hit'),
       r('you are thrown', '1.4 metres'),
       GAP,
-      p('Eighty-five is chosen so that TWO HITS KILL, even at the strongest '
-        + 'body a first morning can buy. A body TRAINED past that — the stats '
-        + 'have no ceiling — can eventually shrug off a second bumper, and '
-        + 'will have earned it. The traffic is the whole of the danger in '
-        + 'CROSSTOWN, and the sidewalk is the whole of the safety.'),
+      p('Seventy is chosen so that TWO HITS KILL, even at the strongest body '
+        + 'a first morning can buy — the form tops out at STR 10 CON 10, '
+        + 'which is exactly two hits\' worth of health. A body TRAINED past '
+        + 'that — training has no ceiling — can eventually shrug off a second '
+        + 'bumper, and will have earned it. The traffic is the whole of the '
+        + 'danger in CROSSTOWN, and the sidewalk is the whole of the safety.'),
       p('You cannot be arrested. The cells at the House of Detention are a '
         + 'place you can walk through, not a consequence of anything.'),
 
