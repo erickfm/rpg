@@ -144,9 +144,10 @@ export const JOBS: Record<string, JobDef> = {
 
 // ── the employment record — module state, saved as a slice ─────────────────
 //
-// `hiredAt` is a JOBS key or null; `lastShiftDay` is the one-working-day gate
-// (GLOBAL, one body); `lastOutMin` is when that day's last stretch ended, so
-// punching straight back in reads as STAYING ON rather than a second shift;
+// `hiredAt` is a JOBS key or null; `lastShiftDay` is the last day a shift was
+// worked (GLOBAL, one body) — it gates NOTHING since 2026-08-15, it only keeps
+// the CHA roll to the first punch of a day; `lastOutMin` is when that day's
+// last stretch ended, kept in the record and the save blob;
 // `noAskUntil[shop]` is the first day that shop's slip comes off the form.
 // NEW GAME needs no line anywhere: the state lives only in the `ct-save`
 // blob, which `ct/newgame.ts` wipes whole — stats.ts's rule.
@@ -327,15 +328,13 @@ function submitApplication(ctx: CtxBuild, shopId: string): void {
 // with the clock SNAPPED in the dark middle (`overSeconds: 0`), 140/90/170,
 // because the world going by is the same event wherever it happens.
 //
-// LENGTH IS `min(8 hours, time until close)` — *"i want to be able to work
-// longer as long as the business is open"* — and "longer" is punching the
-// clock AGAIN when the stretch ends: within an hour of clocking out the card
-// goes straight back in the throat and you work on, so a 6 AM start at the
-// gym can run to the 10 PM shutters in two punches, and a 24-hour diner will
-// keep taking the card until the fatigue system objects. What it refuses is a
-// SECOND shift — walk away for more than the hour and it is tomorrow's clock.
-/** how long after clocking out the card still counts as staying on, minutes */
-const STAY_ON_MIN = 60;
+// LENGTH IS `min(8 hours, what is left in you)` — *"i want to be able to
+// work longer as long as the business is open"* — and "longer" is punching
+// the clock AGAIN, whenever, as often as you like. The one-shift-a-day rule
+// that stood here (with its one-hour staying-on grace) went on 2026-08-15:
+// *"you should always be able to work until you are exhaustred. none of this
+// you already worked a shift today."* Exhaustion is the only limit on
+// stacking shifts, and the fatigue margin below is where it bites.
 
 // ══ AND THE BODY GETS A VOTE ═════════════════════════════════════════════════
 //
@@ -343,8 +342,8 @@ const STAY_ON_MIN = 60;
 //  death/passing out."*   (2026-08-11)
 //
 // Both halves of that sentence live in `workShift` below. The clock NEVER
-// refuses you for being tired — the only refusals left in it are the shop's
-// (closed, closing up) and the calendar's (a shift already worked today). What
+// refuses you — not for being tired, not for the hours (the door owns those),
+// and since 2026-08-15 not for the calendar either. What
 // the body does instead is CAP THE STRETCH: `ct/fatigue.ts`'s
 // `workMinutesLeft()` is how many minutes of work is left in you, and the card
 // comes back out of the throat the moment that runs out. Punch in with two
@@ -405,15 +404,14 @@ function workShift(ctx: CtxBuild, shopId: string): void {
   // is ejected at closing time and nobody is short-changed for punching in at
   // ten to six.
   //
-  // WHAT IS LEFT IS THE SHOP'S OTHER RULE, which has nothing to do with hours:
-  // one shift a day, unless you are staying on straight off the last one.
-  const stayingOn = lastOutMin >= 0 && now - lastOutMin <= STAY_ON_MIN;
-  if (lastShiftDay === d && !stayingOn) {
-    hudNote('you have already worked a shift today');
-    return;
-  }
+  // THE SHOP'S OTHER RULE — one shift a day unless you were staying straight
+  // on — stood here until 2026-08-15 and is gone with the rest: *"you should
+  // always be able to work until you are exhaustred. none of this you already
+  // worked a shift today."* The clock refuses nothing at all now; the body's
+  // margin below is the only thing that ends a run of shifts.
+  //
   // THE COUNTER TEACHES CHA — see the block over `reapplyDays`. Rolled on the
-  // first punch of the day only (staying on is the same day's same crowd), at
+  // first punch of the day only (a stacked shift is the same day's same crowd), at
   // the rower's half odds off the one training curve, BEFORE today's tips are
   // counted — the point is learned across the shift, the jar reads yesterday's
   // manners.
