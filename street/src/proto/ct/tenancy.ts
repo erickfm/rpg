@@ -1039,8 +1039,27 @@ const SHEET = { w: 192, h: 178 };
  * COST IS NOTHING. 9x the fill, but a letter repaints on OPEN and on a PAGE
  * TURN — not per frame, unlike the television — so this is nine times a paint
  * that happens when a hand moves.
+ *
+ * ══ 4 NOW, AND THE PAGE IS BIGGER, AND THE TWO ARE ONE MOVE ═══════════════
+ *
+ * *"make the letters bigger and more realistic on the screen thanks."*
+ *   (2026-08-15)
+ *
+ * BIGGER is the stand-off: 0.42 m -> 0.315 m (see `surface.standoff`), which
+ * grows the page 4/3 on screen — from ~59% of the frame's height to ~79%,
+ * paper filling the view the way a page held up to read actually does.
+ *
+ * ⚠ THE SUPERSAMPLE MOVES WITH IT OR THE TYPE GOES CHUNKY. The whole
+ * `SHEET_ROLL` note below rests on this page sampling at very nearly ONE
+ * screen pixel per canvas texel under `NearestFilter`. Magnify the plane 4/3
+ * at SS 3 and every texel spans ~1.33 px — stair-stepped strokes. SS 4 at
+ * 3/4 the stand-off cancels exactly: 4/3 more screen pixels across a page
+ * that carries 4/3 more texels is the same ~1:1 sampling as before, with
+ * each 8 px glyph now resolved across 32 texels instead of 24. Integer, for
+ * the reason 3 was: integer coordinates land on texel boundaries.
+ * 192x178 -> 768x712. THE DRAWN GLYPH SIZE IS STILL UNCHANGED.
  */
-const LETTER_SS = 3;
+const LETTER_SS = 4;
 /** the canvas the framework actually allocates, and the space clicks arrive in */
 const PANEL_W = SHEET.w * LETTER_SS;
 const PANEL_H = SHEET.h * LETTER_SS;
@@ -1058,15 +1077,16 @@ const PANEL_H = SHEET.h * LETTER_SS;
  *
  * ⚠ IT IS NOT A DENSITY PROBLEM, and the whole afternoon's other fixes do not
  * apply here. Measured the way `college-yard.ts:328` and `hours-cards.ts:34`
- * ask for it: the page is composed at 192 x 178 units, `LETTER_SS` 3 puts
- * 576 canvas px on a 0.28 m plane, and that is **2,057 px/m** — ten times the
- * 150-200 px/m floor, and the highest density of any surface in this world.
+ * ask for it: the page is composed at 192 x 178 units, `LETTER_SS` (4 now)
+ * puts 768 canvas px on a 0.28 m plane, and that is **2,743 px/m** — over ten
+ * times the 150-200 px/m floor, the highest density of any surface in this
+ * world.
  * Nothing here is starved and lifting the lettering onto its own plane would
  * buy exactly nothing.
  *
- * ⚠ WHAT IT IS: 2° OF ROLL POINT-SAMPLED AT 1:1. The stand-off (0.42 m) and
- * the fov (55°) put this page on screen at very nearly one screen pixel per
- * canvas texel — and `ct/hud.ts` hangs the canvas with `NearestFilter` and no
+ * ⚠ WHAT IT IS: 2° OF ROLL POINT-SAMPLED AT 1:1. The stand-off (0.315 m, and
+ * the SS 4 note above for why that pairing holds) and the fov (55°) put this
+ * page on screen at very nearly one screen pixel per canvas texel — and `ct/hud.ts` hangs the canvas with `NearestFilter` and no
  * mipmaps, correctly, because this is a hand-painted world. A page that is
  * SQUARE to the eye then lands texel-on-pixel and the type is as crisp as it
  * was drawn. Roll it two degrees and the sampling grid drifts across the page:
@@ -1175,8 +1195,14 @@ let page = 0;
 /** what you are reading: the pile you last took out of the box */
 let reading: Letter[] = [];
 /** is the open pile the BOX's, or a re-read of the archive? Only the first is
- *  takeable — see the note in `takeCurrent`. */
+ *  takeable — see the note in `takeSeen`. */
 let readingLive = false;
+/** the pieces that have actually been IN FRONT OF HIM this read — page 0 on
+ *  open, and every page a turn lands on. `takeSeen` pockets exactly these,
+ *  which is the literal reading of *"if i see the letter i should take it"*:
+ *  a piece deeper in a pile he closed early was never seen and stays in the
+ *  box, waiting. Cleared per open; the durable record is `POCKETED`. */
+const SEEN = new Set<Letter>();
 /** set by `register`, so the notice can print a live figure */
 let CTX: CtxBuild | null = null;
 let PANEL: Panel | null = null;
@@ -1197,6 +1223,71 @@ let sheet: THREE.Mesh | null = null;
 const fill = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: number, h: number) => {
   g.fillStyle = c; g.fillRect(x, y, w, h);
 };
+
+/**
+ * ── THE PAPER'S FINISH ─────────────────────────────────────────────────────
+ *
+ * *"make the letters bigger and more realistic on the screen thanks."*
+ *   (2026-08-15)
+ *
+ * The realistic half. Every painter lays flat, perfectly even colour, and at
+ * ~79% of the frame a field that even reads as ink-jet preview, not paper.
+ * Real stock has FIBRE — sparse flecks a shade darker and lighter than the
+ * sheet — and a page in a hand does not catch the light evenly: the middle,
+ * nearest the eye, is a touch brighter than the corners. So two washes go
+ * over whatever the painter drew:
+ *
+ *   1. GRAIN — a tiled noise canvas, built ONCE and deterministic (an LCG,
+ *      not Math.random), so a repaint cannot shimmer the paper. Drawn in
+ *      CANVAS pixels, outside the `LETTER_SS` scale, so the flecks are
+ *      texel-fine rather than blown up into confetti.
+ *   2. LIE OF LIGHT — a radial fall-off, clear in the middle to a faint
+ *      shade at the corners. Alpha 0.12 at the very corner: dimension, not
+ *      grading, and nothing the type has to fight.
+ *
+ * ⚠ `source-atop` IS THE WHOLE TRICK. The pieces are fifteen different
+ * rectangles (one rotated) and only the painter knows where its paper is —
+ * but the canvas's own alpha already knows too. `source-atop` lands the wash
+ * exclusively on painted pixels, so the envelope gets envelope-shaped grain
+ * and the cut-away margin stays cut away (`alphaTest` untouched: source-atop
+ * inherits the destination's alpha).
+ */
+let GRAIN: HTMLCanvasElement | null = null;
+function paperFinish(g: CanvasRenderingContext2D): void {
+  if (!GRAIN) {
+    GRAIN = document.createElement('canvas');
+    GRAIN.width = 96; GRAIN.height = 96;
+    const ng = GRAIN.getContext('2d');
+    if (ng) {
+      let s = 41;
+      const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+      const img = ng.createImageData(96, 96);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const v = rnd();
+        if (v < 0.10) {          // a dark fleck of fibre
+          img.data[i] = img.data[i + 1] = 24; img.data[i + 2] = 18;
+          img.data[i + 3] = 22;
+        } else if (v > 0.90) {   // a lit one
+          img.data[i] = img.data[i + 1] = 255; img.data[i + 2] = 250;
+          img.data[i + 3] = 18;
+        }
+      }
+      ng.putImageData(img, 0, 0);
+    }
+  }
+  g.save();
+  g.globalCompositeOperation = 'source-atop';
+  const pat = g.createPattern(GRAIN, 'repeat');
+  if (pat) { g.fillStyle = pat; g.fillRect(0, 0, PANEL_W, PANEL_H); }
+  const v = g.createRadialGradient(
+    PANEL_W / 2, PANEL_H / 2, PANEL_H * 0.28,
+    PANEL_W / 2, PANEL_H / 2, PANEL_H * 0.80);
+  v.addColorStop(0, 'rgba(58,50,36,0)');
+  v.addColorStop(1, 'rgba(58,50,36,0.12)');
+  g.fillStyle = v;
+  g.fillRect(0, 0, PANEL_W, PANEL_H);
+  g.restore();
+}
 
 /** Paint the SHEET. The framework has already drawn everything around it, and
  *  the origin is the screen's own top left.
@@ -1250,6 +1341,9 @@ function drawLetter(g: CanvasRenderingContext2D): void {
     g.fillText(`${page + 1}/${reading.length}`, SHEET.w - 6, SHEET.h - 6);
     g.restore();
   }
+  // LAST, over everything — ink included, which is what makes it read as one
+  // printed object rather than a texture behind the type. See `paperFinish`.
+  paperFinish(g);
 }
 
 /** the space a piece of mail is drawn into, in sheet units. A piece may use all
@@ -2557,6 +2651,11 @@ function buildPanel(): void {
     // the foot of `drawTyped` and each piece's own painter. That is the answer
     // the caption was standing in for: not a smaller caption, a diegetic one.
     silent: true,
+    // ONLY the screen-space fallback reads this (the diegetic path sizes off
+    // the plane, not the element). At the framework's default 2x, a 768-px
+    // canvas is a 1536-px element — wider than the frame it falls back into.
+    // 1x is the old fallback's physical size, near enough, at double the grid.
+    scale: 1,
     draw: drawLetter,
     // The wheel turns the page, the same gesture the pockets use to choose.
     // ESC is the framework's and needs no line here.
@@ -2570,33 +2669,42 @@ function buildPanel(): void {
     },
     surface: {
       mesh: () => sheet,
-      // 0.42 m off the paper is where a person holds something they are
-      // reading. The framework's 0.55 default is a stand-off for a MACHINE you
-      // step up to; this is arm's length, and it is the whole difference
-      // between holding a letter and standing at a kiosk.
-      standoff: 0.42,
+      // 0.315 m off the paper — a page lifted to read, not held at arm's
+      // length. It was 0.42 (*"where a person holds something they are
+      // reading"*), and *"make the letters bigger"* (2026-08-15) is answered
+      // HERE, not by a bigger plane: 3/4 the distance is 4/3 the page on
+      // screen, ~79% of the frame's height. ⚠ PAIRED WITH `LETTER_SS` 4 —
+      // see the note there; either number moved alone smears the type.
+      standoff: 0.315,
       // and lean in: 55° against the world's 88° resting look is the eye
       // narrowing onto the page, which is what reading looks like.
       fov: 55,
-      // CLICKING THE PAGE TURNS IT, right half forward and left half back —
-      // the same two directions the wheel and the arrows already give, so this
-      // adds a gesture and no state. Only when there IS more than one, so the
-      // cursor never offers a press that would do nothing.
+      // ══ CLICK TURNS THE PAGE. TAKING IS NOT A CLICK ANY MORE ════════════
+      //
+      // *"also i dont liuke i have to click the letter to 'take' it. if i see
+      //  the letter i should take it when i stop looking at it."* (2026-08-15)
+      //
+      // So click-takes-it (*"click: it goes into the bag"*, 2026-08-05) is
+      // overruled by the newer words: the TAKE moved to `takeSeen`, fired from
+      // `onClose` — every piece you have had in front of you goes into the bag
+      // the moment you stop looking, on every way of stopping. What is left
+      // for the mouse is the page: right half forward, left half back, the
+      // same two directions the wheel and the arrows already give. Only hot
+      // when there IS more than one, so the cursor never offers a press that
+      // would do nothing.
       //
       // `hot`/`click` arrive in THIS CANVAS's pixels (`ct/hud.ts:733`), not in
       // uv, not in client space and NOT in the sheet's drawing units — so the
       // thing to halve is `PANEL_W`, the supersampled width the framework
-      // allocated. Halving `SHEET.w` here would put the divide a third of the
-      // way across the page and every click past it would turn forward.
-      // ══ CLICK TAKES IT, AND THE NEXT ONE COMES UP ═══════════════════════
-      //
-      // *"the mail opens on the first piece. click: it goes into the bag, the
-      //  next piece appears."*
-      //
-      // The whole sheet is hot, not the outer fifths — turning the page was a
-      // second wheel and the wheel already turns it. One gesture, one verb.
-      hot: () => true,
-      click: () => { takeCurrent(); },
+      // allocated. Halving `SHEET.w` here would put the divide a quarter of
+      // the way across the page and every click past it would turn forward.
+      hot: () => reading.length > 1,
+      click: (x) => {
+        if (reading.length < 2) return;
+        page = (page + (x > PANEL_W / 2 ? 1 : reading.length - 1)) % reading.length;
+        turned();
+        PANEL?.repaint();
+      },
     },
     // THE PAPER IS ONLY THERE WHILE YOU ARE READING IT. Guarded on
     // `screenFocusReady()` rather than shown unconditionally: that is the exact
@@ -2605,8 +2713,12 @@ function buildPanel(): void {
     // this does NOT leave a blank sheet hanging in the lobby behind it.
     onOpen: () => { if (sheet && screenFocusReady()) sheet.visible = true; },
     // `onClose` runs on EVERY close — Escape, `[E]`, and the automatic close
-    // when another panel opens — so there is no path that leaves it up.
-    onClose: () => { if (sheet) sheet.visible = false; },
+    // when another panel opens — so there is no path that leaves it up, and
+    // therefore NO PATH THAT LEAVES A SEEN LETTER BEHIND: `takeSeen` rides
+    // the same hook, which is the whole implementation of *"i should take it
+    // when i stop looking at it"*. Whatever closes the view IS him stopping
+    // looking; there is exactly one place that means that, and this is it.
+    onClose: () => { if (sheet) sheet.visible = false; takeSeen(); },
   });
 }
 
@@ -2841,6 +2953,11 @@ function pocketMail(ctx: CtxBuild, l: Letter): boolean {
  * nothing moved, so nothing should sound.
  */
 const turned = (): void => {
+  // whatever page the turn landed on is now in front of him — seen, and so
+  // taken when the view closes. Marked HERE because every gesture that turns
+  // the page (wheel, arrows, click) already ends in this call.
+  const l = reading[page];
+  if (l) SEEN.add(l);
   if (sheet && reading.length > 1) {
     sheet.userData.pageTurns = ((sheet.userData.pageTurns as number | undefined) ?? 0) + 1;
   }
@@ -2851,6 +2968,10 @@ function showLetters(pile: Letter[], at: Hold, live = false): void {
   reading = pile;
   readingLive = live;
   page = 0;
+  // the view opens ON the first piece, so the first piece is seen the moment
+  // the paper is up — one glance is seeing it, no gesture required.
+  SEEN.clear();
+  SEEN.add(pile[0]);
   if (sheet) {
     // WHICH DOOR OPENED THIS VIEW, published for `ct/audio.ts`. `live` is
     // already the honest split — true is the box handing over its own pile,
@@ -2873,66 +2994,71 @@ function showLetters(pile: Letter[], at: Hold, live = false): void {
 }
 
 /**
- * ══ TAKE THE PIECE HE IS LOOKING AT ═══════════════════════════════════════
+ * ══ TAKE EVERYTHING HE SAW, WHEN HE STOPS LOOKING ═════════════════════════
  *
- * One click, one letter into the bag, and the piece behind it comes up. When
- * the last one goes the view ends on its own — there is nothing left to read.
+ * *"also i dont liuke i have to click the letter to 'take' it. if i see the
+ *  letter i should take it when i stop looking at it."*   (2026-08-15)
  *
- * ⚠ A REFUSAL NEVER EATS A LETTER. The bag is twelve slots (`3a1f21c8`), so it
- * CAN fill mid-stack. `roomFor` is asked BEFORE the piece leaves anything, the
- * refusal is worded by `fullWhy` — "your bag is full — 12 of 12" — and the
- * piece stays exactly where it was, on screen and in the box. He can drop
- * something and come back to it.
+ * This replaces `takeCurrent`, the click-takes-one flow — his newer words
+ * outrank *"click: it goes into the bag"* (2026-08-05). Called from the
+ * panel's `onClose`, which runs on EVERY close — Escape, `[E]`, and the
+ * automatic close when another panel opens — so there is no way to stop
+ * looking that does not take. Every piece in `SEEN` (page 0, plus each page
+ * a turn landed on) goes into the bag; a piece deeper in the pile that was
+ * never brought up was never seen and STAYS WAITING in the box.
  *
- * ⚠ AND IT IS THE ONLY PLACE `collectedDay` MOVES. It advances when the pile
- * empties, which is the one moment the box is genuinely empty. Leave halfway
- * and the untaken pieces are still waiting, because `POCKETED` records the ones
- * that went and `waiting()` subtracts them.
+ * ⚠ A REFUSAL NEVER EATS A LETTER. The bag is twelve slots (`3a1f21c8`), so
+ * it CAN fill mid-pile. `pocketsFull` is asked before each piece moves; the
+ * first refusal notes `fullWhy` — "your bag is full — 12 of 12" — ONCE, and
+ * that piece and everything after it stay in the box, `POCKETED` untouched.
+ * He can drop something and come back to them.
+ *
+ * ⚠ AND IT IS THE ONLY PLACE `collectedDay` MOVES. It advances only when
+ * nothing is left un-pocketed, which is the one moment the box is genuinely
+ * empty. Close halfway through and the unseen pieces are still waiting,
+ * because `POCKETED` records the ones that went and `waiting()` subtracts
+ * them.
+ *
+ * ══ THE DUPLICATION GUARDS SURVIVE THE MOVE ═══════════════════════════════
+ *
+ * *"mail doesnt leave the mail box so iu quickly fill my bag just clicking
+ *  through mail again and again"*   (2026-08-05)
+ *
+ * TWO GUARDS, because one of them is a fact and the other is an assertion.
+ * `readingLive` is the fact: an archive re-read (the bag's READ, the
+ * landlord's receipt, the slip under the door) is a thing you look at, not a
+ * thing you take. `POCKETED` is the assertion, and it is what makes a
+ * duplicate structurally impossible rather than merely unreachable — a piece
+ * he already has can never be taken again by any path, present or future.
+ * And `readingLive` drops before the loop, so a second close of the same
+ * open — however the framework arrives at one — is a no-op, not a re-take.
  */
-function takeCurrent(): void {
-  const l = reading[page];
-  if (!l || !CTX) return;
-  // ══ THE OTHER HALF OF THE DUPLICATION, AND THE ONE HE SAW ═══════════════
-  //
-  // *"mail doesnt leave the mail box so iu quickly fill my bag just clicking
-  //  through mail again and again"*   (2026-08-05)
-  //
-  // ⚠ THE PILE DID LEAVE. `waiting()` filters `POCKETED` and always did, and
-  // the box empties correctly. WHAT HE WAS CLICKING THROUGH THE SECOND TIME WAS
-  // THE ARCHIVE. With nothing waiting, the box falls through to
-  // `showLetters([...HELD].reverse())` — a re-read of everything he has ever
-  // taken — and this function took no interest in which of the two it was
-  // looking at. So every re-read minted the whole archive into his bag again,
-  // and with the id minted per take (above) nothing downstream could refuse it.
-  //
-  // TWO GUARDS, because one of them is a fact and the other is an assertion.
-  // `readingLive` is the fact: an archive is a thing you look at, not a thing
-  // you take. `POCKETED` is the assertion, and it is what makes a duplicate
-  // structurally impossible rather than merely unreachable — a piece he already
-  // has can never be taken again by any path, present or future.
-  if (!readingLive) return;
-  if (POCKETED.has(keyOf(l))) return;
-  // ASKED BEFORE ANYTHING MOVES, so the refusal is readable and the piece is
-  // untouched — this file's own rule for `give()`, applied to the mail.
-  if (pocketsFull(CTX.purse)) { hudNote(fullWhy(CTX.purse)); return; }
-  if (!pocketMail(CTX, l)) {
-    hudNote(fullWhy(CTX.purse));
-    return;
+function takeSeen(): void {
+  if (!readingLive || !CTX) return;
+  readingLive = false;
+  let refused = false;
+  for (const l of [...reading]) {
+    if (!SEEN.has(l) || POCKETED.has(keyOf(l))) continue;
+    // ASKED BEFORE ANYTHING MOVES, so the refusal is readable and the piece
+    // is untouched — this file's own rule for `give()`, applied to the mail.
+    if (pocketsFull(CTX.purse) || !pocketMail(CTX, l)) {
+      if (!refused) hudNote(fullWhy(CTX.purse));
+      refused = true;
+      continue;
+    }
+    POCKETED.add(keyOf(l));
+    HELD.push(l);
   }
-  POCKETED.add(keyOf(l));
-  HELD.push(l);
   while (HELD.length > KEEP) HELD.shift();
-  reading = reading.filter((x) => x !== l);
-  if (!reading.length) {
+  const left = reading.filter((l) => !POCKETED.has(keyOf(l))).length;
+  reading = [];
+  SEEN.clear();
+  if (!left) {
     // the box is genuinely empty now, so the day may be marked collected
     const { totalMin } = CTX.clock.now();
     const hour = (totalMin % 1440) / 60;
     collectedDay = Math.floor(totalMin / 1440) - (hour >= POST_HOUR ? 0 : 1);
-    PANEL?.close();
-    return;
   }
-  if (page >= reading.length) page = reading.length - 1;
-  PANEL?.repaint();
 }
 
 // ── the world ─────────────────────────────────────────────────────────────
@@ -3085,9 +3211,9 @@ export function register(ctx: CtxBuild): void {
   // safe — a supersample multiplies both, so the two ratios are identical, and
   // SHEET is the size the page is actually COMPOSED at.
   // (BUILDER-BRIEF §7b: a texture's density comes from the face it lands on —
-  // 0.28 m of paper carrying 576 canvas px is 2057 px/m. It was 686 before
+  // 0.28 m of paper carrying 768 canvas px is 2743 px/m. It was 686 before
   // `LETTER_SS`, and the letter being hard to read at 686 is the whole reason
-  // that constant exists: this is a thing held at arm's length filling most of
+  // that constant exists: this is a thing held up close filling most of
   // the frame, so the density is meant to be this high.)
   const SHEET_W = 0.28;
   sheet = add(new THREE.Mesh(
@@ -3189,11 +3315,12 @@ export function register(ctx: CtxBuild): void {
       // hanging in the lobby — pressing and having nothing open IS the box
       // reading empty, now that the label no longer says it first.
       if (!w.length) return;
-      // THE BOX HANDS YOU THE PILE AND CLICKING TAKES ONE — see the panel's
-      // `click` and `takeCurrent`. LIVE, because this is the box's own pile.
+      // THE BOX HANDS YOU THE PILE, AND WHAT YOU SEE IS YOURS WHEN YOU STOP
+      // LOOKING — see `takeSeen`, fired by the panel's `onClose`. LIVE,
+      // because this is the box's own pile.
       //
-      // Nothing is collected here: `collectedDay` advances only when the pile
-      // actually empties, so walking away mid-stack leaves the rest in the box.
+      // Nothing is collected here: `collectedDay` advances only when nothing
+      // is left un-pocketed, so closing early leaves the unseen in the box.
       showLetters(w, HOLD_BOX, true);
     },
   });
