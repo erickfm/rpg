@@ -7212,3 +7212,9 @@ click. Same builder as the bigger/realistic letters pass, behind health bars.
 Queued behind the mail-letters pass (same rotation ground) which itself waits on
 health bars (TV ground). Then a fresh builder writes the ad both places — the
 implication, never the statement.
+
+## 2026-08-15 — *"whats the blue icon supposed to be?" / "yea looks nnothing like a head. try something else"*
+
+The mental bar's pixel head icon doesn't read. Back to the health-bars builder
+(its own art) for a different symbol — something with the heart's unmistakable-
+silhouette property.
