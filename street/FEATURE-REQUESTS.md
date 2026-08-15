@@ -7136,3 +7136,10 @@ closing, both deleted by today's own asks.
 library reading table. Entering the books view swings the camera through 180°.
 Sent to a builder with the landlord scene (`5874a5a3`) named as prior art, and with
 the cause to be reported back in his words, not guessed here.
+
+## 2026-08-15 — *"what sounds are playing outdoors? i feel like i hear phase artifacts potentially from overlapping traCKS"*
+
+An investigation, not a change: a builder is inventorying every outdoor sound —
+file, loop, emitter, trigger — and checking whether the code can play the same
+track twice within earshot (double-start on restore, zone-boundary overlap, one
+file on two emitters). Report first; nothing gets fixed until Erick has read it.
