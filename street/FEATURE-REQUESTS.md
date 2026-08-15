@@ -7195,3 +7195,9 @@ builder) it stops and reports the exact lines instead of editing.
 Two asks, both held until the health-bars builder lands — it is live in the same
 work/fatigue and HUD ground. Then: (1) remove the one-shift-a-day gate, work is
 bounded by exhaustion alone; (2) inventory stacks same items with a count badge.
+
+## 2026-08-15 — *"make the letters bigger and more realistic on the screen thanks."*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-15 12-42-49.png` — the
+landlord letter on the mail screen. Held behind the health-bars build (same rent
+ground), then to a fresh builder: bigger, more like a real letter.
