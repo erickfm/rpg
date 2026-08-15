@@ -1875,7 +1875,16 @@ export function buildLibrary(ctx: CtxBuild): void {
     box(0.16, 0.34, deckD, woodDark, GALLERY_X0 + 0.08, GALLERY_Y - 0.28, deckCZ);
     for (const pz of [deckZ0 + 1.2, deckCZ, deckZ1 - 1.2]) {
       box(0.18, GALLERY_Y - 0.34, 0.18, woodDark, GALLERY_X0 + 0.09, (GALLERY_Y - 0.34) / 2, pz);
-      solid(GALLERY_X0 + 0.09, pz, 0.26, 0.26);
+      // CAPPED AT THE DECK. *"collision box here in the library is sticking
+      // out"* (2026-08-15): a plain `solid` is extruded to every height, so
+      // each post's box also stood ON the deck — poking out past the
+      // balusters into the walkway, guarding a post that ends 0.34 m below
+      // the boards. `maxY` (absolute world Y — the library floor is world 0,
+      // so GALLERY_Y is the deck surface) ends the box where the post's job
+      // ends: the full column still blocks the ground floor, and up on the
+      // deck the drop is the balustrade collider's job, which spans this x
+      // band along the whole deck anyway.
+      solid(GALLERY_X0 + 0.09, pz, 0.26, 0.26).maxY = GALLERY_Y;
     }
 
     // the treads, riding the ramp the picker walks — ct/civic.ts's rule: answer
