@@ -35,20 +35,19 @@ import type * as THREE from 'three';
 // than a blank page — there is no second source to correct it. **If you change
 // a mechanic, the sentence in here that describes it is part of the change.**
 //
-// FOUR PLACES WHERE THE SOURCE'S OWN PROSE IS STALE AND THE PAGES FOLLOW THE
+// PLACES WHERE THE SOURCE'S OWN PROSE IS STALE AND THE PAGES FOLLOW THE
 // CODE INSTEAD. Written down so the next author does not "correct" the book
 // back to the comment:
 //
-//   · `stats.ts:14` says *"the gym trains STR and CON"*. It does not, and has
-//     not since CROSSTOWN FITNESS was rebuilt: `int-gym.ts:31-34` and its three
-//     `train()` calls are STR and **DEX**. CON cannot be raised at all.
-//   · `stats.ts:139` clamps the DEX multiplier at 1.15, but `STAT_MAX` is 10,
-//     so the reachable ceiling is **1.125**. fp.ts repeats the 1.15 four times.
 //   · `fp.ts:573-574` defaults walk/run to 3.0/5.6; `crosstown.ts:1315`
 //     overrides them to **3.3 / 6.8** and is the only world that ships. Every
 //     derived figure in fp.ts's comments is against the defaults and is wrong.
 //   · `roulette.ts:24` and `slotcab.ts:53` both quote a 94.97% slots RTP that
 //     matches no machine now in the world. The live cabinets are 101.44%.
+//
+// (Two former entries died 2026-08-15 with the stat ceiling: the gym now
+// really does train CON — on the rower, `int-gym.ts` — and DEX 11 really
+// reaches `stats.ts`'s 1.15 speed hold, since nothing stops at 10 any more.)
 //
 // WHERE PROSE REPLACES A NUMBER, THAT IS DELIBERATE. Some systems have no one
 // figure worth quoting — the gym's gain is a per-session probability, not a
@@ -417,8 +416,10 @@ function shopHead(label: string, key: string): Block {
 
 const BOOKS: Book[] = [
   // ─────────────────────────────────────────────────────────────────────────
-  // 1. STATS — ct/stats.ts throughout; the raisers are ct/int-gym.ts:555-620
-  //    and ct/int-college.ts:426-452. ⚠ the gym is STR and DEX (see header).
+  // 1. STATS — ct/stats.ts throughout; the raisers are ct/int-gym.ts (STR,
+  //    DEX, and CON on the rower), ct/int-college.ts (INT, the semester now
+  //    topless) and ct/jobs.ts (CHA off the punch clock). No ceiling anywhere
+  //    since 2026-08-15.
   // ─────────────────────────────────────────────────────────────────────────
   {
     spine: 'THE FIVE NUMBERS',
@@ -427,13 +428,15 @@ const BOOKS: Book[] = [
     cloth: '#7a3b30', gilt: '#e0c882', dewey: '155.2',
     body: [
       h('WHAT YOU ARE MADE OF'),
-      p('Five numbers, each running 1 to 10. An ordinary person holds 5 in all '
-        + 'of them. Nothing in this city will ever show them to you again after '
-        + 'the morning you set them, so it is worth knowing what they do.'),
+      p('Five numbers, each with a floor of 1 and NO CEILING AT ALL. An '
+        + 'ordinary person holds 5 in all of them; 10 is where an exceptional '
+        + 'one stands, and past it the numbers simply keep going. Nothing in '
+        + 'this city will ever show them to you again after the morning you '
+        + 'set them, so it is worth knowing what they do.'),
       GAP,
       r('INT', 'which jobs will have you'),
       r('STR', 'health, with CON'),
-      r('CHA', 'the hiring roll, faintly'),
+      r('CHA', 'hiring, tips, and how fast a no wears off'),
       r('DEX', 'how fast you move'),
       r('CON', 'health, with STR'),
       GAP,
@@ -446,8 +449,10 @@ const BOOKS: Book[] = [
         + 'stat to the floor of 1 frees four more. There is no cost curve: a '
         + 'point costs a point wherever you put it.'),
       p('The pool is a rule about CREATION only. Training later ignores it — a '
-        + 'year of bench presses is not spending points — but the ceiling of 10 '
-        + 'and the floor of 1 hold for ever.'),
+        + 'year of bench presses is not spending points. The floor of 1 holds '
+        + 'for ever; there is no ceiling, at the desk or after it. The chart '
+        + 'on the form only prints to 10, so a number past it sits pinned on '
+        + 'the outer ring — the gauge pegs, the digit beside it stays exact.'),
 
       h('HEALTH, FROM STR AND CON'),
       p('Your maximum health is sixty, plus four for every point of STR and '
@@ -457,6 +462,7 @@ const BOOKS: Book[] = [
       r('STR 1, CON 1', '68'),
       r('STR 5, CON 5', '100'),
       r('STR 10, CON 10', '140'),
+      r('and onward', '4 more per point, no top'),
       GAP,
       p('An average body is exactly 100, which is what the bar was built to '
         + 'read. Beyond this, CON does nothing whatsoever and STR does nothing '
@@ -471,38 +477,54 @@ const BOOKS: Book[] = [
       r('DEX 5', 'x 1.000'),
       r('DEX 8', 'x 1.075'),
       r('DEX 10', 'x 1.125'),
+      r('DEX 11 and past', 'x 1.150, and no more'),
       GAP,
-      p('That is the whole of it: twelve and a half per cent between an average '
-        + 'body and the fastest in the city. DEX buys no jumping, no balance, '
-        + 'no accuracy and no light fingers. It is a small, permanent, '
-        + 'always-on discount on every distance you will ever walk.'),
+      p('Fifteen per cent between an average body and the fastest in the city, '
+        + 'and the streets themselves hold the line there: past DEX 11 the '
+        + 'town is simply not built for faster legs, however many points you '
+        + 'stack. DEX buys no jumping, no balance, no accuracy and no light '
+        + 'fingers. It is a small, permanent, always-on discount on every '
+        + 'distance you will ever walk.'),
 
       h('WORK, FROM INT AND CHA'),
       p('Every position posts an INT it wants. Meet it and you are very likely '
-        + 'to be hired. Fall short and you are very unlikely — but never quite '
-        + 'refused outright.'),
+        + 'to be hired. Fall short and charm carries you further than it used '
+        + 'to — but INT\'s doors stay INT\'s.'),
       GAP,
       r('INT at or over', '70%'),
       r('  each point over', '+4%'),
-      r('  each point of CHA', '+1%'),
+      r('  each point of CHA', '+2.5%'),
       r('  but never above', '95%'),
       r('INT under', '4%'),
-      r('  each point of CHA', '+0.6%'),
+      r('  each point of CHA', '+2%'),
+      r('  but never above', '60%'),
       GAP,
-      p('So a hopeless application still lands 4.6 times in a hundred at CHA 1, '
-        + 'and 10 in a hundred at CHA 10. There is always a chance and it is '
-        + 'always small.'),
-      p('Read the CHA lines again. Charisma is worth at most one percentage '
-        + 'point on a job you are qualified for. It is the cheapest stat to '
-        + 'dump and the least rewarding to raise, and it can never be raised '
-        + 'anyway. INT is the number that opens doors.'),
+      p('So a hopeless application lands 6 times in a hundred at CHA 1, 24 at '
+        + 'CHA 10 — and a truly silver tongue, there being no top on the '
+        + 'number, can talk its way past three doors in five. Never more: the '
+        + 'last two-fifths belong to INT alone.'),
+      p('And hiring is only the first thing CHA touches. A rejection slip '
+        + 'comes off the form sooner for a face they liked — three days at '
+        + 'ordinary charm, two from CHA 8, one from CHA 11. Every shift pays '
+        + 'its posted wage PLUS TIPS, two per cent of the wage for every point '
+        + 'of CHA over 5, with no top. And the counter teaches what it '
+        + 'spends — see RAISING THEM. It is no longer the cheap stat to dump.'),
 
       h('RAISING THEM'),
-      p('Two institutions on this street will move a number. NOTHING ELSE IN '
-        + 'THE CITY WILL.'),
+      p('Three places on this street will move a number. NOTHING ELSE IN THE '
+        + 'CITY WILL. All three roll the same dice: below 10 the chance is (10 '
+        + 'minus the stat) divided by five, and past 10 it is one over (the '
+        + 'stat minus three) — long odds that get longer for ever and never '
+        + 'reach zero. Nothing refuses you for being too good any more; the '
+        + 'days just stretch out.'),
+      GAP,
+      r('5 going to 6', 'certain'),
+      r('9 to 10', '1 day in 5'),
+      r('10 to 11', '1 day in 7'),
+      r('15 to 16', '1 day in 12'),
       GAP,
       RULE,
-      h('CROSSTOWN FITNESS — STR AND DEX'),
+      h('CROSSTOWN FITNESS — STR, DEX AND CON'),
       p('Pay at the desk first, then use the machines. One fee opens all three.'),
       GAP,
       r('DAY PASS', '$15.00'),
@@ -510,47 +532,40 @@ const BOOKS: Book[] = [
       GAP,
       r('the press', 'STR'),
       r('the heavy bag', 'DEX'),
-      r('the rower', 'both, at half odds'),
+      r('the rower', 'STR, DEX and CON, at half odds'),
       GAP,
       p('A session is ONE HOUR of the clock and you get ONE SESSION PER MACHINE '
-        + 'PER DAY — three hours a day if you use all three. A session is not a '
-        + 'guaranteed point. It is a roll, and the chance is (10 minus the stat) '
-        + 'divided by five:'),
-      GAP,
-      r('5 going to 6', 'certain'),
-      r('6 to 7', '4 days in 5'),
-      r('7 to 8', '3 days in 5'),
-      r('8 to 9', '2 days in 5'),
-      r('9 to 10', '1 day in 5'),
-      GAP,
-      p('The rower halves every one of those but rolls STR and DEX separately '
-        + 'in the same hour, so it is the better use of a day early on and the '
-        + 'worse one at the top.'),
+        + 'PER DAY — three hours a day if you use all three. The rower halves '
+        + 'the odds but rolls its three numbers separately in the same hour, '
+        + 'and it is the ONLY MACHINE IN THE CITY THAT TRAINS CON.'),
       p('THE GYM IS THE ONLY PLACE DEX CAN BE RAISED, and almost nobody finds '
         + 'it, because the heavy bag looks like scenery.'),
       RULE,
       h('THE COMMUNITY COLLEGE — INT'),
       p('The evening division, one point of INT per course completed, never '
-        + 'more. Each course refuses you outright once your INT has passed its '
-        + 'ceiling, and your money does not move on a refusal.'),
+        + 'more. The short courses refuse you outright once your INT has '
+        + 'passed their syllabus, and your money does not move on a refusal. '
+        + 'The SEMESTER has no such line: it will re-enrol you for ever, one '
+        + 'point per fortnight, as deep as your purse goes.'),
       GAP,
       r('NIGHT CLASS $150', 'INT 1-5, 3 hours'),
       r('CERTIFICATE $400', 'INT 1-7, 7 days'),
-      r('SEMESTER $850', 'INT 1-9, 14 days'),
+      r('SEMESTER $850', 'no top, 14 days'),
       GAP,
       p('The week and the fortnight are real: the clock runs to eight in the '
-        + 'morning after the last day and you come out the other side of it.'),
-      p('Climbing from an average INT of 5 all the way to 10 costs one night '
-        + 'class, two certificates and two semesters — $2,650 and thirty-six '
-        + 'days — and it is the only ladder up the wage table.'),
+        + 'morning after the last day and you come out the other side of it. '
+        + 'Climbing from an average 5 to 10 costs $2,650 and thirty-six days; '
+        + 'past 10 it is $850 and a fortnight a point, every point.'),
       RULE,
-      h('AND THE TWO THAT CANNOT MOVE'),
-      p('CHA AND CON CANNOT BE RAISED. Not anywhere, not by anything, not once '
-        + 'the first morning is over. There is no charm school and no clinic in '
-        + 'this city. Whatever you set them to at creation you will carry to '
-        + 'the end, so spend the five free points knowing that.'),
-      p('Nothing lowers a stat either. There is no injury, no ageing and no '
-        + 'penalty anywhere that touches the five numbers.'),
+      h('THE PUNCH CLOCK — CHA'),
+      p('There is no charm school in this city. There is a counter, and eight '
+        + 'hours of regulars a day is the education: the first shift you work '
+        + 'each day rolls to raise CHA, at the rower\'s half odds. It costs '
+        + 'nothing — you are being PAID to learn it — which is fitting, since '
+        + 'CHA is the number that raises the pay.'),
+      p('CON has one machine and CHA has one clock. Nothing lowers a stat, '
+        + 'ever. There is no injury, no ageing and no penalty anywhere that '
+        + 'touches the five numbers.'),
     ],
   },
 
@@ -953,13 +968,15 @@ const BOOKS: Book[] = [
         + 'is no combat, no fistfight, no weapon, no attacker, no fall damage '
         + 'and no illness. Nobody will ever lay a hand on you.'),
       GAP,
-      r('a car hits you for', '70'),
+      r('a car hits you for', '85'),
       r('you are safe for', '2 seconds after'),
       r('under 1 m/s it is', 'a nudge, not a hit'),
       r('you are thrown', '1.4 metres'),
       GAP,
-      p('Seventy is chosen so that TWO HITS KILL, even at the strongest body '
-        + 'this game allows. The traffic is the whole of the danger in '
+      p('Eighty-five is chosen so that TWO HITS KILL, even at the strongest '
+        + 'body a first morning can buy. A body TRAINED past that — the stats '
+        + 'have no ceiling — can eventually shrug off a second bumper, and '
+        + 'will have earned it. The traffic is the whole of the danger in '
         + 'CROSSTOWN, and the sidewalk is the whole of the safety.'),
       p('You cannot be arrested. The cells at the House of Detention are a '
         + 'place you can walk through, not a consequence of anything.'),

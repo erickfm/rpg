@@ -453,10 +453,14 @@ export function buildCollege(ctx: CtxBuild): void {
   //
   // Each completed course is `raiseStat('int', 1)` — one point, never more.
   // The cap is the syllabus: a night class cannot teach a person past INT 6,
-  // the certificate stops at 8, and only the full semester reads to 10. Past
-  // its cap a course refuses and SAYS WHY (shop.ts's rule: a silent false
-  // reads as a broken shop), and the money never moves on a refusal — that is
-  // `serve`'s own contract.
+  // the certificate stops at 8 — and the SEMESTER HAS NO TOP ANY MORE. It
+  // read to 10 until *"i dont want an upper ceiling on the points"*
+  // (2026-08-15) took the ceiling off the five numbers; with stats unbounded,
+  // the full fourteen days re-enrols for ever, $850 and a fortnight per
+  // point, because a stat with no ceiling still needs a ladder that reaches.
+  // Past its cap a course refuses and SAYS WHY (shop.ts's rule: a silent
+  // false reads as a broken shop), and the money never moves on a refusal —
+  // that is `serve`'s own contract.
   //
   // ── AND A COURSE TAKES TIME, THE HOTEL'S WAY ───────────────────────────────
   //
@@ -468,9 +472,7 @@ export function buildCollege(ctx: CtxBuild): void {
   const enrol = (days: number, cap: number, done: string): boolean => {
     const int = stat('int');
     if (int >= cap) {
-      hudNote(cap >= 10
-        ? 'There is nothing left on the syllabus. INT 10 is the whole catalogue.'
-        : `Nothing on this syllabus you don't already know — INT ${int} wants the next course up.`);
+      hudNote(`Nothing on this syllabus you don't already know — INT ${int} wants the next course up.`);
       return false;
     }
     const { hour, minute } = ctx.clock.now();
@@ -489,7 +491,7 @@ export function buildCollege(ctx: CtxBuild): void {
     { head: 'EVENING DIVISION', lines: [
       { name: 'NIGHT CLASS', price: 150.00, serve: () => enrol(0, 6, 'Three hours of compound interest.') },
       { name: 'CERTIFICATE', price: 400.00, serve: () => enrol(7, 8, 'A week of evenings and a laminated card.') },
-      { name: 'SEMESTER', price: 850.00, serve: () => enrol(14, 10, 'Fourteen days. The registrar shakes your hand.') },
+      { name: 'SEMESTER', price: 850.00, serve: () => enrol(14, Infinity, 'Fourteen days. The registrar shakes your hand.') },
     ] },
   ];
   const LOOK: BoardLook = {

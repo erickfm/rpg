@@ -7,7 +7,7 @@ import { doorOpen } from './hours';
 import { frontageWorld, alongU } from './tex-world';
 import { boardTexture, boardStandoff, shopCounter, type ShopColumn, type BoardLook } from './shop';
 import { jobStation } from './jobs';
-import { stat, raiseStat, type StatName } from './stats';
+import { stat, raiseStat, trainOdds, STAT_LABEL, type StatName } from './stats';
 import { hudNote } from './hud';
 import { registerSlice } from './save';
 
@@ -540,11 +540,16 @@ export function buildGym(ctx: CtxBuild): void {
   //
   //   1. THE DOOR COSTS MONEY — the pass, off the desk, unlocks all three.
   //   2. ONE SESSION PER MACHINE PER DAY — then that piece of you is spent.
-  //   3. GAINS DIMINISH — a specialist machine lands its +1 with chance
-  //      (10−stat)/5, so 5→6 is certain and 9→10 is one day in five. THE
-  //      ROWER TRAINS BOTH FOR LESS: it rolls STR and DEX independently at
-  //      HALF those odds, which is the *"both but less"* of the ask as
-  //      arithmetic. stats.ts clamps at 10 regardless.
+  //   3. GAINS DIMINISH — a specialist machine lands its +1 at stats.ts's
+  //      `trainOdds`: the original (10−stat)/5 below 10 (5→6 certain, 9→10
+  //      one day in five), then the long tail past it — one in seven at 10,
+  //      thinning for ever, never zero. The old "maxed" refusal died with
+  //      the stat ceiling (*"i dont want an upper ceiling on the points"*,
+  //      2026-08-15): no machine turns you away any more, the odds just get
+  //      long. THE ROWER TRAINS MORE FOR LESS: it rolls STR, DEX and CON
+  //      independently at HALF those odds — *"both but less"* as arithmetic,
+  //      with CON pulled in when the ceiling came off, because endurance is
+  //      what an erg is FOR and no other door in the city trained it at all.
   //
   // Each session advances the clock an hour, because an hour is what it is.
 
@@ -553,22 +558,20 @@ export function buildGym(ctx: CtxBuild): void {
   const train = (
     kinds: StatName[], mul: number,
     getLast: () => number, setLast: (d: number) => void,
-    words: { spent: string; maxed: string; gained: (k: StatName, v: number) => string; nothing: string },
+    words: { spent: string; gained: (k: StatName, v: number) => string; nothing: string },
   ): void => {
     const d = dayNow();
     if (paidUntilDay <= d) {
       hudNote('sign in at the desk first — day pass $15');
       return;
     }
-    const open = kinds.filter((k) => stat(k) < 10);
-    if (open.length === 0) { hudNote(words.maxed); return; }
     if (getLast() === d) { hudNote(words.spent); return; }
     setLast(d);
     ctx.clock.advance(60);
     const gains: string[] = [];
-    for (const k of open) {
+    for (const k of kinds) {
       const s = stat(k);
-      if (Math.random() < ((10 - s) / 5) * mul) {
+      if (Math.random() < trainOdds(s) * mul) {
         raiseStat(k, 1);
         gains.push(words.gained(k, s + 1));
       }
@@ -586,7 +589,6 @@ export function buildGym(ctx: CtxBuild): void {
     act: () => train(['str'], 1,
       () => lastPressDay, (d) => { lastPressDay = d; }, {
         spent: 'your arms are spent — come back tomorrow',
-        maxed: 'as strong as a body gets',
         gained: (_k, v) => `the stack is paying off — STR ${v}`,
         nothing: 'a hard hour under the stack — nothing to show yet',
       }),
@@ -602,24 +604,23 @@ export function buildGym(ctx: CtxBuild): void {
     act: () => train(['dex'], 1,
       () => lastBagDay, (d) => { lastBagDay = d; }, {
         spent: 'your hands are done for today',
-        maxed: 'your hands are as fast as hands get',
         gained: (_k, v) => `the bag is teaching you — DEX ${v}`,
         nothing: 'an hour on the bag — nothing to show yet',
       }),
   });
 
-  // THE ROWER — both, for less
+  // THE ROWER — STR, DEX and CON, all for less. CON has no other trainer in
+  // the city, so the erg is where a body learns to last — see the GATES block.
   ctx.spot({
     x: room.wx(2.75), z: room.wz(RW_CZ),
     aimX: room.wx(3.55), aimZ: room.wz(RW_CZ),
     r: 0.9, obj: rowObj,
     ok: room.inside,
     label: () => 'pull the rower',
-    act: () => train(['str', 'dex'], 0.5,
+    act: () => train(['str', 'dex', 'con'], 0.5,
       () => lastRowDay, (d) => { lastRowDay = d; }, {
         spent: 'your back is done rowing for today',
-        maxed: 'the erg has nothing left to teach you',
-        gained: (k, v) => `${k === 'str' ? 'STR' : 'DEX'} ${v} off the erg`,
+        gained: (k, v) => `${STAT_LABEL[k]} ${v} off the erg`,
         nothing: 'a long hour on the erg — nothing to show yet',
       }),
   });

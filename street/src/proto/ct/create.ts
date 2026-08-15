@@ -419,8 +419,13 @@ function paintCreate(g: CanvasRenderingContext2D): void {
     g.textAlign = al; g.fillText(STAT_LABEL[s], lx, ly);
   });
   g.textAlign = 'left';
-  // the plot: wash first, then pen lines, then the dots on top
-  const plot = STAT_NAMES.map((s, k) => chVert((CH_R * stat(s)) / 10, k));
+  // the plot: wash first, then pen lines, then the dots on top. PINNED at the
+  // outer ring: the stats have no ceiling any more (*"i dont want an upper
+  // ceiling on the points"*, 2026-08-15) but the printed instrument still
+  // reads to 10, and a dot past the rim would walk off the paper — a value
+  // over 10 sits ON the rim, the way any gauge pegs. The row's digit beside
+  // it stays exact.
+  const plot = STAT_NAMES.map((s, k) => chVert((CH_R * Math.min(10, stat(s))) / 10, k));
   g.fillStyle = 'rgba(43,63,126,0.14)';
   g.beginPath();
   plot.forEach(([px, py], k) => { if (k === 0) g.moveTo(px, py); else g.lineTo(px, py); });

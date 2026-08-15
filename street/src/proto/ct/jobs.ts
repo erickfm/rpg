@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { makePanel, hudNote, screenFade, type Panel } from './hud';
 import { pixTex, declareSurface, dither } from './paint';
-import { jobChance, stat } from './stats';
+import { jobChance, stat, raiseStat, trainOdds } from './stats';
 import { registerSlice } from './save';
 import { boardStandoff } from './shop';
 import { makeSigPad, paintBackspace, type SigPad } from './signature';
@@ -77,6 +77,33 @@ import type { Room } from './interior';
 // ~$12/hr and req INT 10, and nothing else changes.
 export const REAPPLY_DAYS = 3;
 export const SHIFT_HOURS = 8;
+
+// ── AND CHARISMA WORKS THE ROOM — *"charisma should matter more"* (2026-08-15)
+//
+// Three ways, all at this wall, because every job in the table is customer-
+// facing and a counter is where charm is legal tender in 1997:
+//
+//   THE ROLL      `jobChance`'s CHA coefficients were raised in stats.ts —
+//                 see its header for the arithmetic.
+//
+//   THE SLIP      a POSITION FILLED slip comes off sooner for a face they
+//                 liked: 3 days at ordinary charm, 2 from CHA 8, 1 from
+//                 CHA 11 — never 0, a no is still a no tonight.
+//
+//   THE TIPS      a shift pays its posted wage PLUS the jar: 2% of the wage
+//                 per point of CHA over 5, uncapped since the stats are.
+//                 CHA 10 works the counter for +10%; the application's
+//                 printed hourly stays honest — tips are never on the paper.
+//
+// …and the counter TRAINS what it spends: the first punch-in of a day rolls
+// stats.ts's one `trainOdds` curve at the rower's half odds to raise CHA by
+// 1. Eight hours of regulars is a people education, and it was the only stat
+// with no ladder at all — set at creation and dead for ever, which "no
+// ceiling" (2026-08-15) turned from a quirk into a contradiction.
+/** how many days a rejection slip stays taped up, for this face */
+function reapplyDays(): number {
+  return Math.max(1, REAPPLY_DAYS - Math.floor(Math.max(0, stat('cha') - 5) / 3));
+}
 
 export interface JobDef {
   /** the position, as the application prints it */
@@ -287,7 +314,7 @@ function submitApplication(ctx: CtxBuild, shopId: string): void {
       : null;
     hiredAt = shopId;
   } else {
-    noAskUntil[shopId] = dayNow(ctx) + REAPPLY_DAYS;
+    noAskUntil[shopId] = dayNow(ctx) + reapplyDays();
     const p = REJECT[shopId] ?? FALLBACK;
     const pool = stat('int') < job.reqInt ? p.sharp : p.turned;
     slipLine[shopId] = pool[Math.floor(Math.random() * pool.length)];
@@ -324,9 +351,9 @@ const STAY_ON_MIN = 60;
 // hours in you and you get a two-hour stretch, two hours' pay, and the floor.
 //
 // The collapse itself is not built here and must not be: it is the pass-out
-// `ct/fatigue.ts` has owned since 2026-08-08 — eight hours gone, 1–10% of the
-// cash off you while you are out, a tenth of max health, and you wake wherever
-// you last slept. It fires by itself on the frame after this stretch ends,
+// `ct/fatigue.ts` has owned since 2026-08-08 — eight hours gone, 10–20% of the
+// cash off you while you are out (raised 2026-08-15, *"a little bit more
+// punishing"*), a tenth of max health, and you wake wherever you last slept. It fires by itself on the frame after this stretch ends,
 // because the stretch ended exactly where the margin did. Nothing modal is
 // involved anywhere in it, at either end.
 //
@@ -385,6 +412,14 @@ function workShift(ctx: CtxBuild, shopId: string): void {
     hudNote('you have already worked a shift today');
     return;
   }
+  // THE COUNTER TEACHES CHA — see the block over `reapplyDays`. Rolled on the
+  // first punch of the day only (staying on is the same day's same crowd), at
+  // the rower's half odds off the one training curve, BEFORE today's tips are
+  // counted — the point is learned across the shift, the jar reads yesterday's
+  // manners.
+  const chaWas = stat('cha');
+  const chaUp = lastShiftDay !== d && Math.random() < trainOdds(chaWas) * 0.5;
+  if (chaUp) raiseStat('cha', 1);
   // THE SHOP'S HALF is now one number: the shift it advertises on its own
   // application form. Nothing about the clock on the wall shortens it.
   const shopMins = SHIFT_HOURS * 60;
@@ -402,9 +437,15 @@ function workShift(ctx: CtxBuild, shopId: string): void {
   });
   // to the cent: a 4½-hour stretch at $5.50 is $24.75, not $24.749999…
   const pay = Math.round(job.hourly * mins * 100 / 60) / 100;
-  ctx.purse.cash += pay;
+  // …and the jar, off the CHA you walked in with — see the block above
+  const tips = Math.round(pay * 0.02 * Math.max(0, chaWas - 5) * 100) / 100;
+  ctx.purse.cash += pay + tips;
   ctx.refreshWallet();
-  hudNote(`${fmtShift(mins)} at ${job.at} — $${pay.toFixed(2)}, cash${bodyTail(mins)}`);
+  const payLine = tips > 0
+    ? `$${pay.toFixed(2)} + $${tips.toFixed(2)} in tips`
+    : `$${pay.toFixed(2)}`;
+  const chaLine = chaUp ? ` — the regulars are warming to you, CHA ${chaWas + 1}` : '';
+  hudNote(`${fmtShift(mins)} at ${job.at} — ${payLine}, cash${chaLine}${bodyTail(mins)}`);
 }
 
 // ══ THE FORM, PAINTED ════════════════════════════════════════════════════════
