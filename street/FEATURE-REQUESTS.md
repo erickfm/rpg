@@ -7172,3 +7172,9 @@ drain arithmetic — home to bed or caffeine before the lights go out.
 Ruling on the stats work: the car-hit 85 and DEX's 1.15 hold stand. Follow-up sent
 back to the same stats builder (its own work): creation capped at 10 per stat,
 gameplay training stays uncapped, dependent numbers re-derived as needed.
+
+## 2026-08-15 — *"lets get two health bars, one physical one mental. physical and mental both get worn down by working. getting hit by a car, only physical. everyday youre late on rent hurts the mental. the mental damage happens when the day converts so either on wake up on a day with no rent paid still or at midnight. smokes hurt physical but help mental. tv helps the mental a tiny bit. just enough to offset the rent pain. coffee is a temp boost to mental and physical but when it wears off it hurts both more than the temp boost. pills is the same but 1.5x severe. cocaine is the same but twice as severe. add confession in church and it helps the mental a lot. renting and playing tapes at home helps mental twice as much as tv. school fills mental to full always."*
+
+The dual-bar system. One fresh builder, trunk granted, whole spec verbatim; new
+world pieces where needed (confession, tape renting/playing). Numbers are the
+builder's to choose and report.
