@@ -7149,3 +7149,9 @@ file on two emitters). Report first; nothing gets fixed until Erick has read it.
 `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-15 12-01-09.png`. Two
 symptoms — a door that won't take him and a facade of overlapping textures — sent
 to one fresh builder with the trunk granted, no cause guessed here.
+
+## 2026-08-15 — *"i dont want an upper ceiling on the points in the 5 numbers btw. also charisma should matter more"*
+
+The character stats. Sent to a fresh builder: lift the cap wherever it lives, and
+widen what CHA actually does — with the standing finding that CON and CHA cannot
+be raised after creation named as context it may act on, proportionately.
