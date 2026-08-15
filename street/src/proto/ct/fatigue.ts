@@ -83,8 +83,30 @@ const BASE_MIN = 24 * 60;
  * FIRST-PASS NUMBER, and the one most worth arguing about: 1.5 makes a double
  * shift the thing that breaks you, which is the shape of the ask. Raise it to
  * punish work harder, drop it toward 1.0 to make the job merely tiring.
+ *
+ * ⚠ SUPERSEDED IN ONE PARTICULAR (2026-08-15): *"working two shifts for sure
+ * has you blinking and sleepy but you have an ingame hour to get home to
+ * sleep or to buy caffeine."* Under raw 1.5 arithmetic two full shifts are
+ * EXACTLY the whole window — the second stretch got capped short and you went
+ * down AT the clock, hour nowhere. So the double shift is now a DECLARED
+ * outcome rather than an emergent one: `workMinutesLeft` guarantees the body
+ * can stand through the first two shifts' worth of work, and the moment the
+ * cumulative shift time crosses two shifts, the margin is SET to exactly
+ * `GRACE_MIN` — blinking and sleepy for sure, one ingame hour on the meter.
+ * The rate still governs everything either side of that moment: idle drain,
+ * partial shifts, and the third punch that puts you on the floor.
  */
 const WORK_RATE = 1.5;
+/** the grace after the second shift, game-minutes — *"you have an ingame hour
+ *  to get home to sleep or to buy caffeine"* (2026-08-15). One hour of margin
+ *  is also exactly the band `blinkStep` blinks in, so the whole grace is
+ *  spent blinking and sleepy, which is the other half of the same sentence. */
+const GRACE_MIN = 60;
+/** two shifts' worth of time on the clock, game-minutes — 2 × the 8-hour
+ *  shift `ct/jobs.ts` advertises (`SHIFT_HOURS`). NOT imported from there:
+ *  `ct/jobs.ts` imports this module, and a load-time read back across that
+ *  cycle is the exact TDZ landmine `flatBed` below documents. */
+const TWO_SHIFTS_MIN = 2 * 8 * 60;
 /** A one-frame clock delta above this is a jump, not passage — 10× the
  *  biggest honest frame (0.05 game-min) and far below the smallest night. */
 const JUMP_MIN = 0.5;
@@ -130,6 +152,11 @@ const flatBed = () =>
  *  this is no longer literally "minutes awake" and the gauges read it as a
  *  fraction of `limitMin()` rather than as a clock. */
 let awakeMin = 0;
+/** game-minutes spent ON SHIFT since the last sleep — the counter the
+ *  two-shift guarantee reads. Distinct from `awakeMin`: this one is literal
+ *  clock time behind the grill, unweighted by `WORK_RATE`. Reset by every
+ *  sleep, the pass-out included. */
+let workedMin = 0;
 /** stimulant extension, in game-minutes. ADDITIVE — two coffees are twelve
  *  hours, because "keep you going for 6 extra hours" reads as fuel, and each
  *  further dose already costs money. Cleared by sleep: it wears off when you
@@ -169,9 +196,17 @@ function limitMin(): number { return BASE_MIN + boostMin; }
  * NEVER NEGATIVE, and never a reason for the clock to REFUSE — *"if were in
  * we can always work"*. Two minutes left means a two-minute stretch and then
  * the floor, which is the joke working exactly as written.
+ *
+ * AND NEVER SHORT OF THE SECOND SHIFT (2026-08-15): *"working two shifts for
+ * sure has you blinking and sleepy"* presumes you can WORK the two shifts, so
+ * the body always answers for at least whatever remains of the first
+ * `TWO_SHIFTS_MIN` on the clock — the wear cap only starts cutting stretches
+ * short from the third punch on, where "work yourself to passing out" still
+ * lives (after the double, ~40 minutes are left in you and then the floor).
  */
 export function workMinutesLeft(): number {
-  return Math.max(0, (limitMin() - awakeMin) / WORK_RATE);
+  const byWear = Math.max(0, (limitMin() - awakeMin) / WORK_RATE);
+  return Math.max(byWear, TWO_SHIFTS_MIN - workedMin);
 }
 
 /** Declare a stretch about to be snapped through behind a fade. Call it BEFORE
@@ -397,10 +432,12 @@ function passOut(ctx: CtxBuild): void {
   // between "you stayed up too long" and "you worked yourself into the floor".
   const fell = workAt;
   const wake = slept ?? flatBed();
-  // *"its a percentage between 1-10%"* — a whole percent, 1…10, rolled at the
+  // Was *"a percentage between 1-10%"* (2026-08-08); raised at his word —
+  // *"make passing out a little bit more punishing (higher percentage of
+  // funds lost)"* (2026-08-15) — to a whole percent, 10…20, rolled at the
   // moment you go down. Runtime `Math.random`, never `ct/rng.ts`'s seeded
   // stream: that one is the world's build grain (GOTCHAS §2) and this is dice.
-  const pct = 1 + Math.floor(Math.random() * 10);
+  const pct = 10 + Math.floor(Math.random() * 11);
   let lost = 0;
 
   // EIGHT HOURS OUT COLD — the same span every sleep in this world now is
@@ -437,7 +474,7 @@ function passOut(ctx: CtxBuild): void {
       setHealth(Math.max(1, health() - Math.ceil(maxHealth() * 0.10)));
       ctx.player.jumpTo(wake.x, wake.z, wake.yaw, wake.gy);
       ctx.clock.advance(mins, { overSeconds: 0 });
-      awakeMin = 0; boostMin = 0;
+      awakeMin = 0; boostMin = 0; workedMin = 0;
       workPending = 0; workAt = null;   // the shift ended the hard way
       slept = { ...wake };
       clearApproach();      // he wakes with open eyes and a clear rim
@@ -465,14 +502,17 @@ function passOut(ctx: CtxBuild): void {
 // is total and the reload puts these module locals back at 0/0/null, which is
 // a fresh start that has never slept and wakes, if it must, in 301.
 registerSlice<{
-  awakeMin: number; boostMin: number;
+  awakeMin: number; boostMin: number; workedMin?: number;
   slept: { x: number; z: number; yaw: number; gy: number } | null;
 }>('fatigue', {
-  capture: () => ({ awakeMin, boostMin, slept: slept ? { ...slept } : null }),
+  capture: () => ({ awakeMin, boostMin, workedMin, slept: slept ? { ...slept } : null }),
   restore: (v) => {
     if (!v || typeof v !== 'object') return;
     if (typeof v.awakeMin === 'number' && Number.isFinite(v.awakeMin) && v.awakeMin >= 0) awakeMin = v.awakeMin;
     if (typeof v.boostMin === 'number' && Number.isFinite(v.boostMin) && v.boostMin >= 0) boostMin = v.boostMin;
+    // optional: saves from before the two-shift guarantee simply restart the
+    // count, which errs toward letting him work — the forgiving direction
+    if (typeof v.workedMin === 'number' && Number.isFinite(v.workedMin) && v.workedMin >= 0) workedMin = v.workedMin;
     const s = v.slept;
     if (s && typeof s === 'object'
       && [s.x, s.z, s.yaw, s.gy].every((n) => typeof n === 'number' && Number.isFinite(n))) {
@@ -515,7 +555,24 @@ export function register(ctx: CtxBuild): void {
         if (workPending > 0) {
           const worked = Math.min(d, workPending);
           workPending -= worked;
+          const before = workedMin;
+          workedMin += worked;
           awakeMin += worked * WORK_RATE;
+          // ── THE DOUBLE SHIFT, EXACTLY AS PROMISED (2026-08-15) ───────────
+          // *"working two shifts for sure has you blinking and sleepy but you
+          // have an ingame hour to get home to sleep or to buy caffeine."*
+          // The stretch that carries the clock past two shifts SETS the margin
+          // to `GRACE_MIN` — both directions, deliberately: below it and the
+          // hour would be a lie, above it and the blinking would be a maybe.
+          // Idle drain is one game-minute per game-minute, so the hour on the
+          // meter is the hour on the street clock, to the minute. A dose in
+          // that hour grows `limitMin()` and the margin with it, so caffeine
+          // clears the state exactly as the sentence says; sleep resets all
+          // of it. Fires only at the crossing, once per waking — the third
+          // shift gets no such mercy and ends on the floor.
+          if (before < TWO_SHIFTS_MIN && workedMin >= TWO_SHIFTS_MIN) {
+            awakeMin = limitMin() - GRACE_MIN;
+          }
           drawVignette(awakeMin / limitMin());
           flush();
           return;
@@ -523,7 +580,7 @@ export function register(ctx: CtxBuild): void {
         // A sleep cut — the bed, the hotel, or this module's own pass-out.
         // Reset the stretch and remember where he was standing when the
         // screen went black: that is where "wherever you slept" is.
-        awakeMin = 0; boostMin = 0;
+        awakeMin = 0; boostMin = 0; workedMin = 0;
         // whatever was on the clock is over — you are not on shift in your bed
         workPending = 0; workAt = null;
         clearApproach();
