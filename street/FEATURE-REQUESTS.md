@@ -7223,3 +7223,9 @@ silhouette property.
 
 An art pass. Fresh builder, first pass for his eye: identity beyond a flat sign,
 night lighting, windows that say what happens inside. Footprint and door stay.
+
+## 2026-08-15 — *"in the final hour there should be a ton of blinking. like very obvious something is wrong. also lets do red tint in the last 30 min. blinking should start at t minus 6 hours left."*
+
+Back to the fatigue builder (its own blink machinery): blink onset moves from
+60 min to 6 h of margin, ramping to unmistakable in the final hour, red tint in
+the last 30. The two-shift 60-min guarantee stays, now inside the longer ramp.
