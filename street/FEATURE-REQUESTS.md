@@ -7166,3 +7166,9 @@ grant. Dispatches to a fresh builder the moment the trunk frees.
 Sent to a fresh builder: raise the pass-out fund loss, guarantee the drowsy state
 by the end of a second shift, and make the one-ingame-hour grace real in the
 drain arithmetic — home to bed or caffeine before the lights go out.
+
+## 2026-08-15 — *"thats fine i was thinking cpa 10 for creation, un cap during gameplay"*
+
+Ruling on the stats work: the car-hit 85 and DEX's 1.15 hold stand. Follow-up sent
+back to the same stats builder (its own work): creation capped at 10 per stat,
+gameplay training stays uncapped, dependent numbers re-derived as needed.
