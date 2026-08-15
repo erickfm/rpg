@@ -3159,8 +3159,7 @@ export function register(ctx: CtxBuild): void {
     //
     // SO THE ARCHIVE IS OFF THE BOX ENTIRELY. Both readers are gone — the
     // fall-through that opened it and the label that advertised it — and with
-    // nothing waiting the spot says the box is empty and `[E]` opens no panel at
-    // all. He can walk up, read that there is nothing in it, and walk away.
+    // nothing waiting `[E]` opens no panel at all.
     //
     // ⚠ RE-READING HAS A BETTER HOME AND THAT IS WHY THIS COSTS NOTHING. His
     // letters are ITEMS now (`27fda3d1`): they are in his bag, they carry their
@@ -3173,16 +3172,22 @@ export function register(ctx: CtxBuild): void {
     // not deleted because it is the only record of what has come through the
     // box, and the next thing that wants that — a "you have already read this"
     // mark, a filing system — will want it whole.
-    label: () => {
-      const w = waiting(ctx.clock.now().totalMin).length;
-      if (w > 0) return `open your mailbox — ${w} letter${w === 1 ? '' : 's'}`;
-      return `your mailbox — ${RENT.flat} — nothing in it`;
-    },
+    // ══ THE PROMPT SAYS NOTHING ABOUT WHAT IS INSIDE ════════════════════
+    //
+    // *"instead of saying your mailbox - 301 - nothing in it just say
+    //   [E] check mail"* (2026-08-15)
+    //
+    // One verb, like `sleep` and `work` — the framework adds the `[E]`. The
+    // old label counted the letters (and, empty, named the flat and said so);
+    // now whether anything is waiting is learned by pressing, not by reading.
+    // The envelopes visible through the door slots (the `onFrame` below) still
+    // show at a glance — that is the box itself, not the prompt.
+    label: () => 'check mail',
     act: () => {
       const w = waiting(ctx.clock.now().totalMin);
       // ⚠ NOTHING WAITING, NOTHING OPENS. No panel, no archive, no empty sheet
-      // hanging in the lobby — the label has already told him, before he pressed
-      // anything, which is this file's own rule for a refusal being honest.
+      // hanging in the lobby — pressing and having nothing open IS the box
+      // reading empty, now that the label no longer says it first.
       if (!w.length) return;
       // THE BOX HANDS YOU THE PILE AND CLICKING TAKES ONE — see the panel's
       // `click` and `takeCurrent`. LIVE, because this is the box's own pile.
