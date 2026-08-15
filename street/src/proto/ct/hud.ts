@@ -3100,19 +3100,25 @@ export function makeHud(purse: Purse): Hud {
     '..XXXX..',
     '...XX...',
   ], { X: '#c2503e', h: '#e0796a' });
-  // The head: 8x7 beside the heart, in profile facing the world — the second
-  // bar of *"lets get two health bars, one physical one mental"* (2026-08-15)
-  // needs an icon in the heart's own grammar: solid, hard-stepped, one
-  // two-texel shine. Cool slate blue against the heart's brick, because the
-  // pair has to read as body/mind at a glance with no captions.
-  const HEAD = pixIcon([
+  // The THOUGHT BUBBLE: 8x8 beside the heart, for the mental bar. This was a
+  // pixel head in profile first, and it did not read — *"yea looks nnothing
+  // like a head. try something else"* (2026-08-15) — the same failure the
+  // *"non descriptive"* bar had before the heart: a silhouette that needs
+  // explaining is no icon. What the heart has is an UNMISTAKABLE outline, and
+  // the thought bubble is the one glyph that means "mind" by outline alone:
+  // a round bubble with its two tail dots stepping down toward the thinker.
+  // The detached dots are the signature — nothing else on this HUD has them —
+  // in the heart's own grammar (solid, hard-stepped, one two-texel shine),
+  // slate blue against its brick.
+  const MIND = pixIcon([
     '..XXXX..',
     '.XhXXXX.',
-    '.XhXXXX.',
+    'XhXXXXXX',
+    'XXXXXXXX',
     '.XXXXXX.',
-    '..XXXXX.',
-    '...XXXX.',
-    '..XXXXX.',
+    '........',
+    '..XX....',
+    'X.......',
   ], { X: '#5b7fc4', h: '#8ea9dd' });
   // The coin: 8x8 in the machines' own gold (`UI.amber` and its dim rim), an
   // embossed slit down the middle and a top-left shine — money at a glance,
@@ -3197,7 +3203,7 @@ export function makeHud(purse: Purse): Hud {
     + 'color:#e8e2d0;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.5px;';
   hpRow.appendChild(HEART);
   hpRow.appendChild(hpBox);
-  mindRow.appendChild(HEAD);
+  mindRow.appendChild(MIND);
   mindRow.appendChild(mindBox);
   // MIRRORED for the right edge: figure first, the coin riding the corner —
   // the icon sits nearest its own edge exactly as the heart does on the left,
