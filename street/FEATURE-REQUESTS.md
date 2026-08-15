@@ -7206,3 +7206,9 @@ ground), then to a fresh builder: bigger, more like a real letter.
 
 Folded into the queued mail-screen task: seeing a letter takes it on close, no
 click. Same builder as the bigger/realistic letters pass, behind health bars.
+
+## 2026-08-15 — *"put an ad in the mail rotation and in the ads on tv for the pawn shop implying they are a 'fence' and buy stolen goods."*
+
+Queued behind the mail-letters pass (same rotation ground) which itself waits on
+health bars (TV ground). Then a fresh builder writes the ad both places — the
+implication, never the statement.
