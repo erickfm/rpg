@@ -7155,3 +7155,8 @@ to one fresh builder with the trunk granted, no cause guessed here.
 The character stats. Sent to a fresh builder: lift the cap wherever it lives, and
 widen what CHA actually does — with the standing finding that CON and CHA cannot
 be raised after creation named as context it may act on, proportionately.
+
+## 2026-08-15 — *"make the bunny hop threshold one tenth of a second"*
+
+Movement — trunk work, so it waits its turn: the college builder holds the trunk
+grant. Dispatches to a fresh builder the moment the trunk frees.
