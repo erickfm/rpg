@@ -113,9 +113,16 @@ const WORK_HP_PER_MIN = 10 / (8 * 60);
 const WORK_MENT_PER_MIN = 12 / (8 * 60);
 /** the grace after the second shift, game-minutes — *"you have an ingame hour
  *  to get home to sleep or to buy caffeine"* (2026-08-15). One hour of margin
- *  is also exactly the band `blinkStep` blinks in, so the whole grace is
- *  spent blinking and sleepy, which is the other half of the same sentence. */
+ *  is also exactly `blinkStep`'s densest band ("a ton of blinking"), so the
+ *  whole grace is spent very obviously wrong, the other half of the sentence;
+ *  its back half is under the red tint too. */
 const GRACE_MIN = 60;
+/** blinking begins here — *"blinking should start at t minus 6 hours left"*
+ *  (2026-08-15). The two-shift grace hour therefore lands deep inside the
+ *  ramp, in its densest band, which is exactly the read he asked for. */
+const BLINK_FROM_MIN = 6 * 60;
+/** the red tint begins here — *"lets do red tint in the last 30 min"* */
+const TINT_FROM_MIN = 30;
 /** two shifts' worth of time on the clock, game-minutes — 2 × the 8-hour
  *  shift `ct/jobs.ts` advertises (`SHIFT_HOURS`). NOT imported from there:
  *  `ct/jobs.ts` imports this module, and a load-time read back across that
@@ -284,6 +291,13 @@ export function awakeStretch(mins: number): void {
 //   (13), the panel backdrop (14) — because it is the state of his eyes, not
 //   a panel.
 //
+//   the RED TINT, z 8 — a flat wash over the whole frame, fading in across
+//   the last `TINT_FROM_MIN` minutes (*"lets do red tint in the last 30
+//   min"*, 2026-08-15). One layer above the vignette so the rim reads dark,
+//   not pink; still under every piece of HUD chrome, because it too is the
+//   state of his eyes. Same pointer-events-none div as the others — it can
+//   trap nothing.
+//
 //   the LIDS, z 17 — two black bands closing from the top and bottom edges to
 //   meet at the middle, which is what a blink IS. Over the prompt (16) and the
 //   note (13) deliberately: eyes shut see no HUD. Under the fade (20) and far
@@ -298,7 +312,9 @@ export function awakeStretch(mins: number): void {
 
 let vigDiv: HTMLDivElement | null = null;
 let lidDiv: HTMLDivElement | null = null;
+let tintDiv: HTMLDivElement | null = null;
 let vigLast = -1;
+let tintLast = -1;
 /** the blink in progress, in wall-clock ms measured from `Frame.t` seconds */
 let blink: { t0: number; down: number; hold: number; up: number } | null = null;
 /** wall-clock second the next involuntary blink fires; 0 = re-seed the grace */
@@ -342,6 +358,25 @@ function drawVignette(frac: number): void {
   vigDiv.style.opacity = '1';
 }
 
+/**
+ * The red wash of the last half hour, from minutes of margin left. Linear
+ * 0 → 0.26 alpha over `TINT_FROM_MIN` → 0: unmistakable at the end, never
+ * opaque — the world stays visible through it, alarming rather than blinding.
+ * Driven per frame off the same margin as everything else, so a dose that
+ * lifts the margin past 30 clears it the same frame.
+ */
+function drawTint(leftMin: number): void {
+  const t = Math.min(1, Math.max(0, 1 - leftMin / TINT_FROM_MIN));
+  const a = 0.26 * t;
+  if (Math.abs(a - tintLast) < 0.004) return;    // only touch style on change
+  tintLast = a;
+  tintDiv ??= overlay('ct-redtint', 8);
+  if (!tintDiv) return;
+  if (a <= 0) { tintDiv.style.opacity = '0'; return; }
+  tintDiv.style.background = `rgba(158, 12, 0, ${a.toFixed(3)})`;
+  tintDiv.style.opacity = '1';
+}
+
 /** both lids, 0 open … 1 met in the middle. */
 function setLids(c: number): void {
   lidDiv ??= overlay('ct-lids', 17);
@@ -355,14 +390,22 @@ function setLids(c: number): void {
 }
 
 /**
- * ── BLINKING BEFORE THE TRUE END — the last hour of margin ────────────────
+ * ── BLINKING FROM SIX HOURS OUT, A TON IN THE LAST ────────────────────────
  *
- * Fast lid-down, slower lid-up, which is what an involuntary blink is. Rare
- * and quick when the hour begins; longer and closer together as the collapse
- * nears, so the pass-out arrives as the blink that doesn't open:
+ * *"in the final hour there should be a ton of blinking. like very obvious
+ *  something is wrong. also lets do red tint in the last 30 min. blinking
+ *  should start at t minus 6 hours left."*   (2026-08-15 — superseding the
+ * first tuning, which held the blinks back to the last hour of margin.)
  *
- *   60 min left   ~every 10 s,  90 / 40 / 200 ms  (down / held shut / up)
- *    0 min left   ~every 2.5 s, 90 / 180 / 460 ms
+ * Fast lid-down, slower lid-up, which is what an involuntary blink is. Two
+ * linear phases with the knee at the final hour — a slow six-hour drift into
+ * trouble, then trouble:
+ *
+ *   360 min left   ~every 45 s,   90 / 40 / 200 ms   (down / held shut / up)
+ *   120 min left   ~every 13 s,   90 / 56 / 248 ms
+ *    60 min left   ~every 5 s,    90 / 60 / 260 ms   ← the knee; the grace
+ *    30 min left   ~every 3.4 s,  90 / 140 / 400 ms     hour is all of this
+ *     0 min left   ~every 1.8 s,  90 / 220 / 540 ms  — shut near half the time
  *
  * with ±30% jitter on the gap, because a metronome is a mechanism and a body
  * is not. Driven piecewise per frame off `Frame.t` — no setTimeout to leak,
@@ -380,13 +423,27 @@ function blinkStep(t: number, leftMin: number): void {
     setLids(c);
     return;
   }
-  if (leftMin > 60 || passing) { nextBlink = 0; return; }
+  if (leftMin > BLINK_FROM_MIN || passing) { nextBlink = 0; return; }
   if (screenFading() || panelUp() || gameOverUp()) { nextBlink = Math.max(nextBlink, t + 1.5); return; }
   if (nextBlink === 0) { nextBlink = t + 4 + Math.random() * 4; return; }   // the grace
   if (t < nextBlink) return;
-  const u = 1 - Math.max(0, leftMin) / 60;
-  blink = { t0: t, down: 90, hold: 40 + 140 * u, up: 200 + 260 * u };
-  nextBlink = t + (10 - 7.5 * u) * (0.7 + Math.random() * 0.6);
+  const l = Math.max(0, leftMin);
+  let gap: number, hold: number, up: number;
+  if (l > 60) {
+    // the long approach: six hours down to one, rare going on frequent
+    const u = (BLINK_FROM_MIN - l) / (BLINK_FROM_MIN - 60);
+    gap = 45 - 40 * u;
+    hold = 40 + 20 * u;
+    up = 200 + 60 * u;
+  } else {
+    // the final hour: a ton of blinking, longer shut every minute
+    const w = 1 - l / 60;
+    gap = 5 - 3.2 * w;
+    hold = 60 + 160 * w;
+    up = 260 + 280 * w;
+  }
+  blink = { t0: t, down: 90, hold, up };
+  nextBlink = t + gap * (0.7 + Math.random() * 0.6);
 }
 
 /** Sleep, pass-out and the wipe all owe an instantly clear screen. */
@@ -394,8 +451,10 @@ function clearApproach(): void {
   blink = null;
   nextBlink = 0;
   vigLast = -1;
+  tintLast = -1;
   setLids(0);
   if (vigDiv) vigDiv.style.opacity = '0';
+  if (tintDiv) tintDiv.style.opacity = '0';
 }
 
 /** One dose. The item's `use.act` calls this; the bag consumes the item.
@@ -676,6 +735,7 @@ export function register(ctx: CtxBuild): void {
           mentalDamage(Math.max(1, Math.round(worked * WORK_MENT_PER_MIN)));
           crashStep(t);                 // a crash mid-shift lands ON shift
           drawVignette(awakeMin / limitMin());
+          drawTint(limitMin() - awakeMin);
           flush();
           return;
         }
@@ -688,6 +748,7 @@ export function register(ctx: CtxBuild): void {
           awakeMin += lived;
           crashStep(t);
           drawVignette(awakeMin / limitMin());
+          drawTint(limitMin() - awakeMin);
           flush();
           return;
         }
@@ -722,6 +783,7 @@ export function register(ctx: CtxBuild): void {
     // `awakeMin / limitMin()` in the same frame, so the rim visibly recedes
     // and the blinking stills the moment the coffee lands.
     drawVignette(awakeMin / limitMin());
+    drawTint(left);
     blinkStep(f.t, left);
 
     if (left <= 0) passOut(ctx);
