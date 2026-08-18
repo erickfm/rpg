@@ -7235,3 +7235,10 @@ the last 30. The two-shift 60-min guarantee stays, now inside the longer ramp.
 `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-15 14-19-37.png`. Fresh
 builder, screenshot in hand; today's letter rework named as history, not as the
 diagnosis. Fix the regression without undoing the bigger-letters ask.
+
+## 2026-08-18 — *"the stuff on the facade of the gym isnt accurate, first week free + 5$ day pass is not correct"*
+
+Rejected pass on Friday's gym facade (0aa8a55d). The facade's advertised offers
+don't match what the gym actually sells. Fresh builder (original retired by
+compaction): read the real gym terms from the interior code and make the window
+paper tell the truth.
