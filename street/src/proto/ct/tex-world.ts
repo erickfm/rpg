@@ -2747,21 +2747,24 @@ function gymWindowSigns(grp: THREE.Group, F: Layout, half: number): void {
   };
   const [wide, narrow] = panesOf(F, 0);
   const top = F.glazingTopM;
-  // ── the shout: the pitch every 1997 gym ran ─────────────────────────────
+  // ── the shout: the desk's actual pitch, off int-gym.ts's rate board ─────
+  // ONE FEE UNLOCKS EVERYTHING (day pass $15, full season $120/28 days) is
+  // what the ledger sells — the paper says THAT, not an offer the desk would
+  // have to refuse. *"first week free + 5$ day pass is not correct."*
   const bw = Math.min(4.4, (wide[1] - wide[0]) - 0.6), bh = 0.58;
   at((wide[0] + wide[1]) / 2, top - 0.26 - bh / 2, sheet(bw, bh, (g, W, H) => {
     g.fillStyle = GYM_CREAM; g.fillRect(0, 0, W, H);
     const bar = Math.max(2, Math.round(H * 0.09));
     g.fillStyle = GYM_MAGENTA;
     g.fillRect(0, 0, W, bar); g.fillRect(0, H - bar, W, bar);
-    fitInk(g, 'FIRST WEEK FREE', 'monospace', W * 0.84, Math.round(H * 0.42));
-    g.fillStyle = GYM_MAGENTA; g.fillText('FIRST WEEK FREE', W / 2, H * 0.40);
-    fitInk(g, 'NO SIGN-UP FEE', 'monospace', W * 0.62, Math.round(H * 0.2));
-    g.fillStyle = GYM_TEAL; g.fillText('NO SIGN-UP FEE', W / 2, H * 0.76);
+    fitInk(g, 'ONE FEE · EVERY MACHINE', 'monospace', W * 0.84, Math.round(H * 0.42));
+    g.fillStyle = GYM_MAGENTA; g.fillText('ONE FEE · EVERY MACHINE', W / 2, H * 0.40);
+    fitInk(g, 'FULL SEASON $120', 'monospace', W * 0.62, Math.round(H * 0.2));
+    g.fillStyle = GYM_TEAL; g.fillText('FULL SEASON $120', W / 2, H * 0.76);
   }));
   // ── the small print, the other side of the door ─────────────────────────
   const lw = Math.min(2.2, (narrow[1] - narrow[0]) - 0.4), lh = 0.4;
-  const bills = ['DAY PASS $5', 'WEIGHTS · CARDIO · AEROBICS'];
+  const bills = ['DAY PASS $15', 'WEIGHTS · BAG · ROWER'];
   bills.forEach((t, i) => {
     at((narrow[0] + narrow[1]) / 2, top - 0.30 - lh / 2 - i * (lh + 0.04), sheet(lw, lh, (g, W, H) => {
       g.fillStyle = GYM_CREAM; g.fillRect(0, 0, W, H);
