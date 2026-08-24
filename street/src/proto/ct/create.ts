@@ -14,6 +14,16 @@
 //   desk's grain and the waiting ballpoint, thinned the letterhead, and cut
 //   the chart to two rings. Layout only; every field and mechanic is as it was.
 //
+// *"i want to be able to interact with the form fully with mouse thanks. i
+//  cant drag each thing in the spider plot nicely. lets make this nice! its
+//  just too janky"* and *"cant jkust click intuitively. i want to be able to
+//  click and change the options intuitively. also make sure all text is
+//  readable"*   (2026-08-24, same session)
+// — which made the chart's five points DRAGGABLE (through `specStep`, so the
+//   pool and the cap still rule), printed ◀ ▶ on every steppable rule as
+//   real click targets, made the L/R boxes clickable, gave the cursor honest
+//   shapes, and retired every faint string for the dark print.
+//
 // ── WHY IT IS NO LONGER THE TELEVISION ─────────────────────────────────────
 //
 // The first aesthetic borrowed `ct/osd.ts` wholesale: the blue field, the
@@ -136,6 +146,11 @@ let active = false;
 const FACING = 0;
 let sel = 0;
 let name = '';
+/** the chart axis being dragged (0…4, `STAT_NAMES` order), or null. While
+ *  set, mousemove is the pen pulling that stat's point along its spoke. */
+let dragK: number | null = null;
+/** a drag ends in a click the browser fires anyway — swallow exactly one */
+let justDragged = false;
 
 /** the OSD is not allowed to open on top of this. Asked as a predicate, never
  *  raced as a listener — `ct/osd.ts` argues this out at `registerOsdBusy`. */
@@ -206,6 +221,8 @@ const LINES: Line[] = [
 
 /** row indexes the painter treats specially */
 const ROW_NAME = 0, ROW_HAND = 1, ROW_SIGN = LINES.length - 1;
+/** first trait row — from here to the signature, every row is steppable */
+const ROW_TRAIT0 = 2;
 /** first aptitude row — these get the short rule and the narrow highlighter */
 const ROW_STAT0 = 2 + TRAITS.length;
 
@@ -227,11 +244,11 @@ const PAPER_X = 134, PAPER_Y = 8, PAPER_W = 172, PAPER_H = 226;
 const ROW_Y = 48, ROW_H = 13, ROW_X = PAPER_X + 10;
 /** where typed values start, and where the ruled lines run to */
 const VAL_X = PAPER_X + 56, LINE_R = PAPER_X + PAPER_W - 12;
-/** aptitude rows stop their rule and highlighter here (paper + 74, the old
- *  88): any longer and the STR row's rule ran under the chart's CON label —
- *  *"need more space down here too"* (2026-08-10) — and a digit needs no
- *  32 px of line. */
-const STAT_R = PAPER_X + 74;
+/** aptitude rows stop their rule and highlighter here — wide enough to seat
+ *  ◀ digit ▶ with air between them, and STILL short of the chart's CON
+ *  label (which begins near paper + 79): the rule running under that label
+ *  is the exact bug *"need more space down here too"* (2026-08-10) fixed. */
+const STAT_R = PAPER_X + 78;
 /** the pentagon: centre and outer radius (a value of 10), sharing the section
  *  with the five short rows. Every plotted point is `Math.round`ed — the
  *  blur lesson (`ct/body.ts`) applies to a chart as much as to a photo.
@@ -242,6 +259,12 @@ const STAT_R = PAPER_X + 74;
  *  glyphs at 181…187 — five clear of the clerk's note, thirteen clear of the
  *  ink box — and the whole foot breathes; see the ladder at `SIGN_Y`. */
 const CH_CX = PAPER_X + 124, CH_CY = 163, CH_R = 22;
+/** the pen reaches this far when grabbing a plotted point, and this far from
+ *  the centre before a press stops being "on the chart" at all — *"i cant
+ *  drag each thing in the spider plot nicely"* (2026-08-24), so the targets
+ *  are fat: an 8-texel halo on each dot, and anywhere on the printed
+ *  instrument grabs the nearest axis by angle. */
+const GRAB_R = 8, DISC_R = CH_R + 8;
 /**
  * ── THE SIGNATURE IS DRAWN, NOT CLICKED ───────────────────────────────────
  *
@@ -297,7 +320,10 @@ const FIG_S = 0.65, FOOT_Y = IMG_Y + IMG_H - 10;
 // own brown, values in typewriter black, the pen in ballpoint blue
 const OAK = '#7a5936', OAK_ALT = '#755231', OAK_JOINT = '#5c3e22';
 const PAPER = '#f2ead0', PAPER_EDGE = '#d9cdac';
-const PRINT = '#8a7c5e', PRINT_DK = '#4a3a2b', RULE = '#c9bc9a', FAINT = '#a4977a';
+// PRINT is the form's light printed ink — LINES AND BOXES ONLY now. Every
+// STRING on the sheet is PRINT_DK, typewriter TYPED, pen or stamp — *"make
+// sure all text is readable"* (2026-08-24) retired faint type for good.
+const PRINT = '#8a7c5e', PRINT_DK = '#4a3a2b', RULE = '#c9bc9a';
 const TYPED = '#2f2a22';
 const PEN = '#2b3f7e';
 const STAMP_RED = '#a03428';
@@ -337,10 +363,61 @@ function chVert(r: number, k: number): [number, number] {
   return [Math.round(CH_CX + r * Math.cos(a)), Math.round(CH_CY + r * Math.sin(a))];
 }
 
+/** where axis k points — the unit the drag projects the pen onto */
+function axisUnit(k: number): [number, number] {
+  const a = -Math.PI / 2 + k * (2 * Math.PI / 5);
+  return [Math.cos(a), Math.sin(a)];
+}
+
+/** the plotted point within `GRAB_R` of the pen, nearest first, or null */
+function vertexAt(x: number, y: number): number | null {
+  let best: number | null = null, bd = GRAB_R * GRAB_R;
+  STAT_NAMES.forEach((s, k) => {
+    const [vx, vy] = chVert((CH_R * Math.min(stat(s), 10)) / 10, k);
+    const d = (x - vx) ** 2 + (y - vy) ** 2;
+    if (d <= bd) { bd = d; best = k; }
+  });
+  return best;
+}
+
+/** the axis a press inside the chart's disc means, by ANGLE — grabbing the
+ *  INT direction grabs INT even when every dot is huddled at the centre —
+ *  or null when the press is off the instrument entirely */
+function axisAt(x: number, y: number): number | null {
+  const dx = x - CH_CX, dy = y - CH_CY;
+  if (dx * dx + dy * dy > DISC_R * DISC_R) return null;
+  const k = Math.round((Math.atan2(dy, dx) + Math.PI / 2) / (2 * Math.PI / 5));
+  return ((k % 5) + 5) % 5;
+}
+
+/**
+ * The drag itself: project the pen onto the held axis, round to a value on
+ * the 1…10 paper, and WALK the stat there through `specStep` — one point at
+ * a time, so the creation pool and the desk's cap of 10 are the same law for
+ * the mouse as for the arrow keys. When the pool runs dry the walk stops
+ * short and the dot visibly refuses to follow the pen — that stall IS the
+ * budget speaking; it is not a bug.
+ */
+function dragTo(x: number, y: number): void {
+  if (dragK === null) return;
+  const s = STAT_NAMES[dragK];
+  const [ux, uy] = axisUnit(dragK);
+  const t = (x - CH_CX) * ux + (y - CH_CY) * uy;
+  const target = Math.max(1, Math.min(10, Math.round((t * 10) / CH_R)));
+  for (let guard = 12; stat(s) !== target && guard > 0; guard--) {
+    const before = stat(s);
+    specStep(s, target > before ? 1 : -1);
+    if (stat(s) === before) break;                       // pool dry or capped
+  }
+  paint();
+}
+
 /** an X in a checkbox, drawn a pixel at a time — a diagonal through the
  *  antialiaser would be the one soft edge on the sheet */
 function checkbox(g: CanvasRenderingContext2D, x: number, y: number, on: boolean): void {
-  g.fillStyle = PRINT;
+  // dark border — the boxes are the HAND row's click targets now, and a
+  // target should look like one
+  g.fillStyle = PRINT_DK;
   g.fillRect(x, y, 8, 1); g.fillRect(x, y + 7, 8, 1);
   g.fillRect(x, y, 1, 8); g.fillRect(x + 7, y, 1, 8);
   if (on) {
@@ -377,10 +454,10 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   // with its code across from it anyway. Ten texels of air between title and
   // code, guaranteed by alignment rather than by luck; the rule under it is
   // one texel now, not two — *"minimal"* (2026-08-24).
-  fitText(g, 'CITY OF CROSSTOWN', ROW_X, 22, 128, 10, PRINT_DK);
+  fitText(g, 'CITY OF CROSSTOWN', ROW_X, 22, 100, 10, PRINT_DK);
   g.font = font(8); g.fillStyle = STAMP_RED;
   g.textAlign = 'right'; g.fillText('FORM R-9', LINE_R, 22); g.textAlign = 'left';
-  fitText(g, 'RESIDENT CARD APPLICATION', ROW_X, 33, PAPER_W - 20, 8, PRINT);
+  fitText(g, 'RESIDENT CARD APPLICATION', ROW_X, 33, PAPER_W - 20, 8, PRINT_DK);
   g.fillStyle = PRINT_DK; g.fillRect(PAPER_X + 10, 38, PAPER_W - 20, 1);
 
   // ── SECTION II's printed instrument: the pentagon, then the pen ──────
@@ -438,7 +515,11 @@ function paintCreate(g: CanvasRenderingContext2D): void {
     const [bx, by] = plot[(k + 1) % 5];
     pixLine(g, ax, ay, bx, by);
   });
-  for (const [px, py] of plot) g.fillRect(px - 1, py - 1, 2, 2);
+  // the dots are the drag handles now — the held one swells under the pen
+  plot.forEach(([px, py], k) => {
+    if (k === dragK) g.fillRect(px - 2, py - 2, 4, 4);
+    else g.fillRect(px - 1, py - 1, 2, 2);
+  });
 
   // ── the fields ───────────────────────────────────────────────────────
   let y = ROW_Y;
@@ -452,7 +533,7 @@ function paintCreate(g: CanvasRenderingContext2D): void {
       g.font = font(12); g.fillStyle = PEN;
       g.fillText('X', ROW_X, y + 1);
       g.fillStyle = PRINT_DK; g.fillRect(SIG_X0, y + 3, SIG_X1 - SIG_X0, 1);
-      g.font = font(8); g.fillStyle = RULE;
+      g.font = font(8); g.fillStyle = PRINT_DK;
       g.fillText('APPLICANT SIGNATURE', ROW_X + 24, y + 11);
       // unspent aptitude points, flagged where a clerk would flag them — in
       // the office's own red, right-aligned in its own clear band of the
@@ -468,25 +549,48 @@ function paintCreate(g: CanvasRenderingContext2D): void {
       }
     } else if (i >= ROW_STAT0) {
       // an aptitude row: same label, a SHORT rule (the chart owns the right
-      // of this section), and the value is one typed digit
-      g.font = font(8); g.fillStyle = PRINT;
+      // of this section), and the digit CENTRED on its rule — the mouse
+      // steps a row by its halves now (left of centre down, right up), so
+      // the value sits on the seam between the two
+      g.font = font(8); g.fillStyle = PRINT_DK;
       g.fillText(l.label, ROW_X, y);
       g.fillStyle = RULE; g.fillRect(VAL_X - 2, y + 3, STAT_R - VAL_X + 2, 1);
-      fitText(g, l.value(), VAL_X + 2, y, STAT_R - VAL_X - 4, 9, TYPED);
+      fitText(g, l.value(), VAL_X + 8, y, 14, 9, TYPED, true);
     } else {
-      g.font = font(8); g.fillStyle = PRINT;
+      g.font = font(8); g.fillStyle = PRINT_DK;
       g.fillText(l.label, ROW_X, y);
       if (i === ROW_HAND) {
         checkbox(g, VAL_X, y - 8, setting('hand') === 'left');
         checkbox(g, VAL_X + 30, y - 8, setting('hand') !== 'left');
-        g.font = font(8); g.fillStyle = PRINT;
+        g.font = font(8); g.fillStyle = PRINT_DK;
         g.fillText('L', VAL_X + 11, y);
         g.fillText('R', VAL_X + 41, y);
-      } else {
+      } else if (i === ROW_NAME) {
+        // the name is TYPED, so it stays left-aligned at the pen's start
         g.fillStyle = RULE; g.fillRect(VAL_X - 2, y + 3, LINE_R - VAL_X + 2, 1);
-        const v = i === ROW_NAME && sel === 0 ? `${l.value()}_` : l.value();
+        const v = sel === 0 ? `${l.value()}_` : l.value();
         fitText(g, v, VAL_X + 2, y, LINE_R - VAL_X - 4, 9, TYPED);
+      } else {
+        // a trait row: value centred on the rule, same seam as the aptitudes
+        g.fillStyle = RULE; g.fillRect(VAL_X - 2, y + 3, LINE_R - VAL_X + 2, 1);
+        fitText(g, l.value(), (VAL_X + LINE_R) / 2, y, LINE_R - VAL_X - 24, 9, TYPED, true);
       }
+    }
+    // ── the stepper's ◀ ▶, printed at the ends of every steppable rule,
+    // ALWAYS — *"i want to be able to click and change the options
+    // intuitively"* (2026-08-24). A control you can only find by hovering
+    // is a hidden hit zone, which is the jank he named; a printed arrow is
+    // a button anyone's first click finds.
+    if (i >= ROW_TRAIT0 && i < ROW_SIGN) {
+      // the ◀ sits a step further left on aptitude rows: their short rule
+      // has to seat ◀ 10 ▶ with air, and their labels (INT, STR…) are short
+      // enough to spare it — trait labels (HAIR COL) are not
+      const rr = i >= ROW_STAT0 ? STAT_R : LINE_R;
+      g.font = font(8); g.fillStyle = PRINT_DK;
+      g.textAlign = 'right';
+      g.fillText('◀', i >= ROW_STAT0 ? VAL_X - 6 : VAL_X + 5, y);
+      g.fillText('▶', rr, y);
+      g.textAlign = 'left';
     }
     // ── the highlighter, on whichever field is in hand ───────────────
     // two overlapping strokes at low alpha, offset a texel, because one clean
@@ -522,8 +626,9 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   }
 
   // small print — the only instructions, and they are the form's own, in
-  // the ladder's own clear band (see `SIGN_Y`)
-  fitText(g, '▲▼ FIELD  ◀▶ CHANGE  ENTER SIGN', ROW_X, 230, LINE_R - ROW_X, 8, FAINT);
+  // the ladder's own clear band (see `SIGN_Y`). Dark print, not the old
+  // faint — *"make sure all text is readable"* (2026-08-24)
+  fitText(g, '▲▼ ◀▶ · DRAG CHART · ENTER SIGN', ROW_X, 230, LINE_R - ROW_X, 8, PRINT_DK);
 
   // ── the photo ────────────────────────────────────────────────────────
   g.fillStyle = 'rgba(0,0,0,0.28)';
@@ -670,10 +775,12 @@ function at(e: MouseEvent): { x: number; y: number } {
 }
 
 /**
- * ── THE PEN ───────────────────────────────────────────────────────────────
- * Down inside the box starts a stroke; moving drags ink after the cursor,
- * clamped to the box; up lifts the pen. Down on the ⌫ clears the
- * signature instead. Everything is swallowed — this screen is modal.
+ * ── THE PEN, AND THE HAND ON THE CHART ────────────────────────────────────
+ * Down inside the signature box starts a stroke; down on the ⌫ clears it;
+ * down on the chart — a dot's halo first, the disc's angle otherwise —
+ * PICKS UP that stat's point, and the pen drags it along its spoke until
+ * mouseup (`dragTo` above walks the value through `specStep`, so the pool
+ * and the cap hold). Everything is swallowed — this screen is modal.
  */
 function onDown(e: MouseEvent): void {
   if (!active || !cv) return;
@@ -685,6 +792,17 @@ function onDown(e: MouseEvent): void {
     paint();
     return;
   }
+  const k = vertexAt(x, y) ?? axisAt(x, y);
+  if (k !== null) {
+    // the grab selects the row too, so the sheet and the chart agree about
+    // what is in hand. Nothing moves until the pen does — a click that
+    // lands and lifts on the same spot changes no number.
+    dragK = k;
+    sel = ROW_STAT0 + k;
+    cv.style.cursor = 'grabbing';
+    paint();
+    return;
+  }
   if (sigPad.down(x, y)) {
     sel = ROW_SIGN;
     paint();
@@ -693,39 +811,104 @@ function onDown(e: MouseEvent): void {
 
 function onMove(e: MouseEvent): void {
   if (!active || !cv) return;
-  if (!sigPad.move(at(e).x, at(e).y)) return;
-  e.stopImmediatePropagation();
-  e.preventDefault();
-  paint();
+  const { x, y } = at(e);
+  if (dragK !== null) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    dragTo(x, y);
+    return;
+  }
+  if (sigPad.move(x, y)) {
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    paint();
+    return;
+  }
+  updateHover(x, y);
 }
 
 function onUp(e: MouseEvent): void {
   if (!active) return;
+  if (dragK !== null) {
+    dragK = null;
+    justDragged = true;                      // the click that follows is spent
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    const { x, y } = at(e);
+    updateHover(x, y);
+    paint();
+    return;
+  }
   if (sigPad.up()) { e.stopImmediatePropagation(); e.preventDefault(); }
 }
 
-/** click a field to select it, click it again to step it. The photo is INERT
- *  — it used to turn him, removed with the wheel (see `onWheel`). The
- *  signature band is the pen's (`onDown`), so a click there only selects the
- *  row — it can never finish the form; FILE is what submits, and only once
- *  the ink counts. */
+/**
+ * The cursor tells the truth about what is under it — *"lets make this
+ * nice!"* (2026-08-24): a grab hand over the chart, a pointer over anything
+ * clickable, the I-beam over the name, crosshair over the signature box.
+ * Hover never swallows the event — it only looks.
+ */
+function updateHover(x: number, y: number): void {
+  let cur = 'default';
+  if (vertexAt(x, y) !== null || axisAt(x, y) !== null) {
+    cur = 'grab';
+  } else if (!sigPad.blank() && x >= CLR_X0 && x < CLR_X1 && y >= CLR_Y0 && y <= CLR_Y1) {
+    cur = 'pointer';
+  } else if (sigPad.signed() && x >= FILE_X0 && x <= FILE_X1 && y >= FILE_Y0 && y <= FILE_Y1) {
+    cur = 'pointer';
+  } else if (x >= SIG_X0 && x <= SIG_X1 && y >= SIG_Y0 && y <= SIG_Y1) {
+    cur = 'crosshair';
+  } else if (x >= PAPER_X && x < PAPER_X + PAPER_W && y < SIG_Y0) {
+    const i = Math.floor((y - (ROW_Y - 10)) / ROW_H);
+    if (i >= 0 && i < ROW_SIGN) cur = i === ROW_NAME ? 'text' : 'pointer';
+  }
+  if (cv) cv.style.cursor = cur;
+}
+
+/**
+ * ONE CLICK, ONE ANSWER — *"i want to be able to click and change the
+ * options intuitively"* (2026-08-24). No select-then-step two-tap any more:
+ * ◀ steps down, the value or ▶ steps on, the L and R boxes are the boxes
+ * they look like, and clicking anything also puts it in hand. The photo is
+ * INERT (it used to turn him — see `onWheel`); the chart belongs to the
+ * DRAG (`onDown`), so a click there is a fumbled grab and does nothing; the
+ * signature band is the pen's, so a click there only selects the row — FILE
+ * is what submits, and only once the ink counts.
+ */
 function onClick(e: MouseEvent): void {
   if (!active || !cv) return;
   const { x, y } = at(e);
   e.stopImmediatePropagation();
   e.preventDefault();
+  if (justDragged) { justDragged = false; return; }
   if (x >= PH_X && x < PH_X + PH_W && y >= PH_Y && y < PH_Y + PH_H) return;
   if (sigPad.signed() && x >= FILE_X0 && x <= FILE_X1 && y >= FILE_Y0 && y <= FILE_Y1) {
     finish();
     return;
   }
+  if (vertexAt(x, y) !== null || axisAt(x, y) !== null) return;
   if (y >= SIG_Y0) {
     if (sel !== ROW_SIGN) { sel = ROW_SIGN; paint(); }
     return;
   }
+  if (x < PAPER_X || x >= PAPER_X + PAPER_W) return;   // the desk is not a control
   const i = Math.floor((y - (ROW_Y - 10)) / ROW_H);
   if (i < 0 || i >= ROW_SIGN) return;
-  if (i === sel) LINES[sel].step(1); else sel = i;
+  sel = i;
+  if (i === ROW_HAND) {
+    // the checkboxes ARE the control: L's box and its letter, R's box and
+    // its letter; a click elsewhere on the row flips it, which is the only
+    // other thing a two-state row could mean
+    if (x >= VAL_X - 4 && x < VAL_X + 24) setHand('left');
+    else if (x >= VAL_X + 26 && x < VAL_X + 52) setHand('right');
+    else LINES[i].step(1);
+  } else if (i >= ROW_TRAIT0) {
+    // ◀ under the cursor steps back; the value or the ▶ steps on — the
+    // zones are exactly where the printed arrows sit, nothing hidden
+    const rr = i >= ROW_STAT0 ? STAT_R : LINE_R;
+    if (i >= ROW_STAT0) LINES[i].step(x < (VAL_X + rr) / 2 ? -1 : 1);
+    else LINES[i].step(x <= VAL_X + 8 ? -1 : 1);
+  }
   if (active) paint();
 }
 
