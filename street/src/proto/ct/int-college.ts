@@ -345,6 +345,112 @@ export function buildCollege(ctx: CtxBuild): void {
   }), 'sign');
   room.sign(corkT, 2.40, 1.35, hw - 0.06, 1.62, 3.90, -Math.PI / 2);
 
+  // ══ THE LOBBY DRESSED — *"make the inside of the community college as nice
+  // as the outside"* (2026-08-24). The facade got a stone order, a dedication
+  // tablet and lit sashes; this is the same building met from indoors: the
+  // tablet's words framed on the wall, the class photos a real evening
+  // division hangs by its door, and the storefront radiator every converted
+  // loans office kept because ripping it out cost money. Everything here hugs
+  // a wall — the 3.6 m lobby walk and the corridor gap are untouched.
+
+  // ── the walk-off mat, just inside the double leaf ──
+  // Ribbed rubber-backed matting, maroon-bordered like everything else this
+  // college owns. Flat on the lino, 3 mm proud, no collider — it is a rug.
+  const matT = declareSurface(pixTex(96, 64, (g) => {
+    g.fillStyle = '#3a352c'; g.fillRect(0, 0, 96, 64);
+    g.fillStyle = MAROON; g.fillRect(0, 0, 96, 4); g.fillRect(0, 60, 96, 4);
+    g.fillRect(0, 0, 4, 64); g.fillRect(92, 0, 4, 64);               // the border
+    g.fillStyle = 'rgba(0,0,0,0.30)';
+    for (let y = 8; y < 58; y += 5) g.fillRect(6, y, 84, 2);         // the ribs
+    g.fillStyle = 'rgba(200,190,170,0.10)'; g.fillRect(30, 12, 36, 40); // the wear
+    dither(g, 96, 64, 26);
+  }), 'detail');
+  const mat = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.9), ctx.flat(matT));
+  mat.rotation.x = -Math.PI / 2;
+  put(mat, 0, 0.020, hd - 0.65);
+
+  // ── the radiator under the front glass ──
+  // Column fins in chipped ivory paint, rust bleeding at the feet — it came
+  // with the building. 0.42 m tall under the 0.5 m sill, west of the door on
+  // the front wall, nowhere near the door's 1.44 m opening.
+  const radT = declareSurface(pixTex(128, 48, (g) => {
+    g.fillStyle = '#d8d2c0'; g.fillRect(0, 0, 128, 48);
+    g.fillStyle = 'rgba(0,0,0,0.28)';
+    for (let x = 2; x < 128; x += 5) g.fillRect(x, 4, 2, 40);        // the fins
+    g.fillStyle = 'rgba(255,255,245,0.35)'; g.fillRect(0, 0, 128, 3); // top rail
+    g.fillStyle = 'rgba(122,74,42,0.35)';
+    for (let i = 0; i < 9; i++) g.fillRect((i * 29) % 124, 40 + (i % 3) * 2, 5, 3); // the rust
+    dither(g, 128, 48, 30);
+  }), 'detail');
+  put(new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.42, 0.16), ctx.flat(radT)),
+    -2.55, 0.26, hd - 0.14);
+  put(new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.05, 0.05),
+    new THREE.MeshBasicMaterial({ color: 0x8a8578 })), -2.55, 0.03, hd - 0.14);
+  solid(-2.55, hd - 0.14, 2.0, 0.22);
+
+  // ── the dedication plaque, west wall over the waiting chairs ──
+  // The cornerstone outside says ERECTED A.D. 1971; indoors the same words go
+  // on varnished oak with the lamp of learning, because a college that rents
+  // a shopfront still frames its own founding. 288 px over 1.15 m = 250 px/m.
+  const brassM = new THREE.MeshBasicMaterial({ color: 0xc8b06a });
+  const sealT = declareSurface(pixTex(288, 196, (g) => {
+    g.fillStyle = OAK_D; g.fillRect(0, 0, 288, 196);                 // the oak
+    g.fillStyle = MAROON; g.fillRect(8, 8, 272, 180);                // the field
+    g.strokeStyle = '#c8b06a'; g.lineWidth = 2;
+    g.strokeRect(16, 16, 256, 164); g.strokeRect(22, 22, 244, 152);  // double rule
+    // the lamp of learning: base, bowl, spout, and the flame in gold
+    g.fillStyle = '#c8b06a';
+    g.fillRect(132, 52, 24, 5); g.fillRect(140, 44, 8, 8);           // base and stem
+    g.fillRect(126, 36, 36, 9); g.fillRect(158, 32, 8, 6);           // bowl and spout
+    g.fillStyle = '#f2c86a'; g.fillRect(164, 24, 5, 9); g.fillRect(165, 20, 3, 5); // flame
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = CREAM;
+    g.font = 'bold 24px monospace';
+    g.fillText('CROSSTOWN', 144, 84);
+    g.fillText('COMMUNITY COLLEGE', 144, 112);
+    g.fillStyle = '#c8b06a'; g.fillRect(84, 130, 120, 2);            // the rule
+    g.font = 'bold 14px monospace'; g.fillStyle = CREAM;
+    g.fillText("EVENING DIVISION · EST. 1971", 144, 148);
+    g.fillStyle = '#c8b06a'; g.fillText('LUX ET LABOR', 144, 168);
+    dither(g, 288, 196, 36);
+  }), 'sign');
+  room.sign(sealT, 1.15, 0.78, -hw + 0.06, 2.00, 4.05, Math.PI / 2);
+
+  // ── two class photos on the front wall, east of the door ──
+  // Grey group portraits on the bleachers, cream mats, oak frames — the wall
+  // you read on the way out, which is where these always hang. 206 px/m; the
+  // caption is the only text and it gets the 10px floor.
+  const photoT = (year: string, seed: number) => declareSurface(pixTex(128, 96, (g) => {
+    g.fillStyle = OAK_D; g.fillRect(0, 0, 128, 96);                  // the frame
+    g.fillStyle = CREAM; g.fillRect(6, 6, 116, 84);                  // the mat
+    g.fillStyle = '#8a8578'; g.fillRect(14, 12, 100, 58);            // the print
+    g.fillStyle = 'rgba(60,58,50,0.8)';
+    g.fillRect(14, 30, 100, 2); g.fillRect(14, 48, 100, 2);          // the risers
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 11; i++) {
+      const v = (i * 7 + r * 5 + seed) % 4;                          // cycle, not rnd
+      g.fillStyle = ['#c8b8a0', '#a0785a', '#6a4a32', '#d8c8b0'][v];
+      g.fillRect(18 + i * 9, 16 + r * 18, 5, 6);                     // the heads
+      g.fillStyle = ['#3a3430', '#4a4038', '#2b241e', '#5a5048'][(v + 1) % 4];
+      g.fillRect(17 + i * 9, 22 + r * 18, 7, 8);                     // the shoulders
+    }
+    g.font = 'bold 10px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = INK; g.fillText(`CLASS OF ${year}`, 64, 81);
+    dither(g, 128, 96, 24);
+  }), 'sign');
+  room.sign(photoT("'95", 0), 0.62, 0.46, 2.35, 1.72, hd - 0.06, Math.PI);
+  room.sign(photoT("'96", 2), 0.62, 0.46, 3.45, 1.72, hd - 0.06, Math.PI);
+
+  // the nameplate on the counter, facing the queue, and the bin behind it
+  const nameT = declareSurface(pixTex(128, 32, (g) => {
+    g.fillStyle = MAROON; g.fillRect(0, 0, 128, 32);
+    g.fillStyle = '#c8b06a'; g.fillRect(0, 0, 128, 2); g.fillRect(0, 30, 128, 2);
+    g.font = 'bold 16px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = CREAM; g.fillText('REGISTRAR', 64, 17);
+  }), 'sign');
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.065, 0.02), ctx.flat(nameT)),
+    -1.35, 1.055, CTR_Z + 0.24);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.32, 0.26),
+    new THREE.MeshBasicMaterial({ color: 0x6a6e62 })), -3.90, 0.16, 1.15);
+
   // ══ THE CLASSROOM ═══════════════════════════════════════════════════════════
 
   // ── the chalkboard, the whole back wall's reason ──
@@ -411,6 +517,38 @@ export function buildCollege(ctx: CtxBuild): void {
     }
   }
 
+  // ── three students, mid-lecture ──
+  //
+  // An instructor lecturing an empty room was the giveaway that this interior
+  // was furniture, not a college. Three of the six seats taken — an evening
+  // class is never full — facing the board like the instructor faces them
+  // (facing DERIVED toward the back wall, GOTCHAS §23). Seat top is the seat
+  // box: 0.45 centre + 0.025. The desk in front hides the legs, so no
+  // `seatFwd` — the bank and the library make the same call for the same
+  // reason. These seats are not player seats (no ctx.seat here), so nothing
+  // to claim.
+  const STUDENTS: [number, number, Parameters<typeof room.person>[0]][] = [
+    [-3.60, -2.15, { jacket: '#4a6a8a', pants: '#3a3e48', skin: '#8a5a3a',
+      hair: '#2b241e', fit: 'plain', cut: 'crop', build: 0 }],
+    [-0.20, -2.15, { jacket: '#8a4a3a', pants: '#4a4038', skin: '#c08a5a',
+      hair: '#3a2e22', fit: 'plain', accent: CREAM, cut: 'tied', build: -1 }],
+    [-1.90, -3.75, { jacket: '#6a6a5a', pants: '#3a3430', skin: '#a06a42',
+      hair: '#8a8378', fit: 'plain', cut: 'short', build: 1 }],
+  ];
+  for (const [sx, sz, look] of STUDENTS) {
+    room.person(look, sx, sz + 0.48,
+      { seated: true, y: 0.475, facing: Math.atan2(0, -hd - sz), h: 1.00, w: 0.98 });
+    // the open notebook and the pencil on that student's desk
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.012, 0.18), creamM), sx + 0.08, 0.746, sz);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.012, 0.015),
+      new THREE.MeshBasicMaterial({ color: 0xc8a230 })), sx - 0.14, 0.746, sz + 0.06);
+  }
+  // a backpack dumped by the front-left desk, inside its own collider
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.42, 0.17),
+    new THREE.MeshBasicMaterial({ color: 0x4a5a42 }));
+  pack.rotation.y = 0.5;
+  put(pack, -3.32, 0.21, -1.72);
+
   // ── the low bookcase up the west wall: the course catalogue, in triplicate ──
   const spineT = declareSurface(pixTex(48, 16, (g) => {
     g.fillStyle = '#2b241e'; g.fillRect(0, 0, 48, 16);
@@ -438,6 +576,73 @@ export function buildCollege(ctx: CtxBuild): void {
   // the clock every classroom is run by, on the east wall where the whole
   // class can watch it not move
   room.clock({ lx: hw - 0.07, y: 2.40, lz: -2.50, rotY: -Math.PI / 2, r: 0.19 });
+
+  // ── the pull-down world map, filling the back wall east of the chalkboard ──
+  //
+  // Every 1997 classroom has one, rolled down and never quite rolled back up.
+  // A spring roller on an oak slat, buff paper, pale oceans, the pull ring
+  // hanging at the bottom. 440 px over 2.2 m = 200 px/m; the continents are
+  // deliberate pixel blobs — recognisable at desk distance, on-style up close.
+  const mapT = declareSurface(pixTex(440, 290, (g) => {
+    g.fillStyle = '#a8c0c4'; g.fillRect(0, 0, 440, 290);             // the ocean
+    g.fillStyle = 'rgba(60,70,72,0.12)';
+    for (let x = 36; x < 440; x += 52) g.fillRect(x, 0, 1, 290);     // the graticule
+    for (let y = 36; y < 290; y += 44) g.fillRect(0, y, 440, 1);
+    const LAND: [number, number, number, number][] = [
+      [40, 62, 90, 34], [58, 92, 76, 26], [84, 116, 40, 20],         // North America
+      [128, 46, 34, 22],                                             // Greenland
+      [116, 148, 34, 52], [122, 196, 20, 34],                        // South America
+      [208, 58, 46, 30], [216, 86, 26, 14],                          // Europe
+      [206, 108, 62, 48], [228, 154, 32, 34],                        // Africa
+      [252, 52, 132, 44], [268, 96, 84, 30], [318, 124, 36, 22],     // Asia
+      [354, 186, 44, 24],                                            // Australia
+      [80, 254, 300, 16],                                            // Antarctica
+    ];
+    for (const [x, y, w, h] of LAND) {
+      g.fillStyle = 'rgba(90,100,80,0.45)'; g.fillRect(x + 2, y + 2, w, h);  // the coast shadow
+      g.fillStyle = '#d0c088'; g.fillRect(x, y, w, h);
+      g.fillStyle = 'rgba(120,140,90,0.35)';
+      g.fillRect(x + 4, y + 4, Math.max(2, w - 12), Math.max(2, h - 8));     // the interior green
+    }
+    g.fillStyle = 'rgba(140,60,50,0.55)';
+    for (let i = 0; i < 9; i++) g.fillRect(58 + (i * 47) % 340, 64 + (i * 29) % 150, 3, 3); // capitals
+    g.fillStyle = '#e8e0c8'; g.fillRect(0, 0, 440, 26);              // the title strip
+    g.fillStyle = 'rgba(40,30,20,0.35)'; g.fillRect(0, 25, 440, 1);
+    g.font = 'bold 16px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = INK; g.fillText('THE WORLD · POLITICAL', 220, 14);
+    g.fillStyle = 'rgba(40,30,20,0.25)';                             // roller curl
+    g.fillRect(0, 282, 440, 8); g.fillRect(0, 0, 3, 290); g.fillRect(437, 0, 3, 290);
+    dither(g, 440, 290, 60);
+  }), 'sign');
+  put(new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.07, 0.06), oakDM), 3.15, 2.33, -hd + 0.10);
+  room.sign(mapT, 2.2, 1.45, 3.15, 1.56, -hd + 0.08);
+  put(new THREE.Mesh(new THREE.BoxGeometry(2.20, 0.03, 0.03), oakDM), 3.15, 0.825, -hd + 0.08);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.02), brassM), 3.15, 0.78, -hd + 0.08);
+
+  // ── the flag in the back-east corner ──
+  //
+  // A classroom in 1997 has a flag on a floor pole whether anyone salutes it
+  // or not. Brass pole and finial, the cloth hung on the corner diagonal so it
+  // reads from the aisle. `room.sign` because a drape seen from behind must
+  // not mirror (GOTCHAS §10).
+  const flagT = declareSurface(pixTex(112, 176, (g) => {
+    for (let i = 0; i < 14; i++) {                                   // hanging stripes
+      g.fillStyle = i % 2 ? '#e8e4d8' : '#a83232';
+      g.fillRect(i * 8, 0, 8, 176);
+    }
+    g.fillStyle = '#2a3a6a'; g.fillRect(0, 0, 48, 68);               // the canton
+    g.fillStyle = '#e8e4d8';
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++)
+      g.fillRect(5 + c * 9 + (r % 2) * 4, 6 + r * 12, 2, 2);         // the stars
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    g.fillRect(20, 0, 7, 176); g.fillRect(62, 0, 9, 176); g.fillRect(94, 0, 6, 176); // the folds
+    dither(g, 112, 176, 30);
+  }), 'sign');
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.35, 0.05), brassM), 4.55, 1.175, -5.55);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), brassM), 4.55, 2.40, -5.55);
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 0.34), oakDM), 4.55, 0.025, -5.55);
+  room.sign(flagT, 0.55, 0.85, 4.36, 1.85, -5.36, Math.PI / 4);
+  solid(4.55, -5.55, 0.36, 0.36);
 
   // ══ ENROLMENT, OVER THE COUNTER, OFF THE BOARD ══════════════════════════════
   //
