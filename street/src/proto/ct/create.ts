@@ -228,8 +228,19 @@ const ROW_STAT0 = 2 + TRAITS.length;
 
 // ── THE DESK, THE PAPER, THE PHOTO — every number is a texel ───────────────
 //
-// One 320x240 nearest-filtered canvas, the same trick as every readable
-// surface in this project — but the field is a desk, not a signal.
+// One 320x240 LAYOUT on a nearest-filtered canvas, the same trick as every
+// readable surface in this project — but the field is a desk, not a signal.
+//
+// ⚠ THE BACKING STORE IS 2x THE LAYOUT — *"text on application needs to be
+// clearer"* (2026-08-24). `font()` is a real vector monospace, not a bitmap
+// face, and rasterising it at 8 px onto a 320-wide store threw the glyph
+// detail away before the upscale ever saw it — no ink colour could fix that.
+// The canvas is `OW*SS x OH*SS` and the painter runs under `setTransform(SS)`,
+// so every coordinate in this file stays a 320x240 texel and the mouse maps
+// through `OW / rect.width` untouched, while type rasterises at 16-20 real
+// px and comes out clean. Rects are integers, so they land on whole device
+// pixels and the desk, the ink and the figure look exactly as before.
+const SS = 2;
 
 /** the paper sheet — US-letter proportions, and deliberately NOT square.
  *  ON THE RIGHT OF THE DESK NOW — *"lets get player on left"* (2026-08-24)
@@ -662,6 +673,8 @@ function paintCreate(g: CanvasRenderingContext2D): void {
 function paint(): void {
   const g = cv?.getContext('2d');
   if (!g || !active) return;
+  // paint in layout texels on the 2x store — see `SS`
+  g.setTransform(SS, 0, 0, SS, 0, 0);
   paintCreate(g);
 }
 
@@ -674,7 +687,8 @@ function build(): void {
   wrap.style.cssText = 'position:fixed;inset:0;z-index:45;display:none;'
     + 'background:#000;align-items:center;justify-content:center;';
   cv = document.createElement('canvas');
-  cv.width = OW; cv.height = OH;
+  // 2x backing store, 320x240 layout — the type clarity fix, see `SS`
+  cv.width = OW * SS; cv.height = OH * SS;
   cv.style.cssText = 'image-rendering:pixelated;display:block;'
     + 'width:min(100vw,133vh);height:min(75vw,100vh);';
   wrap.appendChild(cv);
