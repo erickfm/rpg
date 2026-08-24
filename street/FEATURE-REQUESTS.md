@@ -7242,3 +7242,9 @@ Rejected pass on Friday's gym facade (0aa8a55d). The facade's advertised offers
 don't match what the gym actually sells. Fresh builder (original retired by
 compaction): read the real gym terms from the interior code and make the window
 paper tell the truth.
+
+## 2026-08-24 — *"not sure i like the character creation screen. its just a bit to jank. lets get player on left, lets make the form simpler lets get the spider plot looking a little nicer clearer, minimal"*
+
+Art/UI pass on character creation. Fresh builder: player preview moves to the
+left, the form gets simpler, the spider plot gets clearer and minimal. First
+pass goes up rough for his eye before anyone builds a second on it.
