@@ -7283,3 +7283,8 @@ text still isn't clear enough.
 
 Fresh builder, trunk grant for the movement half: a menu option that inverts
 shift — sprint becomes the default gait and holding shift walks.
+
+## 2026-08-24 — *"benches are clipping pls fix"*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-24 13-59-40.png`.
+Fresh builder, screenshot in hand.
