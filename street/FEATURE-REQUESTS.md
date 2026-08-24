@@ -7273,3 +7273,8 @@ Continuation of the full-mouse thread, same builder: the Escape menu's options
 ## 2026-08-24 — *"also mouse hover should highlight the given option"*
 
 Rider on the esc-menu ask, same builder: hovering an option highlights it.
+
+## 2026-08-24 — *"text on application needs to be clearer"*
+
+Rejected readability pass on the creation form, same builder: the application's
+text still isn't clear enough.
