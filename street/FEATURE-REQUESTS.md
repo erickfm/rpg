@@ -7302,3 +7302,9 @@ Bug during playtest. Fresh builder, symptom only — no cause guessed.
 
 Correction of the entry above: not a bug, a request. Fresh builder: talking to
 the neighbor should make him burp.
+
+## 2026-08-24 — *"can you put the coffee sign at the border between shops border?"*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-08-24 14-03-54.png`.
+Fresh builder, screenshot in hand: the coffee sign moves to the border between
+the shops.
