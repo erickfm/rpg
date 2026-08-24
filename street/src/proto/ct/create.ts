@@ -7,6 +7,13 @@
 //  of everything you know about my tastes in this game and this work you've
 //  done with me. think a lot"*   (2026-08-08)
 //
+// *"not sure i like the character creation screen. its just a bit to jank.
+//  lets get player on left, lets make the form simpler lets get the spider
+//  plot looking a little nicer clearer, minimal"*   (2026-08-24)
+// — which put the PHOTO ON THE LEFT and the sheet on the right, stripped the
+//   desk's grain and the waiting ballpoint, thinned the letterhead, and cut
+//   the chart to two rings. Layout only; every field and mechanic is as it was.
+//
 // ── WHY IT IS NO LONGER THE TELEVISION ─────────────────────────────────────
 //
 // The first aesthetic borrowed `ct/osd.ts` wholesale: the blue field, the
@@ -207,20 +214,24 @@ const ROW_STAT0 = 2 + TRAITS.length;
 // One 320x240 nearest-filtered canvas, the same trick as every readable
 // surface in this project — but the field is a desk, not a signal.
 
-/** the paper sheet — US-letter proportions, and deliberately NOT square */
-const PAPER_X = 14, PAPER_Y = 8, PAPER_W = 172, PAPER_H = 226;
+/** the paper sheet — US-letter proportions, and deliberately NOT square.
+ *  ON THE RIGHT OF THE DESK NOW — *"lets get player on left"* (2026-08-24)
+ *  swapped the sheet and the photo, so every x on the sheet derives from
+ *  `PAPER_X` and the whole page moved as one. */
+const PAPER_X = 134, PAPER_Y = 8, PAPER_W = 172, PAPER_H = 226;
 /** rows: baselines down the form. Uniform, because the click map divides by
  *  it. 13 px and not the old 17: SECTION II added five rows and a chart to
  *  the same sheet, and a second page would cost more than tighter type —
  *  this is still a municipal form, and municipal forms are cramped.
  *  ⚠ THE SIGNATURE ROW IS OFF THIS GRID — see `SIGN_Y`. */
-const ROW_Y = 48, ROW_H = 13, ROW_X = 24;
+const ROW_Y = 48, ROW_H = 13, ROW_X = PAPER_X + 10;
 /** where typed values start, and where the ruled lines run to */
-const VAL_X = 70, LINE_R = PAPER_X + PAPER_W - 12;
-/** aptitude rows stop their rule and highlighter here. 88, NOT 100: at 100
- *  the STR row's rule ran under the chart's CON label — *"need more space
- *  down here too"* (2026-08-10) — and a digit needs no 32 px of line. */
-const STAT_R = 88;
+const VAL_X = PAPER_X + 56, LINE_R = PAPER_X + PAPER_W - 12;
+/** aptitude rows stop their rule and highlighter here (paper + 74, the old
+ *  88): any longer and the STR row's rule ran under the chart's CON label —
+ *  *"need more space down here too"* (2026-08-10) — and a digit needs no
+ *  32 px of line. */
+const STAT_R = PAPER_X + 74;
 /** the pentagon: centre and outer radius (a value of 10), sharing the section
  *  with the five short rows. Every plotted point is `Math.round`ed — the
  *  blur lesson (`ct/body.ts`) applies to a chart as much as to a photo.
@@ -230,7 +241,7 @@ const STAT_R = 88;
  *  said a texel is not a margin. R 22 and centre 163 put the bottom labels'
  *  glyphs at 181…187 — five clear of the clerk's note, thirteen clear of the
  *  ink box — and the whole foot breathes; see the ladder at `SIGN_Y`. */
-const CH_CX = 138, CH_CY = 163, CH_R = 22;
+const CH_CX = PAPER_X + 124, CH_CY = 163, CH_R = 22;
 /**
  * ── THE SIGNATURE IS DRAWN, NOT CLICKED ───────────────────────────────────
  *
@@ -261,20 +272,22 @@ const CH_CX = 138, CH_CY = 163, CH_R = 22;
  *   233       the sheet's bottom edge                      (3 clear above)
  */
 const SIGN_Y = 210;
-const SIG_X0 = 38, SIG_X1 = 136, SIG_Y0 = 200, SIG_Y1 = 212;
+const SIG_X0 = PAPER_X + 24, SIG_X1 = PAPER_X + 122, SIG_Y0 = 200, SIG_Y1 = 212;
 const SIG_MIN = 50;
 const sigPad = makeSigPad({ x0: SIG_X0, y0: SIG_Y0, x1: SIG_X1, y1: SIG_Y1 }, SIG_MIN);
 /** the office-use FILE box, up only once there is a signature — clicking it
  *  is what BEGIN used to be. BESIDE the line now, in the office's own corner,
  *  so the band under the line belongs to the captions alone. */
-const FILE_X0 = 142, FILE_X1 = 174, FILE_Y0 = 200, FILE_Y1 = 212;
+const FILE_X0 = PAPER_X + 128, FILE_X1 = PAPER_X + 160, FILE_Y0 = 200, FILE_Y1 = 212;
 /** the ⌫, at the right end of the ink box, up once there is ink — clicking
  *  it clears to re-sign. It replaced a red VOID under the X at his word
  *  (see `paintBackspace`), and it lives INSIDE the pad's corner, so its
  *  region is asked before the pen's. */
-const CLR_X0 = 118, CLR_X1 = 136, CLR_Y0 = 200, CLR_Y1 = 212;
-/** the instant photo — frame, then the image inset with the fat film bottom */
-const PH_X = 196, PH_Y = 24, PH_W = 106, PH_H = 158;
+const CLR_X0 = PAPER_X + 104, CLR_X1 = PAPER_X + 122, CLR_Y0 = 200, CLR_Y1 = 212;
+/** the instant photo — frame, then the image inset with the fat film bottom.
+ *  ON THE LEFT — *"lets get player on left"* (2026-08-24): you first, then
+ *  the paperwork about you. */
+const PH_X = 14, PH_Y = 24, PH_W = 106, PH_H = 158;
 const IMG_X = PH_X + 8, IMG_Y = PH_Y + 8, IMG_W = 90, IMG_H = 116;
 /** the figure in it: feet on this canvas row, scaled so VERY TALL keeps his
  *  head inside the frame (146 design units of foot line x 0.65 x 1.08 = 103) */
@@ -291,21 +304,9 @@ const STAMP_RED = '#a03428';
 const WALL = '#98a3ac', WALL_TICK = '#87919b', FLOOR = '#7b848d';
 const FILM = '#f6f3ea';
 
-/** grain on the desk — SEEDED, not random, so a repaint on every keypress
- *  does not shimmer. One table for the life of the page. */
-const FLECKS: { x: number; y: number; w: number; c: string }[] = (() => {
-  let r = 1997;
-  const nx = () => (r = (r * 48271) % 2147483647) / 2147483647;
-  const out = [];
-  for (let i = 0; i < 90; i++) {
-    out.push({
-      x: Math.floor(nx() * OW), y: Math.floor(nx() * OH),
-      w: 5 + Math.floor(nx() * 10),
-      c: nx() > 0.5 ? '#6b4a2c' : '#84603c',
-    });
-  }
-  return out;
-})();
+// The desk used to carry 90 seeded grain flecks and a ballpoint pen waiting
+// by the paper. Both went 2026-08-24 — *"its just a bit to jank … minimal"* —
+// the boards and their joints are texture enough, and the pen was furniture.
 
 /** print a line of type, stepping the size down until it fits `maxW` — a name
  *  is the only thing long enough to need it, and clipping a name is worse */
@@ -359,7 +360,6 @@ function paintCreate(g: CanvasRenderingContext2D): void {
     if (b % 2 === 1) { g.fillStyle = OAK_ALT; g.fillRect(0, b * 34, OW, 34); }
     g.fillStyle = OAK_JOINT; g.fillRect(0, b * 34 + 33, OW, 1);
   }
-  for (const f of FLECKS) { g.fillStyle = f.c; g.fillRect(f.x, f.y, f.w, 1); }
 
   // ── the form ─────────────────────────────────────────────────────────
   g.fillStyle = 'rgba(0,0,0,0.28)';
@@ -374,14 +374,14 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   // with the form code alone on the right of the title line: centred, the
   // title's tail ran into the code's corner — *"form r9 in corner could use
   // a bit of space imo"* (2026-08-10) — and a municipal letterhead sits left
-  // with its code across from it anyway. The title ends near x 126, the code
-  // starts near 136: ten texels of air, guaranteed by alignment rather than
-  // by luck.
+  // with its code across from it anyway. Ten texels of air between title and
+  // code, guaranteed by alignment rather than by luck; the rule under it is
+  // one texel now, not two — *"minimal"* (2026-08-24).
   fitText(g, 'CITY OF CROSSTOWN', ROW_X, 22, 128, 10, PRINT_DK);
   g.font = font(8); g.fillStyle = STAMP_RED;
   g.textAlign = 'right'; g.fillText('FORM R-9', LINE_R, 22); g.textAlign = 'left';
   fitText(g, 'RESIDENT CARD APPLICATION', ROW_X, 33, PAPER_W - 20, 8, PRINT);
-  g.fillStyle = PRINT_DK; g.fillRect(PAPER_X + 10, 38, PAPER_W - 20, 2);
+  g.fillStyle = PRINT_DK; g.fillRect(PAPER_X + 10, 38, PAPER_W - 20, 1);
 
   // ── SECTION II's printed instrument: the pentagon, then the pen ──────
   //
@@ -397,7 +397,11 @@ function paintCreate(g: CanvasRenderingContext2D): void {
     const [vx, vy] = chVert(CH_R, k);
     pixLine(g, CH_CX, CH_CY, vx, vy);                    // spokes
   }
-  for (let v = 2; v <= 10; v += 2) {                     // rings at 2,4,6,8,10
+  // TWO rings, not five. It printed rings at 2,4,6,8,10 and read as a web —
+  // *"lets get the spider plot looking a little nicer clearer, minimal"*
+  // (2026-08-24). A faint mid ring at 5 (the average man) and the printed
+  // outer at 10 (the cap) are the only two values the chart has to say.
+  for (const v of [5, 10]) {
     g.fillStyle = v === 10 ? PRINT : RULE;
     for (let k = 0; k < 5; k++) {
       const [ax, ay] = chVert((CH_R * v) / 10, k);
@@ -405,8 +409,9 @@ function paintCreate(g: CanvasRenderingContext2D): void {
       pixLine(g, ax, ay, bx, by);
     }
   }
-  // axis labels, in the form's small print, at the five points
-  g.font = font(8); g.fillStyle = PRINT;
+  // axis labels at the five points — in the DARK print now, so they read
+  // over the paper instead of fading into the rings
+  g.font = font(8); g.fillStyle = PRINT_DK;
   const CH_LAB: [number, number, CanvasTextAlign][] = [
     [CH_CX, CH_CY - CH_R - 4, 'center'],                 // INT, above the top
     [CH_CX + 28, CH_CY - 5, 'left'],                     // STR
@@ -547,13 +552,6 @@ function paintCreate(g: CanvasRenderingContext2D): void {
   // where a name goes on a photo, and it is written as he types it
   const n = name.trim();
   if (n) fitText(g, n, PH_X + PH_W / 2, PH_Y + PH_H - 10, PH_W - 14, 9, PEN, true);
-
-  // a ballpoint on the desk, waiting for the signature
-  g.fillStyle = 'rgba(0,0,0,0.22)';
-  g.fillRect(224, 205, 46, 3);
-  g.fillStyle = PEN; g.fillRect(226, 202, 36, 4);
-  g.fillStyle = '#d8d4cc'; g.fillRect(262, 203, 6, 2);
-  g.fillStyle = '#9a9690'; g.fillRect(268, 203, 2, 2);
 }
 
 function paint(): void {
