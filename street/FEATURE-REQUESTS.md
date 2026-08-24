@@ -7278,3 +7278,8 @@ Rider on the esc-menu ask, same builder: hovering an option highlights it.
 
 Rejected readability pass on the creation form, same builder: the application's
 text still isn't clear enough.
+
+## 2026-08-24 — *"add an option in menu to make shift inverse where sprint is default and shift makes you walk"*
+
+Fresh builder, trunk grant for the movement half: a menu option that inverts
+shift — sprint becomes the default gait and holding shift walks.
