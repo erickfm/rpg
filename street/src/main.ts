@@ -16,6 +16,15 @@ window.addEventListener('keydown', (e) => {
   const k = e.key === ' ' ? ' ' : e.key.toLowerCase();
   input.keys.add(k === 'shift' ? 'shift' : k);
   if (e.key === ' ') e.preventDefault();
+  // Control is also crouch (fp.ts reads 'control' from this set). Bare Control
+  // has no browser default, so it needs no preventDefault — but a crouch-walk
+  // holds Ctrl while pressing WASD/E, and some of those combos are browser
+  // shortcuts. Stop only the preventable ones we'd otherwise trip: Ctrl+S
+  // (save dialog), Ctrl+D (bookmark), Ctrl+A (select-all), Ctrl+E (address
+  // bar), Ctrl+W (harmless to try). Ctrl+W/T/N are browser-reserved in Chrome
+  // and close/open tabs regardless — nothing a page can do about those. Every
+  // other Ctrl combo (Ctrl+R, Ctrl+C, Ctrl+Shift+I, …) is left alone.
+  if (e.ctrlKey && ['w', 'a', 's', 'd', 'e'].includes(k)) e.preventDefault();
   // ⚠ THE PROTO-SWITCH KEYS ARE GONE (2026-08-09) — *"what are all the keys
   // which restart the game, lets un map em."* `x`/`z`/`[`/`]` and every digit
   // used to call `load()`, and with exactly one world in the REGISTRY each of
@@ -28,6 +37,10 @@ window.addEventListener('keyup', (e) => {
   const k = e.key === ' ' ? ' ' : e.key.toLowerCase();
   input.keys.delete(k === 'shift' ? 'shift' : k);
 });
+// A Ctrl combo that leaves the page (Ctrl+Tab, Ctrl+click elsewhere) eats the
+// keyup: without this you come back still crouched — or still walking, for any
+// held key. Blur is the one signal that always fires on the way out.
+window.addEventListener('blur', () => input.keys.clear());
 renderer.domElement.addEventListener('click', () => {
   if (current?.pointerLock && !input.locked) {
     // A SANDBOXED IFRAME REFUSES THE LOCK OUTRIGHT, and the artifact falls back

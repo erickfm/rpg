@@ -938,8 +938,11 @@ export class FPRig {
     if (input.keys.has('s')) mv.sub(this.fwd);
     if (input.keys.has('a')) mv.sub(this.right);
     if (input.keys.has('d')) mv.add(this.right);
-    // hold C to crouch: low camera, slow steps — and, in the air, a tuck.
-    this.crouchT += ((input.keys.has('c') ? 1 : 0) - this.crouchT) * Math.min(1, dt * 9);
+    // hold C — or Control — to crouch: low camera, slow steps — and, in the
+    // air, a tuck. ('control' reaches the set via main.ts's lowercasing of
+    // e.key; main.ts also preventDefaults the preventable Ctrl+WASD combos.)
+    const crouchHeld = input.keys.has('c') || input.keys.has('control');
+    this.crouchT += ((crouchHeld ? 1 : 0) - this.crouchT) * Math.min(1, dt * 9);
     // `airY` here is last frame's, settled, same as `atY` — the tuck itself is
     // eased below against THIS frame's, after the integrator has run.
     this.stanceT += ((this.airY > 0 ? AIR_CROUCH_DIP : 1) * this.crouchT - this.stanceT) * Math.min(1, dt * 9);
@@ -1099,7 +1102,7 @@ export class FPRig {
       this.bhop = Math.max(0, this.bhop - BHOP_DECAY * dt);
     }
     this.air = airborne;   // published by the `airborne` getter — one source
-    this.tuck +=((airborne && input.keys.has('c') ? TUCK_LIFT : 0) - this.tuck) * Math.min(1, dt * TUCK_EASE);
+    this.tuck +=((airborne && crouchHeld ? TUCK_LIFT : 0) - this.tuck) * Math.min(1, dt * TUCK_EASE);
     let gy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
     // Stand on a collider's top when you are already up there — see
     // `standTop`'s own comment. Only raises the floor, never lowers it: a
