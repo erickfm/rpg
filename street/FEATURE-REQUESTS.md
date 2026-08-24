@@ -7269,3 +7269,7 @@ additional crouch key alongside whatever binds today.
 
 Continuation of the full-mouse thread, same builder: the Escape menu's options
 — "yes start over" included — must be clickable, not keyboard-only.
+
+## 2026-08-24 — *"also mouse hover should highlight the given option"*
+
+Rider on the esc-menu ask, same builder: hovering an option highlights it.
