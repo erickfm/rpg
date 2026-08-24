@@ -1326,6 +1326,13 @@ export function register(ctx: CtxBuild): void {
   // his landing, gone from the street. Null until the first reading so a
   // world loaded mid-sequence adopts him silently.
   let hermitWas: string | null = null;
+  /** …and burps counted on `scene.userData.hermitTalkBurps` (2026-08-24):
+   *  *"make talking to the neightbor makes him burp"*. `ct/tenancy.ts` owns
+   *  the talk spot and bumps the counter once per conversation opened; each
+   *  new count is one belch at his door. Null until the first reading, same
+   *  rule as `hermitWas`, so a world adopted mid-session does not burp for
+   *  conversations already had. */
+  let burpTalkWas: number | null = null;
 
   // ── sleeping ──────────────────────────────────────────────────────────────
   // `ctx.clock` is on the context and the bed advances it with `overSeconds: 0`,
@@ -2012,6 +2019,20 @@ export function register(ctx: CtxBuild): void {
         }
       }
       hermitWas = hu.phase;
+    }
+
+    // …and he BURPS ON REQUEST — see `burpTalkWas` above. Same recording,
+    // same door, a shade lower: spoken to, he is answering, not announcing
+    // himself the way the appear-burp does.
+    const hbAsk = (scene.userData as { hermitTalkBurps?: number }).hermitTalkBurps ?? 0;
+    if (burpTalkWas === null) burpTalkWas = hbAsk;
+    else if (hbAsk !== burpTalkWas) {
+      burpTalkWas = hbAsk;
+      const o = scene.getObjectByName('leaf302');
+      if (o) {
+        worldOf(o);
+        atPoint('burp', WP.x, WP.z, LVL.burp, 16, 0.86 + roll() * 0.1);
+      }
     }
 
     if (!leavesFound) {

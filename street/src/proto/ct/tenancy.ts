@@ -3782,6 +3782,82 @@ export function register(ctx: CtxBuild): void {
   };
   ctx.spot(llSpot);
 
+  // ══ THE NEIGHBOUR AT 302, SPOKEN TO ════════════════════════════════════════
+  //
+  // *"make talking to the neightbor makes him burp"*   (2026-08-24)
+  //
+  // The hermit himself is C's — `ct/apartment.ts` owns his walk, his door and
+  // his collider, and the trunk rule keeps this file out of there. But he is a
+  // NEIGHBOUR, and this file already owns the building's people you talk to
+  // (the landlord, above). Everything needed reaches here without touching C:
+  // apartment.ts publishes his sequence on `scene.userData.hermit` (phase,
+  // local x, visible), exports the building origin this file already imports,
+  // and parks his sprite as a direct scene child at (APT_X0 + x, 2·ST0,
+  // APT_Z0 + 3.5). So his mesh is FOUND, not owned — the one citizen sprite
+  // standing on the third-floor landing is him, and nothing else in the world
+  // ever stands there.
+  //
+  // WHAT TALKING GETS YOU: the belch, then the apology. He is *"a big quiet
+  // man; you only ever catch him at his door"* (apartment.ts) — so the burp IS
+  // his half of the conversation. The SOUND is `ct/audio.ts`'s job — it
+  // already owns his appear-burp — this file only counts conversations opened
+  // on `scene.userData.hermitTalkBurps` and audio fires the same recording at
+  // his door on each new count. A second [E] while his bubble is up turns the
+  // page and burps nothing: one belch per conversation, not per keypress.
+  const HERMIT_Z = APT_Z0 + 3.5, HERMIT_Y = 2 * ST0;
+  /** his lines, in strict rotation — a counter, not dice, like every other
+   *  runtime wobble in this world */
+  const HERMIT_SAYS: string[][] = [
+    ['HuuUURRRP.', "...'Scuse me."],
+    ['Mm. HRRRUUP.', 'Pardon.'],
+    ['BRAAaaap.', '...Chili dogs.'],
+  ];
+  let hermitMesh: THREE.Object3D | null = null;
+  let hermitTalk: ReturnType<typeof talker> | null = null;
+  let hermitSaid = 0;
+  const hermitPub = () =>
+    (scene.userData as { hermit?: { x: number; visible?: boolean } }).hermit;
+  const hermitSpot: Spot = {
+    // rewritten every frame from the published x — he walks; these are only
+    // where he starts. r 0.95, the landing's own convention (see llSpot).
+    x: APT_X0 + 1.95, z: HERMIT_Z, aimX: APT_X0 + 1.95, aimZ: HERMIT_Z, r: 0.95,
+    // `visible` is apartment.ts's own compound of "he is out" and "you are on
+    // his landing", so it is the whole gate; the gy check only keeps the spot
+    // off the stairwell directly below him.
+    ok: () => hermitTalk !== null && hermitPub()?.visible === true
+      && Math.abs(ctx.player.gy() - HERMIT_Y) < 0.5,
+    label: () => hermitTalk?.label() ?? 'talk',
+    act: () => {
+      if (!hermitTalk) return;
+      if (hermitTalk.speaking()) { hermitTalk.say(); return; }   // page, no belch
+      const ud = scene.userData as { hermitTalkBurps?: number };
+      ud.hermitTalkBurps = (ud.hermitTalkBurps ?? 0) + 1;
+      hermitTalk.say(HERMIT_SAYS[hermitSaid++ % HERMIT_SAYS.length]);
+    },
+  };
+  ctx.spot(hermitSpot);
+  ctx.onFrame(() => {
+    const hu = hermitPub();
+    if (!hu) return;
+    const hx = APT_X0 + hu.x;
+    if (!hermitMesh) {
+      // build order is not promised between this module and the apartment, so
+      // he is adopted on the first frame he exists rather than at build time —
+      // the same reason the talker itself defers measuring his crown.
+      for (const c of scene.children) {
+        if ((c.userData as { citizenFacing?: number }).citizenFacing === undefined) continue;
+        if (Math.abs(c.position.y - HERMIT_Y) < 0.6 &&
+            Math.abs(c.position.z - HERMIT_Z) < 0.4 &&
+            Math.abs(c.position.x - hx) < 0.8) { hermitMesh = c; break; }
+      }
+      if (hermitMesh) {
+        hermitTalk = talker(ctx, { obj: hermitMesh, name: 'neighbour' });
+        hermitSpot.obj = hermitMesh;
+      }
+    }
+    hermitSpot.x = hx; hermitSpot.aimX = hx;
+  });
+
   // ══ HE CATCHES YOU IN THE DOORWAY ══════════════════════════════════════════
   //
   // *"if you owe the landlord money, whenever you step on the bottom floor like
