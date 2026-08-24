@@ -782,11 +782,15 @@ export function register(ctx: CtxBuild): void {
   //     backrest leaning across the gate line. Both signs flip.
   //
   // Geometry only — the collider is unchanged and still capped at the seat
-  // boards, and neither bench moves by a millimetre.
+  // boards, and neither bench moved by a millimetre THEN. They did on
+  // 2026-08-24: *"benches are clipping pls fix"* — at BZ −3.3 the slats ran to
+  // z −4.11 and the far end support to −4.05, both inside the planting bed
+  // (z −4.40…−3.90, brick to 0.32 high). BZ −3.0 leaves 9 cm of daylight
+  // between slat end (−3.81) and bed, and the collider (BZ ± 0.85) follows.
   const slatM = new THREE.MeshBasicMaterial({ color: 0x8a6a42 });
   const endM = new THREE.MeshBasicMaterial({ color: 0x2e2a26 });
   for (const s of [-1, 1]) {
-    const BX = CX + s * 1.95, BZ = WALK_Z - 3.3;
+    const BX = CX + s * 1.95, BZ = WALK_Z - 3.0;
     for (const dz of [-0.7, 0.7])
       put(new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.42, 0.10), endM), BX, KERB_H + 0.21, BZ + dz);
     for (const dx of [-0.15, 0, 0.15])
