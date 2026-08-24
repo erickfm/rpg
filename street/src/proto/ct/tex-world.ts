@@ -1304,7 +1304,19 @@ export function shopfrontRelief(o: {
   if (o.name === 'DINER') {
     const CLEAR = 0.16;                            // brick between cornice and plate
     const PROJ = 0.95, TALL = 1.55, FOOT = corniceTop + CLEAR;   // underside 4.36 m
-    const bx = along(o.wMeters * 0.17);
+    // ON THE PARTY LINE WITH THE THRIFT. *"can you put the coffee sign at the
+    // border between shops border?"* (2026-08-24). It hung 17% along the
+    // frontage — 2 m into the diner's own brick — and the diner's one
+    // shop-to-shop border is the low-u edge (u = 0, world z −56, THRIFT on the
+    // other side; the high-u end is the park). Centred on the seam, the way a
+    // corner blade is actually bolted, so the plate straddles the line by half
+    // its 0.08 m thickness. Height is untouched and stays safe by arithmetic:
+    // the thrift's corniceTop is 0.01 m LOWER than the diner's (BANDS: fy+fh
+    // 1.03 vs 1.10 off the same SHOP_BAND_H), so the blade's foot clears the
+    // neighbour's cornice by CLEAR + 0.01, and both facades' first-storey
+    // cills sit above the top arm — the skirt band the note above describes
+    // runs the full width of both walls.
+    const bx = along(0);
     // THE BRACKET FIRST, and spanning the FULL projection. My first attempt
     // hung the plate off a stub arm reaching half way, which put the whole
     // bracket behind the plate when you stand square to the shop — and a blade
