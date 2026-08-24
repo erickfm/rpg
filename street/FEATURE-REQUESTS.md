@@ -7254,3 +7254,8 @@ pass goes up rough for his eye before anyone builds a second on it.
 Second pass on the creation screen, back to the same builder (its own work):
 full mouse interaction on the form, and the spider plot's points should drag
 nicely. Still too janky.
+
+## 2026-08-24 — *"cant jkust click intuitively. i want to be able to click and change the options intuitively. also make sure all text is readable"*
+
+Same creation screen, same builder. Clicking an option should just work the way
+you'd expect, and every piece of text on the screen must be readable.
