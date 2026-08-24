@@ -7248,3 +7248,9 @@ paper tell the truth.
 Art/UI pass on character creation. Fresh builder: player preview moves to the
 left, the form gets simpler, the spider plot gets clearer and minimal. First
 pass goes up rough for his eye before anyone builds a second on it.
+
+## 2026-08-24 — *"i want to be able to interact with the form fully with mouse thanks. i cant drag each thing in the spider plot nicely. lets make this nice! its just too janky"*
+
+Second pass on the creation screen, back to the same builder (its own work):
+full mouse interaction on the form, and the spider plot's points should drag
+nicely. Still too janky.
