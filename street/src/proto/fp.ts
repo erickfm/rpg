@@ -450,6 +450,10 @@ export class FPRig {
   private ceilY?: (x: number, z: number) => number | null;
   /** the menu's look settings, read live. Null means "the defaults". */
   look2?: { sens: number; invertY: boolean };
+  /** the menu's sprint setting, read live, wired the same way as `look2`.
+   *  `invert` true is his "shift inverse": sprint is the default gait and
+   *  holding SHIFT walks. Null means the original hold-SHIFT-to-sprint. */
+  sprint2?: { invert: boolean };
   private airY = 0;   // height above the ground while jumping
   private vy = 0;
   /** ARE YOUR FEET OFF THE FLOOR — see the `airborne` getter. Mirrors the local
@@ -947,6 +951,12 @@ export class FPRig {
     // eased below against THIS frame's, after the integrator has run.
     this.stanceT += ((this.airY > 0 ? AIR_CROUCH_DIP : 1) * this.crouchT - this.stanceT) * Math.min(1, dt * 9);
     const moving = mv.lengthSq() > 0;
+    // SHIFT picks the fast gait — unless the menu inverted it (`sprint2`), in
+    // which case fast is the default and SHIFT is the slow one. One boolean,
+    // decided once, so foot and board can never disagree about what SHIFT
+    // means. NOTHING ELSE MOVES: crouch, the hop stack and the speeds
+    // themselves are untouched — only which gait no-keys-held selects.
+    const fast = input.keys.has('shift') !== (this.sprint2?.invert ?? false);
     if (!ride) {
       // off the board, the momentum is gone — and the published view runs
       // down with it, so a re-mount cannot open on a stale carve
@@ -965,7 +975,7 @@ export class FPRig {
       // the SAME two `blocked` tests as walking — nothing about collision
       // knows about wheels.
       this.bhop = 0;
-      const sp = (input.keys.has('shift') ? RIDE_PUSH : RIDE_SPEED) * speedMul()
+      const sp = (fast ? RIDE_PUSH : RIDE_SPEED) * speedMul()
         * (1 - 0.55 * this.stanceT);
       if (moving) this.rideDir.copy(mv).normalize();
       const target = moving ? sp : 0;
@@ -992,13 +1002,13 @@ export class FPRig {
       // whole point of a hop is that the speed it earned carries through the
       // flight. Walk × full stack is 4.95 m/s, still under the flat sprint,
       // so the ceiling belongs to sprint + chain and nothing else.
-      const sp = (input.keys.has('shift') ? this.run : this.speed) * speedMul() * (1 - 0.55 * this.stanceT) * (1 + BHOP_GAIN * this.bhop);
+      const sp = (fast ? this.run : this.speed) * speedMul() * (1 - 0.55 * this.stanceT) * (1 + BHOP_GAIN * this.bhop);
       mv.normalize().multiplyScalar(sp * dt);
       const nx = THREE.MathUtils.clamp(this.pos.x + mv.x, this.bounds.minX, this.bounds.maxX);
       if (!this.blocked(nx, this.pos.z, atY)) this.pos.x = nx;
       const nz = THREE.MathUtils.clamp(this.pos.z + mv.z, this.bounds.minZ, this.bounds.maxZ);
       if (!this.blocked(this.pos.x, nz, atY)) this.pos.z = nz;
-      this.bobT += dt * (input.keys.has('shift') ? 11 : 7.5);
+      this.bobT += dt * (fast ? 11 : 7.5);
     }
     // a modest hop
     const jumpDown = input.keys.has(' ');

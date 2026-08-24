@@ -1413,6 +1413,10 @@ export function makeCrosstown(): Proto {
   // It is still read live: these are getters, so a change in the menu is felt on
   // the very next mouse move without anything being pushed.
   rig.look2 = { get sens() { return setting('sens'); }, invertY: false };
+  // the menu's SPRINT row, same live-getter shape and same must-live-here rule
+  // as `look2` above: 'default' means sprint is the default gait and holding
+  // SHIFT walks — his "shift inverse" (2026-08-24).
+  rig.sprint2 = { get invert() { return setting('sprint') === 'default'; } };
 
   /** How far west the world goes: past the deepest open site, or past the
    *  building line if there are none. The 1.2 m is the same cushion the old

@@ -58,13 +58,16 @@ export interface Settings {
   hand: 'left' | 'right';
   /** mouse sensitivity, as a multiplier on the rig's own 0.0022 */
   sens: number;
+  /** which gait SHIFT picks: 'hold' = hold SHIFT to sprint (the original),
+   *  'default' = sprint is the default gait and holding SHIFT walks */
+  sprint: 'hold' | 'default';
   /** the name he gave himself at character creation */
   name: string;
 }
 // ⚠ `invertY` AND `fov` ARE GONE FROM THIS LIST — *"i dont like selecting fov
 // from menu, idc about invert look"*. An old stored value for either is simply
 // ignored: the spread below only takes keys this interface declares.
-const DEFAULTS: Settings = { hand: 'left', sens: 1, name: '' };
+const DEFAULTS: Settings = { hand: 'left', sens: 1, sprint: 'hold', name: '' };
 let S: Settings = { ...DEFAULTS };
 try {
   const raw = JSON.parse(localStorage.getItem(PREF) || '{}') as Partial<Settings>;
@@ -102,13 +105,14 @@ export const OW = 320, OH = 240;
  * them — `paintMenu` draws at this pitch and `onClick` divides by it, and they
  * were two loose 22s and an 80 that happened to match.
  *
- * ⚠ THE PITCH CAME DOWN FROM 22 WHEN THE CLOCK ROW MADE SIX. `legend()` starts
- * its three lines at `OH - 8 - 2*14` = 204, and a sixth row at the old pitch
- * put its inverse-video block at 189–207 — through the legend. 20 px and a
- * start twelve higher clears it with a 10 px gutter. A SEVENTH ROW WILL NOT
- * FIT: shrink the type or drop a row, do not nudge these again.
+ * ⚠ THE PITCH CAME DOWN TWICE. From 22 to 20 when the CLOCK row made six, and
+ * from 20 to 18 — with the type from 14 to 13 — when the SPRINT row made
+ * seven. `legend()` starts its three lines at `OH - 8 - 2*14` = 204, and the
+ * seventh row's inverse-video block ends at 194 — the same 10 px gutter six
+ * rows had. AN EIGHTH ROW WILL NOT FIT: shrink the type again or drop a row,
+ * do not nudge these.
  */
-const ROW_Y0 = 80, ROW_H = 20;
+const ROW_Y0 = 80, ROW_H = 18;
 let wrap: HTMLDivElement | null = null;
 let cv: HTMLCanvasElement | null = null;
 
@@ -269,6 +273,24 @@ const ITEMS: Item[] = [
   },
   {
     /**
+     * ── SPRINT, AND WHICH WAY SHIFT POINTS ───────────────────────────────
+     *
+     * *"add an option in menu to make shift inverse where sprint is default
+     *  and shift makes you walk"*   (2026-08-24)
+     *
+     * HOLD SHIFT is the original: walk by default, SHIFT to sprint. DEFAULT
+     * is his inverse: sprint by default, hold SHIFT to walk. The rig reads
+     * it live through `sprint2`, wired in `crosstown.ts` beside `look2` —
+     * only the meaning of SHIFT flips; crouch, the hop stack and the speeds
+     * themselves are exactly what they were. The board obeys the same flip,
+     * so SHIFT never means "fast" on wheels while meaning "slow" on foot.
+     */
+    label: 'SPRINT',
+    value: () => (S.sprint === 'default' ? 'DEFAULT' : 'HOLD SHIFT'),
+    step: () => put('sprint', S.sprint === 'default' ? 'hold' : 'default'),
+  },
+  {
+    /**
      * ── 12-HOUR OR 24-HOUR ───────────────────────────────────────────────
      *
      * *"also the esc menu needs an option for 24 hour clocks vs 12 hour"*
@@ -391,7 +413,7 @@ function paintMenu(g: CanvasRenderingContext2D): void {
   let y = ROW_Y0;
   ITEMS.forEach((it, i) => {
     const v = it.value();
-    row(g, v === null ? it.label : `${it.label}:${v}`, 44, y, 14, i === sel);
+    row(g, v === null ? it.label : `${it.label}:${v}`, 44, y, 13, i === sel);
     y += ROW_H;
   });
   // his own name, when he has one — the only row that is not a setting
@@ -538,8 +560,9 @@ function texelY(e: MouseEvent): number {
   return (e.clientY - r.top) * (OH / r.height);
 }
 
-/** the menu row under y, from the top of its inverse-video block — the block
- *  is drawn at `baseline - 13`, so the band starts a shade above the type */
+/** the menu row under y, from the top of its inverse-video block — at 13 px
+ *  type the block is drawn from `baseline - 12` and stands exactly `ROW_H`
+ *  tall, so the bands tile the block edges precisely */
 function menuRowAt(y: number): number | null {
   const i = Math.floor((y - (ROW_Y0 - 12)) / ROW_H);
   return i >= 0 && i < ITEMS.length ? i : null;
