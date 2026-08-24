@@ -7297,3 +7297,8 @@ of its facade. First pass goes up rough for his eye.
 ## 2026-08-24 — *"talking to the neightbor makes him burp"*
 
 Bug during playtest. Fresh builder, symptom only — no cause guessed.
+
+## 2026-08-24 — *"make talking to the neightbor makes him burp"*
+
+Correction of the entry above: not a bug, a request. Fresh builder: talking to
+the neighbor should make him burp.
