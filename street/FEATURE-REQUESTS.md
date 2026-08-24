@@ -7264,3 +7264,8 @@ you'd expect, and every piece of text on the screen must be readable.
 
 Fresh builder with a trunk grant if the keybinds live there: Control becomes an
 additional crouch key alongside whatever binds today.
+
+## 2026-08-24 — *"the esc menu isnt fully mouse clickable. i wanna be able to click yes start over"*
+
+Continuation of the full-mouse thread, same builder: the Escape menu's options
+— "yes start over" included — must be clickable, not keyboard-only.
