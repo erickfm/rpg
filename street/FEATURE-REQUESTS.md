@@ -7259,3 +7259,8 @@ nicely. Still too janky.
 
 Same creation screen, same builder. Clicking an option should just work the way
 you'd expect, and every piece of text on the screen must be readable.
+
+## 2026-08-24 — *"let control also be crouch"*
+
+Fresh builder with a trunk grant if the keybinds live there: Control becomes an
+additional crouch key alongside whatever binds today.
