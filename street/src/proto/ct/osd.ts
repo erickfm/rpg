@@ -347,6 +347,10 @@ let open = false;
 let sel = 0;
 export function menuOpen(): boolean { return open; }
 
+/** the two answers' baselines — named because `paintConfirm` draws at them
+ *  and the mouse handlers divide against them, and the pair must agree */
+const CONF_Y = [158, 182], CONF_PX = 14;
+
 function paintConfirm(g: CanvasRenderingContext2D): void {
   osdFrame(g);
   heading(g, 'NEW GAME', 60);
@@ -355,9 +359,9 @@ function paintConfirm(g: CanvasRenderingContext2D): void {
   g.fillText('THIS ERASES YOUR SAVED GAME.', OW / 2, 104);
   g.fillText('THIS CANNOT BE UNDONE.', OW / 2, 122);
   g.textAlign = 'left';
-  row(g, 'NO  — KEEP PLAYING', 96, 158, 14, confirmSel === 0);
-  row(g, 'YES — START OVER', 96, 182, 14, confirmSel === 1);
-  legend(g, [['SELECT', '▲ ▼ KEY'], ['SET', '▶ KEY'], ['END', 'ESC KEY']]);
+  row(g, 'NO  — KEEP PLAYING', 96, CONF_Y[0], CONF_PX, confirmSel === 0);
+  row(g, 'YES — START OVER', 96, CONF_Y[1], CONF_PX, confirmSel === 1);
+  legend(g, [['SELECT', '▲ ▼ / HOVER'], ['SET', '▶ / CLICK'], ['END', 'ESC KEY']]);
 }
 
 function paint(): void {
@@ -396,7 +400,7 @@ function paintMenu(g: CanvasRenderingContext2D): void {
     g.fillText(S.name.toUpperCase(), OW / 2, y + 10);
     g.textAlign = 'left';
   }
-  legend(g, [['SELECT', '▲ ▼ KEY'], ['SET', '▶ KEY'], ['END', 'ESC KEY']]);
+  legend(g, [['SELECT', '▲ ▼ / HOVER'], ['SET', '▶ / CLICK'], ['END', 'ESC KEY']]);
 }
 
 /**
@@ -513,24 +517,83 @@ export function close(): void {
   if (wrap) wrap.style.display = 'none';
 }
 
-/** click a row to select it, click again to step it — the mouse is free here */
-function onClick(e: MouseEvent): void {
-  if (!open || !cv || confirming) return;      // the confirm is keyboard-only
-  const r = cv.getBoundingClientRect();
-  const y = (e.clientY - r.top) * (OH / r.height);
-  // the band for row i, from the top of its inverse-video block — the block is
-  // drawn at `baseline - 13`, so the hit test starts a shade above the type
+/**
+ * ── THE MOUSE, EVERYWHERE THE KEYS GO ─────────────────────────────────────
+ *
+ * *"the esc menu isnt fully mouse clickable. i wanna be able to click yes
+ *  start over"* and *"also mouse hover should highlight the given option"*
+ *   (2026-08-24)
+ *
+ * The confirm was keyboard-only and a menu click was a two-tap (select,
+ * then step) — both gone. HOVER MOVES THE CURSOR: the inverse-video block
+ * is this surface's one cursor, so highlighting the option under the mouse
+ * means putting the block there, and a click then does exactly what the
+ * block says it will. One click, one answer — including YES — START OVER.
+ * The bands below are the same metrics the painters draw with.
+ */
+/** a mouse event's y in canvas texels — the bands are horizontal, so y is
+ *  the whole question */
+function texelY(e: MouseEvent): number {
+  const r = cv!.getBoundingClientRect();
+  return (e.clientY - r.top) * (OH / r.height);
+}
+
+/** the menu row under y, from the top of its inverse-video block — the block
+ *  is drawn at `baseline - 13`, so the band starts a shade above the type */
+function menuRowAt(y: number): number | null {
   const i = Math.floor((y - (ROW_Y0 - 12)) / ROW_H);
-  if (i < 0 || i >= ITEMS.length) return;
-  if (i === sel) ITEMS[sel].step(1); else sel = i;
-  paint();
+  return i >= 0 && i < ITEMS.length ? i : null;
+}
+
+/** which answer y is over on the confirm — `row()` paints each block from
+ *  `baseline - CONF_PX + 1` to `baseline + 6`, and this asks the same span */
+function confirmRowAt(y: number): number | null {
+  for (let i = 0; i < CONF_Y.length; i++) {
+    if (y >= CONF_Y[i] - CONF_PX + 1 && y <= CONF_Y[i] + 6) return i;
+  }
+  return null;
+}
+
+function onClick(e: MouseEvent): void {
+  if (!open || !cv) return;
+  // every click is the menu's while it is up — a press on the blue field
+  // does nothing, but it must not leak into the world behind the television
   e.stopImmediatePropagation();
+  const y = texelY(e);
+  if (confirming) {
+    const i = confirmRowAt(y);
+    if (i === null) return;
+    confirmSel = i;
+    if (i === 1) { newGame(); return; }        // YES — START OVER, clicked
+    confirming = false;                        // NO — KEEP PLAYING
+    paint();
+    return;
+  }
+  const i = menuRowAt(y);
+  if (i === null) return;
+  sel = i;
+  ITEMS[i].step(1);
+  if (open) paint();
+}
+
+/** hover highlights — the block follows the mouse, and the cursor only
+ *  claims `pointer` over a row it would actually act on */
+function onMove(e: MouseEvent): void {
+  if (!open || !cv) return;
+  const y = texelY(e);
+  const i = confirming ? confirmRowAt(y) : menuRowAt(y);
+  cv.style.cursor = i === null ? 'default' : 'pointer';
+  if (i === null) return;
+  if (confirming) {
+    if (confirmSel !== i) { confirmSel = i; paint(); }
+  } else if (sel !== i) { sel = i; paint(); }
 }
 
 export function installOsd(): void {
   build();
   window.addEventListener('keydown', onKey, true);
   window.addEventListener('click', onClick, true);
+  window.addEventListener('mousemove', onMove, true);
   onSettingChange(() => { if (open) paint(); });
   // …and the clock format, which lives in its own module rather than in `S` —
   // so a flip repaints the row that shows it, whoever made the flip
