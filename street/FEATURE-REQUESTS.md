@@ -7343,3 +7343,9 @@ Three asks, split: (1) dealer only at night — fresh builder; (2) fire escape
 becomes a climbable ladder with roof access — fresh builder, trunk grant for
 the movement half; (3) fall damage equal to a car hit past a set height —
 queued behind (2), same trunk.
+
+## 2026-09-02 — *"why is the pond a perfect circle why is ther shape of the boulders so un natural? also why is thew whole center area still a thing? like get rid of the little bars on the edge and expand the pond"*
+
+Rejected pass, back to the park builder: pond loses the perfect-circle shape,
+boulders get natural, the center area actually goes (the little bars on its
+edge included), and the pond expands.
