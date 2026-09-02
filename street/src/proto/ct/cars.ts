@@ -1179,7 +1179,7 @@ export function makeBus(): THREE.Group {
   // centre, +0.06 its half-thickness. ct/traffic.ts caps the moving box here
   // so the bus stops blocking the sky (unreachable by any jump regardless).
   g.userData.roofY = BUS_Y0 + BUS_H + 0.11;
-  g.userData.laneX = 1.35;            // hugs the centre line to clear parked cars
+  g.userData.laneX = 1.05;            // hugs the centre line to clear parked cars
   g.userData.speed = 6.4;             // and it is slower than the cars
   // the kerb-side door panel swaps to a leaves-open version while it stands
   // at the stop. Front door is at local z = -2.35, which is what the sim

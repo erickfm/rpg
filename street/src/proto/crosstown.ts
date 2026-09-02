@@ -688,10 +688,10 @@ export function makeCrosstown(): Proto {
   // single source for the parked fleet, its boxes and its lamplight entries.
   //
   // The two hard walls, which the spread cannot cross:
-  //   PARK_SNUG  |x| + 1.05 = 4.98 < ROAD_HALF — collider never on the walk
-  //   PARK_OUT   |x| − 1.05 = 2.57 — collider never in the travel lane
-  //              (cars cruise at 1.5 and the bus at 1.35, both to 2.55)
-  const PARK_SNUG = 3.93, PARK_OUT = 3.62;
+  //   PARK_SNUG  |x| + 1.05 = 4.68 < ROAD_HALF — collider never on the walk
+  //   PARK_OUT   |x| − 1.05 = 2.27 — collider never in the travel lane
+  //              (cars cruise at 1.2 and the bus at 1.05, both to 2.25)
+  const PARK_SNUG = 3.63, PARK_OUT = 3.32;
   // Each car gets a tidiness CLASS, and the classes are dealt out shuffled.
   // Drawing all three independently is the obvious thing and it is wrong at
   // this sample size: with only three cars, three tidy ones comes up about a

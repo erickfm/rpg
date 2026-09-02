@@ -346,7 +346,7 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
   // crosstown.ts, keyed on the southbound straight instead of on cruiseDir.
   const STOP_FLAG_Z = -33.5;                                        // the flag pole (ct/props.ts)
   const BUS_STOP_Z = STOP_FLAG_Z - (bus.userData.doorZ as number);  // centre when the door lines up
-  const KERB_LAT = 3.55 - (bus.userData.laneX as number);           // how far in it pulls
+  const KERB_LAT = 3.25 - (bus.userData.laneX as number);           // how far in it pulls
   const busStop = (v: Vehicle, dt: number, want: number): number => {
     const dz = v.obj.position.z - BUS_STOP_Z;      // metres short of the stop
     if (!v.served && dz < 16 && dz > -1) {

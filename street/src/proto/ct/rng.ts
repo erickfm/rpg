@@ -1,10 +1,10 @@
 // The street's fixed dimensions. Everything else is measured off these.
 export const L = 96;          // street length into -z
-export const ROAD_HALF = 5.0; // road: parking lane + travel lane each side, tight
-export const WALK = 2.0;      // sidewalk width
+export const ROAD_HALF = 4.7; // road: parking lane + travel lane each side, tight
+export const WALK = 2.3;      // sidewalk width
 export const FACE = ROAD_HALF + WALK; // building faces at ±7
-export const PARK_X = 3.9;    // parking lane centre
-export const DRIVE_X = 1.5;   // travel lane centre
+export const PARK_X = 3.6;    // parking lane centre
+export const DRIVE_X = 1.2;   // travel lane centre
 // Haze used to start 9 m from your face and go opaque by 60 m, which blurred
 // things well inside the block. Pushed back so you can read the length of the
 // street. NOT pushed further: the fog is load-bearing — it's what swallows the
