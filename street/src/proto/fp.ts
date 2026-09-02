@@ -406,6 +406,45 @@ export function rideState(): { speed: number; lean: number; airY: number; hops: 
  */
 const FALL_MIN_DROP = 0;
 
+/**
+ * HOW MUCH CLEAR AIR UNDER YOUR FEET MAKES THE LANDING HURT, in metres.
+ *
+ * The user, 2026-09-02: *"lets implement fall damage so if you fall from
+ * higher than a set height its the same damage as getting hit by a car."*
+ *
+ * The number judged is NOT "how far did the floor descend this flight" — under
+ * FALL_MIN_DROP = 0 a walk down any ramp or staircase is one continuous
+ * "airborne" stretch (see that constant's comment), so peak-minus-landing
+ * would hand you 70 damage for walking down from the third floor. It is the
+ * deepest `airY` the flight ever saw: your height above the ground DIRECTLY
+ * BELOW YOU, which a slope glide keeps at centimetres however far it descends,
+ * and which measures a real fall against WHERE YOU LAND — drop into the pond's
+ * bowl and the bowl floor under you is the ground the whole way down.
+ *
+ * 3.5 clears everything ordinary play produces, with margin:
+ *
+ *     the jump, flat ground                       0.555  (vy 4.0, g 14)
+ *     off a kerb                                  0.14
+ *     off a bench / boulder / bush                ~1.0–1.6
+ *     jump taken from the tallest car roof        ~2.1
+ *     a one-storey hop down the stairwell shaft   2.7    (ST0, apartment.ts)
+ *
+ * …and catches what it is for: No. 227's roof is 18.6 m up with no railings
+ * (the alley ladder, 2026-09-02), so stepping off it, jumping off it, or
+ * letting go of the ladder more than 3.5 m up all land at the same flat cost
+ * as a bumper. What the cost IS lives in ct/carhit.ts — the module that owns
+ * what a hit costs — which registers through `onFallDamage` below, so the
+ * amount can never drift from the car's.
+ */
+const FALL_DAMAGE_DROP = 3.5;
+
+/** Who pays for a hard landing. Registered by ct/carhit.ts at load (it owns
+ *  the cost of every impact; this file only knows what a FALL is). Module
+ *  level, like RIDE_VIEW — there is one player body. The rig hands over the
+ *  measured drop; today's handler ignores it and charges the flat car rate. */
+let fallHarm: ((drop: number) => void) | null = null;
+export function onFallDamage(fn: (drop: number) => void): void { fallHarm = fn; }
+
 /** How far your eye sits above the seat pan. Standing eye is 1.62; on a
  *  0.45 m bench this puts you at 1.17, on a 0.71 m stool at 1.43. */
 export const SIT_EYE = 0.72;
@@ -488,6 +527,14 @@ export class FPRig {
   /** ARE YOUR FEET OFF THE FLOOR — see the `airborne` getter. Mirrors the local
    *  `airborne` in `update()`; nothing else may compute its own version. */
   private air = false;
+  /** The deepest air this flight has had under your feet — the running max of
+   *  `airY`, reset to 0 on every grounded frame (and by `sit()`/`climb()`,
+   *  which cancel a flight outright — grabbing the ladder mid-fall arrests
+   *  the fall, and a stale 18 here would bill the landing to a man calmly
+   *  stepping off the bottom rung later). Judged against FALL_DAMAGE_DROP on
+   *  the landing frame — see that constant for why it is the max of `airY`
+   *  and not where the flight started. */
+  private fallY = 0;
   // The floor height PLUS airY, as of the end of last frame's update() — i.e.
   // roughly where your feet actually are right now. Read at the TOP of this
   // frame, before anything moves, so every collision test this frame uses one
@@ -663,8 +710,10 @@ export class FPRig {
     this.seat = pose;
     this.pos.x = pose.x; this.pos.z = pose.z;
     this.yaw = pose.yaw;
-    // cancel anything mid-flight, or you land after standing up
+    // cancel anything mid-flight, or you land after standing up — the fall's
+    // running depth goes with it, or getting up later would bill a landing
     this.airY = 0; this.vy = 0; this.jumpHeld = false; this.air = false;
+    this.fallY = 0;
     // ...and any hop chain with it — a chair is not a hop, and a stale
     // `groundT` of 0 here would let standing up re-chain off the seat.
     // The board's momentum goes the same way: a chair is not a rolling start.
@@ -759,7 +808,11 @@ export class FPRig {
     this.climbY = from === 'bottom' ? l.y0 : l.y1;
     this.pos.x = l.x; this.pos.z = l.z;
     this.yaw = l.yaw;
+    // …and the fall's running depth with the flight: catching the rungs
+    // ARRESTS a fall, so the drop so far must not be billed to whichever
+    // grounded frame eventually follows the climb.
     this.airY = 0; this.vy = 0; this.air = false;
+    this.fallY = 0;
     // swallow a SPACE still held from the jump that got you here — a held key
     // must not read as "let go" on the very first climbing frame
     this.jumpHeld = true;
@@ -1429,6 +1482,20 @@ export class FPRig {
     }
 
     const grounded = this.airY === 0;
+    // ── FALL DAMAGE: judged on the landing frame ─────────────────────────────
+    // Track the deepest air of the flight AFTER everything that moves `airY`
+    // this frame has run — the integrator, the step-off conversion (which
+    // hands a whole roof's height to `airY` in one frame) and the head clamp —
+    // and settle up the frame it runs out. `fallY` is reset on EVERY grounded
+    // frame, so a slope descent's centimetre flickers can never accumulate
+    // into a fall. See FALL_DAMAGE_DROP for the threshold's derivation and
+    // ct/carhit.ts for the cost — the same flat rate as a bumper, his ask
+    // verbatim.
+    if (this.airY > this.fallY) this.fallY = this.airY;
+    if (grounded) {
+      if (this.fallY > FALL_DAMAGE_DROP && fallHarm) fallHarm(this.fallY);
+      this.fallY = 0;
+    }
     const y = this.height - this.stanceT * 0.68 + gy + this.airY + (moving && grounded ? Math.sin(this.bobT) * this.bob : 0);
     this.cam.position.set(this.pos.x, y, this.pos.z);
     this.look.set(

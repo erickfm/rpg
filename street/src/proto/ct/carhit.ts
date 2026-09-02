@@ -33,12 +33,14 @@
 // ⚠ A LEAF, and it never polls the world. `ct/traffic.ts` owns the boxes and
 // the speeds and calls in with one vehicle's frame facts; this owns what a
 // hit COSTS. Imports are `ct/health.ts` (a leaf), the cause line on
-// `ct/gameover.ts`, and the PlayerRef type — no cycle can close through here
-// (GOTCHAS §28: nothing imports this but traffic).
+// `ct/gameover.ts`, the PlayerRef type, and `fp.ts`'s `onFallDamage` hook
+// (fp imports only `ct/stats`, a pure leaf) — no cycle can close through
+// here (GOTCHAS §28: nothing imports this but traffic).
 
 import type { PlayerRef } from './ctx';
 import { damage, health } from './health';
 import { setCauseOfDeath } from './gameover';
+import { onFallDamage } from '../fp';
 
 /** the flat cost of being hit — see the header for why it is exactly 70 */
 export const HIT_DAMAGE = 70;
@@ -140,3 +142,24 @@ export function carHit(o: CarHitInfo): void {
   setCauseOfDeath('HIT BY A CAR');
   damage(HIT_DAMAGE);
 }
+
+// ── THE GROUND IS THE OTHER BUMPER ──────────────────────────────────────────
+//
+// *"lets implement fall damage so if you fall from higher than a set height
+//  its the same damage as getting hit by a car."*   (2026-09-02)
+//
+// "The same damage" is taken literally: the SAME `HIT_DAMAGE`, the same
+// flash, the same jolt — not a copied 70 that drifts the day the car's number
+// is retuned. `fp.ts` owns what a fall IS (the threshold and the measuring
+// live beside its FALL_MIN_DROP, where the movement scale is); this module
+// owns what the landing COSTS, so it registers here, at load, the way traffic
+// wires the boxes. No invulnerability window: a landing is one event per
+// flight by construction — `fp.ts` resets its measure on every grounded
+// frame — so there is nothing to debounce.
+onFallDamage(() => {
+  if (health() <= 0) return;               // the run is already over
+  flash();
+  jolt();
+  setCauseOfDeath('A LONG FALL');
+  damage(HIT_DAMAGE);
+});
