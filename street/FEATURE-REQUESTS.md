@@ -7308,3 +7308,8 @@ the neighbor should make him burp.
 `/home/erick/Pictures/Screenshots/Screenshot from 2026-08-24 14-03-54.png`.
 Fresh builder, screenshot in hand: the coffee sign moves to the border between
 the shops.
+
+## 2026-09-02 — *"ok instead of trhe 3rd floor put us on the 2nd floor"*
+
+Fresh builder, trunk grant expected (the apartment is trunk): the player's home
+moves from the 3rd floor to the 2nd.
