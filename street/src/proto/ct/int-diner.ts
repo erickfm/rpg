@@ -68,9 +68,19 @@ export const DOOR: DoorDecl = {
 // read them, because this is the one thing about this ask that can silently go
 // wrong: windows outside that are not windows inside is the interior/exterior
 // mismatch the user has raised five separate times.
+//
+// ONE BAND, NOT BAYS — *"these windows on the side of the diner seem like order
+// windows, i dont want that i just want like wrap around windows for the diners
+// in the diner itself"* (2026-09-02). The first pass was two 1.70 m punched
+// windows in brick, and punched windows in a brick flank read as hatches. A
+// diner's glazing is a BAND: it starts at the street corner and runs the room,
+// so the glass of the front wraps onto the flank and the people in the booths
+// read through it. 0.12 m of pier at each end (a band still needs a corner
+// post), sill dropped to table height, head up at 2.50 — the kit puts its own
+// mullions in every ~2 m, so nobody hangs a 6.76 m pane.
 const ROOM_D = 7.0;                        // clear room depth, wall face to face
-const PARK_BAYS = [{ at: -2.15, w: 1.70 }, { at: 2.15, w: 1.70 }];
-const PARK_SILL = 0.95, PARK_H = 1.55;     // head at 2.50 in a 3.00 m room
+const PARK_BAYS = [{ at: 0, w: 6.76 }];    // -3.38…3.38 of a -3.5…3.5 flank
+const PARK_SILL = 0.75, PARK_H = 1.75;     // head at 2.50 in a 3.00 m room
 /**
  * WHICH FLANK FACES THE PARK — derived, not typed.
  *
@@ -98,17 +108,15 @@ export function buildDiner(ctx: CtxBuild): void {
     // door, width, the [E] spot on the street and the way back out are all
     // derived from that — see RoomSpec.frontage. Nothing here is typed twice.
     door: { r: 1.05, at: DOOR.at, width: DOOR.width },
-    // ── AND THE PARK FLANK IS GLAZED ────────────────────────────────────────
+    // ── AND THE PARK FLANK IS GLAZED, WALL TO WALL ─────────────────────────
     //
-    // Two bays either side of a 2.6 m pier, 0.5 m in from each corner. That
-    // rhythm is not a preference, it is what the room already contains: the
-    // HELP WANTED station stands on this wall at local z 0.20 and spans about
-    // -0.43 … 1.10 (`jobStation`'s three columns), and it is pinned there —
-    // the aisle band between the counter front at z -1.69 and the booth bank's
-    // collider at z 1.74 is the only stretch of this wall a customer can stand
-    // in front of. So the pier is where the paperwork is, and the glass is
-    // where the room is empty: one bay looking out past the end of the counter,
-    // one beside the last booth, which is the one you actually sit in.
+    // One continuous band (see PARK_BAYS above — the two punched bays read as
+    // order windows and the user said so). The HELP WANTED station still
+    // stands on this wall at local z 0.20 spanning about -0.43 … 1.10, and it
+    // stays: it hangs 0.23 m in front of the glass line now, which is where a
+    // diner's paperwork actually lives — taped up in the window, read from
+    // the aisle between the counter front at z -1.69 and the booth bank's
+    // collider at z 1.74.
     //
     // NOTHING ELSE ON THIS WALL MOVES. The jukebox and the cigarette machine
     // are on the OTHER flank (`wallSide = -away`), the counter is 7.8 m centred
@@ -607,7 +615,9 @@ export function buildDiner(ctx: CtxBuild): void {
   // On the side wall OPPOSITE the jukebox wall (the `away` side, wherever the
   // door has pushed it — nothing in this room may hard-code which end is
   // free), in the aisle band between the counter front (z -1.69) and the
-  // booth bank (solid starts z 1.74).
+  // booth bank (solid starts z 1.74). That wall is the park band's glass now
+  // (PARK_BAYS above), so the station hangs in front of the window the way a
+  // diner's HELP WANTED actually does — taped up in the glass.
   jobStation(ctx, room, 'ct-shop-diner', {
     x: away * (hw - 0.04), z: 0.2,
     rotY: away > 0 ? -Math.PI / 2 : Math.PI / 2,
@@ -615,7 +625,15 @@ export function buildDiner(ctx: CtxBuild): void {
 }
 
 /**
- * THE SAME TWO WINDOWS, ON THE OUTSIDE — the park elevation of the DINER.
+ * THE SAME BAND, ON THE OUTSIDE — the park elevation of the DINER.
+ *
+ * Wrap-around glazing in the front's own vocabulary (*"i just want like wrap
+ * around windows for the diners in the diner itself"*, 2026-09-02): one
+ * continuous run of glass from the street corner back along the room, steel
+ * head band over it, steel cill under it, painted mullions on the thirds —
+ * the same thirds the kit's interior mullions land on, so inside and outside
+ * agree bar for bar — and through the glass the booth backs, the tables and
+ * the people eating at them.
  *
  * ── WHY THIS IS IN AN `int-*.ts` FILE, WHICH IS NOT WHERE IT BELONGS ────────
  *
@@ -636,7 +654,7 @@ export function buildDiner(ctx: CtxBuild): void {
  * ── NO COLLIDER CHANGES, AND NO FOOTPRINT CHANGE ───────────────────────────
  *
  * Nothing here is registered solid and nothing moves. The deepest thing it adds
- * is a 0.11 m stone cill at 0.90 m, projecting into the PARK — not into the
+ * is a 0.11 m steel cill at 0.70 m, projecting into the PARK — not into the
  * 2 m walking lane, which is on the far side of the building — and 0.11 is
  * inside the 0.12 m (`WALK_PROJECTION`) the block already reserves in front of
  * every shopfront on the street.
@@ -663,49 +681,79 @@ function parkElevation(ctx: CtxBuild): void {
   const facadeX = DOOR.side * FACE;
   const wxOf = (lz: number) => facadeX + DOOR.side * (ROOM_D / 2 - lz);
 
-  // ── the pane, and the diner behind it ─────────────────────────────────────
+  // ── the band, and the diner behind it ─────────────────────────────────────
+  //
+  // Painted in the shopfront's own colours (`tex-world.ts`'s dinerFront:
+  // DINER_STEEL '#9aa0a4', its dark '#6e747a', the vinyl, warm ceiling
+  // '#d8b46a') so the glass that turns the corner is recognisably the same
+  // glass. What shows through it is the flank's own view of the room: the row
+  // of booths side-on — vinyl backs, formica between them, and people sitting
+  // at them, which is the whole point of the ask.
   const PXM = 40;
-  const PW = Math.round(PARK_BAYS[0].w * PXM), PH = Math.round(PARK_H * PXM);
+  const b = PARK_BAYS[0];
+  const PW = Math.round(b.w * PXM), PH = Math.round(PARK_H * PXM);
+  const px = (v: number) => Math.round(v * PXM);
   const paneT = declareSurface(pixTex(PW, PH, (g) => {
-    g.fillStyle = '#2e2a26'; g.fillRect(0, 0, PW, PH);                 // the reveal
-    g.fillStyle = '#4f5f63'; g.fillRect(3, 3, PW - 6, PH - 6);         // glass
-    // what you can make out through it, in the room's own colours: the lit
-    // ceiling, the red vinyl of the booth backs and the formica between them
-    g.fillStyle = '#6a5a3e'; g.fillRect(3, PH - 26, PW - 6, 23);
-    g.fillStyle = '#7a2a28'; g.fillRect(6, PH - 20, 22, 17);
-    g.fillStyle = '#7a2a28'; g.fillRect(PW - 28, PH - 20, 22, 17);
-    g.fillStyle = '#c8bfa4'; g.fillRect(30, PH - 15, PW - 60, 5);
-    g.fillStyle = '#d8c8a0'; g.fillRect(3, 5, PW - 6, 5);
-    // the sky, reflected in the top light above the transom
-    g.fillStyle = 'rgba(196,212,224,0.34)'; g.fillRect(3, 3, PW - 6, 14);
-    g.fillStyle = 'rgba(255,255,255,0.10)';
-    for (let i = 0; i < 3; i++) g.fillRect(9 + i * 20, 20, 3, PH - 26);
+    const STEEL = '#9aa0a4', STEEL_D = '#6e747a', VINYL = '#7a2a28';
+    g.fillStyle = '#2e2a26'; g.fillRect(0, 0, PW, PH);                 // the frame
+    g.fillStyle = '#4f5f63'; g.fillRect(2, 2, PW - 4, PH - 4);         // glass
+    // the warm lit ceiling at the head, falling off into the room tone
+    g.fillStyle = '#d8b46a'; g.fillRect(2, 2, PW - 4, px(0.20));
+    g.fillStyle = 'rgba(216,180,106,0.30)'; g.fillRect(2, 2 + px(0.20), PW - 4, px(0.42));
+    g.fillStyle = '#584a38'; g.fillRect(2, px(0.62), PW - 4, PH - px(0.62) - 2);
+    // the booths, side-on: vinyl backs on a 1.9 m pitch, a strip of formica
+    // table between each pair, and over some of them a head and shoulders —
+    // the diners the band exists to show
+    const backH = px(0.50), backY = PH - backH - 2;
+    let n = 0;
+    for (let x = px(0.35); x < PW - px(1.0); x += px(1.9), n++) {
+      g.fillStyle = VINYL; g.fillRect(x, backY, px(1.05), backH);
+      g.fillStyle = 'rgba(216,180,106,0.22)'; g.fillRect(x, backY, px(1.05), 2);
+      g.fillStyle = '#c8bfa4'; g.fillRect(x + px(1.15), PH - px(0.14), px(0.65), px(0.10));
+      if (n % 3 !== 1) {                       // most booths are taken, not all
+        const hx = x + px(0.25) + (n % 2) * px(0.45);
+        g.fillStyle = '#3a3028'; g.fillRect(hx, backY - px(0.28), px(0.30), px(0.28));
+        g.fillStyle = n % 2 ? '#6a5546' : '#4a4238';                   // a face, a shirt
+        g.fillRect(hx + px(0.06), backY - px(0.24), px(0.18), px(0.12));
+      }
+    }
     // the transom bar, at the SAME 0.72 of the opening the kit's front window
     // and the room's own flank window put it — so the two runs line up.
-    g.fillStyle = '#8f8a7c';
-    g.fillRect(3, Math.round(PH * (1 - 0.72)) - 1, PW - 6, 3);
+    const ty = Math.round(PH * (1 - 0.72));
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(2, ty - 2, PW - 4, 2);
+    g.fillStyle = STEEL; g.fillRect(2, ty, PW - 4, 2);
+    // mullions ON THE THIRDS — Math.round(6.76/2) = 3 bays is exactly what the
+    // kit builds inside, so these are the interior mullions seen from the park
+    g.fillStyle = STEEL_D;
+    for (let i = 1; i < 3; i++) g.fillRect(Math.round((PW * i) / 3) - 1, 2, 3, PH - 4);
+    // the sky in the top light, and a few faint standing reflections
+    g.fillStyle = 'rgba(196,212,224,0.30)'; g.fillRect(2, 2, PW - 4, px(0.24));
+    g.fillStyle = 'rgba(255,255,255,0.08)';
+    for (let i = 0; i < 7; i++) g.fillRect(px(0.5) + i * px(0.95), ty + 3, 2, PH - ty - 8);
+    // grime at the foot, the way everything on this street wears it
+    g.fillStyle = 'rgba(58,54,44,0.18)'; g.fillRect(2, PH - px(0.12), PW - 4, px(0.12));
     dither(g, PW, PH, Math.round(PW * PH * 0.04));
   }), 'detail');
 
-  const stoneM = new THREE.MeshBasicMaterial({ color: 0x8a7a62 });
-  const headM = new THREE.MeshBasicMaterial({ color: 0x7a6a54 });
+  const steelM = new THREE.MeshBasicMaterial({ color: 0x6e747a });
+  const headM = new THREE.MeshBasicMaterial({ color: 0x848a8e });
   const group = new THREE.Group();
   group.userData.mod = 'int-diner';
   ctx.scene.add(group);
 
-  for (const b of PARK_BAYS) {
-    const x = wxOf(b.at);
-    const pane = new THREE.Mesh(new THREE.PlaneGeometry(b.w, PARK_H), ctx.flat(paneT));
-    pane.rotation.y = Math.PI;                 // faces -z, out into the park
-    pane.position.set(x, PARK_SILL + PARK_H / 2, WALL_Z - PROUD);
-    group.add(pane);
-    // the cill it sits on and the lintel over it, which is what makes a hole in
-    // brick read as a window rather than as a poster of one
-    const cill = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.26, 0.10, 0.11), stoneM);
-    cill.position.set(x, PARK_SILL - 0.05, WALL_Z - 0.055);
-    group.add(cill);
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.26, 0.17, 0.09), headM);
-    lintel.position.set(x, PARK_SILL + PARK_H + 0.085, WALL_Z - 0.045);
-    group.add(lintel);
-  }
+  const x = wxOf(b.at);
+  const pane = new THREE.Mesh(new THREE.PlaneGeometry(b.w, PARK_H), ctx.flat(paneT));
+  pane.rotation.y = Math.PI;                   // faces -z, out into the park
+  pane.position.set(x, PARK_SILL + PARK_H / 2, WALL_Z - PROUD);
+  group.add(pane);
+  // steel cill under the run and a steel head band over it — the band is what
+  // says "one window that keeps going", where a stone cill and lintel per
+  // hole said "hatch". Depths unchanged from the punched version: the cill's
+  // 0.11 m is still the deepest thing here, into the PARK, not the lane.
+  const cill = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.26, 0.10, 0.11), steelM);
+  cill.position.set(x, PARK_SILL - 0.05, WALL_Z - 0.055);
+  group.add(cill);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.26, 0.22, 0.09), headM);
+  head.position.set(x, PARK_SILL + PARK_H + 0.11, WALL_Z - 0.045);
+  group.add(head);
 }
