@@ -7313,3 +7313,8 @@ the shops.
 
 Fresh builder, trunk grant expected (the apartment is trunk): the player's home
 moves from the 3rd floor to the 2nd.
+
+## 2026-09-02 — *"sidewalks i think could be a bit wider as well"*
+
+Fresh builder: the sidewalks get a bit wider. Geometry/collision care; stop and
+report if it needs the trunk while the floor-move builder holds it.
