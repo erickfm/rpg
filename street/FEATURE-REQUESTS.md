@@ -7324,3 +7324,9 @@ report if it needs the trunk while the floor-move builder holds it.
 Park redesign, fresh builder: center area out, pond with real depth in, park
 otherwise flat, more bushes (hoppable), boulders in the pond to hop across.
 First pass goes up rough for his eye.
+
+## 2026-09-02 — *"sidewalks are wider but the squares forming it are the same size. i liked when the sidewalk was exactly two squares wide"*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-09-02 16-15-20.png`.
+Back to the sidewalk builder (its own pass): the paving squares scale so the
+wider walk is exactly two squares again.
