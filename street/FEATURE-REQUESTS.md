@@ -7330,3 +7330,9 @@ First pass goes up rough for his eye.
 `/home/erick/Pictures/Screenshots/Screenshot from 2026-09-02 16-15-20.png`.
 Back to the sidewalk builder (its own pass): the paving squares scale so the
 wider walk is exactly two squares again.
+
+## 2026-09-02 — *"these windows on the side of the diner seem like order windows, i dont want that i just want like wrap around windows for the diners in the diner itself"*
+
+`/home/erick/Pictures/Screenshots/Screenshot from 2026-09-02 16-16-07.png`.
+Fresh builder, screenshot in hand: the diner's side windows stop reading as
+order windows and become wrap-around diner glazing.
