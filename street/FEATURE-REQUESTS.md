@@ -7318,3 +7318,9 @@ moves from the 3rd floor to the 2nd.
 
 Fresh builder: the sidewalks get a bit wider. Geometry/collision care; stop and
 report if it needs the trunk while the floor-move builder holds it.
+
+## 2026-09-02 — *"id like a redesign of the park lets get rid of the center area entirerly and replace it with a pond. the pond has depth but other wise the park is flat. also theres more bushes. you can hop on em. also there are like boulders in the pond you can hop on to cross the pond"*
+
+Park redesign, fresh builder: center area out, pond with real depth in, park
+otherwise flat, more bushes (hoppable), boulders in the pond to hop across.
+First pass goes up rough for his eye.
