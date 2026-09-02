@@ -1576,10 +1576,42 @@ export function makeCrosstown(): Proto {
     // room you have just left. No seat is currently that close to a door;
     // this is here so that the first one somebody registers is not a bug.
     if (rig.seated) rig.stand();
+    // …and off the ladder first, for exactly the same reason: a warp taken
+    // mid-climb would otherwise land you still holding a climb state whose
+    // rail line is 600 m behind you. `dismount()` is the no-fall exit — the
+    // warp is about to move you anyway.
+    if (rig.climbing) rig.dismount();
     rig.pos.set(x, rig.pos.y, z);
     rig.yaw = yaw;
     apt.setGy(gy);
   };
+  // ── THE ALLEY LADDER UP No. 227 — the roof access ────────────────────────
+  //
+  // *"lets make it so the fire escape on the side of the building is actually
+  // a ladder instead and allows you to have roof access."* (2026-09-02.)
+  // ct/pawn-alley.ts draws the ladder, ct/street.ts publishes its pose, and
+  // fp.ts owns the climb (see LadderPose there: W/S on the rungs, SPACE lets
+  // go, both ends step you off on their own). This is only the [E] wiring —
+  // one spot at the foot, one at the roof lip, registered here because the
+  // spots need the rig and street.ts never sees it.
+  //
+  // BOTH GATED BY `feetY`, because `pickSpot` reasons only in x/z and these
+  // two spots are 18.6 m of the SAME x/z apart: without the gate the foot
+  // spot would be offered to a player standing on the roof directly over it.
+  if (street.ladder) {
+    const L = street.ladder;
+    SPOTS.push({
+      x: L.bottom.x, z: L.bottom.z, r: 1.1, aimX: L.x, aimZ: L.z,
+      label: () => 'climb the ladder',
+      ok: () => !rig.climbing && !rig.seated && rig.feetY < L.y0 + 2,
+      act: () => rig.climb(L, 'bottom'),
+    }, {
+      x: L.top.x, z: L.top.z, r: 1.2, aimX: L.x, aimZ: L.z,
+      label: () => 'climb down the ladder',
+      ok: () => !rig.climbing && !rig.seated && rig.feetY > L.y1 - 1.5,
+      act: () => rig.climb(L, 'top'),
+    });
+  }
   // ── DIEGETIC SCREEN FOCUS ────────────────────────────────────────────────
   //
   // *"i want when i hit e here to adjust my position and perspective and lock it

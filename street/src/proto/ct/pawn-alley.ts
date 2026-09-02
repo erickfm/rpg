@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { pixTex, declareSurface } from './paint';
 import { ALLEY2_SLAB_Y } from './alley-floor';
+import type { LadderPose } from '../fp';
 
 /** THE PAWN ALLEY'S WALLS — the vertical half of the dressing.
  *
@@ -23,8 +24,9 @@ import { ALLEY2_SLAB_Y } from './alley-floor';
  *  player needs to walk. Two rules, applied to every object here:
  *
  *    · nothing protrudes more than 0.14 m below 2.2 m — the height a body
- *      occupies. The fire escape and the cables are ABOVE that, where they cost
- *      nothing and still read from the ground.
+ *      occupies. The cables are ABOVE that, and the roof ladder (which
+ *      replaced the fire escape and must reach the ground) hugs the brick at
+ *      0.125 m, inside the rule.
  *    · nothing intersects anything. *"trash cannot be clipping through stuff
  *      like this"*, and in a slot this tight objects are close enough that it
  *      would happen by accident.
@@ -39,10 +41,13 @@ export function buildPawnAlley(o: {
   /** the slot: x runs X0…X1, z from Z0 (north, the walk-up) to Z1 (south, pawn) */
   X0: number; X1: number; Z0: number; Z1: number;
   H: number;
+  /** the top of No. 227 itself — the roof the ladder reaches. `H` is the
+   *  taller of the two flanks and cannot stand in for it. */
+  resTop: number;
   flat: (t: THREE.Texture) => THREE.MeshBasicMaterial;
   solid: (b: { minX: number; maxX: number; minZ: number; maxZ: number }) => void;
-}) {
-  const { scene, X0, X1, Z0, Z1, H, flat } = o;
+}): LadderPose {
+  const { scene, X0, X1, Z0, Z1, H, resTop, flat } = o;
   const NORTH = Z0 - 0.02;          // the walk-up's flank, where people live
   const SOUTH = Z1 + 0.02;          // the pawn shop's back
   // ── EVERY `y` BELOW IS METRES ABOVE THE ALLEY FLOOR, NOT ABOVE ZERO ───────
@@ -121,24 +126,36 @@ export function buildPawnAlley(o: {
     add(stain);
   }
 
-  // ── the fire escape, ABOVE head height ────────────────────────────────────
+  // ── THE LADDER TO THE ROOF, where the fire escape used to hang ────────────
   //
-  // No. 227 is five storeys of flats and this is the back of them, so a fire
-  // escape is the one thing this wall must have. It starts at 2.6 m — a real
-  // one does, because the bottom flight is counterweighted and hangs clear of
-  // the street — which is also exactly why it costs a walker nothing here.
+  // *"lets make it so the fire escape on the side of the building is actually
+  // a ladder instead and allows you to have roof access."* (2026-09-02.) So
+  // the three counterweighted landings are gone and this is ONE full-height
+  // steel access ladder: foot on the paving, head rail over No. 227's
+  // parapet, and it is REAL — `fp.ts` climbs it (see `LadderPose` there;
+  // `ct/street.ts` publishes this pose and `crosstown.ts` wires the two [E]
+  // spots, foot and roof lip).
+  //
+  // The alley's standing rule — nothing protrudes more than 0.14 m below
+  // 2.2 m — still holds even though this now reaches the ground: the rungs
+  // sit 0.11 m off the wall and their face stops at 0.125, tighter to the
+  // brick than the downpipe's shoe. The line the rig holds you to while
+  // climbing is 0.45 m out — the wall's collider plus the player's radius.
+  const LADDER_X = X0 + 4.1;
   {
-    const bars = new THREE.MeshBasicMaterial({ color: 0x33363b });
-    for (let f = 0; f < 3; f++) {
-      const y = 2.6 + f * 2.4;
-      box(1.9, 0.05, 0.62, X0 + 3.4, y, NORTH - 0.33, bars);            // landing
-      box(1.9, 0.03, 0.03, X0 + 3.4, y + 0.44, NORTH - 0.62, bars);     // handrail
-      for (const rx of [-0.9, 0.9]) box(0.03, 0.44, 0.03, X0 + 3.4 + rx, y + 0.22, NORTH - 0.62, bars);
-      // the ladder up to the next landing, leaning against the wall
-      if (f < 2) {
-        for (const sx of [-0.22, 0.22]) box(0.03, 2.4, 0.03, X0 + 4.1 + sx, y + 1.2, NORTH - 0.28, bars);
-        for (let r = 0; r < 7; r++) box(0.44, 0.02, 0.02, X0 + 4.1, y + 0.3 + r * 0.32, NORTH - 0.28, bars);
-      }
+    const steel = galvLo;
+    const topL = resTop - Y + 0.95;        // head rail clears the 0.62 m parapet
+    // the two stringers, full height
+    for (const sx of [-0.22, 0.22]) {
+      box(0.05, topL - 0.1, 0.04, LADDER_X + sx, (topL + 0.1) / 2, NORTH - 0.11, steel);
+    }
+    // the rungs, ankle to lip
+    for (let ry = 0.35; ry < resTop - Y + 0.35; ry += 0.31) {
+      box(0.40, 0.025, 0.025, LADDER_X, ry, NORTH - 0.11, steel);
+    }
+    // standoff brackets every storey — what says BOLTED ON rather than leant
+    for (let by = 1.2; by < resTop - Y; by += 2.4) {
+      for (const sx of [-0.22, 0.22]) box(0.04, 0.05, 0.12, LADDER_X + sx, by, NORTH - 0.055, steel);
     }
   }
 
@@ -233,4 +250,18 @@ export function buildPawnAlley(o: {
     box(0.20, 0.05, 0.05, BX - 0.16, 0.66, NORTH - 0.13, frame);          // saddle
     box(0.03, 0.9, 0.03, BX + 0.6, 0.45, NORTH - 0.10, iron);             // the rail
   }
+
+  // ── the pose the rig climbs — see `LadderPose` in fp.ts ───────────────────
+  //
+  // `y0`/`y1` are FEET heights in world Y: the paving and the roof deck. The
+  // two step-off points are chosen off real clearances — `bottom` is 0.75 m
+  // out, past the north wall's 0.12 collider plus the 0.3456 player radius
+  // and still a metre clear of the pawn side; `top` is 1.1 m inside the roof,
+  // past the parapet's 0.3 m upstand.
+  return {
+    x: LADDER_X, z: Z0 - 0.45, yaw: Math.PI,
+    y0: Y, y1: resTop,
+    top: { x: LADDER_X, z: Z0 + 1.1 },
+    bottom: { x: LADDER_X, z: Z0 - 0.75 },
+  };
 }

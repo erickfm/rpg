@@ -424,6 +424,35 @@ export const SIT_EYE = 0.72;
  *  this line existed. */
 export const PITCH_LIMIT = 1.3;
 
+/** A ladder you can actually climb — the alley ladder up No. 227's flank.
+ *  All coordinates are WORLD coordinates. The rig is handed one of these by
+ *  `climb()` and while it holds it, movement is the ladder line and nothing
+ *  else: x/z pinned to the rail, W/S trade height, and the only ways off are
+ *  the two ends and letting go (SPACE — you fall, exactly the step-off fall
+ *  of item 130). Kept as its own state, like `seat`, rather than threaded
+ *  through the walk code: one early block, one return, no `climbing` check
+ *  scattered through the integrator. */
+export interface LadderPose {
+  /** where your body hangs while on the rungs — a fixed line just off the wall */
+  x: number; z: number;
+  /** which way you face to climb — square into the wall. Rig convention:
+   *  0 = −z, π = +z. */
+  yaw: number;
+  /** feet height at the foot of the ladder, world Y */
+  y0: number;
+  /** feet height at the roof lip — climbing past it steps you off onto `top` */
+  y1: number;
+  /** where stepping off at the top puts you: on the roof, inside the parapet */
+  top: { x: number; z: number };
+  /** where stepping off at the bottom puts you: on the ground, clear of the wall */
+  bottom: { x: number; z: number };
+}
+
+/** Climbing pace, m/s of rung. ONE gait: SHIFT, the crouch cut and the hop
+ *  stack all stay on the ground — a ladder is arms, not legs — so nothing
+ *  about the tuned walk/sprint/bhop arithmetic composes into this number. */
+const CLIMB_SPEED = 1.6;
+
 /** Where a seat puts you. Modules describe seats through `ctx.seat()`; this is
  *  what the rig is actually handed. */
 export interface SeatPose {
@@ -541,6 +570,13 @@ export class FPRig {
   // guess at a clear direction and would sooner or later guess into a table.
   private seat: SeatPose | null = null;
   private standFrom: { x: number; z: number } | null = null;
+  // ── climbing ──
+  //
+  // The ladder you are on, and where your FEET are on it, world Y. Same
+  // ownership argument as `seat`: the rig is the only thing that owns where
+  // the body is, so the climb lives here and modules only ever say "get on".
+  private ladder: LadderPose | null = null;
+  private climbY = 0;
   // the last place we were standing legally, and the backstop for a wedge the
   // axis pushes cannot solve. Seeded to spawn, which is always clear.
   private lastGood = { x: 0, z: 0 };
@@ -622,7 +658,7 @@ export class FPRig {
 
   /** Take a seat. Remembers where you were standing so `stand()` can undo it. */
   sit(pose: SeatPose): void {
-    if (this.seat) return;
+    if (this.seat || this.ladder) return;   // no chair is reachable from a rung
     this.standFrom = { x: this.pos.x, z: this.pos.z };
     this.seat = pose;
     this.pos.x = pose.x; this.pos.z = pose.z;
@@ -702,6 +738,77 @@ export class FPRig {
     // compares this spot's floor against the one you sat down from — which
     // under item 130 is a fall out of a chair rather than a no-op.
     this.support = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
+    this.lastX = this.pos.x; this.lastZ = this.pos.z;
+  }
+
+  /** are you on a ladder right now */
+  get climbing(): boolean { return this.ladder !== null; }
+  /** Where your feet were at the end of last frame, world Y. Published so the
+   *  ladder's two [E] spots can gate by storey — the foot spot must not be
+   *  offered to somebody standing on the roof 18 m above it, and `pickSpot`
+   *  only ever reasons in x/z. */
+  get feetY(): number { return this.lastWorldY; }
+
+  /** Step onto a ladder. `from` says which end you got on at. Same discipline
+   *  as `sit()`: cancel anything mid-flight, kill the hop chain and the
+   *  board's momentum, and re-base the step-off state on the rail line so the
+   *  mount can never read as a floor that dropped away. */
+  climb(l: LadderPose, from: 'bottom' | 'top'): void {
+    if (this.seat || this.ladder) return;
+    this.ladder = l;
+    this.climbY = from === 'bottom' ? l.y0 : l.y1;
+    this.pos.x = l.x; this.pos.z = l.z;
+    this.yaw = l.yaw;
+    this.airY = 0; this.vy = 0; this.air = false;
+    // swallow a SPACE still held from the jump that got you here — a held key
+    // must not read as "let go" on the very first climbing frame
+    this.jumpHeld = true;
+    this.bhop = 0; this.groundT = 999; this.glide = 0;
+    // …and the published board view with it: while the climb block owns the
+    // frame nothing below republishes RIDE_VIEW, so a stale carve here would
+    // keep the wheels sounding all the way up the wall.
+    RIDE_VIEW.speed = 0; RIDE_VIEW.lean = 0; RIDE_VIEW.airY = 0;
+    this.support = this.climbY;
+    this.lastWorldY = this.climbY; this.footY = this.climbY + this.tuck;
+    this.lastX = l.x; this.lastZ = l.z;
+  }
+
+  /** Off the ladder WITHOUT the fall — for a teleport that is about to move
+   *  you anyway (`__ct.warp`, a door). Feet go back to the ground at the
+   *  ladder's foot; the warp then puts them wherever it likes. */
+  dismount(): void {
+    if (!this.ladder) return;
+    const l = this.ladder;
+    this.dismountTo(l.bottom.x, l.bottom.z,
+      this.groundY ? this.groundY(l.bottom.x, l.bottom.z) : l.y0);
+  }
+
+  /** Put your feet somewhere and stand there — how every climb ends. The
+   *  re-base is the load-bearing half: `footY` at the roof height is what
+   *  lets next frame's `standTop` credit the roof collider's `maxY` and hold
+   *  you up, and `support` moving with it is what keeps the arrival from
+   *  reading as an 18 m fall. */
+  private dismountTo(x: number, z: number, feet: number): void {
+    this.ladder = null;
+    this.pos.x = x; this.pos.z = z;
+    this.airY = 0; this.vy = 0;
+    this.support = feet;
+    this.lastWorldY = feet; this.footY = feet + this.tuck;
+    this.lastX = x; this.lastZ = z;
+  }
+
+  /** Let go mid-climb: off the rungs where you are, and gravity owns the
+   *  rest. The height you had becomes `airY` so world Y does not move this
+   *  frame — the same shape as the step-off fall (item 130). */
+  private release(): void {
+    if (!this.ladder) return;
+    const l = this.ladder;
+    this.ladder = null;
+    const gy = this.groundY ? this.groundY(l.x, l.z) : 0;
+    this.airY = Math.max(0, this.climbY - gy);
+    this.vy = 0;
+    this.support = gy;
+    this.lastWorldY = gy + this.airY; this.footY = this.lastWorldY + this.tuck;
     this.lastX = this.pos.x; this.lastZ = this.pos.z;
   }
 
@@ -915,6 +1022,63 @@ export class FPRig {
       );
       this.cam.lookAt(this.cam.position.x + this.look.x, sy + this.look.y, this.cam.position.z + this.look.z);
       return;
+    }
+
+    // ── on a ladder: you can look, and you can go up or down ─────────────────
+    //
+    // Shaped like the seated block above — one state, one early return — and
+    // for the same reason: a `climbing` check threaded through the movement
+    // code is a shuffle-off-the-rung bug waiting for the branch somebody
+    // misses. W climbs, S descends, at CLIMB_SPEED and no other; SHIFT, the
+    // crouch cut and the hop stack never compose into it. Three ways off,
+    // every one of them handled HERE:
+    //   · past the top    → dismountTo(top): feet on the roof, and the frame
+    //                       FALLS THROUGH into normal movement, so the same
+    //                       press of W that topped the lip walks you onto the
+    //                       deck with no dead frame
+    //   · below the foot  → dismountTo(bottom): feet on the ground, same
+    //                       fall-through
+    //   · SPACE           → release(): you let go and fall from where you are
+    // Escape is deliberately NOT bound — it stays the menu key, and a ladder
+    // is not a trap: both ends are open and W/S always work.
+    if (this.ladder) {
+      const l = this.ladder;
+      // the same run-downs the seat does — a ladder is not a crouch or a tuck
+      this.crouchT += (0 - this.crouchT) * Math.min(1, dt * 9);
+      this.stanceT += (0 - this.stanceT) * Math.min(1, dt * 9);
+      this.tuck += (0 - this.tuck) * Math.min(1, dt * TUCK_EASE);
+      const jd = input.keys.has(' ');
+      const letGo = jd && !this.jumpHeld;
+      this.jumpHeld = jd;
+      if (letGo) {
+        this.release();   // the integrator below owns the fall from here
+      } else {
+        this.climbY += ((input.keys.has('w') ? 1 : 0) - (input.keys.has('s') ? 1 : 0))
+          * CLIMB_SPEED * dt;
+        if (this.climbY >= l.y1) {
+          this.dismountTo(l.top.x, l.top.z, l.y1);        // over the lip
+        } else if (this.climbY <= l.y0) {
+          this.dismountTo(l.bottom.x, l.bottom.z,          // feet back down
+            this.groundY ? this.groundY(l.bottom.x, l.bottom.z) : l.y0);
+        } else {
+          // still on the rungs: hold the rail line, publish the frame, done.
+          // A slight bob keyed to the rungs would be nice; it is not worth a
+          // second bob path — the height change itself reads as the climb.
+          this.pos.x = l.x; this.pos.z = l.z;
+          this.support = this.climbY;
+          this.lastWorldY = this.climbY; this.footY = this.climbY + this.tuck;
+          this.lastX = l.x; this.lastZ = l.z;
+          const cy = this.height - this.stanceT * 0.68 + this.climbY;
+          this.cam.position.set(l.x, cy, l.z);
+          this.look.set(
+            Math.sin(this.yaw) * Math.cos(this.pitch),
+            Math.sin(this.pitch),
+            -Math.cos(this.yaw) * Math.cos(this.pitch),
+          );
+          this.cam.lookAt(this.cam.position.x + this.look.x, cy + this.look.y, this.cam.position.z + this.look.z);
+          return;
+        }
+      }
     }
 
     // Where your feet actually are, as of the moment the LAST frame ended —

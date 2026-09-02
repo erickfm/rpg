@@ -11,7 +11,7 @@ import type { CtxBuild } from './ctx';
 import { buildCivic, type BldSpec } from './civic';
 import { buildVice } from './vice';
 import { L, ROAD_HALF, WALK, FACE } from './rng';
-import { type AABB } from '../fp';
+import { type AABB, type LadderPose } from '../fp';
 import { buildAlley } from './alley';
 import { buildPawnAlley } from './pawn-alley';
 import { buildBodegaCorner } from './bodega-corner';
@@ -653,10 +653,18 @@ export function buildStreet(o: {
     shop.position.set(cx, gh / 2, cz);
     scene.add(shop);
     roofKit(cx, cz, dep, b.w, gh + h, b.nm || 'res');
-    // collision follows the real footprint, not a fixed 8 m guess
+    // collision follows the real footprint, not a fixed 8 m guess.
+    //
+    // THE WALK-UP'S ROOF IS A FLOOR (2026-09-02: *"…allows you to have roof
+    // access"* — the alley ladder). Declaring `maxY` on No. 227's box is the
+    // whole of that floor: fp.ts's `standTop` holds feet that are already at
+    // the top, and `blocked()`/`escapeFrom` exempt a box only for a body at
+    // or above `maxY` — 18.6 m up — so nothing at street level, indoors or
+    // out, moves by a millimetre. Every other shell stays a wall at every
+    // height, exactly as before.
     solid(side < 0
-      ? { minX: fx - dep, maxX: fx + CUSH, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 }
-      : { minX: fx - CUSH, maxX: fx + dep, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 });
+      ? { minX: fx - dep, maxX: fx + CUSH, minZ: cz - b.w / 2, maxZ: cz + b.w / 2, ...(b.res ? { maxY: gh + h } : {}) }
+      : { minX: fx - CUSH, maxX: fx + dep, minZ: cz - b.w / 2, maxZ: cz + b.w / 2, ...(b.res ? { maxY: gh + h } : {}) });
   };
   // ── civic stone ─────────────────────────────────────────────────────────
   //
@@ -1434,6 +1442,9 @@ export function buildStreet(o: {
     });
   }
 
+  // the alley ladder up No. 227's flank, published to crosstown.ts so it can
+  // wire the [E] spots against the rig — see `LadderPose` in fp.ts
+  let alleyLadder: LadderPose | null = null;
   // ── the PAWN alley: bare shell only ─────────────────────────────────────
   //
   // *"a very narrow, long, and detailed alley in between the pawn shop and my
@@ -1495,7 +1506,11 @@ export function buildStreet(o: {
     solid({ minX: A2_X1, maxX: A2_X1 + 0.4, minZ: A2_Z1, maxZ: A2_Z0 });
     // …and the walls' dressing. The FLOOR half — channel, drain, ground vents —
     // is B's in ct/tex-ground.ts and deliberately not here.
-    buildPawnAlley({ scene, X0: A2_X0, X1: A2_X1, Z0: A2_Z0, Z1: A2_Z1, H: A2_H, flat, solid });
+    // `resTop` is No. 227's own roof, which the ladder must reach exactly —
+    // `A2_H` is the taller flank and cannot stand in for it. It is also the
+    // same `gh + h` the walk-up's collider now declares as `maxY` in
+    // `placeBld`, which is what makes the roof the ladder arrives at a floor.
+    alleyLadder = buildPawnAlley({ scene, X0: A2_X0, X1: A2_X1, Z0: A2_Z0, Z1: A2_Z1, H: A2_H, resTop: topOf(res), flat, solid });
   }
 
   stampFrom(STREET_MARK, 'street');
@@ -1505,5 +1520,5 @@ export function buildStreet(o: {
   // it rather than leaving it unread is deliberate: an unread list is a trap
   // for whoever next writes `colliders.push(b)` here and wonders why the crowd
   // ignores their building.
-  return { park: PARK, lot: LOT, jail: JAIL, setWindows };
+  return { park: PARK, lot: LOT, jail: JAIL, setWindows, ladder: alleyLadder };
 }
