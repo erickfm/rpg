@@ -7336,3 +7336,10 @@ wider walk is exactly two squares again.
 `/home/erick/Pictures/Screenshots/Screenshot from 2026-09-02 16-16-07.png`.
 Fresh builder, screenshot in hand: the diner's side windows stop reading as
 order windows and become wrap-around diner glazing.
+
+## 2026-09-02 — *"lets make the guy who sells cocaine only available at night. otherwise hes not there. also lets make it so the fire escape on the side of the building is actually a ladder instead and allows you to have roof access. also lets implement fall damage so if you fall from higher than a set height its the same damage as getting hit by a car."*
+
+Three asks, split: (1) dealer only at night — fresh builder; (2) fire escape
+becomes a climbable ladder with roof access — fresh builder, trunk grant for
+the movement half; (3) fall damage equal to a car hit past a set height —
+queued behind (2), same trunk.
