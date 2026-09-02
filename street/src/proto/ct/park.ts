@@ -493,7 +493,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   //
   // A path does not have corners; it has a plan. So the plan is ONE closed
   // octagonal ring, and everything that follows the loop — the surface, the
-  // edging, the hoop rail — is generated from that one function at a different
+  // edging — is generated from that one function at a different
   // offset. Nothing can fail to mitre, because nothing is drawn twice, and the
   // §6 y-separation hack the old corners needed is gone with them: there is not
   // one overlapping pair of coplanar surfaces left in the loop.
@@ -758,9 +758,28 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // picker and `site.displace` — so the depth you SEE is the depth you WADE.
   // There is no trap in it: the banks are continuous slopes from the same
   // profile, so walking out is just walking uphill, from every direction.
-  const PND_X = (fx0 + fx1) / 2, PND_Z = (fz0 + fz1) / 2;   // dead centre — the
-                                                            // gate axis crosses it
-  const PND_R0 = 2.2, PND_R1 = 5.6;                 // flat bed, and the toe
+  // ── THE SHORE IS NOT A CIRCLE (second pass) ──────────────────────────────
+  //
+  // The user, on the first pass: *"why is the pond a perfect circle …
+  // expand the pond"*. So the toe RADIUS IS A FUNCTION OF BEARING — three
+  // low harmonics on top of a base, which gives the shoreline lobes, a bay
+  // and a pinch instead of a compass line, and the whole thing grew: the
+  // toe now runs ~4.8 m at the pinch to ~7.5 m down the long lobes. The
+  // pond is elongated ALONG THE GATE AXIS (the cos 2a term is positive on
+  // x), because that is where the field has room — and its centre steps
+  // 0.9 m west of the field's, buying the gate side its dry ground back:
+  // the kid's loiter patch and the crossing's east exit both stay clear of
+  // the toe at every bearing (checked against this exact function, not
+  // against a nominal radius).
+  //
+  // Everything downstream — relief, the painted bed, the water sheet, the
+  // bush guard — asks THIS ONE FUNCTION, so the shape you see, the shape
+  // you wade and the shape the water fills cannot be three shapes.
+  const PND_X = (fx0 + fx1) / 2 - 0.9, PND_Z = (fz0 + fz1) / 2;
+  const pondR1 = (a: number) =>                     // the toe, by bearing
+    6.3 + 0.75 * Math.cos(2 * a + 0.6) + 0.5 * Math.sin(3 * a + 1.3)
+    + 0.3 * Math.sin(5 * a + 4.1);
+  const PND_BED = 0.42;                             // flat bed ends at this × the toe
   const PND_DEPTH = 0.65;                           // bed below KERB_H, at centre
   const WATER_Y = KERB_H - 0.10;                    // the water table, below the turf
   // ── ONE LANDFORM PRIMITIVE, WITH A SLOPE YOU CAN BUDGET ──────────────────
@@ -800,16 +819,19 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
         : s * (1 - a) - (s * (1 - t) * (1 - t)) / (2 * a);
   };
   // ── THE ONE FEATURE, AND WHAT IT COSTS IN GRADE ─────────────────────────
-  //   POND  -0.65 m  r 2.2…5.6   1.25*0.65/3.4 = 0.239 → 1 in 4.2
+  //   POND  -0.65 m  bed 0.42×toe → toe 4.8…7.5 by bearing
+  //   run = 0.58 × toe, so the bank is 1.25*0.65/run = 1 in 3.4 at the pinch
+  //   and 1 in 5.4 down the long lobes
   //
-  // 1 in 4.2 is a real grass BANK, not a lawn — and that is right for a pond:
-  // its slope is nearly all underwater, and the gentle-grade rule the mound
-  // lived under was about ground people stroll over. The wedge clamp below
-  // never touches it: the bowl needs `inset * 0.13 >= 0.65`, i.e. 5 m of
-  // inset, and everywhere the bed is that deep the field's own inset is over
-  // 6 m. Walking in and out was checked against the profile, not hoped: the
-  // bank is C1 the whole way down, so the floor picker hands back a ramp,
-  // never a step, and there is no depth you cannot simply walk up from.
+  // A real grass BANK, not a lawn — and that is right for a pond: the slope
+  // is nearly all underwater, and the gentle-grade rule the mound lived under
+  // was about ground people stroll over. The wedge clamp below never bites
+  // the bed: full depth needs `inset * 0.13 >= 0.65`, i.e. 5 m of inset, and
+  // the bed plateau's edge (0.42 × toe, at most 3.2 m out) keeps over 5.1 m
+  // of field inset at every bearing — checked against `pondR1` itself at the
+  // four cardinal worst cases, not against a nominal radius. Walking in and
+  // out was checked against the profile, not hoped: the bank is C1 the whole
+  // way down, so the floor picker hands back a ramp, never a step.
   const relief = (x: number, z: number) => {
     const inset = Math.min(x - fx0, fx1 - x, z - fz0, fz1 - z);
     if (inset <= 0) return 0;
@@ -820,7 +842,12 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     // this module that plane, so the hollows are cut into the real ground and
     // `Math.max(0, ...)` — which clamped every dip to the site plane and was
     // the other half of the same workaround — goes with it.
-    const f = land(x, z, PND_X, PND_Z, PND_R0, PND_R1, -PND_DEPTH);
+    // the bowl, at THIS bearing's own toe — the profile is `land`'s, so the
+    // bank is still C1 down every ray and there is still no depth you cannot
+    // simply walk up from
+    const pa = Math.atan2(z - PND_Z, x - PND_X);
+    const pr1 = pondR1(pa);
+    const f = land(x, z, PND_X, PND_Z, pr1 * PND_BED, pr1, -PND_DEPTH);
     // ── THE EDGE WEDGE, which replaces the rim mask ────────────────────────
     //
     // What was here was `* smoothstep(inset / 5.5)` — the whole field scaled
@@ -974,25 +1001,33 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
       {
         const px = uAt(PND_X), py = vAt(PND_Z);
         const rx = (radM: number) => (radM / fW) * MW, ry = (radM: number) => (radM / fD) * MH;
-        const disc = (radM: number, fill: string) => {
+        // every band is a FRACTION OF THE SHORE, sampled from `pondR1` itself —
+        // so the painted mud follows the lobes and the bay, and cannot be a
+        // circle inside a shape that is not one
+        const shape = (f: number, fill: string) => {
           g.beginPath();
-          g.ellipse(px, py, rx(radM), ry(radM), 0, 0, Math.PI * 2);
+          for (let i = 0; i <= 72; i++) {
+            const a = (i / 72) * Math.PI * 2, rr = pondR1(a) * f;
+            const sx = px + Math.cos(a) * rx(rr), sy = py + Math.sin(a) * ry(rr);
+            if (i === 0) g.moveTo(sx, sy); else g.lineTo(sx, sy);
+          }
+          g.closePath();
           g.fillStyle = fill;
           g.fill();
         };
-        // the margin dies into the grass in bites, not on a compass line
+        // the margin dies into the grass in bites, not on a contour line
         g.fillStyle = 'rgba(123,111,82,0.55)';
-        for (let i = 0; i < 130; i++) {
-          const a = r() * Math.PI * 2, rr = PND_R1 - 0.5 + r() * 1.1;
+        for (let i = 0; i < 170; i++) {
+          const a = r() * Math.PI * 2, rr = pondR1(a) * (0.90 + r() * 0.18);
           g.fillRect(px + Math.cos(a) * rx(rr), py + Math.sin(a) * ry(rr),
             2 + Math.floor(r() * 4), 1 + Math.floor(r() * 3));
         }
-        disc(PND_R1 - 0.45, '#7b6f52');               // trodden mud, above the water
-        disc(PND_R1 - 1.0, '#6a5c44');                // damp mud at the waterline
-        disc(PND_R1 - 1.6, '#4e4636');                // silt, mostly under the water
+        shape(0.955, '#7b6f52');                      // trodden mud, above the water
+        shape(0.87, '#6a5c44');                       // damp mud at the waterline
+        shape(0.78, '#4e4636');                       // silt, mostly under the water
         // pebbles and dead reed-litter on the dry part of the margin
-        for (let i = 0; i < 160; i++) {
-          const a = r() * Math.PI * 2, rr = PND_R1 - 1.15 + r() * 1.15;
+        for (let i = 0; i < 200; i++) {
+          const a = r() * Math.PI * 2, rr = pondR1(a) * (0.82 + r() * 0.18);
           g.fillStyle = r() < 0.55 ? 'rgba(60,53,40,0.6)' : 'rgba(150,140,112,0.5)';
           g.fillRect(px + Math.cos(a) * rx(rr), py + Math.sin(a) * ry(rr),
             1, 1 + Math.floor(r() * 2));
@@ -1938,75 +1973,19 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   scene.add(memorial);
   solid({ minX: memX - 1.25, maxX: memX + 1.25, minZ: memZ - 1.25, maxZ: memZ + 1.25 });
 
-  // ── hoop rail, and a shelter at the far end ─────────────────────────────
+  // ── THE HOOP RAIL IS DELETED (second pass of the pond redesign) ──────────
   //
-  // The auditor's *"bare lawn"* is fair about the MIDDLE, not the edges: the
-  // trees broke the walls, but between them lay 25 m of undifferentiated
-  // grass, and a field with no edge and nothing beyond it reads as a vacant
-  // lot however well it is mown. Two things fix that without closing the
-  // field, which the user asked to be the largest thing in the park:
+  // The user: *"why is thew whole center area still a thing? like get rid of
+  // the little bars on the edge and expand the pond."* The little bars were
+  // the hoop rail — ~150 knee-high bent-bar hoops at 0.72 m centres, ringing
+  // the whole field side of the loop. They existed to give an empty lawn an
+  // edge; the lawn is not empty any more (the pond IS the middle), and a
+  // ring of iron around the water is exactly what kept the centre reading as
+  // a fenced "thing". Gone entirely: the hoop builder, its LCG and its run.
+  // The grass now meets the path on the edging strip alone.
   //
-  //   HOOP RAIL along the field side of the loop. The most municipal object
-  //     there is — bent bar, knee high, half of them leaning. It gives the
-  //     grass an edge and it draws the loop's line away into the distance,
-  //     which is what tells you how deep the park is. No collider: a hoop is
-  //     something you step over, and a knee-high wall you cannot cross would
-  //     be worse than none.
-  //   A SHELTER on the gate's axis at the far end, 26 m away, terminating the
-  //     view. The memorial gives the near turn a destination; this gives the
-  //     deep half one, and it is the thing you walk the loop to reach.
-  const hoopM = new THREE.MeshBasicMaterial({ color: 0x3d4239 });
-  /** one hoop, standing across the path's direction, yawed to follow it */
-  const hoop = (x: number, z: number, yaw: number, lean: number) => {
-    const w = 0.58, h = 0.29;
-    const g = new THREE.Group();
-    for (const d of [-w / 2, w / 2]) {                  // two legs
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, h, 0.05), hoopM);
-      leg.position.set(0, h / 2, d);
-      leg.rotation.z = lean;
-      g.add(leg);
-    }
-    const top = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, w), hoopM);
-    top.position.set(0, h, 0);
-    top.rotation.z = lean;
-    g.add(top);
-    g.position.set(x, KERB_H, z);
-    g.rotation.y = yaw;
-    scene.add(g);
-  };
-  // ── THE HOOPS FOLLOW THE LOOP, INCLUDING ROUND THE TURNS ────────────────
-  //
-  // They used to be four axis-aligned runs at `lz0+1.2 … lz1-1.2`, which meant
-  // that at every corner two runs met at a hard right angle in the grass while
-  // the path beside them chamfered — a square corner drawn next to a mitred
-  // one, in the same frame, at the same distance. It is a smaller part of "this
-  // corner looks messed up" than the grey X, but it is the same fault: a thing
-  // that follows the path was told about the legs and not about the plan.
-  //
-  // 0.72 m apart, not 1.15. THE GREY CHEVRONS THE USER ASKED ABOUT are these:
-  // a run of low iron hoop edging, the municipal thing that keeps feet off the
-  // grass. At 1.15 m centres each hoop stands alone against the turf and reads
-  // as a bracket somebody dropped — which is exactly what was reported, and a
-  // fair reading of it. Closed up, the run reads as one piece of edging.
-  const hp = clcg(0x64bb17);
-  const HOOP_STEP = 0.72;
-  {
-    // THE FIELD SIDE ONLY — a negative offset is inside the loop. The run has
-    // always been the inner one (it is what gives the grass an edge); putting
-    // one outside as well would fence the gate spur off from the circuit.
-    const pts = ringPts(-(PATH_W / 2 + 0.25));
-    let s = 0;                                        // distance still to walk
-    for (let i = 0; i < 8; i++) {
-      const a = pts[i], b = pts[(i + 1) % 8];
-      const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
-      const yaw = Math.atan2(dx, dz);                 // this world's forward is (sin, cos)
-      for (; s < len; s += HOOP_STEP) {
-        const f = s / len;
-        hoop(a[0] + dx * f, a[1] + dz * f, yaw, (hp() - 0.5) * 0.22);
-      }
-      s -= len;                                       // carried to the next edge
-    }
-  }
+  // (The SHELTER at the far end of the gate axis is untouched — it is the
+  // thing the boulder crossing now points at.)
 
   // the shelter: four posts, a pitched roof, a bench in it, and the paint
   // going. Municipal, and the one thing at the far end worth walking to.
@@ -2646,16 +2625,13 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // walking uphill, from any bearing. What is built here is what sits in and
   // around that bowl.
   //
-  // THE WATER IS ONE OPAQUE DISC at WATER_Y, and opaque is a decision, not a
+  // THE WATER IS ONE OPAQUE SHEET at WATER_Y, and opaque is a decision, not a
   // shortcut: `transparent: true` puts a surface on dimWorld's skip list
   // (GOTCHAS 22) and a pond glowing at midnight is worse than a pond you
   // cannot see into. Depth is told two other ways — the painted bed darkens
   // toward the middle, and a wading player physically sinks below the
-  // surface, because the floor under the disc keeps falling while the disc
-  // does not. The disc's radius runs PAST the waterline into the bank, so its
-  // rim is buried under the turf slope and the visible water's edge is the
-  // disc-meets-bank intersection — a line that follows the relief instead of
-  // reading as a perfect circle.
+  // surface, because the floor under the sheet keeps falling while the sheet
+  // does not.
   {
     const wr = clcg(0x9d3fb1);
     const WPX = 160;                                 // 10.3 m across ≈ 16 px/m
@@ -2678,8 +2654,27 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
       }
       dither(g, WPX, WPX, 320);
     });
-    const water = new THREE.Mesh(new THREE.CircleGeometry(PND_R1 - 0.45, 40), wet(flat(waterT)));
-    water.rotation.x = -Math.PI / 2;
+    // THE SHEET IS CUT TO THE SAME SHORE, not a circle: a fan whose rim sits
+    // at 0.93 × `pondR1` per bearing, which is past the waterline (0.871 ×)
+    // and short of the toe — so the rim is buried a few cm under the bank at
+    // every bearing and the visible water's edge is where the sheet meets the
+    // rising bed: an organic line the relief draws, never geometry.
+    const SEGW = 72;
+    const pos: number[] = [0, 0, 0], uv2: number[] = [0.5, 0.5], idx: number[] = [];
+    for (let i = 0; i < SEGW; i++) {
+      const a = (i / SEGW) * Math.PI * 2, rr = pondR1(a) * 0.93;
+      pos.push(Math.cos(a) * rr, 0, Math.sin(a) * rr);
+      // the rim maps to the gradient's own rim wherever the shore is, so the
+      // pale bank-reflection band hugs the actual shoreline
+      uv2.push(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.sin(a));
+      idx.push(0, 1 + ((i + 1) % SEGW), 1 + i);      // wound to face +y
+    }
+    const wgeo = new THREE.BufferGeometry();
+    wgeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    wgeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv2, 2));
+    wgeo.setIndex(idx);
+    wgeo.computeVertexNormals();
+    const water = new THREE.Mesh(wgeo, wet(flat(waterT)));
     water.position.set(PND_X, WATER_Y, PND_Z);
     scene.add(water);
   }
@@ -2698,12 +2693,20 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // 0.3 m step. You never NEED the stones — the bowl walks — but they keep
   // your feet dry, which is the whole game of stepping stones.
   //
-  // Each is a squat 7-sided drum with its ring jittered by two sines of the
-  // angle — lumpy, seam-free, and with a genuinely FLAT top, because the top
-  // is what you stand on and the collider caps at exactly that face
-  // (`maxY: topY`, the bench's own rule). Below the waterline the baked shade
-  // drops to a dark tide-stained band, which is what says "water" at a glance
-  // even before the disc reads.
+  // A ROCK, NOT A DRUM (second pass). The user on the first cut: *"why is
+  // ther shape of the boulders so un natural?"* — fair: a 7-sided cylinder
+  // with a wavy ring is still a cylinder, vertical walls and a lid. A real
+  // glacial boulder is a lump: no straight verticals, a bulge below the
+  // middle, faceted all over. So each is now an icosahedron warped three
+  // ways — radius jittered by smooth functions of DIRECTION (so coincident
+  // face vertices move together and the hull stays watertight), squashed to
+  // sit low, bottom hemisphere stretched down through the silt — and then
+  // the crown is CUT: every vertex above the cut plane clamps onto it, which
+  // leaves a genuinely flat, slightly irregular polygon exactly where the
+  // collider caps (`maxY: topY`, the bench's own rule). The buffer is
+  // non-indexed, so baked sun shading lands per FACET — chunky light, which
+  // is most of what reads as stone. Below the waterline the shade drops to a
+  // dark tide-stained band, which says "water" at a glance.
   const bldM = stoneOf(PK_STONE, 1.4, 1.4);
   bldM.vertexColors = true;
   const boulder = (dx: number, dz: number, top: number, rad: number, seed: number) => {
@@ -2711,49 +2714,59 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     const rk = clcg(seed);
     const bedY = parkY(x, z);
     const topY = KERB_H + top;
-    const h = topY - (bedY - 0.15);                  // seated 0.15 into the silt
-    const geo = new THREE.CylinderGeometry(rad * 0.85, rad, h, 7, 1);
+    const topCut = rad * 0.30;                       // crown height above centre
+    const capH = rad * 0.60;                         // upper hemisphere squash
+    const botH = (topY - bedY) + 0.30;               // lower reaches through the silt
+    const ph1 = rk() * 6.28, ph2 = rk() * 6.28, ph3 = rk() * 6.28;
+    const geo = new THREE.IcosahedronGeometry(rad, 1);
     const p = geo.attributes.position;
-    const ph1 = rk() * Math.PI * 2, ph2 = rk() * Math.PI * 2;
     for (let i = 0; i < p.count; i++) {
-      const vx = p.getX(i), vz = p.getZ(i);
-      if (Math.hypot(vx, vz) > 0.01) {
-        // jitter by ANGLE, so coincident seam vertices move together and the
-        // drum stays watertight
-        const a = Math.atan2(vz, vx);
-        const k = 1 + 0.10 * Math.sin(a * 3 + ph1) + 0.07 * Math.sin(a * 5 + ph2);
-        p.setX(i, vx * k); p.setZ(i, vz * k);
-      }
+      const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i);
+      const a = Math.atan2(vz, vx);
+      const e = vy / rad;                            // -1 keel … +1 crown
+      const k = 1 + 0.16 * Math.sin(2 * a + ph1) * (1 - e * e)
+        + 0.11 * Math.sin(3 * a + ph2) * (1 - Math.abs(e))
+        + 0.07 * Math.sin(5 * a + e * 2.4 + ph3);
+      p.setX(i, vx * k); p.setZ(i, vz * k);
+      p.setY(i, vy >= 0 ? Math.min(vy * (capH / rad) * (1 + 0.08 * Math.sin(2 * a + ph3)), topCut)
+                        : vy * (botH / rad));
     }
     p.needsUpdate = true;
     geo.computeVertexNormals();
     const nrm = geo.attributes.normal;
     const col = new Float32Array(p.count * 3);
-    const cy = bedY - 0.15 + h / 2;                  // the mesh's world centre y
+    const cy = topY - topCut;                        // world y of the mesh origin
     for (let i = 0; i < p.count; i++) {
       const d = nrm.getX(i) * SUN.x + nrm.getY(i) * SUN.y + nrm.getZ(i) * SUN.z;
-      let k = Math.max(0.62, Math.min(1.18, 0.86 + 0.42 * d));
+      let k = Math.max(0.60, Math.min(1.20, 0.86 + 0.44 * d));
       if (p.getY(i) + cy < WATER_Y + 0.04) k *= 0.55;   // the wet tide mark
       col[i * 3] = k * 0.98; col[i * 3 + 1] = k; col[i * 3 + 2] = k * 0.96;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const m = new THREE.Mesh(geo, bldM);
     m.position.set(x, cy, z);
+    // no rotation.y: the shading is baked against the world's ONE SUN, and a
+    // turned mesh would carry its light round with it. Variety comes from the
+    // per-boulder phases instead.
+    solid({ minX: x - rad * 0.56, maxX: x + rad * 0.56,
+      minZ: z - rad * 0.56, maxZ: z + rad * 0.56, maxY: topY });
     scene.add(m);
-    const hb = rad * 0.6;                            // inside the top face
-    solid({ minX: x - hb, maxX: x + hb, minZ: z - hb, maxZ: z + hb, maxY: topY });
   };
-  // the chain, east bank to west bank, with a wander so it is not a zebra
-  // crossing; tops within 0.08 m of their neighbours
-  boulder(3.55, 0.30, 0.20, 0.62, 0xB01);
-  boulder(1.80, -0.30, 0.16, 0.55, 0xB02);
-  boulder(0.05, 0.35, 0.24, 0.66, 0xB03);
-  boulder(-1.70, -0.25, 0.17, 0.56, 0xB04);
-  boulder(-3.45, 0.30, 0.21, 0.62, 0xB05);
-  // …and two off the line, barely proud of the water — company for the
+  // the chain, east bank to west bank across the long axis of the expanded
+  // water, with a wander so it is not a zebra crossing; tops within 0.08 m of
+  // their neighbours, collider-edge gaps ~1 m — the walking jump's money
+  boulder(5.70, 0.30, 0.18, 0.62, 0xB01);
+  boulder(3.80, -0.30, 0.15, 0.56, 0xB02);
+  boulder(2.00, 0.35, 0.22, 0.66, 0xB03);
+  boulder(0.20, -0.20, 0.17, 0.58, 0xB04);
+  boulder(-1.60, 0.30, 0.23, 0.63, 0xB05);
+  boulder(-3.40, -0.25, 0.16, 0.56, 0xB06);
+  boulder(-5.10, 0.25, 0.20, 0.61, 0xB07);
+  // …and three off the line, barely proud of the water — company for the
   // crossing, not part of it
-  boulder(1.35, 2.60, 0.08, 0.50, 0xB06);
-  boulder(-2.20, -2.45, 0.05, 0.46, 0xB07);
+  boulder(1.60, 3.40, 0.07, 0.52, 0xB08);
+  boulder(-2.60, -3.10, 0.04, 0.47, 0xB09);
+  boulder(4.20, -2.30, 0.10, 0.55, 0xB0A);
 
   // ── THE HOP-ON BUSHES ────────────────────────────────────────────────────
   //
@@ -2770,6 +2783,18 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     const gy = parkY(bx, bz);
     const H = 0.48 + hb2() * 0.04;
     const w = 1.05 + hb2() * 0.3, d = 1.0 + hb2() * 0.3;
+    // THE GUARDS ASK THE SHORE ITSELF. The shoreline is a function of bearing
+    // now, so "on dry ground" cannot be a radius check against a constant:
+    // each bush asks `pondR1` at its own bearing, stands 0.75 m clear of the
+    // toe, keeps the crossing's two exits open (the band astride the gate
+    // axis), holds the BENCH_CLEAR margin off the loop on all four sides, and
+    // still goes through the footprint registry like everything else.
+    const dP = Math.hypot(bx - PND_X, bz - PND_Z);
+    const shore = pondR1(Math.atan2(bz - PND_Z, bx - PND_X));
+    if (dP < shore + 0.75 + Math.max(w, d) / 2) return;
+    if (Math.abs(bz - PND_Z) < 1.35 && dP < shore + 2.8) return;
+    if (bx - w / 2 < fx0 + BENCH_CLEAR || bx + w / 2 > fx1 - BENCH_CLEAR
+      || bz - d / 2 < fz0 + BENCH_CLEAR || bz + d / 2 > fz1 - BENCH_CLEAR) return;
     if (!claim(bx - w / 2 - 0.05, bx + w / 2 + 0.05, bz - d / 2 - 0.05, bz + d / 2 + 0.05)) return;
     const main = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), shrubM);
     main.position.set(bx, gy + H / 2, bz);
@@ -2786,11 +2811,18 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     solid({ minX: bx - w / 2, maxX: bx + w / 2, minZ: bz - d / 2, maxZ: bz + d / 2,
       maxY: gy + H });
   };
+  // candidates sit off the FIELD's own middle (the pond's centre moved west;
+  // the grass did not), pushed out toward the corners the bigger water leaves
+  // dry; the guards above drop any the shore has since grown under. The
+  // north-east stays clear of the kid's loiter patch (x > 6.0, z 1.1…4.1
+  // field-relative is his), and nothing sits astride the gate axis.
+  const fMidX = (fx0 + fx1) / 2, fMidZ = (fz0 + fz1) / 2;
   for (const [dx, dz] of [
-    [4.9, 4.7], [0.3, 6.4], [-4.9, 4.8], [-6.6, 2.4], [-5.7, -4.0],
-    [0.5, -6.4], [4.0, -5.7], [6.3, -2.9], [-7.3, -1.5],
+    [7.0, 5.8], [2.5, 7.0], [-3.6, 6.9], [-6.9, 6.2], [-7.6, -4.6],
+    [-6.8, -6.4], [-2.5, -6.9], [0.9, -7.0], [4.3, -6.5], [7.1, -5.6],
+    [7.3, -2.2], [5.9, 4.3],
   ] as [number, number][]) {
-    hopBush(PND_X + dx, PND_Z + dz);
+    hopBush(fMidX + dx, fMidZ + dz);
   }
 
   // ── WEEDS, WHERE NOBODY STRIMS ───────────────────────────────────────────
