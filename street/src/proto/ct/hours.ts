@@ -107,9 +107,11 @@ export const HOURS: BizHours[] = [
 
 // The church, the library and the jail have no row ON PURPOSE: they are not
 // businesses, nothing inside them takes money at a counter, and a posted-hours
-// card that nothing enforces would be the sign lying. Street trade (the
-// dealer, the ATM) keeps no hours either — one because he would not post them,
-// the other because that is what an ATM is for.
+// card that nothing enforces would be the sign lying. The ATM keeps no hours
+// either — that is what an ATM is for. The dealer DOES keep hours now (night
+// only, 2026-09-02: *"otherwise hes not there"*) but they are his own, unposted,
+// in `ct/dealer.ts` — a HOURS row here would hang a card, and he would never
+// post one.
 
 const BY_KEY = new Map<string, BizHours>();
 for (const h of HOURS) {

@@ -58,7 +58,27 @@ export const ORDER = BUILD.PROPS + 5;   // with the other street people, after p
  */
 const PRICE = 100;
 
+// ── his hours, which he would never post ──────────────────────────────────
+//
+// *"lets make the guy who sells cocaine only available at night. otherwise
+//  hes not there."*   (2026-09-02 — overriding this file's earlier "ALWAYS,
+//  day or night" rule, which was mine to argue and is now decided.)
+//
+// 9 PM to 5 AM, read off the world's own dark: the hud's `NIGHT_STOPS` curve
+// holds full night from 21:30 to 05:00 and starts fading at 5 — so he steps
+// into the lamp-pool as the street finishes going dark and is gone before the
+// first grey of morning, never visible in half-light. It also sits two hours
+// after PAWN's 19:00 close, so the shop whose back door he works is long shut
+// before he shows. NOT a `HOURS` row: a row hangs a card and locks a door,
+// and he has neither — no card, no door, no posted anything. He just is not
+// there.
+const NIGHT_FROM = 21, NIGHT_TO = 5;
+
 export function register(ctx: CtxBuild): void {
+  const onDuty = (): boolean => {
+    const h = ((ctx.clock.now().totalMin / 60) % 24 + 24) % 24;
+    return h >= NIGHT_FROM || h < NIGHT_TO;
+  };
   // ── where he works, measured off the alley's own construction ────────────
   //
   // `ct/street.ts`: the slot runs z −53 (No. 227's flank) to −55.5 (PAWN's),
@@ -125,8 +145,9 @@ export function register(ctx: CtxBuild): void {
     // starts
     x: walk.x, z: walk.z, aimX: walk.x, aimZ: walk.z, r: 0.95,
     obj: guy.mesh,
-    // ALWAYS, day or night. A dealer who keeps shop hours is a shop.
-    ok: () => true,
+    // NIGHT ONLY — the same gate that hides the man kills the prompt, so a
+    // spot can never outlive its dealer.
+    ok: onDuty,
     label: () => {
       // pre-pitch, the offer is speech and the prompt is the talker's one
       // word — *"e prompts shouldnt be descriptive. it should just say
@@ -156,6 +177,23 @@ export function register(ctx: CtxBuild): void {
   ctx.spot(spot);
 
   ctx.onFrame(({ px, pz, dt, gy }) => {
+    // ── not there by day ─────────────────────────────────────────────────
+    // One check drives everything: mesh hidden, collider parked at 999 (so
+    // dawn can never leave an invisible box in a 2.5 m corridor), and if the
+    // clock rolls over MID-SENTENCE his bubble closes with him — `talk.stop()`
+    // only ends a dialog that is his, so it cannot eat anyone else's. The
+    // spot's `ok` is the same `onDuty`, so prompt and label die on the same
+    // frame. `pitched` survives the day: he remembers you, you remember him.
+    if (!onDuty()) {
+      if (guy.mesh.visible) {
+        guy.mesh.visible = false;
+        talk.stop();
+        bodyBox.minX = 999; bodyBox.maxX = 999;
+        bodyBox.minZ = 999; bodyBox.maxZ = 999;
+      }
+      return;
+    }
+    guy.mesh.visible = true;
     // gy < 0.5: he does not crane after somebody three storeys up in No. 227.
     walk.tick(px, pz, dt, gy < 0.5);
     spot.x = walk.x; spot.z = walk.z;
