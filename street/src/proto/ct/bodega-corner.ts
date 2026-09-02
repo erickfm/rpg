@@ -458,8 +458,8 @@ export function buildBodegaCorner(c: {
     // the wedge between them had no floor at all and you saw sky through it.
     // This fills exactly that triangle, at walk height, ABUTTING both walks
     // on their existing edges — never overlapping them, or the two coplanar
-    // tops would z-fight. UVs are taken straight off world x/z so the 1 m
-    // slab grid runs on unbroken from the walks either side.
+    // tops would z-fight. UVs are taken straight off world x/z so the walk's
+    // flag grid runs on unbroken from the walks either side.
     {
       const tri = [[BX0, BZ1], [BX0, BZ1 + CHF], [BX0 + CHF, BZ1]] as [number, number][];
       const gap = new THREE.BufferGeometry();

@@ -229,12 +229,18 @@ export const GUTTER_W = GW;
 export const KERB_CHAMFER = CH;
 
 // ── the sidewalk sheet ────────────────────────────────────────────────────
-// One 256 px tile = 8 m of walk at 32 px/m, so the scoring grid is 1 m and
-// the staining doesn't repeat until you've walked eight paces past it. Every
-// walk surface in the world shares this one canvas and maps it in WORLD
-// space — that is what makes the slab grid line up across the corner instead
-// of each slab restarting at its own mesh edge.
-const WT = 256, WPM = 32; // px, px per metre
+// One 256 px tile = 8 flags of 32 px each. In WORLD metres a flag is
+// WSQ = WALK / 2 — "i liked when the sidewalk was exactly two squares wide"
+// (2026-09-02, after the walks went 2.0 → 2.3 m and the flags stayed 1 m) —
+// so the module tracks the walk width and the staining doesn't repeat until
+// you've walked eight flags past it. Every walk surface in the world shares
+// this one canvas and maps it in WORLD space — that is what makes the flag
+// grid line up across the corner instead of each slab restarting at its own
+// mesh edge.
+const WT = 256, WPM = 32; // px; 32 is px per FLAG on this sheet (the other
+                          // ground canvases below still draw at 32 px per METRE)
+const WSQ = WALK / 2;     // m per flag — the walk is EXACTLY two flags across
+const MPT = 8 * WSQ;      // m of world per tile
 
 let walkSheet: HTMLCanvasElement | null = null;
 
@@ -264,7 +270,7 @@ function drawWalk(g: CanvasRenderingContext2D) {
     g.fillStyle = 'rgba(212,206,192,0.13)';
     g.fillRect(sx + 2, sy + 2, WPM - 4, WPM - 4);
   }
-  // scoring joints — 1 m grid, 2 px (6 cm) of shadow
+  // scoring joints — one per flag, 2 px of shadow
   g.fillStyle = 'rgba(0,0,0,0.25)';
   for (let k = 0; k < WT; k += WPM) { g.fillRect(0, k, WT, 2); g.fillRect(k, 0, 2, WT); }
   // the odd cracked flag: a jagged run across one slab, stopping at the joints
@@ -299,16 +305,26 @@ function walkMap(): THREE.Texture {
 
 // WORLD-space uv for the walk sheet. Every walk surface uses these two, so a
 // slab joint on the side street is the same joint line as on the main drag.
-// Phase is chosen to preserve the existing grid exactly: joints fall on
-// integer x and half-integer z, which is where the tree pits were already cut.
-const walkU = (x: number) => x / 8;
-const walkV = (z: number) => (0.5 - z) / 8;
+//
+// PHASE. Both main walks must be bounded by joints — kerb line AND building
+// line — and no single linear map can do that: FACE − (−FACE) = 14 m is not
+// a whole number of 1.15 m flags. So walkU is mirrored about the road: each
+// side gets joints at |x| = ROAD_HALF + k·WSQ (…4.7, 5.85, 7.0…). Every walk
+// slab and corner fan lies wholly on one side of x = 0 (the long south
+// side-street slab starts at −4.75, so its box map is the west side's linear
+// continuation), which means the two conventions meet at exactly ONE seam:
+// the east-end walk at x = 55, by the jail, in the fog. walkV anchors the
+// z-joints to the side street's north building face (z = −96), the face the
+// bodega corner shares. The tree pits no longer sit on the grid (they were
+// cut on the old 1 m integer lines) — a retrofit cut, like the city makes.
+const walkU = (x: number) => (x - Math.sign(x) * ROAD_HALF) / MPT;
+const walkV = (z: number) => (-96 - z) / MPT;
 
 /** map for a rectangular walk top spanning the given world box */
 export function walkTex(minX: number, maxX: number, minZ: number, maxZ: number): THREE.Texture {
   const t = walkMap();
-  t.repeat.set((maxX - minX) / 8, (maxZ - minZ) / 8);
-  t.offset.set(walkU(minX), 0.0625 - maxZ / 8);
+  t.repeat.set((maxX - minX) / MPT, (maxZ - minZ) / MPT);
+  t.offset.set(walkU(minX), walkV(maxZ));
   return t;
 }
 
@@ -386,13 +402,14 @@ export function apronTex(minX: number, maxX: number, minZ: number, maxZ: number)
     // wraps a corner and dividing by it, which measures nothing.
     //
     // So it gets scored like the pour it is. The x lines land on the WALK'S OWN
-    // flag lines — integer world x, the grid ct/tex-ground's walkU already
-    // cuts — so the pavement's joints run through the drive instead of
-    // restarting at it. The z lines mark the two flare shoulders, which is
-    // where the slope actually changes, and divide the opening between them.
-    const J = 'rgba(0,0,0,0.28)';                            // 2 px = 6 cm, as the walk
+    // flag lines — |x| = ROAD_HALF + k·WSQ, the grid walkU already cuts (the
+    // apron is on the east walk, so the x > 0 convention) — so the pavement's
+    // joints run through the drive instead of restarting at it. The z lines
+    // mark the two flare shoulders, which is where the slope actually
+    // changes, and divide the opening between them.
+    const J = 'rgba(0,0,0,0.28)';                            // 2 px, as the walk
     g.fillStyle = J;
-    for (let wx = Math.ceil(minX); wx < maxX; wx++) {
+    for (let wx = ROAD_HALF + Math.ceil((minX - ROAD_HALF) / WSQ) * WSQ; wx < maxX; wx += WSQ) {
       const px = Math.round(((wx - minX) / (maxX - minX)) * w);
       if (px > 2 && px < w - 4) g.fillRect(px, 0, 2, h);
     }
