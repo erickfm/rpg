@@ -6,7 +6,7 @@ import { COFFEE } from './goods';
 import { registerSlice, flush } from './save';
 import { health, maxHealth, setHealth, damage, heal } from './health';
 import { mentalDamage, mentalHeal } from './mental';
-import { APT_X0, APT_Z0, ST0 } from './apartment';
+import { APT_X0, APT_Z0, ST0, HOME_FI } from './apartment';
 
 // ══ STAYING AWAKE, AND WHAT IT COSTS TO LOSE ════════════════════════════════
 //
@@ -170,10 +170,10 @@ let crashes: { at: number; phys: number; ment: number }[] = [];
 /**
  * ── WHERE YOU WAKE UP WHEN YOU HAVE NEVER SLEPT ───────────────────────────
  *
- * The bed in 301, which is home. The numbers are the sleep spot's own in
- * `ct/apartment.ts` — `AX(-2.6), AZI(4.2)`, third floor — expressed through
+ * The bed at home. The numbers are the sleep spot's own in
+ * `ct/apartment.ts` — `AX(-2.6), AZI(4.2)`, the home floor — expressed through
  * the module's exported origin so they cannot drift from the building:
- * `AX(lx) = APT_X0 + lx`, and the spot's `ok()` gates on `2 * ST`. Yaw π/2
+ * `AX(lx) = APT_X0 + lx`, and the spot's `ok()` gates on `HOME_Y`. Yaw π/2
  * faces +x, into the room, the way you'd stand up off that side of the bed.
  *
  * ⚠ A FUNCTION, NOT A CONST, AND THAT IS LOAD-ORDER LOAD-BEARING. As a
@@ -187,7 +187,7 @@ let crashes: { at: number; phys: number; ment: number }[] = [];
  * time at all; the numbers are still the apartment's own, never copied.
  */
 export const flatBed = () =>
-  ({ x: APT_X0 - 2.6, z: APT_Z0 + 4.2, yaw: Math.PI / 2, gy: 2 * ST0 });
+  ({ x: APT_X0 - 2.6, z: APT_Z0 + 4.2, yaw: Math.PI / 2, gy: HOME_FI * ST0 });
 
 // ── state ──────────────────────────────────────────────────────────────────
 /** WEAR on the body since the last sleep, in game-minutes — the thing sleeping

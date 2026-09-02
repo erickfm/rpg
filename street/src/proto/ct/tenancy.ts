@@ -9,7 +9,8 @@ import { declareSurface, pixTex } from './paint';
 // `setLockedOut` is the eviction half: 301's door is C's, this file owns the
 // rule that changes its lock. See `evicted()` below.
 import {
-  APT_X0, APT_Z0, ST0, hasView, grantView, rentNow, VIEW_RENT, setLockedOut,
+  APT_X0, APT_Z0, ST0, HOME_FI, hasView, grantView, rentNow, VIEW_RENT,
+  setLockedOut,
 } from './apartment';
 import { citizenSprite } from './citizens';
 import { loiter, type LoiterPost } from './loiter';
@@ -40,7 +41,8 @@ export { RENT, dueDay, duePeriodsBy } from './calendar';
 
 // ── TENANCY ───────────────────────────────────────────────────────────────
 //
-// You live at 301. That has been true since the world had a spawn point, and
+// You live at 201 (it was 301 until *"put us on the 2nd floor"*, 2026-09-02).
+// That you live here has been true since the world had a spawn point, and
 // nothing has ever asked anything of you for it. This is the other half:
 //
 //   *"rent that must be paid to a landlord, and letters waiting at the
@@ -502,7 +504,7 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
   { from: 'THE DINER', art: 'menu-diner', lines: adLines(DINER_MENU) },
   { from: 'FOR THE PREVIOUS TENANT', art: 'envelope-prev', lines: [
     'D. R. KOVACS',
-    'APT 301, 227 W 19TH',
+    'APT 201, 227 W 19TH',
     'THIS CITY',
   ] },
   { from: 'A POSTCARD', art: 'postcard', lines: [
@@ -518,7 +520,7 @@ const JUNK: { from: string; lines: string[]; art?: string }[] = [
     'DO NOT CALL ME ABOUT IT.',
     '                  — THE SUPER',
   ] },
-  { from: 'ADDRESSED TO 302', art: 'catalogue-302', lines: [
+  { from: 'ADDRESSED TO 202', art: 'catalogue-302', lines: [
     'A seed catalogue. Your neighbour',
     'has one window, it faces a wall,',
     'and he gets this every month',
@@ -805,7 +807,7 @@ const BANK = {
   /** the door cells in texels of C's 48 x 32 painted face */
   tex: { w: 48, h: 32, x0: 3, y0: 3, dx: 11, dy: 9, cw: 9, ch: 7 },
   /**
-   * WHICH CELL IS 301 — a column per floor, reading away from the front door.
+   * WHICH CELL IS YOURS — a column per floor, reading away from the front door.
    *
    *     c = 0 1 2 3   floors 1 2 3 4, c=0 nearest the street door
    *     r = 0         the super's, and three that have never been let
@@ -822,7 +824,11 @@ const BANK = {
    *   - the top row has 0.09 m of carcass above it before the pressed lip.
    *     There is nowhere for a stuffed box to overflow TO
    */
-  me: { c: 2, r: 1 },
+  // ⚠ LITERAL, NOT `HOME_FI`: this table initialises at module scope and the
+  // import cycle can run this body before ct/apartment's (the exact trap
+  // ct/fatigue.ts's `flatBed` documents). c IS the home floor index — if
+  // HOME_FI moves again, move this 1 with it.
+  me: { c: 1, r: 1 },
 } as const;
 
 // ── the numerals ──────────────────────────────────────────────────────────
@@ -995,7 +1001,7 @@ function findBank(scene: THREE.Scene): { x: number; y: number; z: number; found:
   // hang on a blank wall where nobody walks.
   console.warn(`[tenancy] found ${hits.length} candidate mailbox banks near `
     + `(${seed.x.toFixed(2)}, ${seed.z.toFixed(2)}) — expected exactly 1. `
-    + 'Building 301 at the derived position; ct/apartment.ts may have changed.');
+    + 'Building the boxes at the derived position; ct/apartment.ts may have changed.');
   return { ...seed, found: false };
 }
 
@@ -1823,7 +1829,7 @@ ART['postcard'] = (g, l) => {
   const aw = P.x + P.w - mid - 18;
   for (let k = 0; k < 3; k++) fill(g, 'rgba(90,84,70,0.30)', mid + 8, P.y + 66 + k * 12, aw, 1);
   g.fillStyle = '#2f4f8c'; g.font = UI.font(7);
-  g.fillText('APT 301', mid + 10, P.y + 64);
+  g.fillText('APT 201', mid + 10, P.y + 64);
   g.fillText('227 W 19TH', mid + 10, P.y + 76);
   // the message, in the same biro, cramped the way a postcard always is —
   // flowed into the left half rather than sliced, since that half is 86 units
@@ -1908,7 +1914,7 @@ ART['catalogue-302'] = (g, l) => {
   fill(g, '#f6f4ea', P.x + 12, P.y + P.h - 66, P.w - 24, 34);
   fill(g, 'rgba(90,84,70,0.35)', P.x + 12, P.y + P.h - 66, P.w - 24, 1);
   g.fillStyle = '#2b2620'; g.font = UI.font(8, true);
-  g.fillText('APT 302', P.x + 18, P.y + P.h - 52);
+  g.fillText('APT 202', P.x + 18, P.y + P.h - 52);
   g.fillStyle = '#4a443a'; g.font = UI.font(6);
   g.fillText('227 W 19TH — THIS BUILDING', P.x + 18, P.y + P.h - 40);
   flow(g, P.x + IN, P.y + P.h - 22, TW, l.lines.slice(0, 2), 6, '#6b6455');
@@ -3804,7 +3810,7 @@ export function register(ctx: CtxBuild): void {
   // on `scene.userData.hermitTalkBurps` and audio fires the same recording at
   // his door on each new count. A second [E] while his bubble is up turns the
   // page and burps nothing: one belch per conversation, not per keypress.
-  const HERMIT_Z = APT_Z0 + 3.5, HERMIT_Y = 2 * ST0;
+  const HERMIT_Z = APT_Z0 + 3.5, HERMIT_Y = HOME_FI * ST0;
   /** his lines, in strict rotation — a counter, not dice, like every other
    *  runtime wobble in this world */
   const HERMIT_SAYS: string[][] = [
@@ -4513,7 +4519,7 @@ export function register(ctx: CtxBuild): void {
   const SLIP = {
     x: APT_X0 - 0.15,          // just inside the wall at AX(0), on the room side
     z: APT_Z0 + 3.5,           // the centre of the opening
-    y: 2 * ST0 + 0.012,        // floor 3, a hair proud of the boards
+    y: HOME_FI * ST0 + 0.012,  // the home floor, a hair proud of the boards
     w: 0.16, d: 0.11,
   };
   // ── AND YOU READ IT WHERE YOU PICKED IT UP: INSIDE 301 ───────────────────
@@ -4570,7 +4576,7 @@ export function register(ctx: CtxBuild): void {
     // FLOOR 3, and not the lobby three storeys below it — the mailbox and this
     // slip sit within a metre of each other in x and z and are separated only
     // by which floor you are standing on.
-    ok: () => slipDown(ctx.clock.now().totalMin) && Math.abs(ctx.player.gy() - 2 * ST0) < 0.5,
+    ok: () => slipDown(ctx.clock.now().totalMin) && Math.abs(ctx.player.gy() - HOME_FI * ST0) < 0.5,
     label: () => 'pick up the slip of paper',
     act: () => {
       const day = Math.floor(ctx.clock.now().totalMin / 1440);
@@ -4681,8 +4687,8 @@ export function register(ctx: CtxBuild): void {
     slips: () => [receipt(0, rentNow()), shortSlip(0)].map((l) => ({ from: l.from, lines: l.lines })),
     /** the slip under 301's door: where it is and whether it is on the floor */
     slip: () => ({ x: SLIP.x, z: SLIP.z, y: SLIP.y,
-      /** stand HERE to be offered it — floor 3, and the storey is the point */
-      stand: { x: SLIP.x - 0.55, z: SLIP.z, gy: 2 * ST0 },
+      /** stand HERE to be offered it — the home floor, and the storey is the point */
+      stand: { x: SLIP.x - 0.55, z: SLIP.z, gy: HOME_FI * ST0 },
       down: slipDown(ctx.clock.now().totalMin), visible: slip.visible }),
     /** the landlord: where he is, whether he is in the hall, and his box */
     landlord: () => ({

@@ -4,7 +4,7 @@ import { BUILD, ORDER as HOOK } from './ctx';
 // Read-only, and the same three constants `ct/tenancy.ts` already imports from
 // there. Nothing in this module writes to `apartment.ts` or depends on its
 // internals — only on where the building stands and how tall a storey is.
-import { APT_X0, ST0 } from './apartment';
+import { APT_X0, ST0, HOME_FI } from './apartment';
 // Read-only, and no cycle: `hud.ts` does not import this module. `ct/osd.ts`
 // DOES (for the menu's VOLUME row), which is why nothing here imports osd.
 import { panelUp, screenFadeLeftMs } from './hud';
@@ -2085,7 +2085,7 @@ export function register(ctx: CtxBuild): void {
       travel = (scene.userData.doorTravel as Record<string, { shut: number; open: number }> | undefined)?.leaf301 ?? null;
     }
     if (!leaf || !travel) return 0;
-    if (px >= APT_X0 || Math.abs(gy - 2 * ST0) > 0.5) return 0;   // hall, or another floor
+    if (px >= APT_X0 || Math.abs(gy - HOME_FI * ST0) > 0.5) return 0;   // hall, or another floor
     return shutFrac(leaf.rotation.y, travel);
   };
   let sway = 0;           // the second street layer, breathing

@@ -323,7 +323,7 @@ export const RENT = {
    * and the field says what he IS. Git history has the name if a character who
    * needs one ever moves in.
    */
-  flat: '301',
+  flat: '201',
   landlord: 'THE LANDLORD',
   building: 'No. 227',
 } as const;

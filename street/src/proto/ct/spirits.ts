@@ -5,7 +5,7 @@ import { mental, setMental, mentalDamage, mentalHeal } from './mental';
 import { arrears } from './tenancy';
 import { registerSlice, flush } from './save';
 import { awakeStretch, flatBed } from './fatigue';
-import { APT_X0, APT_Z0, ST0 } from './apartment';
+import { APT_X0, APT_Z0, ST0, HOME_FI } from './apartment';
 import { RENTAL } from './goods';
 import { itemOf } from './inventory';
 
@@ -81,7 +81,7 @@ let breaking = false;
  *  flat's own seat predicate is `x > 100` plus the storey; this adds the
  *  building's neighbourhood so no other interior at x > 100 can ever pass. */
 function atHome(ctx: CtxBuild): boolean {
-  return Math.abs(ctx.player.gy() - 2 * ST0) < 0.5
+  return Math.abs(ctx.player.gy() - HOME_FI * ST0) < 0.5
     && Math.abs(ctx.player.x() - APT_X0) < 9
     && Math.abs(ctx.player.z() - APT_Z0) < 9;
 }

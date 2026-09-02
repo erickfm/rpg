@@ -722,7 +722,7 @@ const BOOKS: Book[] = [
       r('rent', '$500 a season'),
       r('due', 'the 5th'),
       r('notice posted', 'the 2nd'),
-      r('your flat', '301, No. 227'),
+      r('your flat', '201, No. 227'),
       GAP,
       p('You pay THE LANDLORD in person, in the lobby of your own building. He '
         + 'stands there between seven in the morning and ten at night, and only '
@@ -771,13 +771,13 @@ const BOOKS: Book[] = [
         + 'health and no lower.'),
 
       h('SLEEPING PROPERLY'),
-      p('Every sleep in this world is eight hours — your own bed in 301, or a '
+      p('Every sleep in this world is eight hours — your own bed in 201, or a '
         + 'room at the ORPHEUS. A proper night RESTORES YOUR HEALTH IN FULL and '
         + 'resets the clock on staying awake. Collapsing does neither: it is a '
         + 'mugging, not a rest.'),
       p('Where you last went to sleep is where a blackout will dump you, so a '
         + 'night at the hotel moves the place your body turns up. If you have '
-        + 'never slept at all, you wake in 301.'),
+        + 'never slept at all, you wake in 201.'),
     ],
   },
 
@@ -1079,7 +1079,7 @@ const BOOKS: Book[] = [
         + 'own that plays a tape.'),
       shopHead('THE THRIFT STORE', 'THRIFT'),
       p('Clothes are bought AT THE FITTING MIRROR, not at the till, and they go '
-        + 'into your wardrobe in 301 rather than into your bag.'),
+        + 'into your wardrobe in 201 rather than into your bag.'),
       GAP,
       r('ANALOG WATCH', '$20.00'),
       r('BOOTS', '$18.00'),

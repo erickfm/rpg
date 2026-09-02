@@ -136,8 +136,8 @@ function stampNum(g: CanvasRenderingContext2D, num: string, x0: number, y0: numb
  * the closable door added.
  *
  * DERIVED from the building's own constants, so it survives the walk-up
- * moving: x = APT_X0 - 1.4, z = APT_Z0 + 3.7, floor 3 = 2 * ST0. Eye height
- * lands at 7.02.
+ * moving: x = APT_X0 - 1.4, z = APT_Z0 + 3.7, floor 2 = HOME_FI * ST0. Eye
+ * height lands at 4.32.
  */
 /** Where the walk-up stands, and its storey height. AT MODULE SCOPE because
  *  `SPAWN` below has to be derived from them rather than repeat them — these
@@ -148,22 +148,34 @@ function stampNum(g: CanvasRenderingContext2D, num: string, x0: number, y0: numb
  *  own APT_X/APT_Z/ST to these, so the 57 uses inside it are unchanged. */
 export const APT_X0 = 200, APT_Z0 = -20, ST0 = 2.7;
 
+/** WHICH STOREY IS HOME — the floor index of the player's flat (0 = the
+ *  lobby's storey). *"ok instead of trhe 3rd floor put us on the 2nd floor"*
+ *  (2026-09-02): was 2 (flats 301/302), now 1 (flats 201/202). Everything
+ *  floor-shaped derives from this — the flat's geometry, the spawn, the door
+ *  that swings, the gy gates here and in ct/tenancy, ct/audio, ct/spirits,
+ *  ct/fatigue. The hermit moved down with you: he is "the neighbour across
+ *  the hall", and across the hall is wherever home is. ⚠ Older prose and
+ *  internal names (leaf301, R301_*, 'apt301', the switch-301-rocker) still
+ *  say 301 — they are identifiers and history, not the fiction; the painted
+ *  numbers all derive. */
+export const HOME_FI = 1;
+
 export const SPAWN = {
   x: APT_X0 - 1.4,
   z: APT_Z0 + 3.7,
   yaw: -Math.PI / 2,
-  gy: 2 * ST0,
+  gy: HOME_FI * ST0,
 };
 
 /**
- * YOUR OWN DOOR. `SPAWN` above puts you at gy = 2 * ST0 on the west side, which
- * is the flat the door loop names `301` — the two have to agree, so this is
- * declared beside SPAWN rather than typed a fourth time further down.
+ * YOUR OWN DOOR. `SPAWN` above puts you at gy = HOME_FI * ST0 on the west
+ * side, which is the flat the door loop names `${HOME_FI + 1}01` — the two
+ * have to agree, so both are DERIVED from HOME_FI rather than typed.
  *
  * ⚠ ANYTHING THAT MUST NOT APPLY TO YOUR OWN HOME READS THIS. The user:
  * *"make it so packages i want to steal dont show up at my own door."*
  * (2026-08-11) — you cannot steal from yourself, so the parcel roll skips this
- * number entirely and the building delivers to the other seven doors. 302, the
+ * number entirely and the building delivers to the other seven doors. 202, the
  * hermit across the hall, still gets his; he is the neighbour the whole feature
  * was written about.
  *
@@ -171,7 +183,9 @@ export const SPAWN = {
  * it swaps a wall for a window, it does not move you to another flat — so there
  * is no state in which your door number changes.
  */
-export const HOME_FLAT = '301';
+export const HOME_FLAT = `${HOME_FI + 1}01`;
+/** the hermit's door, directly across the landing from yours */
+const NBR_FLAT = `${HOME_FI + 1}02`;
 
 // ══ A ROOM WITH A VIEW ══════════════════════════════════════════════════════
 //
@@ -351,6 +365,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // leave a check reaching for source and call it dev-only.
   scene.userData.spawn = SPAWN;
   const APT_X = APT_X0, APT_Z = APT_Z0, ST = ST0;
+  // the home landing's carpet height — every "is he on his own floor" gate and
+  // every piece of the flat's geometry reads this, never a typed multiple
+  const HOME_Y = HOME_FI * ST;
   // ── the switchback ───────────────────────────────────────────────────────
   // 7 risers over a 2.2 m run per half storey: a 0.193 m rise on a 0.314 m
   // tread, which is 31.5°. A normal residential pitch (US code allows about
@@ -516,7 +533,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const stairCap = mkCap();       // no stairs above floor 3
   const underStairA = mkCap();    // lobby: dead space under the flights
   const underStairB = mkCap();
-  const aptDoorCap = mkCap();     // 301's doorway only opens on floor 3
+  const aptDoorCap = mkCap();     // your doorway only opens on the home floor
   const hermitCap = mkCap();      // he is solid, but only when he is in
   const doorShutCap = mkCap();    // 301's leaf, when it is actually shut
   /** THE DEAD END'S ARMCHAIR AND END TABLE, ON FLOOR 3 ONLY.
@@ -603,8 +620,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // The building used to know its own door count in exactly one place — the
   // loop that drew them — so anything else that wanted to reason about doors
   // had to restate the arithmetic and hope. This is that knowledge, hoisted:
-  // eight flats, four landings, two per landing, and the two on floor index 2
-  // — the third storey, 301 and 302 — the ones that SWING.
+  // eight flats, four landings, two per landing, and the two on floor index
+  // HOME_FI — the home storey, yours and the hermit's — the ones that SWING.
   //
   // That last clause used to read "hung as real openings rather than drawn as
   // panels", which conflated two different things and is why six doors stayed
@@ -663,7 +680,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         wallN: west ? AX(0) : AX(2.4),
         hinge: hingeSide(num),
         face: west ? 1 : -1,
-        hung: f === 2,
+        hung: f === HOME_FI,
       });
     }
   }
@@ -1718,7 +1735,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     };
     {
       const x0 = AX(2.4) + WALL_T / 2, x1 = x0 + RECESS_D, xm = (x0 + x1) / 2;
-      const yb = 2 * ST, yt = yb + 2.1, ym = (yb + yt) / 2;
+      const yb = HOME_Y, yt = yb + 2.1, ym = (yb + yt) / 2;
       const zm = AZI(3.5);
       recessSurf(DOOR_GAP, 2.1, x1, ym, zm, -Math.PI / 2);          // back wall
       recessSurf(RECESS_D, 2.1, xm, ym, DOOR_Z0, 0);                 // north return
@@ -1732,8 +1749,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // 302 carried its NUMBER on both faces — the same fault as 301's, and it
       // would have been found by anyone who ever stood in the hermit's doorway.
       // Same rule, so the two hung doors cannot disagree.
-      const d302 = DOORS.find((d) => d.num === '302')!;
-      const hall302 = texM(doorTexN('302', false)), room302 = texM(doorTexInner());
+      const d302 = DOORS.find((d) => d.num === NBR_FLAT)!;
+      const hall302 = texM(doorTexN(NBR_FLAT, false)), room302 = texM(doorTexInner());
       hall302.userData.plate = true; room302.userData.plate = false;
       const [f302a, f302b] = leafFaces(D302_SHUT, d302.face, hall302, room302);
       const leaf = new THREE.Mesh(leafGeo,
@@ -1840,7 +1857,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // Face 4 is +z, face 5 is -z. Shut, the leaf is rotated a quarter turn,
       // which sends local +z to world +x — the HALL. So the numbered face is
       // index 4 and the room only ever sees the plain inner leaf.
-      const hallM = texM(doorTexN('301', false));
+      const hallM = texM(doorTexN(HOME_FLAT, false));
       const roomM = texM(doorTexInner());
       // stamped so scripts/doorfaces.mjs can assert which way the NUMBER points
       // without reading pixels — the plate is the thing that must only ever
@@ -1880,11 +1897,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         ...(scene.userData.doorTravel ?? {}),
         leaf301: { shut: DOOR_A_SHUT, open: DOOR_A_OPEN },
       };
-      leaf301.position.set(DOOR_PIV_X, 2 * ST + 1.09, DOOR_PIV_Z);
+      leaf301.position.set(DOOR_PIV_X, HOME_Y + 1.09, DOOR_PIV_Z);
       leaf301.rotation.y = doorA;
       scene.add(leaf301);
       const hingeM = new THREE.MeshBasicMaterial({ color: 0x4a4238 });
-      for (const hy of [2 * ST + 0.32, 2 * ST + 1.78]) {
+      for (const hy of [HOME_Y + 0.32, HOME_Y + 1.78]) {
         const hg = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.11, 0.022), hingeM);
         hg.position.set(AX(-0.032), hy, DOOR_PIV_Z + 0.007);   // on the pivot line
         scene.add(hg);
@@ -1909,7 +1926,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       //
       // Both stand-points share the same ok/label/act — a door is one piece
       // of state with two thresholds, not two doors that happen to agree.
-      const doorOk = () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5;
+      const doorOk = () => ctx.player.x() > 100 && Math.abs(lastGy - HOME_Y) < 0.5;
       /** ARE YOU STANDING IN THE HALL? The two stand-points are mirrored about
        *  the wall's own centreline `AX(0)`, so which side you are on is the one
        *  question this pair of spots can answer from the player's x alone —
@@ -1921,7 +1938,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // THE REFUSAL IS IN THE CAPTION YOU ARE ALREADY READING — K's rule. A
         // key that does nothing and says nothing is how a player concludes the
         // door is broken rather than locked.
-        ? 'the lock has been changed — 301 is not yours'
+        ? `the lock has been changed — ${HOME_FLAT} is not yours`
         : (doorShut ? 'open the door' : 'close the door'));
       const doorAct = () => { if (!barred()) doorShut = !doorShut; };
       // IT NEVER REFUSES. The user: *"it should always be able to
@@ -2075,7 +2092,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { facing: HERMIT_FACING, h: 1.1, w: 1.2 },
     );
     hermit = hermitSprite.mesh;
-    hermit.position.set(AX(1.95), 2 * ST, AZI(3.5));
+    hermit.position.set(AX(1.95), HOME_Y, AZI(3.5));
     scene.add(hermit);
     // ── the hall lights ──────────────────────────────────────────────────
     // A period flush-mount: bronze ceiling rose, shallow ribbed opal dome
@@ -2895,8 +2912,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     scene.add(viewGrp);
     let winFill: THREE.Mesh;
     {
-      const WY = 2 * ST + 1.5, WH = 1.3, WZ = R301_CZ, WW = 1.3;
-      const y0 = 2 * ST, y1 = 2 * ST + R301_H;
+      const WY = HOME_Y + 1.5, WH = 1.3, WZ = R301_CZ, WW = 1.3;
+      const y0 = HOME_Y, y1 = HOME_Y + R301_H;
       const oy0 = WY - WH / 2, oy1 = WY + WH / 2;
       const z0 = R301_Z0, z1 = R301_Z1;
       const oz0 = WZ - WW / 2, oz1 = WZ + WW / 2;
@@ -2926,8 +2943,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       wallMesh(z1 - oz1, WH, AX(R301_X0), WY, AZI((oz1 + z1) / 2), Math.PI / 2, roomWallT, 0, oy0 - y0);
       winFill = wallMesh(WW, WH, AX(R301_X0), WY, AZI(WZ), Math.PI / 2, roomWallT, z1 - oz1, oy0 - y0);
     }
-    wallMesh(R301_W, R301_H, AX(R301_CX), 2 * ST + R301_H / 2, AZI(R301_Z0), 0, roomWallT);
-    wallMesh(R301_W, R301_H, AX(R301_CX), 2 * ST + R301_H / 2, AZI(R301_Z1), Math.PI, roomWallT);
+    wallMesh(R301_W, R301_H, AX(R301_CX), HOME_Y + R301_H / 2, AZI(R301_Z0), 0, roomWallT);
+    wallMesh(R301_W, R301_H, AX(R301_CX), HOME_Y + R301_H / 2, AZI(R301_Z1), Math.PI, roomWallT);
     // ── 301's FOURTH wall ────────────────────────────────────────────────
     // The room papered three walls and forgot the one with its own door in it.
     // That wall is the stairwell shell's, built by the `wallMesh` runs at
@@ -2967,16 +2984,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         m.rotation.y = -Math.PI / 2;                   // faces -x, into the room
         scene.add(m);
       };
-      skin(DZ0 - R301_Z0, R301_H, (R301_Z0 + DZ0) / 2, 2 * ST + R301_H / 2, 0);    // south of the door
-      skin(R301_Z1 - DZ1, R301_H, (DZ1 + R301_Z1) / 2, 2 * ST + R301_H / 2, 0);    // north of it
-      skin(DOOR_GAP, R301_H - HEAD, R301_DOOR_Z, 2 * ST + HEAD + (R301_H - HEAD) / 2, HEAD);  // over it
+      skin(DZ0 - R301_Z0, R301_H, (R301_Z0 + DZ0) / 2, HOME_Y + R301_H / 2, 0);    // south of the door
+      skin(R301_Z1 - DZ1, R301_H, (DZ1 + R301_Z1) / 2, HOME_Y + R301_H / 2, 0);    // north of it
+      skin(DOOR_GAP, R301_H - HEAD, R301_DOOR_Z, HOME_Y + HEAD + (R301_H - HEAD) / 2, HEAD);  // over it
     }
-    floorMesh(2 * ST + 0.007, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ), woodFloorT);
+    floorMesh(HOME_Y + 0.007, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ), woodFloorT);
     // 301's own ceiling gets the slab too — it is the room he is standing in
     // when he jumps, and the flat sits WEST of the hall shell, so there is no
     // carpet plane above it at all. `R301_H` is unchanged: the slab grows up
     // off it and the room is the same 2.55 m it has always been.
-    ceilMesh(2 * ST + R301_H, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ));
+    ceilMesh(HOME_Y + R301_H, R301_W, R301_D, AX(R301_CX), AZI(R301_CZ));
 
     // ── AND SAY SO, so the world's room registry knows this room exists ────
     //
@@ -2997,10 +3014,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // from a few lines above — not a second copy of 2.55 (BUILDER-BRIEF §8).
       h: R301_H,
       cx: AX(R301_CX), cz: AZI(R301_CZ),
-      // FLOOR 3, the same `2 * ST` the flat's own floor and ceiling are drawn
+      // THE HOME FLOOR, the same `HOME_Y` the flat's own floor and ceiling are drawn
       // at. It is the only room in the registry that is not at y 0, and a
       // harness that warps here must hand it to `warp`'s `gy` — see RoomDims.y.
-      y: 2 * ST,
+      y: HOME_Y,
       door: { x: R301_X1 - R301_CX, z: R301_DOOR_Z - R301_CZ, nx: -1, nz: 0 },
     });
     // ── 301, furnished ───────────────────────────────────────────────────
@@ -3035,7 +3052,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      * framework's white cannot reach them.
      */
     let roomLitK = 1;
-    const RY = 2 * ST + 0.007;               // the floorboards
+    const RY = HOME_Y + 0.007;               // the floorboards
     // solid furniture, so front faces only — texM's DoubleSide is for planes
     const flatOf2 = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t });
     const box = (w: number, h: number, d: number, x: number, y: number, z: number,
@@ -3046,7 +3063,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       scene.add(b);
       return b;
     };
-    // The view: third floor of No. 227, which stands on the EAST side of the
+    // The view: the second floor of No. 227 now (*"put us on the 2nd floor"*,
+    // 2026-09-02 — the picture was composed a storey higher and has not been
+    // repainted), which stands on the EAST side of the
     // street with its face turned WEST — so what you see is the far pavement,
     // the facades opposite, and the mouth of the alley almost straight ahead.
     // It has to agree with where the building actually is.
@@ -3086,7 +3105,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // it. That is not a detail, it is the whole difference: a window you look
     // at is a picture, and a window you look THROUGH has 11 cm of jamb
     // between you and it, so the view shifts as you cross the room.
-    const WIN_W = 1.3, WIN_H = 1.3, WIN_Y = 2 * ST + 1.5, WIN_LZ = 3.75;
+    const WIN_W = 1.3, WIN_H = 1.3, WIN_Y = HOME_Y + 1.5, WIN_LZ = 3.75;
     const WIN_LX = -3.2;                          // the wall's centreline
     const GLASS_X = WIN_LX - 0.062;               // the wall's OUTER face
     const REV_D = 0.11;                           // what is left in front of it
@@ -3715,7 +3734,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // collider (z -15.60..-14.68) and the radiator (x 196.9..197.06).
     ctx.spot({
       x: AX(-2.6), z: AZI(4.2), r: 0.75,
-      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - HOME_Y) < 0.5,
       // ONE WORD — *"the e dialog is just 'sleep'"* — same rule as the talk
       // prompt on NPCs: the verb, never a description of the verb.
       label: () => 'sleep',
@@ -4299,7 +4318,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     ctx.spot({
       x: AX(-2.65), z: AZI(3.31), r: 0.70, obj: lining,
       aimX: lining.position.x, aimZ: lining.position.z,
-      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - HOME_Y) < 0.5,
       label: () => 'look in the drawer',
       act: openDrawer,
     });
@@ -5453,7 +5472,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     ctx.onFrame(({ dt, px, pz }) => {
       // Only while somebody is on this floor. A canvas redrawn 8 times a
       // second for a room nobody is in is pure cost.
-      if (Math.abs(lastGy - 2 * ST) > 0.5) return;
+      if (Math.abs(lastGy - HOME_Y) > 0.5) return;
       const seated = Math.abs(px - TV_SEAT_X) < 0.20 && Math.abs(pz - TV_SEAT_Z) < 0.20;
       if (seated !== tvLit) {
         tvLit = seated;
@@ -5604,7 +5623,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // unreachable. Moving the point is the part the global cut cannot do.
     ctx.seat({
       x: TV_SEAT_X, z: TV_SEAT_Z, yaw: 0, h: 0.45, r: 0.70,
-      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - HOME_Y) < 0.5,
       label: 'sit on the bed and watch TV',
       standLabel: 'stop watching TV',
     });
@@ -5850,7 +5869,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     ctx.spot({
       x: AX(-0.745), z: AZI(4.20), r: 0.70, obj: mirror,
       aimX: mirror.position.x, aimZ: mirror.position.z,
-      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - HOME_Y) < 0.5,
       label: () => 'look in the mirror',
       act: openMirror,
     });
@@ -6772,7 +6791,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // AIM AT THE PAGE, which is where the player is looking when he reads it —
       // the same two numbers `cal.position.set` uses above, not a second copy.
       aimX: CAL_X, aimZ: SOUTH_Z,
-      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - HOME_Y) < 0.5,
       label: () => 'read the calendar',
       act: openCalendar,
     });
@@ -6780,7 +6799,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Same instruction, same wall: 0.40 x 0.153 of taped-up photographs at
     // AX(-1.62), with their own 34 x 13 field. Also gone, also not replaced.
     // lit by the same fixture as the landing outside the door
-    const flatLamp = ceilingLamp(2 * ST + 2.55, AZI(3.75), 0.55, AX(-1.6));
+    const flatLamp = ceilingLamp(HOME_Y + 2.55, AZI(3.75), 0.55, AX(-1.6));
 
     // ══ THE LIGHT SWITCH ══════════════════════════════════════════════════
     //
@@ -7012,7 +7031,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // move. See `tvSetRoomDim`.
       tvSetRoomDim(lightOn ? k : k / (viewOn ? ROOM_DARK : NOVIEW_DARK));
     };
-    ctx.onFrame(() => { if (Math.abs(lastGy - 2 * ST) < 0.6) applyRoomLight(); });
+    ctx.onFrame(() => { if (Math.abs(lastGy - HOME_Y) < 0.6) applyRoomLight(); });
     setLight(true);
 
     // ── A ROOM WITH A VIEW: the toggle, and its slice ─────────────────────
@@ -7043,7 +7062,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // ⚠ AIM AT THE PLATE, NOT AT THE PATCH OF FLOOR HE STANDS ON. A switch is
       // 11 cm of wall at chest height and is exactly the case that fix was for.
       aimX: SW_X, aimZ: SW_Z,
-      ok: () => Math.abs(lastGy - 2 * ST) < 0.5,
+      ok: () => Math.abs(lastGy - HOME_Y) < 0.5,
       // *"should jkust say light switch"* — two words, no article, no state.
       // The rocker says which way it is and now so does the whole room.
       label: () => 'light switch',
@@ -7523,13 +7542,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     // NO `maxY`, deliberately — a railing is a wall, and a top would let you
     // stand on the bannister and go over from higher up.
-    const HALF_LAND_Y = 2 * ST + RISE;   // 6.75 — top of flight A, the last
+    // NOT the home floor's number: this is the TOPMOST half landing, the last
+    // walkable thing under the balustrade guard, and it derives from the top.
+    const HALF_LAND_Y = TOP_Y - RISE;    // 6.75 — top of flight A, the last
     setCap(stairCap, lastGy > HALF_LAND_Y + 0.1,   // walkable thing under the nib
       AX(0), AX(1.2), AZI(GUARD_Z - BAL_D / 2), AZI(LAND_Z1));
     const onLobby = px > 100 && lastGy < 0.6;
     setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(STAIR_Z0), AZI(LAND_Z1));
     setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(STAIR_Z1), AZI(LAND_Z1));
-    setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
+    setCap(aptDoorCap, Math.abs(lastGy - HOME_Y) > 0.4, AX(-0.15), AX(0.05), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
     // ── the dead end's armchair and end table, on floor 3 only ──────────
     //
     // GATED ABOVE 7.60 RATHER THAN AT 8.10 ± 0.5, and the difference is what
@@ -7573,7 +7594,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // breaking). Off the storey there is nobody in the opening to shove, and
     // the one moment this can fire — you are downstairs being told you are out
     // — is exactly the moment the fiction wants it.
-    if (lockedOut && Math.abs(lastGy - 2 * ST) >= 0.5) doorShut = true;
+    if (lockedOut && Math.abs(lastGy - HOME_Y) >= 0.5) doorShut = true;
     const target = doorShut ? DOOR_A_SHUT : DOOR_A_OPEN;
     if (doorA !== target) {
       const step = 4.2 * Math.min(dt, 0.05);           // ~0.7 s end to end
@@ -7590,7 +7611,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // becomes -pi/2 while open is +1.32, so that test was true at BOTH ends and
       // the doorway stayed blocked with the door standing open. A distance test
       // has no handedness in it and cannot be wrong that way again.
-      Math.abs(doorA - DOOR_A_SHUT) < 0.10 && Math.abs(lastGy - 2 * ST) < 0.5,
+      Math.abs(doorA - DOOR_A_SHUT) < 0.10 && Math.abs(lastGy - HOME_Y) < 0.5,
       AX(-0.16), AX(0.06), AZI(3.5 - DOOR_GAP / 2) - 0.02, AZI(3.5 + DOOR_GAP / 2) + 0.02);
   };
 
@@ -7601,7 +7622,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     //
     // ONE BUG, NOT TWO, and it is worth being exact because the two candidates
     // wanted opposite fixes. His Y IS CORRECT — measured, he stands at float
-    // 0.00 on the landing whose carpet is 2 * ST, which is his. What was wrong
+    // 0.00 on the landing whose carpet is HOME_Y, which is his. What was wrong
     // is that `visible` was set from the schedule ALONE, with no floor gate, so
     // he was drawn on every landing in the building at his own storey's height:
     //
@@ -7617,7 +7638,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // of it: the collider was floor-gated and the sprite was not, so from
     // another landing he was visible and not solid — two halves of one figure
     // disagreeing about whether he was there.
-    const onHisLanding = Math.abs(lastGy - 2 * ST) < 0.5;
+    const onHisLanding = Math.abs(lastGy - HOME_Y) < 0.5;
     // THE SCHEDULE IS ONLY CONSULTED IN `in` AND `loiter`. Everywhere else the
     // sequence is already running and finishes on its own, which is the
     // "do not let him vanish mid-sequence" rule expressed as control flow
@@ -7701,7 +7722,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // player is the depenetration bug from the other side: he would shove you
     // rather than wait for you, which is exactly what he is not supposed to do.
     const capIn = Math.abs(px - AX(hermitX)) < 0.42 && Math.abs(pz - AZI(3.5)) < 0.42;
-    setCap(hermitCap, hermit.visible && !capIn && Math.abs(lastGy - 2 * ST) < 0.5,
+    setCap(hermitCap, hermit.visible && !capIn && Math.abs(lastGy - HOME_Y) < 0.5,
       AX(hermitX - 0.26), AX(hermitX + 0.26), AZI(3.24), AZI(3.76));
     if (!hermit.visible) return;
     // The sprite does the turning and the column now, and it needs the
